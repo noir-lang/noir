@@ -1,7 +1,11 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { AggregationObject } from '../aggregation_object.js';
-import { AccumulatedNonRevertibleData, CombinedAccumulatedData } from './combined_accumulated_data.js';
+import {
+  CombinedAccumulatedData,
+  PublicAccumulatedNonRevertibleData,
+  PublicAccumulatedRevertibleData,
+} from './combined_accumulated_data.js';
 import { CombinedConstantData } from './combined_constant_data.js';
 
 /**
@@ -9,6 +13,8 @@ import { CombinedConstantData } from './combined_constant_data.js';
  * All Public kernels use this shape for outputs.
  */
 export class PublicKernelCircuitPublicInputs {
+  private combined: CombinedAccumulatedData | undefined = undefined;
+
   constructor(
     /**
      * Aggregated proof of all the previous kernel iterations.
@@ -17,19 +23,27 @@ export class PublicKernelCircuitPublicInputs {
     /**
      * Accumulated side effects and enqueued calls that are not revertible.
      */
-    public endNonRevertibleData: AccumulatedNonRevertibleData,
+    public endNonRevertibleData: PublicAccumulatedNonRevertibleData,
     /**
      * Data accumulated from both public and private circuits.
      */
-    public end: CombinedAccumulatedData,
+    public end: PublicAccumulatedRevertibleData,
     /**
      * Data which is not modified by the circuits.
      */
     public constants: CombinedConstantData,
     /**
-     * Indicates whether the input is for a private or public kernel.
+     * Indicates whether the setup kernel is needed.
      */
-    public isPrivate: boolean,
+    public needsSetup: boolean,
+    /**
+     * Indicates whether the app logic kernel is needed.
+     */
+    public needsAppLogic: boolean,
+    /**
+     * Indicates whether the teardown kernel is needed.
+     */
+    public needsTeardown: boolean,
   ) {}
 
   toBuffer() {
@@ -38,8 +52,17 @@ export class PublicKernelCircuitPublicInputs {
       this.endNonRevertibleData,
       this.end,
       this.constants,
-      this.isPrivate,
+      this.needsSetup,
+      this.needsAppLogic,
+      this.needsTeardown,
     );
+  }
+
+  get combinedData() {
+    if (!this.combined) {
+      this.combined = CombinedAccumulatedData.recombine(this.endNonRevertibleData, this.end);
+    }
+    return this.combined;
   }
 
   /**
@@ -51,9 +74,11 @@ export class PublicKernelCircuitPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new PublicKernelCircuitPublicInputs(
       reader.readObject(AggregationObject),
-      reader.readObject(AccumulatedNonRevertibleData),
-      reader.readObject(CombinedAccumulatedData),
+      reader.readObject(PublicAccumulatedNonRevertibleData),
+      reader.readObject(PublicAccumulatedRevertibleData),
       reader.readObject(CombinedConstantData),
+      reader.readBoolean(),
+      reader.readBoolean(),
       reader.readBoolean(),
     );
   }
@@ -61,9 +86,11 @@ export class PublicKernelCircuitPublicInputs {
   static empty() {
     return new PublicKernelCircuitPublicInputs(
       AggregationObject.makeFake(),
-      AccumulatedNonRevertibleData.empty(),
-      CombinedAccumulatedData.empty(),
+      PublicAccumulatedNonRevertibleData.empty(),
+      PublicAccumulatedRevertibleData.empty(),
       CombinedConstantData.empty(),
+      true,
+      true,
       true,
     );
   }

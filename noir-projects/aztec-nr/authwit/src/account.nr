@@ -61,7 +61,7 @@ impl AccountActions {
         let fee_hash = fee_payload.hash();
         assert(valid_fn(private_context, fee_hash));
         fee_payload.execute_calls(private_context);
-        private_context.capture_max_non_revertible_side_effect_counter();
+        private_context.capture_min_revertible_side_effect_counter();
 
         let app_hash = app_payload.hash();
         assert(valid_fn(private_context, app_hash));

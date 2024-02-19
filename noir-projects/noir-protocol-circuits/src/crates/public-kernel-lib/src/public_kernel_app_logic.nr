@@ -12,12 +12,11 @@ struct PublicKernelAppLogicCircuitPrivateInputs {
 
 impl PublicKernelAppLogicCircuitPrivateInputs {
 
-    // this is the only difference between the two PublicKernels' logic:
     fn validate_inputs(self) {
-        let previous_call_is_private = self.previous_kernel.public_inputs.is_private;
-        assert(
-            previous_call_is_private == false, "Previous kernel must be public when in this public kernel version"
-        );
+        let needs_setup = self.previous_kernel.public_inputs.needs_setup;
+        assert(needs_setup == false, "Cannot run app logic circuit before setup circuit");
+        let needs_app_logic = self.previous_kernel.public_inputs.needs_app_logic;
+        assert(needs_app_logic == true, "Cannot run unnecessary app logic circuit");
     }
 
     fn public_kernel_app_logic(self) -> PublicKernelCircuitPublicInputs {
@@ -54,16 +53,19 @@ mod tests {
     use crate::{
         public_kernel_app_logic::PublicKernelAppLogicCircuitPrivateInputs,
         utils::{
-        assert_eq_public_data_reads, assert_eq_public_data_update_requests, compute_public_data_reads,
+        assert_eq_call_requests, assert_eq_new_contracts, assert_eq_public_data_reads,
+        assert_eq_public_data_update_requests, compute_public_data_reads,
         compute_public_data_update_requests
     }
     };
     use dep::types::{
         abis::{
+        new_contract_data::NewContractData,
         kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, public_data_read::PublicDataRead,
         public_data_update_request::PublicDataUpdateRequest,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash}
     },
+        address::{AztecAddress, EthAddress}, contract_class::ContractClassId,
         hash::{compute_l2_to_l1_hash, compute_logs_hash, silo_commitment, silo_nullifier},
         messaging::l2_to_l1_message::L2ToL1Message,
         tests::{kernel_data_builder::PreviousKernelDataBuilder, public_call_data_builder::PublicCallDataBuilder},
@@ -78,7 +80,7 @@ mod tests {
 
     impl PublicKernelAppLogicCircuitPrivateInputsBuilder {
         pub fn new() -> Self {
-            let previous_kernel = PreviousKernelDataBuilder::new().is_public();
+            let previous_kernel = PreviousKernelDataBuilder::new(true).is_public();
             let public_call = PublicCallDataBuilder::new();
 
             PublicKernelAppLogicCircuitPrivateInputsBuilder { previous_kernel, public_call }
@@ -144,12 +146,22 @@ mod tests {
     //     let _ = kernel.public_kernel_app_logic();
     // }
 
-    #[test(should_fail_with="Previous kernel must be public when in this public kernel version")]
+    #[test(should_fail_with="Cannot run unnecessary app logic circuit")]
     fn public_previous_kernel_private_previous_kernel_should_fail() {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
-        builder.previous_kernel = PreviousKernelDataBuilder::new();
+        builder.previous_kernel = PreviousKernelDataBuilder::new(true);
+        let public_call = builder.public_call.finish();
 
-        builder.failed();
+        // the key difference in this test versus those that use builder.execute()
+        // is that we do not add a public call request to the previous kernel.
+        // this means that when we call `to_public_kernel_data` below, 
+        // it will say needs_app_logic is false
+
+        let previous_kernel = builder.previous_kernel.to_public_kernel_data();
+
+        let kernel = PublicKernelAppLogicCircuitPrivateInputs { previous_kernel, public_call };
+
+        let _ = kernel.public_kernel_app_logic();
     }
 
     #[test]
@@ -218,12 +230,12 @@ mod tests {
         let contract_address = builder.public_call.contract_address;
 
         // Setup 2 new nullifiers on the previous kernel.
-        builder.previous_kernel.append_new_nullifiers(2);
+        builder.previous_kernel.append_new_nullifiers_from_public(2);
         let previous = builder.previous_kernel.end.new_nullifiers.storage;
         // Setup 2 new commitments on the current public inputs.
 
         let current = [
-            SideEffectLinkedToNoteHash { value: previous[2].value + 1, note_hash: 0, counter: 3 }, SideEffectLinkedToNoteHash { value: previous[2].value + 2, note_hash: 0, counter: 4 }
+            SideEffectLinkedToNoteHash { value: previous[1].value + 1, note_hash: 0, counter: 4 }, SideEffectLinkedToNoteHash { value: previous[1].value + 2, note_hash: 0, counter: 5 }
         ];
 
         let siloed = current.map(
@@ -232,8 +244,9 @@ mod tests {
         );
 
         builder.public_call.public_inputs.new_nullifiers.extend_from_array(current);
-        // There are 3 nullifiers in the previous kernel. The first one is the tx nullifier.
-        let new_nullifiers = [previous[0], previous[1], previous[2], siloed[0], siloed[1]];
+        // There are 2 revertible nullifiers in the previous kernel.
+        // The tx nullifier is part of the non-revertible nullifiers.
+        let new_nullifiers = [previous[0], previous[1], siloed[0], siloed[1]];
 
         let public_inputs = builder.execute();
 
@@ -329,5 +342,77 @@ mod tests {
         builder.public_call.public_inputs.new_nullifiers.push(SideEffectLinkedToNoteHash { value: 1, note_hash: 0, counter: 0 });
 
         builder.failed();
+    }
+
+    #[test(should_fail_with="call stack storage address does not match expected contract address for delegate calls")]
+    fn public_kernel_circuit_fails_on_incorrect_storage_contract_in_delegate_call() {
+        let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new().is_delegate_call();
+
+        // Set the storage contract address to be the contract address.
+        builder.public_call.public_inputs.call_context.storage_contract_address = builder.public_call.contract_address;
+
+        builder.failed();
+    }
+
+    #[test(should_fail_with = "call requests length does not match the expected length")]
+    fn incorrect_call_requests_length_fails() {
+        let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
+
+        builder.public_call.append_public_call_requests(2, false);
+        // Remove one call request.
+        let _ = builder.public_call.public_call_stack.pop();
+
+        builder.failed();
+    }
+
+    #[test]
+    fn only_valid_update_requests_should_be_propagated() {
+        let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
+        builder.public_call.append_update_requests(1);
+        builder.public_call.append_empty_update_requests(1);
+        builder.public_call.append_update_requests(1);
+        let public_data_update_requests = builder.get_current_public_data_update_requests();
+
+        let public_inputs = builder.execute();
+
+        // Only the 2 valid reads should have been propagated.
+        let expected = [public_data_update_requests[0], public_data_update_requests[2]];
+        assert_eq_public_data_update_requests(public_inputs.end.public_data_update_requests, expected);
+    }
+
+    #[test]
+    fn circuit_outputs_should_be_correctly_populated_with_previous_private_kernel() {
+        let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
+        let new_contracts = [
+            NewContractData {
+                contract_address: AztecAddress::from_field(123),
+                portal_contract_address: EthAddress::from_field(456),
+                contract_class_id: ContractClassId::from_field(78)
+            }
+        ];
+        builder.previous_kernel.end.new_contracts.extend_from_array(new_contracts);
+
+        builder.public_call.append_public_call_requests_for_regular_calls(2);
+        let storage = builder.public_call.public_call_stack.storage;
+        let public_call_stack = [storage[0], storage[1]];
+
+        builder.public_call.append_update_requests(2);
+        let storage = builder.get_current_public_data_update_requests();
+        let update_requests = [storage[0], storage[1]];
+
+        builder.public_call.append_read_requests(3);
+        let storage = builder.get_current_public_data_reads();
+        let read_requests = [storage[0], storage[1], storage[2]];
+
+        let public_inputs = builder.execute();
+
+        assert_eq_new_contracts(public_inputs.end.new_contracts, new_contracts);
+        assert_eq_call_requests(public_inputs.end.private_call_stack, []);
+        assert_eq_call_requests(public_inputs.end.public_call_stack, public_call_stack);
+        assert_eq_public_data_update_requests(
+            public_inputs.end.public_data_update_requests,
+            update_requests
+        );
+        assert_eq_public_data_reads(public_inputs.end.public_data_reads, read_requests);
     }
 }

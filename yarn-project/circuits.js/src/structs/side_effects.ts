@@ -59,7 +59,15 @@ export class SideEffect implements SideEffectType {
    * @returns True if the value and counter both are zero.
    */
   isEmpty() {
-    return this.value.isZero() && this.counter.isZero();
+    return SideEffect.isEmpty(this);
+  }
+
+  /**
+   * Checks whether this instance of side-effect is empty.
+   * @returns True if the value and counter both are zero.
+   */
+  static isEmpty(sideEffect: SideEffect) {
+    return sideEffect.value.isZero() && sideEffect.counter.isZero();
   }
 
   /**
@@ -127,7 +135,15 @@ export class SideEffectLinkedToNoteHash implements SideEffectType {
    * @returns True if the value, note hash and counter are all zero.
    */
   isEmpty() {
-    return this.value.isZero() && this.noteHash.isZero() && this.counter.isZero();
+    return SideEffectLinkedToNoteHash.isEmpty(this);
+  }
+
+  /**
+   * Returns whether this instance of side-effect is empty.
+   * @returns True if the value, note hash and counter are all zero.
+   */
+  static isEmpty(sideEffect: SideEffectLinkedToNoteHash) {
+    return sideEffect.value.isZero() && sideEffect.noteHash.isZero() && sideEffect.counter.isZero();
   }
 
   /**

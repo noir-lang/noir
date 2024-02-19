@@ -116,7 +116,13 @@ export class PublicCallRequest {
     const callerContext = this.callContext.isDelegateCall
       ? new CallerContext(this.parentCallContext.msgSender, this.parentCallContext.storageContractAddress)
       : CallerContext.empty();
-    return new CallRequest(item.hash(), this.parentCallContext.storageContractAddress, callerContext, Fr.ZERO, Fr.ZERO);
+    return new CallRequest(
+      item.hash(),
+      this.parentCallContext.storageContractAddress,
+      callerContext,
+      new Fr(this.callContext.startSideEffectCounter),
+      Fr.ZERO,
+    );
   }
 
   /**

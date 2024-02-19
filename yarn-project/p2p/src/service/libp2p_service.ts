@@ -318,7 +318,7 @@ export class LibP2PService implements P2PService {
   }
 
   private async processTxFromPeer(tx: Tx, peerId: PeerId): Promise<void> {
-    const txHash = await tx.getTxHash();
+    const txHash = tx.getTxHash();
     const txHashString = txHash.toString();
     this.knownTxLookup.addPeerForTx(peerId, txHashString);
     this.logger(`Received tx ${txHashString} from peer ${peerId.toString()}`);
@@ -330,7 +330,7 @@ export class LibP2PService implements P2PService {
     const txs = createTransactionsMessage([tx]);
     const payload = new Uint8Array(txs);
     const peers = this.getTxPeers();
-    const txHash = await tx.getTxHash();
+    const txHash = tx.getTxHash();
     const txHashString = txHash.toString();
     for (const peer of peers) {
       try {
@@ -376,7 +376,7 @@ export class LibP2PService implements P2PService {
     const message = createTransactionsMessage(txs);
     await this.sendRawMessageToPeer(message, peer);
     for (const tx of txs) {
-      const hash = await tx.getTxHash();
+      const hash = tx.getTxHash();
       this.knownTxLookup.addPeerForTx(peer, hash.toString());
     }
   }

@@ -1,7 +1,7 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { AggregationObject } from '../aggregation_object.js';
-import { AccumulatedNonRevertibleData, FinalAccumulatedData } from './combined_accumulated_data.js';
+import { PrivateAccumulatedNonRevertibleData, PrivateAccumulatedRevertibleData } from './combined_accumulated_data.js';
 import { CombinedConstantData } from './combined_constant_data.js';
 
 /**
@@ -16,19 +16,27 @@ export class PrivateKernelTailCircuitPublicInputs {
     /**
      * Accumulated side effects that are not revertible.
      */
-    public endNonRevertibleData: AccumulatedNonRevertibleData,
+    public endNonRevertibleData: PrivateAccumulatedNonRevertibleData,
     /**
      * Data accumulated from both public and private circuits.
      */
-    public end: FinalAccumulatedData,
+    public end: PrivateAccumulatedRevertibleData,
     /**
      * Data which is not modified by the circuits.
      */
     public constants: CombinedConstantData,
     /**
-     * Indicates whether the input is for a private or public kernel.
+     * Indicates whether the setup kernel is needed.
      */
-    public isPrivate: boolean,
+    public needsSetup: boolean,
+    /**
+     * Indicates whether the app logic kernel is needed.
+     */
+    public needsAppLogic: boolean,
+    /**
+     * Indicates whether the teardown kernel is needed.
+     */
+    public needsTeardown: boolean,
   ) {}
 
   toBuffer() {
@@ -37,7 +45,9 @@ export class PrivateKernelTailCircuitPublicInputs {
       this.endNonRevertibleData,
       this.end,
       this.constants,
-      this.isPrivate,
+      this.needsSetup,
+      this.needsAppLogic,
+      this.needsTeardown,
     );
   }
 
@@ -50,9 +60,11 @@ export class PrivateKernelTailCircuitPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new PrivateKernelTailCircuitPublicInputs(
       reader.readObject(AggregationObject),
-      reader.readObject(AccumulatedNonRevertibleData),
-      reader.readObject(FinalAccumulatedData),
+      reader.readObject(PrivateAccumulatedNonRevertibleData),
+      reader.readObject(PrivateAccumulatedRevertibleData),
       reader.readObject(CombinedConstantData),
+      reader.readBoolean(),
+      reader.readBoolean(),
       reader.readBoolean(),
     );
   }
@@ -60,9 +72,11 @@ export class PrivateKernelTailCircuitPublicInputs {
   static empty() {
     return new PrivateKernelTailCircuitPublicInputs(
       AggregationObject.makeFake(),
-      AccumulatedNonRevertibleData.empty(),
-      FinalAccumulatedData.empty(),
+      PrivateAccumulatedNonRevertibleData.empty(),
+      PrivateAccumulatedRevertibleData.empty(),
       CombinedConstantData.empty(),
+      true,
+      true,
       true,
     );
   }

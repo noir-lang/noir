@@ -13,6 +13,8 @@ members = [
     "crates/public-kernel-setup-simulated",
     "crates/public-kernel-app-logic",
     "crates/public-kernel-app-logic-simulated",
+    "crates/public-kernel-teardown",
+    "crates/public-kernel-teardown-simulated",
     "crates/rollup-lib",
     "crates/rollup-merge",
     "crates/rollup-base",

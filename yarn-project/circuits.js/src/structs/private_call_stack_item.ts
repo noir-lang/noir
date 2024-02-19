@@ -112,7 +112,12 @@ export class PrivateCallStackItem {
     const callerContext = currentCallContext.isDelegateCall
       ? new CallerContext(parentCallContext.msgSender, parentCallContext.storageContractAddress)
       : CallerContext.empty();
-    // todo: populate side effect counters correctly
-    return new CallRequest(this.hash(), parentCallContext.storageContractAddress, callerContext, Fr.ZERO, Fr.ZERO);
+    return new CallRequest(
+      this.hash(),
+      parentCallContext.storageContractAddress,
+      callerContext,
+      new Fr(this.publicInputs.callContext.startSideEffectCounter),
+      this.publicInputs.endSideEffectCounter,
+    );
   }
 }

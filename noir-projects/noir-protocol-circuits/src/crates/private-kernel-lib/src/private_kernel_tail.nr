@@ -2,8 +2,7 @@ use crate::common;
 use dep::std::{cmp::Eq, option::Option, unsafe};
 use dep::types::{
     abis::{
-    call_request::CallRequest, combined_accumulated_data::AccumulatedNonRevertibleData,
-    nullifier_key_validation_request::NullifierKeyValidationRequestContext,
+    call_request::CallRequest, nullifier_key_validation_request::NullifierKeyValidationRequestContext,
     kernel_data::{PrivateKernelInnerData, PrivateKernelTailData},
     kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputsBuilder, PrivateKernelTailCircuitPublicInputs},
     side_effect::{SideEffect, SideEffectLinkedToNoteHash, Ordered}
@@ -221,17 +220,17 @@ impl PrivateKernelTailCircuitPrivateInputs {
 
         PrivateKernelTailCircuitPrivateInputs::apply_commitment_nonces(&mut public_inputs);
 
-        // TODO(fees) populate this
-        let end_non_revertible : AccumulatedNonRevertibleData = unsafe::zeroed();
-
-        public_inputs.to_tail(end_non_revertible)
+        public_inputs.to_tail()
     }
 }
 
 mod tests {
     use dep::std::cmp::Eq;
     use crate::private_kernel_tail::PrivateKernelTailCircuitPrivateInputs;
-    use dep::types::constants::{MAX_READ_REQUESTS_PER_TX, MAX_NEW_COMMITMENTS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX};
+    use dep::types::constants::{
+        MAX_READ_REQUESTS_PER_TX, MAX_NEW_COMMITMENTS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
+        MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX, MAX_REVERTIBLE_COMMITMENTS_PER_TX
+    };
     use dep::types::{
         abis::{
         kernel_circuit_public_inputs::PrivateKernelTailCircuitPublicInputs,
@@ -250,7 +249,7 @@ mod tests {
     impl PrivateKernelOrderingInputsBuilder {
         pub fn new() -> Self {
             PrivateKernelOrderingInputsBuilder {
-                previous_kernel: PreviousKernelDataBuilder::new(),
+                previous_kernel: PreviousKernelDataBuilder::new(false),
                 read_commitment_hints: [0; MAX_READ_REQUESTS_PER_TX],
                 nullifier_commitment_hints: [0; MAX_NEW_NULLIFIERS_PER_TX]
             }
@@ -286,7 +285,7 @@ mod tests {
         }
 
         pub fn append_nullifiers(&mut self, num_nullifiers: Field) {
-            self.previous_kernel.append_new_nullifiers(num_nullifiers);
+            self.previous_kernel.append_new_nullifiers_from_private(num_nullifiers);
         }
 
         pub fn nullify_transient_commitment(&mut self, nullifier_index: Field, commitment_index: Field) {
@@ -321,7 +320,7 @@ mod tests {
             (sorted_sideffects, reverse_map)
         }
 
-        pub fn execute(self) -> PrivateKernelTailCircuitPublicInputs {
+        pub fn execute(&mut self) -> PrivateKernelTailCircuitPublicInputs {
             let (sorted_new_commitments, sorted_new_commitments_indexes) = PrivateKernelOrderingInputsBuilder::sort_sideffects(self.get_new_commitments());
             let mut sorted_read_commitment_hints = [0; MAX_READ_REQUESTS_PER_TX];
             for i in 0..sorted_read_commitment_hints.len() {
@@ -332,6 +331,7 @@ mod tests {
             for i in 0..sorted_nullifier_commitment_hints.len() {
                 sorted_nullifier_commitment_hints[i] = sorted_new_nullifiers_indexes[self.nullifier_commitment_hints[i]] as Field;
             }
+
             let kernel = PrivateKernelTailCircuitPrivateInputs {
                 previous_kernel: self.previous_kernel.to_private_kernel_inner_data(),
                 sorted_new_commitments,
@@ -345,9 +345,17 @@ mod tests {
             kernel.native_private_kernel_circuit_ordering()
         }
 
-        pub fn failed(self) {
+        pub fn failed(&mut self) {
             let _ = self.execute();
         }
+    }
+
+    #[test]
+    unconstrained fn splits_tx_nullifier_to_non_revertible() {
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
+        let public_inputs = builder.execute();
+        assert(array_length(public_inputs.end_non_revertible.new_nullifiers) == 1);
+        assert(array_length(public_inputs.end.new_nullifiers) == 0);
     }
 
     #[test]
@@ -368,15 +376,20 @@ mod tests {
     unconstrained fn native_matching_some_read_requests_to_commitments_works() {
         let mut builder = PrivateKernelOrderingInputsBuilder::new();
         builder.append_transient_commitments(MAX_NEW_COMMITMENTS_PER_TX);
+        // prepare for the split: first MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX are added to end_non_revertible_accumulted_data
+        // neeed to take the counter of the side effect at the given index because
+        builder.previous_kernel.min_revertible_side_effect_counter = builder.previous_kernel.end.new_commitments.get(MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX).counter;
         // Read the commitment at index 1;
         builder.add_transient_read(1);
         // Read the commitment at index 3;
         builder.add_transient_read(3);
         let unique_siloed_commitments = builder.get_unique_siloed_commitments();
         let public_inputs = builder.execute();
-        assert_eq(array_length(public_inputs.end.new_commitments), MAX_NEW_COMMITMENTS_PER_TX);
-        for i in 0..MAX_NEW_COMMITMENTS_PER_TX {
-            assert(public_inputs.end.new_commitments[i].eq(unique_siloed_commitments[i]));
+        assert_eq(array_length(public_inputs.end.new_commitments), MAX_REVERTIBLE_COMMITMENTS_PER_TX);
+        for i in 0..MAX_REVERTIBLE_COMMITMENTS_PER_TX {
+            assert(
+                public_inputs.end.new_commitments[i].eq(unique_siloed_commitments[MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX + i])
+            );
         }
     }
 
@@ -403,8 +416,14 @@ mod tests {
         assert(is_empty_array(public_inputs.end.new_commitments));
 
         // The nullifier at index 1 is chopped.
-        let expected_new_nullifiers = [new_nullifiers[0], new_nullifiers[2]];
-        assert(array_eq(public_inputs.end.new_nullifiers, expected_new_nullifiers));
+        assert(array_eq(public_inputs.end.new_nullifiers, [new_nullifiers[2]]));
+        // tx nullifier is part of non revertible accumulated data
+        assert(
+            array_eq(
+                public_inputs.end_non_revertible.new_nullifiers,
+                [new_nullifiers[0]]
+            )
+        );
     }
 
     #[test]
@@ -426,13 +445,20 @@ mod tests {
             )
         );
         // The nullifier at index 1 is chopped.
-        let expected_new_nullifiers = [new_nullifiers[0], new_nullifiers[2]];
-        assert(array_eq(public_inputs.end.new_nullifiers, expected_new_nullifiers));
+        assert(array_eq(public_inputs.end.new_nullifiers, [new_nullifiers[2]]));
+        // tx nullifier is part of non revertible accumulated data
+        assert(
+            array_eq(
+                public_inputs.end_non_revertible.new_nullifiers,
+                [new_nullifiers[0]]
+            )
+        );
     }
 
     #[test]
     unconstrained fn native_squash_two_of_two_transient_matches_works() {
         let mut builder = PrivateKernelOrderingInputsBuilder::new();
+
         builder.append_transient_commitments(2);
         builder.append_nullifiers(2);
         // The nullifier at index 1 is nullifying the commitment at index 1;
@@ -441,8 +467,18 @@ mod tests {
         builder.nullify_transient_commitment(2, 0);
         let new_nullifiers = builder.get_new_nullifiers();
         let public_inputs = builder.execute();
+
+        // app logic will be completely empty after squashing
         assert(is_empty_array(public_inputs.end.new_commitments));
-        assert(array_eq(public_inputs.end.new_nullifiers, [new_nullifiers[0]]));
+        assert(is_empty_array(public_inputs.end.new_nullifiers));
+
+        // and the 0th nullifier will be moved to the non-revertible array
+        assert(
+            array_eq(
+                public_inputs.end_non_revertible.new_nullifiers,
+                [new_nullifiers[0]]
+            )
+        );
     }
 
     #[test]
@@ -453,8 +489,8 @@ mod tests {
         let mut sorted_new_nullifiers = [SideEffectLinkedToNoteHash::empty(); 10];
 
         for i in 0..10 {
-            sorted_new_commitments[i] = SideEffect { value: (i + 1) as Field, counter: i + 1 };
-            sorted_new_nullifiers[i] = SideEffectLinkedToNoteHash { value: (i + 11) as Field, counter: i + 11, note_hash: 0 };
+            sorted_new_commitments[i] = SideEffect { value: (i + 1) as Field, counter: builder.previous_kernel.next_sideffect_counter() };
+            sorted_new_nullifiers[i] = SideEffectLinkedToNoteHash { value: (i + 11) as Field, counter: builder.previous_kernel.next_sideffect_counter(), note_hash: 0 };
         }
 
         for i in 0..10 {
@@ -465,14 +501,14 @@ mod tests {
         let public_inputs = builder.execute();
 
         let sorted_unique_commitments = compute_unique_siloed_commitments(
-            public_inputs.end.new_nullifiers[0].value,
+            // tx nullifier is part of non revertible accumulated data
+            public_inputs.end_non_revertible.new_nullifiers[0].value,
             sorted_new_commitments
         );
 
         for i in 0..10 {
             assert(public_inputs.end.new_commitments[i].eq(sorted_unique_commitments[i]));
-            // +1 due to the 0th nullifier being the tx hash
-            assert(public_inputs.end.new_nullifiers[i + 1].eq(sorted_new_nullifiers[i]));
+            assert(public_inputs.end.new_nullifiers[i].eq(sorted_new_nullifiers[i]));
         }
     }
 
@@ -483,7 +519,8 @@ mod tests {
         builder.append_nullifiers(2);
         let public_inputs = builder.execute();
         assert_eq(array_length(public_inputs.end.new_commitments), 2);
-        assert_eq(array_length(public_inputs.end.new_nullifiers), 3);
+        assert_eq(array_length(public_inputs.end.new_nullifiers), 2);
+        assert_eq(array_length(public_inputs.end_non_revertible.new_nullifiers), 1);
     }
     // same as previous test, but this time there are 0 commitments!
     // (Do we really need this test?)
@@ -494,7 +531,8 @@ mod tests {
         builder.append_nullifiers(2);
         let public_inputs = builder.execute();
         assert(array_length(public_inputs.end.new_commitments) == 0);
-        assert(array_length(public_inputs.end.new_nullifiers) == 3);
+        assert(array_length(public_inputs.end.new_nullifiers) == 2);
+        assert_eq(array_length(public_inputs.end_non_revertible.new_nullifiers), 1);
     }
 
     #[test(should_fail)]
@@ -535,5 +573,88 @@ mod tests {
         let mut builder = PrivateKernelOrderingInputsBuilder::new();
         builder.previous_kernel.end.new_nullifiers = BoundedVec::new(SideEffectLinkedToNoteHash::empty());
         builder.failed();
+    }
+
+    #[test]
+    unconstrained fn split_nullifiers_into_non_revertible() {
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
+        // expect 3 non-revertible nullifiers: the tx nullifier + 2 new ones
+        builder.previous_kernel.append_new_nullifiers_from_private(2);
+        builder.previous_kernel.capture_min_revertible_side_effect_counter();
+
+        // expect 2 revertible nullifiers
+        builder.previous_kernel.append_new_nullifiers_from_private(2);
+
+        let new_nullifiers = builder.previous_kernel.end.new_nullifiers.storage;
+        let public_inputs = builder.execute();
+
+        assert(
+            array_eq(
+                public_inputs.end_non_revertible.new_nullifiers,
+                [new_nullifiers[0], new_nullifiers[1], new_nullifiers[2]]
+            )
+        );
+
+        assert(
+            array_eq(
+                public_inputs.end.new_nullifiers,
+                [new_nullifiers[3], new_nullifiers[4]]
+            )
+        );
+    }
+
+    #[test]
+    unconstrained fn split_commitments_into_non_revertible() {
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
+
+        // expect 2 non-revertible commitments
+        builder.previous_kernel.append_new_commitments(2);
+        builder.previous_kernel.capture_min_revertible_side_effect_counter();
+
+        // expect 2 revertible commitments
+        builder.previous_kernel.append_new_commitments(2);
+
+        let new_commitments = builder.previous_kernel.end.new_commitments.storage;
+        let public_inputs = builder.execute();
+
+        let unique_commitments = compute_unique_siloed_commitments(
+            // tx nullifier is part of non revertible accumulated data
+            public_inputs.end_non_revertible.new_nullifiers[0].value,
+            new_commitments
+        );
+
+        assert(
+            array_eq(
+                public_inputs.end_non_revertible.new_commitments,
+                [unique_commitments[0], unique_commitments[1]]
+            )
+        );
+
+        assert(
+            array_eq(
+                public_inputs.end.new_commitments,
+                [unique_commitments[2], unique_commitments[3]]
+            )
+        );
+    }
+
+    #[test]
+    unconstrained fn split_side_effect_squashing() {
+        let mut builder = PrivateKernelOrderingInputsBuilder::new();
+
+        // add one commitment in non-revertible part
+        builder.previous_kernel.append_new_commitments(1);
+        builder.previous_kernel.capture_min_revertible_side_effect_counter();
+
+        // nullify it in revertible part
+        builder.previous_kernel.append_new_nullifiers_from_private(1);
+        builder.nullify_transient_commitment(1, 0);
+
+        let public_inputs = builder.execute();
+
+        assert(!is_empty_array(public_inputs.end_non_revertible.new_nullifiers));
+        assert(is_empty_array(public_inputs.end_non_revertible.new_commitments));
+        assert(is_empty_array(public_inputs.end.new_commitments));
+        assert(is_empty_array(public_inputs.end.new_nullifiers));
     }
 }

@@ -17,7 +17,7 @@ export class PrivateKernelInnerCircuitPublicInputs {
     /**
      * The side effect counter that non-revertible side effects are all beneath.
      */
-    public maxNonRevertibleSideEffectCounter: Fr,
+    public minRevertibleSideEffectCounter: Fr,
     /**
      * Data accumulated from both public and private circuits.
      */
@@ -35,7 +35,7 @@ export class PrivateKernelInnerCircuitPublicInputs {
   toBuffer() {
     return serializeToBuffer(
       this.aggregationObject,
-      this.maxNonRevertibleSideEffectCounter,
+      this.minRevertibleSideEffectCounter,
       this.end,
       this.constants,
       this.isPrivate,

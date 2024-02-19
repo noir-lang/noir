@@ -21,7 +21,7 @@ struct PrivateCircuitPublicInputs {
     args_hash: Field,
     return_values: [Field; RETURN_VALUES_LENGTH],
 
-    max_non_revertible_side_effect_counter: u32,
+    min_revertible_side_effect_counter: u32,
 
     read_requests: [SideEffect; MAX_READ_REQUESTS_PER_CALL],
     nullifier_key_validation_requests: [NullifierKeyValidationRequest; MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL],
@@ -84,7 +84,7 @@ impl Serialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicInp
         fields.push(self.args_hash);
         fields.extend_from_array(self.return_values);
 
-        fields.push(self.max_non_revertible_side_effect_counter as Field);
+        fields.push(self.min_revertible_side_effect_counter as Field);
 
         for i in 0..MAX_READ_REQUESTS_PER_CALL{
             fields.extend_from_array(self.read_requests[i].serialize());
@@ -127,7 +127,7 @@ impl Deserialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicI
             call_context: reader.read_struct(CallContext::deserialize),
             args_hash: reader.read(),
             return_values: reader.read_array([0; RETURN_VALUES_LENGTH]),
-            max_non_revertible_side_effect_counter: reader.read() as u32,
+            min_revertible_side_effect_counter: reader.read() as u32,
             read_requests: reader.read_struct_array(SideEffect::deserialize, [SideEffect::empty(); MAX_READ_REQUESTS_PER_CALL]),
             nullifier_key_validation_requests: reader.read_struct_array(NullifierKeyValidationRequest::deserialize, [NullifierKeyValidationRequest::empty(); MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL]),
             new_commitments: reader.read_struct_array(SideEffect::deserialize, [SideEffect::empty(); MAX_NEW_COMMITMENTS_PER_CALL]),

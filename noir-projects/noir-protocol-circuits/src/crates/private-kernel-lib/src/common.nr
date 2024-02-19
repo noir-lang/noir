@@ -86,6 +86,7 @@ pub fn initialize_end_values(
     public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder
 ) {
     public_inputs.constants = previous_kernel.public_inputs.constants;
+    public_inputs.min_revertible_side_effect_counter = previous_kernel.public_inputs.min_revertible_side_effect_counter;
 
     // Ensure the arrays are the same as previously, before we start pushing more data onto them in other
     // functions within this circuit:

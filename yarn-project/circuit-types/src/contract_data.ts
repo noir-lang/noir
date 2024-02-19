@@ -192,12 +192,17 @@ export class ExtendedContractData {
 
   /** True if this represents an empty instance. */
   public isEmpty(): boolean {
+    return ExtendedContractData.isEmpty(this);
+  }
+
+  /** True if the passed instance is empty . */
+  public static isEmpty(obj: ExtendedContractData): boolean {
     return (
-      this.contractData.isEmpty() &&
-      this.publicFunctions.length === 0 &&
-      this.contractClassId.isZero() &&
-      this.publicKeyHash.isZero() &&
-      this.saltedInitializationHash.isZero()
+      obj.contractData.isEmpty() &&
+      obj.publicFunctions.length === 0 &&
+      obj.contractClassId.isZero() &&
+      obj.publicKeyHash.isZero() &&
+      obj.saltedInitializationHash.isZero()
     );
   }
 

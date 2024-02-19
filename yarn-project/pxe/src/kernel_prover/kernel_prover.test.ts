@@ -5,6 +5,7 @@ import {
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_READ_REQUESTS_PER_CALL,
+  MAX_REVERTIBLE_COMMITMENTS_PER_TX,
   MembershipWitness,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
@@ -96,7 +97,7 @@ describe('Kernel Prover', () => {
 
   const createProofOutputFinal = (newNoteIndices: number[]) => {
     const publicInputs = PrivateKernelTailCircuitPublicInputs.empty();
-    const commitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, () => SideEffect.empty());
+    const commitments = makeTuple(MAX_REVERTIBLE_COMMITMENTS_PER_TX, () => SideEffect.empty());
     for (let i = 0; i < newNoteIndices.length; i++) {
       commitments[i] = new SideEffect(generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO);
     }

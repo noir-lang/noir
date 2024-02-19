@@ -124,4 +124,8 @@ export class PublicDataTreeLeaf implements IndexedTreeLeaf {
   static buildDummy(key: bigint): PublicDataTreeLeaf {
     return new PublicDataTreeLeaf(new Fr(key), new Fr(0));
   }
+
+  static empty(): PublicDataTreeLeaf {
+    return new PublicDataTreeLeaf(Fr.ZERO, Fr.ZERO);
+  }
 }

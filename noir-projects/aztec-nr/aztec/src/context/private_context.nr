@@ -4,7 +4,8 @@ use crate::{
     oracle::{
     arguments, call_private_function::call_private_function_internal,
     enqueue_public_function_call::enqueue_public_function_call_internal, context::get_portal_address,
-    header::get_header_at, nullifier_key::{get_nullifier_key_pair, NullifierKeyPair}
+    header::get_header_at, nullifier_key::{get_nullifier_key_pair, NullifierKeyPair},
+    debug_log::debug_log
 }
 };
 use dep::protocol_types::{
@@ -40,7 +41,7 @@ struct PrivateContext {
     inputs: PrivateContextInputs,
     side_effect_counter: u32,
 
-    max_non_revertible_side_effect_counter: u32,
+    min_revertible_side_effect_counter: u32,
 
     args_hash : Field,
     return_values : BoundedVec<Field, RETURN_VALUES_LENGTH>,
@@ -68,10 +69,16 @@ struct PrivateContext {
 
 impl PrivateContext {
     pub fn new(inputs: PrivateContextInputs, args_hash: Field) -> PrivateContext {
+        let side_effect_counter = inputs.call_context.start_side_effect_counter;
+        let mut min_revertible_side_effect_counter = 0;
+        // Note. The side effect counter is 2 when this is the initial call
+        if (side_effect_counter == 2) {
+            min_revertible_side_effect_counter = side_effect_counter;
+        }
         PrivateContext {
             inputs,
-            side_effect_counter: inputs.call_context.start_side_effect_counter,
-            max_non_revertible_side_effect_counter: 0,
+            side_effect_counter,
+            min_revertible_side_effect_counter,
             args_hash,
             return_values: BoundedVec::new(0),
             read_requests: BoundedVec::new(SideEffect::empty()),
@@ -136,7 +143,12 @@ impl PrivateContext {
             call_context: self.inputs.call_context,
             args_hash: self.args_hash,
             return_values: self.return_values.storage,
-            max_non_revertible_side_effect_counter: self.max_non_revertible_side_effect_counter,
+            // TODO(fees): start this from 0 and test the following:
+            // - in the private circuit init that it gets set correctly
+            // - in the private circuit inner that it remains 0
+            // I've had to initialize the counter here so that it would work for contract deployments
+            // the above checks should be doable after we figure out fee payments for contract deployments
+            min_revertible_side_effect_counter: self.min_revertible_side_effect_counter,
             read_requests: self.read_requests.storage,
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
             new_commitments: self.new_commitments.storage,
@@ -157,11 +169,8 @@ impl PrivateContext {
         priv_circuit_pub_inputs
     }
 
-    pub fn capture_max_non_revertible_side_effect_counter(&mut self) {
-        assert(
-            self.max_non_revertible_side_effect_counter == 0, "Already captured the non-revertible side effect counter"
-        );
-        self.max_non_revertible_side_effect_counter = self.side_effect_counter;
+    pub fn capture_min_revertible_side_effect_counter(&mut self) {
+        self.min_revertible_side_effect_counter = self.side_effect_counter;
     }
 
     pub fn push_read_request(&mut self, read_request: Field) {

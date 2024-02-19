@@ -8,34 +8,22 @@ use dep::types::abis::{
 };
 use dep::std::unsafe;
 
-struct PublicKernelSetupCircuitPrivateInputs {
-    // Note: One might think that our previous_kernel ought to be
-    // a PrivateKernelTailData. However, we instead supply a PublicKernelData.
-    // This is because PrivateKernelTailData is a subset of PublicKernelData.
-    // And we just initialize the missing values to zero in TS before passing it to the circuit.
-    // This is a bit of a hack, but it allows us to reuse the setup circuit until
-    // the setup phase of the public kernel is complete. Maybe in a perfect world we would 
-    // have a SetupInit, SetupInner, etc, but this will change anyway once the public VM is able to 
-    // consume entire enqueued public calls.
+struct PublicKernelTeardownCircuitPrivateInputs {
     previous_kernel: PublicKernelData,
     public_call: PublicCallData,
 }
 
-impl PublicKernelSetupCircuitPrivateInputs {
+impl PublicKernelTeardownCircuitPrivateInputs {
     fn validate_inputs(self) {
-        let private_call_stack = self.previous_kernel.public_inputs.end.private_call_stack;
-        for i in 0..private_call_stack.len() {
-            let private_call = private_call_stack[i];
-            assert(
-                private_call.is_empty(), "Private call stack must be empty when executing in the public kernel"
-            );
-        }
-
         let needs_setup = self.previous_kernel.public_inputs.needs_setup;
-        assert(needs_setup == true, "Cannot run unnecessary setup circuit");
+        assert(needs_setup == false, "Cannot run teardown circuit before setup circuit");
+        let needs_app_logic = self.previous_kernel.public_inputs.needs_app_logic;
+        assert(needs_app_logic == false, "Cannot run teardown circuit before app logic circuit");
+        let needs_teardown = self.previous_kernel.public_inputs.needs_teardown;
+        assert(needs_teardown == true, "Cannot run unnecessary teardown circuit");
     }
 
-    fn public_kernel_setup(self) -> PublicKernelCircuitPublicInputs {
+    fn public_kernel_teardown(self) -> PublicKernelCircuitPublicInputs {
         // construct the circuit outputs
         let mut public_inputs: PublicKernelCircuitPublicInputsBuilder = unsafe::zeroed();
 
@@ -67,7 +55,7 @@ impl PublicKernelSetupCircuitPrivateInputs {
 
 mod tests {
     use crate::{
-        public_kernel_setup::PublicKernelSetupCircuitPrivateInputs,
+        public_kernel_teardown::PublicKernelTeardownCircuitPrivateInputs,
         utils::{
         assert_eq_call_requests, assert_eq_new_contracts, assert_eq_public_data_reads,
         assert_eq_public_data_update_requests, compute_public_data_reads,
@@ -79,7 +67,7 @@ mod tests {
         call_request::CallRequest, function_selector::FunctionSelector,
         kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs,
         new_contract_data::NewContractData, public_data_read::PublicDataRead,
-        public_data_update_request::PublicDataUpdateRequest, public_call_data::PublicCallData
+        public_data_update_request::PublicDataUpdateRequest
     },
         address::{AztecAddress, EthAddress}, contract_class::ContractClassId,
         contrakt::storage_read::StorageRead, hash::compute_logs_hash,
@@ -91,31 +79,17 @@ mod tests {
         MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL
     };
 
-    struct PublicKernelSetupCircuitPrivateInputsBuilder {
+    struct PublicKernelTeardownCircuitPrivateInputsBuilder {
         previous_kernel: PreviousKernelDataBuilder,
         public_call: PublicCallDataBuilder,
     }
 
-    impl PublicKernelSetupCircuitPrivateInputsBuilder {
+    impl PublicKernelTeardownCircuitPrivateInputsBuilder {
         pub fn new() -> Self {
             let previous_kernel = PreviousKernelDataBuilder::new(true);
             let public_call = PublicCallDataBuilder::new();
 
-            PublicKernelSetupCircuitPrivateInputsBuilder { previous_kernel, public_call }
-        }
-
-        pub fn stub_teardown_call(&mut self) {
-            let teardown_call = PublicCallDataBuilder::new();
-            let teardown_call = teardown_call.finish();
-            let teardown_call_hash = teardown_call.call_stack_item.hash();
-            let teardown_is_delegate_call = teardown_call.call_stack_item.public_inputs.call_context.is_delegate_call;
-            self.previous_kernel.push_public_call_request_non_revertible(teardown_call_hash, teardown_is_delegate_call);
-        }
-
-        pub fn push_public_call(&mut self, public_call: PublicCallData) {
-            let public_call_hash = public_call.call_stack_item.hash();
-            let setup_is_delegate_call = public_call.call_stack_item.public_inputs.call_context.is_delegate_call;
-            self.previous_kernel.push_public_call_request_non_revertible(public_call_hash, setup_is_delegate_call);
+            PublicKernelTeardownCircuitPrivateInputsBuilder { previous_kernel, public_call }
         }
 
         pub fn is_delegate_call(&mut self) -> Self {
@@ -142,21 +116,16 @@ mod tests {
         }
 
         pub fn execute(&mut self) -> PublicKernelCircuitPublicInputs {
-            // In order to run the setup circuit, we must have an enqueued public call for setup.
-            // In order to have an enqueued public call for setup, we must have an enqueued public call for teardown.
-
-            // The teardown call is at the bottom of the call stack.
-            self.stub_teardown_call();
-
-            // Push the public call on top of the teardown call.
-            let setup_call = self.public_call.finish();
-            self.push_public_call(setup_call);
+            let public_call = self.public_call.finish();
+            // Adjust the call stack item hash for the current call in the previous iteration.
+            let hash = public_call.call_stack_item.hash();
+            let is_delegate_call = public_call.call_stack_item.public_inputs.call_context.is_delegate_call;
+            self.previous_kernel.push_public_call_request_non_revertible(hash, is_delegate_call);
             let previous_kernel = self.previous_kernel.to_public_kernel_data();
 
-            // Run the kernel on the setup call
-            let kernel = PublicKernelSetupCircuitPrivateInputs { previous_kernel, public_call: setup_call };
+            let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
-            kernel.public_kernel_setup()
+            kernel.public_kernel_teardown()
         }
 
         pub fn succeeded(&mut self) {
@@ -168,40 +137,9 @@ mod tests {
         }
     }
 
-    #[test]
-    fn only_valid_public_data_reads_should_be_propagated() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-        builder.public_call.append_read_requests(1);
-        builder.public_call.append_empty_read_requests(1);
-        builder.public_call.append_read_requests(1);
-        let _ = builder.get_current_public_data_reads();
-
-        let _ = builder.execute();
-        // TODO(fees) we don't yet handle non-revertible reads
-        // Only the 2 valid reads should have been propagated.
-        // let expected = [public_data_reads[0], public_data_reads[2]];
-        // assert_eq_public_data_reads(public_inputs.end.public_data_reads, expected);
-    }
-
-    // TODO(fees) we don't yet handle non-revertible update requests
-    // #[test]
-    // fn only_valid_update_requests_should_be_propagated() {
-    //     let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-    //     builder.public_call.append_update_requests(1);
-    //     builder.public_call.append_empty_update_requests(1);
-    //     builder.public_call.append_update_requests(1);
-    //     let public_data_update_requests = builder.get_current_public_data_update_requests();
-
-    //     let public_inputs = builder.execute();
-
-    //     // Only the 2 valid reads should have been propagated.
-    //     let expected = [public_data_update_requests[0], public_data_update_requests[2]];
-    //     assert_eq_public_data_update_requests(public_inputs.end.public_data_update_requests, expected);
-    // }
-
     #[test(should_fail_with="Constructors cannot be public functions")]
     fn constructor_should_fail() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.public_call.function_data.is_constructor = true;
 
         builder.failed();
@@ -209,7 +147,7 @@ mod tests {
 
     #[test(should_fail_with="Contract deployment cannot be a public function")]
     fn constructor_should_fail_2() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.call_context.is_contract_deployment = true;
 
         builder.failed();
@@ -217,7 +155,7 @@ mod tests {
 
     #[test(should_fail_with="Bytecode hash cannot be zero")]
     fn no_bytecode_hash_should_fail() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.public_call.bytecode_hash = 0;
 
         builder.failed();
@@ -225,13 +163,13 @@ mod tests {
 
     #[test]
     fn internal_call_succeeds() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new().is_internal_call();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new().is_internal_call();
         builder.succeeded();
     }
 
     #[test(should_fail_with="msg_sender must be self for internal calls")]
     fn invalid_is_internal() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new().is_internal_call();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new().is_internal_call();
 
         // Tweak the (storage) contract_address to be different to msg_sender.
         let msg_sender = builder.public_call.public_inputs.call_context.msg_sender.to_field();
@@ -243,7 +181,7 @@ mod tests {
 
     #[test(should_fail_with="Contract address cannot be zero")]
     fn contract_address_must_be_valid() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.public_call.contract_address = AztecAddress::zero();
 
         builder.failed();
@@ -251,7 +189,7 @@ mod tests {
 
     #[test(should_fail_with="Function signature cannot be zero")]
     fn function_selector_must_be_valid() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.public_call.function_data.selector = FunctionSelector::zero();
 
         builder.failed();
@@ -259,7 +197,7 @@ mod tests {
 
     #[test(should_fail_with="Cannot execute a private function with the public kernel circuit")]
     fn private_call_should_fail() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.public_call.function_data.is_private = true;
 
         builder.failed();
@@ -267,8 +205,7 @@ mod tests {
 
     #[test(should_fail_with="calculated public_kernel_inputs_hash does not match provided public_kernel_inputs_hash at the top of the call stack")]
     fn inconsistent_call_hash_should_fail() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-        builder.stub_teardown_call();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         let public_call = builder.public_call.finish();
 
         let hash = public_call.call_stack_item.hash();
@@ -276,14 +213,14 @@ mod tests {
         builder.previous_kernel.push_public_call_request_non_revertible(hash + 1, false);
         let previous_kernel = builder.previous_kernel.to_public_kernel_data();
 
-        let kernel = PublicKernelSetupCircuitPrivateInputs { previous_kernel, public_call };
+        let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
-        let _ = kernel.public_kernel_setup();
+        let _ = kernel.public_kernel_teardown();
     }
 
     #[test(should_fail_with="call stack msg_sender does not match caller contract address")]
     fn incorrect_msg_sender_fails_for_regular_calls() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
 
         // Set the msg_sender to a wrong value.
         builder.public_call.public_inputs.call_context.msg_sender.inner += 1;
@@ -293,7 +230,7 @@ mod tests {
 
     #[test(should_fail_with="call stack storage address does not match expected contract address")]
     fn incorrect_storage_contract_address_fails_for_regular_calls() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
 
         // Set the storage contract address to a wrong value.
         builder.public_call.public_inputs.call_context.storage_contract_address.inner += 1;
@@ -303,15 +240,13 @@ mod tests {
 
     #[test]
     fn delegate_call_succeeds() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new().is_delegate_call();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new().is_delegate_call();
         builder.succeeded();
     }
 
     #[test(should_fail_with="caller context cannot be empty for delegate calls")]
     fn empty_caller_context_for_delegate_calls_fails() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new().is_delegate_call();
-        builder.stub_teardown_call();
-
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new().is_delegate_call();
         let public_call = builder.public_call.finish();
 
         let hash = public_call.call_stack_item.hash();
@@ -320,14 +255,14 @@ mod tests {
         builder.previous_kernel.push_public_call_request_non_revertible(hash, is_delegate_call);
         let previous_kernel = builder.previous_kernel.to_public_kernel_data();
 
-        let kernel = PublicKernelSetupCircuitPrivateInputs { previous_kernel, public_call };
+        let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
-        let _ = kernel.public_kernel_setup();
+        let _ = kernel.public_kernel_teardown();
     }
 
     #[test(should_fail_with="call stack msg_sender does not match expected msg_sender for delegate calls")]
     fn incorrect_msg_sender_for_delegate_calls_fails() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new().is_delegate_call();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new().is_delegate_call();
 
         // Set the msg_sender to be the caller contract.
         builder.public_call.public_inputs.call_context.msg_sender = builder.previous_kernel.contract_address;
@@ -335,18 +270,39 @@ mod tests {
         builder.failed();
     }
 
+    #[test(should_fail_with="call stack storage address does not match expected contract address for delegate calls")]
+    fn public_kernel_circuit_fails_on_incorrect_storage_contract_in_delegate_call() {
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new().is_delegate_call();
+
+        // Set the storage contract address to be the contract address.
+        builder.public_call.public_inputs.call_context.storage_contract_address = builder.public_call.contract_address;
+
+        builder.failed();
+    }
+
     #[test(should_fail_with="curent contract address must not match storage contract address for delegate calls")]
     fn previous_private_kernel_fails_if_incorrect_storage_contract_on_delegate_call() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new().is_delegate_call();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new().is_delegate_call();
 
         builder.public_call.contract_address = builder.public_call.public_inputs.call_context.storage_contract_address;
 
         builder.failed();
     }
 
+    #[test(should_fail_with = "call requests length does not match the expected length")]
+    fn incorrect_call_requests_length_fails() {
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
+
+        builder.public_call.append_public_call_requests(2, false);
+        // Remove one call request.
+        let _ = builder.public_call.public_call_stack.pop();
+
+        builder.failed();
+    }
+
     #[test(should_fail_with = "call stack hash does not match call request hash")]
     fn incorrect_call_request_hash_fails() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
 
         builder.public_call.append_public_call_requests(2, false);
         let mut call_request = builder.public_call.public_call_stack.pop();
@@ -359,7 +315,7 @@ mod tests {
 
     #[test(should_fail_with = "invalid caller")]
     fn incorrect_caller_address_for_call_request_fails() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
 
         builder.public_call.append_public_call_requests(1, false);
         let mut call_request = builder.public_call.public_call_stack.pop();
@@ -372,7 +328,7 @@ mod tests {
 
     #[test(should_fail_with = "invalid caller")]
     fn incorrect_caller_context_for_delegate_call_request_fails() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
 
         builder.public_call.append_public_call_requests(1, true);
         let mut call_request = builder.public_call.public_call_stack.pop();
@@ -384,106 +340,27 @@ mod tests {
     }
 
     #[test]
-    fn public_kernel_circuit_with_private_previous_kernel_should_succeed() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+    fn public_kernel_circuit_teardown_with_no_setup_and_no_app_logic_succeeds() {
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.succeeded();
     }
 
-    #[test]
-    fn circuit_outputs_should_be_correctly_populated_with_previous_private_kernel() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-        let new_contracts = [
-            NewContractData {
-                contract_address: AztecAddress::from_field(123),
-                portal_contract_address: EthAddress::from_field(456),
-                contract_class_id: ContractClassId::from_field(78)
-            }
-        ];
-        builder.previous_kernel.end.new_contracts.extend_from_array(new_contracts);
-
-        builder.public_call.append_public_call_requests_for_regular_calls(2);
-        let storage = builder.public_call.public_call_stack.storage;
-
-        builder.stub_teardown_call();
-        let non_revertible_call_stack = [
-            builder.previous_kernel.end_non_revertible.public_call_stack.get(0),
-            storage[0], storage[1]
-        ];
-
-        builder.public_call.append_update_requests(2);
-        let storage = builder.get_current_public_data_update_requests();
-        let update_requests = [storage[0], storage[1]];
-
-        builder.public_call.append_read_requests(3);
-        let storage = builder.get_current_public_data_reads();
-        let read_requests = [storage[0], storage[1], storage[2]];
-
-        // Push the public call on top of the teardown call.
-        let setup_call = builder.public_call.finish();
-        builder.push_public_call(setup_call);
-        let previous_kernel = builder.previous_kernel.to_public_kernel_data();
-
-        // Run the kernel on the setup call
-        let kernel = PublicKernelSetupCircuitPrivateInputs { previous_kernel, public_call: setup_call };
-
-        let public_inputs = kernel.public_kernel_setup();
-
-        assert_eq_new_contracts(public_inputs.end.new_contracts, new_contracts);
-        assert_eq_call_requests(public_inputs.end.private_call_stack, []);
-        assert_eq_call_requests(
-            public_inputs.end_non_revertible.public_call_stack,
-            non_revertible_call_stack
-        );
-        // TODO(fees) we don't yet handle non-revertible update requests
-        // assert_eq_public_data_update_requests(
-        //     public_inputs.end.public_data_update_requests,
-        //     update_requests
-        // );
-        // assert_eq_public_data_reads(public_inputs.end.public_data_reads, read_requests);
-    }
-
-    #[test(should_fail_with="Private call stack must be empty when executing in the public kernel")]
+    #[test(should_fail_with="Cannot run unnecessary teardown circuit")]
     fn private_previous_kernel_non_empty_private_call_stack_should_fail() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-        builder.previous_kernel.push_private_call_request(1, false);
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
 
-        builder.failed();
-    }
-
-    // TODO: Find another way to test this. Currently it will crash because we are popping from an empty array:
-    // The application panicked (crashed). Message:  Expected array index to fit in u64
-    // #[test(should_fail_with="Public call stack can not be empty")]
-    // fn private_previous_kernel_empty_public_call_stack_should_fail() {
-    //     let builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-    //     let previous_kernel = builder.previous_kernel.finish();
-    //     let kernel = PublicKernelSetupCircuitPrivateInputs {
-    //         previous_kernel,
-    //         public_call: builder.public_call.finish(),
-    //     };
-
-    //     let _ = kernel.public_kernel_setup();
-    // }
-
-    #[test(should_fail_with="Cannot run unnecessary setup circuit")]
-    fn unnecessary_public_kernel_setup_with_teardown_should_fail() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-
-        // in this case, we only push a single call, which is interpreted as the teardown call
-        let teardown_call = builder.public_call.finish();
-        let teardown_call_hash = teardown_call.call_stack_item.hash();
-        let teardown_is_delegate_call = teardown_call.call_stack_item.public_inputs.call_context.is_delegate_call;
-        builder.previous_kernel.push_public_call_request_non_revertible(teardown_call_hash, teardown_is_delegate_call);
+        let public_call = builder.public_call.finish();
+        // Don't push a call for teardown
         let previous_kernel = builder.previous_kernel.to_public_kernel_data();
 
-        // Run the kernel on the setup call
-        let kernel = PublicKernelSetupCircuitPrivateInputs { previous_kernel, public_call: teardown_call };
+        let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
-        let _ = kernel.public_kernel_setup();
+        let _ = kernel.public_kernel_teardown();
     }
 
     #[test(should_fail_with="No contract storage update requests are allowed for static calls")]
     fn previous_private_kernel_fails_if_contract_storage_update_requests_on_static_call() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.call_context.is_static_call = true;
         builder.public_call.append_update_requests(1);
 
@@ -492,7 +369,7 @@ mod tests {
 
     #[test]
     fn logs_are_handled_as_expected() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
 
         // Logs for the current call stack.
         let unencrypted_logs_hash = [26, 47];

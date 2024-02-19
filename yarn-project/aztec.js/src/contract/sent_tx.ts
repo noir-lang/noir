@@ -37,8 +37,8 @@ export class SentTx {
    *
    * @returns A promise that resolves to the transaction hash of the SentTx instance.
    */
-  public async getTxHash() {
-    return await this.txHashPromise;
+  public getTxHash(): Promise<TxHash> {
+    return this.txHashPromise;
   }
 
   /**

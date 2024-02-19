@@ -144,4 +144,8 @@ export class CallRequest {
       callRequest.endSideEffectCounter.equals(this.endSideEffectCounter)
     );
   }
+
+  toString() {
+    return `CallRequest(hash: ${this.hash.toString()}, callerContractAddress: ${this.callerContractAddress.toString()}, callerContext: ${this.callerContext.toString()}, startSideEffectCounter: ${this.startSideEffectCounter.toString()}, endSideEffectCounter: ${this.endSideEffectCounter.toString()})`;
+  }
 }

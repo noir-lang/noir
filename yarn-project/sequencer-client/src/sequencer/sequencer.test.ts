@@ -114,7 +114,7 @@ describe('sequencer', () => {
     await sequencer.initialSync();
     await sequencer.work();
 
-    const expectedTxHashes = [...(await Tx.getHashes([tx])), ...times(1, () => TxHash.ZERO)];
+    const expectedTxHashes = [...Tx.getHashes([tx]), ...times(1, () => TxHash.ZERO)];
 
     expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient),
@@ -151,7 +151,7 @@ describe('sequencer', () => {
     await sequencer.initialSync();
     await sequencer.work();
 
-    const expectedTxHashes = await Tx.getHashes([txs[0], txs[2]]);
+    const expectedTxHashes = Tx.getHashes([txs[0], txs[2]]);
 
     expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient),
@@ -159,7 +159,7 @@ describe('sequencer', () => {
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
     );
     expect(publisher.processL2Block).toHaveBeenCalledWith(block);
-    expect(p2p.deleteTxs).toHaveBeenCalledWith([await doubleSpendTx.getTxHash()]);
+    expect(p2p.deleteTxs).toHaveBeenCalledWith([doubleSpendTx.getTxHash()]);
   });
 
   it('builds a block out of several txs rejecting incorrect chain ids', async () => {
@@ -184,7 +184,7 @@ describe('sequencer', () => {
     await sequencer.initialSync();
     await sequencer.work();
 
-    const expectedTxHashes = await Tx.getHashes([txs[0], txs[2]]);
+    const expectedTxHashes = Tx.getHashes([txs[0], txs[2]]);
 
     expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
       new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient),
@@ -192,7 +192,7 @@ describe('sequencer', () => {
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
     );
     expect(publisher.processL2Block).toHaveBeenCalledWith(block);
-    expect(p2p.deleteTxs).toHaveBeenCalledWith([await invalidChainTx.getTxHash()]);
+    expect(p2p.deleteTxs).toHaveBeenCalledWith([invalidChainTx.getTxHash()]);
   });
 
   it('aborts building a block if the chain moves underneath it', async () => {
@@ -250,8 +250,8 @@ describe('sequencer', () => {
     expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
       expect.anything(),
       expect.arrayContaining([
-        expect.objectContaining({ hash: await txWithContract.getTxHash() }),
-        expect.objectContaining({ hash: await txWithEmptyContract.getTxHash() }),
+        expect.objectContaining({ hash: txWithContract.getTxHash() }),
+        expect.objectContaining({ hash: txWithEmptyContract.getTxHash() }),
       ]),
       expect.any(Array),
     );

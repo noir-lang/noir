@@ -29,5 +29,5 @@ mod public_data_tree_leaf_preimage;
 
 use abis::kernel_circuit_public_inputs::{
     PrivateKernelInnerCircuitPublicInputs, PrivateKernelTailCircuitPublicInputs,
-    PublicKernelCircuitPublicInputs
+    PublicKernelCircuitPublicInputs, RollupKernelCircuitPublicInputs
 };

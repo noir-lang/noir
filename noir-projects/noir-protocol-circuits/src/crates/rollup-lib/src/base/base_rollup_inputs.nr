@@ -15,7 +15,8 @@ use dep::types::{
 },
     nullifier_leaf_preimage::NullifierLeafPreimage, public_data_update_request::PublicDataUpdateRequest,
     public_data_read::PublicDataRead, kernel_data::PublicKernelData,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash},
+    combined_accumulated_data::CombinedAccumulatedData
 },
     constants::{
     NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
@@ -24,7 +25,11 @@ use dep::types::{
     MAX_NEW_COMMITMENTS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX,
     MAX_NEW_NULLIFIERS_PER_TX, NUM_ENCRYPTED_LOGS_HASHES_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     NUM_UNENCRYPTED_LOGS_HASHES_PER_TX, NULLIFIER_SUBTREE_HEIGHT, NULLIFIER_TREE_HEIGHT,
-    PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_SUBTREE_HEIGHT
+    PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_SUBTREE_HEIGHT,
+    MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_REVERTIBLE_COMMITMENTS_PER_TX,
+    MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX, MAX_REVERTIBLE_NULLIFIERS_PER_TX,
+    MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX
 },
     mocked::{AggregationObject, Proof}, partial_state_reference::PartialStateReference,
     public_data_tree_leaf::PublicDataTreeLeaf,
@@ -48,7 +53,7 @@ struct BaseRollupInputs {
     public_data_reads_witnesses: [PublicDataMembershipWitness; MAX_PUBLIC_DATA_READS_PER_TX],
 
     archive_root_membership_witness: ArchiveRootMembershipWitness,
-    
+
     constants: ConstantRollupData,
 }
 
@@ -66,12 +71,19 @@ impl BaseRollupInputs {
             self.kernel_data.public_inputs.constants.tx_context.version
             == self.constants.global_variables.version, "kernel version does not match the rollup version"
         );
+
+        // recombine the accumulated data
+        let combined = CombinedAccumulatedData::recombine(
+            self.kernel_data.public_inputs.end_non_revertible,
+            self.kernel_data.public_inputs.end
+        );
+
         // First we compute the contract tree leaves
-        let contract_leaves = self.calculate_contract_leaves();
+        let contract_leaves = self.calculate_contract_leaves(combined);
 
         let contracts_tree_subroot = self.calculate_contract_subtree_root(contract_leaves);
 
-        let commitments_tree_subroot = self.calculate_commitments_subtree();
+        let commitments_tree_subroot = self.calculate_commitments_subtree(combined);
 
         let empty_commitments_subtree_root = calculate_empty_tree_root(NOTE_HASH_SUBTREE_HEIGHT);
 
@@ -94,13 +106,13 @@ impl BaseRollupInputs {
         );
 
         // Insert nullifiers:
-        let end_nullifier_tree_snapshot = self.check_nullifier_tree_non_membership_and_insert_to_tree();
+        let end_nullifier_tree_snapshot = self.check_nullifier_tree_non_membership_and_insert_to_tree(combined);
 
         // Validate public public data reads and public data update requests, and update public data tree
-        let end_public_data_tree_snapshot = self.validate_and_process_public_state();
+        let end_public_data_tree_snapshot = self.validate_and_process_public_state(combined);
 
         // Calculate the overall calldata hash
-        let calldata_hash = BaseRollupInputs::components_compute_kernel_calldata_hash(self.kernel_data);
+        let calldata_hash = BaseRollupInputs::components_compute_kernel_calldata_hash(combined);
 
         // Perform membership checks that the notes provided exist within the historical trees data
         self.perform_archive_membership_checks();
@@ -123,9 +135,9 @@ impl BaseRollupInputs {
         }
     }
 
-    fn calculate_contract_leaves(self) -> [Field; MAX_NEW_CONTRACTS_PER_TX] {
+    fn calculate_contract_leaves(self, combined: CombinedAccumulatedData) -> [Field; MAX_NEW_CONTRACTS_PER_TX] {
         let mut contract_leaves = [0; MAX_NEW_CONTRACTS_PER_TX];
-        let new_contracts = self.kernel_data.public_inputs.end.new_contracts;
+        let new_contracts = combined.new_contracts;
 
         // loop over the new contracts
         for i in 0..new_contracts.len() {
@@ -152,14 +164,14 @@ impl BaseRollupInputs {
 
     // TODO(Kev): This should say calculate_commitments_subtree_root
     // Cpp code says calculate_commitments_subtree, so I'm leaving it as is for now
-    fn calculate_commitments_subtree(self) -> Field {
-        calculate_subtree(self.kernel_data.public_inputs.end.new_commitments.map(|c: SideEffect| c.value))
+    fn calculate_commitments_subtree(self, combined: CombinedAccumulatedData) -> Field {
+        calculate_subtree(combined.new_commitments.map(|c: SideEffect| c.value))
     }
 
-    fn check_nullifier_tree_non_membership_and_insert_to_tree(self) -> AppendOnlyTreeSnapshot {
+    fn check_nullifier_tree_non_membership_and_insert_to_tree(self, combined: CombinedAccumulatedData) -> AppendOnlyTreeSnapshot {
         crate::indexed_tree::batch_insert(
             self.start.nullifier_tree,
-            self.kernel_data.public_inputs.end.new_nullifiers.map(|nullifier: SideEffectLinkedToNoteHash| nullifier.value),
+            combined.new_nullifiers.map(|nullifier: SideEffectLinkedToNoteHash| nullifier.value),
             self.state_diff_hints.sorted_nullifiers,
             self.state_diff_hints.sorted_nullifier_indexes,
             self.state_diff_hints.nullifier_subtree_sibling_path,
@@ -180,7 +192,7 @@ impl BaseRollupInputs {
                 let is_next_greater_than = full_field_less_than(nullifier, low_leaf.next_nullifier);
 
                 (!low_leaf.is_empty()) & is_less_than_nullifier & (
-                    is_next_greater_than | 
+                    is_next_greater_than |
                     ((low_leaf.next_index == 0) & (low_leaf.next_nullifier == 0))
                 )
             },
@@ -188,7 +200,7 @@ impl BaseRollupInputs {
                 NullifierLeafPreimage{
                     nullifier : low_leaf.nullifier,
                     next_nullifier : nullifier,
-                    next_index : nullifier_index, 
+                    next_index : nullifier_index,
                 }
             },
             |nullifier: Field, low_leaf: NullifierLeafPreimage| { // Build insertion leaf
@@ -207,7 +219,7 @@ impl BaseRollupInputs {
         calculate_subtree(leaves.map(|leaf:NullifierLeafPreimage| leaf.hash()))
     }
 
-    fn validate_and_process_public_state(self) -> AppendOnlyTreeSnapshot {
+    fn validate_and_process_public_state(self, combined: CombinedAccumulatedData) -> AppendOnlyTreeSnapshot {
         // TODO(#2521) - data read validation should happen against the current state of the tx and not the start state.
         // Blocks all interesting usecases that read and write to the same public state in the same tx.
         // https://aztecprotocol.slack.com/archives/C02M7VC7TN0/p1695809629015719?thread_ts=1695653252.007339&cid=C02M7VC7TN0
@@ -221,7 +233,7 @@ impl BaseRollupInputs {
 
         let end_public_data_tree_snapshot = insert_public_data_update_requests(
             self.start.public_data_tree,
-            self.kernel_data.public_inputs.end.public_data_update_requests.map(
+            combined.public_data_update_requests.map(
                 |request: PublicDataUpdateRequest| {
                 PublicDataTreeLeaf {
                     slot: request.leaf_slot,
@@ -242,9 +254,9 @@ impl BaseRollupInputs {
     // Computes the calldata hash for a base rollup
     // TODO(Kev): move this into components module
     // TODO(Alvaro): This is too slow for brillig without the array optimization
-    fn components_compute_kernel_calldata_hash(kernel_data: PublicKernelData) -> [Field; NUM_FIELDS_PER_SHA256] {
+    fn components_compute_kernel_calldata_hash(combined: CombinedAccumulatedData) -> [Field; NUM_FIELDS_PER_SHA256] {
         // Compute calldata hashes
-        // Consist of 
+        // Consist of
         // MAX_NEW_COMMITMENTS_PER_TX fields for commitments
         // MAX_NEW_NULLIFIERS_PER_TX fields for nullifiers
         // 16 public data update requests -> 32 fields
@@ -254,12 +266,12 @@ impl BaseRollupInputs {
         // 1 unencrypted logs hashes -> 2 fields --> 2 sha256 hashes --> 64 bytes
         let mut calldata_hash_inputs = [0; CALLDATA_HASH_INPUT_SIZE];
 
-        let new_commitments = kernel_data.public_inputs.end.new_commitments;
-        let new_nullifiers = kernel_data.public_inputs.end.new_nullifiers;
-        let public_data_update_requests = kernel_data.public_inputs.end.public_data_update_requests;
-        let newL2ToL1msgs = kernel_data.public_inputs.end.new_l2_to_l1_msgs;
-        let encryptedLogsHash = kernel_data.public_inputs.end.encrypted_logs_hash;
-        let unencryptedLogsHash = kernel_data.public_inputs.end.unencrypted_logs_hash;
+        let new_commitments = combined.new_commitments;
+        let new_nullifiers = combined.new_nullifiers;
+        let public_data_update_requests = combined.public_data_update_requests;
+        let newL2ToL1msgs = combined.new_l2_to_l1_msgs;
+        let encryptedLogsHash = combined.encrypted_logs_hash;
+        let unencryptedLogsHash = combined.unencrypted_logs_hash;
 
         let mut offset = 0;
 
@@ -286,12 +298,12 @@ impl BaseRollupInputs {
         }
         offset += MAX_NEW_L2_TO_L1_MSGS_PER_TX;
 
-        let contract_leaf = kernel_data.public_inputs.end.new_contracts[0];
+        let contract_leaf = combined.new_contracts[0];
         calldata_hash_inputs[offset] = contract_leaf.hash();
 
         offset += MAX_NEW_CONTRACTS_PER_TX;
 
-        let new_contracts = kernel_data.public_inputs.end.new_contracts;
+        let new_contracts = combined.new_contracts;
         calldata_hash_inputs[offset] = new_contracts[0].contract_address.to_field();
         // TODO(#3938): make portal address 20 bytes here when updating the hashing
         calldata_hash_inputs[offset + 1] = new_contracts[0].portal_contract_address.to_field();
@@ -362,7 +374,7 @@ impl BaseRollupInputs {
 fn verify_kernel_proof(_proof: Proof) -> bool {
     // TODO: Just return true as we are mocking out the proof verification
     // and aggregation.
-    // TODO(Kev): It may make sense to move all of these methods into a 
+    // TODO(Kev): It may make sense to move all of these methods into a
     // separate module.
     true
 }
@@ -401,7 +413,7 @@ fn insert_public_data_update_requests(
             let is_less_than_slot = full_field_less_than(low_preimage.slot, write.slot);
             let is_next_greater_than = full_field_less_than(write.slot, low_preimage.next_slot);
             let is_in_range = is_less_than_slot & (
-                is_next_greater_than | 
+                is_next_greater_than |
                 ((low_preimage.next_index == 0) & (low_preimage.next_slot == 0)));
 
             (!is_low_empty) & (is_update | is_in_range)
@@ -413,14 +425,14 @@ fn insert_public_data_update_requests(
                     slot : low_preimage.slot,
                     value: write.value,
                     next_slot : low_preimage.next_slot,
-                    next_index : low_preimage.next_index, 
+                    next_index : low_preimage.next_index,
                 }
             } else {
                 PublicDataTreeLeafPreimage{
                     slot : low_preimage.slot,
                     value: low_preimage.value,
                     next_slot : write.slot,
-                    next_index : write_index, 
+                    next_index : write_index,
                 }
             }
         },
@@ -556,7 +568,8 @@ mod tests {
         membership_witness::{ArchiveRootMembershipWitness, NullifierMembershipWitness, PublicDataMembershipWitness},
         new_contract_data::NewContractData, nullifier_leaf_preimage::NullifierLeafPreimage,
         public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
-        kernel_data::PublicKernelData, side_effect::SideEffect
+        kernel_data::PublicKernelData, side_effect::SideEffect,
+        combined_accumulated_data::CombinedAccumulatedData
     },
         address::{AztecAddress, EthAddress},
         constants::{
@@ -706,8 +719,8 @@ mod tests {
             inputs.constants.global_variables.chain_id = 1;
             inputs.constants.global_variables.version = 0;
 
-            let mut builder = PreviousKernelDataBuilder::new();
-            let _nullifier = builder.end.new_nullifiers.pop();
+            let mut builder = PreviousKernelDataBuilder::new(true);
+            let _nullifier = builder.end_non_revertible.new_nullifiers.pop();
             inputs.kernel_data = builder.is_public();
 
             inputs.pre_existing_blocks[0] = inputs.kernel_data.historical_header.hash();
@@ -788,6 +801,11 @@ mod tests {
         fn build_inputs(mut self) -> BaseRollupInputs {
             let mut kernel_data = self.kernel_data.to_public_kernel_data();
 
+            let combined = CombinedAccumulatedData::recombine(
+                kernel_data.public_inputs.end_non_revertible,
+                kernel_data.public_inputs.end
+            );
+
             let start_note_hash_tree = NonEmptyMerkleTree::new(
                 self.pre_existing_notes,
                 [0; NOTE_HASH_TREE_HEIGHT],
@@ -853,7 +871,7 @@ mod tests {
             };
 
             let (
-                nullifier_predecessor_preimages, 
+                nullifier_predecessor_preimages,
                 nullifier_predecessor_membership_witnesses,
                 sorted_nullifiers,
                 sorted_nullifier_indexes

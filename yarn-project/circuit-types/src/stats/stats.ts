@@ -60,8 +60,9 @@ export type CircuitSimulationStats = {
     | 'root-rollup'
     | 'merge-rollup'
     | 'private-kernel-inner'
-    | 'public-kernel-private-input'
-    | 'public-kernel-non-first-iteration';
+    | 'public-kernel-setup'
+    | 'public-kernel-app-logic'
+    | 'public-kernel-teardown';
   /** Duration in ms. */
   duration: number;
   /** Size in bytes of circuit inputs. */

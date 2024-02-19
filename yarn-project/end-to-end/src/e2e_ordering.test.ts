@@ -59,6 +59,10 @@ describe('e2e_ordering', () => {
           const expectedOrder = expectedOrders[method];
           const action = parent.methods[method](child.address, pubSetValueSelector);
           const tx = await action.simulate();
+          expect(tx.data.needsSetup).toBe(false);
+          expect(tx.data.needsAppLogic).toBe(true);
+          expect(tx.data.needsTeardown).toBe(false);
+
           await action.send().wait();
 
           // There are two enqueued calls

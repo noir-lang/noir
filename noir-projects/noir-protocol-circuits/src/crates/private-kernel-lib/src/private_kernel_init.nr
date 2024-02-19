@@ -26,7 +26,7 @@ impl PrivateKernelInitCircuitPrivateInputs {
             historical_header: self.private_call.call_stack_item.public_inputs.historical_header,
             tx_context: self.tx_request.tx_context,
         };
-        public_inputs.max_non_revertible_side_effect_counter = self.private_call.call_stack_item.public_inputs.max_non_revertible_side_effect_counter;
+        public_inputs.min_revertible_side_effect_counter = self.private_call.call_stack_item.public_inputs.min_revertible_side_effect_counter;
     }
 
     // Confirm that the TxRequest (user's intent) 

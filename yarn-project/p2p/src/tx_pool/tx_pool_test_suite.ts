@@ -17,17 +17,17 @@ export function describeTxPool(getTxPool: () => TxPool) {
     const tx1 = mockTx();
 
     await pool.addTxs([tx1]);
-    const poolTx = pool.getTxByHash(await tx1.getTxHash());
-    expect(await poolTx!.getTxHash()).toEqual(await tx1.getTxHash());
+    const poolTx = pool.getTxByHash(tx1.getTxHash());
+    expect(poolTx!.getTxHash()).toEqual(tx1.getTxHash());
   });
 
   it('Removes txs from the pool', async () => {
     const tx1 = mockTx();
 
     await pool.addTxs([tx1]);
-    await pool.deleteTxs([await tx1.getTxHash()]);
+    await pool.deleteTxs([tx1.getTxHash()]);
 
-    const poolTx = pool.getTxByHash(await tx1.getTxHash());
+    const poolTx = pool.getTxByHash(tx1.getTxHash());
     expect(poolTx).toBeFalsy();
   });
 
@@ -52,8 +52,6 @@ export function describeTxPool(getTxPool: () => TxPool) {
 
     const poolTxHashes = pool.getAllTxHashes();
     expect(poolTxHashes).toHaveLength(3);
-    expect(poolTxHashes).toEqual(
-      expect.arrayContaining([await tx1.getTxHash(), await tx2.getTxHash(), await tx3.getTxHash()]),
-    );
+    expect(poolTxHashes).toEqual(expect.arrayContaining([tx1.getTxHash(), tx2.getTxHash(), tx3.getTxHash()]));
   });
 }

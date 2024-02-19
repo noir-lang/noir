@@ -1,5 +1,5 @@
 import { makeAccumulatedData, makeFinalAccumulatedData } from '../../tests/factories.js';
-import { CombinedAccumulatedData, FinalAccumulatedData } from './combined_accumulated_data.js';
+import { CombinedAccumulatedData, PrivateAccumulatedRevertibleData } from './combined_accumulated_data.js';
 
 describe('CombinedAccumulatedData', () => {
   it('Data after serialization and deserialization is equal to the original', () => {
@@ -12,7 +12,7 @@ describe('CombinedAccumulatedData', () => {
 describe('FinalAccumulatedData', () => {
   it('Data after serialization and deserialization is equal to the original', () => {
     const original = makeFinalAccumulatedData();
-    const afterSerialization = FinalAccumulatedData.fromBuffer(original.toBuffer());
+    const afterSerialization = PrivateAccumulatedRevertibleData.fromBuffer(original.toBuffer());
     expect(original).toEqual(afterSerialization);
   });
 });

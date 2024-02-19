@@ -33,7 +33,7 @@ pub fn validate_array<T, N>(array: [T; N]) where T: Empty + Eq {
     assert((last_non_zero_pos as u64) <= (first_zero_pos as u64), "invalid array");
 }
 
-// Helper method to determine the number of non-zero/empty elements in a validated array (ie, validate_array(array) 
+// Helper method to determine the number of non-zero/empty elements in a validated array (ie, validate_array(array)
 // should be true).
 pub fn array_length<T, N>(array: [T; N]) -> Field where T: Empty + Eq {
     let mut length = 0;
@@ -55,6 +55,32 @@ pub fn array_eq<T, N, S>(array: [T; N], expected: [T; S]) -> bool where T: Empty
     }
 
     eq
+}
+
+pub fn array_cp<T, N, S>(array: [T; N]) -> [T; S] where T: Empty {
+    let mut result: [T; S] = [T::empty(); S];
+    for i in 0..S {
+        result[i] = array[i];
+    }
+    result
+}
+
+pub fn array_concat<T, N, S, M>(array1: [T; N], array2: [T; S]) -> [T; M] where T: Empty + Eq {
+    let mut result: [T; M] = [T::empty(); M];
+    let mut i = 0;
+    for elem in array1 {
+        if !is_empty(elem) {
+            result[i] = elem;
+            i += 1;
+        }
+    }
+    for elem in array2 {
+        if !is_empty(elem) {
+            result[i] = elem;
+            i += 1;
+        }
+    }
+    result
 }
 
 #[test]

@@ -1,6 +1,6 @@
 import { ContractDataSource, L1ToL2MessageSource, Tx } from '@aztec/circuit-types';
 import { TxSequencerProcessingStats } from '@aztec/circuit-types/stats';
-import { GlobalVariables, Header, Proof, PublicKernelCircuitPublicInputs } from '@aztec/circuits.js';
+import { GlobalVariables, Header } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import { PublicExecutor, PublicStateDB } from '@aztec/simulator';
@@ -12,7 +12,7 @@ import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from '../simulator/public_executor.js';
 import { RealPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { AbstractPhaseManager } from './abstract_phase_manager.js';
-import { FeePreparationPhaseManager } from './fee_preparation_phase_manager.js';
+import { PhaseManagerFactory } from './phase_manager_factory.js';
 import { FailedTx, ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
 
 /**
@@ -85,7 +85,8 @@ export class PublicProcessor {
     const failed: FailedTx[] = [];
 
     for (const tx of txs) {
-      let phase: AbstractPhaseManager | undefined = new FeePreparationPhaseManager(
+      let phase: AbstractPhaseManager | undefined = PhaseManagerFactory.phaseFromTx(
+        tx,
         this.db,
         this.publicExecutor,
         this.publicKernel,
@@ -95,25 +96,41 @@ export class PublicProcessor {
         this.publicContractsDB,
         this.publicStateDB,
       );
-      let publicKernelOutput: PublicKernelCircuitPublicInputs | undefined = undefined;
-      let publicKernelProof: Proof | undefined = undefined;
+      this.log(`Beginning processing in phase ${phase?.phase} for tx ${tx.getTxHash()}`);
+      let { publicKernelPublicInput, publicKernelProof } = AbstractPhaseManager.getKernelOutputAndProof(
+        tx,
+        undefined,
+        undefined,
+      );
       const timer = new Timer();
       try {
         while (phase) {
-          const output = await phase.handle(tx, publicKernelOutput, publicKernelProof);
-          publicKernelOutput = output.publicKernelOutput;
+          const output = await phase.handle(tx, publicKernelPublicInput, publicKernelProof);
+          publicKernelPublicInput = output.publicKernelOutput;
           publicKernelProof = output.publicKernelProof;
-          phase = phase.nextPhase();
+          phase = PhaseManagerFactory.phaseFromOutput(
+            publicKernelPublicInput,
+            phase,
+            this.db,
+            this.publicExecutor,
+            this.publicKernel,
+            this.publicProver,
+            this.globalVariables,
+            this.historicalHeader,
+            this.publicContractsDB,
+            this.publicStateDB,
+          );
         }
 
-        const processedTransaction = await makeProcessedTx(tx, publicKernelOutput, publicKernelProof);
+        const processedTransaction = makeProcessedTx(tx, publicKernelPublicInput, publicKernelProof);
         result.push(processedTransaction);
 
-        this.log(`Processed public part of ${tx.data.end.newNullifiers[0]}`, {
+        this.log(`Processed public part of ${tx.data.endNonRevertibleData.newNullifiers[0]}`, {
           eventName: 'tx-sequencer-processing',
           duration: timer.ms(),
           publicDataUpdateRequests:
-            processedTransaction.data.end.publicDataUpdateRequests.filter(x => !x.leafSlot.isZero()).length ?? 0,
+            processedTransaction.data.combinedData.publicDataUpdateRequests.filter(x => !x.leafSlot.isZero()).length ??
+            0,
           ...tx.getStats(),
         } satisfies TxSequencerProcessingStats);
       } catch (err) {
@@ -129,7 +146,7 @@ export class PublicProcessor {
    * Makes an empty processed tx. Useful for padding a block to a power of two number of txs.
    * @returns A processed tx with empty data.
    */
-  public makeEmptyProcessedTx(): Promise<ProcessedTx> {
+  public makeEmptyProcessedTx(): ProcessedTx {
     const { chainId, version } = this.globalVariables;
     return makeEmptyProcessedTx(this.historicalHeader, chainId, version);
   }

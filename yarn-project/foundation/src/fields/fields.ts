@@ -137,7 +137,7 @@ abstract class BaseField {
  * Constructs a field from a Buffer of BufferReader.
  * It maybe not read the full 32 bytes if the Buffer is shorter, but it will padded in BaseField constructor.
  */
-function fromBuffer<T extends BaseField>(buffer: Buffer | BufferReader, f: DerivedField<T>) {
+export function fromBuffer<T extends BaseField>(buffer: Buffer | BufferReader, f: DerivedField<T>) {
   const reader = BufferReader.asReader(buffer);
   return new f(reader.readBytes(BaseField.SIZE_IN_BYTES));
 }
