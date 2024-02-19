@@ -7,7 +7,7 @@
 
 namespace bb::crypto::merkle_tree {
 
-typedef uint256_t index_t;
+using index_t = uint256_t;
 
 /**
  * @brief Used in parallel insertions in the the IndexedTree. Workers signal to other following workes as they move up
@@ -18,11 +18,13 @@ class LevelSignal {
   public:
     LevelSignal(size_t initial_level)
         : signal_(initial_level){};
-    ~LevelSignal(){};
+    ~LevelSignal() = default;
     LevelSignal(const LevelSignal& other)
         : signal_(other.signal_.load())
     {}
-    LevelSignal(const LevelSignal&& other) = delete;
+    LevelSignal(const LevelSignal&& other) noexcept
+        : signal_(other.signal_.load())
+    {}
 
     /**
      * @brief Causes the thread to wait until the required level has been signalled
