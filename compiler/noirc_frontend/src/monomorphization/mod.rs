@@ -785,7 +785,11 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
-            HirType::NamedGeneric(binding, _, _) => {
+            HirType::NamedGeneric(binding, _, prevent_numeric) => {
+                if *prevent_numeric {
+                    panic!("TODO: convert_type NamedGeneric: {:?} {:?} {:?}", typ, binding, prevent_numeric);
+                }
+
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return self.convert_type(binding);
                 }
@@ -1580,12 +1584,17 @@ impl<'interner> Monomorphizer<'interner> {
             let (generics, impl_method_type) =
                 self.interner.function_meta(&impl_method).typ.unwrap_forall();
 
-            let replace_type_variable = |var: &TypeVariable| {
-                (var.id(), (var.clone(), Type::TypeVariable(var.clone(), TypeVariableKind::Normal)))
+            let replace_type_variable = |var: &TypeVariable, prevent_numeric: bool| {
+                let kind = if prevent_numeric {
+                    TypeVariableKind::NotConstant
+                } else {
+                    TypeVariableKind::Normal
+                };
+                (var.id(), (var.clone(), Type::TypeVariable(var.clone(), kind)))
             };
 
             // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
-            let type_bindings = generics.iter().map(replace_type_variable).collect();
+            let type_bindings = generics.iter().map(|(var, prevent_numeric)| replace_type_variable(var, *prevent_numeric)).collect();
             let impl_method_type = impl_method_type.force_substitute(&type_bindings);
 
             trait_method_type.try_unify(&impl_method_type, &mut bindings).unwrap_or_else(|_| {

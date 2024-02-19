@@ -222,8 +222,9 @@ pub struct StructType {
     pub location: Location,
 }
 
-/// Corresponds to generic lists such as `<T, U>` in the source program.
-pub type Generics = Vec<TypeVariable>;
+/// Corresponds to generic lists such as `<T, U?>` in the source program.
+/// The bool is used to to prevent_numeric.
+pub type Generics = Vec<(TypeVariable, bool)>;
 
 impl std::hash::Hash for StructType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -272,7 +273,7 @@ impl StructType {
                     .generics
                     .iter()
                     .zip(generic_args)
-                    .map(|(old, new)| (old.id(), (old.clone(), new.clone())))
+                    .map(|(old, new)| (old.0.id(), (old.0.clone(), new.clone())))
                     .collect();
 
                 (typ.substitute(&substitutions), i)
@@ -288,7 +289,7 @@ impl StructType {
             .generics
             .iter()
             .zip(generic_args)
-            .map(|(old, new)| (old.id(), (old.clone(), new.clone())))
+            .map(|(old, new)| (old.0.id(), (old.0.clone(), new.clone())))
             .collect();
 
         vecmap(&self.fields, |(name, typ)| {
@@ -305,7 +306,7 @@ impl StructType {
     /// which is expected to be a numeric generic.
     /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
     pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
-        let target_id = self.generics[index_of_generic].0;
+        let target_id = self.generics[index_of_generic].0.0;
         self.fields.iter().any(|(_, field)| field.contains_numeric_typevar(target_id))
     }
 
@@ -374,7 +375,7 @@ impl TypeAlias {
             .generics
             .iter()
             .zip(generic_args)
-            .map(|(old, new)| (old.id(), (old.clone(), new.clone())))
+            .map(|(old, new)| (old.0.id(), (old.0.clone(), new.clone())))
             .collect();
 
         self.typ.substitute(&substitutions)
@@ -384,7 +385,7 @@ impl TypeAlias {
     /// which is expected to be a numeric generic.
     /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
     pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
-        let target_id = self.generics[index_of_generic].0;
+        let target_id = self.generics[index_of_generic].0.0;
         self.typ.contains_numeric_typevar(target_id)
     }
 }
@@ -465,6 +466,9 @@ pub enum TypeVariableKind {
     /// Type::Constant(n) with a matching size. This defaults to Type::Constant(n) if still unbound
     /// during monomorphization.
     Constant(u64),
+
+    /// The type of a slice is an array of size NotConstant.
+    NotConstant,
 }
 
 /// A TypeVariable is a mutable reference that is either
@@ -728,7 +732,11 @@ impl Type {
     /// Returns 0 if this is not a Type::Forall
     pub fn generic_count(&self) -> usize {
         match self {
-            Type::Forall(generics, _) => generics.len(),
+            Type::Forall(generics, _) => {
+                // println!("TODO: remove: generic_count: {:?}, {:?}", self, generics);
+
+                generics.len()
+            },
             Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _, _) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => binding.generic_count(),
@@ -742,7 +750,14 @@ impl Type {
     /// Takes a monomorphic type and generalizes it over each of the type variables in the
     /// given type bindings, ignoring what each type variable is bound to in the TypeBindings.
     pub(crate) fn generalize_from_substitutions(self, type_bindings: TypeBindings) -> Type {
-        let polymorphic_type_vars = vecmap(type_bindings, |(_, (type_var, _))| type_var);
+        let polymorphic_type_vars = vecmap(type_bindings, |(_, (type_var, binding))| {
+            // TODO: does this make sense?
+            let kind = match binding {
+                Type::TypeVariable(_, kind) => kind,
+                _ => panic!("Type of TypeVariable is non-variable"),
+            };
+            (type_var, kind == TypeVariableKind::NotConstant)
+        });
         Type::Forall(polymorphic_type_vars, Box::new(self))
     }
 
@@ -809,6 +824,13 @@ impl std::fmt::Display for Type {
                     write!(f, "{}", binding.borrow())
                 }
             }
+            Type::TypeVariable(binding, TypeVariableKind::NotConstant) => {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                    write!(f, "_")
+                } else {
+                    write!(f, "{}", binding.borrow())
+                }
+            }
             Type::Struct(s, args) => {
                 let args = vecmap(args, |arg| arg.to_string());
                 if args.is_empty() {
@@ -856,7 +878,10 @@ impl std::fmt::Display for Type {
             }
             Type::Constant(x) => x.fmt(f),
             Type::Forall(typevars, typ) => {
-                let typevars = vecmap(typevars, |var| var.id().to_string());
+                let typevars = vecmap(typevars, |(var, prevent_numeric)| {
+                    let prevent_numeric_str = if *prevent_numeric { "?" } else { "" };
+                    format!("{}{}", var.id().to_string(), prevent_numeric_str)
+                });
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
             Type::Function(args, ret, env) => {
@@ -922,6 +947,8 @@ impl Type {
         };
 
         let this = self.substitute(bindings).follow_bindings();
+        // println!("TODO remove try_bind_to_maybe_constant: {:?} {:?} {:?} {:?} ||| {:?}", self, var, target_length, bindings, this);
+
 
         match &this {
             Type::Constant(length) if *length == target_length => {
@@ -967,6 +994,7 @@ impl Type {
                             bindings.insert(*new_target_id, (new_var.clone(), Type::NotConstant));
                             Ok(())
                         }
+                        TypeVariableKind::NotConstant => Err(UnificationError),
                         TypeVariableKind::IntegerOrField => Err(UnificationError),
                         TypeVariableKind::Integer => Err(UnificationError),
                     },
@@ -1131,6 +1159,7 @@ impl Type {
         use Type::*;
         use TypeVariableKind as Kind;
 
+        // println!("TODO try_unify: {:?} {:?} {:?}", self, other, bindings);
         match (self, other) {
             (Error, _) | (_, Error) => Ok(()),
 
@@ -1164,6 +1193,11 @@ impl Type {
             (TypeVariable(var, Kind::Constant(length)), other)
             | (other, TypeVariable(var, Kind::Constant(length))) => other
                 .try_unify_to_type_variable(var, bindings, |bindings| {
+                    // let other_follow = other.follow_bindings();
+                    let other_follow = other.substitute(bindings).follow_bindings();
+
+                    // println!("TODO remove: try_unify: {:?} {:?} {:?} {:?}", var, length, other, other_follow);
+
                     other.try_bind_to_maybe_constant(var, *length, bindings)
                 }),
 
@@ -1204,22 +1238,28 @@ impl Type {
                 }
             }
 
-            (NamedGeneric(binding, _, _), other) | (other, NamedGeneric(binding, _, _))
+            (NamedGeneric(binding, _, prevent_numeric), other) | (other, NamedGeneric(binding, _, prevent_numeric))
                 if !binding.borrow().is_unbound() =>
             {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
+
+                    // if *prevent_numeric {
+                    //     println!("TODO try_unify NamedGeneric: {:?}  {:?}      {:?}      {:?}      {:?}", prevent_numeric, self, other, bindings, link);
+                    // }
+
                     link.try_unify(other, bindings)
                 } else {
                     unreachable!("If guard ensures binding is bound")
                 }
             }
 
-            (NamedGeneric(binding_a, name_a, _), NamedGeneric(binding_b, name_b, _)) => {
+            (NamedGeneric(binding_a, name_a, prevent_numeric_a), NamedGeneric(binding_b, name_b, prevent_numeric_b)) => {
                 // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
 
                 if name_a == name_b {
+                    assert!(prevent_numeric_a == prevent_numeric_b);
                     Ok(())
                 } else {
                     Err(UnificationError)
@@ -1326,6 +1366,8 @@ impl Type {
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::new();
                 if element1.try_unify(element2, &mut bindings).is_ok() {
+                    // println!("TODO remove: convert_array_expression_to_slice {:?} {:?} {:?} {:?}", expression, this, target, interner);
+
                     convert_array_expression_to_slice(expression, this, target, interner);
                     Self::apply_type_bindings(bindings);
                     return true;
@@ -1405,7 +1447,7 @@ impl Type {
     ) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
-                for var in typevars {
+                for (var, _prevent_numeric) in typevars {
                     bindings
                         .entry(var.id())
                         .or_insert_with(|| (var.clone(), interner.next_type_variable()));
@@ -1426,7 +1468,7 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 let replacements = typevars
                     .iter()
-                    .map(|var| {
+                    .map(|(var, _prevent_numeric)| {
                         let new = interner.next_type_variable();
                         (var.id(), (var.clone(), new))
                     })
@@ -1495,6 +1537,11 @@ impl Type {
             Type::Array(size, element) => {
                 let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
                 let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
+                
+                // let size_follow = size.follow_bindings();
+                // let size_follow = size.substitute(type_bindings).follow_bindings();
+                // println!("TODO substitute_helper: {:?}  {:?}  {:?}", self, size, element);
+
                 Type::Array(Box::new(size), Box::new(element))
             }
             Type::String(size) => {
@@ -1506,9 +1553,34 @@ impl Type {
                 let fields = fields.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::FmtString(Box::new(size), Box::new(fields))
             }
-            Type::NamedGeneric(binding, _, _) | Type::TypeVariable(binding, _) => {
+
+
+            // TODO: cleanup
+            Type::NamedGeneric(binding, _, prevent_numeric) => {
+            // Type::NamedGeneric(binding, _, prevent_numeric) | Type::TypeVariable(binding, _) => {
+                // if *prevent_numeric {
+                //
+                //     for (_type_variable, binding) in type_bindings.values() {
+                //         println!("TODO: {:?}", binding.follow_bindings());
+                //     }
+                //
+                //     println!("TODO substitute_binding {:?} {:?} {:?}", binding, prevent_numeric, type_bindings);
+                //     self.clone()
+                // } else {
+                //
+                //     // TODO: run in both cases
+                //     substitute_binding(binding)
+                // }
+
                 substitute_binding(binding)
             }
+            Type::TypeVariable(binding, _) => {
+                substitute_binding(binding)
+            }
+            // TODO: cleanup above
+
+
+
             // Do not substitute_helper fields, it can lead to infinite recursion
             // and we should not match fields when type checking anyway.
             Type::Struct(fields, args) => {
@@ -1532,7 +1604,7 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 // Trying to substitute_helper a variable de, substitute_bound_typevarsfined within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
-                for var in typevars {
+                for (var, _prevent_numeric) in typevars {
                     assert!(!type_bindings.contains_key(&var.id()));
                 }
                 let typ = Box::new(typ.substitute_helper(type_bindings, substitute_bound_typevars));
@@ -1582,7 +1654,7 @@ impl Type {
                 }
             }
             Type::Forall(typevars, typ) => {
-                !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
+                !typevars.iter().any(|(var, _prevent_numeric)| var.id() == target_id) && typ.occurs(target_id)
             }
             Type::Function(args, ret, env) => {
                 args.iter().any(|arg| arg.occurs(target_id))
@@ -1660,7 +1732,13 @@ impl Type {
     }
 
     pub fn from_generics(generics: &Generics) -> Vec<Type> {
-        vecmap(generics, |var| Type::TypeVariable(var.clone(), TypeVariableKind::Normal))
+        vecmap(generics, |(var, prevent_numeric)| {
+            if *prevent_numeric {
+                Type::TypeVariable(var.clone(), TypeVariableKind::NotConstant)
+            } else {
+                Type::TypeVariable(var.clone(), TypeVariableKind::Normal)
+            }
+        })
     }
 }
 
@@ -1714,6 +1792,7 @@ impl TypeVariableKind {
             TypeVariableKind::IntegerOrField | TypeVariableKind::Normal => Type::default_int_type(),
             TypeVariableKind::Integer => Type::default_range_loop_type(),
             TypeVariableKind::Constant(length) => Type::Constant(*length),
+            TypeVariableKind::NotConstant => Type::NotConstant,
         }
     }
 }
@@ -1745,7 +1824,7 @@ impl From<&Type> for PrintableType {
                 TypeBinding::Bound(typ) => typ.into(),
                 TypeBinding::Unbound(_) => Type::default_range_loop_type().into(),
             },
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) | Type::TypeVariable(binding, TypeVariableKind::NotConstant) => {
                 match &*binding.borrow() {
                     TypeBinding::Bound(typ) => typ.into(),
                     TypeBinding::Unbound(_) => Type::default_int_type().into(),
@@ -1809,6 +1888,9 @@ impl std::fmt::Debug for Type {
             }
             Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
                 write!(f, "{}{:?}", n, binding)
+            }
+            Type::TypeVariable(binding, TypeVariableKind::NotConstant) => {
+                write!(f, "{:?}?", binding)
             }
             Type::Struct(s, args) => {
                 let args = vecmap(args, |arg| format!("{:?}", arg));

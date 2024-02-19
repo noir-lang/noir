@@ -325,7 +325,7 @@ impl<'interner> TypeChecker<'interner> {
             let the_trait = self.interner.get_trait(constraint.trait_id);
             assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
 
-            for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
+            for ((param, _prevent_numeric), arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
                 bindings.insert(param.id(), (param.clone(), arg.clone()));
             }
         }

@@ -684,12 +684,12 @@ impl<'a> Resolver<'a> {
             None => {
                 let id = self.interner.next_type_variable_id();
                 let typevar = TypeVariable::unbound(id);
-                new_variables.push(typevar.clone());
+                let prevent_numeric = true;
+                new_variables.push((typevar.clone(), prevent_numeric));
 
                 // 'Named'Generic is a bit of a misnomer here, we want a type variable that
                 // wont be bound over but this one has no name since we do not currently
                 // require users to explicitly be generic over array lengths.
-                let prevent_numeric = true;
                 Type::NamedGeneric(typevar, Rc::new("".into()), prevent_numeric)
             }
             Some(length) => self.convert_expression_type(length),
@@ -820,7 +820,7 @@ impl<'a> Resolver<'a> {
                 self.generics.push((name, typevar.clone(), span, prevent_numeric));
             }
 
-            typevar
+            (typevar, prevent_numeric)
         })
     }
 
@@ -830,7 +830,8 @@ impl<'a> Resolver<'a> {
     pub fn add_existing_generics(&mut self, names: &UnresolvedGenerics, generics: &Generics) {
         assert_eq!(names.len(), generics.len());
 
-        for (name, typevar) in names.iter().zip(generics) {
+        for (name, (typevar, prevent_numeric)) in names.iter().zip(generics) {
+            assert!(*prevent_numeric == name.prevent_numeric);
             self.add_existing_generic(
                 &name.ident.0.contents,
                 name.ident.0.span(),
@@ -913,7 +914,7 @@ impl<'a> Resolver<'a> {
 
         let attributes = func.attributes().clone();
 
-        let mut generics = vecmap(&self.generics, |(_, typevar, _, _)| typevar.clone());
+        let mut generics = vecmap(&self.generics, |(_, typevar, _, prevent_numeric)| (typevar.clone(), *prevent_numeric));
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 

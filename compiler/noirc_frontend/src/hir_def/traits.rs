@@ -147,7 +147,7 @@ impl TraitFunction {
         }
     }
 
-    pub fn generics(&self) -> &[TypeVariable] {
+    pub fn generics(&self) -> &[(TypeVariable, bool)] {
         match &self.typ {
             Type::Function(..) => &[],
             Type::Forall(generics, _) => generics,

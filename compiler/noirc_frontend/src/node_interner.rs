@@ -544,12 +544,12 @@ impl NodeInterner {
             name: unresolved_trait.trait_def.name.clone(),
             crate_id: unresolved_trait.crate_id,
             location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
-            generics: vecmap(&unresolved_trait.trait_def.generics, |_| {
+            generics: vecmap(&unresolved_trait.trait_def.generics, |generic_ident| {
                 // Temporary type variable ids before the trait is resolved to its actual ids.
                 // This lets us record how many arguments the type expects so that other types
                 // can refer to it with generic arguments before the generic parameters themselves
                 // are resolved.
-                TypeVariable::unbound(TypeVariableId(0))
+                (TypeVariable::unbound(TypeVariableId(0)), generic_ident.prevent_numeric)
             }),
             self_type_typevar_id,
             self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
@@ -574,12 +574,12 @@ impl NodeInterner {
 
         // Fields will be filled in later
         let no_fields = Vec::new();
-        let generics = vecmap(&typ.struct_def.generics, |_| {
+        let generics = vecmap(&typ.struct_def.generics, |generic_ident| {
             // Temporary type variable ids before the struct is resolved to its actual ids.
             // This lets us record how many arguments the type expects so that other types
             // can refer to it with generic arguments before the generic parameters themselves
             // are resolved.
-            TypeVariable::unbound(TypeVariableId(0))
+            (TypeVariable::unbound(TypeVariableId(0)), generic_ident.prevent_numeric)
         });
 
         let location = Location::new(typ.struct_def.span, file_id);
@@ -597,7 +597,9 @@ impl NodeInterner {
             typ.type_alias_def.name.clone(),
             Location::new(typ.type_alias_def.span, typ.file_id),
             Type::Error,
-            vecmap(&typ.type_alias_def.generics, |_| TypeVariable::unbound(TypeVariableId(0))),
+            vecmap(&typ.type_alias_def.generics, |generic_ident| {
+                (TypeVariable::unbound(TypeVariableId(0)), generic_ident.prevent_numeric)
+            }),
         )));
 
         type_id
@@ -1306,7 +1308,7 @@ impl NodeInterner {
         // Replace each generic with a fresh type variable
         let substitutions = impl_generics
             .into_iter()
-            .map(|typevar| (typevar.id(), (typevar, self.next_type_variable())))
+            .map(|(typevar, _prevent_numeric)| (typevar.id(), (typevar, self.next_type_variable())))
             .collect();
 
         let instantiated_object_type = object_type.substitute(&substitutions);

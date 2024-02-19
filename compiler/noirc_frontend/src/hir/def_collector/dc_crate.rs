@@ -501,7 +501,7 @@ pub(crate) fn check_methods_signatures(
     }
 
     // We also need to bind the traits generics to the trait's generics on the impl
-    for (generic, binding) in the_trait.generics.iter().zip(trait_generics) {
+    for ((generic, _prevent_numeric), binding) in the_trait.generics.iter().zip(trait_generics) {
         generic.bind(binding);
     }
 
@@ -609,7 +609,7 @@ pub(crate) fn check_methods_signatures(
     the_trait.set_methods(trait_methods);
     the_trait.self_type_typevar.unbind(the_trait.self_type_typevar_id);
 
-    for generic in &the_trait.generics {
+    for (generic, _prevent_numeric) in &the_trait.generics {
         generic.unbind(generic.id());
     }
 }
