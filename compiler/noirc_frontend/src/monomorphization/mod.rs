@@ -696,7 +696,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mutable = definition.mutable;
 
         let definition = self.lookup_local(ident.id)?;
-        let typ = self.convert_type(&self.interner.id_type(ident.id));
+        let typ = self.convert_type(&self.interner.definition_type(ident.id));
 
         Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ })
     }
@@ -714,7 +714,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let mutable = definition.mutable;
                 let location = Some(ident.location);
                 let name = definition.name.clone();
-                let typ = self.interner.id_type(expr_id);
                 let definition = self.lookup_function(*func_id, expr_id, &typ, None);
                 let typ = self.convert_type(&typ);
                 let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone() };
@@ -733,7 +732,9 @@ impl<'interner> Monomorphizer<'interner> {
             }
             DefinitionKind::Global(global_id) => {
                 let Some(let_) = self.interner.get_global_let_statement(*global_id) else {
-                    unreachable!("Globals should have a corresponding let statement by monomorphization")
+                    unreachable!(
+                        "Globals should have a corresponding let statement by monomorphization"
+                    )
                 };
                 self.expr(let_.expression)
             }
@@ -753,7 +754,8 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let value = FieldElement::from(value as u128);
                 let location = self.interner.id_location(expr_id);
-                ast::Expression::Literal(ast::Literal::Integer(value, ast::Type::Field, location))
+                let typ = self.convert_type(&typ);
+                ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
             }
         }
     }
@@ -1038,7 +1040,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) {
         match hir_argument {
             HirExpression::Ident(ident) => {
-                let typ = self.interner.id_type(ident.id);
+                let typ = self.interner.definition_type(ident.id);
                 let typ: Type = typ.follow_bindings();
                 let is_fmt_str = match typ {
                     // A format string has many different possible types that need to be handled.

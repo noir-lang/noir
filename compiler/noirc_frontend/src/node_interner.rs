@@ -75,12 +75,13 @@ pub struct NodeInterner {
 
     // Type checking map
     //
-    // Notice that we use `Index` as the Key and not an ExprId or IdentId
-    // Therefore, If a raw index is passed in, then it is not safe to assume that it will have
-    // a Type, as not all Ids have types associated to them.
-    // Further note, that an ExprId and an IdentId will never have the same underlying Index
-    // Because we use one Arena to store all Definitions/Nodes
+    // This should only be used with indices from the `nodes` arena.
+    // Otherwise the indices used may overwrite other existing indices.
+    // Each type for each index is filled in during type checking.
     id_to_type: HashMap<Index, Type>,
+
+    // Similar to `id_to_type` but maps definitions to their type
+    definition_to_type: HashMap<DefinitionId, Type>,
 
     // Struct map.
     //
@@ -277,12 +278,6 @@ impl DefinitionId {
     }
 }
 
-impl From<DefinitionId> for Index {
-    fn from(id: DefinitionId) -> Self {
-        Index::from_raw_parts(id.0, u64::MAX)
-    }
-}
-
 /// An ID for a global value
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct GlobalId(usize);
@@ -302,7 +297,7 @@ impl StmtId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> StmtId {
-        StmtId(Index::from_raw_parts(std::usize::MAX, 0))
+        StmtId(Index::dummy())
     }
 }
 
@@ -311,7 +306,7 @@ pub struct ExprId(Index);
 
 impl ExprId {
     pub fn empty_block_id() -> ExprId {
-        ExprId(Index::from_raw_parts(0, 0))
+        ExprId(Index::unsafe_zeroed())
     }
 }
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
@@ -322,7 +317,7 @@ impl FuncId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> FuncId {
-        FuncId(Index::from_raw_parts(std::usize::MAX, 0))
+        FuncId(Index::dummy())
     }
 }
 
@@ -396,22 +391,8 @@ macro_rules! into_index {
     };
 }
 
-macro_rules! partialeq {
-    ($id_type:ty) => {
-        impl PartialEq<usize> for &$id_type {
-            fn eq(&self, other: &usize) -> bool {
-                let (index, _) = self.0.into_raw_parts();
-                index == *other
-            }
-        }
-    };
-}
-
 into_index!(ExprId);
 into_index!(StmtId);
-
-partialeq!(ExprId);
-partialeq!(StmtId);
 
 /// A Definition enum specifies anything that we can intern in the NodeInterner
 /// We use one Arena for all types that can be interned as that has better cache locality
@@ -496,6 +477,7 @@ impl Default for NodeInterner {
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
+            definition_to_type: HashMap::new(),
             structs: HashMap::new(),
             struct_attributes: HashMap::new(),
             type_aliases: Vec::new(),
@@ -545,8 +527,13 @@ impl NodeInterner {
     }
 
     /// Store the type for an interned expression
-    pub fn push_expr_type(&mut self, expr_id: &ExprId, typ: Type) {
+    pub fn push_expr_type(&mut self, expr_id: ExprId, typ: Type) {
         self.id_to_type.insert(expr_id.into(), typ);
+    }
+
+    /// Store the type for an interned expression
+    pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
+        self.definition_to_type.insert(definition_id, typ);
     }
 
     pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait) {
@@ -658,11 +645,6 @@ impl NodeInterner {
                 panic!("ice: all expression ids should correspond to a expression in the interner")
             }
         }
-    }
-
-    /// Store the type for an interned Identifier
-    pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
-        self.id_to_type.insert(definition_id.into(), typ);
     }
 
     /// Store [Location] of [Type] reference
@@ -980,8 +962,13 @@ impl NodeInterner {
         self.id_to_type.get(&index.into()).cloned().unwrap_or(Type::Error)
     }
 
+    /// Returns the type of the definition or `Type::Error` if it was not found.
+    pub fn definition_type(&self, id: DefinitionId) -> Type {
+        self.definition_to_type.get(&id).cloned().unwrap_or(Type::Error)
+    }
+
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Type {
-        let typ = self.id_type(def_id);
+        let typ = self.definition_type(def_id);
         if let Type::Function(args, ret, env) = &typ {
             let def = self.definition(def_id);
             if let Type::TraitAsType(..) = ret.as_ref() {
@@ -1147,7 +1134,7 @@ impl NodeInterner {
                     })
                     .collect()
             })
-            .unwrap_or(vec![])
+            .unwrap_or_default()
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
@@ -1670,7 +1657,7 @@ impl Methods {
         for method in self.iter() {
             match interner.function_meta(&method).typ.instantiate(interner).0 {
                 Type::Function(args, _, _) => {
-                    if let Some(object) = args.get(0) {
+                    if let Some(object) = args.first() {
                         let mut bindings = TypeBindings::new();
 
                         if object.try_unify(typ, &mut bindings).is_ok() {
