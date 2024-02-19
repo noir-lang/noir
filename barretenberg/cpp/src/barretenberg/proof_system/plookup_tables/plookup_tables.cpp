@@ -108,13 +108,21 @@ const MultiTable& create_table(const MultiTableId id)
     return MULTI_TABLES[id];
 }
 
-ReadData<bb::fr> get_lookup_accumulators(const MultiTableId id,
+const MultiTable& get_table(const MultiTableIdOrPtr& id)
+{
+    if (id.ptr == nullptr) {
+        return create_table(id.id);
+    }
+    return *id.ptr;
+}
+
+ReadData<bb::fr> get_lookup_accumulators(const MultiTableIdOrPtr& id,
                                          const fr& key_a,
                                          const fr& key_b,
                                          const bool is_2_to_1_lookup)
 {
     // return multi-table, populating global array of all multi-tables if need be
-    const auto& multi_table = create_table(id);
+    const auto& multi_table = get_table(id);
     const size_t num_lookups = multi_table.lookup_ids.size();
 
     ReadData<bb::fr> lookup;
