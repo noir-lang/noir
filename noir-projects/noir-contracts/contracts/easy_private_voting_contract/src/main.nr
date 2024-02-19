@@ -66,15 +66,4 @@ contract EasyPrivateVoting {
         storage.tally.at(candidate).read()
     }
     // docs:end:get_vote
-    // docs:start:compute_note_hash_and_nullifier
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: AztecAddress,
-        nonce: Field,
-        storage_slot: Field,
-        note_type_id: Field,
-        serialized_note: [Field; 0]
-    ) -> pub [Field; 4] {
-        [0, 0, 0, 0]
-    }
-    // docs:end:compute_note_hash_and_nullifier
 }

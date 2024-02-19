@@ -14,16 +14,6 @@ aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_
 
 You can learn more about dependencies and their paths [here](../contracts/resources/dependencies.md).
 
-#### `compute_note_hash_and_nullifier function not found. Define it in your contract`
-
-Any smart contract that works with storage must include a [`compute_note_hash_and_nullifier`](https://github.com/AztecProtocol/aztec-packages/blob/6c20b45993ee9cbd319ab8351e2722e0c912f427/noir-projects/aztec-nr/aztec/src/note/utils.nr#L69) function to allow the PXE to process encrypted events.
-
-This is an example of this function in the token contract:
-
-#include_code compute_note_hash_and_nullifier noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
-
-This error may also show if the `compute_note_hash_and_nullifier` function is not correct or sits outside of the contract.
-
 #### `backend has encountered an error`
 
 This is likely due to a version mismatch or bad install of barretenberg. Try [reinstalling nargo](../updating.md) or uninstalling barretenberg:

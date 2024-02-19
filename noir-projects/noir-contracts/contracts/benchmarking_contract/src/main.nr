@@ -5,7 +5,7 @@
 // arise from code changes.
 
 contract Benchmarking {
-    use dep::value_note::{utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote}};
+    use dep::value_note::{utils::{increment, decrement}, value_note::ValueNote};
 
     use dep::aztec::{
         protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress},
@@ -59,16 +59,5 @@ contract Benchmarking {
     #[aztec(public)]
     fn broadcast(owner: AztecAddress) {
         emit_unencrypted_log(&mut context, storage.balances.at(owner).read());
-    }
-
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: AztecAddress,
-        nonce: Field,
-        storage_slot: Field,
-        note_type_id: Field,
-        serialized_note: [Field; VALUE_NOTE_LEN]
-    ) -> pub [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(ValueNote::deserialize_content, note_header, serialized_note)
     }
 }

@@ -1,6 +1,6 @@
 use dep::aztec::note::{note_getter::view_notes, note_viewer_options::NoteViewerOptions};
 use dep::aztec::state_vars::set::Set;
-use crate::value_note::{VALUE_NOTE_LEN, ValueNote};
+use crate::value_note::ValueNote;
 
 unconstrained pub fn get_balance(set: Set<ValueNote>) -> Field {
     get_balance_with_offset(set, 0)

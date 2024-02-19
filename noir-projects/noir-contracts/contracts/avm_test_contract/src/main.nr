@@ -113,20 +113,8 @@ contract AvmTest {
     fn getTimestamp() -> pub Field {
         context.timestamp()
     }
-
     // #[aztec(public-vm)]
     // fn getContractCallDepth() -> pub Field {
     //     context.contract_call_depth()
     // }
-
-    // Function required for all contracts
-    unconstrained fn compute_note_hash_and_nullifier(
-        _contract_address: AztecAddress,
-        _nonce: Field,
-        _storage_slot: Field,
-        _note_type_id: Field,
-        _serialized_note: [Field; 1]
-    ) -> pub [Field; 4] {
-        [0, 0, 0, 0]
-    }
 }

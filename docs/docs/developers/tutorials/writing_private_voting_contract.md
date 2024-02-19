@@ -163,16 +163,6 @@ Paste this function in your contract:
 
 Here, we are asserting that the `msg_sender()` is equal to the admin stored in public state. We have to create an `AztecAddress` type from the `msg_sender()` in order to do a direct comparison.
 
-## compute_note_hash_and_nullifier
-
-Every Aztec contract that has storage must have a `compute_note_hash_and_nullifier()` function. If you try to compile without this function, you will get an error. This is explained in more detail [here](../contracts/resources/common_patterns/main.md#working-with-compute_note_hash_and_nullifier).
-
-At the end of the contract, paste this:
-
-#include_code compute_note_hash_and_nullifier noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
-
-We can simply return `[0,0,0,0]` because we are not creating any notes in our contract.
-
 ## Compiling and deploying
 
 The easiest way to compile the contract is with `aztec-nargo`. Run the following command in the directory with your Nargo.toml file:

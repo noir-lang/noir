@@ -12,10 +12,7 @@ contract EasyPrivateToken {
     };
     use dep::value_note::{
             balance_utils,
-            value_note::{
-                ValueNote,
-                VALUE_NOTE_LEN,
-            },
+            value_note::ValueNote,
     };
     use dep::easy_private_state::easy_private_state::EasyPrivateUint;
 
@@ -56,20 +53,6 @@ contract EasyPrivateToken {
 
         // Return the sum of all notes in the set.
         balance_utils::get_balance(balances.at(owner).set)
-    }
-
-    // Computes note hash and nullifier.
-    // Note 1: Needs to be defined by every contract producing logs.
-    // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: AztecAddress,
-        nonce: Field,
-        storage_slot: Field,
-        note_type_id: Field,
-        serialized_note: [Field; VALUE_NOTE_LEN]
-    ) -> pub [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(ValueNote::deserialize_content, note_header, serialized_note)
     }
 }
 // docs:end:easy_private_token_contract

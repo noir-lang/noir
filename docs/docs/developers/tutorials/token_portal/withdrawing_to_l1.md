@@ -60,13 +60,6 @@ We need a function that lets us read the token value. Paste this into `main.nr`:
 
 #include_code read_token /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
-And the `compute_note_hash_and_nullifier` required on every contract:
-
-```rust
-#include_code compute_note_hash_and_nullifier_placeholder /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr raw
-}
-```
-
 ## Compile code
 
 Congratulations, you have written all the contracts we need for this tutorial! Now let's compile them.

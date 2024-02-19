@@ -319,6 +319,7 @@ version = "0.24.0"
 dependencies = [
  "convert_case",
  "iter-extended",
+ "noirc_errors",
  "noirc_frontend",
 ]
 

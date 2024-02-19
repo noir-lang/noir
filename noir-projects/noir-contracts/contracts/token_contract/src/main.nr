@@ -41,7 +41,7 @@ contract Token {
 
     use crate::types::{
         transparent_note::TransparentNote,
-        token_note::{TokenNote, TOKEN_NOTE_LEN},
+        token_note::TokenNote,
         balances_map::BalancesMap
     };
     // docs:end::imports
@@ -379,30 +379,5 @@ contract Token {
         storage.public_balances.at(owner).read().value
     }
     // docs:end:balance_of_public
-
-    // docs:start:compute_note_hash_and_nullifier
-    // Computes note hash and nullifier.
-    // Note 1: Needs to be defined by every contract producing logs.
-    // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: AztecAddress,
-        nonce: Field,
-        storage_slot: Field,
-        note_type_id: Field,
-        serialized_note: [Field; TOKEN_NOTE_LEN]
-    ) -> pub [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-
-        if (note_type_id == TransparentNote::get_note_type_id()) {
-            note_utils::compute_note_hash_and_nullifier(
-                TransparentNote::deserialize_content,
-                note_header,
-                serialized_note
-            )
-        } else {
-            note_utils::compute_note_hash_and_nullifier(TokenNote::deserialize_content, note_header, serialized_note)
-        }
-    }
-    // docs:end:compute_note_hash_and_nullifier
 }
 // docs:end:token_all

@@ -6,6 +6,14 @@ keywords: [sandbox, cli, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## TBD
+
+### Autogenerate `compute_note_hash_and_nullifier`
+
+Historically developers have been required to include a `compute_note_hash_and_nullifier` function in each of their contracts. This function is now automatically generated, and all instances of it in contract code can be safely removed.
+
+It is possible to provide a user-defined implementation, in which case auto-generation will be skipped (though there are no known use cases for this).
+
 ## 0.24.0
 
 ### Introduce Note Type IDs

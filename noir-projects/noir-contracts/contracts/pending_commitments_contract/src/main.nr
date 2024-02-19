@@ -244,7 +244,6 @@ contract PendingCommitments {
             [owner.to_field()]
         );
     }
-
     // Confirm cannot get/read a pending commitment in a nested call
     // that is created/inserted later in execution but in the parent.
     // NOTE: This test is especially important in an end-to-end context because the parent call
@@ -259,18 +258,4 @@ contract PendingCommitments {
     //    get_then_nullify_fn_selector: FunctionSelector,
     //) {
     //}
-
-    // Computes note hash and nullifier.
-    // Note 1: Needs to be defined by every contract producing logs.
-    // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: AztecAddress,
-        nonce: Field,
-        storage_slot: Field,
-        note_type_id: Field,
-        serialized_note: [Field; VALUE_NOTE_LEN]
-    ) -> pub [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(ValueNote::deserialize_content, note_header, serialized_note)
-    }
 }

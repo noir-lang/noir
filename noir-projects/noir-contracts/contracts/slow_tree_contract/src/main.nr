@@ -8,7 +8,7 @@ mod types;
 contract SlowTree {
     use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
     use dep::std::option::Option;
-    use dep::value_note::{balance_utils, utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote}};
+    use dep::value_note::{balance_utils, utils::{increment, decrement}, value_note::ValueNote};
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
         note::{note_header::NoteHeader, utils as note_utils},
@@ -139,15 +139,5 @@ contract SlowTree {
 
     unconstrained fn un_read_root(address: AztecAddress) -> pub Leaf {
         storage.trees.at(address.to_field()).read_root()
-    }
-
-    unconstrained fn compute_note_hash_and_nullifier(
-        _contract_address: AztecAddress,
-        _nonce: Field,
-        _storage_slot: Field,
-        _note_type_id: Field,
-        _serialized_note: [Field; 4]
-    ) -> pub [Field; 4] {
-        [0x0d, 0x0e, 0x0a, 0x0d]
     }
 }

@@ -120,13 +120,7 @@ The `increment` function works very similarly to the `constructor`, but instead 
 
 ## Prevent double spending
 
-Because our counters are private, the network can't directly verify if a note was spent or not, which could lead to double-spending. To solve this, we use a nullifier - a unique identifier generated from each spent note and its owner. Although this isn't really an issue in this simple smart contract, Aztec requires a contract that has any private functions to include this function.
-
-Add a new function into your contract as shown below:
-
-#include_code nullifier /noir-projects/noir-contracts/contracts/counter_contract/src/main.nr rust
-
-Here, we're computing both the note hash and the nullifier. The nullifier computation uses Aztec’s `compute_note_hash_and_nullifier` function, which takes details about the note's attributes eg contract address, nonce, storage slot, type id, and preimage.
+Because our counters are private, the network can't directly verify if a note was spent or not, which could lead to double-spending. To solve this, we use a nullifier - a unique identifier generated from each spent note and its owner. Although this isn't really an issue in this simple smart contract, Aztec injects a special function called `compute_note_hash_and_nullifier` to determine these values for any given note produced by this contract.
 
 ## Getting a counter
 
@@ -172,7 +166,7 @@ This will return something like this:
 
 ```bash
 ➜ counter aztec-cli get-accounts
-Accounts found: 
+Accounts found:
 
 Address: 0x2fd4503a9b855a852272945df53d7173297c1469cceda31048b85118364b09a3
 Public Key: 0x27c20118733174347b8082f578a7d8fb84b3ad38be293715eee8119ee5cd8a6d0d6b7d8124b37359663e75bcd2756f544a93b821a06f8e33fba68cc8029794d9

@@ -129,8 +129,6 @@ contract Token {
     unconstrained fn balance_of_private(owner: AztecAddress) -> Field {}
 
     unconstrained fn balance_of_public(owner: AztecAddress) -> Field {}
-
-    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, note_type_id: Field, serialized_note: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {}
 }
 ```
 
@@ -192,8 +190,6 @@ Aztec transactions can pass data to Ethereum contracts through the rollup via th
 ### Unconstrained functions
 
 Unconstrained functions can be thought of as view functions from Solidity--they only return information from the contract storage or compute and return data without modifying contract storage.
-
-The `compute_note_hash_and_nullifier` function allows contract devs to specify how to compute notes and nullifiers. This must be included in every contract because it depends on the storage slots, which are defined when we set up storage.
 
 ## Contract dependencies
 
@@ -434,21 +430,6 @@ A getter function for checking the private balance of the provided Aztec account
 A getter function for checking the public balance of the provided Aztec account.
 
 #include_code balance_of_public /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
-
-#### `compute_note_hash_and_nullifier`
-
-A getter function to compute the note hash and nullifier for notes in the contract's storage.
-
-This must be included in every contract because it depends on the storage slots, which are defined when we set up storage.
-
-#include_code compute_note_hash_and_nullifier /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
-
-:::danger
-If your contract works with storage (has Storage struct defined), you **MUST** include a `compute_note_hash_and_nullifier` function.
-If you don't yet have any private state variables defined put there a placeholder function:
-
-#include_code compute_note_hash_and_nullifier_placeholder /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
-:::
 
 ## Compiling
 

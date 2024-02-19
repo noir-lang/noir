@@ -88,23 +88,4 @@ contract SchnorrAccount {
         // docs:end:entrypoint
         true
     }
-
-    // Computes notes hash and nullifier.
-    // Note 1: Needs to be defined by every contract producing logs.
-    // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: AztecAddress,
-        nonce: Field,
-        storage_slot: Field,
-        note_type_id: Field,
-        serialized_note: [Field; PUBLIC_KEY_NOTE_LEN]
-    ) -> pub [Field; 4] {
-        assert(storage_slot == storage.signing_public_key.get_storage_slot());
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(
-            PublicKeyNote::deserialize_content,
-            note_header,
-            serialized_note
-        )
-    }
 }

@@ -28,7 +28,7 @@ contract InclusionProofs {
     };
     // docs:end:imports
     // docs:start:value_note_imports
-    use dep::value_note::value_note::{ValueNote, VALUE_NOTE_LEN};
+    use dep::value_note::value_note::ValueNote;
     // docs:end:value_note_imports
     struct Storage {
         private_values: Map<AztecAddress, Set<ValueNote>>,
@@ -249,19 +249,5 @@ contract InclusionProofs {
             context
         );
         // Here typically the factory would add the contract address to its internal map of deployed contracts.
-    }
-
-    // Computes note hash and nullifier.
-    // Note 1: Needs to be defined by every contract producing logs.
-    // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: AztecAddress,
-        nonce: Field,
-        storage_slot: Field,
-        note_type_id: Field,
-        serialized_note: [Field; VALUE_NOTE_LEN]
-    ) -> pub [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(ValueNote::deserialize_content, note_header, serialized_note)
     }
 }

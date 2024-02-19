@@ -42,7 +42,7 @@ describe('Simulator', () => {
     const contractAddress = AztecAddress.random();
     const nonce = Fr.random();
     const storageSlot = Fr.random();
-    const noteTypeId = Fr.random();
+    const noteTypeId = new Fr(8411110710111078111116101n); // TokenNote
 
     const createNote = (amount = 123n) => new Note([new Fr(amount), owner.toField(), Fr.random()]);
 
@@ -50,8 +50,8 @@ describe('Simulator', () => {
       oracle.getFunctionArtifactByName.mockResolvedValue(artifact);
 
       const note = createNote();
-      const valueNoteHash = hashFields(note.items);
-      const innerNoteHash = hashFields([storageSlot, valueNoteHash]);
+      const tokenNoteHash = hashFields(note.items);
+      const innerNoteHash = hashFields([storageSlot, tokenNoteHash]);
       const siloedNoteHash = siloCommitment(contractAddress, innerNoteHash);
       const uniqueSiloedNoteHash = computeUniqueCommitment(nonce, siloedNoteHash);
       const innerNullifier = hashFields([

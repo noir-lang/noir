@@ -19,7 +19,7 @@ use dep::std::{
     option::Option,
 };
 use dep::value_note::{
-    value_note::{ValueNote, VALUE_NOTE_LEN},
+    value_note::ValueNote,
 };
 
 struct Card {
