@@ -13,6 +13,7 @@
  * @brief IPA (inner-product argument) commitment scheme class. Conforms to the specification
  * https://hackmd.io/q-A8y6aITWyWJrvsGGMWNA?view.
  *
+ *
  */
 namespace bb {
 template <typename Curve> class IPA {
@@ -141,32 +142,30 @@ template <typename Curve> class IPA {
             const Fr round_challenge = transcript->get_challenge<Fr>("IPA:round_challenge_" + index);
             const Fr round_challenge_inv = round_challenge.invert();
 
-            auto G_lo = GroupElement::batch_mul_with_endomorphism(
-                std::span{ G_vec_local.begin(), G_vec_local.begin() + static_cast<long>(round_size) },
-                round_challenge_inv);
             auto G_hi = GroupElement::batch_mul_with_endomorphism(
                 std::span{ G_vec_local.begin() + static_cast<long>(round_size),
                            G_vec_local.begin() + static_cast<long>(round_size * 2) },
-                round_challenge);
+                round_challenge_inv);
 
             // Update the vectors a_vec, b_vec and G_vec.
-            // a_vec_next = a_vec_lo * round_challenge + a_vec_hi * round_challenge_inv
-            // b_vec_next = b_vec_lo * round_challenge_inv + b_vec_hi * round_challenge
-            // G_vec_next = G_vec_lo * round_challenge_inv + G_vec_hi * round_challenge
+            // a_vec_next = a_vec_lo + a_vec_hi * round_challenge
+            // b_vec_next = b_vec_lo + b_vec_hi * round_challenge_inv
+            // G_vec_next = G_vec_lo + G_vec_hi * round_challenge_inv
             run_loop_in_parallel_if_effective(
                 round_size,
                 [&a_vec, &b_vec, round_challenge, round_challenge_inv, round_size](size_t start, size_t end) {
                     for (size_t j = start; j < end; j++) {
-                        a_vec[j] *= round_challenge;
-                        a_vec[j] += round_challenge_inv * a_vec[round_size + j];
-                        b_vec[j] *= round_challenge_inv;
-                        b_vec[j] += round_challenge * b_vec[round_size + j];
+                        a_vec[j] += round_challenge * a_vec[round_size + j];
+                        b_vec[j] += round_challenge_inv * b_vec[round_size + j];
                     }
                 },
                 /*finite_field_additions_per_iteration=*/4,
                 /*finite_field_multiplications_per_iteration=*/8,
                 /*finite_field_inversions_per_iteration=*/1);
-            GroupElement::batch_affine_add(G_lo, G_hi, G_vec_local);
+            GroupElement::batch_affine_add(
+                std::span{ G_vec_local.begin(), G_vec_local.begin() + static_cast<long>(round_size) },
+                G_hi,
+                G_vec_local);
         }
 
         transcript->send_to_verifier("IPA:a_0", a_vec[0]);
@@ -196,7 +195,7 @@ template <typename Curve> class IPA {
         // Compute C_prime
         GroupElement C_prime = opening_claim.commitment + (aux_generator * opening_claim.opening_pair.evaluation);
 
-        // Compute C_zero = C_prime + ∑_{j ∈ [k]} u_j^2L_j + ∑_{j ∈ [k]} u_j^{-2}R_j
+        // Compute C_zero = C_prime + ∑_{j ∈ [k]} u_j^{-1}L_j + ∑_{j ∈ [k]} u_jR_j
         auto pippenger_size = 2 * log_poly_degree;
         std::vector<Fr> round_challenges(log_poly_degree);
         std::vector<Fr> round_challenges_inv(log_poly_degree);
@@ -211,8 +210,8 @@ template <typename Curve> class IPA {
 
             msm_elements[2 * i] = element_L;
             msm_elements[2 * i + 1] = element_R;
-            msm_scalars[2 * i] = round_challenges[i].sqr();
-            msm_scalars[2 * i + 1] = round_challenges_inv[i].sqr();
+            msm_scalars[2 * i] = round_challenges_inv[i];
+            msm_scalars[2 * i + 1] = round_challenges[i];
         }
 
         GroupElement LR_sums = bb::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
@@ -222,15 +221,15 @@ template <typename Curve> class IPA {
         /**
          * Compute b_zero where b_zero can be computed using the polynomial:
          *
-         * g(X) = ∏_{i ∈ [k]} (u_{k-i}^{-1} + u_{k-i}.X^{2^{i-1}}).
+         * g(X) = ∏_{i ∈ [k]} (1 + u_{k-i}^{-1}.X^{2^{i-1}}).
          *
-         * b_zero = g(evaluation) = ∏_{i ∈ [k]} (u_{k-i}^{-1} + u_{k-i}. (evaluation)^{2^{i-1}})
+         * b_zero = g(evaluation) = ∏_{i ∈ [k]} (1 + u_{k-i}^{-1}. (evaluation)^{2^{i-1}})
          */
         Fr b_zero = Fr::one();
         for (size_t i = 0; i < log_poly_degree; i++) {
             auto exponent = static_cast<uint64_t>(Fr(2).pow(i));
-            b_zero *= round_challenges_inv[log_poly_degree - 1 - i] +
-                      (round_challenges[log_poly_degree - 1 - i] * opening_claim.opening_pair.challenge.pow(exponent));
+            b_zero *= Fr::one() + (round_challenges_inv[log_poly_degree - 1 - i] *
+                                   opening_claim.opening_pair.challenge.pow(exponent));
         }
 
         // Compute G_zero
@@ -238,15 +237,13 @@ template <typename Curve> class IPA {
         std::vector<Fr> s_vec(poly_degree);
         run_loop_in_parallel_if_effective(
             poly_degree,
-            [&s_vec, &round_challenges, &round_challenges_inv, log_poly_degree](size_t start, size_t end) {
+            [&s_vec, &round_challenges_inv, log_poly_degree](size_t start, size_t end) {
                 for (size_t i = start; i < end; i++) {
                     Fr s_vec_scalar = Fr::one();
                     for (size_t j = (log_poly_degree - 1); j != size_t(-1); j--) {
                         auto bit = (i >> j) & 1;
                         bool b = static_cast<bool>(bit);
                         if (b) {
-                            s_vec_scalar *= round_challenges[log_poly_degree - 1 - j];
-                        } else {
                             s_vec_scalar *= round_challenges_inv[log_poly_degree - 1 - j];
                         }
                     }
