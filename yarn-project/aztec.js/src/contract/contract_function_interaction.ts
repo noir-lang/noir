@@ -38,14 +38,15 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
   /**
    * Create a transaction execution request that represents this call, encoded and authenticated by the
    * user's wallet, ready to be simulated.
+   * @param opts - An optional object containing additional configuration for the transaction.
    * @returns A Promise that resolves to a transaction instance.
    */
-  public async create(): Promise<TxExecutionRequest> {
+  public async create(opts?: SendMethodOptions): Promise<TxExecutionRequest> {
     if (this.functionDao.functionType === FunctionType.UNCONSTRAINED) {
       throw new Error("Can't call `create` on an unconstrained function.");
     }
     if (!this.txRequest) {
-      this.txRequest = await this.wallet.createTxExecutionRequest([this.request()]);
+      this.txRequest = await this.wallet.createTxExecutionRequest([this.request()], opts?.fee);
     }
     return this.txRequest;
   }

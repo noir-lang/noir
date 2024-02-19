@@ -14,6 +14,7 @@ members = [
     "contracts/easy_private_voting_contract",
     "contracts/ecdsa_account_contract",
     "contracts/escrow_contract",
+    "contracts/gas_token_contract",
     "contracts/import_test_contract",
     "contracts/inclusion_proofs_contract",
     "contracts/lending_contract",
