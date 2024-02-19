@@ -19,9 +19,8 @@
 namespace bb::plookup {
 
 const MultiTable& create_table(MultiTableId id);
-const MultiTable& get_table(const MultiTableIdOrPtr& id);
 
-ReadData<bb::fr> get_lookup_accumulators(const MultiTableIdOrPtr& id,
+ReadData<bb::fr> get_lookup_accumulators(MultiTableId id,
                                          const bb::fr& key_a,
                                          const bb::fr& key_b = 0,
                                          bool is_2_to_1_lookup = false);

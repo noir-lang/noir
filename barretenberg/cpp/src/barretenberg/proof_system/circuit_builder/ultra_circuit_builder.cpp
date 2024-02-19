@@ -633,12 +633,12 @@ plookup::BasicTable& UltraCircuitBuilder_<Arithmetization>::get_table(const ploo
 
 template <typename Arithmetization>
 plookup::ReadData<uint32_t> UltraCircuitBuilder_<Arithmetization>::create_gates_from_plookup_accumulators(
-    const plookup::MultiTableIdOrPtr& id,
+    const plookup::MultiTableId& id,
     const plookup::ReadData<FF>& read_values,
     const uint32_t key_a_index,
     std::optional<uint32_t> key_b_index)
 {
-    const auto& multi_table = plookup::get_table(id);
+    const auto& multi_table = plookup::create_table(id);
     const size_t num_lookups = read_values[plookup::ColumnIdx::C1].size();
     plookup::ReadData<uint32_t> read_data;
     for (size_t i = 0; i < num_lookups; ++i) {

@@ -14,7 +14,7 @@ using plookup::MultiTableId;
 using namespace bb;
 
 template <typename Builder>
-plookup::ReadData<field_t<Builder>> plookup_read<Builder>::get_lookup_accumulators(const plookup::MultiTableIdOrPtr& id,
+plookup::ReadData<field_t<Builder>> plookup_read<Builder>::get_lookup_accumulators(const MultiTableId id,
                                                                                    const field_t<Builder>& key_a_in,
                                                                                    const field_t<Builder>& key_b_in,
                                                                                    const bool is_2_to_1_lookup)
@@ -64,8 +64,8 @@ plookup::ReadData<field_t<Builder>> plookup_read<Builder>::get_lookup_accumulato
 }
 
 template <typename Builder>
-std::pair<field_t<Builder>, field_t<Builder>> plookup_read<Builder>::read_pair_from_table(
-    const plookup::MultiTableIdOrPtr& id, const field_t<Builder>& key)
+std::pair<field_t<Builder>, field_t<Builder>> plookup_read<Builder>::read_pair_from_table(const MultiTableId id,
+                                                                                          const field_t<Builder>& key)
 {
     const auto lookup = get_lookup_accumulators(id, key);
 
@@ -73,7 +73,7 @@ std::pair<field_t<Builder>, field_t<Builder>> plookup_read<Builder>::read_pair_f
 }
 
 template <typename Builder>
-field_t<Builder> plookup_read<Builder>::read_from_2_to_1_table(const plookup::MultiTableIdOrPtr& id,
+field_t<Builder> plookup_read<Builder>::read_from_2_to_1_table(const MultiTableId id,
                                                                const field_t<Builder>& key_a,
                                                                const field_t<Builder>& key_b)
 {
@@ -83,8 +83,7 @@ field_t<Builder> plookup_read<Builder>::read_from_2_to_1_table(const plookup::Mu
 }
 
 template <typename Builder>
-field_t<Builder> plookup_read<Builder>::read_from_1_to_2_table(const plookup::MultiTableIdOrPtr& id,
-                                                               const field_t<Builder>& key_a)
+field_t<Builder> plookup_read<Builder>::read_from_1_to_2_table(const MultiTableId id, const field_t<Builder>& key_a)
 {
     const auto lookup = get_lookup_accumulators(id, key_a);
 
