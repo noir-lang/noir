@@ -4,7 +4,7 @@ fn array_zeros<N?>(_x: [u64; N]) -> [u64; N] {
 }
 
 fn main(x: Field, y: pub Field) {
-    let xs: [u64] = [0; 0]; 
+    let xs: [u64] = [11111; 1337]; 
     assert(array_zeros(xs) == xs);
     assert(x != y);
 }

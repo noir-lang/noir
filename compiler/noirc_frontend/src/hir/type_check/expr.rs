@@ -97,6 +97,8 @@ impl<'interner> TypeChecker<'interner> {
                         let elem_type = self.check_expression(&repeated_element);
                         let length = match length {
                             Type::Constant(length) => {
+                                println!("Type::Constant({length}): {:?}", repeated_element);
+
                                 Type::constant_variable(length, self.interner)
                             }
                             other => other,

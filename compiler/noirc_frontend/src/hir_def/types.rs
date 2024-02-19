@@ -105,7 +105,9 @@ pub enum Type {
     /// The type of a slice is an array of size NotConstant.
     /// The size of an array literal is resolved to this if it ever uses operations
     /// involving slices.
-    NotConstant,
+    ///
+    /// prevent_numeric: bool (prevent binding to a Constant(_))
+    NotConstant(bool),
 
     /// The result of some type error. Remembering type errors as their own type variant lets
     /// us avoid issuing repeat type errors for the same item. For example, a lambda with
@@ -154,7 +156,7 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Constant(_)
-            | Type::NotConstant
+            | Type::NotConstant(_)
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
     }
@@ -162,7 +164,7 @@ impl Type {
     pub(crate) fn is_nested_slice(&self) -> bool {
         match self {
             Type::Array(size, elem) => {
-                if let Type::NotConstant = size.as_ref() {
+                if let Type::NotConstant(_) = size.as_ref() {
                     elem.as_ref().contains_slice()
                 } else {
                     false
@@ -174,7 +176,7 @@ impl Type {
 
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
-            Type::Array(size, _) => matches!(size.as_ref(), Type::NotConstant),
+            Type::Array(size, _) => matches!(size.as_ref(), Type::NotConstant(_)),
             Type::Struct(struct_typ, generics) => {
                 let fields = struct_typ.borrow().get_fields(generics);
                 for field in fields.iter() {
@@ -638,7 +640,7 @@ impl Type {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _, _)
-            | Type::NotConstant
+            | Type::NotConstant(_)
             | Type::Forall(_, _)
             | Type::TraitAsType(..) => false,
 
@@ -704,7 +706,7 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::TraitAsType(..)
-            | Type::NotConstant => false,
+            | Type::NotConstant(_) => false,
 
             // This function is called during name resolution before we've verified aliases
             // are not cyclic. As a result, it wouldn't be safe to check this alias' definition
@@ -773,7 +775,7 @@ impl std::fmt::Display for Type {
                 write!(f, "Field")
             }
             Type::Array(len, typ) => {
-                if matches!(len.follow_bindings(), Type::NotConstant) {
+                if matches!(len.follow_bindings(), Type::NotConstant(_)) {
                     write!(f, "[{typ}]")
                 } else {
                     write!(f, "[{typ}; {len}]")
@@ -872,7 +874,7 @@ impl std::fmt::Display for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
             }
-            Type::NotConstant => write!(f, "_"),
+            Type::NotConstant(_) => write!(f, "_"),
         }
     }
 }
@@ -921,6 +923,8 @@ impl Type {
             TypeBinding::Unbound(id) => *id,
         };
 
+        println!("try_bind_to_maybe_constant: {:?}    {:?}     {:?}     {:?}", self, var, target_length, bindings);
+
         let this = self.substitute(bindings).follow_bindings();
 
         match &this {
@@ -928,9 +932,13 @@ impl Type {
                 bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
-            Type::NotConstant => {
-                bindings.insert(target_id, (var.clone(), Type::NotConstant));
-                Ok(())
+            Type::NotConstant(prevent_numeric) => {
+                if *prevent_numeric {
+                    Err(UnificationError)
+                } else {
+                    bindings.insert(target_id, (var.clone(), Type::NotConstant(*prevent_numeric)));
+                    Ok(())
+                }
             }
             // A TypeVariable is less specific than a MaybeConstant, so we bind
             // to the other type variable instead.
@@ -963,8 +971,8 @@ impl Type {
                         // just set them both to NotConstant. See issue 2370
                         TypeVariableKind::Constant(_) => {
                             // *length != target_length
-                            bindings.insert(target_id, (var.clone(), Type::NotConstant));
-                            bindings.insert(*new_target_id, (new_var.clone(), Type::NotConstant));
+                            bindings.insert(target_id, (var.clone(), Type::NotConstant(false)));
+                            bindings.insert(*new_target_id, (new_var.clone(), Type::NotConstant(false)));
                             Ok(())
                         }
                         TypeVariableKind::IntegerOrField => Err(UnificationError),
@@ -1164,6 +1172,8 @@ impl Type {
             (TypeVariable(var, Kind::Constant(length)), other)
             | (other, TypeVariable(var, Kind::Constant(length))) => other
                 .try_unify_to_type_variable(var, bindings, |bindings| {
+                    println!("PRE try_bind_to_maybe_constant: {:?} {:?} {:?}", var, length, other);
+
                     other.try_bind_to_maybe_constant(var, *length, bindings)
                 }),
 
@@ -1208,6 +1218,10 @@ impl Type {
                 if !binding.borrow().is_unbound() =>
             {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    // println!("try_unify NamedGeneric: {:?}      {:?}      {:?}      {:?}", self, other, bindings, link);
+                            // other.typ.contains_numeric_typevar(target_id)
+
+
                     link.try_unify(other, bindings)
                 } else {
                     unreachable!("If guard ensures binding is bound")
@@ -1265,6 +1279,8 @@ impl Type {
         // bind to the given type or not.
         bind_variable: impl FnOnce(&mut TypeBindings) -> Result<(), UnificationError>,
     ) -> Result<(), UnificationError> {
+        println!("try_unify_to_type_variable: {:?}    {:?}", type_variable, bindings);
+
         match &*type_variable.borrow() {
             // If it is already bound, unify against what it is bound to
             TypeBinding::Bound(link) => link.try_unify(self, bindings),
@@ -1321,7 +1337,7 @@ impl Type {
             let size2 = size2.follow_bindings();
 
             // If we have an array and our target is a slice
-            if matches!(size1, Type::Constant(_)) && matches!(size2, Type::NotConstant) {
+            if matches!(size1, Type::Constant(_)) && matches!(size2, Type::NotConstant(_)) {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::new();
@@ -1556,7 +1572,7 @@ impl Type {
             | Type::Constant(_)
             | Type::TraitAsType(..)
             | Type::Error
-            | Type::NotConstant
+            | Type::NotConstant(_)
             | Type::Unit => self.clone(),
         }
     }
@@ -1597,7 +1613,7 @@ impl Type {
             | Type::Constant(_)
             | Type::TraitAsType(..)
             | Type::Error
-            | Type::NotConstant
+            | Type::NotConstant(_)
             | Type::Unit => false,
         }
     }
@@ -1655,7 +1671,7 @@ impl Type {
             | Constant(_)
             | Unit
             | Error
-            | NotConstant => self.clone(),
+            | NotConstant(_) => self.clone(),
         }
     }
 
@@ -1778,7 +1794,7 @@ impl From<&Type> for PrintableType {
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }
-            Type::NotConstant => unreachable!(),
+            Type::NotConstant(_) => unreachable!(),
         }
     }
 }
@@ -1790,7 +1806,7 @@ impl std::fmt::Debug for Type {
                 write!(f, "Field")
             }
             Type::Array(len, typ) => {
-                if matches!(len.follow_bindings(), Type::NotConstant) {
+                if matches!(len.follow_bindings(), Type::NotConstant(_)) {
                     write!(f, "[{typ:?}]")
                 } else {
                     write!(f, "[{typ:?}; {len:?}]")
@@ -1867,7 +1883,7 @@ impl std::fmt::Debug for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element:?}")
             }
-            Type::NotConstant => write!(f, "NotConstant"),
+            Type::NotConstant(prevent_numeric) => write!(f, "NotConstant({})", prevent_numeric),
         }
     }
 }
