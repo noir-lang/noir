@@ -53,20 +53,32 @@ std::array<uint32_t, RecursionConstraint::AGGREGATION_OBJECT_SIZE> create_recurs
         std::vector<bb::fr> dummy_proof =
             export_dummy_transcript_in_recursion_format(manifest, inner_proof_contains_recursive_proof);
 
-        // Remove the public inputs from the dummy proof
-        dummy_proof.erase(dummy_proof.begin(),
-                          dummy_proof.begin() + static_cast<std::ptrdiff_t>(input.public_inputs.size()));
-        for (size_t i = 0; i < input.proof.size(); ++i) {
-            const auto proof_field_idx = input.proof[i];
+        for (size_t i = 0; i < input.public_inputs.size(); ++i) {
+            const auto public_input_idx = input.public_inputs[i];
             // if we do NOT have a witness assignment (i.e. are just building the proving/verification keys),
-            // we add our dummy proof values as Builder variables.
+            // we add our dummy public input values as Builder variables.
             // if we DO have a valid witness assignment, we use the real witness assignment
-            bb::fr dummy_field = has_valid_witness_assignments ? builder.get_variable(proof_field_idx) : dummy_proof[i];
+            bb::fr dummy_field =
+                has_valid_witness_assignments ? builder.get_variable(public_input_idx) : dummy_proof[i];
             // Create a copy constraint between our dummy field and the witness index provided by RecursionConstraint.
             // This will make the RecursionConstraint idx equal to `dummy_field`.
             // In the case of a valid witness assignment, this does nothing (as dummy_field = real value)
             // In the case of no valid witness assignment, this makes sure that the RecursionConstraint witness indices
             // will not trigger basic errors (check inputs are on-curve, check we are not inverting 0)
+            //
+            // Failing to do these copy constraints on public inputs will trigger these basic errors
+            // in the case of a nested proof, as an aggregation object is expected to be two G1 points even
+            // in the case of no valid witness assignments.
+            builder.assert_equal(builder.add_variable(dummy_field), public_input_idx);
+        }
+        // Remove the public inputs from the dummy proof
+        // The proof supplied to the recursion constraint will already be stripped of public inputs
+        // while the barretenberg API works with public inputs prepended to the proof.
+        dummy_proof.erase(dummy_proof.begin(),
+                          dummy_proof.begin() + static_cast<std::ptrdiff_t>(input.public_inputs.size()));
+        for (size_t i = 0; i < input.proof.size(); ++i) {
+            const auto proof_field_idx = input.proof[i];
+            bb::fr dummy_field = has_valid_witness_assignments ? builder.get_variable(proof_field_idx) : dummy_proof[i];
             builder.assert_equal(builder.add_variable(dummy_field), proof_field_idx);
         }
         for (size_t i = 0; i < input.key.size(); ++i) {
@@ -329,7 +341,12 @@ std::vector<bb::fr> export_dummy_transcript_in_recursion_format(const transcript
                     // is composed of two valid G1 points on the curve. Without this conditional we will get a
                     // runtime error that we are attempting to invert 0.
                     if (contains_recursive_proof) {
-                        ASSERT(num_public_inputs == RecursionConstraint::AGGREGATION_OBJECT_SIZE);
+                        // When setting up the ACIR we emplace back the nested aggregation object
+                        // fetched from the proof onto the public inputs. Thus, we can expect the
+                        // nested aggregation object to always be at the end of the public inputs.
+                        for (size_t k = 0; k < num_public_inputs - RecursionConstraint::AGGREGATION_OBJECT_SIZE; ++k) {
+                            fields.emplace_back(0);
+                        }
                         for (size_t k = 0; k < RecursionConstraint::NUM_AGGREGATION_ELEMENTS; ++k) {
                             auto scalar = bb::fr::random_element();
                             const auto group_element = bb::g1::affine_element(bb::g1::one * scalar);
