@@ -178,7 +178,7 @@ impl AbiType {
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(..)
             | Type::Forall(..)
-            | Type::NotConstant(_)
+            | Type::NotConstant
             | Type::Function(_, _, _) => unreachable!("Type cannot be used in the abi"),
             Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
             Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),

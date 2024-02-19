@@ -470,9 +470,7 @@ impl<'a> Resolver<'a> {
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 let size = if size.is_none() {
-                    println!("TODO: Array NotConstant Size");
-
-                    Type::NotConstant(false)
+                    Type::NotConstant
                 } else {
                     self.resolve_array_size(size, new_variables)
                 };
@@ -1108,7 +1106,7 @@ impl<'a> Resolver<'a> {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _, _)
-            | Type::NotConstant(_)
+            | Type::NotConstant
             | Type::TraitAsType(..)
             | Type::Forall(_, _) => (),
 

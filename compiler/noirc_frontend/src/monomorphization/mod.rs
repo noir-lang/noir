@@ -857,7 +857,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirType::Forall(_, _)
             | HirType::Constant(_)
-            | HirType::NotConstant(_)
+            | HirType::NotConstant
             | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
@@ -1074,7 +1074,7 @@ impl<'interner> Monomorphizer<'interner> {
         // Disallow printing slices and mutable references for consistency,
         // since they cannot be passed from ACIR into Brillig
         if let HirType::Array(size, _) = typ {
-            if let HirType::NotConstant(_) = **size {
+            if let HirType::NotConstant = **size {
                 unreachable!("println and format strings do not support slices. Convert the slice to an array before passing it to println");
             }
         } else if matches!(typ, HirType::MutableReference(_)) {

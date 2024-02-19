@@ -1714,7 +1714,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Forall(_, _)
         | Type::Constant(_)
         | Type::Error
-        | Type::NotConstant(_)
+        | Type::NotConstant
         | Type::Struct(_, _)
         | Type::TraitAsType(..) => None,
     }
