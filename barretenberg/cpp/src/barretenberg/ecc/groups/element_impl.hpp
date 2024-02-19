@@ -494,7 +494,7 @@ template <class Fq, class Fr, class T> constexpr element<Fq, Fr, T> element<Fq, 
 
 template <class Fq, class Fr, class T> element<Fq, Fr, T> element<Fq, Fr, T>::infinity()
 {
-    element<Fq, Fr, T> e;
+    element<Fq, Fr, T> e{};
     e.self_set_infinity();
     return e;
 }
