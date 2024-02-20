@@ -2,6 +2,7 @@
 !.yarn/releases
 
 node_modules
-dest
-src/artifacts
+dist
+artifacts
 src/contracts/target
+src/contracts/log

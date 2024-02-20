@@ -1,12 +1,11 @@
 {
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dest",
+    "outDir": "dist",
     "tsBuildInfoFile": ".tsbuildinfo",
     "target": "es2020",
     "lib": ["esnext", "dom", "DOM.Iterable"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "strict": true,
     "declaration": true,
     "allowSyntheticDefaultImports": true,
@@ -21,5 +20,10 @@
     "skipLibCheck": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "src/contracts/target/*.json"]
+  "include": [
+    "src/**/*.ts*",
+    "tests/**/*.ts",
+    "src/contracts/target/*.json",
+    "artifacts/**/*.ts"
+  ]
 }

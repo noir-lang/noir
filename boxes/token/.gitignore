@@ -1,7 +1,0 @@
-.yarn/*
-!.yarn/releases
-
-node_modules
-dest
-src/artifacts
-src/contracts/target

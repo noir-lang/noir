@@ -4,11 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Minimal Noir Contract Webpack</title>
+    <style></style>
   </head>
-
   <body>
     <button id="deploy">Deploy</button>
-    <button id="interact">Interact</button>
-    <script src="index.js"></script>
+    <button id="get" hidden>Get Number</button>
+    <form id="set" hidden>
+      <input id="number" type="number" value="0" />
+      <button type="submit">Set Number</button>
+    </form>
   </body>
 </html>
