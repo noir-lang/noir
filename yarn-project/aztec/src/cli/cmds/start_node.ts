@@ -36,7 +36,7 @@ export const startNode = async (
     nodeConfig.archiverUrl = archiverUrl;
   } else {
     const archiverCliOptions = parseModuleOptions(options.archiver);
-    nodeConfig = mergeEnvVarsAndCliOptions<AztecNodeConfig>(aztecNodeConfigEnvVars, archiverCliOptions);
+    nodeConfig = mergeEnvVarsAndCliOptions<AztecNodeConfig>(aztecNodeConfigEnvVars, archiverCliOptions, true);
   }
 
   // Deploy contracts if needed

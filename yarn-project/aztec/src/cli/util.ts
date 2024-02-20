@@ -3,9 +3,11 @@ import { AztecNodeConfig } from '@aztec/aztec-node';
 import { AccountManager } from '@aztec/aztec.js';
 import { L1ContractAddresses } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { LogFn } from '@aztec/foundation/log';
+import { LogFn, createConsoleLogger } from '@aztec/foundation/log';
 import { P2PConfig } from '@aztec/p2p';
 import { GrumpkinScalar, PXEService, PXEServiceConfig } from '@aztec/pxe';
+
+const l1ContractsNames = ['rollupAddress', 'inboxAddress', 'outboxAddress', 'contractDeploymentEmitterAddress'];
 
 /**
  * Checks if the object has l1Contracts property
@@ -25,7 +27,7 @@ function hasL1Contracts(obj: any): obj is {
  * @returns true if all contract addresses are not zero
  */
 const checkContractAddresses = (contracts: L1ContractAddresses) => {
-  return ['rollupAddress', 'inboxAddress', 'outboxAddress', 'contractDeploymentEmitterAddress'].every(cn => {
+  return l1ContractsNames.every(cn => {
     const key = cn as keyof L1ContractAddresses;
     return contracts[key] && contracts[key] !== EthAddress.ZERO;
   });
@@ -65,40 +67,33 @@ export const mergeEnvVarsAndCliOptions = <T extends AztecNodeConfig | PXEService
   envVars: AztecNodeConfig | PXEServiceConfig | P2PConfig | ArchiverConfig,
   cliOptions: Record<string, string>,
   contractsRequired = false,
+  userLog = createConsoleLogger(),
 ) => {
   if (contractsRequired && !cliOptions.rollupAddress) {
     throw new Error('Rollup contract address is required to start the service');
-  }
-  const cliOptionsContracts: L1ContractAddresses = {
-    rollupAddress: cliOptions.rollupAddress ? EthAddress.fromString(cliOptions.rollupAddress) : EthAddress.ZERO,
-    registryAddress: cliOptions.registryAddress ? EthAddress.fromString(cliOptions.registryAddress) : EthAddress.ZERO,
-    inboxAddress: cliOptions.inboxAddress ? EthAddress.fromString(cliOptions.inboxAddress) : EthAddress.ZERO,
-    outboxAddress: cliOptions.outboxAddress ? EthAddress.fromString(cliOptions.outboxAddress) : EthAddress.ZERO,
-    contractDeploymentEmitterAddress: cliOptions.contractDeploymentEmitterAddress
-      ? EthAddress.fromString(cliOptions.contractDeploymentEmitterAddress)
-      : EthAddress.ZERO,
-    availabilityOracleAddress: cliOptions.availabilityOracleAddress
-      ? EthAddress.fromString(cliOptions.availabilityOracleAddress)
-      : EthAddress.ZERO,
-  };
-
-  if (
-    hasL1Contracts(envVars) &&
-    contractsRequired &&
-    (!checkContractAddresses(cliOptionsContracts) || !checkContractAddresses(envVars.l1Contracts))
-  ) {
-    throw new Error('Deployed L1 contract addresses are required to start the service');
   }
 
   let merged = { ...envVars, ...cliOptions } as T;
 
   if (hasL1Contracts(envVars)) {
+    // create options object for L1 contract addresses
+    const l1Contracts: L1ContractAddresses = l1ContractsNames.reduce((acc, cn) => {
+      const key = cn as keyof L1ContractAddresses;
+      if (cliOptions[key]) {
+        return { ...acc, [key]: EthAddress.fromString(cliOptions[key]) };
+      } else {
+        return { ...acc, [key]: envVars.l1Contracts[key] };
+      }
+    }, {} as L1ContractAddresses);
+
+    if (hasL1Contracts(envVars) && contractsRequired && !checkContractAddresses(l1Contracts)) {
+      userLog('Deployed L1 contract addresses are required to start the service');
+      throw new Error('Deployed L1 contract addresses are required to start the service');
+    }
+
     merged = {
       ...merged,
-      l1Contracts: {
-        ...(envVars.l1Contracts && { ...envVars.l1Contracts }),
-        ...cliOptionsContracts,
-      },
+      l1Contracts,
     } as T;
   }
 

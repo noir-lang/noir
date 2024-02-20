@@ -168,10 +168,6 @@ resource "aws_ecs_task_definition" "aztec-node" {
     ],
     "environment": [
       {
-        "name": "MODE",
-        "value": "node"
-      },
-      {
         "name": "NODE_ENV",
         "value": "production"
       },
