@@ -1,6 +1,14 @@
+fn foo(x: [Field]) -> [Field] {
+    x
+}
+
 fn main() { 
-    let x: [Field] = [3; 4];
-    let _ = x.map(|y| y);
+    let x0: [Field] = [3333333; 444444];
+    let _ = foo(x0);
+    let x: [Field; 444444] = [3333333; 444444];
+    let y: [Field] = x;
+    let z = foo(y);
+    let _ = z.map(|w| w);
 }
 
 #[test]

@@ -94,8 +94,6 @@ pub enum Type {
     /// but it makes handling them both easier. The TypeVariableId should
     /// never be bound over during type checking, but during monomorphization it
     /// will be and thus needs the full TypeVariable link.
-    ///
-    /// TODO: prevent_numeric before merge do we need N? here?
     Forall(Generics, Box<Type>),
 
     /// A type-level integer. Included to let an Array's size type variable
@@ -751,7 +749,6 @@ impl Type {
     /// given type bindings, ignoring what each type variable is bound to in the TypeBindings.
     pub(crate) fn generalize_from_substitutions(self, type_bindings: TypeBindings) -> Type {
         let polymorphic_type_vars = vecmap(type_bindings, |(_, (type_var, binding))| {
-            // TODO: does this make sense?
             let kind = match binding {
                 Type::TypeVariable(_, kind) => kind,
                 _ => panic!("Type of TypeVariable is non-variable"),
@@ -947,9 +944,6 @@ impl Type {
         };
 
         let this = self.substitute(bindings).follow_bindings();
-        // println!("TODO remove try_bind_to_maybe_constant: {:?} {:?} {:?} {:?} ||| {:?}", self, var, target_length, bindings, this);
-
-
         match &this {
             Type::Constant(length) if *length == target_length => {
                 bindings.insert(target_id, (var.clone(), this));
@@ -962,6 +956,9 @@ impl Type {
             // A TypeVariable is less specific than a MaybeConstant, so we bind
             // to the other type variable instead.
             Type::TypeVariable(new_var, kind) => {
+                if *kind == TypeVariableKind::NotConstant {
+                    return Err(UnificationError)
+                }
                 let borrow = new_var.borrow();
                 match &*borrow {
                     TypeBinding::Bound(typ) => {
@@ -1196,7 +1193,7 @@ impl Type {
                     // let other_follow = other.follow_bindings();
                     let other_follow = other.substitute(bindings).follow_bindings();
 
-                    // println!("TODO remove: try_unify: {:?} {:?} {:?} {:?}", var, length, other, other_follow);
+                    // println!("TODO remove: try_unify constant: {:?} {:?} {:?} {:?}", var, length, other, other_follow);
 
                     other.try_bind_to_maybe_constant(var, *length, bindings)
                 }),
@@ -1366,7 +1363,7 @@ impl Type {
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::new();
                 if element1.try_unify(element2, &mut bindings).is_ok() {
-                    // println!("TODO remove: convert_array_expression_to_slice {:?} {:?} {:?} {:?}", expression, this, target, interner);
+                    println!("TODO remove: convert_array_expression_to_slice {:?} {:?} {:?} {:?}", expression, this, target, bindings);
 
                     convert_array_expression_to_slice(expression, this, target, interner);
                     Self::apply_type_bindings(bindings);

@@ -785,11 +785,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
-            HirType::NamedGeneric(binding, _, prevent_numeric) => {
-                if *prevent_numeric {
-                    panic!("TODO: convert_type NamedGeneric: {:?} {:?} {:?}", typ, binding, prevent_numeric);
-                }
-
+            HirType::NamedGeneric(binding, _, _prevent_numeric) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return self.convert_type(binding);
                 }
