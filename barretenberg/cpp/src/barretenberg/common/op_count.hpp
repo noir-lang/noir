@@ -8,7 +8,13 @@
 #define BB_OP_COUNT_TRACK() (void)0
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define BB_OP_COUNT_TRACK_NAME(name) (void)0
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+#define BB_OP_COUNT_CYCLES_NAME(name) (void)0
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+#define BB_OP_COUNT_TIME_NAME(name) (void)0
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define BB_OP_COUNT_CYCLES() (void)0
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define BB_OP_COUNT_TIME() (void)0
 #else
 /**
@@ -138,13 +144,17 @@ struct OpCountTimeReporter {
 } // namespace bb::detail
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-#define BB_OP_COUNT_TRACK() bb::detail::GlobalOpCount<__func__>::increment_op_count()
-// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define BB_OP_COUNT_TRACK_NAME(name) bb::detail::GlobalOpCount<name>::increment_op_count()
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-#define BB_OP_COUNT_CYCLES()                                                                                           \
-    bb::detail::OpCountCycleReporter __bb_op_count_cyles(bb::detail::GlobalOpCount<__func__>::ensure_stats())
+#define BB_OP_COUNT_TRACK() BB_OP_COUNT_TRACK_NAME(__func__)
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-#define BB_OP_COUNT_TIME()                                                                                             \
-    bb::detail::OpCountTimeReporter __bb_op_count_time(bb::detail::GlobalOpCount<__func__>::ensure_stats())
+#define BB_OP_COUNT_CYCLES_NAME(name)                                                                                  \
+    bb::detail::OpCountCycleReporter __bb_op_count_cyles(bb::detail::GlobalOpCount<name>::ensure_stats())
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+#define BB_OP_COUNT_CYCLES() BB_OP_COUNT_CYCLES_NAME(__func__)
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+#define BB_OP_COUNT_TIME_NAME(name)                                                                                    \
+    bb::detail::OpCountTimeReporter __bb_op_count_time(bb::detail::GlobalOpCount<name>::ensure_stats())
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+#define BB_OP_COUNT_TIME() BB_OP_COUNT_TIME_NAME(__func__)
 #endif
