@@ -225,8 +225,12 @@ impl ConstantBackpropagationOptimizer {
                             b,
                             radix,
                         })
-                    }else {
-                        let directive = Directive::ToLeRadix { a:remap_expression(&known_witnesses, a), b, radix };
+                    } else {
+                        let directive = Directive::ToLeRadix {
+                            a: remap_expression(&known_witnesses, a),
+                            b,
+                            radix,
+                        };
                         let result = solve_directives(&mut known_witnesses, &directive);
 
                         match result {
