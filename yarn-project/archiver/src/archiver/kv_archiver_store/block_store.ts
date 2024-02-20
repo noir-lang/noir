@@ -54,7 +54,7 @@ export class BlockStore {
           void this.#txIndex.set(tx.txHash.toString(), [block.number, i]);
         }
 
-        for (const [i, contractData] of block.newContractData.entries()) {
+        for (const [i, contractData] of block.body.txEffects.flatMap(txEffect => txEffect.contractData).entries()) {
           if (contractData.contractAddress.isZero()) {
             continue;
           }

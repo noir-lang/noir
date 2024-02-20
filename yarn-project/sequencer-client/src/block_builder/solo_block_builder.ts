@@ -1,4 +1,4 @@
-import { ContractData, L2Block, L2BlockL2Logs, MerkleTreeId, PublicDataWrite, TxL2Logs } from '@aztec/circuit-types';
+import { Body, ContractData, L2Block, MerkleTreeId, PublicDataWrite, TxEffect, TxL2Logs } from '@aztec/circuit-types';
 import {
   ARCHIVE_HEIGHT,
   AppendOnlyTreeSnapshot,
@@ -101,46 +101,31 @@ export class SoloBlockBuilder implements BlockBuilder {
     const [circuitsOutput, proof] = await this.runCircuits(globalVariables, txs, newL1ToL2Messages);
 
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
-    const newNullifiers = txs.flatMap(tx => tx.data.combinedData.newNullifiers);
-    const newCommitments = txs.flatMap(tx => tx.data.combinedData.newCommitments);
-    const newContracts = txs.flatMap(tx => tx.data.combinedData.newContracts).map(cd => cd.computeLeaf());
-    const newContractData = txs
-      .flatMap(tx => tx.data.combinedData.newContracts)
-      .map(n => new ContractData(n.contractAddress, n.portalContractAddress));
-    const newPublicDataWrites = txs.flatMap(tx =>
-      tx.data.combinedData.publicDataUpdateRequests.map(t => new PublicDataWrite(t.leafSlot, t.newValue)),
+    const txEffects: TxEffect[] = txs.map(
+      tx =>
+        new TxEffect(
+          tx.data.combinedData.newCommitments.map((c: SideEffect) => c.value),
+          tx.data.combinedData.newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value),
+          tx.data.combinedData.newL2ToL1Msgs,
+          tx.data.combinedData.publicDataUpdateRequests.map(t => new PublicDataWrite(t.leafSlot, t.newValue)),
+          tx.data.combinedData.newContracts.map(cd => cd.computeLeaf()),
+          tx.data.combinedData.newContracts.map(cd => new ContractData(cd.contractAddress, cd.portalContractAddress)),
+          tx.encryptedLogs || new TxL2Logs([]),
+          tx.unencryptedLogs || new TxL2Logs([]),
+        ),
     );
-    const newL2ToL1Msgs = txs.flatMap(tx => tx.data.combinedData.newL2ToL1Msgs);
 
-    // Consolidate logs data from all txs
-    const encryptedLogsArr: TxL2Logs[] = [];
-    const unencryptedLogsArr: TxL2Logs[] = [];
-    for (const tx of txs) {
-      const encryptedLogs = tx.encryptedLogs || new TxL2Logs([]);
-      encryptedLogsArr.push(encryptedLogs);
-      const unencryptedLogs = tx.unencryptedLogs || new TxL2Logs([]);
-      unencryptedLogsArr.push(unencryptedLogs);
-    }
-    const newEncryptedLogs = new L2BlockL2Logs(encryptedLogsArr);
-    const newUnencryptedLogs = new L2BlockL2Logs(unencryptedLogsArr);
+    const blockBody = new Body(newL1ToL2Messages, txEffects);
 
     const l2Block = L2Block.fromFields({
       archive: circuitsOutput.archive,
       header: circuitsOutput.header,
-      newCommitments: newCommitments.map((c: SideEffect) => c.value),
-      newNullifiers: newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value),
-      newL2ToL1Msgs,
-      newContracts,
-      newContractData,
-      newPublicDataWrites,
-      newL1ToL2Messages,
-      newEncryptedLogs,
-      newUnencryptedLogs,
+      body: blockBody,
     });
 
-    if (!l2Block.getCalldataHash().equals(circuitsOutput.header.contentCommitment.txsHash)) {
+    if (!l2Block.body.getCalldataHash().equals(circuitsOutput.header.contentCommitment.txsHash)) {
       throw new Error(
-        `Calldata hash mismatch, ${l2Block
+        `Calldata hash mismatch, ${l2Block.body
           .getCalldataHash()
           .toString('hex')} == ${circuitsOutput.header.contentCommitment.txsHash.toString('hex')} `,
       );

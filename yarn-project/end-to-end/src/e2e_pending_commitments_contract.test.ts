@@ -23,13 +23,15 @@ describe('e2e_pending_commitments_contract', () => {
     const blockNum = await aztecNode!.getBlockNumber();
     const block = (await aztecNode!.getBlocks(blockNum, 1))[0];
 
+    const commitmentsArray = block.body.txEffects.flatMap(txEffect => txEffect.newNoteHashes);
+
     // all new commitments should be zero (should be squashed)
     for (let c = 0; c < exceptFirstFew; c++) {
-      expect(block.newCommitments[c]).not.toEqual(Fr.ZERO);
+      expect(commitmentsArray[c]).not.toEqual(Fr.ZERO);
     }
 
-    for (let c = exceptFirstFew; c < block.newCommitments.length; c++) {
-      expect(block.newCommitments[c]).toEqual(Fr.ZERO);
+    for (let c = exceptFirstFew; c < commitmentsArray.length; c++) {
+      expect(commitmentsArray[c]).toEqual(Fr.ZERO);
     }
   };
 
@@ -37,13 +39,15 @@ describe('e2e_pending_commitments_contract', () => {
     const blockNum = await aztecNode!.getBlockNumber();
     const block = (await aztecNode!.getBlocks(blockNum, 1))[0];
 
+    const nullifierArray = block.body.txEffects.flatMap(txEffect => txEffect.newNullifiers);
+
     // 0th nullifier should be nonzero (txHash), all others should be zero (should be squashed)
     for (let n = 0; n < exceptFirstFew + 1; n++) {
       logger(`Expecting nullifier ${n} to be nonzero`);
-      expect(block.newNullifiers[n]).not.toEqual(Fr.ZERO); // 0th nullifier is txHash
+      expect(nullifierArray[n]).not.toEqual(Fr.ZERO); // 0th nullifier is txHash
     }
-    for (let n = exceptFirstFew + 1; n < block.newNullifiers.length; n++) {
-      expect(block.newNullifiers[n]).toEqual(Fr.ZERO);
+    for (let n = exceptFirstFew + 1; n < nullifierArray.length; n++) {
+      expect(nullifierArray[n]).toEqual(Fr.ZERO);
     }
   };
 

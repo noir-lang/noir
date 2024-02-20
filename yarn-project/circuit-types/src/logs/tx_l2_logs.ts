@@ -1,4 +1,7 @@
+import { sha256 } from '@aztec/foundation/crypto';
 import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
+
+import isEqual from 'lodash.isequal';
 
 import { FunctionL2Logs } from './function_l2_logs.js';
 import { LogType } from './log_type.js';
@@ -104,5 +107,36 @@ export class TxL2Logs {
   public static fromJSON(obj: any) {
     const functionLogs = obj.functionLogs.map((log: any) => FunctionL2Logs.fromJSON(log));
     return new TxL2Logs(functionLogs);
+  }
+
+  /**
+   * Checks if two TxL2Logs objects are equal.
+   * @param other - Another TxL2Logs object to compare with.
+   * @returns True if the two objects are equal, false otherwise.
+   */
+  public equals(other: TxL2Logs): boolean {
+    return isEqual(this, other);
+  }
+
+  /**
+   * Computes logs hash as is done in the kernel and app circuits.
+   * @param logs - Logs to be hashed.
+   * @returns The hash of the logs.
+   * Note: This is a TS implementation of `computeKernelLogsHash` function in Decoder.sol. See that function documentation
+   *       for more details.
+   */
+  public hash(): Buffer {
+    const logsHashes: [Buffer, Buffer] = [Buffer.alloc(32), Buffer.alloc(32)];
+    let kernelPublicInputsLogsHash = Buffer.alloc(32);
+
+    for (const logsFromSingleFunctionCall of this.functionLogs) {
+      logsHashes[0] = kernelPublicInputsLogsHash;
+      logsHashes[1] = logsFromSingleFunctionCall.hash(); // privateCircuitPublicInputsLogsHash
+
+      // Hash logs hash from the public inputs of previous kernel iteration and logs hash from private circuit public inputs
+      kernelPublicInputsLogsHash = sha256(Buffer.concat(logsHashes));
+    }
+
+    return kernelPublicInputsLogsHash;
   }
 }

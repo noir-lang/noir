@@ -189,8 +189,8 @@ describe('L1Publisher integration', () => {
       SideEffectLinkedToNoteHash.empty();
     processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
     processedTx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
-    processedTx.data.end.encryptedLogsHash = to2Fields(L2Block.computeKernelLogsHash(processedTx.encryptedLogs));
-    processedTx.data.end.unencryptedLogsHash = to2Fields(L2Block.computeKernelLogsHash(processedTx.unencryptedLogs));
+    processedTx.data.end.encryptedLogsHash = to2Fields(processedTx.encryptedLogs.hash());
+    processedTx.data.end.unencryptedLogsHash = to2Fields(processedTx.unencryptedLogs.hash());
 
     return processedTx;
   };
@@ -260,14 +260,16 @@ describe('L1Publisher integration', () => {
       },
       messages: {
         l1ToL2Messages: l1ToL2Messages.map(m => `0x${m.toBuffer().toString('hex').padStart(64, '0')}`),
-        l2ToL1Messages: block.newL2ToL1Msgs.map(m => `0x${m.toBuffer().toString('hex').padStart(64, '0')}`),
+        l2ToL1Messages: block.body.txEffects
+          .flatMap(txEffect => txEffect.newL2ToL1Msgs)
+          .map(m => `0x${m.toBuffer().toString('hex').padStart(64, '0')}`),
       },
       block: {
         // The json formatting in forge is a bit brittle, so we convert Fr to a number in the few values below.
         // This should not be a problem for testing as long as the values are not larger than u32.
         archive: `0x${block.archive.root.toBuffer().toString('hex').padStart(64, '0')}`,
-        body: `0x${block.bodyToBuffer().toString('hex')}`,
-        calldataHash: `0x${block.getCalldataHash().toString('hex').padStart(64, '0')}`,
+        body: `0x${block.body.toBuffer().toString('hex')}`,
+        calldataHash: `0x${block.body.getCalldataHash().toString('hex').padStart(64, '0')}`,
         decodedHeader: {
           contentCommitment: {
             inHash: `0x${block.header.contentCommitment.inHash.toString('hex').padStart(64, '0')}`,
@@ -393,9 +395,11 @@ describe('L1Publisher integration', () => {
         expect(await inbox.read.contains([l1ToL2Messages[j].toString()])).toBeTruthy();
       }
 
+      const newL2ToL1MsgsArray = block.body.txEffects.flatMap(txEffect => txEffect.newL2ToL1Msgs);
+
       // check that values are not in the outbox
-      for (let j = 0; j < block.newL2ToL1Msgs.length; j++) {
-        expect(await outbox.read.contains([block.newL2ToL1Msgs[j].toString()])).toBeFalsy();
+      for (let j = 0; j < newL2ToL1MsgsArray.length; j++) {
+        expect(await outbox.read.contains([newL2ToL1MsgsArray[j].toString()])).toBeFalsy();
       }
 
       writeJson(`mixed_block_${i}`, block, l1ToL2Messages, l1ToL2Content, recipientAddress, deployerAccount.address);
@@ -423,7 +427,7 @@ describe('L1Publisher integration', () => {
         args: [
           `0x${block.header.toBuffer().toString('hex')}`,
           `0x${block.archive.root.toBuffer().toString('hex')}`,
-          `0x${block.bodyToBuffer().toString('hex')}`,
+          `0x${block.body.toBuffer().toString('hex')}`,
           `0x${l2Proof.toString('hex')}`,
         ],
       });
@@ -436,9 +440,10 @@ describe('L1Publisher integration', () => {
         }
         expect(await inbox.read.contains([l1ToL2Messages[j].toString()])).toBeFalsy();
       }
+
       // check that values are inserted into the outbox
-      for (let j = 0; j < block.newL2ToL1Msgs.length; j++) {
-        expect(await outbox.read.contains([block.newL2ToL1Msgs[j].toString()])).toBeTruthy();
+      for (let j = 0; j < newL2ToL1MsgsArray.length; j++) {
+        expect(await outbox.read.contains([newL2ToL1MsgsArray[j].toString()])).toBeTruthy();
       }
     }
   }, 360_000);
@@ -489,7 +494,7 @@ describe('L1Publisher integration', () => {
         args: [
           `0x${block.header.toBuffer().toString('hex')}`,
           `0x${block.archive.root.toBuffer().toString('hex')}`,
-          `0x${block.bodyToBuffer().toString('hex')}`,
+          `0x${block.body.toBuffer().toString('hex')}`,
           `0x${l2Proof.toString('hex')}`,
         ],
       });

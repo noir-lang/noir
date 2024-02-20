@@ -77,7 +77,7 @@ export async function retrieveBlocks(
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
  * @param searchStartBlock - The block number to use for starting the search.
  * @param searchEndBlock - The highest block number that we should search up to.
- * @param blockHashMapping - A mapping from block number to relevant block hash.
+ * @param blockNumberToBodyHash - A mapping from block number to relevant body hash.
  * @returns An array of ExtendedContractData and their equivalent L2 Block number along with the next eth block to search from..
  */
 export async function retrieveNewContractData(
@@ -86,7 +86,7 @@ export async function retrieveNewContractData(
   blockUntilSynced: boolean,
   searchStartBlock: bigint,
   searchEndBlock: bigint,
-  blockHashMapping: { [key: number]: Buffer | undefined },
+  blockNumberToBodyHash: { [key: number]: Buffer | undefined },
 ): Promise<DataRetrieval<[ExtendedContractData[], number]>> {
   let retrievedNewContracts: [ExtendedContractData[], number][] = [];
   do {
@@ -102,7 +102,7 @@ export async function retrieveNewContractData(
     if (contractDataLogs.length === 0) {
       break;
     }
-    const newContracts = processContractDeploymentLogs(blockHashMapping, contractDataLogs);
+    const newContracts = processContractDeploymentLogs(blockNumberToBodyHash, contractDataLogs);
     retrievedNewContracts = retrievedNewContracts.concat(newContracts);
     searchStartBlock = (contractDataLogs.findLast(cd => !!cd)?.blockNumber || searchStartBlock) + 1n;
   } while (blockUntilSynced && searchStartBlock <= searchEndBlock);

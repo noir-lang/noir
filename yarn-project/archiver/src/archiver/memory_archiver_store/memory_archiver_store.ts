@@ -396,7 +396,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
       return Promise.resolve(undefined);
     }
     for (const blockContext of this.l2BlockContexts) {
-      for (const contractData of blockContext.block.newContractData) {
+      for (const contractData of blockContext.block.body.txEffects.flatMap(txEffect => txEffect.contractData)) {
         if (contractData.contractAddress.equals(contractAddress)) {
           return Promise.resolve(contractData);
         }
@@ -416,7 +416,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
       return Promise.resolve([]);
     }
     const block: L2Block | undefined = this.l2BlockContexts[l2BlockNum - INITIAL_L2_BLOCK_NUM]?.block;
-    return Promise.resolve(block?.newContractData);
+    return Promise.resolve(block?.body.txEffects.flatMap(txEffect => txEffect.contractData));
   }
 
   /**

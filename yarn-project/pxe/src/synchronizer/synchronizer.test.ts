@@ -7,7 +7,6 @@ import { TestKeyStore } from '@aztec/key-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 
 import { MockProxy, mock } from 'jest-mock-extended';
-import omit from 'lodash.omit';
 
 import { PxeDatabase } from '../database/index.js';
 import { KVPxeDatabase } from '../database/kv_pxe_database.js';
@@ -41,8 +40,8 @@ describe('Synchronizer', () => {
 
   it('sets header from latest block', async () => {
     const block = L2Block.random(1, 4);
-    aztecNode.getBlocks.mockResolvedValue([L2Block.fromFields(omit(block, 'newEncryptedLogs', 'newUnencryptedLogs'))]);
-    aztecNode.getLogs.mockResolvedValueOnce([block.newEncryptedLogs!]).mockResolvedValue([block.newUnencryptedLogs!]);
+    aztecNode.getLogs.mockResolvedValueOnce([block.body.encryptedLogs]).mockResolvedValue([block.body.unencryptedLogs]);
+    aztecNode.getBlocks.mockResolvedValue([block]);
 
     await synchronizer.work();
 
@@ -61,10 +60,12 @@ describe('Synchronizer', () => {
 
     // We then process block with height 1, this should not change the header
     const block1 = L2Block.random(1, 4);
-    aztecNode.getBlocks.mockResolvedValueOnce([
-      L2Block.fromFields(omit(block1, 'newEncryptedLogs', 'newUnencryptedLogs')),
-    ]);
-    aztecNode.getLogs.mockResolvedValue([block1.newEncryptedLogs!]).mockResolvedValue([block1.newUnencryptedLogs!]);
+
+    aztecNode.getLogs
+      .mockResolvedValueOnce([block1.body.encryptedLogs])
+      .mockResolvedValue([block1.body.unencryptedLogs]);
+
+    aztecNode.getBlocks.mockResolvedValue([block1]);
 
     await synchronizer.work();
     const header1 = database.getHeader();
@@ -73,9 +74,8 @@ describe('Synchronizer', () => {
 
     // But they should change when we process block with height 5
     const block5 = L2Block.random(5, 4);
-    aztecNode.getBlocks.mockResolvedValueOnce([
-      L2Block.fromFields(omit(block5, 'newEncryptedLogs', 'newUnencryptedLogs')),
-    ]);
+
+    aztecNode.getBlocks.mockResolvedValue([block5]);
 
     await synchronizer.work();
     const header5 = database.getHeader();
@@ -86,23 +86,35 @@ describe('Synchronizer', () => {
   it('note processor successfully catches up', async () => {
     const blocks = [L2Block.random(1, 4), L2Block.random(2, 4)];
 
-    aztecNode.getBlocks
-      // called by synchronizer.work
-      .mockResolvedValueOnce([L2Block.fromFields(omit(blocks[0], 'newEncryptedLogs', 'newUnencryptedLogs'))])
-      .mockResolvedValueOnce([L2Block.fromFields(omit(blocks[1], 'newEncryptedLogs', 'newUnencryptedLogs'))])
-      // called by synchronizer.workNoteProcessorCatchUp
-      .mockResolvedValueOnce([L2Block.fromFields(omit(blocks[0], 'newEncryptedLogs', 'newUnencryptedLogs'))])
-      .mockResolvedValueOnce([L2Block.fromFields(omit(blocks[1], 'newEncryptedLogs', 'newUnencryptedLogs'))]);
-
     aztecNode.getLogs
       // called by synchronizer.work
-      .mockResolvedValueOnce([blocks[0].newEncryptedLogs!])
-      .mockResolvedValueOnce([blocks[0].newUnencryptedLogs!])
-      .mockResolvedValueOnce([blocks[1].newEncryptedLogs!])
-      .mockResolvedValueOnce([blocks[1].newUnencryptedLogs!])
+      .mockResolvedValueOnce([blocks[0].body.encryptedLogs])
+      .mockResolvedValueOnce([blocks[0].body.unencryptedLogs])
+      .mockResolvedValueOnce([blocks[1].body.encryptedLogs])
+      .mockResolvedValueOnce([blocks[1].body.encryptedLogs])
       // called by synchronizer.workNoteProcessorCatchUp
-      .mockResolvedValueOnce([blocks[0].newEncryptedLogs!])
-      .mockResolvedValueOnce([blocks[1].newEncryptedLogs!]);
+      .mockResolvedValueOnce([blocks[0].body.encryptedLogs])
+      .mockResolvedValueOnce([blocks[1].body.encryptedLogs]);
+
+    aztecNode.getBlocks
+      // called by synchronizer.work, we are testing fromFields in this first call
+      .mockResolvedValueOnce([
+        L2Block.fromFields({
+          archive: blocks[0].archive,
+          header: blocks[0].header,
+          body: blocks[0].body,
+        }),
+      ])
+      .mockResolvedValueOnce([
+        L2Block.fromFields({
+          archive: blocks[1].archive,
+          header: blocks[1].header,
+          body: blocks[1].body,
+        }),
+      ])
+      // called by synchronizer.workNoteProcessorCatchUp
+      .mockResolvedValueOnce([blocks[0]])
+      .mockResolvedValueOnce([blocks[1]]);
 
     aztecNode.getBlockNumber.mockResolvedValue(INITIAL_L2_BLOCK_NUM + 1);
 

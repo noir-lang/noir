@@ -5,30 +5,8 @@ describe('L2Block', () => {
   it('can serialize an L2 block with logs to a buffer and back', () => {
     const block = L2Block.random(42);
 
-    const buffer = block.toBufferWithLogs();
-    const recovered = L2Block.fromBufferWithLogs(buffer);
-
-    expect(recovered).toEqual(block);
-  });
-
-  it('can serialize an L2 block without logs to a buffer and back', () => {
-    const block = L2Block.random(42);
-    block.newEncryptedLogs = undefined;
-    block.newUnencryptedLogs = undefined;
-
-    const serialized = block.toBuffer();
-    const recovered = L2Block.fromBuffer(serialized);
-
-    expect(recovered).toEqual(block);
-  });
-
-  it('can serialize an L2 block without logs to a string and back', () => {
-    const block = L2Block.random(42);
-    block.newEncryptedLogs = undefined;
-    block.newUnencryptedLogs = undefined;
-
-    const serialized = block.toString();
-    const recovered = L2Block.fromString(serialized);
+    const buffer = block.toBuffer();
+    const recovered = L2Block.fromBuffer(buffer);
 
     expect(recovered).toEqual(block);
   });
@@ -40,7 +18,7 @@ describe('L2Block', () => {
     const logs = TxL2Logs.fromBuffer(encodedLogs, true);
     const referenceLogsHash = Buffer.from('1c9ecec90e28d2461650418635878a5c91e49f47586ecf75f2b0cbb94e897112', 'hex');
 
-    const logsHash = L2Block.computeKernelLogsHash(logs);
+    const logsHash = logs.hash();
     expect(logsHash).toEqual(referenceLogsHash);
   });
 
@@ -51,7 +29,7 @@ describe('L2Block', () => {
     const logs = TxL2Logs.fromBuffer(encodedLogs, true);
     const referenceLogsHash = Buffer.from('1aa06a32df232f0d94b4735cffd46671c29dd1d4aec7cd562f856e643b4df833', 'hex');
 
-    const logsHash = L2Block.computeKernelLogsHash(logs);
+    const logsHash = logs.hash();
     expect(logsHash).toEqual(referenceLogsHash);
   });
 
@@ -65,7 +43,7 @@ describe('L2Block', () => {
     const logs = TxL2Logs.fromBuffer(encodedLogs, true);
     const referenceLogsHash = Buffer.from('6030bd40b448d1075bfaaebf0a0c70407598df13d04c44e95454aab642fadcb2', 'hex');
 
-    const logsHash = L2Block.computeKernelLogsHash(logs);
+    const logsHash = logs.hash();
     expect(logsHash).toEqual(referenceLogsHash);
   });
 
@@ -79,7 +57,7 @@ describe('L2Block', () => {
     const logs = TxL2Logs.fromBuffer(encodedLogs, true);
     const referenceLogsHash = Buffer.from('5e7f868e0f851f68a2c6f0b091512f99424fcedaabe02d4b087c0066112d72e8', 'hex');
 
-    const logsHash = L2Block.computeKernelLogsHash(logs);
+    const logsHash = logs.hash();
     expect(logsHash).toEqual(referenceLogsHash);
   });
 });

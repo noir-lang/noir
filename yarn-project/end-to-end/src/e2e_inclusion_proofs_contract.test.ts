@@ -224,7 +224,7 @@ describe('e2e_inclusion_proofs_contract', () => {
       // Choose random block number between deployment and current block number to test archival node
       const blockNumber = await getRandomBlockNumberSinceDeployment();
       const block = await pxe.getBlock(blockNumber);
-      const nullifier = block?.newNullifiers[0];
+      const nullifier = block?.body.txEffects[0].newNullifiers[0];
 
       await contract.methods.test_nullifier_inclusion(nullifier!, true, blockNumber).send().wait();
       await contract.methods.test_nullifier_inclusion(nullifier!, false, 0n).send().wait();

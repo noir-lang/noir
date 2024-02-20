@@ -58,15 +58,15 @@ describe('Archiver', () => {
     const l1ToL2MessageAddedEvents = [
       makeL1ToL2MessageAddedEvents(
         100n,
-        blocks[0].newL1ToL2Messages.map(key => key.toString()),
+        blocks[0].body.l1ToL2Messages.map(key => key.toString()),
       ),
       makeL1ToL2MessageAddedEvents(
         100n,
-        blocks[1].newL1ToL2Messages.map(key => key.toString()),
+        blocks[1].body.l1ToL2Messages.map(key => key.toString()),
       ),
       makeL1ToL2MessageAddedEvents(
         2501n,
-        blocks[2].newL1ToL2Messages.map(key => key.toString()),
+        blocks[2].body.l1ToL2Messages.map(key => key.toString()),
       ),
       makeL1ToL2MessageAddedEvents(2502n, [
         messageToCancel1,
@@ -162,11 +162,11 @@ describe('Archiver', () => {
     const l1ToL2MessageAddedEvents = [
       makeL1ToL2MessageAddedEvents(
         100n,
-        blocks[0].newL1ToL2Messages.map(key => key.toString()),
+        blocks[0].body.l1ToL2Messages.map(key => key.toString()),
       ),
       makeL1ToL2MessageAddedEvents(
         101n,
-        blocks[1].newL1ToL2Messages.map(key => key.toString()),
+        blocks[1].body.l1ToL2Messages.map(key => key.toString()),
       ),
       makeL1ToL2MessageAddedEvents(102n, additionalL1ToL2MessagesBlock102),
       makeL1ToL2MessageAddedEvents(103n, additionalL1ToL2MessagesBlock103),
@@ -223,7 +223,7 @@ describe('Archiver', () => {
     expect(latestBlockNum).toEqual(0);
 
     const block = L2Block.random(1, 4, 1, 2, 4, 6);
-    block.newL1ToL2Messages = times(2, Fr.random);
+    block.body.l1ToL2Messages = times(2, Fr.random);
     const rollupTx = makeRollupTx(block);
 
     publicClient.getBlockNumber.mockResolvedValueOnce(2500n);
@@ -232,7 +232,7 @@ describe('Archiver', () => {
       .mockResolvedValueOnce(
         makeL1ToL2MessageAddedEvents(
           100n,
-          block.newL1ToL2Messages.map(x => x.toString()),
+          block.body.l1ToL2Messages.map(x => x.toString()),
         ),
       )
       .mockResolvedValueOnce([])
@@ -250,11 +250,11 @@ describe('Archiver', () => {
     latestBlockNum = await archiver.getBlockNumber();
     expect(latestBlockNum).toEqual(1);
 
-    const expectedL1Messages = block.newL1ToL2Messages
+    const expectedL1Messages = block.body.l1ToL2Messages
       .concat(times(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP - NUM_RECEIVED_L1_MESSAGES, () => Fr.ZERO))
       .map(x => x.value);
     const receivedBlock = await archiver.getBlock(1);
-    expect(receivedBlock?.newL1ToL2Messages.map(x => x.value)).toEqual(expectedL1Messages);
+    expect(receivedBlock?.body.l1ToL2Messages.map(x => x.value)).toEqual(expectedL1Messages);
 
     await archiver.stop();
   }, 10_000);
@@ -289,7 +289,7 @@ function makeContractDeploymentEvent(l1BlockNum: bigint, l2Block: L2Block) {
       l2BlockNum: BigInt(l2Block.number),
       aztecAddress: extendedContractData.contractData.contractAddress.toString(),
       portalAddress: extendedContractData.contractData.portalContractAddress.toString(),
-      l2BlockHash: `0x${l2Block.getCalldataHash().toString('hex')}`,
+      l2BlockHash: `0x${l2Block.body.getCalldataHash().toString('hex')}`,
       contractClassId: extendedContractData.contractClassId.toString(),
       saltedInitializationHash: extendedContractData.saltedInitializationHash.toString(),
       publicKeyHash: extendedContractData.publicKeyHash.toString(),
@@ -351,7 +351,7 @@ function makeL1ToL2MessageCancelledEvents(l1BlockNum: bigint, entryKeys: string[
 function makeRollupTx(l2Block: L2Block) {
   const header = toHex(l2Block.header.toBuffer());
   const archive = toHex(l2Block.archive.root.toBuffer());
-  const body = toHex(l2Block.bodyToBuffer());
+  const body = toHex(l2Block.body.toBuffer());
   const proof = `0x`;
   const input = encodeFunctionData({
     abi: RollupAbi,

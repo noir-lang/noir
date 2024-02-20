@@ -255,7 +255,7 @@ export class Sequencer {
       return;
     }
 
-    const blockCalldataHash = block.getCalldataHash();
+    const blockCalldataHash = block.body.getCalldataHash();
     this.log.info(`Publishing ${newContracts.length} contracts in block ${block.number}`);
 
     const publishedContractData = await this.publisher.processNewContractData(

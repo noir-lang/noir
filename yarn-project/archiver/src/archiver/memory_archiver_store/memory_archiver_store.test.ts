@@ -23,7 +23,7 @@ describe('MemoryArchiverStore', () => {
 
       await archiverStore.addBlocks(blocks);
       await Promise.all(
-        blocks.map(block => archiverStore.addLogs(block.newEncryptedLogs, block.newUnencryptedLogs, block.number)),
+        blocks.map(block => archiverStore.addLogs(block.body.encryptedLogs, block.body.unencryptedLogs, block.number)),
       );
 
       const response = await archiverStore.getUnencryptedLogs({});

@@ -26,7 +26,10 @@ const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) =
   const block = L2Block.random(blockNumber);
 
   if (newContractsCommitments) {
-    block.newContracts = newContractsCommitments.map(x => Fr.fromBuffer(x));
+    for (let i = 0; i < newContractsCommitments.length; i++) {
+      // Assuming one new contract per tx
+      block.body.txEffects[i].contractLeaves = [Fr.fromBuffer(newContractsCommitments[i])];
+    }
   }
 
   return block;
