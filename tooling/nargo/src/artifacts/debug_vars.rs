@@ -21,9 +21,9 @@ pub struct StackFrame<'a> {
 
 impl DebugVars {
     pub fn insert_debug_info(&mut self, info: &DebugInfo) {
-        self.variables.extend(info.variables.clone().into_iter());
-        self.types.extend(info.types.clone().into_iter());
-        self.functions.extend(info.functions.clone().into_iter());
+        self.variables.extend(info.variables.clone());
+        self.types.extend(info.types.clone());
+        self.functions.extend(info.functions.clone());
     }
 
     pub fn get_variables(&self) -> Vec<StackFrame> {
@@ -36,7 +36,9 @@ impl DebugVars {
 
     fn lookup_var(&self, var_id: DebugVarId) -> Option<(&str, &PrintableType)> {
         self.variables.get(&var_id).and_then(|debug_var| {
-            let Some(ptype) = self.types.get(&debug_var.debug_type_id) else { return None; };
+            let Some(ptype) = self.types.get(&debug_var.debug_type_id) else {
+                return None;
+            };
             Some((debug_var.name.as_str(), ptype))
         })
     }

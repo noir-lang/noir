@@ -473,7 +473,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             .iter()
             .map(|breakpoint| {
                 let line = breakpoint.line;
-                let Some(location) = self.context.find_opcode_for_source_location(&file_id, line) else {
+                let Some(location) = self.context.find_opcode_for_source_location(&file_id, line)
+                else {
                     return Breakpoint {
                         verified: false,
                         message: Some(String::from(

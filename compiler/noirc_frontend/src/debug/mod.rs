@@ -8,6 +8,7 @@ use noirc_errors::debug_info::{DebugFnId, DebugFunction};
 use noirc_errors::{Span, Spanned};
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::mem::take;
 
 const MAX_MEMBER_ASSIGN_DEPTH: usize = 8;
 
@@ -113,7 +114,7 @@ impl DebugInstrumenter {
             .collect();
 
         let func_body = &mut func.body.0;
-        let mut statements = func_body.drain(..).collect();
+        let mut statements = take(func_body);
 
         self.walk_scope(&mut statements, func.span);
 

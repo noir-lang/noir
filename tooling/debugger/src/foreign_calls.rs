@@ -153,8 +153,9 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
             }
             Some(DebugForeignCall::FnEnter) => {
                 let fcp_fn_id = &foreign_call.inputs[0];
-                let ForeignCallParam::Single(fn_id_value) = fcp_fn_id
-                    else { panic!("unexpected foreign call parameter in fn enter: {fcp_fn_id:?}") };
+                let ForeignCallParam::Single(fn_id_value) = fcp_fn_id else {
+                    panic!("unexpected foreign call parameter in fn enter: {fcp_fn_id:?}")
+                };
                 let fn_id = debug_fn_id(fn_id_value);
                 self.debug_vars.push_fn(fn_id);
                 Ok(ForeignCallResult::default().into())
