@@ -150,10 +150,10 @@ impl AvmOpcode {
             // World State
             AvmOpcode::SLOAD => "SLOAD",   // Public Storage
             AvmOpcode::SSTORE => "SSTORE", // Public Storage
-            AvmOpcode::NOTEHASHEXISTS => "NOTEHASHEXISTS",   // Notes & Nullifiers
-            AvmOpcode::EMITNOTEHASH => "EMITNOTEHASH",       // Notes & Nullifiers
+            AvmOpcode::NOTEHASHEXISTS => "NOTEHASHEXISTS", // Notes & Nullifiers
+            AvmOpcode::EMITNOTEHASH => "EMITNOTEHASH", // Notes & Nullifiers
             AvmOpcode::NULLIFIEREXISTS => "NULLIFIEREXISTS", // Notes & Nullifiers
-            AvmOpcode::EMITNULLIFIER => "EMITNULLIFIER",     // Notes & Nullifiers
+            AvmOpcode::EMITNULLIFIER => "EMITNULLIFIER", // Notes & Nullifiers
             AvmOpcode::READL1TOL2MSG => "READL1TOL2MSG", // Messages
             AvmOpcode::HEADERMEMBER => "HEADERMEMBER", // Archive tree & Headers
 

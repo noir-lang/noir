@@ -186,6 +186,7 @@ export class CalldataCopy extends Instruction {
     const transformedData = context.environment.calldata
       .slice(this.cdOffset, this.cdOffset + this.copySize)
       .map(f => new Field(f));
+
     context.machineState.memory.setSlice(this.dstOffset, transformedData);
 
     context.machineState.incrementPc();

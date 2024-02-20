@@ -1,4 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { keccak, pedersenHash, poseidonHash, sha256 } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { AvmTestContractArtifact } from '@aztec/noir-contracts.js';
@@ -79,6 +80,66 @@ describe('AVM simulator', () => {
 
         const returnData = results.output;
         expect(returnData).toEqual([new Fr(res)]);
+      });
+    });
+
+    describe.each([
+      ['avm_sha256_hash', sha256],
+      ['avm_keccak_hash', keccak],
+    ])('Hashes with 2 fields returned in noir contracts', (name: string, hashFunction: (data: Buffer) => Buffer) => {
+      it(`Should execute contract function that performs ${name} hash`, async () => {
+        const calldata = [new Fr(1), new Fr(2), new Fr(3)];
+        const hash = hashFunction(Buffer.concat(calldata.map(f => f.toBuffer())));
+
+        // Get contract function artifact
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === name)!;
+
+        // Decode bytecode into instructions
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        const results = await new AvmSimulator(context).execute();
+
+        expect(results.reverted).toBe(false);
+
+        const returnData = results.output;
+        const reconstructedHash = Buffer.concat([
+          returnData[0].toBuffer().subarray(16, 32),
+          returnData[1].toBuffer().subarray(16, 32),
+        ]);
+        expect(reconstructedHash).toEqual(hash);
+      });
+    });
+
+    describe.each([
+      ['avm_poseidon_hash', poseidonHash],
+      ['avm_pedersen_hash', pedersenHash],
+    ])('Hashes with field returned in noir contracts', (name: string, hashFunction: (data: Buffer[]) => Buffer) => {
+      it(`Should execute contract function that performs ${name} hash`, async () => {
+        const calldata = [new Fr(1), new Fr(2), new Fr(3)];
+        const hash = hashFunction(calldata.map(f => f.toBuffer()));
+
+        // Get contract function artifact
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === name)!;
+
+        // Decode bytecode into instructions
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        const results = await new AvmSimulator(context).execute();
+
+        expect(results.reverted).toBe(false);
+
+        const returnData = results.output;
+        expect(returnData).toEqual([new Fr(hash)]);
       });
     });
 
