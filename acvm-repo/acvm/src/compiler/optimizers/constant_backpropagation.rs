@@ -69,7 +69,7 @@ impl ConstantBackpropagationOptimizer {
         let mut known_witnesses = WitnessMap::new();
         for opcode in self.circuit.opcodes.iter().rev() {
             if let Opcode::AssertZero(expr) = opcode {
-                let solve_result = ExpressionSolver::solve(&mut known_witnesses, &expr);
+                let solve_result = ExpressionSolver::solve(&mut known_witnesses, expr);
                 // It doesn't matter what the result is. We expect most opcodes to not be solved successfully so we discard errors.
                 // At the same time, if the expression can be solved then we track this by the updates to `known_witnesses`
                 drop(solve_result);
