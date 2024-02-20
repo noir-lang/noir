@@ -1,6 +1,6 @@
 import { resolve, join } from 'path';
 import webpack from 'webpack';
-import 'webpack-dev-server';
+import type { Configuration as DevServerConfiguration } from 'webpack-dev-server';
 import WasmPackPlugin from '@wasm-tool/wasm-pack-plugin';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import CopyWebpackPlugin from 'copy-webpack-plugin';
@@ -23,6 +23,10 @@ const config: webpack.Configuration = {
       buffer: require.resolve('buffer'),
     },
   },
+};
+
+const devServerConfig: DevServerConfiguration = {
+  static: join(__dirname, 'dist'),
 };
 
 const webConfig: webpack.Configuration = {
@@ -74,9 +78,7 @@ const webConfig: webpack.Configuration = {
       },
     ],
   },
-  devServer: {
-    static: join(__dirname, 'dist'),
-  },
+  devServer: devServerConfig,
   resolve: {
     ...config.resolve,
     alias: {

@@ -6,7 +6,8 @@ use noirc_errors::{
 };
 
 use crate::{
-    hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, Signedness, Visibility,
+    hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, IntegerBitSize, Signedness,
+    Visibility,
 };
 
 /// The monomorphized AST is expression-based, all statements are also
@@ -217,8 +218,8 @@ pub struct Function {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
     Field,
-    Array(/*len:*/ u64, Box<Type>),     // Array(4, Field) = [Field; 4]
-    Integer(Signedness, /*bits:*/ u32), // u32 = Integer(unsigned, 32)
+    Array(/*len:*/ u64, Box<Type>), // Array(4, Field) = [Field; 4]
+    Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     String(/*len:*/ u64), // String(4) = str[4]
     FmtString(/*len:*/ u64, Box<Type>),

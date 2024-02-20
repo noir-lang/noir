@@ -337,26 +337,27 @@ fn check_for_storage_implementation(module: &SortedModule) -> bool {
     })
 }
 
-// Check if "compute_note_hash_and_nullifier(AztecAddress,Field,Field,[Field; N]) -> [Field; 4]" is defined
+// Check if "compute_note_hash_and_nullifier(AztecAddress,Field,Field,Field,[Field; N]) -> [Field; 4]" is defined
 fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -> bool {
     module.functions.iter().any(|func| {
         func.def.name.0.contents == "compute_note_hash_and_nullifier"
-                && func.def.parameters.len() == 4
+                && func.def.parameters.len() == 5
                 && match &func.def.parameters[0].typ.typ {
                     UnresolvedTypeData::Named(path, _, _) => path.segments.last().unwrap().0.contents == "AztecAddress",
                     _ => false,
                 }
                 && func.def.parameters[1].typ.typ == UnresolvedTypeData::FieldElement
                 && func.def.parameters[2].typ.typ == UnresolvedTypeData::FieldElement
-                // checks if the 4th parameter is an array and the Box<UnresolvedType> in
+                && func.def.parameters[3].typ.typ == UnresolvedTypeData::FieldElement
+                // checks if the 5th parameter is an array and the Box<UnresolvedType> in
                 // Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>) contains only fields
-                && match &func.def.parameters[3].typ.typ {
+                && match &func.def.parameters[4].typ.typ {
                     UnresolvedTypeData::Array(_, inner_type) => {
                         matches!(inner_type.typ, UnresolvedTypeData::FieldElement)
                     },
                     _ => false,
                 }
-                // We check the return type the same way as we did the 4th parameter
+                // We check the return type the same way as we did the 5th parameter
                 && match &func.def.return_type {
                     FunctionReturnType::Default(_) => false,
                     FunctionReturnType::Ty(unresolved_type) => {
@@ -696,7 +697,7 @@ fn collect_traits(context: &HirContext) -> Vec<TraitId> {
     crates
         .flat_map(|crate_id| context.def_map(&crate_id).map(|def_map| def_map.modules()))
         .flatten()
-        .flat_map(|(_, module)| {
+        .flat_map(|module| {
             module.type_definitions().filter_map(|typ| {
                 if let ModuleDefId::TraitId(struct_id) = typ {
                     Some(struct_id)
@@ -762,11 +763,11 @@ fn transform_event(
         HirExpression::Literal(HirLiteral::Str(signature))
             if signature == SIGNATURE_PLACEHOLDER =>
         {
-            let selector_literal_id = first_arg_id;
+            let selector_literal_id = *first_arg_id;
 
             let structure = interner.get_struct(struct_id);
             let signature = event_signature(&structure.borrow());
-            interner.update_expression(*selector_literal_id, |expr| {
+            interner.update_expression(selector_literal_id, |expr| {
                 *expr = HirExpression::Literal(HirLiteral::Str(signature.clone()));
             });
 
@@ -808,7 +809,7 @@ fn get_serialized_length(
 ) -> Result<u64, AztecMacroError> {
     let (struct_name, maybe_stored_in_state) = match typ {
         Type::Struct(struct_type, generics) => {
-            Ok((struct_type.borrow().name.0.contents.clone(), generics.get(0)))
+            Ok((struct_type.borrow().name.0.contents.clone(), generics.first()))
         }
         _ => Err(AztecMacroError::CouldNotAssignStorageSlots {
             secondary_message: Some("State storage variable must be a struct".to_string()),
@@ -832,7 +833,7 @@ fn get_serialized_length(
 
     let serialized_trait_impl_kind = traits
         .iter()
-        .filter_map(|&trait_id| {
+        .find_map(|&trait_id| {
             let r#trait = interner.get_trait(trait_id);
             if r#trait.borrow().name.0.contents == "Serialize"
                 && r#trait.borrow().generics.len() == 1
@@ -845,7 +846,6 @@ fn get_serialized_length(
                 None
             }
         })
-        .next()
         .ok_or(AztecMacroError::CouldNotAssignStorageSlots {
             secondary_message: Some("Stored data must implement Serialize trait".to_string()),
         })?;
@@ -858,7 +858,7 @@ fn get_serialized_length(
     let serialized_trait_impl_shared = interner.get_trait_implementation(*serialized_trait_impl_id);
     let serialized_trait_impl = serialized_trait_impl_shared.borrow();
 
-    match serialized_trait_impl.trait_generics.get(0).unwrap() {
+    match serialized_trait_impl.trait_generics.first().unwrap() {
         Type::Constant(value) => Ok(*value),
         _ => Err(AztecMacroError::CouldNotAssignStorageSlots { secondary_message: None }),
     }
@@ -945,9 +945,7 @@ fn assign_storage_slots(
                 let slot_arg_expression = interner.expression(&new_call_expression.arguments[1]);
 
                 let current_storage_slot = match slot_arg_expression {
-                    HirExpression::Literal(HirLiteral::Integer(slot, _)) => {
-                        Ok(slot.borrow().to_u128())
-                    }
+                    HirExpression::Literal(HirLiteral::Integer(slot, _)) => Ok(slot.to_u128()),
                     _ => Err((
                         AztecMacroError::CouldNotAssignStorageSlots {
                             secondary_message: Some(
@@ -1128,7 +1126,10 @@ fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMac
                         add_array_to_hasher(
                             &id,
                             &UnresolvedType {
-                                typ: UnresolvedTypeData::Integer(Signedness::Unsigned, 32),
+                                typ: UnresolvedTypeData::Integer(
+                                    Signedness::Unsigned,
+                                    noirc_frontend::IntegerBitSize::ThirtyTwo,
+                                ),
                                 span: None,
                             },
                         )

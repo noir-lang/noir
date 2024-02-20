@@ -29,7 +29,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_F
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
-    StructId, TraitId, TraitImplId, TraitMethodId,
+    StructId, TraitId, TraitImplId, TraitMethodId, TypeAliasId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -39,9 +39,9 @@ use crate::{
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
     FunctionReturnType, FunctionVisibility, Generics, LValue, NoirStruct, NoirTypeAlias, Param,
-    Path, PathKind, Pattern, Shared, StructType, Type, TypeAliasType, TypeVariable,
-    TypeVariableKind, UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    Path, PathKind, Pattern, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind,
+    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -573,16 +573,19 @@ impl<'a> Resolver<'a> {
         let span = path.span();
         let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
 
-        if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
-            let expected_generic_count = type_alias_type.generics.len();
-            let type_alias_string = type_alias_type.to_string();
-            let id = type_alias_type.id;
+        if let Some(type_alias) = self.lookup_type_alias(path.clone()) {
+            let type_alias = type_alias.borrow();
+            let expected_generic_count = type_alias.generics.len();
+            let type_alias_string = type_alias.to_string();
+            let id = type_alias.id;
 
             self.verify_generics_count(expected_generic_count, &mut args, span, || {
                 type_alias_string
             });
 
-            let result = self.interner.get_type_alias(id).get_type(&args);
+            if let Some(item) = self.current_item {
+                self.interner.add_type_alias_dependency(item, id);
+            }
 
             // Collecting Type Alias references [Location]s to be used by LSP in order
             // to resolve the definition of the type alias
@@ -593,9 +596,8 @@ impl<'a> Resolver<'a> {
             // equal to another type alias. Fixing this fully requires an analysis to create a DFG
             // of definition ordering, but for now we have an explicit check here so that we at
             // least issue an error that the type was not found instead of silently passing.
-            if result != Type::Error {
-                return result;
-            }
+            let alias = self.interner.get_type_alias(id);
+            return Type::Alias(alias, args);
         }
 
         match self.lookup_struct_or_error(path) {
@@ -752,12 +754,15 @@ impl<'a> Resolver<'a> {
         resolved_type
     }
 
-    pub fn resolve_type_aliases(
+    pub fn resolve_type_alias(
         mut self,
         unresolved: NoirTypeAlias,
+        alias_id: TypeAliasId,
     ) -> (Type, Generics, Vec<ResolverError>) {
         let generics = self.add_generics(&unresolved.generics);
         self.resolve_local_globals();
+
+        self.current_item = Some(DependencyId::Alias(alias_id));
         let typ = self.resolve_type(unresolved.typ);
 
         (typ, generics, self.errors)
@@ -1120,6 +1125,17 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
+            Type::Alias(alias, generics) => {
+                for (i, generic) in generics.iter().enumerate() {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if alias.borrow().generic_is_numeric(i) {
+                            found.insert(name.to_string(), type_variable.clone());
+                        }
+                    } else {
+                        Self::find_numeric_generics_in_type(generic, found);
+                    }
+                }
+            }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
@@ -1447,7 +1463,7 @@ impl<'a> Resolver<'a> {
                                 // they're used in expressions. We must do this here since the type
                                 // checker does not check definition kinds and otherwise expects
                                 // parameters to already be typed.
-                                if self.interner.id_type(hir_ident.id) == Type::Error {
+                                if self.interner.definition_type(hir_ident.id) == Type::Error {
                                     let typ = Type::polymorphic_integer(self.interner);
                                     self.interner.push_definition_type(hir_ident.id, typ);
                                 }
@@ -1791,7 +1807,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn lookup_type_alias(&mut self, path: Path) -> Option<&TypeAliasType> {
+    fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAlias>> {
         self.lookup(path).ok().map(|id| self.interner.get_type_alias(id))
     }
 

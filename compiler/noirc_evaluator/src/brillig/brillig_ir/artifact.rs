@@ -6,8 +6,11 @@ use crate::ssa::ir::dfg::CallStack;
 /// Represents a parameter or a return value of a function.
 #[derive(Debug, Clone)]
 pub(crate) enum BrilligParameter {
-    Simple,
+    /// A single address parameter or return value. Holds the bit size of the parameter.
+    SingleAddr(u32),
+    /// An array parameter or return value. Holds the type of an array item and its size.
     Array(Vec<BrilligParameter>, usize),
+    /// A slice parameter or return value. Holds the type of a slice item.
     Slice(Vec<BrilligParameter>),
 }
 

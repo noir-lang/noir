@@ -1,16 +1,17 @@
+use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use crate::{
     brillig::brillig_ir::{
         artifact::{BrilligParameter, Label},
         brillig_variable::BrilligVariable,
-        BrilligContext,
+        BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     },
     ssa::ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId},
         post_order::PostOrder,
-        types::Type,
+        types::{NumericType, Type},
         value::ValueId,
     },
 };
@@ -72,7 +73,9 @@ impl FunctionContext {
 
     fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
-            Type::Numeric(_) | Type::Reference(_) => BrilligParameter::Simple,
+            Type::Numeric(_) | Type::Reference(_) => {
+                BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
+            }
             Type::Array(item_type, size) => BrilligParameter::Array(
                 vecmap(item_type.iter(), |item_typ| {
                     FunctionContext::ssa_type_to_parameter(item_typ)
@@ -108,5 +111,16 @@ impl FunctionContext {
                 FunctionContext::ssa_type_to_parameter(&typ)
             })
             .collect()
+    }
+}
+
+pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
+    match typ {
+        Type::Numeric(num_type) => match num_type {
+            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => *bit_size,
+            NumericType::NativeField => FieldElement::max_num_bits(),
+        },
+        Type::Reference(_) => BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        _ => unreachable!("ICE bitwise not on a non numeric type"),
     }
 }
