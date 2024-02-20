@@ -27,3 +27,18 @@ jobs:
             fix
             feat
             chore
+
+  force-push-comment:
+    name: Warn external contributors about force-pushing
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != 'noir-lang/noir' }} 
+    permissions:
+      pull-requests: write
+    
+    steps:
+      - name: Post comment on force pushes
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: ./.github/EXTERNAL_CONTRIBUTOR_PR_COMMENT.md
+
+          

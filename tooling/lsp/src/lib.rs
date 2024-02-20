@@ -222,11 +222,15 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         )
         .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))
     } else {
-        let Some(parent_folder) = file_path.parent().and_then(|f| f.file_name()).and_then(|file_name_os_str| file_name_os_str.to_str()) else {
+        let Some(parent_folder) = file_path
+            .parent()
+            .and_then(|f| f.file_name())
+            .and_then(|file_name_os_str| file_name_os_str.to_str())
+        else {
             return Err(LspError::WorkspaceResolutionError(format!(
                 "Could not resolve parent folder for file: {:?}",
                 file_path
-            )))
+            )));
         };
         let assumed_package = Package {
             version: None,
@@ -320,7 +324,7 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
         cache_misses
             .into_iter()
             .map(|(id, _, _, parse_results)| (id, parse_results))
-            .chain(cache_hits.into_iter())
+            .chain(cache_hits)
             .collect()
     } else {
         parse_all(file_manager)

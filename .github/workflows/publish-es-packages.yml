@@ -114,7 +114,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: acvm_js
+          name: acvm-js
           path: acvm-repo/acvm_js
       
       - uses: actions/download-artifact@v4
@@ -143,3 +143,16 @@ jobs:
 
       - name: Publish ES Packages
         run: yarn publish:all --access public --tag ${{ inputs.npm-tag }}
+
+      # Raise an issue if any package failed to publish
+      - name: Alert on failed publish
+        uses: JasonEtco/create-an-issue@v2
+        if: ${{ failure() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TAG: ${{ inputs.npm-tag }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          update_existing: true
+          filename: .github/JS_PUBLISH_FAILED.md

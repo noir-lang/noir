@@ -306,7 +306,7 @@ impl IntType {
     // XXX: Result<Option<Token, LexerErrorKind>
     // Is not the best API. We could split this into two functions. One that checks if the the
     // word is a integer, which only returns an Option
-    pub(crate) fn lookup_int_type(word: &str, span: Span) -> Result<Option<Token>, LexerErrorKind> {
+    pub(crate) fn lookup_int_type(word: &str) -> Result<Option<Token>, LexerErrorKind> {
         // Check if the first string is a 'u' or 'i'
 
         let is_signed = if word.starts_with('i') {
@@ -323,12 +323,6 @@ impl IntType {
             Ok(str_as_u32) => str_as_u32,
             Err(_) => return Ok(None),
         };
-
-        let max_bits = FieldElement::max_num_bits() / 2;
-
-        if str_as_u32 > max_bits {
-            return Err(LexerErrorKind::TooManyBits { span, max: max_bits, got: str_as_u32 });
-        }
 
         if is_signed {
             Ok(Some(Token::IntType(IntType::Signed(str_as_u32))))
@@ -780,6 +774,27 @@ impl Keyword {
     }
 }
 
+pub struct Tokens(pub Vec<SpannedToken>);
+
+type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;
+
+impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
+    fn from(tokens: Tokens) -> Self {
+        let end_of_input = match tokens.0.last() {
+            Some(spanned_token) => spanned_token.to_span(),
+            None => Span::single_char(0),
+        };
+
+        fn get_span(token: SpannedToken) -> (Token, Span) {
+            let span = token.to_span();
+            (token.into_token(), span)
+        }
+
+        let iter = tokens.0.into_iter().map(get_span as fn(_) -> _);
+        chumsky::Stream::from_iter(end_of_input, iter)
+    }
+}
+
 #[cfg(test)]
 mod keywords {
     use strum::IntoEnumIterator;
@@ -800,26 +815,5 @@ mod keywords {
                 "Keyword::lookup_keyword returns unexpected Keyword"
             );
         }
-    }
-}
-
-pub struct Tokens(pub Vec<SpannedToken>);
-
-type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;
-
-impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
-    fn from(tokens: Tokens) -> Self {
-        let end_of_input = match tokens.0.last() {
-            Some(spanned_token) => spanned_token.to_span(),
-            None => Span::single_char(0),
-        };
-
-        fn get_span(token: SpannedToken) -> (Token, Span) {
-            let span = token.to_span();
-            (token.into_token(), span)
-        }
-
-        let iter = tokens.0.into_iter().map(get_span as fn(_) -> _);
-        chumsky::Stream::from_iter(end_of_input, iter)
     }
 }

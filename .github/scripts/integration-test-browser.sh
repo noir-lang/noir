@@ -2,4 +2,4 @@
 set -eu
 
 ./.github/scripts/playwright-install.sh
-yarn workspace integration-tests test
+yarn workspace integration-tests test:browser

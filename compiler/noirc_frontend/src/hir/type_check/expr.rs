@@ -65,7 +65,7 @@ impl<'interner> TypeChecker<'interner> {
                         let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
 
                         let first_elem_type = elem_types
-                            .get(0)
+                            .first()
                             .cloned()
                             .unwrap_or_else(|| self.interner.next_type_variable());
 
@@ -284,8 +284,9 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Tuple(vecmap(&elements, |elem| self.check_expression(elem)))
             }
             HirExpression::Lambda(lambda) => {
-                let captured_vars =
-                    vecmap(lambda.captures, |capture| self.interner.id_type(capture.ident.id));
+                let captured_vars = vecmap(lambda.captures, |capture| {
+                    self.interner.definition_type(capture.ident.id)
+                });
 
                 let env_type: Type =
                     if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
@@ -308,7 +309,7 @@ impl<'interner> TypeChecker<'interner> {
             }
         };
 
-        self.interner.push_expr_type(expr_id, typ.clone());
+        self.interner.push_expr_type(*expr_id, typ.clone());
         typ
     }
 
@@ -459,7 +460,7 @@ impl<'interner> TypeChecker<'interner> {
                                 operator: UnaryOp::MutableReference,
                                 rhs: method_call.object,
                             }));
-                        self.interner.push_expr_type(&new_object, new_type);
+                        self.interner.push_expr_type(new_object, new_type);
                         self.interner.push_expr_location(new_object, location.span, location.file);
                         new_object
                     });
@@ -485,7 +486,7 @@ impl<'interner> TypeChecker<'interner> {
                 operator: UnaryOp::Dereference { implicitly_added: true },
                 rhs: object,
             }));
-            self.interner.push_expr_type(&object, element.as_ref().clone());
+            self.interner.push_expr_type(object, element.as_ref().clone());
             self.interner.push_expr_location(object, location.span, location.file);
 
             // Recursively dereference to allow for converting &mut &mut T to T
@@ -565,6 +566,7 @@ impl<'interner> TypeChecker<'interner> {
             Type::Integer(..)
             | Type::FieldElement
             | Type::TypeVariable(_, TypeVariableKind::IntegerOrField)
+            | Type::TypeVariable(_, TypeVariableKind::Integer)
             | Type::Bool => (),
 
             Type::TypeVariable(_, _) => {
@@ -681,8 +683,8 @@ impl<'interner> TypeChecker<'interner> {
                 operator: crate::UnaryOp::Dereference { implicitly_added: true },
                 rhs: old_lhs,
             }));
-            this.interner.push_expr_type(&old_lhs, lhs_type);
-            this.interner.push_expr_type(access_lhs, element);
+            this.interner.push_expr_type(old_lhs, lhs_type);
+            this.interner.push_expr_type(*access_lhs, element);
 
             let old_location = this.interner.id_location(old_lhs);
             this.interner.push_expr_location(*access_lhs, span, old_location.file);
@@ -805,7 +807,7 @@ impl<'interner> TypeChecker<'interner> {
 
             // Matches on TypeVariable must be first to follow any type
             // bindings.
-            (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
+            (TypeVariable(int, int_kind), other) | (other, TypeVariable(int, int_kind)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
@@ -823,7 +825,13 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let mut bindings = TypeBindings::new();
-                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                if other
+                    .try_bind_to_polymorphic_int(
+                        int,
+                        &mut bindings,
+                        *int_kind == TypeVariableKind::Integer,
+                    )
+                    .is_ok()
                     || other == &Type::Error
                 {
                     Type::apply_type_bindings(bindings);
@@ -836,6 +844,10 @@ impl<'interner> TypeChecker<'interner> {
                         source: Source::Binary,
                     })
                 }
+            }
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.comparator_operand_type_rules(&alias, other, op, span)
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {
@@ -1081,7 +1093,7 @@ impl<'interner> TypeChecker<'interner> {
 
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
-            (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
+            (TypeVariable(int, int_kind), other) | (other, TypeVariable(int, int_kind)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
@@ -1114,7 +1126,13 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let mut bindings = TypeBindings::new();
-                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
+                if other
+                    .try_bind_to_polymorphic_int(
+                        int,
+                        &mut bindings,
+                        *int_kind == TypeVariableKind::Integer,
+                    )
+                    .is_ok()
                     || other == &Type::Error
                 {
                     Type::apply_type_bindings(bindings);
@@ -1127,6 +1145,10 @@ impl<'interner> TypeChecker<'interner> {
                         span,
                     })
                 }
+            }
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.infix_operand_type_rules(&alias, op, other, span)
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {

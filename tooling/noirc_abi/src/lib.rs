@@ -142,14 +142,13 @@ impl AbiType {
                     Signedness::Signed => Sign::Signed,
                 };
 
-                Self::Integer { sign, width: *bit_width }
+                Self::Integer { sign, width: (*bit_width).into() }
             }
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => Self::from_type(context, typ),
-                    TypeBinding::Unbound(_) => Self::from_type(context, &Type::default_int_type()),
-                }
-            }
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
+            | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => Self::from_type(context, typ),
+                TypeBinding::Unbound(_) => Self::from_type(context, &Type::default_int_type()),
+            },
             Type::Bool => Self::Boolean,
             Type::String(size) => {
                 let size = size
@@ -158,7 +157,7 @@ impl AbiType {
                 Self::String { length: size }
             }
 
-            Type::Struct(def, ref args) => {
+            Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
                 let fields = vecmap(fields, |(name, typ)| (name, Self::from_type(context, &typ)));
@@ -167,6 +166,7 @@ impl AbiType {
                     context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
                 Self::Struct { fields, path }
             }
+            Type::Alias(def, args) => Self::from_type(context, &def.borrow().get_type(args)),
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |typ| Self::from_type(context, typ));
                 Self::Tuple { fields }
