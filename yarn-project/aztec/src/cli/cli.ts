@@ -1,5 +1,5 @@
 import { fileURLToPath } from '@aztec/aztec.js';
-import { ServerList, createNamespacedJsonRpcServer } from '@aztec/foundation/json-rpc/server';
+import { ServerList, createNamespacedJsonRpcServer, createStatusRouter } from '@aztec/foundation/json-rpc/server';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
 import { Command } from 'commander';
@@ -10,7 +10,7 @@ import { dirname, resolve } from 'path';
 import { cliTexts } from './texts.js';
 import { installSignalHandlers } from './util.js';
 
-const { AZTEC_PORT = '8080' } = process.env;
+const { AZTEC_PORT = '8080', API_PREFIX = '' } = process.env;
 
 /**
  * Returns commander program that defines the 'aztec' command line interface.
@@ -59,7 +59,11 @@ export function getProgram(userLog: LogFn, debugLogger: DebugLogger): Command {
       if (services.length) {
         const rpcServer = createNamespacedJsonRpcServer(services, debugLogger);
 
-        const app = rpcServer.getApp();
+        const app = rpcServer.getApp(API_PREFIX);
+        // add status route
+        const statusRouter = createStatusRouter(API_PREFIX);
+        app.use(statusRouter.routes()).use(statusRouter.allowedMethods());
+
         const httpServer = http.createServer(app.callback());
         httpServer.listen(options.port);
         userLog(`Aztec Server listening on port ${options.port}`);
