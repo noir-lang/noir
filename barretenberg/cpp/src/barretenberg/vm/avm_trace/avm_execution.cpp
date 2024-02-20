@@ -15,7 +15,7 @@
 
 using namespace bb;
 
-namespace avm_trace {
+namespace bb::avm_trace {
 
 /**
  * @brief Run the bytecode, generate the corresponding execution trace and prove the correctness
@@ -149,4 +149,4 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
     return trace_builder.finalize();
 }
 
-} // namespace avm_trace
+} // namespace bb::avm_trace

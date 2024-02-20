@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <functional>
 
+namespace bb {
 void parallel_for_omp(size_t num_iterations, const std::function<void(size_t)>& func)
 {
 #ifndef NO_OMP_MULTITHREADING
@@ -10,3 +11,4 @@ void parallel_for_omp(size_t num_iterations, const std::function<void(size_t)>& 
         func(i);
     }
 }
+} // namespace bb

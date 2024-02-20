@@ -2,8 +2,6 @@
 #include "multisig.hpp"
 #include "schnorr.hpp"
 
-extern "C" {
-
 using namespace bb;
 using affine_element = grumpkin::g1::affine_element;
 using multisig = crypto::schnorr_multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>;
@@ -146,5 +144,4 @@ WASM_EXPORT void schnorr_multisig_combine_signatures(uint8_t const* message_buf,
     } else {
         *success = false;
     }
-}
 }

@@ -12,7 +12,7 @@
 #include <iostream>
 #include <vector>
 
-namespace transcript {
+namespace bb::plonk::transcript {
 
 // Set to 1 to enable some logging.
 #if 0
@@ -444,4 +444,4 @@ std::vector<uint8_t> Transcript::export_transcript() const
     return buffer;
 }
 
-} // namespace transcript
+} // namespace bb::plonk::transcript

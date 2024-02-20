@@ -2,7 +2,7 @@
 #include "manifest.hpp"
 #include <vector>
 
-namespace transcript {
+namespace bb::plonk::transcript {
 void StandardTranscript::add_field_element(const std::string& element_name, const bb::fr& element)
 {
     add_element(element_name, element.to_buffer());
@@ -33,4 +33,4 @@ bb::fr StandardTranscript::get_challenge_field_element_from_map(const std::strin
 {
     return bb::fr::serialize_from_buffer(&(get_challenge_from_map(challenge_name, challenge_map_name))[0]);
 }
-} // namespace transcript
+} // namespace bb::plonk::transcript

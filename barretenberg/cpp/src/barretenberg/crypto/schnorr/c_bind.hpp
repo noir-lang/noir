@@ -3,11 +3,11 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "multisig.hpp"
 
-extern "C" {
-
 using namespace bb;
+using namespace bb::crypto;
+
 using affine_element = grumpkin::g1::affine_element;
-using multisig = crypto::schnorr_multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>;
+using multisig = schnorr_multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>;
 
 WASM_EXPORT void schnorr_compute_public_key(fr::in_buf private_key, affine_element::out_buf public_key_buf);
 WASM_EXPORT void schnorr_negate_public_key(affine_element::in_buf public_key_buffer, affine_element::out_buf output);
@@ -43,4 +43,3 @@ WASM_EXPORT void schnorr_multisig_combine_signatures(uint8_t const* message,
                                                      out_buf32 s,
                                                      out_buf32 e,
                                                      bool* success);
-}

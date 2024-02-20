@@ -15,7 +15,7 @@
 namespace tests_avm {
 
 using namespace bb;
-using namespace avm_trace;
+using namespace bb::avm_trace;
 using namespace testing;
 
 using bb::utils::hex_to_bytes;

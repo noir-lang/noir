@@ -168,7 +168,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
             info("Native result: ", native_result);
         }
 
-        transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover.key->num_public_inputs);
+        plonk::transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover.key->num_public_inputs);
 
         auto output = recursion::verify_proof<outer_curve, RecursiveSettings>(
             &outer_builder, verification_key, recursive_manifest, proof_to_recursively_verify);
@@ -194,7 +194,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         plonk::proof proof_to_recursively_verify_a = prover.construct_proof();
 
-        transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover.key->num_public_inputs);
+        plonk::transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover.key->num_public_inputs);
 
         auto previous_output = recursion::verify_proof<outer_curve, RecursiveSettings>(
             &outer_circuit, verification_key, recursive_manifest, proof_to_recursively_verify_a);
@@ -263,7 +263,8 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         plonk::proof recursive_proof = proof_type ? prover_a.construct_proof() : prover_b.construct_proof();
 
-        transcript::Manifest recursive_manifest = InnerComposer::create_manifest(prover_a.key->num_public_inputs);
+        plonk::transcript::Manifest recursive_manifest =
+            InnerComposer::create_manifest(prover_a.key->num_public_inputs);
 
         stdlib::recursion::aggregation_state<outer_curve> output =
             stdlib::recursion::verify_proof<outer_curve, RecursiveSettings>(

@@ -3,7 +3,7 @@
 using namespace bb;
 
 namespace tests_avm {
-using namespace avm_trace;
+using namespace bb::avm_trace;
 
 class AvmMemoryTests : public ::testing::Test {
   public:

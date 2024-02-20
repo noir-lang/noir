@@ -73,7 +73,7 @@ std::vector<Row> gen_mutated_trace_not(FF const& a, FF const& c_mutated, avm_tra
 } // namespace
 
 namespace tests_avm {
-using namespace avm_trace;
+using namespace bb::avm_trace;
 
 class AvmBitwiseTests : public ::testing::Test {
   public:

@@ -5,7 +5,7 @@
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include <unordered_map>
 
-namespace transcript {
+namespace bb::plonk::transcript {
 /**
  * Transcript extended with functions for easy
  * field element setting/getting
@@ -58,4 +58,4 @@ class StandardTranscript : public Transcript {
     bb::fr get_mock_challenge() { return bb::fr::random_element(); };
 };
 
-} // namespace transcript
+} // namespace bb::plonk::transcript

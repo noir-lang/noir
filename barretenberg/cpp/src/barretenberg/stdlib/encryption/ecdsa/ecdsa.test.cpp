@@ -7,6 +7,7 @@
 #include "ecdsa.hpp"
 
 using namespace bb;
+using namespace bb::crypto;
 
 using Builder = UltraCircuitBuilder;
 using curve_ = stdlib::secp256k1<Builder>;
@@ -19,14 +20,14 @@ TEST(stdlib_ecdsa, verify_signature)
     // whaaablaghaaglerijgeriij
     std::string message_string = "Instructions unclear, ask again later.";
 
-    crypto::ecdsa_key_pair<curve_::fr, curve_::g1> account;
+    ecdsa_key_pair<curve_::fr, curve_::g1> account;
     account.private_key = curve_::fr::random_element();
     account.public_key = curve_::g1::one * account.private_key;
 
-    crypto::ecdsa_signature signature =
-        crypto::ecdsa_construct_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(message_string, account);
+    ecdsa_signature signature =
+        ecdsa_construct_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(message_string, account);
 
-    bool first_result = crypto::ecdsa_verify_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(
+    bool first_result = ecdsa_verify_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(
         message_string, account.public_key, signature);
     EXPECT_EQ(first_result, true);
 
@@ -60,14 +61,14 @@ TEST(stdlib_ecdsa, verify_r1_signature)
 
     std::string message_string = "Instructions unclear, ask again later.";
 
-    crypto::ecdsa_key_pair<curveR1::fr, curveR1::g1> account;
+    ecdsa_key_pair<curveR1::fr, curveR1::g1> account;
     account.private_key = curveR1::fr::random_element();
     account.public_key = curveR1::g1::one * account.private_key;
 
-    crypto::ecdsa_signature signature =
-        crypto::ecdsa_construct_signature<Sha256Hasher, curveR1::fq, curveR1::fr, curveR1::g1>(message_string, account);
+    ecdsa_signature signature =
+        ecdsa_construct_signature<Sha256Hasher, curveR1::fq, curveR1::fr, curveR1::g1>(message_string, account);
 
-    bool first_result = crypto::ecdsa_verify_signature<Sha256Hasher, curveR1::fq, curveR1::fr, curveR1::g1>(
+    bool first_result = ecdsa_verify_signature<Sha256Hasher, curveR1::fq, curveR1::fr, curveR1::g1>(
         message_string, account.public_key, signature);
     EXPECT_EQ(first_result, true);
 
@@ -102,14 +103,14 @@ TEST(stdlib_ecdsa, ecdsa_verify_signature_noassert_succeed)
     // whaaablaghaaglerijgeriij
     std::string message_string = "Instructions unclear, ask again later.";
 
-    crypto::ecdsa_key_pair<curve_::fr, curve_::g1> account;
+    ecdsa_key_pair<curve_::fr, curve_::g1> account;
     account.private_key = curve_::fr::random_element();
     account.public_key = curve_::g1::one * account.private_key;
 
-    crypto::ecdsa_signature signature =
-        crypto::ecdsa_construct_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(message_string, account);
+    ecdsa_signature signature =
+        ecdsa_construct_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(message_string, account);
 
-    bool first_result = crypto::ecdsa_verify_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(
+    bool first_result = ecdsa_verify_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(
         message_string, account.public_key, signature);
     EXPECT_EQ(first_result, true);
 
@@ -146,17 +147,17 @@ TEST(stdlib_ecdsa, ecdsa_verify_signature_noassert_fail)
     // whaaablaghaaglerijgeriij
     std::string message_string = "Instructions unclear, ask again later.";
 
-    crypto::ecdsa_key_pair<curve_::fr, curve_::g1> account;
+    ecdsa_key_pair<curve_::fr, curve_::g1> account;
     account.private_key = curve_::fr::random_element();
     account.public_key = curve_::g1::one * account.private_key;
 
-    crypto::ecdsa_signature signature =
-        crypto::ecdsa_construct_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(message_string, account);
+    ecdsa_signature signature =
+        ecdsa_construct_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(message_string, account);
 
     // tamper w. signature to make fail
     signature.r[0] += 1;
 
-    bool first_result = crypto::ecdsa_verify_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(
+    bool first_result = ecdsa_verify_signature<Sha256Hasher, curve_::fq, curve_::fr, curve_::g1>(
         message_string, account.public_key, signature);
     EXPECT_EQ(first_result, false);
 

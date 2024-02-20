@@ -1,6 +1,8 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include <chrono>
 
+using namespace bb;
+
 int main(int, char**)
 {
 

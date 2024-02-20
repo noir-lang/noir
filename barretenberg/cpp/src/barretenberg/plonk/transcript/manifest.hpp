@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-namespace transcript {
+namespace bb::plonk::transcript {
 /**
  * Composers used Manifest to define the structure of the protocol:
  * 1. What data is used in each round of the protocols
@@ -81,5 +81,5 @@ class Manifest {
   private:
     std::vector<RoundManifest> round_manifests;
     size_t num_rounds;
-}; // namespace transcript
-} // namespace transcript
+}; // namespace bb::plonk::transcript
+} // namespace bb::plonk::transcript

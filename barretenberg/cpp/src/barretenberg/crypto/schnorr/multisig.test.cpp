@@ -4,7 +4,9 @@
 #include "./multisig.hpp"
 
 using namespace bb;
+using namespace bb::crypto;
 
+namespace {
 template <typename Hash> struct MultisigTest : public ::testing::Test {
     using G = grumpkin::g1;
     using Fr = grumpkin::fr;
@@ -63,6 +65,8 @@ template <typename Hash> struct MultisigTest : public ::testing::Test {
 };
 
 using HashTypes = ::testing::Types<KeccakHasher, Sha256Hasher>;
+} // namespace
+
 TYPED_TEST_SUITE(MultisigTest, HashTypes);
 
 TYPED_TEST(MultisigTest, verify_multi_signature_blake2s)

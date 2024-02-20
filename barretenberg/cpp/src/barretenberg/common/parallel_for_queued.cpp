@@ -8,6 +8,7 @@
 #include <thread>
 #include <vector>
 
+namespace {
 class ThreadPool {
   public:
     ThreadPool(size_t num_threads);
@@ -100,7 +101,9 @@ void ThreadPool::worker_loop(size_t /*unused*/)
     }
     // info("worker exit ", worker_num);
 }
+} // namespace
 
+namespace bb {
 /**
  * A thread pooled strategey that assumed that thread pools would be more efficient than spawning threads.
  * Every iteration becomes a task in a queue. That's probably not very efficient.
@@ -120,3 +123,4 @@ void parallel_for_queued(size_t num_iterations, const std::function<void(size_t)
     pool.wait();
     // info("pool finished work");
 }
+} // namespace bb

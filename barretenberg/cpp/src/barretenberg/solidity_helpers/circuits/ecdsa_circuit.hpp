@@ -48,13 +48,13 @@ template <typename Builder> class EcdsaCircuit {
         account.public_key = curve::g1::one * account.private_key;
 
         // UNCONSTRAINED: create a sig
-        crypto::ecdsa_signature signature =
-            crypto::ecdsa_construct_signature<Sha256Hasher, typename curve::fq, typename curve::fr, typename curve::g1>(
+        crypto::ecdsa_signature signature = crypto::
+            ecdsa_construct_signature<crypto::Sha256Hasher, typename curve::fq, typename curve::fr, typename curve::g1>(
                 message_string, account);
 
         // UNCONSTRAINED: verify the created signature
-        bool dry_run =
-            crypto::ecdsa_verify_signature<Sha256Hasher, typename curve::fq, typename curve::fr, typename curve::g1>(
+        bool dry_run = crypto::
+            ecdsa_verify_signature<crypto::Sha256Hasher, typename curve::fq, typename curve::fr, typename curve::g1>(
                 message_string, account.public_key, signature);
         if (!dry_run) {
             throw_or_abort("[non circuit]: Sig verification failed");

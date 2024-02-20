@@ -58,7 +58,7 @@ template <typename Fr> class Polynomial {
      */
     Polynomial share() const;
 
-    std::array<uint8_t, 32> hash() const { return sha256::sha256(byte_span()); }
+    std::array<uint8_t, 32> hash() const { return crypto::sha256(byte_span()); }
 
     void clear()
     {

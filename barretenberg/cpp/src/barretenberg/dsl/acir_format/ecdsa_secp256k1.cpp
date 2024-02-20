@@ -167,7 +167,7 @@ template <typename Builder> void dummy_ecdsa_constraint(Builder& builder, EcdsaS
     uint256_t pub_y_value = account.public_key.y;
     std::string message_string = "Instructions unclear, ask again later.";
     crypto::ecdsa_signature signature =
-        crypto::ecdsa_construct_signature<Sha256Hasher, secp256k1_ct::fq, secp256k1_ct::fr, secp256k1_ct::g1>(
+        crypto::ecdsa_construct_signature<crypto::Sha256Hasher, secp256k1_ct::fq, secp256k1_ct::fr, secp256k1_ct::g1>(
             message_string, account);
 
     // Create new variables which will reference the valid public key and signature.

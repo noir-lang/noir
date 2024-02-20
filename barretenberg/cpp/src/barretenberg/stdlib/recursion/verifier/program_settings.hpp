@@ -22,7 +22,7 @@ template <typename Curve> class recursive_ultra_verifier_settings : public plonk
     using PlookupAuxiliaryWidget = bb::plonk::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings>;
 
     static constexpr size_t num_challenge_bytes = 16;
-    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
+    static constexpr plonk::transcript::HashType hash_type = plonk::transcript::HashType::PedersenBlake3s;
     // idpolys is a flag that describes whether we're using Vitalik's trick of using trivial identity permutation
     // polynomials (id_poly = false); OR whether the identity permutation polynomials are circuit-specific and stored in
     // the proving/verification key (id_poly = true).
@@ -96,7 +96,7 @@ class recursive_ultra_to_standard_verifier_settings : public recursive_ultra_ver
     using EllipticWidget = bb::plonk::VerifierEllipticWidget<fr_ct, g1, Transcript_pt, base_settings>;
     using PlookupAuxiliaryWidget = bb::plonk::VerifierPlookupAuxiliaryWidget<fr_ct, g1, Transcript_pt, base_settings>;
 
-    static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
+    static constexpr plonk::transcript::HashType hash_type = plonk::transcript::HashType::PedersenBlake3s;
 };
 
 } // namespace bb::stdlib::recursion

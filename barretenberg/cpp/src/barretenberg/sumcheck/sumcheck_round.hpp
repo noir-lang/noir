@@ -1,6 +1,5 @@
 #pragma once
 #include "barretenberg/common/thread.hpp"
-#include "barretenberg/common/thread_utils.hpp"
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/polynomials/pow.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
@@ -121,7 +120,7 @@ template <typename Flavor> class SumcheckProverRound {
         // on a specified minimum number of iterations per thread. This eventually leads to the use of a single thread.
         // For now we use a power of 2 number of threads simply to ensure the round size is evenly divided.
         size_t min_iterations_per_thread = 1 << 6; // min number of iterations for which we'll spin up a unique thread
-        size_t num_threads = bb::thread_utils::calculate_num_threads_pow2(round_size, min_iterations_per_thread);
+        size_t num_threads = bb::calculate_num_threads_pow2(round_size, min_iterations_per_thread);
         size_t iterations_per_thread = round_size / num_threads; // actual iterations per thread
 
         // Construct univariate accumulator containers; one per thread

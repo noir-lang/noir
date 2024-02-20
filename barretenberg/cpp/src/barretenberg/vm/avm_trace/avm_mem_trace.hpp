@@ -2,7 +2,7 @@
 
 #include "avm_common.hpp"
 
-namespace avm_trace {
+namespace bb::avm_trace {
 
 class AvmMemTraceBuilder {
 
@@ -94,4 +94,4 @@ class AvmMemTraceBuilder {
     void store_in_mem_trace(
         uint32_t clk, IntermRegister interm_reg, uint32_t addr, FF const& val, AvmMemoryTag m_in_tag);
 };
-} // namespace avm_trace
+} // namespace bb::avm_trace

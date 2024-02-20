@@ -10,6 +10,7 @@
 #include <thread>
 #include <vector>
 
+namespace {
 class ThreadPool {
   public:
     ThreadPool(size_t num_threads)
@@ -85,7 +86,9 @@ class ThreadPool {
         }
     }
 };
+} // namespace
 
+namespace bb {
 /**
  * A Thread pooled strategy that uses a popular lock-free multiple-producer multiple-consume queue library by
  * "moodycamel" as the underlying mechanism to distribute work and join on completion.
@@ -97,3 +100,4 @@ void parallel_for_moody(size_t num_iterations, const std::function<void(size_t)>
 
     pool.start_tasks(func, num_iterations);
 }
+} // namespace bb

@@ -7,6 +7,8 @@
 #include <gtest/gtest.h>
 #include <vector>
 
+using namespace bb;
+using namespace bb::crypto;
 using namespace acir_format;
 using curve_ct = stdlib::secp256k1<Builder>;
 
@@ -23,15 +25,14 @@ size_t generate_ecdsa_constraint(EcdsaSecp256k1Constraint& ecdsa_constraint, Wit
     // NOTE: If the hash being used outputs more than 32 bytes, then big-field will panic
     std::vector<uint8_t> message_buffer;
     std::copy(message_string.begin(), message_string.end(), std::back_inserter(message_buffer));
-    auto hashed_message = sha256::sha256(message_buffer);
+    auto hashed_message = sha256(message_buffer);
 
-    crypto::ecdsa_key_pair<curve_ct::fr, curve_ct::g1> account;
+    ecdsa_key_pair<curve_ct::fr, curve_ct::g1> account;
     account.private_key = curve_ct::fr::random_element();
     account.public_key = curve_ct::g1::one * account.private_key;
 
-    crypto::ecdsa_signature signature =
-        crypto::ecdsa_construct_signature<Sha256Hasher, curve_ct::fq, curve_ct::fr, curve_ct::g1>(message_string,
-                                                                                                  account);
+    ecdsa_signature signature =
+        ecdsa_construct_signature<Sha256Hasher, curve_ct::fq, curve_ct::fr, curve_ct::g1>(message_string, account);
 
     uint256_t pub_x_value = account.public_key.x;
     uint256_t pub_y_value = account.public_key.y;

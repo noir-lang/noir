@@ -3,9 +3,11 @@
 #include "barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp"
 #include "ecdsa_secp256k1.hpp"
 
-namespace acir_format {
-
+using namespace bb;
+using namespace bb::crypto;
 using namespace bb::plonk;
+
+namespace acir_format {
 
 secp256r1_ct::g1_ct ecdsa_convert_inputs(Builder* ctx, const secp256r1::g1::affine_element& input)
 {
@@ -98,15 +100,14 @@ template <typename Builder> void dummy_ecdsa_constraint(Builder& builder, EcdsaS
     // NOTE: If the hash being used outputs more than 32 bytes, then big-field will panic
     std::vector<uint8_t> message_buffer;
     std::copy(message_string.begin(), message_string.end(), std::back_inserter(message_buffer));
-    auto hashed_message = sha256::sha256(message_buffer);
+    auto hashed_message = sha256(message_buffer);
 
-    crypto::ecdsa_key_pair<secp256r1::fr, secp256r1::g1> account;
+    ecdsa_key_pair<secp256r1::fr, secp256r1::g1> account;
     account.private_key = 10;
     account.public_key = secp256r1::g1::one * account.private_key;
 
-    crypto::ecdsa_signature signature =
-        crypto::ecdsa_construct_signature<Sha256Hasher, secp256r1::fq, secp256r1::fr, secp256r1::g1>(message_string,
-                                                                                                     account);
+    ecdsa_signature signature =
+        ecdsa_construct_signature<Sha256Hasher, secp256r1::fq, secp256r1::fr, secp256r1::g1>(message_string, account);
 
     uint256_t pub_x_value = account.public_key.x;
     uint256_t pub_y_value = account.public_key.y;

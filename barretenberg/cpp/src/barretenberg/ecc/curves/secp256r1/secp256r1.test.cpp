@@ -6,10 +6,10 @@ using namespace bb;
 namespace {
 auto& engine = numeric::get_debug_randomness();
 
-constexpr uint256_t test_fq_mod(secp256r1::Secp256r1FqParams::modulus_0,
-                                secp256r1::Secp256r1FqParams::modulus_1,
-                                secp256r1::Secp256r1FqParams::modulus_2,
-                                secp256r1::Secp256r1FqParams::modulus_3);
+constexpr uint256_t test_fq_mod(secp256r1::FqParams::modulus_0,
+                                secp256r1::FqParams::modulus_1,
+                                secp256r1::FqParams::modulus_2,
+                                secp256r1::FqParams::modulus_3);
 
 uint256_t get_fq_element()
 {

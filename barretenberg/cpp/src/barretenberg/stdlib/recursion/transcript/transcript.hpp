@@ -23,17 +23,17 @@ template <typename Builder> class Transcript {
     using group_pt = element<Builder, fq_pt, field_pt, bb::g1>;
     using Key = verification_key<stdlib::bn254<Builder>>;
 
-    Transcript(Builder* in_context, const transcript::Manifest& input_manifest)
+    Transcript(Builder* in_context, const plonk::transcript::Manifest& input_manifest)
         : context(in_context)
-        , transcript_base(input_manifest, transcript::HashType::PedersenBlake3s, 16)
+        , transcript_base(input_manifest, plonk::transcript::HashType::PedersenBlake3s, 16)
         , current_challenge(in_context)
     {}
 
     Transcript(Builder* in_context,
                const std::vector<uint8_t>& input_transcript,
-               const transcript::Manifest& input_manifest)
+               const plonk::transcript::Manifest& input_manifest)
         : context(in_context)
-        , transcript_base(input_transcript, input_manifest, transcript::HashType::PedersenBlake3s, 16)
+        , transcript_base(input_transcript, input_manifest, plonk::transcript::HashType::PedersenBlake3s, 16)
         , current_challenge(in_context)
     /*, transcript_bytes(in_context) */
     {
@@ -55,11 +55,11 @@ template <typename Builder> class Transcript {
      * @param num_public_inputs
      */
     Transcript(Builder* in_context,
-               const transcript::Manifest& input_manifest,
+               const plonk::transcript::Manifest& input_manifest,
                const std::vector<field_pt>& field_buffer,
                const size_t num_public_inputs)
         : context(in_context)
-        , transcript_base(input_manifest, transcript::HashType::PedersenBlake3s, 16)
+        , transcript_base(input_manifest, plonk::transcript::HashType::PedersenBlake3s, 16)
         , current_challenge(in_context)
     {
         size_t count = 0;
@@ -92,7 +92,7 @@ template <typename Builder> class Transcript {
         }
     }
 
-    transcript::Manifest get_manifest() const { return transcript_base.get_manifest(); }
+    plonk::transcript::Manifest get_manifest() const { return transcript_base.get_manifest(); }
 
     int check_field_element_cache(const std::string& element_name) const
     {
@@ -388,7 +388,7 @@ template <typename Builder> class Transcript {
     Builder* context;
 
   private:
-    transcript::Transcript transcript_base;
+    plonk::transcript::Transcript transcript_base;
     field_pt current_challenge;
 
     mutable std::vector<std::string> field_vector_keys;

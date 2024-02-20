@@ -7,6 +7,8 @@
 #include <thread>
 #include <vector>
 
+namespace bb {
+
 inline size_t get_num_cpus()
 {
 #ifdef NO_MULTITHREADING
@@ -19,7 +21,7 @@ inline size_t get_num_cpus()
 // For algorithms that need to be divided amongst power of 2 threads.
 inline size_t get_num_cpus_pow2()
 {
-    return static_cast<size_t>(1ULL << bb::numeric::get_msb(get_num_cpus()));
+    return static_cast<size_t>(1ULL << numeric::get_msb(get_num_cpus()));
 }
 
 void parallel_for(size_t num_iterations, const std::function<void(size_t)>& func);
@@ -90,3 +92,29 @@ inline void run_loop_in_parallel_if_effective_with_index(size_t num_points,
                                                scalar_multiplications_per_iteration,
                                                sequential_copy_ops_per_iteration);
 }
+
+const size_t DEFAULT_MIN_ITERS_PER_THREAD = 1 << 4;
+
+/**
+ * @brief calculates number of threads to create based on minimum iterations per thread
+ * @details Finds the number of cpus with get_num_cpus(), and calculates `desired_num_threads`
+ * Returns the min of `desired_num_threads` and `max_num_theads`.
+ * Note that it will not calculate a power of 2 necessarily, use `calculate_num_threads_pow2` instead
+ *
+ * @param num_iterations
+ * @param min_iterations_per_thread
+ * @return size_t
+ */
+size_t calculate_num_threads(size_t num_iterations, size_t min_iterations_per_thread = DEFAULT_MIN_ITERS_PER_THREAD);
+
+/**
+ * @brief calculates number of threads to create based on minimum iterations per thread, guaranteed power of 2
+ * @details Same functionality as `calculate_num_threads` but guaranteed power of 2
+ * @param num_iterations
+ * @param min_iterations_per_thread
+ * @return size_t
+ */
+size_t calculate_num_threads_pow2(size_t num_iterations,
+                                  size_t min_iterations_per_thread = DEFAULT_MIN_ITERS_PER_THREAD);
+
+} // namespace bb

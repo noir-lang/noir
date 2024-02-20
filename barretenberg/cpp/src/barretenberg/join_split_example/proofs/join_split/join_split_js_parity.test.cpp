@@ -128,7 +128,7 @@ TEST_F(join_split_js_parity_tests, test_full_proof)
     tx.signature.s = { 0 };
 
     // To assert that the C++ and TypeScript code produces the same input data.
-    info("tx buffer hash: ", sha256::sha256(to_buffer(tx)));
+    info("tx buffer hash: ", crypto::sha256(to_buffer(tx)));
 
     auto proof = sign_and_create_proof(tx, { private_key, public_key });
     auto proof_data = inner_proof_data(proof.proof_data);

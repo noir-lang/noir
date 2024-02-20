@@ -1,7 +1,7 @@
 #include "avm_mem_trace.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 
-namespace avm_trace {
+namespace bb::avm_trace {
 
 /**
  * @brief Constructor of a memory trace builder of AVM. Only serves to set the capacity of the
@@ -214,4 +214,4 @@ void AvmMemTraceBuilder::write_into_memory(
     store_in_mem_trace(clk, interm_reg, addr, val, m_in_tag);
 }
 
-} // namespace avm_trace
+} // namespace bb::avm_trace

@@ -375,7 +375,7 @@ TEST(stdlib_sha256, test_input_len_multiple)
 
         auto circuit_output = output_bits.get_value();
 
-        auto expected = sha256::sha256(input_buf);
+        auto expected = crypto::sha256(input_buf);
 
         EXPECT_EQ(circuit_output, expected);
     }
@@ -419,7 +419,7 @@ TEST(stdlib_sha256, test_input_str_len_multiple)
 
         auto circuit_output = output_bits.get_value();
 
-        auto expected = sha256::sha256(input_buf);
+        auto expected = crypto::sha256(input_buf);
 
         EXPECT_EQ(circuit_output, expected);
     }

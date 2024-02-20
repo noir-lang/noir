@@ -10,7 +10,7 @@
 #include <variant>
 #include <vector>
 
-namespace avm_trace {
+namespace bb::avm_trace {
 
 // Possible types for an instruction's operand in its wire format. (Keep in sync with TS code.
 // See avm/serialization/instruction_serialization.ts).
@@ -24,4 +24,4 @@ class Deserialization {
     static std::vector<Instruction> parse(std::vector<uint8_t> const& bytecode);
 };
 
-} // namespace avm_trace
+} // namespace bb::avm_trace

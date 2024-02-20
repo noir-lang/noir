@@ -247,7 +247,7 @@ std::vector<Row> gen_mutated_trace_eq(
 } // anonymous namespace
 
 namespace tests_avm {
-using namespace avm_trace;
+using namespace bb::avm_trace;
 
 class AvmArithmeticTests : public ::testing::Test {
   public:

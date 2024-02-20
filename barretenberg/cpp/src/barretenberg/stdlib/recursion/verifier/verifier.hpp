@@ -174,7 +174,7 @@ lagrange_evaluations<typename Curve::Builder> get_lagrange_evaluations(
 template <typename Curve, typename program_settings>
 aggregation_state<Curve> verify_proof(typename Curve::Builder* context,
                                       std::shared_ptr<verification_key<Curve>> key,
-                                      const transcript::Manifest& manifest,
+                                      const plonk::transcript::Manifest& manifest,
                                       const plonk::proof& proof,
                                       const aggregation_state<Curve> previous_output = aggregation_state<Curve>())
 {

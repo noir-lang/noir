@@ -6,6 +6,7 @@
 #include <vector>
 
 using namespace bb;
+using namespace bb::plonk;
 
 namespace {
 transcript::Manifest create_manifest(const size_t num_public_inputs)

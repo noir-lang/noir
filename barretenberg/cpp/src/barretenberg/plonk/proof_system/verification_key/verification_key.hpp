@@ -64,7 +64,7 @@ struct verification_key {
     verification_key& operator=(const verification_key& other) = delete;
     ~verification_key() = default;
 
-    sha256::hash sha256_hash();
+    crypto::Sha256Hash sha256_hash();
 
     [[nodiscard]] verification_key_data as_data() const
     {

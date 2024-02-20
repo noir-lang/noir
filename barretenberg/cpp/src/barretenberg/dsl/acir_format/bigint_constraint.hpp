@@ -64,10 +64,10 @@ class ModulusParam {
 template <typename Builder> class DSLBigInts {
     using big_bn254_fq = bb::stdlib::bigfield<Builder, bb::Bn254FqParams>;
     using big_bn254_fr = bb::stdlib::bigfield<Builder, bb::Bn254FrParams>;
-    using big_secp256k1_fq = bb::stdlib::bigfield<Builder, secp256k1::Secp256k1FqParams>;
-    using big_secp256k1_fr = bb::stdlib::bigfield<Builder, secp256k1::Secp256k1FrParams>;
-    using big_secp256r1_fq = bb::stdlib::bigfield<Builder, secp256r1::Secp256r1FqParams>;
-    using big_secp256r1_fr = bb::stdlib::bigfield<Builder, secp256r1::Secp256r1FrParams>;
+    using big_secp256k1_fq = bb::stdlib::bigfield<Builder, bb::secp256k1::FqParams>;
+    using big_secp256k1_fr = bb::stdlib::bigfield<Builder, bb::secp256k1::FrParams>;
+    using big_secp256r1_fq = bb::stdlib::bigfield<Builder, bb::secp256r1::FqParams>;
+    using big_secp256r1_fr = bb::stdlib::bigfield<Builder, bb::secp256r1::FrParams>;
 
   private:
     std::map<uint32_t, big_bn254_fq> m_bn254_fq;

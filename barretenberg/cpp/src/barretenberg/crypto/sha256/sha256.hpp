@@ -7,34 +7,34 @@
 #include <ostream>
 #include <vector>
 
-namespace sha256 {
+namespace bb::crypto {
 
-using hash = std::array<uint8_t, 32>;
+using Sha256Hash = std::array<uint8_t, 32>;
 
-hash sha256_block(const std::vector<uint8_t>& input);
+Sha256Hash sha256_block(const std::vector<uint8_t>& input);
 
-template <typename T> hash sha256(const T& input);
+template <typename T> Sha256Hash sha256(const T& input);
 
 inline bb::fr sha256_to_field(std::vector<uint8_t> const& input)
 {
-    auto result = sha256::sha256(input);
+    auto result = sha256(input);
     return from_buffer<bb::fr>(&result[0]);
 }
 
-inline bool operator==(hash const& lhs, std::vector<uint8_t> const& rhs)
+inline bool operator==(Sha256Hash const& lhs, std::vector<uint8_t> const& rhs)
 {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }
 
-} // namespace sha256
+} // namespace bb::crypto
 
 namespace std {
-inline bool operator==(std::vector<uint8_t> const& lhs, sha256::hash const& rhs)
+inline bool operator==(std::vector<uint8_t> const& lhs, bb::crypto::Sha256Hash const& rhs)
 {
     return std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }
 
-inline std::ostream& operator<<(std::ostream& os, sha256::hash const& arr)
+inline std::ostream& operator<<(std::ostream& os, bb::crypto::Sha256Hash const& arr)
 {
     std::ios_base::fmtflags f(os.flags());
     os << std::hex << std::setfill('0');

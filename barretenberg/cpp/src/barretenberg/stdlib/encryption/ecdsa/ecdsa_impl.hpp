@@ -245,10 +245,10 @@ template <typename Builder> void generate_ecdsa_verification_test_circuit(Builde
         account.public_key = curve::g1::one * account.private_key;
 
         crypto::ecdsa_signature signature =
-            crypto::ecdsa_construct_signature<Sha256Hasher, fq, fr, g1>(message_string, account);
+            crypto::ecdsa_construct_signature<crypto::Sha256Hasher, fq, fr, g1>(message_string, account);
 
-        bool first_result =
-            crypto::ecdsa_verify_signature<Sha256Hasher, fq, fr, g1>(message_string, account.public_key, signature);
+        bool first_result = crypto::ecdsa_verify_signature<crypto::Sha256Hasher, fq, fr, g1>(
+            message_string, account.public_key, signature);
         static_cast<void>(first_result); // TODO(Cody): This is not used anywhere.
 
         std::vector<uint8_t> rr(signature.r.begin(), signature.r.end());

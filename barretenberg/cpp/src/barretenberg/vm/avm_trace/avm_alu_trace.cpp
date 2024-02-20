@@ -1,6 +1,6 @@
 #include "avm_alu_trace.hpp"
 
-namespace avm_trace {
+namespace bb::avm_trace {
 
 /**
  * @brief Constructor of Alu trace builder of AVM. Only serves to set the capacity of the
@@ -431,4 +431,4 @@ FF AvmAluTraceBuilder::op_eq(FF const& a, FF const& b, AvmMemoryTag in_tag, uint
     return res;
 }
 
-} // namespace avm_trace
+} // namespace bb::avm_trace

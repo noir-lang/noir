@@ -3,7 +3,7 @@
 #include "barretenberg/numeric/uintx/uintx.hpp"
 #include "secp256k1.hpp"
 
-namespace secp256k1_params {
+namespace bb::secp256k1 {
 struct basis_vectors {
     uint64_t endo_g1_lo = 0;
     uint64_t endo_g1_mid = 0;
@@ -161,4 +161,4 @@ struct basis_vectors {
     std::cerr << "could not find endomorphism scalars???" << std::endl;
     return { secp256k1::fq(0), secp256k1::fr(0) };
 }
-}; // namespace secp256k1_params
+}; // namespace bb::secp256k1

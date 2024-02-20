@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace avm_trace {
+namespace bb::avm_trace {
 
 namespace {
 
@@ -177,4 +177,4 @@ std::vector<Instruction> Deserialization::parse(std::vector<uint8_t> const& byte
     }
     return instructions;
 };
-} // namespace avm_trace
+} // namespace bb::avm_trace

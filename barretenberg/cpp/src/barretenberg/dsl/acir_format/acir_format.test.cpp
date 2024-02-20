@@ -7,11 +7,13 @@
 #include "barretenberg/serialize/test_helper.hpp"
 #include "ecdsa_secp256k1.hpp"
 
+using namespace bb;
+using namespace bb::crypto;
 using namespace acir_format;
 
 class AcirFormatTests : public ::testing::Test {
   protected:
-    static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
+    static void SetUpTestSuite() { srs::init_crs_factory("../srs_db/ignition"); }
 };
 TEST_F(AcirFormatTests, TestASingleConstraintNoPubInputs)
 {
@@ -249,12 +251,11 @@ TEST_F(AcirFormatTests, TestSchnorrVerifyPass)
                                   .block_constraints = {} };
 
     std::string message_string = "tenletters";
-    crypto::schnorr_key_pair<grumpkin::fr, grumpkin::g1> account;
+    schnorr_key_pair<grumpkin::fr, grumpkin::g1> account;
     account.private_key = grumpkin::fr::random_element();
     account.public_key = grumpkin::g1::one * account.private_key;
-    crypto::schnorr_signature signature_raw =
-        crypto::schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string,
-                                                                                                     account);
+    schnorr_signature signature_raw =
+        schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string, account);
     uint256_t pub_x = account.public_key.x;
     uint256_t pub_y = account.public_key.y;
     WitnessVector witness{ 0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   pub_x, pub_y, 5,   202, 31,  146,
@@ -346,12 +347,11 @@ TEST_F(AcirFormatTests, TestSchnorrVerifySmallRange)
     };
 
     std::string message_string = "tenletters";
-    crypto::schnorr_key_pair<grumpkin::fr, grumpkin::g1> account;
+    schnorr_key_pair<grumpkin::fr, grumpkin::g1> account;
     account.private_key = grumpkin::fr::random_element();
     account.public_key = grumpkin::g1::one * account.private_key;
-    crypto::schnorr_signature signature_raw =
-        crypto::schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string,
-                                                                                                     account);
+    schnorr_signature signature_raw =
+        schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string, account);
     uint256_t pub_x = account.public_key.x;
     uint256_t pub_y = account.public_key.y;
     WitnessVector witness{ 0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   pub_x, pub_y, 5,   202, 31,  146,

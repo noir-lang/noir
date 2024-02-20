@@ -5,7 +5,10 @@
 #include "barretenberg/transcript/transcript.hpp"
 #include "transcript.hpp"
 
-namespace bb::stdlib::recursion {
+namespace {
+using namespace bb;
+using namespace bb::plonk;
+using namespace bb::stdlib::recursion;
 
 // TODO(Cody): Testing only one circuit type.
 using Builder = StandardCircuitBuilder;
@@ -19,7 +22,6 @@ using fq_t = stdlib::bigfield<Builder, bb::Bn254FqParams>;
 using group_t = stdlib::element<Builder, fq_t, field_t, bb::g1>;
 using transcript_ct = Transcript<Builder>;
 
-namespace {
 transcript::Manifest create_manifest(const size_t num_public_inputs)
 {
     // add public inputs....
@@ -53,7 +55,6 @@ transcript::Manifest create_manifest(const size_t num_public_inputs)
               { { "PI_Z", g1_size, false }, { "PI_Z_OMEGA", g1_size, false } }, "separator", 1) });
     return output;
 }
-} // namespace
 
 struct TestData {
     std::vector<g1::affine_element> g1_elements;
@@ -178,6 +179,7 @@ transcript_ct get_circuit_transcript(Builder* context, const TestData& data)
     transcript.apply_fiat_shamir("separator");
     return transcript;
 }
+} // namespace
 
 TEST(stdlib_transcript, validate_transcript)
 {
@@ -272,4 +274,3 @@ TEST(stdlib_transcript, validate_transcript)
     auto result = builder.check_circuit();
     EXPECT_EQ(result, true);
 }
-} // namespace bb::stdlib::recursion

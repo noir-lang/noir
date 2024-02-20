@@ -7,6 +7,7 @@
 
 using namespace bb;
 using namespace bb::stdlib;
+using namespace bb::crypto;
 
 using Builder = UltraCircuitBuilder;
 using bool_ct = bool_t<Builder>;
@@ -28,15 +29,15 @@ TEST(stdlib_schnorr, schnorr_verify_signature)
         Builder builder = Builder();
         auto message_string = longer_string.substr(0, i);
 
-        crypto::schnorr_key_pair<grumpkin::fr, grumpkin::g1> account;
+        schnorr_key_pair<grumpkin::fr, grumpkin::g1> account;
         account.private_key = grumpkin::fr::random_element();
         account.public_key = grumpkin::g1::one * account.private_key;
 
-        crypto::schnorr_signature signature =
-            crypto::schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string,
-                                                                                                         account);
+        schnorr_signature signature =
+            schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string,
+                                                                                                 account);
 
-        bool first_result = crypto::schnorr_verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+        bool first_result = schnorr_verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
             message_string, account.public_key, signature);
         EXPECT_EQ(first_result, true);
 
@@ -63,22 +64,21 @@ TEST(stdlib_schnorr, verify_signature_failure)
     std::string message_string = "This is a test string of length 34";
 
     // create key pair 1
-    crypto::schnorr_key_pair<grumpkin::fr, grumpkin::g1> account1;
+    schnorr_key_pair<grumpkin::fr, grumpkin::g1> account1;
     account1.private_key = grumpkin::fr::random_element();
     account1.public_key = grumpkin::g1::one * account1.private_key;
 
     // create key pair 2
-    crypto::schnorr_key_pair<grumpkin::fr, grumpkin::g1> account2;
+    schnorr_key_pair<grumpkin::fr, grumpkin::g1> account2;
     account2.private_key = grumpkin::fr::random_element();
     account2.public_key = grumpkin::g1::one * account2.private_key;
 
     // sign the message with account 1 private key
-    crypto::schnorr_signature signature =
-        crypto::schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string,
-                                                                                                     account1);
+    schnorr_signature signature =
+        schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string, account1);
 
     // check native verification with account 2 public key fails
-    bool native_result = crypto::schnorr_verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+    bool native_result = schnorr_verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
         message_string, account2.public_key, signature);
     EXPECT_EQ(native_result, false);
 
@@ -106,15 +106,14 @@ TEST(stdlib_schnorr, schnorr_signature_verification_result)
 
     Builder builder = Builder();
 
-    crypto::schnorr_key_pair<grumpkin::fr, grumpkin::g1> account;
+    schnorr_key_pair<grumpkin::fr, grumpkin::g1> account;
     account.private_key = grumpkin::fr::random_element();
     account.public_key = grumpkin::g1::one * account.private_key;
 
-    crypto::schnorr_signature signature =
-        crypto::schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(longer_string,
-                                                                                                     account);
+    schnorr_signature signature =
+        schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(longer_string, account);
 
-    bool first_result = crypto::schnorr_verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+    bool first_result = schnorr_verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
         longer_string, account.public_key, signature);
     EXPECT_EQ(first_result, true);
 
@@ -142,22 +141,21 @@ TEST(stdlib_schnorr, signature_verification_result_failure)
     std::string message_string = "This is a test string of length 34";
 
     // create key pair 1
-    crypto::schnorr_key_pair<grumpkin::fr, grumpkin::g1> account1;
+    schnorr_key_pair<grumpkin::fr, grumpkin::g1> account1;
     account1.private_key = grumpkin::fr::random_element();
     account1.public_key = grumpkin::g1::one * account1.private_key;
 
     // create key pair 2
-    crypto::schnorr_key_pair<grumpkin::fr, grumpkin::g1> account2;
+    schnorr_key_pair<grumpkin::fr, grumpkin::g1> account2;
     account2.private_key = grumpkin::fr::random_element();
     account2.public_key = grumpkin::g1::one * account2.private_key;
 
     // sign the message with account 1 private key
-    crypto::schnorr_signature signature =
-        crypto::schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string,
-                                                                                                     account1);
+    schnorr_signature signature =
+        schnorr_construct_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(message_string, account1);
 
     // check native verification with account 2 public key fails
-    bool native_result = crypto::schnorr_verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
+    bool native_result = schnorr_verify_signature<Blake2sHasher, grumpkin::fq, grumpkin::fr, grumpkin::g1>(
         message_string, account2.public_key, signature);
     EXPECT_EQ(native_result, false);
 

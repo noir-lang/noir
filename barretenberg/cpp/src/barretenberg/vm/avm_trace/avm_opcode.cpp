@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace avm_trace {
+namespace bb::avm_trace {
 
 const std::unordered_map<OpCode, size_t> Bytecode::OPERANDS_NUM = {
     // Compute
@@ -168,4 +168,4 @@ std::string to_hex(OpCode opcode)
     return stream.str();
 }
 
-} // namespace avm_trace
+} // namespace bb::avm_trace

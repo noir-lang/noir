@@ -4,14 +4,14 @@
 #include "../bn254/fq.hpp"
 #include "../bn254/fr.hpp"
 
-namespace grumpkin {
+namespace bb::grumpkin {
 
 constexpr size_t MAX_NO_WRAP_INTEGER_BIT_LENGTH = 252;
 
 using fq = bb::fr;
 using fr = bb::fq;
 
-struct GrumpkinG1Params {
+struct G1Params {
     static constexpr bool USE_ENDOMORPHISM = true;
     static constexpr bool can_hash_to_curve = true;
     static constexpr bool small_elements = true;
@@ -26,9 +26,9 @@ struct GrumpkinG1Params {
         0x11b2dff1448c41d8UL, 0x23d3446f21c77dc3UL, 0xaa7b8cf435dfafbbUL, 0x14b34cf69dc25d68UL
     };
 };
-using g1 = bb::group<bb::fr, bb::fq, GrumpkinG1Params>;
+using g1 = bb::group<bb::fr, bb::fq, G1Params>;
 
-}; // namespace grumpkin
+}; // namespace bb::grumpkin
 
 namespace bb::curve {
 class Grumpkin {

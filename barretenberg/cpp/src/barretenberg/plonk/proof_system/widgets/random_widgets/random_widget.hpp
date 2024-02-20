@@ -4,7 +4,7 @@
 #include "barretenberg/plonk/work_queue/work_queue.hpp"
 
 #include <map>
-namespace transcript {
+namespace bb::plonk::transcript {
 class Transcript;
 }
 namespace bb::plonk {

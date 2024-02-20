@@ -1,6 +1,6 @@
 #pragma once
 #include "barretenberg/common/thread.hpp"
-#include "barretenberg/common/thread_utils.hpp"
+
 #include <cstddef>
 #include <vector>
 namespace bb {

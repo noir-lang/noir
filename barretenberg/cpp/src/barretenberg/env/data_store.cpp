@@ -17,7 +17,7 @@ void set_data(char const* key, uint8_t const* addr, size_t length)
 {
     std::string k = key;
     store[k] = std::vector<uint8_t>(addr, addr + length);
-    // info("set data: ", key, " length: ", length, " hash: ", sha256::sha256(store[k]));
+    // info("set data: ", key, " length: ", length, " hash: ", crypto::sha256(store[k]));
     // std::ofstream file("/mnt/user-data/charlie/debugging/x86_" + k, std::ios::binary);
     // file.write(reinterpret_cast<const char*>(addr), (std::streamsize)length);
 }

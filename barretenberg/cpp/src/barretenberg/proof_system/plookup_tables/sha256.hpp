@@ -91,7 +91,7 @@ static constexpr uint64_t witness_extension_normalization_table[16]{
     2,
 };
 
-inline BasicTable generate_witness_extension_normalization_table(BasicTableId id, const size_t table_index)
+inline plookup::BasicTable generate_witness_extension_normalization_table(BasicTableId id, const size_t table_index)
 {
     return sparse_tables::generate_sparse_normalization_table<16, 3, witness_extension_normalization_table>(
         id, table_index);

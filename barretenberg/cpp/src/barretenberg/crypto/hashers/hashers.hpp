@@ -6,6 +6,8 @@
 
 #include "memory.h"
 #include <vector>
+
+namespace bb::crypto {
 struct KeccakHasher {
     static constexpr size_t BLOCK_SIZE = 64;
     static constexpr size_t OUTPUT_SIZE = 32;
@@ -25,11 +27,12 @@ struct Sha256Hasher {
     static constexpr size_t BLOCK_SIZE = 64;
     static constexpr size_t OUTPUT_SIZE = 32;
 
-    template <typename B = std::vector<uint8_t>> static auto hash(const B& message) { return sha256::sha256(message); }
+    template <typename B = std::vector<uint8_t>> static auto hash(const B& message) { return sha256(message); }
 };
 
 struct Blake2sHasher {
     static constexpr size_t BLOCK_SIZE = 64;
     static constexpr size_t OUTPUT_SIZE = 32;
-    static auto hash(const std::vector<uint8_t>& message) { return bb::crypto::blake2s(message); }
+    static auto hash(const std::vector<uint8_t>& message) { return blake2s(message); }
 };
+} // namespace bb::crypto

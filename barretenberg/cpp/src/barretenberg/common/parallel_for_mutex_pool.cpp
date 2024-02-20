@@ -115,6 +115,7 @@ void ThreadPool::worker_loop(size_t /*unused*/)
 }
 } // namespace
 
+namespace bb {
 /**
  * A thread pooled strategy that uses std::mutex for protection. Each worker increments the "iteration" and processes.
  * The main thread acts as a worker also, and when it completes, it spins until thread workers are done.
@@ -127,3 +128,4 @@ void parallel_for_mutex_pool(size_t num_iterations, const std::function<void(siz
     pool.start_tasks(num_iterations, func);
     // info("done");
 }
+} // namespace bb

@@ -1,6 +1,6 @@
 #include "avm_helper.hpp"
 
-namespace avm_trace {
+namespace bb::avm_trace {
 
 /**
  * @brief Routine to log some slice of a trace of the AVM. Used to debug or in some unit tests.
@@ -71,4 +71,4 @@ void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end)
     }
 }
 
-} // namespace avm_trace
+} // namespace bb::avm_trace

@@ -4,8 +4,6 @@
 #include <array>
 #include <memory.h>
 
-namespace sha256 {
-
 namespace {
 constexpr uint32_t init_constants[8]{ 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
                                       0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
@@ -28,6 +26,7 @@ constexpr uint32_t ror(uint32_t val, uint32_t shift)
 
 } // namespace
 
+namespace bb::crypto {
 void prepare_constants(std::array<uint32_t, 8>& input)
 {
     input[0] = init_constants[0];
@@ -108,7 +107,7 @@ std::array<uint32_t, 8> sha256_block(const std::array<uint32_t, 8>& h_init, cons
     return output;
 }
 
-hash sha256_block(const std::vector<uint8_t>& input)
+Sha256Hash sha256_block(const std::vector<uint8_t>& input)
 {
     ASSERT(input.size() == 64);
     std::array<uint32_t, 8> result;
@@ -122,7 +121,7 @@ hash sha256_block(const std::vector<uint8_t>& input)
     }
     result = sha256_block(result, hash_input);
 
-    hash output;
+    Sha256Hash output;
     memcpy((void*)&output[0], (void*)&result[0], 32);
     if (is_little_endian()) {
         uint32_t* output_uint32 = (uint32_t*)&output[0];
@@ -134,7 +133,7 @@ hash sha256_block(const std::vector<uint8_t>& input)
     return output;
 }
 
-template <typename ByteContainer> hash sha256(const ByteContainer& input)
+template <typename ByteContainer> Sha256Hash sha256(const ByteContainer& input)
 {
     std::vector<uint8_t> message_schedule;
 
@@ -165,7 +164,7 @@ template <typename ByteContainer> hash sha256(const ByteContainer& input)
         rolling_hash = sha256_block(rolling_hash, hash_input);
     }
 
-    hash output;
+    Sha256Hash output;
     memcpy((void*)&output[0], (void*)&rolling_hash[0], 32);
     if (is_little_endian()) {
         uint32_t* output_uint32 = (uint32_t*)&output[0];
@@ -177,9 +176,9 @@ template <typename ByteContainer> hash sha256(const ByteContainer& input)
     return output;
 }
 
-template hash sha256<std::vector<uint8_t>>(const std::vector<uint8_t>& input);
-template hash sha256<std::array<uint8_t, 32>>(const std::array<uint8_t, 32>& input);
-template hash sha256<std::string>(const std::string& input);
-template hash sha256<std::span<uint8_t>>(const std::span<uint8_t>& input);
+template Sha256Hash sha256<std::vector<uint8_t>>(const std::vector<uint8_t>& input);
+template Sha256Hash sha256<std::array<uint8_t, 32>>(const std::array<uint8_t, 32>& input);
+template Sha256Hash sha256<std::string>(const std::string& input);
+template Sha256Hash sha256<std::span<uint8_t>>(const std::span<uint8_t>& input);
 
-} // namespace sha256
+} // namespace bb::crypto

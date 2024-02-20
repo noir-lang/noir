@@ -23,8 +23,8 @@ template <typename CircuitType> struct secp256r1 {
     typedef bool_t<Builder> bool_ct;
     typedef stdlib::uint32<Builder> uint32_ct;
 
-    typedef bigfield<Builder, typename ::secp256r1::Secp256r1FqParams> fq_ct;
-    typedef bigfield<Builder, typename ::secp256r1::Secp256r1FrParams> bigfr_ct;
+    typedef bigfield<Builder, typename ::secp256r1::FqParams> fq_ct;
+    typedef bigfield<Builder, typename ::secp256r1::FrParams> bigfr_ct;
     typedef element<Builder, fq_ct, fr_ct, g1> g1_ct;
     typedef element<Builder, fq_ct, bigfr_ct, g1> g1_bigfr_ct;
 };

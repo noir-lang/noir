@@ -1567,7 +1567,7 @@ template <typename Builder> class FieldBase {
             // Check assert conditions
             if ((lsb > msb) || (msb > 252) ||
                 (static_cast<uint256_t>(stack[first_index].f().get_value()) >=
-                 (static_cast<uint256_t>(1) << grumpkin::MAX_NO_WRAP_INTEGER_BIT_LENGTH))) {
+                 (static_cast<uint256_t>(1) << bb::grumpkin::MAX_NO_WRAP_INTEGER_BIT_LENGTH))) {
                 return 0;
             }
             PRINT_SLICE(first_index, lsb, msb, stack)

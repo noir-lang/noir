@@ -3,6 +3,7 @@
 #include <benchmark/benchmark.h>
 
 using namespace benchmark;
+using namespace bb;
 
 grumpkin::fq poseidon_function(const size_t count)
 {

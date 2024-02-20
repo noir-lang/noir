@@ -18,28 +18,20 @@ ModulusId modulus_param_to_id(ModulusParam param)
         Bn254FrParams::modulus_2 == param.modulus_2 && Bn254FrParams::modulus_3 == param.modulus_3) {
         return ModulusId::BN254_FR;
     }
-    if (secp256k1::Secp256k1FqParams::modulus_0 == param.modulus_0 &&
-        secp256k1::Secp256k1FqParams::modulus_1 == param.modulus_1 &&
-        secp256k1::Secp256k1FqParams::modulus_2 == param.modulus_2 &&
-        secp256k1::Secp256k1FqParams::modulus_3 == param.modulus_3) {
+    if (secp256k1::FqParams::modulus_0 == param.modulus_0 && secp256k1::FqParams::modulus_1 == param.modulus_1 &&
+        secp256k1::FqParams::modulus_2 == param.modulus_2 && secp256k1::FqParams::modulus_3 == param.modulus_3) {
         return ModulusId::SECP256K1_FQ;
     }
-    if (secp256k1::Secp256k1FrParams::modulus_0 == param.modulus_0 &&
-        secp256k1::Secp256k1FrParams::modulus_1 == param.modulus_1 &&
-        secp256k1::Secp256k1FrParams::modulus_2 == param.modulus_2 &&
-        secp256k1::Secp256k1FrParams::modulus_3 == param.modulus_3) {
+    if (secp256k1::FrParams::modulus_0 == param.modulus_0 && secp256k1::FrParams::modulus_1 == param.modulus_1 &&
+        secp256k1::FrParams::modulus_2 == param.modulus_2 && secp256k1::FrParams::modulus_3 == param.modulus_3) {
         return ModulusId::SECP256K1_FR;
     }
-    if (secp256r1::Secp256r1FqParams::modulus_0 == param.modulus_0 &&
-        secp256r1::Secp256r1FqParams::modulus_1 == param.modulus_1 &&
-        secp256r1::Secp256r1FqParams::modulus_2 == param.modulus_2 &&
-        secp256r1::Secp256r1FqParams::modulus_3 == param.modulus_3) {
+    if (secp256r1::FqParams::modulus_0 == param.modulus_0 && secp256r1::FqParams::modulus_1 == param.modulus_1 &&
+        secp256r1::FqParams::modulus_2 == param.modulus_2 && secp256r1::FqParams::modulus_3 == param.modulus_3) {
         return ModulusId::SECP256R1_FQ;
     }
-    if (secp256r1::Secp256r1FrParams::modulus_0 == param.modulus_0 &&
-        secp256r1::Secp256r1FrParams::modulus_1 == param.modulus_1 &&
-        secp256r1::Secp256r1FrParams::modulus_2 == param.modulus_2 &&
-        secp256r1::Secp256r1FrParams::modulus_3 == param.modulus_3) {
+    if (secp256r1::FrParams::modulus_0 == param.modulus_0 && secp256r1::FrParams::modulus_1 == param.modulus_1 &&
+        secp256r1::FrParams::modulus_2 == param.modulus_2 && secp256r1::FrParams::modulus_3 == param.modulus_3) {
         return ModulusId::SECP256R1_FR;
     }
 
@@ -284,10 +276,10 @@ void create_bigint_from_le_bytes_constraint(Builder& builder,
 {
     using big_bn254_fq = bb::stdlib::bigfield<Builder, bb::Bn254FqParams>;
     using big_bn254_fr = bb::stdlib::bigfield<Builder, bb::Bn254FrParams>;
-    using big_secp256k1_fq = bb::stdlib::bigfield<Builder, secp256k1::Secp256k1FqParams>;
-    using big_secp256k1_fr = bb::stdlib::bigfield<Builder, secp256k1::Secp256k1FrParams>;
-    using big_secp256r1_fq = bb::stdlib::bigfield<Builder, secp256r1::Secp256r1FqParams>;
-    using big_secp256r1_fr = bb::stdlib::bigfield<Builder, secp256r1::Secp256r1FrParams>;
+    using big_secp256k1_fq = bb::stdlib::bigfield<Builder, secp256k1::FqParams>;
+    using big_secp256k1_fr = bb::stdlib::bigfield<Builder, secp256k1::FrParams>;
+    using big_secp256r1_fq = bb::stdlib::bigfield<Builder, secp256r1::FqParams>;
+    using big_secp256r1_fr = bb::stdlib::bigfield<Builder, secp256r1::FrParams>;
     using field_ct = bb::stdlib::field_t<Builder>;
     using byte_array_ct = bb::stdlib::byte_array<Builder>;
 
@@ -369,10 +361,10 @@ void create_bigint_to_le_bytes_constraint(Builder& builder,
 {
     using big_bn254_fq = bb::stdlib::bigfield<Builder, bb::Bn254FqParams>;
     using big_bn254_fr = bb::stdlib::bigfield<Builder, bb::Bn254FrParams>;
-    using big_secp256k1_fq = bb::stdlib::bigfield<Builder, secp256k1::Secp256k1FqParams>;
-    using big_secp256k1_fr = bb::stdlib::bigfield<Builder, secp256k1::Secp256k1FrParams>;
-    using big_secp256r1_fq = bb::stdlib::bigfield<Builder, secp256r1::Secp256r1FqParams>;
-    using big_secp256r1_fr = bb::stdlib::bigfield<Builder, secp256r1::Secp256r1FrParams>;
+    using big_secp256k1_fq = bb::stdlib::bigfield<Builder, secp256k1::FqParams>;
+    using big_secp256k1_fr = bb::stdlib::bigfield<Builder, secp256k1::FrParams>;
+    using big_secp256r1_fq = bb::stdlib::bigfield<Builder, secp256r1::FqParams>;
+    using big_secp256r1_fr = bb::stdlib::bigfield<Builder, secp256r1::FrParams>;
 
     auto modulus_id = dsl_bigints.get_modulus_id(input.input);
     bb::stdlib::byte_array<Builder> byte_array;

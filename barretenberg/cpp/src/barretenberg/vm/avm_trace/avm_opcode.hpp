@@ -5,7 +5,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace avm_trace {
+namespace bb::avm_trace {
 
 /**
  * All AVM opcodes (Keep in sync with TS counterpart code opcodes.ts)
@@ -108,4 +108,4 @@ class Bytecode {
 
 std::string to_hex(OpCode opcode);
 
-} // namespace avm_trace
+} // namespace bb::avm_trace
