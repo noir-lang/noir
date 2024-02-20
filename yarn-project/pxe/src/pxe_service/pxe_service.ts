@@ -736,7 +736,7 @@ export class PXEService implements PXE {
 
     // Override kernel output
     publicInputs.end.publicCallStack = padArrayEnd(
-      enqueuedPublicCallStackItems,
+      enqueuedRevertiblePublicCallStackItems,
       CallRequest.empty(),
       MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     );

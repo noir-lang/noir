@@ -43,7 +43,7 @@ describe('e2e_fees', () => {
   });
 
   describe('NativeFeePaymentMethod', () => {
-    it.skip('pays out the expected fee to the sequencer', async () => {
+    it('pays out the expected fee to the sequencer', async () => {
       await testContract.methods
         .mint_public(aliceAddress, 1000)
         .send({

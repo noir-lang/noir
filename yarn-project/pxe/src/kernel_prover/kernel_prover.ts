@@ -28,6 +28,7 @@ import {
 } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
 import { padArrayEnd } from '@aztec/foundation/collection';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { Tuple, assertLength, mapTuple } from '@aztec/foundation/serialize';
 import { pushTestData } from '@aztec/foundation/testing';
 import { ExecutionResult, NoteAndSlot } from '@aztec/simulator';
@@ -73,6 +74,8 @@ export interface KernelProverOutput extends ProofOutputFinal {
  * constructs private call data based on the execution results.
  */
 export class KernelProver {
+  private log = createDebugLogger('aztec:kernel-prover');
+
   constructor(private oracle: ProvingDataOracle, private proofCreator: ProofCreator = new KernelProofCreator()) {}
 
   /**
@@ -191,6 +194,10 @@ export class KernelProver {
 
     const masterNullifierSecretKeys = await this.getMasterNullifierSecretKeys(
       output.publicInputs.end.nullifierKeyValidationRequests,
+    );
+
+    this.log.debug(
+      `Calling private kernel tail with hwm ${previousKernelData.publicInputs.minRevertibleSideEffectCounter}`,
     );
 
     const privateInputs = new PrivateKernelTailCircuitPrivateInputs(

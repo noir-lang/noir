@@ -151,7 +151,7 @@ describe('public_processor', () => {
 
       expect(processed).toEqual([]);
       expect(failed[0].tx).toEqual(tx);
-      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(0);
+      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
       expect(publicWorldStateDB.rollback).toHaveBeenCalledTimes(1);
     });
   });
@@ -320,6 +320,9 @@ describe('public_processor', () => {
 
     it('runs a tx with setup and teardown phases', async function () {
       const callRequests: PublicCallRequest[] = [0x100, 0x200, 0x300].map(makePublicCallRequest);
+      callRequests[0].callContext.startSideEffectCounter = 2;
+      callRequests[1].callContext.startSideEffectCounter = 3;
+      callRequests[2].callContext.startSideEffectCounter = 4;
 
       const kernelOutput = makePrivateKernelTailCircuitPublicInputs(0x10);
 
@@ -339,6 +342,7 @@ describe('public_processor', () => {
         MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
       );
       kernelOutput.end.privateCallStack = padArrayEnd([], CallRequest.empty(), MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX);
+      callRequests.reverse();
 
       const tx = new Tx(kernelOutput, proof, TxL2Logs.random(2, 3), TxL2Logs.random(3, 2), callRequests, [
         ExtendedContractData.random(),

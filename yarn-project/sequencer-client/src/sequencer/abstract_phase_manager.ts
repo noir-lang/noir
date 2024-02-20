@@ -124,12 +124,12 @@ export abstract class AbstractPhaseManager {
       };
     }
 
-    // find the first call that is not revertible
-    const firstNonRevertibleCallIndex = callRequestsStack.findIndex(
-      c => nonRevertibleCallStack.findIndex(p => p.equals(c)) !== -1,
+    // find the first call that is revertible
+    const firstRevertibleCallIndex = callRequestsStack.findIndex(
+      c => revertibleCallStack.findIndex(p => p.equals(c)) !== -1,
     );
 
-    if (firstNonRevertibleCallIndex === -1) {
+    if (firstRevertibleCallIndex === 0) {
       return {
         [PublicKernelPhase.SETUP]: [],
         [PublicKernelPhase.APP_LOGIC]: publicCallsStack,
@@ -137,15 +137,19 @@ export abstract class AbstractPhaseManager {
       };
     } else {
       return {
-        [PublicKernelPhase.SETUP]: publicCallsStack.slice(firstNonRevertibleCallIndex + 1),
-        [PublicKernelPhase.APP_LOGIC]: publicCallsStack.slice(0, firstNonRevertibleCallIndex),
-        [PublicKernelPhase.TEARDOWN]: [publicCallsStack[firstNonRevertibleCallIndex]],
+        [PublicKernelPhase.SETUP]: publicCallsStack.slice(0, firstRevertibleCallIndex - 1),
+        [PublicKernelPhase.APP_LOGIC]: publicCallsStack.slice(firstRevertibleCallIndex),
+        [PublicKernelPhase.TEARDOWN]: [publicCallsStack[firstRevertibleCallIndex - 1]],
       };
     }
   }
 
   protected extractEnqueuedPublicCalls(tx: Tx): PublicCallRequest[] {
-    return AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(tx.data, tx.enqueuedPublicFunctionCalls)[this.phase];
+    const calls = AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(tx.data, tx.enqueuedPublicFunctionCalls)[
+      this.phase
+    ];
+
+    return calls;
   }
 
   public static getKernelOutputAndProof(
