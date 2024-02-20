@@ -160,7 +160,7 @@ impl DebugInstrumenter {
         let span = Span::empty(span.end());
 
         // drop scope variables
-        let scope_vars = self.scope.pop().unwrap_or(HashMap::default());
+        let scope_vars = self.scope.pop().unwrap_or_default();
         let drop_vars_stmts = scope_vars.values().map(|var_id| build_drop_var_stmt(*var_id, span));
         statements.extend(drop_vars_stmts);
 

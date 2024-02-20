@@ -100,7 +100,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     pub fn run_loop(&mut self) -> Result<(), ServerError> {
         self.running = self.context.get_current_opcode_location().is_some();
 
-        if self.running && matches!(self.context.get_current_source_location(), None) {
+        if self.running && self.context.get_current_source_location().is_none() {
             // TODO: remove this? This is to ensure that the tool has a proper
             // source location to show when first starting the debugger, but
             // maybe the default behavior should be to start executing until the
@@ -262,7 +262,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             }
         }
         // the actual opcodes
-        while count > 0 && !matches!(opcode_location, None) {
+        while count > 0 && opcode_location.is_some() {
             instructions.push(DisassembledInstruction {
                 address: format!("{}", opcode_location.unwrap()),
                 instruction: self.context.render_opcode_at_location(&opcode_location),
@@ -411,29 +411,31 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
 
         // compute breakpoints to set and return
         let mut breakpoints_to_set: Vec<(OpcodeLocation, i64)> = vec![];
-        let breakpoints: Vec<Breakpoint> = args.breakpoints.iter().map(|breakpoint| {
-            let Ok(location) = OpcodeLocation::from_str(breakpoint.instruction_reference.as_str()) else {
-                return Breakpoint {
-                    verified: false,
-                    message: Some(String::from("Missing instruction reference")),
-                    ..Breakpoint::default()
+        let breakpoints: Vec<Breakpoint> = args
+            .breakpoints
+            .iter()
+            .map(|breakpoint| {
+                let Ok(location) =
+                    OpcodeLocation::from_str(breakpoint.instruction_reference.as_str())
+                else {
+                    return Breakpoint {
+                        verified: false,
+                        message: Some(String::from("Missing instruction reference")),
+                        ..Breakpoint::default()
+                    };
                 };
-            };
-            if !self.context.is_valid_opcode_location(&location) {
-                return Breakpoint {
-                    verified: false,
-                    message: Some(String::from("Invalid opcode location")),
-                    ..Breakpoint::default()
-                };
-            }
-            let id = self.get_next_breakpoint_id();
-            breakpoints_to_set.push((location, id));
-            Breakpoint {
-                id: Some(id),
-                verified: true,
-                ..Breakpoint::default()
-            }
-        }).collect();
+                if !self.context.is_valid_opcode_location(&location) {
+                    return Breakpoint {
+                        verified: false,
+                        message: Some(String::from("Invalid opcode location")),
+                        ..Breakpoint::default()
+                    };
+                }
+                let id = self.get_next_breakpoint_id();
+                breakpoints_to_set.push((location, id));
+                Breakpoint { id: Some(id), verified: true, ..Breakpoint::default() }
+            })
+            .collect();
 
         // actually set the computed breakpoints
         self.instruction_breakpoints = breakpoints_to_set;
@@ -474,7 +476,9 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                 let Some(location) = self.context.find_opcode_for_source_location(&file_id, line) else {
                     return Breakpoint {
                         verified: false,
-                        message: Some(String::from("Source location cannot be matched to opcode location")),
+                        message: Some(String::from(
+                            "Source location cannot be matched to opcode location",
+                        )),
                         ..Breakpoint::default()
                     };
                 };

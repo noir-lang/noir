@@ -28,6 +28,55 @@ use crate::{
 };
 use iter_extended::vecmap;
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
+pub enum IntegerBitSize {
+    One,
+    Eight,
+    ThirtyTwo,
+    SixtyFour,
+}
+
+impl IntegerBitSize {
+    pub fn allowed_sizes() -> Vec<Self> {
+        vec![Self::One, Self::Eight, Self::ThirtyTwo, Self::SixtyFour]
+    }
+}
+
+impl From<IntegerBitSize> for u32 {
+    fn from(size: IntegerBitSize) -> u32 {
+        use IntegerBitSize::*;
+        match size {
+            One => 1,
+            Eight => 8,
+            ThirtyTwo => 32,
+            SixtyFour => 64,
+        }
+    }
+}
+
+pub struct InvalidIntegerBitSizeError(pub u32);
+
+impl TryFrom<u32> for IntegerBitSize {
+    type Error = InvalidIntegerBitSizeError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        use IntegerBitSize::*;
+        match value {
+            1 => Ok(One),
+            8 => Ok(Eight),
+            32 => Ok(ThirtyTwo),
+            64 => Ok(SixtyFour),
+            _ => Err(InvalidIntegerBitSizeError(value)),
+        }
+    }
+}
+
+impl core::fmt::Display for IntegerBitSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", u32::from(*self))
+    }
+}
+
 /// The parser parses types as 'UnresolvedType's which
 /// require name resolution to resolve any type names used
 /// for structs within, but are otherwise identical to Types.
@@ -35,7 +84,7 @@ use iter_extended::vecmap;
 pub enum UnresolvedTypeData {
     FieldElement,
     Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(Signedness, u32),                                     // u32 = Integer(unsigned, 32)
+    Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     Expression(UnresolvedTypeExpression),
     String(Option<UnresolvedTypeExpression>),
@@ -197,11 +246,17 @@ impl UnresolvedType {
 }
 
 impl UnresolvedTypeData {
-    pub fn from_int_token(token: IntType) -> UnresolvedTypeData {
+    pub fn from_int_token(
+        token: IntType,
+    ) -> Result<UnresolvedTypeData, InvalidIntegerBitSizeError> {
         use {IntType::*, UnresolvedTypeData::Integer};
         match token {
-            Signed(num_bits) => Integer(Signedness::Signed, num_bits),
-            Unsigned(num_bits) => Integer(Signedness::Unsigned, num_bits),
+            Signed(num_bits) => {
+                Ok(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)?))
+            }
+            Unsigned(num_bits) => {
+                Ok(Integer(Signedness::Unsigned, IntegerBitSize::try_from(num_bits)?))
+            }
         }
     }
 

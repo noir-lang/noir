@@ -1,6 +1,6 @@
 use super::{
     artifact::{BrilligArtifact, BrilligParameter},
-    brillig_variable::{BrilligArray, BrilligVariable},
+    brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
     debug_show::DebugShow,
     registers::BrilligRegistersContext,
     BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
@@ -63,10 +63,13 @@ impl BrilligContext {
         let mut argument_variables: Vec<_> = arguments
             .iter()
             .map(|argument| match argument {
-                BrilligParameter::Simple(_) => {
-                    let simple_address = self.allocate_register();
-                    let var = BrilligVariable::Simple(simple_address);
-                    self.mov_instruction(simple_address, MemoryAddress(current_calldata_pointer));
+                BrilligParameter::SingleAddr(bit_size) => {
+                    let single_address = self.allocate_register();
+                    let var = BrilligVariable::SingleAddr(SingleAddrVariable {
+                        address: single_address,
+                        bit_size: *bit_size,
+                    });
+                    self.mov_instruction(single_address, MemoryAddress(current_calldata_pointer));
                     current_calldata_pointer += 1;
                     var
                 }
@@ -116,7 +119,7 @@ impl BrilligContext {
 
         fn flat_bit_sizes(param: &BrilligParameter) -> Box<dyn Iterator<Item = u32> + '_> {
             match param {
-                BrilligParameter::Simple(bit_size) => Box::new(std::iter::once(*bit_size)),
+                BrilligParameter::SingleAddr(bit_size) => Box::new(std::iter::once(*bit_size)),
                 BrilligParameter::Array(item_types, item_count) => Box::new(
                     (0..*item_count).flat_map(move |_| item_types.iter().flat_map(flat_bit_sizes)),
                 ),
@@ -139,7 +142,7 @@ impl BrilligContext {
     /// Computes the size of a parameter if it was flattened
     fn flattened_size(param: &BrilligParameter) -> usize {
         match param {
-            BrilligParameter::Simple(_) => 1,
+            BrilligParameter::SingleAddr(_) => 1,
             BrilligParameter::Array(item_types, item_count) => {
                 let item_size: usize = item_types.iter().map(BrilligContext::flattened_size).sum();
                 item_count * item_size
@@ -157,7 +160,7 @@ impl BrilligContext {
 
     /// Computes the size of a parameter if it was flattened
     fn has_nested_arrays(tuple: &[BrilligParameter]) -> bool {
-        tuple.iter().any(|param| !matches!(param, BrilligParameter::Simple(_)))
+        tuple.iter().any(|param| !matches!(param, BrilligParameter::SingleAddr(_)))
     }
 
     /// Deflatten an array by recursively allocating nested arrays and copying the plain values.
@@ -194,7 +197,7 @@ impl BrilligContext {
                         self.make_usize_constant((target_item_base_index + subitem_index).into());
 
                     match subitem {
-                        BrilligParameter::Simple(_) => {
+                        BrilligParameter::SingleAddr(_) => {
                             self.array_get(
                                 flattened_array_pointer,
                                 source_index,
@@ -279,7 +282,12 @@ impl BrilligContext {
         let returned_variables: Vec<_> = return_parameters
             .iter()
             .map(|return_parameter| match return_parameter {
-                BrilligParameter::Simple(_) => BrilligVariable::Simple(self.allocate_register()),
+                BrilligParameter::SingleAddr(bit_size) => {
+                    BrilligVariable::SingleAddr(SingleAddrVariable {
+                        address: self.allocate_register(),
+                        bit_size: *bit_size,
+                    })
+                }
                 BrilligParameter::Array(item_types, item_count) => {
                     BrilligVariable::BrilligArray(BrilligArray {
                         pointer: self.allocate_register(),
@@ -301,10 +309,10 @@ impl BrilligContext {
 
         for (return_param, returned_variable) in return_parameters.iter().zip(&returned_variables) {
             match return_param {
-                BrilligParameter::Simple(_) => {
+                BrilligParameter::SingleAddr(_) => {
                     self.mov_instruction(
                         MemoryAddress(return_data_index),
-                        returned_variable.extract_register(),
+                        returned_variable.extract_single_addr().address,
                     );
                     return_data_index += 1;
                 }
@@ -359,7 +367,7 @@ impl BrilligContext {
                         self.make_usize_constant((target_item_base_index + target_offset).into());
 
                     match subitem {
-                        BrilligParameter::Simple(_) => {
+                        BrilligParameter::SingleAddr(_) => {
                             self.array_get(
                                 deflattened_array_pointer,
                                 source_index,
@@ -468,12 +476,12 @@ mod tests {
         ];
         let arguments = vec![BrilligParameter::Array(
             vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple(8)], 2),
-                BrilligParameter::Simple(8),
+                BrilligParameter::Array(vec![BrilligParameter::SingleAddr(8)], 2),
+                BrilligParameter::SingleAddr(8),
             ],
             2,
         )];
-        let returns = vec![BrilligParameter::Simple(8)];
+        let returns = vec![BrilligParameter::SingleAddr(8)];
 
         let mut context = create_context();
 
@@ -506,8 +514,8 @@ mod tests {
         ];
         let array_param = BrilligParameter::Array(
             vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple(8)], 2),
-                BrilligParameter::Simple(8),
+                BrilligParameter::Array(vec![BrilligParameter::SingleAddr(8)], 2),
+                BrilligParameter::SingleAddr(8),
             ],
             2,
         );

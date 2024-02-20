@@ -143,7 +143,7 @@ impl<'interner> Monomorphizer<'interner> {
                     let index_id = self.interner.push_expr(HirExpression::Literal(
                         HirLiteral::Integer(field_index.into(), false),
                     ));
-                    self.interner.push_expr_type(&index_id, crate::Type::FieldElement);
+                    self.interner.push_expr_type(index_id, crate::Type::FieldElement);
                     self.interner.push_expr_location(
                         index_id,
                         call.location.span,
@@ -169,9 +169,9 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn intern_var_id(&mut self, var_id: DebugVarId, location: &Location) -> ExprId {
-        let id_literal = HirLiteral::Integer((var_id.0 as u128).into(), false);
-        let expr_id = self.interner.push_expr(HirExpression::Literal(id_literal));
-        self.interner.push_expr_type(&expr_id, crate::Type::FieldElement);
+        let var_id_literal = HirLiteral::Integer((var_id.0 as u128).into(), false);
+        let expr_id = self.interner.push_expr(HirExpression::Literal(var_id_literal));
+        self.interner.push_expr_type(expr_id, crate::Type::FieldElement);
         self.interner.push_expr_location(expr_id, location.span, location.file);
         expr_id
     }
