@@ -360,10 +360,13 @@ export class KernelProver {
     commitments: Tuple<SideEffect, typeof MAX_NEW_COMMITMENTS_PER_TX>,
   ): Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX> {
     const hints = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero);
+    const alreadyUsed = new Set<number>();
     for (let i = 0; i < MAX_NEW_NULLIFIERS_PER_TX; i++) {
       if (!nullifiedCommitments[i].isZero()) {
-        const equalToCommitment = (cmt: SideEffect) => cmt.value.equals(nullifiedCommitments[i]);
+        const equalToCommitment = (cmt: SideEffect, index: number) =>
+          cmt.value.equals(nullifiedCommitments[i]) && !alreadyUsed.has(index);
         const result = commitments.findIndex(equalToCommitment);
+        alreadyUsed.add(result);
         if (result == -1) {
           throw new Error(
             `The nullified commitment at index ${i} with value ${nullifiedCommitments[
