@@ -37,6 +37,7 @@ docker run \
 # L1 -> L2 Inbox Address: 0xdf34a07c7da15630d3b5d6bb17651d548a6e9d8f
 # L2 -> L1 Outbox address: 0xf6b1b3c2c393fe55fe577a1f528bd72a76589ab0
 # Contract Deployment Emitter Address: 0xf3ecc6e9428482a74687ee5f7b96f4dff8781454
+# Availability Oracle Address: 0x610178da211fef7d417bc0e6fed39f05609ad788
 
 # Read the file line by line
 while IFS= read -r line; do
@@ -59,6 +60,9 @@ while IFS= read -r line; do
   elif [[ $line == *"Emitter"* ]]; then
     export TF_VAR_CONTRACT_DEPLOYMENT_EMITTER_ADDRESS=$address
     echo "TF_VAR_CONTRACT_DEPLOYMENT_EMITTER_ADDRESS=$TF_VAR_CONTRACT_DEPLOYMENT_EMITTER_ADDRESS"
+  elif [[ $line == *"Oracle"* ]]; then
+    export TF_VAR_AVAILABILITY_ORACLE_CONTRACT_ADDRESS=$address
+    echo "TF_VAR_AVAILABILITY_ORACLE_CONTRACT_ADDRESS=$TF_VAR_AVAILABILITY_ORACLE_CONTRACT_ADDRESS"
   fi
 done <"$FILE_PATH"
 

@@ -5,6 +5,7 @@ const contractAddresses =
   'inboxAddress:INBOX_CONTRACT_ADDRESS - string - The deployed L1 inbox contract address.\n' +
   'outboxAddress:OUTBOX_CONTRACT_ADDRESS - string - The deployed L1 outbox contract address.\n' +
   'contractDeploymentEmitterAddress:CONTRACT_DEPLOYMENT_EMITTER_ADDRESS - string - The deployed L1 contract deployment emitter contract address.\n';
+('availabilityOracleAddress:AVAILABILITY_ORACLE_CONTRACT_ADDRESS - string - The deployed L1 availability oracle contract address.\n');
 const p2pOptions =
   'p2pBlockCheckIntervalMS:P2P_BLOCK_CHECK_INTERVAL_MS - number - The frequency in which to check for blocks. Default: 100\n' +
   'p2pL2QueueSize:P2P_L2_QUEUE_SIZE - number - Size of queue of L2 blocks to store. Default: 1000\n' +

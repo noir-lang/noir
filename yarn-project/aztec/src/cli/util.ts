@@ -7,7 +7,13 @@ import { LogFn, createConsoleLogger } from '@aztec/foundation/log';
 import { P2PConfig } from '@aztec/p2p';
 import { GrumpkinScalar, PXEService, PXEServiceConfig } from '@aztec/pxe';
 
-const l1ContractsNames = ['rollupAddress', 'inboxAddress', 'outboxAddress', 'contractDeploymentEmitterAddress'];
+const l1ContractsNames = [
+  'rollupAddress',
+  'inboxAddress',
+  'outboxAddress',
+  'contractDeploymentEmitterAddress',
+  'availabilityOracleAddress',
+];
 
 /**
  * Checks if the object has l1Contracts property
@@ -69,10 +75,6 @@ export const mergeEnvVarsAndCliOptions = <T extends AztecNodeConfig | PXEService
   contractsRequired = false,
   userLog = createConsoleLogger(),
 ) => {
-  if (contractsRequired && !cliOptions.rollupAddress) {
-    throw new Error('Rollup contract address is required to start the service');
-  }
-
   let merged = { ...envVars, ...cliOptions } as T;
 
   if (hasL1Contracts(envVars)) {
@@ -86,7 +88,7 @@ export const mergeEnvVarsAndCliOptions = <T extends AztecNodeConfig | PXEService
       }
     }, {} as L1ContractAddresses);
 
-    if (hasL1Contracts(envVars) && contractsRequired && !checkContractAddresses(l1Contracts)) {
+    if (contractsRequired && !checkContractAddresses(l1Contracts)) {
       userLog('Deployed L1 contract addresses are required to start the service');
       throw new Error('Deployed L1 contract addresses are required to start the service');
     }
