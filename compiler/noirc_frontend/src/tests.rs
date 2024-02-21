@@ -48,6 +48,7 @@ mod test {
     }
 
     pub(crate) fn get_program(
+        mock_stdlib: bool,
         src: &str,
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
         let root = std::path::Path::new("/");
@@ -56,7 +57,11 @@ mod test {
         let mut context = Context::new(fm, Default::default());
         context.def_interner.populate_dummy_operator_traits();
         let root_file_id = FileId::dummy();
-        let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+        let root_crate_id = if mock_stdlib {
+            context.crate_graph.add_stdlib(root_file_id)
+        } else {
+            context.crate_graph.add_crate_root(root_file_id)
+        };
 
         let (program, parser_errors) = parse_program(src);
         let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
@@ -87,8 +92,12 @@ mod test {
         (program, context, errors)
     }
 
+    pub(crate) fn get_program_mock_stdlib_errors(src: &str) -> Vec<(CompilationError, FileId)> {
+        get_program(true, src).2
+    }
+
     pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
-        get_program(src).2
+        get_program(false, src).2
     }
 
     #[test]
@@ -749,7 +758,7 @@ mod test {
     }
 
     fn get_program_captures(src: &str) -> Vec<Vec<String>> {
-        let (program, context, _errors) = get_program(src);
+        let (program, context, _errors) = get_program(false, src);
         let interner = context.def_interner;
         let mut all_captures: Vec<Vec<String>> = Vec::new();
         for func in program.into_sorted().functions {
@@ -1128,7 +1137,7 @@ mod test {
     }
 
     fn check_rewrite(src: &str, expected: &str) {
-        let (_program, mut context, _errors) = get_program(src);
+        let (_program, mut context, _errors) = get_program(false, src);
         let main_func_id = context.def_interner.find_function("main").unwrap();
         let program = monomorphize(main_func_id, &mut context.def_interner);
         assert!(format!("{}", program) == expected);
@@ -1205,5 +1214,53 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
             }
         "#;
         assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn ensure_map_slice_type_checks() {
+        let src = r#"
+            impl<T> [T] {
+                #[builtin(slice_push_back)]
+                pub fn push_back(self, elem: T) -> Self { }
+            }
+
+            impl<T, N> [T; N] {
+                #[builtin(array_len)]
+                pub fn len(self) -> Field {}
+
+                pub fn as_slice(self) -> [T] {
+                    let mut slice = [];
+                    for elem in self {
+                        slice = slice.push_back(elem);
+                    }
+                    slice
+                }
+
+                pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U; N] {
+                    let first_elem = f(self[0]);
+                    let mut ret = [first_elem; N];
+
+                    for i in 1 .. self.len() {
+                        ret[i] = f(self[i]);
+                    }
+
+                    ret
+                }
+            }
+
+            fn foo(x: [Field]) -> [Field] {
+                x
+            }
+
+            fn main() { 
+                let x0: [Field] = [3333333; 444444];
+                let _ = foo(x0);
+                let x: [Field; 444444] = [3333333; 444444];
+                let y: [Field] = x;
+                let z = foo(y);
+                let _ = z.map(|w| w);
+            }
+        "#;
+        assert_eq!(get_program_mock_stdlib_errors(src).len(), 0);
     }
 }

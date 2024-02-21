@@ -950,6 +950,9 @@ impl Type {
                 Ok(())
             }
             Type::NotConstant => {
+                // let other = var.clone().substitute(bindings).follow_bindings();
+                // println!("try_bind_to_maybe_constant: {:?} {:?} {:?}", target_id, (var.clone(), Type::NotConstant), ());
+
                 bindings.insert(target_id, (var.clone(), Type::NotConstant));
                 Ok(())
             }
@@ -1190,11 +1193,8 @@ impl Type {
             (TypeVariable(var, Kind::Constant(length)), other)
             | (other, TypeVariable(var, Kind::Constant(length))) => other
                 .try_unify_to_type_variable(var, bindings, |bindings| {
-                    // let other_follow = other.follow_bindings();
-                    let other_follow = other.substitute(bindings).follow_bindings();
-
+                    // let other_follow = other.substitute(bindings).follow_bindings();
                     // println!("TODO remove: try_unify constant: {:?} {:?} {:?} {:?}", var, length, other, other_follow);
-
                     other.try_bind_to_maybe_constant(var, *length, bindings)
                 }),
 

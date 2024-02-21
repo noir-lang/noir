@@ -589,6 +589,7 @@ mod tests {
 
         let expected = vec![
             Token::Bang,
+            Token::Question,
             Token::NotEqual,
             Token::Plus,
             Token::LeftParen,
