@@ -218,16 +218,14 @@ impl PrivateContext {
         self.new_l2_to_l1_msgs.push(message);
     }
 
-    // PrivateContextInputs must be temporarily passed in to prevent too many unknowns
-    // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned
     // docs:start:context_consume_l1_to_l2_message
     // docs:start:consume_l1_to_l2_message
-    pub fn consume_l1_to_l2_message(&mut self, msg_key: Field, content: Field, secret: Field) {
+    pub fn consume_l1_to_l2_message(&mut self, msg_key: Field, content: Field, secret: Field, sender: EthAddress) {
         // docs:end:context_consume_l1_to_l2_message
         let nullifier = process_l1_to_l2_message(
             self.historical_header.state.l1_to_l2_message_tree.root,
             self.this_address(),
-            self.this_portal_address(),
+            sender,
             self.chain_id(),
             self.version(),
             msg_key,

@@ -15,6 +15,7 @@ import {
   sha256,
 } from '@aztec/aztec.js';
 import {
+  InboxAbi,
   OutboxAbi,
   PortalERC20Abi,
   PortalERC20Bytecode,
@@ -134,6 +135,13 @@ export class CrossChainTestHarness {
     const owner = wallet.getCompleteAddress();
     const l1ContractAddresses = (await pxeService.getNodeInfo()).l1ContractAddresses;
 
+    const inbox = getContract({
+      address: l1ContractAddresses.inboxAddress.toString(),
+      abi: InboxAbi,
+      walletClient,
+      publicClient,
+    });
+
     const outbox = getContract({
       address: l1ContractAddresses.outboxAddress.toString(),
       abi: OutboxAbi,
@@ -163,6 +171,7 @@ export class CrossChainTestHarness {
       tokenPortalAddress,
       tokenPortal,
       underlyingERC20,
+      inbox,
       outbox,
       publicClient,
       walletClient,
@@ -190,6 +199,8 @@ export class CrossChainTestHarness {
     public tokenPortal: any,
     /** Underlying token for portal tests. */
     public underlyingERC20: any,
+    /** Message Bridge Inbox. */
+    public inbox: any,
     /** Message Bridge Outbox. */
     public outbox: any,
     /** Viem Public client instance. */
