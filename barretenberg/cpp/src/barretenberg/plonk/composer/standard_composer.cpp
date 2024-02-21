@@ -15,39 +15,6 @@
 namespace bb::plonk {
 
 /**
- * Compute witness polynomials (w_1, w_2, w_3, w_4).
- *
- * @details Fills 3 or 4 witness polynomials w_1, w_2, w_3, w_4 with the values of in-circuit variables. The beginning
- * of w_1, w_2 polynomials is filled with public_input values.
- * @return Witness with computed witness polynomials.
- *
- * @tparam Program settings needed to establish if w_4 is being used.
- * */
-void StandardComposer::compute_witness(const CircuitBuilder& circuit_constructor, const size_t minimum_circuit_size)
-{
-
-    if (computed_witness) {
-        return;
-    }
-    const size_t num_gates = circuit_constructor.num_gates;
-    const size_t num_public_inputs = circuit_constructor.public_inputs.size();
-
-    const size_t num_constraints = std::max(minimum_circuit_size, num_gates + num_public_inputs);
-
-    const size_t subgroup_size = circuit_constructor.get_circuit_subgroup_size(num_constraints + NUM_RESERVED_GATES);
-
-    auto wire_polynomial_evaluations =
-        construct_wire_polynomials_base<StandardComposer::Flavor>(circuit_constructor, subgroup_size);
-
-    for (size_t j = 0; j < program_width; ++j) {
-        std::string index = std::to_string(j + 1);
-        circuit_proving_key->polynomial_store.put("w_" + index + "_lagrange",
-                                                  std::move(wire_polynomial_evaluations[j]));
-    }
-    computed_witness = true;
-}
-
-/**
  * Compute proving key
  *
  * 1. Load crs.
@@ -63,27 +30,30 @@ std::shared_ptr<plonk::proving_key> StandardComposer::compute_proving_key(const 
     if (circuit_proving_key) {
         return circuit_proving_key;
     }
-    const size_t minimum_circuit_size = 0;
-    const size_t num_randomized_gates = NUM_RESERVED_GATES;
-    // Initialize circuit_proving_key
-    // TODO(#392)(Kesha): replace composer types.
-    circuit_proving_key = initialize_proving_key(
-        circuit_constructor, crs_factory_.get(), minimum_circuit_size, num_randomized_gates, CircuitType::STANDARD);
-    // Compute lagrange selectors
-    construct_selector_polynomials<Flavor>(circuit_constructor, circuit_proving_key.get());
+
+    const size_t total_num_gates =
+        circuit_constructor.num_gates + circuit_constructor.public_inputs.size() + NUM_RESERVED_GATES;
+    const size_t subgroup_size = circuit_constructor.get_circuit_subgroup_size(total_num_gates); // next power of 2
+
+    auto crs = srs::get_crs_factory()->get_prover_crs(subgroup_size + 1);
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/392): Composer type
+    circuit_proving_key = std::make_shared<plonk::proving_key>(
+        subgroup_size, circuit_constructor.public_inputs.size(), crs, CircuitType::STANDARD);
+
+    // Construct and add to proving key the wire, selector and copy constraint polynomials
+    Trace::generate(circuit_constructor, circuit_proving_key);
+
     // Make all selectors nonzero
     enforce_nonzero_selector_polynomials(circuit_constructor, circuit_proving_key.get());
     // Compute selectors in monomial form
     compute_monomial_and_coset_selector_forms(circuit_proving_key.get(), standard_selector_properties());
 
-    // Compute sigma polynomials (we should update that late)
-    compute_standard_plonk_sigma_permutations<Flavor>(circuit_constructor, circuit_proving_key.get());
-
     circuit_proving_key->recursive_proof_public_input_indices =
         std::vector<uint32_t>(circuit_constructor.recursive_proof_public_input_indices.begin(),
                               circuit_constructor.recursive_proof_public_input_indices.end());
-    // What does this line do exactly?
+
     circuit_proving_key->contains_recursive_proof = circuit_constructor.contains_recursive_proof;
+
     return circuit_proving_key;
 }
 
@@ -144,11 +114,7 @@ plonk::Verifier StandardComposer::create_verifier(const CircuitBuilder& circuit_
  * */
 plonk::Prover StandardComposer::create_prover(const CircuitBuilder& circuit_constructor)
 {
-    // Compute q_l, etc. and sigma polynomials.
     compute_proving_key(circuit_constructor);
-
-    // Compute witness polynomials.
-    compute_witness(circuit_constructor);
 
     plonk::Prover output_state(circuit_proving_key, create_manifest(circuit_constructor.public_inputs.size()));
 

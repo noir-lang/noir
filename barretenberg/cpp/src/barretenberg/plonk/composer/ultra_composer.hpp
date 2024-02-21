@@ -7,6 +7,7 @@
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
+#include "barretenberg/proof_system/execution_trace/execution_trace.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 
 #include <cstddef>
@@ -18,6 +19,7 @@ class UltraComposer {
     using Flavor = flavor::Ultra;
     using CircuitBuilder = UltraCircuitBuilder;
     using Curve = Flavor::Curve;
+    using Trace = ExecutionTrace_<Flavor>;
 
     static constexpr std::string_view NAME_STRING = "UltraPlonk";
     static constexpr CircuitType type = CircuitType::ULTRA;
@@ -71,8 +73,6 @@ class UltraComposer {
     std::shared_ptr<plonk::proving_key> compute_proving_key(CircuitBuilder& circuit_constructor);
     std::shared_ptr<plonk::verification_key> compute_verification_key(CircuitBuilder& circuit_constructor);
 
-    void compute_witness(CircuitBuilder& circuit_constructor);
-
     UltraProver create_prover(CircuitBuilder& circuit_constructor);
     UltraVerifier create_verifier(CircuitBuilder& circuit_constructor);
 
@@ -83,6 +83,8 @@ class UltraComposer {
     UltraWithKeccakVerifier create_ultra_with_keccak_verifier(CircuitBuilder& circuit_constructor);
 
     void add_table_column_selector_poly_to_proving_key(polynomial& small, const std::string& tag);
+
+    size_t compute_dyadic_circuit_size(CircuitBuilder& circuit_constructor);
 
     /**
      * @brief Create a manifest object
@@ -95,6 +97,26 @@ class UltraComposer {
     {
         return Flavor::create_manifest(num_public_inputs);
     }
-};
 
+  private:
+    /**
+     * @brief Construct a prover given a proving key and populate it with the appropriate widgets
+     */
+    template <typename settings> ProverBase<settings> construct_prover(CircuitBuilder& circuit_constructor);
+
+    /**
+     * @brief Construct sorted concatenated table-lookup polynomials for lookup argument
+     */
+    void construct_sorted_polynomials(CircuitBuilder& circuit_constructor, size_t subgroup_size);
+
+    /**
+     * @brief Populate proving key with memory read/write records
+     */
+    void populate_memory_records(CircuitBuilder& circuit_constructor);
+
+    /**
+     * @brief Construct polynomials containing concatenation of the lookup tables
+     */
+    void construct_table_polynomials(CircuitBuilder& circuit_constructor, size_t subgroup_size);
+};
 } // namespace bb::plonk

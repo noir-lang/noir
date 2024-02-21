@@ -32,21 +32,6 @@ plonk::Prover provers[NUM_CIRCUITS];
 plonk::Verifier verifiers[NUM_CIRCUITS];
 plonk::proof proofs[NUM_CIRCUITS];
 
-void construct_witnesses_bench(State& state) noexcept
-{
-    for (auto _ : state) {
-        state.PauseTiming();
-        auto builder = Builder(static_cast<size_t>(state.range(0)));
-        generate_test_plonk_circuit(builder, static_cast<size_t>(state.range(0)));
-        auto composer = Composer();
-        composer.compute_proving_key(builder);
-        state.ResumeTiming();
-
-        composer.compute_witness(builder);
-    }
-}
-BENCHMARK(construct_witnesses_bench)->RangeMultiplier(2)->Range(START, MAX_GATES);
-
 void construct_proving_keys_bench(State& state) noexcept
 {
     for (auto _ : state) {

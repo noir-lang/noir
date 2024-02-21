@@ -116,35 +116,6 @@ void native_pedersen_hash_pair_bench(State& state) noexcept
 }
 BENCHMARK(native_pedersen_hash_pair_bench)->Unit(benchmark::kMillisecond)->MinTime(3);
 
-void construct_pedersen_witnesses_bench(State& state) noexcept
-{
-    bb::srs::init_crs_factory(BARRETENBERG_SRS_PATH);
-
-    for (auto _ : state) {
-        state.PauseTiming();
-        auto builder = Builder(static_cast<size_t>(state.range(0)));
-        generate_test_pedersen_hash_circuit(builder, static_cast<size_t>(state.range(0)));
-        std::cout << "builder gates = " << builder.get_num_gates() << std::endl;
-
-        auto composer = Composer();
-        composer.compute_proving_key(builder);
-        state.ResumeTiming();
-
-        composer.compute_witness(builder);
-    }
-}
-BENCHMARK(construct_pedersen_witnesses_bench)
-    ->Arg(num_hashes[0])
-    ->Arg(num_hashes[1])
-    ->Arg(num_hashes[2])
-    ->Arg(num_hashes[3])
-    ->Arg(num_hashes[4])
-    ->Arg(num_hashes[5])
-    ->Arg(num_hashes[6])
-    ->Arg(num_hashes[7])
-    ->Arg(num_hashes[8])
-    ->Arg(num_hashes[9]);
-
 void construct_pedersen_proving_keys_bench(State& state) noexcept
 {
     for (auto _ : state) {

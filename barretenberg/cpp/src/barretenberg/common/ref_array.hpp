@@ -38,8 +38,18 @@ template <typename T, std::size_t N> class RefArray {
 
     T& operator[](std::size_t idx) const
     {
+        // GCC has a bug where it has trouble analyzing zip_view
+        // this is likely due to this bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104165
+        // We disable this - if GCC was right, we would have caught this at runtime
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
         ASSERT(idx < N);
         return *storage[idx];
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
     }
 
     /**

@@ -576,14 +576,6 @@ TYPED_TEST(ScalarMultiplicationTests, EndomorphismSplit)
     Fr* k2_t = (Fr*)&scalar.data[2];
 
     Fr::split_into_endomorphism_scalars(scalar, *k1_t, *k2_t);
-    // The compiler really doesn't like what we're doing here,
-    // and disabling the array-bounds error project-wide seems unsafe.
-    // The large macro blocks are here to warn that we should be careful when
-    // aliasing the arguments to split_into_endomorphism_scalars
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif
     Fr k1{ (*k1_t).data[0], (*k1_t).data[1], 0, 0 };
     Fr k2{ (*k2_t).data[0], (*k2_t).data[1], 0, 0 };
 #if !defined(__clang__) && defined(__GNUC__)

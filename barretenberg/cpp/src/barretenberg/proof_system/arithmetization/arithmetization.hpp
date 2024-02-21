@@ -40,7 +40,7 @@ template <typename FF_> class StandardArith {
     using FF = FF_;
     using SelectorType = std::vector<FF, bb::ContainerSlabAllocator<FF>>;
 
-    std::vector<SelectorType> selectors;
+    std::array<SelectorType, NUM_SELECTORS> selectors;
 
     SelectorType& q_m() { return selectors[0]; };
     SelectorType& q_1() { return selectors[1]; };
@@ -54,11 +54,7 @@ template <typename FF_> class StandardArith {
     const SelectorType& q_3() const { return selectors[3]; };
     const SelectorType& q_c() const { return selectors[4]; };
 
-    StandardArith()
-        : selectors(NUM_SELECTORS)
-    {}
-
-    const auto& get() const { return selectors; };
+    auto& get() { return selectors; };
 
     void reserve(size_t size_hint)
     {
@@ -106,7 +102,7 @@ template <typename FF_> class UltraArith {
     const SelectorType& q_aux() const { return selectors[9]; };
     const SelectorType& q_lookup_type() const { return selectors[10]; };
 
-    const auto& get() const { return selectors; };
+    auto& get() { return selectors; };
 
     void reserve(size_t size_hint)
     {
@@ -168,7 +164,7 @@ template <typename FF_> class UltraHonkArith {
     const SelectorType& q_poseidon2_external() const { return this->selectors[12]; };
     const SelectorType& q_poseidon2_internal() const { return this->selectors[13]; };
 
-    const auto& get() const { return selectors; };
+    auto& get() { return selectors; };
 
     void reserve(size_t size_hint)
     {

@@ -12,6 +12,7 @@ namespace bb {
 template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase<FF> {
   public:
     using Arithmetization = StandardArith<FF>;
+    using Selectors = Arithmetization;
     static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
     // Keeping NUM_WIRES, at least temporarily, for backward compatibility
     static constexpr size_t program_width = Arithmetization::NUM_WIRES;

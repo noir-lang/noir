@@ -62,7 +62,7 @@ Prover new_join_split_prover(join_split_tx const& tx, bool mock)
 
     info("public inputs: ", builder.public_inputs.size());
 
-    Composer composer(proving_key, nullptr);
+    Composer composer;
     if (!mock) {
         info("composer gates: ", builder.get_num_gates());
         return composer.create_prover(builder);
