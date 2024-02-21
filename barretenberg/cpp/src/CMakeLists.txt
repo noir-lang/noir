@@ -24,7 +24,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    add_compile_options(-fconstexpr-ops-limit=100000000)
+    add_compile_options(-fconstexpr-ops-limit=100000000 -Wno-psabi)
 endif()
 
 # We enable -O1 level optimsations, even when compiling debug wasm, otherwise we get "local count too large" at runtime.

@@ -206,7 +206,6 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
     }
 
     // Fold the prover polynomials
-    auto acc_poly_views = acc_prover_polynomials.get_all();
     for (size_t inst_idx = 0; inst_idx < ProverInstances::NUM; inst_idx++) {
         for (auto [acc_poly, inst_poly] :
              zip_view(acc_prover_polynomials.get_all(), instances[inst_idx]->prover_polynomials.get_all())) {

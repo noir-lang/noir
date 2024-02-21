@@ -239,10 +239,20 @@ template <typename Flavor> class SumcheckVerifier {
         ClaimedEvaluations purported_evaluations;
         auto transcript_evaluations =
             transcript->template receive_from_prover<std::array<FF, NUM_POLYNOMIALS>>("Sumcheck:evaluations");
+
+        // GCC has a bug where it says this is above array bounds
+        // but this is likely due to this bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104165
+        // We disable this - if GCC was right, we would have caught this at runtime
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
         for (auto [eval, transcript_eval] : zip_view(purported_evaluations.get_all(), transcript_evaluations)) {
             eval = transcript_eval;
         }
-
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
         FF full_honk_relation_purported_value = round.compute_full_honk_relation_purported_value(
             purported_evaluations, relation_parameters, pow_univariate, alpha);
 

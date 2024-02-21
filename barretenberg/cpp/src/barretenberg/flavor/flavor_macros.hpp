@@ -6,7 +6,7 @@
 // while DEFINE_COMPOUND_GET_ALL lets you combine the iterators of substructures or base
 // classes.
 
-#include "barretenberg/common/ref_vector.hpp"
+#include "barretenberg/common/ref_array.hpp"
 #include "barretenberg/common/std_array.hpp"
 #include "barretenberg/common/std_string.hpp"
 #include "barretenberg/common/std_vector.hpp"
@@ -40,11 +40,11 @@ template <typename T, typename... BaseClass> auto _concatenate_base_class_get_la
 #define DEFINE_REF_VIEW(...)                                                                                           \
     [[nodiscard]] auto get_all()                                                                                       \
     {                                                                                                                  \
-        return RefVector{ __VA_ARGS__ };                                                                               \
+        return RefArray{ __VA_ARGS__ };                                                                                \
     }                                                                                                                  \
     [[nodiscard]] auto get_all() const                                                                                 \
     {                                                                                                                  \
-        return RefVector{ __VA_ARGS__ };                                                                               \
+        return RefArray{ __VA_ARGS__ };                                                                                \
     }
 
 /**

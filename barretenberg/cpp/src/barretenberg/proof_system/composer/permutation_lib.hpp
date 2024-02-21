@@ -7,6 +7,7 @@
  */
 #pragma once
 
+#include "barretenberg/common/ref_span.hpp"
 #include "barretenberg/common/ref_vector.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/flavor/flavor.hpp"
@@ -281,7 +282,7 @@ PermutationMapping<Flavor::NUM_WIRES> compute_permutation_mapping(
  */
 template <typename Flavor>
 void compute_honk_style_permutation_lagrange_polynomials_from_mapping(
-    const RefVector<typename Flavor::Polynomial>& permutation_polynomials, // sigma or ID poly
+    const RefSpan<typename Flavor::Polynomial>& permutation_polynomials, // sigma or ID poly
     std::array<std::vector<permutation_subgroup_element>, Flavor::NUM_WIRES>& permutation_mappings,
     typename Flavor::ProvingKey* proving_key)
 {

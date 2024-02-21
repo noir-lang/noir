@@ -89,6 +89,7 @@
       "displayName": "Build with GCC",
       "description": "Build with globally installed GCC",
       "inherits": "default",
+      "binaryDir": "build-gcc",
       "environment": {
         "CC": "gcc",
         "CXX": "g++"

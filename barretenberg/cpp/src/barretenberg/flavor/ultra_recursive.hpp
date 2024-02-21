@@ -51,7 +51,6 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
     using Curve = stdlib::bn254<CircuitBuilder>;
     using GroupElement = typename Curve::Element;
     using Commitment = typename Curve::Element;
-    using CommitmentHandle = typename Curve::Element;
     using FF = typename Curve::ScalarField;
     using NativeFlavor = UltraFlavor;
     using NativeVerificationKey = NativeFlavor::VerificationKey;
@@ -135,14 +134,14 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
                               lagrange_first, // column 23
                               lagrange_last); // column 24
 
-        RefVector<DataType> get_selectors()
+        auto get_selectors()
         {
-            return { q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_sort, q_elliptic, q_aux, q_lookup };
+            return RefArray{ q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_sort, q_elliptic, q_aux, q_lookup };
         };
-        RefVector<DataType> get_sigma_polynomials() { return { sigma_1, sigma_2, sigma_3, sigma_4 }; };
-        RefVector<DataType> get_id_polynomials() { return { id_1, id_2, id_3, id_4 }; };
+        auto get_sigma_polynomials() { return RefArray{ sigma_1, sigma_2, sigma_3, sigma_4 }; };
+        auto get_id_polynomials() { return RefArray{ id_1, id_2, id_3, id_4 }; };
 
-        RefVector<DataType> get_table_polynomials() { return { table_1, table_2, table_3, table_4 }; };
+        auto get_table_polynomials() { return RefArray{ table_1, table_2, table_3, table_4 }; };
     };
 
     /**
@@ -162,7 +161,7 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
 
         );
 
-        RefVector<DataType> get_wires() { return { w_l, w_r, w_o, w_4 }; };
+        auto get_wires() { return RefArray{ w_l, w_r, w_o, w_4 }; };
     };
 
   public:
@@ -228,36 +227,36 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
                               z_lookup_shift      // column 42
         );
 
-        RefVector<DataType> get_wires() { return { w_l, w_r, w_o, w_4 }; };
+        auto get_wires() { return RefArray{ w_l, w_r, w_o, w_4 }; };
         // Gemini-specific getters.
-        RefVector<DataType> get_unshifted()
+        auto get_unshifted()
         {
-            return { q_m,           q_c,   q_l,      q_r,     q_o,     q_4,          q_arith, q_sort,
-                     q_elliptic,    q_aux, q_lookup, sigma_1, sigma_2, sigma_3,      sigma_4, id_1,
-                     id_2,          id_3,  id_4,     table_1, table_2, table_3,      table_4, lagrange_first,
-                     lagrange_last, w_l,   w_r,      w_o,     w_4,     sorted_accum, z_perm,  z_lookup
+            return RefArray{ q_m,           q_c,   q_l,      q_r,     q_o,     q_4,          q_arith, q_sort,
+                             q_elliptic,    q_aux, q_lookup, sigma_1, sigma_2, sigma_3,      sigma_4, id_1,
+                             id_2,          id_3,  id_4,     table_1, table_2, table_3,      table_4, lagrange_first,
+                             lagrange_last, w_l,   w_r,      w_o,     w_4,     sorted_accum, z_perm,  z_lookup
 
             };
         };
-        RefVector<DataType> get_precomputed()
+        auto get_precomputed()
         {
-            return { q_m,          q_c,   q_l,      q_r,     q_o,     q_4,     q_arith, q_sort,
-                     q_elliptic,   q_aux, q_lookup, sigma_1, sigma_2, sigma_3, sigma_4, id_1,
-                     id_2,         id_3,  id_4,     table_1, table_2, table_3, table_4, lagrange_first,
-                     lagrange_last
+            return RefArray{ q_m,          q_c,   q_l,      q_r,     q_o,     q_4,     q_arith, q_sort,
+                             q_elliptic,   q_aux, q_lookup, sigma_1, sigma_2, sigma_3, sigma_4, id_1,
+                             id_2,         id_3,  id_4,     table_1, table_2, table_3, table_4, lagrange_first,
+                             lagrange_last
 
             };
         }
 
-        RefVector<DataType> get_witness() { return { w_l, w_r, w_o, w_4, sorted_accum, z_perm, z_lookup }; };
-        RefVector<DataType> get_to_be_shifted()
+        auto get_witness() { return RefArray{ w_l, w_r, w_o, w_4, sorted_accum, z_perm, z_lookup }; };
+        auto get_to_be_shifted()
         {
-            return { table_1, table_2, table_3, table_4, w_l, w_r, w_o, w_4, sorted_accum, z_perm, z_lookup };
+            return RefArray{ table_1, table_2, table_3, table_4, w_l, w_r, w_o, w_4, sorted_accum, z_perm, z_lookup };
         };
-        RefVector<DataType> get_shifted()
+        auto get_shifted()
         {
-            return { table_1_shift, table_2_shift, table_3_shift,      table_4_shift, w_l_shift,     w_r_shift,
-                     w_o_shift,     w_4_shift,     sorted_accum_shift, z_perm_shift,  z_lookup_shift };
+            return RefArray{ table_1_shift, table_2_shift, table_3_shift,      table_4_shift, w_l_shift,     w_r_shift,
+                             w_o_shift,     w_4_shift,     sorted_accum_shift, z_perm_shift,  z_lookup_shift };
         };
     };
 

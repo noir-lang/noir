@@ -45,7 +45,6 @@ template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
     using GroupElement = typename Curve::Element;
     using FF = typename Curve::ScalarField;
     using Commitment = typename Curve::Element;
-    using CommitmentHandle = typename Curve::Element;
     using NativeFlavor = GoblinUltraFlavor;
     using NativeVerificationKey = NativeFlavor::VerificationKey;
 

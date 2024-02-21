@@ -1,8 +1,11 @@
+#pragma once
+
 #include "barretenberg/common/assert.hpp"
 #include <array>
 #include <cstddef>
 #include <initializer_list>
 #include <iterator>
+#include <span>
 #include <stdexcept>
 
 namespace bb {
@@ -18,6 +21,7 @@ namespace bb {
  */
 template <typename T, std::size_t N> class RefArray {
   public:
+    RefArray() = default;
     RefArray(const std::array<T*, N>& ptr_array)
     {
         std::size_t i = 0;
@@ -55,7 +59,11 @@ template <typename T, std::size_t N> class RefArray {
             , pos(pos)
         {}
 
-        T& operator*() const { return (*array)[pos]; }
+        T& operator*() const
+        {
+            ASSERT(pos < N);
+            return (*array)[pos];
+        }
 
         iterator& operator++()
         {
@@ -92,6 +100,9 @@ template <typename T, std::size_t N> class RefArray {
      */
     iterator end() const { return iterator(this, N); }
 
+    T** get_storage() { return storage; }
+    T* const* get_storage() const { return storage; }
+
   private:
     // We are making a high-level array, for simplicity having a C array as backing makes sense.
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
@@ -115,17 +126,18 @@ template <typename T, typename... Ts> RefArray(T&, Ts&...) -> RefArray<T, 1 + si
  * @param ref_arrays The RefArray objects to be concatenated.
  * @return RefArray object containing all elements from the input arrays.
  */
-template <typename T, std::size_t... Ns> RefArray<T, (Ns + ...)> concatenate(const RefArray<T, Ns>&... ref_arrays)
+template <typename T, std::size_t... Ns>
+RefArray<T, (Ns + ...)> constexpr concatenate(const RefArray<T, Ns>&... ref_arrays)
 {
     // Fold expression to calculate the total size of the new array using fold expression
     constexpr std::size_t TotalSize = (Ns + ...);
-    std::array<T*, TotalSize> concatenated;
+    RefArray<T, TotalSize> concatenated;
 
     std::size_t offset = 0;
     // Copies elements from a given RefArray to the concatenated array
     auto copy_into = [&](const auto& ref_array, std::size_t& offset) {
         for (std::size_t i = 0; i < ref_array.size(); ++i) {
-            concatenated[offset + i] = &ref_array[i];
+            concatenated.get_storage()[offset + i] = &ref_array[i];
         }
         offset += ref_array.size();
     };
@@ -133,6 +145,6 @@ template <typename T, std::size_t... Ns> RefArray<T, (Ns + ...)> concatenate(con
     // Fold expression to copy elements from each input RefArray to the concatenated array
     (..., copy_into(ref_arrays, offset));
 
-    return RefArray<T, TotalSize>{ concatenated };
+    return concatenated;
 }
 } // namespace bb

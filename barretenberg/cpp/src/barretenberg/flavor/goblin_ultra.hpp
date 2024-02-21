@@ -29,10 +29,8 @@ class GoblinUltraFlavor {
     using FF = Curve::ScalarField;
     using GroupElement = Curve::Element;
     using Commitment = Curve::AffineElement;
-    using CommitmentHandle = Curve::AffineElement;
     using PCS = KZG<Curve>;
     using Polynomial = bb::Polynomial<FF>;
-    using PolynomialHandle = std::span<FF>;
     using CommitmentKey = bb::CommitmentKey<Curve>;
     using VerifierCommitmentKey = bb::VerifierCommitmentKey<Curve>;
 
@@ -132,26 +130,26 @@ class GoblinUltraFlavor {
 
         static constexpr CircuitType CIRCUIT_TYPE = CircuitBuilder::CIRCUIT_TYPE;
 
-        RefVector<DataType> get_selectors()
+        auto get_selectors()
         {
-            return { q_m,
-                     q_c,
-                     q_l,
-                     q_r,
-                     q_o,
-                     q_4,
-                     q_arith,
-                     q_sort,
-                     q_elliptic,
-                     q_aux,
-                     q_lookup,
-                     q_busread,
-                     q_poseidon2_external,
-                     q_poseidon2_internal };
+            return RefArray{ q_m,
+                             q_c,
+                             q_l,
+                             q_r,
+                             q_o,
+                             q_4,
+                             q_arith,
+                             q_sort,
+                             q_elliptic,
+                             q_aux,
+                             q_lookup,
+                             q_busread,
+                             q_poseidon2_external,
+                             q_poseidon2_internal };
         };
-        RefVector<DataType> get_sigma_polynomials() { return { sigma_1, sigma_2, sigma_3, sigma_4 }; };
-        RefVector<DataType> get_id_polynomials() { return { id_1, id_2, id_3, id_4 }; };
-        RefVector<DataType> get_table_polynomials() { return { table_1, table_2, table_3, table_4 }; };
+        auto get_sigma_polynomials() { return RefArray{ sigma_1, sigma_2, sigma_3, sigma_4 }; };
+        auto get_id_polynomials() { return RefArray{ id_1, id_2, id_3, id_4 }; };
+        auto get_table_polynomials() { return RefArray{ table_1, table_2, table_3, table_4 }; };
     };
 
     // GoblinUltra needs to expose more public classes than most flavors due to GoblinUltraRecursive reuse, but these
@@ -193,10 +191,10 @@ class GoblinUltraFlavor {
       public:
         DEFINE_COMPOUND_GET_ALL(WireEntities<DataType>, DerivedEntities<DataType>)
 
-        RefVector<DataType> get_wires() { return WireEntities<DataType>::get_all(); };
-        RefVector<DataType> get_ecc_op_wires()
+        auto get_wires() { return WireEntities<DataType>::get_all(); };
+        auto get_ecc_op_wires()
         {
-            return { this->ecc_op_wire_1, this->ecc_op_wire_2, this->ecc_op_wire_3, this->ecc_op_wire_4 };
+            return RefArray{ this->ecc_op_wire_1, this->ecc_op_wire_2, this->ecc_op_wire_3, this->ecc_op_wire_4 };
         }
     };
 
@@ -234,25 +232,25 @@ class GoblinUltraFlavor {
       public:
         DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>, WitnessEntities<DataType>, ShiftedEntities<DataType>)
 
-        RefVector<DataType> get_wires() { return { this->w_l, this->w_r, this->w_o, this->w_4 }; };
-        RefVector<DataType> get_ecc_op_wires()
+        auto get_wires() { return RefArray{ this->w_l, this->w_r, this->w_o, this->w_4 }; };
+        auto get_ecc_op_wires()
         {
-            return { this->ecc_op_wire_1, this->ecc_op_wire_2, this->ecc_op_wire_3, this->ecc_op_wire_4 };
+            return RefArray{ this->ecc_op_wire_1, this->ecc_op_wire_2, this->ecc_op_wire_3, this->ecc_op_wire_4 };
         };
         // Gemini-specific getters.
-        RefVector<DataType> get_unshifted()
+        auto get_unshifted()
         {
             return concatenate(PrecomputedEntities<DataType>::get_all(), WitnessEntities<DataType>::get_all());
         };
 
-        RefVector<DataType> get_witness() { return WitnessEntities<DataType>::get_all(); };
-        RefVector<DataType> get_to_be_shifted()
+        auto get_witness() { return WitnessEntities<DataType>::get_all(); };
+        auto get_to_be_shifted()
         {
-            return { this->table_1, this->table_2, this->table_3,      this->table_4, this->w_l,     this->w_r,
-                     this->w_o,     this->w_4,     this->sorted_accum, this->z_perm,  this->z_lookup };
+            return RefArray{ this->table_1, this->table_2, this->table_3,      this->table_4, this->w_l,     this->w_r,
+                             this->w_o,     this->w_4,     this->sorted_accum, this->z_perm,  this->z_lookup };
         };
-        RefVector<DataType> get_precomputed() { return PrecomputedEntities<DataType>::get_all(); }
-        RefVector<DataType> get_shifted() { return ShiftedEntities<DataType>::get_all(); };
+        auto get_precomputed() { return PrecomputedEntities<DataType>::get_all(); }
+        auto get_shifted() { return ShiftedEntities<DataType>::get_all(); };
     };
 
     /**
@@ -271,13 +269,13 @@ class GoblinUltraFlavor {
 
         size_t num_ecc_op_gates; // needed to determine public input offset
 
-        RefVector<DataType> get_to_be_shifted()
+        auto get_to_be_shifted()
         {
-            return { this->table_1, this->table_2, this->table_3,      this->table_4, this->w_l,     this->w_r,
-                     this->w_o,     this->w_4,     this->sorted_accum, this->z_perm,  this->z_lookup };
+            return RefArray{ this->table_1, this->table_2, this->table_3,      this->table_4, this->w_l,     this->w_r,
+                             this->w_o,     this->w_4,     this->sorted_accum, this->z_perm,  this->z_lookup };
         };
         // The plookup wires that store plookup read data.
-        std::array<PolynomialHandle, 3> get_table_column_wires() { return { w_l, w_r, w_o }; };
+        auto get_table_column_wires() { return RefArray{ w_l, w_r, w_o }; };
     };
 
     /**

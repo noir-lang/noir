@@ -54,12 +54,11 @@ template <typename Flavor_, size_t NUM_> struct ProverInstances_ {
      * @param row_idx A fixed row position in several execution traces
      * @return The univariates whose extensions will be used to construct the combiner.
      */
-    std::vector<Univariate<FF, NUM>> row_to_univariates(size_t row_idx) const
+    auto row_to_univariates(size_t row_idx) const
     {
         auto insts_prover_polynomials_views = get_polynomials_views();
-        std::vector<Univariate<FF, NUM>> results;
+        std::array<Univariate<FF, NUM>, insts_prover_polynomials_views[0].size()> results;
         // Set the size corresponding to the number of rows in the execution trace
-        results.resize(insts_prover_polynomials_views[0].size());
         size_t instance_idx = 0;
         // Iterate over the prover polynomials' views corresponding to each instance
         for (auto& get_all : insts_prover_polynomials_views) {
@@ -76,13 +75,12 @@ template <typename Flavor_, size_t NUM_> struct ProverInstances_ {
     // Returns a vector containing pointer views to the prover polynomials corresponding to each instance.
     auto get_polynomials_views() const
     {
-        // As a practical measure, get the first instance's view to deduce the vector type
-        std::vector get_alls{ _data[0]->prover_polynomials.get_all() };
-        // complete the views, starting from the second item
-        for (size_t i = 1; i < NUM; i++) {
-            get_alls.push_back(_data[i]->prover_polynomials.get_all());
+        // As a practical measure, get the first instance's view to deduce the array type
+        std::array<decltype(_data[0]->prover_polynomials.get_all()), NUM> views;
+        for (size_t i = 0; i < NUM; i++) {
+            views[i] = _data[i]->prover_polynomials.get_all();
         }
-        return get_alls;
+        return views;
     }
 };
 

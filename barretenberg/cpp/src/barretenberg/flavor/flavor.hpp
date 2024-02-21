@@ -112,9 +112,9 @@ class ProvingKey_ : public PrecomputedPolynomials, public WitnessPolynomials {
         return concatenate(PrecomputedPolynomials::get_labels(), WitnessPolynomials::get_labels());
     }
     // This order matters! must match get_unshifted in entity classes
-    RefVector<Polynomial> get_all() { return concatenate(get_precomputed_polynomials(), get_witness_polynomials()); }
-    RefVector<Polynomial> get_witness_polynomials() { return WitnessPolynomials::get_all(); }
-    RefVector<Polynomial> get_precomputed_polynomials() { return PrecomputedPolynomials::get_all(); }
+    auto get_all() { return concatenate(get_precomputed_polynomials(), get_witness_polynomials()); }
+    auto get_witness_polynomials() { return WitnessPolynomials::get_all(); }
+    auto get_precomputed_polynomials() { return PrecomputedPolynomials::get_all(); }
     ProvingKey_() = default;
     ProvingKey_(const size_t circuit_size, const size_t num_public_inputs)
     {
