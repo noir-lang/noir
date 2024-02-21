@@ -65,7 +65,7 @@ impl<'interner> TypeChecker<'interner> {
                         let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
 
                         let first_elem_type = elem_types
-                            .get(0)
+                            .first()
                             .cloned()
                             .unwrap_or_else(|| self.interner.next_type_variable());
 
@@ -284,8 +284,9 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Tuple(vecmap(&elements, |elem| self.check_expression(elem)))
             }
             HirExpression::Lambda(lambda) => {
-                let captured_vars =
-                    vecmap(lambda.captures, |capture| self.interner.id_type(capture.ident.id));
+                let captured_vars = vecmap(lambda.captures, |capture| {
+                    self.interner.definition_type(capture.ident.id)
+                });
 
                 let env_type: Type =
                     if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
@@ -308,7 +309,7 @@ impl<'interner> TypeChecker<'interner> {
             }
         };
 
-        self.interner.push_expr_type(expr_id, typ.clone());
+        self.interner.push_expr_type(*expr_id, typ.clone());
         typ
     }
 
@@ -459,7 +460,7 @@ impl<'interner> TypeChecker<'interner> {
                                 operator: UnaryOp::MutableReference,
                                 rhs: method_call.object,
                             }));
-                        self.interner.push_expr_type(&new_object, new_type);
+                        self.interner.push_expr_type(new_object, new_type);
                         self.interner.push_expr_location(new_object, location.span, location.file);
                         new_object
                     });
@@ -485,7 +486,7 @@ impl<'interner> TypeChecker<'interner> {
                 operator: UnaryOp::Dereference { implicitly_added: true },
                 rhs: object,
             }));
-            self.interner.push_expr_type(&object, element.as_ref().clone());
+            self.interner.push_expr_type(object, element.as_ref().clone());
             self.interner.push_expr_location(object, location.span, location.file);
 
             // Recursively dereference to allow for converting &mut &mut T to T
@@ -684,8 +685,8 @@ impl<'interner> TypeChecker<'interner> {
                 operator: crate::UnaryOp::Dereference { implicitly_added: true },
                 rhs: old_lhs,
             }));
-            this.interner.push_expr_type(&old_lhs, lhs_type);
-            this.interner.push_expr_type(access_lhs, element);
+            this.interner.push_expr_type(old_lhs, lhs_type);
+            this.interner.push_expr_type(*access_lhs, element);
 
             let old_location = this.interner.id_location(old_lhs);
             this.interner.push_expr_location(*access_lhs, span, old_location.file);

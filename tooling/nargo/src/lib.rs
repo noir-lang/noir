@@ -65,8 +65,7 @@ fn insert_all_files_for_package_into_file_manager(
     let entry_path_parent = package
         .entry_path
         .parent()
-        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path))
-        .clone();
+        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
 
     // Get all files in the package and add them to the file manager
     let paths = get_all_noir_source_in_dir(entry_path_parent)
