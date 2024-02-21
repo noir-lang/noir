@@ -9,12 +9,12 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         BoundedVec { storage: [initial_value; MaxLen], len: 0, empty_value: initial_value }
     }
 
-    pub fn get(mut self: Self, index: Field) -> T {
+    pub fn get(mut self: Self, index: u64) -> T {
         assert(index as u64 < self.len);
         self.storage[index]
     }
 
-    pub fn get_unchecked(mut self: Self, index: Field) -> T {
+    pub fn get_unchecked(mut self: Self, index: u64) -> T {
         self.storage[index]
     }
 
@@ -29,7 +29,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len
     }
 
-    pub fn max_len(_self: BoundedVec<T, MaxLen>) -> Field {
+    pub fn max_len(_self: BoundedVec<T, MaxLen>) -> u64{
         MaxLen
     }
 
@@ -57,7 +57,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         for i in 0..Len {
             exceeded_len |= i == append_len;
             if !exceeded_len {
-                self.storage[self.len + i] = vec.get_unchecked(i as Field);
+                self.storage[self.len + i] = vec.get_unchecked(i);
             }
         }
         self.len = new_len;
