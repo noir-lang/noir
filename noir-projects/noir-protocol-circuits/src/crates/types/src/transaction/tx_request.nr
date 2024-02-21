@@ -61,7 +61,7 @@ impl Deserialize<TX_REQUEST_LENGTH> for TxRequest {
 mod tests {
     use crate::{
         abis::{function_selector::FunctionSelector, function_data::FunctionData},
-        address::{AztecAddress, EthAddress}, contract_class::ContractClassId,
+        address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
         contrakt::contract_deployment_data::ContractDeploymentData, grumpkin_point::GrumpkinPoint,
         transaction::{tx_request::TxRequest, tx_context::TxContext}
     };

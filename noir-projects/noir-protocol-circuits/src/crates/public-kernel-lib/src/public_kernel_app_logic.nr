@@ -65,7 +65,7 @@ mod tests {
         public_data_update_request::PublicDataUpdateRequest,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash}
     },
-        address::{AztecAddress, EthAddress}, contract_class::ContractClassId,
+        address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
         hash::{compute_l2_to_l1_hash, compute_logs_hash, silo_commitment, silo_nullifier},
         messaging::l2_to_l1_message::L2ToL1Message,
         tests::{kernel_data_builder::PreviousKernelDataBuilder, public_call_data_builder::PublicCallDataBuilder},

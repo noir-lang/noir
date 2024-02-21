@@ -1,6 +1,6 @@
 use dep::aztec::protocol_types;
 use dep::aztec::protocol_types::{
-    contract_class::ContractClassId, abis::function_selector::FunctionSelector,
+    contract_class_id::ContractClassId, abis::function_selector::FunctionSelector,
     constants::{
     ARTIFACT_FUNCTION_TREE_MAX_HEIGHT, MAX_PACKED_BYTECODE_SIZE_PER_UNCONSTRAINED_FUNCTION_IN_FIELDS,
     REGISTERER_UNCONSTRAINED_FUNCTION_BROADCASTED_MAGIC_VALUE

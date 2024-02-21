@@ -117,7 +117,7 @@ describe('abi/encoder', () => {
           name: 'contract_class',
           type: {
             kind: 'struct',
-            path: `types::contract_class::ContractClassId`,
+            path: `types::contract_class_id::ContractClassId`,
             fields: [
               {
                 name: 'inner',

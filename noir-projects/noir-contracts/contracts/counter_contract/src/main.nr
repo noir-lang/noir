@@ -16,7 +16,7 @@ contract Counter {
                 VALUE_NOTE_LEN,
             },
     };
-    use dep::easy_private_state::easy_private_state::EasyPrivateUint;
+    use dep::easy_private_state::EasyPrivateUint;
     // docs:end:imports
 
     // docs:start:storage_struct

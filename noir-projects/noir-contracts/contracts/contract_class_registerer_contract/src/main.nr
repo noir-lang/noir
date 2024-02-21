@@ -3,7 +3,7 @@ mod events;
 contract ContractClassRegisterer {
     use dep::std::option::Option;
     use dep::aztec::protocol_types::{
-        address::{AztecAddress, EthAddress}, contract_class::ContractClassId,
+        address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
         constants::{
         ARTIFACT_FUNCTION_TREE_MAX_HEIGHT, FUNCTION_TREE_HEIGHT,
         MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS, REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE

@@ -1,7 +1,7 @@
 use crate::{
     address::{eth_address::EthAddress, salted_initialization_hash::SaltedInitializationHash},
-    constants::GENERATOR_INDEX__PARTIAL_ADDRESS, contract_class::ContractClassId, hash::pedersen_hash,
-    traits::ToField
+    constants::GENERATOR_INDEX__PARTIAL_ADDRESS, contract_class_id::ContractClassId,
+    hash::pedersen_hash, traits::ToField
 };
 
 // Partial address

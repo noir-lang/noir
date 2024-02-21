@@ -1,6 +1,7 @@
 use dep::protocol_types::{
     abis::{new_contract_data::NewContractData as ContractLeafPreimage},
-    address::{AztecAddress, EthAddress}, contract_class::ContractClassId, grumpkin_point::GrumpkinPoint
+    address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
+    grumpkin_point::GrumpkinPoint
 };
 use dep::std::merkle::compute_merkle_root;
 

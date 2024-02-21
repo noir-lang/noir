@@ -1,7 +1,7 @@
 use dep::types::{
     abis::{
     call_request::CallRequest, public_call_stack_item::PublicCallStackItem,
-    combined_accumulated_data::{CombinedAccumulatedData, CombinedAccumulatedDataBuilder},
+    accumulated_data::{CombinedAccumulatedData, CombinedAccumulatedDataBuilder},
     kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder,
     new_contract_data::NewContractData, kernel_data::{PrivateKernelTailData, PublicKernelData},
     public_call_data::PublicCallData, public_circuit_public_inputs::PublicCircuitPublicInputs,

@@ -1,95 +1,20 @@
-use dep::aztec::context::{PrivateContext, PublicContext, Context};
-use dep::aztec::oracle::storage::{storage_read, storage_write};
-use dep::aztec::protocol_types::traits::{Serialize, Deserialize};
+use crate::{
+  leaf::Leaf,
+  slow_update_proof::SlowUpdateProof,
+};
+use dep::aztec::{
+  context::Context,
+  oracle::storage::{storage_read, storage_write},
+  protocol_types::traits::{Serialize, Deserialize},
+};
 use dep::std::hash::pedersen_hash;
 use dep::std::merkle::compute_merkle_root;
-use dep::std::option::Option;
 
 // The epoch length is just a random number for now.
 global EPOCH_LENGTH: u120 = 100;
 
 fn compute_next_change(time: Field) -> Field {
     ((time as u120 / EPOCH_LENGTH + 1) * EPOCH_LENGTH) as Field
-}
-
-// A leaf in the tree.
-struct Leaf {
-  next_change: Field,
-  before: Field,
-  after: Field,
-}
-
-impl Serialize<3> for Leaf {
-  fn serialize(leaf: Leaf) -> [Field; 3] {
-      [leaf.next_change, leaf.before, leaf.after]
-  }
-}
-
-impl Deserialize<3> for Leaf {
-  fn deserialize(serialized: [Field; 3]) -> Leaf {
-      Leaf { next_change: serialized[0], before: serialized[1], after: serialized[2] }
-  }
-}
-
-// Subset of the MembershipProof that is needed for the slow update.
-struct SlowUpdateInner<N> {
-  value: Field, // Value only really used for the private flow though :thinking:
-  sibling_path: [Field; N],
-}
-
-// docs:start:slow_update_proof
-// The slow update proof. Containing two merkle paths
-// One for the before and one for the after trees.
-// M = 2 * N + 4
-struct SlowUpdateProof<N, M> {
-  index: Field,
-  new_value: Field,
-  before: SlowUpdateInner<N>,
-  after: SlowUpdateInner<N>,
-}
-// docs:end:slow_update_proof
-
-pub fn deserialize_slow_update_proof<N, M>(serialized: [Field; M]) -> SlowUpdateProof<N, M> {
-    SlowUpdateProof::deserialize(serialized)
-}
-
-impl<N, M> SlowUpdateProof<N, M> {
-  pub fn serialize(self: Self) -> [Field; M] {
-    let mut serialized = [0; M];
-    serialized[0] = self.index;
-    serialized[1] = self.new_value;
-    serialized[2] = self.before.value;
-    serialized[3 + N] = self.after.value;
-
-    for i in 0..N {
-      serialized[3 + i] = self.before.sibling_path[i];
-      serialized[4 + N + i] = self.after.sibling_path[i];
-    }
-    serialized
-  }
-
-  pub fn deserialize(serialized: [Field; M]) -> Self {
-    let mut before_sibling_path = [0; N];
-    let mut after_sibling_path = [0; N];
-
-    for i in 0..N {
-      before_sibling_path[i] = serialized[3 + i];
-      after_sibling_path[i] = serialized[4 + N + i];
-    }
-
-    Self {
-      index: serialized[0],
-      new_value: serialized[1],
-      before: SlowUpdateInner {
-        value: serialized[2],
-        sibling_path: before_sibling_path,
-      },
-      after: SlowUpdateInner {
-        value: serialized[3 + N],
-        sibling_path: after_sibling_path,
-      },
-    }
-  }
 }
 
 // The simple slow map which stores a sparse tree

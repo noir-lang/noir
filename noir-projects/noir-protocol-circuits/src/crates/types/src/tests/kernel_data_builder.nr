@@ -2,7 +2,7 @@ use crate::{
     abis::{
     call_context::CallContext, call_request::{CallerContext, CallRequest},
     combined_constant_data::CombinedConstantData,
-    combined_accumulated_data::{CombinedAccumulatedDataBuilder, AccumulatedNonRevertibleDataBuilder, AccumulatedRevertibleDataBuilder},
+    accumulated_data::{CombinedAccumulatedDataBuilder, AccumulatedNonRevertibleDataBuilder, AccumulatedRevertibleDataBuilder},
     kernel_circuit_public_inputs::{
     PrivateKernelInnerCircuitPublicInputs, PrivateKernelTailCircuitPublicInputs,
     PublicKernelCircuitPublicInputs, RollupKernelCircuitPublicInputs

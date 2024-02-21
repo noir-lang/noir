@@ -81,7 +81,7 @@ mod tests {
         new_contract_data::NewContractData, public_data_read::PublicDataRead,
         public_data_update_request::PublicDataUpdateRequest, public_call_data::PublicCallData
     },
-        address::{AztecAddress, EthAddress}, contract_class::ContractClassId,
+        address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
         contrakt::storage_read::StorageRead, hash::compute_logs_hash,
         tests::{kernel_data_builder::PreviousKernelDataBuilder, public_call_data_builder::PublicCallDataBuilder},
         utils::{arrays::{array_eq, array_length}}

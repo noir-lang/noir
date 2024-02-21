@@ -1,0 +1,176 @@
+use crate::{
+    abis::{
+    accumulated_data::{
+    public_accumulated_non_revertible_data::PublicAccumulatedNonRevertibleData,
+    public_accumulated_revertible_data::PublicAccumulatedRevertibleData
+},
+    call_request::CallRequest, caller_context::CallerContext, new_contract_data::NewContractData,
+    nullifier_key_validation_request::NullifierKeyValidationRequestContext,
+    public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+}
+};
+use crate::constants::{
+    MAX_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_NEW_COMMITMENTS_PER_TX,
+    MAX_NEW_NULLIFIERS_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX, MAX_NEW_CONTRACTS_PER_TX,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX, NUM_FIELDS_PER_SHA256,
+    MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
+    MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_REVERTIBLE_COMMITMENTS_PER_TX,
+    MAX_REVERTIBLE_NULLIFIERS_PER_TX, MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+    MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX, MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX, MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+};
+
+use dep::std::unsafe;
+use crate::traits::is_empty;
+
+use crate::utils::arrays::{array_cp, array_concat, array_to_bounded_vec};
+
+struct CombinedAccumulatedData {
+    read_requests: [SideEffect; MAX_READ_REQUESTS_PER_TX],
+    nullifier_key_validation_requests: [NullifierKeyValidationRequestContext; MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX],
+
+    new_commitments: [SideEffect; MAX_NEW_COMMITMENTS_PER_TX],
+    new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
+
+    private_call_stack: [CallRequest; MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX],
+    public_call_stack: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
+    new_l2_to_l1_msgs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_TX],
+
+    encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
+    unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
+
+    // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
+    // variable-length data.
+    encrypted_log_preimages_length: Field,
+    unencrypted_log_preimages_length: Field,
+
+    new_contracts: [NewContractData; MAX_NEW_CONTRACTS_PER_TX],
+
+    public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+
+    public_data_reads: [PublicDataRead; MAX_PUBLIC_DATA_READS_PER_TX],
+}
+
+impl CombinedAccumulatedData {
+    pub fn needs_app_logic(self) -> bool {
+        // if we have any enqueued revertible public calls, we need to run the public app logic circuit.
+        !self.public_call_stack[0].is_empty()
+    }
+
+    pub fn recombine(
+        non_revertible: PublicAccumulatedNonRevertibleData,
+        revertible: PublicAccumulatedRevertibleData
+    ) -> CombinedAccumulatedData {
+        CombinedAccumulatedData {
+            read_requests: revertible.read_requests,
+            nullifier_key_validation_requests: revertible.nullifier_key_validation_requests,
+            new_commitments: array_concat(non_revertible.new_commitments, revertible.new_commitments),
+            new_nullifiers: array_concat(non_revertible.new_nullifiers, revertible.new_nullifiers),
+            private_call_stack: revertible.private_call_stack,
+            public_call_stack: array_concat(
+                non_revertible.public_call_stack,
+                revertible.public_call_stack
+            ),
+            new_l2_to_l1_msgs: revertible.new_l2_to_l1_msgs,
+            encrypted_logs_hash: revertible.encrypted_logs_hash,
+            unencrypted_logs_hash: revertible.unencrypted_logs_hash,
+            encrypted_log_preimages_length: revertible.encrypted_log_preimages_length,
+            unencrypted_log_preimages_length: revertible.unencrypted_log_preimages_length,
+            new_contracts: revertible.new_contracts,
+            public_data_update_requests: array_concat(
+                non_revertible.public_data_update_requests,
+                revertible.public_data_update_requests
+            ),
+            public_data_reads: array_concat(
+                non_revertible.public_data_reads,
+                revertible.public_data_reads
+            )
+        }
+    }
+}
+
+mod tests {
+    use crate::abis::{
+        accumulated_data::combined_accumulated_data_builder::CombinedAccumulatedDataBuilder,
+        call_request::CallRequest, caller_context::CallerContext, new_contract_data::NewContractData,
+        nullifier_key_validation_request::NullifierKeyValidationRequestContext,
+        public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
+        side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    };
+    use crate::address::AztecAddress;
+    use crate::utils::arrays::array_eq;
+    use dep::std::unsafe;
+
+    #[test]
+    unconstrained fn splits_revertible_and_non_revertible() {
+        let mut builder: CombinedAccumulatedDataBuilder = unsafe::zeroed();
+
+        let non_revertible_commitments = [
+            SideEffect { value: 1, counter: 1 },
+            SideEffect { value: 2, counter: 3 }
+        ];
+
+        let non_revertible_nullifiers = [
+            SideEffectLinkedToNoteHash { value: 10, note_hash: 1, counter: 2 },
+            SideEffectLinkedToNoteHash { value: 20, note_hash: 2, counter: 4 }
+        ];
+
+        let non_revertible_public_stack = [
+            CallRequest {
+                hash: 1,
+                caller_contract_address: AztecAddress::from_field(1),
+                caller_context: CallerContext::empty(),
+                start_side_effect_counter: 5,
+                end_side_effect_counter: 0
+            },
+            CallRequest {
+                hash: 2,
+                caller_contract_address: AztecAddress::from_field(1),
+                caller_context: CallerContext::empty(),
+                start_side_effect_counter: 6,
+                end_side_effect_counter: 0
+            }
+        ];
+
+        let revertible_commitments = [
+            SideEffect { value: 3, counter: 7 },
+            SideEffect { value: 4, counter: 10 }
+        ];
+
+        let revertible_nullifiers = [
+            SideEffectLinkedToNoteHash { value: 30, note_hash: 3, counter: 8 },
+            SideEffectLinkedToNoteHash { value: 40, note_hash: 4, counter: 11 }
+        ];
+
+        let revertible_public_call_stack = [
+            CallRequest {
+                hash: 3,
+                caller_contract_address: AztecAddress::from_field(3),
+                caller_context: CallerContext::empty(),
+                start_side_effect_counter: 9,
+                end_side_effect_counter: 0
+            }
+        ];
+
+        builder.new_commitments.extend_from_array(non_revertible_commitments);
+        builder.new_commitments.extend_from_array(revertible_commitments);
+
+        builder.new_nullifiers.extend_from_array(non_revertible_nullifiers);
+        builder.new_nullifiers.extend_from_array(revertible_nullifiers);
+
+        builder.public_call_stack.extend_from_array(non_revertible_public_stack);
+        builder.public_call_stack.extend_from_array(revertible_public_call_stack);
+
+        let (non_revertible, revertible) = builder.split(7);
+
+        assert(array_eq(non_revertible.new_commitments, non_revertible_commitments));
+        assert(array_eq(non_revertible.new_nullifiers, non_revertible_nullifiers));
+        assert(array_eq(non_revertible.public_call_stack, non_revertible_public_stack));
+
+        assert(array_eq(revertible.new_commitments, revertible_commitments));
+        assert(array_eq(revertible.new_nullifiers, revertible_nullifiers));
+        assert(array_eq(revertible.public_call_stack, revertible_public_call_stack));
+    }
+}

@@ -15,7 +15,7 @@ contract SlowTree {
         state_vars::{map::Map, public_state::PublicState, set::Set},
         protocol_types::type_serialization::FIELD_SERIALIZED_LEN
     };
-    use dep::slow_updates_tree::slow_map::{SlowMap, Leaf, SlowUpdateProof, compute_merkle_root, deserialize_slow_update_proof};
+    use dep::slow_updates_tree::{SlowMap, Leaf, SlowUpdateProof, compute_merkle_root, deserialize_slow_update_proof};
 
     // docs:start:import_pop_capsule
     use crate::capsule::pop_capsule;

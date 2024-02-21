@@ -1,8 +1,8 @@
 use dep::std;
 use dep::types::{
     abis::{
-    call_request::CallRequest, combined_accumulated_data::CombinedAccumulatedData,
-    function_data::FunctionData, kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputsBuilder,
+    call_request::CallRequest, accumulated_data::CombinedAccumulatedData, function_data::FunctionData,
+    kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputsBuilder,
     membership_witness::ReadRequestMembershipWitness, new_contract_data::NewContractData,
     nullifier_key_validation_request::NullifierKeyValidationRequestContext,
     private_circuit_public_inputs::PrivateCircuitPublicInputs,
@@ -11,7 +11,7 @@ use dep::types::{
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
     address::{AztecAddress, EthAddress, PartialAddress, compute_initialization_hash},
-    contract_class::ContractClassId, contrakt::contract_deployment_data::ContractDeploymentData,
+    contract_class_id::ContractClassId, contrakt::contract_deployment_data::ContractDeploymentData,
     constants::{
     MAX_NEW_NULLIFIERS_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_COMMITMENTS_PER_CALL,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_READ_REQUESTS_PER_CALL,

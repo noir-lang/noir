@@ -19,7 +19,7 @@ mod nullifier_key_validation_request;
 mod public_data_read;
 mod public_data_update_request;
 
-mod combined_accumulated_data;
+mod accumulated_data;
 
 mod private_kernel;
 mod kernel_circuit_public_inputs;
@@ -29,6 +29,7 @@ mod call_request;
 mod private_call_stack_item;
 mod public_call_stack_item;
 mod call_context;
+mod caller_context;
 
 mod public_call_data;
 

@@ -1,9 +1,7 @@
 // docs:start:easy_private_token_contract
 contract EasyPrivateToken {
     use dep::aztec::protocol_types::address::AztecAddress;
-    use dep::std::option::Option;
     use dep::aztec::{
-        context::{PrivateContext, PublicContext, Context},
         note::{
             note_header::NoteHeader,
             utils as note_utils,
@@ -14,7 +12,7 @@ contract EasyPrivateToken {
             balance_utils,
             value_note::ValueNote,
     };
-    use dep::easy_private_state::easy_private_state::EasyPrivateUint;
+    use dep::easy_private_state::EasyPrivateUint;
 
     struct Storage {
         balances: Map<AztecAddress, EasyPrivateUint>,

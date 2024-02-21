@@ -2,7 +2,7 @@
 contract InclusionProofs {
     use dep::aztec::protocol_types::{
         abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress},
-        grumpkin_point::GrumpkinPoint, contract_class::ContractClassId
+        grumpkin_point::GrumpkinPoint, contract_class_id::ContractClassId
     };
     use dep::aztec::{
         state_vars::{map::Map, set::Set, public_state::PublicState}, context::Context,

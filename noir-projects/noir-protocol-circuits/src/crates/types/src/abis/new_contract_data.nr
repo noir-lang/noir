@@ -1,5 +1,5 @@
 use crate::address::{AztecAddress, EthAddress};
-use crate::contract_class::ContractClassId;
+use crate::contract_class_id::ContractClassId;
 use crate::constants::{GENERATOR_INDEX__CONTRACT_LEAF, NEW_CONTRACT_DATA_LENGTH};
 use dep::std::cmp::Eq;
 use crate::traits::{Empty, Serialize, Hash, Deserialize};
