@@ -293,7 +293,7 @@ describe('e2e_inclusion_proofs_contract', () => {
       // This should fail because we choose a block number before the contract was deployed
       const blockNumber = deploymentBlockNumber - 1;
       const contractData = new NewContractData(contract.address, portalContractAddress, contractClassId);
-      const leaf = contractData.computeLeaf();
+      const leaf = contractData.hash();
 
       await expect(
         contract.methods

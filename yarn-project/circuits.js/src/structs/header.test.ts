@@ -33,4 +33,13 @@ describe('Header', () => {
     const fields = header.toFields();
     expect(fields.length).toBe(HEADER_LENGTH);
   });
+
+  it('computes empty hash', () => {
+    const header = Header.empty();
+    const hash = header.hash();
+    expect(hash).toMatchSnapshot();
+
+    // Value used in empty_hash test in header.nr
+    // console.log("hash", hash.toString());
+  });
 });

@@ -136,7 +136,7 @@ describe('sequencer/solo_block_builder', () => {
 
   // Updates the expectedDb trees based on the new commitments, contracts, and nullifiers from these txs
   const updateExpectedTreesFromTxs = async (txs: ProcessedTx[]) => {
-    const newContracts = txs.flatMap(tx => tx.data.end.newContracts.map(cd => cd.computeLeaf()));
+    const newContracts = txs.flatMap(tx => tx.data.end.newContracts.map(cd => cd.hash()));
     for (const [tree, leaves] of [
       [
         MerkleTreeId.NOTE_HASH_TREE,
@@ -235,7 +235,7 @@ describe('sequencer/solo_block_builder', () => {
           tx.data.combinedData.newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value),
           tx.data.combinedData.newL2ToL1Msgs,
           tx.data.combinedData.publicDataUpdateRequests.map(t => new PublicDataWrite(t.leafSlot, t.newValue)),
-          tx.data.combinedData.newContracts.map(cd => cd.computeLeaf()),
+          tx.data.combinedData.newContracts.map(cd => cd.hash()),
           tx.data.combinedData.newContracts.map(cd => new ContractData(cd.contractAddress, cd.portalContractAddress)),
           tx.encryptedLogs || new TxL2Logs([]),
           tx.unencryptedLogs || new TxL2Logs([]),

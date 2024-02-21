@@ -1,12 +1,14 @@
 use crate::{
     abis::{
-        append_only_tree_snapshot::{AppendOnlyTreeSnapshot, APPEND_ONLY_TREE_SNAPSHOT_LENGTH},
-        global_variables::{GlobalVariables, GLOBAL_VARIABLES_LENGTH}
-    },
-    constants::{GENERATOR_INDEX__BLOCK_HASH, HEADER_LENGTH, NUM_FIELDS_PER_SHA256, STATE_REFERENCE_LENGTH, CONTENT_COMMITMENT_LENGTH},
+    append_only_tree_snapshot::{AppendOnlyTreeSnapshot, APPEND_ONLY_TREE_SNAPSHOT_LENGTH},
+    global_variables::{GlobalVariables, GLOBAL_VARIABLES_LENGTH}
+},
+    constants::{
+    GENERATOR_INDEX__BLOCK_HASH, HEADER_LENGTH, NUM_FIELDS_PER_SHA256, STATE_REFERENCE_LENGTH,
+    CONTENT_COMMITMENT_LENGTH
+},
     hash::pedersen_hash, state_reference::StateReference, traits::{Deserialize, Empty, Hash, Serialize},
-    utils::{arr_copy_slice},
-    content_commitment::ContentCommitment
+    utils::{arr_copy_slice}, content_commitment::ContentCommitment
 };
 
 // docs:start:header
@@ -93,4 +95,13 @@ fn serialization_of_empty() {
 fn hash_smoke() {
     let header: Header = dep::std::unsafe::zeroed();
     let _hashed = header.hash();
+}
+
+#[test]
+fn empty_hash_is_zero() {
+    let header: Header = dep::std::unsafe::zeroed();
+    let hash = header.hash();
+
+    // Value from new_contract_data.test.ts "computes empty hash" test
+    assert_eq(hash, 0x2df930cc7b9fc763e82ade72f7c4618834692b2a3d0936aff8d7bbfb27f59d6e);
 }

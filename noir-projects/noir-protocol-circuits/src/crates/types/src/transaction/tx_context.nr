@@ -76,7 +76,6 @@ fn serialization_of_empty() {
     assert(context.eq(deserialized));
 }
 
-// TODO(#4619): Hash non-empty
 #[test]
 fn empty_hash() {
     let inputs: TxContext = dep::std::unsafe::zeroed();

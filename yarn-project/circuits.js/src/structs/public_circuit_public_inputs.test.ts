@@ -28,4 +28,13 @@ describe('PublicCircuitPublicInputs', () => {
     const hash = target.hash();
     expect(hash).toMatchSnapshot();
   });
+
+  it('computes empty item hash', () => {
+    const item = PublicCircuitPublicInputs.empty();
+    const hash = item.hash();
+    expect(hash).toMatchSnapshot();
+
+    // Value used in empty_hash test in public_circuit_public_inputs.nr
+    // console.log("hash", hash.toString());
+  });
 });

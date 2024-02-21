@@ -916,7 +916,7 @@ export function makeAppendOnlyTreeSnapshot(seed = 1): AppendOnlyTreeSnapshot {
  * @returns An eth address.
  */
 export function makeEthAddress(seed = 1): EthAddress {
-  return new EthAddress(Buffer.alloc(20, seed));
+  return EthAddress.fromField(fr(seed));
 }
 
 /**
@@ -935,7 +935,7 @@ export function makeBytes(size = 32, fill = 1): Buffer {
  * @returns An aztec address.
  */
 export function makeAztecAddress(seed = 1): AztecAddress {
-  return new AztecAddress(fr(seed).toBuffer());
+  return AztecAddress.fromField(fr(seed));
 }
 
 /**

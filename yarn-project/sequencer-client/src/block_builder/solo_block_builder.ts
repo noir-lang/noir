@@ -108,7 +108,7 @@ export class SoloBlockBuilder implements BlockBuilder {
           tx.data.combinedData.newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value),
           tx.data.combinedData.newL2ToL1Msgs,
           tx.data.combinedData.publicDataUpdateRequests.map(t => new PublicDataWrite(t.leafSlot, t.newValue)),
-          tx.data.combinedData.newContracts.map(cd => cd.computeLeaf()),
+          tx.data.combinedData.newContracts.map(cd => cd.hash()),
           tx.data.combinedData.newContracts.map(cd => new ContractData(cd.contractAddress, cd.portalContractAddress)),
           tx.encryptedLogs || new TxL2Logs([]),
           tx.unencryptedLogs || new TxL2Logs([]),
@@ -602,7 +602,7 @@ export class SoloBlockBuilder implements BlockBuilder {
 
     // Update the contract and note hash trees with the new items being inserted to get the new roots
     // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
-    const newContracts = tx.data.combinedData.newContracts.map(cd => cd.computeLeaf());
+    const newContracts = tx.data.combinedData.newContracts.map(cd => cd.hash());
     const newCommitments = tx.data.combinedData.newCommitments.map(x => x.value.toBuffer());
 
     await this.db.appendLeaves(

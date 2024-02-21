@@ -117,7 +117,10 @@ fn serialization_of_empty() {
 }
 
 #[test]
-fn hash_smoke() {
-    let pcpi: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
-    let _hashed = pcpi.hash();
+fn empty_hash() {
+    let inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
+    let hash = inputs.hash();
+
+    // Value from public_circuit_public_inputs.test.ts "computes empty item hash" test
+    assert_eq(hash, 0x0d43290c164ebc3d80d4d17f1939482d9d01ad503cebceb8c665d2bd96597a68);
 }
