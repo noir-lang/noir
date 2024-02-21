@@ -1,19 +1,11 @@
 import { ArchiverConfig } from '@aztec/archiver';
 import { AztecNodeConfig } from '@aztec/aztec-node';
 import { AccountManager } from '@aztec/aztec.js';
-import { L1ContractAddresses } from '@aztec/ethereum';
+import { L1ContractAddresses, l1ContractsNames } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { LogFn, createConsoleLogger } from '@aztec/foundation/log';
 import { P2PConfig } from '@aztec/p2p';
 import { GrumpkinScalar, PXEService, PXEServiceConfig } from '@aztec/pxe';
-
-const l1ContractsNames = [
-  'rollupAddress',
-  'inboxAddress',
-  'outboxAddress',
-  'contractDeploymentEmitterAddress',
-  'availabilityOracleAddress',
-];
 
 /**
  * Checks if the object has l1Contracts property
