@@ -1,4 +1,4 @@
-FROM rust:1.71.1-slim-bookworm as base
+FROM rust:1.73.0-slim-bookworm as base
 RUN apt-get update && apt-get upgrade -y && apt-get install build-essential git -y
 WORKDIR /usr/src/noir
 ENV PATH="${PATH}:/usr/src/noir/target/release"
