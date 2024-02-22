@@ -105,7 +105,7 @@ impl<H> BuildHasher<H> for BuildHasherDefault<H>
 where 
     H: Hasher + Default
 {
-    fn build_hasher(self) -> H{
+    fn build_hasher(_self: Self) -> H{
         H::default()
     }
 }

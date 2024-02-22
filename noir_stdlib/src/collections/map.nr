@@ -262,7 +262,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     }
 
     // Get the compile-time map capacity.
-    pub fn capacity(self) -> u64 {
+    pub fn capacity(_self: Self) -> u64 {
         N
     }
 
@@ -389,7 +389,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // We use 0.5 constant near variadic attempt and attempt^2 monomials.
     // This ensures good uniformity of distribution for table sizes
     // equal to prime numbers or powers of two. 
-    fn quadratic_probe(self, hash: u64, attempt: u64) -> u64 {
+    fn quadratic_probe(_self: Self, hash: u64, attempt: u64) -> u64 {
         (hash + (attempt + attempt * attempt) / 2) % N
     }
 
