@@ -956,7 +956,7 @@ mod test {
     #[test]
     fn resolve_for_expr() {
         let src = r#"
-            fn main(x : Field) {
+            fn main(x : u64) {
                 for i in 1..20 {
                     let _z = x + i;
                 };
