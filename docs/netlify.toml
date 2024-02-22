@@ -191,10 +191,6 @@
     to = "/developers/getting_started/quickstart"
 
 [[redirects]]
-    from = "/dev_docs/getting_started/blank_box"
-    to = "/developers/cli/blank_box"
-
-[[redirects]]
     from = "/dev_docs/getting_started/updating"
     to = "/developers/cli/updating"
 

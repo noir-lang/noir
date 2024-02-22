@@ -261,7 +261,6 @@ const sidebars = {
           label: "Guides",
           type: "category",
           items: [
-            "developers/sandbox/guides/blank_box",
             "developers/sandbox/guides/run_more_than_one_pxe_sandbox",
             "developers/wallets/creating_schnorr_accounts",
           ],

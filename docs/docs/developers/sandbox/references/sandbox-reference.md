@@ -210,9 +210,3 @@ UniswapContractArtifact
 > <sup><sub><a href="https://github.com/AztecProtocol/aztec-packages/blob/master//yarn-project/end-to-end/src/cli_docs_sandbox.test.ts#L95-L118" target="_blank" rel="noopener noreferrer">Source code: /yarn-project/end-to-end/src/cli_docs_sandbox.test.ts#L95-L118</a></sub></sup>
 
 You can see all of our example contracts in the monorepo [here](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-contracts/contracts).
-
-## Boxes
-
-The sandbox is shipped with full-stack Aztec project templates, with example Aztec.nr contracts, testing scripts, and web interfaces.
-
-You can read more information about how to use boxes [here](../guides/blank_box.md).
