@@ -72,11 +72,9 @@ export class FunctionLeafPreimage {
   }
 
   hash(): Fr {
-    return Fr.fromBuffer(
-      pedersenHash(
-        this.toFields().map(field => field.toBuffer()),
-        GeneratorIndex.FUNCTION_LEAF,
-      ),
+    return pedersenHash(
+      this.toFields().map(field => field.toBuffer()),
+      GeneratorIndex.FUNCTION_LEAF,
     );
   }
 }

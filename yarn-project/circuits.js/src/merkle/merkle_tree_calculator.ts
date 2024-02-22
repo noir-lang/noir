@@ -12,7 +12,7 @@ export class MerkleTreeCalculator {
   constructor(
     private height: number,
     zeroLeaf = Buffer.alloc(32),
-    hasher = (left: Buffer, right: Buffer) => pedersenHash([left, right]),
+    hasher = (left: Buffer, right: Buffer) => pedersenHash([left, right]).toBuffer(),
   ) {
     this.hasher = hasher;
     this.zeroHashes = Array.from({ length: height }).reduce(

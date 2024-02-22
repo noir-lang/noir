@@ -43,7 +43,7 @@ describe('Note Processor', () => {
   const firstBlockDataStartIndex = (firstBlockNum - 1) * numCommitmentsPerBlock;
   const firstBlockDataEndIndex = firstBlockNum * numCommitmentsPerBlock;
 
-  const computeMockNoteHash = (note: Note) => Fr.fromBuffer(pedersenHash(note.items.map(i => i.toBuffer())));
+  const computeMockNoteHash = (note: Note) => pedersenHash(note.items.map(i => i.toBuffer()));
 
   // ownedData: [tx1, tx2, ...], the numbers in each tx represents the indices of the note hashes the account owns.
   const createEncryptedLogsAndOwnedL1NotePayloads = (ownedData: number[][], ownedNotes: L1NotePayload[]) => {

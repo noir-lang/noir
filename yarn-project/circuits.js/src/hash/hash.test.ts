@@ -105,13 +105,13 @@ describe('hash', () => {
   it('Computes an empty nullifier hash ', () => {
     const emptyNull = SideEffectLinkedToNoteHash.empty();
 
-    const emptyHash = Fr.fromBuffer(computeNullifierHash(emptyNull)).toString();
+    const emptyHash = computeNullifierHash(emptyNull).toString();
     expect(emptyHash).toMatchSnapshot();
   });
 
   it('Computes an empty sideeffect hash ', () => {
     const emptySideEffect = SideEffect.empty();
-    const emptyHash = Fr.fromBuffer(computeCommitmentsHash(emptySideEffect)).toString();
+    const emptyHash = computeCommitmentsHash(emptySideEffect).toString();
     expect(emptyHash).toMatchSnapshot();
   });
 

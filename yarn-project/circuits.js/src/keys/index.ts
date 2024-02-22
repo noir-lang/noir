@@ -20,7 +20,7 @@ function deriveSecretKey(secretKey: GrumpkinPrivateKey, index: Fr): GrumpkinPriv
   // TODO: Temporary hack. Should replace it with a secure way to derive the secret key.
   // Match the way keys are derived in noir-protocol-circuits/src/crates/private_kernel_lib/src/common.nr
   const hash = pedersenHash([secretKey.high, secretKey.low, index].map(v => v.toBuffer()));
-  return new GrumpkinScalar(hash);
+  return new GrumpkinScalar(hash.toBuffer());
 }
 
 /**

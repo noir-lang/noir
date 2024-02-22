@@ -120,11 +120,9 @@ export class TxContext {
   }
 
   hash(): Fr {
-    return Fr.fromBuffer(
-      pedersenHash(
-        this.toFields().map(f => f.toBuffer()),
-        GeneratorIndex.TX_CONTEXT,
-      ),
+    return pedersenHash(
+      this.toFields().map(f => f.toBuffer()),
+      GeneratorIndex.TX_CONTEXT,
     );
   }
 }

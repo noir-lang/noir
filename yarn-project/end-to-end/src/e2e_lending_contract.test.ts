@@ -172,7 +172,7 @@ describe('e2e_lending_contract', () => {
           .request(),
       );
 
-      await wallet.createAuthWitness(Fr.fromBuffer(messageHash));
+      await wallet.createAuthWitness(messageHash);
       await lendingSim.progressTime(TIME_JUMP);
       lendingSim.depositPrivate(lendingAccount.address, lendingAccount.key(), depositAmount);
 
@@ -205,7 +205,7 @@ describe('e2e_lending_contract', () => {
           .unshield(lendingAccount.address, lendingContract.address, depositAmount, nonce)
           .request(),
       );
-      await wallet.createAuthWitness(Fr.fromBuffer(messageHash));
+      await wallet.createAuthWitness(messageHash);
 
       await lendingSim.progressTime(TIME_JUMP);
       lendingSim.depositPrivate(lendingAccount.address, lendingAccount.address.toField(), depositAmount);
@@ -303,7 +303,7 @@ describe('e2e_lending_contract', () => {
         lendingContract.address,
         stableCoin.methods.burn(lendingAccount.address, repayAmount, nonce).request(),
       );
-      await wallet.createAuthWitness(Fr.fromBuffer(messageHash));
+      await wallet.createAuthWitness(messageHash);
 
       await lendingSim.progressTime(TIME_JUMP);
       lendingSim.repayPrivate(lendingAccount.address, lendingAccount.key(), repayAmount);
@@ -329,7 +329,7 @@ describe('e2e_lending_contract', () => {
         lendingContract.address,
         stableCoin.methods.burn(lendingAccount.address, repayAmount, nonce).request(),
       );
-      await wallet.createAuthWitness(Fr.fromBuffer(messageHash));
+      await wallet.createAuthWitness(messageHash);
 
       await lendingSim.progressTime(TIME_JUMP);
       lendingSim.repayPrivate(lendingAccount.address, lendingAccount.address.toField(), repayAmount);

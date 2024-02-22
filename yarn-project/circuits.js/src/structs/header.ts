@@ -94,11 +94,9 @@ export class Header {
   }
 
   hash(): Fr {
-    return Fr.fromBuffer(
-      pedersenHash(
-        this.toFields().map(f => f.toBuffer()),
-        GeneratorIndex.BLOCK_HASH,
-      ),
+    return pedersenHash(
+      this.toFields().map(f => f.toBuffer()),
+      GeneratorIndex.BLOCK_HASH,
     );
   }
 }

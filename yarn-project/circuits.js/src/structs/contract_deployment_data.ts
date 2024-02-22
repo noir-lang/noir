@@ -89,11 +89,9 @@ export class ContractDeploymentData {
   }
 
   hash(): Fr {
-    return Fr.fromBuffer(
-      pedersenHash(
-        this.toFields().map(f => f.toBuffer()),
-        GeneratorIndex.CONTRACT_DEPLOYMENT_DATA,
-      ),
+    return pedersenHash(
+      this.toFields().map(f => f.toBuffer()),
+      GeneratorIndex.CONTRACT_DEPLOYMENT_DATA,
     );
   }
 }

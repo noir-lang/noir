@@ -31,12 +31,12 @@ export function computePrivateFunctionLeaf(fn: PrivateFunction): Buffer {
   return pedersenHash(
     [fn.selector, fn.vkHash].map(x => x.toBuffer()),
     GeneratorIndex.FUNCTION_LEAF,
-  );
+  ).toBuffer();
 }
 
 function getPrivateFunctionTreeCalculator(): MerkleTreeCalculator {
   if (!privateFunctionTreeCalculator) {
-    const functionTreeZeroLeaf = pedersenHash(new Array(PRIVATE_FUNCTION_SIZE).fill(Buffer.alloc(32)));
+    const functionTreeZeroLeaf = pedersenHash(new Array(PRIVATE_FUNCTION_SIZE).fill(Buffer.alloc(32))).toBuffer();
     privateFunctionTreeCalculator = new MerkleTreeCalculator(FUNCTION_TREE_HEIGHT, functionTreeZeroLeaf);
   }
   return privateFunctionTreeCalculator;

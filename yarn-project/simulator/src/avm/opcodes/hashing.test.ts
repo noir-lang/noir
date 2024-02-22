@@ -1,4 +1,3 @@
-import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { keccak, pedersenHash, poseidonHash, sha256 } from '@aztec/foundation/crypto';
 
 import { AvmContext } from '../avm_context.js';
@@ -45,7 +44,7 @@ describe('Hashing Opcodes', () => {
       await new Poseidon2(indirect, dstOffset, hashOffset, args.length).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);
-      expect(result).toEqual(new Field(toBigIntBE(expectedHash)));
+      expect(result).toEqual(new Field(expectedHash));
     });
 
     it('Should hash correctly - indirect', async () => {
@@ -63,7 +62,7 @@ describe('Hashing Opcodes', () => {
       await new Poseidon2(indirect, dstOffset, hashOffset, args.length).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);
-      expect(result).toEqual(new Field(toBigIntBE(expectedHash)));
+      expect(result).toEqual(new Field(expectedHash));
     });
   });
 
@@ -225,7 +224,7 @@ describe('Hashing Opcodes', () => {
       await new Pedersen(indirect, dstOffset, hashOffset, args.length).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);
-      expect(result).toEqual(new Field(toBigIntBE(expectedHash)));
+      expect(result).toEqual(new Field(expectedHash));
     });
 
     it('Should hash correctly - indirect', async () => {
@@ -244,7 +243,7 @@ describe('Hashing Opcodes', () => {
       await new Pedersen(indirect, dstOffset, hashOffset, args.length).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);
-      expect(result).toEqual(new Field(toBigIntBE(expectedHash)));
+      expect(result).toEqual(new Field(expectedHash));
     });
   });
 });

@@ -12,7 +12,7 @@ export class Pedersen implements Hasher {
    * purposes.
    */
   public hash(lhs: Uint8Array, rhs: Uint8Array): Buffer {
-    return pedersenHash([Buffer.from(lhs), Buffer.from(rhs)]);
+    return pedersenHash([Buffer.from(lhs), Buffer.from(rhs)]).toBuffer();
   }
 
   /*
@@ -20,6 +20,6 @@ export class Pedersen implements Hasher {
    * purposes.
    */
   public hashInputs(inputs: Buffer[]): Buffer {
-    return pedersenHash(inputs);
+    return pedersenHash(inputs).toBuffer();
   }
 }

@@ -1,4 +1,6 @@
-import { BarretenbergSync, Fr } from '@aztec/bb.js';
+import { BarretenbergSync, Fr as FrBarretenberg } from '@aztec/bb.js';
+
+import { Fr } from '../../fields/fields.js';
 
 /**
  * Create a pedersen commitment (point) from an array of input fields.
@@ -9,7 +11,7 @@ export function pedersenCommit(input: Buffer[]) {
     throw new Error('All Pedersen Commit input buffers must be <= 32 bytes.');
   }
   input = input.map(i => (i.length < 32 ? Buffer.concat([Buffer.alloc(32 - i.length, 0), i]) : i));
-  const point = BarretenbergSync.getSingleton().pedersenCommit(input.map(i => new Fr(i)));
+  const point = BarretenbergSync.getSingleton().pedersenCommit(input.map(i => new FrBarretenberg(i)));
   // toBuffer returns Uint8Arrays (browser/worker-boundary friendly).
   // TODO: rename toTypedArray()?
   return [Buffer.from(point.x.toBuffer()), Buffer.from(point.y.toBuffer())];
@@ -19,18 +21,20 @@ export function pedersenCommit(input: Buffer[]) {
  * Create a pedersen hash (field) from an array of input fields.
  * Left pads any inputs less than 32 bytes.
  */
-export function pedersenHash(input: Buffer[], index = 0): Buffer {
+export function pedersenHash(input: Buffer[], index = 0): Fr {
   if (!input.every(i => i.length <= 32)) {
     throw new Error('All Pedersen Hash input buffers must be <= 32 bytes.');
   }
   input = input.map(i => (i.length < 32 ? Buffer.concat([Buffer.alloc(32 - i.length, 0), i]) : i));
-  return Buffer.from(
-    BarretenbergSync.getSingleton()
-      .pedersenHash(
-        input.map(i => new Fr(i)),
-        index,
-      )
-      .toBuffer(),
+  return Fr.fromBuffer(
+    Buffer.from(
+      BarretenbergSync.getSingleton()
+        .pedersenHash(
+          input.map(i => new FrBarretenberg(i)),
+          index,
+        )
+        .toBuffer(),
+    ),
   );
 }
 

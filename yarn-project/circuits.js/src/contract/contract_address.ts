@@ -43,11 +43,9 @@ export function computePartialAddress(
       ? instance.saltedInitializationHash
       : computeSaltedInitializationHash(instance);
 
-  return Fr.fromBuffer(
-    pedersenHash(
-      [instance.contractClassId, saltedInitializationHash].map(x => x.toBuffer()),
-      GeneratorIndex.PARTIAL_ADDRESS,
-    ),
+  return pedersenHash(
+    [instance.contractClassId, saltedInitializationHash].map(x => x.toBuffer()),
+    GeneratorIndex.PARTIAL_ADDRESS,
   );
 }
 
@@ -58,11 +56,9 @@ export function computePartialAddress(
 export function computeSaltedInitializationHash(
   instance: Pick<ContractInstance, 'initializationHash' | 'salt' | 'portalContractAddress'>,
 ): Fr {
-  return Fr.fromBuffer(
-    pedersenHash(
-      [instance.salt, instance.initializationHash, instance.portalContractAddress].map(x => x.toBuffer()),
-      GeneratorIndex.PARTIAL_ADDRESS,
-    ),
+  return pedersenHash(
+    [instance.salt, instance.initializationHash, instance.portalContractAddress].map(x => x.toBuffer()),
+    GeneratorIndex.PARTIAL_ADDRESS,
   );
 }
 
@@ -79,7 +75,7 @@ export function computeContractAddressFromPartial(
     [publicKeyHash.toBuffer(), args.partialAddress.toBuffer()],
     GeneratorIndex.CONTRACT_ADDRESS,
   );
-  return new AztecAddress(result);
+  return AztecAddress.fromField(result);
 }
 
 /**
@@ -91,7 +87,7 @@ export function computePublicKeysHash(publicKey: PublicKey | undefined): Fr {
   if (!publicKey) {
     return Fr.ZERO;
   }
-  return Fr.fromBuffer(pedersenHash([publicKey.x.toBuffer(), publicKey.y.toBuffer()], GeneratorIndex.PARTIAL_ADDRESS));
+  return pedersenHash([publicKey.x.toBuffer(), publicKey.y.toBuffer()], GeneratorIndex.PARTIAL_ADDRESS);
 }
 
 /**
@@ -114,5 +110,5 @@ export function computeInitializationHash(initFn: FunctionAbi, args: any[]): Fr 
  */
 export function computeInitializationHashFromEncodedArgs(initFn: FunctionSelector, encodedArgs: Fr[]): Fr {
   const argsHash = computeVarArgsHash(encodedArgs);
-  return Fr.fromBuffer(pedersenHash([initFn.toBuffer(), argsHash.toBuffer()], GeneratorIndex.CONSTRUCTOR));
+  return pedersenHash([initFn.toBuffer(), argsHash.toBuffer()], GeneratorIndex.CONSTRUCTOR);
 }

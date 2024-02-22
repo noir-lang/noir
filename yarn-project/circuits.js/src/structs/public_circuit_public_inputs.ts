@@ -228,11 +228,9 @@ export class PublicCircuitPublicInputs {
   }
 
   hash(): Fr {
-    return Fr.fromBuffer(
-      pedersenHash(
-        this.toFields().map(field => field.toBuffer()),
-        GeneratorIndex.PUBLIC_CIRCUIT_PUBLIC_INPUTS,
-      ),
+    return pedersenHash(
+      this.toFields().map(field => field.toBuffer()),
+      GeneratorIndex.PUBLIC_CIRCUIT_PUBLIC_INPUTS,
     );
   }
 }

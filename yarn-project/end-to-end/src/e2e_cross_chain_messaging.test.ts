@@ -203,7 +203,7 @@ describe('e2e_cross_chain_messaging', () => {
         .withWallet(user1Wallet)
         .methods.exit_to_l1_private(l2Token.address, ethAccount, withdrawAmount, EthAddress.ZERO, nonce)
         .simulate(),
-    ).rejects.toThrowError(`Unknown auth witness for message hash 0x${expectedBurnMessageHash.toString('hex')}`);
+    ).rejects.toThrowError(`Unknown auth witness for message hash ${expectedBurnMessageHash.toString()}`);
   }, 120_000);
 
   it("Can't claim funds publicly if they were deposited privately", async () => {

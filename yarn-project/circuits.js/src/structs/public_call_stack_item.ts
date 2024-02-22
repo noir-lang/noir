@@ -96,11 +96,9 @@ export class PublicCallStackItem {
       this.publicInputs.argsHash = argsHash;
     }
 
-    return Fr.fromBuffer(
-      pedersenHash(
-        [this.contractAddress, this.functionData.hash(), this.publicInputs.hash()].map(f => f.toBuffer()),
-        GeneratorIndex.CALL_STACK_ITEM,
-      ),
+    return pedersenHash(
+      [this.contractAddress, this.functionData.hash(), this.publicInputs.hash()].map(f => f.toBuffer()),
+      GeneratorIndex.CALL_STACK_ITEM,
     );
   }
 

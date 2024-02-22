@@ -55,11 +55,9 @@ export class NewContractData {
     if (this.isEmpty()) {
       return new Fr(0);
     }
-    return Fr.fromBuffer(
-      pedersenHash(
-        NewContractData.getFields(this).map(f => f.toBuffer()),
-        GeneratorIndex.CONTRACT_LEAF,
-      ),
+    return pedersenHash(
+      NewContractData.getFields(this).map(f => f.toBuffer()),
+      GeneratorIndex.CONTRACT_LEAF,
     );
   }
 

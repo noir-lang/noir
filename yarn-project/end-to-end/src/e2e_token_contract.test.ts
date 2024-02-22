@@ -614,7 +614,7 @@ describe('e2e_token_contract', () => {
           const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
 
           await expect(action.simulate()).rejects.toThrowError(
-            `Unknown auth witness for message hash 0x${messageHash.toString('hex')}`,
+            `Unknown auth witness for message hash ${messageHash.toString()}`,
           );
         });
 
@@ -635,7 +635,7 @@ describe('e2e_token_contract', () => {
           await wallets[2].addAuthWitness(witness);
 
           await expect(action.simulate()).rejects.toThrowError(
-            `Unknown auth witness for message hash 0x${expectedMessageHash.toString('hex')}`,
+            `Unknown auth witness for message hash ${expectedMessageHash.toString()}`,
           );
           expect(await asset.methods.balance_of_private(accounts[0].address).view()).toEqual(balance0);
         });
@@ -874,7 +874,7 @@ describe('e2e_token_contract', () => {
         await wallets[2].addAuthWitness(witness);
 
         await expect(action.simulate()).rejects.toThrowError(
-          `Unknown auth witness for message hash 0x${expectedMessageHash.toString('hex')}`,
+          `Unknown auth witness for message hash ${expectedMessageHash.toString()}`,
         );
       });
     });
@@ -1062,7 +1062,7 @@ describe('e2e_token_contract', () => {
           const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
 
           await expect(action.simulate()).rejects.toThrowError(
-            `Unknown auth witness for message hash 0x${messageHash.toString('hex')}`,
+            `Unknown auth witness for message hash ${messageHash.toString()}`,
           );
         });
 
@@ -1081,7 +1081,7 @@ describe('e2e_token_contract', () => {
           await wallets[2].addAuthWitness(witness);
 
           await expect(action.simulate()).rejects.toThrowError(
-            `Unknown auth witness for message hash 0x${expectedMessageHash.toString('hex')}`,
+            `Unknown auth witness for message hash ${expectedMessageHash.toString()}`,
           );
         });
       });

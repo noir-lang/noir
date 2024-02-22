@@ -206,7 +206,7 @@ export const uniswapL1L2TestSuite = (
           .unshield(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHUnshieldApproval)
           .request(),
       );
-      await ownerWallet.createAuthWitness(Fr.fromBuffer(unshieldToUniswapMessageHash));
+      await ownerWallet.createAuthWitness(unshieldToUniswapMessageHash);
 
       // 4. Swap on L1 - sends L2 to L1 message to withdraw WETH to L1 and another message to swap assets.
       logger('Withdrawing weth to L1 and sending message to swap to dai');
@@ -475,7 +475,7 @@ export const uniswapL1L2TestSuite = (
             ownerEthAddress,
           )
           .simulate(),
-      ).rejects.toThrowError(`Unknown auth witness for message hash 0x${expectedMessageHash.toString('hex')}`);
+      ).rejects.toThrowError(`Unknown auth witness for message hash ${expectedMessageHash.toString()}`);
     });
 
     it("can't swap if user passes a token different to what the bridge tracks", async () => {
@@ -494,7 +494,7 @@ export const uniswapL1L2TestSuite = (
           .unshield(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHUnshieldApproval)
           .request(),
       );
-      await ownerWallet.createAuthWitness(Fr.fromBuffer(unshieldToUniswapMessageHash));
+      await ownerWallet.createAuthWitness(unshieldToUniswapMessageHash);
 
       // 3. Swap but send the wrong token address
       logger('Swap but send the wrong token address');
@@ -644,7 +644,7 @@ export const uniswapL1L2TestSuite = (
           .unshield(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHUnshieldApproval)
           .request(),
       );
-      await ownerWallet.createAuthWitness(Fr.fromBuffer(unshieldToUniswapMessageHash));
+      await ownerWallet.createAuthWitness(unshieldToUniswapMessageHash);
       const wethL2BalanceBeforeSwap = await wethCrossChainHarness.getL2PrivateBalanceOf(ownerAddress);
 
       // Swap

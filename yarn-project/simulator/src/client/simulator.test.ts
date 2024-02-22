@@ -23,7 +23,7 @@ describe('Simulator', () => {
   const ownerNullifierSecretKey = GrumpkinScalar.random();
   const ownerNullifierPublicKey = Point.random();
 
-  const hashFields = (data: Fr[]) => Fr.fromBuffer(pedersenHash(data.map(f => f.toBuffer())));
+  const hashFields = (data: Fr[]) => pedersenHash(data.map(f => f.toBuffer()));
 
   beforeEach(() => {
     oracle = mock<DBOracle>();

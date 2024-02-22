@@ -178,7 +178,7 @@ describe('Private Execution test suite', () => {
     return trees[name];
   };
 
-  const hashFields = (data: Fr[]) => Fr.fromBuffer(pedersenHash(data.map(f => f.toBuffer())));
+  const hashFields = (data: Fr[]) => pedersenHash(data.map(f => f.toBuffer()));
 
   beforeAll(() => {
     logger = createDebugLogger('aztec:test:private_execution');
