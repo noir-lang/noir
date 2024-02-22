@@ -24,7 +24,7 @@ fn main(x: Field, y: pub Field) {
 // are intended for recursive verification.
 ```
 
-By incorporating this attribute directly in the circuit's definition, tooling like Nargo and NoirJS can automatically handle the proving of recursive Noir programs without requiring additional flags or configurations.
+By incorporating this attribute directly in the circuit's definition, tooling like Nargo and NoirJS can automatically execute recursive-specific duties for Noir programs (e.g. recursive-friendly proof artifact generation) without additional flags or configurations.
 
 ## Verifying Recursive Proofs
 
