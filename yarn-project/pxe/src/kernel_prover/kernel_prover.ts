@@ -319,7 +319,8 @@ export class KernelProver {
   /**
    * Performs the matching between an array of read request and an array of commitments. This produces
    * hints for the private kernel ordering circuit to efficiently match a read request with the corresponding
-   * commitment.
+   * commitment. Several read requests might be pointing to the same commitment value. It is therefore valid
+   * to return more than one hint with the same index (contrary to getNullifierHints).
    *
    * @param readRequests - The array of read requests.
    * @param commitments - The array of commitments.
@@ -346,9 +347,11 @@ export class KernelProver {
   }
 
   /**
-   *  Performs the matching between an array of nullified commitments and an array of commitments. This produces
+   * Performs the matching between an array of nullified commitments and an array of commitments. This produces
    * hints for the private kernel ordering circuit to efficiently match a nullifier with the corresponding
-   * commitment.
+   * commitment. Note that the same commitment value might appear more than once in the commitments
+   * (resp. nullified commitments) array. It is crucial in this case that each hint points to a different index
+   * of the nullified commitments array. Otherwise, the private kernel will fail to validate.
    *
    * @param nullifiedCommitments - The array of nullified commitments.
    * @param commitments - The array of commitments.
