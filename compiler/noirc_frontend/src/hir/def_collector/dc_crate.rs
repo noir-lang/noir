@@ -402,7 +402,7 @@ fn inject_prelude(
             path,
         ) {
             let module_id = module_def.as_module().expect("std::prelude should be a module");
-            let prelude = context.module(module_id).scope().names();
+            let prelude = context.module(module_id).map(scope).unwrap_or_else(|| ItemScope::default()).names();
 
             for path in prelude {
                 let mut segments = segments.clone();

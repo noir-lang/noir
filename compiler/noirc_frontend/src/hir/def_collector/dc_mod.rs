@@ -612,7 +612,7 @@ impl<'a> ModCollector<'a> {
         // the struct name.
         if add_to_parent_scope {
             let mod_id = ModuleId {
-                krate: self.def_collector.def_map.krate,
+                krate: Some(self.def_collector.def_map.krate),
                 local_id: LocalModuleId(module_id),
             };
 

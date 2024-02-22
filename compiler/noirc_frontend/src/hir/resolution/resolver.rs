@@ -138,7 +138,7 @@ impl<'a> Resolver<'a> {
         file: FileId,
     ) -> Resolver<'a> {
         let module_id = path_resolver.module_id();
-        let in_contract = module_id.module(def_maps).is_contract;
+        let in_contract = module_id.module(def_maps).map(is_contract).unwrap_or(false);
 
         Self {
             path_resolver,
@@ -934,7 +934,7 @@ impl<'a> Resolver<'a> {
         }
         let is_low_level_function =
             func.attributes().function.as_ref().map_or(false, |func| func.is_low_level());
-        if !self.path_resolver.module_id().krate.is_stdlib() && is_low_level_function {
+        if !self.path_resolver.module_id().krate.map(is_stdlib).unwrap_or(false) && is_low_level_function {
             let error =
                 ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() };
             self.push_err(error);
@@ -1253,7 +1253,7 @@ impl<'a> Resolver<'a> {
             return Some(self.resolve_expression(assert_message_expr));
         }
 
-        let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
+        let is_in_stdlib = self.path_resolver.module_id().krate.map(is_stdlib).unwrap_or(false);
         let assert_msg_call_path = if is_in_stdlib {
             ExpressionKind::Variable(Path {
                 segments: vec![Ident::from("resolve_assert_message")],
@@ -1345,7 +1345,7 @@ impl<'a> Resolver<'a> {
     // This is also true if `current == target`.
     fn module_descendent_of_target(
         &self,
-        krate: CrateId,
+        opt_krate: Option<CrateId>,
         target: LocalModuleId,
         current: LocalModuleId,
     ) -> bool {
@@ -1353,9 +1353,14 @@ impl<'a> Resolver<'a> {
             return true;
         }
 
-        self.def_maps[&krate].modules[current.0]
-            .parent
-            .map_or(false, |parent| self.module_descendent_of_target(krate, target, parent))
+        if let Some(krate) = opt_krate {
+            self.def_maps[&krate].modules[current.0]
+                .parent
+                .map_or(false, |parent| self.module_descendent_of_target(Some(krate), target, parent))
+        
+        } else {
+            current == target
+        }
     }
 
     fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {

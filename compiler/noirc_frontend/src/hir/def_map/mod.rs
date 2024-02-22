@@ -50,7 +50,7 @@ impl ModuleId {
 impl ModuleId {
     pub fn module(self, def_maps: &BTreeMap<CrateId, CrateDefMap>) -> Option<&ModuleData> {
         if let Some(krate) = self.krate {
-            &def_maps[&krate].modules()[self.local_id.0]
+            Some(&def_maps[&krate].modules()[self.local_id.0])
         } else {
             None
         }
@@ -85,7 +85,7 @@ impl CrateDefMap {
         // expect the same crate to be processed twice. It would not
         // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
-        if context.def_map(&crate_id).is_some() {
+        if context.def_map(Some(&crate_id)).is_some() {
             return errors;
         }
 
