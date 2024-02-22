@@ -27,8 +27,8 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
-    ContractFunctionType, FunctionKind, IntegerBitSize, Type, TypeBinding, TypeBindings,
-    TypeVariable, TypeVariableKind, UnaryOp, Visibility,
+    ContractFunctionType, FunctionKind, IntegerBitSize, Signedness, Type, TypeBinding,
+    TypeBindings, TypeVariable, TypeVariableKind, UnaryOp, Visibility,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -1107,7 +1107,8 @@ impl<'interner> Monomorphizer<'interner> {
                 return match opcode.as_str() {
                     "modulus_num_bits" => {
                         let bits = (FieldElement::max_num_bits() as u128).into();
-                        let typ = ast::Type::Field;
+                        let typ =
+                            ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
                         Some(ast::Expression::Literal(ast::Literal::Integer(bits, typ, location)))
                     }
                     "zeroed" => {

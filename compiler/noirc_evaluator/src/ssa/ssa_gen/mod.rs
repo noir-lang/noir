@@ -128,6 +128,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_expression(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
+        eprintln!("Codegen {expr}");
         match expr {
             Expression::Ident(ident) => Ok(self.codegen_ident(ident)),
             Expression::Literal(literal) => self.codegen_literal(literal),
@@ -196,7 +197,7 @@ impl<'a> FunctionContext<'a> {
                     }
                     ast::Type::Slice(_) => {
                         let slice_length =
-                            self.builder.field_constant(array.contents.len() as u128);
+                            self.builder.length_constant(array.contents.len() as u128);
                         let slice_contents =
                             self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![slice_length.into(), slice_contents])
@@ -221,7 +222,7 @@ impl<'a> FunctionContext<'a> {
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
                 let string = self.codegen_string(string);
-                let field_count = self.builder.field_constant(*number_of_fields as u128);
+                let field_count = self.builder.length_constant(*number_of_fields as u128);
                 let fields = self.codegen_expression(fields)?;
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
@@ -347,8 +348,10 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_binary(&mut self, binary: &ast::Binary) -> Result<Values, RuntimeError> {
+        eprintln!("Start binary");
         let lhs = self.codegen_non_tuple_expression(&binary.lhs)?;
         let rhs = self.codegen_non_tuple_expression(&binary.rhs)?;
+        eprintln!("Insert binary");
         Ok(self.insert_binary(lhs, binary.operator, rhs, binary.location))
     }
 
@@ -615,7 +618,7 @@ impl<'a> FunctionContext<'a> {
         {
             match intrinsic {
                 Intrinsic::SliceInsert => {
-                    let one = self.builder.field_constant(1u128);
+                    let one = self.builder.length_constant(1u128);
 
                     // We add one here in the case of a slice insert as a slice insert at the length of the slice
                     // can be converted to a slice push back

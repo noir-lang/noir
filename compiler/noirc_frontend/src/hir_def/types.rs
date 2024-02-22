@@ -577,9 +577,16 @@ impl Type {
         Type::TypeVariable(var, kind)
     }
 
-    pub fn polymorphic_integer(interner: &mut NodeInterner) -> Type {
+    pub fn polymorphic_integer_or_field(interner: &mut NodeInterner) -> Type {
         let id = interner.next_type_variable_id();
         let kind = TypeVariableKind::IntegerOrField;
+        let var = TypeVariable::unbound(id);
+        Type::TypeVariable(var, kind)
+    }
+
+    pub fn polymorphic_integer(interner: &mut NodeInterner) -> Type {
+        let id = interner.next_type_variable_id();
+        let kind = TypeVariableKind::Integer;
         let var = TypeVariable::unbound(id);
         Type::TypeVariable(var, kind)
     }
@@ -1007,7 +1014,7 @@ impl Type {
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
     /// other PolymorphicInt type, or type variable. If successful, the binding is placed in the
     /// given TypeBindings map rather than linked immediately.
-    pub fn try_bind_to_polymorphic_int(
+    fn try_bind_to_polymorphic_int(
         &self,
         var: &TypeVariable,
         bindings: &mut TypeBindings,
@@ -1020,7 +1027,11 @@ impl Type {
 
         let this = self.substitute(bindings).follow_bindings();
         match &this {
-            Type::FieldElement | Type::Integer(..) => {
+            Type::Integer(..) => {
+                bindings.insert(target_id, (var.clone(), this));
+                Ok(())
+            }
+            Type::FieldElement if !only_integer => {
                 bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
