@@ -75,7 +75,7 @@ export const browserTestSuite = (
 
       browser = await launch({
         executablePath: process.env.CHROME_BIN,
-        headless: 'new',
+        headless: true,
         args: [
           '--no-sandbox',
           '--headless',
