@@ -13,7 +13,7 @@ pub(crate) struct LocationIndices {
 
 impl LocationIndices {
     pub(crate) fn add_location(&mut self, location: Location, node_index: PetGraphIndex) {
-        let range_map = self.map_file_to_range.entry(location.file).or_insert_with(RangeMap::new);
+        let range_map = self.map_file_to_range.entry(location.file).or_default();
         range_map.insert(location.span.start()..location.span.end(), node_index);
     }
 
