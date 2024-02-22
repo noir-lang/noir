@@ -394,22 +394,8 @@ impl CardNote {
     }
 }
 
-impl Serialize<CARD_NOTE_LEN> for CardNote {
-    fn serialize(self) -> [Field; CARD_NOTE_LEN] {
-        [self.owner.to_field()]
-    }
-}
-
-impl Deserialize<CARD_NOTE_LEN> for CardNote {
-    fn deserialize(serialized_note: [Field; CARD_NOTE_LEN]) -> Self {
-        CardNote {
-            owner: AztecAddress::from_field(serialized_note[2]),
-        }
-    }
-}
-
 impl NoteInterface for CardNote {
-    fn compute_note_hash(self) -> Field {
+    fn compute_note_content_hash(self) -> Field {
         pedersen_hash([
             self.owner.to_field(),
         ],0)
@@ -441,6 +427,17 @@ impl NoteInterface for CardNote {
 
     fn get_header(note: CardNote) -> NoteHeader {
         note.header
+    }
+
+    fn serialize_content(self) -> [Field; CARD_NOTE_LEN]{
+        [self.owner.to_field()]
+    }
+
+    fn deserialize_content(serialized_note: [Field; CARD_NOTE_LEN]) -> Self {
+        AddressNote {
+            owner: AztecAddress::from_field(serialized_note[0]),
+            header: NoteHeader::empty(),
+        }
     }
 
     // Broadcasts the note as an encrypted log on L1.
