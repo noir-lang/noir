@@ -18,8 +18,8 @@ use noirc_frontend::hir::Context;
 use noirc_frontend::macros_api::MacroProcessor;
 use noirc_frontend::monomorphization::{monomorphize, monomorphize_debug, MonomorphizationError};
 use noirc_frontend::node_interner::FuncId;
-use thiserror::Error;
 use std::path::Path;
+use thiserror::Error;
 use tracing::info;
 
 mod abi_gen;
@@ -121,7 +121,7 @@ impl From<CompileError> for FileDiagnostic {
     fn from(error: CompileError) -> FileDiagnostic {
         match error {
             CompileError::RuntimeError(err) => err.into(),
-            CompileError::MonomorphizationError(err) => err.into()
+            CompileError::MonomorphizationError(err) => err.into(),
         }
     }
 }

@@ -60,7 +60,11 @@ impl<'interner> Monomorphizer<'interner> {
     /// variable are possible if using generic functions, hence the temporary ID
     /// created when injecting the instrumentation code can map to multiple IDs
     /// at runtime.
-    fn patch_debug_var_assign(&mut self, call: &HirCallExpression, arguments: &mut [Expression]) -> Result<(), MonomorphizationError> {
+    fn patch_debug_var_assign(
+        &mut self,
+        call: &HirCallExpression,
+        arguments: &mut [Expression],
+    ) -> Result<(), MonomorphizationError> {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
         let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id, _))) = var_id_arg else {
@@ -81,7 +85,11 @@ impl<'interner> Monomorphizer<'interner> {
     /// Update instrumentation code for a variable being dropped out of scope.
     /// Given the source_var_id we search for the last assigned debug var_id and
     /// replace it instead.
-    fn patch_debug_var_drop(&mut self, call: &HirCallExpression, arguments: &mut [Expression])-> Result<(), MonomorphizationError> {
+    fn patch_debug_var_drop(
+        &mut self,
+        call: &HirCallExpression,
+        arguments: &mut [Expression],
+    ) -> Result<(), MonomorphizationError> {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
         let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id, _))) = var_id_arg else {

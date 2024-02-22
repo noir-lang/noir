@@ -52,7 +52,11 @@ fn test_status_program_compile_fail(err: CompileError, test_function: TestFuncti
     }
 
     // The test has failed compilation, extract the assertion message if present and check if it's expected.
-    let assert_message = if let CompileError::RuntimeError(RuntimeError::FailedConstraint { assert_message, .. }) = &err {
+    let assert_message = if let CompileError::RuntimeError(RuntimeError::FailedConstraint {
+        assert_message,
+        ..
+    }) = &err
+    {
         assert_message.clone()
     } else {
         None

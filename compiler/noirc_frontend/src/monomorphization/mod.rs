@@ -12,10 +12,11 @@ use acvm::FieldElement;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 use noirc_printable_type::PrintableType;
-use thiserror::Error;
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque}, unreachable
+    collections::{BTreeMap, HashMap, VecDeque},
+    unreachable,
 };
+use thiserror::Error;
 
 use crate::{
     debug::DebugInstrumenter,
@@ -87,11 +88,10 @@ struct Monomorphizer<'interner> {
 
 type HirType = crate::Type;
 
-
 #[derive(Debug, Error)]
 pub enum MonomorphizationError {
     #[error("Length of generic array could not be determined.")]
-    UnknownArrayLength { location: Location }
+    UnknownArrayLength { location: Location },
 }
 
 impl From<MonomorphizationError> for FileDiagnostic {
@@ -114,7 +114,10 @@ impl From<MonomorphizationError> for FileDiagnostic {
 /// this function. Typically, this is the function named "main" in the source project,
 /// but it can also be, for example, an arbitrary test function for running `nargo test`.
 #[tracing::instrument(level = "trace", skip(main, interner))]
-pub fn monomorphize(main: node_interner::FuncId, interner: &mut NodeInterner) -> Result<Program, MonomorphizationError> {
+pub fn monomorphize(
+    main: node_interner::FuncId,
+    interner: &mut NodeInterner,
+) -> Result<Program, MonomorphizationError> {
     monomorphize_debug(main, interner, &DebugInstrumenter::default())
 }
 
@@ -249,7 +252,10 @@ impl<'interner> Monomorphizer<'interner> {
         self.globals.entry(id).or_default().insert(typ, new_id);
     }
 
-    fn compile_main(&mut self, main_id: node_interner::FuncId) -> Result<FunctionSignature, MonomorphizationError> {
+    fn compile_main(
+        &mut self,
+        main_id: node_interner::FuncId,
+    ) -> Result<FunctionSignature, MonomorphizationError> {
         let new_main_id = self.next_function_id();
         assert_eq!(new_main_id, Program::main_id());
         self.function(main_id, new_main_id)?;
@@ -264,7 +270,11 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(main_meta.function_signature())
     }
 
-    fn function(&mut self, f: node_interner::FuncId, id: FuncId) -> Result<(), MonomorphizationError> {
+    fn function(
+        &mut self,
+        f: node_interner::FuncId,
+        id: FuncId,
+    ) -> Result<(), MonomorphizationError> {
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(&f) {
             let the_trait = self.interner.get_trait(trait_id);
             the_trait.self_type_typevar.force_bind(self_type);
@@ -348,7 +358,10 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn expr(&mut self, expr: node_interner::ExprId) -> Result<ast::Expression, MonomorphizationError> {
+    fn expr(
+        &mut self,
+        expr: node_interner::ExprId,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         use ast::Expression::Literal;
         use ast::Literal::*;
 
@@ -454,7 +467,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::If(if_expr) => {
                 let cond = self.expr(if_expr.condition)?;
                 let then = self.expr(if_expr.consequence)?;
-                let else_ = if_expr.alternative.map(|alt| self.expr(alt)).transpose()?.map(|expr| Box::new(expr));
+                let else_ =
+                    if_expr.alternative.map(|alt| self.expr(alt)).transpose()?.map(Box::new);
                 ast::Expression::If(ast::If {
                     condition: Box::new(cond),
                     consequence: Box::new(then),
@@ -498,18 +512,20 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.convert_type(&self.interner.id_type(array));
 
-        let length = length
-            .evaluate_to_u64()
-            .ok_or_else(|| {
-                let location = self.interner.expr_location(&array);
-                MonomorphizationError::UnknownArrayLength {location}
-            })?;
+        let length = length.evaluate_to_u64().ok_or_else(|| {
+            let location = self.interner.expr_location(&array);
+            MonomorphizationError::UnknownArrayLength { location }
+        })?;
 
         let contents = try_vecmap(0..length, |_| self.expr(repeated_element))?;
         Ok(ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ })))
     }
 
-    fn index(&mut self, id: node_interner::ExprId, index: HirIndexExpression) -> Result<ast::Expression, MonomorphizationError> {
+    fn index(
+        &mut self,
+        id: node_interner::ExprId,
+        index: HirIndexExpression,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         let element_type = self.convert_type(&self.interner.id_type(id));
 
         let collection = Box::new(self.expr(index.collection)?);
@@ -524,8 +540,11 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Constrain(constrain) => {
                 let expr = self.expr(constrain.0)?;
                 let location = self.interner.expr_location(&constrain.0);
-                let assert_message =
-                    constrain.2.map(|assert_msg_expr| self.expr(assert_msg_expr)).transpose()?.map(|expr| Box::new(expr));
+                let assert_message = constrain
+                    .2
+                    .map(|assert_msg_expr| self.expr(assert_msg_expr))
+                    .transpose()?
+                    .map(Box::new);
                 Ok(ast::Expression::Constrain(Box::new(expr), location, assert_message))
             }
             HirStatement::Assign(assign) => self.assign(assign),
@@ -551,13 +570,17 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
             HirStatement::Expression(expr) => self.expr(expr),
-            HirStatement::Semi(expr) => self.expr(expr).map(|expr| ast::Expression::Semi(Box::new(expr))),
+            HirStatement::Semi(expr) => {
+                self.expr(expr).map(|expr| ast::Expression::Semi(Box::new(expr)))
+            }
             HirStatement::Error => unreachable!(),
         }
-
     }
 
-    fn let_statement(&mut self, let_statement: HirLetStatement) -> Result<ast::Expression, MonomorphizationError> {
+    fn let_statement(
+        &mut self,
+        let_statement: HirLetStatement,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         let expr = self.expr(let_statement.expression)?;
         let expected_type = self.interner.id_type(let_statement.expression);
         Ok(self.unpack_pattern(let_statement.pattern, expr, &expected_type))
@@ -612,9 +635,12 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(ast::Expression::Block(new_exprs))
     }
 
-    fn block(&mut self, statement_ids: Vec<StmtId>) -> Result<ast::Expression, MonomorphizationError> {
+    fn block(
+        &mut self,
+        statement_ids: Vec<StmtId>,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         let stmts = try_vecmap(statement_ids, |id| self.statement(id));
-        stmts.map(|stmts| ast::Expression::Block(stmts))
+        stmts.map(ast::Expression::Block)
     }
 
     fn unpack_pattern(
@@ -725,7 +751,11 @@ impl<'interner> Monomorphizer<'interner> {
         Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ })
     }
 
-    fn ident(&mut self, ident: HirIdent, expr_id: node_interner::ExprId) -> Result<ast::Expression, MonomorphizationError> {
+    fn ident(
+        &mut self,
+        ident: HirIdent,
+        expr_id: node_interner::ExprId,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.interner.id_type(expr_id);
 
         if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
@@ -1215,7 +1245,10 @@ impl<'interner> Monomorphizer<'interner> {
             .collect()
     }
 
-    fn assign(&mut self, assign: HirAssignStatement) -> Result<ast::Expression, MonomorphizationError> {
+    fn assign(
+        &mut self,
+        assign: HirAssignStatement,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         let expression = Box::new(self.expr(assign.expression)?);
         let lvalue = self.lvalue(assign.lvalue)?;
         Ok(ast::Expression::Assign(ast::Assign { expression, lvalue }))
@@ -1248,7 +1281,11 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(value)
     }
 
-    fn lambda(&mut self, lambda: HirLambda, expr: node_interner::ExprId) -> Result<ast::Expression, MonomorphizationError> {
+    fn lambda(
+        &mut self,
+        lambda: HirLambda,
+        expr: node_interner::ExprId,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         if lambda.captures.is_empty() {
             self.lambda_no_capture(lambda)
         } else {
@@ -1257,7 +1294,10 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn lambda_no_capture(&mut self, lambda: HirLambda) -> Result<ast::Expression, MonomorphizationError> {
+    fn lambda_no_capture(
+        &mut self,
+        lambda: HirLambda,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         let ret_type = self.convert_type(&lambda.return_type);
         let lambda_name = "lambda";
         let parameter_types = vecmap(&lambda.parameters, |(_, typ)| self.convert_type(typ));
