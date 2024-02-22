@@ -914,7 +914,9 @@ impl<'a> Resolver<'a> {
 
         let attributes = func.attributes().clone();
 
-        let mut generics = vecmap(&self.generics, |(_, typevar, _, prevent_numeric)| (typevar.clone(), *prevent_numeric));
+        let mut generics = vecmap(&self.generics, |(_, typevar, _, prevent_numeric)| {
+            (typevar.clone(), *prevent_numeric)
+        });
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 

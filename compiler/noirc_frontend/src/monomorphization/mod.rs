@@ -1591,7 +1591,10 @@ impl<'interner> Monomorphizer<'interner> {
             };
 
             // Replace each NamedGeneric with a TypeVariable containing the same internal type variable
-            let type_bindings = generics.iter().map(|(var, prevent_numeric)| replace_type_variable(var, *prevent_numeric)).collect();
+            let type_bindings = generics
+                .iter()
+                .map(|(var, prevent_numeric)| replace_type_variable(var, *prevent_numeric))
+                .collect();
             let impl_method_type = impl_method_type.force_substitute(&type_bindings);
 
             trait_method_type.try_unify(&impl_method_type, &mut bindings).unwrap_or_else(|_| {

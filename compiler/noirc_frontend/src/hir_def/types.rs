@@ -304,7 +304,7 @@ impl StructType {
     /// which is expected to be a numeric generic.
     /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
     pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
-        let target_id = self.generics[index_of_generic].0.0;
+        let target_id = self.generics[index_of_generic].0 .0;
         self.fields.iter().any(|(_, field)| field.contains_numeric_typevar(target_id))
     }
 
@@ -383,7 +383,7 @@ impl TypeAlias {
     /// which is expected to be a numeric generic.
     /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
     pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
-        let target_id = self.generics[index_of_generic].0.0;
+        let target_id = self.generics[index_of_generic].0 .0;
         self.typ.contains_numeric_typevar(target_id)
     }
 }
@@ -741,7 +741,7 @@ impl Type {
                 // println!("TODO: remove: generic_count: {:?}, {:?}", self, generics);
 
                 generics.len()
-            },
+            }
             Type::TypeVariable(type_variable, _) | Type::NamedGeneric(type_variable, _, _) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => binding.generic_count(),
@@ -967,7 +967,7 @@ impl Type {
             // to the other type variable instead.
             Type::TypeVariable(new_var, kind) => {
                 if *kind == TypeVariableKind::NotConstant {
-                    return Err(UnificationError)
+                    return Err(UnificationError);
                 }
                 let borrow = new_var.borrow();
                 match &*borrow {
@@ -1246,11 +1246,11 @@ impl Type {
                 }
             }
 
-            (NamedGeneric(binding, _, prevent_numeric), other) | (other, NamedGeneric(binding, _, prevent_numeric))
+            (NamedGeneric(binding, _, prevent_numeric), other)
+            | (other, NamedGeneric(binding, _, prevent_numeric))
                 if !binding.borrow().is_unbound() =>
             {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
-
                     // if *prevent_numeric {
                     //     println!("TODO try_unify NamedGeneric: {:?}  {:?}      {:?}      {:?}      {:?}", prevent_numeric, self, other, bindings, link);
                     // }
@@ -1261,7 +1261,10 @@ impl Type {
                 }
             }
 
-            (NamedGeneric(binding_a, name_a, prevent_numeric_a), NamedGeneric(binding_b, name_b, prevent_numeric_b)) => {
+            (
+                NamedGeneric(binding_a, name_a, prevent_numeric_a),
+                NamedGeneric(binding_b, name_b, prevent_numeric_b),
+            ) => {
                 // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
@@ -1374,7 +1377,10 @@ impl Type {
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::new();
                 if element1.try_unify(element2, &mut bindings).is_ok() {
-                    println!("TODO remove: convert_array_expression_to_slice {:?} {:?} {:?} {:?}", expression, this, target, bindings);
+                    println!(
+                        "TODO remove: convert_array_expression_to_slice {:?} {:?} {:?} {:?}",
+                        expression, this, target, bindings
+                    );
 
                     convert_array_expression_to_slice(expression, this, target, interner);
                     Self::apply_type_bindings(bindings);
@@ -1545,7 +1551,7 @@ impl Type {
             Type::Array(size, element) => {
                 let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
                 let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
-                
+
                 // let size_follow = size.follow_bindings();
                 // let size_follow = size.substitute(type_bindings).follow_bindings();
                 // println!("TODO substitute_helper: {:?}  {:?}  {:?}", self, size, element);
@@ -1562,10 +1568,9 @@ impl Type {
                 Type::FmtString(Box::new(size), Box::new(fields))
             }
 
-
             // TODO: cleanup
             Type::NamedGeneric(binding, _, prevent_numeric) => {
-            // Type::NamedGeneric(binding, _, prevent_numeric) | Type::TypeVariable(binding, _) => {
+                // Type::NamedGeneric(binding, _, prevent_numeric) | Type::TypeVariable(binding, _) => {
                 // if *prevent_numeric {
                 //
                 //     for (_type_variable, binding) in type_bindings.values() {
@@ -1582,12 +1587,8 @@ impl Type {
 
                 substitute_binding(binding)
             }
-            Type::TypeVariable(binding, _) => {
-                substitute_binding(binding)
-            }
+            Type::TypeVariable(binding, _) => substitute_binding(binding),
             // TODO: cleanup above
-
-
 
             // Do not substitute_helper fields, it can lead to infinite recursion
             // and we should not match fields when type checking anyway.
@@ -1662,7 +1663,8 @@ impl Type {
                 }
             }
             Type::Forall(typevars, typ) => {
-                !typevars.iter().any(|(var, _prevent_numeric)| var.id() == target_id) && typ.occurs(target_id)
+                !typevars.iter().any(|(var, _prevent_numeric)| var.id() == target_id)
+                    && typ.occurs(target_id)
             }
             Type::Function(args, ret, env) => {
                 args.iter().any(|arg| arg.occurs(target_id))
@@ -1832,7 +1834,8 @@ impl From<&Type> for PrintableType {
                 TypeBinding::Bound(typ) => typ.into(),
                 TypeBinding::Unbound(_) => Type::default_range_loop_type().into(),
             },
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) | Type::TypeVariable(binding, TypeVariableKind::NotConstant) => {
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
+            | Type::TypeVariable(binding, TypeVariableKind::NotConstant) => {
                 match &*binding.borrow() {
                     TypeBinding::Bound(typ) => typ.into(),
                     TypeBinding::Unbound(_) => Type::default_int_type().into(),
