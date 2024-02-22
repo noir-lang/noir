@@ -141,13 +141,13 @@ fn on_rename_inner(
                 let span = location.span;
 
                 let Some(lsp_location) = to_lsp_location(files, file_id, span) else {
-                        return acc;
-                    };
+                    return acc;
+                };
 
                 let edit =
                     TextEdit { range: lsp_location.range, new_text: params.new_name.clone() };
 
-                acc.entry(lsp_location.uri).or_insert_with(Vec::new).push(edit);
+                acc.entry(lsp_location.uri).or_default().push(edit);
 
                 acc
             },

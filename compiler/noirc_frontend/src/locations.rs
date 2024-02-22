@@ -51,7 +51,9 @@ impl NodeInterner {
         referenced_id: DependencyId,
         reference: DependencyId,
     ) {
-        let Some(referenced_index) = self.reference_graph_indices.get(&referenced_id) else { panic!("Compiler Error: Referenced index not found") };
+        let Some(referenced_index) = self.reference_graph_indices.get(&referenced_id) else {
+            panic!("Compiler Error: Referenced index not found")
+        };
 
         let reference_location = self.dependency_location(reference);
         let reference_index = self.reference_graph.add_node(reference);
