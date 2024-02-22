@@ -7,8 +7,8 @@ import { FieldsOf } from '@aztec/foundation/types';
 
 import {
   GeneratorIndex,
-  MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+  MAX_NEW_NOTE_HASHES_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
@@ -59,9 +59,9 @@ export class PrivateCircuitPublicInputs {
       typeof MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL
     >,
     /**
-     * New commitments created by the corresponding function call.
+     * New note hashes created by the corresponding function call.
      */
-    public newCommitments: Tuple<SideEffect, typeof MAX_NEW_COMMITMENTS_PER_CALL>,
+    public newNoteHashes: Tuple<SideEffect, typeof MAX_NEW_NOTE_HASHES_PER_CALL>,
     /**
      * New nullifiers created by the corresponding function call.
      */
@@ -147,7 +147,7 @@ export class PrivateCircuitPublicInputs {
       reader.readObject(Fr),
       reader.readArray(MAX_READ_REQUESTS_PER_CALL, SideEffect),
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest),
-      reader.readArray(MAX_NEW_COMMITMENTS_PER_CALL, SideEffect),
+      reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, Fr),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, Fr),
@@ -173,7 +173,7 @@ export class PrivateCircuitPublicInputs {
       reader.readField(),
       reader.readArray(MAX_READ_REQUESTS_PER_CALL, SideEffect),
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest),
-      reader.readArray(MAX_NEW_COMMITMENTS_PER_CALL, SideEffect),
+      reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash),
       reader.readFieldArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL),
       reader.readFieldArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL),
@@ -202,7 +202,7 @@ export class PrivateCircuitPublicInputs {
       Fr.ZERO,
       makeTuple(MAX_READ_REQUESTS_PER_CALL, SideEffect.empty),
       makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest.empty),
-      makeTuple(MAX_NEW_COMMITMENTS_PER_CALL, SideEffect.empty),
+      makeTuple(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect.empty),
       makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, Fr.zero),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, Fr.zero),
@@ -231,7 +231,7 @@ export class PrivateCircuitPublicInputs {
       this.minRevertibleSideEffectCounter.isZero() &&
       isEmptyArray(this.readRequests) &&
       isEmptyArray(this.nullifierKeyValidationRequests) &&
-      isEmptyArray(this.newCommitments) &&
+      isEmptyArray(this.newNoteHashes) &&
       isEmptyArray(this.newNullifiers) &&
       isZeroArray(this.privateCallStackHashes) &&
       isZeroArray(this.publicCallStackHashes) &&
@@ -260,7 +260,7 @@ export class PrivateCircuitPublicInputs {
       fields.minRevertibleSideEffectCounter,
       fields.readRequests,
       fields.nullifierKeyValidationRequests,
-      fields.newCommitments,
+      fields.newNoteHashes,
       fields.newNullifiers,
       fields.privateCallStackHashes,
       fields.publicCallStackHashes,

@@ -1,11 +1,11 @@
 use crate::{abis::{call_request::CallRequest, side_effect::{SideEffect, SideEffectLinkedToNoteHash}}};
 use crate::constants::{
-    MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
+    MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
     MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX
 };
 
 struct PrivateAccumulatedNonRevertibleData {
-    new_commitments: [SideEffect; MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX],
+    new_note_hashes: [SideEffect; MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX],
     new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX],
     public_call_stack: [CallRequest; MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX],
 }

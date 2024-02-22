@@ -14,7 +14,7 @@ import {
   computeVarArgsHash,
   hashConstructor,
   hashVK,
-  siloCommitment,
+  siloNoteHash,
   siloNullifier,
 } from './hash.js';
 
@@ -55,7 +55,7 @@ describe('hash', () => {
   it('computes siloed commitment', () => {
     const contractAddress = new AztecAddress(new Fr(123n).toBuffer());
     const uniqueCommitment = new Fr(456);
-    const res = siloCommitment(contractAddress, uniqueCommitment);
+    const res = siloNoteHash(contractAddress, uniqueCommitment);
     expect(res).toMatchSnapshot();
   });
 

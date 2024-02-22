@@ -3,7 +3,7 @@ import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { MAX_NEW_COMMITMENTS_PER_CALL, NOTE_HASH_TREE_HEIGHT } from '../constants.gen.js';
+import { MAX_NEW_NOTE_HASHES_PER_CALL, NOTE_HASH_TREE_HEIGHT } from '../constants.gen.js';
 import { MembershipWitness } from './membership_witness.js';
 
 /**
@@ -22,19 +22,19 @@ export class ReadRequestMembershipWitness {
      */
     public siblingPath: Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
     /**
-     * Whether or not the read request corresponds to a pending commitment.
+     * Whether or not the read request corresponds to a pending note hash.
      */
     public isTransient = false,
     /**
-     * When transient, the commitment being read was created by some app circuit in the current TX.
-     * The kernel will need some hint to efficiently find that commitment for a given read request.
+     * When transient, the note hash being read was created by some app circuit in the current TX.
+     * The kernel will need some hint to efficiently find that note hash for a given read request.
      * When not transient, this can be 0.
      */
-    public hintToCommitment: Fr,
+    public hintToNoteHash: Fr,
   ) {
-    if (hintToCommitment.toBigInt() > MAX_NEW_COMMITMENTS_PER_CALL) {
+    if (hintToNoteHash.toBigInt() > MAX_NEW_NOTE_HASHES_PER_CALL) {
       throw new Error(
-        `Expected ReadRequestMembershipWitness' hintToCommitment(${hintToCommitment}) to be <= NEW_COMMITMENTS_LENGTH(${MAX_NEW_COMMITMENTS_PER_CALL})`,
+        `Expected ReadRequestMembershipWitness' hintToNoteHash(${hintToNoteHash}) to be <= NEW_NOTE_HASHES_LENGTH(${MAX_NEW_NOTE_HASHES_PER_CALL})`,
       );
     }
   }
@@ -44,7 +44,7 @@ export class ReadRequestMembershipWitness {
       toBufferBE(this.leafIndex.toBigInt(), 32),
       ...this.siblingPath,
       this.isTransient,
-      this.hintToCommitment,
+      this.hintToNoteHash,
     );
   }
 
@@ -93,26 +93,26 @@ export class ReadRequestMembershipWitness {
     leafIndex: Fr,
     siblingPath: Tuple<Buffer, typeof NOTE_HASH_TREE_HEIGHT>,
     isTransient: boolean,
-    hintToCommitment: Fr,
+    hintToNoteHash: Fr,
   ): ReadRequestMembershipWitness {
     return new ReadRequestMembershipWitness(
       leafIndex,
       siblingPath.map(x => Fr.fromBuffer(x)) as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
       isTransient,
-      hintToCommitment,
+      hintToNoteHash,
     );
   }
 
   static fromMembershipWitness(
     membershipWitness: MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>,
     isTransient: boolean,
-    hintToCommitment: Fr,
+    hintToNoteHash: Fr,
   ): ReadRequestMembershipWitness {
     return new ReadRequestMembershipWitness(
       new Fr(membershipWitness.leafIndex),
       membershipWitness.siblingPath as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
       isTransient,
-      hintToCommitment,
+      hintToNoteHash,
     );
   }
 
@@ -126,7 +126,7 @@ export class ReadRequestMembershipWitness {
     const leafIndex = Fr.fromBuffer(reader);
     const siblingPath = reader.readArray<Fr, typeof NOTE_HASH_TREE_HEIGHT>(NOTE_HASH_TREE_HEIGHT, Fr);
     const isTransient = reader.readBoolean();
-    const hintToCommitment = Fr.fromBuffer(reader);
-    return new ReadRequestMembershipWitness(leafIndex, siblingPath, isTransient, hintToCommitment);
+    const hintToNoteHash = Fr.fromBuffer(reader);
+    return new ReadRequestMembershipWitness(leafIndex, siblingPath, isTransient, hintToNoteHash);
   }
 }

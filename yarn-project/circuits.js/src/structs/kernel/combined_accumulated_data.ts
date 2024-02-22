@@ -4,12 +4,12 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import {
-  MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_CONTRACTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
+  MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX,
+  MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX,
   MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
   MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
@@ -20,7 +20,7 @@ import {
   MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_READ_REQUESTS_PER_TX,
-  MAX_REVERTIBLE_COMMITMENTS_PER_TX,
+  MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
   MAX_REVERTIBLE_NULLIFIERS_PER_TX,
   MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
@@ -161,9 +161,9 @@ export class CombinedAccumulatedData {
       typeof MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX
     >,
     /**
-     * The new commitments made in this transaction.
+     * The new note hashes made in this transaction.
      */
-    public newCommitments: Tuple<SideEffect, typeof MAX_NEW_COMMITMENTS_PER_TX>,
+    public newNoteHashes: Tuple<SideEffect, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
     /**
      * The new nullifiers made in this transaction.
      */
@@ -216,7 +216,7 @@ export class CombinedAccumulatedData {
     return serializeToBuffer(
       this.readRequests,
       this.nullifierKeyValidationRequests,
-      this.newCommitments,
+      this.newNoteHashes,
       this.newNullifiers,
       this.privateCallStack,
       this.publicCallStack,
@@ -245,7 +245,7 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       reader.readArray(MAX_READ_REQUESTS_PER_TX, SideEffect),
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyValidationRequestContext),
-      reader.readArray(MAX_NEW_COMMITMENTS_PER_TX, SideEffect),
+      reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
@@ -273,7 +273,7 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       makeTuple(MAX_READ_REQUESTS_PER_TX, SideEffect.empty),
       makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyValidationRequestContext.empty),
-      makeTuple(MAX_NEW_COMMITMENTS_PER_TX, SideEffect.empty),
+      makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, SideEffect.empty),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
@@ -298,10 +298,10 @@ export class CombinedAccumulatedData {
     nonRevertible: PublicAccumulatedNonRevertibleData,
     revertible: PublicAccumulatedRevertibleData,
   ): CombinedAccumulatedData {
-    const newCommitments = padArrayEnd(
-      [...nonRevertible.newCommitments, ...revertible.newCommitments].filter(x => !x.isEmpty()),
+    const newNoteHashes = padArrayEnd(
+      [...nonRevertible.newNoteHashes, ...revertible.newNoteHashes].filter(x => !x.isEmpty()),
       SideEffect.empty(),
-      MAX_NEW_COMMITMENTS_PER_TX,
+      MAX_NEW_NOTE_HASHES_PER_TX,
     );
 
     const newNullifiers = padArrayEnd(
@@ -331,7 +331,7 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       revertible.readRequests,
       revertible.nullifierKeyValidationRequests,
-      newCommitments,
+      newNoteHashes,
       newNullifiers,
       revertible.privateCallStack,
       publicCallStack,
@@ -361,9 +361,9 @@ export class PublicAccumulatedRevertibleData {
       typeof MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX
     >,
     /**
-     * The new commitments made in this transaction.
+     * The new note hashes made in this transaction.
      */
-    public newCommitments: Tuple<SideEffect, typeof MAX_REVERTIBLE_COMMITMENTS_PER_TX>,
+    public newNoteHashes: Tuple<SideEffect, typeof MAX_REVERTIBLE_NOTE_HASHES_PER_TX>,
     /**
      * The new nullifiers made in this transaction.
      */
@@ -419,7 +419,7 @@ export class PublicAccumulatedRevertibleData {
     return serializeToBuffer(
       this.readRequests,
       this.nullifierKeyValidationRequests,
-      this.newCommitments,
+      this.newNoteHashes,
       this.newNullifiers,
       this.privateCallStack,
       this.publicCallStack,
@@ -448,7 +448,7 @@ export class PublicAccumulatedRevertibleData {
     return new this(
       reader.readArray(MAX_READ_REQUESTS_PER_TX, SideEffect),
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyValidationRequestContext),
-      reader.readArray(MAX_REVERTIBLE_COMMITMENTS_PER_TX, SideEffect),
+      reader.readArray(MAX_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect),
       reader.readArray(MAX_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest),
       reader.readArray(MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
@@ -467,7 +467,7 @@ export class PublicAccumulatedRevertibleData {
     return new this(
       makeTuple(MAX_READ_REQUESTS_PER_TX, SideEffect.empty),
       makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyValidationRequestContext.empty),
-      padArrayEnd(finalData.newCommitments, SideEffect.empty(), MAX_REVERTIBLE_COMMITMENTS_PER_TX),
+      padArrayEnd(finalData.newNoteHashes, SideEffect.empty(), MAX_REVERTIBLE_NOTE_HASHES_PER_TX),
       padArrayEnd(finalData.newNullifiers, SideEffectLinkedToNoteHash.empty(), MAX_REVERTIBLE_NULLIFIERS_PER_TX),
       finalData.privateCallStack,
       padArrayEnd(finalData.publicCallStack, CallRequest.empty(), MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX),
@@ -495,7 +495,7 @@ export class PublicAccumulatedRevertibleData {
     return new this(
       makeTuple(MAX_READ_REQUESTS_PER_TX, SideEffect.empty),
       makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, NullifierKeyValidationRequestContext.empty),
-      makeTuple(MAX_REVERTIBLE_COMMITMENTS_PER_TX, SideEffect.empty),
+      makeTuple(MAX_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect.empty),
       makeTuple(MAX_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
       makeTuple(MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
@@ -518,9 +518,9 @@ export class PublicAccumulatedRevertibleData {
 export class PrivateAccumulatedRevertibleData {
   constructor(
     /**
-     * The new commitments made in this transaction.
+     * The new note hashes made in this transaction.
      */
-    public newCommitments: Tuple<SideEffect, typeof MAX_REVERTIBLE_COMMITMENTS_PER_TX>,
+    public newNoteHashes: Tuple<SideEffect, typeof MAX_REVERTIBLE_NOTE_HASHES_PER_TX>,
     /**
      * The new nullifiers made in this transaction.
      */
@@ -564,7 +564,7 @@ export class PrivateAccumulatedRevertibleData {
 
   toBuffer() {
     return serializeToBuffer(
-      this.newCommitments,
+      this.newNoteHashes,
       this.newNullifiers,
       this.privateCallStack,
       this.publicCallStack,
@@ -589,7 +589,7 @@ export class PrivateAccumulatedRevertibleData {
   static fromBuffer(buffer: Buffer | BufferReader): PrivateAccumulatedRevertibleData {
     const reader = BufferReader.asReader(buffer);
     return new PrivateAccumulatedRevertibleData(
-      reader.readArray(MAX_REVERTIBLE_COMMITMENTS_PER_TX, SideEffect),
+      reader.readArray(MAX_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect),
       reader.readArray(MAX_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest),
       reader.readArray(MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
@@ -613,7 +613,7 @@ export class PrivateAccumulatedRevertibleData {
 
   static empty() {
     return new PrivateAccumulatedRevertibleData(
-      makeTuple(MAX_REVERTIBLE_COMMITMENTS_PER_TX, SideEffect.empty),
+      makeTuple(MAX_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect.empty),
       makeTuple(MAX_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
       makeTuple(MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
@@ -632,7 +632,7 @@ export class PrivateAccumulatedNonRevertibleData {
     /**
      * The new non-revertible commitments made in this transaction.
      */
-    public newCommitments: Tuple<SideEffect, typeof MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX>,
+    public newNoteHashes: Tuple<SideEffect, typeof MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX>,
     /**
      * The new non-revertible nullifiers made in this transaction.
      */
@@ -644,13 +644,13 @@ export class PrivateAccumulatedNonRevertibleData {
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.newCommitments, this.newNullifiers, this.publicCallStack);
+    return serializeToBuffer(this.newNoteHashes, this.newNullifiers, this.publicCallStack);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): PrivateAccumulatedNonRevertibleData {
     const reader = BufferReader.asReader(buffer);
     return new PrivateAccumulatedNonRevertibleData(
-      reader.readArray(MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX, SideEffect),
+      reader.readArray(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect),
       reader.readArray(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
     );
@@ -666,7 +666,7 @@ export class PrivateAccumulatedNonRevertibleData {
 
   static empty() {
     return new PrivateAccumulatedNonRevertibleData(
-      makeTuple(MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX, SideEffect.empty),
+      makeTuple(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect.empty),
       makeTuple(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
     );
@@ -678,7 +678,7 @@ export class PublicAccumulatedNonRevertibleData {
     /**
      * The new non-revertible commitments made in this transaction.
      */
-    public newCommitments: Tuple<SideEffect, typeof MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX>,
+    public newNoteHashes: Tuple<SideEffect, typeof MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX>,
     /**
      * The new non-revertible nullifiers made in this transaction.
      */
@@ -701,13 +701,13 @@ export class PublicAccumulatedNonRevertibleData {
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.newCommitments, this.newNullifiers, this.publicCallStack);
+    return serializeToBuffer(this.newNoteHashes, this.newNullifiers, this.publicCallStack);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new this(
-      reader.readArray(MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX, SideEffect),
+      reader.readArray(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect),
       reader.readArray(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
       reader.readArray(MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
@@ -725,7 +725,7 @@ export class PublicAccumulatedNonRevertibleData {
 
   static empty() {
     return new this(
-      makeTuple(MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX, SideEffect.empty),
+      makeTuple(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect.empty),
       makeTuple(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
       makeTuple(MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),
@@ -735,7 +735,7 @@ export class PublicAccumulatedNonRevertibleData {
 
   static fromPrivateAccumulatedNonRevertibleData(data: PrivateAccumulatedNonRevertibleData) {
     return new this(
-      data.newCommitments,
+      data.newNoteHashes,
       data.newNullifiers,
       data.publicCallStack,
       makeTuple(MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),

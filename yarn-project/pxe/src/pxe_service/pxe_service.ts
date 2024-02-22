@@ -338,10 +338,10 @@ export class PXEService implements PXE {
 
     const nonces: Fr[] = [];
     const firstNullifier = tx.newNullifiers[0];
-    const commitments = tx.newCommitments;
-    for (let i = 0; i < commitments.length; ++i) {
-      const commitment = commitments[i];
-      if (commitment.equals(Fr.ZERO)) {
+    const hashes = tx.newNoteHashes;
+    for (let i = 0; i < hashes.length; ++i) {
+      const hash = hashes[i];
+      if (hash.equals(Fr.ZERO)) {
         break;
       }
 
@@ -355,11 +355,11 @@ export class PXEService implements PXE {
       );
       // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
       // Remove this once notes added from public also include nonces.
-      if (commitment.equals(siloedNoteHash)) {
+      if (hash.equals(siloedNoteHash)) {
         nonces.push(Fr.ZERO);
         break;
       }
-      if (commitment.equals(uniqueSiloedNoteHash)) {
+      if (hash.equals(uniqueSiloedNoteHash)) {
         nonces.push(nonce);
       }
     }

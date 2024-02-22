@@ -52,12 +52,12 @@ export async function executePublicFunction(
   const {
     returnValues,
     newL2ToL1Msgs,
-    newCommitments: newCommitmentsPadded,
+    newNoteHashes: newNoteHashesPadded,
     newNullifiers: newNullifiersPadded,
   } = PublicCircuitPublicInputs.fromFields(returnWitness);
 
   const newL2ToL1Messages = newL2ToL1Msgs.filter(v => !v.isEmpty());
-  const newCommitments = newCommitmentsPadded.filter(v => !v.isEmpty());
+  const newNoteHashes = newNoteHashesPadded.filter(v => !v.isEmpty());
   const newNullifiers = newNullifiersPadded.filter(v => !v.isEmpty());
 
   const { contractStorageReads, contractStorageUpdateRequests } = context.getStorageActionData();
@@ -72,7 +72,7 @@ export async function executePublicFunction(
 
   return {
     execution,
-    newCommitments,
+    newNoteHashes,
     newL2ToL1Messages,
     newNullifiers,
     contractStorageReads,
@@ -134,7 +134,7 @@ export class PublicExecutor {
 
     if (executionResult.execution.callContext.isStaticCall) {
       checkValidStaticCall(
-        executionResult.newCommitments,
+        executionResult.newNoteHashes,
         executionResult.newNullifiers,
         executionResult.contractStorageUpdateRequests,
         executionResult.newL2ToL1Messages,

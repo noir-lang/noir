@@ -115,18 +115,18 @@ export function hashConstructor(functionData: FunctionData, argsHash: Fr, constr
  * @returns A commitment nonce.
  */
 export function computeCommitmentNonce(nullifierZero: Fr, commitmentIndex: number): Fr {
-  return pedersenHash([nullifierZero.toBuffer(), numToUInt32BE(commitmentIndex, 32)], GeneratorIndex.COMMITMENT_NONCE);
+  return pedersenHash([nullifierZero.toBuffer(), numToUInt32BE(commitmentIndex, 32)], GeneratorIndex.NOTE_HASH_NONCE);
 }
 
 /**
  * Computes a siloed commitment, given the contract address and the commitment itself.
  * A siloed commitment effectively namespaces a commitment to a specific contract.
  * @param contract - The contract address
- * @param innerCommitment - The commitment to silo.
+ * @param innerNoteHash - The commitment to silo.
  * @returns A siloed commitment.
  */
-export function siloCommitment(contract: AztecAddress, innerCommitment: Fr): Fr {
-  return pedersenHash([contract.toBuffer(), innerCommitment.toBuffer()], GeneratorIndex.SILOED_COMMITMENT);
+export function siloNoteHash(contract: AztecAddress, innerNoteHash: Fr): Fr {
+  return pedersenHash([contract.toBuffer(), innerNoteHash.toBuffer()], GeneratorIndex.SILOED_NOTE_HASH);
 }
 
 /**
@@ -136,7 +136,7 @@ export function siloCommitment(contract: AztecAddress, innerCommitment: Fr): Fr 
  * @returns A unique commitment.
  */
 export function computeUniqueCommitment(nonce: Fr, siloedCommitment: Fr): Fr {
-  return pedersenHash([nonce.toBuffer(), siloedCommitment.toBuffer()], GeneratorIndex.UNIQUE_COMMITMENT);
+  return pedersenHash([nonce.toBuffer(), siloedCommitment.toBuffer()], GeneratorIndex.UNIQUE_NOTE_HASH);
 }
 
 /**

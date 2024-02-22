@@ -154,7 +154,7 @@ function processTxAddedToPool(entry: TxAddedToPoolStats, results: BenchmarkColle
   append(results, 'tx_size_in_bytes', entry.newContractCount, entry.size);
 }
 
-/** Process entries for events tx-private-part-processed, grouped by new commitments */
+/** Process entries for events tx-private-part-processed, grouped by new note hashes */
 function processTxPXEProcessingStats(entry: TxPXEProcessingStats, results: BenchmarkCollectedResults) {
   append(results, 'tx_pxe_processing_time_ms', entry.newCommitmentCount, entry.duration);
 }

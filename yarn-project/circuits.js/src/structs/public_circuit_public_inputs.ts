@@ -8,8 +8,8 @@ import { FieldsOf } from '@aztec/foundation/types';
 
 import {
   GeneratorIndex,
-  MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+  MAX_NEW_NOTE_HASHES_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_CALL,
@@ -58,9 +58,9 @@ export class PublicCircuitPublicInputs {
      */
     public publicCallStackHashes: Tuple<Fr, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     /**
-     * New commitments created within a public execution call
+     * New note hashes created within a public execution call
      */
-    public newCommitments: Tuple<SideEffect, typeof MAX_NEW_COMMITMENTS_PER_CALL>,
+    public newNoteHashes: Tuple<SideEffect, typeof MAX_NEW_NOTE_HASHES_PER_CALL>,
     /**
      * New nullifiers created within a public execution call
      */
@@ -110,7 +110,7 @@ export class PublicCircuitPublicInputs {
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, ContractStorageUpdateRequest.empty),
       makeTuple(MAX_PUBLIC_DATA_READS_PER_CALL, ContractStorageRead.empty),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, Fr.zero),
-      makeTuple(MAX_NEW_COMMITMENTS_PER_CALL, SideEffect.empty),
+      makeTuple(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect.empty),
       makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message.empty),
       makeTuple(2, Fr.zero),
@@ -132,7 +132,7 @@ export class PublicCircuitPublicInputs {
       isArrayEmpty(this.contractStorageUpdateRequests, item => item.isEmpty()) &&
       isArrayEmpty(this.contractStorageReads, item => item.isEmpty()) &&
       isFrArrayEmpty(this.publicCallStackHashes) &&
-      isSideEffectArrayEmpty(this.newCommitments) &&
+      isSideEffectArrayEmpty(this.newNoteHashes) &&
       isSideEffectLinkedArrayEmpty(this.newNullifiers) &&
       isArrayEmpty(this.newL2ToL1Msgs, item => item.isEmpty()) &&
       isFrArrayEmpty(this.unencryptedLogsHash) &&
@@ -155,7 +155,7 @@ export class PublicCircuitPublicInputs {
       fields.contractStorageUpdateRequests,
       fields.contractStorageReads,
       fields.publicCallStackHashes,
-      fields.newCommitments,
+      fields.newNoteHashes,
       fields.newNullifiers,
       fields.newL2ToL1Msgs,
       fields.unencryptedLogsHash,
@@ -197,7 +197,7 @@ export class PublicCircuitPublicInputs {
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, ContractStorageUpdateRequest),
       reader.readArray(MAX_PUBLIC_DATA_READS_PER_CALL, ContractStorageRead),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, Fr),
-      reader.readArray(MAX_NEW_COMMITMENTS_PER_CALL, SideEffect),
+      reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
       reader.readArray(NUM_FIELDS_PER_SHA256, Fr),
@@ -217,7 +217,7 @@ export class PublicCircuitPublicInputs {
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, ContractStorageUpdateRequest),
       reader.readArray(MAX_PUBLIC_DATA_READS_PER_CALL, ContractStorageRead),
       reader.readFieldArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL),
-      reader.readArray(MAX_NEW_COMMITMENTS_PER_CALL, SideEffect),
+      reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
       reader.readFieldArray(NUM_FIELDS_PER_SHA256),

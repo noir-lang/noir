@@ -13,7 +13,7 @@ use dep::types::{
     address::{AztecAddress, EthAddress, PartialAddress, compute_initialization_hash},
     contract_class_id::ContractClassId, contrakt::contract_deployment_data::ContractDeploymentData,
     constants::{
-    MAX_NEW_NULLIFIERS_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_COMMITMENTS_PER_CALL,
+    MAX_NEW_NULLIFIERS_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_READ_REQUESTS_PER_CALL,
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL
 },
@@ -22,7 +22,7 @@ use dep::types::{
     compute_constructor_hash, compute_l2_to_l1_hash, compute_logs_hash,
     compute_new_contract_address_hash, contract_tree_root_from_siblings,
     function_tree_root_from_siblings, pedersen_hash, private_functions_root_from_siblings,
-    read_request_root_from_siblings, silo_commitment, silo_nullifier,
+    read_request_root_from_siblings, silo_note_hash, silo_nullifier,
     stdlib_recursion_verification_key_compress_native_vk
 },
     utils::{arrays::{array_length, array_to_bounded_vec, validate_array}},
@@ -31,13 +31,13 @@ use dep::types::{
 
 pub fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {
     // Each of the following arrays is expected to be zero-padded.
-    // In addition, some of the following arrays (new_commitments, etc...) are passed
+    // In addition, some of the following arrays (new_note_hashes, etc...) are passed
     // to extend_from_array_to_array() routines which rely on the passed arrays to be well-formed.
 
     validate_array(app_public_inputs.return_values);
     validate_array(app_public_inputs.read_requests);
     validate_array(app_public_inputs.nullifier_key_validation_requests);
-    validate_array(app_public_inputs.new_commitments);
+    validate_array(app_public_inputs.new_note_hashes);
     validate_array(app_public_inputs.new_nullifiers);
     validate_array(app_public_inputs.private_call_stack_hashes);
     validate_array(app_public_inputs.public_call_stack_hashes);
@@ -63,11 +63,11 @@ pub fn validate_read_requests(
         let read_request = read_requests[rr_idx].value;
         let witness = read_request_membership_witnesses[rr_idx];
 
-        // A pending commitment is the one that is not yet added to note hash tree
-        // A "transient read" is when we try to "read" a pending commitment within a transaction
+        // A pending note hash is the one that is not yet added to note hash tree
+        // A "transient read" is when we try to "read" a pending note hash within a transaction
         // between function calls, as opposed to reading the outputs of a previous transaction
         // which is a "pending read".
-        // A transient read is when we try to "read" a pending commitment
+        // A transient read is when we try to "read" a pending note hash
         // We determine if it is a transient read depending on the leaf index from the membership witness
         // Note that the Merkle membership proof would be null and void in case of an transient read
         // but we use the leaf index as a placeholder to detect a 'pending note read'.
@@ -95,7 +95,7 @@ pub fn initialize_end_values(
     public_inputs.end.read_requests = array_to_bounded_vec(start.read_requests);
     public_inputs.end.nullifier_key_validation_requests = array_to_bounded_vec(start.nullifier_key_validation_requests);
 
-    public_inputs.end.new_commitments = array_to_bounded_vec(start.new_commitments);
+    public_inputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
     public_inputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
 
     public_inputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack);
@@ -117,7 +117,7 @@ fn perform_static_call_checks(private_call: PrivateCallData) {
     if is_static_call {
         // No state changes are allowed for static calls:
         assert(
-            is_empty_array(public_inputs.new_commitments), "new_commitments must be empty for static calls"
+            is_empty_array(public_inputs.new_note_hashes), "new_note_hashes must be empty for static calls"
         );
         assert(
             is_empty_array(public_inputs.new_nullifiers), "new_nullifiers must be empty for static calls"
@@ -180,7 +180,7 @@ pub fn update_end_values(
 
     let nullifier_key_validation_requests = private_call_public_inputs.nullifier_key_validation_requests;
 
-    let new_commitments = private_call_public_inputs.new_commitments;
+    let new_note_hashes = private_call_public_inputs.new_note_hashes;
     let new_nullifiers = private_call_public_inputs.new_nullifiers;
 
     let storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
@@ -193,7 +193,7 @@ pub fn update_end_values(
         let witness = read_request_membership_witnesses[i];
         if witness.is_transient & (read_request != 0) { // only forward transient to public inputs
             siloed_read_requests.push(
-                SideEffect { counter: read_requests[i].counter, value: silo_commitment(storage_contract_address, read_request) }
+                SideEffect { counter: read_requests[i].counter, value: silo_note_hash(storage_contract_address, read_request) }
             )
         }
     }
@@ -217,7 +217,7 @@ pub fn update_end_values(
             let siloed_note_hash = if new_nullifier.note_hash == 0 {
                 0
             } else {
-                silo_commitment(storage_contract_address, new_nullifier.note_hash)
+                silo_note_hash(storage_contract_address, new_nullifier.note_hash)
             };
             siloed_new_nullifiers.push(
                 SideEffectLinkedToNoteHash {
@@ -230,17 +230,17 @@ pub fn update_end_values(
     }
     public_inputs.end.new_nullifiers.extend_from_bounded_vec(siloed_new_nullifiers);
 
-    // commitments
-    let mut siloed_new_commitments: BoundedVec<SideEffect, MAX_NEW_COMMITMENTS_PER_CALL> = BoundedVec::new(SideEffect::empty());
-    for i in 0..MAX_NEW_COMMITMENTS_PER_CALL {
-        let new_commitment = new_commitments[i].value;
-        if new_commitment != 0 {
-            siloed_new_commitments.push(
-                SideEffect { value: silo_commitment(storage_contract_address, new_commitment), counter: new_commitments[i].counter }
+    // note hashes
+    let mut siloed_new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new(SideEffect::empty());
+    for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
+        let new_note_hash = new_note_hashes[i].value;
+        if new_note_hash != 0 {
+            siloed_new_note_hashes.push(
+                SideEffect { value: silo_note_hash(storage_contract_address, new_note_hash), counter: new_note_hashes[i].counter }
             );
         }
     }
-    public_inputs.end.new_commitments.extend_from_bounded_vec(siloed_new_commitments);
+    public_inputs.end.new_note_hashes.extend_from_bounded_vec(siloed_new_note_hashes);
 
     // Call stacks
     // Private call stack.

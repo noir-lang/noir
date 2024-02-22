@@ -10,7 +10,7 @@ export const randomDeferredNoteDao = ({
   txHash = randomTxHash(),
   storageSlot = Fr.random(),
   noteTypeId = Fr.random(),
-  newCommitments = [Fr.random(), Fr.random()],
+  newNoteHashes = [Fr.random(), Fr.random()],
   dataStartIndexForTx = Math.floor(Math.random() * 100),
 }: Partial<DeferredNoteDao> = {}) => {
   return new DeferredNoteDao(
@@ -20,7 +20,7 @@ export const randomDeferredNoteDao = ({
     storageSlot,
     noteTypeId,
     txHash,
-    newCommitments,
+    newNoteHashes,
     dataStartIndexForTx,
   );
 };

@@ -23,7 +23,7 @@ contract PendingCommitments {
     #[aztec(private)]
     fn constructor() {}
 
-    // Confirm can access pending commitments by creating / inserting a note and then
+    // Confirm can access pending note hashes by creating / inserting a note and then
     // getting / reading that note all in the same contract function
     // Realistic way to describe this test is "Mint note A, then burn note A in the same transaction"
     #[aztec(private)]
@@ -107,7 +107,7 @@ contract PendingCommitments {
         assert(maybe_notes[1].is_none());
     }
 
-    // Test pending commitments with note insertion done in a nested call
+    // Test pending note hashes with note insertion done in a nested call
     // and "read" / get of that pending note/commitment in another nested call
     // Realistic way to describe this test is "Mint note A, then burn note A in the same transaction"
     #[aztec(private)]
@@ -244,7 +244,7 @@ contract PendingCommitments {
             [owner.to_field()]
         );
     }
-    // Confirm cannot get/read a pending commitment in a nested call
+    // Confirm cannot get/read a pending note hash in a nested call
     // that is created/inserted later in execution but in the parent.
     // NOTE: This test is especially important in an end-to-end context because the parent call
     // (and therefore the insertion) will be processed in an earlier kernel iteration, but the

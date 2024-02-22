@@ -243,7 +243,7 @@ Transaction sizes based on how many contracts are deployed in the tx.
 ${getTableContent(pick(benchmark, metricsByContractCount), baseBenchmark, 'deployed contracts')}
 
 Transaction processing duration by data writes.
-${getTableContent(pick(benchmark, metricsTxPxeProcessing), baseBenchmark, 'new commitments')}
+${getTableContent(pick(benchmark, metricsTxPxeProcessing), baseBenchmark, 'new note hashes')}
 ${getTableContent(pick(benchmark, metricsTxSeqProcessing), baseBenchmark, 'public data writes')}
 
 </details>

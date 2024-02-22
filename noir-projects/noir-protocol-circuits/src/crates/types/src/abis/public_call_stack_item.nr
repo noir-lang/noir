@@ -61,7 +61,7 @@ mod tests {
         let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_internal: false, is_private: false, is_constructor: false };
 
         let mut public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
-        public_inputs.new_commitments[0] = SideEffect{
+        public_inputs.new_note_hashes[0] = SideEffect{
             value: 1,
             counter: 0,
         };
@@ -78,7 +78,7 @@ mod tests {
         let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_internal: false, is_private: false, is_constructor: false };
 
         let mut public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
-        public_inputs.new_commitments[0] = SideEffect{
+        public_inputs.new_note_hashes[0] = SideEffect{
             value: 1,
             counter: 0,
         };

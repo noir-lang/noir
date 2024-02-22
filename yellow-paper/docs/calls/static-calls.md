@@ -13,7 +13,7 @@ I think the options are:
 Thoughts? Ethereum does the latter. We should write about whichever we choose in this page.
 -->
 
-- `new_commitments`
+- `new_note_hashes`
 - `new_nullifiers`
 - `nullified_commitments`
 - `new_l2_to_l1_msgs`

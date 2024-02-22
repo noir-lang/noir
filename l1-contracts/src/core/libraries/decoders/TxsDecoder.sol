@@ -21,8 +21,8 @@ import {Hash} from "../Hash.sol";
  *
  *  | byte start                                                                     | num bytes    | name
  *  | ---                                                                            | ---          | ---
- *  | 0x00                                                                           | 0x04         | len(newCommitments) (denoted a)
- *  | 0x04                                                                           | a * 0x20     | newCommitments
+ *  | 0x00                                                                           | 0x04         | len(newNoteHashes) (denoted a)
+ *  | 0x04                                                                           | a * 0x20     | newNoteHashes
  *  | 0x04 + a * 0x20                                                                | 0x04         | len(newNullifiers) (denoted b)
  *  | 0x08 + a * 0x20                                                                | b * 0x20     | newNullifiers
  *  | 0x08 + a * 0x20 + b * 0x20                                                     | 0x04         | len(newPublicDataWrites) (denoted c)
@@ -42,7 +42,7 @@ import {Hash} from "../Hash.sol";
  */
 library TxsDecoder {
   struct ArrayOffsets {
-    uint256 commitment;
+    uint256 noteHash;
     uint256 nullifier;
     uint256 publicData;
     uint256 l2ToL1Msgs;
@@ -66,7 +66,7 @@ library TxsDecoder {
   /**
    * @notice Computes consumables for the block
    * @param _body - The L2 block calldata.
-   * @return diffRoot - The root of the diff tree (new commitments, nullifiers etc)
+   * @return diffRoot - The root of the diff tree (new note hashes, nullifiers etc)
    */
   function decode(bytes calldata _body) internal pure returns (bytes32) {
     ArrayOffsets memory offsets;
@@ -77,8 +77,8 @@ library TxsDecoder {
 
       // Commitments
       uint256 count = read4(_body, offset);
-      vars.baseLeaves = new bytes32[](count / Constants.MAX_NEW_COMMITMENTS_PER_TX);
-      offsets.commitment = 0x4;
+      vars.baseLeaves = new bytes32[](count / Constants.MAX_NEW_NOTE_HASHES_PER_TX);
+      offsets.noteHash = 0x4;
       offset += 0x4 + count * 0x20;
       offsets.nullifier = offset + 0x4; // + 0x4 to offset by next read4
 
@@ -128,7 +128,7 @@ library TxsDecoder {
         /*
          * Compute the leaf to insert.
          * Leaf_i = (
-         *    newCommitmentsKernel,
+         *    newNoteHashesKernel,
          *    newNullifiersKernel,
          *    newPublicDataWritesKernel,
          *    newL2ToL1MsgsKernel,
@@ -155,7 +155,7 @@ library TxsDecoder {
         // Insertions are split into multiple `bytes.concat` to work around stack too deep.
         vars.baseLeaf = bytes.concat(
           bytes.concat(
-            slice(_body, offsets.commitment, Constants.COMMITMENTS_NUM_BYTES_PER_BASE_ROLLUP),
+            slice(_body, offsets.noteHash, Constants.NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP),
             slice(_body, offsets.nullifier, Constants.NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP),
             slice(_body, offsets.publicData, Constants.PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP),
             slice(_body, offsets.l2ToL1Msgs, Constants.L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP),
@@ -169,7 +169,7 @@ library TxsDecoder {
           bytes.concat(vars.encryptedLogsHash, vars.unencryptedLogsHash)
         );
 
-        offsets.commitment += Constants.COMMITMENTS_NUM_BYTES_PER_BASE_ROLLUP;
+        offsets.noteHash += Constants.NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP;
         offsets.nullifier += Constants.NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP;
         offsets.publicData += Constants.PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP;
         offsets.l2ToL1Msgs += Constants.L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP;

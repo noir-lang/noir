@@ -2,10 +2,10 @@ import { FunctionL2Logs, Note } from '@aztec/circuit-types';
 import {
   FunctionData,
   FunctionSelector,
-  MAX_NEW_COMMITMENTS_PER_CALL,
-  MAX_NEW_COMMITMENTS_PER_TX,
+  MAX_NEW_NOTE_HASHES_PER_CALL,
+  MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_READ_REQUESTS_PER_CALL,
-  MAX_REVERTIBLE_COMMITMENTS_PER_TX,
+  MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
   MembershipWitness,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
@@ -52,8 +52,8 @@ describe('Kernel Prover', () => {
 
   const createExecutionResult = (fnName: string, newNoteIndices: number[] = []): ExecutionResult => {
     const publicInputs = PrivateCircuitPublicInputs.empty();
-    publicInputs.newCommitments = makeTuple(
-      MAX_NEW_COMMITMENTS_PER_CALL,
+    publicInputs.newNoteHashes = makeTuple(
+      MAX_NEW_NOTE_HASHES_PER_CALL,
       i =>
         i < newNoteIndices.length
           ? new SideEffect(generateFakeCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO)
@@ -83,12 +83,12 @@ describe('Kernel Prover', () => {
 
   const createProofOutput = (newNoteIndices: number[]) => {
     const publicInputs = PrivateKernelInnerCircuitPublicInputs.empty();
-    const commitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, () => SideEffect.empty());
+    const commitments = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, () => SideEffect.empty());
     for (let i = 0; i < newNoteIndices.length; i++) {
       commitments[i] = new SideEffect(generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO);
     }
 
-    publicInputs.end.newCommitments = commitments;
+    publicInputs.end.newNoteHashes = commitments;
     return {
       publicInputs,
       proof: makeEmptyProof(),
@@ -97,12 +97,12 @@ describe('Kernel Prover', () => {
 
   const createProofOutputFinal = (newNoteIndices: number[]) => {
     const publicInputs = PrivateKernelTailCircuitPublicInputs.empty();
-    const commitments = makeTuple(MAX_REVERTIBLE_COMMITMENTS_PER_TX, () => SideEffect.empty());
+    const commitments = makeTuple(MAX_REVERTIBLE_NOTE_HASHES_PER_TX, () => SideEffect.empty());
     for (let i = 0; i < newNoteIndices.length; i++) {
       commitments[i] = new SideEffect(generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO);
     }
 
-    publicInputs.end.newCommitments = commitments;
+    publicInputs.end.newNoteHashes = commitments;
     return {
       publicInputs,
       proof: makeEmptyProof(),
@@ -153,7 +153,7 @@ describe('Kernel Prover', () => {
 
     proofCreator = mock<ProofCreator>();
     proofCreator.getSiloedCommitments.mockImplementation(publicInputs =>
-      Promise.resolve(publicInputs.newCommitments.map(com => createFakeSiloedCommitment(com.value))),
+      Promise.resolve(publicInputs.newNoteHashes.map(com => createFakeSiloedCommitment(com.value))),
     );
     proofCreator.createProofInit.mockResolvedValue(createProofOutput([]));
     proofCreator.createProofInner.mockResolvedValue(createProofOutput([]));

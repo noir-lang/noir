@@ -24,7 +24,7 @@ pub fn generate_read_requests_with_config(
             leaf_index: i,
             sibling_path: fixtures::note_hash_tree::SIBLING_PATHS[i],
             is_transient,
-            hint_to_commitment: hints_to_commitment[i]
+            hint_to_note_hash: hints_to_commitment[i]
         };
         read_request_membership_witnesses.push(witness);
     }

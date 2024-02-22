@@ -85,7 +85,7 @@ impl PrivateKernelInnerCircuitPrivateInputs {
 
 mod tests {
     use crate::private_kernel_inner::PrivateKernelInnerCircuitPrivateInputs;
-    use dep::types::constants::{MAX_READ_REQUESTS_PER_CALL, MAX_NEW_COMMITMENTS_PER_TX};
+    use dep::types::constants::{MAX_READ_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_TX};
     use dep::types::{
         abis::{
         kernel_circuit_public_inputs::PrivateKernelInnerCircuitPublicInputs,
@@ -455,7 +455,7 @@ mod tests {
     fn input_validation_malformed_arrays_commitments() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.public_inputs.new_commitments.extend_from_array(
+        builder.private_call.public_inputs.new_note_hashes.extend_from_array(
             [
             SideEffect { value: 0, counter: 0 },
             SideEffect { value: 9123, counter: 1 }
@@ -516,17 +516,17 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         // The current call stack has 1 commitment;
-        builder.private_call.public_inputs.new_commitments.push(SideEffect { value: 4321, counter: 0 });
+        builder.private_call.public_inputs.new_note_hashes.push(SideEffect { value: 4321, counter: 0 });
 
-        // Mock the previous new commitments to be full, therefore no more commitments can be added.
-        let mut full_new_commitments = [SideEffect::empty(); MAX_NEW_COMMITMENTS_PER_TX];
-        for i in 0..MAX_NEW_COMMITMENTS_PER_TX {
-            full_new_commitments[i] = SideEffect {
+        // Mock the previous new note hashes to be full, therefore no more commitments can be added.
+        let mut full_new_note_hashes = [SideEffect::empty(); MAX_NEW_NOTE_HASHES_PER_TX];
+        for i in 0..MAX_NEW_NOTE_HASHES_PER_TX {
+            full_new_note_hashes[i] = SideEffect {
                 value: i + 1,
                 counter: i as u32,
             };
         }
-        builder.previous_kernel.end.new_commitments.extend_from_array(full_new_commitments);
+        builder.previous_kernel.end.new_note_hashes.extend_from_array(full_new_note_hashes);
 
         builder.failed();
     }
@@ -728,11 +728,11 @@ mod tests {
         assert_eq(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
     }
 
-    #[test(should_fail_with="new_commitments must be empty for static calls")]
-    fn creating_new_commitments_on_static_call_fails() {
+    #[test(should_fail_with="new_note_hashes must be empty for static calls")]
+    fn creating_new_note_hashes_on_static_call_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new().is_static_call();
 
-        builder.private_call.public_inputs.new_commitments.push(SideEffect { value: 1, counter: 0 });
+        builder.private_call.public_inputs.new_note_hashes.push(SideEffect { value: 1, counter: 0 });
 
         builder.failed();
     }

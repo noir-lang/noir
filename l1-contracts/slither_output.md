@@ -10,7 +10,7 @@ Summary
  - [dead-code](#dead-code) (13 results) (Informational)
  - [solc-version](#solc-version) (1 results) (Informational)
  - [low-level-calls](#low-level-calls) (1 results) (Informational)
- - [similar-names](#similar-names) (2 results) (Informational)
+ - [similar-names](#similar-names) (3 results) (Informational)
  - [unused-state](#unused-state) (2 results) (Informational)
  - [constable-states](#constable-states) (1 results) (Optimization)
  - [pess-multiple-storage-read](#pess-multiple-storage-read) (2 results) (Optimization)
@@ -353,12 +353,18 @@ src/core/messagebridge/Inbox.sol#L148-L153
 Impact: Informational
 Confidence: Medium
  - [ ] ID-41
+Variable [Constants.LOGS_HASHES_NUM_BYTES_PER_BASE_ROLLUP](src/core/libraries/ConstantsGen.sol#L123) is too similar to [Constants.NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP](src/core/libraries/ConstantsGen.sol#L116)
+
+src/core/libraries/ConstantsGen.sol#L123
+
+
+ - [ ] ID-42
 Variable [Constants.L1_TO_L2_MESSAGE_LENGTH](src/core/libraries/ConstantsGen.sol#L103) is too similar to [Constants.L2_TO_L1_MESSAGE_LENGTH](src/core/libraries/ConstantsGen.sol#L104)
 
 src/core/libraries/ConstantsGen.sol#L103
 
 
- - [ ] ID-42
+ - [ ] ID-43
 Variable [Rollup.AVAILABILITY_ORACLE](src/core/Rollup.sol#L30) is too similar to [Rollup.constructor(IRegistry,IAvailabilityOracle)._availabilityOracle](src/core/Rollup.sol#L39)
 
 src/core/Rollup.sol#L30
@@ -367,13 +373,13 @@ src/core/Rollup.sol#L30
 ## unused-state
 Impact: Informational
 Confidence: High
- - [ ] ID-43
+ - [ ] ID-44
 [Decoder.END_TREES_BLOCK_HEADER_OFFSET](src/core/libraries/decoders/Decoder.sol#L103-L104) is never used in [Decoder](src/core/libraries/decoders/Decoder.sol#L72-L418)
 
 src/core/libraries/decoders/Decoder.sol#L103-L104
 
 
- - [ ] ID-44
+ - [ ] ID-45
 [Decoder.BLOCK_HEADER_OFFSET](src/core/libraries/decoders/Decoder.sol#L107-L108) is never used in [Decoder](src/core/libraries/decoders/Decoder.sol#L72-L418)
 
 src/core/libraries/decoders/Decoder.sol#L107-L108
@@ -382,7 +388,7 @@ src/core/libraries/decoders/Decoder.sol#L107-L108
 ## constable-states
 Impact: Optimization
 Confidence: High
- - [ ] ID-45
+ - [ ] ID-46
 [Rollup.lastWarpedBlockTs](src/core/Rollup.sol#L37) should be constant 
 
 src/core/Rollup.sol#L37
@@ -391,13 +397,13 @@ src/core/Rollup.sol#L37
 ## pess-multiple-storage-read
 Impact: Optimization
 Confidence: High
- - [ ] ID-46
+ - [ ] ID-47
 In a function [FrontierMerkle.root()](src/core/messagebridge/frontier_tree/Frontier.sol#L39-L72) variable [FrontierMerkle.DEPTH](src/core/messagebridge/frontier_tree/Frontier.sol#L8) is read multiple times
 
 src/core/messagebridge/frontier_tree/Frontier.sol#L39-L72
 
 
- - [ ] ID-47
+ - [ ] ID-48
 In a function [FrontierMerkle.root()](src/core/messagebridge/frontier_tree/Frontier.sol#L39-L72) variable [FrontierMerkle.frontier](src/core/messagebridge/frontier_tree/Frontier.sol#L13) is read multiple times
 
 src/core/messagebridge/frontier_tree/Frontier.sol#L39-L72

@@ -11,10 +11,11 @@ import {
   Note,
   TxL2Logs,
 } from '@aztec/circuit-types';
-import { Fr, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
+import { Fr, MAX_NEW_NOTE_HASHES_PER_TX } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
+import { Tuple } from '@aztec/foundation/serialize';
 import { ConstantKeyPair } from '@aztec/key-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { AcirSimulator } from '@aztec/simulator';
@@ -39,7 +40,7 @@ describe('Note Processor', () => {
   let keyStore: MockProxy<KeyStore>;
   let simulator: MockProxy<AcirSimulator>;
   const firstBlockNum = 123;
-  const numCommitmentsPerBlock = TXS_PER_BLOCK * MAX_NEW_COMMITMENTS_PER_TX;
+  const numCommitmentsPerBlock = TXS_PER_BLOCK * MAX_NEW_NOTE_HASHES_PER_TX;
   const firstBlockDataStartIndex = (firstBlockNum - 1) * numCommitmentsPerBlock;
   const firstBlockDataEndIndex = firstBlockNum * numCommitmentsPerBlock;
 
@@ -53,12 +54,12 @@ describe('Note Processor', () => {
     let usedOwnedNote = 0;
     for (let i = 0; i < TXS_PER_BLOCK; ++i) {
       const ownedDataIndices = ownedData[i] || [];
-      if (ownedDataIndices.some(index => index >= MAX_NEW_COMMITMENTS_PER_TX)) {
-        throw new Error(`Data index should be less than ${MAX_NEW_COMMITMENTS_PER_TX}.`);
+      if (ownedDataIndices.some(index => index >= MAX_NEW_NOTE_HASHES_PER_TX)) {
+        throw new Error(`Data index should be less than ${MAX_NEW_NOTE_HASHES_PER_TX}.`);
       }
 
       const logs: FunctionL2Logs[] = [];
-      for (let noteIndex = 0; noteIndex < MAX_NEW_COMMITMENTS_PER_TX; ++noteIndex) {
+      for (let noteIndex = 0; noteIndex < MAX_NEW_NOTE_HASHES_PER_TX; ++noteIndex) {
         const isOwner = ownedDataIndices.includes(noteIndex);
         const publicKey = isOwner ? owner.getPublicKey() : Point.random();
         const note = (isOwner && ownedNotes[usedOwnedNote]) || L1NotePayload.random();
@@ -108,7 +109,10 @@ describe('Note Processor', () => {
       for (let i = 0; i < TXS_PER_BLOCK; i++) {
         block.body.txEffects[i].newNoteHashes = newNotes
           .map(n => computeMockNoteHash(n.note))
-          .slice(i * MAX_NEW_COMMITMENTS_PER_TX, (i + 1) * MAX_NEW_COMMITMENTS_PER_TX);
+          .slice(i * MAX_NEW_NOTE_HASHES_PER_TX, (i + 1) * MAX_NEW_NOTE_HASHES_PER_TX) as Tuple<
+          Fr,
+          typeof MAX_NEW_NOTE_HASHES_PER_TX
+        >;
       }
 
       const randomBlockContext = new L2BlockContext(block);
@@ -183,17 +187,17 @@ describe('Note Processor', () => {
       expect.objectContaining({
         ...ownedL1NotePayloads[0],
         // Index 1 log in the 2nd tx.
-        index: BigInt(thisBlockDataStartIndex + MAX_NEW_COMMITMENTS_PER_TX * (2 - 1) + 1),
+        index: BigInt(thisBlockDataStartIndex + MAX_NEW_NOTE_HASHES_PER_TX * (2 - 1) + 1),
       }),
       expect.objectContaining({
         ...ownedL1NotePayloads[1],
         // Index 0 log in the 4th tx.
-        index: BigInt(thisBlockDataStartIndex + MAX_NEW_COMMITMENTS_PER_TX * (4 - 1) + 0),
+        index: BigInt(thisBlockDataStartIndex + MAX_NEW_NOTE_HASHES_PER_TX * (4 - 1) + 0),
       }),
       expect.objectContaining({
         ...ownedL1NotePayloads[2],
         // Index 2 log in the 4th tx.
-        index: BigInt(thisBlockDataStartIndex + MAX_NEW_COMMITMENTS_PER_TX * (4 - 1) + 2),
+        index: BigInt(thisBlockDataStartIndex + MAX_NEW_NOTE_HASHES_PER_TX * (4 - 1) + 2),
       }),
     ]);
   }, 30_000);

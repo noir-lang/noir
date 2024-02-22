@@ -25,7 +25,7 @@ For both transactions, it:
 - Updates the public data tree in line with the requested state transitions.
 - Checks that the nullifiers haven't previously been inserted into the [indexed nullifier tree](../../storage/trees/indexed_merkle_tree.md#primer-on-nullifier-trees).
 - Batch-inserts new nullifiers into the nullifier tree.
-- Batch-inserts new commitments into the note hash tree
+- Batch-inserts new note hashes into the note hash tree
 - Batch-inserts any new contract deployments into the contract tree.
 - Hashes all the new nullifiers, commitments, public state transitions, and new contract deployments, to prevent exponential growth in public inputs with each later layer of recursion.
 - Verifies the input kernel proof.

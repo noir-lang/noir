@@ -1,14 +1,14 @@
 import { ContractData, L2BlockL2Logs, PublicDataWrite, TxEffect } from '@aztec/circuit-types';
 import {
-  MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_CONTRACTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
+  MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
 } from '@aztec/circuits.js';
 import { sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 export class Body {
   constructor(public l1ToL2Messages: Fr[], public txEffects: TxEffect[]) {}
@@ -81,19 +81,35 @@ export class Body {
     const numberOfTxsIncludingEmpty = newNullifiers.length / MAX_NEW_NULLIFIERS_PER_TX;
 
     for (let i = 0; i < numberOfTxsIncludingEmpty; i += 1) {
+      // TODO(#4720): this should use TxEffect.fromBuffer
       txEffects.push(
         new TxEffect(
-          newNoteHashes.slice(i * MAX_NEW_COMMITMENTS_PER_TX, (i + 1) * MAX_NEW_COMMITMENTS_PER_TX),
-          newNullifiers.slice(i * MAX_NEW_NULLIFIERS_PER_TX, (i + 1) * MAX_NEW_NULLIFIERS_PER_TX),
-          newL2ToL1Msgs.slice(i * MAX_NEW_L2_TO_L1_MSGS_PER_TX, (i + 1) * MAX_NEW_L2_TO_L1_MSGS_PER_TX),
+          newNoteHashes.slice(i * MAX_NEW_NOTE_HASHES_PER_TX, (i + 1) * MAX_NEW_NOTE_HASHES_PER_TX) as Tuple<
+            Fr,
+            typeof MAX_NEW_NOTE_HASHES_PER_TX
+          >,
+          newNullifiers.slice(i * MAX_NEW_NULLIFIERS_PER_TX, (i + 1) * MAX_NEW_NULLIFIERS_PER_TX) as Tuple<
+            Fr,
+            typeof MAX_NEW_NULLIFIERS_PER_TX
+          >,
+          newL2ToL1Msgs.slice(i * MAX_NEW_L2_TO_L1_MSGS_PER_TX, (i + 1) * MAX_NEW_L2_TO_L1_MSGS_PER_TX) as Tuple<
+            Fr,
+            typeof MAX_NEW_L2_TO_L1_MSGS_PER_TX
+          >,
           newPublicDataWrites.slice(
             i * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
             (i + 1) * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-          ),
-          newContracts.slice(i * MAX_NEW_CONTRACTS_PER_TX, (i + 1) * MAX_NEW_CONTRACTS_PER_TX),
-          newContractData.slice(i * MAX_NEW_CONTRACTS_PER_TX, (i + 1) * MAX_NEW_CONTRACTS_PER_TX),
-          newEncryptedLogs!.txLogs[i],
-          newUnencryptedLogs!.txLogs[i],
+          ) as Tuple<PublicDataWrite, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+          newContracts.slice(i * MAX_NEW_CONTRACTS_PER_TX, (i + 1) * MAX_NEW_CONTRACTS_PER_TX) as Tuple<
+            Fr,
+            typeof MAX_NEW_CONTRACTS_PER_TX
+          >,
+          newContractData.slice(i * MAX_NEW_CONTRACTS_PER_TX, (i + 1) * MAX_NEW_CONTRACTS_PER_TX) as Tuple<
+            ContractData,
+            typeof MAX_NEW_CONTRACTS_PER_TX
+          >,
+          newEncryptedLogs.txLogs[i],
+          newUnencryptedLogs.txLogs[i],
         ),
       );
     }

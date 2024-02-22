@@ -42,9 +42,9 @@ Output of the last iteration of the private kernel circuit. Includes _accumulate
 | Field | Type | Description |
 |-------|------|-------------|
 | aggregationObject | AggregationObject | Aggregated proof of all the previous kernel iterations. |
-| newCommitments | Field[] | The new commitments made in this transaction. |
+| newNoteHashes | Field[] | The new note hashes made in this transaction. |
 | newNullifiers | Field[] | The new nullifiers made in this transaction. |
-| nullifiedCommitments | Field[] | The commitments which are nullified by a nullifier in the above list. |
+| nullifiedNoteHashes | Field[] | The note hashes which are nullified by a nullifier in the above list. |
 | privateCallStack | Field[] | Current private call stack. |
 | publicCallStack | Field[] | Current public call stack. |
 | newL2ToL1Msgs | Field[] | All the new L2 to L1 messages created in this transaction. |

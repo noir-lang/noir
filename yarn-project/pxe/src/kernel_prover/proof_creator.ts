@@ -9,7 +9,7 @@ import {
   Proof,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { siloCommitment } from '@aztec/circuits.js/hash';
+import { siloNoteHash } from '@aztec/circuits.js/hash';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
@@ -53,7 +53,7 @@ export interface ProofCreator {
   /**
    * Computes the siloed commitments for a given set of public inputs.
    *
-   * @param publicInputs - The public inputs containing the contract address and new commitments to be used in generating siloed commitments.
+   * @param publicInputs - The public inputs containing the contract address and new note hashes to be used in generating siloed note hashes.
    * @returns An array of Fr (finite field) elements representing the siloed commitments.
    */
   getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs): Promise<Fr[]>;
@@ -97,7 +97,7 @@ export class KernelProofCreator implements ProofCreator {
     const contractAddress = publicInputs.callContext.storageContractAddress;
 
     return Promise.resolve(
-      publicInputs.newCommitments.map(commitment => siloCommitment(contractAddress, commitment.value)),
+      publicInputs.newNoteHashes.map(commitment => siloNoteHash(contractAddress, commitment.value)),
     );
   }
 

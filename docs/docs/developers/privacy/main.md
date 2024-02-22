@@ -78,7 +78,7 @@ A 'Function Fingerprint' is any data which is exposed by a function to the outsi
 - All unencrypted logs (topics and arguments).
 - The roots of all trees which have been read from.
 - The _number_ of ['side effects'](<https://en.wikipedia.org/wiki/Side_effect_(computer_science)>):
-  - \# new commitments
+  - \# new note hashes
   - \# new nullifiers
   - \# bytes of encrypted logs
   - \# public function calls
@@ -91,7 +91,7 @@ A 'Function Fingerprint' is any data which is exposed by a function to the outsi
 
 #### Standardizing Fingerprints
 
-If each private function were to have a unique Fingerprint, then all private functions would be distinguishable from each-other, and all of the efforts of the Aztec protocol to enable 'private function execution' would have been pointless. Standards need to be developed, to encourage smart contract developers to adhere to a restricted set of Tx Fingerprints. For example, a standard might propose that the number of new commitments, nullifiers, logs, etc. must always be equal, and must always equal a power of two. Such a standard would effectively group private functions/txs into 'privacy sets', where all functions/txs in a particular 'privacy set' would look indistinguishable from each-other, when executed.
+If each private function were to have a unique Fingerprint, then all private functions would be distinguishable from each-other, and all of the efforts of the Aztec protocol to enable 'private function execution' would have been pointless. Standards need to be developed, to encourage smart contract developers to adhere to a restricted set of Tx Fingerprints. For example, a standard might propose that the number of new note hashes, nullifiers, logs, etc. must always be equal, and must always equal a power of two. Such a standard would effectively group private functions/txs into 'privacy sets', where all functions/txs in a particular 'privacy set' would look indistinguishable from each-other, when executed.
 
 ### Data queries
 

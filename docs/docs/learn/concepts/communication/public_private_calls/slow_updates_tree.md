@@ -41,7 +41,7 @@ graph TD;
     CurrentM --> Value1[Current Value 1]
     CurrentM --> Value2[Current Value 2]
     CurrentM --> ValueN[Current Value n]
-    Pending --> PendingM[Pending Commitment 1]
+    Pending --> PendingM[Pending Note Hash 1]
     PendingM --> PValue1[Pending Value 1]
     PendingM --> PValue2[Pending Value 2]
     PendingM --> PValueN[Pending Value n]

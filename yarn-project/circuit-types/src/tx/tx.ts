@@ -176,8 +176,8 @@ export class Tx {
       newContractDataSize: this.newContracts.map(c => c.toBuffer().length).reduce((a, b) => a + b, 0),
 
       newCommitmentCount:
-        arrayNonEmptyLength(this.data!.endNonRevertibleData.newCommitments, SideEffect.isEmpty) +
-        arrayNonEmptyLength(this.data!.end.newCommitments, SideEffect.isEmpty),
+        arrayNonEmptyLength(this.data!.endNonRevertibleData.newNoteHashes, SideEffect.isEmpty) +
+        arrayNonEmptyLength(this.data!.end.newNoteHashes, SideEffect.isEmpty),
 
       newNullifierCount:
         arrayNonEmptyLength(this.data!.endNonRevertibleData.newNullifiers, SideEffectLinkedToNoteHash.isEmpty) +

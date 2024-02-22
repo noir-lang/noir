@@ -369,8 +369,6 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         await expect(store.getContractData(block.body.txEffects[0].contractData[0].contractAddress)).resolves.toEqual(
           block.body.txEffects[0].contractData[0],
         );
-
-        expect(block.body.txEffects[0].contractData[1]).toBe(undefined);
       });
 
       it('returns undefined if contract data is not found', async () => {

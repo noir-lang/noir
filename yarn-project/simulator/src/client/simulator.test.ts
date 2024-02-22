@@ -1,6 +1,6 @@
 import { AztecNode, Note } from '@aztec/circuit-types';
 import { CompleteAddress } from '@aztec/circuits.js';
-import { computeUniqueCommitment, siloCommitment } from '@aztec/circuits.js/hash';
+import { computeUniqueCommitment, siloNoteHash } from '@aztec/circuits.js/hash';
 import { ABIParameterVisibility, FunctionArtifactWithDebugMetadata, getFunctionArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';
@@ -52,7 +52,7 @@ describe('Simulator', () => {
       const note = createNote();
       const tokenNoteHash = hashFields(note.items);
       const innerNoteHash = hashFields([storageSlot, tokenNoteHash]);
-      const siloedNoteHash = siloCommitment(contractAddress, innerNoteHash);
+      const siloedNoteHash = siloNoteHash(contractAddress, innerNoteHash);
       const uniqueSiloedNoteHash = computeUniqueCommitment(nonce, siloedNoteHash);
       const innerNullifier = hashFields([
         uniqueSiloedNoteHash,

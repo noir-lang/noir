@@ -71,7 +71,7 @@ export class SentTx {
       const tx = (await this.pxe.getTx(txHash))!;
       const visibleNotes = await this.pxe.getNotes({ txHash });
       receipt.debugInfo = {
-        newCommitments: tx.newCommitments,
+        newNoteHashes: tx.newNoteHashes,
         newNullifiers: tx.newNullifiers,
         newPublicDataWrites: tx.newPublicDataWrites,
         newL2ToL1Msgs: tx.newL2ToL1Msgs,

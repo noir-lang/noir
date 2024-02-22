@@ -11,12 +11,12 @@ use crate::{
 }
 };
 use crate::constants::{
-    MAX_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_NEW_COMMITMENTS_PER_TX,
+    MAX_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_NEW_NOTE_HASHES_PER_TX,
     MAX_NEW_NULLIFIERS_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX, MAX_NEW_CONTRACTS_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX, NUM_FIELDS_PER_SHA256,
-    MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
-    MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_REVERTIBLE_COMMITMENTS_PER_TX,
+    MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
+    MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
     MAX_REVERTIBLE_NULLIFIERS_PER_TX, MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX, MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
     MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX, MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
@@ -31,7 +31,7 @@ struct CombinedAccumulatedData {
     read_requests: [SideEffect; MAX_READ_REQUESTS_PER_TX],
     nullifier_key_validation_requests: [NullifierKeyValidationRequestContext; MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX],
 
-    new_commitments: [SideEffect; MAX_NEW_COMMITMENTS_PER_TX],
+    new_note_hashes: [SideEffect; MAX_NEW_NOTE_HASHES_PER_TX],
     new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
 
     private_call_stack: [CallRequest; MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX],
@@ -66,7 +66,7 @@ impl CombinedAccumulatedData {
         CombinedAccumulatedData {
             read_requests: revertible.read_requests,
             nullifier_key_validation_requests: revertible.nullifier_key_validation_requests,
-            new_commitments: array_concat(non_revertible.new_commitments, revertible.new_commitments),
+            new_note_hashes: array_concat(non_revertible.new_note_hashes, revertible.new_note_hashes),
             new_nullifiers: array_concat(non_revertible.new_nullifiers, revertible.new_nullifiers),
             private_call_stack: revertible.private_call_stack,
             public_call_stack: array_concat(
@@ -154,8 +154,8 @@ mod tests {
             }
         ];
 
-        builder.new_commitments.extend_from_array(non_revertible_commitments);
-        builder.new_commitments.extend_from_array(revertible_commitments);
+        builder.new_note_hashes.extend_from_array(non_revertible_commitments);
+        builder.new_note_hashes.extend_from_array(revertible_commitments);
 
         builder.new_nullifiers.extend_from_array(non_revertible_nullifiers);
         builder.new_nullifiers.extend_from_array(revertible_nullifiers);
@@ -165,11 +165,11 @@ mod tests {
 
         let (non_revertible, revertible) = builder.split(7);
 
-        assert(array_eq(non_revertible.new_commitments, non_revertible_commitments));
+        assert(array_eq(non_revertible.new_note_hashes, non_revertible_commitments));
         assert(array_eq(non_revertible.new_nullifiers, non_revertible_nullifiers));
         assert(array_eq(non_revertible.public_call_stack, non_revertible_public_stack));
 
-        assert(array_eq(revertible.new_commitments, revertible_commitments));
+        assert(array_eq(revertible.new_note_hashes, revertible_commitments));
         assert(array_eq(revertible.new_nullifiers, revertible_nullifiers));
         assert(array_eq(revertible.public_call_stack, revertible_public_call_stack));
     }

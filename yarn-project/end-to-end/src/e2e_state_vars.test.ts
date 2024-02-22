@@ -49,7 +49,7 @@ describe('e2e_state_vars', () => {
       expect(receipt.status).toEqual(TxStatus.MINED);
 
       const tx = await wallet.getTx(receipt.txHash);
-      expect(tx?.newCommitments.length).toEqual(1);
+      expect(tx?.newNoteHashes.length).toEqual(1);
       // 1 for the tx, another for the initializer
       expect(tx?.newNullifiers.length).toEqual(2);
       expect(await contract.methods.is_legendary_initialized().view()).toEqual(true);
@@ -75,7 +75,7 @@ describe('e2e_state_vars', () => {
       expect(receipt.status).toEqual(TxStatus.MINED);
 
       const tx = await wallet.getTx(receipt.txHash);
-      expect(tx?.newCommitments.length).toEqual(1);
+      expect(tx?.newNoteHashes.length).toEqual(1);
       // 1 for the tx, another for the nullifier of the previous note
       expect(tx?.newNullifiers.length).toEqual(2);
 
@@ -99,7 +99,7 @@ describe('e2e_state_vars', () => {
         .wait();
       expect(receipt.status).toEqual(TxStatus.MINED);
       const tx = await wallet.getTx(receipt.txHash);
-      expect(tx?.newCommitments.length).toEqual(1);
+      expect(tx?.newNoteHashes.length).toEqual(1);
       // 1 for the tx, another for the nullifier of the previous note
       expect(tx?.newNullifiers.length).toEqual(2);
 
@@ -114,7 +114,7 @@ describe('e2e_state_vars', () => {
       const receipt = await contract.methods.increase_legendary_points().send().wait();
       expect(receipt.status).toEqual(TxStatus.MINED);
       const tx = await wallet.getTx(receipt.txHash);
-      expect(tx?.newCommitments.length).toEqual(1);
+      expect(tx?.newNoteHashes.length).toEqual(1);
       // 1 for the tx, another for the nullifier of the previous note
       expect(tx?.newNullifiers.length).toEqual(2);
 
@@ -136,7 +136,7 @@ describe('e2e_state_vars', () => {
       expect(receipt.status).toEqual(TxStatus.MINED);
 
       const tx = await wallet.getTx(receipt.txHash);
-      expect(tx?.newCommitments.length).toEqual(1);
+      expect(tx?.newNoteHashes.length).toEqual(1);
       // 1 for the tx, another for the initializer
       expect(tx?.newNullifiers.length).toEqual(2);
       expect(await contract.methods.is_imm_initialized().view()).toEqual(true);

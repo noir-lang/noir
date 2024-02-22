@@ -182,7 +182,7 @@ Someone: 787 bytes
 Total: 1098 bytes
 ```
 
-For a more liberal estimation, lets suppose we emit 4 nullifiers, 4 new commitments, and 4 public data writes instead per transaction.
+For a more liberal estimation, lets suppose we emit 4 nullifiers, 4 new note hashes, and 4 public data writes instead per transaction.
 
 ```python
 Tx ((512, 1036) bytes): comms=4, nulls=4, pubs=4, l2_to_l1=0, e_logs=988, u_logs=48

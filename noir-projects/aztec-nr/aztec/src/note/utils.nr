@@ -2,21 +2,18 @@ use crate::{context::PrivateContext, note::{note_header::NoteHeader, note_interf
 
 use dep::protocol_types::{
     address::AztecAddress,
-    constants::{
-    GENERATOR_INDEX__OUTER_NULLIFIER, GENERATOR_INDEX__UNIQUE_COMMITMENT,
-    GENERATOR_INDEX__SILOED_COMMITMENT
-},
+    constants::{GENERATOR_INDEX__OUTER_NULLIFIER, GENERATOR_INDEX__UNIQUE_NOTE_HASH, GENERATOR_INDEX__SILOED_NOTE_HASH},
     hash::pedersen_hash, utils::arr_copy_slice
 };
 
 fn compute_siloed_hash(contract_address: AztecAddress, inner_note_hash: Field) -> Field {
     let inputs = [contract_address.to_field(), inner_note_hash];
-    pedersen_hash(inputs, GENERATOR_INDEX__SILOED_COMMITMENT)
+    pedersen_hash(inputs, GENERATOR_INDEX__SILOED_NOTE_HASH)
 }
 
 fn compute_unique_hash(nonce: Field, siloed_note_hash: Field) -> Field {
     let inputs = [nonce, siloed_note_hash];
-    pedersen_hash(inputs, GENERATOR_INDEX__UNIQUE_COMMITMENT)
+    pedersen_hash(inputs, GENERATOR_INDEX__UNIQUE_NOTE_HASH)
 }
 
 fn compute_inner_note_hash<Note, N>(note: Note) -> Field where Note: NoteInterface<N> {

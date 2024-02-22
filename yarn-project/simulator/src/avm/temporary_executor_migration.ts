@@ -60,7 +60,7 @@ export function temporaryConvertAvmResults(
   newWorldState: JournalData,
   result: AvmContractCallResults,
 ): PublicExecutionResult {
-  const newCommitments = newWorldState.newNoteHashes.map(noteHash => new SideEffect(noteHash, Fr.zero()));
+  const newNoteHashes = newWorldState.newNoteHashes.map(noteHash => new SideEffect(noteHash, Fr.zero()));
 
   const contractStorageReads: ContractStorageRead[] = [];
   const reduceStorageReadRequests = (contractAddress: bigint, storageReads: Map<bigint, Fr[]>) => {
@@ -97,7 +97,7 @@ export function temporaryConvertAvmResults(
 
   return {
     execution,
-    newCommitments,
+    newNoteHashes,
     newL2ToL1Messages,
     newNullifiers,
     contractStorageReads,

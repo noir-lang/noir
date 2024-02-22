@@ -88,9 +88,9 @@ export class TxReceipt {
  */
 interface DebugInfo {
   /**
-   * New commitments created by the transaction.
+   * New note hashes created by the transaction.
    */
-  newCommitments: Fr[];
+  newNoteHashes: Fr[];
   /**
    * New nullifiers created by the transaction.
    */

@@ -50,8 +50,8 @@ import {Hash} from "../Hash.sol";
  *  | 0x0208                                                                           | 0x04         | endL1ToL2MessageTreeSnapshot.nextAvailableLeafIndex
  *  | 0x020c                                                                           | 0x20         | endArchiveSnapshot.root
  *  | 0x022c                                                                           | 0x04         | endArchiveSnapshot.nextAvailableLeafIndex
- *  | 0x0230                                                                           | 0x04         | len(newCommitments) (denoted a)
- *  | 0x0234                                                                           | a * 0x20     | newCommitments
+ *  | 0x0230                                                                           | 0x04         | len(newNoteHashes) (denoted a)
+ *  | 0x0234                                                                           | a * 0x20     | newNoteHashes
  *  | 0x0234 + a * 0x20                                                                | 0x04         | len(newNullifiers) (denoted b)
  *  | 0x0238 + a * 0x20                                                                | b * 0x20     | newNullifiers
  *  | 0x0238 + a * 0x20 + b * 0x20                                                     | 0x04         | len(newPublicDataWrites) (denoted c)
@@ -156,7 +156,7 @@ library Decoder {
   /**
    * @notice Computes consumables for the block
    * @param _body - The L2 block body.
-   * @return diffRoot - The root of the diff tree (new commitments, nullifiers etc)
+   * @return diffRoot - The root of the diff tree (new note hashes, nullifiers etc)
    * @return l1ToL2MsgsHash - The hash of the L1 to L2 messages
    * @return l2ToL1Msgs - The L2 to L1 messages of the block
    * @return l1ToL2Msgs - The L1 to L2 messages of the block
@@ -174,7 +174,7 @@ library Decoder {
 
       // Commitments
       uint256 count = read4(_body, offset);
-      vars.baseLeaves = new bytes32[](count / Constants.MAX_NEW_COMMITMENTS_PER_TX);
+      vars.baseLeaves = new bytes32[](count / Constants.MAX_NEW_NOTE_HASHES_PER_TX);
       offset += 0x4;
       offsets.commitment = offset;
       offset += count * 0x20;
@@ -226,7 +226,7 @@ library Decoder {
         /*
          * Compute the leaf to insert.
          * Leaf_i = (
-         *    newCommitmentsKernel,
+         *    newNoteHashesKernel,
          *    newNullifiersKernel,
          *    newPublicDataWritesKernel,
          *    newL2ToL1MsgsKernel,
@@ -253,7 +253,7 @@ library Decoder {
         // Insertions are split into multiple `bytes.concat` to work around stack too deep.
         vars.baseLeaf = bytes.concat(
           bytes.concat(
-            slice(_body, offsets.commitment, Constants.COMMITMENTS_NUM_BYTES_PER_BASE_ROLLUP),
+            slice(_body, offsets.commitment, Constants.NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP),
             slice(_body, offsets.nullifier, Constants.NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP),
             slice(_body, offsets.publicData, Constants.PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP),
             slice(_body, offsets.l2ToL1Msgs, Constants.L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP),
@@ -267,7 +267,7 @@ library Decoder {
           bytes.concat(vars.encryptedLogsHash, vars.unencryptedLogsHash)
         );
 
-        offsets.commitment += Constants.COMMITMENTS_NUM_BYTES_PER_BASE_ROLLUP;
+        offsets.commitment += Constants.NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP;
         offsets.nullifier += Constants.NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP;
         offsets.publicData += Constants.PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP;
         offsets.l2ToL1Msgs += Constants.L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP;

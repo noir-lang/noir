@@ -21,8 +21,8 @@ export class DeferredNoteDao {
     public noteTypeId: Fr,
     /** The hash of the tx the note was created in. Equal to the first nullifier */
     public txHash: TxHash,
-    /** New commitments in this transaction, one of which belongs to this note */
-    public newCommitments: Fr[],
+    /** New note hashes in this transaction, one of which belongs to this note */
+    public newNoteHashes: Fr[],
     /** The next available leaf index for the note hash tree for this transaction */
     public dataStartIndexForTx: number,
   ) {}
@@ -35,7 +35,7 @@ export class DeferredNoteDao {
       this.storageSlot.toBuffer(),
       this.noteTypeId.toBuffer(),
       this.txHash.toBuffer(),
-      new Vector(this.newCommitments),
+      new Vector(this.newNoteHashes),
       this.dataStartIndexForTx,
     );
   }

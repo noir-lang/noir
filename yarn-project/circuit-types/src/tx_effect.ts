@@ -1,43 +1,47 @@
 import { ContractData, PublicDataWrite, TxL2Logs } from '@aztec/circuit-types';
-import { Fr, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
+import {
+  Fr,
+  MAX_NEW_CONTRACTS_PER_TX,
+  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
+  MAX_NEW_NOTE_HASHES_PER_TX,
+  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+} from '@aztec/circuits.js';
 import { sha256 } from '@aztec/foundation/crypto';
+import { Tuple } from '@aztec/foundation/serialize';
 
 export class TxEffect {
   constructor(
     /**
-     * The commitments to be inserted into the note hash tree.
+     * The note hashes to be inserted into the note hash tree.
      */
-    public newNoteHashes: Fr[],
+    public newNoteHashes: Tuple<Fr, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
     /**
      * The nullifiers to be inserted into the nullifier tree.
      */
-    public newNullifiers: Fr[],
+    public newNullifiers: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
     /**
      * The L2 to L1 messages to be inserted into the messagebox on L1.
      */
-    public newL2ToL1Msgs: Fr[],
+    public newL2ToL1Msgs: Tuple<Fr, typeof MAX_NEW_L2_TO_L1_MSGS_PER_TX>,
     /**
      * The public data writes to be inserted into the public data tree.
      */
-    public newPublicDataWrites: PublicDataWrite[],
+    public newPublicDataWrites: Tuple<PublicDataWrite, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
     /**
      * The leaves of the new contract data that will be inserted into the contracts tree.
      */
-    public contractLeaves: Fr[],
+    public contractLeaves: Tuple<Fr, typeof MAX_NEW_CONTRACTS_PER_TX>,
     /**
-     * The the contracts data of the new contracts.
+     * The contract data of the new contracts.
      */
-    public contractData: ContractData[],
+    public contractData: Tuple<ContractData, typeof MAX_NEW_CONTRACTS_PER_TX>,
     /**
      * The logs of the txEffect
      */
     public encryptedLogs: TxL2Logs,
     public unencryptedLogs: TxL2Logs,
-  ) {
-    if (newNoteHashes.length % MAX_NEW_COMMITMENTS_PER_TX !== 0) {
-      throw new Error(`The number of new commitments must be a multiple of ${MAX_NEW_COMMITMENTS_PER_TX}.`);
-    }
-  }
+  ) {}
 
   hash() {
     const noteHashesBuffer = Buffer.concat(this.newNoteHashes.map(x => x.toBuffer()));
@@ -47,11 +51,8 @@ export class TxEffect {
     const encryptedLogsHashKernel0 = this.encryptedLogs.hash();
     const unencryptedLogsHashKernel0 = this.unencryptedLogs.hash();
 
-    if (
-      (this.contractLeaves.length > 1 && !this.contractLeaves[1].isZero()) ||
-      (this.contractData.length > 1 && !this.contractData[1].isEmpty())
-    ) {
-      throw new Error('We only support max one new contract per tx');
+    if (MAX_NEW_CONTRACTS_PER_TX !== 1) {
+      throw new Error('Only one contract per transaction is supported for now.');
     }
 
     const inputValue = Buffer.concat([

@@ -21,8 +21,8 @@ import {Hash} from "../Hash.sol";
  *
  *  | byte start                                                                     | num bytes    | name
  *  | ---                                                                            | ---          | ---
- *  | 0x00                                                                           | 0x04         | len(newCommitments) (denoted a)
- *  | 0x04                                                                           | a * 0x20     | newCommitments
+ *  | 0x00                                                                           | 0x04         | len(newNoteHashes) (denoted a)
+ *  | 0x04                                                                           | a * 0x20     | newNoteHashes
  *  | 0x04 + a * 0x20                                                                | 0x04         | len(newNullifiers) (denoted b)
  *  | 0x08 + a * 0x20                                                                | b * 0x20     | newNullifiers
  *  | 0x08 + a * 0x20 + b * 0x20                                                     | 0x04         | len(newPublicDataWrites) (denoted c)
@@ -63,7 +63,7 @@ library MessagesDecoder {
 
     uint256 offset = 0;
 
-    // Commitments
+    // Note hashes
     uint256 count = read4(_body, offset);
     offset += 0x4 + count * 0x20;
 

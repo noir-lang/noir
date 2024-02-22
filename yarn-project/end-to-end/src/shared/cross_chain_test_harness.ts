@@ -440,7 +440,7 @@ export class CrossChainTestHarness {
   }
 
   async redeemShieldPrivatelyOnL2(shieldAmount: bigint, secret: Fr) {
-    this.logger('Spending commitment in private call');
+    this.logger('Spending note in private call');
     const privateTx = this.l2Token.methods.redeem_shield(this.ownerAddress, shieldAmount, secret).send();
     const privateReceipt = await privateTx.wait();
     expect(privateReceipt.status).toBe(TxStatus.MINED);

@@ -15,7 +15,7 @@ On this page, you'll learn
 - The details and functionalities of the private context in Aztec.nr
 - Difference between the private and public contexts and their unified APIs
 - Components of the private context, such as inputs, block header, and contract deployment data
-- Elements like return values, read requests, new commitments, and nullifiers in transaction processing
+- Elements like return values, read requests, new note hashes, and nullifiers in transaction processing
 - Differences between the private and public contexts, especially the unique features and variables in the public context
 
 ## Two contexts, one API
@@ -105,18 +105,18 @@ The return values are a set of values that are returned from an applications exe
 
 <!-- TODO(maddiaa): leaving as todo until their is further clarification around their implementation in the protocol -->
 
-### New Commitments
+### New Note Hashes
 
-New commitments contains an array of all of the commitments created in the current execution context.
+New note hashes contains an array of all of the note hashes created in the current execution context.
 
 ### New Nullifiers
 
 New nullifiers contains an array of the new nullifiers emitted from the current execution context.
 
-### Nullified Commitments
+### Nullified Note Hashes
 
-Nullified commitments is an optimization for introduced to help reduce state growth. There are often cases where commitments are created and nullified within the same transaction.
-In these cases there is no reason that these commitments should take up space on the node's commitment/nullifier trees. Keeping track of nullified commitments allows us to "cancel out" and prove these cases.
+Nullified note hashes is an optimization for introduced to help reduce state growth. There are often cases where note hashes are created and nullified within the same transaction.
+In these cases there is no reason that these note hashes should take up space on the node's commitment/nullifier trees. Keeping track of nullified note hashes allows us to "cancel out" and prove these cases.
 
 ### Private Call Stack
 

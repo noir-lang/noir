@@ -14,7 +14,7 @@ import { NoteDao } from '../database/note_dao.js';
  * @param publicKey - The public counterpart to the private key to be used in note decryption.
  * @param payload - An instance of l1NotePayload.
  * @param txHash - The hash of the transaction that created the note. Equivalent to the first nullifier of the transaction.
- * @param newCommitments - New commitments in this transaction, one of which belongs to this note.
+ * @param newNoteHashes - New note hashes in this transaction, one of which belongs to this note.
  * @param dataStartIndexForTx - The next available leaf index for the note hash tree for this transaction.
  * @param excludedIndices - Indices that have been assigned a note in the same tx. Notes in a tx can have the same l1NotePayload, we need to find a different index for each replicate.
  * @param simulator - An instance of AcirSimulator.
@@ -25,13 +25,13 @@ export async function produceNoteDao(
   publicKey: PublicKey,
   payload: L1NotePayload,
   txHash: TxHash,
-  newCommitments: Fr[],
+  newNoteHashes: Fr[],
   dataStartIndexForTx: number,
   excludedIndices: Set<number>,
 ): Promise<NoteDao> {
   const { commitmentIndex, nonce, innerNoteHash, siloedNullifier } = await findNoteIndexAndNullifier(
     simulator,
-    newCommitments,
+    newNoteHashes,
     txHash,
     payload,
     excludedIndices,

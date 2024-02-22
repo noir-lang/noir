@@ -19,13 +19,16 @@ import {
   Fr,
   GlobalVariables,
   Header,
+  MAX_NEW_CONTRACTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
+  MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX,
+  MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX,
   MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
   MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-  MAX_REVERTIBLE_COMMITMENTS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
   MAX_REVERTIBLE_NULLIFIERS_PER_TX,
   MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NULLIFIER_SUBTREE_HEIGHT,
@@ -55,7 +58,7 @@ import {
 import { makeTuple, range } from '@aztec/foundation/array';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { times } from '@aztec/foundation/collection';
-import { to2Fields } from '@aztec/foundation/serialize';
+import { Tuple, to2Fields } from '@aztec/foundation/serialize';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
@@ -134,14 +137,14 @@ describe('sequencer/solo_block_builder', () => {
     return makeEmptyProcessedTxFromHistoricalTreeRoots(header, chainId, version);
   };
 
-  // Updates the expectedDb trees based on the new commitments, contracts, and nullifiers from these txs
+  // Updates the expectedDb trees based on the new note hashes, contracts, and nullifiers from these txs
   const updateExpectedTreesFromTxs = async (txs: ProcessedTx[]) => {
     const newContracts = txs.flatMap(tx => tx.data.end.newContracts.map(cd => cd.hash()));
     for (const [tree, leaves] of [
       [
         MerkleTreeId.NOTE_HASH_TREE,
         txs.flatMap(tx =>
-          [...tx.data.endNonRevertibleData.newCommitments, ...tx.data.end.newCommitments].map(l => l.value.toBuffer()),
+          [...tx.data.endNonRevertibleData.newNoteHashes, ...tx.data.end.newNoteHashes].map(l => l.value.toBuffer()),
         ),
       ],
       [MerkleTreeId.CONTRACT_TREE, newContracts.map(x => x.toBuffer())],
@@ -231,12 +234,23 @@ describe('sequencer/solo_block_builder', () => {
     const txEffects: TxEffect[] = txs.map(
       tx =>
         new TxEffect(
-          tx.data.combinedData.newCommitments.map((c: SideEffect) => c.value),
-          tx.data.combinedData.newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value),
+          tx.data.combinedData.newNoteHashes.map((c: SideEffect) => c.value) as Tuple<
+            Fr,
+            typeof MAX_NEW_NOTE_HASHES_PER_TX
+          >,
+          tx.data.combinedData.newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value) as Tuple<
+            Fr,
+            typeof MAX_NEW_NULLIFIERS_PER_TX
+          >,
           tx.data.combinedData.newL2ToL1Msgs,
-          tx.data.combinedData.publicDataUpdateRequests.map(t => new PublicDataWrite(t.leafSlot, t.newValue)),
-          tx.data.combinedData.newContracts.map(cd => cd.hash()),
-          tx.data.combinedData.newContracts.map(cd => new ContractData(cd.contractAddress, cd.portalContractAddress)),
+          tx.data.combinedData.publicDataUpdateRequests.map(t => new PublicDataWrite(t.leafSlot, t.newValue)) as Tuple<
+            PublicDataWrite,
+            typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+          >,
+          tx.data.combinedData.newContracts.map(cd => cd.hash()) as Tuple<Fr, typeof MAX_NEW_CONTRACTS_PER_TX>,
+          tx.data.combinedData.newContracts.map(
+            cd => new ContractData(cd.contractAddress, cd.portalContractAddress),
+          ) as Tuple<ContractData, typeof MAX_NEW_CONTRACTS_PER_TX>,
           tx.encryptedLogs || new TxL2Logs([]),
           tx.unencryptedLogs || new TxL2Logs([]),
         ),
@@ -317,13 +331,13 @@ describe('sequencer/solo_block_builder', () => {
 
       const processedTx = makeProcessedTx(tx, kernelOutput, makeProof());
 
-      processedTx.data.end.newCommitments = makeTuple(
-        MAX_REVERTIBLE_COMMITMENTS_PER_TX,
+      processedTx.data.end.newNoteHashes = makeTuple(
+        MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
         makeNewSideEffect,
         seed + 0x100,
       );
-      processedTx.data.endNonRevertibleData.newCommitments = makeTuple(
-        MAX_NON_REVERTIBLE_COMMITMENTS_PER_TX,
+      processedTx.data.endNonRevertibleData.newNoteHashes = makeTuple(
+        MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX,
         makeNewSideEffect,
         seed + 0x100,
       );

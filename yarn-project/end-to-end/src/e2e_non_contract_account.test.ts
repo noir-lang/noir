@@ -77,7 +77,7 @@ describe('e2e_non_contract_account', () => {
 
     // check that 1 commitment was created
     const tx = await pxe.getTx(receipt.txHash);
-    const nonZeroCommitments = tx?.newCommitments.filter(c => c.value > 0);
+    const nonZeroCommitments = tx?.newNoteHashes.filter(c => c.value > 0);
     expect(nonZeroCommitments?.length).toBe(1);
 
     // Add the note

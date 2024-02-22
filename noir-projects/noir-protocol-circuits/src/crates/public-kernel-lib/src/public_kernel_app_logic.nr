@@ -66,7 +66,7 @@ mod tests {
         side_effect::{SideEffect, SideEffectLinkedToNoteHash}
     },
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
-        hash::{compute_l2_to_l1_hash, compute_logs_hash, silo_commitment, silo_nullifier},
+        hash::{compute_l2_to_l1_hash, compute_logs_hash, silo_note_hash, silo_nullifier},
         messaging::l2_to_l1_message::L2ToL1Message,
         tests::{kernel_data_builder::PreviousKernelDataBuilder, public_call_data_builder::PublicCallDataBuilder},
         utils::{arrays::array_eq}
@@ -168,23 +168,23 @@ mod tests {
     fn circuit_outputs_should_be_correctly_populated_with_previous_commitments() {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
         let contract_address = builder.public_call.contract_address;
-        // Setup 2 new commitments on the previous kernel.
-        builder.previous_kernel.append_new_commitments(2);
-        let previous = builder.previous_kernel.end.new_commitments.storage;
-        // Setup 2 new commitments on the current public inputs.
+        // Setup 2 new note hashes on the previous kernel.
+        builder.previous_kernel.append_new_note_hashes(2);
+        let previous = builder.previous_kernel.end.new_note_hashes.storage;
+        // Setup 2 new note hashes on the current public inputs.
         let current = [
             SideEffect { value: previous[1].value + 1, counter: 3 },
             SideEffect { value: previous[1].value + 2, counter: 4 }
         ];
-        builder.public_call.public_inputs.new_commitments.extend_from_array(current);
-        let siloed = current.map(|c: SideEffect| silo_commitment(contract_address, c.value));
-        let new_commitments = [
+        builder.public_call.public_inputs.new_note_hashes.extend_from_array(current);
+        let siloed = current.map(|c: SideEffect| silo_note_hash(contract_address, c.value));
+        let new_note_hashes = [
             previous[0], previous[1], SideEffect { value: siloed[0], counter: 3 }, SideEffect { value: siloed[1], counter: 4 }
         ];
 
         let public_inputs = builder.execute();
 
-        assert(array_eq(public_inputs.end.new_commitments, new_commitments));
+        assert(array_eq(public_inputs.end.new_note_hashes, new_note_hashes));
     }
 
     #[test]
@@ -232,7 +232,7 @@ mod tests {
         // Setup 2 new nullifiers on the previous kernel.
         builder.previous_kernel.append_new_nullifiers_from_public(2);
         let previous = builder.previous_kernel.end.new_nullifiers.storage;
-        // Setup 2 new commitments on the current public inputs.
+        // Setup 2 new note hashes on the current public inputs.
 
         let current = [
             SideEffectLinkedToNoteHash { value: previous[1].value + 1, note_hash: 0, counter: 4 }, SideEffectLinkedToNoteHash { value: previous[1].value + 2, note_hash: 0, counter: 5 }
@@ -326,11 +326,11 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="new_commitments must be empty for static calls")]
-    fn public_kernel_fails_creating_new_commitments_on_static_call() {
+    #[test(should_fail_with="new_note_hashes must be empty for static calls")]
+    fn public_kernel_fails_creating_new_note_hashes_on_static_call() {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.call_context.is_static_call = true;
-        builder.public_call.public_inputs.new_commitments.push(SideEffect { value: 1, counter: 0 });
+        builder.public_call.public_inputs.new_note_hashes.push(SideEffect { value: 1, counter: 0 });
 
         builder.failed();
     }

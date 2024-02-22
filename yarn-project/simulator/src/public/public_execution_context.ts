@@ -213,7 +213,7 @@ export class PublicExecutionContext extends TypedOracle {
 
     if (isStaticCall) {
       checkValidStaticCall(
-        childExecutionResult.newCommitments,
+        childExecutionResult.newNoteHashes,
         childExecutionResult.newNullifiers,
         childExecutionResult.contractStorageUpdateRequests,
         childExecutionResult.newL2ToL1Messages,

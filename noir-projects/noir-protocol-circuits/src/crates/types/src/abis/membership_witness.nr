@@ -45,9 +45,9 @@ struct ArchiveRootMembershipWitness{
 struct ReadRequestMembershipWitness {
     leaf_index: Field,
     sibling_path: [Field; NOTE_HASH_TREE_HEIGHT],
-    // whether or not the read request corresponds to a pending commitment
+    // whether or not the read request corresponds to a pending note hash
     // In case we change the default to true, we have to adapt is_empty() method
     // hint to point kernel to the commitment this rr corresponds to
     is_transient: bool,
-    hint_to_commitment: Field,
+    hint_to_note_hash: Field,
 }

@@ -13,7 +13,7 @@ use crate::{
 use crate::constants::{
     MAX_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX, MAX_NEW_CONTRACTS_PER_TX,
-    NUM_FIELDS_PER_SHA256, MAX_REVERTIBLE_COMMITMENTS_PER_TX, MAX_REVERTIBLE_NULLIFIERS_PER_TX,
+    NUM_FIELDS_PER_SHA256, MAX_REVERTIBLE_NOTE_HASHES_PER_TX, MAX_REVERTIBLE_NULLIFIERS_PER_TX,
     MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
     MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 };
@@ -22,7 +22,7 @@ struct AccumulatedRevertibleDataBuilder {
     read_requests: BoundedVec<SideEffect, MAX_READ_REQUESTS_PER_TX>,
     nullifier_key_validation_requests: BoundedVec<NullifierKeyValidationRequestContext, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX>,
 
-    new_commitments: BoundedVec<SideEffect, MAX_REVERTIBLE_COMMITMENTS_PER_TX>,
+    new_note_hashes: BoundedVec<SideEffect, MAX_REVERTIBLE_NOTE_HASHES_PER_TX>,
     new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_REVERTIBLE_NULLIFIERS_PER_TX>,
 
     private_call_stack: BoundedVec<CallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
@@ -46,7 +46,7 @@ struct AccumulatedRevertibleDataBuilder {
 impl AccumulatedRevertibleDataBuilder {
     pub fn to_private(self) -> PrivateAccumulatedRevertibleData {
         PrivateAccumulatedRevertibleData {
-            new_commitments: self.new_commitments.storage,
+            new_note_hashes: self.new_note_hashes.storage,
             new_nullifiers: self.new_nullifiers.storage,
             private_call_stack: self.private_call_stack.storage,
             public_call_stack: self.public_call_stack.storage,
@@ -62,7 +62,7 @@ impl AccumulatedRevertibleDataBuilder {
     pub fn to_public(self) -> PublicAccumulatedRevertibleData {
         PublicAccumulatedRevertibleData {
             read_requests: self.read_requests.storage,
-            new_commitments: self.new_commitments.storage,
+            new_note_hashes: self.new_note_hashes.storage,
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
             new_nullifiers: self.new_nullifiers.storage,
             private_call_stack: self.private_call_stack.storage,
