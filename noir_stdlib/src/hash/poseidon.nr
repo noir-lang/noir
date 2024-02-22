@@ -21,7 +21,7 @@ pub fn config<M, N>(
     // Input checks
     let mul = crate::wrapping_mul(t as u8, (rf + rp));
     assert(mul == ark.len() as u8);
-    assert(t * t == mds.len());
+    assert(t * t == mds.len() as Field);
     assert(alpha != 0);
 
     PoseidonConfig { t, rf, rp, alpha, ark, mds }
@@ -30,7 +30,7 @@ pub fn config<M, N>(
 fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O]) -> [Field; O] {
     let PoseidonConfig {t, rf, rp, alpha, ark, mds} = pos_conf;
 
-    assert(t == state.len());
+    assert(t == state.len() as Field);
 
     let mut count = 0;
     // for r in 0..rf + rp
@@ -47,7 +47,7 @@ fn permute<M, N, O>(pos_conf: PoseidonConfig<M, N>, mut state: [Field; O]) -> [F
         }
 
         state = apply_matrix(mds, state); // Apply MDS matrix
-        count = count + t;
+        count = count + t as u64;
     }
 
     state
@@ -85,7 +85,7 @@ fn absorb<M, N, O, P>(
 fn check_security(rate: Field, width: Field, security: Field) -> bool {
     let n = modulus_num_bits();
 
-    ((n - 1) * (width - rate) / 2) as u8 > security as u8
+    ((n - 1) as Field * (width - rate) / 2) as u8 > security as u8
 }
 // A*x where A is an n x n matrix in row-major order and x an n-vector
 fn apply_matrix<N, M>(a: [Field; M], x: [Field; N]) -> [Field; N] {

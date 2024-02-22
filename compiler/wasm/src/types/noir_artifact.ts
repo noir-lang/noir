@@ -73,6 +73,8 @@ export interface ContractArtifact {
  * The compilation result of an Noir contract.
  */
 export interface ProgramArtifact {
+  /** Version of noir used for the build. */
+  noir_version: string;
   /** The hash of the circuit. */
   hash?: number;
   /** * The ABI of the function. */

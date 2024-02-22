@@ -1,8 +1,6 @@
 struct BoundedVec<T, MaxLen> {
     storage: [T; MaxLen],
-    // TODO: change this to return a u64 as Noir now
-    // uses u64 for indexing
-    len: Field,
+    len: u64,
     empty_value: T,
 }
 
@@ -11,27 +9,27 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         BoundedVec { storage: [initial_value; MaxLen], len: 0, empty_value: initial_value }
     }
 
-    pub fn get(mut self: Self, index: Field) -> T {
-        assert(index as u64 < self.len as u64);
+    pub fn get(mut self: Self, index: u64) -> T {
+        assert(index as u64 < self.len);
         self.storage[index]
     }
 
-    pub fn get_unchecked(mut self: Self, index: Field) -> T {
+    pub fn get_unchecked(mut self: Self, index: u64) -> T {
         self.storage[index]
     }
 
     pub fn push(&mut self, elem: T) {
-        assert(self.len as u64 < MaxLen as u64, "push out of bounds");
+        assert(self.len < MaxLen as u64, "push out of bounds");
 
         self.storage[self.len] = elem;
         self.len += 1;
     }
 
-    pub fn len(self) -> Field {
+    pub fn len(self) -> u64 {
         self.len
     }
 
-    pub fn max_len(_self: BoundedVec<T, MaxLen>) -> Field {
+    pub fn max_len(_self: BoundedVec<T, MaxLen>) -> u64{
         MaxLen
     }
 
@@ -59,7 +57,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         for i in 0..Len {
             exceeded_len |= i == append_len;
             if !exceeded_len {
-                self.storage[self.len + (i as Field)] = vec.get_unchecked(i as Field);
+                self.storage[self.len + i] = vec.get_unchecked(i);
             }
         }
         self.len = new_len;

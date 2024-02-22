@@ -4,10 +4,10 @@ use crate::cmp::{Ord};
 // by the methods in the `slice` module
 impl<T, N> [T; N] {
     #[builtin(array_len)]
-    pub fn len(self) -> Field {}
+    pub fn len(self) -> u64 {}
 
     pub fn sort(self) -> Self where T: Ord {
-        self.sort_via(|a, b| a <= b)
+        self.sort_via(|a: T, b: T| a <= b)
     }
 
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
@@ -31,7 +31,7 @@ impl<T, N> [T; N] {
     }
 
     /// Returns the index of the elements in the array that would sort it, using the provided custom sorting function.
-    unconstrained fn get_sorting_index<Env>(self, ordering: fn[Env](T, T) -> bool) -> [Field; N] {
+    unconstrained fn get_sorting_index<Env>(self, ordering: fn[Env](T, T) -> bool) -> [u64; N] {
         let mut result = [0;N];
         let mut a = self;
         for i in 0..N {
@@ -117,7 +117,7 @@ impl<T, N> [T; N] {
 
 // helper function used to look up the position of a value in an array of Field
 // Note that function returns 0 if the value is not found
-unconstrained fn find_index<N>(a: [Field;N], find: Field) -> Field {
+unconstrained fn find_index<N>(a: [u64; N], find: u64) -> u64 {
     let mut result = 0;
     for i in 0..a.len() {
         if a[i] == find {
