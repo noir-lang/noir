@@ -45,4 +45,7 @@ fi
 
 # Now build the docsite
 echo Building docsite...
+echo "Generating Aztec.nr reference docs..."
+node ./src/preprocess/generate_aztecnr_reference.js
+echo "Generated Aztec.nr reference docs"
 yarn preprocess && yarn typedoc && yarn docusaurus build

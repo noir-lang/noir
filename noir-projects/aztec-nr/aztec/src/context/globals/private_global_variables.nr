@@ -9,6 +9,7 @@ struct PrivateGlobalVariables {
 }
 // docs:end:private-global-variables
 
+// Note: public global vars are equal to the private ones 
 impl Serialize<PRIVATE_GLOBAL_VARIABLES_LENGTH> for PrivateGlobalVariables {
     fn serialize(self) -> [Field; PRIVATE_GLOBAL_VARIABLES_LENGTH] {
         [self.chain_id, self.version]

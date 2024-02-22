@@ -30,6 +30,7 @@ impl Deserialize<SAFE_U120_SERIALIZED_LEN> for SafeU120 {
     }
 }
 
+// Holds an integer in public storage
 impl SafeU120 {
     pub fn min() -> Self {
         Self {

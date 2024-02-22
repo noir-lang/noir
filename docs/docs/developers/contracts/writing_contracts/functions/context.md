@@ -81,7 +81,7 @@ In the public context this header is set by sequencer (sequencer executes public
 
 Just like with the `is_contract_deployment` flag mentioned earlier. This data will only be set to true when the current transaction is one in which a contract is being deployed.
 
-#include_code contract-deployment-data /noir-projects/noir-protocol-circuits/src/crates/types/src/contrakt/deployment_data.nr rust
+#include_code contract-deployment-data /noir-projects/noir-protocol-circuits/src/crates/types/src/contrakt/contract_deployment_data.nr rust
 
 ### Private Global Variables
 

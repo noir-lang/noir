@@ -202,7 +202,7 @@ Allows us to modify the storage by inserting a note into the set.
 
 A hash of the note will be generated, and inserted into the note hash tree, allowing us to later use in contract interactions. Recall that the content of the note should be shared with the owner to allow them to use it, as mentioned this can be done via an [encrypted log](../../writing_contracts/events/emit_event.md#encrypted-events), or offchain via web2, or completely offline.
 
-#include_code insert /noir-projects/aztec-nr/easy-private-state/src/easy_private_state.nr rust
+#include_code insert /noir-projects/aztec-nr/easy-private-state/src/easy_private_uint.nr rust
 
 ### `insert_from_public`
 
@@ -220,7 +220,7 @@ Nullifiers are emitted when reading values to make sure that they are up to date
 
 An example of how to use this operation is visible in the `easy_private_state`:
 
-#include_code remove /noir-projects/aztec-nr/easy-private-state/src/easy_private_state.nr rust
+#include_code remove /noir-projects/aztec-nr/easy-private-state/src/easy_private_uint.nr rust
 
 ### `get_notes`
 
@@ -232,7 +232,7 @@ Because of this limit, we should always consider using the second argument `Note
 
 An example of such options is using the [filter_notes_min_sum](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/value-note/src/filter.nr) to get "enough" notes to cover a given value. Essentially, this function will return just enough notes to cover the amount specified such that we don't need to read all our notes. For users with a lot of notes, this becomes increasingly important.
 
-#include_code get_notes /noir-projects/aztec-nr/easy-private-state/src/easy_private_state.nr rust
+#include_code get_notes /noir-projects/aztec-nr/easy-private-state/src/easy_private_uint.nr rust
 
 ### `view_notes`
 

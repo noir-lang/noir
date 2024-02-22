@@ -2,9 +2,10 @@ use dep::protocol_types::address::{AztecAddress, EthAddress};
 
 // Getters that will be converted by the transpiler into their
 // own opcodes
+// No new function as this struct is entirely static getters
+
 struct AvmContext {}
 
-// No new function as this struct is entirely static getters
 impl AvmContext {
     #[oracle(address)]
     pub fn address() -> AztecAddress {}
