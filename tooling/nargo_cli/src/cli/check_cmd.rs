@@ -142,6 +142,24 @@ fn create_input_toml_template(
     toml::to_string(&map).unwrap()
 }
 
+/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
+/// and errors found.
+pub(crate) fn check_crate_and_report_errors(
+    context: &mut Context,
+    crate_id: CrateId,
+    deny_warnings: bool,
+    disable_macros: bool,
+    silence_warnings: bool,
+) -> Result<(), CompileError> {
+    let result = check_crate(context, crate_id, deny_warnings, disable_macros);
+    super::compile_cmd::report_errors(
+        result,
+        &context.file_manager,
+        deny_warnings,
+        silence_warnings,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
@@ -188,22 +206,4 @@ d2 = ["", "", ""]
 "#;
         assert_eq!(toml_str, expected_toml_str);
     }
-}
-
-/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
-/// and errors found.
-pub(crate) fn check_crate_and_report_errors(
-    context: &mut Context,
-    crate_id: CrateId,
-    deny_warnings: bool,
-    disable_macros: bool,
-    silence_warnings: bool,
-) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, deny_warnings, disable_macros);
-    super::compile_cmd::report_errors(
-        result,
-        &context.file_manager,
-        deny_warnings,
-        silence_warnings,
-    )
 }

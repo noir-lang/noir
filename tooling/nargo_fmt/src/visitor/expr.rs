@@ -202,7 +202,6 @@ pub(crate) fn format_seq<T: HasItem>(
     reduce: bool,
 ) -> String {
     let mut nested_indent = shape;
-    let shape = shape;
 
     nested_indent.indent.block_indent(visitor.config);
 
