@@ -6,9 +6,47 @@ import {
   DebugFileMap,
   DebugInfo,
   NoirFunctionEntry,
+  ProgramArtifact,
+  ProgramCompilationArtifacts,
 } from '../../../src/types/noir_artifact';
 
-export function shouldCompileIdentically(
+export function shouldCompileProgramIdentically(
+  compileFn: () => Promise<{ nargoArtifact: ProgramArtifact; noirWasmArtifact: CompilationResult }>,
+  expect: typeof Expect,
+  timeout = 5000,
+) {
+  it('both nargo and noir_wasm should compile identically', async () => {
+    // Compile!
+    const { nargoArtifact, noirWasmArtifact } = await compileFn();
+
+    // Prepare nargo artifact
+    const [_nargoDebugInfos, nargoFileMap] = deleteProgramDebugMetadata(nargoArtifact);
+    normalizeVersion(nargoArtifact);
+
+    // Prepare noir-wasm artifact
+    const noirWasmProgram = (noirWasmArtifact as unknown as ProgramCompilationArtifacts).program;
+    expect(noirWasmProgram).not.to.be.undefined;
+    const [_noirWasmDebugInfos, norWasmFileMap] = deleteProgramDebugMetadata(noirWasmProgram);
+    normalizeVersion(noirWasmProgram);
+
+    // We first compare both contracts without considering debug info
+    delete (noirWasmProgram as Partial<ProgramArtifact>).hash;
+    delete (nargoArtifact as Partial<ProgramArtifact>).hash;
+    expect(nargoArtifact).to.deep.eq(noirWasmProgram);
+
+    // Compare the file maps, ignoring keys, since those depend in the order in which files are visited,
+    // which may change depending on the file manager implementation. Also ignores paths, since the base
+    // path is reported differently between nargo and noir-wasm.
+    expect(getSources(nargoFileMap)).to.have.members(getSources(norWasmFileMap));
+
+    // Compare the debug symbol information, ignoring the actual ids used for file identifiers.
+    // Debug symbol info looks like the following, what we need is to ignore the 'file' identifiers
+    // {"locations":{"0":[{"span":{"start":141,"end":156},"file":39},{"span":{"start":38,"end":76},"file":38},{"span":{"start":824,"end":862},"file":23}]}}
+    // expect(nargoDebugInfos).to.deep.eq(noirWasmDebugInfos);
+  }).timeout(timeout);
+}
+
+export function shouldCompileContractIdentically(
   compileFn: () => Promise<{ nargoArtifact: ContractArtifact; noirWasmArtifact: CompilationResult }>,
   expect: typeof Expect,
   timeout = 5000,
@@ -18,13 +56,13 @@ export function shouldCompileIdentically(
     const { nargoArtifact, noirWasmArtifact } = await compileFn();
 
     // Prepare nargo artifact
-    const [nargoDebugInfos, nargoFileMap] = deleteDebugMetadata(nargoArtifact);
+    const [nargoDebugInfos, nargoFileMap] = deleteContractDebugMetadata(nargoArtifact);
     normalizeVersion(nargoArtifact);
 
     // Prepare noir-wasm artifact
-    const noirWasmContract = (noirWasmArtifact as ContractCompilationArtifacts).contract;
+    const noirWasmContract = (noirWasmArtifact as unknown as ContractCompilationArtifacts).contract;
     expect(noirWasmContract).not.to.be.undefined;
-    const [noirWasmDebugInfos, norWasmFileMap] = deleteDebugMetadata(noirWasmContract);
+    const [noirWasmDebugInfos, norWasmFileMap] = deleteContractDebugMetadata(noirWasmContract);
     normalizeVersion(noirWasmContract);
 
     // We first compare both contracts without considering debug info
@@ -43,7 +81,7 @@ export function shouldCompileIdentically(
 }
 
 /** Remove commit identifier from version, which may not match depending on cached nargo and noir-wasm */
-function normalizeVersion(contract: ContractArtifact) {
+function normalizeVersion(contract: ProgramArtifact | ContractArtifact) {
   contract.noir_version = contract.noir_version.replace(/\+.+$/, '');
 }
 
@@ -57,8 +95,18 @@ function extractDebugInfos(fns: NoirFunctionEntry[]) {
   });
 }
 
+/** Deletes all debug info from a program and returns it. */
+function deleteProgramDebugMetadata(program: ProgramArtifact) {
+  const debugSymbols = inflateDebugSymbols(program.debug_symbols);
+  const fileMap = program.file_map;
+
+  delete (program as Partial<ProgramArtifact>).debug_symbols;
+  delete (program as Partial<ProgramArtifact>).file_map;
+  return [debugSymbols, fileMap];
+}
+
 /** Deletes all debug info from a contract and returns it. */
-function deleteDebugMetadata(contract: ContractArtifact) {
+function deleteContractDebugMetadata(contract: ContractArtifact) {
   contract.functions.sort((a, b) => a.name.localeCompare(b.name));
   const fileMap = contract.file_map;
   delete (contract as Partial<ContractArtifact>).file_map;
