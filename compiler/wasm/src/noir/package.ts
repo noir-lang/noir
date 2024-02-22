@@ -91,7 +91,7 @@ export class Package {
    * Gets this package's dependencies.
    */
   public getDependencies(): Record<string, DependencyConfig> {
-    return this.#config.dependencies;
+    return this.#config.dependencies ?? {};
   }
 
   /**

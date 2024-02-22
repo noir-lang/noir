@@ -90,7 +90,7 @@
         "indexmap",
         "injective",
         "Inlines",
-        "Instrumenter",
+        "instrumenter",
         "interner",
         "intrinsics",
         "jmp",

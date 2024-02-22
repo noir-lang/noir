@@ -112,7 +112,7 @@ Paste and run the following in the terminal to extract and install the binary:
 
 ```bash
 mkdir -p $HOME/.nargo/bin && \
-curl -o $HOME/.nargo/bin/nargo-aarch64-apple-darwin.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.6.0/nargo-aarch64-apple-darwin.tar.gz && \
+curl -o $HOME/.nargo/bin/nargo-aarch64-apple-darwin.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.24.0/nargo-aarch64-apple-darwin.tar.gz && \
 tar -xvf $HOME/.nargo/bin/nargo-aarch64-apple-darwin.tar.gz -C $HOME/.nargo/bin/ && \
 echo '\nexport PATH=$PATH:$HOME/.nargo/bin' >> ~/.zshrc && \
 source ~/.zshrc
@@ -122,7 +122,7 @@ source ~/.zshrc
 
 ```bash
 mkdir -p $HOME/.nargo/bin && \
-curl -o $HOME/.nargo/bin/nargo-x86_64-apple-darwin.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.6.0/nargo-x86_64-apple-darwin.tar.gz && \
+curl -o $HOME/.nargo/bin/nargo-x86_64-apple-darwin.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.24.0/nargo-x86_64-apple-darwin.tar.gz && \
 tar -xvf $HOME/.nargo/bin/nargo-x86_64-apple-darwin.tar.gz -C $HOME/.nargo/bin/ && \
 echo '\nexport PATH=$PATH:$HOME/.nargo/bin' >> ~/.zshrc && \
 source ~/.zshrc
@@ -132,7 +132,7 @@ source ~/.zshrc
 
 ```bash
 mkdir -p $HOME/.nargo/bin && \
-curl -o $HOME/.nargo/bin/nargo-x86_64-unknown-linux-gnu.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.6.0/nargo-x86_64-unknown-linux-gnu.tar.gz && \
+curl -o $HOME/.nargo/bin/nargo-x86_64-unknown-linux-gnu.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.24.0/nargo-x86_64-unknown-linux-gnu.tar.gz && \
 tar -xvf $HOME/.nargo/bin/nargo-x86_64-unknown-linux-gnu.tar.gz -C $HOME/.nargo/bin/ && \
 echo -e '\nexport PATH=$PATH:$HOME/.nargo/bin' >> ~/.bashrc && \
 source ~/.bashrc
@@ -212,7 +212,7 @@ code .
 #### Building and testing
 
 Assuming you are using `direnv` to populate your environment, building and testing the project can be done
-with the typical `cargo build`, `cargo test`, and `cargo clippy` commands. You'll notice that the `cargo` version matches the version we specify in `rust-toolchain.toml`, which is 1.71.1 at the time of this writing.
+with the typical `cargo build`, `cargo test`, and `cargo clippy` commands. You'll notice that the `cargo` version matches the version we specify in `rust-toolchain.toml`, which is 1.73.0 at the time of this writing.
 
 If you want to build the entire project in an isolated sandbox, you can use Nix commands:
 
