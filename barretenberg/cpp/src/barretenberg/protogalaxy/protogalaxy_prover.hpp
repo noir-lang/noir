@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/common/op_count.hpp"
 #include "barretenberg/common/thread.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/flavor/flavor.hpp"
@@ -247,6 +248,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     static Polynomial<FF> compute_perturbator(const std::shared_ptr<Instance> accumulator,
                                               const std::vector<FF>& deltas)
     {
+        BB_OP_COUNT_TIME();
         auto full_honk_evaluations = compute_full_honk_evaluations(
             accumulator->prover_polynomials, accumulator->alphas, accumulator->relation_parameters);
         const auto betas = accumulator->gate_challenges;
@@ -298,6 +300,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      */
     ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances, PowPolynomial<FF>& pow_betas)
     {
+        BB_OP_COUNT_TIME();
         size_t common_instance_size = instances[0]->instance_size;
         pow_betas.compute_values();
         // Determine number of threads for multithreading.

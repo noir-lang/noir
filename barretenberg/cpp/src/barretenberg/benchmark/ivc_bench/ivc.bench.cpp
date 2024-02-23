@@ -98,6 +98,7 @@ BENCHMARK_DEFINE_F(IvcBench, Accumulate)(benchmark::State& state)
 
     // Perform a specified number of iterations of function/kernel accumulation
     for (auto _ : state) {
+        BB_REPORT_OP_COUNT_IN_BENCH(state);
         perform_ivc_accumulation_rounds(state, ivc);
     }
 }
@@ -110,12 +111,12 @@ BENCHMARK_DEFINE_F(IvcBench, Decide)(benchmark::State& state)
 {
     ClientIVC ivc;
 
-    BB_REPORT_OP_COUNT_IN_BENCH(state);
     // Perform a specified number of iterations of function/kernel accumulation
     perform_ivc_accumulation_rounds(state, ivc);
 
     // Construct eccvm proof, measure only translator proof construction
     for (auto _ : state) {
+        BB_REPORT_OP_COUNT_IN_BENCH(state);
         ivc.decider_prove();
     }
 }
@@ -128,12 +129,12 @@ BENCHMARK_DEFINE_F(IvcBench, ECCVM)(benchmark::State& state)
 {
     ClientIVC ivc;
 
-    BB_REPORT_OP_COUNT_IN_BENCH(state);
     // Perform a specified number of iterations of function/kernel accumulation
     perform_ivc_accumulation_rounds(state, ivc);
 
     // Construct and measure eccvm only
     for (auto _ : state) {
+        BB_REPORT_OP_COUNT_IN_BENCH(state);
         ivc.goblin.prove_eccvm();
     }
 }

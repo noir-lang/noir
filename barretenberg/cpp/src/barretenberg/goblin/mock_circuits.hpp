@@ -1,6 +1,7 @@
 #pragma once
 
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
+#include "barretenberg/common/op_count.hpp"
 #include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "barretenberg/crypto/merkle_tree/membership.hpp"
 #include "barretenberg/crypto/merkle_tree/memory_store.hpp"
@@ -95,6 +96,7 @@ class GoblinMockCircuits {
      */
     static void construct_mock_function_circuit(GoblinUltraBuilder& builder, bool large = false)
     {
+        BB_OP_COUNT_TIME();
         // Determine number of times to execute the below operations that constitute the mock circuit logic. Note that
         // the circuit size does not scale linearly with number of iterations due to e.g. amortization of lookup costs
         const size_t NUM_ITERATIONS_LARGE = 13; // results in circuit size 2^19 (521327 gates)
@@ -216,6 +218,7 @@ class GoblinMockCircuits {
                                               const std::vector<FF>& function_fold_proof,
                                               const std::vector<FF>& kernel_fold_proof)
     {
+        BB_OP_COUNT_TIME();
         using GURecursiveFlavor = GoblinUltraRecursiveFlavor_<GoblinUltraBuilder>;
         using RecursiveVerifierInstances = ::bb::VerifierInstances_<GURecursiveFlavor, 2>;
         using FoldingRecursiveVerifier =

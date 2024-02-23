@@ -15,7 +15,7 @@ cd $(dirname $0)/..
 
 # Configure and build with xray preset.
 cmake --preset $PRESET
-cmake --build --preset $PRESET
+cmake --build --preset $PRESET --target $EXECUTABLE
 
 cd build-$PRESET
 

@@ -7,6 +7,7 @@
  * simplify the codebase.
  */
 
+#include "barretenberg/common/op_count.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/numeric/bitop/pow.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
@@ -64,6 +65,7 @@ template <class Curve> class CommitmentKey {
      */
     Commitment commit(std::span<const Fr> polynomial)
     {
+        BB_OP_COUNT_TIME();
         const size_t degree = polynomial.size();
         ASSERT(degree <= srs->get_monomial_size());
         return bb::scalar_multiplication::pippenger_unsafe<Curve>(
