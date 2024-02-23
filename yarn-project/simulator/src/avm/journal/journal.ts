@@ -1,6 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 
 import { HostStorage } from './host_storage.js';
+import { PublicStorage } from './public_storage.js';
 
 /**
  * Data held within the journal
@@ -32,6 +33,9 @@ export class AvmWorldStateJournal {
   /** Reference to node storage */
   public readonly hostStorage: HostStorage;
 
+  /** World State's public storage, including cached writes */
+  private publicStorage: PublicStorage;
+
   // Reading state - must be tracked for vm execution
   // contract address -> key -> value[] (array stored in order of reads)
   private storageReads: Map<bigint, Map<bigint, Fr[]>> = new Map();
@@ -45,14 +49,9 @@ export class AvmWorldStateJournal {
   private newL1Messages: Fr[][] = [];
   private newLogs: Fr[][] = [];
 
-  // contract address -> key -> value
-  private currentStorageValue: Map<bigint, Map<bigint, Fr>> = new Map();
-
-  private parentJournal: AvmWorldStateJournal | undefined;
-
   constructor(hostStorage: HostStorage, parentJournal?: AvmWorldStateJournal) {
     this.hostStorage = hostStorage;
-    this.parentJournal = parentJournal;
+    this.publicStorage = new PublicStorage(hostStorage.publicStateDb, parentJournal?.publicStorage);
   }
 
   /**
@@ -63,47 +62,29 @@ export class AvmWorldStateJournal {
   }
 
   /**
-   * Write storage into journal
+   * Write to public storage, journal/trace the write.
    *
-   * @param contractAddress -
-   * @param key -
-   * @param value -
+   * @param storageAddress - the address of the contract whose storage is being written to
+   * @param slot - the slot in the contract's storage being written to
+   * @param value - the value being written to the slot
    */
-  public writeStorage(contractAddress: Fr, key: Fr, value: Fr) {
-    let contractMap = this.currentStorageValue.get(contractAddress.toBigInt());
-    if (!contractMap) {
-      contractMap = new Map();
-      this.currentStorageValue.set(contractAddress.toBigInt(), contractMap);
-    }
-    contractMap.set(key.toBigInt(), value);
-
+  public writeStorage(storageAddress: Fr, slot: Fr, value: Fr) {
+    this.publicStorage.write(storageAddress, slot, value);
     // We want to keep track of all performed writes in the journal
-    this.journalWrite(contractAddress, key, value);
+    this.journalWrite(storageAddress, slot, value);
   }
 
   /**
-   * Read storage from journal
-   * Read from host storage on cache miss
+   * Read from public storage, journal/trace the read.
    *
-   * @param contractAddress -
-   * @param key -
-   * @returns current value
+   * @param storageAddress - the address of the contract whose storage is being read from
+   * @param slot - the slot in the contract's storage being read from
+   * @returns the latest value written to slot, or 0 if never written to before
    */
-  public async readStorage(contractAddress: Fr, key: Fr): Promise<Fr> {
-    // - We first try this journal's storage cache ( if written to before in this call frame )
-    // - Then we try the parent journal's storage cache ( if it exists ) ( written to earlier in this block )
-    // - Finally we try the host storage ( a trip to the database )
-
-    // Do not early return as we want to keep track of reads in this.storageReads
-    let value = this.currentStorageValue.get(contractAddress.toBigInt())?.get(key.toBigInt());
-    if (!value && this.parentJournal) {
-      value = await this.parentJournal?.readStorage(contractAddress, key);
-    }
-    if (!value) {
-      value = await this.hostStorage.publicStateDb.storageRead(contractAddress, key);
-    }
-
-    this.journalRead(contractAddress, key, value);
+  public async readStorage(storageAddress: Fr, slot: Fr): Promise<Fr> {
+    const [_exists, value] = await this.publicStorage.read(storageAddress, slot);
+    // We want to keep track of all performed reads in the journal
+    this.journalRead(storageAddress, slot, value);
     return Promise.resolve(value);
   }
 
@@ -158,14 +139,14 @@ export class AvmWorldStateJournal {
    * - Public state journals (r/w logs), with the accessing being appended in chronological order
    */
   public acceptNestedWorldState(nestedJournal: AvmWorldStateJournal) {
+    // Merge Public Storage
+    this.publicStorage.acceptAndMerge(nestedJournal.publicStorage);
+
     // Merge UTXOs
     this.newNoteHashes = this.newNoteHashes.concat(nestedJournal.newNoteHashes);
     this.newL1Messages = this.newL1Messages.concat(nestedJournal.newL1Messages);
     this.newNullifiers = this.newNullifiers.concat(nestedJournal.newNullifiers);
     this.newLogs = this.newLogs.concat(nestedJournal.newLogs);
-
-    // Merge Public State
-    mergeCurrentValueMaps(this.currentStorageValue, nestedJournal.currentStorageValue);
 
     // Merge storage read and write journals
     mergeContractJournalMaps(this.storageReads, nestedJournal.storageReads);
@@ -195,40 +176,10 @@ export class AvmWorldStateJournal {
       newNullifiers: this.newNullifiers,
       newL1Messages: this.newL1Messages,
       newLogs: this.newLogs,
-      currentStorageValue: this.currentStorageValue,
+      currentStorageValue: this.publicStorage.getCache().cachePerContract,
       storageReads: this.storageReads,
       storageWrites: this.storageWrites,
     };
-  }
-}
-
-/**
- * Merges two contract current value together
- * Where childMap keys will take precedent over the hostMap
- * The assumption being that the child map is created at a later time
- * And thus contains more up to date information
- *
- * @param hostMap - The map to be merged into
- * @param childMap - The map to be merged from
- */
-function mergeCurrentValueMaps(hostMap: Map<bigint, Map<bigint, Fr>>, childMap: Map<bigint, Map<bigint, Fr>>) {
-  for (const [key, value] of childMap) {
-    const map1Value = hostMap.get(key);
-    if (!map1Value) {
-      hostMap.set(key, value);
-    } else {
-      mergeStorageCurrentValueMaps(map1Value, value);
-    }
-  }
-}
-
-/**
- * @param hostMap - The map to be merge into
- * @param childMap - The map to be merged from
- */
-function mergeStorageCurrentValueMaps(hostMap: Map<bigint, Fr>, childMap: Map<bigint, Fr>) {
-  for (const [key, value] of childMap) {
-    hostMap.set(key, value);
   }
 }
 
