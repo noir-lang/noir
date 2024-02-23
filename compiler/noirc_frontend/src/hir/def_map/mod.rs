@@ -37,19 +37,23 @@ impl LocalModuleId {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ModuleId {
-    pub krate: CrateId,
+    pub krate: Option<CrateId>,
     pub local_id: LocalModuleId,
 }
 
 impl ModuleId {
     pub fn dummy_id() -> ModuleId {
-        ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() }
+        ModuleId { krate: None, local_id: LocalModuleId::dummy_id() }
     }
 }
 
 impl ModuleId {
-    pub fn module(self, def_maps: &BTreeMap<CrateId, CrateDefMap>) -> &ModuleData {
-        &def_maps[&self.krate].modules()[self.local_id.0]
+    pub fn module(self, def_maps: &BTreeMap<CrateId, CrateDefMap>) -> Option<&ModuleData> {
+        if let Some(krate) = self.krate {
+            Some(&def_maps[&krate].modules()[self.local_id.0])
+        } else {
+            None
+        }
     }
 }
 
@@ -81,7 +85,7 @@ impl CrateDefMap {
         // expect the same crate to be processed twice. It would not
         // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
-        if context.def_map(&crate_id).is_some() {
+        if context.def_map(Some(&crate_id)).is_some() {
             return errors;
         }
 

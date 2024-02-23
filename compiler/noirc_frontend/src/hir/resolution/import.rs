@@ -20,6 +20,7 @@ pub type PathResolution = Result<PerNs, PathResolutionError>;
 pub enum PathResolutionError {
     Unresolved(Ident),
     ExternalContractUsed(Ident),
+    DummyCrateId(ModuleId, Path),
 }
 
 #[derive(Debug)]
@@ -58,7 +59,7 @@ pub fn resolve_import(
     let def_map = &def_maps[&crate_id];
 
     let allow_contracts =
-        allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
+        allow_referencing_contracts(def_maps, Some(crate_id), import_directive.module_id);
 
     let module_scope = import_directive.module_id;
     let resolved_namespace =
@@ -76,10 +77,10 @@ pub fn resolve_import(
 
 pub(super) fn allow_referencing_contracts(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    krate: CrateId,
+    krate: Option<CrateId>,
     local_id: LocalModuleId,
 ) -> bool {
-    ModuleId { krate, local_id }.module(def_maps).is_contract
+    ModuleId { krate, local_id }.module(def_maps).map(is_contract).unwrap_or(false)
 }
 
 pub fn resolve_path_to_ns(
@@ -88,7 +89,7 @@ pub fn resolve_path_to_ns(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
 ) -> PathResolution {
-    let import_path = &import_directive.path.segments;
+    let import_path = import_directive.path;
 
     match import_directive.path.kind {
         crate::ast::PathKind::Crate => {
@@ -114,7 +115,7 @@ pub fn resolve_path_to_ns(
 
 fn resolve_path_from_crate_root(
     def_map: &CrateDefMap,
-    import_path: &[Ident],
+    import_path: Path,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
 ) -> PathResolution {
@@ -123,7 +124,7 @@ fn resolve_path_from_crate_root(
 
 fn resolve_name_in_module(
     def_map: &CrateDefMap,
-    import_path: &[Ident],
+    import_path: Path,
     starting_mod: LocalModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
@@ -132,19 +133,19 @@ fn resolve_name_in_module(
 
     // There is a possibility that the import path is empty
     // In that case, early return
-    if import_path.is_empty() {
-        let mod_id = ModuleId { krate: def_map.krate, local_id: starting_mod };
+    if import_path.segments.is_empty() {
+        let mod_id = ModuleId { krate: Some(def_map.krate), local_id: starting_mod };
         return Ok(PerNs::types(mod_id.into()));
     }
 
-    let mut import_path = import_path.iter();
-    let first_segment = import_path.next().expect("ice: could not fetch first segment");
+    let mut import_path_iter = import_path.segments.iter();
+    let first_segment = import_path_iter.next().expect("ice: could not fetch first segment");
     let mut current_ns = current_mod.find_name(first_segment);
     if current_ns.is_none() {
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
 
-    for segment in import_path {
+    for segment in import_path_iter {
         let typ = match current_ns.take_types() {
             None => return Err(PathResolutionError::Unresolved(segment.clone())),
             Some(typ) => typ,
@@ -161,19 +162,23 @@ fn resolve_name_in_module(
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
 
-        current_mod = &def_maps[&new_module_id.krate].modules[new_module_id.local_id.0];
+        if let Some(krate) = new_module_id.krate {
+            current_mod = &def_maps[&krate].modules[new_module_id.local_id.0];
 
-        // Check if namespace
-        let found_ns = current_mod.find_name(segment);
+            // Check if namespace
+            let found_ns = current_mod.find_name(segment);
 
-        if found_ns.is_none() {
-            return Err(PathResolutionError::Unresolved(segment.clone()));
+            if found_ns.is_none() {
+                return Err(PathResolutionError::Unresolved(segment.clone()));
+            }
+            // Check if it is a contract and we're calling from a non-contract context
+            if current_mod.is_contract && !allow_contracts {
+                return Err(PathResolutionError::ExternalContractUsed(segment.clone()));
+            }
+            current_ns = found_ns;
+        } else {
+            return Err(PathResolutionError::DummyCrateId(new_module_id, import_path))
         }
-        // Check if it is a contract and we're calling from a non-contract context
-        if current_mod.is_contract && !allow_contracts {
-            return Err(PathResolutionError::ExternalContractUsed(segment.clone()));
-        }
-        current_ns = found_ns;
     }
 
     Ok(current_ns)
@@ -218,7 +223,11 @@ fn resolve_external_dep(
         is_prelude: false,
     };
 
-    let dep_def_map = def_maps.get(&dep_module.krate).unwrap();
+    if let Some(krate) = dep_module.krate {
+        let dep_def_map = def_maps.get(&krate).unwrap();
 
-    resolve_path_to_ns(&dep_directive, dep_def_map, def_maps, allow_contracts)
+        resolve_path_to_ns(&dep_directive, dep_def_map, def_maps, allow_contracts)
+    } else {
+        Err(PathResolutionError::DummyCrateId(*dep_module, path))
+    }
 }

@@ -19,7 +19,7 @@ use super::{path_resolver::StandardPathResolver, resolver::Resolver};
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn resolve_function_set(
     interner: &mut NodeInterner,
-    crate_id: CrateId,
+    crate_id: Option<CrateId>,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     mut unresolved_functions: UnresolvedFunctions,
     self_type: Option<Type>,
@@ -61,7 +61,7 @@ pub(crate) fn resolve_function_set(
 
 pub(crate) fn resolve_free_functions(
     interner: &mut NodeInterner,
-    crate_id: CrateId,
+    crate_id: Option<CrateId>,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     collected_functions: Vec<UnresolvedFunctions>,
     self_type: Option<Type>,

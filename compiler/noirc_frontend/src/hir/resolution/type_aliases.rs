@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 pub(crate) fn resolve_type_aliases(
     context: &mut Context,
     type_aliases: BTreeMap<TypeAliasId, UnresolvedTypeAlias>,
-    crate_id: CrateId,
+    crate_id: Option<CrateId>,
 ) -> Vec<(CompilationError, FileId)> {
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
     for (alias_id, unresolved_typ) in type_aliases {
