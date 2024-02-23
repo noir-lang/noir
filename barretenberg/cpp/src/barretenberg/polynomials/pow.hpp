@@ -1,4 +1,6 @@
 #pragma once
+#include "barretenberg/common/compiler_hints.hpp"
+#include "barretenberg/common/op_count.hpp"
 #include "barretenberg/common/thread.hpp"
 
 #include <cstddef>
@@ -121,8 +123,9 @@ template <typename FF> struct PowPolynomial {
      * @brief Given \vec{β} = {β_0,...,β_{d-1}} compute pow_\vec{β}(i) for i=0,...,2^{d}-1
      *
      */
-    void compute_values()
+    BB_PROFILE void compute_values()
     {
+        BB_OP_COUNT_TIME();
         size_t pow_size = 1 << betas.size();
         pow_betas = std::vector<FF>(pow_size);
 
@@ -136,6 +139,11 @@ template <typename FF> struct PowPolynomial {
         size_t num_threads = std::min(desired_num_threads, max_num_threads); // fewer than max if justified
         num_threads = num_threads > 0 ? num_threads : 1;                     // ensure num threads is >= 1
         size_t iterations_per_thread = pow_size / num_threads;               // actual iterations per thread
+
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/864): This computation is asymtotically slow as it
+        // does pow_size * log(pow_size) work. However, in practice, its super efficient because its trivially
+        // parallelizable and only takes 45ms for the whole 6 iter IVC benchmark. Its also very readable, so we're
+        // leaving it unoptimized for now.
         parallel_for(num_threads, [&](size_t thread_idx) {
             size_t start = thread_idx * iterations_per_thread;
             size_t end = (thread_idx + 1) * iterations_per_thread;

@@ -235,6 +235,9 @@ template <typename Curve> class IPA {
         // Compute G_zero
         // First construct s_vec
         std::vector<Fr> s_vec(poly_degree);
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/857): This code is not efficient as its O(nlogn).
+        // This can be optimized to be linear by computing a tree of products. Its very readable, so we're
+        // leaving it unoptimized for now.
         run_loop_in_parallel_if_effective(
             poly_degree,
             [&s_vec, &round_challenges_inv, log_poly_degree](size_t start, size_t end) {
