@@ -1,5 +1,5 @@
 [package]
-name = "blank"
+name = "vanilla"
 authors = [""]
 compiler_version = ">=0.18.0"
 type = "contract"

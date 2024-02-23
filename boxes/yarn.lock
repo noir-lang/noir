@@ -29,9 +29,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/accounts@portal:../yarn-project/accounts::locator=create-aztec-app%40workspace%3A.":
+"@aztec/accounts@portal:../yarn-project/accounts::locator=create-aztec%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/accounts@portal:../yarn-project/accounts::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/accounts@portal:../yarn-project/accounts::locator=create-aztec%40workspace%3A."
   dependencies:
     "@aztec/aztec.js": "workspace:^"
     "@aztec/circuit-types": "workspace:^"
@@ -43,9 +43,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/aztec.js@portal:../yarn-project/aztec.js::locator=create-aztec-app%40workspace%3A.":
+"@aztec/aztec.js@portal:../yarn-project/aztec.js::locator=create-aztec%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/aztec.js@portal:../yarn-project/aztec.js::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/aztec.js@portal:../yarn-project/aztec.js::locator=create-aztec%40workspace%3A."
   dependencies:
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
@@ -57,9 +57,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/bb.js@portal:../barretenberg/ts::locator=create-aztec-app%40workspace%3A.":
+"@aztec/bb.js@portal:../barretenberg/ts::locator=create-aztec%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/bb.js@portal:../barretenberg/ts::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/bb.js@portal:../barretenberg/ts::locator=create-aztec%40workspace%3A."
   dependencies:
     comlink: "npm:^4.4.1"
     commander: "npm:^10.0.1"
@@ -70,9 +70,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/box-blank-react@workspace:blank-react":
+"@aztec/box-react@workspace:react":
   version: 0.0.0-use.local
-  resolution: "@aztec/box-blank-react@workspace:blank-react"
+  resolution: "@aztec/box-react@workspace:react"
   dependencies:
     "@aztec/accounts": "npm:latest"
     "@aztec/aztec.js": "npm:latest"
@@ -121,9 +121,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/box-blank@workspace:blank":
+"@aztec/box-vanilla@workspace:vanilla-js":
   version: 0.0.0-use.local
-  resolution: "@aztec/box-blank@workspace:blank"
+  resolution: "@aztec/box-vanilla@workspace:vanilla-js"
   dependencies:
     "@aztec/accounts": "npm:latest"
     "@aztec/aztec.js": "npm:latest"
@@ -131,6 +131,7 @@ __metadata:
     copy-webpack-plugin: "npm:^11.0.0"
     html-webpack-plugin: "npm:^5.6.0"
     stream-browserify: "npm:^3.0.0"
+    ts-loader: "npm:^9.5.1"
     tty-browserify: "npm:^0.0.1"
     typescript: "npm:^5.0.4"
     util: "npm:^0.12.5"
@@ -140,9 +141,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/circuit-types@portal:../yarn-project/circuit-types::locator=create-aztec-app%40workspace%3A.":
+"@aztec/circuit-types@portal:../yarn-project/circuit-types::locator=create-aztec%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/circuit-types@portal:../yarn-project/circuit-types::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/circuit-types@portal:../yarn-project/circuit-types::locator=create-aztec%40workspace%3A."
   dependencies:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
@@ -156,9 +157,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/circuits.js@portal:../yarn-project/circuits.js::locator=create-aztec-app%40workspace%3A.":
+"@aztec/circuits.js@portal:../yarn-project/circuits.js::locator=create-aztec%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/circuits.js@portal:../yarn-project/circuits.js::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/circuits.js@portal:../yarn-project/circuits.js::locator=create-aztec%40workspace%3A."
   dependencies:
     "@aztec/bb.js": "portal:../../barretenberg/ts"
     "@aztec/foundation": "workspace:^"
@@ -169,9 +170,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/ethereum@portal:../yarn-project/ethereum::locator=create-aztec-app%40workspace%3A.":
+"@aztec/ethereum@portal:../yarn-project/ethereum::locator=create-aztec%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/ethereum@portal:../yarn-project/ethereum::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/ethereum@portal:../yarn-project/ethereum::locator=create-aztec%40workspace%3A."
   dependencies:
     "@aztec/foundation": "workspace:^"
     dotenv: "npm:^16.0.3"
@@ -180,9 +181,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/foundation@portal:../yarn-project/foundation::locator=create-aztec-app%40workspace%3A.":
+"@aztec/foundation@portal:../yarn-project/foundation::locator=create-aztec%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/foundation@portal:../yarn-project/foundation::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/foundation@portal:../yarn-project/foundation::locator=create-aztec%40workspace%3A."
   dependencies:
     "@aztec/bb.js": "portal:../../barretenberg/ts"
     "@koa/cors": "npm:^4.0.0"
@@ -207,9 +208,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/protocol-contracts@portal:../yarn-project/protocol-contracts::locator=create-aztec-app%40workspace%3A.":
+"@aztec/protocol-contracts@portal:../yarn-project/protocol-contracts::locator=create-aztec%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/protocol-contracts@portal:../yarn-project/protocol-contracts::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/protocol-contracts@portal:../yarn-project/protocol-contracts::locator=create-aztec%40workspace%3A."
   dependencies:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
@@ -219,9 +220,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/types@portal:../yarn-project/types::locator=create-aztec-app%40workspace%3A.":
+"@aztec/types@portal:../yarn-project/types::locator=create-aztec%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/types@portal:../yarn-project/types::locator=create-aztec-app%40workspace%3A."
+  resolution: "@aztec/types@portal:../yarn-project/types::locator=create-aztec%40workspace%3A."
   dependencies:
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
@@ -708,6 +709,13 @@ __metadata:
   version: 2.0.2
   resolution: "@humanwhocodes/object-schema@npm:2.0.2"
   checksum: 10c0/6fd83dc320231d71c4541d0244051df61f301817e9f9da9fd4cb7e44ec8aacbde5958c1665b0c419401ab935114fdf532a6ad5d4e7294b1af2f347dd91a6983f
+  languageName: node
+  linkType: hard
+
+"@iarna/toml@npm:^2.2.5":
+  version: 2.2.5
+  resolution: "@iarna/toml@npm:2.2.5"
+  checksum: 10c0/d095381ad4554aca233b7cf5a91f243ef619e5e15efd3157bc640feac320545450d14b394aebbf6f02a2047437ced778ae598d5879a995441ab7b6c0b2c2f201
   languageName: node
   linkType: hard
 
@@ -2551,6 +2559,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"asynckit@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "asynckit@npm:0.4.0"
+  checksum: 10c0/d73e2ddf20c4eb9337e1b3df1a0f6159481050a5de457c55b14ea2e5cb6d90bb69e004c9af54737a5ee0917fcf2c9e25de67777bbe58261847846066ba75bc9d
+  languageName: node
+  linkType: hard
+
 "autoprefixer@npm:^10.4.15":
   version: 10.4.17
   resolution: "autoprefixer@npm:10.4.17"
@@ -2569,12 +2584,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"available-typed-arrays@npm:^1.0.6":
+"available-typed-arrays@npm:^1.0.6, available-typed-arrays@npm:^1.0.7":
   version: 1.0.7
   resolution: "available-typed-arrays@npm:1.0.7"
   dependencies:
     possible-typed-array-names: "npm:^1.0.0"
   checksum: 10c0/d07226ef4f87daa01bd0fe80f8f310982e345f372926da2e5296aecc25c41cab440916bbaa4c5e1034b453af3392f67df5961124e4b586df1e99793a1374bdb2
+  languageName: node
+  linkType: hard
+
+"axios@npm:^1.6.7":
+  version: 1.6.7
+  resolution: "axios@npm:1.6.7"
+  dependencies:
+    follow-redirects: "npm:^1.15.4"
+    form-data: "npm:^4.0.0"
+    proxy-from-env: "npm:^1.1.0"
+  checksum: 10c0/131bf8e62eee48ca4bd84e6101f211961bf6a21a33b95e5dfb3983d5a2fe50d9fffde0b57668d7ce6f65063d3dc10f2212cbcb554f75cfca99da1c73b210358d
   languageName: node
   linkType: hard
 
@@ -3036,9 +3062,9 @@ __metadata:
   linkType: hard
 
 "caniuse-lite@npm:^1.0.30001578, caniuse-lite@npm:^1.0.30001587":
-  version: 1.0.30001588
-  resolution: "caniuse-lite@npm:1.0.30001588"
-  checksum: 10c0/f8333cb52e7ebc169d462763cecc33807530f1e04d22ba1084e05a583907aa801fb3c013d60b38d54cb792440f48efcd2a1a68f22d5fce896b5bd0277392347c
+  version: 1.0.30001589
+  resolution: "caniuse-lite@npm:1.0.30001589"
+  checksum: 10c0/20debfb949413f603011bc7dacaf050010778bc4f8632c86fafd1bd0c43180c95ae7c31f6c82348f6309e5e221934e327c3607a216e3f09640284acf78cd6d4d
   languageName: node
   linkType: hard
 
@@ -3322,6 +3348,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"combined-stream@npm:^1.0.8":
+  version: 1.0.8
+  resolution: "combined-stream@npm:1.0.8"
+  dependencies:
+    delayed-stream: "npm:~1.0.0"
+  checksum: 10c0/0dbb829577e1b1e839fa82b40c07ffaf7de8a09b935cadd355a73652ae70a88b4320db322f6634a4ad93424292fa80973ac6480986247f1734a1137debf271d5
+  languageName: node
+  linkType: hard
+
 "comlink@npm:^4.4.1":
   version: 4.4.1
   resolution: "comlink@npm:4.4.1"
@@ -3503,19 +3538,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"create-aztec-app@workspace:.":
+"create-aztec@workspace:.":
   version: 0.0.0-use.local
-  resolution: "create-aztec-app@workspace:."
+  resolution: "create-aztec@workspace:."
   dependencies:
+    "@iarna/toml": "npm:^2.2.5"
     "@inquirer/confirm": "npm:^3.0.0"
     "@inquirer/input": "npm:^2.0.0"
     "@inquirer/select": "npm:^2.0.0"
+    axios: "npm:^1.6.7"
     chalk: "npm:^5.3.0"
     commander: "npm:^12.0.0"
     node-pty: "npm:^1.0.0"
     tiged: "npm:^2.12.6"
   bin:
-    create-aztec-app: npx.js
+    create-aztec: npx.js
   languageName: unknown
   linkType: soft
 
@@ -3769,6 +3806,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"delayed-stream@npm:~1.0.0":
+  version: 1.0.0
+  resolution: "delayed-stream@npm:1.0.0"
+  checksum: 10c0/d758899da03392e6712f042bec80aa293bbe9e9ff1b2634baae6a360113e708b91326594c8a486d475c69d6259afb7efacdc3537bfcda1c6c648e390ce601b19
+  languageName: node
+  linkType: hard
+
 "delegates@npm:^1.0.0":
   version: 1.0.0
   resolution: "delegates@npm:1.0.0"
@@ -3950,9 +3994,9 @@ __metadata:
   linkType: hard
 
 "electron-to-chromium@npm:^1.4.668":
-  version: 1.4.676
-  resolution: "electron-to-chromium@npm:1.4.676"
-  checksum: 10c0/f135dab8b3aab360cfdf63a2fba42faf149b5ca9dbe1688c4a4245c9a2a93b388e0e47644359977726d89f5cb9bf5c0a3b95ad30f5bf0889d49e576d148c2dfb
+  version: 1.4.679
+  resolution: "electron-to-chromium@npm:1.4.679"
+  checksum: 10c0/6f1385e080360f19ec7b6e9d1072a13325cc110ca6fc10c0bb5f4c427003abecc66074c85509bedae8352ce28557fc26f5a1f238d11f0ee0c481c42a55c9fda4
   languageName: node
   linkType: hard
 
@@ -4146,13 +4190,13 @@ __metadata:
   linkType: hard
 
 "es-set-tostringtag@npm:^2.0.2":
-  version: 2.0.2
-  resolution: "es-set-tostringtag@npm:2.0.2"
+  version: 2.0.3
+  resolution: "es-set-tostringtag@npm:2.0.3"
   dependencies:
-    get-intrinsic: "npm:^1.2.2"
-    has-tostringtag: "npm:^1.0.0"
-    hasown: "npm:^2.0.0"
-  checksum: 10c0/176d6bd1be31dd0145dcceee62bb78d4a5db7f81db437615a18308a6f62bcffe45c15081278413455e8cf0aad4ea99079de66f8de389605942dfdacbad74c2d5
+    get-intrinsic: "npm:^1.2.4"
+    has-tostringtag: "npm:^1.0.2"
+    hasown: "npm:^2.0.1"
+  checksum: 10c0/f22aff1585eb33569c326323f0b0d175844a1f11618b86e193b386f8be0ea9474cfbe46df39c45d959f7aa8f6c06985dc51dd6bce5401645ec5a74c4ceaa836a
   languageName: node
   linkType: hard
 
@@ -4745,13 +4789,13 @@ __metadata:
   linkType: hard
 
 "flatted@npm:^3.2.9":
-  version: 3.3.0
-  resolution: "flatted@npm:3.3.0"
-  checksum: 10c0/e9e57ba1e82abce34064f71eb0923f19cc3a83d2499fca6260c9bfc7567eec042a8065b40b0fc27cf1d01435a50d577d29cdf1876204714151f6a50a1738b3bc
+  version: 3.3.1
+  resolution: "flatted@npm:3.3.1"
+  checksum: 10c0/324166b125ee07d4ca9bcf3a5f98d915d5db4f39d711fba640a3178b959919aae1f7cfd8aabcfef5826ed8aa8a2aa14cc85b2d7d18ff638ddf4ae3df39573eaf
   languageName: node
   linkType: hard
 
-"follow-redirects@npm:^1.0.0":
+"follow-redirects@npm:^1.0.0, follow-redirects@npm:^1.15.4":
   version: 1.15.5
   resolution: "follow-redirects@npm:1.15.5"
   peerDependenciesMeta:
@@ -4777,6 +4821,17 @@ __metadata:
     cross-spawn: "npm:^7.0.0"
     signal-exit: "npm:^4.0.1"
   checksum: 10c0/9700a0285628abaeb37007c9a4d92bd49f67210f09067638774338e146c8e9c825c5c877f072b2f75f41dc6a2d0be8664f79ffc03f6576649f54a84fb9b47de0
+  languageName: node
+  linkType: hard
+
+"form-data@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "form-data@npm:4.0.0"
+  dependencies:
+    asynckit: "npm:^0.4.0"
+    combined-stream: "npm:^1.0.8"
+    mime-types: "npm:^2.1.12"
+  checksum: 10c0/cb6f3ac49180be03ff07ba3ff125f9eba2ff0b277fb33c7fc47569fc5e616882c5b1c69b9904c4c4187e97dd0419dd03b134174756f296dec62041e6527e2c6e
   languageName: node
   linkType: hard
 
@@ -5239,7 +5294,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"has-proto@npm:^1.0.1":
+"has-proto@npm:^1.0.1, has-proto@npm:^1.0.3":
   version: 1.0.3
   resolution: "has-proto@npm:1.0.3"
   checksum: 10c0/35a6989f81e9f8022c2f4027f8b48a552de714938765d019dbea6bb547bd49ce5010a3c7c32ec6ddac6e48fc546166a3583b128f5a7add8b058a6d8b4afec205
@@ -5253,7 +5308,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"has-tostringtag@npm:^1.0.0, has-tostringtag@npm:^1.0.1":
+"has-tostringtag@npm:^1.0.0, has-tostringtag@npm:^1.0.1, has-tostringtag@npm:^1.0.2":
   version: 1.0.2
   resolution: "has-tostringtag@npm:1.0.2"
   dependencies:
@@ -5973,11 +6028,11 @@ __metadata:
   linkType: hard
 
 "is-shared-array-buffer@npm:^1.0.2":
-  version: 1.0.2
-  resolution: "is-shared-array-buffer@npm:1.0.2"
+  version: 1.0.3
+  resolution: "is-shared-array-buffer@npm:1.0.3"
   dependencies:
-    call-bind: "npm:^1.0.2"
-  checksum: 10c0/cfeee6f171f1b13e6cbc6f3b6cc44e192b93df39f3fcb31aa66ffb1d2df3b91e05664311659f9701baba62f5e98c83b0673c628e7adc30f55071c4874fcdccec
+    call-bind: "npm:^1.0.7"
+  checksum: 10c0/adc11ab0acbc934a7b9e5e9d6c588d4ec6682f6fea8cda5180721704fa32927582ede5b123349e32517fdadd07958973d24716c80e7ab198970c47acc09e59c7
   languageName: node
   linkType: hard
 
@@ -6006,7 +6061,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"is-typed-array@npm:^1.1.10, is-typed-array@npm:^1.1.13, is-typed-array@npm:^1.1.3, is-typed-array@npm:^1.1.9":
+"is-typed-array@npm:^1.1.13, is-typed-array@npm:^1.1.3":
   version: 1.1.13
   resolution: "is-typed-array@npm:1.1.13"
   dependencies:
@@ -7332,7 +7387,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mime-types@npm:^2.1.18, mime-types@npm:^2.1.27, mime-types@npm:^2.1.31, mime-types@npm:~2.1.17, mime-types@npm:~2.1.24, mime-types@npm:~2.1.34":
+"mime-types@npm:^2.1.12, mime-types@npm:^2.1.18, mime-types@npm:^2.1.27, mime-types@npm:^2.1.31, mime-types@npm:~2.1.17, mime-types@npm:~2.1.24, mime-types@npm:~2.1.34":
   version: 2.1.35
   resolution: "mime-types@npm:2.1.35"
   dependencies:
@@ -8411,6 +8466,13 @@ __metadata:
     forwarded: "npm:0.2.0"
     ipaddr.js: "npm:1.9.1"
   checksum: 10c0/c3eed999781a35f7fd935f398b6d8920b6fb00bbc14287bc6de78128ccc1a02c89b95b56742bf7cf0362cc333c61d138532049c7dedc7a328ef13343eff81210
+  languageName: node
+  linkType: hard
+
+"proxy-from-env@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "proxy-from-env@npm:1.1.0"
+  checksum: 10c0/fe7dd8b1bdbbbea18d1459107729c3e4a2243ca870d26d34c2c1bcd3e4425b7bcc5112362df2d93cc7fb9746f6142b5e272fd1cc5c86ddf8580175186f6ad42b
   languageName: node
   linkType: hard
 
@@ -9937,7 +9999,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-loader@npm:^9.4.4":
+"ts-loader@npm:^9.4.4, ts-loader@npm:^9.5.1":
   version: 9.5.1
   resolution: "ts-loader@npm:9.5.1"
   dependencies:
@@ -10111,39 +10173,43 @@ __metadata:
   linkType: hard
 
 "typed-array-byte-length@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "typed-array-byte-length@npm:1.0.0"
+  version: 1.0.1
+  resolution: "typed-array-byte-length@npm:1.0.1"
   dependencies:
-    call-bind: "npm:^1.0.2"
+    call-bind: "npm:^1.0.7"
     for-each: "npm:^0.3.3"
-    has-proto: "npm:^1.0.1"
-    is-typed-array: "npm:^1.1.10"
-  checksum: 10c0/6696435d53ce0e704ff6760c57ccc35138aec5f87859e03eb2a3246336d546feae367952dbc918116f3f0dffbe669734e3cbd8960283c2fa79aac925db50d888
+    gopd: "npm:^1.0.1"
+    has-proto: "npm:^1.0.3"
+    is-typed-array: "npm:^1.1.13"
+  checksum: 10c0/fcebeffb2436c9f355e91bd19e2368273b88c11d1acc0948a2a306792f1ab672bce4cfe524ab9f51a0505c9d7cd1c98eff4235c4f6bfef6a198f6cfc4ff3d4f3
   languageName: node
   linkType: hard
 
 "typed-array-byte-offset@npm:^1.0.0":
-  version: 1.0.1
-  resolution: "typed-array-byte-offset@npm:1.0.1"
+  version: 1.0.2
+  resolution: "typed-array-byte-offset@npm:1.0.2"
   dependencies:
-    available-typed-arrays: "npm:^1.0.6"
+    available-typed-arrays: "npm:^1.0.7"
     call-bind: "npm:^1.0.7"
     for-each: "npm:^0.3.3"
     gopd: "npm:^1.0.1"
-    has-proto: "npm:^1.0.1"
+    has-proto: "npm:^1.0.3"
     is-typed-array: "npm:^1.1.13"
-  checksum: 10c0/d65bd43ca55804d34a7752372abc27ca3b75455e14ebdac4e7648e3aa836455145636421efc9d7ffa020bca895b2f76588efdf3a7a2c21e25dc1cb3fdce60a6a
+  checksum: 10c0/d2628bc739732072e39269389a758025f75339de2ed40c4f91357023c5512d237f255b633e3106c461ced41907c1bf9a533c7e8578066b0163690ca8bc61b22f
   languageName: node
   linkType: hard
 
 "typed-array-length@npm:^1.0.4":
-  version: 1.0.4
-  resolution: "typed-array-length@npm:1.0.4"
+  version: 1.0.5
+  resolution: "typed-array-length@npm:1.0.5"
   dependencies:
-    call-bind: "npm:^1.0.2"
+    call-bind: "npm:^1.0.7"
     for-each: "npm:^0.3.3"
-    is-typed-array: "npm:^1.1.9"
-  checksum: 10c0/c5163c0103d07fefc8a2ad0fc151f9ca9a1f6422098c00f695d55f9896e4d63614cd62cf8d8a031c6cee5f418e8980a533796597174da4edff075b3d275a7e23
+    gopd: "npm:^1.0.1"
+    has-proto: "npm:^1.0.3"
+    is-typed-array: "npm:^1.1.13"
+    possible-typed-array-names: "npm:^1.0.0"
+  checksum: 10c0/5cc0f79196e70a92f8f40846cfa62b3de6be51e83f73655e137116cf65e3c29a288502b18cc8faf33c943c2470a4569009e1d6da338441649a2db2f135761ad5
   languageName: node
   linkType: hard
 

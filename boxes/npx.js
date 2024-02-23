@@ -10,10 +10,25 @@ import pty from "node-pty";
 import path from "path";
 import os from "os";
 import fs from "fs";
+import { parse, stringify } from "@iarna/toml";
 import chalk from "chalk";
+import axios from "axios";
 
 const { log, warn, info } = console;
 const targetDir = path.join(os.homedir(), ".aztec/bin"); // Use os.homedir() to get $HOME
+
+const { GITHUB_TOKEN } = process.env;
+
+const axiosOpts = {};
+if (GITHUB_TOKEN) {
+  axiosOpts.headers = { Authorization: `token ${GITHUB_TOKEN}` };
+}
+
+const { data } = await axios.get(
+  `https://api.github.com/repos/AztecProtocol/aztec-packages/releases`,
+  axiosOpts,
+);
+const version = data[0].tag_name.split("-v")[1];
 
 function updatePathEnvVar() {
   // Detect the user's shell profile file based on common shells and environment variables
@@ -43,12 +58,70 @@ function updatePathEnvVar() {
   info(`Added ${targetDir} to PATH in ${shellProfile}.`);
 }
 
+export function prettyPrintNargoToml(config) {
+  const withoutDependencies = Object.fromEntries(
+    Object.entries(config).filter(([key]) => key !== "dependencies"),
+  );
+
+  const partialToml = stringify(withoutDependencies);
+  const dependenciesToml = Object.entries(config.dependencies).map(
+    ([name, dep]) => {
+      const depToml = stringify.value(dep);
+      return `${name} = ${depToml}`;
+    },
+  );
+
+  return (
+    partialToml + "\n[dependencies]\n" + dependenciesToml.join("\n") + "\n"
+  );
+}
+
+async function replacePaths(rootDir) {
+  const files = fs.readdirSync(path.resolve(".", rootDir), {
+    withFileTypes: true,
+  });
+
+  files.forEach((file) => {
+    const filePath = path.join(rootDir, file.name);
+    if (file.isDirectory()) {
+      replacePaths(filePath); // Recursively search subdirectories
+    } else if (file.name === "Nargo.toml") {
+      let content = parse(fs.readFileSync(filePath, "utf8"));
+
+      try {
+        Object.keys(content.dependencies).forEach((dep) => {
+          const directory = content.dependencies[dep].path.replace(/^(..\/)+/);
+          content.dependencies[dep] = {
+            git: "https://github.com/AztecProtocol/aztec-packages/",
+            tag: `aztec-packages-v${version}`,
+            directory,
+          };
+        });
+      } catch (e) {
+        console.log("No Noir dependencies to update");
+      }
+
+      fs.writeFileSync(filePath, prettyPrintNargoToml(content), "utf8");
+    } else if (file.name === "package.json") {
+      try {
+        let content = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        Object.keys(content.dependencies)
+          .filter((deps) => deps.match("@aztec"))
+          .map((dep) => (content.dependencies[dep] = `^${version}`));
+        fs.writeFileSync(filePath, JSON.stringify(content), "utf8");
+      } catch (e) {
+        console.log("No package.json to update");
+      }
+    }
+  });
+}
+
 program.action(async () => {
   const appType = await select({
-    message: "Please choose your boilerplate:",
+    message: "Please choose your Aztec boilerplate:",
     choices: [
-      { value: "blank", name: "Barebones HTML/TS project" },
-      { value: "blank-react", name: "Barebones React project" },
+      { value: "vanilla", name: "HTML/TS project" },
+      { value: "react", name: "React project" },
     ],
   });
 
@@ -61,14 +134,20 @@ program.action(async () => {
       default: "my-aztec-app",
     });
 
-    const emitter = tiged(`AztecProtocol/aztec-packages/boxes/${appType}`);
-
     chalk.blue("Cloning the boilerplate code...");
+    const emitter = tiged(
+      `AztecProtocol/aztec-packages/boxes/${appType}#aztec-packages-v${version}`,
+      {
+        disableCache: true,
+      },
+    );
+
     emitter.on("info", (info) => {
       log(info.message);
     });
 
     await emitter.clone(`./${appName}`).then(() => {
+      replacePaths(`./${appName}`);
       log(chalk.bgGreen("Your code is ready!"));
     });
   } catch (error) {

@@ -8,7 +8,7 @@ import {
 } from '@aztec/aztec.js';
 
 import { SingleKeyAccountContract } from '@aztec/accounts/single_key';
-import { BlankContract } from '../artifacts/Blank';
+import { VanillaContract } from '../artifacts/Vanilla';
 
 const privateKey: GrumpkinScalar = GrumpkinScalar.random();
 const pxe = createPXEClient(process.env.PXE_URL || 'http://localhost:8080');
@@ -26,7 +26,7 @@ document.querySelector('#deploy').addEventListener('click', async ({ target }: a
   setWait(true);
   wallet = await account.register();
 
-  const { artifact, at } = BlankContract;
+  const { artifact, at } = VanillaContract;
   const contractDeployer = new ContractDeployer(artifact, pxe);
   const { contractAddress } = await contractDeployer
     .deploy(Fr.random(), wallet.getCompleteAddress().address)

@@ -1,13 +1,13 @@
-import { BlankContract } from '../artifacts/Blank.js';
+import { BoxReactContract } from '../artifacts/BoxReact.js';
 import { AccountWallet, Fr, Contract, TxStatus, createDebugLogger, ContractDeployer } from '@aztec/aztec.js';
 import { deployerEnv } from '../src/config.js';
 
 const logger = createDebugLogger('aztec:http-pxe-client');
 
-describe('Blank Contract Tests', () => {
+describe('BoxReact Contract Tests', () => {
   let wallet: AccountWallet;
   let contract: Contract;
-  const { artifact } = BlankContract;
+  const { artifact } = BoxReactContract;
   const numberToSet = Fr.random();
 
   beforeAll(async () => {
@@ -18,7 +18,7 @@ describe('Blank Contract Tests', () => {
     const tx = deployer.deploy(Fr.random(), wallet.getCompleteAddress().address).send({ contractAddressSalt: salt });
     await tx.wait();
     const { contractAddress } = await tx.getReceipt();
-    contract = await BlankContract.at(contractAddress!, wallet);
+    contract = await BoxReactContract.at(contractAddress!, wallet);
 
     logger(`L2 contract deployed at ${contractAddress}`);
   }, 60000);

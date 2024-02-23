@@ -1,4 +1,4 @@
-contract Blank {
+contract BoxReact {
     use dep::aztec::{
         protocol_types::address::AztecAddress,
         state_vars::{singleton::Singleton, map::Map},

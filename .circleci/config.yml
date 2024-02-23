@@ -488,7 +488,7 @@ jobs:
           name: "Build"
           command: cond_spot_run_build boxes 4
 
-  boxes-blank:
+  boxes-vanilla:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -497,9 +497,9 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=box-blank
+          command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=box-vanilla
 
-  boxes-blank-react:
+  boxes-react:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -508,7 +508,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=box-blank-react
+          command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=box-react
 
   end-to-end:
     machine:
@@ -1309,11 +1309,11 @@ workflows:
           requires:
             - aztec-package
           <<: *defaults
-      - boxes-blank:
+      - boxes-vanilla:
           requires:
             - boxes
           <<: *defaults
-      - boxes-blank-react:
+      - boxes-react:
           requires:
             - boxes
           <<: *defaults
@@ -1406,8 +1406,8 @@ workflows:
             - e2e-avm-simulator
             - e2e-fees
             - pxe
-            - boxes-blank
-            - boxes-blank-react
+            - boxes-vanilla
+            - boxes-react
             - cli-docs-sandbox
             - e2e-docs-examples
             - guides-writing-an-account-contract

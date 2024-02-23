@@ -4,4 +4,4 @@
 node_modules
 dist
 artifacts
-contracts/target
+src/contracts/target

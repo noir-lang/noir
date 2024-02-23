@@ -447,21 +447,6 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     });
 
   program
-    .command('unbox')
-    .description(
-      'Unboxes an example contract from @aztec/boxes.  Also Copies `noir-libs` dependencies and setup simple frontend for the contract using its ABI.',
-    )
-    .argument('<contractName>', 'Name of the contract to unbox, e.g. "PrivateToken"')
-    .argument(
-      '[localDirectory]',
-      'Local directory to unbox source folder to (relative or absolute), optional - defaults to `<contractName>/`',
-    )
-    .action(async (contractName, localDirectory) => {
-      const { unbox } = await import('./cmds/unbox.js');
-      unbox(contractName, localDirectory, cliVersion, log);
-    });
-
-  program
     .command('get-node-info')
     .description('Gets the information of an aztec node at a URL.')
     .addOption(pxeOption)
