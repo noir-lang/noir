@@ -207,11 +207,11 @@ docs:
   dockerfile: docs/Dockerfile
   rebuildPatterns:
     - ^docs/
-    - ^.*.cpp$
-    - ^.*.hpp$
-    - ^.*.ts$
-    - ^.release-please-manifest.json$
-    - ^.*.nr$
+    - ^.*\.cpp$
+    - ^.*\.hpp$
+    - ^.*\.ts$
+    - ^.release-please-manifest\.json$
+    - ^.*\.nr$
   dependencies:
     - yarn-project
     - noir-projects
