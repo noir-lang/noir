@@ -24,7 +24,9 @@ describe('AVM simulator', () => {
     ]);
 
     const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-    jest.spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode').mockReturnValue(Promise.resolve(bytecode));
+    jest
+      .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+      .mockReturnValue(Promise.resolve(bytecode));
 
     const results = await new AvmSimulator(context).execute();
 
@@ -46,7 +48,9 @@ describe('AVM simulator', () => {
       const bytecode = Buffer.from(addArtifact.bytecode, 'base64');
 
       const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-      jest.spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode').mockReturnValue(Promise.resolve(bytecode));
+      jest
+        .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+        .mockReturnValue(Promise.resolve(bytecode));
 
       const results = await new AvmSimulator(context).execute();
 
@@ -71,7 +75,7 @@ describe('AVM simulator', () => {
 
         const context = initContext();
         jest
-          .spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode')
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
           .mockReturnValue(Promise.resolve(bytecode));
 
         const results = await new AvmSimulator(context).execute();
@@ -99,7 +103,7 @@ describe('AVM simulator', () => {
 
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
         jest
-          .spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode')
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
           .mockReturnValue(Promise.resolve(bytecode));
 
         const results = await new AvmSimulator(context).execute();
@@ -131,7 +135,7 @@ describe('AVM simulator', () => {
 
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
         jest
-          .spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode')
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
           .mockReturnValue(Promise.resolve(bytecode));
 
         const results = await new AvmSimulator(context).execute();
@@ -160,7 +164,7 @@ describe('AVM simulator', () => {
         // Decode bytecode into instructions
         const bytecode = Buffer.from(getterArtifact.bytecode, 'base64');
         jest
-          .spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode')
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
           .mockReturnValue(Promise.resolve(bytecode));
         // Execute
 

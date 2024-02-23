@@ -19,7 +19,7 @@ export class EmitNoteHash extends Instruction {
     }
 
     const noteHash = context.machineState.memory.get(this.noteHashOffset).toFr();
-    context.worldState.writeNoteHash(noteHash);
+    context.persistableState.writeNoteHash(noteHash);
 
     context.machineState.incrementPc();
   }
@@ -41,7 +41,7 @@ export class EmitNullifier extends Instruction {
     }
 
     const nullifier = context.machineState.memory.get(this.nullifierOffset).toFr();
-    context.worldState.writeNullifier(nullifier);
+    context.persistableState.writeNullifier(nullifier);
 
     context.machineState.incrementPc();
   }
@@ -63,7 +63,7 @@ export class EmitUnencryptedLog extends Instruction {
     }
 
     const log = context.machineState.memory.getSlice(this.logOffset, this.logSize).map(f => f.toFr());
-    context.worldState.writeLog(log);
+    context.persistableState.writeLog(log);
 
     context.machineState.incrementPc();
   }
@@ -85,7 +85,7 @@ export class SendL2ToL1Message extends Instruction {
     }
 
     const msg = context.machineState.memory.getSlice(this.msgOffset, this.msgSize).map(f => f.toFr());
-    context.worldState.writeL1Message(msg);
+    context.persistableState.writeL1Message(msg);
 
     context.machineState.incrementPc();
   }

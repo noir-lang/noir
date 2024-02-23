@@ -73,7 +73,7 @@ export class AvmSimulator {
     // NOTE: the following is mocked as getPublicBytecode does not exist yet
 
     const selector = this.context.environment.temporaryFunctionSelector;
-    const bytecode = await this.context.worldState.hostStorage.contractsDb.getBytecode(
+    const bytecode = await this.context.persistableState.hostStorage.contractsDb.getBytecode(
       this.context.environment.address,
       selector,
     );

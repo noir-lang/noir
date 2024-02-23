@@ -8,7 +8,7 @@ import { AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
 import { initContext } from '../fixtures/index.js';
 import { HostStorage } from '../journal/host_storage.js';
-import { AvmWorldStateJournal } from '../journal/journal.js';
+import { AvmPersistableStateManager } from '../journal/journal.js';
 import { encodeToBytecode } from '../serialization/bytecode_serialization.js';
 import { Return } from './control_flow.js';
 import { Call, StaticCall } from './external_calls.js';
@@ -24,7 +24,7 @@ describe('External Calls', () => {
     const commitmentsDb = mock<CommitmentsDB>();
     const publicStateDb = mock<PublicStateDB>();
     const hostStorage = new HostStorage(publicStateDb, contractsDb, commitmentsDb);
-    const journal = new AvmWorldStateJournal(hostStorage);
+    const journal = new AvmPersistableStateManager(hostStorage);
     context = initContext({ worldState: journal });
   });
 
@@ -78,7 +78,7 @@ describe('External Calls', () => {
       context.machineState.memory.set(1, new Field(addr));
       context.machineState.memory.setSlice(2, args);
       jest
-        .spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode')
+        .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
         .mockReturnValue(Promise.resolve(otherContextInstructionsBytecode));
 
       const instruction = new Call(
@@ -100,7 +100,7 @@ describe('External Calls', () => {
       expect(retValue).toEqual([new Field(1n), new Field(2n)]);
 
       // Check that the storage call has been merged into the parent journal
-      const { currentStorageValue } = context.worldState.flush();
+      const { currentStorageValue } = context.persistableState.flush();
       expect(currentStorageValue.size).toEqual(1);
 
       const nestedContractWrites = currentStorageValue.get(addr.toBigInt());
@@ -165,7 +165,7 @@ describe('External Calls', () => {
       const otherContextInstructionsBytecode = encodeToBytecode(otherContextInstructions);
 
       jest
-        .spyOn(context.worldState.hostStorage.contractsDb, 'getBytecode')
+        .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
         .mockReturnValue(Promise.resolve(otherContextInstructionsBytecode));
 
       const instruction = new StaticCall(

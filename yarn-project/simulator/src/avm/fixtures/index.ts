@@ -12,13 +12,13 @@ import { AvmContext } from '../avm_context.js';
 import { AvmExecutionEnvironment } from '../avm_execution_environment.js';
 import { AvmMachineState } from '../avm_machine_state.js';
 import { HostStorage } from '../journal/host_storage.js';
-import { AvmWorldStateJournal } from '../journal/journal.js';
+import { AvmPersistableStateManager } from '../journal/journal.js';
 
 /**
  * Create a new AVM context with default values.
  */
 export function initContext(overrides?: {
-  worldState?: AvmWorldStateJournal;
+  worldState?: AvmPersistableStateManager;
   env?: AvmExecutionEnvironment;
   machineState?: AvmMachineState;
 }): AvmContext {
@@ -30,9 +30,9 @@ export function initContext(overrides?: {
 }
 
 /** Creates an empty world state with mocked storage. */
-export function initMockWorldStateJournal(): AvmWorldStateJournal {
+export function initMockWorldStateJournal(): AvmPersistableStateManager {
   const hostStorage = new HostStorage(mock<PublicStateDB>(), mock<PublicContractsDB>(), mock<CommitmentsDB>());
-  return new AvmWorldStateJournal(hostStorage);
+  return new AvmPersistableStateManager(hostStorage);
 }
 
 /**

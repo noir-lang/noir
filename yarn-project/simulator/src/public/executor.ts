@@ -6,7 +6,7 @@ import { AvmContext } from '../avm/avm_context.js';
 import { AvmMachineState } from '../avm/avm_machine_state.js';
 import { AvmSimulator } from '../avm/avm_simulator.js';
 import { HostStorage } from '../avm/journal/host_storage.js';
-import { AvmWorldStateJournal } from '../avm/journal/index.js';
+import { AvmPersistableStateManager } from '../avm/journal/index.js';
 import {
   temporaryConvertAvmResults,
   temporaryCreateAvmExecutionEnvironment,
@@ -158,7 +158,7 @@ export class PublicExecutor {
     // Temporary code to construct the AVM context
     // These data structures will permiate across the simulator when the public executor is phased out
     const hostStorage = new HostStorage(this.stateDb, this.contractsDb, this.commitmentsDb);
-    const worldStateJournal = new AvmWorldStateJournal(hostStorage);
+    const worldStateJournal = new AvmPersistableStateManager(hostStorage);
     const executionEnv = temporaryCreateAvmExecutionEnvironment(execution, globalVariables);
     const machineState = new AvmMachineState(0, 0, 0);
 
@@ -166,7 +166,7 @@ export class PublicExecutor {
     const simulator = new AvmSimulator(context);
 
     const result = await simulator.execute();
-    const newWorldState = context.worldState.flush();
+    const newWorldState = context.persistableState.flush();
     return temporaryConvertAvmResults(execution, newWorldState, result);
   }
 }

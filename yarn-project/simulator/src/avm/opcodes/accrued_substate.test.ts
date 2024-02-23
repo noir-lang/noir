@@ -30,7 +30,7 @@ describe('Accrued Substate', () => {
 
       await new EmitNoteHash(/*indirect=*/ 0, /*offset=*/ 0).execute(context);
 
-      const journalState = context.worldState.flush();
+      const journalState = context.persistableState.flush();
       const expected = [value.toFr()];
       expect(journalState.newNoteHashes).toEqual(expected);
     });
@@ -55,7 +55,7 @@ describe('Accrued Substate', () => {
 
       await new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(context);
 
-      const journalState = context.worldState.flush();
+      const journalState = context.persistableState.flush();
       const expected = [value.toFr()];
       expect(journalState.newNullifiers).toEqual(expected);
     });
@@ -85,7 +85,7 @@ describe('Accrued Substate', () => {
 
       await new EmitUnencryptedLog(/*indirect=*/ 0, /*offset=*/ startOffset, length).execute(context);
 
-      const journalState = context.worldState.flush();
+      const journalState = context.persistableState.flush();
       const expected = values.map(v => v.toFr());
       expect(journalState.newLogs).toEqual([expected]);
     });
@@ -115,7 +115,7 @@ describe('Accrued Substate', () => {
 
       await new SendL2ToL1Message(/*indirect=*/ 0, /*offset=*/ startOffset, length).execute(context);
 
-      const journalState = context.worldState.flush();
+      const journalState = context.persistableState.flush();
       const expected = values.map(v => v.toFr());
       expect(journalState.newL1Messages).toEqual([expected]);
     });

@@ -54,9 +54,9 @@ export class Call extends Instruction {
     context.machineState.memory.setSlice(this.retOffset, convertedReturnData);
 
     if (success) {
-      context.worldState.acceptNestedWorldState(nestedContext.worldState);
+      context.persistableState.acceptNestedCallState(nestedContext.persistableState);
     } else {
-      context.worldState.rejectNestedWorldState(nestedContext.worldState);
+      context.persistableState.rejectNestedCallState(nestedContext.persistableState);
     }
 
     context.machineState.incrementPc();
@@ -112,9 +112,9 @@ export class StaticCall extends Instruction {
     context.machineState.memory.setSlice(this.retOffset, convertedReturnData);
 
     if (success) {
-      context.worldState.acceptNestedWorldState(nestedContext.worldState);
+      context.persistableState.acceptNestedCallState(nestedContext.persistableState);
     } else {
-      context.worldState.rejectNestedWorldState(nestedContext.worldState);
+      context.persistableState.rejectNestedCallState(nestedContext.persistableState);
     }
 
     context.machineState.incrementPc();
