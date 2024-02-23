@@ -23,5 +23,6 @@ echo "Benchmarking lock created at ~/BENCHMARK_IN_PROGRESS."
 
 # Trap to ensure cleanup runs on ANY exit, including from a signal
 trap cleanup EXIT
+trap cleanup INT # handle ctrl-c
 
 # don't exit, the caller script will run
