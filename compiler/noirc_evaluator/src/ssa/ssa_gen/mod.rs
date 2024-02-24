@@ -128,7 +128,6 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_expression(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
-        eprintln!("Codegen {expr}");
         match expr {
             Expression::Ident(ident) => Ok(self.codegen_ident(ident)),
             Expression::Literal(literal) => self.codegen_literal(literal),
