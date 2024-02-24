@@ -180,16 +180,19 @@ impl Expression {
         // with tuples without calling them. E.g. `if c { t } else { e }(a, b)` is interpreted
         // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
         let kind = if matches!(&lhs.kind, ExpressionKind::If(..)) {
-            ExpressionKind::Block(BlockExpression(vec![
-                Statement { kind: StatementKind::Expression(lhs), span },
-                Statement {
-                    kind: StatementKind::Expression(Expression::new(
-                        ExpressionKind::Tuple(arguments),
+            ExpressionKind::Block(BlockExpression {
+                is_unsafe: false,
+                statements: vec![
+                    Statement { kind: StatementKind::Expression(lhs), span },
+                    Statement {
+                        kind: StatementKind::Expression(Expression::new(
+                            ExpressionKind::Tuple(arguments),
+                            span,
+                        )),
                         span,
-                    )),
-                    span,
-                },
-            ]))
+                    },
+                ],
+            })
         } else {
             ExpressionKind::Call(Box::new(CallExpression { func: Box::new(lhs), arguments }))
         };
@@ -456,19 +459,22 @@ pub struct IndexExpression {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct BlockExpression(pub Vec<Statement>);
+pub struct BlockExpression {
+    pub is_unsafe: bool,
+    pub statements: Vec<Statement>,
+}
 
 impl BlockExpression {
     pub fn pop(&mut self) -> Option<StatementKind> {
-        self.0.pop().map(|stmt| stmt.kind)
+        self.statements.pop().map(|stmt| stmt.kind)
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.statements.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.statements.is_empty()
     }
 }
 
@@ -537,8 +543,9 @@ impl Display for Literal {
 
 impl Display for BlockExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{{")?;
-        for statement in &self.0 {
+        let safety = if self.is_unsafe { "unsafe " } else { "" };
+        writeln!(f, "{safety}{{")?;
+        for statement in &self.statements {
             let statement = statement.kind.to_string();
             for line in statement.lines() {
                 writeln!(f, "    {line}")?;

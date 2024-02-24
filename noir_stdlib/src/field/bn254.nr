@@ -24,15 +24,21 @@ unconstrained fn decompose_unsafe(x: Field) -> (Field, Field) {
 /// Decompose a single field into two 16 byte fields.
 pub fn decompose(x: Field) -> (Field, Field) {
     // Take hints of the decomposition
-    let (xlo, xhi) = decompose_unsafe(x);
-    let borrow = lt_unsafe(PLO, xlo, 16);
+    let (xlo, xhi) = unsafe {
+        let (xlo, xhi) = decompose_unsafe(x);
+    
+        // Range check the limbs
+        xlo.assert_max_bit_size(128);
+        xhi.assert_max_bit_size(128);
 
-    // Range check the limbs
-    xlo.assert_max_bit_size(128);
-    xhi.assert_max_bit_size(128);
+        // Check that the decomposition is correct
+        assert_eq(x, xlo + TWO_POW_128 * xhi);
 
-    // Check that the decomposition is correct
-    assert_eq(x, xlo + TWO_POW_128 * xhi);
+        (xlo, xhi)
+    };
+
+
+    let borrow = unsafe {lt_unsafe(PLO, xlo, 16)};
 
     // Check that (xlo < plo && xhi <= phi) || (xlo >= plo && xhi < phi)
     let rlo = PLO - xlo + (borrow as Field) * TWO_POW_128;
@@ -72,7 +78,7 @@ pub fn assert_gt(a: Field, b: Field) {
     let (alo, ahi) = decompose(a);
     let (blo, bhi) = decompose(b);
 
-    let borrow = lte_unsafe(alo, blo, 16);
+    let borrow = unsafe { lte_unsafe(alo, blo, 16) };
 
     // Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
     let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
@@ -89,13 +95,18 @@ pub fn assert_lt(a: Field, b: Field) {
 pub fn gt(a: Field, b: Field) -> bool {
     if a == b {
         false
-    } else if lt_unsafe(a, b, 32) {
-        assert_gt(b, a);
-        false
     } else {
-        assert_gt(a, b);
-        true
+        let a_lt_b = unsafe {lt_unsafe(a, b, 32) };
+        if a_lt_b {
+            assert_gt(b, a);
+            false
+        } else {
+            assert_gt(a, b);
+            true
+        }
     }
+    
+     
 }
 
 pub fn lt(a: Field, b: Field) -> bool {

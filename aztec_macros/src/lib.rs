@@ -600,7 +600,7 @@ fn generate_storage_implementation(module: &mut SortedModule) -> Result<(), Azte
                 true,
             )),
         )],
-        &BlockExpression(vec![storage_constructor_statement]),
+        &BlockExpression { is_unsafe: false, statements: vec![storage_constructor_statement] },
         &[],
         &return_type(chained_path!("Self")),
     ));
@@ -635,12 +635,12 @@ fn transform_function(
     // Add access to the storage struct
     if storage_defined {
         let storage_def = abstract_storage(&ty.to_lowercase(), false);
-        func.def.body.0.insert(0, storage_def);
+        func.def.body.statements.insert(0, storage_def);
     }
 
     // Insert the context creation as the first action
     let create_context = create_context(&context_name, &func.def.parameters)?;
-    func.def.body.0.splice(0..0, (create_context).iter().cloned());
+    func.def.body.statements.splice(0..0, (create_context).iter().cloned());
 
     // Add the inputs to the params
     let input = create_inputs(&inputs_name);
@@ -650,14 +650,14 @@ fn transform_function(
     if let Some(return_values) = abstract_return_values(func) {
         // In case we are pushing return values to the context, we remove the statement that originated it
         // This avoids running duplicate code, since blocks like if/else can be value returning statements
-        func.def.body.0.pop();
+        func.def.body.statements.pop();
         // Add the new return statement
-        func.def.body.0.push(return_values);
+        func.def.body.statements.push(return_values);
     }
 
     // Push the finish method call to the end of the function
     let finish_def = create_context_finish();
-    func.def.body.0.push(finish_def);
+    func.def.body.statements.push(finish_def);
 
     let return_type = create_return_type(&return_type_name);
     func.def.return_type = return_type;
@@ -681,7 +681,7 @@ fn transform_vm_function(
 ) -> Result<(), AztecMacroError> {
     // Push Avm context creation to the beginning of the function
     let create_context = create_avm_context()?;
-    func.def.body.0.insert(0, create_context);
+    func.def.body.statements.insert(0, create_context);
 
     // We want the function to be seen as a public function
     func.def.is_open = true;
@@ -701,7 +701,7 @@ fn transform_vm_function(
 ///
 /// This will allow developers to access their contract' storage struct in unconstrained functions
 fn transform_unconstrained(func: &mut NoirFunction) {
-    func.def.body.0.insert(0, abstract_storage("Unconstrained", true));
+    func.def.body.statements.insert(0, abstract_storage("Unconstrained", true));
 }
 
 fn collect_crate_structs(crate_id: &CrateId, context: &HirContext) -> Vec<StructId> {
@@ -1032,10 +1032,15 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
     let mut from_signature_path = selector_path.clone();
     from_signature_path.segments.push(ident("from_signature"));
 
-    let selector_fun_body = BlockExpression(vec![make_statement(StatementKind::Expression(call(
-        variable_path(from_signature_path),
-        vec![expression(ExpressionKind::Literal(Literal::Str(SIGNATURE_PLACEHOLDER.to_string())))],
-    )))]);
+    let selector_fun_body = BlockExpression {
+        is_unsafe: false,
+        statements: vec![make_statement(StatementKind::Expression(call(
+            variable_path(from_signature_path),
+            vec![expression(ExpressionKind::Literal(Literal::Str(
+                SIGNATURE_PLACEHOLDER.to_string(),
+            )))],
+        )))],
+    };
 
     // Define `FunctionSelector` return type
     let return_type =
@@ -1259,7 +1264,7 @@ fn create_avm_context() -> Result<Statement, AztecMacroError> {
 /// Any primitive type that can be cast will be casted to a field and pushed to the context.
 fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
     let current_return_type = func.return_type().typ;
-    let last_statement = func.def.body.0.last()?;
+    let last_statement = func.def.body.statements.last()?;
 
     // TODO: (length, type) => We can limit the size of the array returned to be limited by kernel size
     // Doesn't need done until we have settled on a kernel size
@@ -1515,7 +1520,10 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
 
     // What will be looped over
     // - `hasher.add({ident}[i] as Field)`
-    let for_loop_block = expression(ExpressionKind::Block(BlockExpression(loop_body)));
+    let for_loop_block = expression(ExpressionKind::Block(BlockExpression {
+        is_unsafe: false,
+        statements: loop_body,
+    }));
 
     // `for i in 0..{ident}.len()`
     make_statement(StatementKind::For(ForLoopStatement {

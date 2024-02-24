@@ -19,7 +19,7 @@ impl<'interner> TypeChecker<'interner> {
     /// All statements have a unit type `()` as their type so the type of the statement
     /// is not interesting. Type checking must still be done on statements to ensure any
     /// expressions used within them are typed correctly.
-    pub(crate) fn check_statement(&mut self, stmt_id: &StmtId) -> Type {
+    pub(crate) fn check_statement(&mut self, stmt_id: &StmtId, allow_unsafe_call: bool) -> Type {
         match self.interner.statement(stmt_id) {
             // Lets lay out a convincing argument that the handling of
             // SemiExpressions and Expressions below is correct.
@@ -42,23 +42,27 @@ impl<'interner> TypeChecker<'interner> {
             //
             // The reason why we still modify the database, is to make sure it is future-proof
             HirStatement::Expression(expr_id) => {
-                return self.check_expression(&expr_id);
+                return self.check_expression(&expr_id, allow_unsafe_call);
             }
             HirStatement::Semi(expr_id) => {
-                self.check_expression(&expr_id);
+                self.check_expression(&expr_id, allow_unsafe_call);
             }
-            HirStatement::Let(let_stmt) => self.check_let_stmt(let_stmt),
-            HirStatement::Constrain(constrain_stmt) => self.check_constrain_stmt(constrain_stmt),
-            HirStatement::Assign(assign_stmt) => self.check_assign_stmt(assign_stmt, stmt_id),
-            HirStatement::For(for_loop) => self.check_for_loop(for_loop),
+            HirStatement::Let(let_stmt) => self.check_let_stmt(let_stmt, allow_unsafe_call),
+            HirStatement::Constrain(constrain_stmt) => {
+                self.check_constrain_stmt(constrain_stmt, allow_unsafe_call);
+            }
+            HirStatement::Assign(assign_stmt) => {
+                self.check_assign_stmt(assign_stmt, stmt_id, allow_unsafe_call);
+            }
+            HirStatement::For(for_loop) => self.check_for_loop(for_loop, allow_unsafe_call),
             HirStatement::Error => (),
         }
         Type::Unit
     }
 
-    fn check_for_loop(&mut self, for_loop: HirForStatement) {
-        let start_range_type = self.check_expression(&for_loop.start_range);
-        let end_range_type = self.check_expression(&for_loop.end_range);
+    fn check_for_loop(&mut self, for_loop: HirForStatement, allow_unsafe_call: bool) {
+        let start_range_type = self.check_expression(&for_loop.start_range, allow_unsafe_call);
+        let end_range_type = self.check_expression(&for_loop.end_range, allow_unsafe_call);
 
         let start_span = self.interner.expr_span(&for_loop.start_range);
         let end_span = self.interner.expr_span(&for_loop.end_range);
@@ -81,7 +85,7 @@ impl<'interner> TypeChecker<'interner> {
 
         self.interner.push_definition_type(for_loop.identifier.id, start_range_type);
 
-        self.check_expression(&for_loop.block);
+        self.check_expression(&for_loop.block, allow_unsafe_call);
     }
 
     /// Associate a given HirPattern with the given Type, and remember
@@ -132,10 +136,16 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
-    fn check_assign_stmt(&mut self, assign_stmt: HirAssignStatement, stmt_id: &StmtId) {
-        let expr_type = self.check_expression(&assign_stmt.expression);
+    fn check_assign_stmt(
+        &mut self,
+        assign_stmt: HirAssignStatement,
+        stmt_id: &StmtId,
+        allow_unsafe_call: bool,
+    ) {
+        let expr_type = self.check_expression(&assign_stmt.expression, allow_unsafe_call);
         let span = self.interner.expr_span(&assign_stmt.expression);
-        let (lvalue_type, new_lvalue, mutable) = self.check_lvalue(&assign_stmt.lvalue, span);
+        let (lvalue_type, new_lvalue, mutable) =
+            self.check_lvalue(&assign_stmt.lvalue, span, allow_unsafe_call);
 
         if !mutable {
             let (name, span) = self.get_lvalue_name_and_span(&assign_stmt.lvalue);
@@ -177,7 +187,12 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     /// Type check an lvalue - the left hand side of an assignment statement.
-    fn check_lvalue(&mut self, lvalue: &HirLValue, assign_span: Span) -> (Type, HirLValue, bool) {
+    fn check_lvalue(
+        &mut self,
+        lvalue: &HirLValue,
+        assign_span: Span,
+        allow_unsafe_call: bool,
+    ) -> (Type, HirLValue, bool) {
         match lvalue {
             HirLValue::Ident(ident, _) => {
                 let mut mutable = true;
@@ -196,7 +211,8 @@ impl<'interner> TypeChecker<'interner> {
                 (typ.clone(), HirLValue::Ident(ident.clone(), typ), mutable)
             }
             HirLValue::MemberAccess { object, field_name, .. } => {
-                let (lhs_type, object, mut mutable) = self.check_lvalue(object, assign_span);
+                let (lhs_type, object, mut mutable) =
+                    self.check_lvalue(object, assign_span, allow_unsafe_call);
                 let mut object = Box::new(object);
                 let span = field_name.span();
                 let field_name = field_name.clone();
@@ -228,7 +244,7 @@ impl<'interner> TypeChecker<'interner> {
                 (object_type, lvalue, mutable)
             }
             HirLValue::Index { array, index, .. } => {
-                let index_type = self.check_expression(index);
+                let index_type = self.check_expression(index, allow_unsafe_call);
                 let expr_span = self.interner.expr_span(index);
 
                 index_type.unify(
@@ -242,7 +258,7 @@ impl<'interner> TypeChecker<'interner> {
                 );
 
                 let (mut lvalue_type, mut lvalue, mut mutable) =
-                    self.check_lvalue(array, assign_span);
+                    self.check_lvalue(array, assign_span, allow_unsafe_call);
 
                 // Before we check that the lvalue is an array, try to dereference it as many times
                 // as needed to unwrap any &mut wrappers.
@@ -272,7 +288,8 @@ impl<'interner> TypeChecker<'interner> {
                 (typ.clone(), HirLValue::Index { array, index: *index, typ }, mutable)
             }
             HirLValue::Dereference { lvalue, element_type: _ } => {
-                let (reference_type, lvalue, _) = self.check_lvalue(lvalue, assign_span);
+                let (reference_type, lvalue, _) =
+                    self.check_lvalue(lvalue, assign_span, allow_unsafe_call);
                 let lvalue = Box::new(lvalue);
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
@@ -290,19 +307,20 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
-    fn check_let_stmt(&mut self, let_stmt: HirLetStatement) {
-        let resolved_type = self.check_declaration(let_stmt.expression, let_stmt.r#type);
+    fn check_let_stmt(&mut self, let_stmt: HirLetStatement, allow_unsafe_call: bool) {
+        let resolved_type =
+            self.check_declaration(let_stmt.expression, let_stmt.r#type, allow_unsafe_call);
 
         // Set the type of the pattern to be equal to the annotated type
         self.bind_pattern(&let_stmt.pattern, resolved_type);
     }
 
-    fn check_constrain_stmt(&mut self, stmt: HirConstrainStatement) {
-        let expr_type = self.check_expression(&stmt.0);
+    fn check_constrain_stmt(&mut self, stmt: HirConstrainStatement, allow_unsafe_call: bool) {
+        let expr_type = self.check_expression(&stmt.0, allow_unsafe_call);
         let expr_span = self.interner.expr_span(&stmt.0);
 
         // Must type check the assertion message expression so that we instantiate bindings
-        stmt.2.map(|assert_msg_expr| self.check_expression(&assert_msg_expr));
+        stmt.2.map(|assert_msg_expr| self.check_expression(&assert_msg_expr, true));
 
         self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
@@ -314,9 +332,14 @@ impl<'interner> TypeChecker<'interner> {
     /// All declaration statements check that the user specified type(UST) is equal to the
     /// expression on the RHS, unless the UST is unspecified in which case
     /// the type of the declaration is inferred to match the RHS.
-    fn check_declaration(&mut self, rhs_expr: ExprId, annotated_type: Type) -> Type {
+    fn check_declaration(
+        &mut self,
+        rhs_expr: ExprId,
+        annotated_type: Type,
+        allow_unsafe_call: bool,
+    ) -> Type {
         // Type check the expression on the RHS
-        let expr_type = self.check_expression(&rhs_expr);
+        let expr_type = self.check_expression(&rhs_expr, allow_unsafe_call);
 
         // First check if the LHS is unspecified
         // If so, then we give it the same type as the expression

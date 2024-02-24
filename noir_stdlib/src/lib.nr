@@ -13,7 +13,7 @@ mod sha256;
 mod sha512;
 mod field;
 mod ec;
-mod unsafe;
+mod unsafe_func;
 mod collections;
 mod compat;
 mod convert;
@@ -32,12 +32,20 @@ mod bigint;
 #[oracle(print)]
 unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
 
-unconstrained pub fn print<T>(input: T) {
-    print_oracle(false, input);
+unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
+    print_oracle(with_newline, input);
 }
 
-unconstrained pub fn println<T>(input: T) {
-    print_oracle(true, input);
+pub fn println<T>(input: T) {
+    unsafe {
+        print_unconstrained(true, input);
+    }
+}
+
+pub fn print<T>(input: T) {
+    unsafe {
+        print_unconstrained(false, input);
+    }
 }
 
 #[foreign(recursive_aggregation)]

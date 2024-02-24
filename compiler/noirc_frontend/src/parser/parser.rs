@@ -333,21 +333,28 @@ fn block_expr<'a>(
 fn block<'a>(
     statement: impl NoirParser<StatementKind> + 'a,
 ) -> impl NoirParser<BlockExpression> + 'a {
+    use crate::token::Keyword;
     use Token::*;
-    statement
-        .recover_via(statement_recovery())
-        .then(just(Semicolon).or_not().map_with_span(|s, span| (s, span)))
-        .map_with_span(|(kind, rest), span| (Statement { kind, span }, rest))
-        .repeated()
-        .validate(check_statements_require_semicolon)
-        .delimited_by(just(LeftBrace), just(RightBrace))
-        .recover_with(nested_delimiters(
-            LeftBrace,
-            RightBrace,
-            [(LeftParen, RightParen), (LeftBracket, RightBracket)],
-            |span| vec![Statement { kind: StatementKind::Error, span }],
-        ))
-        .map(BlockExpression)
+
+    keyword(Keyword::Unsafe)
+        .or_not()
+        .map(|unsafe_token| unsafe_token.is_some())
+        .then(
+            statement
+                .recover_via(statement_recovery())
+                .then(just(Semicolon).or_not().map_with_span(|s, span| (s, span)))
+                .map_with_span(|(kind, rest), span| (Statement { kind, span }, rest))
+                .repeated()
+                .validate(check_statements_require_semicolon)
+                .delimited_by(just(LeftBrace), just(RightBrace))
+                .recover_with(nested_delimiters(
+                    LeftBrace,
+                    RightBrace,
+                    [(LeftParen, RightParen), (LeftBracket, RightBracket)],
+                    |span| vec![Statement { kind: StatementKind::Error, span }],
+                )),
+        )
+        .map(|(is_unsafe, statements)| BlockExpression { is_unsafe, statements })
 }
 
 fn check_statements_require_semicolon(
@@ -993,10 +1000,13 @@ where
             // Wrap the inner `if` expression in a block expression.
             // i.e. rewrite the sugared form `if cond1 {} else if cond2 {}` as `if cond1 {} else { if cond2 {} }`.
             let if_expression = Expression::new(kind, span);
-            let desugared_else = BlockExpression(vec![Statement {
-                kind: StatementKind::Expression(if_expression),
-                span,
-            }]);
+            let desugared_else = BlockExpression {
+                is_unsafe: false,
+                statements: vec![Statement {
+                    kind: StatementKind::Expression(if_expression),
+                    span,
+                }],
+            };
             Expression::new(ExpressionKind::Block(desugared_else), span)
         }));
 
@@ -1288,13 +1298,13 @@ mod test {
         // Regression for #1310: this should be parsed as a block and not a function call
         let res =
             parse_with(block(fresh_statement()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
-        match unwrap_expr(&res.0.last().unwrap().kind) {
+        match unwrap_expr(&res.statements.last().unwrap().kind) {
             // The `if` followed by a tuple is currently creates a block around both in case
             // there was none to start with, so there is an extra block here.
             ExpressionKind::Block(block) => {
-                assert_eq!(block.0.len(), 2);
-                assert!(matches!(unwrap_expr(&block.0[0].kind), ExpressionKind::If(_)));
-                assert!(matches!(unwrap_expr(&block.0[1].kind), ExpressionKind::Tuple(_)));
+                assert_eq!(block.statements.len(), 2);
+                assert!(matches!(unwrap_expr(&block.statements[0].kind), ExpressionKind::If(_)));
+                assert!(matches!(unwrap_expr(&block.statements[1].kind), ExpressionKind::Tuple(_)));
             }
             _ => unreachable!(),
         }

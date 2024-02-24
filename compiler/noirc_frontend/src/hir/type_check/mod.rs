@@ -168,7 +168,7 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     fn check_function_body(&mut self, body: &ExprId) -> Type {
-        self.check_expression(body)
+        self.check_expression(body, false)
     }
 
     pub fn check_global(
@@ -182,7 +182,7 @@ impl<'interner> TypeChecker<'interner> {
             current_function: None,
         };
         let statement = this.interner.get_global(id).let_statement;
-        this.check_statement(&statement);
+        this.check_statement(&statement, false);
         this.errors
     }
 
@@ -297,7 +297,10 @@ mod test {
             expression: expr_id,
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
-        let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
+        let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression {
+            is_unsafe: false,
+            statements: vec![stmt_id],
+        }));
         interner.push_expr_location(expr_id, Span::single_char(0), file);
 
         // Create function to enclose the let statement

@@ -6,7 +6,7 @@ struct Option<T> {
 impl<T> Option<T> {
     /// Constructs a None value
     pub fn none() -> Self {
-        Self { _is_some: false, _value: crate::unsafe::zeroed() }
+        Self { _is_some: false, _value: crate::unsafe_func::zeroed() }
     }
 
     /// Constructs a Some wrapper around the given value
