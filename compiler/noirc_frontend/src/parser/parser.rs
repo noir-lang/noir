@@ -40,9 +40,9 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
-    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
-    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl,
-    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Literal, NoirTypeAlias,
+    Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl, UnresolvedTraitConstraint,
+    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -52,6 +52,7 @@ use noirc_errors::{Span, Spanned};
 mod assertion;
 mod attributes;
 mod function;
+mod lambdas;
 mod literals;
 mod path;
 mod primitives;
@@ -204,13 +205,6 @@ fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
     })
 }
 
-fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
-    just(Token::Arrow)
-        .ignore_then(parse_type())
-        .or_not()
-        .map(|ret| ret.unwrap_or_else(UnresolvedType::unspecified))
-}
-
 fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
     just(Token::Arrow)
         .ignore_then(optional_distinctness())
@@ -224,20 +218,6 @@ fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), Functi
                 FunctionReturnType::Default(span),
             ),
         })
-}
-
-fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
-    let typ = parse_type().recover_via(parameter_recovery());
-    let typ = just(Token::Colon).ignore_then(typ);
-
-    let parameter = pattern()
-        .recover_via(parameter_name_recovery())
-        .then(typ.or_not().map(|typ| typ.unwrap_or_else(UnresolvedType::unspecified)));
-
-    parameter
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .labelled(ParsingRuleLabel::Parameter)
 }
 
 fn self_parameter() -> impl NoirParser<Param> {
@@ -1030,18 +1010,6 @@ where
     })
 }
 
-fn lambda<'a>(
-    expr_parser: impl NoirParser<Expression> + 'a,
-) -> impl NoirParser<ExpressionKind> + 'a {
-    lambda_parameters()
-        .delimited_by(just(Token::Pipe), just(Token::Pipe))
-        .then(lambda_return_type())
-        .then(expr_parser)
-        .map(|((parameters, return_type), body)| {
-            ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
-        })
-}
-
 fn for_loop<'a, P, S>(expr_no_constructors: P, statement: S) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
@@ -1128,7 +1096,7 @@ where
         } else {
             nothing().boxed()
         },
-        lambda(expr_parser.clone()),
+        lambdas::lambda(expr_parser.clone()),
         block(statement).map(ExpressionKind::Block),
         variable(),
         literal(),
