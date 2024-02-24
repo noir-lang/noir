@@ -41,7 +41,7 @@ use crate::token::{Attribute, Attributes, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
-    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound,
+    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl,
     UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
@@ -124,9 +124,9 @@ fn top_level_statement(
     choice((
         function::function_definition(false).map(TopLevelStatement::Function),
         structs::struct_definition(),
-        structs::implementation(),
         traits::trait_definition(),
         traits::trait_implementation(),
+        implementation(),
         type_alias_definition().then_ignore(force(just(Token::Semicolon))),
         submodule(module_parser.clone()),
         contract(module_parser),
@@ -135,6 +135,21 @@ fn top_level_statement(
         global_declaration().then_ignore(force(just(Token::Semicolon))),
     ))
     .recover_via(top_level_statement_recovery())
+}
+
+/// Parses a non-trait implementation, adding a set of methods to a type.
+///
+/// implementation: 'impl' generics type '{' function_definition ... '}'
+fn implementation() -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Impl)
+        .ignore_then(function::generics())
+        .then(parse_type().map_with_span(|typ, span| (typ, span)))
+        .then_ignore(just(Token::LeftBrace))
+        .then(spanned(function::function_definition(true)).repeated())
+        .then_ignore(just(Token::RightBrace))
+        .map(|((generics, (object_type, type_span)), methods)| {
+            TopLevelStatement::Impl(TypeImpl { generics, object_type, type_span, methods })
+        })
 }
 
 /// global_declaration: 'global' ident global_type_annotation '=' literal

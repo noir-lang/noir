@@ -8,10 +8,10 @@ use crate::{
             attributes, function,
             primitives::{ident, keyword},
         },
-        spanned, NoirParser, ParserError, ParserErrorReason, TopLevelStatement,
+        NoirParser, ParserError, ParserErrorReason, TopLevelStatement,
     },
     token::{Attribute, Keyword, Token},
-    Ident, NoirStruct, TypeImpl, UnresolvedType,
+    Ident, NoirStruct, UnresolvedType,
 };
 
 use super::parse_type;
@@ -69,21 +69,6 @@ fn validate_struct_attributes(
     }
 
     struct_attributes
-}
-
-/// Parses a non-trait implementation, adding a set of methods to a type.
-///
-/// implementation: 'impl' generics type '{' function_definition ... '}'
-pub(super) fn implementation() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Impl)
-        .ignore_then(function::generics())
-        .then(parse_type().map_with_span(|typ, span| (typ, span)))
-        .then_ignore(just(Token::LeftBrace))
-        .then(spanned(function::function_definition(true)).repeated())
-        .then_ignore(just(Token::RightBrace))
-        .map(|((generics, (object_type, type_span)), methods)| {
-            TopLevelStatement::Impl(TypeImpl { generics, object_type, type_span, methods })
-        })
 }
 
 #[cfg(test)]
