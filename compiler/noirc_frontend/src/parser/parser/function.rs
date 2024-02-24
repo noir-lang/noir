@@ -144,7 +144,7 @@ fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::parser::parser::parser_test_helpers::*;
+    use crate::parser::parser::test_helpers::*;
 
     #[test]
     fn regression_skip_comment() {

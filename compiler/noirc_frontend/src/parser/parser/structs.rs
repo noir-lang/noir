@@ -89,7 +89,7 @@ pub(super) fn implementation() -> impl NoirParser<TopLevelStatement> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::parser::parser::parser_test_helpers::*;
+    use crate::parser::parser::test_helpers::*;
 
     #[test]
     fn parse_structs() {

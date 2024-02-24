@@ -35,7 +35,7 @@ pub(super) fn maybe_empty_path() -> impl NoirParser<Path> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::parser::parser::parser_test_helpers::{parse_all_failing, parse_with};
+    use crate::parser::parser::test_helpers::{parse_all_failing, parse_with};
 
     #[test]
     fn parse_path() {

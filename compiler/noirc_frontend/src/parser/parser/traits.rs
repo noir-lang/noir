@@ -186,7 +186,7 @@ fn trait_bound() -> impl NoirParser<TraitBound> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::parser::parser::parser_test_helpers::*;
+    use crate::parser::parser::test_helpers::*;
 
     #[test]
     fn parse_trait() {

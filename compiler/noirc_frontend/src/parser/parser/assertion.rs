@@ -76,7 +76,7 @@ mod test {
     use crate::{
         parser::parser::{
             expression,
-            parser_test_helpers::{parse_all, parse_all_failing, parse_with},
+            test_helpers::{parse_all, parse_all_failing, parse_with},
         },
         Literal,
     };

@@ -96,7 +96,7 @@ pub(super) fn literal() -> impl NoirParser<ExpressionKind> {
 mod test {
     use super::*;
     use crate::parser::parser::{
-        expression, expression_no_constructors, fresh_statement, parser_test_helpers::*, term,
+        expression, expression_no_constructors, fresh_statement, term, test_helpers::*,
     };
     use crate::Literal;
 
