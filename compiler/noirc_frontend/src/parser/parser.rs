@@ -23,6 +23,8 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
+use self::primitives::{keyword, literal, mutable_reference, variable};
+
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
@@ -40,7 +42,7 @@ use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
     FunctionReturnType, FunctionVisibility, Ident, IfExpression, InfixExpression, LValue, Lambda,
     Literal, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path, Pattern,
-    Recoverable, Statement, TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
+    Recoverable, Statement, TraitBound, TraitImplItem, TraitItem, TypeImpl,
     UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
@@ -51,8 +53,10 @@ use noirc_errors::{Span, Spanned};
 mod assertion;
 mod function;
 mod path;
+mod primitives;
 
 use path::{maybe_empty_path, path};
+use primitives::{dereference, ident, negation, not, nothing, right_shift_operator, token_kind};
 
 /// Entry function for the parser - also handles lexing internally.
 ///
@@ -256,11 +260,6 @@ fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .labelled(ParsingRuleLabel::Parameter)
-}
-
-/// This parser always parses no input and fails
-fn nothing<T>() -> impl NoirParser<T> {
-    one_of([]).map(|_| unreachable!("parser should always error"))
 }
 
 fn self_parameter() -> impl NoirParser<Param> {
@@ -608,24 +607,6 @@ fn use_statement() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Use).ignore_then(use_tree()).map(TopLevelStatement::Import)
 }
 
-fn keyword(keyword: Keyword) -> impl NoirParser<Token> {
-    just(Token::Keyword(keyword))
-}
-
-fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
-    filter_map(move |span, found: Token| {
-        if found.kind() == token_kind {
-            Ok(found)
-        } else {
-            Err(ParserError::expected_label(
-                ParsingRuleLabel::TokenKind(token_kind.clone()),
-                found,
-                span,
-            ))
-        }
-    })
-}
-
 fn rename() -> impl NoirParser<Option<Ident>> {
     ignore_then_commit(keyword(Keyword::As), ident()).or_not()
 }
@@ -650,10 +631,6 @@ fn use_tree() -> impl NoirParser<UseTree> {
 
         choice((list, simple))
     })
-}
-
-fn ident() -> impl NoirParser<Ident> {
-    token_kind(TokenKind::Ident).map_with_span(Ident::from_token)
 }
 
 fn statement<'a, P, P2>(
@@ -1124,13 +1101,6 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
     Expression { span, kind: ExpressionKind::Infix(infix) }
 }
 
-// Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
-// to parse nested generic types. For normal expressions however, it means we have to manually
-// parse two greater-than tokens as a single right-shift here.
-fn right_shift_operator() -> impl NoirParser<Token> {
-    just(Token::Greater).then(just(Token::Greater)).to(Token::ShiftRight)
-}
-
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
     right_shift_operator()
         .or(any()) // Parse any single token, we're validating it as an operator next
@@ -1346,41 +1316,6 @@ where
     expr_parser.separated_by(just(Token::Comma)).allow_trailing()
 }
 
-fn not<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
-    just(Token::Bang).ignore_then(term_parser).map(|rhs| ExpressionKind::prefix(UnaryOp::Not, rhs))
-}
-
-fn negation<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
-    just(Token::Minus)
-        .ignore_then(term_parser)
-        .map(|rhs| ExpressionKind::prefix(UnaryOp::Minus, rhs))
-}
-
-fn mutable_reference<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
-    just(Token::Ampersand)
-        .ignore_then(keyword(Keyword::Mut))
-        .ignore_then(term_parser)
-        .map(|rhs| ExpressionKind::prefix(UnaryOp::MutableReference, rhs))
-}
-
-fn dereference<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
-    just(Token::Star)
-        .ignore_then(term_parser)
-        .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference { implicitly_added: false }, rhs))
-}
-
 /// Atoms are parameterized on whether constructor expressions are allowed or not.
 /// Certain constructs like `if` and `for` disallow constructor expressions when a
 /// block may be expected.
@@ -1469,21 +1404,6 @@ where
     let long_form = ident().then_ignore(just(Token::Colon)).then(expr_parser);
     let short_form = ident().map(|ident| (ident.clone(), ident.into()));
     long_form.or(short_form)
-}
-
-fn variable() -> impl NoirParser<ExpressionKind> {
-    path().map(ExpressionKind::Variable)
-}
-
-fn literal() -> impl NoirParser<ExpressionKind> {
-    token_kind(TokenKind::Literal).map(|token| match token {
-        Token::Int(x) => ExpressionKind::integer(x),
-        Token::Bool(b) => ExpressionKind::boolean(b),
-        Token::Str(s) => ExpressionKind::string(s),
-        Token::RawStr(s, hashes) => ExpressionKind::raw_string(s, hashes),
-        Token::FmtStr(s) => ExpressionKind::format_string(s),
-        unexpected => unreachable!("Non-literal {} parsed as a literal", unexpected),
-    })
 }
 
 #[cfg(test)]
@@ -1864,63 +1784,10 @@ mod test {
         );
     }
 
-    fn expr_to_lit(expr: ExpressionKind) -> Literal {
-        match expr {
-            ExpressionKind::Literal(literal) => literal,
-            _ => unreachable!("expected a literal"),
-        }
-    }
-
-    #[test]
-    fn parse_int() {
-        let int = parse_with(literal(), "5").unwrap();
-        let hex = parse_with(literal(), "0x05").unwrap();
-
-        match (expr_to_lit(int), expr_to_lit(hex)) {
-            (Literal::Integer(int, false), Literal::Integer(hex, false)) => assert_eq!(int, hex),
-            _ => unreachable!(),
-        }
-    }
-
-    #[test]
-    fn parse_string() {
-        let expr = parse_with(literal(), r#""hello""#).unwrap();
-        match expr_to_lit(expr) {
-            Literal::Str(s) => assert_eq!(s, "hello"),
-            _ => unreachable!(),
-        };
-    }
-
-    #[test]
-    fn parse_bool() {
-        let expr_true = parse_with(literal(), "true").unwrap();
-        let expr_false = parse_with(literal(), "false").unwrap();
-
-        match (expr_to_lit(expr_true), expr_to_lit(expr_false)) {
-            (Literal::Bool(t), Literal::Bool(f)) => {
-                assert!(t);
-                assert!(!f);
-            }
-            _ => unreachable!(),
-        };
-    }
-
     #[test]
     fn parse_module_declaration() {
         parse_with(module_declaration(), "mod foo").unwrap();
         parse_with(module_declaration(), "mod 1").unwrap_err();
-    }
-
-    #[test]
-    fn parse_unary() {
-        parse_all(
-            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
-            vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"],
-        );
-        parse_all_failing(
-            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
-            vec!["+hello", "/hello"],
-        );
     }
 
     #[test]
@@ -2144,80 +2011,5 @@ mod test {
         ];
 
         check_cases_with_errors(&cases[..], block(fresh_statement()));
-    }
-
-    #[test]
-    fn parse_raw_string_expr() {
-        let cases = vec![
-            Case { source: r#" r"foo" "#, expect: r#"r"foo""#, errors: 0 },
-            Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
-            // backslash
-            Case { source: r#" r"\\" "#, expect: r#"r"\\""#, errors: 0 },
-            Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
-            Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
-            Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
-            // escape sequence
-            Case {
-                source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##,
-                expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##,
-                errors: 0,
-            },
-            Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
-            // mismatch - errors:
-            Case { source: r###" r#"foo"## "###, expect: r##"r#"foo"#"##, errors: 1 },
-            Case { source: r##" r##"foo"# "##, expect: "(none)", errors: 2 },
-            // mismatch: short:
-            Case { source: r##" r"foo"# "##, expect: r#"r"foo""#, errors: 1 },
-            Case { source: r#" r#"foo" "#, expect: "(none)", errors: 2 },
-            // empty string
-            Case { source: r#"r"""#, expect: r#"r"""#, errors: 0 },
-            Case { source: r####"r###""###"####, expect: r####"r###""###"####, errors: 0 },
-            // miscellaneous
-            Case { source: r##" r#\"foo\"# "##, expect: "plain::r", errors: 2 },
-            Case { source: r#" r\"foo\" "#, expect: "plain::r", errors: 1 },
-            Case { source: r##" r##"foo"# "##, expect: "(none)", errors: 2 },
-            // missing 'r' letter
-            Case { source: r##" ##"foo"# "##, expect: r#""foo""#, errors: 2 },
-            Case { source: r#" #"foo" "#, expect: "plain::foo", errors: 2 },
-            // whitespace
-            Case { source: r##" r #"foo"# "##, expect: "plain::r", errors: 2 },
-            Case { source: r##" r# "foo"# "##, expect: "plain::r", errors: 3 },
-            Case { source: r#" r#"foo" # "#, expect: "(none)", errors: 2 },
-            // after identifier
-            Case { source: r##" bar#"foo"# "##, expect: "plain::bar", errors: 2 },
-            // nested
-            Case {
-                source: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,
-                expect: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,
-                errors: 0,
-            },
-        ];
-
-        check_cases_with_errors(&cases[..], expression());
-    }
-
-    #[test]
-    fn parse_raw_string_lit() {
-        let lit_cases = vec![
-            Case { source: r#" r"foo" "#, expect: r#"r"foo""#, errors: 0 },
-            Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
-            // backslash
-            Case { source: r#" r"\\" "#, expect: r#"r"\\""#, errors: 0 },
-            Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
-            Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
-            Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
-            // escape sequence
-            Case {
-                source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##,
-                expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##,
-                errors: 0,
-            },
-            Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
-            // mismatch - errors:
-            Case { source: r###" r#"foo"## "###, expect: r##"r#"foo"#"##, errors: 1 },
-            Case { source: r##" r##"foo"# "##, expect: "(none)", errors: 2 },
-        ];
-
-        check_cases_with_errors(&lit_cases[..], literal());
     }
 }
