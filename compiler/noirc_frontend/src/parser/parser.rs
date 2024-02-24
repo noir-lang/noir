@@ -37,11 +37,11 @@ use crate::ast::{
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
+use crate::token::{Attribute, Attributes, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
-    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal, NoirStruct,
-    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl,
+    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
+    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound,
     UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
@@ -53,6 +53,7 @@ mod assertion;
 mod function;
 mod path;
 mod primitives;
+mod structs;
 mod traits;
 
 use path::{maybe_empty_path, path};
@@ -119,10 +120,10 @@ fn top_level_statement(
 ) -> impl NoirParser<TopLevelStatement> {
     choice((
         function::function_definition(false).map(TopLevelStatement::Function),
-        struct_definition(),
+        structs::struct_definition(),
+        structs::implementation(),
         traits::trait_definition(),
         traits::trait_implementation(),
-        implementation(),
         type_alias_definition().then_ignore(force(just(Token::Semicolon))),
         submodule(module_parser.clone()),
         contract(module_parser),
@@ -166,31 +167,6 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
         .then_ignore(just(Token::RightBrace))
         .map(|(name, contents)| {
             TopLevelStatement::SubModule(ParsedSubModule { name, contents, is_contract: true })
-        })
-}
-
-fn struct_definition() -> impl NoirParser<TopLevelStatement> {
-    use self::Keyword::Struct;
-    use Token::*;
-
-    let fields = struct_fields()
-        .delimited_by(just(LeftBrace), just(RightBrace))
-        .recover_with(nested_delimiters(
-            LeftBrace,
-            RightBrace,
-            [(LeftParen, RightParen), (LeftBracket, RightBracket)],
-            |_| vec![],
-        ))
-        .or(just(Semicolon).to(Vec::new()));
-
-    attributes()
-        .then_ignore(keyword(Struct))
-        .then(ident())
-        .then(function::generics())
-        .then(fields)
-        .validate(|(((raw_attributes, name), generics), fields), span, emit| {
-            let attributes = validate_struct_attributes(raw_attributes, span, emit);
-            TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
         })
 }
 
@@ -238,14 +214,6 @@ fn attribute() -> impl NoirParser<Attribute> {
 
 fn attributes() -> impl NoirParser<Vec<Attribute>> {
     attribute().repeated()
-}
-
-fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    ident()
-        .then_ignore(just(Token::Colon))
-        .then(parse_type())
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
 }
 
 fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
@@ -321,28 +289,6 @@ fn validate_attributes(
     Attributes { function: primary, secondary }
 }
 
-fn validate_struct_attributes(
-    attributes: Vec<Attribute>,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) -> Vec<SecondaryAttribute> {
-    let mut struct_attributes = vec![];
-
-    for attribute in attributes {
-        match attribute {
-            Attribute::Function(..) => {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::NoFunctionAttributesAllowedOnStruct,
-                    span,
-                ));
-            }
-            Attribute::Secondary(attr) => struct_attributes.push(attr),
-        }
-    }
-
-    struct_attributes
-}
-
 /// Function declaration parameters differ from other parameters in that parameter
 /// patterns are not allowed in declarations. All parameters must be identifiers.
 fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
@@ -371,21 +317,6 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .labelled(ParsingRuleLabel::Parameter)
-}
-
-/// Parses a non-trait implementation, adding a set of methods to a type.
-///
-/// implementation: 'impl' generics type '{' function_definition ... '}'
-fn implementation() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Impl)
-        .ignore_then(function::generics())
-        .then(parse_type().map_with_span(|typ, span| (typ, span)))
-        .then_ignore(just(Token::LeftBrace))
-        .then(spanned(function::function_definition(true)).repeated())
-        .then_ignore(just(Token::RightBrace))
-        .map(|((generics, (object_type, type_span)), methods)| {
-            TopLevelStatement::Impl(TypeImpl { generics, object_type, type_span, methods })
-        })
 }
 
 fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
