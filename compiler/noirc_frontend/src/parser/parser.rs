@@ -23,7 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use self::primitives::{keyword, literal, mutable_reference, variable};
+use self::primitives::{keyword, mutable_reference, variable};
 
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
@@ -51,6 +51,7 @@ use noirc_errors::{Span, Spanned};
 
 mod assertion;
 mod function;
+mod literals;
 mod path;
 mod primitives;
 mod structs;
@@ -59,6 +60,7 @@ mod traits;
 #[cfg(test)]
 mod test_helpers;
 
+use literals::literal;
 use path::{maybe_empty_path, path};
 use primitives::{dereference, ident, negation, not, nothing, right_shift_operator, token_kind};
 
