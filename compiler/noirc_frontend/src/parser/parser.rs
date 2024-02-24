@@ -1472,26 +1472,6 @@ mod test {
     }
 
     #[test]
-    fn parse_structs() {
-        let cases = vec![
-            "struct Foo;",
-            "struct Foo { }",
-            "struct Bar { ident: Field, }",
-            "struct Baz { ident: Field, other: Field }",
-            "#[attribute] struct Baz { ident: Field, other: Field }",
-        ];
-        parse_all(struct_definition(), cases);
-
-        let failing = vec![
-            "struct {  }",
-            "struct Foo { bar: pub Field }",
-            "struct Foo { bar: pub Field }",
-            "#[oracle(some)] struct Foo { bar: Field }",
-        ];
-        parse_all_failing(struct_definition(), failing);
-    }
-
-    #[test]
     fn parse_type_aliases() {
         let cases = vec!["type foo = u8", "type bar = String", "type baz<T> = Vec<T>"];
         parse_all(type_alias_definition(), cases);
