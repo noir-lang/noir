@@ -347,10 +347,8 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_binary(&mut self, binary: &ast::Binary) -> Result<Values, RuntimeError> {
-        eprintln!("Start binary");
         let lhs = self.codegen_non_tuple_expression(&binary.lhs)?;
         let rhs = self.codegen_non_tuple_expression(&binary.rhs)?;
-        eprintln!("Insert binary");
         Ok(self.insert_binary(lhs, binary.operator, rhs, binary.location))
     }
 
