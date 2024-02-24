@@ -38,11 +38,10 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
-    FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident, IfExpression,
-    InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound, TraitImplItem,
-    TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree,
-    UseTreeKind, Visibility,
+    FunctionReturnType, FunctionVisibility, Ident, IfExpression, InfixExpression, LValue, Lambda,
+    Literal, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path, Pattern,
+    Recoverable, Statement, TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
+    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -50,6 +49,7 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 mod assertion;
+mod function;
 mod path;
 
 use path::{maybe_empty_path, path};
@@ -114,7 +114,7 @@ fn top_level_statement(
     module_parser: impl NoirParser<ParsedModule>,
 ) -> impl NoirParser<TopLevelStatement> {
     choice((
-        function_definition(false).map(TopLevelStatement::Function),
+        function::function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
         trait_definition(),
         trait_implementation(),
@@ -165,94 +165,6 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
         })
 }
 
-/// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
-///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
-fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
-    attributes()
-        .then(function_modifiers())
-        .then_ignore(keyword(Keyword::Fn))
-        .then(ident())
-        .then(generics())
-        .then(parenthesized(function_parameters(allow_self)))
-        .then(function_return_type())
-        .then(where_clause())
-        .then(spanned(block(fresh_statement())))
-        .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
-            let ((((attributes, modifiers), name), generics), parameters) = args;
-
-            // Validate collected attributes, filtering them into function and secondary variants
-            let attributes = validate_attributes(attributes, span, emit);
-            FunctionDefinition {
-                span: body_span,
-                name,
-                attributes,
-                is_unconstrained: modifiers.0,
-                is_open: modifiers.2,
-                is_internal: modifiers.3,
-                visibility: if modifiers.1 {
-                    FunctionVisibility::PublicCrate
-                } else if modifiers.4 {
-                    FunctionVisibility::Public
-                } else {
-                    FunctionVisibility::Private
-                },
-                generics,
-                parameters,
-                body,
-                where_clause,
-                return_type: ret.1,
-                return_visibility: ret.0 .1,
-                return_distinctness: ret.0 .0,
-            }
-            .into()
-        })
-}
-
-/// function_modifiers: 'unconstrained'? 'pub(crate)'? 'pub'? 'open'? 'internal'?
-///
-/// returns (is_unconstrained, is_pub_crate, is_open, is_internal, is_pub) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool, bool)> {
-    keyword(Keyword::Unconstrained)
-        .or_not()
-        .then(is_pub_crate())
-        .then(keyword(Keyword::Pub).or_not())
-        .then(keyword(Keyword::Open).or_not())
-        .then(keyword(Keyword::Internal).or_not())
-        .map(|((((unconstrained, pub_crate), public), open), internal)| {
-            (
-                unconstrained.is_some(),
-                pub_crate,
-                open.is_some(),
-                internal.is_some(),
-                public.is_some(),
-            )
-        })
-}
-
-fn is_pub_crate() -> impl NoirParser<bool> {
-    (keyword(Keyword::Pub)
-        .then_ignore(just(Token::LeftParen))
-        .then_ignore(keyword(Keyword::Crate))
-        .then_ignore(just(Token::RightParen)))
-    .or_not()
-    .map(|a| a.is_some())
-}
-
-/// non_empty_ident_list: ident ',' non_empty_ident_list
-///                     | ident
-///
-/// generics: '<' non_empty_ident_list '>'
-///         | %empty
-fn generics() -> impl NoirParser<Vec<Ident>> {
-    ident()
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .at_least(1)
-        .delimited_by(just(Token::Less), just(Token::Greater))
-        .or_not()
-        .map(|opt| opt.unwrap_or_default())
-}
-
 fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Struct;
     use Token::*;
@@ -267,19 +179,22 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         ))
         .or(just(Semicolon).to(Vec::new()));
 
-    attributes().then_ignore(keyword(Struct)).then(ident()).then(generics()).then(fields).validate(
-        |(((raw_attributes, name), generics), fields), span, emit| {
+    attributes()
+        .then_ignore(keyword(Struct))
+        .then(ident())
+        .then(function::generics())
+        .then(fields)
+        .validate(|(((raw_attributes, name), generics), fields), span, emit| {
             let attributes = validate_struct_attributes(raw_attributes, span, emit);
             TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
-        },
-    )
+        })
 }
 
 fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Type;
 
     let p = ignore_then_commit(keyword(Type), ident());
-    let p = then_commit(p, generics());
+    let p = then_commit(p, function::generics());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, parse_type());
 
@@ -343,31 +258,6 @@ fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
         .labelled(ParsingRuleLabel::Parameter)
 }
 
-fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a {
-    let typ = parse_type().recover_via(parameter_recovery());
-
-    let full_parameter = pattern()
-        .recover_via(parameter_name_recovery())
-        .then_ignore(just(Token::Colon))
-        .then(optional_visibility())
-        .then(typ)
-        .map_with_span(|((pattern, visibility), typ), span| Param {
-            visibility,
-            pattern,
-            typ,
-            span,
-        });
-
-    let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
-
-    let parameter = full_parameter.or(self_parameter);
-
-    parameter
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .labelled(ParsingRuleLabel::Parameter)
-}
-
 /// This parser always parses no input and fails
 fn nothing<T>() -> impl NoirParser<T> {
     one_of([]).map(|_| unreachable!("parser should always error"))
@@ -409,7 +299,7 @@ fn self_parameter() -> impl NoirParser<Param> {
 fn trait_definition() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Trait)
         .ignore_then(ident())
-        .then(generics())
+        .then(function::generics())
         .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
         .then(trait_body())
@@ -453,7 +343,7 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
 
     keyword(Keyword::Fn)
         .ignore_then(ident())
-        .then(generics())
+        .then(function::generics())
         .then(parenthesized(function_declaration_parameters()))
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
@@ -559,10 +449,10 @@ fn trait_type_declaration() -> impl NoirParser<TraitItem> {
 /// implementation: 'impl' generics type '{' function_definition ... '}'
 fn implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
-        .ignore_then(generics())
+        .ignore_then(function::generics())
         .then(parse_type().map_with_span(|typ, span| (typ, span)))
         .then_ignore(just(Token::LeftBrace))
-        .then(spanned(function_definition(true)).repeated())
+        .then(spanned(function::function_definition(true)).repeated())
         .then_ignore(just(Token::RightBrace))
         .map(|((generics, (object_type, type_span)), methods)| {
             TopLevelStatement::Impl(TypeImpl { generics, object_type, type_span, methods })
@@ -576,7 +466,7 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 /// trait_implementation: 'impl' generics ident generic_args for type '{' trait_implementation_body '}'
 fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
-        .ignore_then(generics())
+        .ignore_then(function::generics())
         .then(path())
         .then(generic_type_args(parse_type()))
         .then_ignore(keyword(Keyword::For))
@@ -601,7 +491,7 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
 }
 
 fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
-    let function = function_definition(true).validate(|mut f, span, emit| {
+    let function = function::function_definition(true).validate(|mut f, span, emit| {
         if f.def().is_internal
             || f.def().is_unconstrained
             || f.def().is_open
@@ -1735,30 +1625,6 @@ mod test {
     use crate::{ArrayLiteral, Literal};
 
     #[test]
-    fn regression_skip_comment() {
-        parse_all(
-            function_definition(false),
-            vec![
-                "fn main(
-                // This comment should be skipped
-                x : Field,
-                // And this one
-                y : Field,
-            ) {
-            }",
-                "fn main(x : Field, y : Field,) {
-                foo::bar(
-                    // Comment for x argument
-                    x,
-                    // Comment for y argument
-                    y
-                )
-            }",
-            ],
-        );
-    }
-
-    #[test]
     fn parse_infix() {
         let valid = vec!["x + 6", "x - k", "x + (x + a)", " x * (x + a) + (x - 4)"];
         parse_all(expression(), valid);
@@ -1937,57 +1803,6 @@ mod test {
                 "for 1 in x+y..z {}",  // Cannot have a literal as the loop identifier
                 "for i in 0...100 {}", // Only '..' is supported, there are no inclusive ranges yet
                 "for i in 0..=100 {}", // Only '..' is supported, there are no inclusive ranges yet
-            ],
-        );
-    }
-
-    #[test]
-    fn parse_function() {
-        parse_all(
-            function_definition(false),
-            vec![
-                "fn func_name() {}",
-                "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
-                "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
-                "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
-                "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
-                "fn f<T>(f: pub Field, y : T, z : Field) -> u8 { x + a }",
-                "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
-                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
-                "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
-                "fn f<T>(f: pub Field, y : T, z : comptime Field) -> u8 { x + a }",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait, T: SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A> + SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A, B> + SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A, B> + SomeTrait2<C> {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2<C> {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2<C> + TraitY {}",
-                "fn func_name<T>(f: Field, y : T, z : U) where SomeStruct<T>: SomeTrait<U> {}",
-                // 'where u32: SomeTrait' is allowed in Rust.
-                // It will result in compiler error in case SomeTrait isn't implemented for u32.
-                "fn func_name<T>(f: Field, y : T) where u32: SomeTrait {}",
-                // A trailing plus is allowed by Rust, so we support it as well.
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + {}",
-                // The following should produce compile error on later stage. From the parser's perspective it's fine
-                "fn func_name<A>(f: Field, y : Field, z : Field) where T: SomeTrait {}",
-            ],
-        );
-
-        parse_all_failing(
-            function_definition(false),
-            vec![
-                "fn x2( f: []Field,,) {}",
-                "fn ( f: []Field) {}",
-                "fn ( f: []Field) {}",
-                // TODO: Check for more specific error messages
-                "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where T: {}",
-                "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where SomeTrait {}",
-                "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) SomeTrait {}",
-                // A leading plus is not allowed.
-                "fn func_name<T>(f: Field, y : T) where T: + SomeTrait {}",
-                "fn func_name<T>(f: Field, y : T) where T: TraitX + <Y> {}",
             ],
         );
     }
