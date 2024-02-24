@@ -16,7 +16,10 @@ describe('Storage Instructions', () => {
 
   beforeEach(async () => {
     journal = mock<AvmPersistableStateManager>();
-    context = initContext({ worldState: journal, env: initExecutionEnvironment({ address, storageAddress: address }) });
+    context = initContext({
+      persistableState: journal,
+      env: initExecutionEnvironment({ address, storageAddress: address }),
+    });
   });
 
   describe('SSTORE', () => {
@@ -47,7 +50,7 @@ describe('Storage Instructions', () => {
 
     it('Should not be able to write to storage in a static call', async () => {
       context = initContext({
-        worldState: journal,
+        persistableState: journal,
         env: initExecutionEnvironment({ address, storageAddress: address, isStaticCall: true }),
       });
 

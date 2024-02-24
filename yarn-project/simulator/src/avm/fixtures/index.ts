@@ -18,21 +18,33 @@ import { AvmPersistableStateManager } from '../journal/journal.js';
  * Create a new AVM context with default values.
  */
 export function initContext(overrides?: {
-  worldState?: AvmPersistableStateManager;
+  persistableState?: AvmPersistableStateManager;
   env?: AvmExecutionEnvironment;
   machineState?: AvmMachineState;
 }): AvmContext {
   return new AvmContext(
-    overrides?.worldState || initMockWorldStateJournal(),
+    overrides?.persistableState || initMockPersistableStateManager(),
     overrides?.env || initExecutionEnvironment(),
     overrides?.machineState || initMachineState(),
   );
 }
 
-/** Creates an empty world state with mocked storage. */
-export function initMockWorldStateJournal(): AvmPersistableStateManager {
-  const hostStorage = new HostStorage(mock<PublicStateDB>(), mock<PublicContractsDB>(), mock<CommitmentsDB>());
-  return new AvmPersistableStateManager(hostStorage);
+/** Creates an empty host storage with mocked dbs. */
+export function initHostStorage(overrides?: {
+  publicDb?: PublicStateDB;
+  contractsDb?: PublicContractsDB;
+  commitmentsDb?: CommitmentsDB;
+}): HostStorage {
+  return new HostStorage(
+    overrides?.publicDb || mock<PublicStateDB>(),
+    overrides?.contractsDb || mock<PublicContractsDB>(),
+    overrides?.commitmentsDb || mock<CommitmentsDB>(),
+  );
+}
+
+/** Creates an empty state manager with mocked storage. */
+export function initMockPersistableStateManager(): AvmPersistableStateManager {
+  return new AvmPersistableStateManager(initHostStorage());
 }
 
 /**

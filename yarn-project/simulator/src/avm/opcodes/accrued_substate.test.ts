@@ -1,6 +1,11 @@
+import { mock } from 'jest-mock-extended';
+
+import { CommitmentsDB } from '../../index.js';
 import { AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
-import { initContext, initExecutionEnvironment } from '../fixtures/index.js';
+import { InstructionExecutionError } from '../errors.js';
+import { initContext, initExecutionEnvironment, initHostStorage } from '../fixtures/index.js';
+import { AvmPersistableStateManager } from '../journal/journal.js';
 import { EmitNoteHash, EmitNullifier, EmitUnencryptedLog, SendL2ToL1Message } from './accrued_substate.js';
 import { StaticCallStorageAlterError } from './storage.js';
 
@@ -58,6 +63,40 @@ describe('Accrued Substate', () => {
       const journalState = context.persistableState.flush();
       const expected = [value.toFr()];
       expect(journalState.newNullifiers).toEqual(expected);
+    });
+
+    it('Nullifier collision reverts (same nullifier emitted twice)', async () => {
+      const value = new Field(69n);
+      context.machineState.memory.set(0, value);
+
+      await new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(context);
+      await expect(new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(context)).rejects.toThrowError(
+        new InstructionExecutionError(
+          `Attempted to emit duplicate nullifier ${value.toFr()} (storage address: ${
+            context.environment.storageAddress
+          }).`,
+        ),
+      );
+    });
+
+    it('Nullifier collision reverts (nullifier exists in host state)', async () => {
+      const value = new Field(69n);
+      const storedLeafIndex = BigInt(42);
+
+      // Mock the nullifiers db to return a stored leaf index
+      const commitmentsDb = mock<CommitmentsDB>();
+      commitmentsDb.getNullifierIndex.mockResolvedValue(Promise.resolve(storedLeafIndex));
+      const hostStorage = initHostStorage({ commitmentsDb });
+      context = initContext({ persistableState: new AvmPersistableStateManager(hostStorage) });
+
+      context.machineState.memory.set(0, value);
+      await expect(new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(context)).rejects.toThrowError(
+        new InstructionExecutionError(
+          `Attempted to emit duplicate nullifier ${value.toFr()} (storage address: ${
+            context.environment.storageAddress
+          }).`,
+        ),
+      );
     });
   });
 

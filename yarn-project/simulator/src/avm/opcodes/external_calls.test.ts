@@ -25,7 +25,7 @@ describe('External Calls', () => {
     const publicStateDb = mock<PublicStateDB>();
     const hostStorage = new HostStorage(publicStateDb, contractsDb, commitmentsDb);
     const journal = new AvmPersistableStateManager(hostStorage);
-    context = initContext({ worldState: journal });
+    context = initContext({ persistableState: journal });
   });
 
   describe('Call', () => {

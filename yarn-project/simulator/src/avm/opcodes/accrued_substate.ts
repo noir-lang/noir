@@ -1,4 +1,6 @@
 import type { AvmContext } from '../avm_context.js';
+import { InstructionExecutionError } from '../errors.js';
+import { NullifierCollisionError } from '../journal/nullifiers.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
 import { StaticCallStorageAlterError } from './storage.js';
@@ -41,7 +43,24 @@ export class EmitNullifier extends Instruction {
     }
 
     const nullifier = context.machineState.memory.get(this.nullifierOffset).toFr();
-    context.persistableState.writeNullifier(nullifier);
+    const exists = await context.persistableState.checkNullifierExists(context.environment.storageAddress, nullifier);
+    if (exists) {
+      throw new InstructionExecutionError(
+        `Attempted to emit duplicate nullifier ${nullifier} (storage address: ${context.environment.storageAddress}).`,
+      );
+    }
+    try {
+      await context.persistableState.writeNullifier(context.environment.storageAddress, nullifier);
+    } catch (e) {
+      if (e instanceof NullifierCollisionError) {
+        // Error is known/expected, raise as InstructionExecutionError that the will lead the simulator to revert this call
+        throw new InstructionExecutionError(
+          `Attempted to emit duplicate nullifier ${nullifier} (storage address: ${context.environment.storageAddress}).`,
+        );
+      } else {
+        throw e;
+      }
+    }
 
     context.machineState.incrementPc();
   }
