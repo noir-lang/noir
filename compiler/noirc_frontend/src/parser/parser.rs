@@ -40,9 +40,9 @@ use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
     FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident, IfExpression,
     InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, Param, Path, PathKind, Pattern, Recoverable, Statement, TraitBound,
-    TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,
-    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound, TraitImplItem,
+    TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree,
+    UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -50,6 +50,9 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 mod assertion;
+mod path;
+
+use path::{maybe_empty_path, path};
 
 /// Entry function for the parser - also handles lexing internally.
 ///
@@ -733,27 +736,6 @@ fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
     })
 }
 
-fn path() -> impl NoirParser<Path> {
-    let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(1);
-    let make_path = |kind| move |segments, span| Path { segments, kind, span };
-
-    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
-    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map_with_span(make_path(kind));
-
-    choice((
-        path_kind(Keyword::Crate, PathKind::Crate),
-        path_kind(Keyword::Dep, PathKind::Dep),
-        idents().map_with_span(make_path(PathKind::Plain)),
-    ))
-}
-
-fn empty_path() -> impl NoirParser<Path> {
-    let make_path = |kind| move |_, span| Path { segments: Vec::new(), kind, span };
-    let path_kind = |key, kind| keyword(key).map_with_span(make_path(kind));
-
-    choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Dep)))
-}
-
 fn rename() -> impl NoirParser<Option<Ident>> {
     ignore_then_commit(keyword(Keyword::As), ident()).or_not()
 }
@@ -766,7 +748,7 @@ fn use_tree() -> impl NoirParser<UseTree> {
         });
 
         let list = {
-            let prefix = path().or(empty_path()).then_ignore(just(Token::DoubleColon));
+            let prefix = maybe_empty_path().then_ignore(just(Token::DoubleColon));
             let tree = use_tree
                 .separated_by(just(Token::Comma))
                 .allow_trailing()
@@ -2112,45 +2094,6 @@ mod test {
     fn parse_module_declaration() {
         parse_with(module_declaration(), "mod foo").unwrap();
         parse_with(module_declaration(), "mod 1").unwrap_err();
-    }
-
-    #[test]
-    fn parse_path() {
-        let cases = vec![
-            ("std", vec!["std"]),
-            ("std::hash", vec!["std", "hash"]),
-            ("std::hash::collections", vec!["std", "hash", "collections"]),
-            ("dep::foo::bar", vec!["foo", "bar"]),
-            ("crate::std::hash", vec!["std", "hash"]),
-        ];
-
-        for (src, expected_segments) in cases {
-            let path: Path = parse_with(path(), src).unwrap();
-            for (segment, expected) in path.segments.into_iter().zip(expected_segments) {
-                assert_eq!(segment.0.contents, expected);
-            }
-        }
-
-        parse_all_failing(path(), vec!["std::", "::std", "std::hash::", "foo::1"]);
-    }
-
-    #[test]
-    fn parse_path_kinds() {
-        let cases = vec![
-            ("std", PathKind::Plain),
-            ("dep::hash::collections", PathKind::Dep),
-            ("crate::std::hash", PathKind::Crate),
-        ];
-
-        for (src, expected_path_kind) in cases {
-            let path = parse_with(path(), src).unwrap();
-            assert_eq!(path.kind, expected_path_kind);
-        }
-
-        parse_all_failing(
-            path(),
-            vec!["dep", "crate", "crate::std::crate", "foo::bar::crate", "foo::dep"],
-        );
     }
 
     #[test]
