@@ -1,40 +1,31 @@
 {
-  "name": "@aztec/accounts",
-  "homepage": "https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/accounts",
-  "description": "Implementation of sample account contracts for Aztec Network",
+  "name": "@aztec/entrypoints",
+  "homepage": "https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/entrypoints",
+  "description": "Implementation of sample contract entrypoints for the Aztec Network",
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    "./defaults": "./dest/defaults/index.js",
-    "./ecdsa": "./dest/ecdsa/index.js",
-    "./schnorr": "./dest/schnorr/index.js",
-    "./single_key": "./dest/single_key/index.js",
-    "./testing": "./dest/testing/index.js"
+    "./dapp": "./dest/dapp_entrypoint.js",
+    "./account": "./dest/account_entrypoint.js"
   },
   "typedocOptions": {
     "entryPoints": [
-      "./src/defaults/index.ts",
-      "./src/ecdsa/index.ts",
-      "./src/schnorr/index.ts",
-      "./src/single_key/index.ts",
-      "./src/testing/index.ts"
+      "./src/index.ts"
     ],
-    "name": "Accounts",
+    "name": "Entrypoints",
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {
-    "build": "yarn clean && yarn build:copy-contracts && tsc -b",
-    "build:copy-contracts": "./scripts/copy-contracts.sh",
+    "build": "yarn clean && tsc -b",
     "build:dev": "tsc -b --watch",
     "build:ts": "tsc -b",
-    "clean": "rm -rf ./dest .tsbuildinfo ./src/artifacts",
+    "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },
   "inherits": [
-    "../package.common.json",
-    "./package.local.json"
+    "../package.common.json"
   ],
   "jest": {
     "preset": "ts-jest/presets/default-esm",
@@ -48,20 +39,14 @@
     "@aztec/aztec.js": "workspace:^",
     "@aztec/circuit-types": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
-    "@aztec/entrypoints": "workspace:^",
-    "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/types": "workspace:^",
     "tslib": "^2.4.0"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.5.0",
-    "@types/node": "^18.7.23",
     "jest": "^29.5.0",
-    "jest-mock-extended": "^3.0.3",
     "ts-jest": "^29.1.0",
-    "ts-loader": "^9.4.4",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4"
   },

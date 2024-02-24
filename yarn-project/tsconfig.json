@@ -44,7 +44,8 @@
     { "path": "sequencer-client/tsconfig.json" },
     { "path": "types/tsconfig.json" },
     { "path": "world-state/tsconfig.json" },
-    { "path": "scripts/tsconfig.json" }
+    { "path": "scripts/tsconfig.json" },
+    { "path": "entrypoints/tsconfig.json" }
   ],
   "files": ["./@types/jest/index.d.ts"]
 }

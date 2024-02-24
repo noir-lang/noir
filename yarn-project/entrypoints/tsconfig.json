@@ -16,16 +16,7 @@
       "path": "../circuits.js"
     },
     {
-      "path": "../entrypoints"
-    },
-    {
-      "path": "../ethereum"
-    },
-    {
       "path": "../foundation"
-    },
-    {
-      "path": "../types"
     }
   ],
   "include": ["src", "src/**/*.json"]

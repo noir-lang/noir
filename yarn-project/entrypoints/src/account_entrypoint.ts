@@ -20,7 +20,7 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
 
   async createTxExecutionRequest(executions: FunctionCall[], feeOpts?: FeeOptions): Promise<TxExecutionRequest> {
     const { payload: appPayload, packedArguments: appPackedArguments } = buildAppPayload(executions);
-    const { payload: feePayload, packedArguments: feePackedArguments } = buildFeePayload(feeOpts);
+    const { payload: feePayload, packedArguments: feePackedArguments } = await buildFeePayload(feeOpts);
 
     const abi = this.getEntrypointAbi();
     const entrypointPackedArgs = PackedArguments.fromArgs(encodeArguments(abi, [appPayload, feePayload]));

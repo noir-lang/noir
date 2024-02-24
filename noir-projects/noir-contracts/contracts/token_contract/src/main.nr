@@ -52,14 +52,14 @@ contract Token {
         admin: PublicState<AztecAddress>,
         // docs:end:storage_admin
         // docs:start:storage_minters
-        minters: Map<AztecAddress, PublicState<bool>>, 
+        minters: Map<AztecAddress, PublicState<bool>>,
         // docs:end:storage_minters
         // docs:start:storage_balances
         balances: BalancesMap<TokenNote>,
         // docs:end:storage_balances
-        total_supply: PublicState<SafeU120>, 
+        total_supply: PublicState<SafeU120>,
         // docs:start:storage_pending_shields
-        pending_shields: Set<TransparentNote>, 
+        pending_shields: Set<TransparentNote>,
         // docs:end:storage_pending_shields
         public_balances: Map<AztecAddress, PublicState<SafeU120>>,
         symbol: StablePublicState<FieldCompressedString>,
@@ -182,6 +182,20 @@ contract Token {
     }
     // docs:end:mint_private
 
+    #[aztec(private)]
+    fn privately_mint_private_note(amount: Field) {
+        storage.balances.add(context.msg_sender(), SafeU120::new(amount));
+        let selector = FunctionSelector::from_signature("assert_minter_and_mint((Field),Field)");
+        let _void = context.call_public_function(context.this_address(), selector, [context.msg_sender().to_field(), amount]);
+    }
+
+    #[aztec(public)]
+    internal fn assert_minter_and_mint(minter: AztecAddress, amount: Field) {
+        assert(storage.minters.at(minter).read(), "caller is not minter");
+        let supply = storage.total_supply.read().add(SafeU120::new(amount));
+        storage.total_supply.write(supply);
+    }
+
     // docs:start:shield
     #[aztec(public)]
     fn shield(from: AztecAddress, amount: Field, secret_hash: Field, nonce: Field) {
@@ -251,7 +265,7 @@ contract Token {
         let options = NoteGetterOptions::new().select(0, amount, Option::none()).select(1, secret_hash, Option::none()).set_limit(1);
         let notes = pending_shields.get_notes(options);
         let note = notes[0].unwrap_unchecked();
-        // Remove the note from the pending shields set 
+        // Remove the note from the pending shields set
         pending_shields.remove(note);
 
         // Add the token note to user's balances set

@@ -71,6 +71,7 @@ __metadata:
     "@aztec/aztec.js": "workspace:^"
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
+    "@aztec/entrypoints": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/types": "workspace:^"
@@ -380,6 +381,7 @@ __metadata:
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/cli": "workspace:^"
+    "@aztec/entrypoints": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/kv-store": "workspace:^"
@@ -429,6 +431,24 @@ __metadata:
     webpack: ^5.88.2
     webpack-cli: ^5.1.4
     winston: ^3.10.0
+  languageName: unknown
+  linkType: soft
+
+"@aztec/entrypoints@workspace:^, @aztec/entrypoints@workspace:entrypoints":
+  version: 0.0.0-use.local
+  resolution: "@aztec/entrypoints@workspace:entrypoints"
+  dependencies:
+    "@aztec/aztec.js": "workspace:^"
+    "@aztec/circuit-types": "workspace:^"
+    "@aztec/circuits.js": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    "@jest/globals": ^29.5.0
+    "@types/jest": ^29.5.0
+    jest: ^29.5.0
+    ts-jest: ^29.1.0
+    ts-node: ^10.9.1
+    tslib: ^2.4.0
+    typescript: ^5.0.4
   languageName: unknown
   linkType: soft
 

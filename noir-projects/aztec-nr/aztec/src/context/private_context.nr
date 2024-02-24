@@ -28,7 +28,7 @@ use dep::protocol_types::{
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     grumpkin_private_key::GrumpkinPrivateKey, hash::hash_args, header::Header,
-    messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader
+    messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader, traits::is_empty
 };
 use dep::std::option::Option;
 
@@ -71,8 +71,7 @@ impl PrivateContext {
     pub fn new(inputs: PrivateContextInputs, args_hash: Field) -> PrivateContext {
         let side_effect_counter = inputs.call_context.start_side_effect_counter;
         let mut min_revertible_side_effect_counter = 0;
-        // Note. The side effect counter is 2 when this is the initial call
-        if (side_effect_counter == 2) {
+        if is_empty(inputs.call_context.msg_sender) {
             min_revertible_side_effect_counter = side_effect_counter;
         }
         PrivateContext {

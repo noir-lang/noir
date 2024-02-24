@@ -6,5 +6,5 @@
  * @packageDocumentation
  */
 
-export * from './account_interface.js';
-export * from './account_contract.js';
+export * from './account_entrypoint.js';
+export * from './dapp_entrypoint.js';

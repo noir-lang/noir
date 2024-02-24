@@ -20,6 +20,7 @@ CONTRACTS=(
   "l1-contracts:PortalERC20"
   "l1-contracts:UniswapPortal"
   "l1-contracts:IERC20"
+  "l1-contracts:GasPortal"
 )
 
 

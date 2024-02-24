@@ -871,7 +871,7 @@ describe('Private Execution test suite', () => {
           isContractDeployment: false,
           isDelegateCall: false,
           isStaticCall: false,
-          startSideEffectCounter: 2,
+          startSideEffectCounter: 1,
         }),
         parentCallContext: CallContext.from({
           msgSender: parentAddress,
@@ -881,7 +881,7 @@ describe('Private Execution test suite', () => {
           isContractDeployment: false,
           isDelegateCall: false,
           isStaticCall: false,
-          startSideEffectCounter: 2,
+          startSideEffectCounter: 1,
         }),
       });
 

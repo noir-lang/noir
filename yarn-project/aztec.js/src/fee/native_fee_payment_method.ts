@@ -43,8 +43,8 @@ export class NativeFeePaymentMethod implements FeePaymentMethod {
    * @param feeLimit - The maximum fee to be paid in gas token.
    * @returns A function call
    */
-  getFunctionCalls(feeLimit: Fr): FunctionCall[] {
-    return [
+  getFunctionCalls(feeLimit: Fr): Promise<FunctionCall[]> {
+    return Promise.resolve([
       {
         to: NativeFeePaymentMethod.#GAS_TOKEN,
         functionData: new FunctionData(FunctionSelector.fromSignature('check_balance(Field)'), false, false, false),
@@ -55,6 +55,6 @@ export class NativeFeePaymentMethod implements FeePaymentMethod {
         functionData: new FunctionData(FunctionSelector.fromSignature('pay_fee(Field)'), false, false, false),
         args: [feeLimit],
       },
-    ];
+    ]);
   }
 }

@@ -29,13 +29,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/accounts@portal:../yarn-project/accounts::locator=create-aztec%40workspace%3A.":
+"@aztec/accounts@portal:../yarn-project/accounts::locator=create-aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/accounts@portal:../yarn-project/accounts::locator=create-aztec%40workspace%3A."
+  resolution: "@aztec/accounts@portal:../yarn-project/accounts::locator=create-aztec-app%40workspace%3A."
   dependencies:
     "@aztec/aztec.js": "workspace:^"
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
+    "@aztec/entrypoints": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/types": "workspace:^"
@@ -43,9 +44,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/aztec.js@portal:../yarn-project/aztec.js::locator=create-aztec%40workspace%3A.":
+"@aztec/aztec.js@portal:../yarn-project/aztec.js::locator=create-aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/aztec.js@portal:../yarn-project/aztec.js::locator=create-aztec%40workspace%3A."
+  resolution: "@aztec/aztec.js@portal:../yarn-project/aztec.js::locator=create-aztec-app%40workspace%3A."
   dependencies:
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
@@ -57,9 +58,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/bb.js@portal:../barretenberg/ts::locator=create-aztec%40workspace%3A.":
+"@aztec/bb.js@portal:../barretenberg/ts::locator=create-aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/bb.js@portal:../barretenberg/ts::locator=create-aztec%40workspace%3A."
+  resolution: "@aztec/bb.js@portal:../barretenberg/ts::locator=create-aztec-app%40workspace%3A."
   dependencies:
     comlink: "npm:^4.4.1"
     commander: "npm:^10.0.1"
@@ -141,9 +142,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/circuit-types@portal:../yarn-project/circuit-types::locator=create-aztec%40workspace%3A.":
+"@aztec/circuit-types@portal:../yarn-project/circuit-types::locator=create-aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/circuit-types@portal:../yarn-project/circuit-types::locator=create-aztec%40workspace%3A."
+  resolution: "@aztec/circuit-types@portal:../yarn-project/circuit-types::locator=create-aztec-app%40workspace%3A."
   dependencies:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/ethereum": "workspace:^"
@@ -157,9 +158,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/circuits.js@portal:../yarn-project/circuits.js::locator=create-aztec%40workspace%3A.":
+"@aztec/circuits.js@portal:../yarn-project/circuits.js::locator=create-aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/circuits.js@portal:../yarn-project/circuits.js::locator=create-aztec%40workspace%3A."
+  resolution: "@aztec/circuits.js@portal:../yarn-project/circuits.js::locator=create-aztec-app%40workspace%3A."
   dependencies:
     "@aztec/bb.js": "portal:../../barretenberg/ts"
     "@aztec/foundation": "workspace:^"
@@ -170,9 +171,21 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/ethereum@portal:../yarn-project/ethereum::locator=create-aztec%40workspace%3A.":
+"@aztec/entrypoints@portal:../yarn-project/entrypoints::locator=create-aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/ethereum@portal:../yarn-project/ethereum::locator=create-aztec%40workspace%3A."
+  resolution: "@aztec/entrypoints@portal:../yarn-project/entrypoints::locator=create-aztec-app%40workspace%3A."
+  dependencies:
+    "@aztec/aztec.js": "workspace:^"
+    "@aztec/circuit-types": "workspace:^"
+    "@aztec/circuits.js": "workspace:^"
+    "@aztec/foundation": "workspace:^"
+    tslib: "npm:^2.4.0"
+  languageName: node
+  linkType: soft
+
+"@aztec/ethereum@portal:../yarn-project/ethereum::locator=create-aztec-app%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@aztec/ethereum@portal:../yarn-project/ethereum::locator=create-aztec-app%40workspace%3A."
   dependencies:
     "@aztec/foundation": "workspace:^"
     dotenv: "npm:^16.0.3"
@@ -181,9 +194,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/foundation@portal:../yarn-project/foundation::locator=create-aztec%40workspace%3A.":
+"@aztec/foundation@portal:../yarn-project/foundation::locator=create-aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/foundation@portal:../yarn-project/foundation::locator=create-aztec%40workspace%3A."
+  resolution: "@aztec/foundation@portal:../yarn-project/foundation::locator=create-aztec-app%40workspace%3A."
   dependencies:
     "@aztec/bb.js": "portal:../../barretenberg/ts"
     "@koa/cors": "npm:^4.0.0"
@@ -208,9 +221,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/protocol-contracts@portal:../yarn-project/protocol-contracts::locator=create-aztec%40workspace%3A.":
+"@aztec/protocol-contracts@portal:../yarn-project/protocol-contracts::locator=create-aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/protocol-contracts@portal:../yarn-project/protocol-contracts::locator=create-aztec%40workspace%3A."
+  resolution: "@aztec/protocol-contracts@portal:../yarn-project/protocol-contracts::locator=create-aztec-app%40workspace%3A."
   dependencies:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
@@ -220,9 +233,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@aztec/types@portal:../yarn-project/types::locator=create-aztec%40workspace%3A.":
+"@aztec/types@portal:../yarn-project/types::locator=create-aztec-app%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@aztec/types@portal:../yarn-project/types::locator=create-aztec%40workspace%3A."
+  resolution: "@aztec/types@portal:../yarn-project/types::locator=create-aztec-app%40workspace%3A."
   dependencies:
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
@@ -3538,9 +3551,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"create-aztec@workspace:.":
+"create-aztec-app@workspace:.":
   version: 0.0.0-use.local
-  resolution: "create-aztec@workspace:."
+  resolution: "create-aztec-app@workspace:."
   dependencies:
     "@iarna/toml": "npm:^2.2.5"
     "@inquirer/confirm": "npm:^3.0.0"
@@ -3552,7 +3565,7 @@ __metadata:
     node-pty: "npm:^1.0.0"
     tiged: "npm:^2.12.6"
   bin:
-    create-aztec: npx.js
+    create-aztec-app: npx.js
   languageName: unknown
   linkType: soft
 

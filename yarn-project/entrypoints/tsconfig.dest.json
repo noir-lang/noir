@@ -1,0 +1,18 @@
+{
+  "extends": ".",
+  "references": [
+    {
+      "path": "../aztec.js/tsconfig.dest.json"
+    },
+    {
+      "path": "../circuits.js/tsconfig.dest.json"
+    },
+    {
+      "path": "../foundation/tsconfig.dest.json"
+    },
+    {
+      "path": "../circuit-types/tsconfig.dest.json"
+    }
+  ],
+  "exclude": ["src/**/*.test.ts"]
+}

@@ -1,12 +1,12 @@
-mod fee;
+mod lib;
 
 contract GasToken {
-    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
+    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress}};
     use dep::aztec::{hash::{compute_secret_hash}, state_vars::{public_state::PublicState, map::Map}};
 
     use dep::safe_math::SafeU120;
 
-    use crate::fee::calculate_fee;
+    use crate::lib::{calculate_fee, get_bridge_gas_msg_hash};
 
     struct Storage {
         balances: Map<AztecAddress, PublicState<SafeU120>>,
@@ -16,11 +16,14 @@ contract GasToken {
     fn constructor() {}
 
     #[aztec(public)]
-    fn redeem_bridged_balance(amount: Field) {
-        // mock
-        let amount_u120 = SafeU120::new(amount);
-        let new_balance = storage.balances.at(context.msg_sender()).read().add(amount_u120);
-        storage.balances.at(context.msg_sender()).write(new_balance);
+    fn claim_public(to: AztecAddress, amount: Field, canceller: EthAddress, msg_key: Field, secret: Field) {
+        let content_hash = get_bridge_gas_msg_hash(to, amount, canceller);
+
+        // Consume message and emit nullifier
+        context.consume_l1_to_l2_message(msg_key, content_hash, secret, context.this_portal_address());
+
+        let new_balance = storage.balances.at(to).read().add(SafeU120::new(amount));
+        storage.balances.at(to).write(new_balance);
     }
 
     #[aztec(public)]
@@ -46,18 +49,7 @@ contract GasToken {
     }
 
     // utility function for testing
-    unconstrained fn balance_of(owner: AztecAddress) -> pub Field {
+    unconstrained fn balance_of_public(owner: AztecAddress) -> pub Field {
         storage.balances.at(owner).read().value as Field
-    }
-
-    // TODO: remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: AztecAddress,
-        nonce: Field,
-        storage_slot: Field,
-        note_type_id: Field,
-        serialized_note: [Field; 0]
-    ) -> pub [Field; 4] {
-        [0, 0, 0, 0]
     }
 }

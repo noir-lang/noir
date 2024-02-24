@@ -16,6 +16,7 @@
     "@aztec/accounts": "portal:../yarn-project/accounts",
     "@aztec/aztec.js": "portal:../yarn-project/aztec.js",
     "@aztec/circuits.js": "portal:../yarn-project/circuits.js",
+    "@aztec/entrypoints": "portal:../yarn-project/entrypoints",
     "@aztec/foundation": "portal:../yarn-project/foundation",
     "@aztec/bb.js": "portal:../barretenberg/ts",
     "@aztec/circuit-types": "portal:../yarn-project/circuit-types",
