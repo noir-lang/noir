@@ -468,7 +468,8 @@ mod test {
             expression: expr_id,
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
-        let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression(vec![stmt_id])));
+        let expr_id = interner
+            .push_expr(HirExpression::Block(HirBlockExpression { statements: vec![stmt_id] }));
         interner.push_expr_location(expr_id, Span::single_char(0), file);
 
         // Create function to enclose the let statement
