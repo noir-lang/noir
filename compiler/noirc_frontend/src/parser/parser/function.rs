@@ -1,7 +1,8 @@
 use super::{
-    attributes, block, fresh_statement, ident, keyword, nothing, optional_distinctness,
-    optional_visibility, parameter_name_recovery, parameter_recovery, parenthesized, parse_type,
-    pattern, self_parameter, validate_attributes, where_clause, NoirParser,
+    attributes::{attributes, validate_attributes},
+    block, fresh_statement, ident, keyword, nothing, optional_distinctness, optional_visibility,
+    parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
+    self_parameter, where_clause, NoirParser,
 };
 use crate::parser::labels::ParsingRuleLabel;
 use crate::parser::spanned;

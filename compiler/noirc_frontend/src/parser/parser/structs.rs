@@ -5,7 +5,8 @@ use crate::{
     macros_api::SecondaryAttribute,
     parser::{
         parser::{
-            attributes, function,
+            attributes::attributes,
+            function, parse_type,
             primitives::{ident, keyword},
         },
         NoirParser, ParserError, ParserErrorReason, TopLevelStatement,
@@ -13,8 +14,6 @@ use crate::{
     token::{Attribute, Keyword, Token},
     Ident, NoirStruct, UnresolvedType,
 };
-
-use super::parse_type;
 
 pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Struct;

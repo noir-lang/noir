@@ -37,7 +37,7 @@ use crate::ast::{
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Attribute, Attributes, Keyword, Token, TokenKind};
+use crate::token::{Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
@@ -50,6 +50,7 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 mod assertion;
+mod attributes;
 mod function;
 mod literals;
 mod path;
@@ -225,17 +226,6 @@ fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), Functi
         })
 }
 
-fn attribute() -> impl NoirParser<Attribute> {
-    token_kind(TokenKind::Attribute).map(|token| match token {
-        Token::Attribute(attribute) => attribute,
-        _ => unreachable!("Parser should have already errored due to token not being an attribute"),
-    })
-}
-
-fn attributes() -> impl NoirParser<Vec<Attribute>> {
-    attribute().repeated()
-}
-
 fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
     let typ = parse_type().recover_via(parameter_recovery());
     let typ = just(Token::Colon).ignore_then(typ);
@@ -281,32 +271,6 @@ fn self_parameter() -> impl NoirParser<Param> {
 
             Param { span: pattern.span(), pattern, typ: self_type, visibility: Visibility::Private }
         })
-}
-
-fn validate_attributes(
-    attributes: Vec<Attribute>,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) -> Attributes {
-    let mut primary = None;
-    let mut secondary = Vec::new();
-
-    for attribute in attributes {
-        match attribute {
-            Attribute::Function(attr) => {
-                if primary.is_some() {
-                    emit(ParserError::with_reason(
-                        ParserErrorReason::MultipleFunctionAttributesFound,
-                        span,
-                    ));
-                }
-                primary = Some(attr);
-            }
-            Attribute::Secondary(attr) => secondary.push(attr),
-        }
-    }
-
-    Attributes { function: primary, secondary }
 }
 
 /// Function declaration parameters differ from other parameters in that parameter
