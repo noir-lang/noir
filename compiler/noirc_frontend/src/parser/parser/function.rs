@@ -38,13 +38,7 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
                 is_unconstrained: modifiers.0,
                 is_open: modifiers.2,
                 is_internal: modifiers.3,
-                visibility: if modifiers.1 {
-                    FunctionVisibility::PublicCrate
-                } else if modifiers.4 {
-                    FunctionVisibility::Public
-                } else {
-                    FunctionVisibility::Private
-                },
+                visibility: modifiers.1,
                 generics,
                 parameters,
                 body,
@@ -57,34 +51,33 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
         })
 }
 
-/// function_modifiers: 'unconstrained'? 'pub(crate)'? 'pub'? 'open'? 'internal'?
-///
-/// returns (is_unconstrained, is_pub_crate, is_open, is_internal, is_pub) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool, bool)> {
-    keyword(Keyword::Unconstrained)
-        .or_not()
-        .then(is_pub_crate())
-        .then(keyword(Keyword::Pub).or_not())
-        .then(keyword(Keyword::Open).or_not())
-        .then(keyword(Keyword::Internal).or_not())
-        .map(|((((unconstrained, pub_crate), public), open), internal)| {
-            (
-                unconstrained.is_some(),
-                pub_crate,
-                open.is_some(),
-                internal.is_some(),
-                public.is_some(),
-            )
-        })
-}
-
-fn is_pub_crate() -> impl NoirParser<bool> {
-    (keyword(Keyword::Pub)
+/// visibility_modifier: 'pub(crate)'? 'pub'? ''
+fn visibility_modifier() -> impl NoirParser<FunctionVisibility> {
+    let is_pub_crate = (keyword(Keyword::Pub)
         .then_ignore(just(Token::LeftParen))
         .then_ignore(keyword(Keyword::Crate))
         .then_ignore(just(Token::RightParen)))
-    .or_not()
-    .map(|a| a.is_some())
+    .map(|_| FunctionVisibility::PublicCrate);
+
+    let is_pub = keyword(Keyword::Pub).map(|_| FunctionVisibility::Public);
+
+    let is_private = empty().map(|_| FunctionVisibility::Private);
+
+    choice((is_pub_crate, is_pub, is_private))
+}
+
+/// function_modifiers: 'unconstrained'? (visibility)? 'open'? 'internal'?
+///
+/// returns (is_unconstrained, visibility, is_open, is_internal) for whether each keyword was present
+fn function_modifiers() -> impl NoirParser<(bool, FunctionVisibility, bool, bool)> {
+    keyword(Keyword::Unconstrained)
+        .or_not()
+        .then(visibility_modifier())
+        .then(keyword(Keyword::Open).or_not())
+        .then(keyword(Keyword::Internal).or_not())
+        .map(|(((unconstrained, visibility), open), internal)| {
+            (unconstrained.is_some(), visibility, open.is_some(), internal.is_some())
+        })
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
