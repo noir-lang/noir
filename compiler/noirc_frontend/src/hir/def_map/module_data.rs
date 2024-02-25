@@ -105,9 +105,10 @@ impl ModuleData {
     pub fn declare_child_module(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         child_id: ModuleId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, child_id.into(), None)
+        self.declare(name, visibility, child_id.into(), None)
     }
 
     pub fn find_func_with_name(&self, name: &Ident) -> Option<FuncId> {

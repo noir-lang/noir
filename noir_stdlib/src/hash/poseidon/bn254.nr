@@ -1,6 +1,6 @@
 // Instantiations of Poseidon constants, permutations and sponge for prime field of the same order as BN254
-mod perm;
-mod consts;
+pub mod perm;
+pub mod consts;
 
 use crate::hash::poseidon::PoseidonConfig;
 use crate::hash::poseidon::apply_matrix;

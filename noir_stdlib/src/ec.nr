@@ -2,10 +2,10 @@
 // Overview
 // ========
 // The following three elliptic curve representations are admissible:
-mod tecurve; // Twisted Edwards curves
-mod swcurve; // Elliptic curves in Short Weierstraß form
-mod montcurve; // Montgomery curves
-mod consts; // Commonly used curve presets
+pub mod tecurve; // Twisted Edwards curves
+pub mod swcurve; // Elliptic curves in Short Weierstraß form
+pub mod montcurve; // Montgomery curves
+pub mod consts; // Commonly used curve presets
 //
 // Note that Twisted Edwards and Montgomery curves are (birationally) equivalent, so that
 // they may be freely converted between one another, whereas Short Weierstraß curves are

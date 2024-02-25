@@ -1,3 +1,3 @@
-mod vec;
-mod bounded_vec;
-mod map;
+pub mod vec;
+pub mod bounded_vec;
+pub mod map;

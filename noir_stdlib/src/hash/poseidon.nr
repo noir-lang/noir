@@ -1,4 +1,4 @@
-mod bn254; // Instantiations of Poseidon for prime field of the same order as BN254
+pub mod bn254; // Instantiations of Poseidon for prime field of the same order as BN254
 use crate::field::modulus_num_bits;
 use crate::hash::Hasher;
 use crate::default::Default;

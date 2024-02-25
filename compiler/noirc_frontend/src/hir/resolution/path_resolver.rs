@@ -1,5 +1,6 @@
 use super::import::{
-    allow_referencing_contracts, resolve_path_to_ns, ImportDirective, PathResolutionError,
+    allow_referencing_contracts, check_can_reference_function, resolve_path_to_ns, ImportDirective,
+    PathResolutionError,
 };
 use crate::Path;
 use std::collections::BTreeMap;
@@ -57,15 +58,34 @@ pub fn resolve_path(
     path: Path,
 ) -> Result<ModuleDefId, PathResolutionError> {
     // lets package up the path into an ImportDirective and resolve it using that
+    let last_path_segment = path.last_segment();
     let import =
         ImportDirective { module_id: module_id.local_id, path, alias: None, is_prelude: false };
     let allow_referencing_contracts =
         allow_referencing_contracts(def_maps, module_id.krate, module_id.local_id);
 
-    let def_map = &def_maps[&module_id.krate];
-    let ns = resolve_path_to_ns(&import, def_map, def_maps, allow_referencing_contracts)?;
+    let (resolved_module, ns) = resolve_path_to_ns(
+        &import,
+        module_id.krate,
+        module_id.krate,
+        def_maps,
+        allow_referencing_contracts,
+    )?;
 
-    let function = ns.values.map(|(id, _, _)| id);
-    let id = function.or_else(|| ns.types.map(|(id, _, _)| id));
-    Ok(id.expect("Found empty namespace"))
+    let (id, visibility) = ns
+        .values
+        .or(ns.types)
+        .map(|(id, visibility, _)| (id, visibility))
+        .expect("Found empty namespace");
+
+    check_can_reference_function(
+        def_maps,
+        module_id.krate,
+        module_id.local_id,
+        resolved_module,
+        visibility,
+        &last_path_segment,
+    )?;
+
+    Ok(id)
 }

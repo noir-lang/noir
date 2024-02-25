@@ -1,7 +1,7 @@
-mod poseidon;
-mod mimc;
-mod poseidon2;
-mod pedersen;
+pub mod poseidon;
+pub mod mimc;
+pub mod poseidon2;
+pub mod pedersen;
 
 use crate::default::Default;
 

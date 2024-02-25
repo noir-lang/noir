@@ -5,8 +5,8 @@ use crate::lexer::token::SpannedToken;
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
 use crate::{
-    BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
-    MethodCallExpression, UnresolvedType,
+    BlockExpression, Expression, ExpressionKind, IndexExpression, ItemVisibility,
+    MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -243,11 +243,17 @@ pub trait Recoverable {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDeclaration {
     pub ident: Ident,
+    pub visibility: ItemVisibility,
 }
 
 impl std::fmt::Display for ModuleDeclaration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "mod {}", self.ident)
+        write!(
+            f,
+            "{}mod {}",
+            if self.visibility == ItemVisibility::Public { "pub " } else { "" },
+            self.ident
+        )
     }
 }
 

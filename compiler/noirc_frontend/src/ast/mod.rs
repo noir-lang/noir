@@ -359,6 +359,7 @@ pub enum ItemVisibility {
     Public,
     Private,
     PublicCrate,
+    PublicSuper,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

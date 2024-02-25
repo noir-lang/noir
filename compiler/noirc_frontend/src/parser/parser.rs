@@ -40,9 +40,10 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
-    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Literal, ModuleDeclaration,
-    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl,
-    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    FunctionReturnType, Ident, IfExpression, InfixExpression, ItemVisibility, LValue, Literal,
+    ModuleDeclaration, NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound,
+    TypeImpl, UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    Visibility,
 };
 
 use chumsky::prelude::*;
@@ -369,10 +370,41 @@ fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
         .map(|r#type| r#type.unwrap_or_else(UnresolvedType::unspecified))
 }
 
+/// import_visibility: 'pub(crate)'? 'pub'? ''
+fn import_visibility() -> impl NoirParser<ItemVisibility> {
+    let is_pub_crate = (keyword(Keyword::Pub)
+        .then_ignore(just(Token::LeftParen))
+        .then_ignore(keyword(Keyword::Crate))
+        .then_ignore(just(Token::RightParen)))
+    .map(|_| ItemVisibility::PublicCrate);
+
+    let is_pub_super = (keyword(Keyword::Pub)
+        .then_ignore(just(Token::LeftParen))
+        .then_ignore(keyword(Keyword::Super))
+        .then_ignore(just(Token::RightParen)))
+    .map(|_| ItemVisibility::PublicSuper);
+
+    let is_pub = keyword(Keyword::Pub).map(|_| ItemVisibility::Public);
+
+    let is_private = empty().map(|_| ItemVisibility::Private);
+
+    choice((is_pub_crate, is_pub_super, is_pub, is_private))
+}
+
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Mod)
-        .ignore_then(ident())
-        .map(|ident| TopLevelStatement::Module(ModuleDeclaration { ident }))
+    import_visibility().then_ignore(keyword(Keyword::Mod)).then(ident()).map(
+        |(visibility, ident)| {
+            TopLevelStatement::Module(ModuleDeclaration {
+                ident,
+                // A module's contents are visible to the parent module unless they themselves are marked private.
+                visibility: if visibility == ItemVisibility::Private {
+                    ItemVisibility::PublicSuper
+                } else {
+                    visibility
+                },
+            })
+        },
+    )
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {

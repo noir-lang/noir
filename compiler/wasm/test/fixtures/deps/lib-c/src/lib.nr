@@ -1,1 +1,1 @@
-mod module;
+pub mod module;

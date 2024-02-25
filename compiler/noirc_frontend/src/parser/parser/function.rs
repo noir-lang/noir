@@ -1,8 +1,8 @@
 use super::{
     attributes::{attributes, validate_attributes},
-    block, fresh_statement, ident, keyword, nothing, optional_distinctness, optional_visibility,
-    parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
-    self_parameter, where_clause, NoirParser,
+    block, fresh_statement, ident, import_visibility, keyword, nothing, optional_distinctness,
+    optional_visibility, parameter_name_recovery, parameter_recovery, parenthesized, parse_type,
+    pattern, self_parameter, where_clause, NoirParser,
 };
 use crate::parser::labels::ParsingRuleLabel;
 use crate::parser::spanned;
@@ -49,28 +49,13 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
         })
 }
 
-/// visibility_modifier: 'pub(crate)'? 'pub'? ''
-fn visibility_modifier() -> impl NoirParser<ItemVisibility> {
-    let is_pub_crate = (keyword(Keyword::Pub)
-        .then_ignore(just(Token::LeftParen))
-        .then_ignore(keyword(Keyword::Crate))
-        .then_ignore(just(Token::RightParen)))
-    .map(|_| ItemVisibility::PublicCrate);
-
-    let is_pub = keyword(Keyword::Pub).map(|_| ItemVisibility::Public);
-
-    let is_private = empty().map(|_| ItemVisibility::Private);
-
-    choice((is_pub_crate, is_pub, is_private))
-}
-
 /// function_modifiers: 'unconstrained'? (visibility)?
 ///
 /// returns (is_unconstrained, visibility) for whether each keyword was present
 fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility)> {
     keyword(Keyword::Unconstrained)
         .or_not()
-        .then(visibility_modifier())
+        .then(import_visibility())
         .map(|(unconstrained, visibility)| (unconstrained.is_some(), visibility))
 }
 
