@@ -6,11 +6,14 @@ use noirc_errors::Location;
 
 use crate::{
     graph::CrateId,
-    hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
+    hir::{
+        def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
+        def_map::Visibility,
+    },
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
-    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
+    FunctionDefinition, FunctionVisibility, Ident, LetStatement, NoirFunction, NoirStruct,
+    NoirTrait, NoirTraitImpl, NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
@@ -58,6 +61,7 @@ pub fn collect_defs(
             module_id: collector.module_id,
             path: import.path,
             alias: import.alias,
+            visibility: import.visibility,
             is_prelude: false,
         });
     }
@@ -225,6 +229,12 @@ impl<'a> ModCollector<'a> {
             let location = Location::new(function.span(), self.file_id);
             context.def_interner.push_function(func_id, &function.def, module, location);
 
+            let visibility = if function.def.visibility == FunctionVisibility::Public {
+                Visibility::Public
+            } else {
+                Visibility::Private
+            };
+
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace
             // Once we have lowered it to a HirFunction, we retrieve it's Id from the DefInterner
@@ -235,7 +245,7 @@ impl<'a> ModCollector<'a> {
 
             // Add function to scope/ns of the module
             let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_function(name, func_id);
+                .declare_function(visibility, name, func_id);
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {
@@ -408,7 +418,7 @@ impl<'a> ModCollector<'a> {
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
                         match self.def_collector.def_map.modules[trait_id.0.local_id.0]
-                            .declare_function(name.clone(), func_id)
+                            .declare_function(Visibility::Public, name.clone(), func_id)
                         {
                             Ok(()) => {
                                 if let Some(body) = body {

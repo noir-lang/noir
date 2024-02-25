@@ -1,7 +1,7 @@
 use super::dc_mod::collect_defs;
 use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::graph::CrateId;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId, Visibility};
 use crate::hir::resolution::errors::ResolverError;
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective};
@@ -282,15 +282,29 @@ impl DefCollector {
 
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in def_collector.collected_imports {
-            match resolve_import(crate_id, collected_import, &context.def_maps) {
+            match resolve_import(crate_id, &collected_import, &context.def_maps) {
                 Ok(resolved_import) => {
                     // Populate module namespaces according to the imports used
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
                     let name = resolved_import.name;
-                    for ns in resolved_import.resolved_namespace.iter_defs() {
+                    for (ns, visibility) in resolved_import.resolved_namespace.iter_defs() {
+                        if collected_import.path.kind == PathKind::Dep
+                            && visibility != Visibility::Public
+                        {
+                            let err =
+                                DefCollectorErrorKind::PrivateItemImported { name: name.clone() };
+                            errors.push((err.into(), root_file_id));
+                        }
+
                         let result = current_def_map.modules[resolved_import.module_scope.0]
-                            .import(name.clone(), ns, resolved_import.is_prelude);
+                            .import(
+                                name.clone(),
+                                // Take the visibility from the collected import to allow avoiding reexporting.
+                                collected_import.visibility,
+                                ns,
+                                resolved_import.is_prelude,
+                            );
 
                         if let Err((first_def, second_def)) = result {
                             let err = DefCollectorErrorKind::Duplicate {
@@ -428,6 +442,7 @@ fn inject_prelude(
                         module_id: crate_root,
                         path: Path { segments, kind: PathKind::Dep, span: Span::default() },
                         alias: None,
+                        visibility: Visibility::Private,
                         is_prelude: true,
                     },
                 );

@@ -13,7 +13,7 @@ use crate::{
             },
             errors::{DefCollectorErrorKind, DuplicateType},
         },
-        def_map::{CrateDefMap, ModuleDefId, ModuleId},
+        def_map::{CrateDefMap, ModuleDefId, ModuleId, Visibility},
         Context,
     },
     hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType},
@@ -302,7 +302,10 @@ fn collect_trait_impl(
                 // be accessed with the `TypeName::method` syntax. We'll check later whether the
                 // object types in each method overlap or not. If they do, we issue an error.
                 // If not, that is specialization which is allowed.
-                if module.declare_function(method.name_ident().clone(), *method_id).is_err() {
+                if module
+                    .declare_function(Visibility::Public, method.name_ident().clone(), *method_id)
+                    .is_err()
+                {
                     module.remove_function(method.name_ident());
                 }
             }

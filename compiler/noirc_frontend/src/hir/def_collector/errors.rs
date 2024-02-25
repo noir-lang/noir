@@ -75,6 +75,8 @@ pub enum DefCollectorErrorKind {
     TraitImplOrphaned { span: Span },
     #[error("macro error : {0:?}")]
     MacroError(MacroError),
+    #[error("{name} is private")]
+    PrivateItemImported { name: Ident },
 }
 
 /// An error struct that macro processors can return.
@@ -249,6 +251,9 @@ impl From<DefCollectorErrorKind> for Diagnostic {
             DefCollectorErrorKind::MacroError(macro_error) => {
                 Diagnostic::simple_error(macro_error.primary_message, macro_error.secondary_message.unwrap_or_default(), macro_error.span.unwrap_or_default())
             },
+            DefCollectorErrorKind::PrivateItemImported { name } => {
+                Diagnostic::simple_warning(format!("{name} is private and not visible from the current module"), format!("{name} is private"), name.span())
+            }
         }
     }
 }

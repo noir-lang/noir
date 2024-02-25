@@ -9,7 +9,7 @@ use crate::{
             dc_crate::{CompilationError, ImplMap},
             errors::DefCollectorErrorKind,
         },
-        def_map::{CrateDefMap, ModuleId},
+        def_map::{CrateDefMap, ModuleId, Visibility},
         Context,
     },
     node_interner::{FuncId, NodeInterner},
@@ -67,7 +67,14 @@ pub(crate) fn collect_impls(
                     // be accessed with the `TypeName::method` syntax. We'll check later whether the
                     // object types in each method overlap or not. If they do, we issue an error.
                     // If not, that is specialization which is allowed.
-                    if module.declare_function(method.name_ident().clone(), *method_id).is_err() {
+                    if module
+                        .declare_function(
+                            Visibility::Public,
+                            method.name_ident().clone(),
+                            *method_id,
+                        )
+                        .is_err()
+                    {
                         module.remove_function(method.name_ident());
                     }
                 }

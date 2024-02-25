@@ -374,18 +374,26 @@ fn module_declaration() -> impl NoirParser<TopLevelStatement> {
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Use).ignore_then(use_tree()).map(TopLevelStatement::Import)
+    keyword(Keyword::Pub)
+        .or_not()
+        .then_with(|is_pub| keyword(Keyword::Use).ignore_then(use_tree(is_pub.is_some())))
+        .map(TopLevelStatement::Import)
 }
 
 fn rename() -> impl NoirParser<Option<Ident>> {
     ignore_then_commit(keyword(Keyword::As), ident()).or_not()
 }
 
-fn use_tree() -> impl NoirParser<UseTree> {
-    recursive(|use_tree| {
-        let simple = path().then(rename()).map(|(mut prefix, alias)| {
+fn use_tree(is_pub: bool) -> impl NoirParser<UseTree> {
+    let visibility = if is_pub {
+        crate::hir::def_map::Visibility::Public
+    } else {
+        crate::hir::def_map::Visibility::Private
+    };
+    recursive(move |use_tree| {
+        let simple = path().then(rename()).map(move |(mut prefix, alias)| {
             let ident = prefix.pop();
-            UseTree { prefix, kind: UseTreeKind::Path(ident, alias) }
+            UseTree { prefix, kind: UseTreeKind::Path(ident, alias), visibility }
         });
 
         let list = {
@@ -396,7 +404,7 @@ fn use_tree() -> impl NoirParser<UseTree> {
                 .delimited_by(just(Token::LeftBrace), just(Token::RightBrace))
                 .map(UseTreeKind::List);
 
-            prefix.then(tree).map(|(prefix, kind)| UseTree { prefix, kind })
+            prefix.then(tree).map(move |(prefix, kind)| UseTree { prefix, kind, visibility })
         };
 
         choice((list, simple))

@@ -10,6 +10,7 @@ type Scope = HashMap<Option<TraitId>, (ModuleDefId, Visibility, bool /*is_prelud
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Visibility {
     Public,
+    Private,
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]
@@ -24,10 +25,11 @@ impl ItemScope {
     pub fn add_definition(
         &mut self,
         name: Ident,
+        visibility: Visibility,
         mod_def: ModuleDefId,
         trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
-        self.add_item_to_namespace(name, mod_def, trait_id, false)?;
+        self.add_item_to_namespace(name, visibility, mod_def, trait_id, false)?;
         self.defs.push(mod_def);
         Ok(())
     }
@@ -38,6 +40,7 @@ impl ItemScope {
     pub fn add_item_to_namespace(
         &mut self,
         name: Ident,
+        visibility: Visibility,
         mod_def: ModuleDefId,
         trait_id: Option<TraitId>,
         is_prelude: bool,
@@ -55,12 +58,12 @@ impl ItemScope {
                         Err((old_ident.clone(), name))
                     }
                 } else {
-                    trait_hashmap.insert(trait_id, (mod_def, Visibility::Public, is_prelude));
+                    trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
                     Ok(())
                 }
             } else {
                 let mut trait_hashmap = HashMap::new();
-                trait_hashmap.insert(trait_id, (mod_def, Visibility::Public, is_prelude));
+                trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
                 map.insert(name, trait_hashmap);
                 Ok(())
             }

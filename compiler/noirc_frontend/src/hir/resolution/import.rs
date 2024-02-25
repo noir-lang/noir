@@ -3,7 +3,7 @@ use noirc_errors::{CustomDiagnostic, Span};
 use crate::graph::CrateId;
 use std::collections::BTreeMap;
 
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs, Visibility};
 use crate::{Ident, Path, PathKind};
 
 #[derive(Debug, Clone)]
@@ -11,6 +11,7 @@ pub struct ImportDirective {
     pub module_id: LocalModuleId,
     pub path: Path,
     pub alias: Option<Ident>,
+    pub visibility: Visibility,
     pub is_prelude: bool,
 }
 
@@ -52,7 +53,7 @@ impl From<PathResolutionError> for CustomDiagnostic {
 
 pub fn resolve_import(
     crate_id: CrateId,
-    import_directive: ImportDirective,
+    import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> Result<ResolvedImport, (PathResolutionError, LocalModuleId)> {
     let def_map = &def_maps[&crate_id];
@@ -62,10 +63,10 @@ pub fn resolve_import(
 
     let module_scope = import_directive.module_id;
     let resolved_namespace =
-        resolve_path_to_ns(&import_directive, def_map, def_maps, allow_contracts)
-            .map_err(|error| (error, module_scope))?;
+        resolve_path_to_ns(import_directive, def_map, def_maps, allow_contracts)
+            .map_err(|error: PathResolutionError| (error, module_scope))?;
 
-    let name = resolve_path_name(&import_directive);
+    let name = resolve_path_name(import_directive);
     Ok(ResolvedImport {
         name,
         resolved_namespace,
@@ -215,6 +216,7 @@ fn resolve_external_dep(
         module_id: dep_module.local_id,
         path,
         alias: directive.alias.clone(),
+        visibility: directive.visibility,
         is_prelude: false,
     };
 

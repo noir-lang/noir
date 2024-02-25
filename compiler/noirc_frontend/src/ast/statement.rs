@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use crate::hir::def_map::Visibility;
 use crate::lexer::token::SpannedToken;
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
@@ -244,6 +245,7 @@ pub trait Recoverable {
 pub struct ImportStatement {
     pub path: Path,
     pub alias: Option<Ident>,
+    pub visibility: Visibility,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
@@ -257,6 +259,7 @@ pub enum PathKind {
 pub struct UseTree {
     pub prefix: Path,
     pub kind: UseTreeKind,
+    pub visibility: Visibility,
 }
 
 impl Display for UseTree {
@@ -299,7 +302,11 @@ impl UseTree {
 
         match self.kind {
             UseTreeKind::Path(name, alias) => {
-                vec![ImportStatement { path: prefix.join(name), alias }]
+                vec![ImportStatement {
+                    path: prefix.join(name),
+                    alias,
+                    visibility: self.visibility,
+                }]
             }
             UseTreeKind::List(trees) => {
                 trees.into_iter().flat_map(|tree| tree.desugar(Some(prefix.clone()))).collect()

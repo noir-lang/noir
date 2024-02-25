@@ -5,7 +5,7 @@ use crate::Path;
 use std::collections::BTreeMap;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, Visibility};
 
 pub trait PathResolver {
     /// Resolve the given path returning the resolved ModuleDefId.
@@ -57,8 +57,13 @@ pub fn resolve_path(
     path: Path,
 ) -> Result<ModuleDefId, PathResolutionError> {
     // lets package up the path into an ImportDirective and resolve it using that
-    let import =
-        ImportDirective { module_id: module_id.local_id, path, alias: None, is_prelude: false };
+    let import = ImportDirective {
+        module_id: module_id.local_id,
+        path,
+        alias: None,
+        visibility: Visibility::Private,
+        is_prelude: false,
+    };
     let allow_referencing_contracts =
         allow_referencing_contracts(def_maps, module_id.krate, module_id.local_id);
 
