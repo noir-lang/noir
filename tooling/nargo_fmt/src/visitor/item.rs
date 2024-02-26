@@ -127,7 +127,7 @@ impl super::FmtVisitor<'_> {
                 Visibility::DataBus => "return_data",
                 Visibility::Private => "",
             };
-            result.push_str(&append_space_if_nonempty(visibility.to_owned()));
+            result.push_str(&append_space_if_nonempty(visibility.into()));
 
             let typ = rewrite::typ(self, self.shape(), func.return_type());
             result.push_str(&typ);
