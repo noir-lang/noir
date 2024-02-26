@@ -67,12 +67,7 @@ typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_t
                 // Insert the real witness values from this block into the wire polys at the correct offset
                 trace_data.wires[wire_idx][trace_row_idx] = builder.get_variable(var_idx);
                 // Add the address of the witness value to its corresponding copy cycle
-                // NB: Not adding cycles for wires 3 and 4 here is only needed in order to maintain consistency with old
-                // version. We can remove this special case and the result is simply that all the zeros in wires 3 and 4
-                // over the PI range are copy constrained together, but this changes sigma/id which changes the vkey.
-                if (!(block.is_public_input && wire_idx > 1)) {
-                    trace_data.copy_cycles[real_var_idx].emplace_back(cycle_node{ wire_idx, trace_row_idx });
-                }
+                trace_data.copy_cycles[real_var_idx].emplace_back(cycle_node{ wire_idx, trace_row_idx });
             }
         }
 
