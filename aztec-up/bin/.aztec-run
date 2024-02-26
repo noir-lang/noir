@@ -7,7 +7,12 @@ set -euo pipefail
 IMAGE=${1:-}
 shift
 
+DEFAULT_PORT=8080
 VERSION=${VERSION:-"latest"}
+AZTEC_PORT=${AZTEC_PORT:-$DEFAULT_PORT}
+
+# preserve arguments to pass to docker run
+declare -a preserved_args
 
 # Colors.
 y="\033[33m"
@@ -17,7 +22,7 @@ function warn {
   echo -e "${y}$1${r}"
 }
 
-if ! command -v docker &> /dev/null; then
+if ! command -v docker &>/dev/null; then
   warn "No docker found."
   exit 1
 fi
@@ -55,17 +60,17 @@ fi
 # Consider if we should just do that, but that wouldn't help e.g. nargo.
 args=("$@")
 for i in "${!args[@]}"; do
-    args[$i]=${args[$i]//localhost/host.docker.internal}
+  args[$i]=${args[$i]//localhost/host.docker.internal}
 done
 
 # Check if it's either a filename or a directory that exists outside the HOME.
 # If so, warn and exit.
 for i in "${!args[@]}"; do
-    arg=${args[$i]}
-    if [[ -f "$arg" || -d "$arg" ]] && [[ $(realpath $arg) != ${HOME}* ]]; then
-      warn "Due to how we containerize our applications, paths outside of $HOME cannot be referenced."
-      exit 1
-    fi
+  arg=${args[$i]}
+  if [[ -f "$arg" || -d "$arg" ]] && [[ $(realpath $arg) != ${HOME}* ]]; then
+    warn "Due to how we containerize our applications, paths outside of $HOME cannot be referenced."
+    exit 1
+  fi
 done
 
 DOCKER_ENV="-e HOME=$HOME"
@@ -78,12 +83,34 @@ for env in ${ENV_VARS_TO_INJECT:-}; do
   fi
 done
 
+# Parse command-line arguments
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  -p | --port)
+    AZTEC_PORT="$2"
+    preserved_args+=("$1" "$2") # Store both argument and value
+    shift 2                     # Move past argument and value
+    ;;
+  *)
+    preserved_args+=("$1") # Store unrecognized/other arguments
+    shift                  # Move to next argument
+    ;;
+  esac
+done
+
+# Dynamic port assignment based on IMAGE containing '/aztec'
+port_assignment=""
+if [[ "$IMAGE" == *"/aztec"* ]]; then
+  port_assignment="-p $AZTEC_PORT:$AZTEC_PORT"
+fi
+
 docker run \
   -ti \
   --rm \
   --workdir "$PWD" \
   -v $HOME:$HOME -v cache:/cache \
+  $port_assignment \
   ${DOCKER_ENV:-} \
   ${DOCKER_HOST_BINDS:-} \
   ${DOCKER_USER:-} \
-  $IMAGE:$VERSION ${args[@]:-}
+  $IMAGE:$VERSION ${preserved_args[@]:-}
