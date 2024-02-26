@@ -87,7 +87,8 @@ export class AztecNodeService implements AztecNode {
       `Registry: ${config.l1Contracts.registryAddress.toString()}\n` +
       `Inbox: ${config.l1Contracts.inboxAddress.toString()}\n` +
       `Outbox: ${config.l1Contracts.outboxAddress.toString()}\n` +
-      `Contract Emitter: ${config.l1Contracts.contractDeploymentEmitterAddress.toString()}`;
+      `Contract Emitter: ${config.l1Contracts.contractDeploymentEmitterAddress.toString()}\n` +
+      `Availability Oracle: ${config.l1Contracts.availabilityOracleAddress.toString()}`;
     this.log(message);
   }
 

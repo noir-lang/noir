@@ -180,7 +180,7 @@ resource "aws_ecs_task_definition" "aztec-node" {
         "value": "false"
       },
       {
-        "name": "AZTEC_NODE_PORT",
+        "name": "AZTEC_PORT",
         "value": "80"
       },
       {
