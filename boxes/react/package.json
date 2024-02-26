@@ -14,7 +14,7 @@
     "serve": "serve -p 3000 ./dist",
     "formatting": "prettier --check ./src && eslint ./src",
     "formatting:fix": "prettier -w ./src",
-    "test": "yarn prep && NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand"
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand"
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",

@@ -4,19 +4,24 @@
 #   - Run the tests.
 #   - Run the formatter checks.
 # Any subsequent build steps needed to support downstream containers should be done in those containers build files.
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base as builder
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/l1-contracts as contracts
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-projects as noir-projects
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/boxes-files as boxes-files
 
-# Copy in the entire workspace.
+FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base
+COPY --from=contracts /usr/src/l1-contracts /usr/src/l1-contracts
+COPY --from=noir-projects /usr/src/noir-projects /usr/src/noir-projects
+COPY --from=boxes-files /usr/src/boxes /usr/src/boxes
 COPY . .
-
+# Generate L1 contract TypeScript artifacts.
+RUN cd l1-artifacts && ./scripts/generate-artifacts.sh && rm -rf /usr/src/l1-contracts
 # This is actually our code generation tool. Needed to build contract typescript wrappers.
 RUN yarn workspace @aztec/noir-compiler build
-# Builds noir contracts (TODO: move this stage pre yarn-project). Generates typescript wrappers.
+# Generates typescript wrappers.
 RUN yarn workspace @aztec/noir-contracts.js build:contracts
 # We need to build accounts as it needs to copy in account contracts from noir-contracts.
 RUN yarn workspace @aztec/accounts build:copy-contracts
 RUN yarn workspace @aztec/protocol-contracts build:copy-contracts
 RUN yarn workspace @aztec/noir-protocol-circuits-types build
 RUN yarn tsc -b
-
 ENTRYPOINT ["yarn"]

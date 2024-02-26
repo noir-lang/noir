@@ -42,25 +42,15 @@
 #      RUN yarn workspaces focus --production && yarn cache clean && rm -rf ../**/src
 #  - Create final slim image by copying needed dirs into a fresh image.
 #
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/l1-contracts as contracts
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/bb.js as bb.js
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-projects as noir-projects
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-packages as noir-packages
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/boxes-files as boxes-files
 
 FROM node:18.19.0
 RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
 
-# Copy L1 contracts.
-COPY --from=contracts /usr/src/l1-contracts /usr/src/l1-contracts
-# Copy in bb.js
+# Copy in portalled packages.
 COPY --from=bb.js /usr/src/barretenberg/ts /usr/src/barretenberg/ts
-# Copy in noir packages
 COPY --from=noir-packages /usr/src/noir/packages /usr/src/noir/packages
-# Copy in noir projects
-COPY --from=noir-projects /usr/src/noir-projects /usr/src/noir-projects
-# Copy in boxes
-COPY --from=boxes-files /usr/src/boxes /usr/src/boxes
 
 # We install a symlink to yarn-project's node_modules at a location that all portalled packages can find as they
 # walk up the tree as part of module resolution. The supposedly idiomatic way of supporting module resolution
@@ -88,11 +78,5 @@ RUN yarn --immutable && rm -rf /root/.cache/puppeteer && /bin/bash -c '\
   [[ $F =~ (.*-) ]] && ln $F /root/.yarn/berry/cache/${BASH_REMATCH[1]}8.zip; \
   done'
 
-# If everything's worked properly, we should no longer need access to the network.
-RUN echo "enableNetwork: false" >> .yarnrc.yml
-
 # Check package.json inheritance and tsconfig project references.
 RUN yarn prepare:check
-
-# Generate L1 contract TypeScript artifacts.
-RUN cd l1-artifacts && ./scripts/generate-artifacts.sh && rm -rf /usr/src/l1-contracts

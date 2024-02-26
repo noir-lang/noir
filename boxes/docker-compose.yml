@@ -18,7 +18,11 @@ services:
 
   boxes:
     image: aztecprotocol/boxes
-    command: "@aztec/$BOX test"
+    entrypoint: >
+      sh -c '
+        while ! nc -z aztec 8080; do sleep 1; done;
+        yarn workspace @aztec/$BOX test
+      '
     environment:
       DEBUG: "aztec:*"
       DEBUG_COLORS: "true"

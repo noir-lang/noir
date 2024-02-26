@@ -1389,16 +1389,15 @@ workflows:
       # Yarn Project
       - yarn-project-base:
           requires:
-            - avm-transpiler
-            - l1-contracts
             - bb-js
             - noir-packages
-            - noir-projects
-            - boxes-files
           <<: *defaults
       - yarn-project:
           requires:
             - yarn-project-base
+            - l1-contracts
+            - noir-projects
+            - boxes-files
           <<: *defaults
       - yarn-project-prod: *defaults_yarn_project
       - yarn-project-formatting: *defaults_yarn_project

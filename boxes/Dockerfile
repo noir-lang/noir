@@ -6,6 +6,7 @@ FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-projects as noir-projects
 
 # We need yarn. Start fresh container.
 FROM node:18.19.0
+RUN apt update && apt install netcat-openbsd
 COPY --from=aztec /usr/src /usr/src
 COPY --from=noir /usr/src/noir/target/release/nargo /usr/src/noir/target/release/nargo
 COPY --from=noir-projects /usr/src/noir-projects/aztec-nr /usr/src/noir-projects/aztec-nr
@@ -13,4 +14,4 @@ WORKDIR /usr/src/boxes
 ENV AZTEC_NARGO=/usr/src/noir/target/release/nargo
 ENV AZTEC_CLI=/usr/src/yarn-project/cli/aztec-cli-dest
 RUN yarn && yarn build
-ENTRYPOINT ["yarn", "workspace"]
+ENTRYPOINT ["/bin/sh", "-c"]

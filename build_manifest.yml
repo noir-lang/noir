@@ -135,13 +135,8 @@ yarn-project-base:
     - ^yarn-project/yarn.lock
     - ^yarn-project/.*/package.json$
   dependencies:
-    - l1-contracts
     - bb.js
-    - noir
     - noir-packages
-    - boxes-files
-    - avm-transpiler
-    - noir-projects
 
 yarn-project:
   buildDir: yarn-project
@@ -151,6 +146,9 @@ yarn-project:
     - ^yarn-project/cli/aztec-cli
   dependencies:
     - yarn-project-base
+    - l1-contracts
+    - boxes-files
+    - noir-projects
 
 yarn-project-prod:
   buildDir: yarn-project
