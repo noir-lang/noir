@@ -1,4 +1,4 @@
-use dep::std::ops::{ Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shl, Shr };
+use dep::std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shl, Shr};
 use dep::std::cmp::Ordering;
 
 // x = 3, y = 9
@@ -125,10 +125,6 @@ impl Ord for Wrapper {
         self.inner.cmp(other.inner)
     }
 }
-
-
-
-
 
 struct Pair {
     x: Wrapper,

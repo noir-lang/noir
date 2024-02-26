@@ -8,7 +8,7 @@ use crate::hir_def::expr::*;
 use crate::node_interner::ExprId;
 
 use super::ast::{Expression, Ident};
-use super::Monomorphizer;
+use super::{MonomorphizationError, Monomorphizer};
 
 const DEBUG_MEMBER_ASSIGN_PREFIX: &str = "__debug_member_assign_";
 const DEBUG_VAR_ID_ARG_SLOT: usize = 0;
@@ -39,18 +39,19 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         call: &HirCallExpression,
         arguments: &mut [Expression],
-    ) {
-        let original_func = Box::new(self.expr(call.func));
+    ) -> Result<(), MonomorphizationError> {
+        let original_func = Box::new(self.expr(call.func)?);
         if let Expression::Ident(Ident { name, .. }) = original_func.as_ref() {
             if name == "__debug_var_assign" {
-                self.patch_debug_var_assign(call, arguments);
+                self.patch_debug_var_assign(call, arguments)?;
             } else if name == "__debug_var_drop" {
-                self.patch_debug_var_drop(call, arguments);
+                self.patch_debug_var_drop(call, arguments)?;
             } else if let Some(arity) = name.strip_prefix(DEBUG_MEMBER_ASSIGN_PREFIX) {
                 let arity = arity.parse::<usize>().expect("failed to parse member assign arity");
-                self.patch_debug_member_assign(call, arguments, arity);
+                self.patch_debug_member_assign(call, arguments, arity)?;
             }
         }
+        Ok(())
     }
 
     /// Update instrumentation code inserted on variable assignment. We need to
@@ -59,7 +60,11 @@ impl<'interner> Monomorphizer<'interner> {
     /// variable are possible if using generic functions, hence the temporary ID
     /// created when injecting the instrumentation code can map to multiple IDs
     /// at runtime.
-    fn patch_debug_var_assign(&mut self, call: &HirCallExpression, arguments: &mut [Expression]) {
+    fn patch_debug_var_assign(
+        &mut self,
+        call: &HirCallExpression,
+        arguments: &mut [Expression],
+    ) -> Result<(), MonomorphizationError> {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
         let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id, _))) = var_id_arg else {
@@ -73,13 +78,18 @@ impl<'interner> Monomorphizer<'interner> {
         // then update the ID used for tracking at runtime
         let var_id = self.debug_type_tracker.insert_var(source_var_id, var_type);
         let interned_var_id = self.intern_var_id(var_id, &call.location);
-        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
+        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id)?;
+        Ok(())
     }
 
     /// Update instrumentation code for a variable being dropped out of scope.
     /// Given the source_var_id we search for the last assigned debug var_id and
     /// replace it instead.
-    fn patch_debug_var_drop(&mut self, call: &HirCallExpression, arguments: &mut [Expression]) {
+    fn patch_debug_var_drop(
+        &mut self,
+        call: &HirCallExpression,
+        arguments: &mut [Expression],
+    ) -> Result<(), MonomorphizationError> {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
         let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id, _))) = var_id_arg else {
@@ -92,7 +102,8 @@ impl<'interner> Monomorphizer<'interner> {
             .get_var_id(source_var_id)
             .unwrap_or_else(|| unreachable!("failed to find debug variable"));
         let interned_var_id = self.intern_var_id(var_id, &call.location);
-        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
+        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id)?;
+        Ok(())
     }
 
     /// Update instrumentation code inserted when assigning to a member of an
@@ -106,7 +117,7 @@ impl<'interner> Monomorphizer<'interner> {
         call: &HirCallExpression,
         arguments: &mut [Expression],
         arity: usize,
-    ) {
+    ) -> Result<(), MonomorphizationError> {
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let var_id_arg = hir_arguments.get(DEBUG_VAR_ID_ARG_SLOT);
         let Some(HirExpression::Literal(HirLiteral::Integer(source_var_id, _))) = var_id_arg else {
@@ -143,13 +154,13 @@ impl<'interner> Monomorphizer<'interner> {
                     let index_id = self.interner.push_expr(HirExpression::Literal(
                         HirLiteral::Integer(field_index.into(), false),
                     ));
-                    self.interner.push_expr_type(&index_id, crate::Type::FieldElement);
+                    self.interner.push_expr_type(index_id, crate::Type::FieldElement);
                     self.interner.push_expr_location(
                         index_id,
                         call.location.span,
                         call.location.file,
                     );
-                    arguments[DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i] = self.expr(index_id);
+                    arguments[DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i] = self.expr(index_id)?;
                 } else {
                     // array/string element using constant index
                     cursor_type = element_type_at_index(cursor_type, index as usize);
@@ -165,13 +176,14 @@ impl<'interner> Monomorphizer<'interner> {
             .get_var_id(source_var_id)
             .unwrap_or_else(|| unreachable!("failed to find debug variable"));
         let interned_var_id = self.intern_var_id(var_id, &call.location);
-        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id);
+        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id)?;
+        Ok(())
     }
 
     fn intern_var_id(&mut self, var_id: DebugVarId, location: &Location) -> ExprId {
         let var_id_literal = HirLiteral::Integer((var_id.0 as u128).into(), false);
         let expr_id = self.interner.push_expr(HirExpression::Literal(var_id_literal));
-        self.interner.push_expr_type(&expr_id, crate::Type::FieldElement);
+        self.interner.push_expr_type(expr_id, crate::Type::FieldElement);
         self.interner.push_expr_location(expr_id, location.span, location.file);
         expr_id
     }

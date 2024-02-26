@@ -1,12 +1,12 @@
 // Tests a performance regression found in aztec-packages with brillig cow optimization
 
-global MAX_NEW_COMMITMENTS_PER_TX: Field = 64;
-global MAX_NEW_NULLIFIERS_PER_TX: Field = 64;
-global MAX_NEW_L2_TO_L1_MSGS_PER_TX: Field = 2;
-global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: Field = 16;
-global MAX_NEW_CONTRACTS_PER_TX: Field = 1;
-global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: Field = 1;
-global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: Field = 1;
+global MAX_NEW_COMMITMENTS_PER_TX = 64;
+global MAX_NEW_NULLIFIERS_PER_TX = 64;
+global MAX_NEW_L2_TO_L1_MSGS_PER_TX = 2;
+global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX = 16;
+global MAX_NEW_CONTRACTS_PER_TX = 1;
+global NUM_ENCRYPTED_LOGS_HASHES_PER_TX = 1;
+global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX = 1;
 global NUM_FIELDS_PER_SHA256 = 2;
 global CALLDATA_HASH_INPUT_SIZE = 169;
 global CALL_DATA_HASH_LOG_FIELDS = 4;
@@ -47,54 +47,54 @@ struct U256 {
 }
 
 impl U256 {
-    pub fn from_bytes32(bytes : [u8;32]) -> U256 {
+    pub fn from_bytes32(bytes: [u8; 32]) -> U256 {
         // We use addition rather than a bitwise OR as the bitshifts ensure that none of the bytes overlap each other.
         let high_0 = ((bytes[0] as u64) << 56)
-                + ((bytes[1] as u64) << 48)
-                + ((bytes[2] as u64) << 40)
-                + ((bytes[3] as u64) << 32)
-                + ((bytes[4] as u64) << 24)
-                + ((bytes[5] as u64) << 16)
-                + ((bytes[6] as u64) << 8)
-                +  (bytes[7] as u64);
-        
-        let high_1 = ((bytes[8] as u64) << 56)
-                + ((bytes[9] as u64) << 48)
-                + ((bytes[10] as u64) << 40)
-                + ((bytes[11] as u64) << 32)
-                + ((bytes[12] as u64) << 24)
-                + ((bytes[13] as u64) << 16)
-                + ((bytes[14] as u64) << 8)
-                +  (bytes[15] as u64);
-        
-        let low_0 = ((bytes[16] as u64) << 56)
-                + ((bytes[17] as u64) << 48)
-                + ((bytes[18] as u64) << 40)
-                + ((bytes[19] as u64) << 32)
-                + ((bytes[20] as u64) << 24)
-                + ((bytes[21] as u64) << 16)
-                + ((bytes[22] as u64) << 8)
-                +  (bytes[23] as u64);
-        
-        let low_1 = ((bytes[24] as u64) << 56)
-                + ((bytes[25] as u64) << 48)
-                + ((bytes[26] as u64) << 40)
-                + ((bytes[27] as u64) << 32)
-                + ((bytes[28] as u64) << 24)
-                + ((bytes[29] as u64) << 16)
-                + ((bytes[30] as u64) << 8)
-                +  (bytes[31] as u64);
+            + ((bytes[1] as u64) << 48)
+            + ((bytes[2] as u64) << 40)
+            + ((bytes[3] as u64) << 32)
+            + ((bytes[4] as u64) << 24)
+            + ((bytes[5] as u64) << 16)
+            + ((bytes[6] as u64) << 8)
+            + (bytes[7] as u64);
 
-        U256{inner : [high_0, high_1, low_0, low_1]}
+        let high_1 = ((bytes[8] as u64) << 56)
+            + ((bytes[9] as u64) << 48)
+            + ((bytes[10] as u64) << 40)
+            + ((bytes[11] as u64) << 32)
+            + ((bytes[12] as u64) << 24)
+            + ((bytes[13] as u64) << 16)
+            + ((bytes[14] as u64) << 8)
+            + (bytes[15] as u64);
+
+        let low_0 = ((bytes[16] as u64) << 56)
+            + ((bytes[17] as u64) << 48)
+            + ((bytes[18] as u64) << 40)
+            + ((bytes[19] as u64) << 32)
+            + ((bytes[20] as u64) << 24)
+            + ((bytes[21] as u64) << 16)
+            + ((bytes[22] as u64) << 8)
+            + (bytes[23] as u64);
+
+        let low_1 = ((bytes[24] as u64) << 56)
+            + ((bytes[25] as u64) << 48)
+            + ((bytes[26] as u64) << 40)
+            + ((bytes[27] as u64) << 32)
+            + ((bytes[28] as u64) << 24)
+            + ((bytes[29] as u64) << 16)
+            + ((bytes[30] as u64) << 8)
+            + (bytes[31] as u64);
+
+        U256 { inner: [high_0, high_1, low_0, low_1] }
     }
 
-    pub fn to_u128_limbs(self) -> [Field;2] {
+    pub fn to_u128_limbs(self) -> [Field; 2] {
         let two_pow_64 = 2.pow_32(64);
 
         let high = (self.inner[0] as Field) * two_pow_64 + self.inner[1] as Field;
         let low  = (self.inner[2] as Field) * two_pow_64 + self.inner[3] as Field;
-        
-        [high,low]
+
+        [high, low]
     }
 }
 

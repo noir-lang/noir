@@ -956,7 +956,7 @@ mod test {
     #[test]
     fn resolve_for_expr() {
         let src = r#"
-            fn main(x : Field) {
+            fn main(x : u64) {
                 for i in 1..20 {
                     let _z = x + i;
                 };
@@ -1130,7 +1130,7 @@ mod test {
     fn check_rewrite(src: &str, expected: &str) {
         let (_program, mut context, _errors) = get_program(src);
         let main_func_id = context.def_interner.find_function("main").unwrap();
-        let program = monomorphize(main_func_id, &mut context.def_interner);
+        let program = monomorphize(main_func_id, &mut context.def_interner).unwrap();
         assert!(format!("{}", program) == expected);
     }
 

@@ -1151,6 +1151,14 @@ pub(crate) mod tests {
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }
+
+        fn poseidon2_permutation(
+            &self,
+            _inputs: &[FieldElement],
+            _len: u32,
+        ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
+            Ok(vec![0_u128.into(), 1_u128.into(), 2_u128.into(), 3_u128.into()])
+        }
     }
 
     pub(crate) fn create_context() -> BrilligContext {
