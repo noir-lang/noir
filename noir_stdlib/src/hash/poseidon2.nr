@@ -18,12 +18,7 @@ impl Poseidon2 {
     }
 
     fn new(iv: Field) -> Poseidon2 {
-        let mut result = Poseidon2 {
-            cache: [0;3],
-            state: [0;4],
-            cache_size: 0,
-            squeeze_mode: false,
-        };
+        let mut result = Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };
         result.state[rate] = iv;
         result
     }
@@ -67,8 +62,7 @@ impl Poseidon2 {
         }
     }
 
-    fn squeeze(&mut self) -> Field
-    {
+    fn squeeze(&mut self) -> Field {
         if self.squeeze_mode & (self.cache_size == 0) {
             // If we're in squeze mode and the cache is empty, there is nothing left to squeeze out of the sponge!
             // Switch to absorb mode.
@@ -98,9 +92,8 @@ impl Poseidon2 {
         result
     }
 
-    fn hash_internal<N>(input:[Field;N], in_len:u32, is_variable_length: bool) -> Field
-    {
-        let iv : Field = (in_len as Field)*18446744073709551616;
+    fn hash_internal<N>(input: [Field; N], in_len: u32, is_variable_length: bool) -> Field {
+        let iv : Field = (in_len as Field) * 18446744073709551616;
         let mut sponge = Poseidon2::new(iv);
         for i in 0..input.len() {
             if i as u32 < in_len {
