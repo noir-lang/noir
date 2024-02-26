@@ -119,8 +119,10 @@ impl super::FmtVisitor<'_> {
                 result.push_str("distinct ");
             }
 
-            if let Visibility::Public = func.def.return_visibility {
-                result.push_str("pub ");
+            match func.def.return_visibility {
+                Visibility::Public => result.push_str("pub "),
+                Visibility::DataBus => result.push_str("return_data "),
+                Visibility::Private => (),
             }
 
             let typ = rewrite::typ(self, self.shape(), func.return_type());
