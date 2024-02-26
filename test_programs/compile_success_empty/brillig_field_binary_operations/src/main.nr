@@ -2,10 +2,10 @@
 fn main() {
     let x = 4;
     let y = 2;
-    assert((x + y) == add(x, y));
-    assert((x - y) == sub(x, y));
-    assert((x * y) == mul(x, y));
-    assert((x / y) == div(x, y));
+    assert((x + y) == unsafe { add(x, y) });
+    assert((x - y) == unsafe { sub(x, y) });
+    assert((x * y) == unsafe { mul(x, y) });
+    assert((x / y) == unsafe { div(x, y) });
 }
 
 unconstrained fn add(x: Field, y: Field) -> Field {
