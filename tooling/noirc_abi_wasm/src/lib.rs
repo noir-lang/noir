@@ -26,9 +26,8 @@ use js_witness_map::JsWitnessMap;
 
 #[wasm_bindgen(typescript_custom_section)]
 const INPUT_MAP: &'static str = r#"
-export type Field = string | number | boolean;
-export type InputValue = Field | Field[] | InputMap;
-export type InputMap = { [key: string]: InputValue };
+import { Field, InputValue, InputMap, Visibility, Sign, AbiType, AbiParameter, Abi, WitnessMap } from "@noir-lang/types";
+export { Field, InputValue, InputMap, Visibility, Sign, AbiType, AbiParameter, Abi, WitnessMap } from "@noir-lang/types";
 "#;
 
 #[wasm_bindgen]
@@ -36,44 +35,11 @@ extern "C" {
     #[wasm_bindgen(extends = js_sys::Object, js_name = "InputMap", typescript_type = "InputMap")]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub type JsInputMap;
-}
 
-#[wasm_bindgen]
-extern "C" {
     #[wasm_bindgen(extends = js_sys::Object, js_name = "InputValue", typescript_type = "InputValue")]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub type JsInputValue;
-}
 
-#[wasm_bindgen(typescript_custom_section)]
-const ABI: &'static str = r#"
-export type Visibility = "public" | "private";
-export type Sign = "unsigned" | "signed";
-export type AbiType = 
-    { kind: "field" } |
-    { kind: "boolean" } |
-    { kind: "string", length: number } |
-    { kind: "integer", sign: Sign, width: number } |
-    { kind: "array", length: number, type: AbiType } |
-    { kind: "tuple", fields: AbiType[] } |
-    { kind: "struct", path: string, fields: { name: string, type: AbiType }[] };
-
-export type AbiParameter = {
-    name: string,
-    type: AbiType,
-    visibility: Visibility,
-};
-    
-export type Abi = {
-    parameters: AbiParameter[],
-    param_witnesses: Record<string, {start: number, end: number}[]>,
-    return_type: AbiType | null,
-    return_witnesses: number[],
-}
-"#;
-
-#[wasm_bindgen]
-extern "C" {
     #[wasm_bindgen(extends = js_sys::Object, js_name = "Abi", typescript_type = "Abi")]
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub type JsAbi;
@@ -96,7 +62,7 @@ pub fn abi_encode(
                 .expect("could not decode return value");
             InputValue::try_from_json(
                 toml_return_value,
-                abi.return_type.as_ref().unwrap(),
+                &abi.return_type.as_ref().unwrap().abi_type,
                 MAIN_RETURN_NAME,
             )
         })
@@ -134,7 +100,7 @@ pub fn abi_decode(abi: JsAbi, witness_map: JsWitnessMap) -> Result<JsValue, JsAb
     })?;
 
     let return_value = return_value
-        .map(|value| JsonTypes::try_from_input_value(&value, &abi.return_type.unwrap()))
+        .map(|value| JsonTypes::try_from_input_value(&value, &abi.return_type.unwrap().abi_type))
         .transpose()?;
 
     #[derive(Serialize)]

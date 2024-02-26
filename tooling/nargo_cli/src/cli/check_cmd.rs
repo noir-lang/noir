@@ -2,16 +2,21 @@ use crate::backends::Backend;
 use crate::errors::CliError;
 
 use clap::Args;
+use fm::FileManager;
 use iter_extended::btree_map;
-use nargo::{errors::CompileError, package::Package, prepare_package};
+use nargo::{
+    errors::CompileError, insert_all_files_for_workspace_into_file_manager, package::Package,
+    parse_all, prepare_package,
+};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{
-    check_crate, compute_function_abi, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
+    check_crate, compute_function_abi, file_manager_with_stdlib, CompileOptions,
+    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
-    hir::Context,
+    hir::{Context, ParsedFiles},
 };
 
 use super::fs::write_to_file;
@@ -47,20 +52,29 @@ pub(crate) fn run(
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
     )?;
 
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let parsed_files = parse_all(&workspace_file_manager);
+
     for package in &workspace {
-        check_package(package, &args.compile_options)?;
+        check_package(&workspace_file_manager, &parsed_files, package, &args.compile_options)?;
         println!("[{}] Constraint system successfully built!", package.name);
     }
     Ok(())
 }
 
-fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<(), CompileError> {
-    let (mut context, crate_id) =
-        prepare_package(package, Box::new(|path| std::fs::read_to_string(path)));
+fn check_package(
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+    package: &Package,
+    compile_options: &CompileOptions,
+) -> Result<(), CompileError> {
+    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(
         &mut context,
         crate_id,
         compile_options.deny_warnings,
+        compile_options.disable_macros,
         compile_options.silence_warnings,
     )?;
 
@@ -128,6 +142,24 @@ fn create_input_toml_template(
     toml::to_string(&map).unwrap()
 }
 
+/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
+/// and errors found.
+pub(crate) fn check_crate_and_report_errors(
+    context: &mut Context,
+    crate_id: CrateId,
+    deny_warnings: bool,
+    disable_macros: bool,
+    silence_warnings: bool,
+) -> Result<(), CompileError> {
+    let result = check_crate(context, crate_id, deny_warnings, disable_macros);
+    super::compile_cmd::report_errors(
+        result,
+        &context.file_manager,
+        deny_warnings,
+        silence_warnings,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
@@ -174,21 +206,4 @@ d2 = ["", "", ""]
 "#;
         assert_eq!(toml_str, expected_toml_str);
     }
-}
-
-/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
-/// and errors found.
-pub(crate) fn check_crate_and_report_errors(
-    context: &mut Context,
-    crate_id: CrateId,
-    deny_warnings: bool,
-    silence_warnings: bool,
-) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, deny_warnings);
-    super::compile_cmd::report_errors(
-        result,
-        &context.file_manager,
-        deny_warnings,
-        silence_warnings,
-    )
 }

@@ -38,7 +38,7 @@ mod tests {
     use std::collections::BTreeSet;
 
     use acvm::acir::{
-        circuit::{Circuit, Opcode, PublicInputs},
+        circuit::{Circuit, ExpressionWidth, Opcode, PublicInputs},
         native_types::{Expression, Witness},
     };
 
@@ -47,15 +47,17 @@ mod tests {
     #[test]
     fn test_smart_contract() -> Result<(), BackendError> {
         let expression = &(Witness(1) + Witness(2)) - &Expression::from(Witness(3));
-        let constraint = Opcode::Arithmetic(expression);
+        let constraint = Opcode::AssertZero(expression);
 
         let circuit = Circuit {
             current_witness_index: 4,
+            expression_width: ExpressionWidth::Bounded { width: 3 },
             opcodes: vec![constraint],
             private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
+            recursive: false,
         };
 
         let contract = get_mock_backend()?.eth_contract(&circuit)?;

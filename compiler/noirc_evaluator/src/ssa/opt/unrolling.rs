@@ -7,7 +7,7 @@
 //!    b. If we have previously modified any of the blocks in the loop,
 //!       restart from step 1 to refresh the context.
 //!    c. If not, try to unroll the loop. If successful, remember the modified
-//!       blocks. If unsuccessfuly either error if the abort_on_error flag is set,
+//!       blocks. If unsuccessfully either error if the abort_on_error flag is set,
 //!       or otherwise remember that the loop failed to unroll and leave it unmodified.
 //!
 //! Note that this pass also often creates superfluous jmp instructions in the
@@ -36,6 +36,7 @@ use fxhash::FxHashMap as HashMap;
 impl Ssa {
     /// Unroll all loops in each SSA function.
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn unroll_loops(mut self) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             // Loop unrolling in brillig can lead to a code explosion currently. This can

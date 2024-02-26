@@ -28,9 +28,12 @@ use num_bigint::BigUint;
 /// The output of the Acir-gen pass
 pub(crate) struct GeneratedAcir {
     /// The next witness index that may be declared.
+    /// If witness index is `None` then we have not yet created a witness
+    /// and thus next witness index that be declared is zero.
+    /// This field is private should only ever be accessed through its getter and setter.
     ///
     /// Equivalent to acvm::acir::circuit::Circuit's field of the same name.
-    pub(crate) current_witness_index: u32,
+    current_witness_index: Option<u32>,
 
     /// The opcodes of which the compiled ACIR will comprise.
     opcodes: Vec<AcirOpcode>,
@@ -60,7 +63,7 @@ pub(crate) struct GeneratedAcir {
 impl GeneratedAcir {
     /// Returns the current witness index.
     pub(crate) fn current_witness_index(&self) -> Witness {
-        Witness(self.current_witness_index)
+        Witness(self.current_witness_index.unwrap_or(0))
     }
 
     /// Adds a new opcode into ACIR.
@@ -71,6 +74,10 @@ impl GeneratedAcir {
         }
     }
 
+    pub(crate) fn opcodes(&self) -> &[AcirOpcode] {
+        &self.opcodes
+    }
+
     pub(crate) fn take_opcodes(&mut self) -> Vec<AcirOpcode> {
         std::mem::take(&mut self.opcodes)
     }
@@ -78,8 +85,12 @@ impl GeneratedAcir {
     /// Updates the witness index counter and returns
     /// the next witness index.
     pub(crate) fn next_witness_index(&mut self) -> Witness {
-        self.current_witness_index += 1;
-        Witness(self.current_witness_index)
+        if let Some(current_index) = self.current_witness_index {
+            self.current_witness_index.replace(current_index + 1);
+        } else {
+            self.current_witness_index = Some(0);
+        }
+        Witness(self.current_witness_index.expect("ICE: current_witness_index should exist"))
     }
 
     /// Converts [`Expression`] `expr` into a [`Witness`].
@@ -131,7 +142,8 @@ impl GeneratedAcir {
         &mut self,
         func_name: BlackBoxFunc,
         inputs: &[Vec<FunctionInput>],
-        constants: Vec<FieldElement>,
+        constant_inputs: Vec<FieldElement>,
+        constant_outputs: Vec<FieldElement>,
         output_count: usize,
     ) -> Result<Vec<Witness>, InternalError> {
         let input_count = inputs.iter().fold(0usize, |sum, val| sum + val.len());
@@ -155,10 +167,7 @@ impl GeneratedAcir {
             BlackBoxFunc::Blake2s => {
                 BlackBoxFuncCall::Blake2s { inputs: inputs[0].clone(), outputs }
             }
-            BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {
-                inputs: inputs[0].clone(),
-                output: outputs[0],
-            },
+            BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 { inputs: inputs[0].clone(), outputs },
             BlackBoxFunc::SchnorrVerify => {
                 BlackBoxFuncCall::SchnorrVerify {
                     public_key_x: inputs[0][0],
@@ -172,12 +181,12 @@ impl GeneratedAcir {
             BlackBoxFunc::PedersenCommitment => BlackBoxFuncCall::PedersenCommitment {
                 inputs: inputs[0].clone(),
                 outputs: (outputs[0], outputs[1]),
-                domain_separator: constants[0].to_u128() as u32,
+                domain_separator: constant_inputs[0].to_u128() as u32,
             },
             BlackBoxFunc::PedersenHash => BlackBoxFuncCall::PedersenHash {
                 inputs: inputs[0].clone(),
                 output: outputs[0],
-                domain_separator: constants[0].to_u128() as u32,
+                domain_separator: constant_inputs[0].to_u128() as u32,
             },
             BlackBoxFunc::EcdsaSecp256k1 => {
                 BlackBoxFuncCall::EcdsaSecp256k1 {
@@ -208,6 +217,13 @@ impl GeneratedAcir {
                 high: inputs[1][0],
                 outputs: (outputs[0], outputs[1]),
             },
+            BlackBoxFunc::EmbeddedCurveAdd => BlackBoxFuncCall::EmbeddedCurveAdd {
+                input1_x: inputs[0][0],
+                input1_y: inputs[1][0],
+                input2_x: inputs[2][0],
+                input2_y: inputs[3][0],
+                outputs: (outputs[0], outputs[1]),
+            },
             BlackBoxFunc::Keccak256 => {
                 let var_message_size = match inputs.to_vec().pop() {
                     Some(var_message_size) => var_message_size[0],
@@ -226,26 +242,54 @@ impl GeneratedAcir {
                     outputs,
                 }
             }
-            BlackBoxFunc::RecursiveAggregation => {
-                let has_previous_aggregation = self.opcodes.iter().any(|op| {
-                    matches!(
-                        op,
-                        AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation { .. })
-                    )
-                });
-
-                let input_aggregation_object =
-                    if !has_previous_aggregation { None } else { Some(inputs[4].clone()) };
-
-                BlackBoxFuncCall::RecursiveAggregation {
-                    verification_key: inputs[0].clone(),
-                    proof: inputs[1].clone(),
-                    public_inputs: inputs[2].clone(),
-                    key_hash: inputs[3][0],
-                    input_aggregation_object,
-                    output_aggregation_object: outputs,
-                }
+            BlackBoxFunc::Keccakf1600 => {
+                BlackBoxFuncCall::Keccakf1600 { inputs: inputs[0].clone(), outputs }
             }
+            BlackBoxFunc::RecursiveAggregation => BlackBoxFuncCall::RecursiveAggregation {
+                verification_key: inputs[0].clone(),
+                proof: inputs[1].clone(),
+                public_inputs: inputs[2].clone(),
+                key_hash: inputs[3][0],
+            },
+            BlackBoxFunc::BigIntAdd => BlackBoxFuncCall::BigIntAdd {
+                lhs: constant_inputs[0].to_u128() as u32,
+                rhs: constant_inputs[1].to_u128() as u32,
+                output: constant_outputs[0].to_u128() as u32,
+            },
+            BlackBoxFunc::BigIntSub => BlackBoxFuncCall::BigIntSub {
+                lhs: constant_inputs[0].to_u128() as u32,
+                rhs: constant_inputs[1].to_u128() as u32,
+                output: constant_outputs[0].to_u128() as u32,
+            },
+            BlackBoxFunc::BigIntMul => BlackBoxFuncCall::BigIntMul {
+                lhs: constant_inputs[0].to_u128() as u32,
+                rhs: constant_inputs[1].to_u128() as u32,
+                output: constant_outputs[0].to_u128() as u32,
+            },
+            BlackBoxFunc::BigIntDiv => BlackBoxFuncCall::BigIntDiv {
+                lhs: constant_inputs[0].to_u128() as u32,
+                rhs: constant_inputs[1].to_u128() as u32,
+                output: constant_outputs[0].to_u128() as u32,
+            },
+            BlackBoxFunc::BigIntFromLeBytes => BlackBoxFuncCall::BigIntFromLeBytes {
+                inputs: inputs[0].clone(),
+                modulus: vecmap(constant_inputs, |c| c.to_u128() as u8),
+                output: constant_outputs[0].to_u128() as u32,
+            },
+            BlackBoxFunc::BigIntToLeBytes => BlackBoxFuncCall::BigIntToLeBytes {
+                input: constant_inputs[0].to_u128() as u32,
+                outputs,
+            },
+            BlackBoxFunc::Poseidon2Permutation => BlackBoxFuncCall::Poseidon2Permutation {
+                inputs: inputs[0].clone(),
+                outputs,
+                len: constant_inputs[0].to_u128() as u32,
+            },
+            BlackBoxFunc::Sha256Compression => BlackBoxFuncCall::Sha256Compression {
+                inputs: inputs[0].clone(),
+                hash_values: inputs[1].clone(),
+                outputs,
+            },
         };
 
         self.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
@@ -372,7 +416,7 @@ impl GeneratedAcir {
     /// If `expr` is not zero, then the constraint system will
     /// fail upon verification.
     pub(crate) fn assert_is_zero(&mut self, expr: Expression) {
-        self.push_opcode(AcirOpcode::Arithmetic(expr));
+        self.push_opcode(AcirOpcode::AssertZero(expr));
     }
 
     /// Returns a `Witness` that is constrained to be:
@@ -523,40 +567,6 @@ impl GeneratedAcir {
         }
     }
 
-    /// Generate gates and control bits witnesses which ensure that out_expr is a permutation of in_expr
-    /// Add the control bits of the sorting network used to generate the constrains
-    /// into the PermutationSort directive for solving in ACVM.
-    /// The directive is solving the control bits so that the outputs are sorted in increasing order.
-    ///
-    /// n.b. A sorting network is a predetermined set of switches,
-    /// the control bits indicate the configuration of each switch: false for pass-through and true for cross-over
-    pub(crate) fn permutation(
-        &mut self,
-        in_expr: &[Expression],
-        out_expr: &[Expression],
-    ) -> Result<(), RuntimeError> {
-        let mut bits_len = 0;
-        for i in 0..in_expr.len() {
-            bits_len += ((i + 1) as f32).log2().ceil() as u32;
-        }
-
-        let bits = vecmap(0..bits_len, |_| self.next_witness_index());
-        let inputs = in_expr.iter().map(|a| vec![a.clone()]).collect();
-        self.push_opcode(AcirOpcode::Directive(Directive::PermutationSort {
-            inputs,
-            tuple: 1,
-            bits: bits.clone(),
-            sort_by: vec![0],
-        }));
-        let (_, b) = self.permutation_layer(in_expr, &bits, false)?;
-
-        // Constrain the network output to out_expr
-        for (b, o) in b.iter().zip(out_expr) {
-            self.push_opcode(AcirOpcode::Arithmetic(b - o));
-        }
-        Ok(())
-    }
-
     pub(crate) fn last_acir_opcode_location(&self) -> OpcodeLocation {
         OpcodeLocation::Acir(self.opcodes.len() - 1)
     }
@@ -568,15 +578,22 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
     match name {
         // Bitwise opcodes will take in 2 parameters
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(2),
+
         // All of the hash/cipher methods will take in a
         // variable number of inputs.
         BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
+        | BlackBoxFunc::Blake3
         | BlackBoxFunc::PedersenCommitment
-        | BlackBoxFunc::PedersenHash
-        | BlackBoxFunc::HashToField128Security => None,
+        | BlackBoxFunc::PedersenHash => None,
 
+        BlackBoxFunc::Keccakf1600 => Some(25),
+        // The permutation takes a fixed number of inputs, but the inputs length depends on the proving system implementation.
+        BlackBoxFunc::Poseidon2Permutation => None,
+
+        // SHA256 compression requires 16 u32s as input message and 8 u32s for the hash state.
+        BlackBoxFunc::Sha256Compression => Some(24),
         // Can only apply a range constraint to one
         // witness at a time.
         BlackBoxFunc::RANGE => Some(1),
@@ -586,11 +603,26 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::SchnorrVerify
         | BlackBoxFunc::EcdsaSecp256k1
         | BlackBoxFunc::EcdsaSecp256r1 => None,
+
         // Inputs for fixed based scalar multiplication
         // is the low and high limbs of the scalar
         BlackBoxFunc::FixedBaseScalarMul => Some(2),
+
         // Recursive aggregation has a variable number of inputs
         BlackBoxFunc::RecursiveAggregation => None,
+
+        // Addition over the embedded curve: input are coordinates (x1,y1) and (x2,y2) of the Grumpkin points
+        BlackBoxFunc::EmbeddedCurveAdd => Some(4),
+
+        // Big integer operations take in 0 inputs. They use constants for their inputs.
+        BlackBoxFunc::BigIntAdd
+        | BlackBoxFunc::BigIntSub
+        | BlackBoxFunc::BigIntMul
+        | BlackBoxFunc::BigIntDiv
+        | BlackBoxFunc::BigIntToLeBytes => Some(0),
+
+        // FromLeBytes takes a variable array of bytes as input
+        BlackBoxFunc::BigIntFromLeBytes => None,
     }
 }
 
@@ -601,24 +633,47 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         // Bitwise opcodes will return 1 parameter which is the output
         // or the operation.
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
+
         // 32 byte hash algorithms
-        BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => Some(32),
-        // Hash to field returns a field element
-        BlackBoxFunc::HashToField128Security => Some(1),
+        BlackBoxFunc::Keccak256
+        | BlackBoxFunc::SHA256
+        | BlackBoxFunc::Blake2s
+        | BlackBoxFunc::Blake3 => Some(32),
+
+        BlackBoxFunc::Keccakf1600 => Some(25),
+        // The permutation returns a fixed number of outputs, equals to the inputs length which depends on the proving system implementation.
+        BlackBoxFunc::Poseidon2Permutation => None,
+
+        BlackBoxFunc::Sha256Compression => Some(8),
         // Pedersen commitment returns a point
         BlackBoxFunc::PedersenCommitment => Some(2),
+
         // Pedersen hash returns a field
         BlackBoxFunc::PedersenHash => Some(1),
+
         // Can only apply a range constraint to one
         // witness at a time.
         BlackBoxFunc::RANGE => Some(0),
+
         // Signature verification algorithms will return a boolean
         BlackBoxFunc::SchnorrVerify
         | BlackBoxFunc::EcdsaSecp256k1
         | BlackBoxFunc::EcdsaSecp256r1 => Some(1),
-        // Output of fixed based scalar mul over the embedded curve
+
+        // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul => Some(2),
+        BlackBoxFunc::FixedBaseScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
+
+        // Big integer operations return a big integer
+        BlackBoxFunc::BigIntAdd
+        | BlackBoxFunc::BigIntSub
+        | BlackBoxFunc::BigIntMul
+        | BlackBoxFunc::BigIntDiv
+        | BlackBoxFunc::BigIntFromLeBytes => Some(0),
+
+        // ToLeBytes returns a variable array of bytes
+        BlackBoxFunc::BigIntToLeBytes => None,
+
         // Recursive aggregation has a variable number of outputs
         BlackBoxFunc::RecursiveAggregation => None,
     }
@@ -675,5 +730,5 @@ fn intrinsics_check_outputs(name: BlackBoxFunc, output_count: usize) {
         None => return,
     };
 
-    assert_eq!(expected_num_outputs,output_count,"Tried to call black box function {name} with {output_count} inputs, but this function's definition requires {expected_num_outputs} inputs");
+    assert_eq!(expected_num_outputs,output_count,"Tried to call black box function {name} with {output_count} outputs, but this function's definition requires {expected_num_outputs} outputs");
 }

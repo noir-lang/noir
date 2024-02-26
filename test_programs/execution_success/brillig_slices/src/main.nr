@@ -131,7 +131,7 @@ unconstrained fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
     let mut slice = [0; 2];
     if x != y {
         for i in 0..5 {
-            slice = slice.push_back(i);
+            slice = slice.push_back(i as Field);
         }
     } else {
         slice = slice.push_back(x);

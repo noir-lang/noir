@@ -4,28 +4,44 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
+use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::parser::ParserError;
+use crate::ParsedModule;
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use noirc_errors::Location;
-use std::collections::BTreeMap;
+use std::borrow::Cow;
+use std::collections::{BTreeMap, HashMap};
 
 use self::def_map::TestFunction;
+
+pub type ParsedFiles = HashMap<fm::FileId, (ParsedModule, Vec<ParserError>)>;
 
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
-pub struct Context {
+pub struct Context<'file_manager, 'parsed_files> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
-    pub file_manager: FileManager,
+    // In the WASM context, we take ownership of the file manager,
+    // which is why this needs to be a Cow. In all use-cases, the file manager
+    // is read-only however, once it has been passed to the Context.
+    pub file_manager: Cow<'file_manager, FileManager>,
+
+    pub debug_instrumenter: DebugInstrumenter,
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
     pub visited_files: BTreeMap<fm::FileId, Location>,
+
+    // A map of all parsed files.
+    // Same as the file manager, we take ownership of the parsed files in the WASM context.
+    // Parsed files is also read only.
+    pub parsed_files: Cow<'parsed_files, ParsedFiles>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -35,15 +51,36 @@ pub enum FunctionNameMatch<'a> {
     Contains(&'a str),
 }
 
-impl Context {
-    pub fn new(file_manager: FileManager, crate_graph: CrateGraph) -> Context {
+impl Context<'_, '_> {
+    pub fn new(file_manager: FileManager, parsed_files: ParsedFiles) -> Context<'static, 'static> {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             visited_files: BTreeMap::new(),
-            crate_graph,
-            file_manager,
+            crate_graph: CrateGraph::default(),
+            file_manager: Cow::Owned(file_manager),
+            debug_instrumenter: DebugInstrumenter::default(),
+            parsed_files: Cow::Owned(parsed_files),
         }
+    }
+
+    pub fn from_ref_file_manager<'file_manager, 'parsed_files>(
+        file_manager: &'file_manager FileManager,
+        parsed_files: &'parsed_files ParsedFiles,
+    ) -> Context<'file_manager, 'parsed_files> {
+        Context {
+            def_interner: NodeInterner::default(),
+            def_maps: BTreeMap::new(),
+            visited_files: BTreeMap::new(),
+            crate_graph: CrateGraph::default(),
+            file_manager: Cow::Borrowed(file_manager),
+            debug_instrumenter: DebugInstrumenter::default(),
+            parsed_files: Cow::Borrowed(parsed_files),
+        }
+    }
+
+    pub fn parsed_file_results(&self, file_id: fm::FileId) -> (ParsedModule, Vec<ParserError>) {
+        self.parsed_files.get(&file_id).expect("noir file wasn't parsed").clone()
     }
 
     /// Returns the CrateDefMap for a given CrateId.
@@ -138,7 +175,7 @@ impl Context {
         None
     }
 
-    pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
+    pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
         self.def_interner.function_meta(func_id)
     }
 
@@ -176,6 +213,19 @@ impl Context {
                         .contains(pattern)
                         .then_some((fully_qualified_name, test_function)),
                 }
+            })
+            .collect()
+    }
+
+    pub fn get_all_exported_functions_in_crate(&self, crate_id: &CrateId) -> Vec<(String, FuncId)> {
+        let interner = &self.def_interner;
+        let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
+
+        def_map
+            .get_all_exported_functions(interner)
+            .map(|function_id| {
+                let function_name = self.function_name(&function_id).to_owned();
+                (function_name, function_id)
             })
             .collect()
     }

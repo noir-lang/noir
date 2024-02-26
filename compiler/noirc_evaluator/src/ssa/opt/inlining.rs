@@ -36,6 +36,7 @@ impl Ssa {
     /// changes. This is because if the function's id later becomes known by a later
     /// pass, we would need to re-run all of inlining anyway to inline it, so we might
     /// as well save the work for later instead of performing it twice.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(mut self) -> Ssa {
         self.functions = btree_map(get_entry_point_functions(&self), |entry_point| {
             let new_function = InlineContext::new(&self, entry_point).inline_all(&self);
@@ -139,11 +140,15 @@ impl InlineContext {
 
         context.blocks.insert(context.source_function.entry_block(), entry_block);
         context.inline_blocks(ssa);
+        // translate databus values
+        let databus = entry_point.dfg.data_bus.map_values(|t| context.translate_value(t));
 
         // Finally, we should have 1 function left representing the inlined version of the target function.
         let mut new_ssa = self.builder.finish();
         assert_eq!(new_ssa.functions.len(), 1);
-        new_ssa.functions.pop_first().unwrap().1
+        let mut new_func = new_ssa.functions.pop_first().unwrap().1;
+        new_func.dfg.data_bus = databus;
+        new_func
     }
 
     /// Inlines a function into the current function and returns the translated return values

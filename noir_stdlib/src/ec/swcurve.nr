@@ -7,6 +7,8 @@ mod affine {
     use crate::ec::safe_inverse;
     use crate::ec::is_square;
     use crate::ec::sqrt;
+    use crate::cmp::Eq;
+
     // Curve specification
     struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + ax + b
@@ -26,15 +28,6 @@ mod affine {
         // Point constructor
         pub fn new(x: Field, y: Field) -> Self {
             Self {x, y, infty: false}
-        }
-
-        // Check for equality
-        fn eq(self, p: Point) -> bool {
-            let Self {x: x1, y: y1, infty: inf1} = self;
-            let Self {x: x2, y: y2, infty: inf2} = p;
-
-            (inf1 & inf2)
-                | (!inf1 & !inf2 & (x1 == x2) & (y1 == y2))
         }
 
         // Check if zero
@@ -62,6 +55,16 @@ mod affine {
         fn negate(self) -> Self {
             let Self {x, y, infty} = self;
             Self {x, y: 0-y, infty}
+        }
+    }
+
+    impl Eq for Point {
+        fn eq(self, p: Self) -> bool {
+             let Self {x: x1, y: y1, infty: inf1} = self;
+            let Self {x: x2, y: y2, infty: inf2} = p;
+
+            (inf1 & inf2)
+                | (!inf1 & !inf2 & (x1 == x2) & (y1 == y2))
         }
     }
 
@@ -182,6 +185,8 @@ mod curvegroup {
     // Points are represented by three-dimensional Jacobian coordinates.
     // See <https://en.wikibooks.org/wiki/Cryptography/Prime_Curve/Jacobian_Coordinates> for details.
     use crate::ec::swcurve::affine;
+    use crate::cmp::Eq;
+
     // Curve specification
     struct Curve { // Short Weierstraß curve
         // Coefficients in defining equation y^2 = x^3 + axz^4 + bz^6
@@ -201,14 +206,6 @@ mod curvegroup {
         // Point constructor
         pub fn new(x: Field, y: Field, z: Field) -> Self {
             Self {x, y, z}
-        }
-
-        // Check for equality
-        fn eq(self, p: Point) -> bool {
-            let Self {x: x1, y: y1, z: z1} = self;
-            let Self {x: x2, y: y2, z: z2} = p;
-
-            ((z1 == 0) & (z2 == 0)) | ((z1 != 0) & (z2 != 0) & (x1*z2*z2 == x2*z1*z1) & (y1*z2*z2*z2 == y2*z1*z1*z1))
         }
 
         // Check if zero
@@ -237,6 +234,15 @@ mod curvegroup {
         fn negate(self) -> Self {
             let Self {x, y, z} = self;
             Self {x, y: 0-y, z}
+        }
+    }
+
+    impl Eq for Point {
+        fn eq(self, p: Self) -> bool {
+               let Self {x: x1, y: y1, z: z1} = self;
+            let Self {x: x2, y: y2, z: z2} = p;
+
+            ((z1 == 0) & (z2 == 0)) | ((z1 != 0) & (z2 != 0) & (x1*z2*z2 == x2*z1*z1) & (y1*z2*z2*z2 == y2*z1*z1*z1))
         }
     }
 

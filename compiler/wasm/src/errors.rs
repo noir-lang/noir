@@ -124,7 +124,10 @@ impl CompileError {
         let diagnostics: Vec<_> = file_diagnostics
             .iter()
             .map(|err| {
-                Diagnostic::new(err, file_manager.path(err.file_id).to_str().unwrap().to_string())
+                let file_path = file_manager
+                    .path(err.file_id)
+                    .expect("File must exist to have caused diagnostics");
+                Diagnostic::new(err, file_path.to_str().unwrap().to_string())
             })
             .collect();
 

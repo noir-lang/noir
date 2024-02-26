@@ -15,6 +15,7 @@ pub use expression::*;
 pub use function::*;
 
 use noirc_errors::Span;
+use serde::{Deserialize, Serialize};
 pub use statement::*;
 pub use structure::*;
 pub use traits::*;
@@ -27,6 +28,55 @@ use crate::{
 };
 use iter_extended::vecmap;
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
+pub enum IntegerBitSize {
+    One,
+    Eight,
+    ThirtyTwo,
+    SixtyFour,
+}
+
+impl IntegerBitSize {
+    pub fn allowed_sizes() -> Vec<Self> {
+        vec![Self::One, Self::Eight, Self::ThirtyTwo, Self::SixtyFour]
+    }
+}
+
+impl From<IntegerBitSize> for u32 {
+    fn from(size: IntegerBitSize) -> u32 {
+        use IntegerBitSize::*;
+        match size {
+            One => 1,
+            Eight => 8,
+            ThirtyTwo => 32,
+            SixtyFour => 64,
+        }
+    }
+}
+
+pub struct InvalidIntegerBitSizeError(pub u32);
+
+impl TryFrom<u32> for IntegerBitSize {
+    type Error = InvalidIntegerBitSizeError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        use IntegerBitSize::*;
+        match value {
+            1 => Ok(One),
+            8 => Ok(Eight),
+            32 => Ok(ThirtyTwo),
+            64 => Ok(SixtyFour),
+            _ => Err(InvalidIntegerBitSizeError(value)),
+        }
+    }
+}
+
+impl core::fmt::Display for IntegerBitSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", u32::from(*self))
+    }
+}
+
 /// The parser parses types as 'UnresolvedType's which
 /// require name resolution to resolve any type names used
 /// for structs within, but are otherwise identical to Types.
@@ -34,7 +84,7 @@ use iter_extended::vecmap;
 pub enum UnresolvedTypeData {
     FieldElement,
     Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(Signedness, u32),                                     // u32 = Integer(unsigned, 32)
+    Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     Expression(UnresolvedTypeExpression),
     String(Option<UnresolvedTypeExpression>),
@@ -44,7 +94,7 @@ pub enum UnresolvedTypeData {
     Parenthesized(Box<UnresolvedType>),
 
     /// A Named UnresolvedType can be a struct type or a type variable
-    Named(Path, Vec<UnresolvedType>),
+    Named(Path, Vec<UnresolvedType>, /*is_synthesized*/ bool),
 
     /// A Trait as return type or parameter of function, including its generics
     TraitAsType(Path, Vec<UnresolvedType>),
@@ -109,7 +159,7 @@ impl std::fmt::Display for UnresolvedTypeData {
                 Signedness::Signed => write!(f, "i{num_bits}"),
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
-            Named(s, args) => {
+            Named(s, args, _) => {
                 let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
                 if args.is_empty() {
                     write!(f, "{s}")
@@ -178,6 +228,14 @@ impl std::fmt::Display for UnresolvedTypeExpression {
 }
 
 impl UnresolvedType {
+    pub fn is_synthesized(&self) -> bool {
+        match &self.typ {
+            UnresolvedTypeData::MutableReference(ty) => ty.is_synthesized(),
+            UnresolvedTypeData::Named(_, _, synthesized) => *synthesized,
+            _ => false,
+        }
+    }
+
     pub fn without_span(typ: UnresolvedTypeData) -> UnresolvedType {
         UnresolvedType { typ, span: None }
     }
@@ -188,11 +246,17 @@ impl UnresolvedType {
 }
 
 impl UnresolvedTypeData {
-    pub fn from_int_token(token: IntType) -> UnresolvedTypeData {
+    pub fn from_int_token(
+        token: IntType,
+    ) -> Result<UnresolvedTypeData, InvalidIntegerBitSizeError> {
         use {IntType::*, UnresolvedTypeData::Integer};
         match token {
-            Signed(num_bits) => Integer(Signedness::Signed, num_bits),
-            Unsigned(num_bits) => Integer(Signedness::Unsigned, num_bits),
+            Signed(num_bits) => {
+                Ok(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)?))
+            }
+            Unsigned(num_bits) => {
+                Ok(Integer(Signedness::Unsigned, IntegerBitSize::try_from(num_bits)?))
+            }
         }
     }
 
@@ -233,10 +297,13 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int)) => match int.try_to_u64() {
-                Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
-                None => Err(expr),
-            },
+            ExpressionKind::Literal(Literal::Integer(int, sign)) => {
+                assert!(!sign, "Negative literal is not allowed here");
+                match int.try_to_u64() {
+                    Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
+                    None => Err(expr),
+                }
+            }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(0, expr.span));
@@ -253,7 +320,20 @@ impl UnresolvedTypeExpression {
                     BinaryOpKind::Multiply => BinaryTypeOperator::Multiplication,
                     BinaryOpKind::Divide => BinaryTypeOperator::Division,
                     BinaryOpKind::Modulo => BinaryTypeOperator::Modulo,
-                    _ => unreachable!(), // impossible via operator_allowed check
+
+                    BinaryOpKind::Equal
+                    | BinaryOpKind::NotEqual
+                    | BinaryOpKind::Less
+                    | BinaryOpKind::LessEqual
+                    | BinaryOpKind::Greater
+                    | BinaryOpKind::GreaterEqual
+                    | BinaryOpKind::And
+                    | BinaryOpKind::Or
+                    | BinaryOpKind::Xor
+                    | BinaryOpKind::ShiftRight
+                    | BinaryOpKind::ShiftLeft => {
+                        unreachable!("impossible via `operator_allowed` check")
+                    }
                 };
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.span))
             }
@@ -281,13 +361,16 @@ pub enum FunctionVisibility {
     PublicCrate,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum Visibility {
     Public,
     // Constants are not allowed in the ABI for main at the moment.
     // Constant,
     Private,
+    /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
+    /// it is useful for recursion and is handled by the proving system.
+    DataBus,
 }
 
 impl std::fmt::Display for Visibility {
@@ -295,6 +378,7 @@ impl std::fmt::Display for Visibility {
         match self {
             Self::Public => write!(f, "pub"),
             Self::Private => write!(f, "priv"),
+            Self::DataBus => write!(f, "databus"),
         }
     }
 }

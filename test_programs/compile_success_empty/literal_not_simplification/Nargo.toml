@@ -1,0 +1,7 @@
+[package]
+name = "literal_not_simplification"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.23.0"
+
+[dependencies]

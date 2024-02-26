@@ -2,11 +2,12 @@ use std::collections::BTreeMap;
 
 use acvm::acir::native_types::Witness;
 use iter_extended::{btree_map, vecmap};
-use noirc_abi::{Abi, AbiParameter, AbiType};
+use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType};
 use noirc_frontend::{
     hir::Context,
     hir_def::{function::Param, stmt::HirPattern},
     node_interner::{FuncId, NodeInterner},
+    Visibility,
 };
 use std::ops::Range;
 
@@ -17,9 +18,12 @@ pub(super) fn gen_abi(
     func_id: &FuncId,
     input_witnesses: Vec<Witness>,
     return_witnesses: Vec<Witness>,
+    return_visibility: Visibility,
 ) -> Abi {
     let (parameters, return_type) = compute_function_abi(context, func_id);
     let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);
+    let return_type = return_type
+        .map(|typ| AbiReturnType { abi_type: typ, visibility: return_visibility.into() });
     Abi { parameters, return_type, param_witnesses, return_witnesses }
 }
 
@@ -29,7 +33,7 @@ pub(super) fn compute_function_abi(
 ) -> (Vec<AbiParameter>, Option<AbiType>) {
     let func_meta = context.def_interner.function_meta(func_id);
 
-    let (parameters, return_type) = func_meta.into_function_signature();
+    let (parameters, return_type) = func_meta.function_signature();
     let parameters = into_abi_params(context, parameters);
     let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
     (parameters, return_type)
@@ -59,7 +63,7 @@ fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
 // Takes each abi parameter and shallowly maps to the expected witness range in which the
 // parameter's constituent values live.
 fn param_witnesses_from_abi_param(
-    abi_params: &Vec<AbiParameter>,
+    abi_params: &[AbiParameter],
     input_witnesses: Vec<Witness>,
 ) -> BTreeMap<String, Vec<Range<Witness>>> {
     let mut idx = 0_usize;

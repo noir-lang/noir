@@ -10,7 +10,7 @@ Noir's module system follows the same convention as the _newer_ version of Rust'
 
 ## Purpose of Modules
 
-Modules are used to organise files. Without modules all of your code would need to live in a single
+Modules are used to organize files. Without modules all of your code would need to live in a single
 file. In Noir, the compiler does not automatically scan all of your files to detect modules. This
 must be done explicitly by the developer.
 

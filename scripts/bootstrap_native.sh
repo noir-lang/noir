@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eu
 
 cd $(dirname "$0")/..
@@ -12,5 +12,15 @@ else
   export GIT_COMMIT=$(git rev-parse --verify HEAD)
 fi
 
+# Check if the 'cargo' command is available in the system
+if ! command -v cargo > /dev/null; then
+    echo "Cargo is not installed. Please install Cargo and the Rust toolchain."
+    exit 1
+fi
+
 # Build native.
-cargo build --features="noirc_driver/aztec" --release
+if [ -n "${DEBUG:-}" ]; then
+  cargo build
+else
+  cargo build --release
+fi

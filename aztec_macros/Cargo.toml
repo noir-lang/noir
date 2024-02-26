@@ -12,3 +12,4 @@ repository.workspace = true
 [dependencies]
 noirc_frontend.workspace = true
 iter-extended.workspace = true
+convert_case = "0.6.0"

@@ -1,11 +1,11 @@
-/* eslint-disable  @typescript-eslint/no-explicit-any */
 import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
 import { deflattenPublicInputs, flattenPublicInputsAsArray } from './public_inputs.js';
+import { type Barretenberg } from '@aztec/bb.js';
 
-export { flattenPublicInputs } from './public_inputs.js';
+export { publicInputsToWitnessMap } from './public_inputs.js';
 
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
@@ -16,12 +16,14 @@ export class BarretenbergBackend implements Backend {
   // have to initialize `api` and `acirComposer` in the constructor.
   // These are initialized asynchronously in the `init` function,
   // constructors cannot be asynchronous which is why we do this.
-  private api: any;
+
+  private api!: Barretenberg;
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   private acirComposer: any;
   private acirUncompressedBytecode: Uint8Array;
 
   constructor(
-    private acirCircuit: CompiledCircuit,
+    acirCircuit: CompiledCircuit,
     private options: BackendOptions = { threads: 1 },
   ) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
@@ -31,10 +33,8 @@ export class BarretenbergBackend implements Backend {
   /** @ignore */
   async instantiate(): Promise<void> {
     if (!this.api) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      //@ts-ignore
       const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
-      const api = await Barretenberg.new(this.options.threads);
+      const api = await Barretenberg.new({ threads: this.options.threads });
 
       const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(this.acirUncompressedBytecode);
       const crs = await Crs.new(subgroupSize + 1);
@@ -47,77 +47,42 @@ export class BarretenbergBackend implements Backend {
     }
   }
 
-  // Generate an outer proof. This is the proof for the circuit which will verify
-  // inner proofs and or can be seen as the proof created for regular circuits.
-  //
-  // The settings for this proof are the same as the settings for a "normal" proof
-  // ie one that is not in the recursive setting.
-  async generateFinalProof(decompressedWitness: Uint8Array): Promise<ProofData> {
-    const makeEasyToVerifyInCircuit = false;
-    return this.generateProof(decompressedWitness, makeEasyToVerifyInCircuit);
-  }
-
-  // Generates an inner proof. This is the proof that will be verified
-  // in another circuit.
-  //
-  // This is sometimes referred to as a recursive proof.
-  // We avoid this terminology as the only property of this proof
-  // that matters, is the fact that it is easy to verify in another
-  // circuit. We _could_ choose to verify this proof in the CLI.
-  //
-  // We set `makeEasyToVerifyInCircuit` to true, which will tell the backend to
-  // generate the proof using components that will make the proof
-  // easier to verify in a circuit.
-
-  /**
-   *
-   * @example
-   * ```typescript
-   * const intermediateProof = await backend.generateIntermediateProof(witness);
-   * ```
-   */
-  async generateIntermediateProof(witness: Uint8Array): Promise<ProofData> {
-    const makeEasyToVerifyInCircuit = true;
-    return this.generateProof(witness, makeEasyToVerifyInCircuit);
-  }
-
-  /** @ignore */
-  async generateProof(compressedWitness: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<ProofData> {
+  /** @description Generates a proof */
+  async generateProof(compressedWitness: Uint8Array): Promise<ProofData> {
     await this.instantiate();
+    // TODO: Change once `@aztec/bb.js` version is updated to use methods without isRecursive flag
     const proofWithPublicInputs = await this.api.acirCreateProof(
       this.acirComposer,
       this.acirUncompressedBytecode,
       gunzip(compressedWitness),
-      makeEasyToVerifyInCircuit,
     );
 
     const splitIndex = proofWithPublicInputs.length - numBytesInProofWithoutPublicInputs;
 
     const publicInputsConcatenated = proofWithPublicInputs.slice(0, splitIndex);
     const proof = proofWithPublicInputs.slice(splitIndex);
-    const publicInputs = deflattenPublicInputs(publicInputsConcatenated, this.acirCircuit.abi);
+    const publicInputs = deflattenPublicInputs(publicInputsConcatenated);
 
     return { proof, publicInputs };
   }
 
-  // Generates artifacts that will be passed to a circuit that will verify this proof.
-  //
-  // Instead of passing the proof and verification key as a byte array, we pass them
-  // as fields which makes it cheaper to verify in a circuit.
-  //
-  // The proof that is passed here will have been created using the `generateInnerProof`
-  // method.
-  //
-  // The number of public inputs denotes how many public inputs are in the inner proof.
-
   /**
+   * Generates artifacts that will be passed to a circuit that will verify this proof.
+   *
+   * Instead of passing the proof and verification key as a byte array, we pass them
+   * as fields which makes it cheaper to verify in a circuit.
+   *
+   * The proof that is passed here will have been created using a circuit
+   * that has the #[recursive] attribute on its `main` method.
+   *
+   * The number of public inputs denotes how many public inputs are in the inner proof.
    *
    * @example
    * ```typescript
-   * const artifacts = await backend.generateIntermediateProofArtifacts(proof, numOfPublicInputs);
+   * const artifacts = await backend.generateRecursiveProofArtifacts(proof, numOfPublicInputs);
    * ```
    */
-  async generateIntermediateProofArtifacts(
+  async generateRecursiveProofArtifacts(
     proofData: ProofData,
     numOfPublicInputs = 0,
   ): Promise<{
@@ -127,7 +92,9 @@ export class BarretenbergBackend implements Backend {
   }> {
     await this.instantiate();
     const proof = reconstructProofWithPublicInputs(proofData);
-    const proofAsFields = await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs);
+    const proofAsFields = (
+      await this.api.acirSerializeProofIntoFields(this.acirComposer, proof, numOfPublicInputs)
+    ).slice(numOfPublicInputs);
 
     // TODO: perhaps we should put this in the init function. Need to benchmark
     // TODO how long it takes.
@@ -143,31 +110,13 @@ export class BarretenbergBackend implements Backend {
     };
   }
 
-  async verifyFinalProof(proofData: ProofData): Promise<boolean> {
+  /** @description Verifies a proof */
+  async verifyProof(proofData: ProofData): Promise<boolean> {
     const proof = reconstructProofWithPublicInputs(proofData);
-    const makeEasyToVerifyInCircuit = false;
-    const verified = await this.verifyProof(proof, makeEasyToVerifyInCircuit);
-    return verified;
-  }
-
-  /**
-   *
-   * @example
-   * ```typescript
-   * const isValidIntermediate = await backend.verifyIntermediateProof(proof);
-   * ```
-   */
-  async verifyIntermediateProof(proofData: ProofData): Promise<boolean> {
-    const proof = reconstructProofWithPublicInputs(proofData);
-    const makeEasyToVerifyInCircuit = true;
-    return this.verifyProof(proof, makeEasyToVerifyInCircuit);
-  }
-
-  /** @ignore */
-  async verifyProof(proof: Uint8Array, makeEasyToVerifyInCircuit: boolean): Promise<boolean> {
     await this.instantiate();
     await this.api.acirInitVerificationKey(this.acirComposer);
-    return await this.api.acirVerifyProof(this.acirComposer, proof, makeEasyToVerifyInCircuit);
+    // TODO: Change once `@aztec/bb.js` version is updated to use methods without isRecursive flag
+    return await this.api.acirVerifyProof(this.acirComposer, proof);
   }
 
   async destroy(): Promise<void> {

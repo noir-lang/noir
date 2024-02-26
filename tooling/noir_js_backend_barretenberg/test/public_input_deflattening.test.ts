@@ -1,6 +1,6 @@
 import { Abi } from '@noir-lang/types';
 import { expect } from 'chai';
-import { flattenPublicInputsAsArray, deflattenPublicInputs, flattenPublicInputs } from '../src/public_inputs.js';
+import { witnessMapToPublicInputs, publicInputsToWitnessMap } from '../src/public_inputs.js';
 
 const abi: Abi = {
   parameters: [
@@ -38,18 +38,21 @@ const abi: Abi = {
     ],
   },
   return_type: {
-    kind: 'tuple',
-    fields: [
-      {
-        kind: 'field',
-      },
-      {
-        kind: 'field',
-      },
-      {
-        kind: 'field',
-      },
-    ],
+    abi_type: {
+      kind: 'tuple',
+      fields: [
+        {
+          kind: 'field',
+        },
+        {
+          kind: 'field',
+        },
+        {
+          kind: 'field',
+        },
+      ],
+    },
+    visibility: 'public',
   },
   return_witnesses: [2, 13, 13],
 };
@@ -66,7 +69,7 @@ it('flattens a witness map in order of its witness indices', async () => {
     ]),
   );
 
-  const flattened_public_inputs = flattenPublicInputs(witness_map);
+  const flattened_public_inputs = witnessMapToPublicInputs(witness_map);
   expect(flattened_public_inputs).to.be.deep.eq([
     '0x0000000000000000000000000000000000000000000000000000000000000002',
     '0x000000000000000000000000000000000000000000000000000000000000000b',
@@ -86,8 +89,8 @@ it('recovers the original witness map when deflattening a public input array', a
     ]),
   );
 
-  const flattened_public_inputs = flattenPublicInputsAsArray(witness_map);
-  const deflattened_public_inputs = deflattenPublicInputs(flattened_public_inputs, abi);
+  const flattened_public_inputs = witnessMapToPublicInputs(witness_map);
+  const deflattened_public_inputs = publicInputsToWitnessMap(flattened_public_inputs, abi);
 
   expect(deflattened_public_inputs).to.be.deep.eq(witness_map);
 });

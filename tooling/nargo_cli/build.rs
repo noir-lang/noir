@@ -6,17 +6,14 @@ use std::{env, fs};
 
 fn check_rustc_version() {
     assert!(
-        version().unwrap() >= Version::parse("1.71.1").unwrap(),
-        "The minimal supported rustc version is 1.71.1."
+        version().unwrap() >= Version::parse("1.73.0").unwrap(),
+        "The minimal supported rustc version is 1.73.0."
     );
 }
 
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
 fn main() {
-    // Rebuild if the tests have changed
-    println!("cargo:rerun-if-changed=tests");
-
     check_rustc_version();
 
     // Only use build_data if the environment variable isn't set
@@ -38,6 +35,10 @@ fn main() {
         Err(_) => std::env::current_dir().unwrap(),
     };
     let test_dir = root_dir.join("test_programs");
+
+    // Rebuild if the tests have changed
+    println!("cargo:rerun-if-changed=tests");
+    println!("cargo:rerun-if-changed={}", test_dir.as_os_str().to_str().unwrap());
 
     generate_execution_success_tests(&mut test_file, &test_dir);
     generate_noir_test_success_tests(&mut test_file, &test_dir);
@@ -74,7 +75,7 @@ fn execution_success_{test_name}() {{
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("execute");
+    cmd.arg("execute").arg("--force");
 
     cmd.assert().success();
 }}
@@ -193,17 +194,20 @@ fn compile_success_empty_{test_name}() {{
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
     cmd.arg("--json");
+    cmd.arg("--force");
 
     let output = cmd.output().expect("Failed to execute command");
 
     if !output.status.success() {{
-        panic!("`nargo info` failed with: {{}}", String::from_utf8(output.stderr).unwrap());
+        panic!("`nargo info` failed with: {{}}", String::from_utf8(output.stderr).unwrap_or_default());
     }}
 
     // `compile_success_empty` tests should be able to compile down to an empty circuit.
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout).expect("JSON was not well-formatted");
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {{
+        panic!("JSON was not well-formatted {{:?}}",output.stdout)
+    }});
     let num_opcodes = &json["programs"][0]["acir_opcodes"];
-    assert_eq!(num_opcodes.as_u64().unwrap(), 0);
+    assert_eq!(num_opcodes.as_u64().expect("number of opcodes should fit in a u64"), 0);
 }}
             "#,
             test_dir = test_dir.display(),
@@ -239,7 +243,7 @@ fn compile_success_contract_{test_name}() {{
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("compile");
+    cmd.arg("compile").arg("--force");
 
     cmd.assert().success();
 }}
@@ -277,7 +281,7 @@ fn compile_failure_{test_name}() {{
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("execute");
+    cmd.arg("execute").arg("--force");
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
 }}

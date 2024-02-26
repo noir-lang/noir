@@ -15,16 +15,13 @@ pub use errors::TypeCheckError;
 
 use crate::{
     hir_def::{expr::HirExpression, stmt::HirStatement, traits::TraitConstraint},
-    node_interner::{ExprId, FuncId, NodeInterner, StmtId},
+    node_interner::{ExprId, FuncId, GlobalId, NodeInterner},
     Type,
 };
 
 use self::errors::Source;
 
-type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
-
 pub struct TypeChecker<'interner> {
-    delayed_type_checks: Vec<TypeCheckFn>,
     interner: &'interner mut NodeInterner,
     errors: Vec<TypeCheckError>,
     current_function: Option<FuncId>,
@@ -50,18 +47,24 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     type_checker.current_function = Some(func_id);
 
     let meta = type_checker.interner.function_meta(&func_id);
+    let parameters = meta.parameters.clone();
+    let expected_return_type = meta.return_type.clone();
+    let expected_trait_constraints = meta.trait_constraints.clone();
+    let name_span = meta.name.location.span;
+
     let mut errors = Vec::new();
 
     // Temporarily add any impls in this function's `where` clause to scope
-    for constraint in &meta.trait_constraints {
+    for constraint in &expected_trait_constraints {
         let object = constraint.typ.clone();
         let trait_id = constraint.trait_id;
+        let generics = constraint.trait_generics.clone();
 
-        if !type_checker.interner.add_assumed_trait_implementation(object, trait_id) {
+        if !type_checker.interner.add_assumed_trait_implementation(object, trait_id, generics) {
             if let Some(the_trait) = type_checker.interner.try_get_trait(trait_id) {
                 let trait_name = the_trait.name.to_string();
                 let typ = constraint.typ.clone();
-                let span = meta.name.location.span;
+                let span = name_span;
                 errors.push(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
             }
         }
@@ -70,30 +73,28 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Bind each parameter to its annotated type.
     // This is locally obvious, but it must be bound here so that the
     // Definition object of the parameter in the NodeInterner is given the correct type.
-    for param in meta.parameters.into_iter() {
+    for param in parameters {
         type_checker.bind_pattern(&param.0, param.1);
     }
 
-    let (function_last_type, delayed_type_check_functions) =
-        type_checker.check_function_body(function_body_id);
-
-    // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
-    for type_check_fn in delayed_type_check_functions {
-        if let Err(error) = type_check_fn() {
-            errors.push(error);
-        }
-    }
+    let function_last_type = type_checker.check_function_body(function_body_id);
 
     // Verify any remaining trait constraints arising from the function body
     for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
         let span = type_checker.interner.expr_span(&expr_id);
-        type_checker.verify_trait_constraint(&constraint.typ, constraint.trait_id, expr_id, span);
+        type_checker.verify_trait_constraint(
+            &constraint.typ,
+            constraint.trait_id,
+            &constraint.trait_generics,
+            expr_id,
+            span,
+        );
     }
 
     errors.append(&mut type_checker.errors);
 
     // Now remove all the `where` clause constraints we added
-    for constraint in &meta.trait_constraints {
+    for constraint in &expected_trait_constraints {
         interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
     }
 
@@ -101,13 +102,16 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     if !can_ignore_ret {
         let (expr_span, empty_function) = function_info(interner, function_body_id);
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        if let Type::TraitAsType(t) = &declared_return_type {
-            if interner.lookup_trait_implementation(&function_last_type, t.id).is_err() {
+        if let Type::TraitAsType(trait_id, _, generics) = &declared_return_type {
+            if interner
+                .lookup_trait_implementation(&function_last_type, *trait_id, generics)
+                .is_err()
+            {
                 let error = TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: function_last_type,
                     span: func_span,
-                    source: Source::Return(meta.return_type, expr_span),
+                    source: Source::Return(expected_return_type, expr_span),
                 };
                 errors.push(error);
             }
@@ -122,7 +126,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
                         expected: declared_return_type.clone(),
                         actual: function_last_type.clone(),
                         span: func_span,
-                        source: Source::Return(meta.return_type, expr_span),
+                        source: Source::Return(expected_return_type, expr_span),
                     };
 
                     if empty_function {
@@ -160,33 +164,25 @@ fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_e
 
 impl<'interner> TypeChecker<'interner> {
     fn new(interner: &'interner mut NodeInterner) -> Self {
-        Self {
-            delayed_type_checks: Vec::new(),
-            interner,
-            errors: Vec::new(),
-            trait_constraints: Vec::new(),
-            current_function: None,
-        }
+        Self { interner, errors: Vec::new(), trait_constraints: Vec::new(), current_function: None }
     }
 
-    pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
-        self.delayed_type_checks.push(f);
+    fn check_function_body(&mut self, body: &ExprId) -> Type {
+        self.check_expression(body)
     }
 
-    fn check_function_body(&mut self, body: &ExprId) -> (Type, Vec<TypeCheckFn>) {
-        let body_type = self.check_expression(body);
-        (body_type, std::mem::take(&mut self.delayed_type_checks))
-    }
-
-    pub fn check_global(id: &StmtId, interner: &'interner mut NodeInterner) -> Vec<TypeCheckError> {
+    pub fn check_global(
+        id: GlobalId,
+        interner: &'interner mut NodeInterner,
+    ) -> Vec<TypeCheckError> {
         let mut this = Self {
-            delayed_type_checks: Vec::new(),
             interner,
             errors: Vec::new(),
             trait_constraints: Vec::new(),
             current_function: None,
         };
-        this.check_statement(id);
+        let statement = this.interner.get_global(id).let_statement;
+        this.check_statement(&statement);
         this.errors
     }
 
@@ -241,7 +237,7 @@ mod test {
         function::{FuncMeta, HirFunction},
         stmt::HirStatement,
     };
-    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
+    use crate::node_interner::{DefinitionKind, FuncId, NodeInterner, TraitId, TraitMethodId};
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -254,34 +250,40 @@ mod test {
     #[test]
     fn basic_let() {
         let mut interner = NodeInterner::default();
-
-        // Add a simple let Statement into the interner
-        // let z = x + y;
-        //
-        // Push x variable
-        let x_id = interner.push_definition("x".into(), false, DefinitionKind::Local(None));
+        interner.populate_dummy_operator_traits();
 
         // Safety: The FileId in a location isn't used for tests
         let file = FileId::default();
         let location = Location::new(Span::default(), file);
 
-        let x = HirIdent { id: x_id, location };
+        // Add a simple let Statement into the interner
+        // let z = x + y;
+        //
+        // Push x variable
+        let x_id =
+            interner.push_definition("x".into(), false, DefinitionKind::Local(None), location);
+
+        let x = HirIdent::non_trait_method(x_id, location);
 
         // Push y variable
-        let y_id = interner.push_definition("y".into(), false, DefinitionKind::Local(None));
-        let y = HirIdent { id: y_id, location };
+        let y_id =
+            interner.push_definition("y".into(), false, DefinitionKind::Local(None), location);
+        let y = HirIdent::non_trait_method(y_id, location);
 
         // Push z variable
-        let z_id = interner.push_definition("z".into(), false, DefinitionKind::Local(None));
-        let z = HirIdent { id: z_id, location };
+        let z_id =
+            interner.push_definition("z".into(), false, DefinitionKind::Local(None), location);
+        let z = HirIdent::non_trait_method(z_id, location);
 
         // Push x and y as expressions
-        let x_expr_id = interner.push_expr(HirExpression::Ident(x));
-        let y_expr_id = interner.push_expr(HirExpression::Ident(y));
+        let x_expr_id = interner.push_expr(HirExpression::Ident(x.clone()));
+        let y_expr_id = interner.push_expr(HirExpression::Ident(y.clone()));
 
         // Create Infix
         let operator = HirBinaryOp { location, kind: BinaryOpKind::Add };
-        let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id };
+        let trait_id = TraitId(ModuleId::dummy_id());
+        let trait_method_id = TraitMethodId { trait_id, method_index: 0 };
+        let expr = HirInfixExpression { lhs: x_expr_id, operator, rhs: y_expr_id, trait_method_id };
         let expr_id = interner.push_expr(HirExpression::Infix(expr));
         interner.push_expr_location(expr_id, Span::single_char(0), file);
 
@@ -302,10 +304,9 @@ mod test {
         let func = HirFunction::unchecked_from_expr(expr_id);
         let func_id = interner.push_fn(func);
 
-        let name = HirIdent {
-            location,
-            id: interner.push_definition("test_func".into(), false, DefinitionKind::Local(None)),
-        };
+        let definition = DefinitionKind::Local(None);
+        let id = interner.push_definition("test_func".into(), false, definition, location);
+        let name = HirIdent::non_trait_method(id, location);
 
         // Add function meta
         let func_meta = FuncMeta {
@@ -434,7 +435,7 @@ mod test {
         }
 
         fn local_module_id(&self) -> LocalModuleId {
-            LocalModuleId(arena::Index::from_raw_parts(0, 0))
+            LocalModuleId(arena::Index::unsafe_zeroed())
         }
 
         fn module_id(&self) -> ModuleId {
@@ -461,6 +462,7 @@ mod test {
     ) {
         let (program, errors) = parse_program(src);
         let mut interner = NodeInterner::default();
+        interner.populate_dummy_operator_traits();
 
         assert_eq!(
             errors.len(),
@@ -484,7 +486,7 @@ mod test {
         let mut def_maps = BTreeMap::new();
         let file = FileId::default();
 
-        let mut modules = arena::Arena::new();
+        let mut modules = arena::Arena::default();
         let location = Location::new(Default::default(), file);
         modules.insert(ModuleData::new(None, location, false));
 

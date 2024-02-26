@@ -86,11 +86,13 @@ use self::block::{Block, Expression};
 impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
     /// scope, and attempts to remove stores that are subsequently redundant.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             let mut context = PerFunctionContext::new(function);
             context.mem2reg();
             context.remove_instructions();
+            context.update_data_bus();
         }
         self
     }
@@ -360,6 +362,11 @@ impl<'f> PerFunctionContext<'f> {
                 .instructions_mut()
                 .retain(|instruction| !self.instructions_to_remove.contains(instruction));
         }
+    }
+
+    fn update_data_bus(&mut self) {
+        let databus = self.inserter.function.dfg.data_bus.clone();
+        self.inserter.function.dfg.data_bus = databus.map_values(|t| self.inserter.resolve(t));
     }
 
     fn handle_terminator(&mut self, block: BasicBlockId, references: &mut Block) {

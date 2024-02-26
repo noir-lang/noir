@@ -11,11 +11,13 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 pub mod ast;
+pub mod debug;
 pub mod graph;
 pub mod lexer;
 pub mod monomorphization;
 pub mod node_interner;
 pub mod parser;
+pub mod resolve_locations;
 
 pub mod hir;
 pub mod hir_def;
@@ -47,7 +49,7 @@ pub mod macros_api {
     pub use crate::hir_def::expr::{HirExpression, HirLiteral};
     pub use crate::hir_def::stmt::HirStatement;
     pub use crate::node_interner::{NodeInterner, StructId};
-    pub use crate::parser::SortedModule;
+    pub use crate::parser::{parse_program, SortedModule};
     pub use crate::token::SecondaryAttribute;
 
     pub use crate::hir::def_map::ModuleDefId;
@@ -74,6 +76,10 @@ pub mod macros_api {
         ) -> Result<SortedModule, (MacroError, FileId)>;
         /// Function to manipulate the AST after type checking has been completed.
         /// The AST after type checking has been done is called the HIR.
-        fn process_typed_ast(&self, crate_id: &CrateId, context: &mut HirContext);
+        fn process_typed_ast(
+            &self,
+            crate_id: &CrateId,
+            context: &mut HirContext,
+        ) -> Result<(), (MacroError, FileId)>;
     }
 }

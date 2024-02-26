@@ -1,3 +1,4 @@
+use fxhash::FxHashMap as HashMap;
 use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
@@ -31,6 +32,7 @@ pub(super) fn simplify_call(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     ctrl_typevars: Option<Vec<Type>>,
+    call_stack: &CallStack,
 ) -> SimplifyResult {
     let intrinsic = match &dfg[func] {
         Value::Intrinsic(intrinsic) => *intrinsic,
@@ -46,13 +48,8 @@ pub(super) fn simplify_call(
                 let field = constant_args[0];
                 let limb_count = constant_args[1].to_u128() as u32;
 
-                let result_slice = constant_to_radix(endian, field, 2, limb_count, dfg);
-
-                let length = dfg
-                    .try_get_array_length(result_slice)
-                    .expect("ICE: a constant array should have an associated length");
-                let len_value =
-                    dfg.make_constant(FieldElement::from(length as u128), Type::field());
+                let (len_value, result_slice) =
+                    constant_to_radix(endian, field, 2, limb_count, dfg);
 
                 // `Intrinsic::ToBits` returns slices which are represented
                 // by tuples with the structure (length, slice contents)
@@ -67,13 +64,8 @@ pub(super) fn simplify_call(
                 let radix = constant_args[1].to_u128() as u32;
                 let limb_count = constant_args[2].to_u128() as u32;
 
-                let result_slice = constant_to_radix(endian, field, radix, limb_count, dfg);
-
-                let length = dfg
-                    .try_get_array_length(result_slice)
-                    .expect("ICE: a constant array should have an associated length");
-                let len_value =
-                    dfg.make_constant(FieldElement::from(length as u128), Type::field());
+                let (len_value, result_slice) =
+                    constant_to_radix(endian, field, radix, limb_count, dfg);
 
                 // `Intrinsic::ToRadix` returns slices which are represented
                 // by tuples with the structure (length, slice contents)
@@ -85,7 +77,7 @@ pub(super) fn simplify_call(
         Intrinsic::ArrayLen => {
             if let Some(length) = dfg.try_get_array_length(arguments[0]) {
                 let length = FieldElement::from(length as u128);
-                SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
+                SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::length_type()))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
             } else {
@@ -232,8 +224,21 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::ApplyRangeConstraint => {
+            let value = arguments[0];
+            let max_bit_size = dfg.get_numeric_constant(arguments[1]);
+            if let Some(max_bit_size) = max_bit_size {
+                let max_bit_size = max_bit_size.to_u128() as u32;
+                SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
+                    value,
+                    max_bit_size,
+                    assert_message: Some("call to assert_max_bit_size".to_owned()),
+                })
+            } else {
+                SimplifyResult::None
+            }
+        }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
-        Intrinsic::Sort => simplify_sort(dfg, arguments),
         Intrinsic::AsField => {
             let instruction = Instruction::Cast(
                 arguments[0],
@@ -242,7 +247,24 @@ pub(super) fn simplify_call(
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
         Intrinsic::FromField => {
-            let instruction = Instruction::Cast(arguments[0], ctrl_typevars.unwrap().remove(0));
+            let incoming_type = Type::field();
+            let target_type = ctrl_typevars.unwrap().remove(0);
+
+            let truncate = Instruction::Truncate {
+                value: arguments[0],
+                bit_size: target_type.bit_size(),
+                max_bit_size: incoming_type.bit_size(),
+            };
+            let truncated_value = dfg
+                .insert_instruction_and_results(
+                    truncate,
+                    block,
+                    Some(vec![incoming_type]),
+                    call_stack.clone(),
+                )
+                .first();
+
+            let instruction = Instruction::Cast(truncated_value, target_type);
             SimplifyResult::SimplifiedToInstruction(instruction)
         }
     }
@@ -261,7 +283,7 @@ fn update_slice_length(
     operator: BinaryOp,
     block: BasicBlockId,
 ) -> ValueId {
-    let one = dfg.make_constant(FieldElement::one(), Type::field());
+    let one = dfg.make_constant(FieldElement::one(), Type::length_type());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack(slice_len);
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
@@ -274,8 +296,8 @@ fn simplify_slice_push_back(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
 ) -> SimplifyResult {
-    // The capacity must be an integer so that we can compare it against the slice length which is represented as a field
-    let capacity = dfg.make_constant((slice.len() as u128).into(), Type::unsigned(64));
+    // The capacity must be an integer so that we can compare it against the slice length
+    let capacity = dfg.make_constant((slice.len() as u128).into(), Type::length_type());
     let len_equals_capacity_instr =
         Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
     let call_stack = dfg.get_value_call_stack(arguments[0]);
@@ -297,6 +319,8 @@ fn simplify_slice_push_back(
     for elem in &arguments[2..] {
         slice.push_back(*elem);
     }
+    let slice_size = slice.len();
+    let element_size = element_type.element_size();
     let new_slice = dfg.make_array(slice, element_type);
 
     let set_last_slice_value_instr =
@@ -305,7 +329,11 @@ fn simplify_slice_push_back(
         .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
         .first();
 
-    let mut value_merger = ValueMerger::new(dfg, block, None, None);
+    let mut slice_sizes = HashMap::default();
+    slice_sizes.insert(set_last_slice_value, slice_size / element_size);
+    slice_sizes.insert(new_slice, slice_size / element_size);
+
+    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes);
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,
@@ -334,7 +362,7 @@ fn simplify_slice_pop_back(
 
     let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
 
-    let element_size = dfg.make_constant((element_count as u128).into(), Type::field());
+    let element_size = dfg.make_constant((element_count as u128).into(), Type::length_type());
     let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
     let mut flattened_len = dfg
         .insert_instruction_and_results(flattened_len_instr, block, None, CallStack::new())
@@ -374,6 +402,8 @@ fn simplify_black_box_func(
     match bb_func {
         BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
         BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
+        BlackBoxFunc::Blake3 => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3),
+        BlackBoxFunc::Keccakf1600 => SimplifyResult::None, //TODO(Guillaume)
         BlackBoxFunc::Keccak256 => {
             match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
                 (Some((input, _)), Some(num_bytes)) if array_is_constant(dfg, &input) => {
@@ -393,19 +423,7 @@ fn simplify_black_box_func(
                 _ => SimplifyResult::None,
             }
         }
-        BlackBoxFunc::HashToField128Security => match dfg.get_array_constant(arguments[0]) {
-            Some((input, _)) if array_is_constant(dfg, &input) => {
-                let input_bytes: Vec<u8> = to_u8_vec(dfg, input);
-
-                let field = acvm::blackbox_solver::hash_to_field_128_security(&input_bytes)
-                    .expect("Rust solvable black box function should not fail");
-
-                let field_constant = dfg.make_constant(field, Type::field());
-                SimplifyResult::SimplifiedTo(field_constant)
-            }
-            _ => SimplifyResult::None,
-        },
-
+        BlackBoxFunc::Poseidon2Permutation => SimplifyResult::None, //TODO(Guillaume)
         BlackBoxFunc::EcdsaSecp256k1 => {
             simplify_signature(dfg, arguments, acvm::blackbox_solver::ecdsa_secp256k1_verify)
         }
@@ -416,12 +434,18 @@ fn simplify_black_box_func(
         BlackBoxFunc::FixedBaseScalarMul
         | BlackBoxFunc::SchnorrVerify
         | BlackBoxFunc::PedersenCommitment
-        | BlackBoxFunc::PedersenHash => {
+        | BlackBoxFunc::PedersenHash
+        | BlackBoxFunc::EmbeddedCurveAdd => {
             // Currently unsolvable here as we rely on an implementation in the backend.
             SimplifyResult::None
         }
-
-        BlackBoxFunc::RecursiveAggregation => SimplifyResult::None,
+        BlackBoxFunc::BigIntAdd
+        | BlackBoxFunc::BigIntSub
+        | BlackBoxFunc::BigIntMul
+        | BlackBoxFunc::BigIntDiv
+        | BlackBoxFunc::RecursiveAggregation
+        | BlackBoxFunc::BigIntFromLeBytes
+        | BlackBoxFunc::BigIntToLeBytes => SimplifyResult::None,
 
         BlackBoxFunc::AND => {
             unreachable!("ICE: `BlackBoxFunc::AND` calls should be transformed into a `BinaryOp`")
@@ -434,6 +458,7 @@ fn simplify_black_box_func(
                 "ICE: `BlackBoxFunc::RANGE` calls should be transformed into a `Instruction::Cast`"
             )
         }
+        BlackBoxFunc::Sha256Compression => SimplifyResult::None, //TODO(Guillaume)
     }
 }
 
@@ -444,14 +469,26 @@ fn make_constant_array(dfg: &mut DataFlowGraph, results: Vec<FieldElement>, typ:
     dfg.make_array(result_constants.into(), typ)
 }
 
-/// Returns a Value::Array of constants corresponding to the limbs of the radix decomposition.
+fn make_constant_slice(
+    dfg: &mut DataFlowGraph,
+    results: Vec<FieldElement>,
+    typ: Type,
+) -> (ValueId, ValueId) {
+    let result_constants = vecmap(results, |element| dfg.make_constant(element, typ.clone()));
+
+    let typ = Type::Slice(Rc::new(vec![typ]));
+    let length = FieldElement::from(result_constants.len() as u128);
+    (dfg.make_constant(length, Type::length_type()), dfg.make_array(result_constants.into(), typ))
+}
+
+/// Returns a slice (represented by a tuple (len, slice)) of constants corresponding to the limbs of the radix decomposition.
 fn constant_to_radix(
     endian: Endian,
     field: FieldElement,
     radix: u32,
     limb_count: u32,
     dfg: &mut DataFlowGraph,
-) -> ValueId {
+) -> (ValueId, ValueId) {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
@@ -466,8 +503,7 @@ fn constant_to_radix(
     if endian == Endian::Big {
         limbs.reverse();
     }
-
-    make_constant_array(dfg, limbs, Type::unsigned(bit_size))
+    make_constant_slice(dfg, limbs, Type::unsigned(bit_size))
 }
 
 fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
@@ -550,23 +586,6 @@ fn simplify_signature(
 
             let valid_signature = dfg.make_constant(valid_signature.into(), Type::bool());
             SimplifyResult::SimplifiedTo(valid_signature)
-        }
-        _ => SimplifyResult::None,
-    }
-}
-
-fn simplify_sort(dfg: &mut DataFlowGraph, arguments: &[ValueId]) -> SimplifyResult {
-    match dfg.get_array_constant(arguments[0]) {
-        Some((input, _)) => {
-            let inputs: Option<Vec<FieldElement>> =
-                input.iter().map(|id| dfg.get_numeric_constant(*id)).collect();
-
-            let Some(mut sorted_inputs) = inputs else { return SimplifyResult::None };
-            sorted_inputs.sort_unstable();
-
-            let (_, element_type) = dfg.get_numeric_constant_with_type(input[0]).unwrap();
-            let result_array = make_constant_array(dfg, sorted_inputs, element_type);
-            SimplifyResult::SimplifiedTo(result_array)
         }
         _ => SimplifyResult::None,
     }

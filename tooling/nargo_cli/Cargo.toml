@@ -32,7 +32,7 @@ noirc_frontend.workspace = true
 noirc_abi.workspace = true
 noirc_errors.workspace = true
 acvm.workspace = true
-barretenberg_blackbox_solver.workspace = true
+bn254_blackbox_solver.workspace = true
 toml.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -47,16 +47,21 @@ similar-asserts.workspace = true
 termcolor = "1.1.2"
 color-eyre = "0.6.2"
 tokio = { version = "1.0", features = ["io-std"] }
+dap.workspace = true
+clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450d759532c88f0dba70891ceecdbc9ff8f25d2b", optional = true }
 
 # Backends
 backend-interface = { path = "../backend_interface" }
-bb_abstraction_leaks.workspace = true
+
+# Logs
+tracing-subscriber.workspace = true
+tracing-appender = "0.2.3"
 
 [target.'cfg(not(unix))'.dependencies]
 tokio-util = { version = "0.7.8", features = ["compat"] }
 
 [dev-dependencies]
-tempfile = "3.6.0"
+tempfile.workspace = true
 dirs.workspace = true
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
@@ -70,7 +75,7 @@ pprof = { version = "0.12", features = [
     "criterion",
 ] }
 iai = "0.1.1"
-test-binary = "3.0.1"
+test-binary = "3.0.2"
 
 [[bench]]
 name = "criterion"
@@ -79,3 +84,6 @@ harness = false
 [[bench]]
 name = "iai"
 harness = false
+
+[features]
+codegen-docs = ["dep:clap-markdown"]

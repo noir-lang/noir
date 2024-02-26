@@ -1,16 +1,21 @@
 {
   "name": "@noir-lang/acvm_js",
-  "version": "0.35.0",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/noir-lang/acvm.git"
-  },
+  "version": "0.40.0",
   "publishConfig": {
     "access": "public"
   },
-  "collaborators": [
+  "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
+  "homepage": "https://noir-lang.org/",
+  "repository": {
+    "url": "https://github.com/noir-lang/noir.git",
+    "directory": "acvm_repo/acvm_js",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/noir-lang/noir/issues"
+  },
   "license": "MIT",
   "main": "./nodejs/acvm_js.js",
   "types": "./web/acvm_js.d.ts",
@@ -39,7 +44,7 @@
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",
     "chai": "^4.3.7",
-    "eslint": "^8.50.0",
+    "eslint": "^8.56.0",
     "eslint-plugin-prettier": "^5.0.0",
     "mocha": "^10.2.0",
     "prettier": "3.0.3",

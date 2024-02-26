@@ -9,6 +9,7 @@ mod test {
 
     use fm::FileId;
 
+    use iter_extended::vecmap;
     use noirc_errors::Location;
 
     use crate::hir::def_collector::dc_crate::CompilationError;
@@ -18,10 +19,8 @@ mod test {
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir::type_check::TypeCheckError;
     use crate::hir::Context;
-    use crate::macros_api::MacroProcessor;
     use crate::node_interner::{NodeInterner, StmtId};
 
-    use crate::graph::CrateGraph;
     use crate::hir::def_collector::dc_crate::DefCollector;
     use crate::hir_def::expr::HirExpression;
     use crate::hir_def::stmt::HirStatement;
@@ -39,41 +38,36 @@ mod test {
         errors.iter().any(|(e, _f)| matches!(e, CompilationError::ParseError(_)))
     }
 
-    pub(crate) fn remove_experimental_feature_warnings(
-        errors: Vec<(CompilationError, FileId)>,
-    ) -> Vec<(CompilationError, FileId)> {
-        errors
-            .iter()
-            .filter(|(e, _f)| match e.clone() {
-                CompilationError::ParseError(parser_error) => !matches!(
-                    parser_error.reason(),
-                    Some(ParserErrorReason::ExperimentalFeature(_))
-                ),
-                _ => true,
-            })
-            .cloned()
-            .collect()
+    pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, FileId)>) {
+        errors.retain(|(error, _)| match error {
+            CompilationError::ParseError(error) => {
+                !matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(..)))
+            }
+            _ => true,
+        });
     }
 
     pub(crate) fn get_program(
         src: &str,
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
         let root = std::path::Path::new("/");
-        let fm = FileManager::new(root, Box::new(|path| std::fs::read_to_string(path)));
-        //let fm = FileManager::new(root,  Box::new(get_non_stdlib_asset));
-        let graph = CrateGraph::default();
-        let mut context = Context::new(fm, graph);
+        let fm = FileManager::new(root);
+
+        let mut context = Context::new(fm, Default::default());
+        context.def_interner.populate_dummy_operator_traits();
         let root_file_id = FileId::dummy();
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+
         let (program, parser_errors) = parse_program(src);
-        let mut errors = remove_experimental_feature_warnings(
-            parser_errors.iter().cloned().map(|e| (e.into(), root_file_id)).collect(),
-        );
+        let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
+        remove_experimental_warnings(&mut errors);
+
         if !has_parser_error(&errors) {
             // Allocate a default Module for the root, giving it a ModuleId
             let mut modules: Arena<ModuleData> = Arena::default();
             let location = Location::new(Default::default(), root_file_id);
             let root = modules.insert(ModuleData::new(None, location, false));
+
             let def_map = CrateDefMap {
                 root: LocalModuleId(root),
                 modules,
@@ -81,33 +75,70 @@ mod test {
                 extern_prelude: BTreeMap::new(),
             };
 
-            let empty_macro_processors: Vec<&dyn MacroProcessor> = Vec::new();
-
             // Now we want to populate the CrateDefMap using the DefCollector
             errors.extend(DefCollector::collect(
                 def_map,
                 &mut context,
                 program.clone().into_sorted(),
                 root_file_id,
-                empty_macro_processors,
+                Vec::new(), // No macro processors
             ));
         }
         (program, context, errors)
     }
 
     pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
-        let (_program, _context, errors) = get_program(src);
-        errors
-            .iter()
-            .filter(|(e, _f)| match e.clone() {
-                CompilationError::ParseError(parser_error) => !matches!(
-                    parser_error.reason(),
-                    Some(ParserErrorReason::ExperimentalFeature(_))
-                ),
-                _ => true,
-            })
-            .cloned()
-            .collect()
+        get_program(src).2
+    }
+
+    #[test]
+    fn check_trait_implemented_for_all_t() {
+        let src = "
+        trait Default {
+            fn default() -> Self;
+        }
+        
+        trait Eq {
+            fn eq(self, other: Self) -> bool;
+        }
+        
+        trait IsDefault {
+            fn is_default(self) -> bool;
+        }
+        
+        impl<T> IsDefault for T where T: Default + Eq {
+            fn is_default(self) -> bool {
+                self.eq(T::default())
+            }
+        }
+        
+        struct Foo {
+            a: u64,
+        }
+        
+        impl Eq for Foo {
+            fn eq(self, other: Foo) -> bool { self.a == other.a } 
+        }
+        
+        impl Default for u64 {
+            fn default() -> Self {
+                0
+            }
+        }
+        
+        impl Default for Foo {
+            fn default() -> Self {
+                Foo { a: Default::default() }
+            }
+        }
+        
+        fn main(a: Foo) -> pub bool {
+            a.is_default()
+        }";
+
+        let errors = get_program_errors(src);
+        errors.iter().for_each(|err| println!("{:?}", err));
+        assert!(errors.is_empty());
     }
 
     #[test]
@@ -462,7 +493,7 @@ mod test {
         }";
         let errors = get_program_errors(src);
         assert!(!has_parser_error(&errors));
-        assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
+        assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
 
         for (err, _file_id) in errors {
             match &err {
@@ -925,7 +956,7 @@ mod test {
     #[test]
     fn resolve_for_expr() {
         let src = r#"
-            fn main(x : Field) {
+            fn main(x : u64) {
                 for i in 1..20 {
                     let _z = x + i;
                 };
@@ -1097,9 +1128,9 @@ mod test {
     }
 
     fn check_rewrite(src: &str, expected: &str) {
-        let (_program, context, _errors) = get_program(src);
+        let (_program, mut context, _errors) = get_program(src);
         let main_func_id = context.def_interner.find_function("main").unwrap();
-        let program = monomorphize(main_func_id, &context.def_interner);
+        let program = monomorphize(main_func_id, &mut context.def_interner);
         assert!(format!("{}", program) == expected);
     }
 
@@ -1132,5 +1163,47 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
 }
 "#;
         check_rewrite(src, expected_rewrite);
+    }
+
+    #[test]
+    fn deny_cyclic_structs() {
+        let src = r#"
+            struct Foo { bar: Bar }
+            struct Bar { foo: Foo }
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn deny_cyclic_globals() {
+        let src = r#"
+            global A = B;
+            global B = A;
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn deny_cyclic_type_aliases() {
+        let src = r#"
+            type A = B;
+            type B = A;
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn ensure_nested_type_aliases_type_check() {
+        let src = r#"
+            type A = B;
+            type B = u8;
+            fn main() {
+                let _a: A = 0 as u16;
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
     }
 }

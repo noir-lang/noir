@@ -251,6 +251,6 @@ By saving, your app will refresh and here's our complete Tiny Noir App!
 
 ## Further Reading
 
-You can see how noirjs is used in a full stack Next.js hardhat application in the [noir-starter repo here](https://github.com/noir-lang/noir-starter/tree/main/next-hardhat). The example shows how to calculate a proof in the browser and verify it with a deployed Solidity verifier contract from noirjs.
+You can see how noirjs is used in a full stack Next.js hardhat application in the [noir-starter repo here](https://github.com/noir-lang/noir-starter/tree/main/vite-hardhat). The example shows how to calculate a proof in the browser and verify it with a deployed Solidity verifier contract from noirjs.
 
 You should also check out the more advanced examples in the [noir-examples repo](https://github.com/noir-lang/noir-examples), where you'll find reference usage for some cool apps.

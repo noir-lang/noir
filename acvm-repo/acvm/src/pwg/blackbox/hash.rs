@@ -3,25 +3,10 @@ use acir::{
     native_types::{Witness, WitnessMap},
     BlackBoxFunc, FieldElement,
 };
-use acvm_blackbox_solver::{hash_to_field_128_security, BlackBoxResolutionError};
+use acvm_blackbox_solver::{sha256compression, BlackBoxResolutionError};
 
 use crate::pwg::{insert_value, witness_to_value};
 use crate::OpcodeResolutionError;
-
-/// Attempts to solve a `HashToField128Security` opcode
-/// If successful, `initial_witness` will be mutated to contain the new witness assignment.
-pub(super) fn solve_hash_to_field(
-    initial_witness: &mut WitnessMap,
-    inputs: &[FunctionInput],
-    output: &Witness,
-) -> Result<(), OpcodeResolutionError> {
-    let message_input = get_hash_input(initial_witness, inputs, None)?;
-    let field = hash_to_field_128_security(&message_input)?;
-
-    insert_value(output, field, initial_witness)?;
-
-    Ok(())
-}
 
 /// Attempts to solve a 256 bit hash function opcode.
 /// If successful, `initial_witness` will be mutated to contain the new witness assignment.
@@ -97,6 +82,51 @@ fn write_digest_to_outputs(
             FieldElement::from_be_bytes_reduce(&[value]),
             initial_witness,
         )?;
+    }
+
+    Ok(())
+}
+
+pub(crate) fn solve_sha_256_permutation_opcode(
+    initial_witness: &mut WitnessMap,
+    inputs: &[FunctionInput],
+    hash_values: &[FunctionInput],
+    outputs: &[Witness],
+    black_box_func: BlackBoxFunc,
+) -> Result<(), OpcodeResolutionError> {
+    let mut message = [0; 16];
+    if inputs.len() != 16 {
+        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
+            black_box_func,
+            format!("Expected 16 inputs but encountered {}", &message.len()),
+        ));
+    }
+    for (i, input) in inputs.iter().enumerate() {
+        let value = witness_to_value(initial_witness, input.witness)?;
+        message[i] = value.to_u128() as u32;
+    }
+
+    if hash_values.len() != 8 {
+        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
+            black_box_func,
+            format!("Expected 8 values but encountered {}", hash_values.len()),
+        ));
+    }
+    let mut state = [0; 8];
+    for (i, hash) in hash_values.iter().enumerate() {
+        let value = witness_to_value(initial_witness, hash.witness)?;
+        state[i] = value.to_u128() as u32;
+    }
+
+    sha256compression(&mut state, &message);
+    let outputs: [Witness; 8] = outputs.try_into().map_err(|_| {
+        OpcodeResolutionError::BlackBoxFunctionFailed(
+            black_box_func,
+            format!("Expected 8 outputs but encountered {}", outputs.len()),
+        )
+    })?;
+    for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+        insert_value(output_witness, FieldElement::from(value as u128), initial_witness)?;
     }
 
     Ok(())

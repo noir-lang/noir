@@ -3,11 +3,13 @@
 
 # Production
 /build
+processed-docs
+processed-docs-cache
 
 # Generated files
 .docusaurus
 .cache-loader
-/docs/docs/noir_js/reference/
+/docs/docs/reference/NoirJS
 
 # Misc
 .DS_Store
@@ -22,3 +24,4 @@ yarn-debug.log*
 yarn-error.log*
 
 package-lock.json
+versions.json

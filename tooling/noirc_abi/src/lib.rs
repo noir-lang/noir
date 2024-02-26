@@ -78,6 +78,7 @@ pub enum AbiVisibility {
     // Constants are not allowed in the ABI for main at the moment.
     // Constant,
     Private,
+    DataBus,
 }
 
 impl From<Visibility> for AbiVisibility {
@@ -85,6 +86,7 @@ impl From<Visibility> for AbiVisibility {
         match value {
             Visibility::Public => AbiVisibility::Public,
             Visibility::Private => AbiVisibility::Private,
+            Visibility::DataBus => AbiVisibility::DataBus,
         }
     }
 }
@@ -94,6 +96,7 @@ impl From<&Visibility> for AbiVisibility {
         match value {
             Visibility::Public => AbiVisibility::Public,
             Visibility::Private => AbiVisibility::Private,
+            Visibility::DataBus => AbiVisibility::DataBus,
         }
     }
 }
@@ -139,14 +142,13 @@ impl AbiType {
                     Signedness::Signed => Sign::Signed,
                 };
 
-                Self::Integer { sign, width: *bit_width }
+                Self::Integer { sign, width: (*bit_width).into() }
             }
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => Self::from_type(context, typ),
-                    TypeBinding::Unbound(_) => Self::from_type(context, &Type::default_int_type()),
-                }
-            }
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
+            | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => Self::from_type(context, typ),
+                TypeBinding::Unbound(_) => Self::from_type(context, &Type::default_int_type()),
+            },
             Type::Bool => Self::Boolean,
             Type::String(size) => {
                 let size = size
@@ -154,12 +156,8 @@ impl AbiType {
                     .expect("Cannot have variable sized strings as a parameter to main");
                 Self::String { length: size }
             }
-            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
-            Type::Error => unreachable!(),
-            Type::Unit => unreachable!(),
-            Type::Constant(_) => unreachable!(),
-            Type::TraitAsType(_) => unreachable!(),
-            Type::Struct(def, ref args) => {
+
+            Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
                 let fields = vecmap(fields, |(name, typ)| (name, Self::from_type(context, &typ)));
@@ -168,16 +166,22 @@ impl AbiType {
                     context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
                 Self::Struct { fields, path }
             }
+            Type::Alias(def, args) => Self::from_type(context, &def.borrow().get_type(args)),
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |typ| Self::from_type(context, typ));
                 Self::Tuple { fields }
             }
-            Type::TypeVariable(_, _) => unreachable!(),
-            Type::NamedGeneric(..) => unreachable!(),
-            Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, _) => unreachable!(),
+            Type::Error
+            | Type::Unit
+            | Type::Constant(_)
+            | Type::TraitAsType(..)
+            | Type::TypeVariable(_, _)
+            | Type::NamedGeneric(..)
+            | Type::Forall(..)
+            | Type::NotConstant
+            | Type::Function(_, _, _) => unreachable!("Type cannot be used in the abi"),
+            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
             Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
-            Type::NotConstant => unreachable!(),
         }
     }
 
@@ -213,13 +217,18 @@ impl AbiParameter {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AbiReturnType {
+    pub abi_type: AbiType,
+    pub visibility: AbiVisibility,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
     /// A map from the ABI's parameters to the indices they are written to in the [`WitnessMap`].
     /// This defines how to convert between the [`InputMap`] and [`WitnessMap`].
     pub param_witnesses: BTreeMap<String, Vec<Range<Witness>>>,
-    pub return_type: Option<AbiType>,
+    pub return_type: Option<AbiReturnType>,
     pub return_witnesses: Vec<Witness>,
 }
 
@@ -327,7 +336,7 @@ impl Abi {
         // When encoding public inputs to be passed to the verifier, the user can must provide a return value
         // to be inserted into the witness map. This is not needed when generating a witness when proving the circuit.
         match (&self.return_type, return_value) {
-            (Some(return_type), Some(return_value)) => {
+            (Some(AbiReturnType { abi_type: return_type, .. }), Some(return_value)) => {
                 if !return_value.matches_abi(return_type) {
                     return Err(AbiError::ReturnTypeMismatch {
                         return_type: return_type.clone(),
@@ -426,7 +435,7 @@ impl Abi {
                         .copied()
                 })
             {
-                Some(decode_value(&mut return_witness_values.into_iter(), return_type)?)
+                Some(decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)?)
             } else {
                 // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
                 // This is because the user may be decoding a partial witness map for which is hasn't been calculated yet.
@@ -503,7 +512,7 @@ fn decode_string_value(field_elements: &[FieldElement]) -> String {
     final_string.to_owned()
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractEvent {
     /// Event name
     name: String,
@@ -546,7 +555,10 @@ mod test {
 
     use acvm::{acir::native_types::Witness, FieldElement};
 
-    use crate::{input_parser::InputValue, Abi, AbiParameter, AbiType, AbiVisibility, InputMap};
+    use crate::{
+        input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility,
+        InputMap,
+    };
 
     #[test]
     fn witness_encoding_roundtrip() {
@@ -568,7 +580,10 @@ mod test {
                 ("thing1".to_string(), vec![(Witness(1)..Witness(3))]),
                 ("thing2".to_string(), vec![(Witness(3)..Witness(4))]),
             ]),
-            return_type: Some(AbiType::Field),
+            return_type: Some(AbiReturnType {
+                abi_type: AbiType::Field,
+                visibility: AbiVisibility::Public,
+            }),
             return_witnesses: vec![Witness(3)],
         };
 

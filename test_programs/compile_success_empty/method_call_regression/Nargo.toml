@@ -1,0 +1,7 @@
+[package]
+name = "method_call_regression"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.19.4"
+
+[dependencies]

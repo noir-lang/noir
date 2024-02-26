@@ -64,18 +64,6 @@ it('successfully calculates the keccak256 hash', async () => {
   }
 });
 
-// it("successfully calculates the hash_to_field_128_security field", async () => {
-//   const { hash_to_field_128_security_test_cases } = await import(
-//     "../shared/black_box_solvers"
-//   );
-
-//   for (const testCase of hash_to_field_128_security_test_cases) {
-//     const [preimage, expectedResult] = testCase;
-//     const hashField = hash_to_field_128_security(preimage);
-//     expect(hashField).to.be.eq(expectedResult);
-//   }
-// });
-
 it('successfully verifies secp256k1 ECDSA signatures', async () => {
   const { ecdsa_secp256k1_test_cases } = await import('../shared/black_box_solvers');
 

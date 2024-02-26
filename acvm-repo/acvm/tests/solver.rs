@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use acir::{
-    brillig::{BinaryFieldOp, Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory, Value},
+    brillig::{BinaryFieldOp, MemoryAddress, Opcode as BrilligOpcode, Value, ValueOrArray},
     circuit::{
         brillig::{Brillig, BrilligInputs, BrilligOutputs},
         opcodes::{BlockId, MemOp},
@@ -11,51 +11,13 @@ use acir::{
     FieldElement,
 };
 
-use acvm::{
-    pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM},
-    BlackBoxFunctionSolver,
-};
-use acvm_blackbox_solver::BlackBoxResolutionError;
-
-pub(crate) struct StubbedBackend;
-
-impl BlackBoxFunctionSolver for StubbedBackend {
-    fn schnorr_verify(
-        &self,
-        _public_key_x: &FieldElement,
-        _public_key_y: &FieldElement,
-        _signature: &[u8],
-        _message: &[u8],
-    ) -> Result<bool, BlackBoxResolutionError> {
-        panic!("Path not trodden by this test")
-    }
-    fn pedersen_commitment(
-        &self,
-        _inputs: &[FieldElement],
-        _domain_separator: u32,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        panic!("Path not trodden by this test")
-    }
-    fn pedersen_hash(
-        &self,
-        _inputs: &[FieldElement],
-        _domain_separator: u32,
-    ) -> Result<FieldElement, BlackBoxResolutionError> {
-        panic!("Path not trodden by this test")
-    }
-    fn fixed_base_scalar_mul(
-        &self,
-        _low: &FieldElement,
-        _high: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        panic!("Path not trodden by this test")
-    }
-}
+use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
+use acvm_blackbox_solver::StubbedBlackBoxSolver;
+use brillig_vm::brillig::HeapValueType;
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
 
 #[test]
-#[ignore]
 fn inversion_brillig_oracle_equivalence() {
     // Opcodes below describe the following:
     // fn main(x : Field, y : pub Field) {
@@ -76,9 +38,9 @@ fn inversion_brillig_oracle_equivalence() {
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: RegisterIndex::from(0),
-        rhs: RegisterIndex::from(1),
-        destination: RegisterIndex::from(2),
+        lhs: MemoryAddress::from(0),
+        rhs: MemoryAddress::from(1),
+        destination: MemoryAddress::from(2),
     };
 
     let brillig_data = Brillig {
@@ -91,38 +53,46 @@ fn inversion_brillig_oracle_equivalence() {
             }),
             BrilligInputs::Single(Expression::default()), // Input Register 1
         ],
-        // This tells the BrilligSolver which witnesses its output registers correspond to
+        // This tells the BrilligSolver which witnesses its output values correspond to
         outputs: vec![
             BrilligOutputs::Simple(w_x_plus_y), // Output Register 0 - from input
             BrilligOutputs::Simple(w_oracle),   // Output Register 1
             BrilligOutputs::Simple(w_equal_res), // Output Register 2
         ],
         bytecode: vec![
+            BrilligOpcode::CalldataCopy {
+                destination_address: MemoryAddress(0),
+                size: 2,
+                offset: 0,
+            },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(1))],
-                inputs: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(0))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destination_value_types: vec![HeapValueType::Simple],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                input_value_types: vec![HeapValueType::Simple],
             },
+            BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 3 },
         ],
         predicate: None,
     };
 
     let opcodes = vec![
         Opcode::Brillig(brillig_data),
-        Opcode::Arithmetic(Expression {
+        Opcode::AssertZero(Expression {
             mul_terms: vec![],
             linear_combinations: vec![(fe_1, w_x), (fe_1, w_y), (-fe_1, w_z)],
             q_c: fe_0,
         }),
         // Opcode::Directive(Directive::Invert { x: w_z, result: w_z_inverse }),
-        Opcode::Arithmetic(Expression {
+        Opcode::AssertZero(Expression {
             mul_terms: vec![(fe_1, w_z, w_z_inverse)],
             linear_combinations: vec![],
             q_c: -fe_1,
         }),
-        Opcode::Arithmetic(Expression {
+        Opcode::AssertZero(Expression {
             mul_terms: vec![],
             linear_combinations: vec![(-fe_1, w_oracle), (fe_1, w_z_inverse)],
             q_c: fe_0,
@@ -135,7 +105,7 @@ fn inversion_brillig_oracle_equivalence() {
     ])
     .into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments);
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
 
@@ -164,7 +134,6 @@ fn inversion_brillig_oracle_equivalence() {
 }
 
 #[test]
-#[ignore]
 fn double_inversion_brillig_oracle() {
     // Opcodes below describe the following:
     // fn main(x : Field, y : pub Field) {
@@ -191,9 +160,9 @@ fn double_inversion_brillig_oracle() {
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: RegisterIndex::from(0),
-        rhs: RegisterIndex::from(1),
-        destination: RegisterIndex::from(4),
+        lhs: MemoryAddress::from(0),
+        rhs: MemoryAddress::from(1),
+        destination: MemoryAddress::from(4),
     };
 
     let brillig_data = Brillig {
@@ -220,36 +189,46 @@ fn double_inversion_brillig_oracle() {
             BrilligOutputs::Simple(w_equal_res), // Output Register 4
         ],
         bytecode: vec![
+            BrilligOpcode::CalldataCopy {
+                destination_address: MemoryAddress(0),
+                size: 3,
+                offset: 0,
+            },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(1))],
-                inputs: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(0))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destination_value_types: vec![HeapValueType::Simple],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                input_value_types: vec![HeapValueType::Simple],
             },
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(3))],
-                inputs: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(2))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(3))],
+                destination_value_types: vec![HeapValueType::Simple],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(2))],
+                input_value_types: vec![HeapValueType::Simple],
             },
+            BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 5 },
         ],
         predicate: None,
     };
 
     let opcodes = vec![
         Opcode::Brillig(brillig_data),
-        Opcode::Arithmetic(Expression {
+        Opcode::AssertZero(Expression {
             mul_terms: vec![],
             linear_combinations: vec![(fe_1, w_x), (fe_1, w_y), (-fe_1, w_z)],
             q_c: fe_0,
         }),
         // Opcode::Directive(Directive::Invert { x: w_z, result: w_z_inverse }),
-        Opcode::Arithmetic(Expression {
+        Opcode::AssertZero(Expression {
             mul_terms: vec![(fe_1, w_z, w_z_inverse)],
             linear_combinations: vec![],
             q_c: -fe_1,
         }),
-        Opcode::Arithmetic(Expression {
+        Opcode::AssertZero(Expression {
             mul_terms: vec![],
             linear_combinations: vec![(-fe_1, w_oracle), (fe_1, w_z_inverse)],
             q_c: fe_0,
@@ -264,7 +243,7 @@ fn double_inversion_brillig_oracle() {
     ])
     .into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments);
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -346,17 +325,27 @@ fn oracle_dependent_execution() {
             BrilligOutputs::Simple(w_y_inv), // Output Register 3
         ],
         bytecode: vec![
+            BrilligOpcode::CalldataCopy {
+                destination_address: MemoryAddress(0),
+                size: 3,
+                offset: 0,
+            },
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(1))],
-                inputs: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(0))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destination_value_types: vec![HeapValueType::Simple],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                input_value_types: vec![HeapValueType::Simple],
             },
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(3))],
-                inputs: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(2))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(3))],
+                destination_value_types: vec![HeapValueType::Simple],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(2))],
+                input_value_types: vec![HeapValueType::Simple],
             },
+            BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 4 },
         ],
         predicate: None,
     };
@@ -377,15 +366,15 @@ fn oracle_dependent_execution() {
     };
 
     let opcodes = vec![
-        Opcode::Arithmetic(equality_check),
+        Opcode::AssertZero(equality_check),
         Opcode::Brillig(brillig_data),
-        Opcode::Arithmetic(inverse_equality_check),
+        Opcode::AssertZero(inverse_equality_check),
     ];
 
     let witness_assignments =
         BTreeMap::from([(w_x, FieldElement::from(2u128)), (w_y, FieldElement::from(2u128))]).into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments);
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -444,9 +433,9 @@ fn brillig_oracle_predicate() {
 
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: RegisterIndex::from(0),
-        rhs: RegisterIndex::from(1),
-        destination: RegisterIndex::from(2),
+        lhs: MemoryAddress::from(0),
+        rhs: MemoryAddress::from(1),
+        destination: MemoryAddress::from(2),
     };
 
     let brillig_opcode = Opcode::Brillig(Brillig {
@@ -465,12 +454,19 @@ fn brillig_oracle_predicate() {
             BrilligOutputs::Simple(w_lt_res),
         ],
         bytecode: vec![
+            BrilligOpcode::CalldataCopy {
+                destination_address: MemoryAddress(0),
+                size: 2,
+                offset: 0,
+            },
             equal_opcode,
             // Oracles are named 'foreign calls' in brillig
             BrilligOpcode::ForeignCall {
                 function: "invert".into(),
-                destinations: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(1))],
-                inputs: vec![RegisterOrMemory::RegisterIndex(RegisterIndex::from(0))],
+                destinations: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(1))],
+                destination_value_types: vec![HeapValueType::Simple],
+                inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
+                input_value_types: vec![HeapValueType::Simple],
             },
         ],
         predicate: Some(Expression::default()),
@@ -484,13 +480,14 @@ fn brillig_oracle_predicate() {
     ])
     .into();
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, witness_assignments);
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
     // ACVM should be able to be finalized in `Solved` state.
     acvm.finalize();
 }
+
 #[test]
 fn unsatisfied_opcode_resolved() {
     let a = Witness(0);
@@ -516,8 +513,8 @@ fn unsatisfied_opcode_resolved() {
     values.insert(c, FieldElement::from(1_i128));
     values.insert(d, FieldElement::from(2_i128));
 
-    let opcodes = vec![Opcode::Arithmetic(opcode_a)];
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, values);
+    let opcodes = vec![Opcode::AssertZero(opcode_a)];
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, values);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
@@ -541,21 +538,24 @@ fn unsatisfied_opcode_resolved_brillig() {
     let w_y = Witness(5);
     let w_result = Witness(6);
 
+    let calldata_copy_opcode =
+        BrilligOpcode::CalldataCopy { destination_address: MemoryAddress(0), size: 2, offset: 0 };
+
     let equal_opcode = BrilligOpcode::BinaryFieldOp {
         op: BinaryFieldOp::Equals,
-        lhs: RegisterIndex::from(0),
-        rhs: RegisterIndex::from(1),
-        destination: RegisterIndex::from(2),
+        lhs: MemoryAddress::from(0),
+        rhs: MemoryAddress::from(1),
+        destination: MemoryAddress::from(2),
     };
     // Jump pass the trap if the values are equal, else
     // jump to the trap
     let location_of_stop = 3;
 
     let jmp_if_opcode =
-        BrilligOpcode::JumpIf { condition: RegisterIndex::from(2), location: location_of_stop };
+        BrilligOpcode::JumpIf { condition: MemoryAddress::from(2), location: location_of_stop };
 
     let trap_opcode = BrilligOpcode::Trap;
-    let stop_opcode = BrilligOpcode::Stop;
+    let stop_opcode = BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 };
 
     let brillig_opcode = Opcode::Brillig(Brillig {
         inputs: vec![
@@ -571,7 +571,7 @@ fn unsatisfied_opcode_resolved_brillig() {
             }),
         ],
         outputs: vec![BrilligOutputs::Simple(w_result)],
-        bytecode: vec![equal_opcode, jmp_if_opcode, trap_opcode, stop_opcode],
+        bytecode: vec![calldata_copy_opcode, equal_opcode, jmp_if_opcode, trap_opcode, stop_opcode],
         predicate: Some(Expression::one()),
     });
 
@@ -595,15 +595,15 @@ fn unsatisfied_opcode_resolved_brillig() {
     values.insert(w_y, FieldElement::from(1_i128));
     values.insert(w_result, FieldElement::from(0_i128));
 
-    let opcodes = vec![brillig_opcode, Opcode::Arithmetic(opcode_a)];
+    let opcodes = vec![brillig_opcode, Opcode::AssertZero(opcode_a)];
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, values);
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, values);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
             message: "explicit trap hit in brillig".to_string(),
-            call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 }]
+            call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 }]
         }),
         "The first opcode is not satisfiable, expected an error indicating this"
     );
@@ -630,7 +630,7 @@ fn memory_operations() {
         predicate: None,
     };
 
-    let expression = Opcode::Arithmetic(Expression {
+    let expression = Opcode::AssertZero(Expression {
         mul_terms: Vec::new(),
         linear_combinations: vec![
             (FieldElement::one(), Witness(7)),
@@ -641,7 +641,7 @@ fn memory_operations() {
 
     let opcodes = vec![init, read_op, expression];
 
-    let mut acvm = ACVM::new(&StubbedBackend, &opcodes, initial_witness);
+    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();

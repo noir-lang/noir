@@ -1,5 +1,0 @@
-[package]
-name = "nested_slice_dynamic"
-type = "bin"
-authors = [""]
-[dependencies]

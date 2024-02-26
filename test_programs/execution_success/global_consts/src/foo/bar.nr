@@ -1,5 +1,5 @@
-global N: Field = 5;
+global N: u64 = 5;
 
 pub fn from_bar(x: Field) -> Field {
-    x * N
+    x * N as Field
 }

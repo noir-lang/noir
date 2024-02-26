@@ -1,11 +1,20 @@
 {
   "name": "@noir-lang/types",
-  "collaborators": [
+  "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
   "packageManager": "yarn@3.5.1",
-  "version": "0.19.4",
+  "version": "0.24.0",
   "license": "(MIT OR Apache-2.0)",
+  "homepage": "https://noir-lang.org/",
+  "repository": {
+    "url": "https://github.com/noir-lang/noir.git",
+    "directory": "tooling/noir_js_types",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/noir-lang/noir/issues"
+  },
   "files": [
     "lib",
     "package.json"
@@ -29,12 +38,9 @@
       "types": "./lib/esm/types.d.ts"
     }
   },
-  "dependencies": {
-    "@noir-lang/noirc_abi": "workspace:*"
-  },
   "devDependencies": {
     "@types/prettier": "^3",
-    "eslint": "^8.50.0",
+    "eslint": "^8.56.0",
     "eslint-plugin-prettier": "^5.0.0",
     "prettier": "3.0.3",
     "typescript": "^5.2.2"

@@ -67,13 +67,13 @@ export class Noir {
    *
    * @example
    * ```typescript
-   * async generateFinalproof(input)
+   * async generateProof(input)
    * ```
    *
    */
-  async generateFinalProof(inputs: InputMap): Promise<ProofData> {
-    const { witness } = await this.execute(inputs);
-    return this.getBackend().generateFinalProof(witness);
+  async generateProof(inputs: InputMap, foreignCallHandler?: ForeignCallHandler): Promise<ProofData> {
+    const { witness } = await this.execute(inputs, foreignCallHandler);
+    return this.getBackend().generateProof(witness);
   }
 
   /**
@@ -84,11 +84,11 @@ export class Noir {
    *
    * @example
    * ```typescript
-   * async verifyFinalProof(proof)
+   * async verifyProof(proof)
    * ```
    *
    */
-  async verifyFinalProof(proofData: ProofData): Promise<boolean> {
-    return this.getBackend().verifyFinalProof(proofData);
+  async verifyProof(proofData: ProofData): Promise<boolean> {
+    return this.getBackend().verifyProof(proofData);
   }
 }

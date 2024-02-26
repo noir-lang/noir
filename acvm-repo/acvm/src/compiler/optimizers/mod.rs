@@ -6,6 +6,7 @@ mod unused_memory;
 
 pub(crate) use general::GeneralOptimizer;
 pub(crate) use redundant_range::RangeOptimizer;
+use tracing::info;
 
 use self::unused_memory::UnusedMemoryOptimizer;
 
@@ -13,7 +14,9 @@ use super::{transform_assert_messages, AcirTransformationMap};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
 pub fn optimize(acir: Circuit) -> (Circuit, AcirTransformationMap) {
-    let (mut acir, transformation_map) = optimize_internal(acir);
+    let (mut acir, new_opcode_positions) = optimize_internal(acir);
+
+    let transformation_map = AcirTransformationMap::new(new_opcode_positions);
 
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
 
@@ -21,14 +24,17 @@ pub fn optimize(acir: Circuit) -> (Circuit, AcirTransformationMap) {
 }
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
-pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, AcirTransformationMap) {
+#[tracing::instrument(level = "trace", name = "optimize_acir" skip(acir))]
+pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
+    info!("Number of opcodes before: {}", acir.opcodes.len());
+
     // General optimizer pass
     let opcodes: Vec<Opcode> = acir
         .opcodes
         .into_iter()
         .map(|opcode| {
-            if let Opcode::Arithmetic(arith_expr) = opcode {
-                Opcode::Arithmetic(GeneralOptimizer::optimize(arith_expr))
+            if let Opcode::AssertZero(arith_expr) = opcode {
+                Opcode::AssertZero(GeneralOptimizer::optimize(arith_expr))
             } else {
                 opcode
             }
@@ -50,7 +56,7 @@ pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, AcirTransformationMa
     let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
-    let transformation_map = AcirTransformationMap { acir_opcode_positions };
+    info!("Number of opcodes after: {}", acir.opcodes.len());
 
-    (acir, transformation_map)
+    (acir, acir_opcode_positions)
 }
