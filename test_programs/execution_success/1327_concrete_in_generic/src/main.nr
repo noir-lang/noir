@@ -30,7 +30,7 @@ impl<T_D> C<T_D> {
         C { t_d_interface }
     }
 
-    fn call_method_of_t_d(self, t_d: T_D) -> Field {
+    fn call_method_of_t_d(self, t_d: T_D) -> field {
         let some_method_on_t_d = self.t_d_interface.some_method_on_t_d;
         some_method_on_t_d(t_d)
     }
@@ -45,7 +45,7 @@ struct D {
         d: Field,
     }
 
-fn d_method(input: D) -> Field {
+fn d_method(input: D) -> field {
     input.d * input.d
 }
 
@@ -53,7 +53,7 @@ fn get_d_method_interface() -> MethodInterface<D> {
     MethodInterface { some_method_on_t_d: d_method }
 }
 // ---
-fn main(input: Field) -> pub Field {
+fn main(input: field) -> pub field {
     let b: B<C<D>> = B::new(new_concrete_c_over_d);
     let c: C<D> = b.get_t_c(); // Singleton<Note>
     let d: D = D { d: input }; // Note

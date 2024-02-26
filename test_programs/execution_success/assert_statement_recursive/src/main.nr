@@ -5,7 +5,7 @@
 // that the backend should use a prover which will construct proofs
 // friendly to recursive verification in another SNARK.
 #[recursive]
-fn main(x: Field, y: pub Field) {
+fn main(x: field, y: pub field) {
     assert(x == y, "x and y are not equal");
     assert_eq(x, y, "x and y are not equal");
 }

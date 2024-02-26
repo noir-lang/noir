@@ -2,10 +2,10 @@ fn main(
     x: [u32; 5],
     mut z: u32,
     t: u32,
-    index: [Field; 5],
-    index2: [Field; 5],
-    offset: Field,
-    sublen: Field
+    index: [field; 5],
+    index2: [field; 5],
+    offset: field,
+    sublen: field
 ) {
     let idx = (z - 5 * t - 5) as Field;
     //dynamic array test
@@ -23,7 +23,7 @@ fn main(
     }
 }
 
-fn dyn_array(mut x: [u32; 5], y: Field, z: Field) {
+fn dyn_array(mut x: [u32; 5], y: field, z: field) {
     assert(x[y] == 111);
     assert(x[z] == 101);
     x[z] = 0;

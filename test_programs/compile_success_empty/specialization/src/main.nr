@@ -1,13 +1,13 @@
 struct Foo<T> {}
 
 impl Foo<u32> {
-    fn foo(_self: Self) -> Field {
+    fn foo(_self: Self) -> field {
         1
     }
 }
 
 impl Foo<u64> {
-    fn foo(_self: Self) -> Field {
+    fn foo(_self: Self) -> field {
         2
     }
 }

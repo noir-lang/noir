@@ -19,7 +19,7 @@ fn foo() {
     x /= 0;
 }
 
-fn bar(x: Field) {
+fn bar(x: field) {
     if x == 15 {
         foo();
     }

@@ -7,7 +7,7 @@ fn main() {
     regression_2445();
 }
 
-fn increment(mut r: &mut Field) {
+fn increment(mut r: &mut field) {
     *r = *r + 1;
 }
 // If aliasing within arrays and constant folding within the mem2reg pass aren't

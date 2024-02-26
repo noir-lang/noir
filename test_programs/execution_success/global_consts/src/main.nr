@@ -20,7 +20,7 @@ struct Test {
 global VALS: [Test; 1] = [Test { v: 100 }];
 global NESTED = [VALS, VALS];
 
-unconstrained fn calculate_global_value() -> Field {
+unconstrained fn calculate_global_value() -> field {
     42
 }
 
@@ -28,10 +28,10 @@ unconstrained fn calculate_global_value() -> Field {
 global CALCULATED_GLOBAL: Field = calculate_global_value();
 
 fn main(
-    a: [Field; M + N - N],
-    b: [Field; 30 + N / 2],
-    c: pub [Field; foo::MAGIC_NUMBER],
-    d: [Field; foo::bar::N]
+    a: [field; M + N - N],
+    b: [field; 30 + N / 2],
+    c: pub [field; foo::MAGIC_NUMBER],
+    d: [field; foo::bar::N]
 ) {
     let test_struct = Dummy { x: d, y: c };
 
@@ -85,11 +85,11 @@ fn main(
     assert(CALCULATED_GLOBAL == 42);
 }
 
-fn multiplyByM(x: Field) -> Field {
+fn multiplyByM(x: field) -> field {
     x * M
 }
 
-fn arrays_neq(a: [Field; M], b: [Field; M]) {
+fn arrays_neq(a: [field; M], b: [field; M]) {
     assert(a != b);
 }
 
@@ -101,7 +101,7 @@ mod my_submodule {
         assert(x | y == 1);
     }
 
-    pub fn my_helper() -> Field {
+    pub fn my_helper() -> field {
         let N: Field = 15; // Like in Rust, local variables override globals
         let x = N;
         x

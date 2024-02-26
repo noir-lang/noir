@@ -34,7 +34,7 @@ fn factory_b() -> impl SomeTrait {
     B {}
 }
 
-fn factory_c(x: Field) -> impl SomeTrait {
+fn factory_c(x: field) -> impl SomeTrait {
     C { x }
 }
 // x = 15

@@ -36,7 +36,7 @@ fn assert_asd_eq_100<T>(t: T) where T: crate::the_trait::Asd {
     assert(t.asd() == 100);
 }
 
-fn add_one_to_static_function<T>(t: T) -> Field where T: StaticTrait {
+fn add_one_to_static_function<T>(t: T) -> field where T: StaticTrait {
     T::static_function(t) + 1
 }
 

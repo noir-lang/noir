@@ -1,8 +1,8 @@
-fn f(x: Field) -> Field {
+fn f(x: field) -> field {
     x + 1
 }
 
-fn ret_fn() -> fn(Field) -> Field {
+fn ret_fn() -> fn(field) -> field {
     f
 }
 // TODO: in the advanced implicitly generic function with closures branch
@@ -16,14 +16,14 @@ fn ret_fn() -> fn(Field) -> Field {
 //     };
 //     inner_closure
 // }
-fn ret_lambda() -> fn(Field) -> Field {
+fn ret_lambda() -> fn(field) -> field {
     let cl = |z: Field| -> Field {
         z + 1
     };
     cl
 }
 
-fn main(x: Field) {
+fn main(x: field) {
     let result_fn = ret_fn();
     assert(result_fn(x) == x + 1);
     // let result_closure = ret_closure();

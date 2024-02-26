@@ -1,33 +1,33 @@
 //Tests for function calling
-fn f1(mut x: Field) -> Field {
+fn f1(mut x: field) -> field {
     x = x + 1;
     x = f2(x);
     x
 }
 
-fn f2(mut x: Field) -> Field {
+fn f2(mut x: field) -> field {
     x += 2;
     x
 }
 // Simple example
-fn test0(mut a: Field) {
+fn test0(mut a: field) {
     a = f2(a);
     assert(a == 3);
 }
 // Nested call
-fn test1(mut a: Field) {
+fn test1(mut a: field) {
     a = f1(a);
     assert(a == 4);
 }
 
-fn test2(z: Field, t: u32) {
+fn test2(z: field, t: u32) {
     let a = z + t as Field;
     assert(a == 64);
     let e = pow(z, t as Field);
     assert(e == 714924299);
 }
 
-fn pow(base: Field, exponent: Field) -> Field {
+fn pow(base: field, exponent: field) -> field {
     let mut r = 1 as Field;
     let b = exponent.to_le_bits(32 as u32);
     for i in 1..33 {
@@ -82,15 +82,15 @@ fn test_multiple6(a: my2, b: my_struct, c: (my2, my_struct)) {
     assert(c.0.aa.a == c.1.a);
 }
 
-fn foo<N>(a: [Field; N]) -> [Field; N] {
+fn foo<N>(a: [field; N]) -> [field; N] {
     a
 }
 
-fn bar() -> [Field; 1] {
+fn bar() -> [field; 1] {
     foo([0])
 }
 
-fn main(x: u32, y: u32, a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
+fn main(x: u32, y: u32, a: field, arr1: [u32; 9], arr2: [u32; 9]) {
     let mut ss: my_struct = my_struct { b: x, a: x + 2 };
     test_multiple4(ss);
     test_multiple5((ss.a, ss.b));
@@ -126,7 +126,7 @@ fn main(x: u32, y: u32, a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
     assert(result[0] == arr1[0] as Field);
 }
 // Issue #628
-fn arr_to_field(arr: [u32; 9]) -> [Field; 9] {
+fn arr_to_field(arr: [u32; 9]) -> [field; 9] {
     let mut as_field: [Field; 9] = [0 as Field; 9];
     for i in 0..9 {
         as_field[i] = arr[i] as Field;
@@ -134,6 +134,6 @@ fn arr_to_field(arr: [u32; 9]) -> [Field; 9] {
     as_field
 }
 
-fn first(a: [Field; 9], _b: [Field; 9]) -> [Field; 9] {
+fn first(a: [field; 9], _b: [field; 9]) -> [field; 9] {
     a
 }

@@ -3,6 +3,6 @@
 // that dead instruction elemination looks inside of arrays
 // when deciding whether of not an instruction should be
 // retained.
-fn main(x: Field) -> pub [Field; 1] {
+fn main(x: field) -> pub [field; 1] {
     [x + 1]
 }

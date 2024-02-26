@@ -1,4 +1,4 @@
-fn main(w: Field) -> pub Field {
+fn main(w: field) -> pub field {
     let f = if 3 * 7 > 200 as u32 { foo } else { bar };
     assert(f()[1] == 2);
     // Lambdas:
@@ -77,11 +77,11 @@ fn bar() -> [u32; 2] {
     [3, 2]
 }
 
-fn add1(x: Field) -> Field {
+fn add1(x: field) -> field {
     x + 1
 }
 
-fn twice(f: fn(Field) -> Field, x: Field) -> Field {
+fn twice(f: fn(field) -> field, x: field) -> field {
     f(f(x))
 }
 // Fixing an ICE, where rewriting the closures

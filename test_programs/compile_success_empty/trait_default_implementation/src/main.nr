@@ -19,7 +19,7 @@ impl MyDefault for Foo {
     }
 }
 
-fn main(x: Field) {
+fn main(x: field) {
     let first = Foo::method2(x);
     assert(first == x);
 }

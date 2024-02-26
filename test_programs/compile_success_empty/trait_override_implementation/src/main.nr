@@ -43,7 +43,7 @@ impl F for Bar {
 //     fn f1(self) -> Field { 101 }
 //     fn f5(self) -> Field { 505 }
 // }
-fn main(x: Field) {
+fn main(x: field) {
     let first = Foo::method2(x);
     assert(first == 3 * x);
 

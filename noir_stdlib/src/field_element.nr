@@ -101,8 +101,8 @@ pub fn modulus_le_bytes() -> [u8] {}
 pub fn bytes32_to_field(bytes32: [u8; 32]) -> field {
     // Convert it to a field element
     let mut v = 1;
-    let mut high = 0 as plain::field;
-    let mut low = 0 as plain::field;
+    let mut high = 0 as field;
+    let mut low = 0 as field;
 
     for i in 0..16 {
         high = high + (bytes32[15 - i] as field) * v;

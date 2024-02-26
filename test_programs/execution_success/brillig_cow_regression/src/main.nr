@@ -24,7 +24,7 @@ struct NewContractData {
 }
 
 impl NewContractData {
-    fn hash(self) -> Field {
+    fn hash(self) -> field {
         dep::std::hash::pedersen_hash([self.contract_address, self.portal_contract_address])
     }
 }
@@ -88,7 +88,7 @@ impl U256 {
         U256 { inner: [high_0, high_1, low_0, low_1] }
     }
 
-    pub fn to_u128_limbs(self) -> [Field; 2] {
+    pub fn to_u128_limbs(self) -> [field; 2] {
         let two_pow_64 = 2.pow_32(64);
 
         let high = (self.inner[0] as Field) * two_pow_64 + self.inner[1] as Field;
@@ -98,7 +98,7 @@ impl U256 {
     }
 }
 
-unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA256] {
+unconstrained fn main(kernel_data: DataToHash) -> pub [field; NUM_FIELDS_PER_SHA256] {
     let mut calldata_hash_inputs = [0; CALLDATA_HASH_INPUT_SIZE];
 
     let new_commitments = kernel_data.new_commitments;

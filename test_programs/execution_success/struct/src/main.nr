@@ -9,7 +9,7 @@ struct Pair {
 }
 
 impl Foo {
-    fn default(x: Field, y: Field) -> Self {
+    fn default(x: field, y: field) -> Self {
         Self { bar: 0, array: [x, y] }
     }
 }
@@ -19,7 +19,7 @@ impl Pair {
         p.first
     }
 
-    fn bar(self) -> Field {
+    fn bar(self) -> field {
         self.foo().bar
     }
 }
@@ -33,7 +33,7 @@ struct MyStruct {
     my_int: u32,
     my_nest: Nested,
 }
-fn test_struct_in_tuple(a_bool: bool, x: Field, y: Field) -> (MyStruct, bool) {
+fn test_struct_in_tuple(a_bool: bool, x: field, y: field) -> (MyStruct, bool) {
     let my_struct = MyStruct { my_bool: a_bool, my_int: 5, my_nest: Nested { a: x, b: y } };
     (my_struct, a_bool)
 }
@@ -50,7 +50,7 @@ fn get_dog() -> Animal {
 
 struct Unit;
 
-fn main(x: Field, y: Field) {
+fn main(x: field, y: field) {
     let unit = Unit {};
 
     let first = Foo::default(x, y);

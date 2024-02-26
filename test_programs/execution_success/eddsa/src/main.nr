@@ -2,7 +2,7 @@ use dep::std::compat;
 use dep::std::ec::consts::te::baby_jubjub;
 use dep::std::hash;
 use dep::std::eddsa::eddsa_poseidon_verify;
-fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
+fn main(msg: pub field, _priv_key_a: field, _priv_key_b: field) {
     // Skip this test for non-bn254 backends
     if compat::is_bn254() {
         let bjj = baby_jubjub();

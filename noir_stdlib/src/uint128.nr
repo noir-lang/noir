@@ -12,7 +12,7 @@ impl U128 {
 
     pub fn from_u64s_le(lo: u64, hi: u64) -> U128 {
         // in order to handle multiplication, we need to represent the product of two u64 without overflow
-        assert(crate::field::modulus_num_bits() as u32 > 128);
+        assert(crate::field_element::modulus_num_bits() as u32 > 128);
         U128 { lo: lo as Field, hi: hi as Field }
     }
 
@@ -129,7 +129,7 @@ impl U128 {
         let low = self.lo * b.lo;
         let lo = low as u64 as Field;
         let carry = (low - lo) / pow64;
-        let high = if crate::field::modulus_num_bits() as u32 > 196 {
+        let high = if crate::field_element::modulus_num_bits() as u32 > 196 {
             (self.lo + self.hi) * (b.lo + b.hi) - low + carry
         } else {
             self.lo * b.hi + self.hi * b.lo + carry
@@ -175,7 +175,7 @@ impl Mul for U128 {
         let low = self.lo*b.lo;
         let lo = low as u64 as Field;
         let carry = (low - lo) / pow64;
-        let high = if crate::field::modulus_num_bits() as u32 > 196 {
+        let high = if crate::field_element::modulus_num_bits() as u32 > 196 {
             (self.lo+self.hi)*(b.lo+b.hi) - low + carry
         } else {
             self.lo*b.hi + self.hi*b.lo + carry

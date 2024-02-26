@@ -10,7 +10,7 @@ impl MyDeserialize<1> for Field {
     }
 }
 
-pub fn storage_read<N>() -> [Field; N] {
+pub fn storage_read<N>() -> [field; N] {
     dep::std::unsafe::zeroed()
 }
 
@@ -19,7 +19,7 @@ struct PublicState<T> {
 }
 
 impl<T> PublicState<T> {
-    pub fn new(storage_slot: Field) -> Self {
+    pub fn new(storage_slot: field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         PublicState { storage_slot }
     }
@@ -31,7 +31,7 @@ impl<T> PublicState<T> {
     }
 }
 
-fn main(value: Field) {
+fn main(value: field) {
     let ps: PublicState<Field> = PublicState::new(27);
 
     // error here
