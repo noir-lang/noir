@@ -258,11 +258,16 @@ impl DefCollector {
 
         // TODO(#4653): generalize this function
         for macro_processor in &macro_processors {
-            macro_processor.process_unresolved_traits_impls(&crate_id, context, &def_collector.collected_traits_impls, &mut def_collector.collected_functions).unwrap_or_else(
-                |(macro_err, file_id)| {
+            macro_processor
+                .process_unresolved_traits_impls(
+                    &crate_id,
+                    context,
+                    &def_collector.collected_traits_impls,
+                    &mut def_collector.collected_functions,
+                )
+                .unwrap_or_else(|(macro_err, file_id)| {
                     errors.push((macro_err.into(), file_id));
-                },
-            );
+                });
         }
 
         inject_prelude(crate_id, context, crate_root, &mut def_collector.collected_imports);
