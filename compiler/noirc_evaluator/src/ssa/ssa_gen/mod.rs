@@ -128,7 +128,6 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_expression(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
-        eprintln!("Codegen {expr}");
         match expr {
             Expression::Ident(ident) => Ok(self.codegen_ident(ident)),
             Expression::Literal(literal) => self.codegen_literal(literal),
@@ -348,10 +347,8 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_binary(&mut self, binary: &ast::Binary) -> Result<Values, RuntimeError> {
-        eprintln!("Start binary");
         let lhs = self.codegen_non_tuple_expression(&binary.lhs)?;
         let rhs = self.codegen_non_tuple_expression(&binary.rhs)?;
-        eprintln!("Insert binary");
         Ok(self.insert_binary(lhs, binary.operator, rhs, binary.location))
     }
 
