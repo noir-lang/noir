@@ -94,11 +94,31 @@ pub enum MonomorphizationError {
     UnknownArrayLength { location: Location },
 }
 
+impl MonomorphizationError {
+    fn call_stack(&self) -> Vec<Location> {
+        match self {
+            MonomorphizationError::UnknownArrayLength { location } => vec![*location],
+        }
+    }
+}
+
 impl From<MonomorphizationError> for FileDiagnostic {
     fn from(error: MonomorphizationError) -> FileDiagnostic {
-        match error {
-            MonomorphizationError::UnknownArrayLength { location } => FileDiagnostic::new(location.file, CustomDiagnostic::simple_error(error.to_string(), "Could not determine the value of the numeric generic defining the length of this array".to_string(), location.span))
-        }
+        let call_stack = error.call_stack();
+        let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
+        let diagnostic = error.into_diagnostic();
+        diagnostic.in_file(file_id).with_call_stack(call_stack)
+    }
+}
+
+impl MonomorphizationError {
+    fn into_diagnostic(self) -> CustomDiagnostic {
+        CustomDiagnostic::simple_error(
+                "Internal Consistency Evaluators Errors: \n
+                This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
+                self.to_string(),
+                noirc_errors::Span::inclusive(0, 0)
+            )
     }
 }
 
