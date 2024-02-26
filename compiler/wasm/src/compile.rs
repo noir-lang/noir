@@ -6,8 +6,7 @@ use nargo::artifacts::{
     program::ProgramArtifact,
 };
 use noirc_driver::{
-    add_dep, compile_contract, compile_main, file_manager_with_stdlib, prepare_crate,
-    prepare_dependency, CompileOptions, CompiledContract, CompiledProgram,
+    add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency, CompileOptions,
     NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_evaluator::errors::SsaReport;
@@ -60,51 +59,64 @@ extern "C" {
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub type JsDependencyGraph;
 
-    #[wasm_bindgen(extends = Object, js_name = "CompileResult", typescript_type = "CompileResult")]
+    #[wasm_bindgen(extends = Object, js_name = "ProgramCompileResult", typescript_type = "ProgramCompileResult")]
     #[derive(Clone, Debug, PartialEq, Eq)]
-    pub type JsCompileResult;
+    pub type JsCompileProgramResult;
 
     #[wasm_bindgen(constructor, js_class = "Object")]
-    fn constructor() -> JsCompileResult;
+    fn constructor() -> JsCompileProgramResult;
+
+    #[wasm_bindgen(extends = Object, js_name = "ContractCompileResult", typescript_type = "ContractCompileResult")]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub type JsCompileContractResult;
+
+    #[wasm_bindgen(constructor, js_class = "Object")]
+    fn constructor() -> JsCompileContractResult;
 }
 
-impl JsCompileResult {
-    const CONTRACT_PROP: &'static str = "contract";
+impl JsCompileProgramResult {
     const PROGRAM_PROP: &'static str = "program";
     const WARNINGS_PROP: &'static str = "warnings";
 
-    pub fn new(resp: CompileResult) -> JsCompileResult {
-        let obj = JsCompileResult::constructor();
-        match resp {
-            CompileResult::Contract { contract, warnings } => {
-                js_sys::Reflect::set(
-                    &obj,
-                    &JsString::from(JsCompileResult::CONTRACT_PROP),
-                    &<JsValue as JsValueSerdeExt>::from_serde(&contract).unwrap(),
-                )
-                .unwrap();
-                js_sys::Reflect::set(
-                    &obj,
-                    &JsString::from(JsCompileResult::WARNINGS_PROP),
-                    &<JsValue as JsValueSerdeExt>::from_serde(&warnings).unwrap(),
-                )
-                .unwrap();
-            }
-            CompileResult::Program { program, warnings } => {
-                js_sys::Reflect::set(
-                    &obj,
-                    &JsString::from(JsCompileResult::PROGRAM_PROP),
-                    &<JsValue as JsValueSerdeExt>::from_serde(&program).unwrap(),
-                )
-                .unwrap();
-                js_sys::Reflect::set(
-                    &obj,
-                    &JsString::from(JsCompileResult::WARNINGS_PROP),
-                    &<JsValue as JsValueSerdeExt>::from_serde(&warnings).unwrap(),
-                )
-                .unwrap();
-            }
-        };
+    pub fn new(program: ProgramArtifact, warnings: Vec<SsaReport>) -> JsCompileProgramResult {
+        let obj = JsCompileProgramResult::constructor();
+
+        js_sys::Reflect::set(
+            &obj,
+            &JsString::from(JsCompileProgramResult::PROGRAM_PROP),
+            &<JsValue as JsValueSerdeExt>::from_serde(&program).unwrap(),
+        )
+        .unwrap();
+        js_sys::Reflect::set(
+            &obj,
+            &JsString::from(JsCompileProgramResult::WARNINGS_PROP),
+            &<JsValue as JsValueSerdeExt>::from_serde(&warnings).unwrap(),
+        )
+        .unwrap();
+
+        obj
+    }
+}
+
+impl JsCompileContractResult {
+    const CONTRACT_PROP: &'static str = "contract";
+    const WARNINGS_PROP: &'static str = "warnings";
+
+    pub fn new(contract: ContractArtifact, warnings: Vec<SsaReport>) -> JsCompileContractResult {
+        let obj = JsCompileContractResult::constructor();
+
+        js_sys::Reflect::set(
+            &obj,
+            &JsString::from(JsCompileContractResult::CONTRACT_PROP),
+            &<JsValue as JsValueSerdeExt>::from_serde(&contract).unwrap(),
+        )
+        .unwrap();
+        js_sys::Reflect::set(
+            &obj,
+            &JsString::from(JsCompileContractResult::WARNINGS_PROP),
+            &<JsValue as JsValueSerdeExt>::from_serde(&warnings).unwrap(),
+        )
+        .unwrap();
 
         obj
     }
@@ -144,20 +156,81 @@ pub(crate) fn parse_all(fm: &FileManager) -> ParsedFiles {
     fm.as_file_map().all_file_ids().map(|&file_id| (file_id, parse_file(fm, file_id))).collect()
 }
 
-pub enum CompileResult {
-    Contract { contract: ContractArtifact, warnings: Vec<SsaReport> },
-    Program { program: ProgramArtifact, warnings: Vec<SsaReport> },
+#[wasm_bindgen]
+pub fn compile_program(
+    entry_point: String,
+    dependency_graph: Option<JsDependencyGraph>,
+    file_source_map: PathToFileSourceMap,
+) -> Result<JsCompileProgramResult, JsCompileError> {
+    console_error_panic_hook::set_once();
+    let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
+
+    let compile_options = CompileOptions::default();
+    // For now we default to a bounded width of 3, though we can add it as a parameter
+    let expression_width = acvm::acir::circuit::ExpressionWidth::Bounded { width: 3 };
+
+    let compiled_program =
+        noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
+            .map_err(|errs| {
+                CompileError::with_file_diagnostics(
+                    "Failed to compile program",
+                    errs,
+                    &context.file_manager,
+                )
+            })?
+            .0;
+
+    let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
+    let warnings = optimized_program.warnings.clone();
+
+    Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
 }
 
 #[wasm_bindgen]
-pub fn compile(
+pub fn compile_contract(
     entry_point: String,
-    contracts: Option<bool>,
     dependency_graph: Option<JsDependencyGraph>,
     file_source_map: PathToFileSourceMap,
-) -> Result<JsCompileResult, JsCompileError> {
+) -> Result<JsCompileContractResult, JsCompileError> {
     console_error_panic_hook::set_once();
+    let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
+    let compile_options = CompileOptions::default();
+    // For now we default to a bounded width of 3, though we can add it as a parameter
+    let expression_width = acvm::acir::circuit::ExpressionWidth::Bounded { width: 3 };
+
+    let compiled_contract =
+        noirc_driver::compile_contract(&mut context, crate_id, &compile_options)
+            .map_err(|errs| {
+                CompileError::with_file_diagnostics(
+                    "Failed to compile contract",
+                    errs,
+                    &context.file_manager,
+                )
+            })?
+            .0;
+
+    let optimized_contract = nargo::ops::transform_contract(compiled_contract, expression_width);
+
+    let functions =
+        optimized_contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
+
+    let contract_artifact = ContractArtifact {
+        noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
+        name: optimized_contract.name,
+        functions,
+        events: optimized_contract.events,
+        file_map: optimized_contract.file_map,
+    };
+
+    Ok(JsCompileContractResult::new(contract_artifact, optimized_contract.warnings))
+}
+
+fn prepare_context(
+    entry_point: String,
+    dependency_graph: Option<JsDependencyGraph>,
+    file_source_map: PathToFileSourceMap,
+) -> Result<(CrateId, Context<'static, 'static>), JsCompileError> {
     let dependency_graph: DependencyGraph = if let Some(dependency_graph) = dependency_graph {
         <JsValue as JsValueSerdeExt>::into_serde(&JsValue::from(dependency_graph))
             .map_err(|err| err.to_string())?
@@ -174,43 +247,7 @@ pub fn compile(
 
     process_dependency_graph(&mut context, dependency_graph);
 
-    let compile_options = CompileOptions::default();
-
-    // For now we default to a bounded width of 3, though we can add it as a parameter
-    let expression_width = acvm::acir::circuit::ExpressionWidth::Bounded { width: 3 };
-
-    if contracts.unwrap_or_default() {
-        let compiled_contract = compile_contract(&mut context, crate_id, &compile_options)
-            .map_err(|errs| {
-                CompileError::with_file_diagnostics(
-                    "Failed to compile contract",
-                    errs,
-                    &context.file_manager,
-                )
-            })?
-            .0;
-
-        let optimized_contract =
-            nargo::ops::transform_contract(compiled_contract, expression_width);
-
-        let compile_output = generate_contract_artifact(optimized_contract);
-        Ok(JsCompileResult::new(compile_output))
-    } else {
-        let compiled_program = compile_main(&mut context, crate_id, &compile_options, None)
-            .map_err(|errs| {
-                CompileError::with_file_diagnostics(
-                    "Failed to compile program",
-                    errs,
-                    &context.file_manager,
-                )
-            })?
-            .0;
-
-        let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
-
-        let compile_output = generate_program_artifact(optimized_program);
-        Ok(JsCompileResult::new(compile_output))
-    }
+    Ok((crate_id, context))
 }
 
 // Create a new FileManager with the given source map
@@ -268,25 +305,6 @@ fn process_dependency_graph(context: &mut Context, dependency_graph: DependencyG
 fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
     let path_to_lib = Path::new(&library_name.to_string()).join("lib.nr");
     prepare_dependency(context, &path_to_lib)
-}
-
-pub(crate) fn generate_program_artifact(program: CompiledProgram) -> CompileResult {
-    let warnings = program.warnings.clone();
-    CompileResult::Program { program: program.into(), warnings }
-}
-
-pub(crate) fn generate_contract_artifact(contract: CompiledContract) -> CompileResult {
-    let functions = contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
-
-    let contract_artifact = ContractArtifact {
-        noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
-        name: contract.name,
-        functions,
-        events: contract.events,
-        file_map: contract.file_map,
-    };
-
-    CompileResult::Contract { contract: contract_artifact, warnings: contract.warnings }
 }
 
 #[cfg(test)]
