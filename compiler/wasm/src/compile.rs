@@ -1,9 +1,12 @@
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{JsString, Object};
-use nargo::artifacts::{
-    contract::{ContractArtifact, ContractFunctionArtifact},
-    program::ProgramArtifact,
+use nargo::{
+    artifacts::{
+        contract::{ContractArtifact, ContractFunctionArtifact},
+        program::ProgramArtifact,
+    },
+    parse_all,
 };
 use noirc_driver::{
     add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency, CompileOptions,
@@ -12,7 +15,7 @@ use noirc_driver::{
 use noirc_evaluator::errors::SsaReport;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
-    hir::{def_map::parse_file, Context, ParsedFiles},
+    hir::Context,
 };
 use serde::Deserialize;
 use std::{collections::HashMap, path::Path};
@@ -150,10 +153,6 @@ impl PathToFileSourceMap {
         let old_value = self.0.insert(path_buf, source_code);
         old_value.is_some()
     }
-}
-
-pub(crate) fn parse_all(fm: &FileManager) -> ParsedFiles {
-    fm.as_file_map().all_file_ids().map(|&file_id| (file_id, parse_file(fm, file_id))).collect()
 }
 
 #[wasm_bindgen]
@@ -309,14 +308,13 @@ fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
 
 #[cfg(test)]
 mod test {
+    use nargo::parse_all;
     use noirc_driver::prepare_crate;
     use noirc_frontend::{graph::CrateName, hir::Context};
 
     use crate::compile::PathToFileSourceMap;
 
-    use super::{
-        file_manager_with_source_map, parse_all, process_dependency_graph, DependencyGraph,
-    };
+    use super::{file_manager_with_source_map, process_dependency_graph, DependencyGraph};
     use std::{collections::HashMap, path::Path};
 
     fn setup_test_context(source_map: PathToFileSourceMap) -> Context<'static, 'static> {
