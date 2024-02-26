@@ -132,6 +132,18 @@
       }
     },
     {
+      "name": "fuzzing-asan",
+      "displayName": "Build with fuzzing",
+      "description": "Build default preset but with fuzzing enabled",
+      "inherits": "clang16-dbg",
+      "binaryDir": "build-fuzzing",
+      "cacheVariables": {
+        "FUZZING": "ON",
+        "ENABLE_ASAN": "ON",
+        "DISABLE_ASM": "ON"
+      }
+    },
+    {
       "name": "smt-verification",
       "displayName": "Build with smt verificaiton",
       "description": "Build default preset but with smt library included",
@@ -377,6 +389,11 @@
       "inherits": "clang16",
       "configurePreset": "fuzzing"
     },
+{
+      "name": "fuzzing-asan",
+      "inherits": "clang16-dbg",
+      "configurePreset": "fuzzing-asan"
+    },
     {
       "name": "gperftools",
       "inherits": "clang16",
@@ -500,6 +517,11 @@
       "name": "fuzzing",
       "inherits": "default",
       "configurePreset": "fuzzing"
+    },
+{
+      "name": "fuzzing-asan",
+      "inherits": "clang16-dbg",
+      "configurePreset": "fuzzing-asan"
     },
     {
       "name": "smt-verification",
