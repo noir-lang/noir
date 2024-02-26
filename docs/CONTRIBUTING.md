@@ -61,6 +61,10 @@ Things to note:
 
 When in doubt, check existing sections of the code to see if there are relevant references.
 
+## Structuring the docs
+
+Aztec's docs are structured in accordance to a few smart people's philosophies about documentation. You can read the guidelines into how we write docs [here](./HOW_WE_WRITE_DOCS.md).
+
 ### Citations
 
 The following documents were referenced in the creation of this doc.
