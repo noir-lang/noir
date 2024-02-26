@@ -51,7 +51,7 @@ impl Poseidon2 {
     fn absorb(&mut self, input: Field) {
         if (!self.squeeze_mode) & (self.cache_size == rate) {
             // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache
-            self.perform_duplex();
+            let _ = self.perform_duplex();
             self.cache[0] = input;
             self.cache_size = 1;
         } else if (!self.squeeze_mode) & (self.cache_size != rate) {
