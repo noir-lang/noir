@@ -127,4 +127,4 @@ jobs:
 
       - name: Format test suite
         working-directory: ./test_programs
-        run: ./format check
+        run: ./format.sh check
