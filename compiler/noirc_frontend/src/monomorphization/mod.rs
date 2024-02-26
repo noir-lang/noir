@@ -115,7 +115,7 @@ impl MonomorphizationError {
     fn into_diagnostic(self) -> CustomDiagnostic {
         CustomDiagnostic::simple_error(
                 "Internal Consistency Evaluators Errors: \n
-                This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
+                This is likely a bug. Consider opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                 self.to_string(),
                 noirc_errors::Span::inclusive(0, 0)
             )
