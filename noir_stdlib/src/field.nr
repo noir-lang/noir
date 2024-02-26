@@ -89,7 +89,7 @@ impl Field {
 }
 
 #[builtin(modulus_num_bits)]
-pub fn modulus_num_bits() -> Field {}
+pub fn modulus_num_bits() -> u64 {}
 
 #[builtin(modulus_be_bits)]
 pub fn modulus_be_bits() -> [u1] {}
