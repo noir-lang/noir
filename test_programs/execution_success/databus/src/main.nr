@@ -1,6 +1,6 @@
 use dep::std;
 
-fn main(mut x: u32, y: call_data u32, z: call_data [u32; 4]) -> return_data u32 {
+fn main(mut x: u32, y: call_datau32, z: call_data[u32; 4]) -> u32 {
     let a = z[x];
     a + foo(y)
 }
