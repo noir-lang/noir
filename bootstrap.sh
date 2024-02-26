@@ -32,6 +32,8 @@ if [ -n "$CMD" ]; then
     git clean -ffdx
 
     exit 0
+  elif [ "$CMD" = "full" ]; then
+    export NO_CACHE=1
   else
     echo "Unknown command: $CMD"
     exit 1
@@ -61,19 +63,11 @@ PROJECTS=(
 
 # Build projects locally
 for P in "${PROJECTS[@]}"; do
-  if [ -n "${BOOTSTRAP_USE_REMOTE_CACHE:-}" ] && [ -f "$P/bootstrap_cache.sh" ]; then
-    echo "**************************************"
-    echo -e "\033[1mBootstrapping $P from remote cache...\033[0m"
-    echo "**************************************"
-    echo
-    $P/bootstrap_cache.sh
-  else
-    echo "**************************************"
-    echo -e "\033[1mBootstrapping $P...\033[0m"
-    echo "**************************************"
-    echo
-    $P/bootstrap.sh
-  fi
+  echo "**************************************"
+  echo -e "\033[1mBootstrapping $P...\033[0m"
+  echo "**************************************"
+  echo
+  (cd $P && ./bootstrap.sh)
   echo
   echo
 done

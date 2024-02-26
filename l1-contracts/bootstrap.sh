@@ -15,11 +15,14 @@ if [ -n "$CMD" ]; then
   fi
 fi
 
-# Clean
-rm -rf broadcast cache out serve
-
 # Install foundry.
 . ./scripts/install_foundry.sh
+
+# Attempt to just pull artefacts from CI and exit on success.
+./bootstrap_cache.sh && exit
+
+# Clean
+rm -rf broadcast cache out serve
 
 # Install
 forge install --no-commit

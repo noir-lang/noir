@@ -6,6 +6,10 @@
 # The script should be sourced from the root of the repository, e.g:
 #   source ./build-system/scripts/setup_env
 # This ensures the resultant variables are set in the calling shell.
+
+# Save current options as we might be sourcing.
+CURRENT_SHELL_OPTS=$(set +o)
+trap 'eval "$CURRENT_SHELL_OPTS"' EXIT
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
@@ -139,6 +143,3 @@ cat $BASH_ENV
 
 # Having written the variables to $BASH_ENV, we now want to set them in this shell context.
 source $BASH_ENV
-
-# This script is often "sourced", we don't want calling shell to exit on a subsequent error!
-set +e

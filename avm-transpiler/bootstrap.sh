@@ -16,4 +16,7 @@ if [ -n "$CMD" ]; then
   fi
 fi
 
+# Attempt to just pull artefacts from CI and exit on success.
+./bootstrap_cache.sh && exit
+
 ./scripts/bootstrap_native.sh

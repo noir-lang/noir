@@ -31,6 +31,9 @@ fi
 # Download ignition transcripts.
 (cd ./srs_db && ./download_ignition.sh 0)
 
+# Attempt to just pull artefacts from CI and exit on success.
+./bootstrap_cache.sh && exit
+
 # Pick native toolchain file.
 ARCH=$(uname -m)
 if [ "$OS" == "macos" ]; then

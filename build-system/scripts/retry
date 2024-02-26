@@ -1,7 +1,13 @@
+if [ -n "${RETRY_DISABLED:-}" ]; then
+    "$@" && exit || exit 1
+fi
+
 ATTEMPTS=3
-# Retries up to 3 times with 10 second intervals
+# Retries up to 3 times with 5 second intervals
 for i in $(seq 1 $ATTEMPTS); do
-    "$@" && exit || sleep 10
+    "$@" && exit
+    [ "$i" != "$ATTEMPTS" ] && sleep 5
 done
+
 >&2 echo "$@ failed after $ATTEMPTS attempts"
 exit 1

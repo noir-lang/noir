@@ -18,6 +18,9 @@ if [ -n "$CMD" ]; then
   fi
 fi
 
+# Attempt to just pull artefacts from CI and exit on success.
+./bootstrap_cache.sh && exit
+
 yarn install --immutable
 echo "Building with command 'yarn $BUILD_CMD'..."
 yarn $BUILD_CMD

@@ -24,7 +24,7 @@ IFS=','
 for A in $ARCH_LIST; do
   IMAGE_URI=$(calculate_image_uri $REPOSITORY $A)
   echo "Adding image $IMAGE_URI to manifest list $MULTIARCH_IMAGE_URI..."
-  docker manifest create $MULTIARCH_IMAGE_URI --amend $IMAGE_URI
+  retry docker manifest create $MULTIARCH_IMAGE_URI --amend $IMAGE_URI
 done
 
 retry docker manifest push --purge $MULTIARCH_IMAGE_URI

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Removes all cache-* docker images for the given repository that are not the current content hash.
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+set -eu
+
+REPOSITORY=$1
+shift
+
+IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
+for IMAGE in $(docker images --format "{{.ID}}" $ECR_URL/$REPOSITORY --filter "before=$IMAGE_COMMIT_URI"); do
+  echo "Removing $IMAGE..."
+  docker rmi --force $IMAGE
+done
