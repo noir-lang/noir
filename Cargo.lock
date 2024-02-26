@@ -590,6 +590,7 @@ dependencies = [
  "js-sys",
  "noir_grumpkin",
  "num-bigint",
+ "num-traits",
  "pkg-config",
  "reqwest",
  "rust-embed",
@@ -2948,6 +2949,7 @@ dependencies = [
  "noirc_macros",
  "rust-embed",
  "serde",
+ "thiserror",
  "tracing",
 ]
 

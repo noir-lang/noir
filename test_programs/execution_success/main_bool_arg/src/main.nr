@@ -1,4 +1,4 @@
-fn main(x: bool, y: [bool;2]) {
+fn main(x: bool, y: [bool; 2]) {
     if x {
         assert(1 != 2);
     }
