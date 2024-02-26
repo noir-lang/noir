@@ -1,6 +1,6 @@
 // Tests a performance regression found in aztec-packages with brillig cow optimization
 
-global MAX_NEW_COMMITMENTS_PER_TX = 64;
+global MAX_NEW_NOTE_HASHES_PER_TX = 64;
 global MAX_NEW_NULLIFIERS_PER_TX = 64;
 global MAX_NEW_L2_TO_L1_MSGS_PER_TX = 2;
 global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX = 16;
