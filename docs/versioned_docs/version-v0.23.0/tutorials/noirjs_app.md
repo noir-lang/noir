@@ -14,9 +14,9 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 :::note
 
-Feel free to use whatever versions, just keep in mind that Nargo and the NoirJS packages are meant to be in sync. For example, Nargo 0.19.x matches `noir_js@0.19.x`, etc.
+Feel free to use whatever versions, just keep in mind that Nargo and the NoirJS packages are meant to be in sync. For example, Nargo 0.23.x matches `noir_js@0.23.x`, etc.
 
-In this guide, we will be pinned to 0.19.4.
+In this guide, we will be pinned to 0.23.0.
 
 :::
 
@@ -80,7 +80,7 @@ To do this this, go back to the previous folder (`cd ..`) and create a new vite 
 You should see `vite-project` appear in your root folder. This seems like a good time to `cd` into it and install our NoirJS packages:
 
 ```bash
-npm i @noir-lang/backend_barretenberg@0.19.4 @noir-lang/noir_js@0.19.4
+npm i @noir-lang/backend_barretenberg@0.23.0 @noir-lang/noir_js@0.23.0 vite-plugin-top-level-await
 ```
 
 :::info
@@ -98,6 +98,22 @@ At this point in the tutorial, your folder structure should look like this:
 :::
 
 #### Some cleanup
+
+Add a `vite.config.js` file containing the following:
+
+```js
+import { defineConfig } from 'vite';
+import topLevelAwait from "vite-plugin-top-level-await";
+
+export default defineConfig({
+    plugins: [
+        topLevelAwait({
+            promiseExportName: "__tla",
+            promiseImportName: i => `__tla_${i}`
+        })
+    ]
+})
+```
 
 `npx create vite` is amazing but it creates a bunch of files we don't really need for our simple example. Actually, let's just delete everything except for `index.html`, `main.js` and `package.json`. I feel lighter already.
 

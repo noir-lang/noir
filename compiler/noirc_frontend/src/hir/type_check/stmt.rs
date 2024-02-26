@@ -73,13 +73,10 @@ impl<'interner> TypeChecker<'interner> {
 
         let expected_type = Type::polymorphic_integer(self.interner);
 
-        self.unify(&start_range_type, &expected_type, || {
-            TypeCheckError::TypeCannotBeUsed {
-                typ: start_range_type.clone(),
-                place: "for loop",
-                span: range_span,
-            }
-            .add_context("The range of a loop must be known at compile-time")
+        self.unify(&start_range_type, &expected_type, || TypeCheckError::TypeCannotBeUsed {
+            typ: start_range_type.clone(),
+            place: "for loop",
+            span: range_span,
         });
 
         self.interner.push_definition_type(for_loop.identifier.id, start_range_type);
@@ -192,7 +189,7 @@ impl<'interner> TypeChecker<'interner> {
                         mutable = definition.mutable;
                     }
 
-                    let typ = self.interner.id_type(ident.id).instantiate(self.interner).0;
+                    let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
                     typ.follow_bindings()
                 };
 
@@ -235,7 +232,7 @@ impl<'interner> TypeChecker<'interner> {
                 let expr_span = self.interner.expr_span(index);
 
                 index_type.unify(
-                    &Type::polymorphic_integer(self.interner),
+                    &Type::polymorphic_integer_or_field(self.interner),
                     &mut self.errors,
                     || TypeCheckError::TypeMismatch {
                         expected_typ: "an integer".to_owned(),
