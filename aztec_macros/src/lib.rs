@@ -1622,7 +1622,7 @@ fn inject_compute_note_hash_and_nullifier(
         .collect();
 
     // If the current crate does not contain a contract module we simply skip it.
-    if contract_module_file_ids.len() == 0 {
+    if contract_module_file_ids.is_empty() {
         return Ok(());
     } else if contract_module_file_ids.len() != 1 {
         panic!("Found multiple contracts in the same crate");
@@ -1684,7 +1684,7 @@ fn fetch_struct_trait_impls(
     // These structs can be declared in either external crates or the current one. External crates that contain 
     // dependencies have already been processed and resolved, but are available here via the NodeInterner. Note that
     // crates on which the current crate does not depend on may not have been processed, and will be ignored.
-    for trait_impl_id in 0..(&context.def_interner.next_trait_impl_id()).0 {
+    for trait_impl_id in 0..context.def_interner.next_trait_impl_id().0 {
         let trait_impl = &context.def_interner.get_trait_implementation(TraitImplId(trait_impl_id));
 
         if trait_impl.borrow().ident.0.contents == *trait_name {
@@ -1725,7 +1725,7 @@ fn generate_compute_note_hash_and_nullifier_source(note_types: &Vec<String>) -> 
     // TODO(#4649): The serialized_note parameter is a fixed-size array, but we don't know what length it should have. 
     // For now we hardcode it to 20, which is the same as MAX_NOTE_FIELDS_LENGTH.
 
-    if note_types.len() == 0 {
+    if note_types.is_empty() {
         // TODO(#4520): Even if the contract does not include any notes, other parts of the stack expect for this 
         // function to exist, so we include a dummy version. We likely should error out here instead.
         "
