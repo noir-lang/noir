@@ -3,7 +3,7 @@ use acir::{
     native_types::{Witness, WitnessMap},
     BlackBoxFunc, FieldElement,
 };
-use acvm_blackbox_solver::{sha256compression, BlackBoxResolutionError};
+use acvm_blackbox_solver::{sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 use crate::pwg::{insert_value, witness_to_value};
 use crate::OpcodeResolutionError;
@@ -129,5 +129,39 @@ pub(crate) fn solve_sha_256_permutation_opcode(
         insert_value(output_witness, FieldElement::from(value as u128), initial_witness)?;
     }
 
+    Ok(())
+}
+
+pub(crate) fn solve_poseidon2_permutation_opcode(
+    backend: &impl BlackBoxFunctionSolver,
+    initial_witness: &mut WitnessMap,
+    inputs: &[FunctionInput],
+    outputs: &[Witness],
+    len: u32,
+) -> Result<(), OpcodeResolutionError> {
+    if len as usize != inputs.len() {
+        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
+            acir::BlackBoxFunc::Poseidon2Permutation,
+            format!(
+                "the number of inputs does not match specified length. {} > {}",
+                inputs.len(),
+                len
+            ),
+        ));
+    }
+
+    // Read witness assignments
+    let mut state = Vec::new();
+    for input in inputs.iter() {
+        let witness_assignment = witness_to_value(initial_witness, input.witness)?;
+        state.push(*witness_assignment);
+    }
+
+    let state = backend.poseidon2_permutation(&state, len)?;
+
+    // Write witness assignments
+    for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+        insert_value(output_witness, value, initial_witness)?;
+    }
     Ok(())
 }

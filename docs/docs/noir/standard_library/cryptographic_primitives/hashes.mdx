@@ -114,6 +114,19 @@ example:
 
 #include_code poseidon test_programs/execution_success/poseidon_bn254_hash/src/main.nr rust
 
+## poseidon 2
+
+Given an array of Fields, returns a new Field with the Poseidon2 Hash. Contrary to the Poseidon
+function, there is only one hash and you can specify a message_size to hash only the first 
+`message_size` bytes of the input,
+
+```rust
+// example for hashing the first three elements of the input
+Poseidon2::hash(input, 3);
+```
+
+The above example for Poseidon also includes Poseidon2.
+
 ## mimc_bn254 and mimc
 
 `mimc_bn254` is `mimc`, but with hardcoded parameters for the BN254 curve. You can use it by
