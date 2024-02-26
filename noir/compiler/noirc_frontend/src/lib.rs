@@ -81,7 +81,7 @@ pub mod macros_api {
             &self,
             _crate_id: &CrateId,
             _context: &mut HirContext,
-            _unresolved_traits_impls: &Vec<UnresolvedTraitImpl>,
+            _unresolved_traits_impls: &[UnresolvedTraitImpl],
             _collected_functions: &mut Vec<UnresolvedFunctions>,
         ) -> Result<(), (MacroError, FileId)>;
 
