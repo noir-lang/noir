@@ -19,9 +19,7 @@ struct OracleMock {
 
 impl OracleMock {
     unconstrained pub fn mock<N>(name: str<N>) -> Self {
-        Self {
-            id: create_mock_oracle(name),
-        }
+        Self { id: create_mock_oracle(name) }
     }
 
     unconstrained pub fn with_params<P>(self, params: P) -> Self {
