@@ -1,14 +1,12 @@
 struct BoundedVec<T, MaxLen> {
     storage: [T; MaxLen],
-    // TODO: change this to return a u64 as Noir now
-    // uses u64 for indexing
-    len: Field,
-    empty_value: T,
+    len: u64,
 }
 
 impl<T, MaxLen> BoundedVec<T, MaxLen> {
-    pub fn new(initial_value: T) -> Self {
-        BoundedVec { storage: [initial_value; MaxLen], len: 0, empty_value: initial_value }
+    pub fn new() -> Self {
+        let zeroed = crate::unsafe::zeroed();
+        BoundedVec { storage: [zeroed; MaxLen], len: 0 }
     }
 
     pub fn get(mut self: Self, index: Field) -> T {
@@ -70,7 +68,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len -= 1;
 
         let elem = self.storage[self.len];
-        self.storage[self.len] = self.empty_value;
+        self.storage[self.len] = crate::unsafe::zeroed();
         elem
     }
 
@@ -79,7 +77,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         let mut exceeded_len = false;
         for i in 0..MaxLen {
             exceeded_len |= i == self.len;
-            if (!exceeded_len) {
+            if !exceeded_len {
                 ret |= predicate(self.storage[i]);
             }
         }

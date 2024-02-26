@@ -19,7 +19,7 @@ is a reasonable maximum bound that can be placed on the vector.
 Example:
 
 ```rust
-let mut vector: BoundedVec<Field, 10> = BoundedVec::new(0);
+let mut vector: BoundedVec<Field, 10> = BoundedVec::new();
 for i in 0..5 {
     vector.push(i);
 }
@@ -32,13 +32,14 @@ assert(vector.max_len() == 10);
 ### new
 
 ```rust
-pub fn new(initial_value: T) -> Self
+pub fn new() -> Self
 ```
 
 Creates a new, empty vector of length zero.
 
 Since this container is backed by an array internally, it still needs an initial value
-to give each element. This value is guaranteed to be inaccessible unless `get_unchecked` is used.
+to give each element. To resolve this, each element is zeroed internally. This value
+is guaranteed to be inaccessible unless `get_unchecked` is used.
 
 Example:
 
@@ -75,7 +76,7 @@ you will receive a constraint failure at runtime when the vec is pushed to.
 ### get
 
 ```rust
-pub fn get(mut self: Self, index: Field) -> T {
+pub fn get(mut self: Self, index: u64) -> T {
 ```
 
 Retrieves an element from the vector at the given index, starting from zero.
@@ -96,7 +97,7 @@ fn foo<N>(v: BoundedVec<u32, N>) {
 ### get_unchecked
 
 ```rust
-pub fn get_unchecked(mut self: Self, index: Field) -> T {
+pub fn get_unchecked(mut self: Self, index: u64) -> T {
 ```
 
 Retrieves an element from the vector at the given index, starting from zero, without
@@ -107,7 +108,7 @@ it is unsafe! Use at your own risk!
 
 Example:
 
-```
+```rust
 fn sum_of_first_three<N>(v: BoundedVec<u32, N>) -> u32 {
     // Always ensure the length is larger than the largest
     // index passed to get_unchecked
@@ -125,30 +126,180 @@ fn sum_of_first_three<N>(v: BoundedVec<u32, N>) -> u32 {
 pub fn push(&mut self, elem: T) {
 ```
 
+Pushes an element to the end of the vector. This increases the length
+of the vector by one.
+
+Panics if the new length of the vector will be greater than the max length.
+
+Example:
+
+```rust
+let mut v: BoundedVec<Field, 2> = BoundedVec::new();
+
+v.push(1);
+v.push(2);
+
+// Error: Assertion failed, len exceeded max_len
+v.push(3);
+```
+
+### pop
+
 ```rust
 pub fn pop(&mut self) -> T
 ```
 
-```rust
-pub fn len(self) -> Field {
-```
+Pops the element at the end of the vector. This will decrease the length
+of the vector by one.
+
+Panics if the vector is empty.
+
+Example:
 
 ```rust
-pub fn max_len(_self: BoundedVec<T, MaxLen>) -> Field {
+let mut v: BoundedVec<Field, 2> = BoundedVec::new();
+v.push(1);
+v.push(2);
+
+let two = v.pop();
+let one = v.pop();
+
+assert(two == 2);
+assert(one == 1);
+
+// error: cannot pop from an empty vector
+let _ = v.pop();
 ```
+
+### len
+
+```rust
+pub fn len(self) -> u64 {
+```
+
+Returns the current length of this vector
+
+Example:
+
+```rust
+let mut v: BoundedVec<Field, 2> = BoundedVec::new();
+assert(v.len() == 0);
+
+v.push(100);
+assert(v.len() == 1);
+
+v.push(200);
+v.push(300);
+v.push(400);
+assert(v.len() == 4);
+
+v.pop();
+v.pop();
+assert(v.len() == 2);
+```
+
+### max_len
+
+```rust
+pub fn max_len(_self: BoundedVec<T, MaxLen>) -> u64 {
+```
+
+Returns the maximum length of this vector. This is always
+equal to the `MaxLen` parameter this vector was initialized with.
+
+Example:
+
+```rust
+let mut v: BoundedVec<Field, 5> = BoundedVec::new();
+
+assert(v.max_len() == 5);
+v.push(10);
+assert(v.max_len() == 5);
+```
+
+### storage
 
 ```rust
 pub fn storage(self) -> [T; MaxLen] {
 ```
 
+Returns the internal array within this vector.
+Since arrays in Noir are immutable, mutating the returned storage array will not mutate
+the storage held internally by this vector.
+
+Note that uninitialized elements may be zeroed out!
+
+Example:
+
+```rust
+let mut v: BoundedVec<Field, 5> = BoundedVec::new();
+
+assert(v.storage() == [0, 0, 0, 0, 0]);
+
+v.push(57);
+assert(v.storage() == [57, 0, 0, 0, 0]);
+```
+
+### extend_from_array
+
 ```rust
 pub fn extend_from_array<Len>(&mut self, array: [T; Len])
 ```
+
+Pushes each element from the given array to this vector.
+
+Panics if pushing each element would cause the length of this vector
+to exceed the maximum length.
+
+Example:
+
+```rust
+let mut v: BoundedVec<Field, 5> = BoundedVec::new();
+v.extend_from_array([1, 2, 3, 4]);
+
+assert(v.storage() == [1, 2, 3, 4, 0]);
+```
+
+### extend_from_bounded_vec
 
 ```rust
 pub fn extend_from_bounded_vec<Len>(&mut self, vec: BoundedVec<T, Len>)
 ```
 
+Pushes each element from the other vector to this vector. The length of
+the other vector is left unchanged.
+
+Panics if pushing each element would cause the length of this vector
+to exceed the maximum length.
+
+Example:
+
+```rust
+let mut v1: BoundedVec<Field, 5> = BoundedVec::new();
+let mut v2: BoundedVec<Field, 7> = BoundedVec::new();
+
+v2.extend_from_array([1, 2, 3]);
+v1.extend_from_bounded_vec(v2);
+
+assert(v1.storage() == [1, 2, 3, 0, 0]);
+assert(v2.storage() == [1, 2, 3, 0, 0, 0, 0]);
+```
+
+### any
+
 ```rust
 pub fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool
+```
+
+Returns true if the given predicate returns true for any element
+in this vector.
+
+Example:
+
+```rust
+let mut v: BoundedVec<u32, 10> = BoundedVec::new();
+v.extend_from_array([2, 4, 6]);
+
+let all_even = !v.any(|elem: u32| elem % 2 != 0);
+assert(all_even);
 ```
