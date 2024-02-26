@@ -1,6 +1,6 @@
 ---
 title: Vectors
-description: Delve into the Vector data type in Noir. Learn about its methods, practical examples, and best practices for using Vectors in your Noir code.
+description: Delve into the Vec data type in Noir. Learn about its methods, practical examples, and best practices for using Vectors in your Noir code.
 keywords: [noir, vector type, methods, examples, dynamic arrays]
 sidebar_position: 6
 ---
@@ -9,7 +9,7 @@ import Experimental from '@site/src/components/Notes/_experimental.mdx';
 
 <Experimental />
 
-A vector is a collection type similar to Rust's Vector type. It's convenient way to use slices as mutable arrays.
+A vector is a collection type similar to Rust's `Vec<T>` type. In Noir, it is a convenient way to use slices as mutable arrays.
 
 Example:
 
@@ -28,9 +28,7 @@ assert(vector.len() == 5);
 Creates a new, empty vector.
 
 ```rust
-pub fn new() -> Self {
-    Self { slice: [] }
-}
+pub fn new() -> Self
 ```
 
 Example:
@@ -45,9 +43,7 @@ assert(empty_vector.len() == 0);
 Creates a vector containing each element from a given slice. Mutations to the resulting vector will not affect the original slice.
 
 ```rust
-pub fn from_slice(slice: [T]) -> Self {
-    Self { slice }
-}
+pub fn from_slice(slice: [T]) -> Self
 ```
 
 Example:
@@ -58,14 +54,27 @@ let vector_from_slice = Vec::from_slice(arr);
 assert(vector_from_slice.len() == 3);
 ```
 
+### len
+
+Returns the number of elements in the vector.
+
+```rust
+pub fn len(self) -> Field
+```
+
+Example:
+
+```rust
+let empty_vector: Vec<Field> = Vec::new();
+assert(empty_vector.len() == 0);
+```
+
 ### get
 
 Retrieves an element from the vector at a given index. Panics if the index points beyond the vector's end.
 
 ```rust
-pub fn get(self, index: Field) -> T {
-    self.slice[index]
-}
+pub fn get(self, index: Field) -> T
 ```
 
 Example:
@@ -80,9 +89,7 @@ assert(vector.get(1) == 20);
 Adds a new element to the vector's end, returning a new vector with a length one greater than the original unmodified vector.
 
 ```rust
-pub fn push(&mut self, elem: T) {
-    self.slice = self.slice.push_back(elem);
-}
+pub fn push(&mut self, elem: T)
 ```
 
 Example:
@@ -98,11 +105,7 @@ assert(vector.len() == 1);
 Removes an element from the vector's end, returning a new vector with a length one less than the original vector, along with the removed element. Panics if the vector's length is zero.
 
 ```rust
-pub fn pop(&mut self) -> T {
-    let (popped_slice, last_elem) = self.slice.pop_back();
-    self.slice = popped_slice;
-    last_elem
-}
+pub fn pop(&mut self) -> T
 ```
 
 Example:
@@ -119,9 +122,7 @@ assert(vector.len() == 1);
 Inserts an element at a specified index, shifting subsequent elements to the right.
 
 ```rust
-pub fn insert(&mut self, index: Field, elem: T) {
-    self.slice = self.slice.insert(index, elem);
-}
+pub fn insert(&mut self, index: Field, elem: T)
 ```
 
 Example:
@@ -137,11 +138,7 @@ assert(vector.get(1) == 20);
 Removes an element at a specified index, shifting subsequent elements to the left, and returns the removed element.
 
 ```rust
-pub fn remove(&mut self, index: Field) -> T {
-    let (new_slice, elem) = self.slice.remove(index);
-    self.slice = new_slice;
-    elem
-}
+pub fn remove(&mut self, index: Field) -> T
 ```
 
 Example:
@@ -151,21 +148,4 @@ let mut vector = Vec::from_slice([10, 20, 30]);
 let removed_elem = vector.remove(1);
 assert(removed_elem == 20);
 assert(vector.len() == 2);
-```
-
-### len
-
-Returns the number of elements in the vector.
-
-```rust
-pub fn len(self) -> Field {
-    self.slice.len()
-}
-```
-
-Example:
-
-```rust
-let empty_vector: Vec<Field> = Vec::new();
-assert(empty_vector.len() == 0);
 ```

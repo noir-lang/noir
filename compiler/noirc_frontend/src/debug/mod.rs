@@ -96,7 +96,7 @@ impl DebugInstrumenter {
         self.walk_scope(&mut func.body.0, func.span);
 
         // prepend fn params:
-        func.body.0 = vec![set_fn_params, func.body.0.clone()].concat();
+        func.body.0 = [set_fn_params, func.body.0.clone()].concat();
     }
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
@@ -130,7 +130,7 @@ impl DebugInstrumenter {
         let span = Span::empty(span.end());
 
         // drop scope variables
-        let scope_vars = self.scope.pop().unwrap_or(HashMap::default());
+        let scope_vars = self.scope.pop().unwrap_or_default();
         let drop_vars_stmts = scope_vars.values().map(|var_id| build_drop_var_stmt(*var_id, span));
         statements.extend(drop_vars_stmts);
 

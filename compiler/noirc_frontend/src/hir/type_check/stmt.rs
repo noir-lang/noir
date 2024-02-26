@@ -73,13 +73,10 @@ impl<'interner> TypeChecker<'interner> {
 
         let expected_type = Type::polymorphic_integer(self.interner);
 
-        self.unify(&start_range_type, &expected_type, || {
-            TypeCheckError::TypeCannotBeUsed {
-                typ: start_range_type.clone(),
-                place: "for loop",
-                span: range_span,
-            }
-            .add_context("The range of a loop must be known at compile-time")
+        self.unify(&start_range_type, &expected_type, || TypeCheckError::TypeCannotBeUsed {
+            typ: start_range_type.clone(),
+            place: "for loop",
+            span: range_span,
         });
 
         self.interner.push_definition_type(for_loop.identifier.id, start_range_type);
@@ -93,7 +90,7 @@ impl<'interner> TypeChecker<'interner> {
         match pattern {
             HirPattern::Identifier(ident) => self.interner.push_definition_type(ident.id, typ),
             HirPattern::Mutable(pattern, _) => self.bind_pattern(pattern, typ),
-            HirPattern::Tuple(fields, location) => match typ {
+            HirPattern::Tuple(fields, location) => match typ.follow_bindings() {
                 Type::Tuple(field_types) if field_types.len() == fields.len() => {
                     for (field, field_type) in fields.iter().zip(field_types) {
                         self.bind_pattern(field, field_type);
@@ -120,12 +117,12 @@ impl<'interner> TypeChecker<'interner> {
                     source: Source::Assignment,
                 });
 
-                if let Type::Struct(struct_type, generics) = struct_type {
+                if let Type::Struct(struct_type, generics) = struct_type.follow_bindings() {
                     let struct_type = struct_type.borrow();
 
                     for (field_name, field_pattern) in fields {
                         if let Some((type_field, _)) =
-                            struct_type.get_field(&field_name.0.contents, generics)
+                            struct_type.get_field(&field_name.0.contents, &generics)
                         {
                             self.bind_pattern(field_pattern, type_field);
                         }
@@ -192,7 +189,7 @@ impl<'interner> TypeChecker<'interner> {
                         mutable = definition.mutable;
                     }
 
-                    let typ = self.interner.id_type(ident.id).instantiate(self.interner).0;
+                    let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
                     typ.follow_bindings()
                 };
 
@@ -235,7 +232,7 @@ impl<'interner> TypeChecker<'interner> {
                 let expr_span = self.interner.expr_span(index);
 
                 index_type.unify(
-                    &Type::polymorphic_integer(self.interner),
+                    &Type::polymorphic_integer_or_field(self.interner),
                     &mut self.errors,
                     || TypeCheckError::TypeMismatch {
                         expected_typ: "an integer".to_owned(),
@@ -351,6 +348,7 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Literal(HirLiteral::Integer(value, false)) => {
                 let v = value.to_u128();
                 if let Type::Integer(_, bit_count) = annotated_type {
+                    let bit_count: u32 = (*bit_count).into();
                     let max = 1 << bit_count;
                     if v >= max {
                         self.errors.push(TypeCheckError::OverflowingAssignment {

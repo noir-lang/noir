@@ -236,7 +236,15 @@ impl BinaryOpKind {
     }
 
     pub fn is_valid_for_field_type(self) -> bool {
-        matches!(self, BinaryOpKind::Equal | BinaryOpKind::NotEqual)
+        matches!(
+            self,
+            BinaryOpKind::Add
+                | BinaryOpKind::Subtract
+                | BinaryOpKind::Multiply
+                | BinaryOpKind::Divide
+                | BinaryOpKind::Equal
+                | BinaryOpKind::NotEqual
+        )
     }
 
     pub fn as_string(self) -> &'static str {
@@ -279,14 +287,6 @@ impl BinaryOpKind {
             BinaryOpKind::ShiftRight => Token::ShiftRight,
             BinaryOpKind::Modulo => Token::Percent,
         }
-    }
-
-    pub fn is_bit_shift(&self) -> bool {
-        matches!(self, BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft)
-    }
-
-    pub fn is_modulo(&self) -> bool {
-        matches!(self, BinaryOpKind::Modulo)
     }
 }
 

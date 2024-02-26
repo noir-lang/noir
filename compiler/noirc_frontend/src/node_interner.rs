@@ -29,7 +29,7 @@ use crate::hir_def::{
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
     BinaryOpKind, ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared,
-    TypeAliasType, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -75,12 +75,13 @@ pub struct NodeInterner {
 
     // Type checking map
     //
-    // Notice that we use `Index` as the Key and not an ExprId or IdentId
-    // Therefore, If a raw index is passed in, then it is not safe to assume that it will have
-    // a Type, as not all Ids have types associated to them.
-    // Further note, that an ExprId and an IdentId will never have the same underlying Index
-    // Because we use one Arena to store all Definitions/Nodes
+    // This should only be used with indices from the `nodes` arena.
+    // Otherwise the indices used may overwrite other existing indices.
+    // Each type for each index is filled in during type checking.
     id_to_type: HashMap<Index, Type>,
+
+    // Similar to `id_to_type` but maps definitions to their type
+    definition_to_type: HashMap<DefinitionId, Type>,
 
     // Struct map.
     //
@@ -90,11 +91,12 @@ pub struct NodeInterner {
     structs: HashMap<StructId, Shared<StructType>>,
 
     struct_attributes: HashMap<StructId, StructAttributes>,
-    // Type Aliases map.
+
+    // Maps TypeAliasId -> Shared<TypeAlias>
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    pub(crate) type_aliases: Vec<TypeAliasType>,
+    pub(crate) type_aliases: Vec<Shared<TypeAlias>>,
 
     // Trait map.
     //
@@ -276,12 +278,6 @@ impl DefinitionId {
     }
 }
 
-impl From<DefinitionId> for Index {
-    fn from(id: DefinitionId) -> Self {
-        Index::from_raw_parts(id.0, u64::MAX)
-    }
-}
-
 /// An ID for a global value
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct GlobalId(usize);
@@ -301,7 +297,7 @@ impl StmtId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> StmtId {
-        StmtId(Index::from_raw_parts(std::usize::MAX, 0))
+        StmtId(Index::dummy())
     }
 }
 
@@ -310,7 +306,7 @@ pub struct ExprId(Index);
 
 impl ExprId {
     pub fn empty_block_id() -> ExprId {
-        ExprId(Index::from_raw_parts(0, 0))
+        ExprId(Index::unsafe_zeroed())
     }
 }
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
@@ -321,7 +317,7 @@ impl FuncId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> FuncId {
-        FuncId(Index::from_raw_parts(std::usize::MAX, 0))
+        FuncId(Index::dummy())
     }
 }
 
@@ -395,22 +391,8 @@ macro_rules! into_index {
     };
 }
 
-macro_rules! partialeq {
-    ($id_type:ty) => {
-        impl PartialEq<usize> for &$id_type {
-            fn eq(&self, other: &usize) -> bool {
-                let (index, _) = self.0.into_raw_parts();
-                index == *other
-            }
-        }
-    };
-}
-
 into_index!(ExprId);
 into_index!(StmtId);
-
-partialeq!(ExprId);
-partialeq!(StmtId);
 
 /// A Definition enum specifies anything that we can intern in the NodeInterner
 /// We use one Arena for all types that can be interned as that has better cache locality
@@ -495,6 +477,7 @@ impl Default for NodeInterner {
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
+            definition_to_type: HashMap::new(),
             structs: HashMap::new(),
             struct_attributes: HashMap::new(),
             type_aliases: Vec::new(),
@@ -544,8 +527,13 @@ impl NodeInterner {
     }
 
     /// Store the type for an interned expression
-    pub fn push_expr_type(&mut self, expr_id: &ExprId, typ: Type) {
+    pub fn push_expr_type(&mut self, expr_id: ExprId, typ: Type) {
         self.id_to_type.insert(expr_id.into(), typ);
+    }
+
+    /// Store the type for an interned expression
+    pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
+        self.definition_to_type.insert(definition_id, typ);
     }
 
     pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait) {
@@ -604,13 +592,13 @@ impl NodeInterner {
     pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
-        self.type_aliases.push(TypeAliasType::new(
+        self.type_aliases.push(Shared::new(TypeAlias::new(
             type_id,
             typ.type_alias_def.name.clone(),
             Location::new(typ.type_alias_def.span, typ.file_id),
             Type::Error,
             vecmap(&typ.type_alias_def.generics, |_| TypeVariable::unbound(TypeVariableId(0))),
-        ));
+        )));
 
         type_id
     }
@@ -632,7 +620,7 @@ impl NodeInterner {
 
     pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
         let type_alias_type = &mut self.type_aliases[type_id.0];
-        type_alias_type.set_type_and_generics(typ, generics);
+        type_alias_type.borrow_mut().set_type_and_generics(typ, generics);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -657,11 +645,6 @@ impl NodeInterner {
                 panic!("ice: all expression ids should correspond to a expression in the interner")
             }
         }
-    }
-
-    /// Store the type for an interned Identifier
-    pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
-        self.id_to_type.insert(definition_id.into(), typ);
     }
 
     /// Store [Location] of [Type] reference
@@ -957,8 +940,8 @@ impl NodeInterner {
         self.traits.get(&id)
     }
 
-    pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
-        &self.type_aliases[id.0]
+    pub fn get_type_alias(&self, id: TypeAliasId) -> Shared<TypeAlias> {
+        self.type_aliases[id.0].clone()
     }
 
     pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
@@ -979,8 +962,13 @@ impl NodeInterner {
         self.id_to_type.get(&index.into()).cloned().unwrap_or(Type::Error)
     }
 
+    /// Returns the type of the definition or `Type::Error` if it was not found.
+    pub fn definition_type(&self, id: DefinitionId) -> Type {
+        self.definition_to_type.get(&id).cloned().unwrap_or(Type::Error)
+    }
+
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Type {
-        let typ = self.id_type(def_id);
+        let typ = self.definition_type(def_id);
         if let Type::Function(args, ret, env) = &typ {
             let def = self.definition(def_id);
             if let Type::TraitAsType(..) = ret.as_ref() {
@@ -1146,7 +1134,7 @@ impl NodeInterner {
                     })
                     .collect()
             })
-            .unwrap_or(vec![])
+            .unwrap_or_default()
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
@@ -1539,6 +1527,10 @@ impl NodeInterner {
         self.add_dependency(dependent, DependencyId::Function(dependency));
     }
 
+    pub fn add_type_alias_dependency(&mut self, dependent: DependencyId, dependency: TypeAliasId) {
+        self.add_dependency(dependent, DependencyId::Alias(dependency));
+    }
+
     fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
         let dependent_index = self.get_or_insert_dependency(dependent);
         let dependency_index = self.get_or_insert_dependency(dependency);
@@ -1585,6 +1577,12 @@ impl NodeInterner {
                         }
                         DependencyId::Alias(alias_id) => {
                             let alias = self.get_type_alias(alias_id);
+                            // If type aliases form a cycle, we have to manually break the cycle
+                            // here to prevent infinite recursion in the type checker.
+                            alias.borrow_mut().typ = Type::Error;
+
+                            // push_error will borrow the alias so we have to drop the mutable borrow
+                            let alias = alias.borrow();
                             push_error(alias.name.to_string(), &scc, i, alias.location);
                             break;
                         }
@@ -1606,7 +1604,7 @@ impl NodeInterner {
             DependencyId::Struct(id) => Cow::Owned(self.get_struct(id).borrow().name.to_string()),
             DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
             DependencyId::Alias(id) => {
-                Cow::Borrowed(self.get_type_alias(id).name.0.contents.as_ref())
+                Cow::Owned(self.get_type_alias(id).borrow().name.to_string())
             }
             DependencyId::Global(id) => {
                 Cow::Borrowed(self.get_global(id).ident.0.contents.as_ref())
@@ -1659,7 +1657,7 @@ impl Methods {
         for method in self.iter() {
             match interner.function_meta(&method).typ.instantiate(interner).0 {
                 Type::Function(args, _, _) => {
-                    if let Some(object) = args.get(0) {
+                    if let Some(object) = args.first() {
                         let mut bindings = TypeBindings::new();
 
                         if object.try_unify(typ, &mut bindings).is_ok() {
@@ -1700,6 +1698,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Array(_, _) => Some(Array),
         Type::Integer(_, _) => Some(FieldOrInt),
         Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::Integer) => Some(FieldOrInt),
         Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::FmtString(_, _) => Some(FmtString),
@@ -1708,6 +1707,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Function(_, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),
         Type::MutableReference(element) => get_type_method_key(element),
+        Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
 
         // We do not support adding methods to these types
         Type::TypeVariable(_, _)

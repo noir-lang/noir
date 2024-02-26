@@ -17,8 +17,6 @@ pub enum LexerErrorKind {
     InvalidIntegerLiteral { span: Span, found: String },
     #[error("{:?} is not a valid attribute", found)]
     MalformedFuncAttribute { span: Span, found: String },
-    #[error("Integer type is larger than the maximum supported size of u127")]
-    TooManyBits { span: Span, max: u32, got: u32 },
     #[error("Logical and used instead of bitwise and")]
     LogicalAnd { span: Span },
     #[error("Unterminated block comment")]
@@ -45,7 +43,6 @@ impl LexerErrorKind {
             LexerErrorKind::NotADoubleChar { span, .. } => *span,
             LexerErrorKind::InvalidIntegerLiteral { span, .. } => *span,
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
-            LexerErrorKind::TooManyBits { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
             LexerErrorKind::UnterminatedBlockComment { span } => *span,
             LexerErrorKind::UnterminatedStringLiteral { span } => *span,
@@ -83,13 +80,6 @@ impl LexerErrorKind {
             LexerErrorKind::MalformedFuncAttribute { span, found } => (
                 "Malformed function attribute".to_string(),
                 format!(" {found} is not a valid attribute"),
-                *span,
-            ),
-            LexerErrorKind::TooManyBits { span, max, got } => (
-                "Integer literal too large".to_string(),
-                format!(
-                    "The maximum number of bits needed to represent a field is {max}, This integer type needs {got} bits"
-                ),
                 *span,
             ),
             LexerErrorKind::LogicalAnd { span } => (
