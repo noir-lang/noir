@@ -13,7 +13,7 @@ impl U128 {
     pub fn from_u64s_le(lo: u64, hi: u64) -> U128 {
         // in order to handle multiplication, we need to represent the product of two u64 without overflow
         assert(crate::field_element::modulus_num_bits() as u32 > 128);
-        U128 { lo: lo as Field, hi: hi as Field }
+        U128 { lo: lo as field, hi: hi as field }
     }
 
     pub fn from_u64s_be(hi: u64, lo: u64) -> U128 {
@@ -84,17 +84,17 @@ impl U128 {
                 base = base*16;
             }
         }
-        U128 { lo: lo as Field, hi: hi as Field }
+        U128 { lo: lo as field, hi: hi as field }
     }
 
-    fn decode_ascii(ascii: u8) -> Field {
+    fn decode_ascii(ascii: u8) -> field {
         if ascii < 58 {
             ascii - 48
         } else if ascii < 71 {
             ascii - 55
         } else {
             ascii - 87
-        } as Field
+        } as field
     }
 
     unconstrained fn unconstrained_div(self: Self, b: U128) -> (U128, U128) {
@@ -116,7 +116,7 @@ impl U128 {
         let f = crate::as_field(i);
         // Reject values which would overflow a u128
         f.assert_max_bit_size(128);
-        let lo = f as u64 as Field;
+        let lo = f as u64 as field;
         let hi = (f - lo) / pow64;
         U128 { lo, hi }
     }
@@ -127,14 +127,14 @@ impl U128 {
 
     fn wrapping_mul(self: Self, b: U128) -> U128 {
         let low = self.lo * b.lo;
-        let lo = low as u64 as Field;
+        let lo = low as u64 as field;
         let carry = (low - lo) / pow64;
         let high = if crate::field_element::modulus_num_bits() as u32 > 196 {
             (self.lo + self.hi) * (b.lo + b.hi) - low + carry
         } else {
             self.lo * b.hi + self.hi * b.lo + carry
         };
-        let hi = high as u64 as Field;
+        let hi = high as u64 as field;
         U128 { lo, hi }
     }
 }

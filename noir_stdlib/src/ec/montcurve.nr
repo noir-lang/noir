@@ -30,7 +30,7 @@ mod affine {
 
     impl Point {
         // Point constructor
-        pub fn new(x: Field, y: Field) -> Self {
+        pub fn new(x: field, y: field) -> Self {
             Self { x, y, infty: false }
         }
 
@@ -81,7 +81,7 @@ mod affine {
 
     impl Curve {
         // Curve constructor
-        pub fn new(j: Field, k: Field, gen: Point) -> Self {
+        pub fn new(j: field, k: field, gen: Point) -> Self {
             // Check curve coefficients
             assert(k != 0);
             assert(j * j != 4);
@@ -119,12 +119,12 @@ mod affine {
         }
 
         // Scalar multiplication (p + ... + p n times)
-        fn mul(self, n: Field, p: Point) -> Point {
+        fn mul(self, n: field, p: Point) -> Point {
             self.into_tecurve().mul(n, p.into_tecurve()).into_montcurve()
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
+        fn msm<N>(self, n: [field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -174,7 +174,7 @@ mod affine {
         }
 
         // Elligator 2 map-to-curve method; see <https://datatracker.ietf.org/doc/id/draft-irtf-cfrg-hash-to-curve-06.html#name-elligator-2-method>.
-        fn elligator2_map(self, u: Field) -> Point {
+        fn elligator2_map(self, u: field) -> Point {
             let j = self.j;
             let k = self.k;
             let z = ZETA; // Non-square Field element required for map
@@ -205,7 +205,7 @@ mod affine {
         }
 
         // SWU map-to-curve method (via rational map)
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        fn swu_map(self, z: field, u: field) -> Point {
             self.map_from_swcurve(self.into_swcurve().swu_map(z, u))
         }
     }
@@ -237,7 +237,7 @@ mod curvegroup {
 
     impl Point {
         // Point constructor
-        pub fn new(x: Field, y: Field, z: Field) -> Self {
+        pub fn new(x: field, y: field, z: field) -> Self {
             Self { x, y, z }
         }
 
@@ -282,7 +282,7 @@ mod curvegroup {
 
     impl Curve {
         // Curve constructor
-        pub fn new(j: Field, k: Field, gen: Point) -> Self {
+        pub fn new(j: field, k: field, gen: Point) -> Self {
             // Check curve coefficients
             assert(k != 0);
             assert(j * j != 4);
@@ -320,12 +320,12 @@ mod curvegroup {
         }
 
         // Scalar multiplication (p + ... + p n times)
-        pub fn mul(self, n: Field, p: Point) -> Point {
+        pub fn mul(self, n: field, p: Point) -> Point {
             self.into_tecurve().mul(n, p.into_tecurve()).into_montcurve()
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
+        fn msm<N>(self, n: [field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -367,12 +367,12 @@ mod curvegroup {
         }
 
         // Elligator 2 map-to-curve method
-        fn elligator2_map(self, u: Field) -> Point {
+        fn elligator2_map(self, u: field) -> Point {
             self.into_affine().elligator2_map(u).into_group()
         }
 
         // SWU map-to-curve method (via rational map)
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        fn swu_map(self, z: field, u: field) -> Point {
             self.into_affine().swu_map(z, u).into_group()
         }
     }

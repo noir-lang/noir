@@ -26,7 +26,7 @@ mod affine {
 
     impl Point {
         // Point constructor
-        pub fn new(x: Field, y: Field) -> Self {
+        pub fn new(x: field, y: field) -> Self {
             Self { x, y, infty: false }
         }
 
@@ -70,7 +70,7 @@ mod affine {
 
     impl Curve {
         // Curve constructor
-        pub fn new(a: Field, b: Field, gen: Point) -> Curve {
+        pub fn new(a: field, b: field, gen: Point) -> Curve {
             // Check curve coefficients
             assert(4 * a * a * a + 27 * b * b != 0);
 
@@ -139,12 +139,12 @@ mod affine {
         }
 
         // Scalar multiplication (p + ... + p n times)
-        pub fn mul(self, n: Field, p: Point) -> Point {
+        pub fn mul(self, n: field, p: Point) -> Point {
             self.into_group().mul(n, p.into_group()).into_affine()
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        pub fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
+        pub fn msm<N>(self, n: [field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -162,7 +162,7 @@ mod affine {
         // Simplified Shallue-van de Woestijne-Ulas map-to-curve method; see <https://www.ietf.org/archive/id/draft-irtf-cfrg-hash-to-curve-16.html#name-simplified-shallue-van-de-w>.
         // First determine non-square z != -1 in Field s.t. g(x) - z irreducible over Field and g(b/(z*a)) is square,
         // where g(x) = x^3 + a*x + b. swu_map(c,z,.) then maps a Field element to a point on curve c.
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        fn swu_map(self, z: field, u: field) -> Point {
             // Check whether curve is admissible
             assert(self.a * self.b != 0);
 
@@ -211,7 +211,7 @@ mod curvegroup {
 
     impl Point {
         // Point constructor
-        pub fn new(x: Field, y: Field, z: Field) -> Self {
+        pub fn new(x: field, y: field, z: field) -> Self {
             Self { x, y, z }
         }
 
@@ -254,7 +254,7 @@ mod curvegroup {
 
     impl Curve {
         // Curve constructor
-        pub fn new(a: Field, b: Field, gen: Point) -> Curve {
+        pub fn new(a: field, b: field, gen: Point) -> Curve {
             // Check curve coefficients
             assert(4 * a * a * a + 27 * b * b != 0);
 
@@ -349,7 +349,7 @@ mod curvegroup {
         }
 
         // Scalar multiplication (p + ... + p n times)
-        pub fn mul(self, n: Field, p: Point) -> Point {
+        pub fn mul(self, n: field, p: Point) -> Point {
             let N_BITS = crate::field_element::modulus_num_bits();
 
             // TODO: temporary workaround until issue 1354 is solved
@@ -363,7 +363,7 @@ mod curvegroup {
         }
 
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
-        fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
+        fn msm<N>(self, n: [field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
             for i in 0..N {
@@ -379,7 +379,7 @@ mod curvegroup {
         }
 
         // Simplified SWU map-to-curve method
-        fn swu_map(self, z: Field, u: Field) -> Point {
+        fn swu_map(self, z: field, u: field) -> Point {
             self.into_affine().swu_map(z, u).into_group()
         }
     }

@@ -4,7 +4,7 @@ use crate::hash::poseidon::bn254::permute;
 use crate::hash::poseidon::PoseidonConfig;
 
 #[field(bn254)]
-pub fn x5_2(mut state: [Field; 2]) -> [Field; 2] {
+pub fn x5_2(mut state: [field; 2]) -> [field; 2] {
     state = permute(
         consts::x5_2_config(),
         state);
@@ -13,7 +13,7 @@ pub fn x5_2(mut state: [Field; 2]) -> [Field; 2] {
 }
 
 #[field(bn254)]
-pub fn x5_3(mut state: [Field; 3]) -> [Field; 3] {
+pub fn x5_3(mut state: [field; 3]) -> [field; 3] {
     state = permute(
         consts::x5_3_config(),
         state);
@@ -22,7 +22,7 @@ pub fn x5_3(mut state: [Field; 3]) -> [Field; 3] {
 }
 
 #[field(bn254)]
-pub fn x5_4(mut state: [Field; 4]) -> [Field; 4] {
+pub fn x5_4(mut state: [field; 4]) -> [field; 4] {
     state = permute(
         consts::x5_4_config(),
         state);
@@ -31,7 +31,7 @@ pub fn x5_4(mut state: [Field; 4]) -> [Field; 4] {
 }
 
 #[field(bn254)]
-pub fn x5_5(mut state: [Field; 5]) -> [Field; 5] {
+pub fn x5_5(mut state: [field; 5]) -> [field; 5] {
     state = permute(
         consts::x5_5_config(),
         state);
@@ -40,7 +40,7 @@ pub fn x5_5(mut state: [Field; 5]) -> [Field; 5] {
 }
 
 #[field(bn254)]
-pub fn x5_6(mut state: [Field; 6]) -> [Field; 6] {
+pub fn x5_6(mut state: [field; 6]) -> [field; 6] {
     state = permute(
         consts::x5_6_config(),
         state);
@@ -49,7 +49,7 @@ pub fn x5_6(mut state: [Field; 6]) -> [Field; 6] {
 }
 
 #[field(bn254)]
-pub fn x5_7(mut state: [Field; 7]) -> [Field; 7] {
+pub fn x5_7(mut state: [field; 7]) -> [field; 7] {
     state = permute(
         consts::x5_7_config(),
         state);
@@ -58,7 +58,7 @@ pub fn x5_7(mut state: [Field; 7]) -> [Field; 7] {
 }
 
 #[field(bn254)]
-pub fn x5_8(mut state: [Field; 8]) -> [Field; 8] {
+pub fn x5_8(mut state: [field; 8]) -> [field; 8] {
     state = permute(
         consts::x5_8_config(),
         state);
@@ -67,7 +67,7 @@ pub fn x5_8(mut state: [Field; 8]) -> [Field; 8] {
 }
 
 #[field(bn254)]
-pub fn x5_9(mut state: [Field; 9]) -> [Field; 9] {
+pub fn x5_9(mut state: [field; 9]) -> [field; 9] {
     state = permute(
         consts::x5_9_config(),
         state);
@@ -76,7 +76,7 @@ pub fn x5_9(mut state: [Field; 9]) -> [Field; 9] {
 }
 
 #[field(bn254)]
-pub fn x5_10(mut state: [Field; 10]) -> [Field; 10] {
+pub fn x5_10(mut state: [field; 10]) -> [field; 10] {
     state = permute(
         consts::x5_10_config(),
         state);
@@ -85,7 +85,7 @@ pub fn x5_10(mut state: [Field; 10]) -> [Field; 10] {
 }
 
 #[field(bn254)]
-pub fn x5_11(mut state: [Field; 11]) -> [Field; 11] {
+pub fn x5_11(mut state: [field; 11]) -> [field; 11] {
     state = permute(
         consts::x5_11_config(),
         state);
@@ -94,7 +94,7 @@ pub fn x5_11(mut state: [Field; 11]) -> [Field; 11] {
 }
 
 #[field(bn254)]
-pub fn x5_12(mut state: [Field; 12]) -> [Field; 12] {
+pub fn x5_12(mut state: [field; 12]) -> [field; 12] {
     state = permute(
         consts::x5_12_config(),
         state);
@@ -103,7 +103,7 @@ pub fn x5_12(mut state: [Field; 12]) -> [Field; 12] {
 }
 
 #[field(bn254)]
-pub fn x5_13(mut state: [Field; 13]) -> [Field; 13] {
+pub fn x5_13(mut state: [field; 13]) -> [field; 13] {
     state = permute(
         consts::x5_13_config(),
         state);
@@ -112,7 +112,7 @@ pub fn x5_13(mut state: [Field; 13]) -> [Field; 13] {
 }
 
 #[field(bn254)]
-pub fn x5_14(mut state: [Field; 14]) -> [Field; 14] {
+pub fn x5_14(mut state: [field; 14]) -> [field; 14] {
     state = permute(
         consts::x5_14_config(),
         state);
@@ -121,7 +121,7 @@ pub fn x5_14(mut state: [Field; 14]) -> [Field; 14] {
 }
 
 #[field(bn254)]
-pub fn x5_15(mut state: [Field; 15]) -> [Field; 15] {
+pub fn x5_15(mut state: [field; 15]) -> [field; 15] {
     state = permute(
         consts::x5_15_config(),
         state);
@@ -130,7 +130,7 @@ pub fn x5_15(mut state: [Field; 15]) -> [Field; 15] {
 }
 
 #[field(bn254)]
-pub fn x5_16(mut state: [Field; 16]) -> [Field; 16] {
+pub fn x5_16(mut state: [field; 16]) -> [field; 16] {
     state = permute(
         consts::x5_16_config(),
         state);
@@ -139,7 +139,7 @@ pub fn x5_16(mut state: [Field; 16]) -> [Field; 16] {
 }
 
 #[field(bn254)]
-pub fn x5_17(mut state: [Field; 17]) -> [Field; 17] {
+pub fn x5_17(mut state: [field; 17]) -> [field; 17] {
     state = permute(
         consts::x5_17_config(),
         state);

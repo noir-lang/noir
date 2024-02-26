@@ -74,7 +74,7 @@ impl field {
         self as u1
     }
 
-    pub fn lt(self, another: Field) -> bool {
+    pub fn lt(self, another: field) -> bool {
         if crate::compat::is_bn254() {
             bn254_lt(self, another)
         } else {
@@ -113,7 +113,7 @@ pub fn bytes32_to_field(bytes32: [u8; 32]) -> field {
     low + high * v
 }
 
-fn lt_fallback(x: Field, y: Field) -> bool {
+fn lt_fallback(x: field, y: field) -> bool {
     let num_bytes = (modulus_num_bits() as u32 + 7) / 8;
     let x_bytes = x.to_le_bytes(num_bytes);
     let y_bytes = y.to_le_bytes(num_bytes);
