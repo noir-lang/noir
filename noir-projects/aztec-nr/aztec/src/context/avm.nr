@@ -45,6 +45,23 @@ impl AVMContext {
 
     #[oracle(timestamp)]
     pub fn timestamp(self) -> Field {}
+
     // #[oracle(contractCallDepth)]
     // pub fn contract_call_depth(self) -> Field {}
+
+    #[oracle(emitNoteHash)]
+    pub fn emit_note_hash(self, note_hash: Field) {}
+
+    #[oracle(emitNullifier)]
+    pub fn emit_nullifier(self, nullifier: Field) {}
+
+    // The functions below allow interface-equivalence with PrivateContext
+    // for emitting note hashes and nullifiers
+    pub fn push_new_note_hash(self: &mut Self, note_hash: Field) {
+        self.emit_note_hash(note_hash);
+    }
+    pub fn push_new_nullifier(self: &mut Self, nullifier: Field, _nullified_commitment: Field) {
+        // Cannot nullify pending commitments in AVM, so `nullified_commitment` is not used
+        self.emit_nullifier(nullifier);
+    }
 }

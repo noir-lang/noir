@@ -43,12 +43,6 @@ export class EmitNullifier extends Instruction {
     }
 
     const nullifier = context.machineState.memory.get(this.nullifierOffset).toFr();
-    const exists = await context.persistableState.checkNullifierExists(context.environment.storageAddress, nullifier);
-    if (exists) {
-      throw new InstructionExecutionError(
-        `Attempted to emit duplicate nullifier ${nullifier} (storage address: ${context.environment.storageAddress}).`,
-      );
-    }
     try {
       await context.persistableState.writeNullifier(context.environment.storageAddress, nullifier);
     } catch (e) {

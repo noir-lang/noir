@@ -236,5 +236,72 @@ describe('AVM simulator', () => {
         await testEnvGetter('timestamp', timestamp, 'avm_getTimestamp', /*globalVar=*/ true);
       });
     });
+
+    describe('Test tree access functions from noir contract', () => {
+      it(`Should execute contract function to emit note hash (should be traced)`, async () => {
+        const utxo = new Fr(42);
+        const calldata = [utxo];
+
+        // Get contract function artifact
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === 'avm_new_note_hash')!;
+
+        // Decode bytecode into instructions
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        const results = await new AvmSimulator(context).execute();
+
+        expect(results.reverted).toBe(false);
+
+        expect(context.persistableState.flush().newNoteHashes).toEqual([utxo]);
+      });
+      it(`Should execute contract function to emit nullifier (should be traced)`, async () => {
+        const utxo = new Fr(42);
+        const calldata = [utxo];
+
+        // Get contract function artifact
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === 'avm_new_nullifier')!;
+
+        // Decode bytecode into instructions
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        const results = await new AvmSimulator(context).execute();
+
+        expect(results.reverted).toBe(false);
+
+        expect(context.persistableState.flush().newNullifiers).toEqual([utxo]);
+      });
+      it(`Should execute contract function that emits same nullifier twice (should fail)`, async () => {
+        const utxo = new Fr(42);
+        const calldata = [utxo];
+
+        // Get contract function artifact
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === 'avm_nullifier_collision')!;
+
+        // Decode bytecode into instructions
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        await new AvmSimulator(context).execute();
+        const results = await new AvmSimulator(context).execute();
+        expect(results.reverted).toBe(true);
+
+        // Only the first nullifier should be in the trace, second one failed to add
+        expect(context.persistableState.flush().newNullifiers).toEqual([utxo]);
+      });
+    });
   });
 });

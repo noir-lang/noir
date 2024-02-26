@@ -3,14 +3,7 @@ contract AvmTest {
     use dep::aztec::protocol_types::address::{AztecAddress, EthAddress};
 
     // avm lib
-    use dep::aztec::avm::{
-        context::AvmContext,
-        hash::{
-            keccak256,
-            poseidon,
-            sha256
-        }
-    };
+    use dep::aztec::avm::hash::{keccak256, poseidon, sha256};
 
     #[aztec(private)]
     fn constructor() {}
@@ -141,8 +134,29 @@ contract AvmTest {
     fn getTimestamp() -> pub Field {
         context.timestamp()
     }
+
     // #[aztec(public-vm)]
     // fn getContractCallDepth() -> pub Field {
     //     context.contract_call_depth()
     // }
+
+    // Use the standard context interface to emit a new note hash
+    #[aztec(public-vm)]
+    fn new_note_hash(note_hash: Field) {
+        context.push_new_note_hash(note_hash);
+    }
+
+    // Use the standard context interface to emit a new nullifier
+    #[aztec(public-vm)]
+    fn new_nullifier(nullifier: Field) {
+        context.push_new_nullifier(nullifier, 0);
+    }
+
+    // Create the same nullifier twice (shouldn't work!)
+    #[aztec(public-vm)]
+    fn nullifier_collision(nullifier: Field) {
+        context.push_new_nullifier(nullifier, 0);
+        // Can't do this twice!
+        context.push_new_nullifier(nullifier, 0);
+    }
 }
