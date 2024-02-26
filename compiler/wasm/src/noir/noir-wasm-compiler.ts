@@ -6,7 +6,7 @@ import { LocalDependencyResolver } from './dependencies/local-dependency-resolve
 import { FileManager } from './file-manager/file-manager';
 import { Package } from './package';
 import { LogFn } from '../utils';
-import { CompilationResult } from '../types/noir_artifact';
+import { ContractCompilationArtifacts, ProgramCompilationArtifacts } from '../types/noir_artifact';
 
 /** Compilation options */
 export type NoirWasmCompileOptions = {
@@ -84,21 +84,16 @@ export class NoirWasmCompiler {
   /**
    * Compile EntryPoint
    */
-  /**
-   * Compile EntryPoint
-   */
-  public async compile(): Promise<CompilationResult> {
+  public async compile_program(): Promise<ProgramCompilationArtifacts> {
     console.log(`Compiling at ${this.#package.getEntryPointPath()}`);
 
-    if (!(this.#package.getType() === 'contract' || this.#package.getType() === 'bin')) {
-      throw new Error(`Only supports compiling "contract" and "bin" package types (${this.#package.getType()})`);
+    if (this.#package.getType() !== 'bin') {
+      throw new Error(`Expected to find package type "bin" but found ${this.#package.getType()}`);
     }
     await this.#dependencyManager.resolveDependencies();
     this.#debugLog(`Dependencies: ${this.#dependencyManager.getPackageNames().join(', ')}`);
 
     try {
-      const isContract: boolean = this.#package.getType() === 'contract';
-
       const entrypoint = this.#package.getEntryPointPath();
       const deps = {
         /* eslint-disable camelcase */
@@ -118,11 +113,55 @@ export class NoirWasmCompiler {
         this.#debugLog(`Adding source ${sourceFile.path}`);
         this.#sourceMap.add_source_code(sourceFile.path, sourceFile.source);
       });
-      const result = this.#wasmCompiler.compile(entrypoint, isContract, deps, this.#sourceMap);
+      const result = this.#wasmCompiler.compile_program(entrypoint, deps, this.#sourceMap);
 
-      if ((isContract && !('contract' in result)) || (!isContract && !('program' in result))) {
-        throw new Error('Invalid compilation result');
+      return result;
+    } catch (err) {
+      if (err instanceof Error && err.name === 'CompileError') {
+        const logs = await this.#processCompileError(err);
+        for (const log of logs) {
+          this.#log(log);
+        }
+        throw new Error(logs.join('\n'));
       }
+
+      throw err;
+    }
+  }
+
+  /**
+   * Compile EntryPoint
+   */
+  public async compile_contract(): Promise<ContractCompilationArtifacts> {
+    console.log(`Compiling at ${this.#package.getEntryPointPath()}`);
+
+    if (this.#package.getType() !== 'contract') {
+      throw new Error(`Expected to find package type "contract" but found ${this.#package.getType()}`);
+    }
+    await this.#dependencyManager.resolveDependencies();
+    this.#debugLog(`Dependencies: ${this.#dependencyManager.getPackageNames().join(', ')}`);
+
+    try {
+      const entrypoint = this.#package.getEntryPointPath();
+      const deps = {
+        /* eslint-disable camelcase */
+        root_dependencies: this.#dependencyManager.getEntrypointDependencies(),
+        library_dependencies: this.#dependencyManager.getLibraryDependencies(),
+        /* eslint-enable camelcase */
+      };
+      const packageSources = await this.#package.getSources(this.#fm);
+      const librarySources = (
+        await Promise.all(
+          this.#dependencyManager
+            .getLibraries()
+            .map(async ([alias, library]) => await library.package.getSources(this.#fm, alias)),
+        )
+      ).flat();
+      [...packageSources, ...librarySources].forEach((sourceFile) => {
+        this.#debugLog(`Adding source ${sourceFile.path}`);
+        this.#sourceMap.add_source_code(sourceFile.path, sourceFile.source);
+      });
+      const result = this.#wasmCompiler.compile_contract(entrypoint, deps, this.#sourceMap);
 
       return result;
     } catch (err) {

@@ -180,22 +180,3 @@ export interface ProgramCompilationArtifacts {
   /** Compilation warnings. */
   warnings: Warning[];
 }
-
-/**
- * output of Noir Wasm compilation, can be for a contract or lib/binary
- */
-export type CompilationResult = ContractCompilationArtifacts | ProgramCompilationArtifacts;
-
-/**
- * Check if it has Contract unique property
- */
-export function isContractCompilationArtifacts(artifact: CompilationResult): artifact is ContractCompilationArtifacts {
-  return (artifact as ContractCompilationArtifacts).contract !== undefined;
-}
-
-/**
- * Check if it has Contract unique property
- */
-export function isProgramCompilationArtifacts(artifact: CompilationResult): artifact is ProgramCompilationArtifacts {
-  return (artifact as ProgramCompilationArtifacts).program !== undefined;
-}
