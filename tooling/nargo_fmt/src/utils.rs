@@ -145,7 +145,7 @@ impl HasItem for Param {
         let visibility = match self.visibility {
             Visibility::Public => "pub ",
             Visibility::Private => "",
-            Visibility::DataBus => "call_data",
+            Visibility::DataBus => "call_data ",
         };
 
         if self.pattern.is_synthesized() || self.typ.is_synthesized() {
