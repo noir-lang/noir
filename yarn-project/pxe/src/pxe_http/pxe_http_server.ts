@@ -20,7 +20,7 @@ import { FunctionSelector } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
-import { JsonRpcServer } from '@aztec/foundation/json-rpc/server';
+import { JsonRpcServer, createNamespacedJsonRpcServer } from '@aztec/foundation/json-rpc/server';
 
 import http from 'http';
 
@@ -63,7 +63,8 @@ export function createPXERpcServer(pxeService: PXE): JsonRpcServer {
  * @returns A running http server.
  */
 export function startPXEHttpServer(pxeService: PXE, port: string | number): http.Server {
-  const rpcServer = createPXERpcServer(pxeService);
+  const pxeServer = createPXERpcServer(pxeService);
+  const rpcServer = createNamespacedJsonRpcServer([{ pxe: pxeServer }]);
 
   const app = rpcServer.getApp();
   const httpServer = http.createServer(app.callback());

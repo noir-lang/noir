@@ -32,28 +32,28 @@ import { createJsonRpcClient, makeFetch } from '@aztec/foundation/json-rpc/clien
  * @param fetch - The fetch implementation to use.
  * @returns A JSON-RPC client of PXE.
  */
-export const createPXEClient = (url: string, fetch = makeFetch([1, 2, 3], true)): PXE =>
+export const createPXEClient = (url: string, fetch = makeFetch([1, 2, 3], false)): PXE =>
   createJsonRpcClient<PXE>(
     url,
     {
-      CompleteAddress,
-      FunctionSelector,
+      AuthWitness,
       AztecAddress,
-      TxExecutionRequest,
+      CompleteAddress,
       ContractData,
-      ExtendedContractData,
-      ExtendedUnencryptedL2Log,
-      TxHash,
+      FunctionSelector,
       EthAddress,
-      Point,
+      ExtendedContractData,
+      ExtendedNote,
+      ExtendedUnencryptedL2Log,
       Fr,
       GrumpkinScalar,
-      Note,
-      ExtendedNote,
-      AuthWitness,
+      L2Block,
       L2Tx,
       LogId,
-      L2Block,
+      Note,
+      Point,
+      TxExecutionRequest,
+      TxHash,
     },
     { Tx, TxReceipt, L2BlockL2Logs },
     false,

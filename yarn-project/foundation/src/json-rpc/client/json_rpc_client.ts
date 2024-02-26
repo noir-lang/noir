@@ -77,7 +77,7 @@ export function makeFetch(retries: number[], noRetry: boolean, log?: DebugLogger
   return async (host: string, rpcMethod: string, body: any, useApiEndpoints: boolean) => {
     return await retry(
       () => defaultFetch(host, rpcMethod, body, useApiEndpoints, noRetry),
-      `JsonRpcClient request to ${host}`,
+      `JsonRpcClient request ${rpcMethod} to ${host}`,
       makeBackoff(retries),
       log,
       true,

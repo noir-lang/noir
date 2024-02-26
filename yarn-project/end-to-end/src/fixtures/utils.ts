@@ -19,6 +19,7 @@ import {
   createDebugLogger,
   createPXEClient,
   deployL1Contracts,
+  makeFetch,
   waitForPXE,
 } from '@aztec/aztec.js';
 import {
@@ -164,7 +165,7 @@ async function setupWithRemoteEnvironment(
   logger(`Creating Aztec Node client to remote host ${aztecNodeUrl}`);
   const aztecNode = createAztecNodeClient(aztecNodeUrl);
   logger(`Creating PXE client to remote host ${PXE_URL}`);
-  const pxeClient = createPXEClient(PXE_URL);
+  const pxeClient = createPXEClient(PXE_URL, makeFetch([1, 2, 3], true));
   await waitForPXE(pxeClient, logger);
   logger('JSON RPC client connected to PXE');
   logger(`Retrieving contract addresses from ${PXE_URL}`);
