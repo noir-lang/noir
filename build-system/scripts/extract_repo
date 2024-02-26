@@ -8,9 +8,13 @@ REPOSITORY=$1
 shift
 
 IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
-echo "Pulling $IMAGE_COMMIT_URI..."
-retry ecr_login
-retry docker pull $IMAGE_COMMIT_URI
+if docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q -w "$IMAGE_COMMIT_URI$"; then
+  echo -e "Image exists locally. No need to pull."
+else
+  echo "Pulling $IMAGE_COMMIT_URI..."
+  retry ecr_login
+  retry docker pull $IMAGE_COMMIT_URI
+fi
 TEMP_CONTAINER=$(docker create $IMAGE_COMMIT_URI dummy_cmd)
 
 
@@ -32,5 +36,4 @@ else
   done
 fi
 
-echo "Cleaning up temp container"
 docker rm -v $TEMP_CONTAINER >/dev/null
