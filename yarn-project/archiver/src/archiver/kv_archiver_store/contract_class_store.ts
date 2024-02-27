@@ -21,6 +21,10 @@ export class ContractClassStore {
     const contractClass = this.#contractClasses.get(id.toString());
     return contractClass && { ...deserializeContractClassPublic(contractClass), id };
   }
+
+  getContractClassIds(): Fr[] {
+    return Array.from(this.#contractClasses.keys()).map(key => Fr.fromString(key));
+  }
 }
 
 export function serializeContractClassPublic(contractClass: ContractClassPublic): Buffer {

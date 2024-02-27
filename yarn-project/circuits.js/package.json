@@ -6,7 +6,7 @@
     ".": "./dest/index.js",
     "./hash": "./dest/hash/index.js",
     "./barretenberg": "./dest/barretenberg/index.js",
-    "./factories": "./dest/tests/factories.js",
+    "./testing": "./dest/tests/index.js",
     "./utils": "./dest/utils/index.js",
     "./types": "./dest/types/index.js",
     "./constants": "./dest/constants.gen.js",

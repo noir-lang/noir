@@ -1,4 +1,5 @@
-import { ContractDeployer, EthAddress, Fr, Point } from '@aztec/aztec.js';
+import { getSchnorrAccount } from '@aztec/accounts/schnorr';
+import { ContractDeployer, EthAddress, Fq, Fr, Point } from '@aztec/aztec.js';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
@@ -14,6 +15,7 @@ export async function deploy(
   rawArgs: any[],
   portalAddress: EthAddress,
   salt: Fr,
+  privateKey: Fq,
   wait: boolean,
   debugLogger: DebugLogger,
   log: LogFn,
@@ -31,7 +33,8 @@ export async function deploy(
     );
   }
 
-  const deployer = new ContractDeployer(contractArtifact, client, publicKey);
+  const wallet = await getSchnorrAccount(client, privateKey, privateKey, Fr.ZERO).getWallet();
+  const deployer = new ContractDeployer(contractArtifact, wallet, publicKey);
 
   const constructor = getFunctionArtifact(contractArtifact, 'constructor');
   if (!constructor) {

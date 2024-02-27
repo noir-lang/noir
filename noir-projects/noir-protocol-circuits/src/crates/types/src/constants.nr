@@ -104,11 +104,7 @@ global ARGS_HASH_CHUNK_COUNT: u32 = 32;
 global INITIALIZATION_SLOT_SEPARATOR: Field = 1000_000_000;
 
 // CONTRACT CLASS CONSTANTS
-// This should be around 8192 (assuming 2**15 instructions packed at 8 bytes each),
-// but it's reduced to speed up build times, otherwise the ClassRegisterer takes over 5 mins to compile.
-// We are not using 1024 so we can squeeze in a few more args to methods that consume packed public bytecode,
-// such as the ClassRegisterer.register, and still land below the 32 * 32 max args limit for hashing.
-global MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS: Field = 1000;
+global MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS: Field = 8000;
 // Bytecode size for private functions is per function, not for the entire contract.
 // Note that private functions bytecode includes a mix of acir and brillig.
 global MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS: Field = 500;

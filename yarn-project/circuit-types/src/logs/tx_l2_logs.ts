@@ -139,4 +139,9 @@ export class TxL2Logs {
 
     return kernelPublicInputsLogsHash;
   }
+
+  /** Creates an empty instance. */
+  public static empty() {
+    return new TxL2Logs([]);
+  }
 }

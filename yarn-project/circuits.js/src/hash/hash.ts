@@ -2,6 +2,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { pedersenHash, pedersenHashBuffer } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { numToUInt8, numToUInt16BE, numToUInt32BE } from '@aztec/foundation/serialize';
 
 import { Buffer } from 'buffer';
@@ -180,8 +181,12 @@ export function computeVarArgsHash(args: Fr[]) {
   if (args.length === 0) {
     return Fr.ZERO;
   }
-  if (args.length > ARGS_HASH_CHUNK_LENGTH * ARGS_HASH_CHUNK_COUNT) {
-    throw new Error(`Cannot hash more than ${ARGS_HASH_CHUNK_LENGTH * ARGS_HASH_CHUNK_COUNT} arguments`);
+  const maxLen = ARGS_HASH_CHUNK_LENGTH * ARGS_HASH_CHUNK_COUNT;
+  if (args.length > maxLen) {
+    // TODO(@spalladino): This should throw instead of warning. And we should implement
+    // the same check on the Noir side, which is currently missing.
+    args = args.slice(0, maxLen);
+    createDebugLogger('aztec:circuits:abis').warn(`Hashing ${args.length} args exceeds max of ${maxLen}`);
   }
 
   let chunksHashes = chunk(args, ARGS_HASH_CHUNK_LENGTH).map(c => {

@@ -1,5 +1,5 @@
 import { AztecAddress, CompleteAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
-import { ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { NodeInfo } from '@aztec/types/interfaces';
 
 import { AuthWitness } from '../auth_witness.js';
@@ -266,9 +266,26 @@ export interface PXE {
   /**
    * Returns a Contact Instance given its address, which includes the contract class identifier, portal address,
    * initialization hash, deployment salt, and public keys hash.
-   * TOOD(@spalladino): Should we return the public keys in plain as well here?
-   * @param address
+   * TODO(@spalladino): Should we return the public keys in plain as well here?
+   * @param address - Deployment address of the contract.
    */
   getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined>;
+
+  /**
+   * Returns a Contact Class given its identifier.
+   * TODO(@spalladino): The PXE actually holds artifacts and not classes, what should we return? Also,
+   * should the pxe query the node for contract public info, and merge it with its own definitions?
+   * @param id - Identifier of the class.
+   */
+  getContractClass(id: Fr): Promise<ContractClassWithId | undefined>;
+
+  /**
+   * Queries the node to check whether the contract class with the given id has been publicly registered.
+   * TODO(@spalladino): This method is strictly needed to decide whether to publicly register a class or not
+   * during a public deployment. We probably want a nicer and more general API for this, but it'll have to
+   * do for the time being.
+   * @param id - Identifier of the class.
+   */
+  isContractClassPubliclyRegistered(id: Fr): Promise<boolean>;
 }
 // docs:end:pxe-interface

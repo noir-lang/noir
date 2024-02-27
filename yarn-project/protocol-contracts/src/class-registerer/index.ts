@@ -13,5 +13,5 @@ export function getCanonicalClassRegisterer(): ProtocolContract {
  * @remarks This should not change often, hence we hardcode it to save from having to recompute it every time.
  */
 export const ClassRegistererAddress = AztecAddress.fromString(
-  '0x1ae57857d2d234762b4a660986d94dfa361b06a3094d7c77dd0d133078516aa8',
+  '0x251ab40f36a148a5ac88fe3c2398ec1968d5676b0066299278610b870d738a9e',
 );

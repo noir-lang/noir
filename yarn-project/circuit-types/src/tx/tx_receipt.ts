@@ -1,4 +1,3 @@
-import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
 import { ContractData } from '../contract_data.js';
@@ -42,10 +41,6 @@ export class TxReceipt {
      */
     public blockNumber?: number,
     /**
-     * The deployed contract's address.
-     */
-    public contractAddress?: AztecAddress,
-    /**
      * Information useful for testing/debugging, set when test flag is set to true in `waitOpts`.
      */
     public debugInfo?: DebugInfo,
@@ -62,7 +57,6 @@ export class TxReceipt {
       error: this.error,
       blockHash: this.blockHash?.toString('hex'),
       blockNumber: this.blockNumber,
-      contractAddress: this.contractAddress?.toString(),
     };
   }
 
@@ -77,8 +71,7 @@ export class TxReceipt {
     const error = obj.error;
     const blockHash = obj.blockHash ? Buffer.from(obj.blockHash, 'hex') : undefined;
     const blockNumber = obj.blockNumber ? Number(obj.blockNumber) : undefined;
-    const contractAddress = obj.contractAddress ? AztecAddress.fromString(obj.contractAddress) : undefined;
-    return new TxReceipt(txHash, status, error, blockHash, blockNumber, contractAddress);
+    return new TxReceipt(txHash, status, error, blockHash, blockNumber);
   }
 }
 

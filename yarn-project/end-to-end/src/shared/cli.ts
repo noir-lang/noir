@@ -60,6 +60,7 @@ export const cliTestSuite = (
       if (addRpcUrl) {
         args.push('--rpc-url', rpcURL);
       }
+      debug(`Running command ${args.join(' ')}`);
       const res = cli.parseAsync(args);
       resetCli();
       return res;
@@ -135,7 +136,9 @@ export const cliTestSuite = (
         const ownerAddress = AztecAddress.fromString(foundAddress!);
 
         debug('Deploy Token Contract using created account.');
-        await run(`deploy ${artifact} --salt ${salt} --args ${ownerAddress} 'TokenName' 'TKN' 18`);
+        await run(
+          `deploy ${artifact} --private-key ${privKey} --salt ${salt} --args ${ownerAddress} 'TokenName' 'TKN' 18`,
+        );
         const loggedAddress = findInLogs(/Contract\sdeployed\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
         expect(loggedAddress).toBeDefined();
         contractAddress = AztecAddress.fromString(loggedAddress!);

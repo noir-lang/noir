@@ -8,7 +8,7 @@ import {
   L1_TO_L2_MSG_TREE_HEIGHT,
   L2ToL1Message,
 } from '@aztec/circuits.js';
-import { makeHeader } from '@aztec/circuits.js/factories';
+import { makeHeader } from '@aztec/circuits.js/testing';
 import { FunctionArtifact, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';

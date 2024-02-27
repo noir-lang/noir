@@ -1,4 +1,4 @@
-import { FUNCTION_SELECTOR_NUM_BYTES, Fr, FunctionSelector } from '@aztec/circuits.js';
+import { FUNCTION_SELECTOR_NUM_BYTES, Fr, FunctionSelector, computeSaltedInitializationHash } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -8,7 +8,7 @@ import {
   serializeBufferArrayToVector,
   serializeToBuffer,
 } from '@aztec/foundation/serialize';
-import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { ContractClass, ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 /**
  * Used for retrieval of contract data (A3 address, portal contract address, bytecode).
@@ -68,6 +68,9 @@ export interface ContractDataSource {
    * @param address - Address of the deployed contract.
    */
   getContract(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined>;
+
+  /** Returns the list of all class ids known. */
+  getContractClassIds(): Promise<Fr[]>;
 }
 
 /**
@@ -248,6 +251,20 @@ export class ExtendedContractData {
   /** Generates empty extended contract data. */
   static empty(): ExtendedContractData {
     return new ExtendedContractData(ContractData.empty(), [], Fr.ZERO, Fr.ZERO, Fr.ZERO);
+  }
+
+  /** Temporary method for creating extended contract data out of classes and instances */
+  static fromClassAndInstance(
+    contractClass: Pick<ContractClass, 'publicFunctions'>,
+    instance: ContractInstanceWithAddress,
+  ) {
+    return new ExtendedContractData(
+      new ContractData(instance.address, instance.portalContractAddress),
+      contractClass.publicFunctions.map(f => new EncodedContractFunction(f.selector, f.isInternal, f.bytecode)),
+      instance.contractClassId,
+      computeSaltedInitializationHash(instance),
+      instance.publicKeysHash,
+    );
   }
 }
 

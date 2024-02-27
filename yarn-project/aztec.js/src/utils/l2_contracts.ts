@@ -8,5 +8,5 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
  * @returns A flag indicating whether the contract is deployed.
  */
 export async function isContractDeployed(pxe: PXE, contractAddress: AztecAddress): Promise<boolean> {
-  return !!(await pxe.getContractData(contractAddress));
+  return !!(await pxe.getContractData(contractAddress)) || !!(await pxe.getContractInstance(contractAddress));
 }

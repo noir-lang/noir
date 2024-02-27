@@ -11,7 +11,7 @@ ALICE_PRIVATE_KEY="0x2153536ff6628eee01cf4024889ff977a18d9fa61d0e414422f7681cf08
 # docs:end:declare-accounts
 
 # docs:start:deploy
-CONTRACT=$(aztec-cli deploy TokenContractArtifact --salt 0 --args $ALICE "TokenName" "TKN" 18 --json | jq -r '.address')
+CONTRACT=$(aztec-cli deploy TokenContractArtifact --private-key $ALICE_PRIVATE_KEY --salt 0 --args $ALICE "TokenName" "TKN" 18 --json | jq -r '.address')
 echo "Deployed contract at $CONTRACT"
 aztec-cli check-deploy --contract-address $CONTRACT
 # docs:end:deploy

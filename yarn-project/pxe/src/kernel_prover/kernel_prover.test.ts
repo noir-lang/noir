@@ -18,7 +18,7 @@ import {
   VerificationKey,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { makeTxRequest } from '@aztec/circuits.js/factories';
+import { makeTxRequest } from '@aztec/circuits.js/testing';
 import { makeTuple } from '@aztec/foundation/array';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';

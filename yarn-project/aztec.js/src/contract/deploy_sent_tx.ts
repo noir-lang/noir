@@ -29,7 +29,7 @@ export class DeploySentTx<TContract extends Contract = Contract> extends SentTx 
     txHashPromise: Promise<TxHash>,
     private postDeployCtor: (address: AztecAddress, wallet: Wallet) => Promise<TContract>,
     /** The deployed contract instance */
-    public instance?: ContractInstanceWithAddress,
+    public instance: ContractInstanceWithAddress,
   ) {
     super(wallet, txHashPromise);
   }
@@ -51,19 +51,16 @@ export class DeploySentTx<TContract extends Contract = Contract> extends SentTx 
    */
   public async wait(opts?: DeployedWaitOpts): Promise<DeployTxReceipt<TContract>> {
     const receipt = await super.wait(opts);
-    const contract = await this.getContractObject(opts?.wallet, receipt.contractAddress);
+    const contract = await this.getContractObject(opts?.wallet);
     return { ...receipt, contract };
   }
 
-  protected getContractObject(wallet?: Wallet, address?: AztecAddress): Promise<TContract> {
+  protected getContractObject(wallet?: Wallet): Promise<TContract> {
     const isWallet = (pxe: PXE | Wallet): pxe is Wallet => !!(pxe as Wallet).createTxExecutionRequest;
     const contractWallet = wallet ?? (isWallet(this.pxe) && this.pxe);
     if (!contractWallet) {
       throw new Error(`A wallet is required for creating a contract instance`);
     }
-    if (!address) {
-      throw new Error(`Contract address is missing from transaction receipt`);
-    }
-    return this.postDeployCtor(address, contractWallet) as Promise<TContract>;
+    return this.postDeployCtor(this.instance.address, contractWallet) as Promise<TContract>;
   }
 }

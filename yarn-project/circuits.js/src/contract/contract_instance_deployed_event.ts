@@ -1,10 +1,11 @@
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE } from '../constants.gen.js';
-import { AztecAddress, EthAddress } from '../index.js';
 
 /** Event emitted from the ContractInstanceDeployer. */
 export class ContractInstanceDeployedEvent {
@@ -21,6 +22,16 @@ export class ContractInstanceDeployedEvent {
 
   static isContractInstanceDeployedEvent(log: Buffer) {
     return toBigIntBE(log.subarray(0, 32)) == DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE;
+  }
+
+  // TODO(@spalladino) We should be loading the singleton address from protocol-contracts,
+  // but the protocol-contracts package depends on this one, and we cannot have circular dependencies,
+  // hence we require it as an argument for now.
+  static fromLogs(logs: { contractAddress: AztecAddress; data: Buffer }[], instanceDeployerAddress: AztecAddress) {
+    return logs
+      .filter(log => ContractInstanceDeployedEvent.isContractInstanceDeployedEvent(log.data))
+      .filter(log => log.contractAddress.equals(instanceDeployerAddress))
+      .map(log => ContractInstanceDeployedEvent.fromLogData(log.data));
   }
 
   static fromLogData(log: Buffer) {

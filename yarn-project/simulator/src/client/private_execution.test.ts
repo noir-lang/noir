@@ -19,13 +19,13 @@ import {
   nonEmptySideEffects,
   sideEffectArrayToValueArray,
 } from '@aztec/circuits.js';
-import { makeContractDeploymentData, makeHeader } from '@aztec/circuits.js/factories';
 import {
   computeCommitmentNonce,
   computeMessageSecretHash,
   computeVarArgsHash,
   siloNoteHash,
 } from '@aztec/circuits.js/hash';
+import { makeContractDeploymentData, makeHeader } from '@aztec/circuits.js/testing';
 import {
   FunctionArtifact,
   FunctionSelector,

@@ -196,4 +196,7 @@ export interface ArchiverDataStore {
    * @param address - Address of the contract.
    */
   getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined>;
+
+  /** Returns the list of all class ids known by the archiver. */
+  getContractClassIds(): Promise<Fr[]>;
 }

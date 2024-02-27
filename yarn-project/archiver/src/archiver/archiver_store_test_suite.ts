@@ -11,7 +11,7 @@ import {
 } from '@aztec/circuit-types';
 import '@aztec/circuit-types/jest';
 import { AztecAddress, Fr } from '@aztec/circuits.js';
-import { makeContractClassPublic } from '@aztec/circuits.js/factories';
+import { makeContractClassPublic } from '@aztec/circuits.js/testing';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { ContractClassPublic, ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
 

@@ -13,11 +13,9 @@ describe('BoxReact Contract Tests', () => {
   beforeAll(async () => {
     wallet = await deployerEnv.getWallet();
     const pxe = deployerEnv.pxe;
-    const deployer = new ContractDeployer(artifact, pxe);
+    const deployer = new ContractDeployer(artifact, wallet);
     const salt = Fr.random();
-    const tx = deployer.deploy(Fr.random(), wallet.getCompleteAddress().address).send({ contractAddressSalt: salt });
-    await tx.wait();
-    const { contractAddress } = await tx.getReceipt();
+    const { address: contractAddress } = await deployer.deploy(Fr.random(), wallet.getCompleteAddress().address).send({ contractAddressSalt: salt }).deployed();
     contract = await BoxReactContract.at(contractAddress!, wallet);
 
     logger(`L2 contract deployed at ${contractAddress}`);

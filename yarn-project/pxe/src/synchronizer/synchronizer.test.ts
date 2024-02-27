@@ -1,7 +1,7 @@
 import { AztecNode, INITIAL_L2_BLOCK_NUM, L2Block } from '@aztec/circuit-types';
 import { CompleteAddress, Fr, GrumpkinScalar, Header } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { makeHeader } from '@aztec/circuits.js/factories';
+import { makeHeader } from '@aztec/circuits.js/testing';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { TestKeyStore } from '@aztec/key-store';
 import { openTmpStore } from '@aztec/kv-store/utils';

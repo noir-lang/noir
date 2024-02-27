@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Contract } from "@aztec/aztec.js";
-import { useNumber } from "../hooks/useNumber";
-import { filteredInterface } from "../config";
+import { useState } from 'react';
+import { Contract } from '@aztec/aztec.js';
+import { useNumber } from '../hooks/useNumber';
+import { filteredInterface } from '../config';
 
 export function ContractComponent({ contract }: { contract: Contract }) {
   const [showInput, setShowInput] = useState(true);
@@ -15,7 +15,7 @@ export function ContractComponent({ contract }: { contract: Contract }) {
         <select name="viewFunctions" id="viewFunctions">
           {filteredInterface.map(
             (fn, index) =>
-              fn.functionType === "unconstrained" && (
+              fn.functionType === 'unconstrained' && (
                 <option key={index} value={index}>
                   {fn.name}
                 </option>
@@ -29,26 +29,17 @@ export function ContractComponent({ contract }: { contract: Contract }) {
 
       <form onSubmit={setNumber}>
         <label htmlFor="functions">Functions:</label>
-        <select
-          name="functions"
-          id="functions"
-          onChange={() => setShowInput(true)}
-        >
+        <select name="functions" id="functions" onChange={() => setShowInput(true)}>
           {filteredInterface.map(
             (fn, index) =>
-              fn.functionType !== "unconstrained" && (
+              fn.functionType !== 'unconstrained' && (
                 <option key={index} value={index}>
                   {fn.name}
                 </option>
               ),
           )}
         </select>
-        <input
-          type="number"
-          name="numberToSet"
-          id="numberToSet"
-          hidden={!showInput}
-        />
+        <input type="number" name="numberToSet" id="numberToSet" hidden={!showInput} />
         <button type="submit" disabled={wait}>
           Write
         </button>

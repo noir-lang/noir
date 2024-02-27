@@ -50,6 +50,10 @@ export class KVArchiverDataStore implements ArchiverDataStore {
     return Promise.resolve(this.#contractClassStore.getContractClass(id));
   }
 
+  getContractClassIds(): Promise<Fr[]> {
+    return Promise.resolve(this.#contractClassStore.getContractClassIds());
+  }
+
   getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined> {
     return Promise.resolve(this.#contractInstanceStore.getContractInstance(address));
   }

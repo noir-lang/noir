@@ -43,46 +43,28 @@ describe('e2e_lending_contract', () => {
   };
 
   const deployContracts = async () => {
-    let lendingContract: LendingContract;
-    let priceFeedContract: PriceFeedContract;
+    logger(`Deploying price feed contract...`);
+    const priceFeedContract = await PriceFeedContract.deploy(wallet).send().deployed();
+    logger(`Price feed deployed to ${priceFeedContract.address}`);
 
-    let collateralAsset: TokenContract;
-    let stableCoin: TokenContract;
+    logger(`Deploying collateral asset feed contract...`);
+    const collateralAsset = await TokenContract.deploy(wallet, accounts[0], 'TokenName', 'TokenSymbol', 18)
+      .send()
+      .deployed();
+    logger(`Collateral asset deployed to ${collateralAsset.address}`);
 
-    {
-      logger(`Deploying price feed contract...`);
-      const receipt = await waitForSuccess(PriceFeedContract.deploy(wallet).send());
-      logger(`Price feed deployed to ${receipt.contractAddress}`);
-      priceFeedContract = await PriceFeedContract.at(receipt.contractAddress!, wallet);
-    }
+    logger(`Deploying stable coin contract...`);
+    const stableCoin = await TokenContract.deploy(wallet, accounts[0], 'TokenName', 'TokenSymbol', 18)
+      .send()
+      .deployed();
+    logger(`Stable coin asset deployed to ${stableCoin.address}`);
 
-    {
-      logger(`Deploying collateral asset feed contract...`);
-      const receipt = await waitForSuccess(
-        TokenContract.deploy(wallet, accounts[0], 'TokenName', 'TokenSymbol', 18).send(),
-      );
-      logger(`Collateral asset deployed to ${receipt.contractAddress}`);
-      collateralAsset = await TokenContract.at(receipt.contractAddress!, wallet);
-    }
+    logger(`Deploying L2 public contract...`);
+    const lendingContract = await LendingContract.deploy(wallet).send().deployed();
+    logger(`CDP deployed at ${lendingContract.address}`);
 
-    {
-      logger(`Deploying stable coin contract...`);
-      const receipt = await waitForSuccess(
-        TokenContract.deploy(wallet, accounts[0], 'TokenName', 'TokenSymbol', 18).send(),
-      );
-      logger(`Stable coin asset deployed to ${receipt.contractAddress}`);
-      stableCoin = await TokenContract.at(receipt.contractAddress!, wallet);
-    }
-
-    {
-      logger(`Deploying L2 public contract...`);
-      const receipt = await waitForSuccess(LendingContract.deploy(wallet).send());
-      logger(`CDP deployed at ${receipt.contractAddress}`);
-      lendingContract = await LendingContract.at(receipt.contractAddress!, wallet);
-    }
-
-    await waitForSuccess(collateralAsset.methods.set_minter(lendingContract.address, true).send());
-    await waitForSuccess(stableCoin.methods.set_minter(lendingContract.address, true).send());
+    await collateralAsset.methods.set_minter(lendingContract.address, true).send().wait();
+    await stableCoin.methods.set_minter(lendingContract.address, true).send().wait();
 
     return { priceFeedContract, lendingContract, collateralAsset, stableCoin };
   };

@@ -54,7 +54,7 @@ import {
   makeProof,
   makePublicCallRequest,
   makeRootRollupPublicInputs,
-} from '@aztec/circuits.js/factories';
+} from '@aztec/circuits.js/testing';
 import { makeTuple, range } from '@aztec/foundation/array';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { times } from '@aztec/foundation/collection';

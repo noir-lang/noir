@@ -1,5 +1,5 @@
-import { ContractComponent } from "./contract";
-import { useContract } from "../hooks/useContract";
+import { ContractComponent } from './contract';
+import { useContract } from '../hooks/useContract';
 
 export function Home() {
   const { contract, deploy, wait } = useContract();

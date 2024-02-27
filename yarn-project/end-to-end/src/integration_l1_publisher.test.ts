@@ -28,7 +28,7 @@ import {
   makeNewSideEffect,
   makeNewSideEffectLinkedToNoteHash,
   makeProof,
-} from '@aztec/circuits.js/factories';
+} from '@aztec/circuits.js/testing';
 import { createEthereumChain } from '@aztec/ethereum';
 import { makeTuple, range } from '@aztec/foundation/array';
 import { openTmpStore } from '@aztec/kv-store/utils';

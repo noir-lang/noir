@@ -7,7 +7,7 @@ import {
   MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   Proof,
 } from '@aztec/circuits.js';
-import { makePrivateKernelTailCircuitPublicInputs, makePublicCallRequest } from '@aztec/circuits.js/factories';
+import { makePrivateKernelTailCircuitPublicInputs, makePublicCallRequest } from '@aztec/circuits.js/testing';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { makeTuple } from '@aztec/foundation/array';
 import { times } from '@aztec/foundation/collection';

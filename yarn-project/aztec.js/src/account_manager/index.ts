@@ -6,8 +6,9 @@ import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { AccountContract } from '../account/contract.js';
 import { Salt } from '../account/index.js';
 import { AccountInterface } from '../account/interface.js';
-import { DefaultWaitOpts, DeployMethod, WaitOpts } from '../contract/index.js';
-import { ContractDeployer } from '../deployment/index.js';
+import { DefaultWaitOpts, WaitOpts } from '../contract/index.js';
+import { LegacyContractDeployer } from '../deployment/legacy/legacy_contract_deployer.js';
+import { LegacyDeployMethod } from '../deployment/legacy/legacy_deploy_method.js';
 import { waitForAccountSynch } from '../utils/account.js';
 import { generatePublicKey } from '../utils/index.js';
 import { AccountWalletWithPrivateKey } from '../wallet/index.js';
@@ -25,7 +26,8 @@ export class AccountManager {
   private completeAddress?: CompleteAddress;
   private instance?: ContractInstanceWithAddress;
   private encryptionPublicKey?: PublicKey;
-  private deployMethod?: DeployMethod;
+  // TODO(@spalladino): Update to the new deploy method and kill the legacy one.
+  private deployMethod?: LegacyDeployMethod;
 
   constructor(
     private pxe: PXE,
@@ -130,7 +132,11 @@ export class AccountManager {
       }
       await this.#register();
       const encryptionPublicKey = this.getEncryptionPublicKey();
-      const deployer = new ContractDeployer(this.accountContract.getContractArtifact(), this.pxe, encryptionPublicKey);
+      const deployer = new LegacyContractDeployer(
+        this.accountContract.getContractArtifact(),
+        this.pxe,
+        encryptionPublicKey,
+      );
       const args = this.accountContract.getDeploymentArgs();
       this.deployMethod = deployer.deploy(...args);
     }

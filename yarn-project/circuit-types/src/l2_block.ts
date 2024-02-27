@@ -10,7 +10,7 @@ import {
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   STRING_ENCODING,
 } from '@aztec/circuits.js';
-import { makeAppendOnlyTreeSnapshot, makeHeader } from '@aztec/circuits.js/factories';
+import { makeAppendOnlyTreeSnapshot, makeHeader } from '@aztec/circuits.js/testing';
 import { makeTuple } from '@aztec/foundation/array';
 import { times } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';

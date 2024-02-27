@@ -173,11 +173,12 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       'Optional deployment salt as a hex string for generating the deployment address.',
       parseFieldFromHexString,
     )
+    .addOption(createPrivateKeyOption("The sender's private key.", true))
     .option('--json', 'Emit output as json')
     // `options.wait` is default true. Passing `--no-wait` will set it to false.
     // https://github.com/tj/commander.js#other-option-types-negatable-boolean-and-booleanvalue
     .option('--no-wait', 'Skip waiting for the contract to be deployed. Print the hash of deployment transaction')
-    .action(async (artifactPath, { json, rpcUrl, publicKey, args: rawArgs, portalAddress, salt, wait }) => {
+    .action(async (artifactPath, { json, rpcUrl, publicKey, args: rawArgs, portalAddress, salt, wait, privateKey }) => {
       const { deploy } = await import('./cmds/deploy.js');
       await deploy(
         artifactPath,
@@ -187,6 +188,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
         rawArgs,
         portalAddress,
         salt,
+        privateKey,
         wait,
         debugLogger,
         log,

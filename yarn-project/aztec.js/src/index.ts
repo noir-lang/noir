@@ -32,6 +32,7 @@ export {
 } from './contract/index.js';
 
 export { ContractDeployer } from './deployment/index.js';
+export { LegacyContractDeployer } from './deployment/legacy/legacy_contract_deployer.js';
 
 export {
   generatePublicKey,

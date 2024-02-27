@@ -57,7 +57,7 @@ import {
   collectUnencryptedLogs,
   resolveOpcodeLocations,
 } from '@aztec/simulator';
-import { ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { NodeInfo } from '@aztec/types/interfaces';
 
 import { PXEServiceConfig, getPackageInfo } from '../config/index.js';
@@ -161,6 +161,11 @@ export class PXEService implements PXE {
 
   public getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined> {
     return this.db.getContractInstance(address);
+  }
+
+  public async getContractClass(id: Fr): Promise<ContractClassWithId | undefined> {
+    const artifact = await this.db.getContractArtifact(id);
+    return artifact && getContractClassFromArtifact(artifact);
   }
 
   public async registerAccount(privKey: GrumpkinPrivateKey, partialAddress: PartialAddress): Promise<CompleteAddress> {
@@ -446,18 +451,7 @@ export class PXEService implements PXE {
 
     const settledTx = await this.node.getTx(txHash);
     if (settledTx) {
-      const deployedContractAddress = settledTx.newContractData.find(
-        c => !c.contractAddress.equals(AztecAddress.ZERO),
-      )?.contractAddress;
-
-      txReceipt = new TxReceipt(
-        txHash,
-        TxStatus.MINED,
-        '',
-        settledTx.blockHash.toBuffer(),
-        settledTx.blockNumber,
-        deployedContractAddress,
-      );
+      txReceipt = new TxReceipt(txHash, TxStatus.MINED, '', settledTx.blockHash.toBuffer(), settledTx.blockNumber);
     }
 
     return txReceipt;
@@ -783,5 +777,9 @@ export class PXEService implements PXE {
 
   public getKeyStore() {
     return this.keyStore;
+  }
+
+  public async isContractClassPubliclyRegistered(id: Fr): Promise<boolean> {
+    return !!(await this.node.getContractClass(id));
   }
 }

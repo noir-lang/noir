@@ -34,7 +34,7 @@ import {
   makePrivateKernelTailCircuitPublicInputs,
   makePublicCallRequest,
   makeSelector,
-} from '@aztec/circuits.js/factories';
+} from '@aztec/circuits.js/testing';
 import { makeTuple } from '@aztec/foundation/array';
 import { padArrayEnd, times } from '@aztec/foundation/collection';
 import { PublicExecution, PublicExecutionResult, PublicExecutor } from '@aztec/simulator';

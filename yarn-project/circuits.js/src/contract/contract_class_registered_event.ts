@@ -1,4 +1,5 @@
 import { bufferFromFields } from '@aztec/foundation/abi';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
@@ -24,10 +25,18 @@ export class ContractClassRegisteredEvent {
     return toBigIntBE(log.subarray(0, 32)) == REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE;
   }
 
+  static fromLogs(logs: { contractAddress: AztecAddress; data: Buffer }[], registererContractAddress: AztecAddress) {
+    return logs
+      .filter(log => ContractClassRegisteredEvent.isContractClassRegisteredEvent(log.data))
+      .filter(log => log.contractAddress.equals(registererContractAddress))
+      .map(log => this.fromLogData(log.data));
+  }
+
   static fromLogData(log: Buffer) {
     if (!this.isContractClassRegisteredEvent(log)) {
-      const magicValue = REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE.toString(16);
-      throw new Error(`Log data for ContractClassRegisteredEvent is not prefixed with magic value 0x${magicValue}`);
+      throw new Error(
+        `Log data for ContractClassRegisteredEvent is not prefixed with magic value 0x${REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE}`,
+      );
     }
     const reader = new BufferReader(log.subarray(32));
     const contractClassId = reader.readObject(Fr);

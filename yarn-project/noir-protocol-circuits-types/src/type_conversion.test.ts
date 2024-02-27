@@ -8,7 +8,7 @@ import {
   Point,
   TxContext,
 } from '@aztec/circuits.js';
-import { makeHeader } from '@aztec/circuits.js/factories';
+import { makeHeader } from '@aztec/circuits.js/testing';
 
 import {
   mapAztecAddressFromNoir,
