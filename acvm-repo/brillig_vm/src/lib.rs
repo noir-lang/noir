@@ -568,6 +568,13 @@ impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         Ok((5_u128.into(), 6_u128.into()))
     }
+    fn poseidon2_permutation(
+        &self,
+        _input: &[FieldElement],
+        len: u32,
+    ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
+        Ok(vec![0_u128.into(); len as usize])
+    }
 }
 
 #[cfg(test)]

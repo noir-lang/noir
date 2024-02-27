@@ -417,6 +417,7 @@ version = "0.24.0"
 dependencies = [
  "convert_case 0.6.0",
  "iter-extended",
+ "noirc_errors",
  "noirc_frontend",
 ]
 
@@ -589,6 +590,7 @@ dependencies = [
  "js-sys",
  "noir_grumpkin",
  "num-bigint",
+ "num-traits",
  "pkg-config",
  "reqwest",
  "rust-embed",
@@ -2947,6 +2949,7 @@ dependencies = [
  "noirc_macros",
  "rust-embed",
  "serde",
+ "thiserror",
  "tracing",
 ]
 

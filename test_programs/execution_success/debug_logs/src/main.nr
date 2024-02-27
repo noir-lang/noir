@@ -1,4 +1,4 @@
-fn main(x: Field, y: pub Field) {    
+fn main(x: Field, y: pub Field) {
     let string = "i: {i}, j: {j}";
     println(string);
 
@@ -102,8 +102,8 @@ fn regression_2903() {
     let a = v[0];
     println(a); // will print `1`
 
-    let bytes = [ "aaa", "bbb", "ccc" ];
-    println(bytes);    
+    let bytes = ["aaa", "bbb", "ccc"];
+    println(bytes);
 }
 
 fn regression_2906() {

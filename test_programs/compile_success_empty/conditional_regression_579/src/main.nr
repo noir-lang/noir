@@ -12,9 +12,7 @@ struct MyStruct579 {
 
 impl MyStruct579 {
     fn new(array_param: [u32; 2]) -> MyStruct579 {
-        MyStruct579 {
-            array_param: array_param
-        }
+        MyStruct579 { array_param }
     }
 }
 
