@@ -7,7 +7,7 @@ sidebar_position: 1
 A `BoundedVec<T, MaxLen>` is a growable storage similar to a `Vec<T>` except that it
 is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
 via slices and thus is not subject to the same restrictions slices are (notably, nested
-slices - and thus nested Vecs as well - are disallowed).
+slices - and thus nested vectors as well - are disallowed).
 
 Since a BoundedVec is backed by a normal array under the hood, growing the BoundedVec by
 pushing an additional element is also more efficient - the length only needs to be increased
@@ -70,7 +70,7 @@ fn bad() {
 ```
 
 This defaulting of `MaxLen` (and numeric generics in general) to zero may change in future noir versions
-but for now make sure to use type annotations when using bounded vecs. Otherwise,
+but for now make sure to use type annotations when using bounded vectors. Otherwise,
 you will receive a constraint failure at runtime when the vec is pushed to.
 
 ### get
