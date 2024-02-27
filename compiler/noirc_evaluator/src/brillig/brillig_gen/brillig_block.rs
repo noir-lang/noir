@@ -1,9 +1,7 @@
 use crate::brillig::brillig_ir::brillig_variable::{
     type_to_heap_value_type, BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
 };
-use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
-};
+use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::instruction::ConstrainError;
 use crate::ssa::ir::{
@@ -1403,8 +1401,6 @@ impl<'block> BrilligBlock<'block> {
 }
 
 /// Returns the type of the operation considering the types of the operands
-/// TODO: SSA issues binary operations between fields and integers.
-/// This probably should be explicitly casted in SSA to avoid having to coerce at this level.
 pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type {
     match (lhs_type, rhs_type) {
         (_, Type::Function) | (Type::Function, _) => {
@@ -1419,10 +1415,6 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
         (_, Type::Slice(..)) | (Type::Slice(..), _) => {
             unreachable!("Arrays are invalid in binary operations")
         }
-        // If either side is a Field constant then, we coerce into the type
-        // of the other operand
-        (Type::Numeric(NumericType::NativeField), typ)
-        | (typ, Type::Numeric(NumericType::NativeField)) => typ.clone(),
         // If both sides are numeric type, then we expect their types to be
         // the same.
         (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
@@ -1461,10 +1453,6 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
             BinaryOp::Mul => BrilligBinaryOp::Field { op: BinaryFieldOp::Mul },
             BinaryOp::Div => BrilligBinaryOp::Field { op: BinaryFieldOp::Div },
             BinaryOp::Eq => BrilligBinaryOp::Field { op: BinaryFieldOp::Equals },
-            BinaryOp::Lt => BrilligBinaryOp::Integer {
-                op: BinaryIntOp::LessThan,
-                bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
-            },
             _ => unreachable!(
                 "Field type cannot be used with {op}. This should have been caught by the frontend"
             ),

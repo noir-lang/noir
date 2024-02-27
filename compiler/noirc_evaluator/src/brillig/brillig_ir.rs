@@ -29,17 +29,6 @@ use acvm::{
 use debug_show::DebugShow;
 use num_bigint::BigUint;
 
-/// Integer arithmetic in Brillig is limited to 127 bit
-/// integers.
-///
-/// We could lift this in the future and have Brillig
-/// do big integer arithmetic when it exceeds the field size
-/// or we could have users re-implement big integer arithmetic
-/// in Brillig.
-/// Since constrained functions do not have this property, it
-/// would mean that unconstrained functions will differ from
-/// constrained functions in terms of syntax compatibility.
-pub(crate) const BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE: u32 = 127;
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 64 bits. This means that we assume that
 /// memory has 2^64 memory slots.
