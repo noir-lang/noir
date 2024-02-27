@@ -152,6 +152,20 @@ contract AvmTest {
         context.push_new_nullifier(nullifier, 0);
     }
 
+    // Use the standard context interface to emit a new nullifier
+    #[aztec(public-vm)]
+    fn check_nullifier_exists(nullifier: Field) -> pub u8 {
+        context.check_nullifier_exists(nullifier)
+    }
+
+    // Use the standard context interface to emit a new nullifier
+    #[aztec(public-vm)]
+    fn emit_nullifier_and_check(nullifier: Field) {
+        context.emit_nullifier(nullifier);
+        let exists = context.check_nullifier_exists(nullifier);
+        assert(exists == 1, "Nullifier was just created, but its existence wasn't detected!");
+    }
+
     // Create the same nullifier twice (shouldn't work!)
     #[aztec(public-vm)]
     fn nullifier_collision(nullifier: Field) {

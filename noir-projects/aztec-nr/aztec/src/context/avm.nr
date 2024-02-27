@@ -52,6 +52,9 @@ impl AVMContext {
     #[oracle(emitNoteHash)]
     pub fn emit_note_hash(self, note_hash: Field) {}
 
+    #[oracle(nullifierExists)]
+    pub fn check_nullifier_exists(self, nullifier: Field) -> u8 {}
+
     #[oracle(emitNullifier)]
     pub fn emit_nullifier(self, nullifier: Field) {}
 

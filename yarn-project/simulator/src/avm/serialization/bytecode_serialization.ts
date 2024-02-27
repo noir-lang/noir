@@ -26,6 +26,7 @@ import {
   Mov,
   Mul,
   Not,
+  NullifierExists,
   Or,
   Origin,
   Portal,
@@ -113,7 +114,7 @@ const INSTRUCTION_SET = () =>
     [SStore.opcode, SStore], // Public Storage
     //[NoteHashExists.opcode, NoteHashExists], // Notes & Nullifiers
     [EmitNoteHash.opcode, EmitNoteHash], // Notes & Nullifiers
-    //[NullifierExists.opcode, NullifierExists], // Notes & Nullifiers
+    [NullifierExists.opcode, NullifierExists], // Notes & Nullifiers
     [EmitNullifier.opcode, EmitNullifier], // Notes & Nullifiers
     //[Readl1tol2msg.opcode, Readl1tol2msg], // Messages
     //[HeaderMember.opcode, HeaderMember], // Header

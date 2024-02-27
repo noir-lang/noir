@@ -1,4 +1,5 @@
 import type { AvmContext } from '../avm_context.js';
+import { Uint8 } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { NullifierCollisionError } from '../journal/nullifiers.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
@@ -22,6 +23,26 @@ export class EmitNoteHash extends Instruction {
 
     const noteHash = context.machineState.memory.get(this.noteHashOffset).toFr();
     context.persistableState.writeNoteHash(noteHash);
+
+    context.machineState.incrementPc();
+  }
+}
+
+export class NullifierExists extends Instruction {
+  static type: string = 'NULLIFIEREXISTS';
+  static readonly opcode: Opcode = Opcode.NULLIFIEREXISTS;
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat = [OperandType.UINT8, OperandType.UINT8, OperandType.UINT32, OperandType.UINT32];
+
+  constructor(private indirect: number, private nullifierOffset: number, private existsOffset: number) {
+    super();
+  }
+
+  async execute(context: AvmContext): Promise<void> {
+    const nullifier = context.machineState.memory.get(this.nullifierOffset).toFr();
+    const exists = await context.persistableState.checkNullifierExists(context.environment.storageAddress, nullifier);
+
+    context.machineState.memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
 
     context.machineState.incrementPc();
   }

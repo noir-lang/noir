@@ -2,11 +2,17 @@ import { mock } from 'jest-mock-extended';
 
 import { CommitmentsDB } from '../../index.js';
 import { AvmContext } from '../avm_context.js';
-import { Field } from '../avm_memory_types.js';
+import { Field, Uint8 } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { initContext, initExecutionEnvironment, initHostStorage } from '../fixtures/index.js';
 import { AvmPersistableStateManager } from '../journal/journal.js';
-import { EmitNoteHash, EmitNullifier, EmitUnencryptedLog, SendL2ToL1Message } from './accrued_substate.js';
+import {
+  EmitNoteHash,
+  EmitNullifier,
+  EmitUnencryptedLog,
+  NullifierExists,
+  SendL2ToL1Message,
+} from './accrued_substate.js';
 import { StaticCallStorageAlterError } from './storage.js';
 
 describe('Accrued Substate', () => {
@@ -21,9 +27,9 @@ describe('Accrued Substate', () => {
       const buf = Buffer.from([
         EmitNoteHash.opcode, // opcode
         0x01, // indirect
-        ...Buffer.from('12345678', 'hex'), // dstOffset
+        ...Buffer.from('12345678', 'hex'), // offset
       ]);
-      const inst = new EmitNoteHash(/*indirect=*/ 0x01, /*dstOffset=*/ 0x12345678);
+      const inst = new EmitNoteHash(/*indirect=*/ 0x01, /*offset=*/ 0x12345678);
 
       expect(EmitNoteHash.deserialize(buf)).toEqual(inst);
       expect(inst.serialize()).toEqual(buf);
@@ -41,14 +47,78 @@ describe('Accrued Substate', () => {
     });
   });
 
+  describe('NullifierExists', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        NullifierExists.opcode, // opcode
+        0x01, // indirect
+        ...Buffer.from('12345678', 'hex'), // nullifierOffset
+        ...Buffer.from('456789AB', 'hex'), // existsOffset
+      ]);
+      const inst = new NullifierExists(
+        /*indirect=*/ 0x01,
+        /*nullifierOffset=*/ 0x12345678,
+        /*existsOffset=*/ 0x456789ab,
+      );
+
+      expect(NullifierExists.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
+    it('Should correctly show false when nullifier does not exist', async () => {
+      const value = new Field(69n);
+      const nullifierOffset = 0;
+      const existsOffset = 1;
+
+      // mock host storage this so that persistable state's checkNullifierExists returns UNDEFINED
+      const commitmentsDb = mock<CommitmentsDB>();
+      commitmentsDb.getNullifierIndex.mockResolvedValue(Promise.resolve(undefined));
+      const hostStorage = initHostStorage({ commitmentsDb });
+      context = initContext({ persistableState: new AvmPersistableStateManager(hostStorage) });
+
+      context.machineState.memory.set(nullifierOffset, value);
+      await new NullifierExists(/*indirect=*/ 0, nullifierOffset, existsOffset).execute(context);
+
+      const exists = context.machineState.memory.getAs<Uint8>(existsOffset);
+      expect(exists).toEqual(new Uint8(0));
+
+      const journalState = context.persistableState.flush();
+      expect(journalState.nullifierChecks.length).toEqual(1);
+      expect(journalState.nullifierChecks[0].exists).toEqual(false);
+    });
+
+    it('Should correctly show true when nullifier exists', async () => {
+      const value = new Field(69n);
+      const nullifierOffset = 0;
+      const existsOffset = 1;
+      const storedLeafIndex = BigInt(42);
+
+      // mock host storage this so that persistable state's checkNullifierExists returns true
+      const commitmentsDb = mock<CommitmentsDB>();
+      commitmentsDb.getNullifierIndex.mockResolvedValue(Promise.resolve(storedLeafIndex));
+      const hostStorage = initHostStorage({ commitmentsDb });
+      context = initContext({ persistableState: new AvmPersistableStateManager(hostStorage) });
+
+      context.machineState.memory.set(nullifierOffset, value);
+      await new NullifierExists(/*indirect=*/ 0, nullifierOffset, existsOffset).execute(context);
+
+      const exists = context.machineState.memory.getAs<Uint8>(existsOffset);
+      expect(exists).toEqual(new Uint8(1));
+
+      const journalState = context.persistableState.flush();
+      expect(journalState.nullifierChecks.length).toEqual(1);
+      expect(journalState.nullifierChecks[0].exists).toEqual(true);
+    });
+  });
+
   describe('EmitNullifier', () => {
     it('Should (de)serialize correctly', () => {
       const buf = Buffer.from([
         EmitNullifier.opcode, // opcode
         0x01, // indirect
-        ...Buffer.from('12345678', 'hex'), // dstOffset
+        ...Buffer.from('12345678', 'hex'), // offset
       ]);
-      const inst = new EmitNullifier(/*indirect=*/ 0x01, /*dstOffset=*/ 0x12345678);
+      const inst = new EmitNullifier(/*indirect=*/ 0x01, /*offset=*/ 0x12345678);
 
       expect(EmitNullifier.deserialize(buf)).toEqual(inst);
       expect(inst.serialize()).toEqual(buf);
@@ -108,7 +178,7 @@ describe('Accrued Substate', () => {
         ...Buffer.from('12345678', 'hex'), // offset
         ...Buffer.from('a2345678', 'hex'), // length
       ]);
-      const inst = new EmitUnencryptedLog(/*indirect=*/ 0x01, /*dstOffset=*/ 0x12345678, /*length=*/ 0xa2345678);
+      const inst = new EmitUnencryptedLog(/*indirect=*/ 0x01, /*offset=*/ 0x12345678, /*length=*/ 0xa2345678);
 
       expect(EmitUnencryptedLog.deserialize(buf)).toEqual(inst);
       expect(inst.serialize()).toEqual(buf);
@@ -138,7 +208,7 @@ describe('Accrued Substate', () => {
         ...Buffer.from('12345678', 'hex'), // offset
         ...Buffer.from('a2345678', 'hex'), // length
       ]);
-      const inst = new SendL2ToL1Message(/*indirect=*/ 0x01, /*dstOffset=*/ 0x12345678, /*length=*/ 0xa2345678);
+      const inst = new SendL2ToL1Message(/*indirect=*/ 0x01, /*offset=*/ 0x12345678, /*length=*/ 0xa2345678);
 
       expect(SendL2ToL1Message.deserialize(buf)).toEqual(inst);
       expect(inst.serialize()).toEqual(buf);
@@ -160,7 +230,7 @@ describe('Accrued Substate', () => {
     });
   });
 
-  it('All substate instructions should fail within a static call', async () => {
+  it('All substate emission instructions should fail within a static call', async () => {
     context = initContext({ env: initExecutionEnvironment({ isStaticCall: true }) });
 
     const instructions = [

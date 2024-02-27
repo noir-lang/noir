@@ -4,12 +4,14 @@ import { HostStorage } from './host_storage.js';
 import { Nullifiers } from './nullifiers.js';
 import { PublicStorage } from './public_storage.js';
 import { WorldStateAccessTrace } from './trace.js';
+import { TracedNullifierCheck } from './trace_types.js';
 
 /**
  * Data held within the journal
  */
 export type JournalData = {
   newNoteHashes: Fr[];
+  nullifierChecks: TracedNullifierCheck[];
   newNullifiers: Fr[];
 
   newL1Messages: Fr[][];
@@ -97,8 +99,8 @@ export class AvmPersistableStateManager {
   }
 
   public async checkNullifierExists(storageAddress: Fr, nullifier: Fr) {
-    const [exists, _isPending, _leafIndex] = await this.nullifiers.checkExists(storageAddress, nullifier);
-    //this.trace.traceNullifierCheck(storageAddress, nullifier, exists, isPending, leafIndex);
+    const [exists, isPending, leafIndex] = await this.nullifiers.checkExists(storageAddress, nullifier);
+    this.trace.traceNullifierCheck(storageAddress, nullifier, exists, isPending, leafIndex);
     return Promise.resolve(exists);
   }
 
@@ -148,6 +150,7 @@ export class AvmPersistableStateManager {
   public flush(): JournalData {
     return {
       newNoteHashes: this.trace.newNoteHashes,
+      nullifierChecks: this.trace.nullifierChecks,
       newNullifiers: this.trace.newNullifiers,
       newL1Messages: this.newL1Messages,
       newLogs: this.newLogs,

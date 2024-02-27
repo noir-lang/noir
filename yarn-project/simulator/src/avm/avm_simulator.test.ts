@@ -280,6 +280,86 @@ describe('AVM simulator', () => {
 
         expect(context.persistableState.flush().newNullifiers).toEqual([utxo]);
       });
+      it(`Should execute contract function that checks if a nullifier existence (it does not)`, async () => {
+        const utxo = new Fr(42);
+        const calldata = [utxo];
+
+        // Get contract function artifact
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === 'avm_check_nullifier_exists')!;
+
+        // Decode bytecode into instructions
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        await new AvmSimulator(context).execute();
+        const results = await new AvmSimulator(context).execute();
+        expect(results.reverted).toBe(false);
+        expect(results.output).toEqual([/*exists=false*/ new Fr(0)]);
+
+        // Nullifier existence check should be in trace
+        const sideEffects = context.persistableState.flush();
+        expect(sideEffects.nullifierChecks.length).toEqual(1);
+        expect(sideEffects.nullifierChecks[0].exists).toEqual(false);
+      });
+      it(`Should execute contract function that checks if a nullifier existence (it does)`, async () => {
+        const utxo = new Fr(42);
+        const calldata = [utxo];
+
+        // Get contract function artifact
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === 'avm_check_nullifier_exists')!;
+
+        // Decode bytecode into instructions
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        // nullifier exists!
+        jest
+          .spyOn(context.persistableState.hostStorage.commitmentsDb, 'getNullifierIndex')
+          .mockReturnValue(Promise.resolve(BigInt(42)));
+
+        await new AvmSimulator(context).execute();
+        const results = await new AvmSimulator(context).execute();
+        expect(results.reverted).toBe(false);
+        expect(results.output).toEqual([/*exists=true*/ new Fr(1)]);
+
+        // Nullifier existence check should be in trace
+        const sideEffects = context.persistableState.flush();
+        expect(sideEffects.nullifierChecks.length).toEqual(1);
+        expect(sideEffects.nullifierChecks[0].exists).toEqual(true);
+      });
+      it(`Should execute contract function that checks emits a nullifier and checks its existence`, async () => {
+        const utxo = new Fr(42);
+        const calldata = [utxo];
+
+        // Get contract function artifact
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === 'avm_emit_nullifier_and_check')!;
+
+        // Decode bytecode into instructions
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        await new AvmSimulator(context).execute();
+        const results = await new AvmSimulator(context).execute();
+        expect(results.reverted).toBe(false);
+
+        // Nullifier existence check should be in trace
+        const sideEffects = context.persistableState.flush();
+        expect(sideEffects.newNullifiers).toEqual([utxo]);
+        expect(sideEffects.nullifierChecks.length).toEqual(1);
+        expect(sideEffects.nullifierChecks[0].exists).toEqual(true);
+      });
       it(`Should execute contract function that emits same nullifier twice (should fail)`, async () => {
         const utxo = new Fr(42);
         const calldata = [utxo];
