@@ -26,6 +26,11 @@ pub struct TypeChecker<'interner> {
     errors: Vec<TypeCheckError>,
     current_function: Option<FuncId>,
 
+    /// Whether the `TypeChecker` should allow unsafe calls.
+    ///
+    /// This is generally only set to true within an `unsafe` block.
+    allow_unsafe: bool,
+
     /// Trait constraints are collected during type checking until they are
     /// verified at the end of a function. This is because constraints arise
     /// on each variable, but it is only until function calls when the types
@@ -164,11 +169,17 @@ fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_e
 
 impl<'interner> TypeChecker<'interner> {
     fn new(interner: &'interner mut NodeInterner) -> Self {
-        Self { interner, errors: Vec::new(), trait_constraints: Vec::new(), current_function: None }
+        Self {
+            interner,
+            errors: Vec::new(),
+            allow_unsafe: false,
+            trait_constraints: Vec::new(),
+            current_function: None,
+        }
     }
 
     fn check_function_body(&mut self, body: &ExprId) -> Type {
-        self.check_expression(body, false)
+        self.check_expression(body)
     }
 
     pub fn check_global(
@@ -178,11 +189,12 @@ impl<'interner> TypeChecker<'interner> {
         let mut this = Self {
             interner,
             errors: Vec::new(),
+            allow_unsafe: false,
             trait_constraints: Vec::new(),
             current_function: None,
         };
         let statement = this.interner.get_global(id).let_statement;
-        this.check_statement(&statement, false);
+        this.check_statement(&statement);
         this.errors
     }
 
