@@ -129,6 +129,7 @@ class Goblin {
      */
     void merge(GoblinUltraCircuitBuilder& circuit_builder)
     {
+        BB_OP_COUNT_TIME_NAME("Goblin::merge");
         // Complete the circuit logic by recursively verifying previous merge proof if it exists
         if (merge_proof_exists) {
             RecursiveMergeVerifier merge_verifier{ &circuit_builder };

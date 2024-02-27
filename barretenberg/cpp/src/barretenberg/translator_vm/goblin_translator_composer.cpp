@@ -190,6 +190,7 @@ void GoblinTranslatorComposer::compute_witness(CircuitBuilder& circuit_builder)
 GoblinTranslatorProver GoblinTranslatorComposer::create_prover(CircuitBuilder& circuit_builder,
                                                                const std::shared_ptr<Transcript>& transcript)
 {
+    BB_OP_COUNT_TIME_NAME("GoblinTranslatorComposer::create_prover");
 
     // Compute total number of gates, dyadic circuit size, etc.
     compute_circuit_size_parameters(circuit_builder);

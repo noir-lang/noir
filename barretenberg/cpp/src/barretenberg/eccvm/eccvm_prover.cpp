@@ -282,6 +282,8 @@ template <IsECCVMFlavor Flavor> HonkProof& ECCVMProver_<Flavor>::export_proof()
 
 template <IsECCVMFlavor Flavor> HonkProof& ECCVMProver_<Flavor>::construct_proof()
 {
+    BB_OP_COUNT_TIME_NAME("ECCVMProver::construct_proof");
+
     execute_preamble_round();
 
     execute_wire_commitments_round();

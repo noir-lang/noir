@@ -346,6 +346,7 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::accum
 template <class ProverInstances>
 FoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverInstances>::fold_instances()
 {
+    BB_OP_COUNT_TIME_NAME("ProtogalaxyProver::fold_instances");
     preparation_round();
     perturbator_round();
     combiner_quotient_round();

@@ -1,4 +1,5 @@
 #include "decider_prover.hpp"
+#include "barretenberg/common/op_count.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
 namespace bb {
@@ -102,6 +103,8 @@ template <IsUltraFlavor Flavor> HonkProof& DeciderProver_<Flavor>::export_proof(
 
 template <IsUltraFlavor Flavor> HonkProof& DeciderProver_<Flavor>::construct_proof()
 {
+    BB_OP_COUNT_TIME_NAME("Decider::construct_proof");
+
     // Add ϕ, \vec{β*}, e* to transcript
     execute_preamble_round();
 

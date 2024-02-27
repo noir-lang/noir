@@ -176,6 +176,8 @@ HonkProof& GoblinTranslatorProver::export_proof()
 
 HonkProof& GoblinTranslatorProver::construct_proof()
 {
+    BB_OP_COUNT_TIME_NAME("GoblinTranslatorProver::construct_proof");
+
     // Add circuit size public input size and public inputs to transcript.
     execute_preamble_round();
 

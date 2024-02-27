@@ -1,10 +1,8 @@
 
 #include <benchmark/benchmark.h>
 
-#include "barretenberg/benchmark/ultra_bench/mock_proofs.hpp"
 #include "barretenberg/client_ivc/client_ivc.hpp"
 #include "barretenberg/common/op_count_google_bench.hpp"
-#include "barretenberg/goblin/goblin.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/ultra_honk/ultra_composer.hpp"
@@ -18,7 +16,7 @@ namespace {
  * @brief Benchmark suite for the aztec client PG-Goblin IVC scheme
  *
  */
-class IvcBench : public benchmark::Fixture {
+class ClientIVCBench : public benchmark::Fixture {
   public:
     using Builder = GoblinUltraCircuitBuilder;
 
@@ -74,7 +72,7 @@ class IvcBench : public benchmark::Fixture {
  * @brief Benchmark the prover work for the full PG-Goblin IVC protocol
  *
  */
-BENCHMARK_DEFINE_F(IvcBench, Full)(benchmark::State& state)
+BENCHMARK_DEFINE_F(ClientIVCBench, Full)(benchmark::State& state)
 {
     ClientIVC ivc;
 
@@ -92,7 +90,7 @@ BENCHMARK_DEFINE_F(IvcBench, Full)(benchmark::State& state)
  * @brief Benchmark only the accumulation rounds
  *
  */
-BENCHMARK_DEFINE_F(IvcBench, Accumulate)(benchmark::State& state)
+BENCHMARK_DEFINE_F(ClientIVCBench, Accumulate)(benchmark::State& state)
 {
     ClientIVC ivc;
 
@@ -107,7 +105,7 @@ BENCHMARK_DEFINE_F(IvcBench, Accumulate)(benchmark::State& state)
  * @brief Benchmark only the Decider component
  *
  */
-BENCHMARK_DEFINE_F(IvcBench, Decide)(benchmark::State& state)
+BENCHMARK_DEFINE_F(ClientIVCBench, Decide)(benchmark::State& state)
 {
     ClientIVC ivc;
 
@@ -125,7 +123,7 @@ BENCHMARK_DEFINE_F(IvcBench, Decide)(benchmark::State& state)
  * @brief Benchmark only the ECCVM component
  *
  */
-BENCHMARK_DEFINE_F(IvcBench, ECCVM)(benchmark::State& state)
+BENCHMARK_DEFINE_F(ClientIVCBench, ECCVM)(benchmark::State& state)
 {
     ClientIVC ivc;
 
@@ -143,7 +141,7 @@ BENCHMARK_DEFINE_F(IvcBench, ECCVM)(benchmark::State& state)
  * @brief Benchmark only the Translator component
  *
  */
-BENCHMARK_DEFINE_F(IvcBench, Translator)(benchmark::State& state)
+BENCHMARK_DEFINE_F(ClientIVCBench, Translator)(benchmark::State& state)
 {
     ClientIVC ivc;
 
@@ -159,7 +157,7 @@ BENCHMARK_DEFINE_F(IvcBench, Translator)(benchmark::State& state)
 }
 
 #define ARGS                                                                                                           \
-    Arg(IvcBench::NUM_ITERATIONS_MEDIUM_COMPLEXITY)                                                                    \
+    Arg(ClientIVCBench::NUM_ITERATIONS_MEDIUM_COMPLEXITY)                                                              \
         ->Arg(1 << 0)                                                                                                  \
         ->Arg(1 << 1)                                                                                                  \
         ->Arg(1 << 2)                                                                                                  \
@@ -168,11 +166,11 @@ BENCHMARK_DEFINE_F(IvcBench, Translator)(benchmark::State& state)
         ->Arg(1 << 5)                                                                                                  \
         ->Arg(1 << 6)
 
-BENCHMARK_REGISTER_F(IvcBench, Full)->Unit(benchmark::kMillisecond)->ARGS;
-BENCHMARK_REGISTER_F(IvcBench, Accumulate)->Unit(benchmark::kMillisecond)->ARGS;
-BENCHMARK_REGISTER_F(IvcBench, Decide)->Unit(benchmark::kMillisecond)->ARGS;
-BENCHMARK_REGISTER_F(IvcBench, ECCVM)->Unit(benchmark::kMillisecond)->ARGS;
-BENCHMARK_REGISTER_F(IvcBench, Translator)->Unit(benchmark::kMillisecond)->ARGS;
+BENCHMARK_REGISTER_F(ClientIVCBench, Full)->Unit(benchmark::kMillisecond)->ARGS;
+BENCHMARK_REGISTER_F(ClientIVCBench, Accumulate)->Unit(benchmark::kMillisecond)->ARGS;
+BENCHMARK_REGISTER_F(ClientIVCBench, Decide)->Unit(benchmark::kMillisecond)->ARGS;
+BENCHMARK_REGISTER_F(ClientIVCBench, ECCVM)->Unit(benchmark::kMillisecond)->ARGS;
+BENCHMARK_REGISTER_F(ClientIVCBench, Translator)->Unit(benchmark::kMillisecond)->ARGS;
 
 } // namespace
 

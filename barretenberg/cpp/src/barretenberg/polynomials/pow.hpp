@@ -125,7 +125,6 @@ template <typename FF> struct PowPolynomial {
      */
     BB_PROFILE void compute_values()
     {
-        BB_OP_COUNT_TIME();
         size_t pow_size = 1 << betas.size();
         pow_betas = std::vector<FF>(pow_size);
 

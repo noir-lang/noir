@@ -30,6 +30,8 @@ template <IsECCVMFlavor Flavor>
 ECCVMProver_<Flavor> ECCVMComposer_<Flavor>::create_prover(CircuitConstructor& circuit_constructor,
                                                            const std::shared_ptr<Transcript>& transcript)
 {
+    BB_OP_COUNT_TIME_NAME("ECCVMComposer::create_prover");
+
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
     compute_commitment_key(proving_key->circuit_size);

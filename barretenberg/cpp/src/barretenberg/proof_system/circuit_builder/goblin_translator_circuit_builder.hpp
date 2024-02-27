@@ -364,6 +364,7 @@ class GoblinTranslatorCircuitBuilder : public CircuitBuilderBase<bb::fr> {
                                    std::shared_ptr<ECCOpQueue> op_queue)
         : GoblinTranslatorCircuitBuilder(batching_challenge_v_, evaluation_input_x_)
     {
+        BB_OP_COUNT_TIME_NAME("GoblinTranslatorCircuitBuilder::constructor");
         feed_ecc_op_queue_into_circuit(op_queue);
     }
 
