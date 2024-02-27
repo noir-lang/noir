@@ -21,7 +21,7 @@ impl Eq for U4 {
 }
 
 fn compact_decode<N>(input: [u8; N], length: Field) -> ([U4; NIBBLE_LENGTH], Field) {
-    assert(2 * input.len() <= NIBBLE_LENGTH as u64);
+    assert(2 * input.len() <= NIBBLE_LENGTH);
     assert(length as u64 <= input.len());
 
     let mut nibble = [U4::zero(); NIBBLE_LENGTH];
