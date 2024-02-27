@@ -82,11 +82,7 @@ describe('L1Publisher integration', () => {
   let outboxAddress: Address;
 
   let rollup: GetContractReturnType<typeof RollupAbi, PublicClient<HttpTransport, Chain>>;
-  let inbox: GetContractReturnType<
-    typeof InboxAbi,
-    PublicClient<HttpTransport, Chain>,
-    WalletClient<HttpTransport, Chain>
-  >;
+  let inbox: GetContractReturnType<typeof InboxAbi, WalletClient<HttpTransport, Chain>>;
   let outbox: GetContractReturnType<typeof OutboxAbi, PublicClient<HttpTransport, Chain>>;
 
   let publisher: L1Publisher;
@@ -123,18 +119,17 @@ describe('L1Publisher integration', () => {
     rollup = getContract({
       address: rollupAddress,
       abi: RollupAbi,
-      publicClient,
+      client: publicClient,
     });
     inbox = getContract({
       address: inboxAddress,
       abi: InboxAbi,
-      publicClient,
-      walletClient,
+      client: walletClient,
     });
     outbox = getContract({
       address: outboxAddress,
       abi: OutboxAbi,
-      publicClient,
+      client: publicClient,
     });
 
     builderDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());

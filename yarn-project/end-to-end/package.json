@@ -68,7 +68,7 @@
     "tty-browserify": "^0.0.1",
     "typescript": "^5.0.4",
     "util": "^0.12.5",
-    "viem": "^1.2.5",
+    "viem": "^2.7.15",
     "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4",
     "winston": "^3.10.0"

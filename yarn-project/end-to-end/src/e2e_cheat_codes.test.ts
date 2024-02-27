@@ -160,7 +160,11 @@ describe('e2e_cheat_codes', () => {
         await cc.aztec.warp(newTimestamp);
 
         // ensure rollup contract is correctly updated
-        const rollup = getContract({ address: getAddress(rollupAddress.toString()), abi: RollupAbi, publicClient });
+        const rollup = getContract({
+          address: getAddress(rollupAddress.toString()),
+          abi: RollupAbi,
+          client: publicClient,
+        });
         expect(Number(await rollup.read.lastBlockTs())).toEqual(newTimestamp);
         expect(Number(await rollup.read.lastWarpedBlockTs())).toEqual(newTimestamp);
 

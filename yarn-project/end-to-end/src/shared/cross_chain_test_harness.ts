@@ -73,8 +73,7 @@ export async function deployAndInitializeTokenAndBridgeContracts(
   const underlyingERC20 = getContract({
     address: underlyingERC20Address.toString(),
     abi: PortalERC20Abi,
-    walletClient,
-    publicClient,
+    client: walletClient,
   });
 
   // deploy the token portal
@@ -82,8 +81,7 @@ export async function deployAndInitializeTokenAndBridgeContracts(
   const tokenPortal = getContract({
     address: tokenPortalAddress.toString(),
     abi: TokenPortalAbi,
-    walletClient,
-    publicClient,
+    client: walletClient,
   });
 
   // deploy l2 token
@@ -138,15 +136,13 @@ export class CrossChainTestHarness {
     const inbox = getContract({
       address: l1ContractAddresses.inboxAddress.toString(),
       abi: InboxAbi,
-      walletClient,
-      publicClient,
+      client: walletClient,
     });
 
     const outbox = getContract({
       address: l1ContractAddresses.outboxAddress.toString(),
       abi: OutboxAbi,
-      walletClient,
-      publicClient,
+      client: walletClient,
     });
 
     // Deploy and initialize all required contracts

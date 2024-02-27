@@ -27,7 +27,7 @@
     "@aztec/foundation": "workspace:^",
     "dotenv": "^16.0.3",
     "tslib": "^2.4.0",
-    "viem": "^1.2.5"
+    "viem": "^2.7.15"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",

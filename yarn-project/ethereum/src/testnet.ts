@@ -8,7 +8,7 @@ export const createTestnetChain = (apiKey: string) => {
   const chain: Chain = {
     id: +CHAIN_ID,
     name: 'testnet',
-    network: 'aztec',
+    testnet: true,
     nativeCurrency: {
       name: 'Ether',
       symbol: 'ETH',

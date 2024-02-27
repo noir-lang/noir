@@ -56,8 +56,7 @@ export async function deployAndInitializeTokenAndBridgeContracts(
   const gasL1 = getContract({
     address: underlyingERC20Address.toString(),
     abi: PortalERC20Abi,
-    walletClient,
-    publicClient,
+    client: walletClient,
   });
 
   // deploy the gas portal
@@ -65,8 +64,7 @@ export async function deployAndInitializeTokenAndBridgeContracts(
   const gasPortal = getContract({
     address: gasPortalAddress.toString(),
     abi: GasPortalAbi,
-    walletClient,
-    publicClient,
+    client: walletClient,
   });
 
   // deploy l2 token
@@ -107,8 +105,7 @@ export class GasBridgingTestHarness {
     const outbox = getContract({
       address: l1ContractAddresses.outboxAddress.toString(),
       abi: OutboxAbi,
-      walletClient,
-      publicClient,
+      client: walletClient,
     });
 
     // Deploy and initialize all required contracts

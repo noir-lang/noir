@@ -36,7 +36,7 @@
     "lodash.chunk": "^4.2.0",
     "lodash.pick": "^4.4.0",
     "tslib": "^2.4.0",
-    "viem": "^1.2.5"
+    "viem": "^2.7.15"
   },
   "devDependencies": {
     "@aztec/kv-store": "workspace:^",

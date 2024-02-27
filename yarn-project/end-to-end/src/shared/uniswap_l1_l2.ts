@@ -126,8 +126,7 @@ export const uniswapL1L2TestSuite = (
       uniswapPortal = getContract({
         address: uniswapPortalAddress.toString(),
         abi: UniswapPortalAbi,
-        walletClient,
-        publicClient,
+        client: walletClient,
       });
       // deploy l2 uniswap contract and attach to portal
       uniswapL2Contract = await UniswapContract.deploy(ownerWallet)

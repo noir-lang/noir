@@ -157,8 +157,7 @@ export const deployL1Contracts = async (
   const registryContract = getContract({
     address: getAddress(registryAddress.toString()),
     abi: contractsToDeploy.registry.contractAbi,
-    publicClient,
-    walletClient,
+    client: walletClient,
   });
   await registryContract.write.upgrade(
     [getAddress(rollupAddress.toString()), getAddress(inboxAddress.toString()), getAddress(outboxAddress.toString())],
