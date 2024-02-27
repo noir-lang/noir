@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
 
-      - name: Setup env
+      - name: Check for existing PR
         run: |
           set -xue # print commands
           # Enable gh executable. We spread out the API requests between the github actions bot token, and aztecbot
@@ -35,46 +35,47 @@ jobs:
           # Do we have a PR active?
           PR_URL=$(gh pr list --repo noir-lang/noir --head aztec-packages --json url --jq ".[0].url")
           echo "PR_URL=$PR_URL" >> $GITHUB_ENV
-
+          
+      - name: Generate PR body
+        run: |
+          set -xue # print commands
           # compute_commit_message: Create a filtered git log for release-please changelog / metadata
           function compute_commit_message() {
-            # Get the last sync PR's last commit state
-            LAST_MERGED_PR_HASH=`gh pr list --repo=noir-lang/noir --state merged --head aztec-packages --json headRefOid --jq=.[0].headRefOid`
-            # Use a commit heuristic where we look at when .gitrepo first started to look at that commit state (through a push)
-            COMMIT_HEURISTIC=$(git log -p -S"$LAST_MERGED_PR_HASH" --reverse --source --  noir/.gitrepo | grep -m 1 '^commit'  | awk '{print $2}' || true)
-            BASE_AZTEC_COMMIT=`git config --file=noir/.gitrepo subrepo.parent`
-            if [[ "$COMMIT_HEURISTIC" = "" ]] ; then
-              # It it fails, just use our gitrepo parent commit (last time we pushed or pulled)
-              COMMIT_HEURISTIC=$BASE_AZTEC_COMMIT
+            # Detect our last sync commit (written by this action before pushing) with a fallback for the first time we ever do this
+            AZTEC_SYNC_COMMIT=$(curl https://raw.githubusercontent.com/noir-lang/noir/master/.aztec-sync-commit)
+            if [ "$AZTEC_SYNC_COMMIT" = "404: Not Found" ] ; then
+              AZTEC_SYNC_COMMIT="a7889f8d21684099306b72a87e0fb57b3bba0cb4"
             fi
             # Create a filtered git log for release-please changelog / metadata
-            RAW_MESSAGE=$(git log --pretty=format:"%s" $COMMIT_HEURISTIC..HEAD -- noir/  ':!noir/.gitrepo' | grep -v 'git subrepo' || true)
+            RAW_MESSAGE=$(git log --pretty=format:"%s" $AZTEC_SYNC_COMMIT..HEAD -- noir/  ':!noir/.gitrepo' | grep -v 'git subrepo' || true)
             # Fix Aztec PR links and output message
             echo "$RAW_MESSAGE" | sed -E 's/\(#([0-9]+)\)/(https:\/\/github.com\/AztecProtocol\/aztec-packages\/pull\/\1)/g'
           }
-          echo "$(compute_commit_message)" >> .COMMIT_MESSAGE
+          echo "$(compute_commit_message)" >> .PR_BODY_MESSAGE
+
+      - name: Set git configure for commits
+        run: |
+          # identify ourselves, needed to commit
+          git config --global user.name AztecBot
+          git config --global user.email tech@aztecprotocol.com
 
       # We push using git subrepo (https://github.com/ingydotnet/git-subrepo)
       # and push all Aztec commits as a single commit with metadata.
       - name: Push to branch
         run: |
           set -xue # print commands
-          # Enable gh executable. We spread out the API requests between the github actions bot token, and aztecbot
-          export GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
           SUBREPO_PATH=noir
           BRANCH=aztec-packages
           if [[ "$PR_URL" == "" ]]; then
             # if no staging branch, we can overwrite
             STAGING_BRANCH=$BRANCH
-          else 
+          else
             # otherwise we first reset our staging branch
             STAGING_BRANCH=$BRANCH-staging
           fi
-          # identify ourselves, needed to commit
-          git config --global user.name AztecBot
-          git config --global user.email tech@aztecprotocol.com
           BASE_NOIR_COMMIT=`git config --file=noir/.gitrepo subrepo.commit`
-          BASE_AZTEC_COMMIT=`git config --file=noir/.gitrepo subrepo.parent`
+          COMMIT=$(git rev-parse HEAD)
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:%B)
 
           # clone noir repo for manipulations, we use aztec bot token for writeability
           git clone https://x-access-token:${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}@github.com/noir-lang/noir.git noir-repo
@@ -90,13 +91,13 @@ jobs:
           }
           # force_sync_staging: Push to our aztec-packages staging branch.
           function force_sync_staging() {
-            MESSAGE=$(cat .COMMIT_MESSAGE)
-            git commit --allow-empty -m"chore: Sync to noir-lang/noir" -m"$MESSAGE"
-            COMMIT=$(git rev-parse HEAD)
+            echo "$COMMIT" > noir/.aztec-sync-commit && git add noir/.aztec-sync-commit
+            # make a new commit with our previous message
+            git commit -am "$COMMIT_MESSAGE"
             # Now push to it with subrepo with computed commit messages
             if ./scripts/git-subrepo/lib/git-subrepo push $SUBREPO_PATH --squash --branch=$STAGING_BRANCH; then
               # We don't push a commit to aztec anymore so that we can maintain the 'commit' as our last pull branch
-              git reset $COMMIT
+              git reset "$COMMIT"
             else
               echo "Problems syncing noir. We may need to pull the subrepo."
               exit 1
@@ -108,7 +109,7 @@ jobs:
             cd noir-repo
             git fetch # see recent change
             git checkout $BRANCH || git checkout -b $BRANCH
-            git merge -Xtheirs origin/$STAGING_BRANCH
+            git merge -Xtheirs origin/$STAGING_BRANCH -m "$COMMIT_MESSAGE"
             git push origin $BRANCH
             cd ..
           }
@@ -121,10 +122,9 @@ jobs:
       - name: Update PR
         run: |
           set -xue # print commands
-          MESSAGE=$(cat .COMMIT_MESSAGE)
           # Formatted for updating the PR, overrides for release-please commit message parsing 
           PR_BODY="""BEGIN_COMMIT_OVERRIDE
-          $MESSAGE
+          $(cat .PR_BODY_MESSAGE)
           END_COMMIT_OVERRIDE"""
           # for cross-opening PR in noir repo, we use aztecbot's token
           export GH_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
