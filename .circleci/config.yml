@@ -1124,7 +1124,7 @@ jobs:
             build docs
 
             echo "Deploying docs"
-            docs/deploy_netlify.sh $CIRCLE_BRANCH $CIRCLE_PULL_REQUEST
+            docs/deploy_netlify.sh $BRANCH $PULL_REQUEST
 
   yellow-paper:
     machine:
