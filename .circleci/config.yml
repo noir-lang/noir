@@ -1118,17 +1118,12 @@ jobs:
             fi
       - run:
           name: "Build docs"
-          command: build docs
-          aztec_manifest_key: docs
-      - run:
-          name: "Deploy docs"
           command: |
-            if [ "$CIRCLE_BRANCH" == "master" ]; then
-              echo "Deploying docs (on master)."
-              docs/deploy_netlify.sh
-            else
-              echo "Skipping doc deploy (not on master)."
-            fi
+            echo "Building docs"
+            build docs
+
+            echo "Deploying docs"
+            docs/deploy_netlify.sh $CIRCLE_BRANCH $CIRCLE_PULL_REQUEST
 
   yellow-paper:
     machine:

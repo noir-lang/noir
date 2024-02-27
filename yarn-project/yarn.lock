@@ -825,6 +825,7 @@ __metadata:
     bench-aggregate: ./dest/bin/bench-aggregate.js
     bench-comment: ./dest/bin/bench-comment.js
     bench-markdown: ./dest/bin/bench-markdown.js
+    docs-preview-comment: ./dest/bin/docs-preview.js
   languageName: unknown
   linkType: soft
 
