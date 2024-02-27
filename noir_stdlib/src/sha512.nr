@@ -96,7 +96,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 64] {
     let mut i: u64 = 0; // Message byte pointer
     for k in 0..msg.len() {
         // Populate msg_block
-        msg_block[i as Field] = msg[k];
+        msg_block[i] = msg[k];
         i = i + 1;
         if i == 128 {
             // Enough to hash block
@@ -110,7 +110,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 64] {
     }
     // Pad the rest such that we have a [u64; 2] block at the end representing the length
     // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).
-    msg_block[i as Field] = 1 << 7;
+    msg_block[i] = 1 << 7;
     i += 1;
     // If i >= 113, there aren't enough bits in the current message block to accomplish this, so
     // the 1 and 0s fill up the current block, which we then compress accordingly.
@@ -119,7 +119,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 64] {
         if i < 128 {
             for _i in 113..128 {
                 if i <= 127 {
-                    msg_block[i as Field] = 0;
+                    msg_block[i] = 0;
                     i += 1;
                 }
             }
@@ -137,7 +137,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 64] {
     for _i in 0..128 {
         // In any case, fill blocks up with zeros until the last 128 (i.e. until i = 112).
         if i < 112 {
-            msg_block[i as Field] = 0;
+            msg_block[i] = 0;
             i += 1;
         } else if i < 128 {
             for j in 0..16 {
