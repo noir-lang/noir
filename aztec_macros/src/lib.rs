@@ -840,8 +840,8 @@ fn get_serialized_length(
             && !interner.lookup_all_trait_implementations(stored_in_state, trait_id).is_empty()
     });
 
-    // Maps and (private) Notes always occupy a single slot. Someone could store a Note in PublicState for whatever reason though.
-    if struct_name == "Map" || (is_note && struct_name != "PublicState") {
+    // Maps and (private) Notes always occupy a single slot. Someone could store a Note in PublicMutable for whatever reason though.
+    if struct_name == "Map" || (is_note && struct_name != "PublicMutable") {
         return Ok(1);
     }
 

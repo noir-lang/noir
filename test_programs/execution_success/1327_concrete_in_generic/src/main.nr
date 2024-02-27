@@ -20,7 +20,7 @@ impl<T_C> B<T_C> {
     }
 }
 // ---
-// Set<Note>
+// PrivateSet<Note>
 struct C<T_D> {
         t_d_interface: MethodInterface<T_D>,
     }
@@ -55,7 +55,7 @@ fn get_d_method_interface() -> MethodInterface<D> {
 // ---
 fn main(input: Field) -> pub Field {
     let b: B<C<D>> = B::new(new_concrete_c_over_d);
-    let c: C<D> = b.get_t_c(); // Singleton<Note>
+    let c: C<D> = b.get_t_c(); // PrivateMutable<Note>
     let d: D = D { d: input }; // Note
     let output = c.call_method_of_t_d(d);
 

@@ -37,12 +37,13 @@ impl BigInt {
         let bytes = self.to_le_bytes();
         let o_bytes = other.to_le_bytes();
         let mut result = true;
-        for i in 0..32 {
+        for i in 0..32{
             result = result & (bytes[i] == o_bytes[i]);
         }
         result
     }
 }
+
 
 trait BigField {
     fn from_le_bytes(bytes: [u8]) -> Self;
