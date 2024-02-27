@@ -6,7 +6,7 @@ struct EmbeddedCurvePoint {
 }
 
 impl EmbeddedCurvePoint {
-    fn double(self) -> EmbeddedCurvePoint { 
+    fn double(self) -> EmbeddedCurvePoint {
         embedded_curve_add(self, self)
     }
 }
