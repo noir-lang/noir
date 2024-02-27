@@ -32,6 +32,7 @@ template <typename CycleGroup> struct VMOperation {
         res += static_cast<uint32_t>(reset);
         return res;
     }
+    bool operator==(const VMOperation<CycleGroup>& other) const = default;
 };
 template <typename CycleGroup> struct ScalarMul {
     uint32_t pc;

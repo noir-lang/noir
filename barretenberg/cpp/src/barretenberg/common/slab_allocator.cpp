@@ -22,7 +22,10 @@ bool allocator_destroyed = false;
 // Slabs that are being manually managed by the user.
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::unordered_map<void*, std::shared_ptr<void>> manual_slabs;
-
+#ifndef NO_MULTITHREADING
+// The manual slabs unordered map is not thread-safe, so we need to manage access to it when multithreaded.
+std::mutex manual_slabs_mutex;
+#endif
 template <typename... Args> inline void dbg_info(Args... args)
 {
 #if LOGGING == 1
@@ -219,6 +222,9 @@ std::shared_ptr<void> get_mem_slab(size_t size)
 void* get_mem_slab_raw(size_t size)
 {
     auto slab = get_mem_slab(size);
+#ifndef NO_MULTITHREADING
+    std::unique_lock<std::mutex> lock(manual_slabs_mutex);
+#endif
     manual_slabs[slab.get()] = slab;
     return slab.get();
 }
@@ -229,6 +235,9 @@ void free_mem_slab_raw(void* p)
         aligned_free(p);
         return;
     }
+#ifndef NO_MULTITHREADING
+    std::unique_lock<std::mutex> lock(manual_slabs_mutex);
+#endif
     manual_slabs.erase(p);
 }
 } // namespace bb
