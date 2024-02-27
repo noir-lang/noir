@@ -63,15 +63,16 @@ fn sum_of_first_three<N>(v: BoundedVec<u32, N>) -> u32 {
 }
 // docs:end:get_unchecked_example
 
-#[test]
+#[test(should_fail_with = "push out of bounds")]
 fn push_docs_example() {
     // docs:start:bounded-vec-push-example
     let mut v: BoundedVec<Field, 2> = BoundedVec::new();
 
     v.push(1);
     v.push(2);
-    // Error: Assertion failed, len exceeded max_len
-    // v.push(3);
+
+    // Panics with failed assertion "push out of bounds"
+    v.push(3);
     // docs:end:bounded-vec-push-example
 }
 
