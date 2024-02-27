@@ -4,12 +4,11 @@ use dep::aztec::{
     context::PrivateContext, log::emit_encrypted_log, hash::pedersen_hash
 };
 use dep::aztec::oracle::{rand::rand, nullifier_key::get_nullifier_secret_key, get_public_key::get_public_key};
-use dep::safe_math::SafeU120;
 use dep::std::option::Option;
 
 trait OwnedNote {
-    fn new(amount: SafeU120, owner: AztecAddress) -> Self;
-    fn get_amount(self) -> SafeU120;
+    fn new(amount: U128, owner: AztecAddress) -> Self;
+    fn get_amount(self) -> U128;
     fn get_owner(self) -> AztecAddress;
 }
 
@@ -17,7 +16,7 @@ global TOKEN_NOTE_LEN: Field = 3; // 3 plus a header.
 
 struct TokenNote {
     // the amount of tokens in the note
-    amount: SafeU120,
+    amount: U128,
     // the provider of secrets for the nullifier. The owner (recipient) to ensure that the note 
     // can be privately spent. When nullifier secret and encryption private key is same 
     // we can simply use the owner for this one.
@@ -31,12 +30,13 @@ struct TokenNote {
 
 impl NoteInterface<TOKEN_NOTE_LEN> for TokenNote {
     fn serialize_content(self) -> [Field; TOKEN_NOTE_LEN] {
-        [self.amount.value as Field, self.owner.to_field(), self.randomness]
+        [self.amount.to_field(), self.owner.to_field(), self.randomness]
     }
 
     fn deserialize_content(serialized_note: [Field; TOKEN_NOTE_LEN]) -> Self {
         Self {
-            amount: SafeU120::new(serialized_note[0]),
+            // TODO: check this type cast is right
+            amount: U128::from_integer(serialized_note[0]),
             owner: AztecAddress::from_field(serialized_note[1]),
             randomness: serialized_note[2],
             header: NoteHeader::empty(),
@@ -83,7 +83,7 @@ impl NoteInterface<TOKEN_NOTE_LEN> for TokenNote {
     // Broadcasts the note as an encrypted log on L1.
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
       // We only bother inserting the note if non-empty to save funds on gas.
-      if !self.amount.is_zero() {
+      if !(self.amount == U128::from_integer(0)) {
           let encryption_pub_key = get_public_key(self.owner);
           emit_encrypted_log(
               context,
@@ -104,7 +104,7 @@ impl NoteInterface<TOKEN_NOTE_LEN> for TokenNote {
 }
 
 impl OwnedNote for TokenNote {
-    fn new(amount: SafeU120, owner: AztecAddress) -> Self {
+    fn new(amount: U128, owner: AztecAddress) -> Self {
         Self {
             amount,
             owner,
@@ -113,7 +113,7 @@ impl OwnedNote for TokenNote {
         }
     }
 
-    fn get_amount(self) -> SafeU120 {
+    fn get_amount(self) -> U128 {
         self.amount
     }
 

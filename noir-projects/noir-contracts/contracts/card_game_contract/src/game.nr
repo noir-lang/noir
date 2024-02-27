@@ -1,7 +1,4 @@
-use dep::aztec::protocol_types::{
-    address::AztecAddress,
-    traits::{Serialize, Deserialize},
-};
+use dep::aztec::protocol_types::{address::AztecAddress, traits::{Serialize, Deserialize}};
 use crate::cards::Card;
 
 global NUMBER_OF_PLAYERS = 2;
@@ -10,7 +7,7 @@ global NUMBER_OF_CARDS_DECK = 2;
 struct PlayerEntry {
     address: AztecAddress,
     deck_strength: u32,
-    points: u120,
+    points: u64,
 }
 
 impl PlayerEntry {
@@ -25,7 +22,7 @@ impl Deserialize<PLAYER_SERIALIZED_LEN> for PlayerEntry {
     fn deserialize(fields: [Field; PLAYER_SERIALIZED_LEN]) -> PlayerEntry {
         let address = AztecAddress::from_field(fields[0]);
         let deck_strength = fields[1] as u32;
-        let points = fields[2] as u120;
+        let points = fields[2] as u64;
         
         PlayerEntry {
             address,
@@ -163,7 +160,7 @@ impl Game {
 
         for i in 0..NUMBER_OF_PLAYERS {
             let card = self.rounds_cards[round_offset + i];
-            round_points += (card.points as u120);
+            round_points += (card.points as u64);
             if card.strength > winner_strength {
                 winner_strength = card.strength;
                 winner_index = i;

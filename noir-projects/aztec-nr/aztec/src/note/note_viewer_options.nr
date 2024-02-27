@@ -1,8 +1,6 @@
 use dep::std::option::Option;
 use crate::note::note_getter_options::{Select, Sort, Comparator, NoteStatus};
-use dep::protocol_types::{
-    constants::MAX_NOTES_PER_PAGE,
-};
+use dep::protocol_types::{constants::MAX_NOTES_PER_PAGE};
 use crate::note::note_interface::NoteInterface;
 
 // docs:start:NoteViewerOptions
@@ -11,7 +9,7 @@ struct NoteViewerOptions<Note, N> {
     sorts: BoundedVec<Option<Sort>, N>,
     limit: u32,
     offset: u32,
-    status: u2,
+    status: u8,
 }
 // docs:end:NoteViewerOptions
 
@@ -22,7 +20,7 @@ impl<Note, N> NoteViewerOptions<Note, N> {
             sorts: BoundedVec::new(Option::none()),
             limit: MAX_NOTES_PER_PAGE as u32,
             offset: 0,
-            status: NoteStatus.ACTIVE,
+            status: NoteStatus.ACTIVE
         }
     }
 
@@ -30,12 +28,12 @@ impl<Note, N> NoteViewerOptions<Note, N> {
     // It takes a field_index indicating which field to select,
     // a value representing the specific value to match in that field, and
     // a comparator (For possible values of comparators, please see the Comparator enum from note_getter_options)
-    pub fn select(&mut self, field_index: u8, value: Field, comparator: Option<u3>) -> Self {
+    pub fn select(&mut self, field_index: u8, value: Field, comparator: Option<u8>) -> Self {
         self.selects.push(Option::some(Select::new(field_index, value, comparator.unwrap_or(Comparator.EQ))));
         *self
     }
 
-    pub fn sort(&mut self, field_index: u8, order: u2) -> Self {
+    pub fn sort(&mut self, field_index: u8, order: u8) -> Self {
         self.sorts.push(Option::some(Sort::new(field_index, order)));
         *self
     }
@@ -52,7 +50,7 @@ impl<Note, N> NoteViewerOptions<Note, N> {
     }
 
     // This method sets the status value, which determines whether to retrieve active or nullified notes.
-    pub fn set_status(&mut self, status: u2) -> Self {
+    pub fn set_status(&mut self, status: u8) -> Self {
         self.status = status;
         *self
     }

@@ -13,26 +13,18 @@ mod types;
 
 contract DocsExample {
     // how to import dependencies defined in your workspace
-    use dep::aztec::protocol_types::{
-        abis::function_selector::FunctionSelector,
-        address::AztecAddress,
-    };
+    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
     use dep::aztec::{
         note::{
-            note_header::NoteHeader,
-            note_getter_options::{NoteGetterOptions, Comparator},
-            note_viewer_options::{NoteViewerOptions},
-            utils as note_utils,
-        },
+        note_header::NoteHeader, note_getter_options::{NoteGetterOptions, Comparator},
+        note_viewer_options::{NoteViewerOptions}, utils as note_utils
+    },
         context::{PrivateContext, PublicContext, Context},
-        state_vars::{Map, PublicMutable, PrivateMutable, PrivateImmutable, PrivateSet, SharedImmutable},
+        state_vars::{Map, PublicMutable, PrivateMutable, PrivateImmutable, PrivateSet, SharedImmutable}
     };
     // how to import methods from other files/folders within your workspace
     use crate::options::create_account_card_getter_options;
-    use crate::types::{
-        card_note::CardNote,
-        leader::Leader,
-    };
+    use crate::types::{card_note::{CardNote, CARD_NOTE_LEN}, leader::Leader};
 
     struct Storage {
         // Shows how to create a custom struct in PublicMutable
@@ -62,10 +54,7 @@ contract DocsExample {
         fn init(context: Context) -> Self {
             Storage {
                 // docs:start:storage-leader-init
-                leader: PublicMutable::new(
-                    context,
-                    1
-                ),
+                leader: PublicMutable::new(context, 1),
                 // docs:end:storage-leader-init
                 // docs:start:start_vars_private_mutable
                 legendary_card: PrivateMutable::new(context, 3),
@@ -77,7 +66,7 @@ contract DocsExample {
                     4,
                     |context, slot| {
                         PrivateMutable::new(context, slot)
-                    },
+                    }
                 ),
                 // docs:end:state_vars-MapPrivateMutable
                 // docs:start:storage-set-init
@@ -93,9 +82,8 @@ contract DocsExample {
                     8,
                     |context, slot| {
                         PublicMutable::new(context, slot)
-                    },
-                ),
-                // docs:end:storage-minters-init
+                    }
+                )// docs:end:storage-minters-init
             }
         }
     }
@@ -153,7 +141,7 @@ contract DocsExample {
     }
 
     // docs:start:state_vars-NoteGetterOptionsComparatorExampleNoir
-    unconstrained fn read_note(amount: Field, comparator: u3) -> pub [Option<CardNote>; 10] {
+    unconstrained fn read_note(amount: Field, comparator: u8) -> pub [Option<CardNote>; 10] {
         let options = NoteViewerOptions::new().select(0, amount, Option::some(comparator));
         let notes = storage.set.view_notes(options);
 

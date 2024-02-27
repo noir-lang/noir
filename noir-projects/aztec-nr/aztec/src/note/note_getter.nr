@@ -1,19 +1,15 @@
 use dep::std::option::Option;
 use dep::protocol_types::{
     constants::{
-        MAX_READ_REQUESTS_PER_CALL,
-        GET_NOTE_ORACLE_RETURN_LENGTH,
-        GET_NOTES_ORACLE_RETURN_LENGTH,
-        MAX_NOTES_PER_PAGE,
-        VIEW_NOTE_ORACLE_RETURN_LENGTH,
-    },
+    MAX_READ_REQUESTS_PER_CALL, GET_NOTE_ORACLE_RETURN_LENGTH, GET_NOTES_ORACLE_RETURN_LENGTH,
+    MAX_NOTES_PER_PAGE, VIEW_NOTE_ORACLE_RETURN_LENGTH
+}
 };
 use crate::context::PrivateContext;
 use crate::note::{
     note_getter_options::{NoteGetterOptions, Select, Sort, SortOrder, Comparator, NoteStatus},
-    note_interface::NoteInterface,
-    note_viewer_options::NoteViewerOptions,
-    utils::compute_note_hash_for_consumption,
+    note_interface::NoteInterface, note_viewer_options::NoteViewerOptions,
+    utils::compute_note_hash_for_consumption
 };
 use crate::oracle;
 
@@ -60,7 +56,7 @@ fn check_notes_order<N>(
     for i in 0..sorts.len {
         let sort = sorts.get_unchecked(i).unwrap_unchecked();
         let eq = fields_0[sort.field_index] == fields_1[sort.field_index];
-        let lt = fields_0[sort.field_index] as u120 < fields_1[sort.field_index] as u120;
+        let lt = fields_0[sort.field_index].lt(fields_1[sort.field_index]);
         if sort.order == SortOrder.ASC {
             assert(eq | lt, "Return notes not sorted in ascending order.");
         } else if !eq {
@@ -195,7 +191,7 @@ unconstrained pub fn view_notes<Note, N>(
 unconstrained fn flatten_options<Note, N>(
     selects: BoundedVec<Option<Select>, N>,
     sorts: BoundedVec<Option<Sort>, N>
-) -> (u8, [u8; N], [Field; N], [u3; N], [u8; N], [u2; N]) {
+) -> (u8, [u8; N], [Field; N], [u8; N], [u8; N], [u8; N]) {
     let mut num_selects = 0;
     let mut select_by = [0; N];
     let mut select_values = [0; N];

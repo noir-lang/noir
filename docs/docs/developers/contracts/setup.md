@@ -57,7 +57,7 @@ Your folder should look like:
 
 Before writing the contracts, we must add the aztec.nr library. This adds smart contract utility functions for interacting with the Aztec network.
 
-3. Finally, add relevant aztec-nr dependencies that you might use such as `aztec.nr`, `value_note` and `safe_math` libraries.
+3. Finally, add relevant aztec-nr dependencies that you might use such as `aztec.nr` and `value_note` libraries.
 
 Open Nargo.toml that is in the `contracts/example_contract` folder, and add the dependency section as follows
 
@@ -74,7 +74,6 @@ aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_
 
 # Utility dependencies
 value_note = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/value-note"}
-safe_math = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/aztec-nr/safe-math"}
 ```
 
 :::info

@@ -1,8 +1,0 @@
-[package]
-name = "safe_math"
-authors = [""]
-compiler_version = ">=0.18.0"
-type = "lib"
-
-[dependencies]
-aztec = { path = "../aztec" }

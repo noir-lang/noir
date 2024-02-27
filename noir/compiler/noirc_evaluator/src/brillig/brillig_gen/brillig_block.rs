@@ -619,23 +619,29 @@ impl<'block> BrilligBlock<'block> {
                 );
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-                let left = self.convert_ssa_register_value(*value, dfg);
-                let max = BigUint::from(2_u128).pow(*max_bit_size);
-                let right = self.brillig_context.allocate_register();
-                self.brillig_context.const_instruction(
-                    right,
+                let value = self.convert_ssa_register_value(*value, dfg);
+                // Cast original value to field
+                let left = self.brillig_context.allocate_register();
+                self.convert_cast(left, value, &Type::field());
+
+                // Create a field constant with the max
+                let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
+                let right = self.brillig_context.make_constant(
                     FieldElement::from_be_bytes_reduce(&max.to_bytes_be()).into(),
                     FieldElement::max_num_bits(),
                 );
 
+                // Check if lte max
                 let brillig_binary_op = BrilligBinaryOp::Integer {
-                    op: BinaryIntOp::LessThan,
-                    bit_size: max_bit_size + 1,
+                    op: BinaryIntOp::LessThanEquals,
+                    bit_size: FieldElement::max_num_bits(),
                 };
                 let condition = self.brillig_context.allocate_register();
                 self.brillig_context.binary_instruction(left, right, condition, brillig_binary_op);
+
                 self.brillig_context.constrain_instruction(condition, assert_message.clone());
                 self.brillig_context.deallocate_register(condition);
+                self.brillig_context.deallocate_register(left);
                 self.brillig_context.deallocate_register(right);
             }
             Instruction::IncrementRc { value } => {

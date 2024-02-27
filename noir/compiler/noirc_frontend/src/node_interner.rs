@@ -29,7 +29,7 @@ use crate::hir_def::{
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
     BinaryOpKind, ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared,
-    TypeAliasType, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -90,11 +90,12 @@ pub struct NodeInterner {
     structs: HashMap<StructId, Shared<StructType>>,
 
     struct_attributes: HashMap<StructId, StructAttributes>,
-    // Type Aliases map.
+
+    // Maps TypeAliasId -> Shared<TypeAlias>
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    pub(crate) type_aliases: Vec<TypeAliasType>,
+    pub(crate) type_aliases: Vec<Shared<TypeAlias>>,
 
     // Trait map.
     //
@@ -604,13 +605,13 @@ impl NodeInterner {
     pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
-        self.type_aliases.push(TypeAliasType::new(
+        self.type_aliases.push(Shared::new(TypeAlias::new(
             type_id,
             typ.type_alias_def.name.clone(),
             Location::new(typ.type_alias_def.span, typ.file_id),
             Type::Error,
             vecmap(&typ.type_alias_def.generics, |_| TypeVariable::unbound(TypeVariableId(0))),
-        ));
+        )));
 
         type_id
     }
@@ -632,7 +633,7 @@ impl NodeInterner {
 
     pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
         let type_alias_type = &mut self.type_aliases[type_id.0];
-        type_alias_type.set_type_and_generics(typ, generics);
+        type_alias_type.borrow_mut().set_type_and_generics(typ, generics);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -957,8 +958,8 @@ impl NodeInterner {
         self.traits.get(&id)
     }
 
-    pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
-        &self.type_aliases[id.0]
+    pub fn get_type_alias(&self, id: TypeAliasId) -> Shared<TypeAlias> {
+        self.type_aliases[id.0].clone()
     }
 
     pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
@@ -1539,6 +1540,10 @@ impl NodeInterner {
         self.add_dependency(dependent, DependencyId::Function(dependency));
     }
 
+    pub fn add_type_alias_dependency(&mut self, dependent: DependencyId, dependency: TypeAliasId) {
+        self.add_dependency(dependent, DependencyId::Alias(dependency));
+    }
+
     fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
         let dependent_index = self.get_or_insert_dependency(dependent);
         let dependency_index = self.get_or_insert_dependency(dependency);
@@ -1585,6 +1590,12 @@ impl NodeInterner {
                         }
                         DependencyId::Alias(alias_id) => {
                             let alias = self.get_type_alias(alias_id);
+                            // If type aliases form a cycle, we have to manually break the cycle
+                            // here to prevent infinite recursion in the type checker.
+                            alias.borrow_mut().typ = Type::Error;
+
+                            // push_error will borrow the alias so we have to drop the mutable borrow
+                            let alias = alias.borrow();
                             push_error(alias.name.to_string(), &scc, i, alias.location);
                             break;
                         }
@@ -1606,7 +1617,7 @@ impl NodeInterner {
             DependencyId::Struct(id) => Cow::Owned(self.get_struct(id).borrow().name.to_string()),
             DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
             DependencyId::Alias(id) => {
-                Cow::Borrowed(self.get_type_alias(id).name.0.contents.as_ref())
+                Cow::Owned(self.get_type_alias(id).borrow().name.to_string())
             }
             DependencyId::Global(id) => {
                 Cow::Borrowed(self.get_global(id).ident.0.contents.as_ref())
@@ -1700,6 +1711,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Array(_, _) => Some(Array),
         Type::Integer(_, _) => Some(FieldOrInt),
         Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::Integer) => Some(FieldOrInt),
         Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::FmtString(_, _) => Some(FmtString),
@@ -1708,6 +1720,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Function(_, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),
         Type::MutableReference(element) => get_type_method_key(element),
+        Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
 
         // We do not support adding methods to these types
         Type::TypeVariable(_, _)

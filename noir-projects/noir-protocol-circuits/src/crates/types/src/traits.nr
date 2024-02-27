@@ -19,9 +19,9 @@ impl Empty for Field { fn empty() -> Self {0} }
 
 impl Empty for u1 { fn empty() -> Self {0} }
 impl Empty for u8 { fn empty() -> Self {0} }
-impl Empty for u16 { fn empty() -> Self {0} }
 impl Empty for u32 { fn empty() -> Self {0} }
 impl Empty for u64 { fn empty() -> Self {0} }
+impl Empty for U128 { fn empty() -> Self {U128::from_integer(0)} }
 
 pub fn is_empty<T>(item: T) -> bool where T: Empty + Eq {
     item.eq(T::empty())
@@ -42,6 +42,12 @@ trait ToField {
 impl ToField for Field {
     fn to_field(self) -> Field {
         self
+    }
+}
+
+impl ToField for U128 {
+    fn to_field(self) -> Field {
+        self.to_integer()
     }
 }
 

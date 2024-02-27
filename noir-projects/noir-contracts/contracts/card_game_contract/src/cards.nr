@@ -1,45 +1,32 @@
 use dep::aztec::{
-    protocol_types::{
-        address::AztecAddress,
-        constants::{
-            MAX_NOTES_PER_PAGE,
-            MAX_READ_REQUESTS_PER_CALL,
-        },
-    },
+    protocol_types::{address::AztecAddress, constants::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL}},
     context::{PrivateContext, PublicContext, Context},
     note::{
-        note_getter_options::NoteGetterOptions,
-        note_viewer_options::NoteViewerOptions,
-        note_getter::view_notes,
-    },
-    state_vars::PrivateSet,
+    note_getter_options::NoteGetterOptions, note_viewer_options::NoteViewerOptions,
+    note_getter::view_notes
+},
+    state_vars::PrivateSet
 };
 use dep::std;
-use dep::std::{
-    option::Option,
-};
-use dep::value_note::{
-    value_note::ValueNote,
-};
+use dep::std::{option::Option};
+use dep::value_note::{value_note::{ValueNote, VALUE_NOTE_LEN}};
 
 struct Card {
-    strength: u16,
-    points: u16,
+    // We use u32s since u16s are unsupported
+    strength: u32,
+    points: u32,
 }
 
 impl Card {
     pub fn from_field(field: Field) -> Card {
         let value_bytes = field.to_le_bytes(32);
-        let strength = (value_bytes[0] as u16) + (value_bytes[1] as u16) * 256;
-        let points = (value_bytes[2] as u16) + (value_bytes[3] as u16) * 256;
-        Card {
-            strength,
-            points,
-        }
+        let strength = (value_bytes[0] as u32) + (value_bytes[1] as u32) * 256;
+        let points = (value_bytes[2] as u32) + (value_bytes[3] as u32) * 256;
+        Card { strength, points }
     }
 
     pub fn to_field(self) -> Field {
-        self.strength as Field + (self.points as Field)*65536
+        self.strength as Field + (self.points as Field) * 65536
     }
 
     pub fn serialize(self) -> [Field; 2] {
@@ -60,30 +47,17 @@ struct CardNote {
 }
 
 impl CardNote {
-    fn new(
-        strength: u16,
-        points: u16,
-        owner: AztecAddress,
-    ) -> Self {
-        let card = Card {
-            strength,
-            points,
-        };
+    fn new(strength: u32, points: u32, owner: AztecAddress) -> Self {
+        let card = Card { strength, points };
         CardNote::from_card(card, owner)
     }
 
     pub fn from_card(card: Card, owner: AztecAddress) -> CardNote {
-        CardNote {
-            card,
-            note: ValueNote::new(card.to_field(), owner),
-        }
+        CardNote { card, note: ValueNote::new(card.to_field(), owner) }
     }
 
     pub fn from_note(note: ValueNote) -> CardNote {
-        CardNote {
-            card: Card::from_field(note.value),
-            note,
-        }
+        CardNote { card: Card::from_field(note.value), note }
     }
 }
 
@@ -118,21 +92,13 @@ pub fn filter_cards<N>(
 }
 
 impl Deck {
-    pub fn new(
-        context: Context,
-        storage_slot: Field,
-    ) -> Self {
-        let set = PrivateSet {
-            context,
-            storage_slot,
-        };
-        Deck {
-            set
-        }
+    pub fn new(context: Context, storage_slot: Field) -> Self {
+        let set = PrivateSet { context, storage_slot };
+        Deck { set }
     }
 
-    pub fn add_cards<N>(&mut self, cards: [Card; N], owner: AztecAddress) -> [CardNote]{
-        let context = self.set.context.private.unwrap();
+    pub fn add_cards<N>(&mut self, cards: [Card; N], owner: AztecAddress) -> [CardNote] {
+        let _context = self.set.context.private.unwrap();
 
         let mut inserted_cards = [];
         for card in cards {
@@ -150,25 +116,27 @@ impl Deck {
         let mut found_cards = [Option::none(); N];
         for i in 0..maybe_notes.len() {
             if maybe_notes[i].is_some() {
-                let card_note = CardNote::from_note(
-                    maybe_notes[i].unwrap_unchecked()
-                );
+                let card_note = CardNote::from_note(maybe_notes[i].unwrap_unchecked());
                 // Ensure the notes are actually owned by the owner (to prevent user from generating a valid proof while
                 // spending someone else's notes).
                 assert(card_note.note.owner.eq(owner));
 
                 for j in 0..cards.len() {
-                    if found_cards[j].is_none() & (cards[j].strength == card_note.card.strength) & (cards[j].points == card_note.card.points) {
+                    if found_cards[j].is_none()
+                        & (cards[j].strength == card_note.card.strength)
+                        & (cards[j].points == card_note.card.points) {
                         found_cards[j] = Option::some(card_note);
                     }
                 }
             }
         }
 
-        found_cards.map(|card_note: Option<CardNote>| {
+        found_cards.map(
+            |card_note: Option<CardNote>| {
             assert(card_note.is_some(), "Card not found");
             card_note.unwrap_unchecked()
-        })
+        }
+        )
     }
 
     pub fn remove_cards<N>(&mut self, cards: [Card; N], owner: AztecAddress) {
@@ -182,14 +150,13 @@ impl Deck {
         let options = NoteViewerOptions::new().set_offset(offset);
         let opt_notes = self.set.view_notes(options);
         let mut opt_cards = [Option::none(); MAX_NOTES_PER_PAGE];
-        
+
         for i in 0..opt_notes.len() {
             opt_cards[i] = opt_notes[i].map(|note: ValueNote| Card::from_field(note.value));
         }
 
         opt_cards
     }
-
 }
 
 global PACK_CARDS = 3; // Limited by number of write requests (max 4)
@@ -204,8 +171,8 @@ pub fn get_pack_cards(seed: Field, owner: AztecAddress, context: &mut PrivateCon
     // we generate PACK_CARDS cards
     assert((PACK_CARDS as u64) < 8, "Cannot generate more than 8 cards");
     for i in 0..PACK_CARDS {
-        let strength = (random_bytes[i] as u16) + (random_bytes[i + 1] as u16) * 256;
-        let points = (random_bytes[i + 2] as u16) + (random_bytes[i + 3] as u16) * 256;
+        let strength = (random_bytes[i] as u32) + (random_bytes[i + 1] as u32) * 256;
+        let points = (random_bytes[i + 2] as u32) + (random_bytes[i + 3] as u32) * 256;
         cards[i] = Card {
             strength, points
         };

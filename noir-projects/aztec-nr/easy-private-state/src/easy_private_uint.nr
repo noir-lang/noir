@@ -1,13 +1,8 @@
 use dep::aztec::{
-    protocol_types::address::AztecAddress,
-    context::Context,
-    note::note_getter_options::NoteGetterOptions,
-    state_vars::PrivateSet,
+    protocol_types::address::AztecAddress, context::Context,
+    note::note_getter_options::NoteGetterOptions, state_vars::PrivateSet
 };
-use dep::value_note::{
-    filter::filter_notes_min_sum,
-    value_note::ValueNote,
-};
+use dep::value_note::{filter::filter_notes_min_sum, value_note::ValueNote};
 
 struct EasyPrivateUint {
     context: Context,
@@ -17,24 +12,14 @@ struct EasyPrivateUint {
 
 // Holds a note that can act similarly to an int.
 impl EasyPrivateUint {
-    pub fn new(
-        context: Context,
-        storage_slot: Field,
-    ) -> Self {
+    pub fn new(context: Context, storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        let set = PrivateSet {
-            context,
-            storage_slot
-        };
-        EasyPrivateUint {
-            context,
-            set,
-            storage_slot,
-        }
+        let set = PrivateSet { context, storage_slot };
+        EasyPrivateUint { context, set, storage_slot }
     }
 
     // Very similar to `value_note::utils::increment`.
-    pub fn add(self, addend: u120, owner: AztecAddress) {
+    pub fn add(self, addend: u64, owner: AztecAddress) {
         // Creates new note for the owner.
         let mut addend_note = ValueNote::new(addend as Field, owner);
 
@@ -45,13 +30,13 @@ impl EasyPrivateUint {
     }
 
     // Very similar to `value_note::utils::decrement`.
-    pub fn sub(self, subtrahend: u120, owner: AztecAddress) {
+    pub fn sub(self, subtrahend: u64, owner: AztecAddress) {
         // docs:start:get_notes
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend as Field);
         let maybe_notes = self.set.get_notes(options);
         // docs:end:get_notes
 
-        let mut minuend: u120 = 0;
+        let mut minuend: u64 = 0;
         for i in 0..maybe_notes.len() {
             if maybe_notes[i].is_some() {
                 let note = maybe_notes[i].unwrap_unchecked();
@@ -65,7 +50,7 @@ impl EasyPrivateUint {
                 self.set.remove(note);
                 // docs:end:remove
 
-                minuend += note.value as u120;
+                minuend += note.value as u64;
             }
         }
 

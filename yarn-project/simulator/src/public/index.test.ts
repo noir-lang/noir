@@ -207,7 +207,7 @@ describe('ACIR public execution simulator', () => {
         mockStore(senderBalance, recipientBalance);
 
         await expect(executor.simulate(execution, GlobalVariables.empty())).rejects.toThrowError(
-          'Assertion failed: Underflow',
+          'Assertion failed: attempt to subtract with underflow',
         );
       });
     });

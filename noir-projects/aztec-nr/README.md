@@ -44,7 +44,6 @@ aztec = { git = "https://github.com/AztecProtocol/aztec-nr", tag = "master" , di
 
 # Optional libraries
 easy_private_state = { git = "https://github.com/AztecProtocol/aztec-nr", tag = "master" , directory = "easy-private-state" }
-safe_math = { git = "https://github.com/AztecProtocol/aztec-nr", tag = "master" , directory = "safe-math" }
 value_note = { git = "https://github.com/AztecProtocol/aztec-nr", tag = "master" , directory = "value-note" }
 ```
 

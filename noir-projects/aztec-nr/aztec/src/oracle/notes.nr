@@ -1,13 +1,7 @@
 use dep::std::option::Option;
-use crate::note::{
-    note_header::NoteHeader,
-    note_interface::NoteInterface,
-};
+use crate::note::{note_header::NoteHeader, note_interface::NoteInterface};
 
-use dep::protocol_types::{
-    address::AztecAddress,
-    utils::arr_copy_slice,
-};
+use dep::protocol_types::{address::AztecAddress, utils::arr_copy_slice};
 
 #[oracle(notifyCreatedNote)]
 fn notify_created_note_oracle<N>(
@@ -39,12 +33,12 @@ fn get_notes_oracle<N, S>(
     _num_selects: u8,
     _select_by: [u8; N],
     _select_values: [Field; N],
-    _select_comparators: [u3; N],
+    _select_comparators: [u8; N],
     _sort_by: [u8; N],
-    _sort_order: [u2; N],
+    _sort_order: [u8; N],
     _limit: u32,
     _offset: u32,
-    _status: u2,
+    _status: u8,
     _return_size: u32,
     _placeholder_fields: [Field; S]
 ) -> [Field; S] {}
@@ -54,12 +48,12 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
     num_selects: u8,
     select_by: [u8; N],
     select_values: [Field; N],
-    select_comparators: [u3; N],
+    select_comparators: [u8; N],
     sort_by: [u8; N],
-    sort_order: [u2; N],
+    sort_order: [u8; N],
     limit: u32,
     offset: u32,
-    status: u2,
+    status: u8,
     mut placeholder_fields: [Field; S]
 ) -> [Field; S] {
     let return_size = placeholder_fields.len() as u32;
@@ -84,12 +78,12 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
     num_selects: u8,
     select_by: [u8; M],
     select_values: [Field; M],
-    select_comparators: [u3; M],
+    select_comparators: [u8; M],
     sort_by: [u8; M],
-    sort_order: [u2; M],
+    sort_order: [u8; M],
     limit: u32,
     offset: u32,
-    status: u2,
+    status: u8,
     mut placeholder_opt_notes: [Option<Note>; S], // TODO: Remove it and use `limit` to initialize the note array.
     placeholder_fields: [Field; NS], // TODO: Remove it and use `limit` to initialize the note array.
     _placeholder_note_length: [Field; N] // Turbofish hack? Compiler breaks calculating read_offset unless we add this parameter

@@ -1,9 +1,8 @@
-use dep::safe_math::SafeU120;
 use dep::aztec::context::PublicContext;
 use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, hash::sha256_to_field};
 
-pub fn calculate_fee(_context: PublicContext) -> SafeU120 {
-    SafeU120::new(1)
+pub fn calculate_fee(_context: PublicContext) -> U128 {
+    U128::from_integer(1)
 }
 
 pub fn get_bridge_gas_msg_hash(owner: AztecAddress, amount: Field, canceller: EthAddress) -> Field {

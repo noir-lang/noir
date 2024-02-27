@@ -7,12 +7,12 @@ pub fn filter_notes_min_sum(
     min_sum: Field
 ) -> [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL] {
     let mut selected = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
-    let mut sum = 0;
+    let mut sum = U128::from_integer(0);
     for i in 0..notes.len() {
-        if notes[i].is_some() & (sum < min_sum as u120) {
+        if notes[i].is_some() & (sum < U128::from_integer(min_sum)) {
             let note = notes[i].unwrap_unchecked();
             selected[i] = Option::some(note);
-            sum += note.value as u120;
+            sum += U128::from_integer(note.value);
         }
     }
     selected

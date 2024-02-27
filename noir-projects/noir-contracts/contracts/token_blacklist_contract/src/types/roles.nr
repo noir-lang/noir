@@ -1,6 +1,6 @@
-global BLACKLIST_FLAG: u120 = 1;
-global MINTER_FLAG: u120 = 2;
-global ADMIN_FLAG: u120 = 4;
+global BLACKLIST_FLAG: U128 = U128::from_integer(1);
+global MINTER_FLAG: U128 = U128::from_integer(2);
+global ADMIN_FLAG: U128 = U128::from_integer(4);
 
 struct UserFlags {
     is_admin: bool,
@@ -10,7 +10,7 @@ struct UserFlags {
 
 impl UserFlags {
 
-  pub fn new(value: u120) -> Self {
+  pub fn new(value: U128) -> Self {
     let is_admin = value & ADMIN_FLAG == ADMIN_FLAG;
     let is_minter = value & MINTER_FLAG == MINTER_FLAG;
     let is_blacklisted = value & BLACKLIST_FLAG == BLACKLIST_FLAG;
@@ -22,8 +22,8 @@ impl UserFlags {
     }
   }
 
-  pub fn get_value(self) -> u120 {
-    let mut value: u120 = 0;
+  pub fn get_value(self) -> U128 {
+    let mut value: U128 = U128::from_integer(0);
 
     if self.is_admin {
       value = value | ADMIN_FLAG;

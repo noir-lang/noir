@@ -6,7 +6,6 @@ members = [
   "compressed-string",
   "easy-private-state",
   "field-note",
-  "safe-math",
   "slow-updates-tree",
   "value-note",
 ]

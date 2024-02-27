@@ -41,15 +41,10 @@ impl<N> MerkleTree<N> {
             node_index = (current_index_at_layer / 2) + layer_offset;
             current_width = current_width / 2;
         }
-
     }
 
     pub fn sibling_index(index: u64) -> u64 {
-        if index % 2 == 0 {
-            index + 1
-        } else {
-            index - 1
-        }
+        if index % 2 == 0 { index + 1 } else { index - 1 }
     }
 }
 
@@ -86,10 +81,14 @@ impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkl
         non_zero_leaves: [Field; SUBTREE_ITEMS],
         _tree_height: [Field; TREE_HEIGHT],
         _supertree_height: [Field; SUPERTREE_HEIGHT],
-        _subtree_height: [Field; SUBTREE_HEIGHT],
+        _subtree_height: [Field; SUBTREE_HEIGHT]
     ) -> Self {
-        assert_eq(TREE_HEIGHT, SUPERTREE_HEIGHT + SUBTREE_HEIGHT, "tree height must be the sum of supertree and subtree height");
-        assert_eq(SUBTREE_ITEMS as u120, 1 << (SUBTREE_HEIGHT as u120), "subtree items must be 2^subtree height");
+        assert_eq(
+            TREE_HEIGHT, SUPERTREE_HEIGHT + SUBTREE_HEIGHT, "tree height must be the sum of supertree and subtree height"
+        );
+        assert_eq(
+            U128::from_integer(SUBTREE_ITEMS), U128::from_integer(1 as u32 << SUBTREE_HEIGHT), "subtree items must be 2^subtree height"
+        );
         let subtree = MerkleTree::new(non_zero_leaves);
 
         let zero_hashes = compute_zero_hashes(_tree_height);
@@ -97,15 +96,11 @@ impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkl
         let mut left_supertree_branch = [0; SUPERTREE_HEIGHT];
         left_supertree_branch[0] = dep::std::hash::pedersen_hash([subtree.get_root(), zero_hashes[SUBTREE_HEIGHT-1]]);
         for i in 1..left_supertree_branch.len() {
-            left_supertree_branch[i] = dep::std::hash::pedersen_hash([left_supertree_branch[i-1], zero_hashes[SUBTREE_HEIGHT-1+i]]);
-        } 
-
-        NonEmptyMerkleTree {
-            subtree,
-            zero_hashes,
-            left_supertree_branch,
-            _phantom_subtree_height: _subtree_height
+            // TODO(md): far right of this yuck
+            left_supertree_branch[i] = dep::std::hash::pedersen_hash([left_supertree_branch[i-1], zero_hashes[(SUBTREE_HEIGHT-1 as u32) + i as u32]]);
         }
+
+        NonEmptyMerkleTree { subtree, zero_hashes, left_supertree_branch, _phantom_subtree_height: _subtree_height }
     }
 
     pub fn get_sibling_path(self, leaf_index: Field) -> [Field; TREE_HEIGHT] {
@@ -131,12 +126,10 @@ impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkl
 
             if sibling_index < subtree_width {
                 path[i] = self.subtree.nodes[subtree_offset + sibling_index];
-            }else {
-                if sibling_index == 0 {
-                    path[i] = self.left_supertree_branch[i-1-SUBTREE_HEIGHT];
-                }else {
-                    path[i] = self.zero_hashes[i-1];
-                }
+            } else if sibling_index == 0 {
+                path[i] = self.left_supertree_branch[i-1-SUBTREE_HEIGHT];
+            } else {
+                path[i] = self.zero_hashes[i-1];
             }
 
             subtree_offset += subtree_width;
@@ -153,11 +146,11 @@ impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkl
         self.left_supertree_branch[0] = dep::std::hash::pedersen_hash([self.subtree.get_root(), self.zero_hashes[SUBTREE_HEIGHT-1]]);
         for i in 1..self.left_supertree_branch.len() {
             self.left_supertree_branch[i] = dep::std::hash::pedersen_hash([self.left_supertree_branch[i-1], self.zero_hashes[SUBTREE_HEIGHT-1+i]]);
-        } 
+        }
     }
 
     pub fn get_root(self) -> Field {
-        self.left_supertree_branch[SUPERTREE_HEIGHT-1]
+        self.left_supertree_branch[SUPERTREE_HEIGHT - 1]
     }
 
     pub fn get_next_available_index(self) -> Field {

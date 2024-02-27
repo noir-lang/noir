@@ -1,6 +1,5 @@
-use dep::safe_math::SafeU120;
 use dep::aztec::context::PublicContext;
 
-pub fn calculate_fee(_context: PublicContext) -> SafeU120 {
-    SafeU120::new(1)
+pub fn calculate_fee(_context: PublicContext) -> U128 {
+    U128::from_integer(1)
 }
