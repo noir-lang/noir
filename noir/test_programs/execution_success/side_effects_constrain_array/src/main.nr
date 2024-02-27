@@ -7,7 +7,7 @@ fn main(y: pub u32) {
 
     // The assert inside the if should be hit
     if y < 10 {
-        assert(bar.inner ==  [100, 101, 102]);
+        assert(bar.inner == [100, 101, 102]);
     }
 
     // The assert inside the if should not be hit

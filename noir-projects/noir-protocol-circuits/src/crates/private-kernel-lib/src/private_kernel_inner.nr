@@ -522,7 +522,7 @@ mod tests {
         let mut full_new_note_hashes = [SideEffect::empty(); MAX_NEW_NOTE_HASHES_PER_TX];
         for i in 0..MAX_NEW_NOTE_HASHES_PER_TX {
             full_new_note_hashes[i] = SideEffect {
-                value: i + 1,
+                value: i as Field + 1,
                 counter: i as u32,
             };
         }
@@ -750,7 +750,7 @@ mod tests {
     fn zero_0th_nullifier_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.previous_kernel.end.new_nullifiers = BoundedVec::new(SideEffectLinkedToNoteHash::empty());
+        builder.previous_kernel.end.new_nullifiers = BoundedVec::new();
 
         builder.failed();
     }

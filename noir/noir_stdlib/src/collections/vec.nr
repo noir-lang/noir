@@ -17,14 +17,14 @@ impl<T> Vec<T> {
     /// Get an element from the vector at the given index.
     /// Panics if the given index
     /// points beyond the end of the vector.
-    pub fn get(self, index: Field) -> T {
+    pub fn get(self, index: u64) -> T {
         self.slice[index]
-     }
+    }
 
     /// Push a new element to the end of the vector, returning a
     /// new vector with a length one greater than the
     /// original unmodified vector.
-    pub fn push(&mut self, elem: T) { 
+    pub fn push(&mut self, elem: T) {
         self.slice = self.slice.push_back(elem);
     }
 
@@ -32,7 +32,7 @@ impl<T> Vec<T> {
     /// a new vector with a length of one less than the given vector,
     /// as well as the popped element.
     /// Panics if the given vector's length is zero.
-    pub fn pop(&mut self) -> T { 
+    pub fn pop(&mut self) -> T {
         let (popped_slice, last_elem) = self.slice.pop_back();
         self.slice = popped_slice;
         last_elem
@@ -40,20 +40,20 @@ impl<T> Vec<T> {
 
     /// Insert an element at a specified index, shifting all elements 
     /// after it to the right
-    pub fn insert(&mut self, index: Field, elem: T) {
+    pub fn insert(&mut self, index: u64, elem: T) {
         self.slice = self.slice.insert(index, elem);
-    } 
+    }
 
     /// Remove an element at a specified index, shifting all elements
     /// after it to the left, returning the removed element
-    pub fn remove(&mut self, index: Field) -> T {
+    pub fn remove(&mut self, index: u64) -> T {
         let (new_slice, elem) = self.slice.remove(index);
         self.slice = new_slice;
         elem
     }
 
     /// Returns the number of elements in the vector
-    pub fn len(self) -> Field {
+    pub fn len(self) -> u64 {
         self.slice.len()
     }
 }

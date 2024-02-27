@@ -47,11 +47,11 @@ pub fn hash_args<N>(args: [Field; N]) -> Field {
         for i in 0..ARGS_HASH_CHUNK_COUNT {
             let mut chunk_hash = 0;
             let start_chunk_index = i * ARGS_HASH_CHUNK_LENGTH;
-            if start_chunk_index < (args.len() as u32) {
+            if start_chunk_index < args.len() {
                 let mut chunk_args = [0; ARGS_HASH_CHUNK_LENGTH];
                 for j in 0..ARGS_HASH_CHUNK_LENGTH {
                     let item_index = i * ARGS_HASH_CHUNK_LENGTH + j;
-                    if item_index < (args.len() as u32) {
+                    if item_index < args.len() {
                         chunk_args[j] = args[item_index];
                     }
                 }
@@ -200,7 +200,7 @@ pub fn compute_l2_to_l1_hash(
     chain_id: Field,
     message: L2ToL1Message
 ) -> Field {
-    let mut bytes: BoundedVec<u8, 160> = BoundedVec::new(0);
+    let mut bytes: BoundedVec<u8, 160> = BoundedVec::new();
 
     let inputs = [
         contract_address.to_field(), rollup_version_id, message.recipient.to_field(), chain_id, message.content
@@ -282,11 +282,11 @@ pub fn compute_logs_hash(
     )
 }
 
-pub fn compute_note_hash_nonce(first_nullifier: Field, commitment_index: Field) -> Field {
+pub fn compute_note_hash_nonce(first_nullifier: Field, commitment_index: u64) -> Field {
     pedersen_hash(
         [
         first_nullifier,
-        commitment_index
+        commitment_index as Field
     ],
         GENERATOR_INDEX__NOTE_HASH_NONCE
     )

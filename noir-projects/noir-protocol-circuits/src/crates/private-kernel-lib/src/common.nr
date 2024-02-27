@@ -187,7 +187,7 @@ pub fn update_end_values(
 
     // Transient read requests and witnesses are accumulated in public_inputs.end
     // We silo the read requests (domain separation per contract address)
-    let mut siloed_read_requests: BoundedVec<SideEffect, MAX_READ_REQUESTS_PER_CALL> = BoundedVec::new(SideEffect::empty());
+    let mut siloed_read_requests: BoundedVec<SideEffect, MAX_READ_REQUESTS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_READ_REQUESTS_PER_CALL {
         let read_request = read_requests[i].value;
         let witness = read_request_membership_witnesses[i];
@@ -210,7 +210,7 @@ pub fn update_end_values(
     // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
     //
     // nullifiers
-    let mut siloed_new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new(SideEffectLinkedToNoteHash::empty());
+    let mut siloed_new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
         let new_nullifier = new_nullifiers[i];
         if new_nullifier.value != 0 {
@@ -231,7 +231,7 @@ pub fn update_end_values(
     public_inputs.end.new_nullifiers.extend_from_bounded_vec(siloed_new_nullifiers);
 
     // note hashes
-    let mut siloed_new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new(SideEffect::empty());
+    let mut siloed_new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
         let new_note_hash = new_note_hashes[i].value;
         if new_note_hash != 0 {
@@ -262,7 +262,7 @@ pub fn update_end_values(
 
     // new l2 to l1 messages
     let new_l2_to_l1_msgs = private_call_public_inputs.new_l2_to_l1_msgs;
-    let mut new_l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new(0);
+    let mut new_l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_CALL {
         let msg = new_l2_to_l1_msgs[i];
         if !is_empty(msg) {

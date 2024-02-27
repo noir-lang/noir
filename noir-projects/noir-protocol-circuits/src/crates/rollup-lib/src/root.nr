@@ -79,7 +79,7 @@ impl RootRollupInputs {
 
 // See `test_message_input_flattened_length` on keeping this in sync,
 // why its here and how this constant was computed.
-global NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES = 512;
+global NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES: u64 = 512;
 
 // Computes the messages hash from the leaves array
 //

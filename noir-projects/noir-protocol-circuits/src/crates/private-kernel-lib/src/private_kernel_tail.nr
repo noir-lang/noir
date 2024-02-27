@@ -20,11 +20,11 @@ use dep::types::{
 struct PrivateKernelTailCircuitPrivateInputs {
     previous_kernel: PrivateKernelInnerData,
     sorted_new_note_hashes: [SideEffect; MAX_NEW_NOTE_HASHES_PER_TX],
-    sorted_new_note_hashes_indexes: [u32; MAX_NEW_NOTE_HASHES_PER_TX],
-    read_commitment_hints: [Field; MAX_READ_REQUESTS_PER_TX],
+    sorted_new_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
+    read_commitment_hints: [u64; MAX_READ_REQUESTS_PER_TX],
     sorted_new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
-    sorted_new_nullifiers_indexes: [u32; MAX_NEW_NULLIFIERS_PER_TX],
-    nullifier_commitment_hints: [Field; MAX_NEW_NULLIFIERS_PER_TX],
+    sorted_new_nullifiers_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],
+    nullifier_commitment_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX],
     master_nullifier_secret_keys: [GrumpkinPrivateKey; MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX],
 }
 
@@ -54,7 +54,7 @@ impl PrivateKernelTailCircuitPrivateInputs {
         }
 
         // Empty out nullifier key validation requests after verifying them.
-        public_inputs.end.nullifier_key_validation_requests = BoundedVec::new(NullifierKeyValidationRequestContext::empty());
+        public_inputs.end.nullifier_key_validation_requests = BoundedVec::new();
     }
 
     fn match_reads_to_commitments(self, public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder) {
@@ -67,7 +67,7 @@ impl PrivateKernelTailCircuitPrivateInputs {
             let read_commitment_hint = self.read_commitment_hints[rr_idx] as u64;
 
             if (read_request.value != 0) {
-                let hash = new_note_hashes.get_unchecked(read_commitment_hint as Field);
+                let hash = new_note_hashes.get_unchecked(read_commitment_hint);
                 assert_eq(read_request.value, hash.value, "Hinted hash does not match read request");
                 assert(
                     read_request.counter > hash.counter, "Read request counter must be greater than hash counter"
@@ -76,10 +76,10 @@ impl PrivateKernelTailCircuitPrivateInputs {
         }
 
         // Empty out read requests after matching them to commitments
-        public_inputs.end.read_requests = BoundedVec::new(SideEffect::empty());
+        public_inputs.end.read_requests = BoundedVec::new();
     }
 
-    fn assert_sorted_counters<T, N>(original: [T; N], sorted: [T; N], indexes: [u32; N]) where T: Eq + Ordered + Empty {
+    fn assert_sorted_counters<T, N>(original: [T; N], sorted: [T; N], indexes: [u64; N]) where T: Eq + Ordered + Empty {
         let mut prev_was_empty = false;
 
         for i in 0..N {
@@ -153,7 +153,7 @@ impl PrivateKernelTailCircuitPrivateInputs {
 
         // Move all zero-ed (removed) entries of these arrays to the end and preserve ordering of other entries
 
-        let mut new_note_hashes_vec = BoundedVec::new(SideEffect::empty());
+        let mut new_note_hashes_vec = BoundedVec::new();
 
         for c_idx in 0..MAX_NEW_NOTE_HASHES_PER_TX {
             if new_note_hashes[c_idx].value != 0 {
@@ -163,7 +163,7 @@ impl PrivateKernelTailCircuitPrivateInputs {
 
         public_inputs.end.new_note_hashes = new_note_hashes_vec;
 
-        let mut new_nullifiers_vec = BoundedVec::new(SideEffectLinkedToNoteHash::empty());
+        let mut new_nullifiers_vec = BoundedVec::new();
 
         for n_idx in 0..MAX_NEW_NULLIFIERS_PER_TX {
             if new_nullifiers[n_idx].value != 0 {
@@ -240,8 +240,8 @@ mod tests {
 
     struct PrivateKernelOrderingInputsBuilder {
         previous_kernel: PreviousKernelDataBuilder,
-        read_commitment_hints: [Field; MAX_READ_REQUESTS_PER_TX],
-        nullifier_commitment_hints: [Field; MAX_NEW_NULLIFIERS_PER_TX],
+        read_commitment_hints: [u64; MAX_READ_REQUESTS_PER_TX],
+        nullifier_commitment_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX],
     }
 
     impl PrivateKernelOrderingInputsBuilder {
@@ -272,32 +272,32 @@ mod tests {
             compute_unique_siloed_note_hashes(first_nullifier.value, commitments)
         }
 
-        pub fn append_transient_commitments(&mut self, num_commitments: Field) {
+        pub fn append_transient_commitments(&mut self, num_commitments: u64) {
             // All new note hashes aggregated in the previous kernel are transient commitments.
             self.previous_kernel.append_new_note_hashes(num_commitments);
         }
 
-        pub fn add_transient_read(&mut self, commitment_index: Field) {
+        pub fn add_transient_read(&mut self, commitment_index: u64) {
             let read_request_index = self.previous_kernel.add_read_request_for_transient_commitment(commitment_index);
             self.read_commitment_hints[read_request_index] = commitment_index;
         }
 
-        pub fn append_nullifiers(&mut self, num_nullifiers: Field) {
+        pub fn append_nullifiers(&mut self, num_nullifiers: u64) {
             self.previous_kernel.append_new_nullifiers_from_private(num_nullifiers);
         }
 
-        pub fn nullify_transient_commitment(&mut self, nullifier_index: Field, commitment_index: Field) {
+        pub fn nullify_transient_commitment(&mut self, nullifier_index: Field, commitment_index: u64) {
             self.previous_kernel.end.new_nullifiers.storage[nullifier_index].note_hash = self.previous_kernel.end.new_note_hashes.get(commitment_index).value;
             self.nullifier_commitment_hints[nullifier_index] = commitment_index;
         }
 
-        fn sort_sideffects<T, N>(original: [T; N]) -> ([T; N], [u32; N]) where T: Ordered + Eq + Empty {
+        fn sort_sideffects<T, N>(original: [T; N]) -> ([T; N], [u64; N]) where T: Ordered + Eq + Empty {
             let mut indexes = [0; N];
             for i in 0..N {
-                indexes[i] = i as u32;
+                indexes[i] = i;
             }
             let sorted_indexes = indexes.sort_via(
-                |a_index: u32, b_index: u32| {
+                |a_index: u64, b_index: u64| {
                 let a = original[a_index];
                 let b = original[b_index];
                 if is_empty(b) {
@@ -309,7 +309,7 @@ mod tests {
                 }
             }
             );
-            let sorted_sideffects = sorted_indexes.map(|i: u32| original[i]);
+            let sorted_sideffects = sorted_indexes.map(|i: u64| original[i]);
             let mut reverse_map = [0; N];
             for i in 0..N {
                 reverse_map[sorted_indexes[i]] = i;
@@ -322,12 +322,12 @@ mod tests {
             let (sorted_new_note_hashes, sorted_new_note_hashes_indexes) = PrivateKernelOrderingInputsBuilder::sort_sideffects(self.get_new_note_hashes());
             let mut sorted_read_commitment_hints = [0; MAX_READ_REQUESTS_PER_TX];
             for i in 0..sorted_read_commitment_hints.len() {
-                sorted_read_commitment_hints[i] = sorted_new_note_hashes_indexes[self.read_commitment_hints[i]] as Field;
+                sorted_read_commitment_hints[i] = sorted_new_note_hashes_indexes[self.read_commitment_hints[i]];
             }
             let (sorted_new_nullifiers, sorted_new_nullifiers_indexes) = PrivateKernelOrderingInputsBuilder::sort_sideffects(self.get_new_nullifiers());
             let mut sorted_nullifier_commitment_hints = [0; MAX_NEW_NULLIFIERS_PER_TX];
             for i in 0..sorted_nullifier_commitment_hints.len() {
-                sorted_nullifier_commitment_hints[i] = sorted_new_nullifiers_indexes[self.nullifier_commitment_hints[i]] as Field;
+                sorted_nullifier_commitment_hints[i] = sorted_new_nullifiers_indexes[self.nullifier_commitment_hints[i]];
             }
 
             let kernel = PrivateKernelTailCircuitPrivateInputs {
@@ -569,7 +569,7 @@ mod tests {
     #[test(should_fail_with="The 0th nullifier in the accumulated nullifier array is zero")]
     unconstrained fn zero_0th_nullifier_fails() {
         let mut builder = PrivateKernelOrderingInputsBuilder::new();
-        builder.previous_kernel.end.new_nullifiers = BoundedVec::new(SideEffectLinkedToNoteHash::empty());
+        builder.previous_kernel.end.new_nullifiers = BoundedVec::new();
         builder.failed();
     }
 

@@ -774,6 +774,27 @@ impl Keyword {
     }
 }
 
+pub struct Tokens(pub Vec<SpannedToken>);
+
+type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;
+
+impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
+    fn from(tokens: Tokens) -> Self {
+        let end_of_input = match tokens.0.last() {
+            Some(spanned_token) => spanned_token.to_span(),
+            None => Span::single_char(0),
+        };
+
+        fn get_span(token: SpannedToken) -> (Token, Span) {
+            let span = token.to_span();
+            (token.into_token(), span)
+        }
+
+        let iter = tokens.0.into_iter().map(get_span as fn(_) -> _);
+        chumsky::Stream::from_iter(end_of_input, iter)
+    }
+}
+
 #[cfg(test)]
 mod keywords {
     use strum::IntoEnumIterator;
@@ -794,26 +815,5 @@ mod keywords {
                 "Keyword::lookup_keyword returns unexpected Keyword"
             );
         }
-    }
-}
-
-pub struct Tokens(pub Vec<SpannedToken>);
-
-type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;
-
-impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
-    fn from(tokens: Tokens) -> Self {
-        let end_of_input = match tokens.0.last() {
-            Some(spanned_token) => spanned_token.to_span(),
-            None => Span::single_char(0),
-        };
-
-        fn get_span(token: SpannedToken) -> (Token, Span) {
-            let span = token.to_span();
-            (token.into_token(), span)
-        }
-
-        let iter = tokens.0.into_iter().map(get_span as fn(_) -> _);
-        chumsky::Stream::from_iter(end_of_input, iter)
     }
 }

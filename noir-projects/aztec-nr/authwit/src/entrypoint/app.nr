@@ -4,11 +4,11 @@ use dep::aztec::protocol_types::{constants::GENERATOR_INDEX__SIGNATURE_PAYLOAD, 
 use crate::entrypoint::function_call::{FunctionCall, FUNCTION_CALL_SIZE_IN_BYTES};
 
 // FUNCTION_CALL_SIZE * ACCOUNT_MAX_CALLS + 1
-global APP_PAYLOAD_SIZE: Field = 17;
+global APP_PAYLOAD_SIZE: u64 = 17;
 // FUNCTION_CALL_SIZE_IN_BYTES * ACCOUNT_MAX_CALLS + 32
-global APP_PAYLOAD_SIZE_IN_BYTES: Field = 420;
+global APP_PAYLOAD_SIZE_IN_BYTES: u64 = 420;
 
-global ACCOUNT_MAX_CALLS: Field = 4;
+global ACCOUNT_MAX_CALLS: u64 = 4;
 
 // Note: If you change the following struct you have to update default_entrypoint.ts
 // docs:start:app-payload-struct
@@ -21,7 +21,7 @@ struct AppPayload {
 impl Serialize<APP_PAYLOAD_SIZE> for AppPayload {
   // Serializes the entrypoint struct
   fn serialize(self) -> [Field; APP_PAYLOAD_SIZE] {
-    let mut fields: BoundedVec<Field, APP_PAYLOAD_SIZE> = BoundedVec::new(0);
+    let mut fields: BoundedVec<Field, APP_PAYLOAD_SIZE> = BoundedVec::new();
     for call in self.function_calls {
       fields.extend_from_array(call.serialize());
     }
@@ -42,7 +42,7 @@ impl Hash for AppPayload {
 impl AppPayload {
     // Serializes the payload as an array of bytes. Useful for hashing with sha256.
     fn to_be_bytes(self) -> [u8; APP_PAYLOAD_SIZE_IN_BYTES] {
-        let mut bytes: BoundedVec<u8, APP_PAYLOAD_SIZE_IN_BYTES> = BoundedVec::new(0);
+        let mut bytes: BoundedVec<u8, APP_PAYLOAD_SIZE_IN_BYTES> = BoundedVec::new();
 
         for i in 0..ACCOUNT_MAX_CALLS {
             bytes.extend_from_array(self.function_calls[i].to_be_bytes());

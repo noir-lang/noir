@@ -75,15 +75,15 @@ impl PublicCallDataBuilder {
         *self
     }
 
-    pub fn append_public_call_requests_for_regular_calls(&mut self, num_requests: Field) {
+    pub fn append_public_call_requests_for_regular_calls(&mut self, num_requests: u64) {
         self.append_public_call_requests(num_requests, false);
     }
 
-    pub fn append_public_call_requests_for_delegate_calls(&mut self, num_requests: Field) {
+    pub fn append_public_call_requests_for_delegate_calls(&mut self, num_requests: u64) {
         self.append_public_call_requests(num_requests, true);
     }
 
-    pub fn append_public_call_requests(&mut self, num_requests: Field, is_delegate_call: bool) {
+    pub fn append_public_call_requests(&mut self, num_requests: u64, is_delegate_call: bool) {
         let value_offset = self.public_inputs.public_call_stack_hashes.len();
         let mut caller_context = CallerContext::empty();
         if is_delegate_call {
@@ -96,7 +96,7 @@ impl PublicCallDataBuilder {
             exceeded_len |= i == num_requests;
             if !exceeded_len {
                 // The default hash is its index + 7788.
-                let hash = value_offset + 7788;
+                let hash = (value_offset + 7788) as Field;
                 let call_request = CallRequest {
                     hash,
                     caller_contract_address: self.contract_address,
@@ -117,9 +117,9 @@ impl PublicCallDataBuilder {
             if i as u64 < num_reads as u64 {
                 let read_request = StorageRead {
                     // The default storage slot is its index + 1.
-                    storage_slot: value_offset + i + 1,
+                    storage_slot: (value_offset + i + 1) as Field,
                     // The default value is its index + 999.
-                    current_value: value_offset + i + 999
+                    current_value: (value_offset + i + 999) as Field
                 };
                 self.public_inputs.contract_storage_reads.push(read_request);
             }
@@ -140,9 +140,9 @@ impl PublicCallDataBuilder {
             if i as u64 < num_updates as u64 {
                 let update_request = StorageUpdateRequest {
                     // The default storage slot is its index + 1.
-                    storage_slot: value_offset + i + 1,
+                    storage_slot: (value_offset + i + 1) as Field,
                     // The default value is its index + 890.
-                    new_value: value_offset + i + 890
+                    new_value: (value_offset + i + 890) as Field
                 };
                 self.public_inputs.contract_storage_update_requests.push(update_request);
             }

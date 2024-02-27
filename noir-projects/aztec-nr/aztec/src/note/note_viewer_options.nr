@@ -16,8 +16,8 @@ struct NoteViewerOptions<Note, N> {
 impl<Note, N> NoteViewerOptions<Note, N> {
     pub fn new() -> NoteViewerOptions<Note, N> where Note: NoteInterface<N> {
         NoteViewerOptions {
-            selects: BoundedVec::new(Option::none()),
-            sorts: BoundedVec::new(Option::none()),
+            selects: BoundedVec::new(),
+            sorts: BoundedVec::new(),
             limit: MAX_NOTES_PER_PAGE as u32,
             offset: 0,
             status: NoteStatus.ACTIVE

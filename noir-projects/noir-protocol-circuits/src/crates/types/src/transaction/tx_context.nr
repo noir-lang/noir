@@ -28,7 +28,7 @@ impl Eq for TxContext {
 
 impl Serialize<TX_CONTEXT_DATA_LENGTH> for TxContext {
     fn serialize(self) -> [Field; TX_CONTEXT_DATA_LENGTH] {
-        let mut fields: BoundedVec<Field, TX_CONTEXT_DATA_LENGTH> = BoundedVec::new(0);
+        let mut fields: BoundedVec<Field, TX_CONTEXT_DATA_LENGTH> = BoundedVec::new();
 
         fields.push(self.is_fee_payment_tx as Field);
         fields.push(self.is_rebate_payment_tx as Field);

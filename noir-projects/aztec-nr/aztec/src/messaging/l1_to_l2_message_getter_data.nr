@@ -7,13 +7,13 @@ struct L1ToL2MessageGetterData {
     leaf_index: Field
 }
 
-pub fn l1_to_l2_message_getter_len() -> Field {
+pub fn l1_to_l2_message_getter_len() -> u64 {
     L1_TO_L2_MESSAGE_LENGTH + 1 + L1_TO_L2_MSG_TREE_HEIGHT
 }
 
 pub fn make_l1_to_l2_message_getter_data<N>(
     fields: [Field; N],
-    start: Field,
+    start: u64,
     secret: Field
 ) -> L1ToL2MessageGetterData {
     L1ToL2MessageGetterData {

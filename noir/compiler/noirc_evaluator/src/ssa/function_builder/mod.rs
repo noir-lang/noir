@@ -115,6 +115,11 @@ impl FunctionBuilder {
         self.numeric_constant(value.into(), Type::field())
     }
 
+    /// Insert a numeric constant into the current function of type Type::length_type()
+    pub(crate) fn length_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
+        self.numeric_constant(value.into(), Type::length_type())
+    }
+
     /// Insert an array constant into the current function with the given element values.
     pub(crate) fn array_constant(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
         self.current_function.dfg.make_array(elements, typ)
@@ -216,6 +221,11 @@ impl FunctionBuilder {
         operator: BinaryOp,
         rhs: ValueId,
     ) -> ValueId {
+        assert_eq!(
+            self.type_of_value(lhs),
+            self.type_of_value(rhs),
+            "ICE - Binary instruction operands must have the same type"
+        );
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }

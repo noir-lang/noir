@@ -2,6 +2,7 @@ use acvm::acir::native_types::WitnessMapError;
 use hex::FromHexError;
 use nargo::{errors::CompileError, NargoError};
 use nargo_toml::ManifestError;
+use noir_debugger::errors::DapError;
 use noirc_abi::errors::{AbiError, InputParserError};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -54,7 +55,7 @@ pub(crate) enum CliError {
     LspError(#[from] async_lsp::Error),
 
     #[error(transparent)]
-    DapError(#[from] dap::errors::ServerError),
+    DapError(#[from] DapError),
 
     /// Error from Nargo
     #[error(transparent)]

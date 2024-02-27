@@ -1,7 +1,6 @@
 use crate::{
-  constants::{NUM_FIELDS_PER_SHA256, CONTENT_COMMITMENT_LENGTH},
-  traits::{Deserialize, Empty, Hash, Serialize},
-  utils::{arr_copy_slice},
+    constants::{NUM_FIELDS_PER_SHA256, CONTENT_COMMITMENT_LENGTH},
+    traits::{Deserialize, Empty, Hash, Serialize}, utils::{arr_copy_slice}
 };
 
 struct ContentCommitment {
@@ -13,7 +12,7 @@ struct ContentCommitment {
 
 impl Serialize<CONTENT_COMMITMENT_LENGTH> for ContentCommitment {
   fn serialize(self) -> [Field; CONTENT_COMMITMENT_LENGTH] {
-    let mut fields: BoundedVec<Field, CONTENT_COMMITMENT_LENGTH> = BoundedVec::new(0);
+    let mut fields: BoundedVec<Field, CONTENT_COMMITMENT_LENGTH> = BoundedVec::new();
 
     fields.extend_from_array([self.tx_tree_height]);
     fields.extend_from_array(self.txs_hash);

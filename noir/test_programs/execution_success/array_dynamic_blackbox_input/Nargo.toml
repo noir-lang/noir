@@ -1,0 +1,7 @@
+[package]
+name = "array_dynamic_blackbox_input"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.24.0"
+
+[dependencies]

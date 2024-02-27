@@ -1,6 +1,6 @@
 use dep::protocol_types::traits::Serialize;
 
-global PRIVATE_GLOBAL_VARIABLES_LENGTH: Field = 2;
+global PRIVATE_GLOBAL_VARIABLES_LENGTH: u64 = 2;
 
 // docs:start:private-global-variables
 struct PrivateGlobalVariables {

@@ -12,7 +12,7 @@ struct StateDiffHints {
     nullifier_predecessor_membership_witnesses: [NullifierMembershipWitness; MAX_NEW_NULLIFIERS_PER_TX],
 
     sorted_nullifiers: [Field; MAX_NEW_NULLIFIERS_PER_TX],
-    sorted_nullifier_indexes: [u32; MAX_NEW_NULLIFIERS_PER_TX],
+    sorted_nullifier_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],
 
     // For inserting the new subtrees into their respective trees:
     // Note: the insertion leaf index can be derived from the snapshots' `next_available_leaf_index` values (tree

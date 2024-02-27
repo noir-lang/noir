@@ -5,7 +5,7 @@ use dep::types::abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, member
 fn check_permutation<T, N>(
     original_array: [T; N],
     sorted_array: [T; N],
-    indexes: [u32; N],
+    indexes: [u64; N],
     is_equal: fn(T, T) -> bool
 ) {
     let mut seen_value = [false; N];
@@ -50,7 +50,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
     start_snapshot: AppendOnlyTreeSnapshot,
     values_to_insert: [Value; SubtreeWidth],
     sorted_values: [Value; SubtreeWidth],
-    sorted_values_indexes: [u32; SubtreeWidth],
+    sorted_values_indexes: [u64; SubtreeWidth],
     new_subtree_sibling_path: [Field; SiblingPathLength],
     low_leaf_preimages: [Leaf; SubtreeWidth],
     low_leaf_membership_witnesses: [MembershipWitness<TreeHeight>; SubtreeWidth],
@@ -58,7 +58,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
     is_empty_value: fn(Value) -> bool,
     hash_leaf: fn(Leaf) -> Field,
     is_valid_low_leaf: fn(Leaf, Value) -> bool,
-    update_low_leaf: fn(Leaf, Value, u32) -> Leaf,
+    update_low_leaf: fn(Leaf, Value, u64) -> Leaf,
     build_insertion_leaf: fn(Value, Leaf) -> Leaf,
     _subtree_height: [Field; SubtreeHeight],
     _tree_height: [Field; TreeHeight]
@@ -95,7 +95,11 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
             let value_index = sorted_values_indexes[i];
 
             // Calculate the new value of the low_leaf
-            let updated_low_leaf = update_low_leaf(low_leaf_preimage, value, start_insertion_index + value_index);
+            let updated_low_leaf = update_low_leaf(
+                low_leaf_preimage,
+                value,
+                start_insertion_index as u64 + value_index
+            );
 
             current_tree_root = crate::components::root_from_sibling_path(
                 hash_leaf(updated_low_leaf), witness.leaf_index, witness.sibling_path);

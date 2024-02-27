@@ -19,7 +19,7 @@ impl Eq for StateReference {
 
 impl Serialize<STATE_REFERENCE_LENGTH> for StateReference {
     fn serialize(self) -> [Field; STATE_REFERENCE_LENGTH] {
-        let mut fields: BoundedVec<Field, STATE_REFERENCE_LENGTH> = BoundedVec::new(0);
+        let mut fields: BoundedVec<Field, STATE_REFERENCE_LENGTH> = BoundedVec::new();
 
         fields.extend_from_array(self.l1_to_l2_message_tree.serialize());
         fields.extend_from_array(self.partial.serialize());

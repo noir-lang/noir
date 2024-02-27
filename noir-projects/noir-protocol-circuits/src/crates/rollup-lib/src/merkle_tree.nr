@@ -38,7 +38,7 @@ pub fn calculate_subtree<N>(leaves: [Field; N]) -> Field {
 //
 // Would be good if we could use width since the compute_subtree
 // algorithm uses depth.
-pub fn calculate_empty_tree_root(depth: Field) -> Field {
+pub fn calculate_empty_tree_root(depth: u64) -> Field {
     if depth == 0 {
         0
     } else if depth == 1 {

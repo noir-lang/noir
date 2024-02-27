@@ -108,13 +108,13 @@ impl PrivateCallDataBuilder {
         }
     }
 
-    pub fn append_private_call_requests(&mut self, num_requests: Field, is_delegate_call: bool) {
+    pub fn append_private_call_requests(&mut self, num_requests: u64, is_delegate_call: bool) {
         let (hashes, call_requests) = self.generate_call_requests(self.private_call_stack, num_requests, is_delegate_call);
         self.public_inputs.private_call_stack_hashes.extend_from_bounded_vec(hashes);
         self.private_call_stack.extend_from_bounded_vec(call_requests);
     }
 
-    pub fn append_public_call_requests(&mut self, num_requests: Field, is_delegate_call: bool) {
+    pub fn append_public_call_requests(&mut self, num_requests: u64, is_delegate_call: bool) {
         let (hashes, call_requests) = self.generate_call_requests(self.public_call_stack, num_requests, is_delegate_call);
         self.public_inputs.public_call_stack_hashes.extend_from_bounded_vec(hashes);
         self.public_call_stack.extend_from_bounded_vec(call_requests);
@@ -123,7 +123,7 @@ impl PrivateCallDataBuilder {
     fn generate_call_requests<N>(
         self,
         requests: BoundedVec<CallRequest, N>,
-        num_requests: Field,
+        num_requests: u64,
         is_delegate_call: bool
     ) -> (BoundedVec<Field, N>, BoundedVec<CallRequest, N>) {
         let value_offset = requests.len();
@@ -133,14 +133,14 @@ impl PrivateCallDataBuilder {
             caller_context.msg_sender = call_context.msg_sender;
             caller_context.storage_contract_address = call_context.storage_contract_address;
         }
-        let mut call_requests: BoundedVec<CallRequest, N> = BoundedVec::new(CallRequest::empty());
-        let mut hashes: BoundedVec<Field, N> = BoundedVec::new(0);
+        let mut call_requests: BoundedVec<CallRequest, N> = BoundedVec::new();
+        let mut hashes: BoundedVec<Field, N> = BoundedVec::new();
         let mut exceeded_len = false;
         for i in 0..N {
             exceeded_len |= i == num_requests;
             if !exceeded_len {
                 // The default hash is its index + 7788.
-                let hash = value_offset + 7788;
+                let hash = (value_offset + 7788) as Field;
                 let request = CallRequest {
                     hash,
                     caller_contract_address: self.contract_address,
@@ -156,13 +156,13 @@ impl PrivateCallDataBuilder {
         (hashes, call_requests)
     }
 
-    pub fn append_read_requests(&mut self, num_read_requests: Field) {
+    pub fn append_read_requests(&mut self, num_read_requests: u64) {
         let (read_requests, read_request_membership_witnesses) = fixtures::read_requests::generate_read_requests(num_read_requests);
         self.public_inputs.read_requests.extend_from_bounded_vec(read_requests);
         self.read_request_membership_witnesses.extend_from_bounded_vec(read_request_membership_witnesses);
     }
 
-    pub fn append_transient_read_requests(&mut self, num_read_requests: Field) {
+    pub fn append_transient_read_requests(&mut self, num_read_requests: u64) {
         let (read_requests, read_request_membership_witnesses) = fixtures::read_requests::generate_transient_read_requests(num_read_requests);
         self.public_inputs.read_requests.extend_from_bounded_vec(read_requests);
         self.read_request_membership_witnesses.extend_from_bounded_vec(read_request_membership_witnesses);

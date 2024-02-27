@@ -101,14 +101,14 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
         status,
         placeholder_fields
     );
-    let num_notes = fields[0] as u32;
+    let num_notes = fields[0] as u64;
     let contract_address = AztecAddress::from_field(fields[1]);
     for i in 0..placeholder_opt_notes.len() {
-        if i as u32 < num_notes {
+        if i < num_notes {
             // lengths named as per typescript.
-            let return_header_length: Field = 2; // num_notes & contract_address.
-            let extra_preimage_length: Field = 2; // nonce & is_transient.
-            let read_offset: Field = return_header_length + i * (N + extra_preimage_length);
+            let return_header_length: u64 = 2; // num_notes & contract_address.
+            let extra_preimage_length: u64 = 2; // nonce & is_transient.
+            let read_offset: u64 = return_header_length + i * (N + extra_preimage_length);
             let nonce = fields[read_offset];
             let is_transient = fields[read_offset + 1] as bool;
             let header = NoteHeader { contract_address, nonce, storage_slot, is_transient };

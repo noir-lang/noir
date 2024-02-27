@@ -31,7 +31,7 @@ impl Eq for Header {
 
 impl Serialize<HEADER_LENGTH> for Header {
     fn serialize(self) -> [Field; HEADER_LENGTH] {
-        let mut fields: BoundedVec<Field, HEADER_LENGTH> = BoundedVec::new(0);
+        let mut fields: BoundedVec<Field, HEADER_LENGTH> = BoundedVec::new();
 
         fields.extend_from_array(self.last_archive.serialize());
         fields.extend_from_array(self.content_commitment.serialize());

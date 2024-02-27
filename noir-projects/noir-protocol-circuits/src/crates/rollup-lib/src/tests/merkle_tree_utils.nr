@@ -103,7 +103,7 @@ impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkl
         NonEmptyMerkleTree { subtree, zero_hashes, left_supertree_branch, _phantom_subtree_height: _subtree_height }
     }
 
-    pub fn get_sibling_path(self, leaf_index: Field) -> [Field; TREE_HEIGHT] {
+    pub fn get_sibling_path(self, leaf_index: u64) -> [Field; TREE_HEIGHT] {
         let mut path = [0; TREE_HEIGHT];
         let mut current_index = leaf_index as u64;
         let mut subtree_width = SUBTREE_ITEMS as u64;

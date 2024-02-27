@@ -192,7 +192,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Slice(elements) => {
                 let element_types = Self::convert_type(elements).flatten();
                 Tree::Branch(vec![
-                    Tree::Leaf(f(Type::field())),
+                    Tree::Leaf(f(Type::length_type())),
                     Tree::Leaf(f(Type::Slice(Rc::new(element_types)))),
                 ])
             }
@@ -640,13 +640,13 @@ impl<'a> FunctionContext<'a> {
         let result_alloc = self.builder.set_location(location).insert_allocate(Type::bool());
         let true_value = self.builder.numeric_constant(1u128, Type::bool());
         self.builder.insert_store(result_alloc, true_value);
-        let zero = self.builder.field_constant(0u128);
+        let zero = self.builder.length_constant(0u128);
         self.builder.terminate_with_jmp(loop_start, vec![zero]);
 
         // loop_start
         self.builder.switch_to_block(loop_start);
-        let i = self.builder.add_block_parameter(loop_start, Type::field());
-        let array_length = self.builder.field_constant(array_length as u128);
+        let i = self.builder.add_block_parameter(loop_start, Type::length_type());
+        let array_length = self.builder.length_constant(array_length as u128);
         let v0 = self.builder.insert_binary(i, BinaryOp::Lt, array_length);
         self.builder.terminate_with_jmpif(v0, loop_body, loop_end);
 
@@ -658,7 +658,7 @@ impl<'a> FunctionContext<'a> {
         let v4 = self.builder.insert_load(result_alloc, Type::bool());
         let v5 = self.builder.insert_binary(v4, BinaryOp::And, v3);
         self.builder.insert_store(result_alloc, v5);
-        let one = self.builder.field_constant(1u128);
+        let one = self.builder.length_constant(1u128);
         let v6 = self.builder.insert_binary(i, BinaryOp::Add, one);
         self.builder.terminate_with_jmp(loop_start, vec![v6]);
 

@@ -26,7 +26,7 @@ unconstrained pub fn debug_log<T>(msg: T) {
 /// Example:
 /// debug_log_format("get_2(slot:{0}) =>\n\t0:{1}\n\t1:{2}", [storage_slot, note0_hash, note1_hash]);
 unconstrained pub fn debug_log_format<T, N>(msg: T, args: [Field; N]) {
-    assert(debug_log_format_oracle(msg, args, args.len()) == 0);
+    assert(debug_log_format_oracle(msg, args, args.len() as Field) == 0);
 }
 
 /// Example:

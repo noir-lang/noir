@@ -91,8 +91,8 @@ impl<Note, N, FILTER_ARGS> NoteGetterOptions<Note, N, FILTER_ARGS> {
     // This function initializes a NoteGetterOptions that simply returns the maximum number of notes allowed in a call.
     pub fn new() -> NoteGetterOptions<Note, N, Field> where Note: NoteInterface<N> {
         NoteGetterOptions {
-            selects: BoundedVec::new(Option::none()),
-            sorts: BoundedVec::new(Option::none()),
+            selects: BoundedVec::new(),
+            sorts: BoundedVec::new(),
             limit: MAX_READ_REQUESTS_PER_CALL as u32,
             offset: 0,
             filter: return_all_notes,
@@ -108,8 +108,8 @@ impl<Note, N, FILTER_ARGS> NoteGetterOptions<Note, N, FILTER_ARGS> {
         filter_args: FILTER_ARGS
     ) -> Self where Note: NoteInterface<N> {
         NoteGetterOptions {
-            selects: BoundedVec::new(Option::none()),
-            sorts: BoundedVec::new(Option::none()),
+            selects: BoundedVec::new(),
+            sorts: BoundedVec::new(),
             limit: MAX_READ_REQUESTS_PER_CALL as u32,
             offset: 0,
             filter,

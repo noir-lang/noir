@@ -7,8 +7,10 @@ use clap::Args;
 use fm::FileManager;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::ops::compile_program_with_debug_instrumenter;
+use nargo::errors::CompileError;
+use nargo::ops::{compile_program, compile_program_with_debug_instrumenter};
 use nargo::package::Package;
+use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
@@ -42,6 +44,14 @@ pub(crate) struct DebugCommand {
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    /// Force ACIR output (disabling instrumentation)
+    #[clap(long)]
+    acir_mode: bool,
+
+    /// Disable vars debug instrumentation (enabled by default)
+    #[clap(long)]
+    skip_instrumentation: Option<bool>,
 }
 
 pub(crate) fn run(
@@ -49,9 +59,8 @@ pub(crate) fn run(
     args: DebugCommand,
     config: NargoConfig,
 ) -> Result<(), CliError> {
-    // Override clap default for compiler option flag
-    let mut args = args.clone();
-    args.compile_options.instrument_debug = true;
+    let acir_mode = args.acir_mode;
+    let skip_instrumentation = args.skip_instrumentation.unwrap_or(acir_mode);
 
     let toml_path = get_package_manifest(&config.program_dir)?;
     let selection = args.package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
@@ -66,10 +75,6 @@ pub(crate) fn run(
         .expression_width
         .unwrap_or_else(|| backend.get_backend_info_or_default());
 
-    let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let mut parsed_files = parse_all(&workspace_file_manager);
-
     let Some(package) = workspace.into_iter().find(|p| p.is_binary()) else {
         println!(
             "No matching binary packages found in workspace. Only binary packages can be debugged."
@@ -77,23 +82,12 @@ pub(crate) fn run(
         return Ok(());
     };
 
-    let debug_instrumenter =
-        instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
-
-    let compilation_result = compile_program_with_debug_instrumenter(
-        &workspace_file_manager,
-        &parsed_files,
+    let compiled_program = compile_bin_package_for_debugging(
+        &workspace,
         package,
-        &args.compile_options,
-        None,
-        debug_instrumenter,
-    );
-
-    let compiled_program = report_errors(
-        compilation_result,
-        &workspace_file_manager,
-        args.compile_options.deny_warnings,
-        args.compile_options.silence_warnings,
+        acir_mode,
+        skip_instrumentation,
+        args.compile_options.clone(),
     )?;
 
     let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
@@ -101,9 +95,50 @@ pub(crate) fn run(
     run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)
 }
 
+pub(crate) fn compile_bin_package_for_debugging(
+    workspace: &Workspace,
+    package: &Package,
+    acir_mode: bool,
+    skip_instrumentation: bool,
+    compile_options: CompileOptions,
+) -> Result<CompiledProgram, CompileError> {
+    let mut workspace_file_manager = file_manager_with_stdlib(std::path::Path::new(""));
+    insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
+    let mut parsed_files = parse_all(&workspace_file_manager);
+
+    let compile_options = CompileOptions {
+        instrument_debug: !skip_instrumentation,
+        force_brillig: !acir_mode,
+        ..compile_options
+    };
+
+    let compilation_result = if !skip_instrumentation {
+        let debug_state =
+            instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
+
+        compile_program_with_debug_instrumenter(
+            &workspace_file_manager,
+            &parsed_files,
+            package,
+            &compile_options,
+            None,
+            debug_state,
+        )
+    } else {
+        compile_program(&workspace_file_manager, &parsed_files, package, &compile_options, None)
+    };
+
+    report_errors(
+        compilation_result,
+        &workspace_file_manager,
+        compile_options.deny_warnings,
+        compile_options.silence_warnings,
+    )
+}
+
 /// Add debugging instrumentation to all parsed files belonging to the package
 /// being compiled
-pub(crate) fn instrument_package_files(
+fn instrument_package_files(
     parsed_files: &mut ParsedFiles,
     file_manager: &FileManager,
     package: &Package,
@@ -112,8 +147,7 @@ pub(crate) fn instrument_package_files(
     let entry_path_parent = package
         .entry_path
         .parent()
-        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path))
-        .clone();
+        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
 
     let mut debug_instrumenter = DebugInstrumenter::default();
 

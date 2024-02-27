@@ -1,11 +1,11 @@
-global NULLIFIER_LEAF_PREIMAGE_LENGTH: Field = 3;
+global NULLIFIER_LEAF_PREIMAGE_LENGTH: u64 = 3;
 
 use crate::traits::{Empty, Hash};
 
 struct NullifierLeafPreimage {
     nullifier : Field,
     next_nullifier :Field,
-    next_index : u32,
+    next_index : u64,
 }
 
 impl Empty for NullifierLeafPreimage {
@@ -38,6 +38,6 @@ impl NullifierLeafPreimage {
     }
 
     pub fn deserialize(fields: [Field; NULLIFIER_LEAF_PREIMAGE_LENGTH]) -> Self {
-        Self { nullifier: fields[0], next_nullifier: fields[1], next_index: fields[2] as u32 }
+        Self { nullifier: fields[0], next_nullifier: fields[1], next_index: fields[2] as u64 }
     }
 }

@@ -185,7 +185,7 @@ fn propagate_valid_public_data_update_requests(
     let update_requests = public_call.call_stack_item.public_inputs.contract_storage_update_requests;
 
     // TODO(fees) should we have a MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL
-    let mut public_data_update_requests : BoundedVec<PublicDataUpdateRequest, MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> = BoundedVec::new(PublicDataUpdateRequest::empty());
+    let mut public_data_update_requests : BoundedVec<PublicDataUpdateRequest, MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> = BoundedVec::new();
 
     for i in 0..MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
         let update_request = update_requests[i];
@@ -209,7 +209,7 @@ fn propagate_valid_non_revertible_public_data_update_requests(
     let update_requests = public_call.call_stack_item.public_inputs.contract_storage_update_requests;
 
     // TODO(fees) should we have a MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL ?
-    let mut public_data_update_requests : BoundedVec<PublicDataUpdateRequest, MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> = BoundedVec::new(PublicDataUpdateRequest::empty());
+    let mut public_data_update_requests : BoundedVec<PublicDataUpdateRequest, MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> = BoundedVec::new();
 
     for i in 0..MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
         let update_request = update_requests[i];
@@ -230,7 +230,7 @@ fn propagate_valid_public_data_reads(public_call: PublicCallData, circuit_output
     let read_requests = public_call.call_stack_item.public_inputs.contract_storage_reads;
 
     // TODO(fees) should we have a MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_CALL
-    let mut public_data_reads : BoundedVec<PublicDataRead, MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX> = BoundedVec::new(PublicDataRead::empty());
+    let mut public_data_reads : BoundedVec<PublicDataRead, MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX> = BoundedVec::new();
 
     for i in 0..MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX {
         let read_request: StorageRead = read_requests[i];
@@ -253,7 +253,7 @@ fn propagate_valid_non_revertible_public_data_reads(
     let read_requests = public_call.call_stack_item.public_inputs.contract_storage_reads;
 
     // TODO(fees) should we have a MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_CALL
-    let mut public_data_reads : BoundedVec<PublicDataRead, MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX> = BoundedVec::new(PublicDataRead::empty());
+    let mut public_data_reads : BoundedVec<PublicDataRead, MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX> = BoundedVec::new();
 
     for i in 0..MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX {
         let read_request: StorageRead = read_requests[i];
@@ -277,7 +277,7 @@ fn propagate_new_note_hashes_non_revertible(
     let new_note_hashes = public_call.call_stack_item.public_inputs.new_note_hashes;
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
-    let mut siloed_new_note_hashes : BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new(SideEffect::empty());
+    let mut siloed_new_note_hashes : BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
         let new_note_hash = new_note_hashes[i].value;
         if new_note_hash != 0 {
@@ -297,7 +297,7 @@ fn propagate_new_note_hashes(
     let new_note_hashes = public_call.call_stack_item.public_inputs.new_note_hashes;
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
-    let mut siloed_new_note_hashes : BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new(SideEffect::empty());
+    let mut siloed_new_note_hashes : BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
         let new_note_hash = new_note_hashes[i].value;
         if new_note_hash != 0 {
@@ -316,7 +316,7 @@ fn propagate_new_nullifiers_non_revertible(
     let storage_contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
 
     // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
-    let mut siloed_new_nullifiers : BoundedVec<SideEffectLinkedToNoteHash,MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new(SideEffectLinkedToNoteHash::empty());
+    let mut siloed_new_nullifiers : BoundedVec<SideEffectLinkedToNoteHash,MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
         let new_nullifier = new_nullifiers[i].value;
         if new_nullifier != 0 {
@@ -342,7 +342,7 @@ fn propagate_new_nullifiers(
     let storage_contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
 
     // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
-    let mut siloed_new_nullifiers : BoundedVec<SideEffectLinkedToNoteHash,MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new(SideEffectLinkedToNoteHash::empty());
+    let mut siloed_new_nullifiers : BoundedVec<SideEffectLinkedToNoteHash,MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
         let new_nullifier = new_nullifiers[i].value;
         if new_nullifier != 0 {
@@ -367,7 +367,7 @@ fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
     let new_l2_to_l1_msgs = public_call_public_inputs.new_l2_to_l1_msgs;
-    let mut new_l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new(0);
+    let mut new_l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_CALL {
         let msg = new_l2_to_l1_msgs[i];
         if !is_empty(msg) {

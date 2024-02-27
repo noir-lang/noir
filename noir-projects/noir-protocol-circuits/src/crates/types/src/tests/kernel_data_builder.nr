@@ -82,9 +82,9 @@ impl PreviousKernelDataBuilder {
             if i as u64 < num_updates as u64 {
                 let update_request = PublicDataUpdateRequest {
                     // The default leaf index is its index + 23.
-                    leaf_slot: value_offset + i + 23,
+                    leaf_slot: (value_offset + i + 23) as Field,
                     // The default value is its index + 678.
-                    new_value: value_offset + i + 678
+                    new_value: (value_offset + i + 678) as Field
                 };
                 self.end.public_data_update_requests.push(update_request);
             }
@@ -97,9 +97,9 @@ impl PreviousKernelDataBuilder {
             if i as u64 < num_reads as u64 {
                 let read_request = PublicDataRead {
                     // The default leaf index is its index + 34.
-                    leaf_slot: value_offset + i + 34,
+                    leaf_slot: (value_offset + i + 34) as Field,
                     // The default value is its index + 5566.
-                    value: value_offset + i + 5566
+                    value: (value_offset + i + 5566) as Field
                 };
                 self.end.public_data_reads.push(read_request);
             }
@@ -112,7 +112,7 @@ impl PreviousKernelDataBuilder {
         counter
     }
 
-    pub fn add_read_request_for_transient_commitment(&mut self, commitment_index: Field) -> Field {
+    pub fn add_read_request_for_transient_commitment(&mut self, commitment_index: u64) -> u64 {
         let new_read_request_index = self.end.read_requests.len();
         let commitment = self.end.new_note_hashes.get(commitment_index);
         let read_request = SideEffect { value: commitment.value, counter: self.next_sideffect_counter() };
@@ -120,30 +120,30 @@ impl PreviousKernelDataBuilder {
         new_read_request_index
     }
 
-    pub fn append_new_note_hashes(&mut self, num_new_note_hashes: Field) {
+    pub fn append_new_note_hashes(&mut self, num_new_note_hashes: u64) {
         let mocked_value_offset = self.end.new_note_hashes.len() + 1;
         for i in 0..MAX_NEW_NOTE_HASHES_PER_TX {
-            if i as u64 < num_new_note_hashes as u64 {
+            if i < num_new_note_hashes {
                 // The default value is its index + 1.
                 self.end.new_note_hashes.push(
-                    SideEffect { value: i + mocked_value_offset, counter: self.next_sideffect_counter() }
+                    SideEffect { value: (i + mocked_value_offset) as Field, counter: self.next_sideffect_counter() }
                 );
             }
         }
     }
 
-    pub fn append_new_nullifiers_from_private(&mut self, num_extra_nullifier: Field) {
+    pub fn append_new_nullifiers_from_private(&mut self, num_extra_nullifier: u64) {
         // in private kernel, the nullifiers have not yet been partitioned
         // (that is part of the job of the private kernel tail)
         // so the tx nullifier is in `end`
         let first_nullifier = self.end.new_nullifiers.get(0);
-        let mocked_value_offset = first_nullifier.value + self.end.new_nullifiers.len();
+        let mocked_value_offset = first_nullifier.value + self.end.new_nullifiers.len() as Field;
         for i in 1..MAX_NEW_NULLIFIERS_PER_TX {
-            if i as u64 <= num_extra_nullifier as u64 {
+            if i <= num_extra_nullifier {
                 // The default value is its index + the value of the first nullifier.
                 self.end.new_nullifiers.push(
                     SideEffectLinkedToNoteHash {
-                    value: i + mocked_value_offset,
+                    value: i as Field + mocked_value_offset,
                     note_hash: first_nullifier.note_hash,
                     counter: self.next_sideffect_counter()
                 }
@@ -152,15 +152,15 @@ impl PreviousKernelDataBuilder {
         }
     }
 
-    pub fn append_new_nullifiers_from_public(&mut self, num_extra_nullifier: Field) {
+    pub fn append_new_nullifiers_from_public(&mut self, num_extra_nullifier: u64) {
         let first_nullifier = self.end_non_revertible.new_nullifiers.get(0);
-        let mocked_value_offset = first_nullifier.value + self.end.new_nullifiers.len();
+        let mocked_value_offset = first_nullifier.value + self.end.new_nullifiers.len() as Field;
         for i in 1..MAX_NEW_NULLIFIERS_PER_TX {
-            if i as u64 <= num_extra_nullifier as u64 {
+            if i <= num_extra_nullifier {
                 // The default value is its index + the value of the first nullifier.
                 self.end.new_nullifiers.push(
                     SideEffectLinkedToNoteHash {
-                    value: i + mocked_value_offset,
+                    value: i as Field + mocked_value_offset,
                     note_hash: first_nullifier.note_hash,
                     counter: self.next_sideffect_counter()
                 }
@@ -169,15 +169,15 @@ impl PreviousKernelDataBuilder {
         }
     }
 
-    pub fn append_new_nullifiers_non_revertible(&mut self, num_extra_nullifier: Field) {
+    pub fn append_new_nullifiers_non_revertible(&mut self, num_extra_nullifier: u64) {
         let first_nullifier = self.end_non_revertible.new_nullifiers.get(0);
-        let mocked_value_offset = first_nullifier.value + self.end_non_revertible.new_nullifiers.len();
+        let mocked_value_offset = first_nullifier.value + self.end_non_revertible.new_nullifiers.len() as Field;
         for i in 1..MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX {
-            if i as u64 <= num_extra_nullifier as u64 {
+            if i <= num_extra_nullifier {
                 // The default value is its index + the value of the first nullifier.
                 self.end_non_revertible.new_nullifiers.push(
                     SideEffectLinkedToNoteHash {
-                    value: i + mocked_value_offset,
+                    value: i as Field + mocked_value_offset,
                     note_hash: first_nullifier.note_hash,
                     counter: self.next_sideffect_counter()
                 }

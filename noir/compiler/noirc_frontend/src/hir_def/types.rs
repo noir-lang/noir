@@ -571,9 +571,16 @@ impl Type {
         Type::TypeVariable(var, kind)
     }
 
-    pub fn polymorphic_integer(interner: &mut NodeInterner) -> Type {
+    pub fn polymorphic_integer_or_field(interner: &mut NodeInterner) -> Type {
         let id = interner.next_type_variable_id();
         let kind = TypeVariableKind::IntegerOrField;
+        let var = TypeVariable::unbound(id);
+        Type::TypeVariable(var, kind)
+    }
+
+    pub fn polymorphic_integer(interner: &mut NodeInterner) -> Type {
+        let id = interner.next_type_variable_id();
+        let kind = TypeVariableKind::Integer;
         let var = TypeVariable::unbound(id);
         Type::TypeVariable(var, kind)
     }
@@ -964,7 +971,7 @@ impl Type {
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
     /// other PolymorphicInt type, or type variable. If successful, the binding is placed in the
     /// given TypeBindings map rather than linked immediately.
-    pub fn try_bind_to_polymorphic_int(
+    fn try_bind_to_polymorphic_int(
         &self,
         var: &TypeVariable,
         bindings: &mut TypeBindings,
@@ -977,7 +984,11 @@ impl Type {
 
         let this = self.substitute(bindings).follow_bindings();
         match &this {
-            Type::FieldElement | Type::Integer(..) => {
+            Type::Integer(..) => {
+                bindings.insert(target_id, (var.clone(), this));
+                Ok(())
+            }
+            Type::FieldElement if !only_integer => {
                 bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
@@ -1672,11 +1683,10 @@ fn convert_array_expression_to_slice(
     interner.push_expr_location(call, location.span, location.file);
     interner.push_expr_location(func, location.span, location.file);
 
-    interner.push_expr_type(&call, target_type.clone());
-    interner.push_expr_type(
-        &func,
-        Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit)),
-    );
+    interner.push_expr_type(call, target_type.clone());
+
+    let func_type = Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit));
+    interner.push_expr_type(func, func_type);
 }
 
 impl BinaryTypeOperator {

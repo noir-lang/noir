@@ -1,5 +1,5 @@
-global ARGS_LENGTH: Field = 16;
-global RETURN_VALUES_LENGTH: Field = 4;
+global ARGS_LENGTH: u64 = 16;
+global RETURN_VALUES_LENGTH: u64 = 4;
 
 /**
  * Convention for constant array lengths are mainly divided in 2 classes:
@@ -23,80 +23,80 @@ global RETURN_VALUES_LENGTH: Field = 4;
 
 // docs:start:constants
 // "PER CALL" CONSTANTS
-global MAX_NEW_NOTE_HASHES_PER_CALL: Field = 16;
-global MAX_NEW_NULLIFIERS_PER_CALL: Field = 16;
-global MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL: Field = 4;
-global MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL: Field = 4;
-global MAX_NEW_L2_TO_L1_MSGS_PER_CALL: Field = 2;
-global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL: Field = 16;
-global MAX_PUBLIC_DATA_READS_PER_CALL: Field = 16;
-global MAX_READ_REQUESTS_PER_CALL: Field = 32;
-global MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL: Field = 1;
+global MAX_NEW_NOTE_HASHES_PER_CALL: u64 = 16;
+global MAX_NEW_NULLIFIERS_PER_CALL: u64 = 16;
+global MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL: u64 = 4;
+global MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL: u64 = 4;
+global MAX_NEW_L2_TO_L1_MSGS_PER_CALL: u64 = 2;
+global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL: u64 = 16;
+global MAX_PUBLIC_DATA_READS_PER_CALL: u64 = 16;
+global MAX_READ_REQUESTS_PER_CALL: u64 = 32;
+global MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL: u64 = 1;
 
 // "PER TRANSACTION" CONSTANTS
-global MAX_NEW_NOTE_HASHES_PER_TX: Field = 64;
-global MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX: Field = 8;
-global MAX_REVERTIBLE_NOTE_HASHES_PER_TX: Field = 56;
+global MAX_NEW_NOTE_HASHES_PER_TX: u64 = 64;
+global MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX: u64 = 8;
+global MAX_REVERTIBLE_NOTE_HASHES_PER_TX: u64 = 56;
 
-global MAX_NEW_NULLIFIERS_PER_TX: Field = 64;
-global MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX: Field = 8;
-global MAX_REVERTIBLE_NULLIFIERS_PER_TX: Field = 56;
+global MAX_NEW_NULLIFIERS_PER_TX: u64 = 64;
+global MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX: u64 = 8;
+global MAX_REVERTIBLE_NULLIFIERS_PER_TX: u64 = 56;
 
-global MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX: Field = 8;
+global MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX: u64 = 8;
 
-global MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX: Field = 8;
-global MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX: Field = 3;
-global MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX: Field = 5;
+global MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX: u64 = 8;
+global MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX: u64 = 3;
+global MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX: u64 = 5;
 
-global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: Field = 32;
-global MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: Field = 16;
-global MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: Field = 16;
+global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u64 = 32;
+global MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u64 = 16;
+global MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u64 = 16;
 
-global MAX_PUBLIC_DATA_READS_PER_TX: Field = 32;
-global MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX: Field = 16;
-global MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX: Field = 16;
+global MAX_PUBLIC_DATA_READS_PER_TX: u64 = 32;
+global MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX: u64 = 16;
+global MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX: u64 = 16;
 
-global MAX_NEW_L2_TO_L1_MSGS_PER_TX: Field = 2;
-global MAX_NEW_CONTRACTS_PER_TX: Field = 1;
-global MAX_READ_REQUESTS_PER_TX: Field = 128;
-global MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX: Field = 4;
-global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: Field = 1;
-global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: Field = 1;
+global MAX_NEW_L2_TO_L1_MSGS_PER_TX: u64 = 2;
+global MAX_NEW_CONTRACTS_PER_TX: u64 = 1;
+global MAX_READ_REQUESTS_PER_TX: u64 = 128;
+global MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX: u64 = 4;
+global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
+global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
 // docs:end:constants
 
 // ROLLUP CONTRACT CONSTANTS - constants used only in l1-contracts
-global NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP: Field = 16;
+global NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP: u64 = 16;
 
 // TREES RELATED CONSTANTS
-global VK_TREE_HEIGHT: Field = 3;
-global FUNCTION_TREE_HEIGHT: Field = 5;
-global CONTRACT_TREE_HEIGHT: Field = 16;
-global NOTE_HASH_TREE_HEIGHT: Field = 32;
-global PUBLIC_DATA_TREE_HEIGHT: Field = 40;
-global NULLIFIER_TREE_HEIGHT: Field = 20;
-global L1_TO_L2_MSG_TREE_HEIGHT: Field = 16;
-global ROLLUP_VK_TREE_HEIGHT: Field = 8;
+global VK_TREE_HEIGHT: u64 = 3;
+global FUNCTION_TREE_HEIGHT: u64 = 5;
+global CONTRACT_TREE_HEIGHT: u64 = 16;
+global NOTE_HASH_TREE_HEIGHT: u64 = 32;
+global PUBLIC_DATA_TREE_HEIGHT: u64 = 40;
+global NULLIFIER_TREE_HEIGHT: u64 = 20;
+global L1_TO_L2_MSG_TREE_HEIGHT: u64 = 16;
+global ROLLUP_VK_TREE_HEIGHT: u64 = 8;
 global ARTIFACT_FUNCTION_TREE_MAX_HEIGHT = 5;
 
 // SUB-TREES RELATED CONSTANTS
-global CONTRACT_SUBTREE_HEIGHT: Field = 0;
-global CONTRACT_SUBTREE_SIBLING_PATH_LENGTH: Field = 16;
-global NOTE_HASH_SUBTREE_HEIGHT: Field = 6;
-global NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH: Field = 26;
-global NULLIFIER_SUBTREE_HEIGHT: Field = 6;
-global PUBLIC_DATA_SUBTREE_HEIGHT: Field = 5;
-global ARCHIVE_HEIGHT: Field = 16;
-global NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH: Field = 14;
-global PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH: Field = 35;
-global L1_TO_L2_MSG_SUBTREE_HEIGHT: Field = 4;
-global L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH: Field = 12;
+global CONTRACT_SUBTREE_HEIGHT: u64 = 0;
+global CONTRACT_SUBTREE_SIBLING_PATH_LENGTH: u64 = 16;
+global NOTE_HASH_SUBTREE_HEIGHT: u64 = 6;
+global NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH: u64 = 26;
+global NULLIFIER_SUBTREE_HEIGHT: u64 = 6;
+global PUBLIC_DATA_SUBTREE_HEIGHT: u64 = 5;
+global ARCHIVE_HEIGHT: u64 = 16;
+global NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH: u64 = 14;
+global PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH: u64 = 35;
+global L1_TO_L2_MSG_SUBTREE_HEIGHT: u64 = 4;
+global L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH: u64 = 12;
 
 // MISC CONSTANTS
 global FUNCTION_SELECTOR_NUM_BYTES: Field = 4;
 // sha256 hash is stored in two fields to accommodate all 256-bits of the hash
-global NUM_FIELDS_PER_SHA256: Field = 2;
-global ARGS_HASH_CHUNK_LENGTH: u32 = 32;
-global ARGS_HASH_CHUNK_COUNT: u32 = 32;
+global NUM_FIELDS_PER_SHA256: u64 = 2;
+global ARGS_HASH_CHUNK_LENGTH: u64 = 32;
+global ARGS_HASH_CHUNK_COUNT: u64 = 32;
 // The following is used in immutable state variables to compute an initialization slot whose value is used to
 // determine whether a given variable has been initialized (by asserting that the value in the slot is 0).
 // The initialization slot is computed by adding the constant bellow to the variable's storage slot. This constant has
@@ -104,12 +104,12 @@ global ARGS_HASH_CHUNK_COUNT: u32 = 32;
 global INITIALIZATION_SLOT_SEPARATOR: Field = 1000_000_000;
 
 // CONTRACT CLASS CONSTANTS
-global MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS: Field = 8000;
+global MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS: u64 = 8000;
 // Bytecode size for private functions is per function, not for the entire contract.
 // Note that private functions bytecode includes a mix of acir and brillig.
-global MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS: Field = 500;
+global MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS: u64 = 500;
 // Same for unconstrained functions: the size is per function.
-global MAX_PACKED_BYTECODE_SIZE_PER_UNCONSTRAINED_FUNCTION_IN_FIELDS: Field = 500;
+global MAX_PACKED_BYTECODE_SIZE_PER_UNCONSTRAINED_FUNCTION_IN_FIELDS: u64 = 500;
 // Since we are not yet emitting selectors we'll use this magic value to identify events emitted by the ClassRegisterer.
 // This is just a stopgap until we implement proper selectors.
 // sha224sum 'struct ContractClassRegistered {contract_class_id: ContractClassId, version: Field, artifact_hash: Field, private_functions_root: Field, packed_public_bytecode: [Field; MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS] }'
@@ -127,46 +127,46 @@ global DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE = 0x85864497636cf755ae7bd
 // Some are defined here because Noir doesn't yet support globals referencing other globals yet.
 // Move these constants to a noir file once the issue below is resolved:
 // https://github.com/noir-lang/noir/issues/1734
-global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH: Field = 25;
-global MAX_NOTE_FIELDS_LENGTH: Field = 20;
+global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH: u64 = 25;
+global MAX_NOTE_FIELDS_LENGTH: u64 = 20;
 // GET_NOTE_ORACLE_RETURN_LENGT = MAX_NOTE_FIELDS_LENGTH + 1 + 2
 // The plus 1 is 1 extra field for nonce.
 // + 2 for EXTRA_DATA: [number_of_return_notes, contract_address]
-global GET_NOTE_ORACLE_RETURN_LENGTH: Field = 23;
-global MAX_NOTES_PER_PAGE: Field = 10;
+global GET_NOTE_ORACLE_RETURN_LENGTH: u64 = 23;
+global MAX_NOTES_PER_PAGE: u64 = 10;
 // VIEW_NOTE_ORACLE_RETURN_LENGTH = MAX_NOTES_PER_PAGE * (MAX_NOTE_FIELDS_LENGTH + 1) + 2;
-global VIEW_NOTE_ORACLE_RETURN_LENGTH: Field = 212;
+global VIEW_NOTE_ORACLE_RETURN_LENGTH: u64 = 212;
 
 // LENGTH OF STRUCTS SERIALIZED TO FIELDS
 global AZTEC_ADDRESS_LENGTH = 1;
-global CALL_CONTEXT_LENGTH: Field = 8;
-global CONTENT_COMMITMENT_LENGTH: Field = 7;
-global CONTRACT_DEPLOYMENT_DATA_LENGTH: Field = 6;
-global CONTRACT_STORAGE_READ_LENGTH: Field = 2;
-global CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH: Field = 2;
+global CALL_CONTEXT_LENGTH: u64 = 8;
+global CONTENT_COMMITMENT_LENGTH: u64 = 7;
+global CONTRACT_DEPLOYMENT_DATA_LENGTH: u64 = 6;
+global CONTRACT_STORAGE_READ_LENGTH: u64 = 2;
+global CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH: u64 = 2;
 global ETH_ADDRESS_LENGTH = 1;
-global FUNCTION_DATA_LENGTH: Field = 4;
-global FUNCTION_LEAF_PREIMAGE_LENGTH: Field = 5;
-global GLOBAL_VARIABLES_LENGTH: Field = 6;
-global HEADER_LENGTH: Field = 25; // 2 for last_archive, 7 for content commitment, 10 for state reference, 6 for global vars
-global L1_TO_L2_MESSAGE_LENGTH: Field = 8;
-global L2_TO_L1_MESSAGE_LENGTH: Field = 2;
-global NEW_CONTRACT_DATA_LENGTH: Field = 3;
+global FUNCTION_DATA_LENGTH: u64 = 4;
+global FUNCTION_LEAF_PREIMAGE_LENGTH: u64 = 5;
+global GLOBAL_VARIABLES_LENGTH: u64 = 6;
+global HEADER_LENGTH: u64 = 25; // 2 for last_archive, 7 for content commitment, 10 for state reference, 6 for global vars
+global L1_TO_L2_MESSAGE_LENGTH: u64 = 8;
+global L2_TO_L1_MESSAGE_LENGTH: u64 = 2;
+global NEW_CONTRACT_DATA_LENGTH: u64 = 3;
 global NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH = 4;
 global NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH = 5;
-global PARTIAL_STATE_REFERENCE_LENGTH: Field = 8;
-global PRIVATE_CALL_STACK_ITEM_LENGTH: Field = 219;
+global PARTIAL_STATE_REFERENCE_LENGTH: u64 = 8;
+global PRIVATE_CALL_STACK_ITEM_LENGTH: u64 = 219;
 // Change this ONLY if you have changed the PrivateCircuitPublicInputs structure.
 // In other words, if the structure/size of the public inputs of a function call changes then we should change this
 // constant as well PRIVATE_CALL_STACK_ITEM_LENGTH
-global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: Field = 214;
+global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 214;
 // Change this ONLY if you have changed the PublicCircuitPublicInputs structure.
-global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: Field = 194;
-global STATE_REFERENCE_LENGTH: Field = 10; // 2 for snap + 8 for partial
-global TX_CONTEXT_DATA_LENGTH: Field = 11;
-global TX_REQUEST_LENGTH: Field = 17;
+global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 194;
+global STATE_REFERENCE_LENGTH: u64 = 10; // 2 for snap + 8 for partial
+global TX_CONTEXT_DATA_LENGTH: u64 = 11;
+global TX_REQUEST_LENGTH: u64 = 17;
 
-global GET_NOTES_ORACLE_RETURN_LENGTH: Field = 674;
+global GET_NOTES_ORACLE_RETURN_LENGTH: u64 = 674;
 global NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP: Field = 2048;
 global NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP: Field = 2048;
 global PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP: Field = 2048;
