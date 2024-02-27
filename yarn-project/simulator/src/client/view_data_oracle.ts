@@ -12,6 +12,7 @@ import { siloNullifier } from '@aztec/circuits.js/hash';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { ContractInstance } from '@aztec/types/contracts';
 
 import { NoteData, TypedOracle } from '../acvm/index.js';
 import { DBOracle } from './db_oracle.js';
@@ -127,6 +128,15 @@ export class ViewDataOracle extends TypedOracle {
    */
   public getCompleteAddress(address: AztecAddress): Promise<CompleteAddress> {
     return this.db.getCompleteAddress(address);
+  }
+
+  /**
+   * Returns a contract instance associated with an address or throws if not found.
+   * @param address - Address.
+   * @returns A contract instance.
+   */
+  public getContractInstance(address: AztecAddress): Promise<ContractInstance> {
+    return this.db.getContractInstance(address);
   }
 
   /**

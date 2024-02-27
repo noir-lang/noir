@@ -4,6 +4,7 @@ import { FunctionArtifactWithDebugMetadata, FunctionSelector } from '@aztec/foun
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
+import { ContractInstance } from '@aztec/types/contracts';
 
 import { KeyPair, NoteData } from '../acvm/index.js';
 import { CommitmentsDB } from '../public/db.js';
@@ -30,6 +31,13 @@ export class ContractClassNotFoundError extends Error {
  * The database oracle interface.
  */
 export interface DBOracle extends CommitmentsDB {
+  /**
+   * Returns a contract instance associated with an address, if available.
+   * @param address - Address.
+   * @returns A contract instance.
+   */
+  getContractInstance(address: AztecAddress): Promise<ContractInstance>;
+
   /**
    * Retrieve the complete address associated to a given address.
    * @param address - Address to fetch the pubkey for.

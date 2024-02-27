@@ -45,6 +45,20 @@ export class Oracle {
     return [publicKey.x, publicKey.y, partialAddress].map(toACVMField);
   }
 
+  async getContractInstance([address]: ACVMField[]) {
+    const instance = await this.typedOracle.getContractInstance(AztecAddress.fromField(fromACVMField(address)));
+    // TODO(#4434) Add deployer field to ContractInstance
+    const deployer = Fr.ZERO;
+    return [
+      instance.salt,
+      deployer,
+      instance.contractClassId,
+      instance.initializationHash,
+      instance.portalContractAddress,
+      instance.publicKeysHash,
+    ].map(toACVMField);
+  }
+
   async getMembershipWitness(
     [blockNumber]: ACVMField[],
     [treeId]: ACVMField[],

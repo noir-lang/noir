@@ -873,6 +873,7 @@ __metadata:
     "@aztec/kv-store": "workspace:^"
     "@aztec/merkle-tree": "workspace:^"
     "@aztec/noir-contracts.js": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js"
     "@types/jest": ^29.5.0

@@ -11,6 +11,7 @@
     "build": "yarn clean && yarn noir:build",
     "clean": "rm -rf ./dest src/target",
     "noir:build": "cd src && ../../../noir/target/release/nargo compile --silence-warnings",
+    "noir:format": "cd src && ../../../noir/target/release/nargo fmt",
     "test": "cd src && ../../../noir/target/release/nargo test --silence-warnings"
   },
   "files": [

@@ -19,6 +19,7 @@ import {
 import { FunctionArtifactWithDebugMetadata } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { DBOracle, KeyPair, MessageLoadOracleInputs } from '@aztec/simulator';
+import { ContractInstance } from '@aztec/types/contracts';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { PxeDatabase } from '../database/index.js';
@@ -50,6 +51,14 @@ export class SimulatorOracle implements DBOracle {
       );
     }
     return completeAddress;
+  }
+
+  async getContractInstance(address: AztecAddress): Promise<ContractInstance> {
+    const instance = await this.db.getContractInstance(address);
+    if (!instance) {
+      throw new Error(`No contract instance found for address ${address.toString()}`);
+    }
+    return instance;
   }
 
   async getAuthWitness(messageHash: Fr): Promise<Fr[]> {

@@ -83,6 +83,8 @@ library Constants {
     0xe7af816635466f128568edb04c9fa024f6c87fb9010fdbffa68b3d99;
   uint256 internal constant DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE =
     0x85864497636cf755ae7bde03f267ce01a520981c21c3682aaf82a631;
+  uint256 internal constant DEPLOYER_CONTRACT_ADDRESS =
+    0x0747a20ed0c86035e44ea5606f30de459f40b55c5e82012640aa554546af9044;
   uint256 internal constant L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 25;
   uint256 internal constant MAX_NOTE_FIELDS_LENGTH = 20;
   uint256 internal constant GET_NOTE_ORACLE_RETURN_LENGTH = 23;
@@ -92,6 +94,7 @@ library Constants {
   uint256 internal constant CALL_CONTEXT_LENGTH = 8;
   uint256 internal constant CONTENT_COMMITMENT_LENGTH = 7;
   uint256 internal constant CONTRACT_DEPLOYMENT_DATA_LENGTH = 6;
+  uint256 internal constant CONTRACT_INSTANCE_LENGTH = 6;
   uint256 internal constant CONTRACT_STORAGE_READ_LENGTH = 2;
   uint256 internal constant CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH = 2;
   uint256 internal constant ETH_ADDRESS_LENGTH = 1;

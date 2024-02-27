@@ -26,6 +26,12 @@ impl Deserialize<1> for PublicKeysHash {
     }
 }
 
+impl Eq for PublicKeysHash {
+    fn eq(self, other: Self) -> bool {
+        self.inner == other.inner
+    }
+}
+
 impl PublicKeysHash {
     pub fn from_field(field: Field) -> Self {
         Self { inner: field }

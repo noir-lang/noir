@@ -1,5 +1,6 @@
 mod avm;
 mod context;
+mod deploy;
 mod hash;
 mod hasher;
 mod history;

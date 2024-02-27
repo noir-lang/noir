@@ -7,12 +7,8 @@ mod read_requests;
 use crate::{
     abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, global_variables::GlobalVariables},
     address::{AztecAddress, EthAddress}, constants::NUM_FIELDS_PER_SHA256,
-    grumpkin_point::GrumpkinPoint, 
-    content_commitment::ContentCommitment, 
-    header::Header, 
-    partial_state_reference::PartialStateReference,
-    state_reference::StateReference, 
-    tests::fixtures
+    grumpkin_point::GrumpkinPoint, content_commitment::ContentCommitment, header::Header,
+    partial_state_reference::PartialStateReference, state_reference::StateReference, tests::fixtures
 };
 
 global MSG_SENDER = AztecAddress { inner: 27 };

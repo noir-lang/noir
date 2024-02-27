@@ -255,63 +255,78 @@ describe('e2e_deploy_contract', () => {
       // requesting the corresponding contract class.
     }, 60_000);
 
-    describe('deploying a contract instance', () => {
-      let instance: ContractInstanceWithAddress;
-      let initArgs: StatefulContractCtorArgs;
-      let publicKey: PublicKey;
+    const testDeployingAnInstance = (how: string, deployFn: (toDeploy: ContractInstanceWithAddress) => Promise<void>) =>
+      describe(`deploying a contract instance ${how}`, () => {
+        let instance: ContractInstanceWithAddress;
+        let initArgs: StatefulContractCtorArgs;
+        let publicKey: PublicKey;
 
-      beforeAll(async () => {
-        initArgs = [accounts[0].address, 42];
-        const salt = Fr.random();
-        const portalAddress = EthAddress.random();
-        publicKey = Point.random();
+        beforeAll(async () => {
+          initArgs = [accounts[0].address, 42];
+          const salt = Fr.random();
+          const portalAddress = EthAddress.random();
+          publicKey = Point.random();
 
-        instance = getContractInstanceFromDeployParams(artifact, initArgs, salt, publicKey, portalAddress);
-        const { address, contractClassId } = instance;
-        logger(`Deploying contract instance at ${address.toString()} class id ${contractClassId.toString()}`);
+          instance = getContractInstanceFromDeployParams(artifact, initArgs, salt, publicKey, portalAddress);
+          const { address, contractClassId } = instance;
+          logger(`Deploying contract instance at ${address.toString()} class id ${contractClassId.toString()}`);
+          await deployFn(instance);
+        }, 60_000);
 
-        await deployInstance(wallet, instance).send().wait();
-      }, 60_000);
+        it('stores contract instance in the aztec node', async () => {
+          const deployed = await aztecNode.getContract(instance.address);
+          expect(deployed).toBeDefined();
+          expect(deployed!.address).toEqual(instance.address);
+          expect(deployed!.contractClassId).toEqual(contractClass.id);
+          expect(deployed!.initializationHash).toEqual(instance.initializationHash);
+          expect(deployed!.portalContractAddress).toEqual(instance.portalContractAddress);
+          expect(deployed!.publicKeysHash).toEqual(instance.publicKeysHash);
+          expect(deployed!.salt).toEqual(instance.salt);
+        });
 
-      it('stores contract instance in the aztec node', async () => {
-        const deployed = await aztecNode.getContract(instance.address);
-        expect(deployed).toBeDefined();
-        expect(deployed!.address).toEqual(instance.address);
-        expect(deployed!.contractClassId).toEqual(contractClass.id);
-        expect(deployed!.initializationHash).toEqual(instance.initializationHash);
-        expect(deployed!.portalContractAddress).toEqual(instance.portalContractAddress);
-        expect(deployed!.publicKeysHash).toEqual(instance.publicKeysHash);
-        expect(deployed!.salt).toEqual(instance.salt);
+        it('calls a public function on the deployed instance', async () => {
+          // TODO(@spalladino) We should **not** need the whole instance, including initArgs and salt,
+          // in order to interact with a public function for the contract. We may even not need
+          // all of it for running a private function. Consider removing `instance` as a required
+          // field in the aztec.js `Contract` class, maybe we can replace it with just the partialAddress.
+          // Not just that, but this instance has been broadcasted, so the pxe should be able to get
+          // its information from the node directly, excluding private functions, but it's ok because
+          // we are not going to run those - but this may require registering "partial" contracts in the pxe.
+          // Anyway, when we implement that, we should be able to replace this `registerContract` with
+          // a simpler `Contract.at(instance.address, wallet)`.
+          const registered = await registerContract(wallet, StatefulTestContract, initArgs, {
+            salt: instance.salt,
+            portalAddress: instance.portalContractAddress,
+            publicKey,
+          });
+          expect(registered.address).toEqual(instance.address);
+          const contract = await StatefulTestContract.at(instance.address, wallet);
+          const whom = AztecAddress.random();
+          await contract.methods.increment_public_value(whom, 10).send({ skipPublicSimulation: true }).wait();
+          const stored = await contract.methods.get_public_value(whom).view();
+          expect(stored).toEqual(10n);
+        }, 30_000);
       });
 
-      it('calls a public function on the deployed instance', async () => {
-        // TODO(@spalladino) We should **not** need the whole instance, including initArgs and salt,
-        // in order to interact with a public function for the contract. We may even not need
-        // all of it for running a private function. Consider removing `instance` as a required
-        // field in the aztec.js `Contract` class, maybe we can replace it with just the partialAddress.
-        // Not just that, but this instance has been broadcasted, so the pxe should be able to get
-        // its information from the node directly, excluding private functions, but it's ok because
-        // we are not going to run those - but this may require registering "partial" contracts in the pxe.
-        // Anyway, when we implement that, we should be able to replace this `registerContract` with
-        // a simpler `Contract.at(instance.address, wallet)`.
-        const registered = await registerContract(wallet, StatefulTestContract, initArgs, {
-          salt: instance.salt,
-          portalAddress: instance.portalContractAddress,
-          publicKey,
-        });
-        expect(registered.address).toEqual(instance.address);
-        const contract = await StatefulTestContract.at(instance.address, wallet);
-        const whom = AztecAddress.random();
-        await contract.methods.increment_public_value(whom, 10).send({ skipPublicSimulation: true }).wait();
-        const stored = await contract.methods.get_public_value(whom).view();
-        expect(stored).toEqual(10n);
-      }, 30_000);
+    testDeployingAnInstance('from a wallet', async instance => {
+      // Calls the deployer contract directly from a wallet
+      await deployInstance(wallet, instance).send().wait();
+    });
+
+    testDeployingAnInstance('from a contract', async instance => {
+      // Register the instance to be deployed in the pxe
+      await wallet.addContracts([{ artifact, instance }]);
+      // Set up the contract that calls the deployer (which happens to be the StatefulTestContract) and call it
+      const deployer = await registerContract(wallet, StatefulTestContract, [accounts[0].address, 48]);
+      await deployer.methods.deploy_contract(instance.address).send().wait();
     });
   });
 
   describe('using the contract deploy method', () => {
     // We use a beforeEach hook so we get a fresh pxe and node, so class registrations
     // from one test don't influence the others.
+    // TODO(@spalladino): The above is only true for locally run e2e tests, on the CI this runs
+    // on a single sandbox instance, so tests are not truly independent.
     beforeEach(async () => {
       ({ teardown, pxe, accounts, logger, wallet, sequencer, aztecNode } = await setup());
     }, 100_000);
