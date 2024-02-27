@@ -85,8 +85,11 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      // Replace with your project's social card
-      // image: "img/docusaurus-social-card.jpg",
+      algolia: {
+        appId: "6RXKCCZJK7",
+        apiKey: "d0dc44e75dba0e82247eea041300ae4b",
+        indexName: "yp-aztec",
+      },
       navbar: {
         title: "Home",
         // logo: {
@@ -107,7 +110,6 @@ const config = {
           },
         ],
       },
-
       footer: {
         style: "dark",
         links: [
