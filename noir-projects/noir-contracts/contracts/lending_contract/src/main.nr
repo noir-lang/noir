@@ -20,8 +20,8 @@ contract Lending {
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
         state_vars::{
-            map::Map,
-            public_state::PublicState,
+            Map,
+            PublicMutable,
         }
     };
     use crate::asset::Asset;
@@ -31,11 +31,11 @@ contract Lending {
 
     // Storage structure, containing all storage, and specifying what slots they use.
     struct Storage {
-        collateral_asset: PublicState<AztecAddress>,
-        stable_coin: PublicState<AztecAddress>,
-        assets: Map<Field, PublicState<Asset>>,
-        collateral: Map<AztecAddress, PublicState<Field>>,
-        static_debt: Map<AztecAddress, PublicState<Field>>, // abusing keys very heavily
+        collateral_asset: PublicMutable<AztecAddress>,
+        stable_coin: PublicMutable<AztecAddress>,
+        assets: Map<Field, PublicMutable<Asset>>,
+        collateral: Map<AztecAddress, PublicMutable<Field>>,
+        static_debt: Map<AztecAddress, PublicMutable<Field>>, // abusing keys very heavily
     }
 
     struct Position {

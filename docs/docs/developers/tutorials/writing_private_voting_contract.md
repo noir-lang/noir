@@ -73,7 +73,7 @@ We are using various utils within the Aztec library:
 - `context` - exposes things such as the contract address, msg_sender, etc
 - `context.request_nullifier_secret_key` - get your secret key to help us create a randomized nullifier
 - `FunctionSelector::from_signature` - compute a function selector from signature so we can call functions from other functions
-- `state_vars::{ map::Map, public_state::PublicState, }` - we will use a Map to store the votes (key = voteId, value = number of votes), and PublicState to hold our public values that we mentioned earlier
+- `state_vars::{Map, PublicMutable}` - we will use a Map to store the votes (key = voteId, value = number of votes), and PublicMutable to hold our public values that we mentioned earlier
 - `types::type_serialization::{..}` - various serialization methods for defining how to use these types
 - `types::address::{AztecAddress},` - our admin will be held as an address
 - `constants::EMPTY_NULLIFIED_COMMITMENT,` - this will come in useful when creating our nullifier

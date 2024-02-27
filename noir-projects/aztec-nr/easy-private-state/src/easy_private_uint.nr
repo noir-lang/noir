@@ -2,7 +2,7 @@ use dep::aztec::{
     protocol_types::address::AztecAddress,
     context::Context,
     note::note_getter_options::NoteGetterOptions,
-    state_vars::set::Set,
+    state_vars::PrivateSet,
 };
 use dep::value_note::{
     filter::filter_notes_min_sum,
@@ -11,7 +11,7 @@ use dep::value_note::{
 
 struct EasyPrivateUint {
     context: Context,
-    set: Set<ValueNote>,
+    set: PrivateSet<ValueNote>,
     storage_slot: Field,
 }
 
@@ -22,7 +22,7 @@ impl EasyPrivateUint {
         storage_slot: Field,
     ) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        let set = Set {
+        let set = PrivateSet {
             context,
             storage_slot
         };

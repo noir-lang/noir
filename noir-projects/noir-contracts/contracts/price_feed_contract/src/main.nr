@@ -5,8 +5,8 @@ contract PriceFeed {
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
         state_vars::{
-            map::Map,
-            public_state::PublicState,
+            Map,
+            PublicMutable,
         },
     };
     use dep::aztec::protocol_types::address::AztecAddress;
@@ -14,7 +14,7 @@ contract PriceFeed {
 
     // Storage structure, containing all storage, and specifying what slots they use.
     struct Storage {
-        assets: Map<Field, PublicState<Asset>>,
+        assets: Map<Field, PublicMutable<Asset>>,
     }
 
     #[aztec(private)]

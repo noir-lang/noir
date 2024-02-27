@@ -462,13 +462,13 @@ The baseSlot is specified in the Aztec.nr contract.
 
 ```rust
 struct Storage {
-    balances: Map<AztecAddress, PublicState<Field>>,
+    balances: Map<AztecAddress, PublicMutable<Field>>,
 }
 
 impl Storage {
     fn init() -> Self {
         Storage {
-            balances: Map::new(1, |slot| PublicState::new(slot)),
+            balances: Map::new(1, |slot| PublicMutable::new(slot)),
         }
     }
 }
@@ -500,13 +500,13 @@ Note: One Field element occupies a storage slot. Hence, structs with multiple fi
 
 ```rust
 struct Storage {
-    balances: Map<AztecAddress, PublicState<Field>>,
+    balances: Map<AztecAddress, PublicMutable<Field>>,
 }
 
 impl Storage {
     fn init(context: Context) -> Self {
         Storage {
-            balances: Map::new(context, 1, |context, slot| PublicState::new(context, slot)),
+            balances: Map::new(context, 1, |context, slot| PublicMutable::new(context, slot)),
         }
     }
 }

@@ -7,13 +7,13 @@ contract Escrow {
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
         note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader, utils as note_utils},
-        oracle::get_public_key::get_public_key, state_vars::set::Set
+        oracle::get_public_key::get_public_key, state_vars::PrivateSet
     };
 
     use dep::address_note::address_note::{AddressNote, ADDRESS_NOTE_LEN};
 
     struct Storage {
-        owners: Set<AddressNote>,
+        owners: PrivateSet<AddressNote>,
     }
 
     // Creates a new instance

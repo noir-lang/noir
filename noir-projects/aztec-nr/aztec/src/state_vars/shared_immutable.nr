@@ -1,18 +1,17 @@
-use crate::context::{Context};
-use crate::oracle::{storage::{storage_read, storage_write}};
-use crate::history::public_value_inclusion::prove_public_value_inclusion;
-use dep::std::option::Option;
-use dep::protocol_types::traits::{Deserialize, Serialize};
-use crate::state_vars::storage::Storage;
+use crate::{
+    context::Context, history::public_value_inclusion::prove_public_value_inclusion,
+    oracle::{storage::{storage_read, storage_write}}, state_vars::storage::Storage
+};
+use dep::protocol_types::{constants::INITIALIZATION_SLOT_SEPARATOR, traits::{Deserialize, Serialize}};
 
-struct StablePublicState<T>{
+struct SharedImmutable<T>{
     context: Context,
     storage_slot: Field,
 }
 
-impl<T> Storage<T> for StablePublicState<T> {}
+impl<T> Storage<T> for SharedImmutable<T> {}
 
-impl<T> StablePublicState<T> {
+impl<T> SharedImmutable<T> {
     pub fn new(
         // Note: Passing the contexts to new(...) just to have an interface compatible with a Map.
         context: Context,
@@ -24,12 +23,24 @@ impl<T> StablePublicState<T> {
 
     // Intended to be only called once. 
     pub fn initialize<T_SERIALIZED_LEN>(self, value: T) where T: Serialize<T_SERIALIZED_LEN> {
-        assert(self.context.private.is_none(), "Public state wrties only supported in public functions");
-        // TODO: Must throw if the storage slot is not empty -> cannot allow overwriting
-        // This is currently impractical, as public functions are never marked `is_contract_deployment`
-        // in the `call_context`, only private functions will have this flag set.
-        let fields = T::serialize(value);
-        storage_write(self.storage_slot, fields);
+        assert(
+            self.context.private.is_none(), "SharedImmutable can only be initialized from public functions"
+        );
+        // TODO(#4738): Uncomment the following assert
+        // assert(
+        //     self.context.public.unwrap_unchecked().is_deployment(), "SharedImmutable can only be initialized during contract deployment"
+        // );
+
+        // We check that the struct is not yet initialized by checking if the initialization slot is 0
+        let initialization_slot = INITIALIZATION_SLOT_SEPARATOR + self.storage_slot;
+        let fields_read: [Field; 1] = storage_read(initialization_slot);
+        assert(fields_read[0] == 0, "SharedImmutable already initialized");
+
+        // We populate the initialization slot with a non-zero value to indicate that the struct is initialized
+        storage_write(initialization_slot, [0xdead]);
+
+        let fields_write = T::serialize(value);
+        storage_write(self.storage_slot, fields_write);
     }
 
     pub fn read_public<T_SERIALIZED_LEN>(self) -> T where T: Deserialize<T_SERIALIZED_LEN> {

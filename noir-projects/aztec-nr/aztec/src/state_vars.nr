@@ -1,7 +1,15 @@
-mod immutable_singleton;
 mod map;
-mod public_state;
-mod set;
-mod singleton;
-mod stable_public_state;
+mod private_immutable;
+mod private_mutable;
+mod public_mutable;
+mod private_set;
+mod shared_immutable;
 mod storage;
+
+use crate::state_vars::map::Map;
+use crate::state_vars::private_immutable::PrivateImmutable;
+use crate::state_vars::private_mutable::PrivateMutable;
+use crate::state_vars::public_mutable::PublicMutable;
+use crate::state_vars::private_set::PrivateSet;
+use crate::state_vars::shared_immutable::SharedImmutable;
+use crate::state_vars::storage::Storage;

@@ -6,7 +6,7 @@ contract EasyPrivateToken {
             note_header::NoteHeader,
             utils as note_utils,
         },
-        state_vars::map::Map,
+        state_vars::Map,
     };
     use dep::value_note::{
             balance_utils,

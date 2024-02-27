@@ -23,7 +23,7 @@ contract Token {
             utils as note_utils,
         },
         hash::{compute_secret_hash},
-        state_vars::{map::Map, public_state::PublicState, stable_public_state::StablePublicState,  set::Set},
+        state_vars::{Map, PublicMutable, SharedImmutable, PrivateSet},
         protocol_types::{
             abis::function_selector::FunctionSelector,
             address::AztecAddress
@@ -49,23 +49,23 @@ contract Token {
     // docs:start:storage_struct
     struct Storage {
         // docs:start:storage_admin
-        admin: PublicState<AztecAddress>,
+        admin: PublicMutable<AztecAddress>,
         // docs:end:storage_admin
         // docs:start:storage_minters
-        minters: Map<AztecAddress, PublicState<bool>>,
+        minters: Map<AztecAddress, PublicMutable<bool>>,
         // docs:end:storage_minters
         // docs:start:storage_balances
         balances: BalancesMap<TokenNote>,
         // docs:end:storage_balances
-        total_supply: PublicState<SafeU120>,
+        total_supply: PublicMutable<SafeU120>,
         // docs:start:storage_pending_shields
-        pending_shields: Set<TransparentNote>,
+        pending_shields: PrivateSet<TransparentNote>,
         // docs:end:storage_pending_shields
-        public_balances: Map<AztecAddress, PublicState<SafeU120>>,
-        symbol: StablePublicState<FieldCompressedString>,
-        name: StablePublicState<FieldCompressedString>,
+        public_balances: Map<AztecAddress, PublicMutable<SafeU120>>,
+        symbol: SharedImmutable<FieldCompressedString>,
+        name: SharedImmutable<FieldCompressedString>,
         // docs:start:storage_decimals
-        decimals: StablePublicState<u8>,
+        decimals: SharedImmutable<u8>,
         // docs:end:storage_decimals
     }
     // docs:end:storage_struct

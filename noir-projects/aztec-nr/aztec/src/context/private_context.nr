@@ -95,6 +95,11 @@ impl PrivateContext {
         }
     }
 
+    pub fn is_deployment(self) -> bool {
+        // TODO(#4738): Implement this
+        false
+    }
+
     pub fn msg_sender(self) -> AztecAddress {
         self.inputs.call_context.msg_sender
     }

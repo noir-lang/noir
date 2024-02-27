@@ -19,7 +19,7 @@ contract Test {
         note_viewer_options::NoteViewerOptions
     },
         oracle::{get_public_key::get_public_key as get_public_key_oracle, context::get_portal_address, rand::rand},
-        state_vars::immutable_singleton::ImmutableSingleton, log::emit_unencrypted_log_from_private
+        state_vars::PrivateImmutable, log::emit_unencrypted_log_from_private
     };
     use dep::token_portal_content_hash_lib::{get_mint_private_content_hash, get_mint_public_content_hash};
     use dep::field_note::field_note::FieldNote;
@@ -31,7 +31,7 @@ contract Test {
     }
 
     struct Storage {
-        example_constant: ImmutableSingleton<FieldNote>,
+        example_constant: PrivateImmutable<FieldNote>,
     }
 
     #[aztec(private)]

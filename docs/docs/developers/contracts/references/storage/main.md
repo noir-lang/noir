@@ -233,9 +233,9 @@ Reading through the storage variables:
 
 - `admin` a single Field value stored in public state. A `Field` is basically an unsigned integer with a maximum value determined by the underlying cryptographic curve.
 - `minters` is a mapping of Fields in public state. This will store whether an account is an approved minter on the contract.
-- `balances` is a mapping of private balances. Private balances are stored in a `Set` of `ValueNote`s. The balance is the sum of all of an account's `ValueNote`s.
+- `balances` is a mapping of private balances. Private balances are stored in a `PrivateSet` of `ValueNote`s. The balance is the sum of all of an account's `ValueNote`s.
 - `total_supply` is a Field value stored in public state and represents the total number of tokens minted.
-- `pending_shields` is a `Set` of `TransparentNote`s stored in private state. What is stored publicly is a set of commitments to `TransparentNote`s.
+- `pending_shields` is a `PrivateSet` of `TransparentNote`s stored in private state. What is stored publicly is a set of commitments to `TransparentNote`s.
 - `public_balances` is a mapping field elements in public state and represents the publicly viewable balances of accounts.
 
 You can read more about it [here](../storage/main.md).
@@ -288,7 +288,7 @@ The function returns 1 to indicate successful execution.
 
 This public function allows an account approved in the public `minters` mapping to create new private tokens that can be claimed by anyone that has the pre-image to the `secret_hash`.
 
-First, public storage is initialized. Then it checks that the `msg_sender` is an approved minter. Then a new `TransparentNote` is created with the specified `amount` and `secret_hash`. You can read the details of the `TransparentNote` in the `types.nr` file [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-contracts/contracts/token_contract/src/types.nr#L61). The `amount` is added to the existing public `total_supply` and the storage value is updated. Then the new `TransparentNote` is added to the `pending_shields` using the `insert_from_public` function, which is accessible on the `Set` type. Then it's ready to be claimed by anyone with the `secret_hash` pre-image using the `redeem_shield` function. It returns `1` to indicate successful execution.
+First, public storage is initialized. Then it checks that the `msg_sender` is an approved minter. Then a new `TransparentNote` is created with the specified `amount` and `secret_hash`. You can read the details of the `TransparentNote` in the `types.nr` file [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-contracts/contracts/token_contract/src/types.nr#L61). The `amount` is added to the existing public `total_supply` and the storage value is updated. Then the new `TransparentNote` is added to the `pending_shields` using the `insert_from_public` function, which is accessible on the `PrivateSet` type. Then it's ready to be claimed by anyone with the `secret_hash` pre-image using the `redeem_shield` function. It returns `1` to indicate successful execution.
 
 #include_code mint_private /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 

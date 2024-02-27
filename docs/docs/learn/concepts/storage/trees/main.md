@@ -142,9 +142,9 @@ A note cannot actually be "deleted" from the Note Hash Tree because it is an app
 
 > Note: this nullifier derivation example is an oversimplification for the purposes of illustration.
 
-#### Initializing Singleton Notes
+#### Initializing Notes wrapped by PrivateMutable
 
-'Singleton Note' is a term we've been using to mean: "A single Note which contains the whole of a private state's current value, and must be deleted and replaced with another single Note, if one ever wishes to edit that state". It's in contrast to a Note which only contains a small fragment of a private state's current value. A token balance represented by multiple notes is an example of private state that uses many notes. <!-- TODO: write about fragmented private state, somewhere. -->
+Notes wrapped 'PrivateMutable' have the following meaning: "A single Note which contains the whole of a private state's current value, and must be deleted and replaced with another single Note, if one ever wishes to edit that state". It's in contrast to a Note which only contains a small fragment of a private state's current value. A token balance represented by multiple notes is an example of private state that uses many notes. <!-- TODO: write about fragmented private state, somewhere. -->
 
 Such notes require an 'Initialization Nullifier'; a nullifier which, when emitted, signals the initialization of this state variable (i.e. the very first time the state variable has been written to).
 

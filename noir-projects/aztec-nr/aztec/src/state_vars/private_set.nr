@@ -13,19 +13,19 @@ use crate::note::{
 use crate::state_vars::storage::Storage;
 
 // docs:start:struct
-struct Set<Note> {
+struct PrivateSet<Note> {
     context: Context,
     storage_slot: Field,
 }
 // docs:end:struct
 
-impl<T> Storage<T> for Set<T> {}
+impl<T> Storage<T> for PrivateSet<T> {}
 
-impl<Note> Set<Note> {
+impl<Note> PrivateSet<Note> {
     // docs:start:new
     pub fn new(context: Context, storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        Set { context, storage_slot }
+        PrivateSet { context, storage_slot }
     }
     // docs:end:new
     // docs:start:insert
@@ -48,14 +48,14 @@ impl<Note> Set<Note> {
     // DEPRECATED
     fn assert_contains_and_remove(_self: Self, _note: &mut Note, _nonce: Field) {
         assert(
-            false, "`assert_contains_and_remove` has been deprecated. Please call PXE.addNote() to add a note to the database. Then use Set.get_notes() and Set.remove() in your contract to verify and remove a note."
+            false, "`assert_contains_and_remove` has been deprecated. Please call PXE.addNote() to add a note to the database. Then use PrivateSet.get_notes() and PrivateSet.remove() in your contract to verify and remove a note."
         );
     }
 
     // DEPRECATED
     fn assert_contains_and_remove_publicly_created(_self: Self, _note: &mut Note) {
         assert(
-            false, "`assert_contains_and_remove_publicly_created` has been deprecated. Please call PXE.addNote() to add a note to the database. Then use Set.get_notes() and Set.remove() in your contract to verify and remove a note."
+            false, "`assert_contains_and_remove_publicly_created` has been deprecated. Please call PXE.addNote() to add a note to the database. Then use PrivateSet.get_notes() and PrivateSet.remove() in your contract to verify and remove a note."
         );
     }
 

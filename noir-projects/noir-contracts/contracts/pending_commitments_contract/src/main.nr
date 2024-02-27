@@ -9,12 +9,12 @@ contract PendingCommitments {
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context}, log::emit_encrypted_log,
         note::{note_getter::NoteGetterOptions, note_header::NoteHeader, utils as note_utils},
-        state_vars::{map::Map, set::Set}
+        state_vars::{Map, PrivateSet}
     };
     use dep::aztec::protocol_types::{address::AztecAddress, abis::function_selector::FunctionSelector};
 
     struct Storage {
-        balances: Map<AztecAddress, Set<ValueNote>>,
+        balances: Map<AztecAddress, PrivateSet<ValueNote>>,
     }
 
     // TODO(dbanks12): consolidate code into internal helper functions

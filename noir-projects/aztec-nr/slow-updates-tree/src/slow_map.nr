@@ -17,6 +17,7 @@ fn compute_next_change(time: Field) -> Field {
     ((time as u120 / EPOCH_LENGTH + 1) * EPOCH_LENGTH) as Field
 }
 
+// TODO(#4760): Rename slow updates to shared mutable and ideally move the impl to state-vars in aztec-nr.
 // The simple slow map which stores a sparse tree
 struct SlowMap<N,M> {
   context: Context,

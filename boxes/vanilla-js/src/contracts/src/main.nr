@@ -1,20 +1,15 @@
 contract Vanilla {
     use dep::aztec::{
-        protocol_types::address::AztecAddress,
-        state_vars::{singleton::Singleton, map::Map},
-        note::{
-            utils as note_utils,
-            note_interface::NoteInterface,
-            note_header::NoteHeader,
-        },
+        protocol_types::address::AztecAddress, state_vars::{PrivateMutable, Map},
+        note::{utils as note_utils, note_interface::NoteInterface, note_header::NoteHeader}
     };
 
     use dep::value_note::value_note::{ValueNote, VALUE_NOTE_LEN};
 
     struct Storage {
-        numbers: Map<AztecAddress, Singleton<ValueNote>>,
+        numbers: Map<AztecAddress, PrivateMutable<ValueNote>>,
     }
-    
+
     #[aztec(private)]
     fn constructor(number: Field, owner: AztecAddress) {
         let numbers = storage.numbers;

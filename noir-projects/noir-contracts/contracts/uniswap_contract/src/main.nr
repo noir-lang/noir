@@ -7,7 +7,7 @@ mod util;
 // Uses the token bridge contract, which tells which input token we need to talk to and handles the exit funds to L1 
 contract Uniswap {
     use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress}};
-    use dep::aztec::{oracle::{context::get_portal_address}, state_vars::{map::Map, public_state::PublicState}};
+    use dep::aztec::{oracle::{context::get_portal_address}, state_vars::{Map, PublicMutable}};
 
     use dep::authwit::auth::{IS_VALID_SELECTOR, assert_current_call_valid_authwit_public, compute_authwit_message_hash};
 
@@ -16,10 +16,10 @@ contract Uniswap {
 
     struct Storage {
         // like with account contracts, stores the approval message on a slot and tracks if they are active
-        approved_action: Map<Field, PublicState<bool>>,
+        approved_action: Map<Field, PublicMutable<bool>>,
         // tracks the nonce used to create the approval message for burning funds
         // gets incremented each time after use to prevent replay attacks
-        nonce_for_burn_approval: PublicState<Field>,
+        nonce_for_burn_approval: PublicMutable<Field>,
     }
 
     #[aztec(private)]

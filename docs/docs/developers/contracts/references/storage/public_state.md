@@ -8,14 +8,14 @@ For a higher level overview of the state model in Aztec, see the [state model](.
 
 ## Overview
 
-The `PublicState` struct is generic over the variable type `T`. The type _must_ implement Serialize and Deserialize traits, as specified here:
+The `PublicMutable` (formerly known as `PublicState`) struct is generic over the variable type `T`. The type _must_ implement Serialize and Deserialize traits, as specified here:
 
 #include_code serialize /noir-projects/noir-protocol-circuits/src/crates/types/src/traits.nr rust
 #include_code deserialize /noir-projects/noir-protocol-circuits/src/crates/types/src/traits.nr rust
 
 The struct contains a `storage_slot` which, similar to Ethereum, is used to figure out _where_ in storage the variable is located. Notice that while we don't have the exact same [state model](../../../../learn/concepts/hybrid_state/main.md) as EVM chains it will look similar from the contract developers point of view.
 
-You can find the details of `PublicState` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/public_state.nr).
+You can find the details of `PublicMutable` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/public_mutable.nr).
 
 :::info
 An example using a larger struct can be found in the [lending example](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-contracts/contracts/lending_contract)'s use of an [`Asset`](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/noir-projects/noir-contracts/contracts/lending_contract/src/asset.nr).
@@ -23,7 +23,7 @@ An example using a larger struct can be found in the [lending example](https://g
 
 ### `new`
 
-When declaring the storage for `T` as a persistent public storage variable, we use the `PublicState::new()` constructor. As seen below, this takes the `storage_slot` and the `serialization_methods` as arguments along with the [`Context`](../../writing_contracts/functions/context.md), which in this case is used to share interface with other structures. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/public_state.nr).
+When declaring the storage for `T` as a persistent public storage variable, we use the `PublicMutable::new()` constructor. As seen below, this takes the `storage_slot` and the `serialization_methods` as arguments along with the [`Context`](../../writing_contracts/functions/context.md), which in this case is used to share interface with other structures. You can view the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/public_mutable.nr).
 
 #### Single value example
 
@@ -61,7 +61,7 @@ mapping(address => bool) internal minters;
 
 ### `read`
 
-On the `PublicState` structs we have a `read` method to read the value at the location in storage.
+On the `PublicMutable` structs we have a `read` method to read the value at the location in storage.
 
 #### Reading from our `admin` example
 
@@ -77,7 +77,7 @@ As we saw in the Map earlier, a very similar operation can be done to perform a 
 
 ### `write`
 
-We have a `write` method on the `PublicState` struct that takes the value to write as an input and saves this in storage. It uses the serialization method to serialize the value which inserts (possibly multiple) values into storage.
+We have a `write` method on the `PublicMutable` struct that takes the value to write as an input and saves this in storage. It uses the serialization method to serialize the value which inserts (possibly multiple) values into storage.
 
 #### Writing to our `admin` example
 
@@ -89,25 +89,29 @@ We have a `write` method on the `PublicState` struct that takes the value to wri
 
 ---
 
-## Stable Public State
+## Shared Immutable
 
-`StablePublicState` is a special type of `PublicState` that can be read from both public and private!
+`SharedImmutable` (formerly known as `StablePublicState`) is a special type that can be read from both public and private!
 
 Since private execution is based on historical data, the user can pick ANY of its prior values to read from. This is why it `MUST` not be updated after the contract is deployed. The variable should be initialized at the constructor and then never changed.
 
-This makes the stable public variables useful for stuff that you would usually have in `immutable` values in solidity. For example this can be the name of a token or its number of decimals.
+This makes the immutable public variables useful for stuff that you would usually have in `immutable` values in solidity. For example this can be the name of a token or its number of decimals.
 
-Just like the `PublicState` it is generic over the variable type `T`. The type `MUST` implement Serialize and Deserialize traits.
+Just like the `PublicMutable` it is generic over the variable type `T`. The type `MUST` implement Serialize and Deserialize traits.
 
-You can find the details of `StablePublicState` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/stable_public_state.nr).
+You can find the details of `SharedImmutable` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/shared_immutable.nr).
+
+:::info
+The word `Shared` in Aztec protocol means read/write from public, read only from private.
+:::
 
 ### `new`
 
-Is done exactly like the `PublicState` struct, but with the `StablePublicState` struct.
+Is done exactly like the `PublicMutable` struct, but with the `SharedImmutable` struct.
 
-#include_code storage-stable-declaration /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code storage-shared-immutable-declaration /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
-#include_code storage-stable-init /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code storage-shared-immutable /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 ### `initialize`
 
@@ -121,11 +125,11 @@ Currently this is not constrained as we are in the middle of changing deployment
 
 ### `read_public`
 
-Reading the value is like `PublicState`, simply with `read_public` instead of `read`.
+Reading the value is like `PublicMutable`, simply with `read_public` instead of `read`.
 #include_code read_decimals_public /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
 ### `read_private`
 
-Reading the value is like `PublicState`, simply with `read_private` instead of `read`. This part can only be executed in private.
+Reading the value is like `PublicMutable`, simply with `read_private` instead of `read`. This part can only be executed in private.
 
 #include_code read_decimals_private /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust

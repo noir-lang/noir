@@ -9,7 +9,7 @@ contract EcdsaAccount {
     use dep::aztec::{
         context::{PrivateContext, PublicContext, Context},
         note::{note_header::NoteHeader, utils as note_utils}, oracle::get_public_key::get_public_key,
-        state_vars::immutable_singleton::ImmutableSingleton
+        state_vars::PrivateImmutable
     };
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
@@ -19,7 +19,7 @@ contract EcdsaAccount {
     use crate::ecdsa_public_key_note::EcdsaPublicKeyNote;
 
     struct Storage {
-        public_key: ImmutableSingleton<EcdsaPublicKeyNote>,
+        public_key: PrivateImmutable<EcdsaPublicKeyNote>,
     }
 
     global ACCOUNT_ACTIONS_STORAGE_SLOT = 2;

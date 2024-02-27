@@ -3,7 +3,7 @@ use dep::safe_math::SafeU120;
 use dep::aztec::{
     context::{PrivateContext, PublicContext, Context}, hash::pedersen_hash,
     protocol_types::{address::AztecAddress, constants::MAX_READ_REQUESTS_PER_CALL},
-    state_vars::{set::Set, map::Map},
+    state_vars::{PrivateSet, Map},
     note::{
     note_getter::view_notes, note_getter_options::{NoteGetterOptions, SortOrder},
     note_viewer_options::NoteViewerOptions, note_header::NoteHeader, note_interface::NoteInterface
@@ -12,13 +12,19 @@ use dep::aztec::{
 use crate::types::token_note::{TokenNote, OwnedNote};
 
 struct BalancesMap<T> {
-    map: Map<AztecAddress, Set<T>>
+    map: Map<AztecAddress, PrivateSet<T>>
 }
 
 impl<T> BalancesMap<T> {
     pub fn new(context: Context, storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        Self { map: Map::new(context, storage_slot, |context, slot| Set::new(context, slot)) }
+        Self {
+            map: Map::new(
+                context,
+                storage_slot,
+                |context, slot| PrivateSet::new(context, slot)
+            )
+        }
     }
 
     unconstrained pub fn balance_of<T_SERIALIZED_LEN>(

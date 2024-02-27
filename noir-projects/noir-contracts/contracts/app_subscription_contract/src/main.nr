@@ -11,20 +11,22 @@ contract AppSubscriptionContract {
     use dep::aztec::{
         context::{PrivateContext, Context}, note::{note_header::NoteHeader, utils as note_utils},
         oracle::get_public_key::get_public_key,
-        state_vars::{map::Map, singleton::Singleton, public_state::PublicState, stable_public_state::StablePublicState}
+        state_vars::{Map, PrivateMutable, PublicMutable, SharedImmutable}
     };
     use dep::authwit::{account::AccountActions, auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit};
 
     use crate::subscription_note::{SubscriptionNote, SUBSCRIPTION_NOTE_LEN};
 
     struct Storage {
-        // todo change this to immutable singletons because it's only needed in private
-        target_address: StablePublicState<AztecAddress>,
-        subscription_token_address: StablePublicState<AztecAddress>,
-        subscription_recipient_address: StablePublicState<AztecAddress>,
-        subscription_price: StablePublicState<Field>,
-        subscriptions: Map<AztecAddress, Singleton<SubscriptionNote>>,
-        gas_token_address: StablePublicState<AztecAddress>,
+        // The following is only needed in private but we use ShareImmutable here instead of PrivateImmutable because
+        // the value can be publicly known and SharedImmutable provides us with a better devex here because we don't
+        // have to bother with sharing the note between pixies of users.
+        target_address: SharedImmutable<AztecAddress>,
+        subscription_token_address: SharedImmutable<AztecAddress>,
+        subscription_recipient_address: SharedImmutable<AztecAddress>,
+        subscription_price: SharedImmutable<Field>,
+        subscriptions: Map<AztecAddress, PrivateMutable<SubscriptionNote>>,
+        gas_token_address: SharedImmutable<AztecAddress>,
     }
 
     global SUBSCRIPTION_DURATION_IN_BLOCKS = 5;

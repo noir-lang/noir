@@ -93,11 +93,15 @@ global L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH: Field = 12;
 
 // MISC CONSTANTS
 global FUNCTION_SELECTOR_NUM_BYTES: Field = 4;
-global MAPPING_SLOT_PEDERSEN_SEPARATOR: Field = 4;
 // sha256 hash is stored in two fields to accommodate all 256-bits of the hash
 global NUM_FIELDS_PER_SHA256: Field = 2;
 global ARGS_HASH_CHUNK_LENGTH: u32 = 32;
 global ARGS_HASH_CHUNK_COUNT: u32 = 32;
+// The following is used in immutable state variables to compute an initialization slot whose value is used to
+// determine whether a given variable has been initialized (by asserting that the value in the slot is 0).
+// The initialization slot is computed by adding the constant bellow to the variable's storage slot. This constant has
+// to be large enough so that it's ensured that it doesn't collide with storage slots of other variables.
+global INITIALIZATION_SLOT_SEPARATOR: Field = 1000_000_000;
 
 // CONTRACT CLASS CONSTANTS
 // This should be around 8192 (assuming 2**15 instructions packed at 8 bytes each),

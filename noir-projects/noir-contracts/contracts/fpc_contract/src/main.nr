@@ -2,14 +2,14 @@ mod interfaces;
 
 contract FPC {
     use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
-    use dep::aztec::state_vars::stable_public_state::StablePublicState;
+    use dep::aztec::state_vars::SharedImmutable;
     use dep::safe_math::SafeU120;
 
     use crate::interfaces::Token;
 
     struct Storage {
-        other_asset: StablePublicState<AztecAddress>,
-        fee_asset: StablePublicState<AztecAddress>,
+        other_asset: SharedImmutable<AztecAddress>,
+        fee_asset: SharedImmutable<AztecAddress>,
     }
 
     #[aztec(private)]

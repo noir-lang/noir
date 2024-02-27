@@ -54,7 +54,7 @@ You can't read public storage in private domain. But nevertheless reading public
 
 ```rust
 struct Storage {
-   token: PublicState<Field, 1>,
+   token: PublicMutable<Field>,
 }
 
 contract Bridge {

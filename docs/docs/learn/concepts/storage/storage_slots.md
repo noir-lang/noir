@@ -44,7 +44,7 @@ note_hash = H(logical_storage_slot, note_content_hash);
 
 This siloing (there will be more) is done in the application circuit, since it is not necessary for security of the network (but only the application). 
 :::info
-The private variable wrappers `Set` and `Singleton` in Aztec.nr include the `logical_storage_slot` in the commitments they compute, to make it easier for developers to write contracts without having to think about how to correctly handle storage slots.
+The private variable wrappers `PrivateSet` and `PrivateMutable` in Aztec.nr include the `logical_storage_slot` in the commitments they compute, to make it easier for developers to write contracts without having to think about how to correctly handle storage slots.
 ::: 
 
 When reading the values for these notes, the application circuit can then constrain the values to only read notes with a specific logical storage slot.

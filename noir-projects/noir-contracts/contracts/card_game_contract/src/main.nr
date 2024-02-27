@@ -3,7 +3,7 @@ mod game;
 
 contract CardGame {
     use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress, constants::MAX_NOTES_PER_PAGE};
-    use dep::aztec::{context::Context, hash::pedersen_hash, state_vars::{map::Map, public_state::PublicState}};
+    use dep::aztec::{context::Context, hash::pedersen_hash, state_vars::{Map, PublicMutable}};
 
     use dep::std::option::Option;
     use dep::value_note::{balance_utils, value_note::{ValueNote, VALUE_NOTE_LEN}};
@@ -16,7 +16,7 @@ contract CardGame {
     struct Storage {
         collections: Map<AztecAddress, Deck>,
         game_decks: Map<Field, Map<AztecAddress, Deck>>,
-        games: Map<Field, PublicState<Game>>,
+        games: Map<Field, PublicMutable<Game>>,
     }
 
     #[aztec(private)]

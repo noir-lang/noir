@@ -12,7 +12,7 @@ use dep::aztec::{
         note_viewer_options::NoteViewerOptions,
         note_getter::view_notes,
     },
-    state_vars::set::Set,
+    state_vars::PrivateSet,
 };
 use dep::std;
 use dep::std::{
@@ -88,7 +88,7 @@ impl CardNote {
 }
 
 struct Deck {
-    set: Set<ValueNote>,
+    set: PrivateSet<ValueNote>,
 }
 
 pub fn filter_cards<N>(
@@ -122,7 +122,7 @@ impl Deck {
         context: Context,
         storage_slot: Field,
     ) -> Self {
-        let set = Set {
+        let set = PrivateSet {
             context,
             storage_slot,
         };
