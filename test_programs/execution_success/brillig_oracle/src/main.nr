@@ -17,7 +17,7 @@ fn main(_x: field) {
     let _ = OracleMock::mock("get_number_sequence").with_params(size).returns((20, mock_oracle_response));
     let _ = OracleMock::mock("get_reverse_number_sequence").with_params(size).returns((20, reversed_mock_oracle_response));
 
-    get_number_sequence_wrapper(size as Field);
+    get_number_sequence_wrapper(size as field);
 }
 
 // Define oracle functions which we have mocked above
@@ -30,7 +30,7 @@ unconstrained fn get_reverse_number_sequence(_size: field) -> [field] {}
 unconstrained fn get_number_sequence_wrapper(size: field) {
     let slice = get_number_sequence(size);
     for i in 0..20 as u32 {
-        assert(slice[i] == i as Field);
+        assert(slice[i] == i as field);
     }
 
     let reversed_slice = get_reverse_number_sequence(size);

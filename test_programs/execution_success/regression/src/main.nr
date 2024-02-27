@@ -48,7 +48,7 @@ fn compact_decode<N>(input: [u8; N], length: field) -> ([U4; NIBBLE_LENGTH], fie
         }
     }
 
-    let out = (nibble, 2 * length + (parity as Field) - 2);
+    let out = (nibble, 2 * length + (parity as field) - 2);
 
     out
 }

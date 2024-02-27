@@ -7,7 +7,7 @@ fn main(
     offset: field,
     sublen: field
 ) {
-    let idx = (z - 5 * t - 5) as Field;
+    let idx = (z - 5 * t - 5) as field;
     //dynamic array test
     dyn_array(x, idx, idx - 3);
     //regression for issue 1283

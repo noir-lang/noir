@@ -21,14 +21,14 @@ fn test1(mut a: field) {
 }
 
 fn test2(z: field, t: u32) {
-    let a = z + t as Field;
+    let a = z + t as field;
     assert(a == 64);
-    let e = pow(z, t as Field);
+    let e = pow(z, t as field);
     assert(e == 714924299);
 }
 
 fn pow(base: field, exponent: field) -> field {
-    let mut r = 1 as Field;
+    let mut r = 1 as field;
     let b = exponent.to_le_bits(32 as u32);
     for i in 1..33 {
         r = r*r;
@@ -107,7 +107,7 @@ fn main(x: u32, y: u32, a: field, arr1: [u32; 9], arr2: [u32; 9]) {
 
     test0(a);
     test1(a);
-    test2(x as Field, y);
+    test2(x as field, y);
     assert(bar()[0] == 0);
 
     let mut b = [0 as u8, 5 as u8, 2 as u8];
@@ -123,11 +123,11 @@ fn main(x: u32, y: u32, a: field, arr1: [u32; 9], arr2: [u32; 9]) {
     test_multiple3(y, y);
     //Regression test for issue #628:
     let result = first(arr_to_field(arr1), arr_to_field(arr2));
-    assert(result[0] == arr1[0] as Field);
+    assert(result[0] == arr1[0] as field);
 }
 // Issue #628
 fn arr_to_field(arr: [u32; 9]) -> [field; 9] {
-    let mut as_field: [Field; 9] = [0 as Field; 9];
+    let mut as_field: [Field; 9] = [0 as field; 9];
     for i in 0..9 {
         as_field[i] = arr[i] as Field;
     }

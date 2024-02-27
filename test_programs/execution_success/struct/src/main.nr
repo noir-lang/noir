@@ -67,7 +67,7 @@ fn main(x: field, y: field) {
     assert(struct_from_tuple.my_nest.a == 0);
     // Regression test for issue #670
     let Animal { legs, eyes } = get_dog();
-    let six = legs + eyes as Field;
+    let six = legs + eyes as field;
 
     assert(six == 6);
 

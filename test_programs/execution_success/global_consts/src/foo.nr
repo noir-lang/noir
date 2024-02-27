@@ -6,6 +6,6 @@ global TYPE_INFERRED = 42;
 
 pub fn from_foo(x: [field; bar::N]) {
     for i in 0..bar::N {
-        assert(x[i] == bar::N as Field);
+        assert(x[i] == bar::N as field);
     }
 }
