@@ -20,7 +20,7 @@ type NoirPackageConfigSchema = {
     backend?: string;
     license?: string;
   };
-  dependencies: Record<string, GitDependencyConfig | LocalDependencyConfig>;
+  dependencies?: Record<string, GitDependencyConfig | LocalDependencyConfig>;
 };
 
 /**

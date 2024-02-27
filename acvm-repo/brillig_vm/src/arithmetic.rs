@@ -36,18 +36,20 @@ pub(crate) fn evaluate_binary_bigint_op(
         BinaryIntOp::UnsignedDiv => {
             let b_mod = b % bit_modulo;
             if b_mod.is_zero() {
-                return Err("Division by zero".to_owned());
+                BigUint::zero()
+            } else {
+                (a % bit_modulo) / b_mod
             }
-            (a % bit_modulo) / b_mod
         }
         // Perform signed division by first converting a and b to signed integers and then back to unsigned after the operation.
         BinaryIntOp::SignedDiv => {
             let b_signed = to_big_signed(b, bit_size);
             if b_signed.is_zero() {
-                return Err("Division by zero".to_owned());
+                BigUint::zero()
+            } else {
+                let signed_div = to_big_signed(a, bit_size) / b_signed;
+                to_big_unsigned(signed_div, bit_size)
             }
-            let signed_div = to_big_signed(a, bit_size) / b_signed;
-            to_big_unsigned(signed_div, bit_size)
         }
         // Perform a == operation, returning 0 or 1
         BinaryIntOp::Equals => {

@@ -18,10 +18,10 @@ mod compile;
 mod compile_new;
 mod errors;
 
-pub use compile::compile;
+pub use compile::{compile_contract, compile_program};
 
 // Expose the new Context-Centric API
-pub use compile_new::{compile_, CompilerContext, CrateIDWrapper};
+pub use compile_new::{compile_contract_, compile_program_, CompilerContext, CrateIDWrapper};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[derive(Serialize, Deserialize)]
@@ -32,12 +32,12 @@ pub struct BuildInfo {
 }
 
 #[wasm_bindgen]
-pub fn init_log_level(filter: String) {
+pub fn init_log_level(level: String) {
     // Set the static variable from Rust
     use std::sync::Once;
 
-    let filter: EnvFilter =
-        filter.parse().expect("Could not parse log filter while initializing logger");
+    let level_filter: EnvFilter =
+        level.parse().expect("Could not parse log filter while initializing logger");
 
     static SET_HOOK: Once = Once::new();
     SET_HOOK.call_once(|| {
@@ -46,7 +46,7 @@ pub fn init_log_level(filter: String) {
             .without_time()
             .with_writer(MakeWebConsoleWriter::new());
 
-        tracing_subscriber::registry().with(fmt_layer.with_filter(filter)).init();
+        tracing_subscriber::registry().with(fmt_layer.with_filter(level_filter)).init();
     });
 }
 

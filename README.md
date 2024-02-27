@@ -54,7 +54,7 @@ Concretely the following items are on the road map:
 
 ## Minimum Rust version
 
-This crate's minimum supported rustc version is 1.71.1.
+This crate's minimum supported rustc version is 1.73.0.
 
 ## Working on this project
 

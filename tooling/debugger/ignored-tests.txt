@@ -4,6 +4,7 @@ bit_shifts_comptime
 brillig_references
 brillig_to_bytes_integration
 debug_logs
+double_verify_nested_proof
 double_verify_proof
 modulus
 references
