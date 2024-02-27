@@ -1,9 +1,11 @@
+import { SchnorrAccountContractArtifact } from '@aztec/accounts/schnorr';
 import { createAccounts, getDeployedTestAccountsWallets } from '@aztec/accounts/testing';
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import {
   AccountWalletWithPrivateKey,
   AztecAddress,
   AztecNode,
+  BatchCall,
   CheatCodes,
   CompleteAddress,
   Contract,
@@ -15,6 +17,7 @@ import {
   LogType,
   PXE,
   SentTx,
+  Wallet,
   createAztecNodeClient,
   createDebugLogger,
   createPXEClient,
@@ -22,6 +25,7 @@ import {
   makeFetch,
   waitForPXE,
 } from '@aztec/aztec.js';
+import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
 import {
   AvailabilityOracleAbi,
   AvailabilityOracleBytecode,
@@ -315,6 +319,22 @@ export async function setup(
     sequencer,
     teardown,
   };
+}
+
+/**
+ * Registers the contract class used for test accounts and publicly deploys the instances requested.
+ * Use this when you need to make a public call to an account contract, such as for requesting a public authwit.
+ * @param sender - Wallet to send the deployment tx.
+ * @param accountsToDeploy - Which accounts to publicly deploy.
+ */
+export async function publicDeployAccounts(sender: Wallet, accountsToDeploy: (CompleteAddress | AztecAddress)[]) {
+  const accountAddressesToDeploy = accountsToDeploy.map(a => ('address' in a ? a.address : a));
+  const instances = await Promise.all(accountAddressesToDeploy.map(account => sender.getContractInstance(account)));
+  const batch = new BatchCall(sender, [
+    (await registerContractClass(sender, SchnorrAccountContractArtifact)).request(),
+    ...instances.map(instance => deployInstance(sender, instance!).request()),
+  ]);
+  await batch.send().wait();
 }
 
 /**

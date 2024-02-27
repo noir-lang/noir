@@ -15,7 +15,7 @@ import { LendingContract, PriceFeedContract, TokenContract } from '@aztec/noir-c
 
 import { jest } from '@jest/globals';
 
-import { setup } from './fixtures/utils.js';
+import { publicDeployAccounts, setup } from './fixtures/utils.js';
 import { LendingAccount, LendingSimulator, TokenSimulator } from './simulators/index.js';
 
 describe('e2e_lending_contract', () => {
@@ -72,6 +72,7 @@ describe('e2e_lending_contract', () => {
   beforeAll(async () => {
     ({ teardown, logger, cheatCodes: cc, wallet, accounts } = await setup(1));
     ({ lendingContract, priceFeedContract, collateralAsset, stableCoin } = await deployContracts());
+    await publicDeployAccounts(wallet, accounts);
 
     lendingAccount = new LendingAccount(accounts[0].address, new Fr(42));
 

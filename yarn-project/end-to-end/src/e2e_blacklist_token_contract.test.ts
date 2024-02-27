@@ -21,7 +21,7 @@ import { SlowTreeContract, TokenBlacklistContract, TokenContract } from '@aztec/
 import { jest } from '@jest/globals';
 
 import { BITSIZE_TOO_BIG_ERROR, U128_OVERFLOW_ERROR, U128_UNDERFLOW_ERROR } from './fixtures/fixtures.js';
-import { setup } from './fixtures/utils.js';
+import { publicDeployAccounts, setup } from './fixtures/utils.js';
 import { TokenSimulator } from './simulators/token_simulator.js';
 
 const TIMEOUT = 90_000;
@@ -109,6 +109,7 @@ describe('e2e_blacklist_token_contract', () => {
 
   beforeAll(async () => {
     ({ teardown, logger, wallets, accounts, cheatCodes } = await setup(4));
+    await publicDeployAccounts(wallets[0], accounts.slice(0, 3));
 
     slowTree = await SlowTreeContract.deploy(wallets[0]).send().deployed();
 

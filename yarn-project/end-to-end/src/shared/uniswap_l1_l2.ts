@@ -16,6 +16,7 @@ import { UniswapContract } from '@aztec/noir-contracts.js/Uniswap';
 import { jest } from '@jest/globals';
 import { Chain, HttpTransport, PublicClient, getContract, parseEther } from 'viem';
 
+import { publicDeployAccounts } from '../fixtures/utils.js';
 import { CrossChainTestHarness } from './cross_chain_test_harness.js';
 
 // PSA: This tests works on forked mainnet. There is a dump of the data in `dumpedState` such that we
@@ -95,6 +96,8 @@ export const uniswapL1L2TestSuite = (
       ownerAddress = ownerWallet.getAddress();
       sponsorAddress = sponsorWallet.getAddress();
       ownerEthAddress = EthAddress.fromString((await walletClient.getAddresses())[0]);
+
+      await publicDeployAccounts(ownerWallet, [ownerAddress, sponsorAddress]);
 
       logger('Deploying DAI Portal, initializing and deploying l2 contract...');
       daiCrossChainHarness = await CrossChainTestHarness.new(

@@ -9,7 +9,7 @@ import { BaseWallet } from './base_wallet.js';
 export class SignerlessWallet extends BaseWallet {
   async createTxExecutionRequest(executions: FunctionCall[]): Promise<TxExecutionRequest> {
     if (executions.length !== 1) {
-      throw new Error(`Unexpected number of executions. Expected 1 but received ${executions.length}).`);
+      throw new Error(`Unexpected number of executions. Expected 1 but received ${executions.length}.`);
     }
     const [execution] = executions;
     const packedArguments = PackedArguments.fromArgs(execution.args);

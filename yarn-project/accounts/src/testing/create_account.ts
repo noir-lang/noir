@@ -28,7 +28,13 @@ export async function createAccounts(pxe: PXE, numberOfAccounts = 1): Promise<Ac
     // Unfortunately the function below is not stateless and we call it here because it takes a long time to run and
     // the results get stored within the account object. By calling it here we increase the probability of all the
     // accounts being deployed in the same block because it makes the deploy() method basically instant.
-    await account.getDeployMethod().then(d => d.simulate({ contractAddressSalt: account.salt }));
+    await account.getDeployMethod().then(d =>
+      d.simulate({
+        contractAddressSalt: account.salt,
+        skipClassRegistration: true,
+        skipPublicDeployment: true,
+      }),
+    );
     accounts.push(account);
   }
 

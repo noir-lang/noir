@@ -18,7 +18,7 @@ import { TokenContract } from '@aztec/noir-contracts.js/Token';
 import { jest } from '@jest/globals';
 
 import { BITSIZE_TOO_BIG_ERROR, U128_OVERFLOW_ERROR, U128_UNDERFLOW_ERROR } from './fixtures/fixtures.js';
-import { setup } from './fixtures/utils.js';
+import { publicDeployAccounts, setup } from './fixtures/utils.js';
 import { TokenSimulator } from './simulators/token_simulator.js';
 
 const TIMEOUT = 90_000;
@@ -66,6 +66,7 @@ describe('e2e_token_contract', () => {
 
   beforeAll(async () => {
     ({ teardown, logger, wallets, accounts } = await setup(3));
+    await publicDeployAccounts(wallets[0], accounts.slice(0, 2));
 
     TokenContract.artifact.functions.forEach(fn => {
       const sig = decodeFunctionSignature(fn.name, fn.parameters);

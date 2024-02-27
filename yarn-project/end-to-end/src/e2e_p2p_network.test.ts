@@ -1,20 +1,15 @@
+import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import { AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
 import {
   AztecAddress,
   CompleteAddress,
   DebugLogger,
-  DeploySentTx,
-  EthAddress,
   Fr,
   Grumpkin,
-  LegacyContractDeployer,
-  PublicKey,
+  GrumpkinScalar,
+  SentTx,
   TxStatus,
-  Wallet,
-  getContractInstanceFromDeployParams,
-  isContractDeployed,
 } from '@aztec/aztec.js';
-import { TestContractArtifact } from '@aztec/noir-contracts.js/Test';
 import { BootstrapNode, P2PConfig, createLibP2PPeerId } from '@aztec/p2p';
 import { ConstantKeyPair, PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
 
@@ -32,7 +27,7 @@ const BOOT_NODE_TCP_PORT = 40400;
 interface NodeContext {
   node: AztecNodeService;
   pxeService: PXEService;
-  txs: DeploySentTx[];
+  txs: SentTx[];
   account: AztecAddress;
 }
 
@@ -40,10 +35,9 @@ describe('e2e_p2p_network', () => {
   let config: AztecNodeConfig;
   let logger: DebugLogger;
   let teardown: () => Promise<void>;
-  let wallet: Wallet;
 
   beforeEach(async () => {
-    ({ wallet, teardown, config, logger } = await setup(1));
+    ({ teardown, config, logger } = await setup(1));
   }, 100_000);
 
   afterEach(() => teardown());
@@ -68,13 +62,8 @@ describe('e2e_p2p_network', () => {
     // now ensure that all txs were successfully mined
     for (const context of contexts) {
       for (const tx of context.txs) {
-        // we pass in wallet to wait(...) because wallet is necessary to create a TS contract instance
-        const receipt = await tx.wait({ wallet });
-
+        const receipt = await tx.wait();
         expect(receipt.status).toBe(TxStatus.MINED);
-        const contractAddress = receipt.contract.address;
-        expect(await isContractDeployed(context.pxeService, contractAddress)).toBeTruthy();
-        expect(await isContractDeployed(context.pxeService, AztecAddress.random())).toBeFalsy();
       }
     }
 
@@ -134,20 +123,10 @@ describe('e2e_p2p_network', () => {
   };
 
   // submits a set of transactions to the provided Private eXecution Environment (PXE)
-  const submitTxsTo = async (pxe: PXEService, account: AztecAddress, numTxs: number, publicKey: PublicKey) => {
-    const txs: DeploySentTx[] = [];
+  const submitTxsTo = async (pxe: PXEService, account: AztecAddress, numTxs: number) => {
+    const txs: SentTx[] = [];
     for (let i = 0; i < numTxs; i++) {
-      const salt = Fr.random();
-      const origin = getContractInstanceFromDeployParams(
-        TestContractArtifact,
-        [],
-        salt,
-        publicKey,
-        EthAddress.ZERO,
-      ).address;
-      // TODO(@spalladino): Remove usage of LegacyContractDeployer.
-      const deployer = new LegacyContractDeployer(TestContractArtifact, pxe, publicKey);
-      const tx = deployer.deploy().send({ contractAddressSalt: salt });
+      const tx = await getSchnorrAccount(pxe, GrumpkinScalar.random(), GrumpkinScalar.random(), Fr.random()).deploy();
       logger(`Tx sent with hash ${await tx.getTxHash()}`);
       const receipt = await tx.getReceipt();
       expect(receipt).toEqual(
@@ -174,7 +153,7 @@ describe('e2e_p2p_network', () => {
     const completeAddress = CompleteAddress.fromPrivateKeyAndPartialAddress(keyPair.getPrivateKey(), Fr.random());
     await pxeService.registerAccount(keyPair.getPrivateKey(), completeAddress.partialAddress);
 
-    const txs = await submitTxsTo(pxeService, completeAddress.address, numTxs, completeAddress.publicKey);
+    const txs = await submitTxsTo(pxeService, completeAddress.address, numTxs);
     return {
       txs,
       account: completeAddress.address,

@@ -8,12 +8,12 @@ import {
 import { ContractArtifact, FunctionArtifact } from '@aztec/foundation/abi';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { Wallet } from '../account/index.js';
 import { deployInstance } from '../deployment/deploy_instance.js';
 import { registerContractClass } from '../deployment/register_class.js';
-import { createDebugLogger } from '../index.js';
 import { BaseContractInteraction, SendMethodOptions } from './base_contract_interaction.js';
 import { type Contract } from './contract.js';
 import { ContractBase } from './contract_base.js';
@@ -94,6 +94,17 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    * it returns a promise for an array instead of a function call directly.
    */
   public async request(options: DeployOptions = {}): Promise<FunctionCall[]> {
+    const { address } = this.getInstance(options);
+    const constructorCall = new ContractFunctionInteraction(this.wallet, address, this.constructorArtifact, this.args);
+    return [...(await this.getDeploymentFunctionCalls(options)), constructorCall.request()];
+  }
+
+  /**
+   * Returns calls for registration of the class and deployment of the instance, depending on the provided options.
+   * @param options - Deployment options.
+   * @returns A function call array with potentially requests to the class registerer and instance deployer.
+   */
+  protected async getDeploymentFunctionCalls(options: DeployOptions = {}): Promise<FunctionCall[]> {
     const calls: FunctionCall[] = [];
 
     // Set contract instance object so it's available for populating the DeploySendTx object
@@ -127,11 +138,6 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
       calls.push(deployInstance(this.wallet, instance, { universalDeploy: options.universalDeploy }).request());
     }
 
-    // Call the constructor.
-    calls.push(
-      new ContractFunctionInteraction(this.wallet, instance.address, this.constructorArtifact, this.args).request(),
-    );
-
     return calls;
   }
 
@@ -145,10 +151,6 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    */
   public send(options: DeployOptions = {}): DeploySentTx<TContract> {
     const txHashPromise = super.send(options).getTxHash();
-    // Note the bang on this.instance is brittle: it depends on super.send setting the contract instance
-    // before any `await` operation, otherwise it'll be undefined by the time we get here. Tests should
-    // catch it easily though, but if you start seeing instance.address being undefined in DeploySentTx,
-    // this is probably the culprit.
     return new DeploySentTx(this.pxe, txHashPromise, this.postDeployCtor, this.getInstance(options));
   }
 

@@ -62,7 +62,11 @@ export async function deployInitialTestAccounts(pxe: PXE) {
   const deployMethods = await Promise.all(
     accounts.map(async x => {
       const deployMethod = await x.account.getDeployMethod();
-      await deployMethod.create({ contractAddressSalt: x.account.salt });
+      await deployMethod.create({
+        contractAddressSalt: x.account.salt,
+        skipClassRegistration: true,
+        skipPublicDeployment: true,
+      });
       await deployMethod.simulate({});
       return deployMethod;
     }),
