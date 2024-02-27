@@ -77,7 +77,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         let mut exceeded_len = false;
         for i in 0..MaxLen {
             exceeded_len |= i == self.len;
-            if (!exceeded_len) {
+            if !exceeded_len {
                 ret |= predicate(self.storage[i]);
             }
         }
