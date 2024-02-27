@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/common/ref_array.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
 #include <array>
@@ -31,6 +32,36 @@ namespace bb {
  * We should only do this if it becomes necessary or convenient.
  */
 
+/**
+ * @brief Basic structure for storing gate data in a builder
+ *
+ * @tparam FF
+ * @tparam NUM_WIRES
+ * @tparam NUM_SELECTORS
+ */
+template <typename FF, size_t NUM_WIRES, size_t NUM_SELECTORS> class ExecutionTraceBlock {
+  public:
+    using SelectorType = std::vector<FF, bb::ContainerSlabAllocator<FF>>;
+    using WireType = std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>;
+    using Selectors = std::array<SelectorType, NUM_SELECTORS>;
+    using Wires = std::array<WireType, NUM_WIRES>;
+
+    Wires wires; // vectors of indices into a witness variables array
+    Selectors selectors;
+
+    bool operator==(const ExecutionTraceBlock& other) const = default;
+
+    void reserve(size_t size_hint)
+    {
+        for (auto& w : wires) {
+            w.reserve(size_hint);
+        }
+        for (auto& p : selectors) {
+            p.reserve(size_hint);
+        }
+    }
+};
+
 // These are not magic numbers and they should not be written with global constants. These parameters are not
 // accessible through clearly named static class members.
 template <typename FF_> class StandardArith {
@@ -38,30 +69,35 @@ template <typename FF_> class StandardArith {
     static constexpr size_t NUM_WIRES = 3;
     static constexpr size_t NUM_SELECTORS = 5;
     using FF = FF_;
-    using SelectorType = std::vector<FF, bb::ContainerSlabAllocator<FF>>;
 
-    std::array<SelectorType, NUM_SELECTORS> selectors;
-
-    SelectorType& q_m() { return selectors[0]; };
-    SelectorType& q_1() { return selectors[1]; };
-    SelectorType& q_2() { return selectors[2]; };
-    SelectorType& q_3() { return selectors[3]; };
-    SelectorType& q_c() { return selectors[4]; };
-
-    const SelectorType& q_m() const { return selectors[0]; };
-    const SelectorType& q_1() const { return selectors[1]; };
-    const SelectorType& q_2() const { return selectors[2]; };
-    const SelectorType& q_3() const { return selectors[3]; };
-    const SelectorType& q_c() const { return selectors[4]; };
-
-    auto& get() { return selectors; };
-
-    void reserve(size_t size_hint)
-    {
-        for (auto& p : selectors) {
-            p.reserve(size_hint);
+    class StandardTraceBlock : public ExecutionTraceBlock<FF, NUM_WIRES, NUM_SELECTORS> {
+      public:
+        void populate_wires(const uint32_t& idx_1, const uint32_t& idx_2, const uint32_t& idx_3)
+        {
+            this->wires[0].emplace_back(idx_1);
+            this->wires[1].emplace_back(idx_2);
+            this->wires[2].emplace_back(idx_3);
         }
-    }
+
+        auto& w_l() { return std::get<0>(this->wires); };
+        auto& w_r() { return std::get<1>(this->wires); };
+        auto& w_o() { return std::get<2>(this->wires); };
+
+        auto& q_m() { return this->selectors[0]; };
+        auto& q_1() { return this->selectors[1]; };
+        auto& q_2() { return this->selectors[2]; };
+        auto& q_3() { return this->selectors[3]; };
+        auto& q_c() { return this->selectors[4]; };
+    };
+
+    struct TraceBlocks {
+        StandardTraceBlock pub_inputs;
+        StandardTraceBlock arithmetic;
+
+        auto get() { return RefArray{ pub_inputs, arithmetic }; }
+
+        bool operator==(const TraceBlocks& other) const = default;
+    };
 
     // Note: These are needed for Plonk only (for poly storage in a std::map). Must be in same order as above struct.
     inline static const std::vector<std::string> selector_names = { "q_m", "q_1", "q_2", "q_3", "q_c" };
@@ -72,44 +108,43 @@ template <typename FF_> class UltraArith {
     static constexpr size_t NUM_WIRES = 4;
     static constexpr size_t NUM_SELECTORS = 11;
     using FF = FF_;
-    using SelectorType = std::vector<FF, bb::ContainerSlabAllocator<FF>>;
 
-  private:
-    std::array<SelectorType, NUM_SELECTORS> selectors;
-
-  public:
-    SelectorType& q_m() { return selectors[0]; };
-    SelectorType& q_c() { return selectors[1]; };
-    SelectorType& q_1() { return selectors[2]; };
-    SelectorType& q_2() { return selectors[3]; };
-    SelectorType& q_3() { return selectors[4]; };
-    SelectorType& q_4() { return selectors[5]; };
-    SelectorType& q_arith() { return selectors[6]; };
-    SelectorType& q_sort() { return selectors[7]; };
-    SelectorType& q_elliptic() { return selectors[8]; };
-    SelectorType& q_aux() { return selectors[9]; };
-    SelectorType& q_lookup_type() { return selectors[10]; };
-
-    const SelectorType& q_m() const { return selectors[0]; };
-    const SelectorType& q_c() const { return selectors[1]; };
-    const SelectorType& q_1() const { return selectors[2]; };
-    const SelectorType& q_2() const { return selectors[3]; };
-    const SelectorType& q_3() const { return selectors[4]; };
-    const SelectorType& q_4() const { return selectors[5]; };
-    const SelectorType& q_arith() const { return selectors[6]; };
-    const SelectorType& q_sort() const { return selectors[7]; };
-    const SelectorType& q_elliptic() const { return selectors[8]; };
-    const SelectorType& q_aux() const { return selectors[9]; };
-    const SelectorType& q_lookup_type() const { return selectors[10]; };
-
-    auto& get() { return selectors; };
-
-    void reserve(size_t size_hint)
-    {
-        for (auto& vec : selectors) {
-            vec.reserve(size_hint);
+    class UltraTraceBlock : public ExecutionTraceBlock<FF, NUM_WIRES, NUM_SELECTORS> {
+      public:
+        void populate_wires(const uint32_t& idx_1, const uint32_t& idx_2, const uint32_t& idx_3, const uint32_t& idx_4)
+        {
+            this->wires[0].emplace_back(idx_1);
+            this->wires[1].emplace_back(idx_2);
+            this->wires[2].emplace_back(idx_3);
+            this->wires[3].emplace_back(idx_4);
         }
-    }
+
+        auto& w_l() { return std::get<0>(this->wires); };
+        auto& w_r() { return std::get<1>(this->wires); };
+        auto& w_o() { return std::get<2>(this->wires); };
+        auto& w_4() { return std::get<3>(this->wires); };
+
+        auto& q_m() { return this->selectors[0]; };
+        auto& q_c() { return this->selectors[1]; };
+        auto& q_1() { return this->selectors[2]; };
+        auto& q_2() { return this->selectors[3]; };
+        auto& q_3() { return this->selectors[4]; };
+        auto& q_4() { return this->selectors[5]; };
+        auto& q_arith() { return this->selectors[6]; };
+        auto& q_sort() { return this->selectors[7]; };
+        auto& q_elliptic() { return this->selectors[8]; };
+        auto& q_aux() { return this->selectors[9]; };
+        auto& q_lookup_type() { return this->selectors[10]; };
+    };
+
+    struct TraceBlocks {
+        UltraTraceBlock pub_inputs;
+        UltraTraceBlock main;
+
+        auto get() { return RefArray{ pub_inputs, main }; }
+
+        bool operator==(const TraceBlocks& other) const = default;
+    };
 
     // Note: These are needed for Plonk only (for poly storage in a std::map). Must be in same order as above struct.
     inline static const std::vector<std::string> selector_names = { "q_m",        "q_c",   "q_1",       "q_2",
@@ -128,75 +163,72 @@ template <typename FF_> class UltraHonkArith {
     static constexpr size_t NUM_WIRES = 4;
     static constexpr size_t NUM_SELECTORS = 14;
     using FF = FF_;
-    using SelectorType = std::vector<FF, bb::ContainerSlabAllocator<FF>>;
 
-  private:
-    std::array<SelectorType, NUM_SELECTORS> selectors;
-
-  public:
-    SelectorType& q_m() { return selectors[0]; };
-    SelectorType& q_c() { return selectors[1]; };
-    SelectorType& q_1() { return selectors[2]; };
-    SelectorType& q_2() { return selectors[3]; };
-    SelectorType& q_3() { return selectors[4]; };
-    SelectorType& q_4() { return selectors[5]; };
-    SelectorType& q_arith() { return selectors[6]; };
-    SelectorType& q_sort() { return selectors[7]; };
-    SelectorType& q_elliptic() { return selectors[8]; };
-    SelectorType& q_aux() { return selectors[9]; };
-    SelectorType& q_lookup_type() { return selectors[10]; };
-    SelectorType& q_busread() { return selectors[11]; };
-    SelectorType& q_poseidon2_external() { return this->selectors[12]; };
-    SelectorType& q_poseidon2_internal() { return this->selectors[13]; };
-
-    const SelectorType& q_m() const { return selectors[0]; };
-    const SelectorType& q_c() const { return selectors[1]; };
-    const SelectorType& q_1() const { return selectors[2]; };
-    const SelectorType& q_2() const { return selectors[3]; };
-    const SelectorType& q_3() const { return selectors[4]; };
-    const SelectorType& q_4() const { return selectors[5]; };
-    const SelectorType& q_arith() const { return selectors[6]; };
-    const SelectorType& q_sort() const { return selectors[7]; };
-    const SelectorType& q_elliptic() const { return selectors[8]; };
-    const SelectorType& q_aux() const { return selectors[9]; };
-    const SelectorType& q_lookup_type() const { return selectors[10]; };
-    const SelectorType& q_busread() const { return selectors[11]; };
-    const SelectorType& q_poseidon2_external() const { return this->selectors[12]; };
-    const SelectorType& q_poseidon2_internal() const { return this->selectors[13]; };
-
-    auto& get() { return selectors; };
-
-    void reserve(size_t size_hint)
-    {
-        for (auto& vec : selectors) {
-            vec.reserve(size_hint);
+    class UltraHonkTraceBlock : public ExecutionTraceBlock<FF, NUM_WIRES, NUM_SELECTORS> {
+      public:
+        void populate_wires(const uint32_t& idx_1, const uint32_t& idx_2, const uint32_t& idx_3, const uint32_t& idx_4)
+        {
+            this->wires[0].emplace_back(idx_1);
+            this->wires[1].emplace_back(idx_2);
+            this->wires[2].emplace_back(idx_3);
+            this->wires[3].emplace_back(idx_4);
         }
-    }
 
-    /**
-     * @brief Add zeros to all selectors which are not part of the conventional Ultra arithmetization
-     * @details Facilitates reuse of Ultra gate construction functions in arithmetizations which extend the conventional
-     * Ultra arithmetization
-     *
-     */
-    void pad_additional()
-    {
-        q_busread().emplace_back(0);
-        q_poseidon2_external().emplace_back(0);
-        q_poseidon2_internal().emplace_back(0);
+        auto& w_l() { return std::get<0>(this->wires); };
+        auto& w_r() { return std::get<1>(this->wires); };
+        auto& w_o() { return std::get<2>(this->wires); };
+        auto& w_4() { return std::get<3>(this->wires); };
+
+        auto& q_m() { return this->selectors[0]; };
+        auto& q_c() { return this->selectors[1]; };
+        auto& q_1() { return this->selectors[2]; };
+        auto& q_2() { return this->selectors[3]; };
+        auto& q_3() { return this->selectors[4]; };
+        auto& q_4() { return this->selectors[5]; };
+        auto& q_arith() { return this->selectors[6]; };
+        auto& q_sort() { return this->selectors[7]; };
+        auto& q_elliptic() { return this->selectors[8]; };
+        auto& q_aux() { return this->selectors[9]; };
+        auto& q_lookup_type() { return this->selectors[10]; };
+        auto& q_busread() { return this->selectors[11]; };
+        auto& q_poseidon2_external() { return this->selectors[12]; };
+        auto& q_poseidon2_internal() { return this->selectors[13]; };
+
+        /**
+         * @brief Add zeros to all selectors which are not part of the conventional Ultra arithmetization
+         * @details Facilitates reuse of Ultra gate construction functions in arithmetizations which extend the
+         * conventional Ultra arithmetization
+         *
+         */
+        void pad_additional()
+        {
+            q_busread().emplace_back(0);
+            q_poseidon2_external().emplace_back(0);
+            q_poseidon2_internal().emplace_back(0);
+        };
+
+        /**
+         * @brief Resizes all selectors which are not part of the conventional Ultra arithmetization
+         * @details Facilitates reuse of Ultra gate construction functions in arithmetizations which extend the
+         * conventional Ultra arithmetization
+         * @param new_size
+         */
+        void resize_additional(size_t new_size)
+        {
+            q_busread().resize(new_size);
+            q_poseidon2_external().resize(new_size);
+            q_poseidon2_internal().resize(new_size);
+        };
     };
 
-    /**
-     * @brief Resizes all selectors which are not part of the conventional Ultra arithmetization
-     * @details Facilitates reuse of Ultra gate construction functions in arithmetizations which extend the conventional
-     * Ultra arithmetization
-     * @param new_size
-     */
-    void resize_additional(size_t new_size)
-    {
-        q_busread().resize(new_size);
-        q_poseidon2_external().resize(new_size);
-        q_poseidon2_internal().resize(new_size);
+    struct TraceBlocks {
+        UltraHonkTraceBlock ecc_op;
+        UltraHonkTraceBlock pub_inputs;
+        UltraHonkTraceBlock main;
+
+        auto get() { return RefArray{ ecc_op, pub_inputs, main }; }
+
+        bool operator==(const TraceBlocks& other) const = default;
     };
 
     // Note: Unused. Needed only for consistency with Ultra arith (which is used by Plonk)

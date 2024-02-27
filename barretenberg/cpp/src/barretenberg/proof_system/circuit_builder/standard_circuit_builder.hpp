@@ -1,6 +1,7 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include "barretenberg/proof_system/execution_trace/execution_trace.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
 #include "barretenberg/proof_system/types/merkle_hash_type.hpp"
 #include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
@@ -12,7 +13,7 @@ namespace bb {
 template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase<FF> {
   public:
     using Arithmetization = StandardArith<FF>;
-    using Selectors = Arithmetization;
+    using GateBlocks = typename Arithmetization::TraceBlocks;
     static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
     // Keeping NUM_WIRES, at least temporarily, for backward compatibility
     static constexpr size_t program_width = Arithmetization::NUM_WIRES;
@@ -24,31 +25,8 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
     static constexpr merkle::HashType merkle_hash_type = merkle::HashType::FIXED_BASE_PEDERSEN;
     static constexpr pedersen::CommitmentType commitment_type = pedersen::CommitmentType::FIXED_BASE_PEDERSEN;
 
-    std::array<std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>, NUM_WIRES> wires;
-    Arithmetization selectors;
-
-    using WireVector = std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>;
-    using SelectorVector = std::vector<FF, bb::ContainerSlabAllocator<FF>>;
-
-    WireVector& w_l() { return std::get<0>(wires); };
-    WireVector& w_r() { return std::get<1>(wires); };
-    WireVector& w_o() { return std::get<2>(wires); };
-
-    const WireVector& w_l() const { return std::get<0>(wires); };
-    const WireVector& w_r() const { return std::get<1>(wires); };
-    const WireVector& w_o() const { return std::get<2>(wires); };
-
-    SelectorVector& q_m() { return this->selectors.q_m(); };
-    SelectorVector& q_1() { return this->selectors.q_1(); };
-    SelectorVector& q_2() { return this->selectors.q_2(); };
-    SelectorVector& q_3() { return this->selectors.q_3(); };
-    SelectorVector& q_c() { return this->selectors.q_c(); };
-
-    const SelectorVector& q_m() const { return this->selectors.q_m(); };
-    const SelectorVector& q_1() const { return this->selectors.q_1(); };
-    const SelectorVector& q_2() const { return this->selectors.q_2(); };
-    const SelectorVector& q_3() const { return this->selectors.q_3(); };
-    const SelectorVector& q_c() const { return this->selectors.q_c(); };
+    // Storage for wires and selectors for all gate types
+    GateBlocks blocks;
 
     static constexpr size_t UINT_LOG2_BASE = 2;
 
@@ -60,10 +38,7 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
     StandardCircuitBuilder_(const size_t size_hint = 0)
         : CircuitBuilderBase<FF>(size_hint)
     {
-        selectors.reserve(size_hint);
-        w_l().reserve(size_hint);
-        w_r().reserve(size_hint);
-        w_o().reserve(size_hint);
+        blocks.arithmetic.reserve(size_hint);
         // To effieciently constrain wires to zero, we set the first value of w_1 to be 0, and use copy constraints for
         // all future zero values.
         // (#216)(Adrian): This should be done in a constant way, maybe by initializing the constant_variable_indices
@@ -82,8 +57,7 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
     {
         CircuitBuilderBase<FF>::operator=(std::move(other));
         constant_variable_indices = other.constant_variable_indices;
-        wires = other.wires;
-        selectors = other.selectors;
+        blocks = other.blocks;
         return *this;
     };
     ~StandardCircuitBuilder_() override = default;

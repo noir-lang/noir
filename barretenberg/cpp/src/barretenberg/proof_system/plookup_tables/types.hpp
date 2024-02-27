@@ -190,6 +190,7 @@ struct MultiTable {
 
     MultiTable& operator=(const MultiTable& other) = default;
     MultiTable& operator=(MultiTable&& other) = default;
+    bool operator==(const MultiTable& other) const = default;
 };
 
 // struct PlookupLargeKeyTable {
@@ -262,6 +263,8 @@ struct MultiTable {
  */
 struct BasicTable {
     struct KeyEntry {
+        bool operator==(const KeyEntry& other) const = default;
+
         std::array<uint256_t, 2> key{ 0, 0 };
         std::array<bb::fr, 2> value{ bb::fr(0), bb::fr(0) };
         bool operator<(const KeyEntry& other) const
@@ -296,6 +299,8 @@ struct BasicTable {
     std::vector<KeyEntry> lookup_gates;
 
     std::array<bb::fr, 2> (*get_values_from_key)(const std::array<uint64_t, 2>);
+
+    bool operator==(const BasicTable& other) const = default;
 };
 
 enum ColumnIdx { C1, C2, C3 };

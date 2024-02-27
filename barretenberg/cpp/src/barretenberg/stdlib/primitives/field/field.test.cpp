@@ -180,7 +180,12 @@ template <typename Builder> class stdlib_field : public testing::Test {
         auto gates_before = builder.get_num_gates();
         uint64_t expected = fidget(builder);
         auto gates_after = builder.get_num_gates();
-        EXPECT_EQ(builder.get_variable(builder.w_o()[gates_after - 1]), fr(expected));
+        if constexpr (IsAnyOf<bb::StandardCircuitBuilder, Builder>) {
+            EXPECT_EQ(builder.get_variable(builder.blocks.arithmetic.w_o()[gates_after - 1]), fr(expected));
+        }
+        if constexpr (IsAnyOf<bb::UltraCircuitBuilder, Builder>) {
+            EXPECT_EQ(builder.get_variable(builder.blocks.main.w_o()[gates_after - 1]), fr(expected));
+        }
         info("Number of gates added", gates_after - gates_before);
         bool result = builder.check_circuit();
         EXPECT_EQ(result, true);
@@ -254,7 +259,12 @@ template <typename Builder> class stdlib_field : public testing::Test {
         auto gates_before = builder.get_num_gates();
         fibbonaci(builder);
         auto gates_after = builder.get_num_gates();
-        EXPECT_EQ(builder.get_variable(builder.w_l()[builder.get_num_gates() - 1]), fr(4181));
+        if constexpr (IsAnyOf<bb::StandardCircuitBuilder, Builder>) {
+            EXPECT_EQ(builder.get_variable(builder.blocks.arithmetic.w_l()[builder.get_num_gates() - 1]), fr(4181));
+        }
+        if constexpr (IsAnyOf<bb::UltraCircuitBuilder, Builder>) {
+            EXPECT_EQ(builder.get_variable(builder.blocks.main.w_l()[builder.get_num_gates() - 1]), fr(4181));
+        }
         EXPECT_EQ(gates_after - gates_before, 18UL);
 
         bool result = builder.check_circuit();

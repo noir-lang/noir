@@ -56,11 +56,11 @@ class StandardComposer {
         };
         return result;
     }
-    std::shared_ptr<plonk::proving_key> compute_proving_key(const CircuitBuilder& circuit_constructor);
-    std::shared_ptr<plonk::verification_key> compute_verification_key(const CircuitBuilder& circuit_constructor);
+    std::shared_ptr<plonk::proving_key> compute_proving_key(CircuitBuilder& circuit_constructor);
+    std::shared_ptr<plonk::verification_key> compute_verification_key(CircuitBuilder& circuit_constructor);
 
-    plonk::Verifier create_verifier(const CircuitBuilder& circuit_constructor);
-    plonk::Prover create_prover(const CircuitBuilder& circuit_constructor);
+    plonk::Verifier create_verifier(CircuitBuilder& circuit_constructor);
+    plonk::Prover create_prover(CircuitBuilder& circuit_constructor);
 
     /**
      * Create a manifest, which specifies proof rounds, elements and who supplies them.

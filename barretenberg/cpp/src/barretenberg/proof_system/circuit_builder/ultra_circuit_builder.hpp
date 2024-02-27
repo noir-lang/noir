@@ -1,5 +1,6 @@
 #pragma once
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/proof_system/execution_trace/execution_trace.hpp"
 #include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
@@ -24,10 +25,12 @@ template <typename FF> struct non_native_field_witnesses {
 
 using namespace bb;
 
-template <typename Arithmetization>
-class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization::FF> {
+template <typename Arithmetization_>
+class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization_::FF> {
   public:
-    using Selectors = Arithmetization;
+    using Arithmetization = Arithmetization_;
+    using GateBlocks = typename Arithmetization::TraceBlocks;
+
     using FF = typename Arithmetization::FF;
     static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
     // Keeping NUM_WIRES, at least temporarily, for backward compatibility
@@ -268,347 +271,8 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
         uint32_t hi_3_idx;
     };
 
-    /**
-     * @brief CircuitDataBackup is a structure we use to store all the information about the circuit that is needed
-     * to restore it back to a pre-finalized state
-     * @details In check_circuit method in UltraCircuitBuilder we want to check that the whole circuit works,
-     * but ultra circuits need to have ram, rom and range gates added in the end for the check to be complete as
-     * well as the set permutation check, so we finalize the circuit when we check it. This structure allows us to
-     * restore the circuit to the state before the finalization.
-     */
-    struct CircuitDataBackup {
-        using WireVector = std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>;
-        using SelectorVector = std::vector<FF, bb::ContainerSlabAllocator<FF>>;
-
-        std::vector<uint32_t> public_inputs;
-        std::vector<FF> variables;
-        // index of next variable in equivalence class (=REAL_VARIABLE if you're last)
-        std::vector<uint32_t> next_var_index;
-        // index of  previous variable in equivalence class (=FIRST if you're in a cycle alone)
-        std::vector<uint32_t> prev_var_index;
-        // indices of corresponding real variables
-        std::vector<uint32_t> real_variable_index;
-        std::vector<uint32_t> real_variable_tags;
-        std::map<FF, uint32_t> constant_variable_indices;
-        WireVector w_l;
-        WireVector w_r;
-        WireVector w_o;
-        WireVector w_4;
-        SelectorVector q_m;
-        SelectorVector q_c;
-        SelectorVector q_1;
-        SelectorVector q_2;
-        SelectorVector q_3;
-        SelectorVector q_4;
-        SelectorVector q_arith;
-        SelectorVector q_sort;
-        SelectorVector q_elliptic;
-        SelectorVector q_aux;
-        SelectorVector q_lookup_type;
-        uint32_t current_tag = DUMMY_TAG;
-        std::map<uint32_t, uint32_t> tau;
-
-        std::vector<RamTranscript> ram_arrays;
-        std::vector<RomTranscript> rom_arrays;
-
-        std::vector<uint32_t> memory_read_records;
-        std::vector<uint32_t> memory_write_records;
-        std::map<uint64_t, RangeList> range_lists;
-
-        std::vector<UltraCircuitBuilder_::cached_partial_non_native_field_multiplication>
-            cached_partial_non_native_field_multiplications;
-
-        size_t num_gates;
-        bool circuit_finalized = false;
-        /**
-         * @brief Stores the state of everything logic-related in the builder.
-         *
-         * @details We need this function for tests. Specifically, to ensure that we are not changing anything in
-         * check_circuit
-         *
-         * @param builder
-         * @return CircuitDataBackup
-         */
-        template <typename CircuitBuilder> static CircuitDataBackup store_full_state(const CircuitBuilder& builder)
-        {
-            CircuitDataBackup stored_state;
-            stored_state.public_inputs = builder.public_inputs;
-            stored_state.variables = builder.variables;
-
-            stored_state.next_var_index = builder.next_var_index;
-
-            stored_state.prev_var_index = builder.prev_var_index;
-
-            stored_state.real_variable_index = builder.real_variable_index;
-            stored_state.real_variable_tags = builder.real_variable_tags;
-            stored_state.constant_variable_indices = builder.constant_variable_indices;
-            stored_state.w_l = builder.w_l();
-            stored_state.w_r = builder.w_r();
-            stored_state.w_o = builder.w_o();
-            stored_state.w_4 = builder.w_4();
-            stored_state.q_m = builder.q_m();
-            stored_state.q_c = builder.q_c();
-            stored_state.q_1 = builder.q_1();
-            stored_state.q_2 = builder.q_2();
-            stored_state.q_3 = builder.q_3();
-            stored_state.q_4 = builder.q_4();
-            stored_state.q_arith = builder.q_arith();
-            stored_state.q_sort = builder.q_sort();
-            stored_state.q_elliptic = builder.q_elliptic();
-            stored_state.q_aux = builder.q_aux();
-            stored_state.q_lookup_type = builder.q_lookup_type();
-            stored_state.current_tag = builder.current_tag;
-            stored_state.tau = builder.tau;
-
-            stored_state.ram_arrays = builder.ram_arrays;
-            stored_state.rom_arrays = builder.rom_arrays;
-
-            stored_state.memory_read_records = builder.memory_read_records;
-            stored_state.memory_write_records = builder.memory_write_records;
-            stored_state.range_lists = builder.range_lists;
-            stored_state.circuit_finalized = builder.circuit_finalized;
-            stored_state.num_gates = builder.num_gates;
-            stored_state.cached_partial_non_native_field_multiplications =
-                builder.cached_partial_non_native_field_multiplications;
-            return stored_state;
-        }
-
-        /**
-         * @brief Stores the state of all members of the circuit constructor that are needed to restore the state
-         * after finalizing the circuit.
-         *
-         * @param builder
-         * @return CircuitDataBackup
-         */
-        template <typename CircuitBuilder>
-        static CircuitDataBackup store_prefinilized_state(const CircuitBuilder* builder)
-        {
-            CircuitDataBackup stored_state;
-            stored_state.public_inputs = builder->public_inputs;
-            stored_state.variables = builder->variables;
-
-            stored_state.next_var_index = builder->next_var_index;
-
-            stored_state.prev_var_index = builder->prev_var_index;
-
-            stored_state.real_variable_index = builder->real_variable_index;
-            stored_state.real_variable_tags = builder->real_variable_tags;
-            stored_state.constant_variable_indices = builder->constant_variable_indices;
-            stored_state.current_tag = builder->current_tag;
-            stored_state.tau = builder->tau;
-
-            stored_state.ram_arrays = builder->ram_arrays;
-            stored_state.rom_arrays = builder->rom_arrays;
-
-            stored_state.memory_read_records = builder->memory_read_records;
-            stored_state.memory_write_records = builder->memory_write_records;
-            stored_state.range_lists = builder->range_lists;
-            stored_state.circuit_finalized = builder->circuit_finalized;
-            stored_state.num_gates = builder->num_gates;
-            stored_state.cached_partial_non_native_field_multiplications =
-                builder->cached_partial_non_native_field_multiplications;
-
-            return stored_state;
-        }
-
-        /**
-         * @brief Restores circuit constructor to a prefinilized state.
-         *
-         * @param builder
-         * @return CircuitDataBackup
-         */
-        template <typename CircuitBuilder> void restore_prefinilized_state(CircuitBuilder* builder)
-        {
-            builder->public_inputs = public_inputs;
-            builder->variables = variables;
-
-            builder->next_var_index = next_var_index;
-
-            builder->prev_var_index = prev_var_index;
-
-            builder->real_variable_index = real_variable_index;
-            builder->real_variable_tags = real_variable_tags;
-            builder->constant_variable_indices = constant_variable_indices;
-            builder->current_tag = current_tag;
-            builder->tau = tau;
-
-            builder->ram_arrays = ram_arrays;
-            builder->rom_arrays = rom_arrays;
-
-            builder->memory_read_records = memory_read_records;
-            builder->memory_write_records = memory_write_records;
-            builder->range_lists = range_lists;
-            builder->circuit_finalized = circuit_finalized;
-            builder->num_gates = num_gates;
-            builder->cached_partial_non_native_field_multiplications = cached_partial_non_native_field_multiplications;
-            builder->w_l().resize(num_gates);
-            builder->w_r().resize(num_gates);
-            builder->w_o().resize(num_gates);
-            builder->w_4().resize(num_gates);
-            builder->q_m().resize(num_gates);
-            builder->q_c().resize(num_gates);
-            builder->q_1().resize(num_gates);
-            builder->q_2().resize(num_gates);
-            builder->q_3().resize(num_gates);
-            builder->q_4().resize(num_gates);
-            builder->q_arith().resize(num_gates);
-            builder->q_sort().resize(num_gates);
-            builder->q_elliptic().resize(num_gates);
-            builder->q_aux().resize(num_gates);
-            builder->q_lookup_type().resize(num_gates);
-            if constexpr (HasAdditionalSelectors<Arithmetization>) {
-                builder->selectors.resize_additional(num_gates);
-            }
-        }
-        /**
-         * @brief Checks that the circuit state is the same as the stored circuit's one
-         *
-         * @param builder
-         * @return true
-         * @return false
-         */
-        template <typename CircuitBuilder> bool is_same_state(const CircuitBuilder& builder)
-        {
-            if (!(public_inputs == builder.public_inputs)) {
-                return false;
-            }
-            if (!(variables == builder.variables)) {
-                return false;
-            }
-            if (!(next_var_index == builder.next_var_index)) {
-                return false;
-            }
-            if (!(prev_var_index == builder.prev_var_index)) {
-                return false;
-            }
-            if (!(real_variable_index == builder.real_variable_index)) {
-                return false;
-            }
-            if (!(real_variable_tags == builder.real_variable_tags)) {
-                return false;
-            }
-            if (!(constant_variable_indices == builder.constant_variable_indices)) {
-                return false;
-            }
-            if (!(w_l == builder.w_l())) {
-                return false;
-            }
-            if (!(w_r == builder.w_r())) {
-                return false;
-            }
-            if (!(w_o == builder.w_o())) {
-                return false;
-            }
-            if (!(w_4 == builder.w_4())) {
-                return false;
-            }
-            if (!(q_m == builder.q_m())) {
-                return false;
-            }
-            if (!(q_c == builder.q_c())) {
-                return false;
-            }
-            if (!(q_1 == builder.q_1())) {
-                return false;
-            }
-            if (!(q_2 == builder.q_2())) {
-                return false;
-            }
-            if (!(q_3 == builder.q_3())) {
-                return false;
-            }
-            if (!(q_4 == builder.q_4())) {
-                return false;
-            }
-            if (!(q_arith == builder.q_arith())) {
-                return false;
-            }
-            if (!(q_sort == builder.q_sort())) {
-                return false;
-            }
-            if (!(q_elliptic == builder.q_elliptic())) {
-                return false;
-            }
-            if (!(q_aux == builder.q_aux())) {
-                return false;
-            }
-            if (!(q_lookup_type == builder.q_lookup_type())) {
-                return false;
-            }
-            if (!(current_tag == builder.current_tag)) {
-                return false;
-            }
-            if (!(tau == builder.tau)) {
-                return false;
-            }
-            if (!(ram_arrays == builder.ram_arrays)) {
-                return false;
-            }
-            if (!(rom_arrays == builder.rom_arrays)) {
-                return false;
-            }
-            if (!(memory_read_records == builder.memory_read_records)) {
-                return false;
-            }
-            if (!(memory_write_records == builder.memory_write_records)) {
-                return false;
-            }
-            if (!(range_lists == builder.range_lists)) {
-                return false;
-            }
-            if (!(cached_partial_non_native_field_multiplications ==
-                  builder.cached_partial_non_native_field_multiplications)) {
-                return false;
-            }
-            if (!(num_gates == builder.num_gates)) {
-                return false;
-            }
-            if (!(circuit_finalized == builder.circuit_finalized)) {
-                return false;
-            }
-            return true;
-        }
-    };
-
-    std::array<std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>, NUM_WIRES> wires;
-    Arithmetization selectors;
-
-    using WireVector = std::vector<uint32_t, ContainerSlabAllocator<uint32_t>>;
-    using SelectorVector = std::vector<FF, ContainerSlabAllocator<FF>>;
-
-    WireVector& w_l() { return std::get<0>(wires); };
-    WireVector& w_r() { return std::get<1>(wires); };
-    WireVector& w_o() { return std::get<2>(wires); };
-    WireVector& w_4() { return std::get<3>(wires); };
-
-    const WireVector& w_l() const { return std::get<0>(wires); };
-    const WireVector& w_r() const { return std::get<1>(wires); };
-    const WireVector& w_o() const { return std::get<2>(wires); };
-    const WireVector& w_4() const { return std::get<3>(wires); };
-
-    SelectorVector& q_m() { return selectors.q_m(); };
-    SelectorVector& q_c() { return selectors.q_c(); };
-    SelectorVector& q_1() { return selectors.q_1(); };
-    SelectorVector& q_2() { return selectors.q_2(); };
-    SelectorVector& q_3() { return selectors.q_3(); };
-    SelectorVector& q_4() { return selectors.q_4(); };
-    SelectorVector& q_arith() { return selectors.q_arith(); };
-    SelectorVector& q_sort() { return selectors.q_sort(); };
-    SelectorVector& q_elliptic() { return selectors.q_elliptic(); };
-    SelectorVector& q_aux() { return selectors.q_aux(); };
-    SelectorVector& q_lookup_type() { return selectors.q_lookup_type(); };
-
-    const SelectorVector& q_c() const { return selectors.q_c(); };
-    const SelectorVector& q_1() const { return selectors.q_1(); };
-    const SelectorVector& q_2() const { return selectors.q_2(); };
-    const SelectorVector& q_3() const { return selectors.q_3(); };
-    const SelectorVector& q_4() const { return selectors.q_4(); };
-    const SelectorVector& q_arith() const { return selectors.q_arith(); };
-    const SelectorVector& q_sort() const { return selectors.q_sort(); };
-    const SelectorVector& q_elliptic() const { return selectors.q_elliptic(); };
-    const SelectorVector& q_aux() const { return selectors.q_aux(); };
-    const SelectorVector& q_lookup_type() const { return selectors.q_lookup_type(); };
-    const SelectorVector& q_m() const { return selectors.q_m(); };
+    // Storage for wires and selectors for all gate types
+    GateBlocks blocks;
 
     // These are variables that we have used a gate on, to enforce that they are
     // equal to a defined value.
@@ -649,11 +313,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
     UltraCircuitBuilder_(const size_t size_hint = 0)
         : CircuitBuilderBase<FF>(size_hint)
     {
-        selectors.reserve(size_hint);
-        w_l().reserve(size_hint);
-        w_r().reserve(size_hint);
-        w_o().reserve(size_hint);
-        w_4().reserve(size_hint);
+        blocks.main.reserve(size_hint);
         this->zero_idx = put_constant_variable(FF::zero());
         this->tau.insert({ DUMMY_TAG, DUMMY_TAG }); // TODO(luke): explain this
     };
@@ -678,11 +338,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
                          bool recursive = false)
         : CircuitBuilderBase<FF>(size_hint)
     {
-        selectors.reserve(size_hint);
-        w_l().reserve(size_hint);
-        w_r().reserve(size_hint);
-        w_o().reserve(size_hint);
-        w_4().reserve(size_hint);
+        blocks.main.reserve(size_hint);
 
         for (size_t idx = 0; idx < varnum; ++idx) {
             // Zeros are added for variables whose existence is known but whose values are not yet known. The values may
@@ -705,8 +361,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
     UltraCircuitBuilder_(UltraCircuitBuilder_&& other)
         : CircuitBuilderBase<FF>(std::move(other))
     {
-        wires = other.wires;
-        selectors = other.selectors;
+        blocks = other.blocks;
         constant_variable_indices = other.constant_variable_indices;
 
         lookup_tables = other.lookup_tables;
@@ -723,8 +378,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
     UltraCircuitBuilder_& operator=(UltraCircuitBuilder_&& other)
     {
         CircuitBuilderBase<FF>::operator=(std::move(other));
-        wires = other.wires;
-        selectors = other.selectors;
+        blocks = other.blocks;
         constant_variable_indices = other.constant_variable_indices;
 
         lookup_tables = other.lookup_tables;
@@ -740,6 +394,8 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
     };
     ~UltraCircuitBuilder_() override = default;
 
+    bool operator==(const UltraCircuitBuilder_& other) const = default;
+
     /**
      * @brief Debug helper method for ensuring all selectors have the same size
      * @details Each gate construction method manually appends values to the selectors. Failing to update one of the
@@ -752,9 +408,9 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization:
 #if NDEBUG
         // do nothing
 #else
-        size_t nominal_size = selectors.get()[0].size();
-        for (size_t idx = 1; idx < selectors.get().size(); ++idx) {
-            ASSERT(selectors.get()[idx].size() == nominal_size);
+        size_t nominal_size = blocks.main.selectors[0].size();
+        for (size_t idx = 1; idx < blocks.main.selectors.size(); ++idx) {
+            ASSERT(blocks.main.selectors[idx].size() == nominal_size);
         }
 #endif // NDEBUG
     }

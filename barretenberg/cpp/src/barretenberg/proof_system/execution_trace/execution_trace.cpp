@@ -6,7 +6,7 @@
 namespace bb {
 
 template <class Flavor>
-void ExecutionTrace_<Flavor>::generate(const Builder& builder,
+void ExecutionTrace_<Flavor>::populate(Builder& builder,
                                        const std::shared_ptr<typename Flavor::ProvingKey>& proving_key)
 {
     // Construct wire polynomials, selector polynomials, and copy cycles from raw circuit data
@@ -14,20 +14,24 @@ void ExecutionTrace_<Flavor>::generate(const Builder& builder,
 
     add_wires_and_selectors_to_proving_key(trace_data, builder, proving_key);
 
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        add_ecc_op_wires_to_proving_key(builder, proving_key);
+    }
+
     // Compute the permutation argument polynomials (sigma/id) and add them to proving key
     compute_permutation_argument_polynomials<Flavor>(builder, proving_key.get(), trace_data.copy_cycles);
 }
 
 template <class Flavor>
 void ExecutionTrace_<Flavor>::add_wires_and_selectors_to_proving_key(
-    TraceData& trace_data, const Builder& builder, const std::shared_ptr<typename Flavor::ProvingKey>& proving_key)
+    TraceData& trace_data, Builder& builder, const std::shared_ptr<typename Flavor::ProvingKey>& proving_key)
 {
     if constexpr (IsHonkFlavor<Flavor>) {
         for (auto [pkey_wire, trace_wire] : zip_view(proving_key->get_wires(), trace_data.wires)) {
-            pkey_wire = std::move(trace_wire);
+            pkey_wire = trace_wire.share();
         }
         for (auto [pkey_selector, trace_selector] : zip_view(proving_key->get_selectors(), trace_data.selectors)) {
-            pkey_selector = std::move(trace_selector);
+            pkey_selector = trace_selector.share();
         }
     } else if constexpr (IsPlonkFlavor<Flavor>) {
         for (size_t idx = 0; idx < trace_data.wires.size(); ++idx) {
@@ -42,19 +46,17 @@ void ExecutionTrace_<Flavor>::add_wires_and_selectors_to_proving_key(
 }
 
 template <class Flavor>
-typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_trace_data(const Builder& builder,
+typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_trace_data(Builder& builder,
                                                                                           size_t dyadic_circuit_size)
 {
     TraceData trace_data{ dyadic_circuit_size, builder };
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/862): Eventually trace_blocks will be constructed
-    // directly in the builder, i.e. the gate addition methods will directly populate the wire/selectors in the
-    // appropriate block. In the mean time we do some inefficient copying etc to construct it here post facto.
-    auto trace_blocks = create_execution_trace_blocks(builder);
+    // Complete the public inputs execution trace block from builder.public_inputs
+    populate_public_inputs_block(builder);
 
-    uint32_t offset = 0; // Track offset at which to place each block in the trace polynomials
+    uint32_t offset = Flavor::has_zero_row ? 1 : 0; // Offset at which to place each block in the trace polynomials
     // For each block in the trace, populate wire polys, copy cycles and selector polys
-    for (auto& block : trace_blocks) {
+    for (auto& block : builder.blocks.get()) {
         auto block_size = static_cast<uint32_t>(block.wires[0].size());
 
         // Update wire polynomials and copy cycles
@@ -73,7 +75,7 @@ typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_t
 
         // Insert the selector values for this block into the selector polynomials at the correct offset
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/398): implicit arithmetization/flavor consistency
-        for (auto [selector_poly, selector] : zip_view(trace_data.selectors, block.selectors.get())) {
+        for (auto [selector_poly, selector] : zip_view(trace_data.selectors, block.selectors)) {
             for (size_t row_idx = 0; row_idx < block_size; ++row_idx) {
                 size_t trace_row_idx = row_idx + offset;
                 selector_poly[trace_row_idx] = selector[row_idx];
@@ -85,52 +87,51 @@ typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_t
     return trace_data;
 }
 
-template <class Flavor>
-std::vector<typename ExecutionTrace_<Flavor>::TraceBlock> ExecutionTrace_<Flavor>::create_execution_trace_blocks(
-    const Builder& builder)
+template <class Flavor> void ExecutionTrace_<Flavor>::populate_public_inputs_block(Builder& builder)
 {
-    std::vector<TraceBlock> trace_blocks;
-
-    // Make a block for the zero row
-    if constexpr (Flavor::has_zero_row) {
-        TraceBlock zero_block;
-        for (auto& wire : zero_block.wires) {
-            wire.emplace_back(builder.zero_idx);
-        }
-        for (auto& selector : zero_block.selectors.get()) {
-            selector.emplace_back(0);
-        }
-        trace_blocks.emplace_back(zero_block);
-    }
-
-    // Make a block for the ecc op wires
-    if constexpr (IsGoblinFlavor<Flavor>) {
-        trace_blocks.emplace_back(builder.ecc_op_block);
-    }
-
-    // Make a block for the public inputs
-    TraceBlock public_block;
+    // Update the public inputs block
     for (auto& idx : builder.public_inputs) {
         for (size_t wire_idx = 0; wire_idx < NUM_WIRES; ++wire_idx) {
             if (wire_idx < 2) { // first two wires get a copy of the public inputs
-                public_block.wires[wire_idx].emplace_back(idx);
+                builder.blocks.pub_inputs.wires[wire_idx].emplace_back(idx);
             } else { // the remaining wires get zeros
-                public_block.wires[wire_idx].emplace_back(builder.zero_idx);
+                builder.blocks.pub_inputs.wires[wire_idx].emplace_back(builder.zero_idx);
             }
         }
-        for (auto& selector : public_block.selectors.get()) {
+        for (auto& selector : builder.blocks.pub_inputs.selectors) {
             selector.emplace_back(0);
         }
     }
+}
 
-    public_block.is_public_input = true;
-    trace_blocks.emplace_back(public_block);
+template <class Flavor>
+void ExecutionTrace_<Flavor>::add_ecc_op_wires_to_proving_key(
+    Builder& builder, const std::shared_ptr<typename Flavor::ProvingKey>& proving_key)
+    requires IsGoblinFlavor<Flavor>
+{
+    // Initialize the ecc op wire polynomials to zero on the whole domain
+    std::array<Polynomial, NUM_WIRES> op_wire_polynomials;
+    for (auto& poly : op_wire_polynomials) {
+        poly = Polynomial{ proving_key->circuit_size };
+    }
+    Polynomial ecc_op_selector{ proving_key->circuit_size };
 
-    // Make a block for the basic wires and selectors
-    TraceBlock conventional_block{ builder.wires, builder.selectors };
-    trace_blocks.emplace_back(conventional_block);
+    // Copy the ecc op data from the conventional wires into the op wires over the range of ecc op gates
+    const size_t op_wire_offset = Flavor::has_zero_row ? 1 : 0;
+    for (auto [ecc_op_wire, wire] : zip_view(op_wire_polynomials, proving_key->get_wires())) {
+        for (size_t i = 0; i < builder.num_ecc_op_gates; ++i) {
+            size_t idx = i + op_wire_offset;
+            ecc_op_wire[idx] = wire[idx];
+            ecc_op_selector[idx] = 1; // construct the selector as the indicator on the ecc op block
+        }
+    }
 
-    return trace_blocks;
+    proving_key->num_ecc_op_gates = builder.num_ecc_op_gates;
+    proving_key->ecc_op_wire_1 = op_wire_polynomials[0].share();
+    proving_key->ecc_op_wire_2 = op_wire_polynomials[1].share();
+    proving_key->ecc_op_wire_3 = op_wire_polynomials[2].share();
+    proving_key->ecc_op_wire_4 = op_wire_polynomials[3].share();
+    proving_key->lagrange_ecc_op = ecc_op_selector.share();
 }
 
 template class ExecutionTrace_<UltraFlavor>;

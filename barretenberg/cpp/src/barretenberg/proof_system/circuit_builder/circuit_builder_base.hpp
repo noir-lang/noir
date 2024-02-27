@@ -67,6 +67,8 @@ template <typename FF_> class CircuitBuilderBase {
     CircuitBuilderBase& operator=(CircuitBuilderBase&& other) noexcept = default;
     virtual ~CircuitBuilderBase() = default;
 
+    bool operator==(const CircuitBuilderBase& other) const = default;
+
     virtual size_t get_num_gates() const { return num_gates; }
     virtual void print_num_gates() const { std::cout << num_gates << std::endl; }
     virtual size_t get_num_variables() const { return variables.size(); }

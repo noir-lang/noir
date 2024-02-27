@@ -44,8 +44,7 @@ TEST(GoblinUltraCircuitBuilder, CopyConstructor)
 
     GoblinUltraCircuitBuilder duplicate_circuit_constructor{ circuit_constructor };
 
-    EXPECT_EQ(duplicate_circuit_constructor.get_num_gates(), circuit_constructor.get_num_gates());
-    EXPECT_EQ(duplicate_circuit_constructor.selectors.get(), circuit_constructor.selectors.get());
+    EXPECT_EQ(duplicate_circuit_constructor, circuit_constructor);
     EXPECT_TRUE(duplicate_circuit_constructor.check_circuit());
 }
 
@@ -102,27 +101,27 @@ TEST(GoblinUltraCircuitBuilder, GoblinSimple)
     EXPECT_EQ(builder.num_ecc_op_gates, 6);
 
     // Check that the expected op codes have been correctly recorded in the 1st op wire
-    EXPECT_EQ(builder.ecc_op_wire_1()[0], EccOpCode::ADD_ACCUM);
-    EXPECT_EQ(builder.ecc_op_wire_1()[2], EccOpCode::MUL_ACCUM);
-    EXPECT_EQ(builder.ecc_op_wire_1()[4], EccOpCode::EQUALITY);
+    EXPECT_EQ(builder.blocks.ecc_op.w_l()[0], EccOpCode::ADD_ACCUM);
+    EXPECT_EQ(builder.blocks.ecc_op.w_l()[2], EccOpCode::MUL_ACCUM);
+    EXPECT_EQ(builder.blocks.ecc_op.w_l()[4], EccOpCode::EQUALITY);
 
     // Check that we can reconstruct the coordinates of P1 from the op_wires
-    auto P1_x_lo = uint256_t(builder.variables[builder.ecc_op_wire_2()[0]]);
-    auto P1_x_hi = uint256_t(builder.variables[builder.ecc_op_wire_3()[0]]);
+    auto P1_x_lo = uint256_t(builder.variables[builder.blocks.ecc_op.w_r()[0]]);
+    auto P1_x_hi = uint256_t(builder.variables[builder.blocks.ecc_op.w_o()[0]]);
     auto P1_x = P1_x_lo + (P1_x_hi << CHUNK_SIZE);
     EXPECT_EQ(P1_x, uint256_t(P1.x));
-    auto P1_y_lo = uint256_t(builder.variables[builder.ecc_op_wire_4()[0]]);
-    auto P1_y_hi = uint256_t(builder.variables[builder.ecc_op_wire_2()[1]]);
+    auto P1_y_lo = uint256_t(builder.variables[builder.blocks.ecc_op.w_4()[0]]);
+    auto P1_y_hi = uint256_t(builder.variables[builder.blocks.ecc_op.w_r()[1]]);
     auto P1_y = P1_y_lo + (P1_y_hi << CHUNK_SIZE);
     EXPECT_EQ(P1_y, uint256_t(P1.y));
 
     // Check that we can reconstruct the coordinates of P2 from the op_wires
-    auto P2_x_lo = uint256_t(builder.variables[builder.ecc_op_wire_2()[2]]);
-    auto P2_x_hi = uint256_t(builder.variables[builder.ecc_op_wire_3()[2]]);
+    auto P2_x_lo = uint256_t(builder.variables[builder.blocks.ecc_op.w_r()[2]]);
+    auto P2_x_hi = uint256_t(builder.variables[builder.blocks.ecc_op.w_o()[2]]);
     auto P2_x = P2_x_lo + (P2_x_hi << CHUNK_SIZE);
     EXPECT_EQ(P2_x, uint256_t(P2.x));
-    auto P2_y_lo = uint256_t(builder.variables[builder.ecc_op_wire_4()[2]]);
-    auto P2_y_hi = uint256_t(builder.variables[builder.ecc_op_wire_2()[3]]);
+    auto P2_y_lo = uint256_t(builder.variables[builder.blocks.ecc_op.w_4()[2]]);
+    auto P2_y_hi = uint256_t(builder.variables[builder.blocks.ecc_op.w_r()[3]]);
     auto P2_y = P2_y_lo + (P2_y_hi << CHUNK_SIZE);
     EXPECT_EQ(P2_y, uint256_t(P2.y));
 }
@@ -150,7 +149,7 @@ TEST(GoblinUltraCircuitBuilder, GoblinEccOpQueueUltraOps)
     auto ultra_ops = builder.op_queue->get_aggregate_transcript();
     for (size_t i = 1; i < 4; ++i) {
         for (size_t j = 0; j < builder.num_ecc_op_gates; ++j) {
-            auto op_wire_val = builder.variables[builder.ecc_op_block.wires[i][j]];
+            auto op_wire_val = builder.variables[builder.blocks.ecc_op.wires[i][j]];
             auto ultra_op_val = ultra_ops[i][j];
             ASSERT_EQ(op_wire_val, ultra_op_val);
         }

@@ -5,26 +5,12 @@
 
 namespace bb {
 
-/**
- * @brief The wires and selectors used to define a block in the execution trace
- *
- * @tparam Arithmetization The set of selectors corresponding to the arithmetization
- */
-template <class Arithmetization> struct ExecutionTraceBlock {
-    // WORKTODO: Zac - make this less terrible
-    using Wires = std::array<std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>, Arithmetization::NUM_WIRES>;
-    Wires wires;
-    Arithmetization selectors;
-    bool is_public_input = false;
-};
-
 template <class Flavor> class ExecutionTrace_ {
     using Builder = typename Flavor::CircuitBuilder;
     using Polynomial = typename Flavor::Polynomial;
     using FF = typename Flavor::FF;
-    using TraceBlock = ExecutionTraceBlock<typename Builder::Selectors>;
+    using TrackBlocks = typename Builder::Arithmetization::TraceBlocks;
     using Wires = std::array<std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>, Builder::NUM_WIRES>;
-    using Selectors = typename Builder::Selectors;
     using ProvingKey = typename Flavor::ProvingKey;
 
   public:
@@ -32,11 +18,11 @@ template <class Flavor> class ExecutionTrace_ {
 
     struct TraceData {
         std::array<Polynomial, NUM_WIRES> wires;
-        std::array<Polynomial, Builder::Selectors::NUM_SELECTORS> selectors;
+        std::array<Polynomial, Builder::Arithmetization::NUM_SELECTORS> selectors;
         // A vector of sets (vectors) of addresses into the wire polynomials whose values are copy constrained
         std::vector<CyclicPermutation> copy_cycles;
 
-        TraceData(size_t dyadic_circuit_size, const Builder& builder)
+        TraceData(size_t dyadic_circuit_size, Builder& builder)
         {
             // Initializate the wire and selector polynomials
             for (auto& wire : wires) {
@@ -54,7 +40,7 @@ template <class Flavor> class ExecutionTrace_ {
      *
      * @param builder
      */
-    static void generate(const Builder& builder, const std::shared_ptr<ProvingKey>&);
+    static void populate(Builder& builder, const std::shared_ptr<ProvingKey>&);
 
   private:
     /**
@@ -65,7 +51,7 @@ template <class Flavor> class ExecutionTrace_ {
      * @param proving_key
      */
     static void add_wires_and_selectors_to_proving_key(TraceData& trace_data,
-                                                       const Builder& builder,
+                                                       Builder& builder,
                                                        const std::shared_ptr<typename Flavor::ProvingKey>& proving_key);
 
     /**
@@ -75,16 +61,27 @@ template <class Flavor> class ExecutionTrace_ {
      * @param dyadic_circuit_size
      * @return TraceData
      */
-    static TraceData construct_trace_data(const Builder& builder, size_t dyadic_circuit_size);
+    static TraceData construct_trace_data(Builder& builder, size_t dyadic_circuit_size);
 
     /**
-     * @brief Temporary helper method to construct execution trace blocks from existing builder structures
-     * @details Eventually the builder will construct blocks directly
+     * @brief Populate the public inputs block
+     * @details The first two wires are a copy of the public inputs and the other wires and all selectors are zero
      *
      * @param builder
-     * @return std::vector<TraceBlock>
      */
-    static std::vector<TraceBlock> create_execution_trace_blocks(const Builder& builder);
+    static void populate_public_inputs_block(Builder& builder);
+
+    /**
+     * @brief Construct and add the goblin ecc op wires to the proving key
+     * @details The ecc op wires vanish everywhere except on the ecc op block, where they contain a copy of the ecc op
+     * data assumed already to be present in the corrresponding block of the conventional wires in the proving key.
+     *
+     * @param builder
+     * @param proving_key
+     */
+    static void add_ecc_op_wires_to_proving_key(Builder& builder,
+                                                const std::shared_ptr<typename Flavor::ProvingKey>& proving_key)
+        requires IsGoblinFlavor<Flavor>;
 };
 
 } // namespace bb

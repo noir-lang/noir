@@ -33,44 +33,6 @@ template <class Flavor> size_t ProverInstance_<Flavor>::compute_dyadic_size(Circ
 }
 
 /**
- * @brief Construct Goblin style ECC op wire polynomials
- * @details The Ecc op wire values are assumed to have already been stored in the corresponding block of the
- * conventional wire polynomials. The values for the ecc op wire polynomials are set based on those values.
- *
- * @tparam Flavor
- * @param wire_polynomials
- */
-template <class Flavor>
-void ProverInstance_<Flavor>::construct_ecc_op_wire_polynomials(Circuit& circuit)
-    requires IsGoblinFlavor<Flavor>
-{
-    std::array<Polynomial, Flavor::NUM_WIRES> op_wire_polynomials;
-    for (auto& poly : op_wire_polynomials) {
-        poly = Polynomial{ dyadic_circuit_size };
-    }
-    Polynomial ecc_op_selector{ dyadic_circuit_size };
-
-    // The ECC op wires are constructed to contain the op data on the appropriate range and to vanish everywhere else.
-    // The op data is assumed to have already been stored at the correct location in the convetional wires so the data
-    // can simply be copied over directly.
-    const size_t op_wire_offset = Flavor::has_zero_row ? 1 : 0;
-    for (auto [ecc_op_wire, wire] : zip_view(op_wire_polynomials, proving_key->get_wires())) {
-        for (size_t i = 0; i < circuit.num_ecc_op_gates; ++i) {
-            size_t idx = i + op_wire_offset;
-            ecc_op_wire[idx] = wire[idx];
-            ecc_op_selector[idx] = 1;
-        }
-    }
-
-    proving_key->num_ecc_op_gates = circuit.num_ecc_op_gates;
-    proving_key->ecc_op_wire_1 = op_wire_polynomials[0].share();
-    proving_key->ecc_op_wire_2 = op_wire_polynomials[1].share();
-    proving_key->ecc_op_wire_3 = op_wire_polynomials[2].share();
-    proving_key->ecc_op_wire_4 = op_wire_polynomials[3].share();
-    proving_key->lagrange_ecc_op = ecc_op_selector.share();
-}
-
-/**
  * @brief
  * @details
  *

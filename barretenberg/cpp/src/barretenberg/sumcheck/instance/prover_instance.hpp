@@ -69,12 +69,10 @@ template <class Flavor> class ProverInstance_ {
         proving_key = std::make_shared<ProvingKey>(dyadic_circuit_size, circuit.public_inputs.size());
 
         // Construct and add to proving key the wire, selector and copy constraint polynomials
-        Trace::generate(circuit, proving_key);
+        Trace::populate(circuit, proving_key);
 
-        // If Goblin, construct the ECC op queue wire and databus polynomials
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/862): Maybe do this in trace generation?
+        // If Goblin, construct the databus polynomials
         if constexpr (IsGoblinFlavor<Flavor>) {
-            construct_ecc_op_wire_polynomials(circuit);
             construct_databus_polynomials(circuit);
         }
 
@@ -115,9 +113,6 @@ template <class Flavor> class ProverInstance_ {
     size_t dyadic_circuit_size = 0; // final power-of-2 circuit size
 
     size_t compute_dyadic_size(Circuit&);
-
-    void construct_ecc_op_wire_polynomials(Circuit&)
-        requires IsGoblinFlavor<Flavor>;
 
     void construct_databus_polynomials(Circuit&)
         requires IsGoblinFlavor<Flavor>;
