@@ -108,6 +108,8 @@ it is unsafe! Use at your own risk!
 
 Example:
 
+#include_ get_unchecked_example
+
 ```rust
 fn sum_of_first_three<N>(v: BoundedVec<u32, N>) -> u32 {
     // Always ensure the length is larger than the largest
@@ -133,15 +135,7 @@ Panics if the new length of the vector will be greater than the max length.
 
 Example:
 
-```rust
-let mut v: BoundedVec<Field, 2> = BoundedVec::new();
-
-v.push(1);
-v.push(2);
-
-// Error: Assertion failed, len exceeded max_len
-v.push(3);
-```
+#include_code bounded-vec-push-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
 ### pop
 
@@ -156,20 +150,7 @@ Panics if the vector is empty.
 
 Example:
 
-```rust
-let mut v: BoundedVec<Field, 2> = BoundedVec::new();
-v.push(1);
-v.push(2);
-
-let two = v.pop();
-let one = v.pop();
-
-assert(two == 2);
-assert(one == 1);
-
-// error: cannot pop from an empty vector
-let _ = v.pop();
-```
+#include_code bounded-vec-pop-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
 ### len
 
@@ -181,22 +162,7 @@ Returns the current length of this vector
 
 Example:
 
-```rust
-let mut v: BoundedVec<Field, 2> = BoundedVec::new();
-assert(v.len() == 0);
-
-v.push(100);
-assert(v.len() == 1);
-
-v.push(200);
-v.push(300);
-v.push(400);
-assert(v.len() == 4);
-
-v.pop();
-v.pop();
-assert(v.len() == 2);
-```
+#include_code bounded-vec-len-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
 ### max_len
 
@@ -209,13 +175,7 @@ equal to the `MaxLen` parameter this vector was initialized with.
 
 Example:
 
-```rust
-let mut v: BoundedVec<Field, 5> = BoundedVec::new();
-
-assert(v.max_len() == 5);
-v.push(10);
-assert(v.max_len() == 5);
-```
+#include_code bounded-vec-max-len-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
 ### storage
 
@@ -231,14 +191,7 @@ Note that uninitialized elements may be zeroed out!
 
 Example:
 
-```rust
-let mut v: BoundedVec<Field, 5> = BoundedVec::new();
-
-assert(v.storage() == [0, 0, 0, 0, 0]);
-
-v.push(57);
-assert(v.storage() == [57, 0, 0, 0, 0]);
-```
+#include_code bounded-vec-storage-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
 ### extend_from_array
 
@@ -253,12 +206,7 @@ to exceed the maximum length.
 
 Example:
 
-```rust
-let mut v: BoundedVec<Field, 5> = BoundedVec::new();
-v.extend_from_array([1, 2, 3, 4]);
-
-assert(v.storage() == [1, 2, 3, 4, 0]);
-```
+#include_code bounded-vec-extend-from-array-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
 ### extend_from_bounded_vec
 
@@ -274,16 +222,7 @@ to exceed the maximum length.
 
 Example:
 
-```rust
-let mut v1: BoundedVec<Field, 5> = BoundedVec::new();
-let mut v2: BoundedVec<Field, 7> = BoundedVec::new();
-
-v2.extend_from_array([1, 2, 3]);
-v1.extend_from_bounded_vec(v2);
-
-assert(v1.storage() == [1, 2, 3, 0, 0]);
-assert(v2.storage() == [1, 2, 3, 0, 0, 0, 0]);
-```
+#include_code bounded-vec-extend-from-bounded-vec-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
 ### any
 
@@ -296,10 +235,4 @@ in this vector.
 
 Example:
 
-```rust
-let mut v: BoundedVec<u32, 10> = BoundedVec::new();
-v.extend_from_array([2, 4, 6]);
-
-let all_even = !v.any(|elem: u32| elem % 2 != 0);
-assert(all_even);
-```
+#include_code bounded-vec-any-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
