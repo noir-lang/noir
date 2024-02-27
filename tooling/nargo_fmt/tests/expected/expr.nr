@@ -88,7 +88,7 @@ fn line() {
 }
 
 fn parenthesized() {
-    value + (x as Field)
+    value + (x as field)
 }
 
 fn parenthesized() {
@@ -96,13 +96,13 @@ fn parenthesized() {
 }
 
 fn parenthesized() {
-    value + (/*test*/x as Field/*test*/)
+    value + (/*test*/x as field/*test*/)
 }
 
 fn parenthesized() {
     value + (
             // line
-            x as Field
+            x as field
         )
 }
 

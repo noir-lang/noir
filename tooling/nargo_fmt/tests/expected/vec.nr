@@ -18,7 +18,7 @@ impl<T> Vec<T> {
     /// Get an element from the vector at the given index.
     /// Panics if the given index
     /// points beyond the end of the vector.
-    pub fn get(self, index: Field) -> T {
+    pub fn get(self, index: field) -> T {
         self.slice[index]
     }
 
@@ -41,20 +41,20 @@ impl<T> Vec<T> {
 
     /// Insert an element at a specified index, shifting all elements 
     /// after it to the right
-    pub fn insert(&mut self, index: Field, elem: T) {
+    pub fn insert(&mut self, index: field, elem: T) {
         self.slice = self.slice.insert(index, elem);
     }
 
     /// Remove an element at a specified index, shifting all elements
     /// after it to the left, returning the removed element
-    pub fn remove(&mut self, index: Field) -> T {
+    pub fn remove(&mut self, index: field) -> T {
         let (new_slice, elem) = self.slice.remove(index);
         self.slice = new_slice;
         elem
     }
 
     /// Returns the number of elements in the vector
-    pub fn len(self) -> Field {
+    pub fn len(self) -> field {
         self.slice.len()
     }
 }
