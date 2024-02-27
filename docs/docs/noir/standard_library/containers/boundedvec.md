@@ -51,27 +51,10 @@ assert(empty_vector.len() == 0);
 Note that whenever calling `new` the maximum length of the vector should always be specified
 via a type signature:
 
-```rust
-fn foo() -> BoundedVec<Field, 10> {
-    // Ok! MaxLen is specified with a type annotation
-    let v1: BoundedVec<Field, 3> = BoundedVec::new();
-    let v2 = BoundedVec::new();
-    ...
-    // Ok! MaxLen is known from the type of foo's return value
-    v2
-}
-
-fn bad() {
-    let mut v3 = BoundedVec::new();
-
-    // Not Ok! We don't know if v3's MaxLen is at least 1, and the compiler often infers 0 by default.
-    v3.push(5);
-}
-```
+#include_code new_example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
 This defaulting of `MaxLen` (and numeric generics in general) to zero may change in future noir versions
-but for now make sure to use type annotations when using bounded vectors. Otherwise,
-you will receive a constraint failure at runtime when the vec is pushed to.
+but for now make sure to use type annotations when using bounded vectors. Otherwise, you will receive a constraint failure at runtime when the vec is pushed to.
 
 ### get
 
@@ -108,19 +91,8 @@ it is unsafe! Use at your own risk!
 
 Example:
 
-#include_ get_unchecked_example
+#include_code get_unchecked_example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
-```rust
-fn sum_of_first_three<N>(v: BoundedVec<u32, N>) -> u32 {
-    // Always ensure the length is larger than the largest
-    // index passed to get_unchecked
-    assert(v.len() > 2);
-    let first = v.get_unchecked(0);
-    let second = v.get_unchecked(1);
-    let third = v.get_unchecked(2);
-    first + second + third
-}
-```
 
 ### push
 

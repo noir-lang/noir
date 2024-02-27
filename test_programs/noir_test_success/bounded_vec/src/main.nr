@@ -1,4 +1,32 @@
 #[test]
+fn test_vec_new_foo() {
+    foo();
+}
+
+#[test(should_fail)]
+fn test_vec_new_bad() {
+    bad();
+}
+
+// docs:start:new_example
+fn foo() -> BoundedVec<Field, 10> {
+    // Ok! MaxLen is specified with a type annotation
+    let v1: BoundedVec<Field, 3> = BoundedVec::new();
+    let v2 = BoundedVec::new();
+
+    // Ok! MaxLen is known from the type of foo's return value
+    v2
+}
+
+fn bad() {
+    let mut v3 = BoundedVec::new();
+
+    // Not Ok! We don't know if v3's MaxLen is at least 1, and the compiler often infers 0 by default.
+    v3.push(5);
+}
+// docs:end:new_example
+
+#[test]
 fn test_vec_push_pop() {
     let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
     assert(vec.len == 0);
@@ -16,13 +44,32 @@ fn test_vec_push_pop() {
 }
 
 #[test]
+fn test_vec_get_unchecked<N>() {
+    let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+    vec.extend_from_array([1, 2, 3, 4]);
+    let sum = sum_of_first_three(vec);
+    assert_eq(sum, 6);
+}
+
+// docs:start:get_unchecked_example
+fn sum_of_first_three<N>(v: BoundedVec<u32, N>) -> u32 {
+    // Always ensure the length is larger than the largest
+    // index passed to get_unchecked
+    assert(v.len() > 2);
+    let first = v.get_unchecked(0);
+    let second = v.get_unchecked(1);
+    let third = v.get_unchecked(2);
+    first + second + third
+}
+// docs:end:get_unchecked_example
+
+#[test]
 fn push_docs_example() {
     // docs:start:bounded-vec-push-example
     let mut v: BoundedVec<Field, 2> = BoundedVec::new();
 
     v.push(1);
     v.push(2);
-
     // Error: Assertion failed, len exceeded max_len
     // v.push(3);
     // docs:end:bounded-vec-push-example
@@ -40,7 +87,6 @@ fn pop_docs_example() {
 
     assert(two == 2);
     assert(one == 1);
-
     // error: cannot pop from an empty vector
     // let _ = v.pop();
     // docs:end:bounded-vec-pop-example
@@ -49,7 +95,7 @@ fn pop_docs_example() {
 #[test]
 fn len_docs_example() {
     // docs:start:bounded-vec-len-example
-    let mut v: BoundedVec<Field, 2> = BoundedVec::new();
+    let mut v: BoundedVec<Field, 4> = BoundedVec::new();
     assert(v.len() == 0);
 
     v.push(100);
@@ -195,3 +241,4 @@ fn test_vec_any_not_default() {
     vec.extend_from_array([2, 4]);
     assert(!vec.any(|v| v == default_value));
 }
+
