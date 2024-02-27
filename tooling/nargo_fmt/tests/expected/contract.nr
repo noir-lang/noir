@@ -10,14 +10,14 @@ contract Benchmarking {
     use dep::aztec::{
         context::{Context},
         note::{utils as note_utils, note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        log::emit_unencrypted_log, state_vars::{map::Map, public_state::PublicState, set::Set},
+        log::emit_unencrypted_log, state_vars::{Map, PublicMutable, PrivateSet},
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
         types::address::{AztecAddress}
     };
 
     struct Storage {
-        notes: Map<AztecAddress, Set<ValueNote, VALUE_NOTE_LEN>>,
-        balances: Map<AztecAddress, PublicState<Field, FIELD_SERIALIZED_LEN>>,
+        notes: Map<AztecAddress, PrivateSet<ValueNote, VALUE_NOTE_LEN>>,
+        balances: Map<AztecAddress, PublicMutable<Field, FIELD_SERIALIZED_LEN>>,
     }
 
     impl Storage {
@@ -26,12 +26,12 @@ contract Benchmarking {
                 notes: Map::new(
                     context,
                     1,
-                    |context, slot| { Set::new(context, slot, ValueNoteMethods) }
+                    |context, slot| { PrivateSet::new(context, slot, ValueNoteMethods) }
                 ),
                 balances: Map::new(
                     context,
                     2,
-                    |context, slot| { PublicState::new(context, slot, FieldSerializationMethods) }
+                    |context, slot| { PublicMutable::new(context, slot, FieldSerializationMethods) }
                 )
             }
         }
@@ -73,17 +73,6 @@ contract Benchmarking {
     #[aztec(public)]
     fn broadcast(owner: Field) {
         emit_unencrypted_log(&mut context, storage.balances.at(owner).read());
-    }
-
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: AztecAddress,
-        nonce: Field,
-        storage_slot: Field,
-        note_type_id: Field,
-        preimage: [Field; VALUE_NOTE_LEN]
-    ) -> [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
     }
 }
 
