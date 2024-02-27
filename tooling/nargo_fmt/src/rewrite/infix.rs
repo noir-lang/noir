@@ -96,7 +96,9 @@ pub(crate) fn flatten(
 
                 result.push(rewrite);
 
-                let Some(pop) = stack.pop() else { break; };
+                let Some(pop) = stack.pop() else {
+                    break;
+                };
 
                 match &pop.kind {
                     ExpressionKind::Infix(infix) => {

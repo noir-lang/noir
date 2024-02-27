@@ -1,12 +1,12 @@
 // Tests a performance regression found in aztec-packages with brillig cow optimization
 
-global MAX_NEW_NOTE_HASHES_PER_TX: Field = 64;
-global MAX_NEW_NULLIFIERS_PER_TX: Field = 64;
-global MAX_NEW_L2_TO_L1_MSGS_PER_TX: Field = 2;
-global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: Field = 16;
-global MAX_NEW_CONTRACTS_PER_TX: Field = 1;
-global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: Field = 1;
-global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: Field = 1;
+global MAX_NEW_NOTE_HASHES_PER_TX: u64 = 64;
+global MAX_NEW_NULLIFIERS_PER_TX: u64 = 64;
+global MAX_NEW_L2_TO_L1_MSGS_PER_TX: u64 = 2;
+global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX: u64 = 16;
+global MAX_NEW_CONTRACTS_PER_TX: u64 = 1;
+global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
+global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
 global NUM_FIELDS_PER_SHA256 = 2;
 global CALLDATA_HASH_INPUT_SIZE = 169;
 global CALL_DATA_HASH_LOG_FIELDS = 4;
@@ -24,7 +24,7 @@ struct NewContractData {
 }
 
 impl NewContractData {
-    fn hash(self) -> Field {
+    fn hash(self) -> field {
         dep::std::hash::pedersen_hash([self.contract_address, self.portal_contract_address])
     }
 }
@@ -88,17 +88,17 @@ impl U256 {
         U256 { inner: [high_0, high_1, low_0, low_1] }
     }
 
-    pub fn to_u128_limbs(self) -> [Field; 2] {
+    pub fn to_u128_limbs(self) -> [field; 2] {
         let two_pow_64 = 2.pow_32(64);
 
-        let high = (self.inner[0] as Field) * two_pow_64 + self.inner[1] as Field;
-        let low  = (self.inner[2] as Field) * two_pow_64 + self.inner[3] as Field;
+        let high = (self.inner[0] as field) * two_pow_64 + self.inner[1] as field;
+        let low  = (self.inner[2] as field) * two_pow_64 + self.inner[3] as field;
 
         [high, low]
     }
 }
 
-unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA256] {
+unconstrained fn main(kernel_data: DataToHash) -> pub [field; NUM_FIELDS_PER_SHA256] {
     let mut calldata_hash_inputs = [0; CALLDATA_HASH_INPUT_SIZE];
 
     let new_note_hashes = kernel_data.new_note_hashes;

@@ -6,9 +6,11 @@ use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 mod fixed_base_scalar_mul;
+mod poseidon2;
 mod wasm;
 
 pub use fixed_base_scalar_mul::{embedded_curve_add, fixed_base_scalar_mul};
+use poseidon2::Poseidon2;
 use wasm::Barretenberg;
 
 use self::wasm::{Pedersen, SchnorrSig};
@@ -96,5 +98,14 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
         input2_y: &FieldElement,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         embedded_curve_add(*input1_x, *input1_y, *input2_x, *input2_y)
+    }
+
+    fn poseidon2_permutation(
+        &self,
+        inputs: &[FieldElement],
+        len: u32,
+    ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
+        let poseidon = Poseidon2::new();
+        poseidon.permutation(inputs, len)
     }
 }

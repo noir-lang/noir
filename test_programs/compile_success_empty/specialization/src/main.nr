@@ -1,11 +1,15 @@
 struct Foo<T> {}
 
 impl Foo<u32> {
-    fn foo(_self: Self) -> Field { 1 }
+    fn foo(_self: Self) -> Field {
+        1
+    }
 }
 
 impl Foo<u64> {
-    fn foo(_self: Self) -> Field { 2 }
+    fn foo(_self: Self) -> Field {
+        2
+    }
 }
 
 fn main() {

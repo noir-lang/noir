@@ -38,7 +38,7 @@ export default {
             },
           },
           editUrl: ({ versionDocsDirPath, docPath }) =>
-            `https://github.com/noir-lang/noir/edit/master/docs/${versionDocsDirPath}/${docPath}`,
+            `https://github.com/noir-lang/noir/edit/master/docs/${versionDocsDirPath.replace('processed-docs', 'docs')}/${docPath}`,
         },
         blog: false,
         theme: {

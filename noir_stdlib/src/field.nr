@@ -6,7 +6,7 @@ impl Field {
         crate::assert_constant(bit_size);
         self.__to_le_bits(bit_size)
     }
-    
+
     pub fn to_be_bits(self: Self, bit_size: u32) -> [u1] {
         crate::assert_constant(bit_size);
         self.__to_be_bits(bit_size)
@@ -14,7 +14,7 @@ impl Field {
 
     #[builtin(to_le_bits)]
     fn __to_le_bits(self, _bit_size: u32) -> [u1] {}
-    
+
     #[builtin(to_be_bits)]
     fn __to_be_bits(self, bit_size: u32) -> [u1] {}
 
@@ -35,7 +35,6 @@ impl Field {
         self.to_be_radix(256, byte_size)
     }
 
-
     pub fn to_le_radix(self: Self, radix: u32, result_len: u32) -> [u8] {
         crate::assert_constant(radix);
         crate::assert_constant(result_len);
@@ -48,16 +47,13 @@ impl Field {
         self.__to_be_radix(radix, result_len)
     }
 
-
-
     // decompose `_self` into a `_result_len` vector over the `_radix` basis
     // `_radix` must be less than 256
     #[builtin(to_le_radix)]
     fn __to_le_radix(self, radix: u32, result_len: u32) -> [u8] {}
-    
+
     #[builtin(to_be_radix)]
     fn __to_be_radix(self, radix: u32, result_len: u32) -> [u8] {}
-
 
     // Returns self to the power of the given exponent value.
     // Caution: we assume the exponent fits into 32 bits
@@ -85,11 +81,10 @@ impl Field {
             lt_fallback(self, another)
         }
     }
-
 }
 
 #[builtin(modulus_num_bits)]
-pub fn modulus_num_bits() -> Field {}
+pub fn modulus_num_bits() -> u64 {}
 
 #[builtin(modulus_be_bits)]
 pub fn modulus_be_bits() -> [u1] {}

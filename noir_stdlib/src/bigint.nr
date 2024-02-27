@@ -1,5 +1,7 @@
 use crate::ops::{Add, Sub, Mul, Div};
 use crate::cmp::Eq;
+use crate::ops::{Add, Sub, Mul, Div};
+use crate::cmp::Eq;
 
 global bn254_fq = [0x47, 0xFD, 0x7C, 0xD8, 0x16, 0x8C, 0x20, 0x3C, 0x8d, 0xca, 0x71, 0x68, 0x91, 0x6a, 0x81, 0x97,
                    0x5d, 0x58, 0x81, 0x81, 0xb6, 0x45, 0x50, 0xb8, 0x29, 0xa0, 0x31, 0xe1, 0x72, 0x4e, 0x64, 0x30];
@@ -13,7 +15,6 @@ global secpr1_fq = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF];
 global secpr1_fr = [0x51, 0x25, 0x63, 0xFC, 0xC2, 0xCA, 0xB9, 0xF3, 0x84, 0x9E, 0x17, 0xA7, 0xAD, 0xFA, 0xE6, 0xBC,
                     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,0xFF, 0xFF, 0xFF, 0xFF];
- 
 
 struct BigInt {
     pointer: u32,
@@ -22,17 +23,13 @@ struct BigInt {
 
 impl BigInt {
     #[builtin(bigint_add)]
-    fn bigint_add(self, other: BigInt) -> BigInt {
-    }
+    fn bigint_add(self, other: BigInt) -> BigInt {}
     #[builtin(bigint_sub)]
-    fn bigint_sub(self, other: BigInt) -> BigInt {
-    }
+    fn bigint_sub(self, other: BigInt) -> BigInt {}
     #[builtin(bigint_mul)]
-    fn bigint_mul(self, other: BigInt) -> BigInt {
-    }
+    fn bigint_mul(self, other: BigInt) -> BigInt {}
     #[builtin(bigint_div)]
-    fn bigint_div(self, other: BigInt) -> BigInt {
-    }
+    fn bigint_div(self, other: BigInt) -> BigInt {}
     #[builtin(bigint_from_le_bytes)]
     fn from_le_bytes(bytes: [u8], modulus: [u8]) -> BigInt {}
     #[builtin(bigint_to_le_bytes)]
@@ -55,17 +52,218 @@ trait BigField {
     fn to_le_bytes(self) -> [u8];
 }
 
+struct Secfn to_le_bytes(self) -> [u8] {}
+
+    fn check_32_bytes(self: Self, other: BigInt) -> bool {
+        let bytes = self.to_le_bytes();
+        let o_bytes = other.to_le_bytes();
+        let mut result = true;
+        for i in 0..32 {
+            result = result & (bytes[i] == o_bytes[i]);
+        }
+        result
+    }
+}
+
+trait BigField {
+    fn from_le_bytes(bytes: [u8]) -> Self;
+    fn to_le_bytes(self) -> [u8];
+}
+
 struct Secpk1Fq {
+    inner: BigInt,
+}
+
+impl BigField for Secpk1Fq {
+    fn from_le_bytes(bytes: [k1Fq {
     inner: BigInt,
 }
 
 impl BigField for Secpk1Fq {
     fn from_le_bytes(bytes: [u8]) -> Secpk1Fq {
         Secpk1Fq {
-            inner: BigInt::from_le_bytes(bytes, secpk1_fq)
+            inner: BigInt::from_le_8]) -> Secpk1Fq {
+        Secpk1Fq {
+            inner: BigInt::from_le_bytes(bytes,ytes(bytes, secpk1_fq)
+        }
+    }
+    secpk1_fq)
         }
     }
     fn to_le_bytes(self) -> [u8] {
+        self.inner.to_le_bytes()
+    }
+}
+
+impl Add for Secpk1Fq { 
+    fn add(self: Self, other: Secpk1Fq) -> Secpk1Fq {
+        Secpk1Fq {
+            inner: self.inner.bigint_add(other.inner)
+        }
+    }
+}
+impl Sub for Secpk1Fq { 
+    fn sub(self: Self, other: Secpk1Fq) -> Secpk1Fq {
+        Secpk1Fq {
+            inner: self.inner.bigint_sub(other.inner)
+        }
+    }
+}
+impl Mul for Secpk1Fq { 
+    fn mul(self: Self, other: Secpk1Fq) -> Secpk1Fq {
+        Secpk1Fq {
+            inner: self.inner.bigint_mul(other.inner)
+        }
+
+    }
+}
+impl Div for Secpk1Fq { 
+    fn div(self: Self, other: Secpk1Fq) -> Secpk1Fq {
+        Secpk1Fq {
+            inner: self.inner.bigint_div(other.inner)
+        }
+    }
+}
+impl Eq for Secpk1Fq {
+    fn eq(self: Self, other: Secpk1Fq) -> bool {
+        self.inner.check_32_bytes(other.inner)
+    }
+}
+
+struct Secpk1Fr {
+    inner: BigInt,
+}
+
+impl BigField for Secpk1Fr {
+    fn from_le_bytes(bytes: [u8]) -> Secpk1Fr {
+        Secpk1Fr {
+            inner: BigInt::from_le_bytes(bytes, secpk1_fr)
+        }
+    }
+    fn to_le_bytes(self) -> [u8] {
+        self.inner.to_le_bytes()
+    }
+}
+
+impl Add for Secpk1Fr { 
+    fn add(self: Self, other: Secpk1Fr) -> Secpk1Fr {
+        Secpk1Fr {
+            inner: self.inner.bigint_add(other.inner)
+        }
+    }
+}
+impl Sub for Secpk1Fr { 
+    fn sub(self: Self, other: Secpk1Fr) -> Secpk1Fr {
+        Secpk1Fr {
+            inner: self.inner.bigint_sub(other.inner)
+        }
+    }
+}
+impl Mul for Secpk1Fr { 
+    fn mul(self: Self, other: Secpk1Fr) -> Secpk1Fr {
+        Secpk1Fr {
+            inner: self.inner.bigint_mul(other.inner)
+        }
+
+    }
+}
+impl Div for Secpk1Fr { 
+    fn div(self: Self, other: Secpk1Fr) -> Secpk1Fr {
+        Secpk1Fr {
+            inner: self.inner.bigint_div(other.inner)
+        }
+    }
+}
+impl Eq for Secpk1Fr {
+    fn eq(self: Self, other: Secpk1Fr) -> bool {
+        self.inner.check_32_bytes(other.inner)
+    }
+}
+
+struct Bn254Fr {
+    inner: BigInt,
+}
+
+impl BigField for Bn254Fr {
+    fn from_le_bytes(bytes: [u8]) -> Bn254Fr {
+        Bn254Fr {
+            inner: BigInt::from_le_bytes(bytes, bn254_fr)
+        }
+    }
+    fn to_le_bytes(self) -> [u8] {
+        self.inner.to_le_bytes()
+    }
+}
+
+impl Add for Bn254Fr { 
+    fn add(self: Self, other: Bn254Fr) -> Bn254Fr {
+        Bn254Fr {
+            inner: self.inner.bigint_add(other.inner)
+        }
+    }
+}
+impl Sub for Bn254Fr { 
+    fn sub(self: Self, other: Bn254Fr) -> Bn254Fr {
+        Bn254Fr {
+            inner: self.inner.bigint_sub(other.inner)
+        }
+    }
+}
+impl Mul for Bn254Fr { 
+    fn mul(self: Self, other: Bn254Fr) -> Bn254Fr {
+        Bn254Fr {
+            inner: self.inner.bigint_mul(other.inner)
+        }
+
+    }
+}
+impl Div for Bn254Fr { 
+    fn div(self: Self, other: Bn254Fr) -> Bn254Fr {
+        Bn254Fr {
+            inner: self.inner.bigint_div(other.inner)
+        }
+    }
+}
+impl Eq for Bn254Fr {
+    fn eq(self: Self, other: Bn254Fr) -> bool {
+        self.inner.check_32_bytes(other.inner)
+    }
+}
+
+struct Bn254Fq {
+    inner: BigInt,
+}
+
+impl BigField for Bn254Fq {
+    fn from_le_bytes(bytes: [u8]) -> Bn254Fq {
+        Bn254Fq {
+            inner: BigInt::from_le_bytes(bytes, bn254_fq)
+        }
+    }
+    fn to_le_bytes(self) -> [u8] {
+        self.inner.to_le_bytes()
+    }
+}
+
+impl Add for Bn254Fq { 
+    fn add(self: Self, other: Bn254Fq) -> Bn254Fq {
+        Bn254Fq {
+            inner: self.inner.bigint_add(other.inner)
+        }
+    }
+}
+impl Sub for Bn254Fq { 
+    fn sub(self: Self, other: Bn254Fq) -> Bn254Fq {
+        Bn254Fq {
+            inner: self.inner.bigint_sub(other.inner)
+        }
+    }
+}
+impl Mul for Bn254Fq { 
+    fn mul(self: Self, other: Bn254Fq) -> Bn254Fq {
+        Bn254Fq {
+            inner: self.inner.bigint_mul(other.inner)
+        
         self.inner.to_le_bytes()
     }
 }

@@ -54,7 +54,7 @@ allow = [
     "LicenseRef-ring",
     # https://github.com/rustls/webpki/blob/main/LICENSE ISC Style
     "LicenseRef-rustls-webpki",
-    # bitmaps 2.1.0, generational-arena 0.2.9,im 15.1.0
+    # bitmaps 2.1.0, im 15.1.0
     "MPL-2.0",
     # Boost Software License
     "BSL-1.0",

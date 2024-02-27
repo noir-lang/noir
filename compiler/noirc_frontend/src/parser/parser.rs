@@ -833,7 +833,7 @@ where
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
         .validate(|expressions, span, _| {
-            let condition = expressions.get(0).unwrap_or(&Expression::error(span)).clone();
+            let condition = expressions.first().unwrap_or(&Expression::error(span)).clone();
             let message = expressions.get(1).cloned();
             StatementKind::Constrain(ConstrainStatement(condition, message, ConstrainKind::Assert))
         })
@@ -851,7 +851,7 @@ where
         .validate(|exprs: Vec<Expression>, span, _| {
             let predicate = Expression::new(
                 ExpressionKind::Infix(Box::new(InfixExpression {
-                    lhs: exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
+                    lhs: exprs.first().unwrap_or(&Expression::error(span)).clone(),
                     rhs: exprs.get(1).unwrap_or(&Expression::error(span)).clone(),
                     operator: Spanned::from(span, BinaryOpKind::Equal),
                 })),
@@ -2483,7 +2483,7 @@ mod test {
 
     #[test]
     fn return_validation() {
-        let cases = vec![
+        let cases = [
             Case {
                 source: "{ return 42; }",
                 expect: concat!("{\n", "    Error\n", "}",),
@@ -2512,7 +2512,7 @@ mod test {
 
     #[test]
     fn expr_no_constructors() {
-        let cases = vec![
+        let cases = [
             Case {
                 source: "{ if structure { a: 1 } {} }",
                 expect: concat!(
@@ -2567,10 +2567,10 @@ mod test {
     #[test]
     fn parse_raw_string_expr() {
         let cases = vec![
-            Case { source: r##" r"foo" "##, expect: r##"r"foo""##, errors: 0 },
+            Case { source: r#" r"foo" "#, expect: r#"r"foo""#, errors: 0 },
             Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
             // backslash
-            Case { source: r##" r"\\" "##, expect: r##"r"\\""##, errors: 0 },
+            Case { source: r#" r"\\" "#, expect: r#"r"\\""#, errors: 0 },
             Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
             Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
             Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
@@ -2582,27 +2582,27 @@ mod test {
             },
             Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
             // mismatch - errors:
-            Case { source: r###" r#"foo"## "###, expect: r###"r#"foo"#"###, errors: 1 },
-            Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
+            Case { source: r###" r#"foo"## "###, expect: r##"r#"foo"#"##, errors: 1 },
+            Case { source: r##" r##"foo"# "##, expect: "(none)", errors: 2 },
             // mismatch: short:
-            Case { source: r###" r"foo"# "###, expect: r###"r"foo""###, errors: 1 },
-            Case { source: r###" r#"foo" "###, expect: "(none)", errors: 2 },
+            Case { source: r##" r"foo"# "##, expect: r#"r"foo""#, errors: 1 },
+            Case { source: r#" r#"foo" "#, expect: "(none)", errors: 2 },
             // empty string
-            Case { source: r####"r"""####, expect: r####"r"""####, errors: 0 },
+            Case { source: r#"r"""#, expect: r#"r"""#, errors: 0 },
             Case { source: r####"r###""###"####, expect: r####"r###""###"####, errors: 0 },
             // miscellaneous
-            Case { source: r###" r#\"foo\"# "###, expect: "plain::r", errors: 2 },
-            Case { source: r###" r\"foo\" "###, expect: "plain::r", errors: 1 },
-            Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
+            Case { source: r##" r#\"foo\"# "##, expect: "plain::r", errors: 2 },
+            Case { source: r#" r\"foo\" "#, expect: "plain::r", errors: 1 },
+            Case { source: r##" r##"foo"# "##, expect: "(none)", errors: 2 },
             // missing 'r' letter
-            Case { source: r###" ##"foo"# "###, expect: r#""foo""#, errors: 2 },
-            Case { source: r###" #"foo" "###, expect: "plain::foo", errors: 2 },
+            Case { source: r##" ##"foo"# "##, expect: r#""foo""#, errors: 2 },
+            Case { source: r#" #"foo" "#, expect: "plain::foo", errors: 2 },
             // whitespace
-            Case { source: r###" r #"foo"# "###, expect: "plain::r", errors: 2 },
-            Case { source: r###" r# "foo"# "###, expect: "plain::r", errors: 3 },
-            Case { source: r###" r#"foo" # "###, expect: "(none)", errors: 2 },
+            Case { source: r##" r #"foo"# "##, expect: "plain::r", errors: 2 },
+            Case { source: r##" r# "foo"# "##, expect: "plain::r", errors: 3 },
+            Case { source: r#" r#"foo" # "#, expect: "(none)", errors: 2 },
             // after identifier
-            Case { source: r###" bar#"foo"# "###, expect: "plain::bar", errors: 2 },
+            Case { source: r##" bar#"foo"# "##, expect: "plain::bar", errors: 2 },
             // nested
             Case {
                 source: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,
@@ -2617,10 +2617,10 @@ mod test {
     #[test]
     fn parse_raw_string_lit() {
         let lit_cases = vec![
-            Case { source: r##" r"foo" "##, expect: r##"r"foo""##, errors: 0 },
+            Case { source: r#" r"foo" "#, expect: r#"r"foo""#, errors: 0 },
             Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
             // backslash
-            Case { source: r##" r"\\" "##, expect: r##"r"\\""##, errors: 0 },
+            Case { source: r#" r"\\" "#, expect: r#"r"\\""#, errors: 0 },
             Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
             Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
             Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
@@ -2632,8 +2632,8 @@ mod test {
             },
             Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
             // mismatch - errors:
-            Case { source: r###" r#"foo"## "###, expect: r###"r#"foo"#"###, errors: 1 },
-            Case { source: r###" r##"foo"# "###, expect: "(none)", errors: 2 },
+            Case { source: r###" r#"foo"## "###, expect: r##"r#"foo"#"##, errors: 1 },
+            Case { source: r##" r##"foo"# "##, expect: "(none)", errors: 2 },
         ];
 
         check_cases_with_errors(&lit_cases[..], literal());

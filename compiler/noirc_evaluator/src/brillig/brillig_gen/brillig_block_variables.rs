@@ -1,10 +1,9 @@
-use acvm::brillig_vm::brillig::MemoryAddress;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
     brillig::brillig_ir::{
-        brillig_variable::{BrilligArray, BrilligVariable, BrilligVector},
-        BrilligContext,
+        brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
+        BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     },
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -71,15 +70,15 @@ impl BlockVariables {
     }
 
     /// Defines a variable that fits in a single register and returns the allocated register.
-    pub(crate) fn define_register_variable(
+    pub(crate) fn define_single_addr_variable(
         &mut self,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext,
         value: ValueId,
         dfg: &DataFlowGraph,
-    ) -> MemoryAddress {
+    ) -> SingleAddrVariable {
         let variable = self.define_variable(function_context, brillig_context, value, dfg);
-        variable.extract_register()
+        variable.extract_single_addr()
     }
 
     /// Removes a variable so it's not used anymore within this block.
@@ -190,12 +189,22 @@ pub(crate) fn allocate_value(
     let typ = dfg.type_of_value(value_id);
 
     match typ {
-        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
+        Type::Numeric(numeric_type) => BrilligVariable::SingleAddr(SingleAddrVariable {
+            address: brillig_context.allocate_register(),
+            bit_size: numeric_type.bit_size(),
+        }),
+        Type::Reference(_) => BrilligVariable::SingleAddr(SingleAddrVariable {
+            address: brillig_context.allocate_register(),
+            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        }),
+        Type::Function => {
             // NB. function references are converted to a constant when
             // translating from SSA to Brillig (to allow for debugger
             // instrumentation to work properly)
-            let register = brillig_context.allocate_register();
-            BrilligVariable::Simple(register)
+            BrilligVariable::SingleAddr(SingleAddrVariable {
+                address: brillig_context.allocate_register(),
+                bit_size: 32,
+            })
         }
         Type::Array(item_typ, elem_count) => {
             let pointer_register = brillig_context.allocate_register();
