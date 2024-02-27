@@ -146,7 +146,7 @@ jobs:
       - run:
           name: "Build"
           command: cond_spot_run_build noir-compile-acir-tests 32
-          aztec_manifest_key: noir
+          aztec_manifest_key: noir-compile-acir-tests
 
   avm-transpiler:
     docker:
