@@ -14,16 +14,26 @@ pub fn eddsa_poseidon_verify(
     message: Field
 ) -> bool {
     let mut hasher = PoseidonHasher::default();
-    eddsa_verify_with_hasher(pub_key_x, pub_key_y, signature_s, signature_r8_x, signature_r8_y, message, &mut hasher)
+    eddsa_verify_with_hasher(
+        pub_key_x,
+        pub_key_y,
+        signature_s,
+        signature_r8_x,
+        signature_r8_y,
+        message,
+        &mut hasher
+    )
 }
 
-pub fn eddsa_verify_with_hasher<H>(   pub_key_x: Field,
+pub fn eddsa_verify_with_hasher<H>(
+    pub_key_x: Field,
     pub_key_y: Field,
     signature_s: Field,
     signature_r8_x: Field,
     signature_r8_y: Field,
     message: Field,
-    hasher: &mut H) -> bool 
+    hasher: &mut H
+) -> bool 
 where H: Hasher {
     // Verifies by testing:
     // S * B8 = R8 + H(R8, A, m) * A8

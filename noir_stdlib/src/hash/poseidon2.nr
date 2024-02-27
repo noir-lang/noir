@@ -1,7 +1,6 @@
 use crate::hash::Hasher;
 use crate::default::Default;
 
-
 global RATE = 3;
 
 struct Poseidon2 {
@@ -96,8 +95,7 @@ impl Poseidon2 {
         result
     }
 
-    fn hash_internal<N>(input: [Field; N], in_len: u64, is_variable_length: bool) -> Field
-    {
+    fn hash_internal<N>(input: [Field; N], in_len: u64, is_variable_length: bool) -> Field {
         let iv : Field = (in_len as Field) * 18446744073709551616;
         let mut sponge = Poseidon2::new(iv);
         for i in 0..input.len() {
@@ -115,7 +113,6 @@ impl Poseidon2 {
         sponge.squeeze()
     }
 }
-
 
 struct Poseidon2Hasher{
     _state: [Field],

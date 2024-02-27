@@ -3,7 +3,6 @@ use crate::field::modulus_num_bits;
 use crate::hash::Hasher;
 use crate::default::Default;
 
-
 struct PoseidonConfig<M,N> {
     t: Field, // Width, i.e. state size
     rf: u8, // Number of full rounds; should be even
@@ -103,7 +102,6 @@ fn apply_matrix<N, M>(a: [Field; M], x: [Field; N]) -> [Field; N] {
 
     y
 }
-
 
 struct PoseidonHasher{
     _state: [Field],

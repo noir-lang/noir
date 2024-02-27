@@ -126,7 +126,6 @@ pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
     r
 }
 
-
 struct MimcHasher{
     _state: [Field],
     _len: u64,
