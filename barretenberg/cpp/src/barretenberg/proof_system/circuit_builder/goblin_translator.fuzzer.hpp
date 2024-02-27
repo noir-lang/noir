@@ -35,7 +35,7 @@ std::vector<ECCOpQueue::ECCVMOperation> parse_operations(const unsigned char* da
 }
 
 /**
- * @brief Try to parse out the batching and evaluating challenges and then the ECCOpQUeue from the data
+ * @brief Try to parse out the batching and evaluating challenges and then the ECCOpQueue from the data
  *
  * @param data pointer to the buffer
  * @param size size of the buffer
@@ -79,6 +79,6 @@ std::optional<std::tuple<Fq, Fq, std::shared_ptr<ECCOpQueue>>> parse_and_constru
     ecc_op_queue->raw_ops = raw_ops;
     ecc_op_queue->mul_accumulate(padding_element, padding_scalar);
 
-    // Create circuit builder and feed the queue inside
+    // Return the batching challenge, evaluation challenge and the constructed queue
     return std::make_tuple(batching_challenge, x, ecc_op_queue);
 }
