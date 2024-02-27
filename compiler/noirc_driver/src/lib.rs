@@ -16,9 +16,10 @@ use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::macros_api::MacroProcessor;
-use noirc_frontend::monomorphization::{monomorphize, monomorphize_debug};
+use noirc_frontend::monomorphization::{monomorphize, monomorphize_debug, MonomorphizationError};
 use noirc_frontend::node_interner::FuncId;
 use std::path::Path;
+use thiserror::Error;
 use tracing::info;
 
 mod abi_gen;
@@ -104,6 +105,24 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
     match width {
         0 => Ok(ExpressionWidth::Unbounded),
         _ => Ok(ExpressionWidth::Bounded { width }),
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum CompileError {
+    #[error(transparent)]
+    MonomorphizationError(#[from] MonomorphizationError),
+
+    #[error(transparent)]
+    RuntimeError(#[from] RuntimeError),
+}
+
+impl From<CompileError> for FileDiagnostic {
+    fn from(error: CompileError) -> FileDiagnostic {
+        match error {
+            CompileError::RuntimeError(err) => err.into(),
+            CompileError::MonomorphizationError(err) => err.into(),
+        }
     }
 }
 
@@ -436,11 +455,11 @@ pub fn compile_no_check(
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
-) -> Result<CompiledProgram, RuntimeError> {
+) -> Result<CompiledProgram, CompileError> {
     let program = if options.instrument_debug {
-        monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)
+        monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)?
     } else {
-        monomorphize(main_function, &mut context.def_interner)
+        monomorphize(main_function, &mut context.def_interner)?
     };
 
     let hash = fxhash::hash64(&program);

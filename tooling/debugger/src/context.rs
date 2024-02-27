@@ -138,7 +138,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                     })
                     .collect()
             })
-            .unwrap_or(vec![])
+            .unwrap_or_default()
     }
 
     /// Returns the current call stack with expanded source locations. In

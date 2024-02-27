@@ -213,9 +213,6 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 [[package]]
 name = "arena"
 version = "0.24.0"
-dependencies = [
- "generational-arena",
-]
 
 [[package]]
 name = "ark-bls12-381"
@@ -593,6 +590,7 @@ dependencies = [
  "js-sys",
  "noir_grumpkin",
  "num-bigint",
+ "num-traits",
  "pkg-config",
  "reqwest",
  "rust-embed",
@@ -1844,15 +1842,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "generational-arena"
-version = "0.2.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "877e94aff08e743b651baaea359664321055749b398adff8740a7399af7796e7"
-dependencies = [
- "cfg-if 1.0.0",
-]
-
-[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2960,6 +2949,7 @@ dependencies = [
  "noirc_macros",
  "rust-embed",
  "serde",
+ "thiserror",
  "tracing",
 ]
 

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::items::HasItem;
 use crate::rewrite;
 use crate::visitor::{FmtVisitor, Shape};
@@ -143,7 +145,7 @@ impl HasItem for Param {
     fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
         let pattern = visitor.slice(self.pattern.span());
         let visibility = match self.visibility {
-            Visibility::Public => "pub ",
+            Visibility::Public => "pub",
             Visibility::Private => "",
             Visibility::DataBus => "call_data",
         };
@@ -152,6 +154,7 @@ impl HasItem for Param {
             pattern.to_string()
         } else {
             let ty = rewrite::typ(visitor, shape, self.typ);
+            let visibility = append_space_if_nonempty(visibility.into());
             format!("{pattern}: {visibility}{ty}")
         }
     }
@@ -181,6 +184,15 @@ pub(crate) fn is_single_line(s: &str) -> bool {
 
 pub(crate) fn last_line_contains_single_line_comment(s: &str) -> bool {
     s.lines().last().map_or(false, |line| line.contains("//"))
+}
+
+pub(crate) fn append_space_if_nonempty(mut string: Cow<str>) -> Cow<str> {
+    if !string.is_empty() {
+        let inner = string.to_mut();
+        inner.push(' ');
+    }
+
+    string
 }
 
 pub(crate) fn last_line_used_width(s: &str, offset: usize) -> usize {

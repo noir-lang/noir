@@ -45,7 +45,7 @@ version = "0.24.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
-rust-version = "1.71.1"
+rust-version = "1.73.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 
@@ -69,12 +69,10 @@ noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
 noirc_frontend = { path = "compiler/noirc_frontend" }
 noirc_printable_type = { path = "compiler/noirc_printable_type" }
-noir_wasm = { path = "compiler/wasm" }
 
 # Noir tooling workspace dependencies
 nargo = { path = "tooling/nargo" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
-nargo_cli = { path = "tooling/nargo_cli" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
@@ -97,8 +95,6 @@ getrandom = "0.2"
 
 # Debugger
 dap = "0.4.1-alpha1"
-
-cfg-if = "1.0.0"
 clap = { version = "4.3.19", features = ["derive", "env"] }
 codespan = { version = "0.11.1", features = ["serialization"] }
 codespan-lsp = "0.11.1"

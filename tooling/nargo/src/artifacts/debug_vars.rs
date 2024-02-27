@@ -18,23 +18,25 @@ impl DebugVars {
         self.active
             .iter()
             .filter_map(|var_id| {
-                self.variables
-                    .get(var_id)
-                    .and_then(|debug_var| {
-                        let Some(value) = self.values.get(var_id) else { return None; };
-                        let Some(ptype) = self.types.get(&debug_var.debug_type_id) else { return None; };
-                        Some((debug_var.name.as_str(), value, ptype))
-                    })
+                self.variables.get(var_id).and_then(|debug_var| {
+                    let Some(value) = self.values.get(var_id) else {
+                        return None;
+                    };
+                    let Some(ptype) = self.types.get(&debug_var.debug_type_id) else {
+                        return None;
+                    };
+                    Some((debug_var.name.as_str(), value, ptype))
+                })
             })
             .collect()
     }
 
     pub fn insert_variables(&mut self, vars: &DebugVariables) {
-        self.variables.extend(vars.clone().into_iter());
+        self.variables.extend(vars.clone());
     }
 
     pub fn insert_types(&mut self, types: &DebugTypes) {
-        self.types.extend(types.clone().into_iter());
+        self.types.extend(types.clone());
     }
 
     pub fn assign_var(&mut self, var_id: DebugVarId, values: &[Value]) {

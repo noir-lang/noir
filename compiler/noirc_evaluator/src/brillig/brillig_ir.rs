@@ -15,7 +15,7 @@ use crate::ssa::ir::dfg::CallStack;
 
 use self::{
     artifact::{BrilligArtifact, UnresolvedJumpLocation},
-    brillig_variable::{BrilligArray, BrilligVariable, BrilligVector},
+    brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     registers::BrilligRegistersContext,
 };
 use acvm::{
@@ -27,6 +27,7 @@ use acvm::{
     FieldElement,
 };
 use debug_show::DebugShow;
+use num_bigint::BigUint;
 
 /// Integer arithmetic in Brillig is limited to 127 bit
 /// integers.
@@ -189,7 +190,7 @@ impl BrilligContext {
         self.deallocate_register(size_register);
     }
 
-    pub(crate) fn allocate_simple_reference_instruction(
+    pub(crate) fn allocate_single_addr_reference_instruction(
         &mut self,
         pointer_register: MemoryAddress,
     ) {
@@ -295,18 +296,21 @@ impl BrilligContext {
         // Loop body
 
         // Check if iterator < iteration_count
-        let iterator_less_than_iterations = self.allocate_register();
+        let iterator_less_than_iterations =
+            SingleAddrVariable { address: self.allocate_register(), bit_size: 1 };
+
         self.memory_op(
             iterator_register,
             iteration_count,
-            iterator_less_than_iterations,
+            iterator_less_than_iterations.address,
             BinaryIntOp::LessThan,
         );
 
         let (exit_loop_section, exit_loop_label) = self.reserve_next_section_label();
 
-        self.not_instruction(iterator_less_than_iterations, 1, iterator_less_than_iterations);
-        self.jump_if_instruction(iterator_less_than_iterations, exit_loop_label);
+        self.not_instruction(iterator_less_than_iterations, iterator_less_than_iterations);
+
+        self.jump_if_instruction(iterator_less_than_iterations.address, exit_loop_label);
 
         // Call the on iteration function
         on_iteration(self, iterator_register);
@@ -320,7 +324,7 @@ impl BrilligContext {
         self.enter_section(exit_loop_section);
 
         // Deallocate our temporary registers
-        self.deallocate_register(iterator_less_than_iterations);
+        self.deallocate_register(iterator_less_than_iterations.address);
         self.deallocate_register(iterator_register);
     }
 
@@ -507,12 +511,15 @@ impl BrilligContext {
     /// Cast truncates the value to the given bit size and converts the type of the value in memory to that bit size.
     pub(crate) fn cast_instruction(
         &mut self,
-        destination: MemoryAddress,
-        source: MemoryAddress,
-        bit_size: u32,
+        destination: SingleAddrVariable,
+        source: SingleAddrVariable,
     ) {
-        self.debug_show.cast_instruction(destination, source, bit_size);
-        self.push_opcode(BrilligOpcode::Cast { destination, source, bit_size });
+        self.debug_show.cast_instruction(destination.address, source.address, destination.bit_size);
+        self.push_opcode(BrilligOpcode::Cast {
+            destination: destination.address,
+            source: source.address,
+            bit_size: destination.bit_size,
+        });
     }
 
     /// Processes a binary instruction according `operation`.
@@ -564,21 +571,20 @@ impl BrilligContext {
     /// in Brillig.
     pub(crate) fn not_instruction(
         &mut self,
-        input: MemoryAddress,
-        bit_size: u32,
-        result: MemoryAddress,
+        input: SingleAddrVariable,
+        result: SingleAddrVariable,
     ) {
-        self.debug_show.not_instruction(input, bit_size, result);
+        self.debug_show.not_instruction(input.address, input.bit_size, result.address);
         // Compile !x as ((-1) - x)
-        let u_max = FieldElement::from(2_i128).pow(&FieldElement::from(bit_size as i128))
+        let u_max = FieldElement::from(2_i128).pow(&FieldElement::from(input.bit_size as i128))
             - FieldElement::one();
-        let max = self.make_constant(Value::from(u_max), bit_size);
+        let max = self.make_constant(Value::from(u_max), input.bit_size);
         let opcode = BrilligOpcode::BinaryIntOp {
-            destination: result,
+            destination: result.address,
             op: BinaryIntOp::Sub,
-            bit_size,
+            bit_size: input.bit_size,
             lhs: max,
-            rhs: input,
+            rhs: input.address,
         };
         self.push_opcode(opcode);
         self.deallocate_register(max);
@@ -626,8 +632,8 @@ impl BrilligContext {
         variable_pointer: MemoryAddress,
     ) {
         match destination {
-            BrilligVariable::Simple(register_index) => {
-                self.load_instruction(register_index, variable_pointer);
+            BrilligVariable::SingleAddr(single_addr) => {
+                self.load_instruction(single_addr.address, variable_pointer);
             }
             BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
                 self.load_instruction(pointer, variable_pointer);
@@ -676,8 +682,8 @@ impl BrilligContext {
         source: BrilligVariable,
     ) {
         match source {
-            BrilligVariable::Simple(register_index) => {
-                self.store_instruction(variable_pointer, register_index);
+            BrilligVariable::SingleAddr(single_addr) => {
+                self.store_instruction(variable_pointer, single_addr.address);
             }
             BrilligVariable::BrilligArray(BrilligArray { pointer, size: _, rc }) => {
                 self.store_instruction(variable_pointer, pointer);
@@ -717,31 +723,36 @@ impl BrilligContext {
     /// For Brillig, all integer operations will overflow as its cheap.
     pub(crate) fn truncate_instruction(
         &mut self,
-        destination_of_truncated_value: MemoryAddress,
-        value_to_truncate: MemoryAddress,
+        destination_of_truncated_value: SingleAddrVariable,
+        value_to_truncate: SingleAddrVariable,
         bit_size: u32,
     ) {
         self.debug_show.truncate_instruction(
-            destination_of_truncated_value,
-            value_to_truncate,
+            destination_of_truncated_value.address,
+            value_to_truncate.address,
             bit_size,
         );
         assert!(
-            bit_size <= BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
-            "tried to truncate to a bit size greater than allowed {bit_size}"
+            bit_size <= value_to_truncate.bit_size,
+            "tried to truncate to a bit size {} greater than the variable size {}",
+            bit_size,
+            value_to_truncate.bit_size
         );
 
-        // The brillig VM performs all arithmetic operations modulo 2**bit_size
-        // So to truncate any value to a target bit size we can just issue a no-op arithmetic operation
-        // With bit size equal to target_bit_size
-        let zero_register = self.make_constant(Value::from(FieldElement::zero()), bit_size);
-        self.binary_instruction(
-            value_to_truncate,
-            zero_register,
-            destination_of_truncated_value,
-            BrilligBinaryOp::Integer { op: BinaryIntOp::Add, bit_size },
+        let mask = BigUint::from(2_u32).pow(bit_size) - BigUint::from(1_u32);
+        let mask_constant = self.make_constant(
+            FieldElement::from_be_bytes_reduce(&mask.to_bytes_be()).into(),
+            value_to_truncate.bit_size,
         );
-        self.deallocate_register(zero_register);
+
+        self.binary_instruction(
+            value_to_truncate.address,
+            mask_constant,
+            destination_of_truncated_value.address,
+            BrilligBinaryOp::Integer { op: BinaryIntOp::And, bit_size: value_to_truncate.bit_size },
+        );
+
+        self.deallocate_register(mask_constant);
     }
 
     /// Emits a stop instruction
@@ -1139,6 +1150,14 @@ pub(crate) mod tests {
             _input2_y: &FieldElement,
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
+        }
+
+        fn poseidon2_permutation(
+            &self,
+            _inputs: &[FieldElement],
+            _len: u32,
+        ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
+            Ok(vec![0_u128.into(), 1_u128.into(), 2_u128.into(), 3_u128.into()])
         }
     }
 

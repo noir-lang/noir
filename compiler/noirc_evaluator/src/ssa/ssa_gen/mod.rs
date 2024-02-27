@@ -196,7 +196,7 @@ impl<'a> FunctionContext<'a> {
                     }
                     ast::Type::Slice(_) => {
                         let slice_length =
-                            self.builder.field_constant(array.contents.len() as u128);
+                            self.builder.length_constant(array.contents.len() as u128);
                         let slice_contents =
                             self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![slice_length.into(), slice_contents])
@@ -221,7 +221,7 @@ impl<'a> FunctionContext<'a> {
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
                 let string = self.codegen_string(string);
-                let field_count = self.builder.field_constant(*number_of_fields as u128);
+                let field_count = self.builder.length_constant(*number_of_fields as u128);
                 let fields = self.codegen_expression(fields)?;
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
@@ -615,7 +615,7 @@ impl<'a> FunctionContext<'a> {
         {
             match intrinsic {
                 Intrinsic::SliceInsert => {
-                    let one = self.builder.field_constant(1u128);
+                    let one = self.builder.length_constant(1u128);
 
                     // We add one here in the case of a slice insert as a slice insert at the length of the slice
                     // can be converted to a slice push back
@@ -684,9 +684,7 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         assert_message: &Option<Box<Expression>>,
     ) -> Result<Option<Box<ConstrainError>>, RuntimeError> {
-        let Some(assert_message_expr) = assert_message else {
-            return Ok(None)
-        };
+        let Some(assert_message_expr) = assert_message else { return Ok(None) };
 
         if let ast::Expression::Literal(ast::Literal::Str(assert_message)) =
             assert_message_expr.as_ref()

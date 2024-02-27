@@ -32,5 +32,14 @@ pub fn fixed_base_embedded_curve(
 // docs:end:fixed_base_embedded_curve
 {}
 
+// This is a hack as returning an `EmbeddedCurvePoint` from a foreign function in brillig returns a [BrilligVariable::SingleAddr; 2] rather than BrilligVariable::BrilligArray
+// as is defined in the brillig bytecode format. This is a workaround which allows us to fix this without modifying the serialization format.
+fn embedded_curve_add(point1: EmbeddedCurvePoint, point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {
+    let point_array = embedded_curve_add_array_return(point1, point2);
+    let x = point_array[0];
+    let y = point_array[1];
+    EmbeddedCurvePoint { x, y }
+}
+
 #[foreign(embedded_curve_add)]
-fn embedded_curve_add(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> EmbeddedCurvePoint {}
+fn embedded_curve_add_array_return(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> [Field; 2] {}
