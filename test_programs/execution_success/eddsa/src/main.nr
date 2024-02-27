@@ -1,7 +1,10 @@
 use dep::std::compat;
 use dep::std::ec::consts::te::baby_jubjub;
 use dep::std::hash;
-use dep::std::eddsa::eddsa_poseidon_verify;
+use dep::std::eddsa::{eddsa_poseidon_verify, eddsa_verify_with_hasher};
+use dep::std::hash::poseidon2::Poseidon2Hasher;
+use dep::std::hash::pedersen::PedersenHasher;
+
 fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
     // Skip this test for non-bn254 backends
     if compat::is_bn254() {
@@ -42,5 +45,11 @@ fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
         assert(!eddsa_poseidon_verify(pub_key_a.x, pub_key_a.y, s_b, r8_b.x, r8_b.y, msg));
         // User A's signature over the message can't be used with another message
         assert(!eddsa_poseidon_verify(pub_key_a.x, pub_key_a.y, s_a, r8_a.x, r8_a.y, msg + 1));
+        // Using a different hash should fail
+        let mut hasher = Poseidon2Hasher::default();
+        assert(!eddsa_verify_with_hasher(pub_key_a.x, pub_key_a.y, s_a, r8_a.x, r8_a.y, msg, &mut hasher));
+        // Using a different hash should fail
+        let mut hasher = PedersenHasher::default();
+        assert(!eddsa_verify_with_hasher(pub_key_a.x, pub_key_a.y, s_a, r8_a.x, r8_a.y, msg, &mut hasher));
     }
 }
