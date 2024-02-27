@@ -91,6 +91,10 @@ impl Context<'_, '_> {
         self.def_maps.get(crate_id)
     }
 
+    pub fn def_map_mut(&mut self, crate_id: &CrateId) -> Option<&mut CrateDefMap> {
+        self.def_maps.get_mut(crate_id)
+    }
+
     /// Return the CrateId for each crate that has been compiled
     /// successfully
     pub fn crates(&self) -> impl Iterator<Item = CrateId> + '_ {
