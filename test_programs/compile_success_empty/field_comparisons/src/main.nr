@@ -17,9 +17,11 @@ fn check_plo_phi() {
 }
 
 fn check_decompose_unsafe() {
-    assert_eq(decompose_unsafe(TWO_POW_128), (0, 1));
-    assert_eq(decompose_unsafe(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
-    assert_eq(decompose_unsafe(0x1234567890), (0x1234567890, 0));
+    unsafe {
+        assert_eq(decompose_unsafe(TWO_POW_128), (0, 1));
+        assert_eq(decompose_unsafe(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
+        assert_eq(decompose_unsafe(0x1234567890), (0x1234567890, 0));
+    }
 }
 
 fn check_decompose() {
@@ -29,22 +31,26 @@ fn check_decompose() {
 }
 
 fn check_lt_unsafe() {
-    assert(lt_unsafe(0, 1, 16));
-    assert(lt_unsafe(0, 0x100, 16));
-    assert(lt_unsafe(0x100, TWO_POW_128 - 1, 16));
-    assert(!lt_unsafe(0, TWO_POW_128, 16));
+    unsafe {
+        assert(lt_unsafe(0, 1, 16));
+        assert(lt_unsafe(0, 0x100, 16));
+        assert(lt_unsafe(0x100, TWO_POW_128 - 1, 16));
+        assert(!lt_unsafe(0, TWO_POW_128, 16));
+    }
 }
 
 fn check_lte_unsafe() {
-    assert(lte_unsafe(0, 1, 16));
-    assert(lte_unsafe(0, 0x100, 16));
-    assert(lte_unsafe(0x100, TWO_POW_128 - 1, 16));
-    assert(!lte_unsafe(0, TWO_POW_128, 16));
+    unsafe {
+        assert(lte_unsafe(0, 1, 16));
+        assert(lte_unsafe(0, 0x100, 16));
+        assert(lte_unsafe(0x100, TWO_POW_128 - 1, 16));
+        assert(!lte_unsafe(0, TWO_POW_128, 16));
 
-    assert(lte_unsafe(0, 0, 16));
-    assert(lte_unsafe(0x100, 0x100, 16));
-    assert(lte_unsafe(TWO_POW_128 - 1, TWO_POW_128 - 1, 16));
-    assert(lte_unsafe(TWO_POW_128, TWO_POW_128, 16));
+        assert(lte_unsafe(0, 0, 16));
+        assert(lte_unsafe(0x100, 0x100, 16));
+        assert(lte_unsafe(TWO_POW_128 - 1, TWO_POW_128 - 1, 16));
+        assert(lte_unsafe(TWO_POW_128, TWO_POW_128, 16));
+    }
 }
 
 fn check_assert_gt() {
@@ -81,8 +87,8 @@ unconstrained fn checks_in_brillig() {
 }
 
 fn main() {
+    checks();
     unsafe {
-        checks();
         checks_in_brillig();
     }
 }

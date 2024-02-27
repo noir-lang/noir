@@ -11,7 +11,7 @@ impl MyDeserialize<1> for Field {
 }
 
 pub fn storage_read<N>() -> [Field; N] {
-    dep::std::unsafe::zeroed()
+    dep::std::unsafe_func::zeroed()
 }
 
 struct PublicMutable<T> {

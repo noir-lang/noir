@@ -3,7 +3,9 @@ use dep::std;
 // 
 // The features being tested is hash_to_field in brillig
 fn main(input: Field) -> pub Field {
-    hash_to_field(input)
+    unsafe {
+        hash_to_field(input)
+    }
 }
 
 unconstrained fn hash_to_field(input: Field) -> Field {

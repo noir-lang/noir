@@ -3,21 +3,23 @@ use dep::std::test::OracleMock;
 
 // Tests oracle usage in brillig/unconstrained functions
 fn main(_x: Field) {
-    let size = 20;
-    // TODO: Add a method along the lines of `(0..size).to_array()`.
-    let mut mock_oracle_response = [0; 20];
-    // TODO: Add an `array.reverse()` method.
-    let mut reversed_mock_oracle_response = [0; 20];
-    for i in 0..size {
-        mock_oracle_response[i] = i;
-        reversed_mock_oracle_response[19 - i] = i;
+    unsafe {
+        let size = 20;
+        // TODO: Add a method along the lines of `(0..size).to_array()`.
+        let mut mock_oracle_response = [0; 20];
+        // TODO: Add an `array.reverse()` method.
+        let mut reversed_mock_oracle_response = [0; 20];
+        for i in 0..size {
+            mock_oracle_response[i] = i;
+            reversed_mock_oracle_response[19 - i] = i;
+        }
+
+        // TODO: this method of returning a slice feels hacky.
+        let _ = OracleMock::mock("get_number_sequence").with_params(size).returns((20, mock_oracle_response));
+        let _ = OracleMock::mock("get_reverse_number_sequence").with_params(size).returns((20, reversed_mock_oracle_response));
+
+        get_number_sequence_wrapper(size as Field);
     }
-
-    // TODO: this method of returning a slice feels hacky.
-    let _ = OracleMock::mock("get_number_sequence").with_params(size).returns((20, mock_oracle_response));
-    let _ = OracleMock::mock("get_reverse_number_sequence").with_params(size).returns((20, reversed_mock_oracle_response));
-
-    get_number_sequence_wrapper(size as Field);
 }
 
 // Define oracle functions which we have mocked above
