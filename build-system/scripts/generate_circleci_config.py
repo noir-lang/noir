@@ -20,7 +20,7 @@ def get_manifest_job_names():
 
 def is_already_built_circleci_job(circleci_job, already_built_manifest_jobs):
     """
-    This function checks if a given CircleCI job is associated with a specific already-built manifest job. 
+    This function checks if a given CircleCI job is associated with a specific already-built manifest job.
     It does so by checking the job's steps for an 'aztec_manifest_key' that contain references to manifest names.
     We want to see at least one such key, and for all such keys to be in 'already_built_manifest_jobs'.
     """
@@ -43,7 +43,7 @@ def is_already_built_circleci_job(circleci_job, already_built_manifest_jobs):
                 return False
         matching_steps += 1
     # All steps have matched - but make sure that's actually more than one step
-    return matching_steps > 0 
+    return matching_steps > 0
 
 def get_already_built_circleci_job_names(circleci_jobs):
     already_built_manifest_jobs = list(get_already_built_manifest_job_names())
@@ -75,11 +75,11 @@ def get_already_built_manifest_job_names():
 def remove_jobs_from_workflow(jobs, to_remove):
     """
     Removes jobs from a given CircleCI JSON workflow.
-    
+
     Parameters:
         jobs (dict): The JSON object representing the CircleCI workflow jobs dependencies portion.
         to_remove (list): The list of jobs to be removed from the workflow.
-    
+
     Returns:
         dict: The new JSON object with specified jobs removed.
     """
@@ -97,7 +97,7 @@ def remove_jobs_from_workflow(jobs, to_remove):
 
 if __name__ == '__main__':
     # The CircleCI workflow as a JSON string (Replace this with your actual workflow)
-    
+
     # Convert the JSON string to a Python dictionary
     workflow_dict = yaml.safe_load(open('.circleci/config.yml'))
 

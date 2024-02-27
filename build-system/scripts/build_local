@@ -64,8 +64,7 @@ for E in "${PROJECTS[@]}"; do
     fi
   fi
 
-  # TODO: Move everything to aztecprotocol/*
-  DEPLOY_IMAGE_URI=$ECR_DEPLOY_URL/$REPO:latest
+  DEPLOY_IMAGE_URI=aztecprotocol/$REPO:latest
   CACHE_IMAGE_URI=$(calculate_image_uri $REPO)
   ARR=(${CACHE_IMAGE_URI//:/ })
   REPO_URI=${ARR[0]}
@@ -111,9 +110,6 @@ for E in "${PROJECTS[@]}"; do
 
   # Retag with deployment uri.
   docker tag $CACHE_IMAGE_URI $DEPLOY_IMAGE_URI
-
-  # Retag for aztecprotocol dockerhub.
-  docker tag $DEPLOY_IMAGE_URI aztecprotocol/$REPO:latest
 
   remove_old_images $REPO
 

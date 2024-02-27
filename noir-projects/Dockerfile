@@ -1,5 +1,5 @@
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir as noir
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/avm-transpiler as transpiler
+FROM aztecprotocol/noir as noir
+FROM aztecprotocol/avm-transpiler as transpiler
 
 FROM ubuntu:lunar AS builder
 # Copy in nargo

@@ -104,14 +104,14 @@ for PARENT_REPO in $(query_manifest dependencies $REPOSITORY); do
       # Finally attempt to locate x86_64 image tag, as sometimes we build arch specific images from x86_64 images.
       PARENT_IMAGE_TAG=$(calculate_image_tag $PARENT_REPO x86_64)
       if ! image_exists $PARENT_REPO $PARENT_IMAGE_TAG; then
-        echo "Failed to locate multiarch image, arch specific image, or x86_64 image. Aborting."
+        echo "Failed to locate multiarch image, arch specific image, or x86_64 image for $PARENT_REPO. Aborting."
         exit 1
       fi
     fi
   fi
 
   # Substitute references to parent repo, with the relevent built image uri.
-  DEPLOY_URI=$ECR_DEPLOY_URL/$PARENT_REPO
+  DEPLOY_URI=aztecprotocol/$PARENT_REPO
   PARENT_IMAGE_URI=$ECR_URL/$PARENT_REPO:$PARENT_IMAGE_TAG
   awk '{if ($1 == "FROM" && $2 == "'$DEPLOY_URI'") $2 = "'$PARENT_IMAGE_URI'"; print $0}' $DOCKERFILE > _temp && mv _temp $DOCKERFILE
 done

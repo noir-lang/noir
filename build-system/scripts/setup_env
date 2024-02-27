@@ -87,7 +87,6 @@ echo export ECR_REGION=us-east-2 >> $BASH_ENV
 echo export AWS_ACCOUNT=278380418400 >> $BASH_ENV
 echo export ECR_URL=278380418400.dkr.ecr.us-east-2.amazonaws.com >> $BASH_ENV
 echo export ECR_DEPLOY_REGION=eu-west-2 >> $BASH_ENV
-echo export ECR_DEPLOY_URL=278380418400.dkr.ecr.eu-west-2.amazonaws.com >> $BASH_ENV
 echo export DOCKERHUB_ACCOUNT=aztecprotocol >> $BASH_ENV
 echo export DOCKERHUB_USERNAME=aztecprotocolci >> $BASH_ENV
 echo export PROJECT=$PROJECT >> $BASH_ENV

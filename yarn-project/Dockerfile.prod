@@ -1,6 +1,6 @@
 # This productionifies the workspace, removing all developer dependencies and producing a final slim image from which
 # we then generate downstream multiarch containers to execute the specific projects.
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project AS yarn-project
+FROM aztecprotocol/yarn-project AS yarn-project
 
 # Need new arch specific image.
 FROM node:18.19.0 AS builder

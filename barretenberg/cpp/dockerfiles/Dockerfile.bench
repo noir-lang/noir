@@ -1,4 +1,4 @@
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/barretenberg-x86_64-linux-clang
+FROM aztecprotocol/barretenberg-x86_64-linux-clang
 WORKDIR /usr/src/barretenberg/cpp
 RUN apk update && apk add curl libstdc++ jq
 RUN ./scripts/ci/ultra_honk_bench.sh

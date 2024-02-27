@@ -1,8 +1,8 @@
 # Builds the boxes (they were copied into yarn-project-base so the cli can unbox).
 # Produces a container that can be run to test a specific box. See docker-compose.yml.
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/aztec AS aztec
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir as noir
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-projects as noir-projects
+FROM aztecprotocol/aztec AS aztec
+FROM aztecprotocol/noir as noir
+FROM aztecprotocol/noir-projects as noir-projects
 
 # We need yarn. Start fresh container.
 FROM node:18.19.0

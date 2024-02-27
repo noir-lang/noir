@@ -1,4 +1,4 @@
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project AS builder
+FROM aztecprotocol/yarn-project AS builder
 
 # Build web bundle for browser tests
 WORKDIR /usr/src/yarn-project/end-to-end

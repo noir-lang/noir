@@ -1,5 +1,5 @@
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/bb.js
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-compile-acir-tests as noir-acir-tests
+FROM aztecprotocol/bb.js
+FROM aztecprotocol/noir-compile-acir-tests as noir-acir-tests
 
 FROM node:18.19.0
 COPY --from=0 /usr/src/barretenberg/ts-build /usr/src/barretenberg/ts

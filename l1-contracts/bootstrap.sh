@@ -19,7 +19,7 @@ fi
 . ./scripts/install_foundry.sh
 
 # Attempt to just pull artefacts from CI and exit on success.
-./bootstrap_cache.sh && exit
+[ -n "${USE_CACHE:-}" ] && ./bootstrap_cache.sh && exit
 
 # Clean
 rm -rf broadcast cache out serve

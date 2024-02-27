@@ -12,38 +12,46 @@ cd "$(dirname "$0")"
 
 CMD=${1:-}
 
-if [ -n "$CMD" ]; then
-  if [ "$CMD" = "clean" ]; then
-    echo "WARNING: This will erase *all* untracked files, including hooks and submodules."
-    echo -n "Continue? [y/n] "
-    read user_input
-    if [ "$user_input" != "y" ] && [ "$user_input" != "Y" ]; then
-      exit 1
-    fi
+YELLOW="\033[93m"
+BOLD="\033[1m"
+RESET="\033[0m"
 
-    # Remove hooks and submodules.
-    rm -rf .git/hooks/*
-    rm -rf .git/modules/*
-    for SUBMODULE in $(git config --file .gitmodules --get-regexp path | awk '{print $2}'); do
-      rm -rf $SUBMODULE
-    done
+source ./build-system/scripts/setup_env '' '' '' > /dev/null
 
-    # Remove all untracked files, directories, nested repos, and .gitignore files.
-    git clean -ffdx
-
-    exit 0
-  elif [ "$CMD" = "full" ]; then
-    export NO_CACHE=1
-  else
-    echo "Unknown command: $CMD"
+if [ "$CMD" = "clean" ]; then
+  echo "WARNING: This will erase *all* untracked files, including hooks and submodules."
+  echo -n "Continue? [y/n] "
+  read user_input
+  if [ "$user_input" != "y" ] && [ "$user_input" != "Y" ]; then
     exit 1
   fi
-fi
 
-# if [ ! -f ~/.nvm/nvm.sh ]; then
-#   echo "Nvm not found at ~/.nvm"
-#   exit 1
-# fi
+  # Remove hooks and submodules.
+  rm -rf .git/hooks/*
+  rm -rf .git/modules/*
+  for SUBMODULE in $(git config --file .gitmodules --get-regexp path | awk '{print $2}'); do
+    rm -rf $SUBMODULE
+  done
+
+  # Remove all untracked files, directories, nested repos, and .gitignore files.
+  git clean -ffdx
+
+  exit 0
+elif [ "$CMD" = "full" ]; then
+  if can_use_ci_cache; then
+    echo -e "${BOLD}${YELLOW}WARNING: Performing a full bootstrap. Consider leveraging './bootstrap.sh fast' to use CI cache.${RESET}"
+    echo
+  fi
+elif [ "$CMD" = "fast" ]; then
+  export USE_CACHE=1
+  if ! can_use_ci_cache; then
+    echo -e "${BOLD}${YELLOW}WARNING: Either docker or aws credentials are missing. Install docker and request credentials. Note this is for internal aztec devs only.${RESET}"
+    exit 1
+  fi
+else
+  echo "usage: $0 <full|fast|clean>"
+  exit 1
+fi
 
 # Install pre-commit git hooks.
 HOOKS_DIR=$(git rev-parse --git-path hooks)

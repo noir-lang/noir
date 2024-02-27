@@ -4,11 +4,11 @@
 #   - Run the tests.
 #   - Run the formatter checks.
 # Any subsequent build steps needed to support downstream containers should be done in those containers build files.
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/l1-contracts as contracts
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/noir-projects as noir-projects
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/boxes-files as boxes-files
+FROM aztecprotocol/l1-contracts as contracts
+FROM aztecprotocol/noir-projects as noir-projects
+FROM aztecprotocol/boxes-files as boxes-files
 
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base
+FROM aztecprotocol/yarn-project-base
 COPY --from=contracts /usr/src/l1-contracts /usr/src/l1-contracts
 COPY --from=noir-projects /usr/src/noir-projects /usr/src/noir-projects
 COPY --from=boxes-files /usr/src/boxes /usr/src/boxes

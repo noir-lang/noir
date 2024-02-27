@@ -86,6 +86,7 @@ jobs:
             build-system/scripts/generate_circleci_config.py > .circleci/generated_config.yml
       - continuation/continue:
           configuration_path: .circleci/generated_config.yml
+
   # Noir
   noir-x86_64:
     docker:
@@ -207,7 +208,7 @@ jobs:
           name: "Build"
           command: cond_spot_run_build barretenberg-x86_64-linux-clang-fuzzing 128
           aztec_manifest_key: barretenberg-x86_64-linux-clang-fuzzing
-          
+
   barretenberg-x86_64-linux-clang-assert:
     docker:
       - image: aztecprotocol/alpine-build-image

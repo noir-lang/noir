@@ -32,10 +32,10 @@ fi
 # Construct the full instance type. We use r6a currently.
 if [ "$ARCH" == "x86_64" ]; then
   MACHINE_TYPE="r6a"
-  AMI="ami-0e5df77ac318c7a18"
+  AMI="ami-04d8422a9ba4de80f"
 elif [ "$ARCH" == "arm64" ]; then
   MACHINE_TYPE="r7g"
-  AMI="ami-02c5a5064fe72b22e"
+  AMI="ami-0d8a9b0419ddb331a"
 else
   echo "Unknown arch: $ARCH"
   exit 1
