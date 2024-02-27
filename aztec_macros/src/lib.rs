@@ -4,12 +4,8 @@ use std::vec;
 use convert_case::{Case, Casing};
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_errors::Location;
-use noirc_frontend::hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl};
 use noirc_frontend::hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl};
 use noirc_frontend::hir::def_map::{LocalModuleId, ModuleId};
-use noirc_frontend::hir::def_map::{LocalModuleId, ModuleId};
-use noirc_frontend::macros_api::parse_program;
 use noirc_frontend::macros_api::parse_program;
 use noirc_frontend::macros_api::FieldElement;
 use noirc_frontend::macros_api::{
