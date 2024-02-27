@@ -81,6 +81,8 @@ unconstrained fn checks_in_brillig() {
 }
 
 fn main() {
-    checks();
-    checks_in_brillig();
+    unsafe {
+        checks();
+        checks_in_brillig();
+    }
 }
