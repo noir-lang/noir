@@ -180,7 +180,7 @@ impl Sub for U128 {
         let borrow = (low == lo) as Field;
         let high = self.hi - b.hi - borrow;
         let hi = high as u64 as Field;
-        assert(hi == high, "attempt to subtract with overflow");
+        assert(hi == high, "attempt to subtract with underflow");
         U128 {
             lo,
             hi,
