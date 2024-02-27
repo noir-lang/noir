@@ -50,10 +50,10 @@ To keep docs consistent and easily-searchable, follow these grammar guidelines:
 
 * Write with American English
 * When talking about ZK, use:
-** `zero knowledge` as the noun
-** `zero-knowledge` as the adjective
-** `ZK` for subsequent mentions of zero knowledge and zero-knowledge on the same page
-* Do not end bullet points with any punctuation, such as bullet points or semi-colons (most of the time)
+    * `zero knowledge` as the noun
+    * `zero-knowledge` as the adjective
+    * `ZK` for subsequent mentions of zero knowledge and zero-knowledge on the same page
+* Do not end bullet points with any punctuation, such as periods or semi-colons (most of the time)
 * Use numbered bullets when the order is important, such as steps in a guide or hierarchies of dependencies
 * Write with [active voice](https://www.grammarly.com/blog/active-vs-passive-voice/) in tutorials and how-tos, and passive voice in explanations
 * Use the [Oxford comma](https://www.grammarly.com/blog/what-is-the-oxford-comma-and-why-do-people-care-so-much-about-it/)
