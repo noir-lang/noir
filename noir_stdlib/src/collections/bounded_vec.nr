@@ -1,12 +1,12 @@
 struct BoundedVec<T, MaxLen> {
     storage: [T; MaxLen],
     len: u64,
-    empty_value: T,
 }
 
 impl<T, MaxLen> BoundedVec<T, MaxLen> {
-    pub fn new(initial_value: T) -> Self {
-        BoundedVec { storage: [initial_value; MaxLen], len: 0, empty_value: initial_value }
+    pub fn new() -> Self {
+        let zeroed = crate::unsafe::zeroed();
+        BoundedVec { storage: [zeroed; MaxLen], len: 0 }
     }
 
     pub fn get(mut self: Self, index: u64) -> T {
@@ -68,7 +68,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len -= 1;
 
         let elem = self.storage[self.len];
-        self.storage[self.len] = self.empty_value;
+        self.storage[self.len] = crate::unsafe::zeroed();
         elem
     }
 
