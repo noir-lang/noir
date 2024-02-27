@@ -11,7 +11,7 @@ contract Benchmarking {
         context::{Context},
         note::{utils as note_utils, note_getter_options::NoteGetterOptions, note_header::NoteHeader},
         log::emit_unencrypted_log, state_vars::{Map, PublicMutable, PrivateSet},
-        types::type_serialization::field_serialization::{fieldSerializationMethods, field_SERIALIZED_LEN},
+        types::type_serialization::field_serialization::{FieldSerializationMethods, field_SERIALIZED_LEN},
         types::address::{AztecAddress}
     };
 
@@ -31,7 +31,7 @@ contract Benchmarking {
                 balances: Map::new(
                     context,
                     2,
-                    |context, slot| { PublicMutable::new(context, slot, fieldSerializationMethods) }
+                    |context, slot| { PublicMutable::new(context, slot, FieldSerializationMethods) }
                 )
             }
         }
