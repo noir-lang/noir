@@ -32,7 +32,7 @@ import {
 import { createEthereumChain } from '@aztec/ethereum';
 import { makeTuple, range } from '@aztec/foundation/array';
 import { openTmpStore } from '@aztec/kv-store/utils';
-import { InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
+import { AvailabilityOracleAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import {
   EmptyRollupProver,
   L1Publisher,
@@ -77,6 +77,7 @@ describe('L1Publisher integration', () => {
   let publicClient: PublicClient<HttpTransport, Chain>;
   let deployerAccount: PrivateKeyAccount;
 
+  let availabilityOracleAddress: Address;
   let rollupAddress: Address;
   let inboxAddress: Address;
   let outboxAddress: Address;
@@ -111,6 +112,7 @@ describe('L1Publisher integration', () => {
     } = await setupL1Contracts(config.rpcUrl, deployerAccount, logger);
     publicClient = publicClient_;
 
+    availabilityOracleAddress = getAddress(l1ContractAddresses.availabilityOracleAddress.toString());
     rollupAddress = getAddress(l1ContractAddresses.rollupAddress.toString());
     inboxAddress = getAddress(l1ContractAddresses.inboxAddress.toString());
     outboxAddress = getAddress(l1ContractAddresses.outboxAddress.toString());
@@ -321,6 +323,30 @@ describe('L1Publisher integration', () => {
     const output = JSON.stringify(jsonObject, null, 2);
     fs.writeFileSync(path, output, 'utf8');
   };
+
+  it('Block body is correctly published to AvailabilityOracle', async () => {
+    const body = L2Block.random(4).body;
+    // `sendPublishTx` function is private so I am hacking around TS here. I think it's ok for test purposes.
+    const txHash = await (publisher as any).sendPublishTx(body.toBuffer());
+
+    // We verify that the body was successfully published by fetching TxsPublished events from the AvailabilityOracle
+    // and checking if the txsHash in the event is as expected
+    const events = await publicClient.getLogs({
+      address: availabilityOracleAddress,
+      event: getAbiItem({
+        abi: AvailabilityOracleAbi,
+        name: 'TxsPublished',
+      }),
+      fromBlock: 0n,
+    });
+
+    // We get the event just for the relevant transaction
+    const txEvents = events.filter(event => event.transactionHash === txHash);
+
+    // We check that exactly 1 TxsPublished event was emitted and txsHash is as expected
+    expect(txEvents.length).toBe(1);
+    expect(txEvents[0].args.txsHash).toEqual(`0x${body.getCalldataHash().toString('hex')}`);
+  });
 
   it(`Build ${numberOfConsecutiveBlocks} blocks of 4 bloated txs building on each other`, async () => {
     const archiveInRollup_ = await rollup.read.archive();

@@ -281,14 +281,12 @@ describe('e2e_public_cross_chain_messaging', () => {
       // for later use
       let msgKey!: Fr;
       {
-        const abiItem = getAbiItem({
-          abi: InboxAbi,
-          name: 'MessageAdded',
-        });
-
-        const events = await crossChainTestHarness.publicClient.getLogs<typeof abiItem>({
+        const events = await crossChainTestHarness.publicClient.getLogs({
           address: getAddress(inbox.address.toString()),
-          event: abiItem,
+          event: getAbiItem({
+            abi: InboxAbi,
+            name: 'MessageAdded',
+          }),
           fromBlock: 0n,
         });
 
