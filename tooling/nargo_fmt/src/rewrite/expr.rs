@@ -42,7 +42,11 @@ pub(crate) fn rewrite(
             format!("{op}{}", rewrite_sub_expr(visitor, shape, prefix.rhs))
         }
         ExpressionKind::Cast(cast) => {
-            format!("{} as {}", rewrite_sub_expr(visitor, shape, cast.lhs), cast.r#type)
+            format!(
+                "{} as {}",
+                rewrite_sub_expr(visitor, shape, cast.lhs),
+                super::typ(visitor, Shape::default(), cast.r#type)
+            )
         }
         kind @ ExpressionKind::Infix(_) => {
             super::infix(visitor.fork(), Expression { kind, span }, shape)

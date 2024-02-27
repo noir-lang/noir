@@ -6,7 +6,7 @@ struct Point {
 }
 
 #[oracle(foo)]
-unconstrained fn foo_oracle(_point: Point, _array: [Field; 4]) -> Field {}
+unconstrained fn foo_oracle(_point: Point, _array: [field; 4]) -> field {}
 
 unconstrained fn main() {
     let array = [1, 2, 3, 4];

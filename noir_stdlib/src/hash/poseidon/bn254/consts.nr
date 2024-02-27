@@ -9,7 +9,7 @@ fn rp() -> [u8; 16] {
     [56, 57, 56, 60, 60, 63, 64, 63, 60, 66, 60, 65, 70, 60, 64, 68]
 }
 // S-box power
-fn alpha() -> Field {
+fn alpha() -> field {
     5
 }
 // Poseidon configurations for states of size 2 to 17.

@@ -1,4 +1,4 @@
-unconstrained fn main(mut x: Field) {
+unconstrained fn main(mut x: field) {
     add1(&mut x);
     assert(x == 3);
     // https://github.com/noir-lang/noir/issues/1899
@@ -21,7 +21,7 @@ unconstrained fn main(mut x: Field) {
     assert(arr[1] == 4);
 }
 
-unconstrained fn add1(x: &mut Field) {
+unconstrained fn add1(x: &mut field) {
     *x += 1;
 }
 
@@ -44,6 +44,6 @@ impl S {
     }
 }
 
-unconstrained fn mutate_copy(mut a: Field) {
+unconstrained fn mutate_copy(mut a: field) {
     a = 7;
 }

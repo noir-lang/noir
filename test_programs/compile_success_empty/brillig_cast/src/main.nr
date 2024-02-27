@@ -16,8 +16,8 @@ unconstrained fn bool_casts() {
 }
 
 unconstrained fn field_casts() {
-    assert(5 as u8 as Field == 5);
-    assert(256 as u8 as Field == 0);
+    assert(5 as u8 as field == 5);
+    assert(256 as u8 as field == 0);
 }
 
 unconstrained fn uint_casts() {

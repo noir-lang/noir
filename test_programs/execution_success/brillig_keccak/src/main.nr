@@ -2,7 +2,7 @@ use dep::std;
 // Tests a very simple program.
 // 
 // The features being tested is keccak256 in brillig
-fn main(x: Field, result: [u8; 32]) {
+fn main(x: field, result: [u8; 32]) {
     // We use the `as` keyword here to denote the fact that we want to take just the first byte from the x Field
     // The padding is taken care of by the program
     let digest = keccak256([x as u8], 1);

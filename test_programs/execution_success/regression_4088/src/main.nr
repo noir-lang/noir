@@ -12,7 +12,7 @@ impl Serialize<1> for ValueNote {
     }
 }
 
-fn check<N>(serialized_note: [Field; N]) {
+fn check<N>(serialized_note: [field; N]) {
     assert(serialized_note[0] == 0);
 }
 

@@ -4,12 +4,12 @@ use crate::ec::tecurve::affine::Point as TEPoint;
 
 // Returns true if signature is valid
 pub fn eddsa_poseidon_verify(
-    pub_key_x: Field,
-    pub_key_y: Field,
-    signature_s: Field,
-    signature_r8_x: Field,
-    signature_r8_y: Field,
-    message: Field
+    pub_key_x: field,
+    pub_key_y: field,
+    signature_s: field,
+    signature_r8_x: field,
+    signature_r8_y: field,
+    message: field
 ) -> bool {
     // Verifies by testing:
     // S * B8 = R8 + H(R8, A, m) * A8

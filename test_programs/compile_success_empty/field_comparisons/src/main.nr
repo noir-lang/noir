@@ -1,8 +1,8 @@
-use dep::std::field::bn254::{PLO, PHI, TWO_POW_128, decompose, decompose_unsafe, lt_unsafe, lte_unsafe, assert_gt, gt};
+use dep::std::field_element::bn254::{PLO, PHI, TWO_POW_128, decompose, decompose_unsafe, lt_unsafe, lte_unsafe, assert_gt, gt};
 
 fn check_plo_phi() {
     assert_eq(PLO + PHI * TWO_POW_128, 0);
-    let p_bytes = dep::std::field::modulus_le_bytes();
+    let p_bytes = dep::std::field_element::modulus_le_bytes();
     let mut p_low: Field = 0;
     let mut p_high: Field = 0;
 

@@ -1,4 +1,4 @@
-fn main(x: Field, cond: bool) -> pub [u8; 31] {
+fn main(x: field, cond: bool) -> pub [u8; 31] {
     // The result of this byte array will be little-endian
     let byte_array = x.to_le_bytes(31);
     assert(byte_array.len() == 31);

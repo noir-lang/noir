@@ -44,13 +44,13 @@ impl Serializable<2> for Data {
     }
 }
 
-fn sum<T, M>(data: T) -> Field where T: Serializable<M> {
+fn sum<T, M>(data: T) -> field where T: Serializable<M> {
     let serialized = data.serialize();
     serialized.fold(0, |acc, elem| acc + elem)
 }
 
 // Test static trait method syntax
-fn sum_static<T, M>(data: T) -> Field where T: Serializable<M> {
+fn sum_static<T, M>(data: T) -> field where T: Serializable<M> {
     let serialized = Serializable::serialize(data);
     serialized.fold(0, |acc, elem| acc + elem)
 }

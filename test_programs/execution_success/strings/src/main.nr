@@ -2,7 +2,7 @@ use dep::std;
 // Test global string literals
 global HELLO_WORLD = "hello world";
 
-fn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Field) {
+fn main(message: pub str<11>, y: field, hex_as_string: str<4>, hex_as_field: field) {
     let mut bad_message = "hello world";
 
     assert(message == "hello world");
@@ -65,7 +65,7 @@ fn test_prints_array() {
     std::println(hash);
 }
 
-fn failed_constraint(hex_as_field: Field) {
+fn failed_constraint(hex_as_field: field) {
     // When this method is called from a test method or with constant values
     // a `Failed constraint` compile error will be caught before this `println`
     // is executed as the input will be a constant.

@@ -4,8 +4,8 @@ fn main(mut x: u32, y: u32, z: u32, big_int: U128, hexa: str<7>) {
     let a = U128::from_u64s_le(x as u64, x as u64);
     let b = U128::from_u64s_le(y as u64, x as u64);
     let c = a + b;
-    assert(c.lo == z as Field);
-    assert(c.hi == 2 * x as Field);
+    assert(c.lo == z as field);
+    assert(c.hi == 2 * x as field);
     assert(U128::from_hex(hexa).lo == 0x1f03a);
     let t1 = U128::from_hex("0x9d9c7a87771f03a23783f9d9c7a8777");
     let t2 = U128::from_hex("0x45a26c708BFCF39041");
@@ -32,7 +32,7 @@ fn main(mut x: u32, y: u32, z: u32, big_int: U128, hexa: str<7>) {
     assert(big_int.hi == 2);
 
     let mut small_int = U128::from_integer(x);
-    assert(small_int.lo == x as Field);
+    assert(small_int.lo == x as field);
     assert(x == small_int.to_integer());
     let shift = small_int << small_int;
     assert(shift == U128::from_integer(x << x));

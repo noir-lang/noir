@@ -93,7 +93,7 @@ fn main(x: u32) {
     assert(b_true.to_field() == 14);
     let b_false = 2 == 3;
     assert(b_false.to_field() == 3);
-    let f = 13 as Field;
+    let f = 13 as field;
     assert(f.to_field() == 13);
     let k_true = (12 as u32, true);
     assert(k_true.to_field() == 12);

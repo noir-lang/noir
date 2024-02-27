@@ -1,9 +1,9 @@
 use dep::std;
 
 unconstrained fn main() {
-    let field = 1000;
-    let be_bits = field.to_be_bits(16);
-    let le_bits = field.to_le_bits(16);
+    let val = 1000;
+    let be_bits = val.to_be_bits(16);
+    let le_bits = val.to_le_bits(16);
 
     for i in 0..16 {
         let x = be_bits[i];

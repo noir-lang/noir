@@ -1,12 +1,12 @@
-fn g(x: &mut Field) -> () {
+fn g(x: &mut field) -> () {
     *x *= 2;
 }
 
-fn h(x: &mut Field) -> () {
+fn h(x: &mut field) -> () {
     *x *= 3;
 }
 
-fn selector(flag: &mut bool) -> fn(&mut Field) -> () {
+fn selector(flag: &mut bool) -> fn(&mut field) -> () {
     let my_func = if *flag { g } else { h };
     // Flip the flag for the next function call
     *flag = !(*flag);

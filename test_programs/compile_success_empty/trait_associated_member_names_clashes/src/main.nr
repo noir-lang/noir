@@ -10,7 +10,7 @@ struct Struct1 {
 }
 
 impl Struct1 {
-    fn tralala() -> Field {
+    fn tralala() -> field {
         123456
     }
 }

@@ -26,12 +26,12 @@ impl<N> BigInt<N> {
 }
 
 impl Bar<Field> {
-    fn get_other(self) -> Field {
+    fn get_other(self) -> field {
         self.other
     }
 }
 
-fn main(x: Field, y: Field) {
+fn main(x: field, y: field) {
     let bar1: Bar<Field> = Bar { one: x, two: y, other: 0 };
     let bar2 = Bar { one: x, two: y, other: [0] };
 
@@ -54,7 +54,7 @@ fn main(x: Field, y: Field) {
     let _ = regression_2055([1, 2, 3]);
 }
 
-fn regression_2055<LEN>(bytes: [u8; LEN]) -> Field {
+fn regression_2055<LEN>(bytes: [u8; LEN]) -> field {
     let mut f = 0;
     let mut b = 1;
     let mut len = LEN - 1; // FAILS

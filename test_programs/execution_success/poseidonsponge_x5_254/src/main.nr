@@ -1,6 +1,6 @@
 use dep::std::hash::poseidon;
 
-fn main(x: [Field; 7]) {
+fn main(x: [field; 7]) {
     // Test optimized sponge
     let result = poseidon::bn254::sponge(x);
 

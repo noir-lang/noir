@@ -1,4 +1,4 @@
-fn main(x: Field) -> pub Field {
+fn main(x: field) -> pub field {
     // Regression test for issue #547
     // Warning: it must be kept at the start of main
     let arr: [u8; 2] = [1, 2];
@@ -11,6 +11,6 @@ fn main(x: Field) -> pub Field {
     x + safe_inverse(0)
 }
 
-fn safe_inverse(n: Field) -> Field {
+fn safe_inverse(n: field) -> field {
     if n == 0 { 0 } else { 1 / n }
 }

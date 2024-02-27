@@ -7,7 +7,7 @@ fn main() {
     let as_bits_hardcode_1 = [1, 0];
     let mut c1 = 0;
     for i in 0..2 {
-        let mut as_bits = (arr[i] as Field).to_le_bits(2);
+        let mut as_bits = (arr[i] as field).to_le_bits(2);
         c1 = c1 + as_bits[0] as Field;
 
         if i == 0 {

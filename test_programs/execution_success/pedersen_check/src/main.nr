@@ -1,6 +1,6 @@
 use dep::std;
 
-fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Field, out_hash: Field) {
+fn main(x: field, y: field, salt: field, out_x: field, out_y: field, out_hash: field) {
     let res = std::hash::pedersen_commitment([x, y]);
     assert(res.x == out_x);
     assert(res.y == out_y);

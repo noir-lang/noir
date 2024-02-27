@@ -2,7 +2,7 @@
 // the syntax for these return types is very difficult to get right :/
 // for arguments this can be handled with a generic Env (or with Fn traits when we add them)
 // but for return types neither fo these will help, you need to type out the exact type
-fn make_counter() -> fn[(&mut Field,)]() -> Field {
+fn make_counter() -> fn[(&mut field,)]() -> field {
     let mut x = &mut 0;
 
     || {
@@ -11,7 +11,7 @@ fn make_counter() -> fn[(&mut Field,)]() -> Field {
     }
 }
 
-fn fibonacci_generator() -> fn[(&mut Field, &mut Field)]() -> Field {
+fn fibonacci_generator() -> fn[(&mut field, &mut field)]() -> field {
     let mut x = &mut 1;
     let mut y = &mut 2;
 
@@ -26,7 +26,7 @@ fn fibonacci_generator() -> fn[(&mut Field, &mut Field)]() -> Field {
     }
 }
 // we'll be able to un-hardcode the array length if we have the ::<> syntax proposed in https://github.com/noir-lang/noir/issues/2458
-fn get_some<Env>(generator: fn[Env]() -> Field) -> [Field; 5] {
+fn get_some<Env>(generator: fn[Env]() -> field) -> [field; 5] {
     [0, 0, 0, 0, 0].map(|_| generator())
 }
 

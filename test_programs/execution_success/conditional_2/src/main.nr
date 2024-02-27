@@ -46,6 +46,6 @@ fn test5(a: u32) {
     }
 }
 
-fn foo2() -> Field {
+fn foo2() -> field {
     3
 }

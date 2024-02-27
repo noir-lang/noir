@@ -1,15 +1,15 @@
 mod a {
     mod b {
         struct Data {
-            a: Field
+            a: field
         }
     }
 
-    fn data(a: Field) -> Data {
+    fn data(a: field) -> Data {
         Data { a }
     }
 
-    fn data2(a: Field) -> Data2 {
+    fn data2(a: field) -> Data2 {
         Data2 { a }
     }
 
