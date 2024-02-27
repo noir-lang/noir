@@ -135,6 +135,11 @@ impl CrateDefMap {
     pub fn modules(&self) -> &Arena<ModuleData> {
         &self.modules
     }
+
+    pub fn modules_mut(&mut self) -> &mut Arena<ModuleData> {
+        &mut self.modules
+    }
+
     pub fn krate(&self) -> CrateId {
         self.krate
     }

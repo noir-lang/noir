@@ -12,4 +12,6 @@ else
   export GIT_COMMIT=$(git rev-parse --verify HEAD)
 fi
 
+cargo fmt --all --check
+cargo clippy --workspace --locked --release
 cargo test --workspace --locked --release
