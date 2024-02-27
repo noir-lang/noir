@@ -3,6 +3,10 @@ use std::vec;
 
 use convert_case::{Case, Casing};
 use iter_extended::vecmap;
+use noirc_errors::Location;
+use noirc_frontend::hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl};
+use noirc_frontend::hir::def_map::{LocalModuleId, ModuleId};
+use noirc_frontend::macros_api::parse_program;
 use noirc_frontend::macros_api::FieldElement;
 use noirc_frontend::macros_api::{
     BlockExpression, CallExpression, CastExpression, Distinctness, Expression, ExpressionKind,
@@ -16,9 +20,8 @@ use noirc_frontend::macros_api::{
 use noirc_frontend::macros_api::{CrateId, FileId};
 use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 use noirc_frontend::macros_api::{ModuleDefId, NodeInterner, SortedModule, StructId};
-use noirc_frontend::node_interner::{TraitId, TraitImplKind};
+use noirc_frontend::node_interner::{FuncId, TraitId, TraitImplId, TraitImplKind};
 use noirc_frontend::Lambda;
-
 pub struct AztecMacro;
 
 impl MacroProcessor for AztecMacro {
@@ -29,6 +32,25 @@ impl MacroProcessor for AztecMacro {
         context: &HirContext,
     ) -> Result<SortedModule, (MacroError, FileId)> {
         transform(ast, crate_id, context)
+    }
+
+    fn process_unresolved_traits_impls(
+        &self,
+        crate_id: &CrateId,
+        context: &mut HirContext,
+        unresolved_traits_impls: &[UnresolvedTraitImpl],
+        collected_functions: &mut Vec<UnresolvedFunctions>,
+    ) -> Result<(), (MacroError, FileId)> {
+        if has_aztec_dependency(crate_id, context) {
+            inject_compute_note_hash_and_nullifier(
+                crate_id,
+                context,
+                unresolved_traits_impls,
+                collected_functions,
+            )
+        } else {
+            Ok(())
+        }
     }
 
     fn process_typed_ast(
@@ -46,7 +68,6 @@ const MAX_CONTRACT_FUNCTIONS: usize = 2_usize.pow(FUNCTION_TREE_HEIGHT);
 #[derive(Debug, Clone)]
 pub enum AztecMacroError {
     AztecDepNotFound,
-    ComputeNoteHashAndNullifierNotFound { span: Span },
     ContractHasTooManyFunctions { span: Span },
     ContractConstructorMissing { span: Span },
     UnsupportedFunctionArgumentType { span: Span, typ: UnresolvedTypeData },
@@ -62,11 +83,6 @@ impl From<AztecMacroError> for MacroError {
                 primary_message: "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml. For more information go to https://docs.aztec.network/developers/debugging/aztecnr-errors#aztec-dependency-not-found-please-add-aztec-as-a-dependency-in-your-nargotoml".to_owned(),
                 secondary_message: None,
                 span: None,
-            },
-            AztecMacroError::ComputeNoteHashAndNullifierNotFound { span } => MacroError {
-                primary_message: "compute_note_hash_and_nullifier function not found. Define it in your contract. For more information go to https://docs.aztec.network/developers/debugging/aztecnr-errors#compute_note_hash_and_nullifier-function-not-found-define-it-in-your-contract".to_owned(),
-                secondary_message: None,
-                span: Some(span),
             },
             AztecMacroError::ContractHasTooManyFunctions { span } => MacroError {
                 primary_message: format!("Contract can only have a maximum of {} functions", MAX_CONTRACT_FUNCTIONS),
@@ -313,13 +329,15 @@ fn check_for_aztec_dependency(
     crate_id: &CrateId,
     context: &HirContext,
 ) -> Result<(), (MacroError, FileId)> {
-    let crate_graph = &context.crate_graph[crate_id];
-    let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
-    if has_aztec_dependency {
+    if has_aztec_dependency(crate_id, context) {
         Ok(())
     } else {
-        Err((AztecMacroError::AztecDepNotFound.into(), crate_graph.root_file_id))
+        Err((AztecMacroError::AztecDepNotFound.into(), context.crate_graph[crate_id].root_file_id))
     }
+}
+
+fn has_aztec_dependency(crate_id: &CrateId, context: &HirContext) -> bool {
+    context.crate_graph[crate_id].dependencies.iter().any(|dep| dep.as_name() == "aztec")
 }
 
 // Check to see if the user has defined a storage struct
@@ -338,27 +356,30 @@ fn check_for_storage_implementation(module: &SortedModule) -> bool {
 }
 
 // Check if "compute_note_hash_and_nullifier(AztecAddress,Field,Field,Field,[Field; N]) -> [Field; 4]" is defined
-fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -> bool {
-    module.functions.iter().any(|func| {
-        func.def.name.0.contents == "compute_note_hash_and_nullifier"
-                && func.def.parameters.len() == 5
-                && match &func.def.parameters[0].typ.typ {
+fn check_for_compute_note_hash_and_nullifier_definition(
+    functions_data: &[(LocalModuleId, FuncId, NoirFunction)],
+    module_id: LocalModuleId,
+) -> bool {
+    functions_data.iter().filter(|func_data| func_data.0 == module_id).any(|func_data| {
+        func_data.2.def.name.0.contents == "compute_note_hash_and_nullifier"
+                && func_data.2.def.parameters.len() == 5
+                && match &func_data.2.def.parameters[0].typ.typ {
                     UnresolvedTypeData::Named(path, _, _) => path.segments.last().unwrap().0.contents == "AztecAddress",
                     _ => false,
                 }
-                && func.def.parameters[1].typ.typ == UnresolvedTypeData::FieldElement
-                && func.def.parameters[2].typ.typ == UnresolvedTypeData::FieldElement
-                && func.def.parameters[3].typ.typ == UnresolvedTypeData::FieldElement
+                && func_data.2.def.parameters[1].typ.typ == UnresolvedTypeData::FieldElement
+                && func_data.2.def.parameters[2].typ.typ == UnresolvedTypeData::FieldElement
+                && func_data.2.def.parameters[3].typ.typ == UnresolvedTypeData::FieldElement
                 // checks if the 5th parameter is an array and the Box<UnresolvedType> in
                 // Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>) contains only fields
-                && match &func.def.parameters[4].typ.typ {
+                && match &func_data.2.def.parameters[4].typ.typ {
                     UnresolvedTypeData::Array(_, inner_type) => {
                         matches!(inner_type.typ, UnresolvedTypeData::FieldElement)
                     },
                     _ => false,
                 }
                 // We check the return type the same way as we did the 5th parameter
-                && match &func.def.return_type {
+                && match &func_data.2.def.return_type {
                     FunctionReturnType::Default(_) => false,
                     FunctionReturnType::Ty(unresolved_type) => {
                         match &unresolved_type.typ {
@@ -399,13 +420,6 @@ fn transform_module(
 
     if storage_defined && !storage_implemented {
         generate_storage_implementation(module).map_err(|err| (err, crate_graph.root_file_id))?;
-    }
-
-    if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(module) {
-        return Err((
-            AztecMacroError::ComputeNoteHashAndNullifierNotFound { span: Span::default() },
-            crate_graph.root_file_id,
-        ));
     }
 
     for structure in module.types.iter() {
@@ -596,7 +610,7 @@ fn generate_storage_implementation(module: &mut SortedModule) -> Result<(), Azte
 /// If it does, it will insert the following things:
 /// - A new Input that is provided for a kernel app circuit, named: {Public/Private}ContextInputs
 /// - Hashes all of the function input variables
-///     - This instantiates a helper function  
+///     - This instantiates a helper function
 fn transform_function(
     ty: &str,
     func: &mut NoirFunction,
@@ -826,8 +840,8 @@ fn get_serialized_length(
             && !interner.lookup_all_trait_implementations(stored_in_state, trait_id).is_empty()
     });
 
-    // Maps and (private) Notes always occupy a single slot. Someone could store a Note in PublicState for whatever reason though.
-    if struct_name == "Map" || (is_note && struct_name != "PublicState") {
+    // Maps and (private) Notes always occupy a single slot. Someone could store a Note in PublicMutable for whatever reason though.
+    if struct_name == "Map" || (is_note && struct_name != "PublicMutable") {
         return Ok(1);
     }
 
@@ -1600,4 +1614,195 @@ fn signature_of_type(typ: &Type) -> String {
 fn event_signature(event: &StructType) -> String {
     let fields = vecmap(event.get_fields(&[]), |(_, typ)| signature_of_type(&typ));
     format!("{}({})", event.name.0.contents, fields.join(","))
+}
+
+fn inject_compute_note_hash_and_nullifier(
+    crate_id: &CrateId,
+    context: &mut HirContext,
+    unresolved_traits_impls: &[UnresolvedTraitImpl],
+    collected_functions: &mut [UnresolvedFunctions],
+) -> Result<(), (MacroError, FileId)> {
+    // We first fetch modules in this crate which correspond to contracts, along with their file id.
+    let contract_module_file_ids: Vec<(LocalModuleId, FileId)> = context
+        .def_map(crate_id)
+        .expect("ICE: Missing crate in def_map")
+        .modules()
+        .iter()
+        .filter(|(_, module)| module.is_contract)
+        .map(|(idx, module)| (LocalModuleId(idx), module.location.file))
+        .collect();
+
+    // If the current crate does not contain a contract module we simply skip it.
+    if contract_module_file_ids.is_empty() {
+        return Ok(());
+    } else if contract_module_file_ids.len() != 1 {
+        panic!("Found multiple contracts in the same crate");
+    }
+
+    let (module_id, file_id) = contract_module_file_ids[0];
+
+    // If compute_note_hash_and_nullifier is already defined by the user, we skip auto-generation in order to provide an
+    // escape hatch for this mechanism.
+    // TODO(#4647): improve this diagnosis and error messaging.
+    if collected_functions.iter().any(|coll_funcs_data| {
+        check_for_compute_note_hash_and_nullifier_definition(&coll_funcs_data.functions, module_id)
+    }) {
+        return Ok(());
+    }
+
+    // In order to implement compute_note_hash_and_nullifier, we need to know all of the different note types the
+    // contract might use. These are the types that implement the NoteInterface trait, which provides the
+    // get_note_type_id function.
+    let note_types = fetch_struct_trait_impls(context, unresolved_traits_impls, "NoteInterface");
+
+    // We can now generate a version of compute_note_hash_and_nullifier tailored for the contract in this crate.
+    let func = generate_compute_note_hash_and_nullifier(&note_types);
+
+    // And inject the newly created function into the contract.
+
+    // TODO(#4373): We don't have a reasonable location for the source code of this autogenerated function, so we simply
+    // pass an empty span. This function should not produce errors anyway so this should not matter.
+    let location = Location::new(Span::empty(0), file_id);
+
+    // These are the same things the ModCollector does when collecting functions: we push the function to the
+    // NodeInterner, declare it in the module (which checks for duplicate definitions), and finally add it to the list
+    // on collected but unresolved functions.
+
+    let func_id = context.def_interner.push_empty_fn();
+    context.def_interner.push_function(
+        func_id,
+        &func.def,
+        ModuleId { krate: *crate_id, local_id: module_id },
+        location,
+    );
+
+    context.def_map_mut(crate_id).unwrap()
+        .modules_mut()[module_id.0]
+        .declare_function(
+            func.name_ident().clone(), func_id
+        ).expect(
+            "Failed to declare the autogenerated compute_note_hash_and_nullifier function, likely due to a duplicate definition. See https://github.com/AztecProtocol/aztec-packages/issues/4647."
+        );
+
+    collected_functions
+        .iter_mut()
+        .find(|fns| fns.file_id == file_id)
+        .expect("ICE: no functions found in contract file")
+        .push_fn(module_id, func_id, func.clone());
+
+    Ok(())
+}
+
+// Fetches the name of all structs that implement trait_name, both in the current crate and all of its dependencies.
+fn fetch_struct_trait_impls(
+    context: &mut HirContext,
+    unresolved_traits_impls: &[UnresolvedTraitImpl],
+    trait_name: &str,
+) -> Vec<String> {
+    let mut struct_typenames: Vec<String> = Vec::new();
+
+    // These structs can be declared in either external crates or the current one. External crates that contain
+    // dependencies have already been processed and resolved, but are available here via the NodeInterner. Note that
+    // crates on which the current crate does not depend on may not have been processed, and will be ignored.
+    for trait_impl_id in 0..context.def_interner.next_trait_impl_id().0 {
+        let trait_impl = &context.def_interner.get_trait_implementation(TraitImplId(trait_impl_id));
+
+        if trait_impl.borrow().ident.0.contents == *trait_name {
+            if let Type::Struct(s, _) = &trait_impl.borrow().typ {
+                struct_typenames.push(s.borrow().name.0.contents.clone());
+            } else {
+                panic!("Found impl for {} on non-Struct", trait_name);
+            }
+        }
+    }
+
+    // This crate's traits and impls have not yet been resolved, so we look for impls in unresolved_trait_impls.
+    struct_typenames.extend(
+        unresolved_traits_impls
+            .iter()
+            .filter(|trait_impl| {
+                trait_impl
+                    .trait_path
+                    .segments
+                    .last()
+                    .expect("ICE: empty trait_impl path")
+                    .0
+                    .contents
+                    == *trait_name
+            })
+            .filter_map(|trait_impl| match &trait_impl.object_type.typ {
+                UnresolvedTypeData::Named(path, _, _) => {
+                    Some(path.segments.last().unwrap().0.contents.clone())
+                }
+                _ => None,
+            }),
+    );
+
+    struct_typenames
+}
+
+fn generate_compute_note_hash_and_nullifier(note_types: &Vec<String>) -> NoirFunction {
+    let function_source = generate_compute_note_hash_and_nullifier_source(note_types);
+
+    let (function_ast, errors) = parse_program(&function_source);
+    if !errors.is_empty() {
+        dbg!(errors.clone());
+    }
+    assert_eq!(errors.len(), 0, "Failed to parse Noir macro code. This is either a bug in the compiler or the Noir macro code");
+
+    let mut function_ast = function_ast.into_sorted();
+    function_ast.functions.remove(0)
+}
+
+fn generate_compute_note_hash_and_nullifier_source(note_types: &Vec<String>) -> String {
+    // TODO(#4649): The serialized_note parameter is a fixed-size array, but we don't know what length it should have.
+    // For now we hardcode it to 20, which is the same as MAX_NOTE_FIELDS_LENGTH.
+
+    if note_types.is_empty() {
+        // TODO(#4520): Even if the contract does not include any notes, other parts of the stack expect for this
+        // function to exist, so we include a dummy version. We likely should error out here instead.
+        "
+        unconstrained fn compute_note_hash_and_nullifier(
+            contract_address: AztecAddress,
+            nonce: Field,
+            storage_slot: Field,
+            note_type_id: Field,
+            serialized_note: [Field; 20]
+        ) -> pub [Field; 4] {
+            [0, 0, 0, 0]
+        }"
+        .to_string()
+    } else {
+        // For contracts that include notes we do a simple if-else chain comparing note_type_id with the different
+        // get_note_type_id of each of the note types.
+
+        let if_statements: Vec<String> = note_types.iter().map(|note_type| format!(
+            "if (note_type_id == {0}::get_note_type_id()) {{
+                note_utils::compute_note_hash_and_nullifier({0}::deserialize_content, note_header, serialized_note)
+            }}"
+        , note_type)).collect();
+
+        // TODO(#4520): error out on the else instead of returning a zero array
+        let full_if_statement = if_statements.join(" else ")
+            + "
+            else {
+                [0, 0, 0, 0]
+            }";
+
+        format!(
+            "
+            unconstrained fn compute_note_hash_and_nullifier(
+                contract_address: AztecAddress,
+                nonce: Field,
+                storage_slot: Field,
+                note_type_id: Field,
+                serialized_note: [Field; 20]
+            ) -> pub [Field; 4] {{
+                let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+
+                {}
+            }}",
+            full_if_statement
+        )
+    }
 }

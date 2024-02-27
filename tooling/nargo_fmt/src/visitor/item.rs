@@ -7,7 +7,10 @@ use noirc_frontend::{
 
 use crate::{
     rewrite::{self, UseTree},
-    utils::{last_line_contains_single_line_comment, last_line_used_width, FindToken},
+    utils::{
+        append_space_if_nonempty, last_line_contains_single_line_comment, last_line_used_width,
+        FindToken,
+    },
     visitor::expr::{format_seq, NewlineMode},
 };
 
@@ -119,9 +122,12 @@ impl super::FmtVisitor<'_> {
                 result.push_str("distinct ");
             }
 
-            if let Visibility::Public = func.def.return_visibility {
-                result.push_str("pub ");
-            }
+            let visibility = match func.def.return_visibility {
+                Visibility::Public => "pub",
+                Visibility::DataBus => "return_data",
+                Visibility::Private => "",
+            };
+            result.push_str(&append_space_if_nonempty(visibility.into()));
 
             let typ = rewrite::typ(self, self.shape(), func.return_type());
             result.push_str(&typ);

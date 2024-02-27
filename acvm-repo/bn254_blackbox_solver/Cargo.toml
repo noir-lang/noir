@@ -16,6 +16,7 @@ repository.workspace = true
 acir.workspace = true
 acvm_blackbox_solver.workspace = true
 thiserror.workspace = true
+num-traits.workspace = true
 
 rust-embed = { version = "6.6.0", features = [
     "debug-embed",

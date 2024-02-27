@@ -14,7 +14,7 @@ fn main(x: u32) {
     assert(increment(x) == x + 1);
 }
 
-unconstrained fn wrapper(func: fn (u32) -> u32, param: u32) -> u32 {
+unconstrained fn wrapper(func: fn(u32) -> u32, param: u32) -> u32 {
     func(param)
 }
 
