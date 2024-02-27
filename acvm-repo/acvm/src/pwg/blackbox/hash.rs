@@ -149,6 +149,16 @@ pub(crate) fn solve_poseidon2_permutation_opcode(
             ),
         ));
     }
+    if len as usize != outputs.len() {
+        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
+            acir::BlackBoxFunc::Poseidon2Permutation,
+            format!(
+                "the number of outputs does not match specified length. {} > {}",
+                outputs.len(),
+                len
+            ),
+        ));
+    }
 
     // Read witness assignments
     let mut state = Vec::new();
