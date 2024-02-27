@@ -98,8 +98,8 @@ fn test_vec_any() {
 
 #[test]
 fn test_vec_any_not_default() {
-    let default_value = 1;
-    let mut vec: BoundedVec<Field, 3> = BoundedVec::new(default_value);
+    let default_value = 0;
+    let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
     vec.extend_from_array([2, 4]);
     assert(vec.any(|v| v == default_value) == false);
 }
