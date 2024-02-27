@@ -306,11 +306,14 @@ impl<'interner> TypeChecker<'interner> {
         let expr_span = self.interner.expr_span(&stmt.0);
 
         // Must type check the assertion message expression so that we instantiate bindings
-        // We always allow unsafe calls for assert messages as these may be a dynamic assert message call.
-        let old_allow_unsafe = self.allow_unsafe;
-        self.allow_unsafe = true;
-        stmt.2.map(|assert_msg_expr| self.check_expression(&assert_msg_expr));
-        self.allow_unsafe = old_allow_unsafe;
+        if let Some(assert_msg_expr) = stmt.2 {
+            // We always allow unsafe calls for assert messages as these may be a dynamic assert message call.
+            // We then must restore the original value however.
+            let old_allow_unsafe = self.allow_unsafe;
+            self.allow_unsafe = true;
+            self.check_expression(&assert_msg_expr);
+            self.allow_unsafe = old_allow_unsafe;
+        };
 
         self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
