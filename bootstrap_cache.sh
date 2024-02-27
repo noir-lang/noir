@@ -9,3 +9,5 @@ extract_repo noir-packages /usr/src/noir/packages ./
 echo -e "\033[1mRetrieving nargo from remote cache...\033[0m"
 extract_repo noir /usr/src/noir/target/release ./target/
 
+remove_old_images noir-packages
+remove_old_images noir
