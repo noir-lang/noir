@@ -1198,7 +1198,6 @@ impl<'block> BrilligBlock<'block> {
         let (brillig_binary_op, is_signed) =
             convert_ssa_binary_op_to_brillig_binary_op(binary.operator, &binary_type);
 
-        self.add_underflow_check(brillig_binary_op, left, right, is_signed);
         self.brillig_context.binary_instruction(
             left.address,
             right.address,
@@ -1207,34 +1206,6 @@ impl<'block> BrilligBlock<'block> {
         );
 
         self.add_overflow_check(brillig_binary_op, left, right, result_variable, is_signed);
-    }
-
-    fn add_underflow_check(
-        &mut self,
-        binary_operation: BrilligBinaryOp,
-        left: SingleAddrVariable,
-        right: SingleAddrVariable,
-        is_signed: bool,
-    ) {
-        let (op, bit_size) = if let BrilligBinaryOp::Integer { op, bit_size } = binary_operation {
-            (op, bit_size)
-        } else {
-            return;
-        };
-
-        if let (BinaryIntOp::Sub, false) = (op, is_signed) {
-            let condition = self.brillig_context.allocate_register();
-            // Check that rhs <= lhs
-            self.brillig_context.binary_instruction(
-                right.address,
-                left.address,
-                condition,
-                BrilligBinaryOp::Integer { op: BinaryIntOp::LessThanEquals, bit_size },
-            );
-            self.brillig_context
-                .constrain_instruction(condition, Some("Underflow sub check failed".to_string()));
-            self.brillig_context.deallocate_register(condition);
-        }
     }
 
     fn add_overflow_check(
@@ -1263,7 +1234,22 @@ impl<'block> BrilligBlock<'block> {
                 );
                 self.brillig_context.constrain_instruction(
                     condition,
-                    Some("Overflow add check failed".to_string()),
+                    Some("attempt to add with overflow".to_string()),
+                );
+                self.brillig_context.deallocate_register(condition);
+            }
+            (BinaryIntOp::Sub, false) => {
+                let condition = self.brillig_context.allocate_register();
+                // Check that rhs <= lhs
+                self.brillig_context.binary_instruction(
+                    right.address,
+                    left.address,
+                    condition,
+                    BrilligBinaryOp::Integer { op: BinaryIntOp::LessThanEquals, bit_size },
+                );
+                self.brillig_context.constrain_instruction(
+                    condition,
+                    Some("attempt to subtract with overflow".to_string()),
                 );
                 self.brillig_context.deallocate_register(condition);
             }
@@ -1295,7 +1281,7 @@ impl<'block> BrilligBlock<'block> {
                         );
                         ctx.constrain_instruction(
                             condition,
-                            Some("Overflow mul check failed".to_string()),
+                            Some("attempt to multiply with overflow".to_string()),
                         );
                         ctx.deallocate_register(condition);
                     });
