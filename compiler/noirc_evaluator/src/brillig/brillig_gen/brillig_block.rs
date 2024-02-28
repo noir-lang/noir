@@ -1195,15 +1195,116 @@ impl<'block> BrilligBlock<'block> {
         let left = self.convert_ssa_single_addr_value(binary.lhs, dfg);
         let right = self.convert_ssa_single_addr_value(binary.rhs, dfg);
 
-        let brillig_binary_op =
+        let (brillig_binary_op, is_signed) =
             convert_ssa_binary_op_to_brillig_binary_op(binary.operator, &binary_type);
 
+        self.add_underflow_check(brillig_binary_op, left, right, is_signed);
         self.brillig_context.binary_instruction(
             left.address,
             right.address,
             result_variable.address,
             brillig_binary_op,
         );
+
+        self.add_overflow_check(brillig_binary_op, left, right, result_variable, is_signed);
+    }
+
+    fn add_underflow_check(
+        &mut self,
+        binary_operation: BrilligBinaryOp,
+        left: SingleAddrVariable,
+        right: SingleAddrVariable,
+        is_signed: bool,
+    ) {
+        let (op, bit_size) = if let BrilligBinaryOp::Integer { op, bit_size } = binary_operation {
+            (op, bit_size)
+        } else {
+            return;
+        };
+
+        if let (BinaryIntOp::Sub, false) = (op, is_signed) {
+            let condition = self.brillig_context.allocate_register();
+            // Check that rhs <= lhs
+            self.brillig_context.binary_instruction(
+                right.address,
+                left.address,
+                condition,
+                BrilligBinaryOp::Integer { op: BinaryIntOp::LessThanEquals, bit_size },
+            );
+            self.brillig_context
+                .constrain_instruction(condition, Some("Underflow sub check failed".to_string()));
+            self.brillig_context.deallocate_register(condition);
+        }
+    }
+
+    fn add_overflow_check(
+        &mut self,
+        binary_operation: BrilligBinaryOp,
+        left: SingleAddrVariable,
+        right: SingleAddrVariable,
+        result: SingleAddrVariable,
+        is_signed: bool,
+    ) {
+        let (op, bit_size) = if let BrilligBinaryOp::Integer { op, bit_size } = binary_operation {
+            (op, bit_size)
+        } else {
+            return;
+        };
+
+        match (op, is_signed) {
+            (BinaryIntOp::Add, false) => {
+                let condition = self.brillig_context.allocate_register();
+                // Check that lhs <= result
+                self.brillig_context.binary_instruction(
+                    left.address,
+                    result.address,
+                    condition,
+                    BrilligBinaryOp::Integer { op: BinaryIntOp::LessThanEquals, bit_size },
+                );
+                self.brillig_context.constrain_instruction(
+                    condition,
+                    Some("Overflow add check failed".to_string()),
+                );
+                self.brillig_context.deallocate_register(condition);
+            }
+            (BinaryIntOp::Mul, false) => {
+                // Multiplication overflow is only possible for bit sizes > 1
+                if bit_size > 1 {
+                    let is_right_zero = self.brillig_context.allocate_register();
+                    let zero = self.brillig_context.make_constant(0_usize.into(), bit_size);
+                    self.brillig_context.binary_instruction(
+                        zero,
+                        right.address,
+                        is_right_zero,
+                        BrilligBinaryOp::Integer { op: BinaryIntOp::Equals, bit_size },
+                    );
+                    self.brillig_context.if_not_instruction(is_right_zero, |ctx| {
+                        let condition = ctx.allocate_register();
+                        // Check that result / rhs == lhs
+                        ctx.binary_instruction(
+                            result.address,
+                            right.address,
+                            condition,
+                            BrilligBinaryOp::Integer { op: BinaryIntOp::UnsignedDiv, bit_size },
+                        );
+                        ctx.binary_instruction(
+                            condition,
+                            left.address,
+                            condition,
+                            BrilligBinaryOp::Integer { op: BinaryIntOp::Equals, bit_size },
+                        );
+                        ctx.constrain_instruction(
+                            condition,
+                            Some("Overflow mul check failed".to_string()),
+                        );
+                        ctx.deallocate_register(condition);
+                    });
+                    self.brillig_context.deallocate_register(is_right_zero);
+                    self.brillig_context.deallocate_register(zero);
+                }
+            }
+            _ => {}
+        }
     }
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
@@ -1433,7 +1534,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
 pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
     ssa_op: BinaryOp,
     typ: &Type,
-) -> BrilligBinaryOp {
+) -> (BrilligBinaryOp, bool) {
     // First get the bit size and whether its a signed integer, if it is a numeric type
     // if it is not,then we return None, indicating that
     // it is a Field.
@@ -1488,7 +1589,9 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
 
     // If bit size is available then it is a binary integer operation
     match bit_size_signedness {
-        Some((bit_size, is_signed)) => binary_op_to_int_op(ssa_op, *bit_size, is_signed),
-        None => binary_op_to_field_op(ssa_op),
+        Some((bit_size, is_signed)) => {
+            (binary_op_to_int_op(ssa_op, *bit_size, is_signed), is_signed)
+        }
+        None => (binary_op_to_field_op(ssa_op), false),
     }
 }
