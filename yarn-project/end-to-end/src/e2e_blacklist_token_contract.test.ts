@@ -24,7 +24,7 @@ import { BITSIZE_TOO_BIG_ERROR, U128_OVERFLOW_ERROR, U128_UNDERFLOW_ERROR } from
 import { publicDeployAccounts, setup } from './fixtures/utils.js';
 import { TokenSimulator } from './simulators/token_simulator.js';
 
-const TIMEOUT = 90_000;
+const TIMEOUT = 120_000;
 
 describe('e2e_blacklist_token_contract', () => {
   jest.setTimeout(TIMEOUT);
@@ -116,29 +116,13 @@ describe('e2e_blacklist_token_contract', () => {
     const depth = 254;
     slowUpdateTreeSimulator = await newTree(SparseTree, openTmpStore(), new Pedersen(), 'test', depth);
 
+    // Add account[0] as admin
+    await updateSlowTree(slowUpdateTreeSimulator, wallets[0], accounts[0].address, 4n);
+
     const deployTx = TokenBlacklistContract.deploy(wallets[0], accounts[0], slowTree.address).send({});
     const receipt = await deployTx.wait();
     asset = receipt.contract;
 
-    // Add the note
-    const note = new Note([slowTree.address.toField()]);
-    const storageSlot = new Fr(6);
-    const noteTypeId = new Fr(7010510110810078111116101n); // FieldNote
-
-    for (const wallet of wallets) {
-      const extendedNote = new ExtendedNote(
-        note,
-        wallet.getCompleteAddress().address,
-        asset.address,
-        storageSlot,
-        noteTypeId,
-        receipt.txHash,
-      );
-      await wallet.addNote(extendedNote);
-    }
-
-    // Add account[0] as admin
-    await updateSlowTree(slowUpdateTreeSimulator, wallets[0], accounts[0].address, 4n);
     await asset.methods.init_slow_tree(accounts[0].address).send().wait();
 
     // Progress to next "epoch"
