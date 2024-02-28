@@ -537,7 +537,7 @@ impl BrilligContext {
         result: MemoryAddress,
         operation: BrilligBinaryOp,
     ) {
-        self.debug_show.binary_instruction(lhs, rhs, result, operation.clone());
+        self.debug_show.binary_instruction(lhs, rhs, result, operation);
         match operation {
             BrilligBinaryOp::Field { op } => {
                 let opcode = BrilligOpcode::BinaryFieldOp { op, destination: result, lhs, rhs };
