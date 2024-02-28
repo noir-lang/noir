@@ -3,7 +3,7 @@ mod ecdsa_public_key_note;
 // Account contract that uses ECDSA signatures for authentication on the same curve as Ethereum.
 // The signing key is stored in an immutable private note and should be different from the signing key.
 contract EcdsaAccount {
-    use dep::aztec::protocol_types::{abis::call_context::CallContext, address::AztecAddress};
+    use dep::aztec::protocol_types::{abis::{call_context::CallContext, function_selector::FunctionSelector}, address::AztecAddress};
     use dep::std;
     use dep::std::option::Option;
     use dep::aztec::{
@@ -40,31 +40,36 @@ contract EcdsaAccount {
     }
 
     #[aztec(private)]
-    fn is_valid(message_hash: Field) -> Field {
+    fn spend_private_authwit(inner_hash: Field) -> Field {
         let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
-        actions.is_valid(message_hash)
+        actions.spend_private_authwit(inner_hash)
     }
 
     #[aztec(public)]
-    fn is_valid_public(message_hash: Field) -> Field {
+    fn spend_public_authwit(inner_hash: Field) -> Field {
         let actions = AccountActions::public(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
-        actions.is_valid_public(message_hash)
+        actions.spend_public_authwit(inner_hash)
+    }
+
+    #[aztec(private)]
+    internal fn cancel_authwit(outer_hash: Field) {
+        context.push_new_nullifier(outer_hash, 0);
     }
 
     #[aztec(public)]
-    internal fn set_is_valid_storage(message_hash: Field, value: bool) {
+    internal fn approve_public_authwit(outer_hash: Field) {
         let actions = AccountActions::public(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
-        actions.internal_set_is_valid_storage(message_hash, value)
+        actions.approve_public_authwit(outer_hash)
     }
 
     #[contract_library_method]
-    fn is_valid_impl(context: &mut PrivateContext, message_field: Field) -> pub bool {
+    fn is_valid_impl(context: &mut PrivateContext, outer_hash: Field) -> bool {
         // Load public key from storage
         let storage = Storage::init(Context::private(context));
         let public_key = storage.public_key.get_note();
 
         // Load auth witness
-        let witness: [Field; 64] = get_auth_witness(message_field);
+        let witness: [Field; 64] = get_auth_witness(outer_hash);
         let mut signature: [u8; 64] = [0; 64];
         for i in 0..64 {
             signature[i] = witness[i] as u8;
@@ -72,7 +77,7 @@ contract EcdsaAccount {
 
         // Verify payload signature using Ethereum's signing scheme
         // Note that noir expects the hash of the message/challenge as input to the ECDSA verification.
-        let hashed_message: [u8; 32] = std::hash::sha256(message_field.to_be_bytes(32));
+        let hashed_message: [u8; 32] = std::hash::sha256(outer_hash.to_be_bytes(32));
         let verification = std::ecdsa_secp256k1::verify_signature(public_key.x, public_key.y, signature, hashed_message);
         assert(verification == true);
 

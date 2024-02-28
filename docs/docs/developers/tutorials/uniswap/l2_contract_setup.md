@@ -22,7 +22,10 @@ Next, paste this function:
 
 #include_code authwit_uniswap_get noir-projects/noir-contracts/contracts/uniswap_contract/src/main.nr rust
 
-In this function, the token contract calls the Uniswap contract to check if Uniswap has indeed done the approval. The token contract expects a `is_valid()` function to exit for private approvals and `is_valid_public()` for public approvals. If the action is indeed approved, it expects that the contract would return the function selector for `is_valid()`  in both cases. The Aztec.nr library exposes this constant for ease of use. The token contract also emits a nullifier for this message so that this approval (with the nonce) can’t be used again.
+In this function, the token contract calls the Uniswap contract to check if Uniswap has indeed done the approval. 
+The token contract expects a `spend_private_authwit()` function to exit for private approvals and `spend_public_authwit()` for public approvals. 
+If the action is indeed approved, it expects that the contract will emit a nullifier and return the function selector for `IS_VALID()`  in both cases. 
+The Aztec.nr library exposes this constant for ease of use. 
 
 This is similar to the [Authwit flow](../../contracts/resources/common_patterns/authwit.md).
 

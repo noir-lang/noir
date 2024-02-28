@@ -125,7 +125,7 @@ export class PublicProcessor {
         const processedTransaction = makeProcessedTx(tx, publicKernelPublicInput, publicKernelProof);
         result.push(processedTransaction);
 
-        this.log(`Processed public part of ${tx.data.endNonRevertibleData.newNullifiers[0]}`, {
+        this.log(`Processed public part of ${tx.data.endNonRevertibleData.newNullifiers[0].value}`, {
           eventName: 'tx-sequencer-processing',
           duration: timer.ms(),
           publicDataUpdateRequests:

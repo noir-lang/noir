@@ -33,8 +33,21 @@ export class AccountWallet extends BaseWallet {
    * @returns - A function interaction.
    */
   public setPublicAuth(message: Fr | Buffer, authorized: boolean): ContractFunctionInteraction {
-    const args = [message, authorized];
-    return new ContractFunctionInteraction(this, this.getAddress(), this.getSetIsValidStorageAbi(), args);
+    if (authorized) {
+      return new ContractFunctionInteraction(this, this.getAddress(), this.getApprovePublicAuthwitAbi(), [message]);
+    } else {
+      return this.cancelAuthWit(message);
+    }
+  }
+
+  /**
+   * Returns a function interaction to cancel a message hash as authorized in this account.
+   * @param message - Message hash to authorize.
+   * @returns - A function interaction.
+   */
+  public cancelAuthWit(message: Fr | Buffer): ContractFunctionInteraction {
+    const args = [message];
+    return new ContractFunctionInteraction(this, this.getAddress(), this.getCancelAuthwitAbi(), args);
   }
 
   /** Returns the complete address of the account that implements this wallet. */
@@ -47,10 +60,10 @@ export class AccountWallet extends BaseWallet {
     return this.getCompleteAddress().address;
   }
 
-  private getSetIsValidStorageAbi(): FunctionAbi {
+  private getApprovePublicAuthwitAbi(): FunctionAbi {
     return {
-      name: 'set_is_valid_storage',
-      functionType: 'open' as FunctionType,
+      name: 'approve_public_authwit',
+      functionType: FunctionType.OPEN,
       isInternal: true,
       parameters: [
         {
@@ -58,9 +71,20 @@ export class AccountWallet extends BaseWallet {
           type: { kind: 'field' },
           visibility: 'private' as ABIParameterVisibility,
         },
+      ],
+      returnTypes: [],
+    };
+  }
+
+  private getCancelAuthwitAbi(): FunctionAbi {
+    return {
+      name: 'cancel_authwit',
+      functionType: FunctionType.SECRET,
+      isInternal: true,
+      parameters: [
         {
-          name: 'value',
-          type: { kind: 'boolean' },
+          name: 'message_hash',
+          type: { kind: 'field' },
           visibility: 'private' as ABIParameterVisibility,
         },
       ],

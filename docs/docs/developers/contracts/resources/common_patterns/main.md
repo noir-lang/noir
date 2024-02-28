@@ -38,7 +38,7 @@ E.g. you don't want a user to subscribe once they have subscribed already. Or yo
 
 Emit a nullifier in your function. By adding this nullifier into the tree, you prevent another nullifier from being added again. This is also why in authwit, we emit a nullifier, to prevent someone from reusing their approval.
 
-#include_code assert_valid_authwit_public /noir-projects/aztec-nr/authwit/src/auth.nr rust
+#include_code spend_private_authwit /noir-projects/aztec-nr/authwit/src/account.nr rust
 
 Note be careful to ensure that the nullifier is not deterministic and that no one could do a preimage analysis attack. More in [the anti pattern section on deterministic nullifiers](#deterministic-nullifiers)
 

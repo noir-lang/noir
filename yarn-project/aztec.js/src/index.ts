@@ -44,6 +44,8 @@ export {
   isContractDeployed,
   EthCheatCodes,
   computeAuthWitMessageHash,
+  computeInnerAuthWitHash,
+  computeOuterAuthWitHash,
   waitForPXE,
   waitForAccountSynch,
 } from './utils/index.js';

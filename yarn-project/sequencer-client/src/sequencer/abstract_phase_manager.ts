@@ -230,7 +230,7 @@ export abstract class AbstractPhaseManager {
         newUnencryptedFunctionLogs.push(result.unencryptedLogs);
         const functionSelector = result.execution.functionData.selector.toString();
         this.log.debug(
-          `Running public kernel circuit for ${functionSelector}@${result.execution.contractAddress.toString()}`,
+          `Running public kernel circuit for ${result.execution.contractAddress.toString()}:${functionSelector}`,
         );
         executionStack.push(...result.nestedExecutions);
         const callData = await this.getPublicCallData(result, isExecutionRequest);

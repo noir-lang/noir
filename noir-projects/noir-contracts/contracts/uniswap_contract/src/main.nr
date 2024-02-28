@@ -9,7 +9,10 @@ contract Uniswap {
     use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress}};
     use dep::aztec::{oracle::{context::get_portal_address}, state_vars::{Map, PublicMutable}};
 
-    use dep::authwit::auth::{IS_VALID_SELECTOR, assert_current_call_valid_authwit_public, compute_authwit_message_hash};
+    use dep::authwit::auth::{
+        IS_VALID_SELECTOR, assert_current_call_valid_authwit_public, compute_call_authwit_hash,
+        compute_outer_authwit_hash
+    };
 
     use crate::interfaces::{Token, TokenBridge};
     use crate::util::{compute_swap_private_content_hash, compute_swap_public_content_hash};
@@ -173,9 +176,15 @@ contract Uniswap {
     // implementation is similar to how account contracts validate public approvals.
     // if valid, it returns the IS_VALID selector which is expected by token contract
     #[aztec(public)]
-    fn is_valid_public(message_hash: Field) -> Field {
+    fn spend_public_authwit(inner_hash: Field) -> Field {
+        let message_hash = compute_outer_authwit_hash(context.msg_sender(), inner_hash);
         let value = storage.approved_action.at(message_hash).read();
-        if (value) { IS_VALID_SELECTOR } else { 0 }
+        if (value) {
+            context.push_new_nullifier(message_hash, 0);
+            IS_VALID_SELECTOR
+        } else {
+            0
+        }
     }
     // docs:end:authwit_uniswap_get
 
@@ -190,7 +199,7 @@ contract Uniswap {
         // approve bridge to burn this contract's funds (required when exiting on L1, as it burns funds on L2):
         let nonce_for_burn_approval = storage.nonce_for_burn_approval.read();
         let selector = FunctionSelector::from_signature("burn_public((Field),Field,Field)");
-        let message_hash = compute_authwit_message_hash(
+        let message_hash = compute_call_authwit_hash(
             token_bridge,
             token,
             selector,

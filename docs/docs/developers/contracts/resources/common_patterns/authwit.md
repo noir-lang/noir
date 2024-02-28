@@ -70,13 +70,13 @@ As part of `AuthWit` we are assuming that the `on_behalf_of` implements the priv
 
 ```rust
 #[aztec(private)]
-fn is_valid(message_hash: Field) -> Field;
+fn spend_private_authwit(inner_hash: Field) -> Field;
 
 #[aztec(public)]
-fn is_valid_public(message_hash: Field) -> Field;
+fn spend_public_authwit(inner_hash: Field) -> Field;
 ```
 
-Both return the value `0xe86ab4ff` (`is_valid` selector) for a successful authentication, and `0x00000000` for a failed authentication. You might be wondering why we are expecting the return value to be a selector instead of a boolean. This is mainly to account for a case of selector collisions where the same selector is used for different functions, and we don't want an account to mistakenly allow a different function to be called on its behalf - it is hard to return the selector by mistake, but you might have other functions returning a bool.
+Both return the value `0xabf64ad4` (`IS_VALID` selector) for a successful authentication, and `0x00000000` for a failed authentication. You might be wondering why we are expecting the return value to be a selector instead of a boolean. This is mainly to account for a case of selector collisions where the same selector is used for different functions, and we don't want an account to mistakenly allow a different function to be called on its behalf - it is hard to return the selector by mistake, but you might have other functions returning a bool.
 
 ## The `AuthWit` library.
 
@@ -102,11 +102,10 @@ As you can see above, this function takes a `caller` and a `request`. The `reque
 
 For private calls where we allow execution on behalf of others, we generally want to check if the current call is authenticated by `on_behalf_of`. To easily do so, we can use the `assert_current_call_valid_authwit` which fetches information from the current context without us needing to provide much beyond the `on_behalf_of`.
 
-This function computes the message hash, and then forwards the call to the more generic `assert_valid_authwit`. This validating function will then:
-
-- make a call to `on_behalf_of` to validate that the call is authenticated
-- emit a nullifier for the action to prevent replay attacks
-- throw if the action is not authenticated by `on_behalf_of`
+This function will then make a to `on_behalf_of` to execute the `spend_private_authwit` function which validates that the call is authenticated. 
+The `on_behalf_of` should assert that we are indeed authenticated and then emit a nullifier when we are spending the authwit to prevent replay attacks.
+If the return value is not as expected, we throw an error. 
+This is to cover the case where the `on_behalf_of` might implemented some function with the same selector as the `spend_private_authwit` that could be used to authenticate unintentionally.
 
 #### Example
 
@@ -176,7 +175,7 @@ In the snippet below, this is done as a separate contract call, but can also be 
 
 We have cases where we need a non-wallet contract to approve an action to be executed by another contract. One of the cases could be when making more complex defi where funds are passed along. When doing so, we need the intermediate contracts to support approving of actions on their behalf.
 
-To support this, we must implement the `is_valid_public` function as seen in the snippet below.
+To support this, we must implement the `spend_public_authwit` function as seen in the snippet below.
 
 #include_code authwit_uniswap_get /noir-projects/noir-contracts/contracts/uniswap_contract/src/main.nr rust
 

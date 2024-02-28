@@ -675,6 +675,19 @@ jobs:
           command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_token_contract.test.ts
           aztec_manifest_key: end-to-end
 
+  e2e-authwit-test:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_authwit.test.ts
+          aztec_manifest_key: end-to-end
+
+
   e2e-blacklist-token-contract:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -1432,6 +1445,7 @@ workflows:
       - e2e-deploy-contract: *e2e_test
       - e2e-lending-contract: *e2e_test
       - e2e-token-contract: *e2e_test
+      - e2e-authwit-test: *e2e_test
       - e2e-blacklist-token-contract: *e2e_test
       # TODO(3458): Investigate intermittent failure
       # - e2e-slow-tree: *e2e_test
@@ -1479,6 +1493,7 @@ workflows:
             - e2e-deploy-contract
             - e2e-lending-contract
             - e2e-token-contract
+            - e2e-authwit-test
             - e2e-blacklist-token-contract
             - e2e-sandbox-example
             - e2e-state-vars

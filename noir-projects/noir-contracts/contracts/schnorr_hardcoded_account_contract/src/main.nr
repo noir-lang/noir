@@ -2,7 +2,10 @@
 // Account contract that uses Schnorr signatures for authentication using a hardcoded public key.
 contract SchnorrHardcodedAccount {
     use dep::std;
-    use dep::aztec::{context::PrivateContext, protocol_types::address::AztecAddress};
+    use dep::aztec::{
+        context::PrivateContext,
+        protocol_types::{address::AztecAddress, abis::function_selector::FunctionSelector}
+    };
 
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
@@ -25,28 +28,33 @@ contract SchnorrHardcodedAccount {
     }
 
     #[aztec(private)]
-    fn is_valid(message_hash: Field) -> Field {
+    fn spend_private_authwit(inner_hash: Field) -> Field {
         let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
-        actions.is_valid(message_hash)
+        actions.spend_private_authwit(inner_hash)
     }
 
     #[aztec(public)]
-    fn is_valid_public(message_hash: Field) -> Field {
+    fn spend_public_authwit(inner_hash: Field) -> Field {
         let actions = AccountActions::public(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
-        actions.is_valid_public(message_hash)
+        actions.spend_public_authwit(inner_hash)
+    }
+
+    #[aztec(private)]
+    internal fn cancel_authwit(outer_hash: Field) {
+        context.push_new_nullifier(outer_hash, 0);
     }
 
     #[aztec(public)]
-    internal fn set_is_valid_storage(message_hash: Field, value: bool) {
+    internal fn approve_public_authwit(outer_hash: Field) {
         let actions = AccountActions::public(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
-        actions.internal_set_is_valid_storage(message_hash, value)
+        actions.approve_public_authwit(outer_hash)
     }
 
     // docs:start:is-valid
     #[contract_library_method]
-    fn is_valid_impl(_context: &mut PrivateContext, message_hash: Field) -> pub bool {
+    fn is_valid_impl(_context: &mut PrivateContext, outer_hash: Field) -> bool {
         // Load auth witness and format as an u8 array
-        let witness: [Field; 64] = get_auth_witness(message_hash);
+        let witness: [Field; 64] = get_auth_witness(outer_hash);
         let mut signature: [u8; 64] = [0; 64];
         for i in 0..64 {
             signature[i] = witness[i] as u8;
@@ -57,7 +65,7 @@ contract SchnorrHardcodedAccount {
             public_key_x,
             public_key_y,
             signature,
-            message_hash.to_be_bytes(32)
+            outer_hash.to_be_bytes(32)
         );
         assert(verification == true);
         true

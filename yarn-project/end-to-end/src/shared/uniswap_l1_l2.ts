@@ -591,7 +591,7 @@ export const uniswapL1L2TestSuite = (
 
       // Swap!
       await expect(action.simulate()).rejects.toThrowError(
-        "Assertion failed: Message not authorized by account 'result == IS_VALID_SELECTOR'",
+        "Assertion failed: Message not authorized by account 'is_valid == true'",
       );
     });
 
@@ -625,7 +625,7 @@ export const uniswapL1L2TestSuite = (
             Fr.ZERO,
           )
           .simulate(),
-      ).rejects.toThrowError(`Assertion failed: Message not authorized by account 'result == IS_VALID_SELECTOR'`);
+      ).rejects.toThrowError(`Assertion failed: Message not authorized by account 'is_valid == true'`);
     });
 
     // tests when trying to mix private and public flows:

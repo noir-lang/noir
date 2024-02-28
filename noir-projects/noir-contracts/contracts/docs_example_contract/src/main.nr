@@ -184,6 +184,16 @@ contract DocsExample {
         );
     }
 
+    #[aztec(private)]
+    fn spend_private_authwit(inner_hash: Field) -> Field {
+        1
+    }
+
+    #[aztec(public)]
+    fn spend_public_authwit(inner_hash: Field) -> Field {
+        1
+    }
+
     #[aztec(public)]
     internal fn update_leader(account: AztecAddress, points: u8) {
         let new_leader = Leader { account, points };

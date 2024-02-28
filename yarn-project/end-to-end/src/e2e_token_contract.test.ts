@@ -12,8 +12,7 @@ import {
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { decodeFunctionSignature } from '@aztec/foundation/abi';
-import { ReaderContract } from '@aztec/noir-contracts.js/Reader';
-import { TokenContract } from '@aztec/noir-contracts.js/Token';
+import { DocsExampleContract, ReaderContract, TokenContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
 
@@ -21,7 +20,7 @@ import { BITSIZE_TOO_BIG_ERROR, U128_OVERFLOW_ERROR, U128_UNDERFLOW_ERROR } from
 import { publicDeployAccounts, setup } from './fixtures/utils.js';
 import { TokenSimulator } from './simulators/token_simulator.js';
 
-const TIMEOUT = 90_000;
+const TIMEOUT = 100_000;
 
 describe('e2e_token_contract', () => {
   jest.setTimeout(TIMEOUT);
@@ -35,6 +34,7 @@ describe('e2e_token_contract', () => {
   let logger: DebugLogger;
 
   let asset: TokenContract;
+  let badAccount: DocsExampleContract;
 
   let tokenSim: TokenSimulator;
 
@@ -84,6 +84,8 @@ describe('e2e_token_contract', () => {
     );
 
     expect(await asset.methods.admin().view()).toBe(accounts[0].address.toBigInt());
+
+    badAccount = await DocsExampleContract.deploy(wallets[0]).send().deployed();
   }, 100_000);
 
   afterAll(() => teardown());
@@ -489,6 +491,42 @@ describe('e2e_token_contract', () => {
           expect(await asset.methods.balance_of_public(accounts[1].address).view()).toEqual(balance1);
         });
 
+        it('transfer on behalf of other, cancelled authwit', async () => {
+          const balance0 = await asset.methods.balance_of_public(accounts[0].address).view();
+          const amount = balance0 / 2n;
+          expect(amount).toBeGreaterThan(0n);
+          const nonce = Fr.random();
+
+          const action = asset
+            .withWallet(wallets[1])
+            .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce);
+          const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
+
+          await wallets[0].setPublicAuth(messageHash, true).send().wait();
+
+          await wallets[0].cancelAuthWit(messageHash).send().wait();
+
+          // Check that the message hash is no longer valid. Need to try to send since nullifiers are handled by sequencer.
+          const txCancelledAuthwit = asset
+            .withWallet(wallets[1])
+            .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
+            .send();
+          await expect(txCancelledAuthwit.wait()).rejects.toThrowError('Transaction ');
+        });
+
+        it('transfer on behalf of other, invalid spend_public_authwit on "from"', async () => {
+          const nonce = Fr.random();
+
+          // Should fail as the returned value from the badAccount is malformed
+          const txCancelledAuthwit = asset
+            .withWallet(wallets[1])
+            .methods.transfer_public(badAccount.address, accounts[1].address, 0, nonce)
+            .send();
+          await expect(txCancelledAuthwit.wait()).rejects.toThrowError(
+            "Assertion failed: Message not authorized by account 'result == IS_VALID_SELECTOR'",
+          );
+        });
+
         it.skip('transfer into account to overflow', () => {
           // This should already be covered by the mint case earlier. e.g., since we cannot mint to overflow, there is not
           // a way to get funds enough to overflow.
@@ -640,6 +678,44 @@ describe('e2e_token_contract', () => {
             `Unknown auth witness for message hash ${expectedMessageHash.toString()}`,
           );
           expect(await asset.methods.balance_of_private(accounts[0].address).view()).toEqual(balance0);
+        });
+
+        it('transfer on behalf of other, cancelled authwit', async () => {
+          const balance0 = await asset.methods.balance_of_private(accounts[0].address).view();
+          const amount = balance0 / 2n;
+          const nonce = Fr.random();
+          expect(amount).toBeGreaterThan(0n);
+
+          // We need to compute the message we want to sign and add it to the wallet as approved
+          const action = asset
+            .withWallet(wallets[1])
+            .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
+          const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
+
+          const witness = await wallets[0].createAuthWitness(messageHash);
+          await wallets[1].addAuthWitness(witness);
+
+          await wallets[0].cancelAuthWit(messageHash).send().wait();
+
+          // Perform the transfer, should fail because nullifier already emitted
+          const txCancelledAuthwit = asset
+            .withWallet(wallets[1])
+            .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce)
+            .send();
+          await expect(txCancelledAuthwit.wait()).rejects.toThrowError('Transaction ');
+        });
+
+        it('transfer on behalf of other, invalid spend_private_authwit on "from"', async () => {
+          const nonce = Fr.random();
+
+          // Should fail as the returned value from the badAccount is malformed
+          const txCancelledAuthwit = asset
+            .withWallet(wallets[1])
+            .methods.transfer(badAccount.address, accounts[1].address, 0, nonce)
+            .send();
+          await expect(txCancelledAuthwit.wait()).rejects.toThrowError(
+            "Assertion failed: Message not authorized by account 'result == IS_VALID_SELECTOR'",
+          );
         });
       });
     });
