@@ -28,7 +28,7 @@
     "build:types": "yarn workspace @noir-lang/types run build",
     "build:backend_barretenberg": "yarn workspace @noir-lang/backend_barretenberg run build",
     "build:noir_js": "yarn workspace @noir-lang/noir_js run build",
-    "build:js:only": "yarn build:types && yarn build:backend_barretenberg && yarn build:noir_js",
+    "build:js:only": "yarn workspaces foreach -vtp --from \"{@noir-lang/types,@noir-lang/backend_barretenberg,@noir-lang/noir_js,@noir-lang/noir_codegen}\" run build",
     "prepare:publish": "yarn clean && yarn install:from:nix && yarn build:js:only",
     "nightly:version": "yarn workspaces foreach run nightly:version",
     "publish:all": "yarn install && yarn workspaces foreach run publish"
