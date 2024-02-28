@@ -258,10 +258,10 @@ class GoblinUltraFlavor {
      * @note TODO(Cody): Maybe multiple inheritance is the right thing here. In that case, nothing should eve inherit
      * from ProvingKey.
      */
-    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>> {
+    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey> {
       public:
         // Expose constructors on the base class
-        using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>>;
+        using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
         using Base::Base;
 
         std::vector<uint32_t> memory_read_records;
@@ -285,6 +285,7 @@ class GoblinUltraFlavor {
      * @note Note the discrepancy with what sort of data is stored here vs in the proving key. We may want to resolve
      * that, and split out separate PrecomputedPolynomials/Commitments data for clarity but also for portability of our
      * circuits.
+     * @todo TODO(https://github.com/AztecProtocol/barretenberg/issues/876)
      */
     using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>>;
 

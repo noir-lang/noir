@@ -150,7 +150,7 @@ template <typename OuterBuilder> class RecursiveCircuit {
     }
     static void check_pairing(const circuit_outputs& circuit_output)
     {
-        auto g2_lines = bb::srs::get_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
+        auto g2_lines = bb::srs::get_bn254_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
         g1::affine_element P[2];
         P[0].x = outer_scalar_field(circuit_output.aggregation_state.P0.x.get_value().lo);
         P[0].y = outer_scalar_field(circuit_output.aggregation_state.P0.y.get_value().lo);

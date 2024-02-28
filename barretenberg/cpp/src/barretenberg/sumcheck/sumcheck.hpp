@@ -65,7 +65,6 @@ template <typename Flavor> class SumcheckProver {
         , round(multivariate_n)
         , partially_evaluated_polynomials(multivariate_n){};
 
-    // WORKTODO delete this
     /**
      * @brief Compute univariate restriction place in transcript, generate challenge, partially evaluate,... repeat
      * until final round, then compute multivariate evaluations and place in transcript.

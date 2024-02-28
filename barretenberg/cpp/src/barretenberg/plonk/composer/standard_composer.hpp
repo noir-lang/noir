@@ -30,7 +30,7 @@ class StandardComposer {
 
     bool computed_witness = false;
 
-    StandardComposer() { crs_factory_ = bb::srs::get_crs_factory(); }
+    StandardComposer() { crs_factory_ = bb::srs::get_bn254_crs_factory(); }
     StandardComposer(std::shared_ptr<bb::srs::factories::CrsFactory<curve::BN254>> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}

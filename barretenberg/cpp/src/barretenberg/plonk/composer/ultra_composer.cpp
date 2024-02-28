@@ -160,7 +160,7 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key(CircuitBuilder& 
 
     const size_t subgroup_size = compute_dyadic_circuit_size(circuit);
 
-    auto crs = srs::get_crs_factory()->get_prover_crs(subgroup_size + 1);
+    auto crs = srs::get_bn254_crs_factory()->get_prover_crs(subgroup_size + 1);
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/392): Composer type
     circuit_proving_key =
         std::make_shared<plonk::proving_key>(subgroup_size, circuit.public_inputs.size(), crs, CircuitType::ULTRA);
@@ -209,7 +209,7 @@ std::shared_ptr<plonk::verification_key> UltraComposer::compute_verification_key
         compute_proving_key(circuit_constructor);
     }
     circuit_verification_key =
-        compute_verification_key_common(circuit_proving_key, srs::get_crs_factory()->get_verifier_crs());
+        compute_verification_key_common(circuit_proving_key, srs::get_bn254_crs_factory()->get_verifier_crs());
 
     circuit_verification_key->circuit_type = CircuitType::ULTRA;
 

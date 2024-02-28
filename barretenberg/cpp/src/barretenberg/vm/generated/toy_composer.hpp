@@ -37,7 +37,7 @@ class ToyComposer {
     bool contains_recursive_proof = false;
     bool computed_witness = false;
 
-    ToyComposer() { crs_factory_ = bb::srs::get_crs_factory(); }
+    ToyComposer() { crs_factory_ = bb::srs::get_bn254_crs_factory(); }
 
     ToyComposer(std::shared_ptr<ProvingKey> p_key, std::shared_ptr<VerificationKey> v_key)
         : proving_key(std::move(p_key))
@@ -62,7 +62,7 @@ class ToyComposer {
 
     void compute_commitment_key(size_t circuit_size)
     {
-        commitment_key = std::make_shared<CommitmentKey>(circuit_size, crs_factory_);
+        commitment_key = std::make_shared<CommitmentKey>(circuit_size);
     };
 };
 

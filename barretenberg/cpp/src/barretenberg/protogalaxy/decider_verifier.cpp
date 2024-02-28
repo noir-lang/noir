@@ -14,7 +14,7 @@ DeciderVerifier_<Flavor>::DeciderVerifier_(const std::shared_ptr<Transcript>& tr
 {}
 template <typename Flavor>
 DeciderVerifier_<Flavor>::DeciderVerifier_()
-    : pcs_verification_key(std::make_unique<VerifierCommitmentKey>(0, bb::srs::get_crs_factory()))
+    : pcs_verification_key(std::make_unique<VerifierCommitmentKey>(0, bb::srs::get_bn254_crs_factory()))
     , transcript(std::make_shared<Transcript>())
 {}
 

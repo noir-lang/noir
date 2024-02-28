@@ -120,7 +120,7 @@ struct verification_key {
     void msgpack_unpack(auto obj)
     {
         verification_key_data data = obj;
-        *this = verification_key{ std::move(data), bb::srs::get_crs_factory()->get_verifier_crs() };
+        *this = verification_key{ std::move(data), bb::srs::get_bn254_crs_factory()->get_verifier_crs() };
     }
     // Alias verification_key as verification_key_data in the schema
     void msgpack_schema(auto& packer) const { packer.pack_schema(bb::plonk::verification_key_data{}); }
@@ -131,7 +131,7 @@ template <typename B> inline void read(B& buf, verification_key& key)
     using serialize::read;
     verification_key_data vk_data;
     read(buf, vk_data);
-    key = verification_key{ std::move(vk_data), bb::srs::get_crs_factory()->get_verifier_crs() };
+    key = verification_key{ std::move(vk_data), bb::srs::get_bn254_crs_factory()->get_verifier_crs() };
 }
 
 template <typename B> inline void read(B& buf, std::shared_ptr<verification_key>& key)
@@ -139,7 +139,7 @@ template <typename B> inline void read(B& buf, std::shared_ptr<verification_key>
     using serialize::read;
     verification_key_data vk_data;
     read(buf, vk_data);
-    key = std::make_shared<verification_key>(std::move(vk_data), bb::srs::get_crs_factory()->get_verifier_crs());
+    key = std::make_shared<verification_key>(std::move(vk_data), bb::srs::get_bn254_crs_factory()->get_verifier_crs());
 }
 
 template <typename B> inline void write(B& buf, verification_key const& key)

@@ -45,6 +45,8 @@ template <class Flavor> class InstanceTests : public testing::Test {
      */
     static void test_sorted_list_accumulator_construction()
     {
+        srs::init_crs_factory("../srs_db/ignition");
+
         // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
         Builder builder;
 

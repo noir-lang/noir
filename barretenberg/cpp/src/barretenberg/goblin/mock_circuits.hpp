@@ -134,8 +134,7 @@ class GoblinMockCircuits {
         op_queue->set_size_data();
 
         // Manually compute the op queue transcript commitments (which would normally be done by the merge prover)
-        auto crs_factory_ = bb::srs::get_crs_factory();
-        auto commitment_key = CommitmentKey(op_queue->get_current_size(), crs_factory_);
+        auto commitment_key = CommitmentKey(op_queue->get_current_size());
         std::array<Point, Flavor::NUM_WIRES> op_queue_commitments;
         size_t idx = 0;
         for (auto& entry : op_queue->get_aggregate_transcript()) {

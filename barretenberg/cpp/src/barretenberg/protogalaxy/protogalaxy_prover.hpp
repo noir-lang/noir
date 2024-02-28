@@ -66,10 +66,10 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     ProtogalaxyProofConstructionState<ProverInstances> state;
 
     ProtoGalaxyProver_() = default;
-    ProtoGalaxyProver_(const std::vector<std::shared_ptr<Instance>>& insts,
-                       const std::shared_ptr<CommitmentKey>& commitment_key)
+    ProtoGalaxyProver_(const std::vector<std::shared_ptr<Instance>>& insts)
         : instances(ProverInstances(insts))
-        , commitment_key(std::move(commitment_key)){};
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/878)
+        , commitment_key(instances[1]->proving_key->commitment_key){};
     ~ProtoGalaxyProver_() = default;
 
     /**

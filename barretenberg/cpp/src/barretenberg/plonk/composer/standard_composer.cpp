@@ -35,7 +35,7 @@ std::shared_ptr<plonk::proving_key> StandardComposer::compute_proving_key(Circui
         circuit_constructor.num_gates + circuit_constructor.public_inputs.size() + NUM_RESERVED_GATES;
     const size_t subgroup_size = circuit_constructor.get_circuit_subgroup_size(total_num_gates); // next power of 2
 
-    auto crs = srs::get_crs_factory()->get_prover_crs(subgroup_size + 1);
+    auto crs = srs::get_bn254_crs_factory()->get_prover_crs(subgroup_size + 1);
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/392): Composer type
     circuit_proving_key = std::make_shared<plonk::proving_key>(
         subgroup_size, circuit_constructor.public_inputs.size(), crs, CircuitType::STANDARD);

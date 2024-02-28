@@ -41,7 +41,7 @@ void init_grumpkin_crs_factory(std::string crs_path)
     grumpkin_crs_factory = std::make_shared<factories::FileCrsFactory<curve::Grumpkin>>(crs_path);
 }
 
-std::shared_ptr<factories::CrsFactory<curve::BN254>> get_crs_factory()
+std::shared_ptr<factories::CrsFactory<curve::BN254>> get_bn254_crs_factory()
 {
     if (!crs_factory) {
         throw_or_abort("You need to initalize the global CRS with a call to init_crs_factory(...)!");
@@ -56,4 +56,15 @@ std::shared_ptr<factories::CrsFactory<curve::Grumpkin>> get_grumpkin_crs_factory
     }
     return grumpkin_crs_factory;
 }
+
+template <> std::shared_ptr<factories::CrsFactory<curve::BN254>> get_crs_factory()
+{
+    return get_bn254_crs_factory();
+}
+
+template <> std::shared_ptr<factories::CrsFactory<curve::Grumpkin>> get_crs_factory()
+{
+    return get_grumpkin_crs_factory();
+}
+
 } // namespace bb::srs

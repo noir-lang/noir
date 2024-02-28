@@ -1,1 +1,1 @@
-barretenberg_module(ipa_bench ultra_honk)
+barretenberg_module(ipa_bench commitment_schemes)

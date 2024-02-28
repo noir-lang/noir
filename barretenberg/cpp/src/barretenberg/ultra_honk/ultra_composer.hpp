@@ -40,7 +40,7 @@ template <IsUltraFlavor Flavor_> class UltraComposer_ {
     // The commitment key is passed to the prover but also used herein to compute the verfication key commitments
     std::shared_ptr<CommitmentKey> commitment_key;
 
-    UltraComposer_() { crs_factory_ = bb::srs::get_crs_factory(); }
+    UltraComposer_() { crs_factory_ = bb::srs::get_bn254_crs_factory(); }
 
     explicit UltraComposer_(std::shared_ptr<CRSFactory> crs_factory)
         : crs_factory_(std::move(crs_factory))
@@ -84,7 +84,7 @@ template <IsUltraFlavor Flavor_> class UltraComposer_ {
 
     ProtoGalaxyProver_<ProverInstances> create_folding_prover(const std::vector<std::shared_ptr<Instance>>& instances)
     {
-        ProtoGalaxyProver_<ProverInstances> output_state(instances, commitment_key);
+        ProtoGalaxyProver_<ProverInstances> output_state(instances);
 
         return output_state;
     };
@@ -96,13 +96,6 @@ template <IsUltraFlavor Flavor_> class UltraComposer_ {
 
         return output_state;
     };
-
-    /**
-     * @brief Compute the verification key of an Instance, produced from a finalised circuit.
-     *
-     * @param inst
-     */
-    void compute_verification_key(const std::shared_ptr<Instance>&);
 };
 
 // TODO(#532): this pattern is weird; is this not instantiating the templates?

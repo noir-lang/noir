@@ -264,10 +264,10 @@ class UltraFlavor {
      * @note TODO(Cody): Maybe multiple inheritance is the right thing here. In that case, nothing should eve inherit
      * from ProvingKey.
      */
-    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>> {
+    class ProvingKey : public ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey> {
       public:
         // Expose constructors on the base class
-        using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>>;
+        using Base = ProvingKey_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
         using Base::Base;
 
         std::vector<uint32_t> memory_read_records;

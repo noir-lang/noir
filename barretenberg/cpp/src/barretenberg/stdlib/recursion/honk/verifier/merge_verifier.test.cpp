@@ -65,7 +65,7 @@ class RecursiveMergeVerifierTest : public testing::Test {
         // verifier and check that the result agrees.
         MergeVerifier native_verifier;
         bool verified_native = native_verifier.verify_proof(merge_proof);
-        VerifierCommitmentKey pcs_verification_key(0, srs::get_crs_factory());
+        VerifierCommitmentKey pcs_verification_key(0, srs::get_bn254_crs_factory());
         auto verified_recursive =
             pcs_verification_key.pairing_check(pairing_points[0].get_value(), pairing_points[1].get_value());
         EXPECT_EQ(verified_native, verified_recursive);

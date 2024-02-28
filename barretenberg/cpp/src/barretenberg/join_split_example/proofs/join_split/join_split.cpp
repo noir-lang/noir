@@ -47,7 +47,7 @@ void init_verification_key()
     }
 
     verification_key =
-        bb::plonk::compute_verification_key_common(proving_key, srs::get_crs_factory()->get_verifier_crs());
+        bb::plonk::compute_verification_key_common(proving_key, srs::get_bn254_crs_factory()->get_verifier_crs());
 }
 
 Prover new_join_split_prover(join_split_tx const& tx, bool mock)

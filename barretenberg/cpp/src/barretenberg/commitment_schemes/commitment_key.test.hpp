@@ -6,10 +6,6 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "claim.hpp"
-#include <algorithm>
-#include <concepts>
-#include <memory>
-#include <string_view>
 
 #include <gtest/gtest.h>
 
@@ -19,18 +15,16 @@ template <class CK> inline std::shared_ptr<CK> CreateCommitmentKey();
 
 template <> inline std::shared_ptr<CommitmentKey<curve::BN254>> CreateCommitmentKey<CommitmentKey<curve::BN254>>()
 {
+    srs::init_crs_factory("../srs_db/ignition");
     constexpr size_t n = 4096;
-    std::shared_ptr<bb::srs::factories::CrsFactory<curve::BN254>> crs_factory(
-        new bb::srs::factories::FileCrsFactory<curve::BN254>("../srs_db/ignition", 4096));
-    return std::make_shared<CommitmentKey<curve::BN254>>(n, crs_factory);
+    return std::make_shared<CommitmentKey<curve::BN254>>(n);
 }
 // For IPA
 template <> inline std::shared_ptr<CommitmentKey<curve::Grumpkin>> CreateCommitmentKey<CommitmentKey<curve::Grumpkin>>()
 {
+    srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
     constexpr size_t n = 4096;
-    std::shared_ptr<bb::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(
-        new bb::srs::factories::FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin", 4096));
-    return std::make_shared<CommitmentKey<curve::Grumpkin>>(n, crs_factory);
+    return std::make_shared<CommitmentKey<curve::Grumpkin>>(n);
 }
 
 template <typename CK> inline std::shared_ptr<CK> CreateCommitmentKey()

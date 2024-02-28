@@ -13,7 +13,7 @@ constexpr size_t MAX_POLYNOMIAL_DEGREE_LOG2 = 16;
 std::shared_ptr<bb::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(
     new bb::srs::factories::FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin", 1 << 16));
 
-auto ck = std::make_shared<CommitmentKey<Curve>>(1 << MAX_POLYNOMIAL_DEGREE_LOG2, crs_factory);
+auto ck = std::make_shared<CommitmentKey<Curve>>(1 << MAX_POLYNOMIAL_DEGREE_LOG2);
 auto vk = std::make_shared<VerifierCommitmentKey<Curve>>(1 << MAX_POLYNOMIAL_DEGREE_LOG2, crs_factory);
 
 std::vector<std::shared_ptr<NativeTranscript>> prover_transcripts(MAX_POLYNOMIAL_DEGREE_LOG2 -

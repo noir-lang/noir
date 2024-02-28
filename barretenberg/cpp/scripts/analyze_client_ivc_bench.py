@@ -9,7 +9,7 @@ BENCHMARK = "ClientIVCBench/Full/6"
 to_keep = [
     "construct_mock_function_circuit(t)",
     "construct_mock_folding_kernel(t)",
-    "UltraComposer::create_prover_instance(t)",
+    "ProverInstance(Circuit&)(t)",
     "ProtogalaxyProver::fold_instances(t)",
     "Decider::construct_proof(t)",
     "ECCVMComposer::create_prover(t)",

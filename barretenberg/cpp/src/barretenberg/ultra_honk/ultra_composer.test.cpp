@@ -137,7 +137,7 @@ TEST_F(UltraHonkComposerTests, XorConstraint)
     circuit_builder.create_gates_from_plookup_accumulators(
         plookup::MultiTableId::UINT32_XOR, lookup_accumulators, left_witness_index, right_witness_index);
 
-    auto composer = UltraComposer(bb::srs::get_crs_factory());
+    auto composer = UltraComposer(bb::srs::get_bn254_crs_factory());
     prove_and_verify(circuit_builder, composer, /*expected_result=*/true);
 }
 

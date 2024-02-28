@@ -206,8 +206,7 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsHonkAndMerge)
     // Compute the commitments to the aggregate op queue directly and check that they match those that were computed
     // iteratively during transcript aggregation by the provers and stored in the op queue.
     size_t aggregate_op_queue_size = op_queue->current_ultra_ops_size;
-    auto crs_factory = std::make_shared<bb::srs::factories::FileCrsFactory<Curve>>("../srs_db/ignition");
-    auto commitment_key = std::make_shared<CommitmentKey>(aggregate_op_queue_size, crs_factory);
+    auto commitment_key = std::make_shared<CommitmentKey>(aggregate_op_queue_size);
     size_t idx = 0;
     for (auto& result : op_queue->ultra_ops_commitments) {
         auto expected = commitment_key->commit(op_queue->ultra_ops[idx++]);

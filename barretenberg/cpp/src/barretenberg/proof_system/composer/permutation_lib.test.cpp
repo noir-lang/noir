@@ -2,7 +2,7 @@
 #include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
-#include "barretenberg/srs/factories/crs_factory.hpp"
+#include "barretenberg/srs/global_crs.hpp"
 #include <array>
 #include <gtest/gtest.h>
 
@@ -14,11 +14,11 @@ class PermutationHelperTests : public ::testing::Test {
     using FF = typename Flavor::FF;
     using ProvingKey = Flavor::ProvingKey;
     Flavor::CircuitBuilder circuit_constructor;
-    srs::factories::CrsFactory<curve::BN254> crs_factory = srs::factories::CrsFactory<curve::BN254>();
     std::shared_ptr<Flavor::ProvingKey> proving_key;
 
     virtual void SetUp()
     {
+        srs::init_crs_factory("../srs_db/ignition");
         circuit_constructor.add_public_variable(1024);
         circuit_constructor.add_public_variable(1025);
 

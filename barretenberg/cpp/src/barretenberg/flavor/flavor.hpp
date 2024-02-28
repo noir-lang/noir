@@ -97,15 +97,17 @@ class PrecomputedEntitiesBase {
  * @tparam FF The scalar field on which we will encode our polynomial data. When instantiating, this may be extractable
  * from the other template paramter.
  */
-template <typename PrecomputedPolynomials, typename WitnessPolynomials>
+template <typename PrecomputedPolynomials, typename WitnessPolynomials, typename CommitmentKey_>
 class ProvingKey_ : public PrecomputedPolynomials, public WitnessPolynomials {
   public:
     using Polynomial = typename PrecomputedPolynomials::DataType;
     using FF = typename Polynomial::FF;
 
+    size_t circuit_size;
     bool contains_recursive_proof;
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bb::EvaluationDomain<FF> evaluation_domain;
+    std::shared_ptr<CommitmentKey_> commitment_key;
 
     std::vector<std::string> get_labels() const
     {
@@ -119,8 +121,9 @@ class ProvingKey_ : public PrecomputedPolynomials, public WitnessPolynomials {
     ProvingKey_() = default;
     ProvingKey_(const size_t circuit_size, const size_t num_public_inputs)
     {
+        this->commitment_key = std::make_shared<CommitmentKey_>(circuit_size + 1);
         this->evaluation_domain = bb::EvaluationDomain<FF>(circuit_size, circuit_size);
-        PrecomputedPolynomials::circuit_size = circuit_size;
+        this->circuit_size = circuit_size;
         this->log_circuit_size = numeric::get_msb(circuit_size);
         this->num_public_inputs = num_public_inputs;
         // Allocate memory for precomputed polynomials
@@ -148,6 +151,16 @@ template <typename PrecomputedCommitments> class VerificationKey_ : public Preco
         this->log_circuit_size = numeric::get_msb(circuit_size);
         this->num_public_inputs = num_public_inputs;
     };
+    template <typename ProvingKeyPtr> VerificationKey_(const ProvingKeyPtr& proving_key)
+    {
+        this->circuit_size = proving_key->circuit_size;
+        this->log_circuit_size = numeric::get_msb(this->circuit_size);
+        this->num_public_inputs = proving_key->num_public_inputs;
+
+        for (auto [polynomial, commitment] : zip_view(proving_key->get_precomputed_polynomials(), this->get_all())) {
+            commitment = proving_key->commitment_key->commit(polynomial);
+        }
+    }
 };
 
 // Because of how Gemini is written, is importat to put the polynomials out in this order.
