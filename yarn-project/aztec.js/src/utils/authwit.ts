@@ -18,7 +18,7 @@ export const computeAuthWitMessageHash = (caller: AztecAddress, request: Functio
       request.functionData.selector.toField(),
       PackedArguments.fromArgs(request.args).hash,
     ].map(fr => fr.toBuffer()),
-    GeneratorIndex.SIGNATURE_PAYLOAD,
+    GeneratorIndex.AUTHWIT,
   );
 };
 // docs:end:authwit_computeAuthWitMessageHash
