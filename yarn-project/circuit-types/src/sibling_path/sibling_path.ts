@@ -4,7 +4,7 @@ import {
   Tuple,
   assertLength,
   deserializeArrayFromVector,
-  serializeBufferArrayToVector,
+  serializeArrayOfBufferableToVector,
 } from '@aztec/foundation/serialize';
 import { Hasher } from '@aztec/types/interfaces';
 
@@ -61,7 +61,7 @@ export class SiblingPath<N extends number> {
    * @returns The buffer representation of this object.
    */
   public toBuffer(): Buffer {
-    return serializeBufferArrayToVector(this.data);
+    return serializeArrayOfBufferableToVector(this.data);
   }
 
   /**

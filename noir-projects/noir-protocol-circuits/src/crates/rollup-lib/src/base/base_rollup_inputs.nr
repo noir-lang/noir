@@ -256,19 +256,19 @@ impl BaseRollupInputs {
     fn components_compute_kernel_calldata_hash(combined: CombinedAccumulatedData) -> [Field; NUM_FIELDS_PER_SHA256] {
         // Compute calldata hashes
         // Consist of
-        // MAX_NEW_NOTE_HASHES_PER_TX fields for commitments
+        // MAX_NEW_NOTE_HASHES_PER_TX fields for note hashes
         // MAX_NEW_NULLIFIERS_PER_TX fields for nullifiers
-        // 32 public data update requests -> 64 fields
         // 2 l2 -> l1 messages -> 2 fields
+        // 32 public data update requests -> 64 fields
         // 1 contract deployments -> 3 fields
-        // 1 encrypted logs hashes -> 2 fields --> 2 sha256 hashes --> 64 bytes
-        // 1 unencrypted logs hashes -> 2 fields --> 2 sha256 hashes --> 64 bytes
+        // 1 encrypted logs hash --> 1 sha256 hash -> 2 fields --> 64 bytes
+        // 1 unencrypted logs hash --> 1 sha256 hash -> 2 fields --> 64 bytes
         let mut calldata_hash_inputs = [0; CALLDATA_HASH_INPUT_SIZE];
 
         let new_note_hashes = combined.new_note_hashes;
         let new_nullifiers = combined.new_nullifiers;
-        let public_data_update_requests = combined.public_data_update_requests;
         let newL2ToL1msgs = combined.new_l2_to_l1_msgs;
+        let public_data_update_requests = combined.public_data_update_requests;
         let encryptedLogsHash = combined.encrypted_logs_hash;
         let unencryptedLogsHash = combined.unencrypted_logs_hash;
 
@@ -284,6 +284,11 @@ impl BaseRollupInputs {
         }
         offset += MAX_NEW_NULLIFIERS_PER_TX ;
 
+        for j in 0..MAX_NEW_L2_TO_L1_MSGS_PER_TX {
+            calldata_hash_inputs[offset + j] = newL2ToL1msgs[j];
+        }
+        offset += MAX_NEW_L2_TO_L1_MSGS_PER_TX;
+
         for j in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
             calldata_hash_inputs[offset + j * 2] =
                 public_data_update_requests[j].leaf_slot;
@@ -291,11 +296,6 @@ impl BaseRollupInputs {
                 public_data_update_requests[j].new_value;
         }
         offset += MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2;
-
-        for j in 0..MAX_NEW_L2_TO_L1_MSGS_PER_TX {
-            calldata_hash_inputs[offset + j] = newL2ToL1msgs[j];
-        }
-        offset += MAX_NEW_L2_TO_L1_MSGS_PER_TX;
 
         let contract_leaf = combined.new_contracts[0];
         calldata_hash_inputs[offset] = contract_leaf.hash();

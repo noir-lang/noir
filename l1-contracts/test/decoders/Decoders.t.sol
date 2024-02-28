@@ -7,13 +7,11 @@ import {DecoderBase} from "./Base.sol";
 import {Hash} from "../../src/core/libraries/Hash.sol";
 import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
 
-import {DecoderHelper} from "./helpers/DecoderHelper.sol";
 import {HeaderLibHelper} from "./helpers/HeaderLibHelper.sol";
 import {MessagesDecoderHelper} from "./helpers/MessagesDecoderHelper.sol";
 import {TxsDecoderHelper} from "./helpers/TxsDecoderHelper.sol";
 import {HeaderLib} from "../../src/core/libraries/HeaderLib.sol";
 
-import {Decoder} from "../../src/core/libraries/decoders/Decoder.sol";
 import {MessagesDecoder} from "../../src/core/libraries/decoders/MessagesDecoder.sol";
 import {TxsDecoder} from "../../src/core/libraries/decoders/TxsDecoder.sol";
 
@@ -25,14 +23,12 @@ import {AvailabilityOracle} from "../../src/core/availability_oracle/Availabilit
  * All tests here are skipped (all tests are prefixed with an underscore)!
  * This is because we implicitly test the decoding in integration_l1_publisher.test.ts
  */
-contract DecoderTest is DecoderBase {
-  DecoderHelper internal helper;
+contract DecodersTest is DecoderBase {
   HeaderLibHelper internal headerHelper;
   MessagesDecoderHelper internal messagesHelper;
   TxsDecoderHelper internal txsHelper;
 
   function setUp() public virtual {
-    helper = new DecoderHelper();
     headerHelper = new HeaderLibHelper();
     messagesHelper = new MessagesDecoderHelper();
     txsHelper = new TxsDecoderHelper();
@@ -47,14 +43,6 @@ contract DecoderTest is DecoderBase {
 
   function _testDecodeBlock(string memory name) public virtual {
     DecoderBase.Full memory data = load(name);
-
-    // Using the FULL decoder.
-    (
-      bytes32 diffRoot,
-      bytes32 l1ToL2MessagesHash,
-      bytes32[] memory l2ToL1Msgs,
-      bytes32[] memory l1ToL2Msgs
-    ) = helper.computeConsumables(data.block.body);
 
     // Header
     {
@@ -182,7 +170,6 @@ contract DecoderTest is DecoderBase {
       ) = messagesHelper.decode(data.block.body);
 
       assertEq(msgsInHash, data.block.l1ToL2MessagesHash, "Invalid l1ToL2MsgsHash msgs");
-      assertEq(l1ToL2MessagesHash, data.block.l1ToL2MessagesHash, "Invalid l1ToL2MsgsHash full");
 
       // assertEq(msgsL2ToL1MsgsHash, b.l2ToL1MessagesHash, "Invalid l2ToL1MsgsHash");
 
@@ -190,20 +177,16 @@ contract DecoderTest is DecoderBase {
       assertEq(
         msgsL1ToL2Msgs.length, data.messages.l1ToL2Messages.length, "Invalid l1ToL2Msgs length"
       );
-      assertEq(l1ToL2Msgs.length, data.messages.l1ToL2Messages.length, "Invalid l1ToL2Msgs length");
       for (uint256 i = 0; i < msgsL1ToL2Msgs.length; i++) {
         assertEq(msgsL1ToL2Msgs[i], data.messages.l1ToL2Messages[i], "Invalid l1ToL2Msgs messages");
-        assertEq(l1ToL2Msgs[i], data.messages.l1ToL2Messages[i], "Invalid l1ToL2Msgs full");
       }
 
       // L2 -> L1 messages
       assertEq(
         msgsL2ToL1Msgs.length, data.messages.l2ToL1Messages.length, "Invalid l2ToL1Msgs length"
       );
-      assertEq(l2ToL1Msgs.length, data.messages.l2ToL1Messages.length, "Invalid l2ToL1Msgs length");
       for (uint256 i = 0; i < msgsL2ToL1Msgs.length; i++) {
         assertEq(msgsL2ToL1Msgs[i], data.messages.l2ToL1Messages[i], "Invalid l2ToL1Msgs messages");
-        assertEq(l2ToL1Msgs[i], data.messages.l2ToL1Messages[i], "Invalid l2ToL1Msgs full");
       }
     }
 
@@ -211,7 +194,6 @@ contract DecoderTest is DecoderBase {
     {
       bytes32 txsHash = txsHelper.decode(data.block.body);
       assertEq(txsHash, data.block.calldataHash, "Invalid txs hash");
-      assertEq(diffRoot, data.block.calldataHash, "Invalid diff root/calldata hash");
     }
 
     // The public inputs are computed based of these values, but not directly part of the decoding per say.
@@ -222,7 +204,7 @@ contract DecoderTest is DecoderBase {
     bytes memory iterationLogsLength = hex"00000000"; // 4 empty bytes indicating that length of this iteration's logs is 0
     bytes memory encodedLogs = abi.encodePacked(kernelLogsLength, iterationLogsLength);
 
-    (bytes32 logsHash, uint256 bytesAdvanced) = helper.computeKernelLogsHash(encodedLogs);
+    (bytes32 logsHash, uint256 bytesAdvanced) = txsHelper.computeKernelLogsHash(encodedLogs);
 
     bytes32 kernelPublicInputsLogsHash = bytes32(0);
     bytes32 privateCircuitPublicInputsLogsHash = sha256(new bytes(0));
@@ -242,7 +224,7 @@ contract DecoderTest is DecoderBase {
     bytes memory firstFunctionCallLogs = hex"0000000493e78a70";
     // Prefix logs with length of kernel logs (12) and length of iteration 1 logs (8)
     bytes memory encodedLogs = abi.encodePacked(hex"0000000c00000008", firstFunctionCallLogs);
-    (bytes32 logsHash, uint256 bytesAdvanced) = helper.computeKernelLogsHash(encodedLogs);
+    (bytes32 logsHash, uint256 bytesAdvanced) = txsHelper.computeKernelLogsHash(encodedLogs);
 
     // Zero because this is the first iteration
     bytes32 previousKernelPublicInputsLogsHash = bytes32(0);
@@ -270,7 +252,7 @@ contract DecoderTest is DecoderBase {
     bytes memory encodedLogs = abi.encodePacked(
       hex"0000002400000008", firstFunctionCallLogs, hex"00000014", secondFunctionCallLogs
     );
-    (bytes32 logsHash, uint256 bytesAdvanced) = helper.computeKernelLogsHash(encodedLogs);
+    (bytes32 logsHash, uint256 bytesAdvanced) = txsHelper.computeKernelLogsHash(encodedLogs);
 
     bytes32 referenceLogsHashFromIteration1 =
       sha256(abi.encodePacked(bytes32(0), sha256(firstFunctionCallLogs)));
@@ -307,7 +289,7 @@ contract DecoderTest is DecoderBase {
       hex"00000014",
       thirdFunctionCallLogs
     );
-    (bytes32 logsHash, uint256 bytesAdvanced) = helper.computeKernelLogsHash(encodedLogs);
+    (bytes32 logsHash, uint256 bytesAdvanced) = txsHelper.computeKernelLogsHash(encodedLogs);
 
     bytes32 referenceLogsHashFromIteration1 =
       sha256(abi.encodePacked(bytes32(0), sha256(firstFunctionCallLogs)));

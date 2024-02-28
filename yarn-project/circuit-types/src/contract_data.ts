@@ -5,7 +5,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import {
   BufferReader,
   numToInt32BE,
-  serializeBufferArrayToVector,
+  serializeArrayOfBufferableToVector,
   serializeToBuffer,
 } from '@aztec/foundation/serialize';
 import { ContractClass, ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -158,7 +158,7 @@ export class ExtendedContractData {
     /** Public key hash of the contract. */
     public readonly publicKeyHash: Fr,
   ) {
-    this.bytecode = serializeBufferArrayToVector(publicFunctions.map(fn => fn.toBuffer()));
+    this.bytecode = serializeArrayOfBufferableToVector(publicFunctions.map(fn => fn.toBuffer()));
   }
 
   /**

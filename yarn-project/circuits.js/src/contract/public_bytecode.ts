@@ -2,7 +2,7 @@ import { FunctionSelector } from '@aztec/foundation/abi';
 import {
   BufferReader,
   numToInt32BE,
-  serializeBufferArrayToVector,
+  serializeArrayOfBufferableToVector,
   serializeToBuffer,
 } from '@aztec/foundation/serialize';
 import { ContractClass } from '@aztec/types/contracts';
@@ -14,7 +14,7 @@ import { FUNCTION_SELECTOR_NUM_BYTES } from '../constants.gen.js';
  * @remarks This function should no longer be necessary once we have a single bytecode per contract.
  */
 export function packBytecode(publicFns: ContractClass['publicFunctions']): Buffer {
-  return serializeBufferArrayToVector(
+  return serializeArrayOfBufferableToVector(
     publicFns.map(fn => serializeToBuffer(fn.selector, fn.isInternal, numToInt32BE(fn.bytecode.length), fn.bytecode)),
   );
 }

@@ -1,31 +1,14 @@
-import { Body, ContractData, L2Tx, LogType, PublicDataWrite, TxEffect, TxHash, TxL2Logs } from '@aztec/circuit-types';
-import {
-  AppendOnlyTreeSnapshot,
-  Header,
-  MAX_NEW_CONTRACTS_PER_TX,
-  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-  MAX_NEW_NOTE_HASHES_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-  STRING_ENCODING,
-} from '@aztec/circuits.js';
+import { Body, L2Tx, TxHash } from '@aztec/circuit-types';
+import { AppendOnlyTreeSnapshot, Header, STRING_ENCODING } from '@aztec/circuits.js';
 import { makeAppendOnlyTreeSnapshot, makeHeader } from '@aztec/circuits.js/testing';
-import { makeTuple } from '@aztec/foundation/array';
-import { times } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { createDebugLogger } from '@aztec/foundation/log';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
- * TODO: Reuse data types and serialization functions from circuits package.
  */
 export class L2Block {
-  /* Having logger static to avoid issues with comparing 2 blocks */
-  private static logger = createDebugLogger('aztec:l2_block');
-
   #l1BlockNumber?: bigint;
 
   constructor(
@@ -125,29 +108,17 @@ export class L2Block {
     numEncryptedLogsPerCall = 2,
     numUnencryptedLogsPerCall = 1,
   ): L2Block {
-    const txEffects = [...new Array(txsPerBlock)].map(
-      _ =>
-        new TxEffect(
-          makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, Fr.random),
-          makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.random),
-          makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.random),
-          makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataWrite.random),
-          makeTuple(MAX_NEW_CONTRACTS_PER_TX, Fr.random),
-          makeTuple(MAX_NEW_CONTRACTS_PER_TX, ContractData.random),
-          TxL2Logs.random(numPrivateCallsPerTx, numEncryptedLogsPerCall, LogType.ENCRYPTED),
-          TxL2Logs.random(numPublicCallsPerTx, numUnencryptedLogsPerCall, LogType.UNENCRYPTED),
-        ),
-    );
-
-    const newL1ToL2Messages = times(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, Fr.random);
-
-    const body = new Body(newL1ToL2Messages, txEffects);
-
     return L2Block.fromFields(
       {
         archive: makeAppendOnlyTreeSnapshot(1),
         header: makeHeader(0, l2BlockNum),
-        body,
+        body: Body.random(
+          txsPerBlock,
+          numPrivateCallsPerTx,
+          numPublicCallsPerTx,
+          numEncryptedLogsPerCall,
+          numUnencryptedLogsPerCall,
+        ),
       },
       // just for testing purposes, each random L2 block got emitted in the equivalent L1 block
       BigInt(l2BlockNum),
@@ -190,11 +161,11 @@ export class L2Block {
    * The same output as the hash of RootRollupPublicInputs.
    * @returns The public input hash for the L2 block as a field element.
    */
+  // TODO(#4844)
   getPublicInputsHash(): Fr {
     const buf = serializeToBuffer(
       this.header.globalVariables,
-      // TODO(#3868)
-      AppendOnlyTreeSnapshot.zero(), // this.startNoteHashTreeSnapshot / committments,
+      AppendOnlyTreeSnapshot.zero(), // this.startNoteHashTreeSnapshot / commitments,
       AppendOnlyTreeSnapshot.zero(), // this.startNullifierTreeSnapshot,
       AppendOnlyTreeSnapshot.zero(), // this.startContractTreeSnapshot,
       AppendOnlyTreeSnapshot.zero(), // this.startPublicDataTreeSnapshot,
@@ -217,10 +188,10 @@ export class L2Block {
    * Computes the start state hash (should equal contract data before block).
    * @returns The start state hash for the L2 block.
    */
+  // TODO(#4844)
   getStartStateHash() {
     const inputValue = serializeToBuffer(
       new Fr(Number(this.header.globalVariables.blockNumber.toBigInt()) - 1),
-      // TODO(#3868)
       AppendOnlyTreeSnapshot.zero(), // this.startNoteHashTreeSnapshot,
       AppendOnlyTreeSnapshot.zero(), // this.startNullifierTreeSnapshot,
       AppendOnlyTreeSnapshot.zero(), // this.startContractTreeSnapshot,
@@ -235,6 +206,7 @@ export class L2Block {
    * Computes the end state hash (should equal contract data after block).
    * @returns The end state hash for the L2 block.
    */
+  // TODO(#4844)
   getEndStateHash() {
     const inputValue = serializeToBuffer(
       this.header.globalVariables.blockNumber,

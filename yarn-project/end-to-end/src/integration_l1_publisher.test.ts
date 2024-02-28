@@ -1,6 +1,7 @@
 import { getConfigEnvVars } from '@aztec/aztec-node';
 import {
   AztecAddress,
+  Body,
   Fr,
   GlobalVariables,
   L2Actor,
@@ -325,7 +326,7 @@ describe('L1Publisher integration', () => {
   };
 
   it('Block body is correctly published to AvailabilityOracle', async () => {
-    const body = L2Block.random(4).body;
+    const body = Body.random();
     // `sendPublishTx` function is private so I am hacking around TS here. I think it's ok for test purposes.
     const txHash = await (publisher as any).sendPublishTx(body.toBuffer());
 

@@ -4,13 +4,22 @@ import { numToUInt32BE } from './free_funcs.js';
 
 /**
  * For serializing an array of fixed length buffers.
- * TODO move to foundation pkg.
- * @param arr - Array of buffers.
+ * @param arr - Array of bufferable.
+ * @param prefixLength - The length of the prefix (denominated in bytes).
  * @returns The serialized buffers.
  */
-export function serializeBufferArrayToVector(arr: Buffer[]): Buffer {
-  const lengthBuf = Buffer.alloc(4);
-  lengthBuf.writeUInt32BE(arr.length, 0);
+export function serializeArrayOfBufferableToVector(objs: Bufferable[], prefixLength = 4): Buffer {
+  const arr = serializeToBufferArray(objs);
+  let lengthBuf: Buffer;
+  if (prefixLength === 1) {
+    lengthBuf = Buffer.alloc(1);
+    lengthBuf.writeUInt8(arr.length, 0);
+  } else if (prefixLength === 4) {
+    lengthBuf = Buffer.alloc(4);
+    lengthBuf.writeUInt32BE(arr.length, 0);
+  } else {
+    throw new Error(`Unsupported prefix length. Got ${prefixLength}, expected 1 or 4`);
+  }
   return Buffer.concat([lengthBuf, ...arr]);
 }
 
@@ -37,8 +46,6 @@ type DeserializeFn<T> = (
  * @param vector - The vector to deserialize.
  * @param offset - The position in the vector to start deserializing from.
  * @returns Deserialized array and how many bytes we advanced by.
- *
- * TODO: move to foundation pkg.
  */
 export function deserializeArrayFromVector<T>(
   deserialize: DeserializeFn<T>,

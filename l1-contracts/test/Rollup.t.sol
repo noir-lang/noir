@@ -2,11 +2,6 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
-import {Test} from "forge-std/Test.sol";
-
-import {DecoderTest} from "./decoders/Decoder.t.sol";
-import {DecoderHelper} from "./decoders/helpers/DecoderHelper.sol";
-
 import {DecoderBase} from "./decoders/Base.sol";
 
 import {DataStructures} from "../src/core/libraries/DataStructures.sol";
@@ -23,7 +18,6 @@ import {AvailabilityOracle} from "../src/core/availability_oracle/AvailabilityOr
  * Main use of these test is shorter cycles when updating the decoder contract.
  */
 contract RollupTest is DecoderBase {
-  DecoderHelper internal helper;
   Registry internal registry;
   Inbox internal inbox;
   Outbox internal outbox;
@@ -31,8 +25,6 @@ contract RollupTest is DecoderBase {
   AvailabilityOracle internal availabilityOracle;
 
   function setUp() public virtual {
-    helper = new DecoderHelper();
-
     registry = new Registry();
     inbox = new Inbox(address(registry));
     outbox = new Outbox(address(registry));

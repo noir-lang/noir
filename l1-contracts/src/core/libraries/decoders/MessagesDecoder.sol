@@ -16,29 +16,37 @@ import {Hash} from "../Hash.sol";
  * -------------------
  * You can use https://gist.github.com/LHerskind/724a7e362c97e8ac2902c6b961d36830 to generate the below outline.
  * -------------------
- * L2 Body Data specification
+ * L2 Body Data Specification
  * -------------------
- *
- *  | byte start                                                                     | num bytes    | name
- *  | ---                                                                            | ---          | ---
- *  | 0x00                                                                           | 0x04         | len(newNoteHashes) (denoted a)
- *  | 0x04                                                                           | a * 0x20     | newNoteHashes
- *  | 0x04 + a * 0x20                                                                | 0x04         | len(newNullifiers) (denoted b)
- *  | 0x08 + a * 0x20                                                                | b * 0x20     | newNullifiers
- *  | 0x08 + a * 0x20 + b * 0x20                                                     | 0x04         | len(newPublicDataWrites) (denoted c)
- *  | 0x0c + a * 0x20 + b * 0x20                                                     | c * 0x40     | newPublicDataWrites
- *  | 0x0c + a * 0x20 + b * 0x20 + c * 0x40                                          | 0x04         | len(newL2ToL1Msgs) (denoted d)
- *  | 0x10 + a * 0x20 + b * 0x20 + c * 0x40                                          | d * 0x20     | newL2ToL1Msgs
- *  | 0x10 + a * 0x20 + b * 0x20 + c * 0x40 + d * 0x20                               | 0x04         | len(contracts) (denoted e)
- *  | 0x14 + a * 0x20 + b * 0x20 + c * 0x40 + d * 0x20                               | e * 0x20     | newContracts
- *  | 0x14 + a * 0x20 + b * 0x20 + c * 0x40 + d * 0x20 + e * 0x20                    | e * 0x34     | newContractsData
- *  | 0x14 + a * 0x20 + b * 0x20 + c * 0x40 + d * 0x20 + e * 0x54                    | 0x04         | len(newL1ToL2Msgs) (denoted f)
- *  | 0x18 + a * 0x20 + b * 0x20 + c * 0x40 + d * 0x20 + e * 0x54                    | f * 0x20     | newL1ToL2Msgs
- *  | 0x18 + a * 0x20 + b * 0x20 + c * 0x40 + d * 0x20 + e * 0x54 + f * 0x20         | 0x04         | byteLen(newEncryptedLogs) (denoted g)
- *  | 0x1c + a * 0x20 + b * 0x20 + c * 0x40 + d * 0x20 + e * 0x54 + f * 0x20         | g            | newEncryptedLogs
- *  | 0x1c + a * 0x20 + b * 0x20 + c * 0x40 + d * 0x20 + e * 0x54 + f * 0x20 + g     | 0x04         | byteLen(newUnencryptedLogs) (denoted h)
- *  | 0x20 + a * 0x20 + b * 0x20 + c * 0x40 + d * 0x20 + e * 0x54 + f * 0x20 + g     | h            | newUnencryptedLogs
- *  | ---                                                                            | ---          | ---
+ *  | byte start                                                                                                                | num bytes  | name
+ *  | ---                                                                                                                       | ---        | ---
+ *  | 0x0                                                                                                                       | 0x4        | len(newL1ToL2Msgs) (denoted a)
+ *  | 0x4                                                                                                                       | a * 0x20   | newL1ToL2Msgs
+ *  | 0x4 + a * 0x20 = tx0Start                                                                                                 | 0x4        | len(numTxs) (denoted t)
+ *  |                                                                                                                           |            | TxEffect 0 {
+ *  | tx0Start                                                                                                                  | 0x1        |   len(newNoteHashes) (denoted b)
+ *  | tx0Start + 0x1                                                                                                            | b * 0x20   |   newNoteHashes
+ *  | tx0Start + 0x1 + b * 0x20                                                                                                 | 0x1        |   len(newNullifiers) (denoted c)
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1                                                                                           | c * 0x20   |   newNullifiers
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20                                                                                | 0x1        |   len(newL2ToL1Msgs) (denoted d)
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                                                          | d * 0x20   |   newL2ToL1Msgs
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                                               | 0x1        |   len(newPublicDataWrites) (denoted e)
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                                                        | e * 0x40   |   newPublicDataWrites
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                                             | 0x1        |   len(contracts) (denoted f)
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1                                       | f * 0x20   |   newContracts
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20                            | f * 0x34   |   newContractsData
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34                 | 0x04       |   byteLen(newEncryptedLogs) (denoted g)
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34 + 0x4           | g          |   newEncryptedLogs
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34 + 0x4 + g       | 0x04       |   byteLen(newUnencryptedLogs) (denoted h)
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34 + 0x4 + g + 0x4 | h          |   newUnencryptedLogs
+ *  |                                                                                                                           |            | },
+ *  |                                                                                                                           |            | TxEffect 1 {
+ *  |                                                                                                                           |            |   ...
+ *  |                                                                                                                           |            | },
+ *  |                                                                                                                           |            | ...
+ *  |                                                                                                                           |            | TxEffect (t - 1) {
+ *  |                                                                                                                           |            |   ...
+ *  |                                                                                                                           |            | },
  */
 library MessagesDecoder {
   /**
@@ -62,43 +70,93 @@ library MessagesDecoder {
     l1ToL2Msgs = new bytes32[](Constants.NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
 
     uint256 offset = 0;
-
-    // Note hashes
-    uint256 count = read4(_body, offset);
-    offset += 0x4 + count * 0x20;
-
-    // Nullifiers
-    count = read4(_body, offset);
-    offset += 0x4 + count * 0x20;
-
-    // Public data writes
-    count = read4(_body, offset);
-    offset += 0x4 + count * 0x40;
-
-    // L2 to L1 messages
-    count = read4(_body, offset);
-    l2ToL1Msgs = new bytes32[](count);
-    assembly {
-      calldatacopy(add(l2ToL1Msgs, 0x20), add(_body.offset, add(offset, 0x4)), mul(count, 0x20))
-    }
-    offset += 0x4 + count * 0x20;
-
-    // Contracts
-    count = read4(_body, offset);
-    offset += 0x4 + count * 0x54;
-
     // L1 to L2 messages
-    count = read4(_body, offset);
+    uint256 count = read4(_body, offset);
+    offset += 0x4;
+
     // `l1ToL2Msgs` is fixed size so if `lengths.l1Tol2MsgsCount` < `Constants.NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP` the array
     // will contain some zero values.
     assembly {
-      calldatacopy(add(l1ToL2Msgs, 0x20), add(_body.offset, add(offset, 0x04)), mul(count, 0x20))
+      calldatacopy(add(l1ToL2Msgs, 0x20), add(_body.offset, offset), mul(count, 0x20))
+    }
+
+    offset += count * 0x20;
+
+    uint256 numTxs = read4(_body, offset);
+    offset += 0x4;
+
+    l2ToL1Msgs = new bytes32[](numTxs * Constants.MAX_NEW_L2_TO_L1_MSGS_PER_TX);
+
+    // Now we iterate over the tx effects
+    for (uint256 i = 0; i < numTxs; i++) {
+      // Note hashes
+      count = read1(_body, offset);
+      offset += 0x1;
+      offset += count * 0x20; // each note hash is 0x20 bytes long
+
+      // Nullifiers
+      count = read1(_body, offset);
+      offset += 0x1;
+      offset += count * 0x20; // each nullifier is 0x20 bytes long
+
+      // L2 to L1 messages
+      {
+        count = read1(_body, offset);
+        offset += 0x1;
+
+        uint256 msgsLength = count * 0x20; // each l2 to l1 message is 0x20 bytes long
+
+        // Now we copy the new messages into the array (if there are some)
+        if (count > 0) {
+          uint256 indexInArray = i * Constants.MAX_NEW_L2_TO_L1_MSGS_PER_TX;
+          assembly {
+            calldatacopy(
+              add(add(l2ToL1Msgs, 0x20), mul(indexInArray, 0x20)),
+              add(_body.offset, offset),
+              msgsLength
+            )
+          }
+        }
+
+        offset += msgsLength;
+      }
+
+      // Public data writes
+      count = read1(_body, offset);
+      offset += 0x1;
+      offset += count * 0x40; // each public data write is 0x40 bytes long
+
+      // Contracts
+      count = read1(_body, offset);
+      offset += 0x1;
+      offset += count * 0x20; // each contract leaf is 0x20 bytes long
+
+      // Contract data
+      offset += count * 0x34; // each contract data is 0x34 bytes long
+
+      // Encrypted logs
+      uint256 length = read4(_body, offset);
+      offset += 0x4 + length;
+
+      // Unencrypted logs
+      length = read4(_body, offset);
+      offset += 0x4 + length;
     }
 
     inHash = sha256(abi.encodePacked(l1ToL2Msgs));
     outHash = sha256(abi.encodePacked(l2ToL1Msgs));
 
     return (inHash, outHash, l1ToL2Msgs, l2ToL1Msgs);
+  }
+
+  /**
+   * @notice Reads 1 bytes from the data
+   * @param _data - The data to read from
+   * @param _offset - The offset to read from
+   * @return The 1 byte as a uint256
+   */
+  function read1(bytes calldata _data, uint256 _offset) internal pure returns (uint256) {
+    return uint256(uint8(bytes1(_data[_offset:_offset + 1])));
   }
 
   /**

@@ -9,4 +9,12 @@ contract TxsDecoderHelper {
   function decode(bytes calldata _body) public pure returns (bytes32 txsHash) {
     return TxsDecoder.decode(_body);
   }
+
+  function computeKernelLogsHash(bytes calldata _kernelLogs)
+    external
+    pure
+    returns (bytes32, uint256)
+  {
+    return TxsDecoder.computeKernelLogsHash(0, _kernelLogs);
+  }
 }
