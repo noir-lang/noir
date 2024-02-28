@@ -4,8 +4,8 @@ use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::{
-    node_interner::TraitId, BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction,
-    Path, UnresolvedGenerics, UnresolvedType,
+    node_interner::TraitId, BlockExpression, Expression, FunctionReturnType, GenericIdent, Ident,
+    NoirFunction, Path, UnresolvedGenerics, UnresolvedType,
 };
 
 /// AST node for trait definitions:
@@ -13,7 +13,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct NoirTrait {
     pub name: Ident,
-    pub generics: Vec<Ident>,
+    pub generics: Vec<GenericIdent>,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub span: Span,
     pub items: Vec<TraitItem>,
@@ -25,7 +25,7 @@ pub struct NoirTrait {
 pub enum TraitItem {
     Function {
         name: Ident,
-        generics: Vec<Ident>,
+        generics: Vec<GenericIdent>,
         parameters: Vec<(Ident, UnresolvedType)>,
         return_type: FunctionReturnType,
         where_clause: Vec<UnresolvedTraitConstraint>,

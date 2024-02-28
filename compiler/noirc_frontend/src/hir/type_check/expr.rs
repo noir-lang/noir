@@ -325,7 +325,9 @@ impl<'interner> TypeChecker<'interner> {
             let the_trait = self.interner.get_trait(constraint.trait_id);
             assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
 
-            for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
+            for ((param, _prevent_numeric), arg) in
+                the_trait.generics.iter().zip(&constraint.trait_generics)
+            {
                 bindings.insert(param.id(), (param.clone(), arg.clone()));
             }
         }
@@ -916,7 +918,7 @@ impl<'interner> TypeChecker<'interner> {
                 });
                 None
             }
-            Type::NamedGeneric(_, _) => {
+            Type::NamedGeneric(_, _, _) => {
                 let func_meta = self.interner.function_meta(
                     &self.current_function.expect("unexpected method outside a function"),
                 );

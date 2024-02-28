@@ -4,6 +4,8 @@ fn main(x: pub u8, y: u8) -> pub Field {}
 
 fn main<A, B>(x: A, y: B) -> pub Field where A: Eq, B: Eq {}
 
+fn main<A?, B?>(x: A, y: B) -> pub Field where A: Eq, B: Eq {}
+
 fn main()
 // hello
 {}
@@ -19,6 +21,8 @@ fn main(
 
 fn main<T>() where T: Eq {}
 
+fn main<T?>() where T: Eq {}
+
 fn main(
     tape: [Field; TAPE_LEN],
     initial_registers: [Field; REGISTER_COUNT],
@@ -29,6 +33,14 @@ fn main(
 ) -> pub ExecutionResult {}
 
 fn apply_binary_field_op<N>(
+    lhs: RegisterIndex,
+    rhs: RegisterIndex,
+    result: RegisterIndex,
+    op: u8,
+    registers: &mut Registers<N>
+) -> bool {}
+
+fn apply_binary_field_op<N?>(
     lhs: RegisterIndex,
     rhs: RegisterIndex,
     result: RegisterIndex,
@@ -51,6 +63,8 @@ fn ret_closure3() -> fn[(u32, u64)]() -> u64 {}
 fn make_counter() -> fn[(&mut Field,)]() -> Field {}
 
 fn get_some<Env>(generator: fn[Env]() -> Field) -> [Field; 5] {}
+
+fn get_some<Env?>(generator: fn[Env]() -> Field) -> [Field; 5] {}
 
 fn main(
     message: [u8; 10],

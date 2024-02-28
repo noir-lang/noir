@@ -3,8 +3,8 @@ use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
 use crate::{
-    Distinctness, FunctionVisibility, Ident, Path, Pattern, Recoverable, Statement, StatementKind,
-    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
+    Distinctness, FunctionVisibility, GenericIdent, Ident, Path, Pattern, Recoverable, Statement,
+    StatementKind, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -32,7 +32,7 @@ pub enum ExpressionKind {
 
 /// A Vec of unresolved names for type variables.
 /// For `fn foo<A, B>(...)` this corresponds to vec!["A", "B"].
-pub type UnresolvedGenerics = Vec<Ident>;
+pub type UnresolvedGenerics = Vec<GenericIdent>;
 
 impl ExpressionKind {
     pub fn into_path(self) -> Option<Path> {

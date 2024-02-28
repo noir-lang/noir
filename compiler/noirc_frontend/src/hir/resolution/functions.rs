@@ -24,7 +24,7 @@ pub(crate) fn resolve_function_set(
     mut unresolved_functions: UnresolvedFunctions,
     self_type: Option<Type>,
     trait_impl_id: Option<TraitImplId>,
-    impl_generics: Vec<(Rc<String>, TypeVariable, Span)>,
+    impl_generics: Vec<(Rc<String>, TypeVariable, Span, bool)>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<(FileId, FuncId)> {
     let file_id = unresolved_functions.file_id;
