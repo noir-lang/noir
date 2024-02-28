@@ -33,6 +33,10 @@ export class SideEffect implements SideEffectType {
     public counter: Fr,
   ) {}
 
+  toString(): string {
+    return `value=${this.value.toString()} counter=${this.counter.toString()}`;
+  }
+
   /**
    * Serialize this as a buffer.
    * @returns The buffer.

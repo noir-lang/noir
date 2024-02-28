@@ -337,7 +337,7 @@ export class KernelProver {
       const result = noteHashes.findIndex(equalToRR);
       if (result == -1) {
         throw new Error(
-          `The read request at index ${i} with value ${readRequests[i].toString()} does not match to any commitment.`,
+          `The read request at index ${i} ${readRequests[i].toString()} does not match to any commitment.`,
         );
       } else {
         hints[i] = new Fr(result);

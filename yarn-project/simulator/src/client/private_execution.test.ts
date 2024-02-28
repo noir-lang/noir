@@ -411,7 +411,8 @@ describe('Private Execution test suite', () => {
       expect(changeNote.note.items[0]).toEqual(new Fr(40n));
 
       const readRequests = sideEffectArrayToValueArray(
-        nonEmptySideEffects(result.callStackItem.publicInputs.readRequests),
+        // We remove the first element which is the read request for the initialization commitment
+        nonEmptySideEffects(result.callStackItem.publicInputs.readRequests.slice(1)),
       );
 
       expect(readRequests).toHaveLength(consumedNotes.length);

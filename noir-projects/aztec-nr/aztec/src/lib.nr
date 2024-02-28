@@ -4,6 +4,7 @@ mod deploy;
 mod hash;
 mod hasher;
 mod history;
+mod initializer;
 mod key;
 mod log;
 mod messaging;

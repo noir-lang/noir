@@ -213,6 +213,39 @@ describe('e2e_deploy_contract', () => {
       expect(await contracts[0].methods.summed_values(owner).view()).toEqual(42n);
       expect(await contracts[1].methods.summed_values(owner).view()).toEqual(52n);
     }, 30_000);
+
+    it('refuses to initialize a contract twice', async () => {
+      const owner = await registerRandomAccount(pxe);
+      const initArgs: StatefulContractCtorArgs = [owner, 42];
+      const contract = await registerContract(wallet, StatefulTestContract, initArgs);
+      await contract.methods
+        .constructor(...initArgs)
+        .send()
+        .wait();
+      await expect(
+        contract.methods
+          .constructor(...initArgs)
+          .send()
+          .wait(),
+      ).rejects.toThrow(/dropped/);
+    });
+
+    it('refuses to call a private function that requires initialization', async () => {
+      const owner = await registerRandomAccount(pxe);
+      const initArgs: StatefulContractCtorArgs = [owner, 42];
+      const contract = await registerContract(wallet, StatefulTestContract, initArgs);
+      // TODO(@spalladino): It'd be nicer to be able to fail the assert with a more descriptive message,
+      // but the best we can do for now is pushing a read request to the kernel and wait for it to fail.
+      // Maybe we need an unconstrained check for the read request that runs within the app circuit simulation
+      // so we can bail earlier with a more descriptive error? I should create an issue for this.
+      await expect(contract.methods.create_note(owner, 10).send().wait()).rejects.toThrow(
+        /The read request.*does not match/,
+      );
+    });
+
+    it('refuses to call a public function that requires initialization', async () => {
+      // TODO(@spalladino)
+    });
   });
 
   describe('registering a contract class', () => {
