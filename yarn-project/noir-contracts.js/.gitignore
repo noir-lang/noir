@@ -1,3 +1,4 @@
 target/
 /src
 artifacts/
+codegenCache.json

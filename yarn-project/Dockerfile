@@ -18,7 +18,7 @@ RUN cd l1-artifacts && ./scripts/generate-artifacts.sh && rm -rf /usr/src/l1-con
 # This is actually our code generation tool. Needed to build contract typescript wrappers.
 RUN yarn workspace @aztec/noir-compiler build
 # Generates typescript wrappers.
-RUN yarn workspace @aztec/noir-contracts.js build:contracts
+RUN yarn workspace @aztec/noir-contracts.js build
 # We need to build accounts as it needs to copy in account contracts from noir-contracts.
 RUN yarn workspace @aztec/accounts build:copy-contracts
 RUN yarn workspace @aztec/protocol-contracts build:copy-contracts

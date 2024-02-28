@@ -41,7 +41,7 @@ echo "Building noir compiler..."
 yarn workspace @aztec/noir-compiler build
 # Builds noir contracts (TODO: move this stage pre yarn-project). Generates typescript wrappers.
 echo "Building contracts from noir-contracts..."
-yarn workspace @aztec/noir-contracts.js build:contracts
+yarn workspace @aztec/noir-contracts.js build
 # Bundle compiled contracts into other packages
 echo "Copying account contracts..."
 yarn workspace @aztec/accounts build:copy-contracts
