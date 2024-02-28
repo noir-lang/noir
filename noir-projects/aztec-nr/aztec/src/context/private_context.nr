@@ -1,5 +1,6 @@
 use crate::{
-    context::inputs::PrivateContextInputs, key::nullifier_key::validate_nullifier_key_against_address,
+    context::{inputs::PrivateContextInputs, interface::ContextInterface},
+    key::nullifier_key::validate_nullifier_key_against_address,
     messaging::process_l1_to_l2_message,
     oracle::{
     arguments, call_private_function::call_private_function_internal,
@@ -10,14 +11,14 @@ use crate::{
 };
 use dep::protocol_types::{
     abis::{
-    call_context::CallContext, function_data::FunctionData, function_selector::FunctionSelector,
-    nullifier_key_validation_request::NullifierKeyValidationRequest,
-    private_call_stack_item::PrivateCallStackItem,
-    private_circuit_public_inputs::PrivateCircuitPublicInputs,
-    public_call_stack_item::PublicCallStackItem,
-    public_circuit_public_inputs::PublicCircuitPublicInputs,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
-},
+        call_context::CallContext, function_data::FunctionData, function_selector::FunctionSelector,
+        nullifier_key_validation_request::NullifierKeyValidationRequest,
+        private_call_stack_item::PrivateCallStackItem,
+        private_circuit_public_inputs::PrivateCircuitPublicInputs,
+        public_call_stack_item::PublicCallStackItem,
+        public_circuit_public_inputs::PublicCircuitPublicInputs,
+        side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    },
     address::{AztecAddress, EthAddress},
     constants::{
     MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
@@ -67,6 +68,44 @@ struct PrivateContext {
     nullifier_key: Option<NullifierKeyPair>,
 }
 
+impl ContextInterface for PrivateContext {
+    fn msg_sender(self) -> AztecAddress {
+        self.inputs.call_context.msg_sender
+    }
+
+    fn this_address(self) -> AztecAddress {
+        self.inputs.call_context.storage_contract_address
+    }
+
+    fn this_portal_address(self) -> EthAddress {
+        self.inputs.call_context.portal_contract_address
+    }
+
+    fn chain_id(self) -> Field {
+        self.inputs.private_global_variables.chain_id
+    }
+
+    fn version(self) -> Field {
+        self.inputs.private_global_variables.version
+    }
+
+    fn selector(self) -> FunctionSelector {
+        self.inputs.call_context.function_selector
+    }
+
+    fn push_new_note_hash(&mut self, note_hash: Field) {
+        let side_effect = SideEffect { value: note_hash, counter: self.side_effect_counter };
+        self.new_note_hashes.push(side_effect);
+        self.side_effect_counter = self.side_effect_counter + 1;
+    }
+
+    fn push_new_nullifier(&mut self, nullifier: Field, nullified_commitment: Field) {
+        let side_effect = SideEffectLinkedToNoteHash { value: nullifier, note_hash: nullified_commitment, counter: self.side_effect_counter };
+        self.new_nullifiers.push(side_effect);
+        self.side_effect_counter = self.side_effect_counter + 1;
+    }
+}
+
 impl PrivateContext {
     pub fn new(inputs: PrivateContextInputs, args_hash: Field) -> PrivateContext {
         let side_effect_counter = inputs.call_context.start_side_effect_counter;
@@ -98,30 +137,6 @@ impl PrivateContext {
     pub fn is_deployment(self) -> bool {
         // TODO(#4738): Implement this
         false
-    }
-
-    pub fn msg_sender(self) -> AztecAddress {
-        self.inputs.call_context.msg_sender
-    }
-
-    pub fn this_address(self) -> AztecAddress {
-        self.inputs.call_context.storage_contract_address
-    }
-
-    pub fn this_portal_address(self) -> EthAddress {
-        self.inputs.call_context.portal_contract_address
-    }
-
-    pub fn chain_id(self) -> Field {
-        self.inputs.private_global_variables.chain_id
-    }
-
-    pub fn version(self) -> Field {
-        self.inputs.private_global_variables.version
-    }
-
-    pub fn selector(self) -> FunctionSelector {
-        self.inputs.call_context.function_selector
     }
 
     // Returns the header of a block whose state is used during private execution (not the block the transaction is
@@ -181,19 +196,7 @@ impl PrivateContext {
         let side_effect = SideEffect { value: read_request, counter: self.side_effect_counter };
         self.read_requests.push(side_effect);
         self.side_effect_counter = self.side_effect_counter + 1;
-    }
-
-    pub fn push_new_note_hash(&mut self, note_hash: Field) {
-        let side_effect = SideEffect { value: note_hash, counter: self.side_effect_counter };
-        self.new_note_hashes.push(side_effect);
-        self.side_effect_counter = self.side_effect_counter + 1;
-    }
-
-    pub fn push_new_nullifier(&mut self, nullifier: Field, nullified_commitment: Field) {
-        let side_effect = SideEffectLinkedToNoteHash { value: nullifier, note_hash: nullified_commitment, counter: self.side_effect_counter };
-        self.new_nullifiers.push(side_effect);
-        self.side_effect_counter = self.side_effect_counter + 1;
-    }
+    }    
 
     pub fn request_nullifier_secret_key(&mut self, account: AztecAddress) -> GrumpkinPrivateKey {
         let key_pair = if self.nullifier_key.is_none() {

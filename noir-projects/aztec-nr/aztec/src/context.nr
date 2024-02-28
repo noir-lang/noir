@@ -3,9 +3,11 @@ mod inputs;
 
 mod private_context;
 mod public_context;
+mod interface;
 mod avm;
 
 use private_context::PrivateContext;
+use interface::ContextInterface;
 use public_context::PublicContext;
 use avm::AVMContext;
 
