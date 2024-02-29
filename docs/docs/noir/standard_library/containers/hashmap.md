@@ -60,7 +60,7 @@ Example:
 #include_code insert noir_stdlib/src/collections/map.nr rust
 
 Inserts a new key-value pair into the map. If the key was already in the map, its
-previous value will be overrided with the newly provided one.
+previous value will be overridden with the newly provided one.
 
 Example:
 
