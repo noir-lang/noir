@@ -120,10 +120,74 @@ where
     }    
 }
 
-// TODO: add implementations for the remainder of primitive types.
-impl Hash for Field{
+impl Hash for Field {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        let input: [Field] = [self];
-        H::write(state, input);
+        H::write(state, [self]);
+    }
+}
+
+impl Hash for u8 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for u16 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for u32 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for u64 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for i8 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for i16 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for i32 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for i64 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for bool {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for () {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for U128 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self.lo as Field, self.hi as Field]);
     }
 }
