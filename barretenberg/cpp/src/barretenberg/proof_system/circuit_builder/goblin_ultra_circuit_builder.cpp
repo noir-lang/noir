@@ -303,34 +303,6 @@ void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_internal_gate(const poseid
     ++this->num_gates;
 }
 
-/**
- * @brief Poseidon2 end round gate, needed because poseidon2 rounds compare with shifted wires
- * @details The Poseidon2 permutation is 64 rounds, but needs to be a block of 65 rows, since the result of applying a
- * round of Poseidon2 is stored in the next row (the shifted row). As a result, we need this end row to compare with the
- * result from the 64th round of Poseidon2. Note that it does not activate any selectors since it only serves as a
- * comparison through the shifted wires.
- */
-template <typename FF> void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_end_gate(const poseidon2_end_gate_<FF>& in)
-{
-    this->blocks.main.populate_wires(in.a, in.b, in.c, in.d);
-    this->blocks.main.q_m().emplace_back(0);
-    this->blocks.main.q_1().emplace_back(0);
-    this->blocks.main.q_2().emplace_back(0);
-    this->blocks.main.q_3().emplace_back(0);
-    this->blocks.main.q_c().emplace_back(0);
-    this->blocks.main.q_arith().emplace_back(0);
-    this->blocks.main.q_4().emplace_back(0);
-    this->blocks.main.q_sort().emplace_back(0);
-    this->blocks.main.q_lookup_type().emplace_back(0);
-    this->blocks.main.q_elliptic().emplace_back(0);
-    this->blocks.main.q_aux().emplace_back(0);
-    this->blocks.main.q_busread().emplace_back(0);
-    this->blocks.main.q_poseidon2_external().emplace_back(0);
-    this->blocks.main.q_poseidon2_internal().emplace_back(0);
-    this->check_selector_length_consistency();
-    ++this->num_gates;
-}
-
 template <typename FF>
 inline FF GoblinUltraCircuitBuilder_<FF>::compute_poseidon2_external_identity(FF q_poseidon2_external_value,
                                                                               FF q_1_value,

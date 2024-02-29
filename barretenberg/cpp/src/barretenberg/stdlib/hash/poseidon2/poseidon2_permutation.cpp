@@ -81,15 +81,15 @@ typename Poseidon2Permutation<Params, Builder>::State Poseidon2Permutation<Param
             current_state[j] = witness_t<Builder>(builder, current_native_state[j]);
         }
     }
-    // need to add an extra row here to ensure that things check out, more details found in poseidon2_end_gate_
-    // definition
-    poseidon2_end_gate_<FF> in{
-        current_state[0].witness_index,
-        current_state[1].witness_index,
-        current_state[2].witness_index,
-        current_state[3].witness_index,
-    };
-    builder->create_poseidon2_end_gate(in);
+    // The Poseidon2 permutation is 64 rounds, but needs to be a block of 65 rows, since the result of
+    // applying a round of Poseidon2 is stored in the next row (the shifted row). As a result, we need this end row to
+    // compare with the result from the 64th round of Poseidon2. Note that it does not activate any selectors since it
+    // only serves as a comparison through the shifted wires.
+    builder->create_dummy_gate(builder->blocks.main,
+                               current_state[0].witness_index,
+                               current_state[1].witness_index,
+                               current_state[2].witness_index,
+                               current_state[3].witness_index);
     return current_state;
 }
 
