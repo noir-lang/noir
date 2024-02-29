@@ -25,7 +25,7 @@ export class BarretenbergBackend implements Backend {
 
   constructor(
     acirCircuit: CompiledCircuit,
-    private options: BackendOptions = { threads: navigator ? navigator.hardwareConcurrency : cpus().length },
+    private options: BackendOptions = { threads: typeof navigator !== "undefined" ? navigator.hardwareConcurrency : cpus().length},
   ) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
