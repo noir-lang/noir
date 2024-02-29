@@ -20,7 +20,7 @@ contract DocsExample {
         note_viewer_options::{NoteViewerOptions}, utils as note_utils
     },
         context::{PrivateContext, PublicContext, Context},
-        state_vars::{Map, PublicMutable, PrivateMutable, PrivateImmutable, PrivateSet, SharedImmutable}
+        state_vars::{Map, PublicMutable, PublicImmutable, PrivateMutable, PrivateImmutable, PrivateSet, SharedImmutable}
     };
     // how to import methods from other files/folders within your workspace
     use crate::options::create_account_card_getter_options;
@@ -48,8 +48,13 @@ contract DocsExample {
         // docs:start:storage-minters-declaration
         minters: Map<AztecAddress, PublicMutable<bool>>,
         // docs:end:storage-minters-declaration
+        // docs:start:storage-public-immutable-declaration
+        public_immutable: PublicImmutable<Leader>,
+        // docs:end:storage-public-immutable-declaration
     }
 
+    // Note: The following is no longer necessary to implement manually as our macros do this for us. It is left here
+    // for documentation purposes only.
     impl Storage {
         fn init(context: Context) -> Self {
             Storage {
@@ -83,7 +88,10 @@ contract DocsExample {
                     |context, slot| {
                         PublicMutable::new(context, slot)
                     }
-                )// docs:end:storage-minters-init
+                ),
+                // docs:end:storage-minters-init
+                // docs:start:storage-public-immutable
+                public_immutable: PublicImmutable::new(context, 9)// docs:end:storage-public-immutable
             }
         }
     }
@@ -108,6 +116,20 @@ contract DocsExample {
 
     unconstrained fn get_shared_immutable() -> pub Leader {
         storage.shared_immutable.read_public()
+    }
+
+    #[aztec(public)]
+    fn initialize_public_immutable(points: u8) {
+        // docs:start:initialize_public_immutable
+        let mut new_leader = Leader { account: context.msg_sender(), points };
+        storage.public_immutable.initialize(new_leader);
+        // docs:end:initialize_public_immutable
+    }
+
+    unconstrained fn get_public_immutable() -> pub Leader {
+        // docs:start:read_public_immutable
+        storage.public_immutable.read()
+        // docs:end:read_public_immutable
     }
 
     // docs:start:initialize-private-mutable

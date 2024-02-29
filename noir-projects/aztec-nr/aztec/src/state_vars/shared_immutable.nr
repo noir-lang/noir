@@ -4,6 +4,7 @@ use crate::{
 };
 use dep::protocol_types::{constants::INITIALIZATION_SLOT_SEPARATOR, traits::{Deserialize, Serialize}};
 
+// Just like PublicImmutable but with the ability to read from private functions.
 struct SharedImmutable<T>{
     context: Context,
     storage_slot: Field,

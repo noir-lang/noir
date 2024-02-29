@@ -89,9 +89,34 @@ We have a `write` method on the `PublicMutable` struct that takes the value to w
 
 ---
 
+## Public Immutable
+
+`PublicImmutable` is a type that can be written once during a contract deployment and read later on from public only.
+
+Just like the `PublicMutable` it is generic over the variable type `T`. The type `MUST` implement Serialize and Deserialize traits.
+
+You can find the details of `PublicImmutable` in the implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/state_vars/public_immutable.nr).
+
+### `new`
+
+Is done exactly like the `PublicMutable` struct, but with the `PublicImmutable` struct.
+
+#include_code storage-public-immutable-declaration /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+
+#include_code storage-public-immutable /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+
+### `initialize`
+
+#include_code initialize_public_immutable /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+
+### `read`
+
+Reading the value is just like `PublicMutable`.
+#include_code read_public_immutable /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+
 ## Shared Immutable
 
-`SharedImmutable` (formerly known as `StablePublicState`) is a special type that can be read from both public and private!
+`SharedImmutable` (formerly known as `StablePublicState`) is a type which is very similar to `PublicImmutable` but with an addition of a private getter (can be read from private).
 
 Since private execution is based on historical data, the user can pick ANY of its prior values to read from. This is why it `MUST` not be updated after the contract is deployed. The variable should be initialized at the constructor and then never changed.
 

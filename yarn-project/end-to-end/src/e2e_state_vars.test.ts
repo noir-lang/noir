@@ -1,4 +1,4 @@
-import { TxStatus, Wallet } from '@aztec/aztec.js';
+import { Wallet } from '@aztec/aztec.js';
 import { DocsExampleContract } from '@aztec/noir-contracts.js';
 
 import { setup } from './fixtures/utils.js';
@@ -23,17 +23,15 @@ describe('e2e_state_vars', () => {
     it('private read of uninitialized SharedImmutable', async () => {
       const s = await contract.methods.get_shared_immutable().view();
 
-      const receipt2 = await contract.methods.match_shared_immutable(s.account, s.points).send().wait();
-      expect(receipt2.status).toEqual(TxStatus.MINED);
+      // Send the transaction and wait for it to be mined (wait function throws if the tx is not mined)
+      await contract.methods.match_shared_immutable(s.account, s.points).send().wait();
     });
 
     it('private read of initialized SharedImmutable', async () => {
-      const receipt = await contract.methods.initialize_shared_immutable(1).send().wait();
-      expect(receipt.status).toEqual(TxStatus.MINED);
+      await contract.methods.initialize_shared_immutable(1).send().wait();
       const s = await contract.methods.get_shared_immutable().view();
 
-      const receipt2 = await contract.methods.match_shared_immutable(s.account, s.points).send().wait();
-      expect(receipt2.status).toEqual(TxStatus.MINED);
+      await contract.methods.match_shared_immutable(s.account, s.points).send().wait();
     }, 200_000);
 
     it('initializing SharedImmutable the second time should fail', async () => {
@@ -41,6 +39,26 @@ describe('e2e_state_vars', () => {
       // in the previous test, so the call bellow should fail.
       await expect(contract.methods.initialize_shared_immutable(1).send().wait()).rejects.toThrowError(
         "Assertion failed: SharedImmutable already initialized 'fields_read[0] == 0'",
+      );
+    }, 100_000);
+  });
+
+  describe('PublicImmutable', () => {
+    it('initialize and read public immutable', async () => {
+      const numPoints = 1n;
+
+      await contract.methods.initialize_public_immutable(numPoints).send().wait();
+      const p = await contract.methods.get_public_immutable().view();
+
+      expect(p.account).toEqual(wallet.getCompleteAddress().address);
+      expect(p.points).toEqual(numPoints);
+    }, 200_000);
+
+    it('initializing PublicImmutable the second time should fail', async () => {
+      // Jest executes the tests sequentially and the first call to initialize_public_immutable was executed
+      // in the previous test, so the call bellow should fail.
+      await expect(contract.methods.initialize_public_immutable(1).send().wait()).rejects.toThrowError(
+        "Assertion failed: PublicImmutable already initialized 'fields_read[0] == 0'",
       );
     }, 100_000);
   });
@@ -53,8 +71,8 @@ describe('e2e_state_vars', () => {
 
     it('initialize PrivateMutable', async () => {
       expect(await contract.methods.is_legendary_initialized().view()).toEqual(false);
+      // Send the transaction and wait for it to be mined (wait function throws if the tx is not mined)
       const receipt = await contract.methods.initialize_private(RANDOMNESS, POINTS).send().wait();
-      expect(receipt.status).toEqual(TxStatus.MINED);
 
       const tx = await wallet.getTx(receipt.txHash);
       expect(tx?.newNoteHashes.length).toEqual(1);
@@ -80,7 +98,6 @@ describe('e2e_state_vars', () => {
       expect(await contract.methods.is_legendary_initialized().view()).toEqual(true);
       const noteBefore = await contract.methods.get_legendary_card().view();
       const receipt = await contract.methods.update_legendary_card(RANDOMNESS, POINTS).send().wait();
-      expect(receipt.status).toEqual(TxStatus.MINED);
 
       const tx = await wallet.getTx(receipt.txHash);
       expect(tx?.newNoteHashes.length).toEqual(1);
@@ -105,7 +122,6 @@ describe('e2e_state_vars', () => {
         .update_legendary_card(RANDOMNESS + 2n, POINTS + 1n)
         .send()
         .wait();
-      expect(receipt.status).toEqual(TxStatus.MINED);
       const tx = await wallet.getTx(receipt.txHash);
       expect(tx?.newNoteHashes.length).toEqual(1);
       // 1 for the tx, another for the nullifier of the previous note
@@ -120,7 +136,6 @@ describe('e2e_state_vars', () => {
       expect(await contract.methods.is_legendary_initialized().view()).toEqual(true);
       const noteBefore = await contract.methods.get_legendary_card().view();
       const receipt = await contract.methods.increase_legendary_points().send().wait();
-      expect(receipt.status).toEqual(TxStatus.MINED);
       const tx = await wallet.getTx(receipt.txHash);
       expect(tx?.newNoteHashes.length).toEqual(1);
       // 1 for the tx, another for the nullifier of the previous note
@@ -141,7 +156,6 @@ describe('e2e_state_vars', () => {
     it('initialize PrivateImmutable', async () => {
       expect(await contract.methods.is_priv_imm_initialized().view()).toEqual(false);
       const receipt = await contract.methods.initialize_private_immutable(RANDOMNESS, POINTS).send().wait();
-      expect(receipt.status).toEqual(TxStatus.MINED);
 
       const tx = await wallet.getTx(receipt.txHash);
       expect(tx?.newNoteHashes.length).toEqual(1);
