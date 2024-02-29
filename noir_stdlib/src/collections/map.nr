@@ -83,7 +83,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     pub fn with_hasher(_build_hasher: B) -> Self
     where
         B: BuildHasher<H> {
-    // docs:end:with_hasher
+        // docs:end:with_hasher
         let _table = [Slot::default(); N];
         let _len = 0;
         Self { _table, _len, _build_hasher }
@@ -92,7 +92,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // Clears the map, removing all key-value entries.
     // docs:start:clear
     pub fn clear(&mut self) {
-    // docs:end:clear
+        // docs:end:clear
         self._table = [Slot::default(); N];
         self._len = 0;
     }
@@ -107,14 +107,14 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Hash + Eq,
         B: BuildHasher<H>,
         H: Hasher {
-    // docs:end:contains_key
+        // docs:end:contains_key
         self.get(key).is_some()
     }
 
     // Returns true if the map contains no elements.
     // docs:start:is_empty
     pub fn is_empty(self) -> bool {
-    // docs:end:is_empty
+        // docs:end:is_empty
         self._len == 0
     }
 
@@ -122,7 +122,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // The length of the returned vector will always match the length of this HashMap.
     // docs:start:entries
     pub fn entries(self) -> BoundedVec<(K, V), N> {
-    // docs:end:keys
+        // docs:end:keys
         let mut entries = BoundedVec::new();
 
         for slot in self._table {
@@ -143,7 +143,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // The length of the returned vector will always match the length of this HashMap.
     // docs:start:keys
     pub fn keys(self) -> BoundedVec<K, N> {
-    // docs:end:keys
+        // docs:end:keys
         let mut keys = BoundedVec::new();
 
         for slot in self._table {
@@ -163,7 +163,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // The length of the returned vector will always match the length of this HashMap.
     // docs:start:values
     pub fn values(self) -> BoundedVec<V, N> {
-    // docs:end:values
+        // docs:end:values
         let mut values = BoundedVec::new();
 
         for slot in self._table {
@@ -189,7 +189,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Eq + Hash,
         B: BuildHasher<H>,
         H: Hasher {
-    // docs:end:iter_mut
+        // docs:end:iter_mut
         let mut entries = self.entries();
         let mut new_map = HashMap::with_hasher(self._build_hasher);
 
@@ -214,7 +214,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Eq + Hash,
         B: BuildHasher<H>,
         H: Hasher {
-    // docs:end:iter_keys_mut
+        // docs:end:iter_keys_mut
         let mut entries = self.entries();
         let mut new_map = HashMap::with_hasher(self._build_hasher);
 
@@ -232,7 +232,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // For each value applies mutator function.
     // docs:start:iter_values_mut
     pub fn iter_values_mut(&mut self, f: fn(V) -> V) {
-    // docs:end:iter_values_mut
+        // docs:end:iter_values_mut
         for i in 0..N {
             let mut slot = self._table[i];
             if slot.is_valid() {
@@ -246,7 +246,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // Retains only the elements specified by the predicate.
     // docs:start:retain
     pub fn retain(&mut self, f: fn(K, V) -> bool) {
-    // docs:end:retain
+        // docs:end:retain
         for index in 0..N {
             let mut slot = self._table[index];
             if slot.is_valid() {
@@ -263,14 +263,14 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // Amount of active key-value entries.
     // docs:start:len
     pub fn len(self) -> u64 {
-    // docs:end:len
+        // docs:end:len
         self._len
     }
 
     // Get the compile-time map capacity.
     // docs:start:capacity
     pub fn capacity(_self: Self) -> u64 {
-    // docs:end:capacity
+        // docs:end:capacity
         N
     }
 
@@ -284,7 +284,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Eq + Hash,
         B: BuildHasher<H>,
         H: Hasher {
-    // docs:end:get
+        // docs:end:get
         let mut result = Option::none();
 
         let hash = self.hash(key);
@@ -320,7 +320,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Eq + Hash,
         B: BuildHasher<H>,
         H: Hasher {
-    // docs:end:insert
+        // docs:end:insert
         self.assert_load_factor();
 
         let hash = self.hash(key);
@@ -362,7 +362,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Eq + Hash,
         B: BuildHasher<H>,
         H: Hasher {
-    // docs:end:remove
+        // docs:end:remove
         let hash = self.hash(key);
         let mut break = false;
 
