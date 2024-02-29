@@ -303,6 +303,9 @@ template <typename T>
 concept IsUltraPlonkFlavor = IsAnyOf<T, plonk::flavor::Ultra>;
 
 template <typename T> 
+concept IsUltraPlonkOrHonk = IsAnyOf<T, plonk::flavor::Ultra, UltraFlavor, GoblinUltraFlavor>;
+
+template <typename T> 
 concept IsHonkFlavor = IsAnyOf<T, UltraFlavor, GoblinUltraFlavor>;
 
 template <typename T> 

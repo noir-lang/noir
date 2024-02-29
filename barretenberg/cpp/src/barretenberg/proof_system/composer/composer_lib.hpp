@@ -6,43 +6,6 @@
 
 namespace bb {
 
-/**
- * @brief Copy memory read/write record data into proving key
- * @details Prover needs to know which gates contain a read/write 'record' witness on the 4th wire. This wire value can
- * only be fully computed once the first 3 wire polynomials have been committed to. The 4th wire on these gates will be
- * a random linear combination of the first 3 wires, using the plookup challenge `eta`. Because we shift the gates by
- * the number of public inputs, we need to update the records with the public_inputs offset
- *
- * @tparam Flavor
- * @param circuit
- * @param proving_key
- */
-template <typename Flavor>
-void populate_memory_read_write_records(const typename Flavor::CircuitBuilder& circuit,
-                                        const std::shared_ptr<typename Flavor::ProvingKey>& proving_key)
-{
-    // Determine offset of conventional gates in execution trace
-    auto offset = static_cast<uint32_t>(circuit.public_inputs.size());
-    if (Flavor::has_zero_row) {
-        offset += 1;
-    }
-    if constexpr (IsGoblinFlavor<Flavor>) {
-        offset += static_cast<uint32_t>(circuit.num_ecc_op_gates);
-    }
-    auto add_public_inputs_offset = [offset](uint32_t gate_index) { return gate_index + offset; };
-    proving_key->memory_read_records = std::vector<uint32_t>();
-    proving_key->memory_write_records = std::vector<uint32_t>();
-
-    std::transform(circuit.memory_read_records.begin(),
-                   circuit.memory_read_records.end(),
-                   std::back_inserter(proving_key->memory_read_records),
-                   add_public_inputs_offset);
-    std::transform(circuit.memory_write_records.begin(),
-                   circuit.memory_write_records.end(),
-                   std::back_inserter(proving_key->memory_write_records),
-                   add_public_inputs_offset);
-}
-
 template <typename Flavor>
 std::array<typename Flavor::Polynomial, 4> construct_lookup_table_polynomials(
     const typename Flavor::CircuitBuilder& circuit, size_t dyadic_circuit_size, size_t additional_offset = 0)

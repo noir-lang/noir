@@ -21,6 +21,8 @@ template <class Flavor> class ExecutionTrace_ {
         std::array<Polynomial, Builder::Arithmetization::NUM_SELECTORS> selectors;
         // A vector of sets (vectors) of addresses into the wire polynomials whose values are copy constrained
         std::vector<CyclicPermutation> copy_cycles;
+        // The starting index in the trace of the block containing RAM/RAM read/write gates
+        uint32_t ram_rom_offset = 0;
 
         TraceData(size_t dyadic_circuit_size, Builder& builder)
         {
@@ -53,6 +55,23 @@ template <class Flavor> class ExecutionTrace_ {
     static void add_wires_and_selectors_to_proving_key(TraceData& trace_data,
                                                        Builder& builder,
                                                        const std::shared_ptr<typename Flavor::ProvingKey>& proving_key);
+
+    /**
+     * @brief Add the memory records indicating which rows correspond to RAM/ROM reads/writes
+     * @details The 4th wire of RAM/ROM read/write gates is generated at proving time as a linear combination of the
+     * first three wires scaled by powers of a challenge. To know on which rows to perform this calculation, we must
+     * store the indices of read/write gates in the proving key. In the builder, we store the row index of these gates
+     * within the block containing them. To obtain the row index in the trace at large, we simply increment these
+     * indices by the offset at which that block is placed into the trace.
+     *
+     * @param trace_data
+     * @param builder
+     * @param proving_key
+     */
+    static void add_memory_records_to_proving_key(TraceData& trace_data,
+                                                  Builder& builder,
+                                                  const std::shared_ptr<typename Flavor::ProvingKey>& proving_key)
+        requires IsUltraPlonkOrHonk<Flavor>;
 
     /**
      * @brief Construct wire polynomials, selector polynomials and copy cycles from raw circuit data

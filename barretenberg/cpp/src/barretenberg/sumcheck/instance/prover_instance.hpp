@@ -89,8 +89,6 @@ template <class Flavor> class ProverInstance_ {
 
         sorted_polynomials = construct_sorted_list_polynomials<Flavor>(circuit, dyadic_circuit_size);
 
-        populate_memory_read_write_records<Flavor>(circuit, proving_key);
-
         verification_key = std::make_shared<VerificationKey>(proving_key);
     }
 

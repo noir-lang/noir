@@ -2033,7 +2033,8 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
     blocks.main.populate_wires(
         record.index_witness, record.value_column1_witness, record.value_column2_witness, record.record_witness);
 
-    record.gate_index = this->num_gates;
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): set gate index based on block containing ram/rom
+    record.gate_index = this->blocks.main.size() - 1;
     ++this->num_gates;
 }
 
@@ -2052,7 +2053,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_sorted_ROM_gate(RomRecord& re
     blocks.main.populate_wires(
         record.index_witness, record.value_column1_witness, record.value_column2_witness, record.record_witness);
 
-    record.gate_index = this->num_gates;
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): set gate index based on block containing ram/rom
+    record.gate_index = this->blocks.main.size() - 1;
     ++this->num_gates;
 }
 
@@ -2097,7 +2099,8 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
     blocks.main.populate_wires(
         record.index_witness, record.timestamp_witness, record.value_witness, record.record_witness);
 
-    record.gate_index = this->num_gates;
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): set gate index based on block containing ram/rom
+    record.gate_index = this->blocks.main.size() - 1;
     ++this->num_gates;
 }
 
@@ -2117,7 +2120,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_sorted_RAM_gate(RamRecord& re
     blocks.main.populate_wires(
         record.index_witness, record.timestamp_witness, record.value_witness, record.record_witness);
 
-    record.gate_index = this->num_gates;
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): set gate index based on block containing ram/rom
+    record.gate_index = this->blocks.main.size() - 1;
     ++this->num_gates;
 }
 
@@ -2131,7 +2135,8 @@ template <typename Arithmetization>
 void UltraCircuitBuilder_<Arithmetization>::create_final_sorted_RAM_gate(RamRecord& record, const size_t ram_array_size)
 {
     record.record_witness = this->add_variable(0);
-    record.gate_index = this->num_gates;
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): set gate index based on block containing ram/rom
+    record.gate_index = this->blocks.main.size(); // no -1 since we havent added the gate yet
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/879): This method used to add a single arithmetic gate
     // with two purposes: (1) to provide wire values to the previous RAM gate via shifts, and (2) to perform a
@@ -3323,7 +3328,8 @@ template <typename Arithmetization> bool UltraCircuitBuilder_<Arithmetization>::
         }
     };
     // For each gate
-    for (size_t i = 0; i < this->num_gates; i++) {
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): only checking the main block. check all blocks
+    for (size_t i = 0; i < this->blocks.main.size(); i++) {
         FF q_arith_value;
         FF q_aux_value;
         FF q_elliptic_value;
@@ -3375,7 +3381,8 @@ template <typename Arithmetization> bool UltraCircuitBuilder_<Arithmetization>::
         FF w_2_shifted_value;
         FF w_3_shifted_value;
         FF w_4_shifted_value;
-        if (i < (this->num_gates - 1)) {
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): gate index based on block containing ram/rom
+        if (i < (this->blocks.main.size() - 1)) {
             w_1_shifted_value = this->get_variable(blocks.main.w_l()[i + 1]);
             w_2_shifted_value = this->get_variable(blocks.main.w_r()[i + 1]);
             w_3_shifted_value = this->get_variable(blocks.main.w_o()[i + 1]);

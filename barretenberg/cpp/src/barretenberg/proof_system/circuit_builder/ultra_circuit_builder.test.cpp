@@ -712,6 +712,40 @@ TEST(ultra_circuit_constructor, rom)
     EXPECT_EQ(result, true);
 }
 
+/**
+ * @brief A simple-as-possible RAM read test, for easier debugging
+ *
+ */
+TEST(ultra_circuit_constructor, ram_simple)
+{
+    UltraCircuitBuilder builder;
+
+    // Initialize a length 1 RAM array with a single value
+    fr ram_value = 5;
+    uint32_t ram_value_idx = builder.add_variable(ram_value);
+    size_t ram_id = builder.create_RAM_array(/*array_size=*/1);
+    builder.init_RAM_element(ram_id, /*index_value=*/0, ram_value_idx);
+
+    // Read from the RAM array we just created (at the 0th index)
+    uint32_t read_idx = builder.add_variable(0);
+    uint32_t a_idx = builder.read_RAM_array(ram_id, read_idx);
+
+    // Use the result in a simple arithmetic gate
+    builder.create_big_add_gate({
+        a_idx,
+        builder.zero_idx,
+        builder.zero_idx,
+        builder.zero_idx,
+        -1,
+        0,
+        0,
+        0,
+        builder.get_variable(ram_value_idx),
+    });
+
+    EXPECT_TRUE(builder.check_circuit());
+}
+
 TEST(ultra_circuit_constructor, ram)
 {
     UltraCircuitBuilder circuit_constructor = UltraCircuitBuilder();

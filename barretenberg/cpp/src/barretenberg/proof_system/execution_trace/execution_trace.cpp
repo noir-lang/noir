@@ -14,6 +14,10 @@ void ExecutionTrace_<Flavor>::populate(Builder& builder,
 
     add_wires_and_selectors_to_proving_key(trace_data, builder, proving_key);
 
+    if constexpr (IsUltraPlonkOrHonk<Flavor>) {
+        add_memory_records_to_proving_key(trace_data, builder, proving_key);
+    }
+
     if constexpr (IsGoblinFlavor<Flavor>) {
         add_ecc_op_wires_to_proving_key(builder, proving_key);
     }
@@ -46,6 +50,22 @@ void ExecutionTrace_<Flavor>::add_wires_and_selectors_to_proving_key(
 }
 
 template <class Flavor>
+void ExecutionTrace_<Flavor>::add_memory_records_to_proving_key(
+    TraceData& trace_data, Builder& builder, const std::shared_ptr<typename Flavor::ProvingKey>& proving_key)
+    requires IsUltraPlonkOrHonk<Flavor>
+{
+    ASSERT(proving_key->memory_read_records.empty() && proving_key->memory_write_records.empty());
+
+    // Update indices of RAM/ROM reads/writes based on where block containing these gates sits in the trace
+    for (auto& index : builder.memory_read_records) {
+        proving_key->memory_read_records.emplace_back(index + trace_data.ram_rom_offset);
+    }
+    for (auto& index : builder.memory_write_records) {
+        proving_key->memory_write_records.emplace_back(index + trace_data.ram_rom_offset);
+    }
+}
+
+template <class Flavor>
 typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_trace_data(Builder& builder,
                                                                                           size_t dyadic_circuit_size)
 {
@@ -57,7 +77,7 @@ typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_t
     uint32_t offset = Flavor::has_zero_row ? 1 : 0; // Offset at which to place each block in the trace polynomials
     // For each block in the trace, populate wire polys, copy cycles and selector polys
     for (auto& block : builder.blocks.get()) {
-        auto block_size = static_cast<uint32_t>(block.wires[0].size());
+        auto block_size = static_cast<uint32_t>(block.size());
 
         // Update wire polynomials and copy cycles
         // NB: The order of row/column loops is arbitrary but needs to be row/column to match old copy_cycle code
@@ -80,6 +100,11 @@ typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_t
                 size_t trace_row_idx = row_idx + offset;
                 selector_poly[trace_row_idx] = selector[row_idx];
             }
+        }
+
+        // Store the offset of the block containing RAM/ROM read/write gates for use in updating memory records
+        if (block.has_ram_rom) {
+            trace_data.ram_rom_offset = offset;
         }
 
         offset += block_size;

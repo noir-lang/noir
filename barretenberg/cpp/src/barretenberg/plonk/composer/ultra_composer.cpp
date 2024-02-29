@@ -188,8 +188,6 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key(CircuitBuilder& 
 
     construct_sorted_polynomials(circuit, subgroup_size);
 
-    populate_memory_read_write_records<Flavor>(circuit, circuit_proving_key);
-
     return circuit_proving_key;
 }
 

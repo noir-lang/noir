@@ -48,8 +48,11 @@ template <typename FF, size_t NUM_WIRES, size_t NUM_SELECTORS> class ExecutionTr
 
     Wires wires; // vectors of indices into a witness variables array
     Selectors selectors;
+    bool has_ram_rom = false; // does the block contain RAM/ROM gates
 
     bool operator==(const ExecutionTraceBlock& other) const = default;
+
+    size_t size() { return std::get<0>(this->wires).size(); }
 
     void reserve(size_t size_hint)
     {
@@ -139,9 +142,17 @@ template <typename FF_> class UltraArith {
 
     struct TraceBlocks {
         UltraTraceBlock pub_inputs;
+        UltraTraceBlock arithmetic;
+        UltraTraceBlock sort;
+        UltraTraceBlock elliptic;
+        UltraTraceBlock aux;
+        UltraTraceBlock lookup;
         UltraTraceBlock main;
 
-        auto get() { return RefArray{ pub_inputs, main }; }
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): update to aux.has_ram_rom = true
+        TraceBlocks() { main.has_ram_rom = true; }
+
+        auto get() { return RefArray{ pub_inputs, arithmetic, sort, elliptic, aux, lookup, main }; }
 
         bool operator==(const TraceBlocks& other) const = default;
     };
@@ -224,9 +235,23 @@ template <typename FF_> class UltraHonkArith {
     struct TraceBlocks {
         UltraHonkTraceBlock ecc_op;
         UltraHonkTraceBlock pub_inputs;
+        UltraHonkTraceBlock arithmetic;
+        UltraHonkTraceBlock sort;
+        UltraHonkTraceBlock elliptic;
+        UltraHonkTraceBlock aux;
+        UltraHonkTraceBlock lookup;
+        UltraHonkTraceBlock busread;
+        UltraHonkTraceBlock poseidon_external;
+        UltraHonkTraceBlock poseidon_internal;
         UltraHonkTraceBlock main;
 
-        auto get() { return RefArray{ ecc_op, pub_inputs, main }; }
+        TraceBlocks() { main.has_ram_rom = true; }
+
+        auto get()
+        {
+            return RefArray{ ecc_op,  pub_inputs,        arithmetic,        sort, elliptic, aux, lookup,
+                             busread, poseidon_external, poseidon_internal, main };
+        }
 
         bool operator==(const TraceBlocks& other) const = default;
     };
