@@ -189,7 +189,7 @@ Due to the rigidity of zk-SNARK circuits, there are upper bounds on the amount o
 
 Here are the current constants:
 
-#include_code constants /noir-projects/noir-protocol-circuits/src/crates/types/src/constants.nr rust
+#include_code constants /noir-projects/noir-protocol-circuits/crates/types/src/constants.nr rust
 
 #### What are the consequences?
 

@@ -39,10 +39,10 @@ This is an abstraction library for using private variables like [`EasyPrivateUin
 ## Protocol Types
 
 ```toml
-protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/noir-protocol-circuits/src/crates/types"}
+protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/noir-protocol-circuits/crates/types"}
 ```
 
-This library contains types that are used in the Aztec protocol. Find it on [GitHub](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-protocol-circuits/src/crates/types/src).
+This library contains types that are used in the Aztec protocol. Find it on [GitHub](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-protocol-circuits/crates/types/src).
 
 ## Value note
 

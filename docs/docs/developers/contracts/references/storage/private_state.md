@@ -36,9 +36,9 @@ A note should implement the following traits:
 
 #include_code note_interface /noir-projects/aztec-nr/aztec/src/note/note_interface.nr rust
 
-#include_code serialize /noir-projects/noir-protocol-circuits/src/crates/types/src/traits.nr rust
+#include_code serialize /noir-projects/noir-protocol-circuits/crates/types/src/traits.nr rust
 
-#include_code deserialize /noir-projects/noir-protocol-circuits/src/crates/types/src/traits.nr rust
+#include_code deserialize /noir-projects/noir-protocol-circuits/crates/types/src/traits.nr rust
 
 The interplay between a private state variable and its notes can be confusing. Here's a summary to aid intuition:
 
@@ -226,7 +226,7 @@ An example of how to use this operation is visible in the `easy_private_state`:
 
 This function returns the notes the account has access to.
 
-The kernel circuits are constrained to a maximum number of notes this function can return at a time. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-protocol-circuits/src/crates/types/src/constants.nr) and look for `MAX_READ_REQUESTS_PER_CALL` for the up-to-date number.
+The kernel circuits are constrained to a maximum number of notes this function can return at a time. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-protocol-circuits/crates/types/src/constants.nr) and look for `MAX_READ_REQUESTS_PER_CALL` for the up-to-date number.
 
 Because of this limit, we should always consider using the second argument `NoteGetterOptions` to limit the number of notes we need to read and constrain in our programs. This is quite important as every extra call increases the time used to prove the program and we don't want to spend more time than necessary.
 
@@ -240,7 +240,7 @@ Functionally similar to [`get_notes`](#get_notes), but executed unconstrained an
 
 #include_code view_notes /noir-projects/aztec-nr/value-note/src/balance_utils.nr rust
 
-There's also a limit on the maximum number of notes that can be returned in one go. To find the current limit, refer to [this file](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-protocol-circuits/src/crates/types/src/constants.nr) and look for `MAX_NOTES_PER_PAGE`.
+There's also a limit on the maximum number of notes that can be returned in one go. To find the current limit, refer to [this file](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-protocol-circuits/crates/types/src/constants.nr) and look for `MAX_NOTES_PER_PAGE`.
 
 The key distinction is that this method is unconstrained. It does not perform a check to verify if the notes actually exist, which is something the [`get_notes`](#get_notes) method does under the hood. Therefore, it should only be used in an unconstrained contract function.
 

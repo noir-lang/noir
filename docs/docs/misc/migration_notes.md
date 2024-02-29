@@ -15,12 +15,14 @@ Historically developers have been required to include a `compute_note_hash_and_n
 It is possible to provide a user-defined implementation, in which case auto-generation will be skipped (though there are no known use cases for this).
 
 ### Updated naming of state variable wrappers
+
 We have decided to change the naming of our state variable wrappers because the naming was not clear.
 The changes are as follows:
+
 1. `Singleton` -> `PrivateMutable`
 2. `ImmutableSingleton` -> `PrivateImmutable`
 3. `StablePublicState` -> `SharedImmutable`
-5. `PublicState` -> `PublicMutable`
+4. `PublicState` -> `PublicMutable`
 
 This is the meaning of "private", "public" and "shared":
 Private: read (R) and write (W) from private, not accessible from public
@@ -112,7 +114,7 @@ Aztec contracts are now moved outside of the `yarn-project` folder and into `noi
 Before:
 
 ```rust
-easy_private_token_contract = {git = "https://github.com/AztecProtocol/aztec-packages/", tag ="v0.23.0", directory = "yarn-project/noir-contracts/src/contracts/easy_private_token_contract"}
+easy_private_token_contract = {git = "https://github.com/AztecProtocol/aztec-packages/", tag ="v0.23.0", directory = "yarn-project/noir-contracts/contracts/easy_private_token_contract"}
 ```
 
 Now, update the `yarn-project` folder for `noir-projects`:
@@ -649,7 +651,7 @@ const tokenBigInt = (await bridge.methods.token().view()).inner;
 
 ```toml
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/aztec-nr/aztec" }
-protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-protocol-circuits/src/crates/types"}
+protocol_types = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="yarn-project/noir-protocol-circuits/crates/types"}
 ```
 
 ### [Aztec.nr] moving compute_address func to AztecAddress
@@ -703,11 +705,11 @@ Aztec contracts are now moved outside of the `src` folder, so you need to update
 Before:
 
 ```rust
-easy_private_token_contract = {git = "https://github.com/AztecProtocol/aztec-packages/", tag ="v0.16.9", directory = "yarn-project/noir-contracts/src/contracts/easy_private_token_contract"}
+easy_private_token_contract = {git = "https://github.com/AztecProtocol/aztec-packages/", tag ="v0.16.9", directory = "noir-projects/noir-contracts/contracts/easy_private_token_contract"}
 ```
 
 Now, just remove the `src` folder,:
 
 ```rust
-easy_private_token_contract = {git = "https://github.com/AztecProtocol/aztec-packages/", tag ="v0.17.0", directory = "yarn-project/noir-contracts/contracts/easy_private_token_contract"}
+easy_private_token_contract = {git = "https://github.com/AztecProtocol/aztec-packages/", tag ="v0.17.0", directory = "noir-projects/noir-contracts/contracts/easy_private_token_contract"}
 ```

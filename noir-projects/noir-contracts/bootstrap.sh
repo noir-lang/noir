@@ -15,5 +15,11 @@ if [ -n "$CMD" ]; then
   fi
 fi
 
-# Build the contracts. `yarn build` handles cleaning as well
-yarn build
+echo "Compiling contracts..."
+../../noir/noir-repo/target/release/nargo compile --silence-warnings
+
+echo "Transpiling avm contracts..."
+for contract_json in target/avm_test_*.json; do
+  echo Transpiling $contract_json...
+  ../../avm-transpiler/target/release/avm-transpiler $contract_json $contract_json
+done

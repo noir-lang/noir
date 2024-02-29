@@ -46,7 +46,7 @@ As shown in the snippet, the application context is made up of 4 main structures
 
 First of all, the call context.
 
-#include_code call-context /noir-projects/noir-protocol-circuits/src/crates/types/src/abis/call_context.nr rust
+#include_code call-context /noir-projects/noir-protocol-circuits/crates/types/src/abis/call_context.nr rust
 
 The call context contains information about the current call being made:
 
@@ -75,13 +75,13 @@ Another structure that is contained within the context is the Header object.
 In the private context this is a header of a block which used to generate proofs against.
 In the public context this header is set by sequencer (sequencer executes public calls) and it is set to 1 block before the block in which the transaction is included.
 
-#include_code header /noir-projects/noir-protocol-circuits/src/crates/types/src/header.nr rust
+#include_code header /noir-projects/noir-protocol-circuits/crates/types/src/header.nr rust
 
 ### Contract Deployment Data
 
 Just like with the `is_contract_deployment` flag mentioned earlier. This data will only be set to true when the current transaction is one in which a contract is being deployed.
 
-#include_code contract-deployment-data /noir-projects/noir-protocol-circuits/src/crates/types/src/contrakt/contract_deployment_data.nr rust
+#include_code contract-deployment-data /noir-projects/noir-protocol-circuits/crates/types/src/contrakt/contract_deployment_data.nr rust
 
 ### Private Global Variables
 
@@ -145,4 +145,4 @@ In the current version of the system, the public context is almost a clone of th
 
 The public global variables are provided by the rollup sequencer and consequently contain some more values than the private global variables.
 
-#include_code global-variables /noir-projects/noir-protocol-circuits/src/crates/types/src/abis/global_variables.nr rust
+#include_code global-variables /noir-projects/noir-protocol-circuits/crates/types/src/abis/global_variables.nr rust

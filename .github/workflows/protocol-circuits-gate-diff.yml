@@ -78,12 +78,12 @@ jobs:
         run: nargo --version
 
       - name: Generate gates report
-        working-directory: ./noir-projects/noir-protocol-circuits/src
+        working-directory: ./noir-projects/noir-protocol-circuits
         run: |
-          nargo info --json > protocol_circuits_report.json
-          mv protocol_circuits_report.json ../../../protocol_circuits_report.json
+          nargo info --json --silence-warnings > protocol_circuits_report.json
+          mv protocol_circuits_report.json ../../protocol_circuits_report.json
         env:
-          NARGO_BACKEND_PATH: ../../../barretenberg/cpp/build/bin/bb
+          NARGO_BACKEND_PATH: ../../barretenberg/cpp/build/bin/bb
 
       - name: Compare gates reports
         id: gates_diff

@@ -33,7 +33,7 @@ context.version();
 
 ## Public Global Variables
 
-#include_code global-variables /noir-projects/noir-protocol-circuits/src/crates/types/src/abis/global_variables.nr rust
+#include_code global-variables /noir-projects/noir-protocol-circuits/crates/types/src/abis/global_variables.nr rust
 
 The public global variables contain the values present in the `private global variables` described above, with the addition of:
 

@@ -51,6 +51,8 @@ function try_fetch_image() {
   return 0
 }
 
+NOREPO=$(query_manifest noRepo $REPOSITORY)
+
 # Login to ECR and ensure repository exists.
 retry ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
 # Login to dockerhub.

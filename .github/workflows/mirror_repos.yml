@@ -58,9 +58,9 @@ jobs:
           nargo_files="$(find $SUBREPO_PATH -name 'Nargo.toml' | xargs grep --files-with-matches 'noir-protocol-circuits')"
 
           # match lines like this:
-          # protocol_types = { path = "../../noir-protocol-circuits/src/crates/types" }
+          # protocol_types = { path = "../../noir-protocol-circuits/crates/types" }
           # and replace with
-          # protocol_types = { git="https://github.com/aztecprotocol/aztec-packages", tag="aztec-packages-v0.16.9", directory="noir-projects/noir-protocol-circuits/src/crates/types" }
+          # protocol_types = { git="https://github.com/aztecprotocol/aztec-packages", tag="aztec-packages-v0.16.9", directory="noir-projects/noir-protocol-circuits/crates/types" }
           for nargo_file in $nargo_files; do
             sed --regexp-extended --in-place \
               "s;path\s*=\s*\".*noir-protocol-circuits(.*)\";git=\"$monorepo_url\", tag=\"$monorepo_tag\", directory=\"$monorepo_protocol_circuits_path\1\";" \
