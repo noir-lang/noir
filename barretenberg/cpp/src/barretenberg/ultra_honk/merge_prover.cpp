@@ -22,8 +22,9 @@ MergeProver_<Flavor>::MergeProver_(const std::shared_ptr<ECCOpQueue>& op_queue)
  * @details Let T_i^(j) be the jth column of the aggregate op queue after incorporating the contribution from the
  * present circuit. T_{i-1}^(j) corresponds to the aggregate op queue at the previous stage and $t_i^(j)$ represents
  * the contribution from the present circuit only. For each j, we have the relationship T_i = T_{i-1} + right_shift(t_i,
- * M_{i-1}), where the shift magnitude M_{i-1} is the length of T_{i-1}. This protocol demonstrates that the aggregate
- * op queue has been constructed correctly via a simple Schwartz-Zippel check. Evaluations are proven via batched KZG.
+ * M_{i-1}), where the shift magnitude M_{i-1} is the honest length of T_{i-1}. This protocol demonstrates, assuming the
+ * length of T_{i-1} is at most M_{i-1}, that the aggregate op queue has been constructed correctly via a simple
+ * Schwartz-Zippel check. Evaluations are proven via batched KZG.
  *
  * TODO(#746): Prove connection between t_i^{shift}, committed to herein, and t_i, used in the main protocol. See issue
  * for details (https://github.com/AztecProtocol/barretenberg/issues/746).
