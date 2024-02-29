@@ -109,7 +109,7 @@ class Goblin {
         auto ultra_proof = prover.construct_proof();
 
         // Construct and store the merge proof to be recursively verified on the next call to accumulate
-        MergeProver merge_prover{ op_queue };
+        MergeProver merge_prover{ circuit_builder.op_queue };
         merge_proof = merge_prover.construct_proof();
 
         if (!merge_proof_exists) {
@@ -137,7 +137,7 @@ class Goblin {
         }
 
         // Construct and store the merge proof to be recursively verified on the next call to accumulate
-        MergeProver merge_prover{ op_queue };
+        MergeProver merge_prover{ circuit_builder.op_queue };
         merge_proof = merge_prover.construct_proof();
 
         if (!merge_proof_exists) {

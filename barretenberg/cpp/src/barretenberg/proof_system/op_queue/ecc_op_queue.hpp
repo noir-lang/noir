@@ -77,6 +77,13 @@ class ECCOpQueue {
         ultra_ops_commitments = previous.ultra_ops_commitments;
         previous_ultra_ops_commitments = previous.previous_ultra_ops_commitments;
     }
+    /**
+     * @brief Prepend the information from the previous queue (used before accumulation/merge proof to be able to run
+     * circuit construction separately)
+     *
+     * @param previous_ptr
+     */
+    void prepend_previous_queue(const ECCOpQueue* previous_ptr) { prepend_previous_queue(*previous_ptr); }
 
     /**
      * @brief Enable using std::swap on queues
