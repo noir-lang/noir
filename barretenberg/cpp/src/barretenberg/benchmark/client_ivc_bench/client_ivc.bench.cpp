@@ -41,13 +41,14 @@ class ClientIVCBench : public benchmark::Fixture {
      */
     static void perform_ivc_accumulation_rounds(State& state, ClientIVC& ivc)
     {
+        const size_t size_hint = 1 << 17; // Size hint for reserving wires/selector vector memory in builders
         // Initialize IVC with function circuit
-        Builder function_circuit{ ivc.goblin.op_queue };
+        Builder function_circuit{ size_hint, ivc.goblin.op_queue };
         GoblinMockCircuits::construct_mock_function_circuit(function_circuit);
         ivc.initialize(function_circuit);
 
         // Accumulate kernel circuit (first kernel mocked as simple circuit since no folding proofs yet)
-        Builder kernel_circuit{ ivc.goblin.op_queue };
+        Builder kernel_circuit{ size_hint, ivc.goblin.op_queue };
         GoblinMockCircuits::construct_mock_function_circuit(kernel_circuit);
         auto kernel_fold_proof = ivc.accumulate(kernel_circuit);
 
@@ -56,12 +57,12 @@ class ClientIVCBench : public benchmark::Fixture {
         for (size_t circuit_idx = 0; circuit_idx < NUM_CIRCUITS; ++circuit_idx) {
 
             // Accumulate function circuit
-            Builder function_circuit{ ivc.goblin.op_queue };
+            Builder function_circuit{ size_hint, ivc.goblin.op_queue };
             GoblinMockCircuits::construct_mock_function_circuit(function_circuit);
             auto function_fold_proof = ivc.accumulate(function_circuit);
 
             // Accumulate kernel circuit
-            Builder kernel_circuit{ ivc.goblin.op_queue };
+            Builder kernel_circuit{ size_hint, ivc.goblin.op_queue };
             GoblinMockCircuits::construct_mock_folding_kernel(kernel_circuit, function_fold_proof, kernel_fold_proof);
             auto kernel_fold_proof = ivc.accumulate(kernel_circuit);
         }
