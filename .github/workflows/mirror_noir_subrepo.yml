@@ -13,8 +13,8 @@ on:
     branches:
       - master
     paths:
-      - 'noir/**'
-      - '!noir/.gitrepo'
+      - "noir/noir-repo/**"
+      - "!noir/noir-repo/.gitrepo"
 
 jobs:
   mirror_repo:
@@ -35,7 +35,7 @@ jobs:
           # Do we have a PR active?
           PR_URL=$(gh pr list --repo noir-lang/noir --head aztec-packages --json url --jq ".[0].url")
           echo "PR_URL=$PR_URL" >> $GITHUB_ENV
-          
+
       - name: Generate PR body
         run: |
           set -xue # print commands
@@ -47,7 +47,7 @@ jobs:
               AZTEC_SYNC_COMMIT="a7889f8d21684099306b72a87e0fb57b3bba0cb4"
             fi
             # Create a filtered git log for release-please changelog / metadata
-            RAW_MESSAGE=$(git log --pretty=format:"%s" $AZTEC_SYNC_COMMIT..HEAD -- noir/  ':!noir/.gitrepo' | grep -v 'git subrepo' || true)
+            RAW_MESSAGE=$(git log --pretty=format:"%s" $AZTEC_SYNC_COMMIT..HEAD -- noir/noir-repo/  ':!noir/noir-repo/.gitrepo' | grep -v 'git subrepo' || true)
             # Fix Aztec PR links and output message
             echo "$RAW_MESSAGE" | sed -E 's/\(#([0-9]+)\)/(https:\/\/github.com\/AztecProtocol\/aztec-packages\/pull\/\1)/g'
           }
@@ -73,7 +73,7 @@ jobs:
             # otherwise we first reset our staging branch
             STAGING_BRANCH=$BRANCH-staging
           fi
-          BASE_NOIR_COMMIT=`git config --file=noir/.gitrepo subrepo.commit`
+          BASE_NOIR_COMMIT=`git config --file=noir/noir-repo/.gitrepo subrepo.commit`
           COMMIT=$(git rev-parse HEAD)
           COMMIT_MESSAGE=$(git log -1 --pretty=format:%B)
 
@@ -91,7 +91,7 @@ jobs:
           }
           # force_sync_staging: Push to our aztec-packages staging branch.
           function force_sync_staging() {
-            echo "$COMMIT" > noir/.aztec-sync-commit && git add noir/.aztec-sync-commit
+            echo "$COMMIT" > noir/noir-repo/.aztec-sync-commit && git add noir/noir-repo/.aztec-sync-commit
             # make a new commit with our previous message
             git commit -am "$COMMIT_MESSAGE"
             # Now push to it with subrepo with computed commit messages
@@ -122,7 +122,7 @@ jobs:
       - name: Update PR
         run: |
           set -xue # print commands
-          # Formatted for updating the PR, overrides for release-please commit message parsing 
+          # Formatted for updating the PR, overrides for release-please commit message parsing
           PR_BODY="""BEGIN_COMMIT_OVERRIDE
           $(cat .PR_BODY_MESSAGE)
           END_COMMIT_OVERRIDE"""
