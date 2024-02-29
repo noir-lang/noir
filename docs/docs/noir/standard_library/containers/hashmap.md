@@ -4,12 +4,29 @@ keywords: [noir, map, hash, hashmap]
 sidebar_position: 1
 ---
 
-SUMMARY
+`HashMap<Key, Value, MaxLen, Hasher>` is used to efficiently store and look up key-value pairs.
+
+`HashMap` is a bounded type which can store anywhere from zero to `MaxLen` total elements.
+Note that due to hash collisions, the actual maximum number of elements stored by any particular
+hashmap is likely lower than `MaxLen`. This is true even with cryptographic hash functions since
+every hash value will be performed modulo `MaxLen`.
+
+When creating `HashMap`s, the `MaxLen` generic should always be specified if it is not already
+known. Otherwise, the compiler may infer a different value for `MaxLen` (such as zero), which
+will likely change the result of the program. This behavior is set to become an error in future
+versions instead.
 
 Example:
 
 ```rust
-...
+// Create a mapping from Fields to u32s with a maximum length of 12
+// using a pedersen hash
+let mut map: HashMap<Field, u32, 12, BuildHasherDefault<Pedersen>> = HashMap::default();
+
+map.insert(1, 2);
+map.insert(3, 4);
+
+let two = map.get(1).unwrap();
 ```
 
 ## Methods
