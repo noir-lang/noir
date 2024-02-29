@@ -2133,11 +2133,38 @@ void UltraCircuitBuilder_<Arithmetization>::create_final_sorted_RAM_gate(RamReco
     record.record_witness = this->add_variable(0);
     record.gate_index = this->num_gates;
 
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/879): This method used to add a single arithmetic gate
+    // with two purposes: (1) to provide wire values to the previous RAM gate via shifts, and (2) to perform a
+    // consistency check on the value in wire 1. These two purposes have been split into a dummy gate and a simplified
+    // arithmetic gate, respectively. This allows both purposes to be served even after arithmetic gates are sorted out
+    // of sequence with the RAM gates.
+
+    // Create a final gate with all selectors zero; wire values are accessed by the previous RAM gate via shifted wires
+    blocks.main.populate_wires(
+        record.index_witness, record.timestamp_witness, record.value_witness, record.record_witness);
+    blocks.main.q_m().emplace_back(0);
+    blocks.main.q_1().emplace_back(0);
+    blocks.main.q_2().emplace_back(0);
+    blocks.main.q_3().emplace_back(0);
+    blocks.main.q_c().emplace_back(0);
+    blocks.main.q_arith().emplace_back(0);
+    blocks.main.q_4().emplace_back(0);
+    blocks.main.q_sort().emplace_back(0);
+    blocks.main.q_elliptic().emplace_back(0);
+    blocks.main.q_lookup_type().emplace_back(0);
+    blocks.main.q_aux().emplace_back(0);
+    if constexpr (HasAdditionalSelectors<Arithmetization>) {
+        blocks.main.pad_additional();
+    }
+    check_selector_length_consistency();
+    ++this->num_gates;
+
+    // Create an add gate ensuring the final index is consistent with the size of the RAM array
     create_big_add_gate({
         record.index_witness,
-        record.timestamp_witness,
-        record.value_witness,
-        record.record_witness,
+        this->zero_idx,
+        this->zero_idx,
+        this->zero_idx,
         1,
         0,
         0,

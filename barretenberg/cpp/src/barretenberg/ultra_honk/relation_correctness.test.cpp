@@ -30,15 +30,7 @@ void ensure_non_zero(auto& polynomial)
  */
 template <typename Flavor, typename Relation> void check_relation(auto circuit_size, auto& polynomials, auto params)
 {
-    using AllValues = typename Flavor::AllValues;
     for (size_t i = 0; i < circuit_size; i++) {
-
-        // Extract an array containing all the polynomial evaluations at a given row i
-        AllValues evaluations_at_index_i;
-        for (auto [eval, poly] : zip_view(evaluations_at_index_i.get_all(), polynomials.get_all())) {
-            eval = poly[i];
-        }
-
         // Define the appropriate SumcheckArrayOfValuesOverSubrelations type for this relation and initialize to zero
         using SumcheckArrayOfValuesOverSubrelations = typename Relation::SumcheckArrayOfValuesOverSubrelations;
         SumcheckArrayOfValuesOverSubrelations result;
@@ -47,7 +39,7 @@ template <typename Flavor, typename Relation> void check_relation(auto circuit_s
         }
 
         // Evaluate each constraint in the relation and check that each is satisfied
-        Relation::accumulate(result, evaluations_at_index_i, params, 1);
+        Relation::accumulate(result, polynomials.get_row(i), params, 1);
         for (auto& element : result) {
             ASSERT_EQ(element, 0);
         }
