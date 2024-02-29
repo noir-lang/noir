@@ -18,15 +18,15 @@ contract StatefulTest {
     }
 
     #[aztec(private)]
+    #[aztec(initializer)]
     fn constructor(owner: AztecAddress, value: Field) {
         let selector = FunctionSelector::from_signature("create_note_no_init_check((Field),Field)");
         let _res = context.call_private_function(context.this_address(), selector, [owner.to_field(), value]);
-        mark_as_initialized(&mut context);
     }
 
     #[aztec(private)]
+    #[aztec(initcheck)]
     fn create_note(owner: AztecAddress, value: Field) {
-        assert_is_initialized(&mut context);
         if (value != 0) {
             let loc = storage.notes.at(owner);
             increment(loc, value, owner);
