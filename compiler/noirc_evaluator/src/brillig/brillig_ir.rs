@@ -349,7 +349,7 @@ impl BrilligContext {
     pub(crate) fn if_not_instruction(
         &mut self,
         condition: MemoryAddress,
-        mut f: impl FnMut(&mut BrilligContext),
+        mut f: impl FnOnce(&mut BrilligContext),
     ) {
         let (end_section, end_label) = self.reserve_next_section_label();
 
