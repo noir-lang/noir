@@ -362,6 +362,7 @@ const sidebars = {
               },
               items: [
                 "developers/contracts/writing_contracts/storage/define_storage",
+                "developers/contracts/writing_contracts/storage/notes",
                 "developers/contracts/writing_contracts/storage/storage_slots",
               ],
             },
