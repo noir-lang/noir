@@ -1012,8 +1012,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
     ASSERT(variable_index.size() % gate_width == 0 && variable_index.size() > gate_width);
     this->assert_valid_variables(variable_index);
 
-    // enforce range checks of first row and starting at start
-    blocks.main.populate_wires(variable_index[0], variable_index[1], variable_index[2], variable_index[3]);
+    // Add an arithmetic gate to ensure the first input is equal to the start value of the range being checked
+    blocks.main.populate_wires(variable_index[0], this->zero_idx, this->zero_idx, this->zero_idx);
     ++this->num_gates;
     blocks.main.q_m().emplace_back(0);
     blocks.main.q_1().emplace_back(1);
@@ -1022,7 +1022,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
     blocks.main.q_c().emplace_back(-start);
     blocks.main.q_arith().emplace_back(1);
     blocks.main.q_4().emplace_back(0);
-    blocks.main.q_sort().emplace_back(1);
+    blocks.main.q_sort().emplace_back(0);
     blocks.main.q_elliptic().emplace_back(0);
     blocks.main.q_lookup_type().emplace_back(0);
     blocks.main.q_aux().emplace_back(0);
@@ -1030,8 +1030,9 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
         blocks.main.pad_additional();
     }
     check_selector_length_consistency();
-    // enforce range check for middle rows
-    for (size_t i = gate_width; i < variable_index.size() - gate_width; i += gate_width) {
+
+    // enforce range check for all but the final row
+    for (size_t i = 0; i < variable_index.size() - gate_width; i += gate_width) {
 
         blocks.main.populate_wires(
             variable_index[i], variable_index[i + 1], variable_index[i + 2], variable_index[i + 3]);
