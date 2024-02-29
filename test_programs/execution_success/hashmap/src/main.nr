@@ -156,9 +156,9 @@ fn test_iterators() {
     hashmap.insert(5, 7);
     hashmap.insert(11, 13);
 
-    let keys: [K; 3] = cut(hashmap.keys()).map(|k: Option<K>| k.unwrap_unchecked()).sort_via(K_CMP);
-    let values: [V; 3] = cut(hashmap.values()).map(|v: Option<V>| v.unwrap_unchecked()).sort_via(V_CMP);
-    let entries: [(K, V); 3] = cut(hashmap.entries()).map(|e: Option<(K, V)>| e.unwrap_unchecked()).sort_via(KV_CMP);
+    let keys: [K; 3] = cut(hashmap.keys()).sort_via(K_CMP);
+    let values: [V; 3] = cut(hashmap.values()).sort_via(V_CMP);
+    let entries: [(K, V); 3] = cut(hashmap.entries()).sort_via(KV_CMP);
 
     assert(keys == [2, 5, 11], "Got incorrect iteration of keys.");
     assert(values == [3, 7, 13], "Got incorrect iteration of values.");
@@ -179,8 +179,8 @@ fn test_mut_iterators() {
     let f = |v: V| -> V{ v * 5};
     hashmap.iter_values_mut(f);
 
-    let keys: [K; 3] = cut(hashmap.keys()).map(|k: Option<K>| k.unwrap_unchecked()).sort_via(K_CMP);
-    let values: [V; 3] = cut(hashmap.values()).map(|v: Option<V>| v.unwrap_unchecked()).sort_via(V_CMP);
+    let keys: [K; 3] = cut(hashmap.keys()).sort_via(K_CMP);
+    let values: [V; 3] = cut(hashmap.values()).sort_via(V_CMP);
 
     assert(keys == [6, 15, 33], f"Got incorrect iteration of keys: {keys}");
     assert(values == [15, 35, 65], "Got incorrect iteration of values.");
@@ -188,7 +188,7 @@ fn test_mut_iterators() {
     let f = |k: K, v: V| -> (K, V){(k * 2, v * 2)};
     hashmap.iter_mut(f);
 
-    let entries: [(K, V); 3] = cut(hashmap.entries()).map(|e: Option<(K, V)>| e.unwrap_unchecked()).sort_via(KV_CMP);
+    let entries: [(K, V); 3] = cut(hashmap.entries()).sort_via(KV_CMP);
 
     assert(entries == [(12, 30), (30, 70), (66, 130)], "Got incorrect iteration of entries.");
 }
@@ -313,10 +313,8 @@ fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHas
     // The length of a hashmap may not be compile-time known, so we
     // need to loop over its capacity instead
     for i in 0..map.capacity() {
-        let entry = entries.get(i);
-
-        if entry.is_some() {
-            let (key, value) = entry.unwrap();
+        if i < entries.len() {
+            let (key, value) = entries.get(i);
             println(f"{key} -> {value}");
         }
     }
@@ -325,7 +323,7 @@ fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHas
     // docs:start:keys_example
     let keys = map.keys();
 
-    for i in 0 .. keys.capacity() {
+    for i in 0..keys.max_len() {
         if i < keys.len() {
             let key = keys.get_unchecked(i);
             let value = map.get(key).unwrap_unchecked();
@@ -337,7 +335,7 @@ fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHas
     // docs:start:values_example
     let values = map.values();
 
-    for i in 0 .. values.capacity() {
+    for i in 0..values.max_len() {
         if i < values.len() {
             let value = values.get_unchecked(i);
             println(f"Found value {value}");

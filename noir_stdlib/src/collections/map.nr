@@ -3,6 +3,7 @@ use crate::collections::vec::Vec;
 use crate::option::Option;
 use crate::default::Default;
 use crate::hash::{Hash, Hasher, BuildHasher};
+use crate::collections::bounded_vec::BoundedVec;
 
 // We use load factor α_max = 0.75. 
 // Upon exceeding it, assert will fail in order to inform the user 
