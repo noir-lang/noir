@@ -41,6 +41,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     using VerificationKey = typename Flavor::VerificationKey;
     using CommitmentKey = typename Flavor::CommitmentKey;
     using WitnessCommitments = typename Flavor::WitnessCommitments;
+    using CommitmentLabels = typename Flavor::CommitmentLabels;
     using Commitment = typename Flavor::Commitment;
 
     using BaseUnivariate = Univariate<FF, ProverInstances::NUM>;
@@ -79,14 +80,6 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      * common between decider and folding verifier and could be somehow shared so we do not duplicate code so much.
      */
     void prepare_for_folding();
-
-    /**
-     * @brief Send the public data of an accumulator, i.e. a relaxed instance, to the verifier (ϕ in the paper).
-     *
-     *  @param domain_separator separates the same type of data coming from difference instances by instance
-     * index
-     */
-    void send_accumulator(std::shared_ptr<Instance>, const std::string& domain_separator);
 
     /**
      * @brief For each instance produced by a circuit, prior to folding, we need to complete the computation of its
@@ -465,9 +458,31 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
         FF& challenge,
         const FF& compressed_perturbator);
 
+    /**
+     * @brief Finalise the prover instances that will be folded: complete computation of all the witness polynomials and
+     * compute commitments. Send commitments to the verifier and retrieve challenges.
+     *
+     */
     void preparation_round();
+
+    /**
+     * @brief Compute perturbator (F polynomial in paper). Send all but the constant coefficient to verifier.
+     *
+     */
     void perturbator_round();
+
+    /**
+     * @brief Compute combiner (G polynomial in the paper) and then its quotient (K polynomial), whose coefficient will
+     * be sent to the verifier.
+     *
+     */
     void combiner_quotient_round();
+
+    /**
+     * @brief Compute the next prover accumulator (ω* in the paper), encapsulated in a ProverInstance with folding
+     * parameters set.
+     *
+     */
     void accumulator_update_round();
 };
 } // namespace bb

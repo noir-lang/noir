@@ -3,6 +3,13 @@
 #include "barretenberg/relations/relation_parameters.hpp"
 
 namespace bb {
+/**
+ * @brief The VerifierInstance encapsulates all the necessary information for a Goblin Ultra Honk Verifier to verify a
+ * proof (sumcheck + Zeromorph). In the context of folding, this is returned by the Protogalaxy verifier with non-zero
+ * target sum and gate challenges.
+ *
+ * @details This is ϕ in the paper.
+ */
 template <class Flavor> class VerifierInstance_ {
   public:
     using FF = typename Flavor::FF;
@@ -27,5 +34,9 @@ template <class Flavor> class VerifierInstance_ {
 
     WitnessCommitments witness_commitments;
     CommitmentLabels commitment_labels;
+    VerifierInstance_() = default;
+    VerifierInstance_(std::shared_ptr<VerificationKey> vk)
+        : verification_key(std::move(vk))
+    {}
 };
 } // namespace bb

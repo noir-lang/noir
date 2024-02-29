@@ -16,9 +16,13 @@ class ClientIVC {
 
   public:
     using Flavor = GoblinUltraFlavor;
+    using VerificationKey = Flavor::VerificationKey;
     using FF = Flavor::FF;
     using FoldProof = std::vector<FF>;
-    using Accumulator = std::shared_ptr<ProverInstance_<Flavor>>;
+    using ProverAccumulator = std::shared_ptr<ProverInstance_<Flavor>>;
+    using VerifierAccumulator = std::shared_ptr<VerifierInstance_<Flavor>>;
+    using ProverInstance = ProverInstance_<GoblinUltraFlavor>;
+    using VerifierInstance = VerifierInstance_<GoblinUltraFlavor>;
     using ClientCircuit = GoblinUltraCircuitBuilder; // can only be GoblinUltra
 
     // A full proof for the IVC scheme
@@ -28,14 +32,27 @@ class ClientIVC {
         Goblin::Proof goblin_proof;
     };
 
+    struct PrecomputedVerificationKeys {
+        std::shared_ptr<VerificationKey> first_func_vk;
+        std::shared_ptr<VerificationKey> func_vk;
+        std::shared_ptr<VerificationKey> first_kernel_vk;
+        std::shared_ptr<VerificationKey> kernel_vk;
+    };
+
   private:
-    using FoldingOutput = FoldingResult<Flavor>;
-    using Instance = ProverInstance_<GoblinUltraFlavor>;
+    using ProverFoldOutput = FoldingResult<GoblinUltraFlavor>;
     using Composer = GoblinUltraComposer;
+    // Note: We need to save the last instance that was folded in order to compute its verification key, this will not
+    // be needed in the real IVC as they are provided as inputs
 
   public:
     Goblin goblin;
-    FoldingOutput fold_output;
+    ProverFoldOutput prover_fold_output;
+    ProverAccumulator prover_accumulator;
+    PrecomputedVerificationKeys vks;
+    // Note: We need to save the last instance that was folded in order to compute its verification key, this will not
+    // be needed in the real IVC as they are provided as inputs
+    std::shared_ptr<ProverInstance> prover_instance;
 
     ClientIVC();
 
@@ -45,8 +62,12 @@ class ClientIVC {
 
     Proof prove();
 
-    bool verify(Proof& proof);
+    bool verify(Proof& proof, const std::vector<VerifierAccumulator>& verifier_instances);
 
     HonkProof decider_prove() const;
+
+    void decider_prove_and_verify(const VerifierAccumulator&) const;
+
+    void precompute_folding_verification_keys();
 };
 } // namespace bb

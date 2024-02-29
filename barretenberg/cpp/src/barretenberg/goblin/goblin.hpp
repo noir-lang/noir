@@ -104,7 +104,7 @@ class Goblin {
 
         // Construct a Honk proof for the main circuit
         GoblinUltraComposer composer;
-        auto instance = composer.create_instance(circuit_builder);
+        auto instance = composer.create_prover_instance(circuit_builder);
         auto prover = composer.create_prover(instance);
         auto ultra_proof = prover.construct_proof();
 
@@ -230,7 +230,7 @@ class Goblin {
 
         // Construct a Honk proof for the main circuit
         GoblinUltraComposer composer;
-        auto instance = composer.create_instance(circuit_builder);
+        auto instance = composer.create_prover_instance(circuit_builder);
         auto prover = composer.create_prover(instance);
         auto ultra_proof = prover.construct_proof();
 

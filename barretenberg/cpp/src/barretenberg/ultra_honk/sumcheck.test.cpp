@@ -149,7 +149,7 @@ TEST_F(SumcheckTestsRealCircuit, Ultra)
 
     // Create a prover (it will compute proving key and witness)
     auto composer = UltraComposer();
-    auto instance = composer.create_instance(builder);
+    auto instance = composer.create_prover_instance(builder);
 
     // Generate eta, beta and gamma
     FF eta = FF::random_element();

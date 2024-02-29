@@ -28,7 +28,6 @@ template <IsUltraFlavor Flavor> class DeciderProver_ {
                             const std::shared_ptr<CommitmentKey>&,
                             const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
-    BB_PROFILE void execute_preamble_round();
     BB_PROFILE void execute_relation_check_rounds();
     BB_PROFILE void execute_zeromorph_rounds();
 

@@ -132,20 +132,20 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
 
         // Compute native verification key
         InnerComposer inner_composer;
-        auto instance = inner_composer.create_instance(inner_circuit);
+        auto instance = inner_composer.create_prover_instance(inner_circuit);
         auto prover = inner_composer.create_prover(instance); // A prerequisite for computing VK
-
+        auto verification_key = instance->verification_key;
         // Instantiate the recursive verifier using the native verification key
-        RecursiveVerifier verifier{ &outer_circuit, instance->verification_key };
+        RecursiveVerifier verifier{ &outer_circuit, verification_key };
 
         // Spot check some values in the recursive VK to ensure it was constructed correctly
-        EXPECT_EQ(verifier.key->circuit_size, instance->verification_key->circuit_size);
-        EXPECT_EQ(verifier.key->log_circuit_size, instance->verification_key->log_circuit_size);
-        EXPECT_EQ(verifier.key->num_public_inputs, instance->verification_key->num_public_inputs);
-        EXPECT_EQ(verifier.key->q_m.get_value(), instance->verification_key->q_m);
-        EXPECT_EQ(verifier.key->q_r.get_value(), instance->verification_key->q_r);
-        EXPECT_EQ(verifier.key->sigma_1.get_value(), instance->verification_key->sigma_1);
-        EXPECT_EQ(verifier.key->id_3.get_value(), instance->verification_key->id_3);
+        EXPECT_EQ(verifier.key->circuit_size, verification_key->circuit_size);
+        EXPECT_EQ(verifier.key->log_circuit_size, verification_key->log_circuit_size);
+        EXPECT_EQ(verifier.key->num_public_inputs, verification_key->num_public_inputs);
+        EXPECT_EQ(verifier.key->q_m.get_value(), verification_key->q_m);
+        EXPECT_EQ(verifier.key->q_r.get_value(), verification_key->q_r);
+        EXPECT_EQ(verifier.key->sigma_1.get_value(), verification_key->sigma_1);
+        EXPECT_EQ(verifier.key->id_3.get_value(), verification_key->id_3);
     }
 
     /**
@@ -160,7 +160,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
 
         // Generate a proof over the inner circuit
         InnerComposer inner_composer;
-        auto instance = inner_composer.create_instance(inner_circuit);
+        auto instance = inner_composer.create_prover_instance(inner_circuit);
         auto inner_prover = inner_composer.create_prover(instance);
         auto inner_proof = inner_prover.construct_proof();
 
@@ -175,7 +175,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
 
         // Check 1: Perform native verification then perform the pairing on the outputs of the recursive
         // verifier and check that the result agrees.
-        auto native_verifier = inner_composer.create_verifier(instance);
+        auto native_verifier = inner_composer.create_verifier(instance->verification_key);
         auto native_result = native_verifier.verify_proof(inner_proof);
         auto recursive_result = native_verifier.pcs_verification_key->pairing_check(pairing_points[0].get_value(),
                                                                                     pairing_points[1].get_value());
@@ -192,9 +192,9 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
         // Check 3: Construct and verify a proof of the recursive verifier circuit
         {
             auto composer = get_outer_composer<OuterBuilder>();
-            auto instance = composer.create_instance(outer_circuit);
+            auto instance = composer.create_prover_instance(outer_circuit);
             auto prover = composer.create_prover(instance);
-            auto verifier = composer.create_verifier(instance);
+            auto verifier = composer.create_verifier(instance->verification_key);
             auto proof = prover.construct_proof();
             bool verified = verifier.verify_proof(proof);
 
@@ -216,7 +216,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
 
         // Generate a proof over the inner circuit
         InnerComposer inner_composer;
-        auto instance = inner_composer.create_instance(inner_circuit);
+        auto instance = inner_composer.create_prover_instance(inner_circuit);
         auto inner_prover = inner_composer.create_prover(instance);
         auto inner_proof = inner_prover.construct_proof();
 

@@ -268,7 +268,7 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
 
     // Create a prover (it will compute proving key and witness)
     auto composer = UltraComposer();
-    auto instance = composer.create_instance(builder);
+    auto instance = composer.create_prover_instance(builder);
     auto proving_key = instance->proving_key;
     auto circuit_size = proving_key->circuit_size;
 
@@ -321,7 +321,7 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
 
     // Create a prover (it will compute proving key and witness)
     auto composer = GoblinUltraComposer();
-    auto instance = composer.create_instance(builder);
+    auto instance = composer.create_prover_instance(builder);
     auto proving_key = instance->proving_key;
     auto circuit_size = proving_key->circuit_size;
 

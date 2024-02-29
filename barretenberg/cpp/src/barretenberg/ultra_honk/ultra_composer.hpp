@@ -21,7 +21,7 @@ template <IsUltraFlavor Flavor_> class UltraComposer_ {
     using CommitmentKey = typename Flavor::CommitmentKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using ProverInstance = ProverInstance_<Flavor>;
-    using Instance = ProverInstance;
+    using VerifierInstance = VerifierInstance_<Flavor>;
     using FF = typename Flavor::FF;
     using Transcript = typename Flavor::Transcript;
     using CRSFactory = srs::factories::CrsFactory<typename Flavor::Curve>;
@@ -58,41 +58,49 @@ template <IsUltraFlavor Flavor_> class UltraComposer_ {
         return commitment_key;
     };
 
-    std::shared_ptr<Instance> create_instance(CircuitBuilder& circuit);
+    std::shared_ptr<ProverInstance> create_prover_instance(CircuitBuilder&);
 
-    UltraProver_<Flavor> create_prover(const std::shared_ptr<Instance>&,
+    /**
+     * @brief Create a verifier instance object.
+     *
+     * @details Currently use prover instance
+     */
+    std::shared_ptr<VerifierInstance> create_verifier_instance(std::shared_ptr<ProverInstance>&);
+
+    UltraProver_<Flavor> create_prover(const std::shared_ptr<ProverInstance>&,
                                        const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
     UltraVerifier_<Flavor> create_verifier(
-        const std::shared_ptr<Instance>&,
+        const std::shared_ptr<VerificationKey>&,
         const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
     DeciderProver_<Flavor> create_decider_prover(
-        const std::shared_ptr<Instance>&,
+        const std::shared_ptr<ProverInstance>&,
         const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
     DeciderProver_<Flavor> create_decider_prover(
-        const std::shared_ptr<Instance>&,
+        const std::shared_ptr<ProverInstance>&,
         const std::shared_ptr<CommitmentKey>&,
         const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
     DeciderVerifier_<Flavor> create_decider_verifier(
-        const std::shared_ptr<Instance>&,
+        const std::shared_ptr<VerifierInstance>&,
         const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
     UltraVerifier_<Flavor> create_verifier(CircuitBuilder& circuit);
 
     UltraVerifier_<Flavor> create_ultra_with_keccak_verifier(CircuitBuilder& circuit);
 
-    ProtoGalaxyProver_<ProverInstances> create_folding_prover(const std::vector<std::shared_ptr<Instance>>& instances)
+    ProtoGalaxyProver_<ProverInstances> create_folding_prover(
+        const std::vector<std::shared_ptr<ProverInstance>>& instances)
     {
         ProtoGalaxyProver_<ProverInstances> output_state(instances);
 
         return output_state;
     };
-    ProtoGalaxyVerifier_<VerifierInstances> create_folding_verifier()
-    {
 
-        auto insts = VerifierInstances();
-        ProtoGalaxyVerifier_<VerifierInstances> output_state(insts);
+    ProtoGalaxyVerifier_<VerifierInstances> create_folding_verifier(
+        const std::vector<std::shared_ptr<VerifierInstance>>& instances)
+    {
+        ProtoGalaxyVerifier_<VerifierInstances> output_state(instances);
 
         return output_state;
     };

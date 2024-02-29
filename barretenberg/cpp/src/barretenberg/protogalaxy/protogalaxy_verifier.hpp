@@ -27,8 +27,8 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
 
     CommitmentLabels commitment_labels;
 
-    ProtoGalaxyVerifier_(VerifierInstances insts)
-        : instances(insts){};
+    ProtoGalaxyVerifier_(const std::vector<std::shared_ptr<Instance>>& insts)
+        : instances(VerifierInstances(insts)){};
     ~ProtoGalaxyVerifier_() = default;
     /**
      * @brief Given a new round challenge δ for each iteration of the full ProtoGalaxy protocol, compute the vector
@@ -67,12 +67,6 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
     void prepare_for_folding(const std::vector<FF>&);
 
     /**
-     * @brief Instantiatied the accumulator (i.e. the relaxed instance) from the transcript.
-     *
-     */
-    void receive_accumulator(const std::shared_ptr<Instance>&, const std::string&);
-
-    /**
      * @brief Process the public data ϕ for the Instances to be folded.
      *
      */
@@ -83,7 +77,7 @@ template <class VerifierInstances> class ProtoGalaxyVerifier_ {
      * accumulator, received from the prover is the same as that produced by the verifier.
      *
      */
-    bool verify_folding_proof(const std::vector<FF>&);
+    std::shared_ptr<Instance> verify_folding_proof(const std::vector<FF>&);
 };
 
 } // namespace bb

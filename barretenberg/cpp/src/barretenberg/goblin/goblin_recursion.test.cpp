@@ -24,10 +24,11 @@ class GoblinRecursionTests : public ::testing::Test {
     static Goblin::AccumulationOutput construct_accumulator(GoblinUltraBuilder& builder)
     {
         GoblinUltraComposer composer;
-        auto instance = composer.create_instance(builder);
-        auto prover = composer.create_prover(instance);
+        auto prover_instance = composer.create_prover_instance(builder);
+        auto verifier_instance = composer.create_verifier_instance(prover_instance);
+        auto prover = composer.create_prover(prover_instance);
         auto ultra_proof = prover.construct_proof();
-        return { ultra_proof, instance->verification_key };
+        return { ultra_proof, verifier_instance->verification_key };
     }
 };
 

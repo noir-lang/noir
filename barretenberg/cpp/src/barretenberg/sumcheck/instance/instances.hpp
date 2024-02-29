@@ -97,10 +97,14 @@ template <typename Flavor_, size_t NUM_> struct VerifierInstances_ {
     std::shared_ptr<Instance> const& operator[](size_t idx) const { return _data[idx]; }
     typename ArrayType::iterator begin() { return _data.begin(); };
     typename ArrayType::iterator end() { return _data.end(); };
+    VerifierInstances_() = default;
 
-    VerifierInstances_()
+    VerifierInstances_(const std::vector<std::shared_ptr<Instance>>& data)
     {
-        std::generate(_data.begin(), _data.end(), []() { return std::make_unique<Instance>(); });
+        ASSERT(data.size() == NUM);
+        for (size_t idx = 0; idx < data.size(); idx++) {
+            _data[idx] = std::move(data[idx]);
+        }
     };
 };
 } // namespace bb

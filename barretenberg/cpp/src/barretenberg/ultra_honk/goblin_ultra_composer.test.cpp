@@ -62,9 +62,9 @@ class GoblinUltraHonkComposerTests : public ::testing::Test {
      */
     bool construct_and_verify_honk_proof(auto& composer, auto& builder)
     {
-        auto instance = composer.create_instance(builder);
+        auto instance = composer.create_prover_instance(builder);
         auto prover = composer.create_prover(instance);
-        auto verifier = composer.create_verifier(instance);
+        auto verifier = composer.create_verifier(instance->verification_key);
         auto proof = prover.construct_proof();
         bool verified = verifier.verify_proof(proof);
 

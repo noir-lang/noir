@@ -23,7 +23,7 @@ TEST_F(MockCircuits, PinFunctionSizes)
         GoblinUltraCircuitBuilder app_circuit{ goblin.op_queue };
         GoblinMockCircuits::construct_mock_function_circuit(app_circuit, large);
         GoblinUltraComposer composer;
-        auto instance = composer.create_instance(app_circuit);
+        auto instance = composer.create_prover_instance(app_circuit);
         if (large) {
             EXPECT_EQ(instance->proving_key->log_circuit_size, 19);
         } else {
@@ -47,7 +47,7 @@ TEST_F(MockCircuits, PinRecursionKernelSizes)
             GoblinUltraCircuitBuilder kernel_circuit{ goblin.op_queue };
             GoblinMockCircuits::construct_mock_recursion_kernel_circuit(kernel_circuit, function_accum, kernel_accum);
             GoblinUltraComposer composer;
-            auto instance = composer.create_instance(kernel_circuit);
+            auto instance = composer.create_prover_instance(kernel_circuit);
             if (large) {
                 EXPECT_EQ(instance->proving_key->log_circuit_size, 17);
             } else {

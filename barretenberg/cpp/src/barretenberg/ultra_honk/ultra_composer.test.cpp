@@ -33,9 +33,9 @@ std::vector<uint32_t> add_variables(auto& circuit_builder, std::vector<bb::fr> v
 
 void prove_and_verify(auto& circuit_builder, auto& composer, bool expected_result)
 {
-    auto instance = composer.create_instance(circuit_builder);
+    auto instance = composer.create_prover_instance(circuit_builder);
     auto prover = composer.create_prover(instance);
-    auto verifier = composer.create_verifier(instance);
+    auto verifier = composer.create_verifier(instance->verification_key);
     auto proof = prover.construct_proof();
     bool verified = verifier.verify_proof(proof);
     EXPECT_EQ(verified, expected_result);
@@ -67,7 +67,7 @@ TEST_F(UltraHonkComposerTests, ANonZeroPolynomialIsAGoodPolynomial)
     auto circuit_builder = UltraCircuitBuilder();
 
     auto composer = UltraComposer();
-    auto instance = composer.create_instance(circuit_builder);
+    auto instance = composer.create_prover_instance(circuit_builder);
     auto prover = composer.create_prover(instance);
     auto proof = prover.construct_proof();
     auto proving_key = instance->proving_key;
@@ -198,9 +198,9 @@ TEST_F(UltraHonkComposerTests, create_gates_from_plookup_accumulators)
         }
     }
     auto composer = UltraComposer();
-    auto instance = composer.create_instance(circuit_builder);
+    auto instance = composer.create_prover_instance(circuit_builder);
     auto prover = composer.create_prover(instance);
-    auto verifier = composer.create_verifier(instance);
+    auto verifier = composer.create_verifier(instance->verification_key);
     auto proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);

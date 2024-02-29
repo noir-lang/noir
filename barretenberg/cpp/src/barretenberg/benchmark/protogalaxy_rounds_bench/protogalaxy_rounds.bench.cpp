@@ -13,7 +13,6 @@ void _bench_round(::benchmark::State& state,
                   void (*F)(ProtoGalaxyProver_<ProverInstances_<typename Composer::Flavor, 2>>&))
 {
     using Flavor = typename Composer::Flavor;
-    using Instance = ProverInstance_<Flavor>;
     using Builder = typename Flavor::CircuitBuilder;
 
     bb::srs::init_crs_factory("../srs_db/ignition");
@@ -28,16 +27,16 @@ void _bench_round(::benchmark::State& state,
             static_assert(std::same_as<Flavor, UltraFlavor>);
             bb::mock_proofs::generate_basic_arithmetic_circuit(builder, log2_num_gates);
         }
-        return composer.create_instance(builder);
+        return composer.create_prover_instance(builder);
     };
 
-    std::shared_ptr<Instance> instance_1 = construct_instance();
-    std::shared_ptr<Instance> instance_2 = construct_instance();
+    auto prover_instance_1 = construct_instance();
+    auto prover_instance_2 = construct_instance();
 
-    auto folding_prover = composer.create_folding_prover({ instance_1, instance_2 });
+    auto folding_prover = composer.create_folding_prover({ prover_instance_1, prover_instance_2 });
 
     // prepare the prover state
-    folding_prover.state.accumulator = instance_1;
+    folding_prover.state.accumulator = prover_instance_1;
     folding_prover.state.deltas.resize(log2_num_gates);
     std::fill_n(folding_prover.state.deltas.begin(), log2_num_gates, 0);
     folding_prover.state.perturbator = Flavor::Polynomial::random(1 << log2_num_gates);

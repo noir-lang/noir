@@ -5,36 +5,42 @@
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/protogalaxy/folding_result.hpp"
 #include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
-#include "barretenberg/sumcheck/instance/instances.hpp"
+#include "barretenberg/stdlib/recursion/honk/verifier/recursive_instances.hpp"
 
 namespace bb::stdlib::recursion::honk {
 template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {
   public:
     using Flavor = typename VerifierInstances::Flavor;
+    using NativeFlavor = typename Flavor::NativeFlavor;
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
     using GroupElement = typename Flavor::GroupElement;
     using Instance = typename VerifierInstances::Instance;
+    using NativeInstance = bb::VerifierInstance_<NativeFlavor>;
     using VerificationKey = typename Flavor::VerificationKey;
+    using NativeVerificationKey = typename Flavor::NativeVerificationKey;
     using WitnessCommitments = typename Flavor::WitnessCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using Builder = typename Flavor::CircuitBuilder;
     using RelationSeparator = typename Flavor::RelationSeparator;
     using PairingPoints = std::array<GroupElement, 2>;
+    static constexpr size_t NUM = VerifierInstances::NUM;
     using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<Builder>>;
 
     static constexpr size_t NUM_SUBRELATIONS = Flavor::NUM_SUBRELATIONS;
-
-    VerifierInstances instances;
 
     CommitmentLabels commitment_labels;
 
     Builder* builder;
     std::shared_ptr<Transcript> transcript;
+    VerifierInstances instances;
 
-    explicit ProtoGalaxyRecursiveVerifier_(Builder* builder)
-        : instances(VerifierInstances())
-        , builder(builder){};
+    ProtoGalaxyRecursiveVerifier_(Builder* builder,
+                                  std::shared_ptr<NativeInstance>& accumulator,
+                                  const std::vector<std::shared_ptr<NativeVerificationKey>>& native_inst_vks)
+        : builder(builder)
+        , instances(VerifierInstances(builder, accumulator, native_inst_vks)){};
+
     /**
      * @brief Given a new round challenge δ for each iteration of the full ProtoGalaxy protocol, compute the vector
      * [δ, δ^2,..., δ^t] where t = logn and n is the size of the instance.
@@ -92,7 +98,7 @@ template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {
      * by the prover, are expressed as constraints.
 
      */
-    void verify_folding_proof(const HonkProof& proof);
+    std::shared_ptr<Instance> verify_folding_proof(const HonkProof&);
 
     /**
      * @brief Evaluates the perturbator at a  given scalar, in a sequential manner for the recursive setting.
