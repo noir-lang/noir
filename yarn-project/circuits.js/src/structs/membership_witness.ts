@@ -69,11 +69,11 @@ export class MembershipWitness<N extends number> {
    * @param buffer - Buffer or reader to read from.
    * @returns The deserialized `MembershipWitness`.
    */
-  static fromBuffer<N extends number>(buffer: Buffer | BufferReader): MembershipWitness<N> {
+  static fromBuffer<N extends number>(buffer: Buffer | BufferReader, size: N): MembershipWitness<N> {
     const reader = BufferReader.asReader(buffer);
     const leafIndex = toBigIntBE(reader.readBytes(32));
-    const siblingPath = reader.readBufferArray() as Tuple<Buffer, N>;
-    return this.fromBufferArray(leafIndex, siblingPath);
+    const siblingPath = reader.readArray(size, Fr);
+    return new MembershipWitness(size, leafIndex, siblingPath);
   }
 
   /**

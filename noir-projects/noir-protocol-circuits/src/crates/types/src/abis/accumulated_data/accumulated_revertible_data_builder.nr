@@ -7,19 +7,21 @@ use crate::{
     call_request::CallRequest, new_contract_data::NewContractData,
     nullifier_key_validation_request::NullifierKeyValidationRequestContext,
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    read_request::ReadRequestContext, side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 }
 };
 use crate::constants::{
-    MAX_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
-    MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX, MAX_NEW_CONTRACTS_PER_TX,
-    NUM_FIELDS_PER_SHA256, MAX_REVERTIBLE_NOTE_HASHES_PER_TX, MAX_REVERTIBLE_NULLIFIERS_PER_TX,
+    MAX_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
+    MAX_NEW_L2_TO_L1_MSGS_PER_TX, MAX_NEW_CONTRACTS_PER_TX, NUM_FIELDS_PER_SHA256,
+    MAX_REVERTIBLE_NOTE_HASHES_PER_TX, MAX_REVERTIBLE_NULLIFIERS_PER_TX,
     MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
     MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 };
 
 struct AccumulatedRevertibleDataBuilder {
     read_requests: BoundedVec<SideEffect, MAX_READ_REQUESTS_PER_TX>,
+    nullifier_read_requests: BoundedVec<ReadRequestContext, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
     nullifier_key_validation_requests: BoundedVec<NullifierKeyValidationRequestContext, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX>,
 
     new_note_hashes: BoundedVec<SideEffect, MAX_REVERTIBLE_NOTE_HASHES_PER_TX>,
@@ -62,6 +64,7 @@ impl AccumulatedRevertibleDataBuilder {
     pub fn to_public(self) -> PublicAccumulatedRevertibleData {
         PublicAccumulatedRevertibleData {
             read_requests: self.read_requests.storage,
+            nullifier_read_requests: self.nullifier_read_requests.storage,
             new_note_hashes: self.new_note_hashes.storage,
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
             new_nullifiers: self.new_nullifiers.storage,

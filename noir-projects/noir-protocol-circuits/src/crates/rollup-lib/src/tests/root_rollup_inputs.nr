@@ -4,10 +4,10 @@ use dep::types::{
     constants::{
     L1_TO_L2_MSG_TREE_HEIGHT, L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH, L1_TO_L2_MSG_SUBTREE_HEIGHT,
     ARCHIVE_HEIGHT
-}
+},
+    tests::merkle_tree_utils::compute_zero_hashes
 };
 use crate::tests::previous_rollup_data::default_previous_rollup_data;
-use crate::tests::merkle_tree_utils::compute_zero_hashes;
 
 pub fn compute_l1_l2_empty_snapshot() -> (AppendOnlyTreeSnapshot, [Field; L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH]) {
     let zero_hashes = compute_zero_hashes([0; L1_TO_L2_MSG_TREE_HEIGHT]);

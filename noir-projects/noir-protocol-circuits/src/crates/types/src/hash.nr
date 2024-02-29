@@ -10,7 +10,7 @@ use crate::abis::side_effect::{SideEffect};
 use crate::utils::uint256::U256;
 use crate::constants::{
     ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, CONTRACT_TREE_HEIGHT, FUNCTION_TREE_HEIGHT,
-    NOTE_HASH_TREE_HEIGHT, NUM_FIELDS_PER_SHA256, GENERATOR_INDEX__SILOED_NOTE_HASH,
+    NUM_FIELDS_PER_SHA256, GENERATOR_INDEX__SILOED_NOTE_HASH,
     GENERATOR_INDEX__OUTER_NULLIFIER, GENERATOR_INDEX__VK, GENERATOR_INDEX__CONSTRUCTOR,
     GENERATOR_INDEX__PARTIAL_ADDRESS, GENERATOR_INDEX__CONTRACT_ADDRESS,
     GENERATOR_INDEX__NOTE_HASH_NONCE, GENERATOR_INDEX__UNIQUE_NOTE_HASH, GENERATOR_INDEX__FUNCTION_ARGS
@@ -147,14 +147,6 @@ pub fn private_functions_root_from_siblings(
     let function_leaf_preimage = ContractClassFunctionLeafPreimage { selector, vk_hash };
     let function_leaf = function_leaf_preimage.hash();
     root_from_sibling_path(function_leaf, function_leaf_index, function_leaf_sibling_path)
-}
-
-pub fn read_request_root_from_siblings(
-    read_request: Field,
-    leaf_index: Field,
-    sibling_path: [Field; NOTE_HASH_TREE_HEIGHT]
-) -> Field {
-    root_from_sibling_path(read_request, leaf_index, sibling_path)
 }
 
 pub fn silo_note_hash(address: AztecAddress, inner_commitment: Field) -> Field {

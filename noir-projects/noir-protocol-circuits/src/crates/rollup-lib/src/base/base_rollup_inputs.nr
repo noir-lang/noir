@@ -3,8 +3,7 @@ use crate::{
     constant_rollup_data::ConstantRollupData,
     base_or_merge_rollup_public_inputs::{BaseOrMergeRollupPublicInputs, BASE_ROLLUP_TYPE}
 },
-    base::state_diff_hints::StateDiffHints, components,
-    merkle_tree::{calculate_empty_tree_root, calculate_subtree}
+    base::state_diff_hints::StateDiffHints
 };
 use dep::types::{
     abis::{
@@ -30,6 +29,8 @@ use dep::types::{
     MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, MAX_REVERTIBLE_NULLIFIERS_PER_TX,
     MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX
 },
+    hash::assert_check_membership,
+    merkle_tree::{append_only_tree, calculate_empty_tree_root, calculate_subtree, indexed_tree},
     mocked::{AggregationObject, Proof}, partial_state_reference::PartialStateReference,
     public_data_tree_leaf::PublicDataTreeLeaf,
     public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
@@ -86,7 +87,7 @@ impl BaseRollupInputs {
 
         let empty_commitments_subtree_root = calculate_empty_tree_root(NOTE_HASH_SUBTREE_HEIGHT);
 
-        let end_note_hash_tree_snapshot = components::insert_subtree_to_snapshot_tree(
+        let end_note_hash_tree_snapshot = append_only_tree::insert_subtree_to_snapshot_tree(
             self.start.note_hash_tree,
             self.state_diff_hints.note_hash_subtree_sibling_path,
             empty_commitments_subtree_root,
@@ -96,7 +97,7 @@ impl BaseRollupInputs {
 
         // Insert contract subtrees:
         let empty_contracts_subtree_root = calculate_empty_tree_root(CONTRACT_SUBTREE_HEIGHT);
-        let end_contract_tree_snapshot = components::insert_subtree_to_snapshot_tree(
+        let end_contract_tree_snapshot = append_only_tree::insert_subtree_to_snapshot_tree(
             self.start.contract_tree,
             self.state_diff_hints.contract_subtree_sibling_path,
             empty_contracts_subtree_root,
@@ -168,7 +169,7 @@ impl BaseRollupInputs {
     }
 
     fn check_nullifier_tree_non_membership_and_insert_to_tree(self, combined: CombinedAccumulatedData) -> AppendOnlyTreeSnapshot {
-        crate::indexed_tree::batch_insert(
+        indexed_tree::batch_insert(
             self.start.nullifier_tree,
             combined.new_nullifiers.map(|nullifier: SideEffectLinkedToNoteHash| nullifier.value),
             self.state_diff_hints.sorted_nullifiers,
@@ -355,7 +356,7 @@ impl BaseRollupInputs {
         let previous_block_hash_witness = self.archive_root_membership_witness;
 
         // Now check that the previous block hash is in the blocks tree from the beginning of the rollup
-        components::assert_check_membership(
+        assert_check_membership(
             previous_block_hash,
             previous_block_hash_witness.leaf_index,
             previous_block_hash_witness.sibling_path,
@@ -387,7 +388,7 @@ fn insert_public_data_update_requests(
     low_public_data_writes_witnesses: [PublicDataMembershipWitness; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     public_data_writes_subtree_sibling_path: [Field; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH]
 ) -> AppendOnlyTreeSnapshot {
-    crate::indexed_tree::batch_insert(
+    indexed_tree::batch_insert(
         prev_snapshot,
         public_data_writes,
         sorted_public_data_writes,
@@ -480,7 +481,7 @@ fn validate_public_data_reads(
                 assert(is_exact, "low leaf for public data read is invalid");
                 assert_eq(read.value, low_preimage.value, "low leaf for public data has different value");
             }
-            components::assert_check_membership(
+            assert_check_membership(
                 low_preimage.hash(),
                 witness.leaf_index,
                 witness.sibling_path,
@@ -557,9 +558,7 @@ mod tests {
         base::{
         state_diff_hints::StateDiffHints,
         base_rollup_inputs::{CALL_DATA_HASH_FULL_FIELDS, CALL_DATA_HASH_LOG_FIELDS, BaseRollupInputs}
-    },
-        merkle_tree::{calculate_empty_tree_root, calculate_subtree}, components,
-        tests::merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes}
+    }
     };
     use dep::types::{
         abis::{
@@ -581,9 +580,13 @@ mod tests {
         NUM_FIELDS_PER_SHA256
     },
         contract_class_id::ContractClassId, partial_state_reference::PartialStateReference,
+        hash::assert_check_membership, merkle_tree::{calculate_empty_tree_root, calculate_subtree},
         public_data_tree_leaf::PublicDataTreeLeaf,
         public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
-        tests::kernel_data_builder::PreviousKernelDataBuilder,
+        tests::{
+        kernel_data_builder::PreviousKernelDataBuilder,
+        merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes}
+    },
         utils::{field::full_field_less_than, uint256::U256}
     };
     use dep::std::option::Option;

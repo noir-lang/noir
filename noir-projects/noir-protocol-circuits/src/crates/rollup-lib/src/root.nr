@@ -5,11 +5,11 @@ use root_rollup_public_inputs::RootRollupPublicInputs;
 use dep::types::{
     abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
     constants::{NUM_FIELDS_PER_SHA256, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, L1_TO_L2_MSG_SUBTREE_HEIGHT},
-    header::Header, content_commitment::ContentCommitment, state_reference::StateReference,
-    utils::uint256::U256
+    header::Header, content_commitment::ContentCommitment,
+    merkle_tree::{append_only_tree, calculate_subtree, calculate_empty_tree_root},
+    state_reference::StateReference, utils::uint256::U256
 };
 use crate::components;
-use crate::merkle_tree::{calculate_subtree, calculate_empty_tree_root};
 
 impl RootRollupInputs {
     pub fn root_rollup_circuit(self) -> RootRollupPublicInputs {
@@ -28,7 +28,7 @@ impl RootRollupInputs {
 
         // Insert subtree into the l1 to l2 data tree
         let empty_l1_to_l2_subtree_root = calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_HEIGHT);
-        let new_l1_to_l2_message_tree_snapshot = components::insert_subtree_to_snapshot_tree(
+        let new_l1_to_l2_message_tree_snapshot = append_only_tree::insert_subtree_to_snapshot_tree(
             self.start_l1_to_l2_message_tree_snapshot,
             self.new_l1_to_l2_message_tree_root_sibling_path,
             empty_l1_to_l2_subtree_root,
@@ -59,7 +59,7 @@ impl RootRollupInputs {
         let block_hash = header.hash();
 
         // Update the archive
-        let archive = components::insert_subtree_to_snapshot_tree(
+        let archive = append_only_tree::insert_subtree_to_snapshot_tree(
             self.start_archive_snapshot,
             self.new_archive_sibling_path,
             0,

@@ -8,6 +8,10 @@ import {
 } from '../../constants.gen.js';
 import { GrumpkinPrivateKey } from '../../index.js';
 import { Fr, GrumpkinScalar } from '../index.js';
+import {
+  NullifierReadRequestResetHints,
+  nullifierReadRequestResetHintsFromBuffer,
+} from '../read_request_reset_hints.js';
 import { SideEffect, SideEffectLinkedToNoteHash } from '../side_effects.js';
 import { PrivateKernelInnerData } from './private_kernel_inner_data.js';
 
@@ -41,6 +45,10 @@ export class PrivateKernelTailCircuitPrivateInputs {
      */
     public sortedNewNullifiersIndexes: Tuple<number, typeof MAX_NEW_NULLIFIERS_PER_TX>,
     /**
+     * Contains hints for the nullifier read requests to locate corresponding pending or settled nullifiers.
+     */
+    public nullifierReadRequestResetHints: NullifierReadRequestResetHints,
+    /**
      * Contains hints for the transient nullifiers to localize corresponding commitments.
      */
     public nullifierCommitmentHints: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
@@ -62,6 +70,7 @@ export class PrivateKernelTailCircuitPrivateInputs {
       this.readCommitmentHints,
       this.sortedNewNullifiers,
       this.sortedNewNullifiersIndexes,
+      this.nullifierReadRequestResetHints,
       this.nullifierCommitmentHints,
       this.masterNullifierSecretKeys,
     );
@@ -81,6 +90,7 @@ export class PrivateKernelTailCircuitPrivateInputs {
       reader.readArray(MAX_READ_REQUESTS_PER_TX, Fr),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
       reader.readNumbers(MAX_NEW_NULLIFIERS_PER_TX),
+      reader.readObject({ fromBuffer: nullifierReadRequestResetHintsFromBuffer }),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, GrumpkinScalar),
     );

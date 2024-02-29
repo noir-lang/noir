@@ -8,3 +8,5 @@ use private_kernel_tail::PrivateKernelTailCircuitPrivateInputs;
 
 // TODO: rename to be precise as to what its common to.
 mod common;
+mod read_request_reset;
+mod nullifier_read_request_reset;

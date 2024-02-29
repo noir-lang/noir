@@ -1,3 +1,4 @@
+import { NullifierMembershipWitness } from '@aztec/circuit-types';
 import {
   FUNCTION_TREE_HEIGHT,
   Fr,
@@ -58,6 +59,8 @@ export interface ProvingDataOracle {
    * @returns the MembershipWitness for the note.
    */
   getNoteMembershipWitness(leafIndex: bigint): Promise<MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>>;
+
+  getNullifierMembershipWitness(blockNumber: number, nullifier: Fr): Promise<NullifierMembershipWitness | undefined>;
 
   /**
    * Get the root of the note hash tree.

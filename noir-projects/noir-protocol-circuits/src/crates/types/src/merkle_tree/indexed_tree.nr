@@ -1,6 +1,8 @@
-use crate::merkle_tree::{calculate_subtree, calculate_empty_tree_root};
-
-use dep::types::abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, membership_witness::MembershipWitness};
+use crate::{
+    abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, membership_witness::MembershipWitness},
+    hash::{assert_check_membership, root_from_sibling_path},
+    merkle_tree::{calculate_subtree, calculate_empty_tree_root}
+};
 
 fn check_permutation<T, N>(
     original_array: [T; N],
@@ -85,7 +87,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
             assert(is_valid_low_leaf(low_leaf_preimage, value), "Invalid low leaf");
 
             // perform membership check for the low leaf against the original root
-            crate::components::assert_check_membership(
+            assert_check_membership(
                 hash_leaf(low_leaf_preimage),
                 witness.leaf_index,
                 witness.sibling_path,
@@ -101,7 +103,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
                 start_insertion_index as u64 + value_index
             );
 
-            current_tree_root = crate::components::root_from_sibling_path(
+            current_tree_root = root_from_sibling_path(
                 hash_leaf(updated_low_leaf), witness.leaf_index, witness.sibling_path);
 
             insertion_subtree[value_index] = build_insertion_leaf(value, low_leaf_preimage);
@@ -111,7 +113,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
     let empty_subtree_root = calculate_empty_tree_root(SubtreeHeight);
     let leaf_index_subtree_depth = start_insertion_index >> (SubtreeHeight as u32);
 
-    crate::components::assert_check_membership(
+    assert_check_membership(
         empty_subtree_root,
         leaf_index_subtree_depth as Field,
         new_subtree_sibling_path,
@@ -124,8 +126,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
     // Calculate the new root
     // We are inserting a subtree rather than a full tree here
     let subtree_index = start_insertion_index >> (SubtreeHeight as u32);
-    let new_root = crate::components::root_from_sibling_path(subtree_root, subtree_index as Field, new_subtree_sibling_path);
+    let new_root = root_from_sibling_path(subtree_root, subtree_index as Field, new_subtree_sibling_path);
 
     AppendOnlyTreeSnapshot { root: new_root, next_available_leaf_index: start_insertion_index + (values_to_insert.len() as u32) }
 }
-

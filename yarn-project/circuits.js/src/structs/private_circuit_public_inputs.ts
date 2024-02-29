@@ -11,6 +11,7 @@ import {
   MAX_NEW_NOTE_HASHES_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
+  MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
@@ -24,6 +25,7 @@ import { SideEffect, SideEffectLinkedToNoteHash } from '../structs/side_effects.
 import { CallContext } from './call_context.js';
 import { L2ToL1Message } from './l2_to_l1_message.js';
 import { NullifierKeyValidationRequest } from './nullifier_key_validation_request.js';
+import { ReadRequest } from './read_request.js';
 
 /**
  * Public inputs to a private circuit.
@@ -51,6 +53,10 @@ export class PrivateCircuitPublicInputs {
      * Read requests created by the corresponding function call.
      */
     public readRequests: Tuple<SideEffect, typeof MAX_READ_REQUESTS_PER_CALL>,
+    /**
+     * Nullifier read requests created by the corresponding function call.
+     */
+    public nullifierReadRequests: Tuple<ReadRequest, typeof MAX_NULLIFIER_READ_REQUESTS_PER_CALL>,
     /**
      * Nullifier key validation requests created by the corresponding function call.
      */
@@ -146,6 +152,7 @@ export class PrivateCircuitPublicInputs {
       reader.readArray(RETURN_VALUES_LENGTH, Fr),
       reader.readObject(Fr),
       reader.readArray(MAX_READ_REQUESTS_PER_CALL, SideEffect),
+      reader.readArray(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, ReadRequest),
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest),
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash),
@@ -172,6 +179,7 @@ export class PrivateCircuitPublicInputs {
       reader.readFieldArray(RETURN_VALUES_LENGTH),
       reader.readField(),
       reader.readArray(MAX_READ_REQUESTS_PER_CALL, SideEffect),
+      reader.readArray(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, ReadRequest),
       reader.readArray(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest),
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash),
@@ -201,6 +209,7 @@ export class PrivateCircuitPublicInputs {
       makeTuple(RETURN_VALUES_LENGTH, Fr.zero),
       Fr.ZERO,
       makeTuple(MAX_READ_REQUESTS_PER_CALL, SideEffect.empty),
+      makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, ReadRequest.empty),
       makeTuple(MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, NullifierKeyValidationRequest.empty),
       makeTuple(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect.empty),
       makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash.empty),
@@ -230,6 +239,7 @@ export class PrivateCircuitPublicInputs {
       isZeroArray(this.returnValues) &&
       this.minRevertibleSideEffectCounter.isZero() &&
       isEmptyArray(this.readRequests) &&
+      isEmptyArray(this.nullifierReadRequests) &&
       isEmptyArray(this.nullifierKeyValidationRequests) &&
       isEmptyArray(this.newNoteHashes) &&
       isEmptyArray(this.newNullifiers) &&
@@ -259,6 +269,7 @@ export class PrivateCircuitPublicInputs {
       fields.returnValues,
       fields.minRevertibleSideEffectCounter,
       fields.readRequests,
+      fields.nullifierReadRequests,
       fields.nullifierKeyValidationRequests,
       fields.newNoteHashes,
       fields.newNullifiers,

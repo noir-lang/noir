@@ -15,6 +15,9 @@ mod nullifier_leaf_preimage;
 mod contract_leaf_preimage;
 
 mod combined_constant_data;
+
+mod side_effect;
+mod read_request;
 mod nullifier_key_validation_request;
 mod public_data_read;
 mod public_data_update_request;
@@ -35,4 +38,3 @@ mod public_call_data;
 
 mod public_circuit_public_inputs;
 mod private_circuit_public_inputs;
-mod side_effect;

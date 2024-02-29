@@ -53,6 +53,7 @@ impl PrivateKernelInnerCircuitPrivateInputs {
 
         self.pop_and_validate_this_private_call_hash(&mut public_inputs);
 
+        // TODO: Do this in a reset circuit.
         common::validate_read_requests(
             public_inputs.constants.historical_header.state.partial.note_hash_tree.root,
             self.private_call.call_stack_item.public_inputs.read_requests, // read requests from private call

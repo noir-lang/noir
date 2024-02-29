@@ -1,17 +1,41 @@
-use crate::constants::{GENERATOR_INDEX__SIDE_EFFECT};
+use crate::{
+    address::AztecAddress, constants::{GENERATOR_INDEX__SIDE_EFFECT},
+    traits::{Empty, Hash, Serialize, Deserialize}
+};
 use dep::std::cmp::Eq;
-use crate::traits::{Empty, Hash, Serialize, Deserialize};
+
+global SIDE_EFFECT_SERIALIZED_LEN = 2;
 
 trait Ordered {
     fn counter(self) -> u32;
 }
 
-struct SideEffect{
+trait OrderedValue<T> where T: Eq {
+    fn value(self) -> T;
+    fn counter(self) -> u32;
+}
+
+trait ContractScopedOrderedValue<T> where T: Eq {
+    fn value(self) -> T;
+    fn counter(self) -> u32;
+    fn contract_address(self) -> AztecAddress;
+}
+
+struct SideEffect {
     value: Field,
     counter: u32,
 }
 
 impl Ordered for SideEffect {
+    fn counter(self) -> u32 {
+        self.counter
+    }
+}
+
+impl OrderedValue<Field> for SideEffect {
+    fn value(self) -> Field {
+        self.value
+    }
     fn counter(self) -> u32 {
         self.counter
     }
@@ -40,14 +64,14 @@ impl Hash for SideEffect {
     }
 }
 
-impl Serialize<2> for SideEffect {
-    fn serialize(self) -> [Field; 2] {
+impl Serialize<SIDE_EFFECT_SERIALIZED_LEN> for SideEffect {
+    fn serialize(self) -> [Field; SIDE_EFFECT_SERIALIZED_LEN] {
         [self.value, self.counter as Field]
     }
 }
 
-impl Deserialize<2> for SideEffect {
-    fn deserialize(values: [Field; 2]) -> Self {
+impl Deserialize<SIDE_EFFECT_SERIALIZED_LEN> for SideEffect {
+    fn deserialize(values: [Field; SIDE_EFFECT_SERIALIZED_LEN]) -> Self {
         Self {
             value: values[0],
             counter: values[1] as u32,
@@ -62,6 +86,15 @@ struct SideEffectLinkedToNoteHash{
 }
 
 impl Ordered for SideEffectLinkedToNoteHash {
+    fn counter(self) -> u32 {
+        self.counter
+    }
+}
+
+impl OrderedValue<Field> for SideEffectLinkedToNoteHash {
+    fn value(self) -> Field {
+        self.value
+    }
     fn counter(self) -> u32 {
         self.counter
     }
@@ -108,4 +141,3 @@ impl Deserialize<3> for SideEffectLinkedToNoteHash {
         }
     }
 }
-

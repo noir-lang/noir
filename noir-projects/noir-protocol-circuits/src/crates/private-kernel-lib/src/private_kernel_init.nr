@@ -3,10 +3,7 @@ use dep::std::unsafe;
 use dep::types::{
     abis::{
     combined_constant_data::CombinedConstantData, private_kernel::private_call_data::PrivateCallData,
-    kernel_circuit_public_inputs::{
-    PrivateKernelInnerCircuitPublicInputs, PrivateKernelTailCircuitPublicInputs,
-    PrivateKernelCircuitPublicInputsBuilder
-},
+    kernel_circuit_public_inputs::{PrivateKernelInnerCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder},
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
     address::{AztecAddress, PublicKeysHash, compute_initialization_hash},
@@ -92,6 +89,7 @@ impl PrivateKernelInitCircuitPrivateInputs {
 
         self.validate_this_private_call_against_tx_request();
 
+        // TODO: Do this in a reset circuit.
         common::validate_read_requests(
             public_inputs.constants.historical_header.state.partial.note_hash_tree.root,
             self.private_call.call_stack_item.public_inputs.read_requests,
@@ -125,7 +123,7 @@ mod tests {
         abis::{
         kernel_circuit_public_inputs::PrivateKernelInnerCircuitPublicInputs,
         nullifier_key_validation_request::NullifierKeyValidationRequest,
-        private_kernel::private_call_data::PrivateCallData,
+        private_kernel::private_call_data::PrivateCallData, read_request::ReadRequest,
         side_effect::{SideEffect, SideEffectLinkedToNoteHash}
     },
         address::{AztecAddress, EthAddress, compute_initialization_hash},
@@ -169,11 +167,7 @@ mod tests {
         }
     }
 
-    pub fn validate_deployed_contract_address(
-        tx_request: TxRequest,
-        private_call: PrivateCallDataBuilder,
-        public_inputs: PrivateKernelInnerCircuitPublicInputs
-    ) {
+    pub fn validate_deployed_contract_address(tx_request: TxRequest, public_inputs: PrivateKernelInnerCircuitPublicInputs) {
         assert_eq(public_inputs.end.new_contracts.len(), 1);
         let cdd = tx_request.tx_context.contract_deployment_data;
 
@@ -238,7 +232,7 @@ mod tests {
 
         let public_inputs = builder.execute();
 
-        validate_deployed_contract_address(builder.tx_request, builder.private_call, public_inputs);
+        validate_deployed_contract_address(builder.tx_request, public_inputs);
 
         // Since there are no logs, log preimages length should be 0 and both logs hashes should be a sha256 hash of 2 zero
         // values
@@ -617,6 +611,32 @@ mod tests {
 
         // non-transient read requests are NOT forwarded
         assert_eq(array_length(public_inputs.end.read_requests), MAX_READ_REQUESTS_PER_CALL);
+    }
+
+    #[test]
+    fn propagate_nullifier_read_requests() {
+        let mut builder = PrivateKernelInitInputsBuilder::new_constructor();
+        let storage_contract_address = builder.private_call.public_inputs.call_context.storage_contract_address;
+
+        let request_0 = ReadRequest { value: 123, counter: 4567 };
+        builder.private_call.public_inputs.nullifier_read_requests.push(request_0);
+        let request_1 = ReadRequest { value: 777888, counter: 90 };
+        builder.private_call.public_inputs.nullifier_read_requests.push(request_1);
+
+        let public_inputs = builder.execute();
+
+        let end_nullifier_read_requests = public_inputs.end.nullifier_read_requests;
+        assert_eq(array_length(end_nullifier_read_requests), 2);
+
+        let request_context = end_nullifier_read_requests[0];
+        assert_eq(request_context.value, request_0.value);
+        assert_eq(request_context.counter, request_0.counter);
+        assert_eq(request_context.contract_address, storage_contract_address);
+
+        let request_context = end_nullifier_read_requests[1];
+        assert_eq(request_context.value, request_1.value);
+        assert_eq(request_context.counter, request_1.counter);
+        assert_eq(request_context.contract_address, storage_contract_address);
     }
 
     #[test]

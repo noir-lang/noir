@@ -4,7 +4,6 @@ use dep::types::{
     call_request::CallRequest, accumulated_data::CombinedAccumulatedData, function_data::FunctionData,
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputsBuilder,
     membership_witness::ReadRequestMembershipWitness, new_contract_data::NewContractData,
-    nullifier_key_validation_request::NullifierKeyValidationRequestContext,
     private_circuit_public_inputs::PrivateCircuitPublicInputs,
     private_kernel::private_call_data::PrivateCallData,
     kernel_data::{PrivateKernelInnerData, PrivateKernelTailData},
@@ -15,14 +14,14 @@ use dep::types::{
     constants::{
     MAX_NEW_NULLIFIERS_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_READ_REQUESTS_PER_CALL,
-    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL
+    MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL
 },
     grumpkin_private_key::GrumpkinPrivateKey,
     hash::{
     compute_constructor_hash, compute_l2_to_l1_hash, compute_logs_hash,
     compute_new_contract_address_hash, contract_tree_root_from_siblings,
     function_tree_root_from_siblings, pedersen_hash, private_functions_root_from_siblings,
-    read_request_root_from_siblings, silo_note_hash, silo_nullifier,
+    root_from_sibling_path, silo_note_hash, silo_nullifier,
     stdlib_recursion_verification_key_compress_native_vk
 },
     utils::{arrays::{array_length, array_to_bounded_vec, validate_array}},
@@ -36,6 +35,7 @@ pub fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {
 
     validate_array(app_public_inputs.return_values);
     validate_array(app_public_inputs.read_requests);
+    validate_array(app_public_inputs.nullifier_read_requests);
     validate_array(app_public_inputs.nullifier_key_validation_requests);
     validate_array(app_public_inputs.new_note_hashes);
     validate_array(app_public_inputs.new_nullifiers);
@@ -73,7 +73,7 @@ pub fn validate_read_requests(
         // but we use the leaf index as a placeholder to detect a 'pending note read'.
 
         if (read_request != 0) & (witness.is_transient == false) {
-            let root_for_read_request = read_request_root_from_siblings(read_request, witness.leaf_index, witness.sibling_path);
+            let root_for_read_request = root_from_sibling_path(read_request, witness.leaf_index, witness.sibling_path);
             assert(root_for_read_request == historical_note_hash_tree_root, "note hash tree root mismatch");
             // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1354): do we need to enforce
             // that a non-transient read_request was derived from the proper/current contract address?
@@ -93,6 +93,7 @@ pub fn initialize_end_values(
     let start = previous_kernel.public_inputs.end;
 
     public_inputs.end.read_requests = array_to_bounded_vec(start.read_requests);
+    public_inputs.end.nullifier_read_requests = array_to_bounded_vec(start.nullifier_read_requests);
     public_inputs.end.nullifier_key_validation_requests = array_to_bounded_vec(start.nullifier_key_validation_requests);
 
     public_inputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
@@ -175,18 +176,12 @@ pub fn update_end_values(
 
     let private_call_public_inputs = private_call.call_stack_item.public_inputs;
 
-    let read_requests = private_call_public_inputs.read_requests;
-    let read_request_membership_witnesses = private_call.read_request_membership_witnesses;
-
-    let nullifier_key_validation_requests = private_call_public_inputs.nullifier_key_validation_requests;
-
-    let new_note_hashes = private_call_public_inputs.new_note_hashes;
-    let new_nullifiers = private_call_public_inputs.new_nullifiers;
-
     let storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
 
     // Transient read requests and witnesses are accumulated in public_inputs.end
     // We silo the read requests (domain separation per contract address)
+    let read_requests = private_call_public_inputs.read_requests;
+    let read_request_membership_witnesses = private_call.read_request_membership_witnesses;
     let mut siloed_read_requests: BoundedVec<SideEffect, MAX_READ_REQUESTS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_READ_REQUESTS_PER_CALL {
         let read_request = read_requests[i].value;
@@ -199,7 +194,17 @@ pub fn update_end_values(
     }
     public_inputs.end.read_requests.extend_from_bounded_vec(siloed_read_requests);
 
+    // Nullifier read request.
+    let nullifier_read_requests = private_call_public_inputs.nullifier_read_requests;
+    for i in 0..MAX_NULLIFIER_READ_REQUESTS_PER_CALL {
+        let request = nullifier_read_requests[i];
+        if !is_empty(request) {
+            public_inputs.end.nullifier_read_requests.push(request.to_context(storage_contract_address));
+        }
+    }
+
     // Nullifier key validation requests.
+    let nullifier_key_validation_requests = private_call_public_inputs.nullifier_key_validation_requests;
     for i in 0..MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL {
         let request = nullifier_key_validation_requests[i];
         if !is_empty(request) {
@@ -210,6 +215,7 @@ pub fn update_end_values(
     // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
     //
     // nullifiers
+    let new_nullifiers = private_call_public_inputs.new_nullifiers;
     let mut siloed_new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NULLIFIERS_PER_CALL {
         let new_nullifier = new_nullifiers[i];
@@ -231,6 +237,7 @@ pub fn update_end_values(
     public_inputs.end.new_nullifiers.extend_from_bounded_vec(siloed_new_nullifiers);
 
     // note hashes
+    let new_note_hashes = private_call_public_inputs.new_note_hashes;
     let mut siloed_new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_NEW_NOTE_HASHES_PER_CALL {
         let new_note_hash = new_note_hashes[i].value;

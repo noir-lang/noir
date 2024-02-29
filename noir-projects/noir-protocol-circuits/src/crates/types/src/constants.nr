@@ -31,6 +31,7 @@ global MAX_NEW_L2_TO_L1_MSGS_PER_CALL: u64 = 2;
 global MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL: u64 = 16;
 global MAX_PUBLIC_DATA_READS_PER_CALL: u64 = 16;
 global MAX_READ_REQUESTS_PER_CALL: u64 = 32;
+global MAX_NULLIFIER_READ_REQUESTS_PER_CALL: u64 = 2; // Change it to a larger value when there's a seperate reset circuit.
 global MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL: u64 = 1;
 
 // "PER TRANSACTION" CONSTANTS
@@ -59,6 +60,7 @@ global MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX: u64 = 16;
 global MAX_NEW_L2_TO_L1_MSGS_PER_TX: u64 = 2;
 global MAX_NEW_CONTRACTS_PER_TX: u64 = 1;
 global MAX_READ_REQUESTS_PER_TX: u64 = 128;
+global MAX_NULLIFIER_READ_REQUESTS_PER_TX: u64 = 8; // Change it to a larger value when there's a seperate reset circuit.
 global MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX: u64 = 4;
 global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
 global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: u64 = 1;
@@ -157,11 +159,11 @@ global NEW_CONTRACT_DATA_LENGTH: u64 = 3;
 global NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH = 4;
 global NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH = 5;
 global PARTIAL_STATE_REFERENCE_LENGTH: u64 = 8;
-global PRIVATE_CALL_STACK_ITEM_LENGTH: u64 = 219;
+global PRIVATE_CALL_STACK_ITEM_LENGTH: u64 = 223;
 // Change this ONLY if you have changed the PrivateCircuitPublicInputs structure.
 // In other words, if the structure/size of the public inputs of a function call changes then we should change this
 // constant as well PRIVATE_CALL_STACK_ITEM_LENGTH
-global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 214;
+global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 218;
 // Change this ONLY if you have changed the PublicCircuitPublicInputs structure.
 global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 194;
 global STATE_REFERENCE_LENGTH: u64 = 10; // 2 for snap + 8 for partial

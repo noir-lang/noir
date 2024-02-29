@@ -1,5 +1,6 @@
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
+import { BufferReader } from '@aztec/foundation/serialize';
 import { IndexedTreeLeaf, IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
 /**
@@ -62,11 +63,9 @@ export class NullifierLeafPreimage implements IndexedTreeLeafPreimage {
     return new NullifierLeafPreimage(Fr.ZERO, Fr.ZERO, 0n);
   }
 
-  static fromBuffer(buf: Buffer): NullifierLeafPreimage {
-    const nullifier = Fr.fromBuffer(buf.subarray(0, 32));
-    const nextNullifier = Fr.fromBuffer(buf.subarray(32, 64));
-    const nextIndex = toBigIntBE(buf.subarray(64, 96));
-    return new NullifierLeafPreimage(nullifier, nextNullifier, nextIndex);
+  static fromBuffer(buffer: Buffer | BufferReader): NullifierLeafPreimage {
+    const reader = BufferReader.asReader(buffer);
+    return new NullifierLeafPreimage(reader.readObject(Fr), reader.readObject(Fr), toBigIntBE(reader.readBytes(32)));
   }
 
   static fromLeaf(leaf: NullifierLeaf, nextKey: bigint, nextIndex: bigint): NullifierLeafPreimage {

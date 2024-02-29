@@ -50,6 +50,10 @@ export class KernelOracle implements ProvingDataOracle {
     );
   }
 
+  getNullifierMembershipWitness(blockNumber: number, nullifier: Fr) {
+    return this.node.getNullifierMembershipWitness(blockNumber, nullifier);
+  }
+
   async getNoteHashTreeRoot(): Promise<Fr> {
     const header = await this.node.getHeader();
     return header.state.partial.noteHashTree.root;
