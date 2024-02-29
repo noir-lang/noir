@@ -1,4 +1,7 @@
+FROM aztecprotocol/noir AS noir
+
 FROM node:20 AS builder
+COPY --from=noir /usr/src/noir/noir-repo/target/release /usr/src/noir/noir-repo/target/release
 ENV PATH=${PATH}:/usr/src/noir/noir-repo/target/release
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
@@ -9,9 +12,8 @@ ENV COMMIT_HASH=${COMMIT_HASH}
 
 WORKDIR /usr/src/noir
 COPY . .
-RUN ./scripts/bootstrap_packages.sh
+RUN ./scripts/test_js_packages.sh
 
+# Don't waste time pushing a huge container back to ECR as nothing needs the output.
 FROM scratch
-COPY --from=builder /usr/src/noir/packages /usr/src/noir/packages
-# For some unknown reason, on alpine only, we need this to exist.
-COPY --from=builder /usr/src/noir/noir-repo/node_modules/@noir-lang /usr/src/noir/noir-repo/node_modules/@noir-lang
+COPY --from=builder /usr/src/noir/README.md /usr/src/noir/README.md

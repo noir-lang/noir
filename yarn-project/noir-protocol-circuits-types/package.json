@@ -29,8 +29,6 @@
     "@aztec/noir-compiler": "workspace:^",
     "@aztec/types": "workspace:^",
     "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js",
-    "@noir-lang/backend_barretenberg": "portal:../../noir/packages/backend_barretenberg",
-    "@noir-lang/noir_js": "portal:../../noir/packages/noir_js",
     "@noir-lang/noirc_abi": "portal:../../noir/packages/noirc_abi",
     "tslib": "^2.4.0"
   },

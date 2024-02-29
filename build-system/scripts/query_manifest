@@ -130,4 +130,5 @@ case "$CMD" in
     ;;
   multiarch)
     yq -r ".\"$REPO\".multiarch // false" $MANIFEST
+    ;;
 esac

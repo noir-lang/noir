@@ -131,7 +131,7 @@ if [ "$MULTIARCH" == "buildx" ]; then
   # This is the simplest approach for build jobs that are not too intensive.
   docker buildx create --name builder --use
   docker buildx inspect --bootstrap
-  docker buildx build -t $IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH --platform linux/amd64,linux/arm64 . --push
+  docker buildx build -t $IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg CONTENT_HASH=$CONTENT_HASH --build-arg COMMIT_HASH=$COMMIT_HASH --platform linux/amd64,linux/arm64 . --push
 else
   # If multiarch is set to "host", the assumption is that we're doing multiple builds on different machine architectures
   # in parallel, and that there is a another job that runs afterwards to combine them into a manifest.
@@ -140,7 +140,7 @@ else
     IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY host)
   fi
 
-  docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg ARG_CONTENT_HASH=$CONTENT_HASH .
+  docker build -t $IMAGE_COMMIT_URI -f $DOCKERFILE --build-arg COMMIT_TAG=$COMMIT_TAG_VERSION --build-arg CONTENT_HASH=$CONTENT_HASH --build-arg COMMIT_HASH=$COMMIT_HASH .
   echo "Pushing image: $IMAGE_COMMIT_URI"
   retry docker push $IMAGE_COMMIT_URI > /dev/null 2>&1
 fi

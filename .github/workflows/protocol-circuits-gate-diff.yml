@@ -72,7 +72,7 @@ jobs:
       - name: Install nargo from source with noirup
         run: noirup $toolchain
         env:
-          toolchain: --path ./noir
+          toolchain: --path ./noir/noir-repo
 
       - name: Check nargo installation
         run: nargo --version

@@ -9,8 +9,8 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 # local
-acvm = { path = "../noir/acvm-repo/acvm" }
-noirc_driver = { path = "../noir/compiler/noirc_driver" }
+acvm = { path = "../noir/noir-repo/acvm-repo/acvm" }
+noirc_driver = { path = "../noir/noir-repo/compiler/noirc_driver" }
 
 # external
 base64 = "0.21"

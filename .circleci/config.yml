@@ -124,6 +124,18 @@ jobs:
           command: create_ecr_manifest noir x86_64,arm64
           aztec_manifest_key: noir
 
+  noir-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build noir-tests 32
+          aztec_manifest_key: noir-tests
+
   noir-packages:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -135,6 +147,18 @@ jobs:
           name: "Build"
           command: cond_spot_run_build noir-packages 32
           aztec_manifest_key: noir-packages
+
+  noir-packages-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build noir-packages-tests 32
+          aztec_manifest_key: noir-packages-tests
 
   noir-compile-acir-tests:
     docker:
@@ -1335,7 +1359,12 @@ workflows:
             - noir-x86_64
             - noir-arm64
           <<: *defaults
+      - noir-tests: *defaults
       - noir-packages: *defaults
+      - noir-packages-tests:
+          requires:
+            - noir-ecr-manifest
+          <<: *defaults
       - noir-compile-acir-tests:
           requires:
             - noir-ecr-manifest

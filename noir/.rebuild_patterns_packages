@@ -1,0 +1,15 @@
+^noir/Dockerfile.packages
+^noir/noir-repo/.yarn
+^noir/noir-repo/.yarnrc.yml
+^noir/noir-repo/package.json
+^noir/noir-repo/yarn.lock
+^noir/noir-repo/acvm-repo
+^noir/noir-repo/compiler
+^noir/noir-repo/aztec_macros
+^noir/noir-repo/noir_stdlib
+^noir/noir-repo/tooling/noir_codegen
+^noir/noir-repo/tooling/noir_js
+^noir/noir-repo/tooling/noir_js_backend_barretenberg
+^noir/noir-repo/tooling/noir_js_types
+^noir/noir-repo/tooling/noirc_abi
+^noir/noir-repo/tooling/noirc_abi_wasm

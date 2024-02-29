@@ -67,10 +67,7 @@
     "ts-jest@^29.1.1": "patch:ts-jest@npm%3A29.1.1#./.yarn/patches/ts-jest-npm-29.1.1-04e888e48e.patch",
     "@aztec/bb.js": "portal:../barretenberg/ts",
     "@noir-lang/acvm_js": "portal:../noir/packages/acvm_js",
-    "@noir-lang/backend_barretenberg": "portal:../noir/packages/backend_barretenberg",
     "@noir-lang/types": "portal:../noir/packages/types",
-    "@noir-lang/noirc_abi": "portal:../noir/packages/noirc_abi",
-    "@noir-lang/noir_wasm": "portal:../noir/packages/noir_wasm",
-    "@noir-lang/noir_js": "portal:../noir/packages/noir_js"
+    "@noir-lang/noirc_abi": "portal:../noir/packages/noirc_abi"
   }
 }

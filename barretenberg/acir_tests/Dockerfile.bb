@@ -4,7 +4,7 @@ FROM aztecprotocol/noir-compile-acir-tests as noir-acir-tests
 FROM node:18.19.0-alpine
 RUN apk update && apk add git bash curl jq coreutils
 COPY --from=0 /usr/src/barretenberg/cpp/build /usr/src/barretenberg/cpp/build
-COPY --from=noir-acir-tests /usr/src/noir/test_programs /usr/src/noir/test_programs
+COPY --from=noir-acir-tests /usr/src/noir/noir-repo/test_programs /usr/src/noir/noir-repo/test_programs
 WORKDIR /usr/src/barretenberg/acir_tests
 COPY . .
 # Run every acir test through native bb build prove_then_verify flow for UltraPlonk.

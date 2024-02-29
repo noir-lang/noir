@@ -4,7 +4,7 @@
 # This chains off the nargo build, and creates a container with a compiled set of acir tests.
 FROM aztecprotocol/noir
 RUN apt update && apt install -y jq && rm -rf /var/lib/apt/lists/* && apt-get clean
-ENV PATH="/usr/src/noir/target/release:${PATH}"
-WORKDIR /usr/src/noir/test_programs
+ENV PATH="/usr/src/noir/noir-repo/target/release:${PATH}"
+WORKDIR /usr/src/noir/noir-repo/test_programs
 COPY . .
 RUN ./rebuild.sh

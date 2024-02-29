@@ -3,7 +3,7 @@ FROM aztecprotocol/noir-compile-acir-tests as noir-acir-tests
 
 FROM node:18.19.0
 COPY --from=0 /usr/src/barretenberg/ts-build /usr/src/barretenberg/ts
-COPY --from=noir-acir-tests /usr/src/noir/test_programs /usr/src/noir/test_programs
+COPY --from=noir-acir-tests /usr/src/noir/noir-repo/test_programs /usr/src/noir/noir-repo/test_programs
 RUN apt update && apt install -y lsof jq
 WORKDIR /usr/src/barretenberg/acir_tests
 # Build/install ts apps.

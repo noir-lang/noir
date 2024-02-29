@@ -1,63 +1,75 @@
+# buildDir: Directory path relative to repo root, from which the docker build context is created.
+# projectDir: Directory path relative to repo root, to a project directory. This defaults to buildDir, but some paths
+#             are computed relative to this directory (e.g. terraform directory, rebuild patterns file path).
+# dockerfile: Path to a Dockerfile, relative to the buildDir. Defaults to Dockerfile. Useful if you have multiple.
+# rebuildPatterns: Either a string to file relative to projectDir containing patterns, or an array of patterns.
+#                  If any changed file path matches any pattern, the project will be rebuilt.
+# multiarch: Not defined: no multiarch
+#            host: Whichever host machine arch (determined in config.yml) determines target arch.
+#            buildx: Use dockers buildx emulation to build for both x86_64 and arm.
+# dependencies: An array of other projects that this project depends on.
+# runDependencies: Additional projects that are needed to run a container/compose file. Ensures they're pulled first.
+
+# Builds noir for x86_64 and arm64, creating a runnable container just with nargo.
 noir:
   buildDir: noir
-  rebuildPatterns:
-    - ^noir/Dockerfile
-    - ^noir/acvm-repo
-    - ^noir/compiler
-    - ^noir/aztec_macros
-    - ^noir/noir_stdlib
-    - ^noir/tooling/backend_interface
-    - ^noir/tooling/bb_abstraction_leaks
-    - ^noir/tooling/debugger
-    - ^noir/tooling/lsp
-    - ^noir/tooling/nargo
-    - ^noir/tooling/nargo_cli
-    - ^noir/tooling/nargo_toml
-    - ^noir/tooling/nargo_fmt
-    - ^noir/tooling/noirc_abi
+  dockerfile: Dockerfile.native
+  rebuildPatterns: .rebuild_patterns_native
   multiarch: host
 
+# Builds and runs noir native tests.
+noir-tests:
+  buildDir: noir
+  dockerfile: Dockerfile.native-test
+  rebuildPatterns: .rebuild_patterns_native
+
+# Builds just the noir js packages needed by aztec.
 noir-packages:
   buildDir: noir
   dockerfile: Dockerfile.packages
-  rebuildPatterns:
-    - ^noir/Dockerfile.packages
-    - ^noir/.yarn
-    - ^noir/.yarnrc.yml
-    - ^noir/package.json
-    - ^noir/yarn.lock
-    - ^noir/acvm-repo
-    - ^noir/compiler
-    - ^noir/aztec_macros
-    - ^noir/noir_stdlib
-    - ^noir/tooling/noir_codegen
-    - ^noir/tooling/noir_js
-    - ^noir/tooling/noir_js_backend_barretenberg
-    - ^noir/tooling/noir_js_types
-    - ^noir/tooling/noirc_abi
-    - ^noir/tooling/noirc_abi_wasm
+  rebuildPatterns: .rebuild_patterns_packages
 
+# Builds and runs *all* noir package tests.
+noir-packages-tests:
+  buildDir: noir
+  dockerfile: Dockerfile.packages-test
+  rebuildPatterns: .rebuild_patterns_packages
+  dependencies:
+    - noir
+
+# Builds the brillig to avm transpiler.
+avm-transpiler:
+  buildDir: .
+  dockerfile: avm-transpiler/Dockerfile
+  rebuildPatterns:
+    - ^avm-transpiler/
+    - ^noir/
+
+# Compiles all aztec noir projects using nargo and the avm-transpiler.
 noir-projects:
   buildDir: noir-projects
   dependencies:
     - noir
     - avm-transpiler
 
+# Uses nargo to compile all the noir test programs, used to test bb and bb.js.
 noir-compile-acir-tests:
-  buildDir: noir/test_programs
+  buildDir: noir/noir-repo/test_programs
   # Awkward. Maybe change dockerfile paths to be absolute.
-  dockerfile: ../../barretenberg/acir_tests/Dockerfile.noir_acir_tests
+  dockerfile: ../../../barretenberg/acir_tests/Dockerfile.noir_acir_tests
   rebuildPatterns:
-    - ^noir/test_programs
+    - ^noir/noir-repo/test_programs
     - ^barretenberg/acir_tests/Dockerfile.noir_acir_tests
   dependencies:
     - noir
 
+# Builds x86_64 bb binary.
 barretenberg-x86_64-linux-clang:
   buildDir: barretenberg/cpp
   dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang
   rebuildPatterns: .rebuild_patterns
 
+# Builds all of barretenberg with clang, including tests, with assertions enabled.
 barretenberg-x86_64-linux-clang-assert:
   buildDir: barretenberg/cpp
   dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang-assert
@@ -68,11 +80,13 @@ barretenberg-x86_64-linux-clang-fuzzing:
   dockerfile: dockerfiles/Dockerfile.x86_64-linux-clang-fuzzing
   rebuildPatterns: .rebuild_patterns
 
+# Builds all of barretenberg with gcc. Ensures compiler compatibility.
 barretenberg-x86_64-linux-gcc:
   buildDir: barretenberg/cpp
   dockerfile: dockerfiles/Dockerfile.x86_64-linux-gcc
   rebuildPatterns: .rebuild_patterns
 
+# Builds barretenberg.wasm (single and multithreaded builds).
 barretenberg-wasm-linux-clang:
   buildDir: barretenberg/cpp
   dockerfile: dockerfiles/Dockerfile.wasm-linux-clang
@@ -83,11 +97,13 @@ barretenberg-x86_64-linux-clang-sol:
   dockerfile: sol/Dockerfile
   rebuildPatterns: sol/.rebuild_patterns
 
+# Builds bb.js. Container is runnable for running the tests independently.
 bb.js:
   buildDir: barretenberg/ts
   dependencies:
     - barretenberg-wasm-linux-clang
 
+# Runs all the compiled acir tests through native bb.
 barretenberg-acir-tests-bb:
   buildDir: barretenberg/acir_tests
   dockerfile: Dockerfile.bb
@@ -95,6 +111,7 @@ barretenberg-acir-tests-bb:
     - barretenberg-x86_64-linux-clang-assert
     - noir-compile-acir-tests
 
+# Uses bb to compute a l1 verifier contract for each acir test, and verifies a test proof on chain.
 barretenberg-acir-tests-bb-sol:
   buildDir: barretenberg/acir_tests
   dockerfile: Dockerfile.bb.sol
@@ -103,6 +120,7 @@ barretenberg-acir-tests-bb-sol:
     - barretenberg-x86_64-linux-clang-sol
     - noir-compile-acir-tests
 
+# Runs all the compiled acir tests through bb.js.
 barretenberg-acir-tests-bb.js:
   buildDir: barretenberg/acir_tests
   dockerfile: Dockerfile.bb.js
@@ -120,13 +138,18 @@ barretenberg-docs:
   buildDir: barretenberg/cpp
   dockerfile: docs/Dockerfile
 
+# Compiles all l1 solidity contracts. Output is JSON abis.
 l1-contracts:
   buildDir: l1-contracts
 
+# Just contains the source code for the boxes (starter kits).
+# Needed to pull into yarn-project, as we wanted to keep them separate to yarn-project itself.
 boxes-files:
   buildDir: boxes
   dockerfile: Dockerfile.files
 
+# Contains just the npm/js dependencies needed by yarn-project.
+# It's its own thing, to avoid continuously downloading all dependencies every build.
 yarn-project-base:
   buildDir: yarn-project
   projectDir: yarn-project/yarn-project-base
@@ -138,6 +161,8 @@ yarn-project-base:
     - bb.js
     - noir-packages
 
+# Builds all of yarn-project, with all developer dependencies.
+# Creates a runnable container used to run tests and formatting checks.
 yarn-project:
   buildDir: yarn-project
   rebuildPatterns:
@@ -150,6 +175,7 @@ yarn-project:
     - boxes-files
     - noir-projects
 
+# Productionifies yarn-project (removes all dev dependencies, multiarch).
 yarn-project-prod:
   buildDir: yarn-project
   dockerfile: Dockerfile.prod
@@ -159,6 +185,7 @@ yarn-project-prod:
     - yarn-project
   multiarch: buildx
 
+# A runnable container, sets entrypoint to be the aztec infrastructure entrypoint.
 aztec:
   buildDir: yarn-project
   projectDir: yarn-project/aztec
@@ -172,6 +199,7 @@ aztec-faucet:
   dependencies:
     - yarn-project-prod
 
+# A runnable container, sets entrypoint to be the aztec-cli entrypoint.
 cli:
   buildDir: yarn-project
   projectDir: yarn-project/cli
@@ -179,6 +207,7 @@ cli:
     - yarn-project-prod
   multiarch: buildx
 
+# Builds all the boxes. They are then independently tested in the container.
 boxes:
   buildDir: boxes
   dependencies:
@@ -188,6 +217,7 @@ boxes:
   runDependencies:
     - aztec
 
+# Builds a runnable container for running end-to-end tests (requires installing puppeteer etc).
 end-to-end:
   buildDir: yarn-project
   projectDir: yarn-project/end-to-end
@@ -218,10 +248,3 @@ yellow-paper:
   buildDir: yellow-paper
   rebuildPatterns:
     - ^yellow-paper/
-
-avm-transpiler:
-  buildDir: .
-  dockerfile: avm-transpiler/Dockerfile
-  rebuildPatterns:
-    - ^avm-transpiler/
-    - ^noir/
