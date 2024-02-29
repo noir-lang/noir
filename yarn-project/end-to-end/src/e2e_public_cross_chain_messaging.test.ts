@@ -18,7 +18,7 @@ import { TokenContract } from '@aztec/noir-contracts.js/Token';
 import { TokenBridgeContract } from '@aztec/noir-contracts.js/TokenBridge';
 
 import { Hex } from 'viem';
-import { getAbiItem, getAddress } from 'viem/utils';
+import { decodeEventLog } from 'viem/utils';
 
 import { publicDeployAccounts, setup } from './fixtures/utils.js';
 import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';
@@ -235,24 +235,25 @@ describe('e2e_public_cross_chain_messaging', () => {
       };
 
       const txHash = await outbox.write.consume([l2ToL1Message] as const, {} as any);
+      const txReceipt = await crossChainTestHarness.publicClient.waitForTransactionReceipt({
+        hash: txHash,
+      });
 
-      const abiItem = getAbiItem({
+      // Exactly 1 event should be emitted in the transaction
+      expect(txReceipt.logs.length).toBe(1);
+
+      // We decode the event log before checking it
+      const txLog = txReceipt.logs[0];
+      const topics = decodeEventLog({
         abi: OutboxAbi,
-        name: 'MessageConsumed',
+        data: txLog.data,
+        topics: txLog.topics,
       });
 
-      const events = await crossChainTestHarness.publicClient.getLogs<typeof abiItem>({
-        address: getAddress(outbox.address.toString()),
-        event: abiItem,
-        fromBlock: 0n,
-      });
-
-      // We get the event just for the relevant transaction
-      const txEvents = events.filter(event => event.transactionHash === txHash);
-
-      // We check that exactly 1 MessageConsumed event was emitted with the expected recipient
-      expect(txEvents.length).toBe(1);
-      expect(txEvents[0].args.recipient).toBe(recipient.toChecksumString());
+      // We check that MessageConsumed event was emitted with the expected recipient
+      // Note: For whatever reason, viem types "think" that there is no recipient on topics.args. I hack around this
+      // by casting the args to "any"
+      expect((topics.args as any).recipient).toBe(recipient.toChecksumString());
     },
     60_000,
   );
@@ -290,24 +291,28 @@ describe('e2e_public_cross_chain_messaging', () => {
       // for later use
       let msgKey!: Fr;
       {
-        const events = await crossChainTestHarness.publicClient.getLogs({
-          address: getAddress(inbox.address.toString()),
-          event: getAbiItem({
-            abi: InboxAbi,
-            name: 'MessageAdded',
-          }),
-          fromBlock: 0n,
+        const txReceipt = await crossChainTestHarness.publicClient.waitForTransactionReceipt({
+          hash: txHash,
         });
 
-        // We get the event just for the relevant transaction
-        const txEvents = events.filter(event => event.transactionHash === txHash);
+        // Exactly 1 event should be emitted in the transaction
+        expect(txReceipt.logs.length).toBe(1);
 
-        // We check that exactly 1 MessageAdded event was emitted with the expected recipient
-        expect(txEvents.length).toBe(1);
-        expect(txEvents[0].args.recipient).toBe(recipient);
+        // We decode the event log before checking it
+        const txLog = txReceipt.logs[0];
+        const topics = decodeEventLog({
+          abi: InboxAbi,
+          data: txLog.data,
+          topics: txLog.topics,
+        });
+
+        // We check that MessageAdded event was emitted with the expected recipient
+        // Note: For whatever reason, viem types "think" that there is no recipient on topics.args. I hack around this
+        // by casting the args to "any"
+        expect((topics.args as any).recipient).toBe(recipient);
 
         // TODO(#4678): Unify naming of message key/entry key
-        msgKey = Fr.fromString(txEvents[0].args.entryKey!);
+        msgKey = Fr.fromString(topics.args.entryKey!);
       }
 
       // We wait for the archiver to process the message and we push a block for the message to be confirmed
