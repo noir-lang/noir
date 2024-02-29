@@ -23,6 +23,8 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
+use self::primitives::{keyword, mutable_reference, variable};
+
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
@@ -35,19 +37,34 @@ use crate::ast::{
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Attribute, Attributes, Keyword, SecondaryAttribute, Token, TokenKind};
+use crate::token::{Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
-    ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility, Ident,
-    IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTraitImpl, NoirTypeAlias, Param, Path, PathKind, Pattern, Recoverable, Statement,
-    TraitBound, TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTraitConstraint,
+    BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
+    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Literal, NoirTypeAlias,
+    Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl, UnresolvedTraitConstraint,
     UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
+
+mod assertion;
+mod attributes;
+mod function;
+mod lambdas;
+mod literals;
+mod path;
+mod primitives;
+mod structs;
+mod traits;
+
+#[cfg(test)]
+mod test_helpers;
+
+use literals::literal;
+use path::{maybe_empty_path, path};
+use primitives::{dereference, ident, negation, not, nothing, right_shift_operator, token_kind};
 
 /// Entry function for the parser - also handles lexing internally.
 ///
@@ -109,10 +126,10 @@ fn top_level_statement(
     module_parser: impl NoirParser<ParsedModule>,
 ) -> impl NoirParser<TopLevelStatement> {
     choice((
-        function_definition(false).map(TopLevelStatement::Function),
-        struct_definition(),
-        trait_definition(),
-        trait_implementation(),
+        function::function_definition(false).map(TopLevelStatement::Function),
+        structs::struct_definition(),
+        traits::trait_definition(),
+        traits::trait_implementation(),
         implementation(),
         type_alias_definition().then_ignore(force(just(Token::Semicolon))),
         submodule(module_parser.clone()),
@@ -122,6 +139,21 @@ fn top_level_statement(
         global_declaration().then_ignore(force(just(Token::Semicolon))),
     ))
     .recover_via(top_level_statement_recovery())
+}
+
+/// Parses a non-trait implementation, adding a set of methods to a type.
+///
+/// implementation: 'impl' generics type '{' function_definition ... '}'
+fn implementation() -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Impl)
+        .ignore_then(function::generics())
+        .then(parse_type().map_with_span(|typ, span| (typ, span)))
+        .then_ignore(just(Token::LeftBrace))
+        .then(spanned(function::function_definition(true)).repeated())
+        .then_ignore(just(Token::RightBrace))
+        .map(|((generics, (object_type, type_span)), methods)| {
+            TopLevelStatement::Impl(TypeImpl { generics, object_type, type_span, methods })
+        })
 }
 
 /// global_declaration: 'global' ident global_type_annotation '=' literal
@@ -160,134 +192,17 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
         })
 }
 
-/// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
-///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
-fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
-    attributes()
-        .then(function_modifiers())
-        .then_ignore(keyword(Keyword::Fn))
-        .then(ident())
-        .then(generics())
-        .then(parenthesized(function_parameters(allow_self)))
-        .then(function_return_type())
-        .then(where_clause())
-        .then(spanned(block(fresh_statement())))
-        .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
-            let ((((attributes, modifiers), name), generics), parameters) = args;
-
-            // Validate collected attributes, filtering them into function and secondary variants
-            let attributes = validate_attributes(attributes, span, emit);
-            FunctionDefinition {
-                span: body_span,
-                name,
-                attributes,
-                is_unconstrained: modifiers.0,
-                is_open: modifiers.2,
-                is_internal: modifiers.3,
-                visibility: if modifiers.1 {
-                    FunctionVisibility::PublicCrate
-                } else if modifiers.4 {
-                    FunctionVisibility::Public
-                } else {
-                    FunctionVisibility::Private
-                },
-                generics,
-                parameters,
-                body,
-                where_clause,
-                return_type: ret.1,
-                return_visibility: ret.0 .1,
-                return_distinctness: ret.0 .0,
-            }
-            .into()
-        })
-}
-
-/// function_modifiers: 'unconstrained'? 'pub(crate)'? 'pub'? 'open'? 'internal'?
-///
-/// returns (is_unconstrained, is_pub_crate, is_open, is_internal, is_pub) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool, bool)> {
-    keyword(Keyword::Unconstrained)
-        .or_not()
-        .then(is_pub_crate())
-        .then(keyword(Keyword::Pub).or_not())
-        .then(keyword(Keyword::Open).or_not())
-        .then(keyword(Keyword::Internal).or_not())
-        .map(|((((unconstrained, pub_crate), public), open), internal)| {
-            (
-                unconstrained.is_some(),
-                pub_crate,
-                open.is_some(),
-                internal.is_some(),
-                public.is_some(),
-            )
-        })
-}
-
-fn is_pub_crate() -> impl NoirParser<bool> {
-    (keyword(Keyword::Pub)
-        .then_ignore(just(Token::LeftParen))
-        .then_ignore(keyword(Keyword::Crate))
-        .then_ignore(just(Token::RightParen)))
-    .or_not()
-    .map(|a| a.is_some())
-}
-
-/// non_empty_ident_list: ident ',' non_empty_ident_list
-///                     | ident
-///
-/// generics: '<' non_empty_ident_list '>'
-///         | %empty
-fn generics() -> impl NoirParser<Vec<Ident>> {
-    ident()
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .at_least(1)
-        .delimited_by(just(Token::Less), just(Token::Greater))
-        .or_not()
-        .map(|opt| opt.unwrap_or_default())
-}
-
-fn struct_definition() -> impl NoirParser<TopLevelStatement> {
-    use self::Keyword::Struct;
-    use Token::*;
-
-    let fields = struct_fields()
-        .delimited_by(just(LeftBrace), just(RightBrace))
-        .recover_with(nested_delimiters(
-            LeftBrace,
-            RightBrace,
-            [(LeftParen, RightParen), (LeftBracket, RightBracket)],
-            |_| vec![],
-        ))
-        .or(just(Semicolon).to(Vec::new()));
-
-    attributes().then_ignore(keyword(Struct)).then(ident()).then(generics()).then(fields).validate(
-        |(((raw_attributes, name), generics), fields), span, emit| {
-            let attributes = validate_struct_attributes(raw_attributes, span, emit);
-            TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
-        },
-    )
-}
-
 fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Type;
 
     let p = ignore_then_commit(keyword(Type), ident());
-    let p = then_commit(p, generics());
+    let p = then_commit(p, function::generics());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, parse_type());
 
     p.map_with_span(|((name, generics), typ), span| {
         TopLevelStatement::TypeAlias(NoirTypeAlias { name, generics, typ, span })
     })
-}
-
-fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
-    just(Token::Arrow)
-        .ignore_then(parse_type())
-        .or_not()
-        .map(|ret| ret.unwrap_or_else(UnresolvedType::unspecified))
 }
 
 fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
@@ -303,69 +218,6 @@ fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), Functi
                 FunctionReturnType::Default(span),
             ),
         })
-}
-
-fn attribute() -> impl NoirParser<Attribute> {
-    token_kind(TokenKind::Attribute).map(|token| match token {
-        Token::Attribute(attribute) => attribute,
-        _ => unreachable!("Parser should have already errored due to token not being an attribute"),
-    })
-}
-
-fn attributes() -> impl NoirParser<Vec<Attribute>> {
-    attribute().repeated()
-}
-
-fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
-    ident()
-        .then_ignore(just(Token::Colon))
-        .then(parse_type())
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-}
-
-fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
-    let typ = parse_type().recover_via(parameter_recovery());
-    let typ = just(Token::Colon).ignore_then(typ);
-
-    let parameter = pattern()
-        .recover_via(parameter_name_recovery())
-        .then(typ.or_not().map(|typ| typ.unwrap_or_else(UnresolvedType::unspecified)));
-
-    parameter
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .labelled(ParsingRuleLabel::Parameter)
-}
-
-fn function_parameters<'a>(allow_self: bool) -> impl NoirParser<Vec<Param>> + 'a {
-    let typ = parse_type().recover_via(parameter_recovery());
-
-    let full_parameter = pattern()
-        .recover_via(parameter_name_recovery())
-        .then_ignore(just(Token::Colon))
-        .then(optional_visibility())
-        .then(typ)
-        .map_with_span(|((pattern, visibility), typ), span| Param {
-            visibility,
-            pattern,
-            typ,
-            span,
-        });
-
-    let self_parameter = if allow_self { self_parameter().boxed() } else { nothing().boxed() };
-
-    let parameter = full_parameter.or(self_parameter);
-
-    parameter
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .labelled(ParsingRuleLabel::Parameter)
-}
-
-/// This parser always parses no input and fails
-fn nothing<T>() -> impl NoirParser<T> {
-    one_of([]).map(|_| unreachable!("parser should always error"))
 }
 
 fn self_parameter() -> impl NoirParser<Param> {
@@ -401,111 +253,6 @@ fn self_parameter() -> impl NoirParser<Param> {
         })
 }
 
-fn trait_definition() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Trait)
-        .ignore_then(ident())
-        .then(generics())
-        .then(where_clause())
-        .then_ignore(just(Token::LeftBrace))
-        .then(trait_body())
-        .then_ignore(just(Token::RightBrace))
-        .map_with_span(|(((name, generics), where_clause), items), span| {
-            TopLevelStatement::Trait(NoirTrait { name, generics, where_clause, span, items })
-        })
-}
-
-fn trait_body() -> impl NoirParser<Vec<TraitItem>> {
-    trait_function_declaration()
-        .or(trait_type_declaration())
-        .or(trait_constant_declaration())
-        .repeated()
-}
-
-fn optional_default_value() -> impl NoirParser<Option<Expression>> {
-    ignore_then_commit(just(Token::Assign), expression()).or_not()
-}
-
-fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
-    keyword(Keyword::Let)
-        .ignore_then(ident())
-        .then_ignore(just(Token::Colon))
-        .then(parse_type())
-        .then(optional_default_value())
-        .then_ignore(just(Token::Semicolon))
-        .validate(|((name, typ), default_value), span, emit| {
-            emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("Associated constants"),
-                span,
-            ));
-            TraitItem::Constant { name, typ, default_value }
-        })
-}
-
-/// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
-fn trait_function_declaration() -> impl NoirParser<TraitItem> {
-    let trait_function_body_or_semicolon =
-        block(fresh_statement()).map(Option::from).or(just(Token::Semicolon).to(Option::None));
-
-    keyword(Keyword::Fn)
-        .ignore_then(ident())
-        .then(generics())
-        .then(parenthesized(function_declaration_parameters()))
-        .then(function_return_type().map(|(_, typ)| typ))
-        .then(where_clause())
-        .then(trait_function_body_or_semicolon)
-        .map(|(((((name, generics), parameters), return_type), where_clause), body)| {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
-        })
-}
-
-fn validate_attributes(
-    attributes: Vec<Attribute>,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) -> Attributes {
-    let mut primary = None;
-    let mut secondary = Vec::new();
-
-    for attribute in attributes {
-        match attribute {
-            Attribute::Function(attr) => {
-                if primary.is_some() {
-                    emit(ParserError::with_reason(
-                        ParserErrorReason::MultipleFunctionAttributesFound,
-                        span,
-                    ));
-                }
-                primary = Some(attr);
-            }
-            Attribute::Secondary(attr) => secondary.push(attr),
-        }
-    }
-
-    Attributes { function: primary, secondary }
-}
-
-fn validate_struct_attributes(
-    attributes: Vec<Attribute>,
-    span: Span,
-    emit: &mut dyn FnMut(ParserError),
-) -> Vec<SecondaryAttribute> {
-    let mut struct_attributes = vec![];
-
-    for attribute in attributes {
-        match attribute {
-            Attribute::Function(..) => {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::NoFunctionAttributesAllowedOnStruct,
-                    span,
-                ));
-            }
-            Attribute::Secondary(attr) => struct_attributes.push(attr),
-        }
-    }
-
-    struct_attributes
-}
-
 /// Function declaration parameters differ from other parameters in that parameter
 /// patterns are not allowed in declarations. All parameters must be identifiers.
 fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
@@ -534,89 +281,6 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .labelled(ParsingRuleLabel::Parameter)
-}
-
-/// trait_type_declaration: 'type' ident generics
-fn trait_type_declaration() -> impl NoirParser<TraitItem> {
-    keyword(Keyword::Type).ignore_then(ident()).then_ignore(just(Token::Semicolon)).validate(
-        |name, span, emit| {
-            emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("Associated types"),
-                span,
-            ));
-            TraitItem::Type { name }
-        },
-    )
-}
-
-/// Parses a non-trait implementation, adding a set of methods to a type.
-///
-/// implementation: 'impl' generics type '{' function_definition ... '}'
-fn implementation() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Impl)
-        .ignore_then(generics())
-        .then(parse_type().map_with_span(|typ, span| (typ, span)))
-        .then_ignore(just(Token::LeftBrace))
-        .then(spanned(function_definition(true)).repeated())
-        .then_ignore(just(Token::RightBrace))
-        .map(|((generics, (object_type, type_span)), methods)| {
-            TopLevelStatement::Impl(TypeImpl { generics, object_type, type_span, methods })
-        })
-}
-
-/// Parses a trait implementation, implementing a particular trait for a type.
-/// This has a similar syntax to `implementation`, but the `for type` clause is required,
-/// and an optional `where` clause is also useable.
-///
-/// trait_implementation: 'impl' generics ident generic_args for type '{' trait_implementation_body '}'
-fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Impl)
-        .ignore_then(generics())
-        .then(path())
-        .then(generic_type_args(parse_type()))
-        .then_ignore(keyword(Keyword::For))
-        .then(parse_type())
-        .then(where_clause())
-        .then_ignore(just(Token::LeftBrace))
-        .then(trait_implementation_body())
-        .then_ignore(just(Token::RightBrace))
-        .map(|args| {
-            let ((other_args, where_clause), items) = args;
-            let (((impl_generics, trait_name), trait_generics), object_type) = other_args;
-
-            TopLevelStatement::TraitImpl(NoirTraitImpl {
-                impl_generics,
-                trait_name,
-                trait_generics,
-                object_type,
-                items,
-                where_clause,
-            })
-        })
-}
-
-fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
-    let function = function_definition(true).validate(|mut f, span, emit| {
-        if f.def().is_internal
-            || f.def().is_unconstrained
-            || f.def().is_open
-            || f.def().visibility != FunctionVisibility::Private
-        {
-            emit(ParserError::with_reason(ParserErrorReason::TraitImplFunctionModifiers, span));
-        }
-        // Trait impl functions are always public
-        f.def_mut().visibility = FunctionVisibility::Public;
-        TraitImplItem::Function(f)
-    });
-
-    let alias = keyword(Keyword::Type)
-        .ignore_then(ident())
-        .then_ignore(just(Token::Assign))
-        .then(parse_type())
-        .then_ignore(just(Token::Semicolon))
-        .map(|(name, alias)| TraitImplItem::Type { name, alias });
-
-    function.or(alias).repeated()
 }
 
 fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
@@ -713,45 +377,6 @@ fn use_statement() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Use).ignore_then(use_tree()).map(TopLevelStatement::Import)
 }
 
-fn keyword(keyword: Keyword) -> impl NoirParser<Token> {
-    just(Token::Keyword(keyword))
-}
-
-fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
-    filter_map(move |span, found: Token| {
-        if found.kind() == token_kind {
-            Ok(found)
-        } else {
-            Err(ParserError::expected_label(
-                ParsingRuleLabel::TokenKind(token_kind.clone()),
-                found,
-                span,
-            ))
-        }
-    })
-}
-
-fn path() -> impl NoirParser<Path> {
-    let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(1);
-    let make_path = |kind| move |segments, span| Path { segments, kind, span };
-
-    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
-    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map_with_span(make_path(kind));
-
-    choice((
-        path_kind(Keyword::Crate, PathKind::Crate),
-        path_kind(Keyword::Dep, PathKind::Dep),
-        idents().map_with_span(make_path(PathKind::Plain)),
-    ))
-}
-
-fn empty_path() -> impl NoirParser<Path> {
-    let make_path = |kind| move |_, span| Path { segments: Vec::new(), kind, span };
-    let path_kind = |key, kind| keyword(key).map_with_span(make_path(kind));
-
-    choice((path_kind(Keyword::Crate, PathKind::Crate), path_kind(Keyword::Dep, PathKind::Dep)))
-}
-
 fn rename() -> impl NoirParser<Option<Ident>> {
     ignore_then_commit(keyword(Keyword::As), ident()).or_not()
 }
@@ -764,7 +389,7 @@ fn use_tree() -> impl NoirParser<UseTree> {
         });
 
         let list = {
-            let prefix = path().or(empty_path()).then_ignore(just(Token::DoubleColon));
+            let prefix = maybe_empty_path().then_ignore(just(Token::DoubleColon));
             let tree = use_tree
                 .separated_by(just(Token::Comma))
                 .allow_trailing()
@@ -778,10 +403,6 @@ fn use_tree() -> impl NoirParser<UseTree> {
     })
 }
 
-fn ident() -> impl NoirParser<Ident> {
-    token_kind(TokenKind::Ident).map_with_span(Ident::from_token)
-}
-
 fn statement<'a, P, P2>(
     expr_parser: P,
     expr_no_constructors: P2,
@@ -792,9 +413,9 @@ where
 {
     recursive(|statement| {
         choice((
-            constrain(expr_parser.clone()),
-            assertion(expr_parser.clone()),
-            assertion_eq(expr_parser.clone()),
+            assertion::constrain(expr_parser.clone()),
+            assertion::assertion(expr_parser.clone()),
+            assertion::assertion_eq(expr_parser.clone()),
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
             for_loop(expr_no_constructors, statement),
@@ -806,64 +427,6 @@ where
 
 fn fresh_statement() -> impl NoirParser<StatementKind> {
     statement(expression(), expression_no_constructors(expression()))
-}
-
-fn constrain<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
-where
-    P: ExprParser + 'a,
-{
-    ignore_then_commit(
-        keyword(Keyword::Constrain).labelled(ParsingRuleLabel::Statement),
-        expr_parser,
-    )
-    .map(|expr| StatementKind::Constrain(ConstrainStatement(expr, None, ConstrainKind::Constrain)))
-    .validate(|expr, span, emit| {
-        emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
-        expr
-    })
-}
-
-fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
-where
-    P: ExprParser + 'a,
-{
-    let argument_parser =
-        expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_least(1).at_most(2);
-
-    ignore_then_commit(keyword(Keyword::Assert), parenthesized(argument_parser))
-        .labelled(ParsingRuleLabel::Statement)
-        .validate(|expressions, span, _| {
-            let condition = expressions.first().unwrap_or(&Expression::error(span)).clone();
-            let message = expressions.get(1).cloned();
-            StatementKind::Constrain(ConstrainStatement(condition, message, ConstrainKind::Assert))
-        })
-}
-
-fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
-where
-    P: ExprParser + 'a,
-{
-    let argument_parser =
-        expr_parser.separated_by(just(Token::Comma)).allow_trailing().at_least(2).at_most(3);
-
-    ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
-        .labelled(ParsingRuleLabel::Statement)
-        .validate(|exprs: Vec<Expression>, span, _| {
-            let predicate = Expression::new(
-                ExpressionKind::Infix(Box::new(InfixExpression {
-                    lhs: exprs.first().unwrap_or(&Expression::error(span)).clone(),
-                    rhs: exprs.get(1).unwrap_or(&Expression::error(span)).clone(),
-                    operator: Spanned::from(span, BinaryOpKind::Equal),
-                })),
-                span,
-            );
-            let message = exprs.get(2).cloned();
-            StatementKind::Constrain(ConstrainStatement(
-                predicate,
-                message,
-                ConstrainKind::AssertEq,
-            ))
-        })
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
@@ -1308,13 +871,6 @@ fn create_infix_expression(lhs: Expression, (operator, rhs): (BinaryOp, Expressi
     Expression { span, kind: ExpressionKind::Infix(infix) }
 }
 
-// Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier
-// to parse nested generic types. For normal expressions however, it means we have to manually
-// parse two greater-than tokens as a single right-shift here.
-fn right_shift_operator() -> impl NoirParser<Token> {
-    just(Token::Greater).then(just(Token::Greater)).to(Token::ShiftRight)
-}
-
 fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<BinaryOpKind>> {
     right_shift_operator()
         .or(any()) // Parse any single token, we're validating it as an operator next
@@ -1454,18 +1010,6 @@ where
     })
 }
 
-fn lambda<'a>(
-    expr_parser: impl NoirParser<Expression> + 'a,
-) -> impl NoirParser<ExpressionKind> + 'a {
-    lambda_parameters()
-        .delimited_by(just(Token::Pipe), just(Token::Pipe))
-        .then(lambda_return_type())
-        .then(expr_parser)
-        .map(|((parameters, return_type), body)| {
-            ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
-        })
-}
-
 fn for_loop<'a, P, S>(expr_no_constructors: P, statement: S) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
@@ -1530,41 +1074,6 @@ where
     expr_parser.separated_by(just(Token::Comma)).allow_trailing()
 }
 
-fn not<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
-    just(Token::Bang).ignore_then(term_parser).map(|rhs| ExpressionKind::prefix(UnaryOp::Not, rhs))
-}
-
-fn negation<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
-    just(Token::Minus)
-        .ignore_then(term_parser)
-        .map(|rhs| ExpressionKind::prefix(UnaryOp::Minus, rhs))
-}
-
-fn mutable_reference<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
-    just(Token::Ampersand)
-        .ignore_then(keyword(Keyword::Mut))
-        .ignore_then(term_parser)
-        .map(|rhs| ExpressionKind::prefix(UnaryOp::MutableReference, rhs))
-}
-
-fn dereference<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
-where
-    P: ExprParser,
-{
-    just(Token::Star)
-        .ignore_then(term_parser)
-        .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference { implicitly_added: false }, rhs))
-}
-
 /// Atoms are parameterized on whether constructor expressions are allowed or not.
 /// Certain constructs like `if` and `for` disallow constructor expressions when a
 /// block may be expected.
@@ -1587,7 +1096,7 @@ where
         } else {
             nothing().boxed()
         },
-        lambda(expr_parser.clone()),
+        lambdas::lambda(expr_parser.clone()),
         block(statement).map(ExpressionKind::Block),
         variable(),
         literal(),
@@ -1655,166 +1164,11 @@ where
     long_form.or(short_form)
 }
 
-fn variable() -> impl NoirParser<ExpressionKind> {
-    path().map(ExpressionKind::Variable)
-}
-
-fn literal() -> impl NoirParser<ExpressionKind> {
-    token_kind(TokenKind::Literal).map(|token| match token {
-        Token::Int(x) => ExpressionKind::integer(x),
-        Token::Bool(b) => ExpressionKind::boolean(b),
-        Token::Str(s) => ExpressionKind::string(s),
-        Token::RawStr(s, hashes) => ExpressionKind::raw_string(s, hashes),
-        Token::FmtStr(s) => ExpressionKind::format_string(s),
-        unexpected => unreachable!("Non-literal {} parsed as a literal", unexpected),
-    })
-}
-
 #[cfg(test)]
 mod test {
-    use noirc_errors::CustomDiagnostic;
-
+    use super::test_helpers::*;
     use super::*;
     use crate::{ArrayLiteral, Literal};
-
-    fn parse_with<P, T>(parser: P, program: &str) -> Result<T, Vec<CustomDiagnostic>>
-    where
-        P: NoirParser<T>,
-    {
-        let (tokens, lexer_errors) = Lexer::lex(program);
-        if !lexer_errors.is_empty() {
-            return Err(vecmap(lexer_errors, Into::into));
-        }
-        parser
-            .then_ignore(just(Token::EOF))
-            .parse(tokens)
-            .map_err(|errors| vecmap(errors, Into::into))
-    }
-
-    fn parse_recover<P, T>(parser: P, program: &str) -> (Option<T>, Vec<CustomDiagnostic>)
-    where
-        P: NoirParser<T>,
-    {
-        let (tokens, lexer_errors) = Lexer::lex(program);
-        let (opt, errs) = parser.then_ignore(force(just(Token::EOF))).parse_recovery(tokens);
-
-        let mut errors = vecmap(lexer_errors, Into::into);
-        errors.extend(errs.into_iter().map(Into::into));
-
-        (opt, errors)
-    }
-
-    fn parse_all<P, T>(parser: P, programs: Vec<&str>) -> Vec<T>
-    where
-        P: NoirParser<T>,
-    {
-        vecmap(programs, move |program| {
-            let message = format!("Failed to parse:\n{program}");
-            let (op_t, diagnostics) = parse_recover(&parser, program);
-            diagnostics.iter().for_each(|diagnostic| {
-                if diagnostic.is_error() {
-                    panic!("{} with error {}", &message, diagnostic);
-                }
-            });
-            op_t.expect(&message)
-        })
-    }
-
-    fn parse_all_failing<P, T>(parser: P, programs: Vec<&str>) -> Vec<CustomDiagnostic>
-    where
-        P: NoirParser<T>,
-        T: std::fmt::Display,
-    {
-        programs
-            .into_iter()
-            .flat_map(|program| match parse_with(&parser, program) {
-                Ok(expr) => {
-                    unreachable!(
-                        "Expected this input to fail:\n{}\nYet it successfully parsed as:\n{}",
-                        program, expr
-                    )
-                }
-                Err(diagnostics) => {
-                    if diagnostics.iter().all(|diagnostic: &CustomDiagnostic| diagnostic.is_warning()) {
-                        unreachable!(
-                            "Expected at least one error when parsing:\n{}\nYet it successfully parsed without errors:\n",
-                            program
-                        )
-                    };
-                    diagnostics
-                }
-            })
-            .collect()
-    }
-
-    #[derive(Copy, Clone)]
-    struct Case {
-        source: &'static str,
-        errors: usize,
-        expect: &'static str,
-    }
-
-    fn check_cases_with_errors<T, P>(cases: &[Case], parser: P)
-    where
-        P: NoirParser<T> + Clone,
-        T: std::fmt::Display,
-    {
-        let show_errors = |v| vecmap(&v, ToString::to_string).join("\n");
-
-        let results = vecmap(cases, |&case| {
-            let (opt, errors) = parse_recover(parser.clone(), case.source);
-            let actual = opt.map(|ast| ast.to_string());
-            let actual = if let Some(s) = &actual { s.to_string() } else { "(none)".to_string() };
-
-            let result = ((errors.len(), actual.clone()), (case.errors, case.expect.to_string()));
-            if result.0 != result.1 {
-                let num_errors = errors.len();
-                let shown_errors = show_errors(errors);
-                eprintln!(
-                    concat!(
-                        "\nExpected {expected_errors} error(s) and got {num_errors}:",
-                        "\n\n{shown_errors}",
-                        "\n\nFrom input:   {src}",
-                        "\nExpected AST: {expected_result}",
-                        "\nActual AST:   {actual}\n",
-                    ),
-                    expected_errors = case.errors,
-                    num_errors = num_errors,
-                    shown_errors = shown_errors,
-                    src = case.source,
-                    expected_result = case.expect,
-                    actual = actual,
-                );
-            }
-            result
-        });
-
-        assert_eq!(vecmap(&results, |t| t.0.clone()), vecmap(&results, |t| t.1.clone()),);
-    }
-
-    #[test]
-    fn regression_skip_comment() {
-        parse_all(
-            function_definition(false),
-            vec![
-                "fn main(
-                // This comment should be skipped
-                x : Field,
-                // And this one
-                y : Field,
-            ) {
-            }",
-                "fn main(x : Field, y : Field,) {
-                foo::bar(
-                    // Comment for x argument
-                    x,
-                    // Comment for y argument
-                    y
-                )
-            }",
-            ],
-        );
-    }
 
     #[test]
     fn parse_infix() {
@@ -1966,142 +1320,6 @@ mod test {
         }
     }
 
-    /// Deprecated constrain usage test
-    #[test]
-    fn parse_constrain() {
-        let errors = parse_with(constrain(expression()), "constrain x == y").unwrap_err();
-        assert_eq!(errors.len(), 1);
-        assert!(format!("{}", errors.first().unwrap()).contains("deprecated"));
-
-        // Currently we disallow constrain statements where the outer infix operator
-        // produces a value. This would require an implicit `==` which
-        // may not be intuitive to the user.
-        //
-        // If this is deemed useful, one would either apply a transformation
-        // or interpret it with an `==` in the evaluator
-        let disallowed_operators = vec![
-            BinaryOpKind::And,
-            BinaryOpKind::Subtract,
-            BinaryOpKind::Divide,
-            BinaryOpKind::Multiply,
-            BinaryOpKind::Or,
-        ];
-
-        for operator in disallowed_operators {
-            let src = format!("constrain x {} y;", operator.as_string());
-            let errors = parse_with(constrain(expression()), &src).unwrap_err();
-            assert_eq!(errors.len(), 2);
-            assert!(format!("{}", errors.first().unwrap()).contains("deprecated"));
-        }
-
-        // These are general cases which should always work.
-        //
-        // The first case is the most noteworthy. It contains two `==`
-        // The first (inner) `==` is a predicate which returns 0/1
-        // The outer layer is an infix `==` which is
-        // associated with the Constrain statement
-        let errors = parse_all_failing(
-            constrain(expression()),
-            vec![
-                "constrain ((x + y) == k) + z == y",
-                "constrain (x + !y) == y",
-                "constrain (x ^ y) == y",
-                "constrain (x ^ y) == (y + m)",
-                "constrain x + x ^ x == y | m",
-            ],
-        );
-        assert_eq!(errors.len(), 5);
-        assert!(errors
-            .iter()
-            .all(|err| { err.is_error() && err.to_string().contains("deprecated") }));
-    }
-
-    /// This is the standard way to declare an assert statement
-    #[test]
-    fn parse_assert() {
-        parse_with(assertion(expression()), "assert(x == y)").unwrap();
-
-        // Currently we disallow constrain statements where the outer infix operator
-        // produces a value. This would require an implicit `==` which
-        // may not be intuitive to the user.
-        //
-        // If this is deemed useful, one would either apply a transformation
-        // or interpret it with an `==` in the evaluator
-        let disallowed_operators = vec![
-            BinaryOpKind::And,
-            BinaryOpKind::Subtract,
-            BinaryOpKind::Divide,
-            BinaryOpKind::Multiply,
-            BinaryOpKind::Or,
-        ];
-
-        for operator in disallowed_operators {
-            let src = format!("assert(x {} y);", operator.as_string());
-            parse_with(assertion(expression()), &src).unwrap_err();
-        }
-
-        // These are general cases which should always work.
-        //
-        // The first case is the most noteworthy. It contains two `==`
-        // The first (inner) `==` is a predicate which returns 0/1
-        // The outer layer is an infix `==` which is
-        // associated with the Constrain statement
-        parse_all(
-            assertion(expression()),
-            vec![
-                "assert(((x + y) == k) + z == y)",
-                "assert((x + !y) == y)",
-                "assert((x ^ y) == y)",
-                "assert((x ^ y) == (y + m))",
-                "assert(x + x ^ x == y | m)",
-            ],
-        );
-
-        match parse_with(assertion(expression()), "assert(x == y, \"assertion message\")").unwrap()
-        {
-            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
-                let message = message.unwrap();
-                match message.kind {
-                    ExpressionKind::Literal(Literal::Str(message_string)) => {
-                        assert_eq!(message_string, "assertion message".to_owned());
-                    }
-                    _ => unreachable!(),
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    /// This is the standard way to assert that two expressions are equivalent
-    #[test]
-    fn parse_assert_eq() {
-        parse_all(
-            assertion_eq(expression()),
-            vec![
-                "assert_eq(x, y)",
-                "assert_eq(((x + y) == k) + z, y)",
-                "assert_eq(x + !y, y)",
-                "assert_eq(x ^ y, y)",
-                "assert_eq(x ^ y, y + m)",
-                "assert_eq(x + x ^ x, y | m)",
-            ],
-        );
-        match parse_with(assertion_eq(expression()), "assert_eq(x, y, \"assertion message\")")
-            .unwrap()
-        {
-            StatementKind::Constrain(ConstrainStatement(_, message, _)) => {
-                let message = message.unwrap();
-                match message.kind {
-                    ExpressionKind::Literal(Literal::Str(message_string)) => {
-                        assert_eq!(message_string, "assertion message".to_owned());
-                    }
-                    _ => unreachable!(),
-                }
-            }
-            _ => unreachable!(),
-        }
-    }
-
     #[test]
     fn parse_let() {
         // Why is it valid to specify a let declaration as having type u8?
@@ -2136,84 +1354,6 @@ mod test {
     }
 
     #[test]
-    fn parse_function() {
-        parse_all(
-            function_definition(false),
-            vec![
-                "fn func_name() {}",
-                "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
-                "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
-                "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
-                "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
-                "fn f<T>(f: pub Field, y : T, z : Field) -> u8 { x + a }",
-                "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
-                "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
-                "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
-                "fn f<T>(f: pub Field, y : T, z : comptime Field) -> u8 { x + a }",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait, T: SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A> + SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A, B> + SomeTrait2 {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A, B> + SomeTrait2<C> {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2<C> {}",
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2<C> + TraitY {}",
-                "fn func_name<T>(f: Field, y : T, z : U) where SomeStruct<T>: SomeTrait<U> {}",
-                // 'where u32: SomeTrait' is allowed in Rust.
-                // It will result in compiler error in case SomeTrait isn't implemented for u32.
-                "fn func_name<T>(f: Field, y : T) where u32: SomeTrait {}",
-                // A trailing plus is allowed by Rust, so we support it as well.
-                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + {}",
-                // The following should produce compile error on later stage. From the parser's perspective it's fine
-                "fn func_name<A>(f: Field, y : Field, z : Field) where T: SomeTrait {}",
-            ],
-        );
-
-        parse_all_failing(
-            function_definition(false),
-            vec![
-                "fn x2( f: []Field,,) {}",
-                "fn ( f: []Field) {}",
-                "fn ( f: []Field) {}",
-                // TODO: Check for more specific error messages
-                "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where T: {}",
-                "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where SomeTrait {}",
-                "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) SomeTrait {}",
-                // A leading plus is not allowed.
-                "fn func_name<T>(f: Field, y : T) where T: + SomeTrait {}",
-                "fn func_name<T>(f: Field, y : T) where T: TraitX + <Y> {}",
-            ],
-        );
-    }
-
-    #[test]
-    fn parse_trait() {
-        parse_all(
-            trait_definition(),
-            vec![
-                // Empty traits are legal in Rust and sometimes used as a way to whitelist certain types
-                // for a particular operation. Also known as `tag` or `marker` traits:
-                // https://stackoverflow.com/questions/71895489/what-is-the-purpose-of-defining-empty-impl-in-rust
-                "trait Empty {}",
-                "trait TraitWithDefaultBody { fn foo(self) {} }",
-                "trait TraitAcceptingMutableRef { fn foo(&mut self); }",
-                "trait TraitWithTypeBoundOperation { fn identity() -> Self; }",
-                "trait TraitWithAssociatedType { type Element; fn item(self, index: Field) -> Self::Element; }",
-                "trait TraitWithAssociatedConstant { let Size: Field; }",
-                "trait TraitWithAssociatedConstantWithDefaultValue { let Size: Field = 10; }",
-                "trait GenericTrait<T> { fn elem(&mut self, index: Field) -> T; }",
-                "trait GenericTraitWithConstraints<T> where T: SomeTrait { fn elem(self, index: Field) -> T; }",
-                "trait TraitWithMultipleGenericParams<A, B, C> where A: SomeTrait, B: AnotherTrait<C> { let Size: Field; fn zero() -> Self; }",
-            ],
-        );
-
-        parse_all_failing(
-            trait_definition(),
-            vec!["trait MissingBody", "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }"],
-        );
-    }
-
-    #[test]
     fn parse_parenthesized_expression() {
         parse_all(
             atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
@@ -2243,102 +1383,10 @@ mod test {
         );
     }
 
-    fn expr_to_lit(expr: ExpressionKind) -> Literal {
-        match expr {
-            ExpressionKind::Literal(literal) => literal,
-            _ => unreachable!("expected a literal"),
-        }
-    }
-
-    #[test]
-    fn parse_int() {
-        let int = parse_with(literal(), "5").unwrap();
-        let hex = parse_with(literal(), "0x05").unwrap();
-
-        match (expr_to_lit(int), expr_to_lit(hex)) {
-            (Literal::Integer(int, false), Literal::Integer(hex, false)) => assert_eq!(int, hex),
-            _ => unreachable!(),
-        }
-    }
-
-    #[test]
-    fn parse_string() {
-        let expr = parse_with(literal(), r#""hello""#).unwrap();
-        match expr_to_lit(expr) {
-            Literal::Str(s) => assert_eq!(s, "hello"),
-            _ => unreachable!(),
-        };
-    }
-
-    #[test]
-    fn parse_bool() {
-        let expr_true = parse_with(literal(), "true").unwrap();
-        let expr_false = parse_with(literal(), "false").unwrap();
-
-        match (expr_to_lit(expr_true), expr_to_lit(expr_false)) {
-            (Literal::Bool(t), Literal::Bool(f)) => {
-                assert!(t);
-                assert!(!f);
-            }
-            _ => unreachable!(),
-        };
-    }
-
     #[test]
     fn parse_module_declaration() {
         parse_with(module_declaration(), "mod foo").unwrap();
         parse_with(module_declaration(), "mod 1").unwrap_err();
-    }
-
-    #[test]
-    fn parse_path() {
-        let cases = vec![
-            ("std", vec!["std"]),
-            ("std::hash", vec!["std", "hash"]),
-            ("std::hash::collections", vec!["std", "hash", "collections"]),
-            ("dep::foo::bar", vec!["foo", "bar"]),
-            ("crate::std::hash", vec!["std", "hash"]),
-        ];
-
-        for (src, expected_segments) in cases {
-            let path: Path = parse_with(path(), src).unwrap();
-            for (segment, expected) in path.segments.into_iter().zip(expected_segments) {
-                assert_eq!(segment.0.contents, expected);
-            }
-        }
-
-        parse_all_failing(path(), vec!["std::", "::std", "std::hash::", "foo::1"]);
-    }
-
-    #[test]
-    fn parse_path_kinds() {
-        let cases = vec![
-            ("std", PathKind::Plain),
-            ("dep::hash::collections", PathKind::Dep),
-            ("crate::std::hash", PathKind::Crate),
-        ];
-
-        for (src, expected_path_kind) in cases {
-            let path = parse_with(path(), src).unwrap();
-            assert_eq!(path.kind, expected_path_kind);
-        }
-
-        parse_all_failing(
-            path(),
-            vec!["dep", "crate", "crate::std::crate", "foo::bar::crate", "foo::dep"],
-        );
-    }
-
-    #[test]
-    fn parse_unary() {
-        parse_all(
-            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
-            vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"],
-        );
-        parse_all_failing(
-            term(expression(), expression_no_constructors(expression()), fresh_statement(), true),
-            vec!["+hello", "/hello"],
-        );
     }
 
     #[test]
@@ -2370,26 +1418,6 @@ mod test {
                 "use foo::{,}",
             ],
         );
-    }
-
-    #[test]
-    fn parse_structs() {
-        let cases = vec![
-            "struct Foo;",
-            "struct Foo { }",
-            "struct Bar { ident: Field, }",
-            "struct Baz { ident: Field, other: Field }",
-            "#[attribute] struct Baz { ident: Field, other: Field }",
-        ];
-        parse_all(struct_definition(), cases);
-
-        let failing = vec![
-            "struct {  }",
-            "struct Foo { bar: pub Field }",
-            "struct Foo { bar: pub Field }",
-            "#[oracle(some)] struct Foo { bar: Field }",
-        ];
-        parse_all_failing(struct_definition(), failing);
     }
 
     #[test]
@@ -2562,80 +1590,5 @@ mod test {
         ];
 
         check_cases_with_errors(&cases[..], block(fresh_statement()));
-    }
-
-    #[test]
-    fn parse_raw_string_expr() {
-        let cases = vec![
-            Case { source: r#" r"foo" "#, expect: r#"r"foo""#, errors: 0 },
-            Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
-            // backslash
-            Case { source: r#" r"\\" "#, expect: r#"r"\\""#, errors: 0 },
-            Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
-            Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
-            Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
-            // escape sequence
-            Case {
-                source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##,
-                expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##,
-                errors: 0,
-            },
-            Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
-            // mismatch - errors:
-            Case { source: r###" r#"foo"## "###, expect: r##"r#"foo"#"##, errors: 1 },
-            Case { source: r##" r##"foo"# "##, expect: "(none)", errors: 2 },
-            // mismatch: short:
-            Case { source: r##" r"foo"# "##, expect: r#"r"foo""#, errors: 1 },
-            Case { source: r#" r#"foo" "#, expect: "(none)", errors: 2 },
-            // empty string
-            Case { source: r#"r"""#, expect: r#"r"""#, errors: 0 },
-            Case { source: r####"r###""###"####, expect: r####"r###""###"####, errors: 0 },
-            // miscellaneous
-            Case { source: r##" r#\"foo\"# "##, expect: "plain::r", errors: 2 },
-            Case { source: r#" r\"foo\" "#, expect: "plain::r", errors: 1 },
-            Case { source: r##" r##"foo"# "##, expect: "(none)", errors: 2 },
-            // missing 'r' letter
-            Case { source: r##" ##"foo"# "##, expect: r#""foo""#, errors: 2 },
-            Case { source: r#" #"foo" "#, expect: "plain::foo", errors: 2 },
-            // whitespace
-            Case { source: r##" r #"foo"# "##, expect: "plain::r", errors: 2 },
-            Case { source: r##" r# "foo"# "##, expect: "plain::r", errors: 3 },
-            Case { source: r#" r#"foo" # "#, expect: "(none)", errors: 2 },
-            // after identifier
-            Case { source: r##" bar#"foo"# "##, expect: "plain::bar", errors: 2 },
-            // nested
-            Case {
-                source: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,
-                expect: r###"r##"foo r#"bar"# r"baz" ### bye"##"###,
-                errors: 0,
-            },
-        ];
-
-        check_cases_with_errors(&cases[..], expression());
-    }
-
-    #[test]
-    fn parse_raw_string_lit() {
-        let lit_cases = vec![
-            Case { source: r#" r"foo" "#, expect: r#"r"foo""#, errors: 0 },
-            Case { source: r##" r#"foo"# "##, expect: r##"r#"foo"#"##, errors: 0 },
-            // backslash
-            Case { source: r#" r"\\" "#, expect: r#"r"\\""#, errors: 0 },
-            Case { source: r##" r#"\"# "##, expect: r##"r#"\"#"##, errors: 0 },
-            Case { source: r##" r#"\\"# "##, expect: r##"r#"\\"#"##, errors: 0 },
-            Case { source: r##" r#"\\\"# "##, expect: r##"r#"\\\"#"##, errors: 0 },
-            // escape sequence
-            Case {
-                source: r##" r#"\t\n\\t\\n\\\t\\\n\\\\"# "##,
-                expect: r##"r#"\t\n\\t\\n\\\t\\\n\\\\"#"##,
-                errors: 0,
-            },
-            Case { source: r##" r#"\\\\\\\\"# "##, expect: r##"r#"\\\\\\\\"#"##, errors: 0 },
-            // mismatch - errors:
-            Case { source: r###" r#"foo"## "###, expect: r##"r#"foo"#"##, errors: 1 },
-            Case { source: r##" r##"foo"# "##, expect: "(none)", errors: 2 },
-        ];
-
-        check_cases_with_errors(&lit_cases[..], literal());
     }
 }
