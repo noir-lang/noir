@@ -22,7 +22,7 @@ fn _nullifier_inclusion(nullifier: Field, header: Header) {
         == compute_merkle_root(nullifier_leaf, witness.index, witness.path), "Proving nullifier inclusion failed"
     );
     // --> Now we have traversed the trees all the way up to archive root and verified that the nullifier
-    //     was not yet included in the nullifier tree.
+    //     was included in the nullifier tree.
 }
 
 pub fn prove_nullifier_inclusion(nullifier: Field, context: PrivateContext) {
@@ -31,7 +31,7 @@ pub fn prove_nullifier_inclusion(nullifier: Field, context: PrivateContext) {
 
 pub fn prove_nullifier_inclusion_at(
     nullifier: Field,
-    block_number: u32, // The block at which we'll prove that the note exists
+    block_number: u32, // The block at which we'll prove that the nullifier exists in the nullifier tree
     context: PrivateContext
 ) {
     let header = context.get_header_at(block_number);
