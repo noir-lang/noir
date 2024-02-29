@@ -99,9 +99,7 @@ export class Oracle {
 
     const witness = await this.typedOracle.getNullifierMembershipWitness(parsedBlockNumber, parsedNullifier);
     if (!witness) {
-      throw new Error(
-        `Low nullifier witness not found for nullifier ${parsedNullifier} at block ${parsedBlockNumber}.`,
-      );
+      throw new Error(`Nullifier witness not found for nullifier ${parsedNullifier} at block ${parsedBlockNumber}.`);
     }
     return witness.toFields().map(toACVMField);
   }

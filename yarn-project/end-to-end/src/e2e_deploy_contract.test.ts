@@ -194,11 +194,16 @@ describe('e2e_deploy_contract', () => {
         const owner = await registerRandomAccount(pxe);
         const initArgs: StatefulContractCtorArgs = [owner, 42];
         const contract = await registerContract(testWallet, StatefulTestContract, initArgs);
+        logger.info(`Calling the constructor for ${contract.address}`);
         await contract.methods
           .constructor(...initArgs)
           .send()
           .wait();
+        logger.info(`Checking if the constructor was run for ${contract.address}`);
         expect(await contract.methods.summed_values(owner).view()).toEqual(42n);
+        logger.info(`Calling a function that requires initialization on ${contract.address}`);
+        await contract.methods.create_note(owner, 10).send().wait();
+        expect(await contract.methods.summed_values(owner).view()).toEqual(52n);
       },
       30_000,
     );
@@ -213,6 +218,20 @@ describe('e2e_deploy_contract', () => {
       expect(await contracts[0].methods.summed_values(owner).view()).toEqual(42n);
       expect(await contracts[1].methods.summed_values(owner).view()).toEqual(52n);
     }, 30_000);
+
+    // TODO(@spalladino): This won't work until we can read a nullifier in the same tx in which it was emitted.
+    it.skip('initializes and calls a private function in a single tx', async () => {
+      const owner = await registerRandomAccount(pxe);
+      const initArgs: StatefulContractCtorArgs = [owner, 42];
+      const contract = await registerContract(wallet, StatefulTestContract, initArgs);
+      const batch = new BatchCall(wallet, [
+        contract.methods.constructor(...initArgs).request(),
+        contract.methods.create_note(owner, 10).request(),
+      ]);
+      logger.info(`Executing constructor and private function in batch at ${contract.address}`);
+      await batch.send().wait();
+      expect(await contract.methods.summed_values(owner).view()).toEqual(52n);
+    });
 
     it('refuses to initialize a contract twice', async () => {
       const owner = await registerRandomAccount(pxe);
@@ -234,12 +253,9 @@ describe('e2e_deploy_contract', () => {
       const owner = await registerRandomAccount(pxe);
       const initArgs: StatefulContractCtorArgs = [owner, 42];
       const contract = await registerContract(wallet, StatefulTestContract, initArgs);
-      // TODO(@spalladino): It'd be nicer to be able to fail the assert with a more descriptive message,
-      // but the best we can do for now is pushing a read request to the kernel and wait for it to fail.
-      // Maybe we need an unconstrained check for the read request that runs within the app circuit simulation
-      // so we can bail earlier with a more descriptive error? I should create an issue for this.
+      // TODO(@spalladino): It'd be nicer to be able to fail the assert with a more descriptive message.
       await expect(contract.methods.create_note(owner, 10).send().wait()).rejects.toThrow(
-        /The read request.*does not match/,
+        /nullifier witness not found/i,
       );
     });
 
@@ -350,7 +366,7 @@ describe('e2e_deploy_contract', () => {
       // Register the instance to be deployed in the pxe
       await wallet.addContracts([{ artifact, instance }]);
       // Set up the contract that calls the deployer (which happens to be the StatefulTestContract) and call it
-      const deployer = await registerContract(wallet, StatefulTestContract, [accounts[0].address, 48]);
+      const deployer = await registerContract(wallet, TestContract, [accounts[0].address, 48]);
       await deployer.methods.deploy_contract(instance.address).send().wait();
     });
   });

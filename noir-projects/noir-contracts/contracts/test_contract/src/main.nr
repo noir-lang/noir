@@ -14,10 +14,11 @@ contract Test {
         context::{Context, inputs::private_context_inputs::PrivateContextInputs}, hash::pedersen_hash,
         context::PrivateContext,
         note::{
-        note_header::NoteHeader, utils as note_utils, lifecycle::{create_note, destroy_note},
-        note_getter::{get_notes, view_notes}, note_getter_options::{NoteGetterOptions, NoteStatus},
-        note_viewer_options::NoteViewerOptions
-    },
+            note_header::NoteHeader, utils as note_utils, lifecycle::{create_note, destroy_note},
+            note_getter::{get_notes, view_notes}, note_getter_options::{NoteGetterOptions, NoteStatus},
+            note_viewer_options::NoteViewerOptions
+        },
+        deploy::{deploy_contract as aztec_deploy_contract},
         oracle::{get_public_key::get_public_key as get_public_key_oracle, context::get_portal_address, rand::rand},
         state_vars::PrivateImmutable, log::emit_unencrypted_log_from_private
     };
@@ -347,6 +348,11 @@ contract Test {
     #[aztec(public)]
     fn assert_header_public(header_hash: Field) {
         assert(context.historical_header.hash() == header_hash, "Invalid header hash");
+    }
+
+    #[aztec(private)]
+    fn deploy_contract(target: AztecAddress) {
+        aztec_deploy_contract(&mut context, target);
     }
 
     unconstrained fn get_constant() -> pub Field {

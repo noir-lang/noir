@@ -337,7 +337,7 @@ describe('Private Execution test suite', () => {
     });
 
     it('should run the create_note function', async () => {
-      const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'create_note');
+      const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'create_note_no_init_check');
 
       const result = await runSimulator({ args: [owner, 140], artifact });
 
@@ -364,7 +364,7 @@ describe('Private Execution test suite', () => {
 
     it('should run the destroy_and_create function', async () => {
       const amountToTransfer = 100n;
-      const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'destroy_and_create');
+      const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'destroy_and_create_no_init_check');
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner);
       const recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient);
@@ -411,8 +411,7 @@ describe('Private Execution test suite', () => {
       expect(changeNote.note.items[0]).toEqual(new Fr(40n));
 
       const readRequests = sideEffectArrayToValueArray(
-        // We remove the first element which is the read request for the initialization commitment
-        nonEmptySideEffects(result.callStackItem.publicInputs.readRequests.slice(1)),
+        nonEmptySideEffects(result.callStackItem.publicInputs.readRequests),
       );
 
       expect(readRequests).toHaveLength(consumedNotes.length);
@@ -422,7 +421,7 @@ describe('Private Execution test suite', () => {
     it('should be able to destroy_and_create with dummy notes', async () => {
       const amountToTransfer = 100n;
       const balance = 160n;
-      const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'destroy_and_create');
+      const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'destroy_and_create_no_init_check');
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner);
       const noteTypeId = new Fr(869710811710178111116101n); // ValueNote

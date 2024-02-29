@@ -237,10 +237,10 @@ describe('e2e_inclusion_proofs_contract', () => {
 
       await expect(
         contract.methods.test_nullifier_inclusion(randomNullifier, true, blockNumber).send().wait(),
-      ).rejects.toThrow(`Low nullifier witness not found for nullifier ${randomNullifier.toString()} at block`);
+      ).rejects.toThrow(`Nullifier witness not found for nullifier ${randomNullifier.toString()} at block`);
 
       await expect(contract.methods.test_nullifier_inclusion(randomNullifier, false, 0n).send().wait()).rejects.toThrow(
-        `Low nullifier witness not found for nullifier ${randomNullifier.toString()} at block`,
+        `Nullifier witness not found for nullifier ${randomNullifier.toString()} at block`,
       );
     });
   });
