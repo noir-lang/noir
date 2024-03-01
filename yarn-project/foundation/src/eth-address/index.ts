@@ -1,3 +1,5 @@
+import { inspect } from 'util';
+
 import { keccak256String } from '../crypto/keccak/index.js';
 import { randomBytes } from '../crypto/random/index.js';
 import { Fr } from '../fields/index.js';
@@ -156,6 +158,10 @@ export class EthAddress {
    */
   public toString() {
     return `0x${this.buffer.toString('hex')}` as `0x${string}`;
+  }
+
+  [inspect.custom]() {
+    return `EthAddress<${this.toString()}>`;
   }
 
   /**

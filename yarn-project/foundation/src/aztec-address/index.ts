@@ -1,3 +1,5 @@
+import { inspect } from 'util';
+
 import { Fr, fromBuffer } from '../fields/index.js';
 import { BufferReader, FieldReader } from '../serialize/index.js';
 
@@ -14,6 +16,10 @@ export class AztecAddress extends Fr {
       throw new Error(`Invalid AztecAddress length ${buffer.length}.`);
     }
     super(buffer);
+  }
+
+  [inspect.custom]() {
+    return `AztecAddress<${this.toString()}>`;
   }
 
   static ZERO = new AztecAddress(Buffer.alloc(32));

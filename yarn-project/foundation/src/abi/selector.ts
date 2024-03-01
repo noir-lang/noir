@@ -1,3 +1,5 @@
+import { inspect } from 'util';
+
 import { toBufferBE } from '../bigint-buffer/index.js';
 import { Fr } from '../fields/index.js';
 
@@ -34,7 +36,11 @@ export abstract class Selector {
    * @returns The string.
    */
   toString(): string {
-    return this.toBuffer().toString('hex');
+    return '0x' + this.toBuffer().toString('hex');
+  }
+
+  [inspect.custom]() {
+    return `Selector<${this.toString()}>`;
   }
 
   /**

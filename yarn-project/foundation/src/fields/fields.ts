@@ -1,3 +1,5 @@
+import { inspect } from 'util';
+
 import { toBigIntBE, toBufferBE } from '../bigint-buffer/index.js';
 import { randomBytes } from '../crypto/random/index.js';
 import { BufferReader } from '../serialize/buffer_reader.js';
@@ -185,6 +187,10 @@ export class Fr extends BaseField {
     super(value);
   }
 
+  [inspect.custom]() {
+    return `Fr<${this.toString()}>`;
+  }
+
   protected modulus() {
     return Fr.MODULUS;
   }
@@ -250,6 +256,10 @@ export class Fq extends BaseField {
   static MODULUS = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47n;
   private static HIGH_SHIFT = BigInt((BaseField.SIZE_IN_BYTES / 2) * 8);
   private static LOW_MASK = (1n << Fq.HIGH_SHIFT) - 1n;
+
+  [inspect.custom]() {
+    return `Fq<${this.toString()}>`;
+  }
 
   get low(): Fr {
     return new Fr(this.toBigInt() & Fq.LOW_MASK);
