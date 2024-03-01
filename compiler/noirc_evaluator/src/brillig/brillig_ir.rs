@@ -32,7 +32,7 @@ use num_bigint::BigUint;
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 64 bits. This means that we assume that
 /// memory has 2^64 memory slots.
-pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
 
 // Registers reserved in runtime for special purposes.
 pub(crate) enum ReservedRegisters {
@@ -123,8 +123,8 @@ impl BrilligContext {
     ) {
         // debug_show handled by allocate_array_instruction
         let size_register = self.make_usize_constant(size.into());
-        self.allocate_array_instruction(pointer_register, size_register);
-        self.deallocate_register(size_register);
+        self.allocate_array_instruction(pointer_register, size_register.address);
+        self.deallocate_register(size_register.address);
     }
 
     /// Allocates an array of size contained in size_register and stores the
@@ -172,11 +172,11 @@ impl BrilligContext {
         });
         self.memory_op(
             ReservedRegisters::stack_pointer(),
-            size_register,
+            size_register.address,
             ReservedRegisters::stack_pointer(),
             BinaryIntOp::Add,
         );
-        self.deallocate_register(size_register);
+        self.deallocate_register(size_register.address);
     }
 
     pub(crate) fn allocate_single_addr_reference_instruction(
@@ -207,18 +207,14 @@ impl BrilligContext {
     pub(crate) fn array_get(
         &mut self,
         array_ptr: MemoryAddress,
-        index: MemoryAddress,
+        index: SingleAddrVariable,
         result: MemoryAddress,
     ) {
-        self.debug_show.array_get(array_ptr, index, result);
+        assert!(index.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+        self.debug_show.array_get(array_ptr, index.address, result);
         // Computes array_ptr + index, ie array[index]
         let index_of_element_in_memory = self.allocate_register();
-        self.binary_instruction(
-            array_ptr,
-            index,
-            index_of_element_in_memory,
-            BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
-        );
+        self.memory_op(array_ptr, index.address, index_of_element_in_memory, BinaryIntOp::Add);
 
         self.load_instruction(result, index_of_element_in_memory);
         // Free up temporary register
@@ -229,18 +225,14 @@ impl BrilligContext {
     pub(crate) fn array_set(
         &mut self,
         array_ptr: MemoryAddress,
-        index: MemoryAddress,
+        index: SingleAddrVariable,
         value: MemoryAddress,
     ) {
-        self.debug_show.array_set(array_ptr, index, value);
+        assert!(index.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+        self.debug_show.array_set(array_ptr, index.address, value);
         // Computes array_ptr + index, ie array[index]
         let index_of_element_in_memory = self.allocate_register();
-        self.binary_instruction(
-            array_ptr,
-            index,
-            index_of_element_in_memory,
-            BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
-        );
+        self.memory_op(array_ptr, index.address, index_of_element_in_memory, BinaryIntOp::Add);
 
         self.store_instruction(index_of_element_in_memory, value);
         // Free up temporary register
@@ -253,17 +245,18 @@ impl BrilligContext {
         &mut self,
         source_pointer: MemoryAddress,
         destination_pointer: MemoryAddress,
-        num_elements_register: MemoryAddress,
+        num_elements_variable: SingleAddrVariable,
     ) {
+        assert!(num_elements_variable.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
         self.debug_show.copy_array_instruction(
             source_pointer,
             destination_pointer,
-            num_elements_register,
+            num_elements_variable.address,
         );
 
         let value_register = self.allocate_register();
 
-        self.loop_instruction(num_elements_register, |ctx, iterator| {
+        self.loop_instruction(num_elements_variable.address, |ctx, iterator| {
             ctx.array_get(source_pointer, iterator, value_register);
             ctx.array_set(destination_pointer, iterator, value_register);
         });
@@ -275,7 +268,7 @@ impl BrilligContext {
     /// The body of the loop should be issued by the caller in the on_iteration closure.
     pub(crate) fn loop_instruction<F>(&mut self, iteration_count: MemoryAddress, on_iteration: F)
     where
-        F: FnOnce(&mut BrilligContext, MemoryAddress),
+        F: FnOnce(&mut BrilligContext, SingleAddrVariable),
     {
         let iterator_register = self.make_usize_constant(0_u128.into());
 
@@ -289,7 +282,7 @@ impl BrilligContext {
             SingleAddrVariable { address: self.allocate_register(), bit_size: 1 };
 
         self.memory_op(
-            iterator_register,
+            iterator_register.address,
             iteration_count,
             iterator_less_than_iterations.address,
             BinaryIntOp::LessThan,
@@ -305,7 +298,7 @@ impl BrilligContext {
         on_iteration(self, iterator_register);
 
         // Increment the iterator register
-        self.usize_op_in_place(iterator_register, BinaryIntOp::Add, 1);
+        self.usize_op_in_place(iterator_register.address, BinaryIntOp::Add, 1);
 
         self.jump_instruction(loop_label);
 
@@ -314,7 +307,7 @@ impl BrilligContext {
 
         // Deallocate our temporary registers
         self.deallocate_register(iterator_less_than_iterations.address);
-        self.deallocate_register(iterator_register);
+        self.deallocate_register(iterator_register.address);
     }
 
     /// This instruction will issue an if-then branch that will check if the condition is true
@@ -442,12 +435,16 @@ impl BrilligContext {
     /// is false.
     pub(crate) fn constrain_instruction(
         &mut self,
-        condition: MemoryAddress,
+        condition: SingleAddrVariable,
         assert_message: Option<String>,
     ) {
-        self.debug_show.constrain_instruction(condition);
+        assert!(condition.bit_size == 1);
+        self.debug_show.constrain_instruction(condition.address);
         let (next_section, next_label) = self.reserve_next_section_label();
-        self.add_unresolved_jump(BrilligOpcode::JumpIf { condition, location: 0 }, next_label);
+        self.add_unresolved_jump(
+            BrilligOpcode::JumpIf { condition: condition.address, location: 0 },
+            next_label,
+        );
         self.push_opcode(BrilligOpcode::Trap);
         if let Some(assert_message) = assert_message {
             self.obj.add_assert_message_to_last_opcode(assert_message);
@@ -532,24 +529,35 @@ impl BrilligContext {
     /// and store the result in the `result` register.
     pub(crate) fn binary_instruction(
         &mut self,
-        lhs: MemoryAddress,
-        rhs: MemoryAddress,
-        result: MemoryAddress,
+        lhs: SingleAddrVariable,
+        rhs: SingleAddrVariable,
+        result: SingleAddrVariable,
         operation: BrilligBinaryOp,
     ) {
-        self.debug_show.binary_instruction(lhs, rhs, result, operation);
+        // TODO assert bit sizes here
+        self.debug_show.binary_instruction(lhs.address, rhs.address, result.address, operation);
         match operation {
             BrilligBinaryOp::Field { op } => {
-                let opcode = BrilligOpcode::BinaryFieldOp { op, destination: result, lhs, rhs };
+                let opcode = BrilligOpcode::BinaryFieldOp {
+                    op,
+                    destination: result.address,
+                    lhs: lhs.address,
+                    rhs: rhs.address,
+                };
                 self.push_opcode(opcode);
             }
             BrilligBinaryOp::Integer { op, bit_size } => {
-                let opcode =
-                    BrilligOpcode::BinaryIntOp { op, destination: result, bit_size, lhs, rhs };
+                let opcode = BrilligOpcode::BinaryIntOp {
+                    op,
+                    destination: result.address,
+                    bit_size,
+                    lhs: lhs.address,
+                    rhs: rhs.address,
+                };
                 self.push_opcode(opcode);
             }
             BrilligBinaryOp::Modulo { is_signed_integer, bit_size } => {
-                self.modulo_instruction(result, lhs, rhs, bit_size, is_signed_integer);
+                self.modulo_instruction(result, lhs, rhs, is_signed_integer);
             }
         }
     }
@@ -583,15 +591,16 @@ impl BrilligContext {
         let u_max = FieldElement::from(2_i128).pow(&FieldElement::from(input.bit_size as i128))
             - FieldElement::one();
         let max = self.make_constant(Value::from(u_max), input.bit_size);
+
         let opcode = BrilligOpcode::BinaryIntOp {
             destination: result.address,
             op: BinaryIntOp::Sub,
             bit_size: input.bit_size,
-            lhs: max,
+            lhs: max.address,
             rhs: input.address,
         };
         self.push_opcode(opcode);
-        self.deallocate_register(max);
+        self.deallocate_register(max.address);
     }
 
     /// Processes a foreign call instruction.
@@ -750,13 +759,13 @@ impl BrilligContext {
         );
 
         self.binary_instruction(
-            value_to_truncate.address,
+            value_to_truncate,
             mask_constant,
-            destination_of_truncated_value.address,
+            destination_of_truncated_value,
             BrilligBinaryOp::Integer { op: BinaryIntOp::And, bit_size: value_to_truncate.bit_size },
         );
 
-        self.deallocate_register(mask_constant);
+        self.deallocate_register(mask_constant.address);
     }
 
     /// Emits a stop instruction
@@ -766,17 +775,17 @@ impl BrilligContext {
     }
 
     /// Returns a register which holds the value of a constant
-    pub(crate) fn make_constant(&mut self, constant: Value, bit_size: u32) -> MemoryAddress {
+    pub(crate) fn make_constant(&mut self, constant: Value, bit_size: u32) -> SingleAddrVariable {
         let register = self.allocate_register();
         self.const_instruction(register, constant, bit_size);
-        register
+        SingleAddrVariable::new(register, bit_size)
     }
 
     /// Returns a register which holds the value of an usize constant
-    pub(crate) fn make_usize_constant(&mut self, constant: Value) -> MemoryAddress {
+    pub(crate) fn make_usize_constant(&mut self, constant: Value) -> SingleAddrVariable {
         let register = self.allocate_register();
         self.usize_const(register, constant);
-        register
+        SingleAddrVariable::new(register, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)
     }
 
     /// Computes left % right by emitting the necessary Brillig opcodes.
@@ -790,16 +799,17 @@ impl BrilligContext {
     /// to other binary instructions.
     pub(crate) fn modulo_instruction(
         &mut self,
-        result_register: MemoryAddress,
-        left: MemoryAddress,
-        right: MemoryAddress,
-        bit_size: u32,
+        result: SingleAddrVariable,
+        left: SingleAddrVariable,
+        right: SingleAddrVariable,
         signed: bool,
     ) {
         // no debug_show, shown in binary instruction
         let scratch_register_i = self.allocate_register();
         let scratch_register_j = self.allocate_register();
 
+        assert!(left.bit_size == right.bit_size);
+        let bit_size = left.bit_size;
         // i = left / right
         self.push_opcode(BrilligOpcode::BinaryIntOp {
             op: match signed {
@@ -808,8 +818,8 @@ impl BrilligContext {
             },
             destination: scratch_register_i,
             bit_size,
-            lhs: left,
-            rhs: right,
+            lhs: left.address,
+            rhs: right.address,
         });
 
         // j = i * right
@@ -818,15 +828,15 @@ impl BrilligContext {
             destination: scratch_register_j,
             bit_size,
             lhs: scratch_register_i,
-            rhs: right,
+            rhs: right.address,
         });
 
         // result_register = left - j
         self.push_opcode(BrilligOpcode::BinaryIntOp {
             op: BinaryIntOp::Sub,
-            destination: result_register,
+            destination: result.address,
             bit_size,
-            lhs: left,
+            lhs: left.address,
             rhs: scratch_register_j,
         });
         // Free scratch registers
@@ -909,9 +919,9 @@ impl BrilligContext {
         constant: usize,
     ) {
         let const_register = self.make_usize_constant(Value::from(constant));
-        self.memory_op(operand, const_register, destination, op);
+        self.memory_op(operand, const_register.address, destination, op);
         // Mark as no longer used for this purpose, frees for reuse
-        self.deallocate_register(const_register);
+        self.deallocate_register(const_register.address);
     }
 
     /// Utility method to perform a binary instruction with a memory address
@@ -923,9 +933,10 @@ impl BrilligContext {
         op: BinaryIntOp,
     ) {
         self.binary_instruction(
-            lhs,
-            rhs,
-            destination,
+            SingleAddrVariable::new(lhs, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            SingleAddrVariable::new(rhs, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            // TODO add a function here to get the resulting bit size depending on the operation
+            SingleAddrVariable::new(destination, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             BrilligBinaryOp::Integer { op, bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
         );
     }
@@ -983,7 +994,7 @@ impl BrilligContext {
     /// Utility method to transform a HeapArray to a HeapVector by making a runtime constant with the size.
     pub(crate) fn array_to_vector(&mut self, array: &BrilligArray) -> BrilligVector {
         let size_register = self.make_usize_constant(array.size.into());
-        BrilligVector { size: size_register, pointer: array.pointer, rc: array.rc }
+        BrilligVector { size: size_register.address, pointer: array.pointer, rc: array.rc }
     }
 
     /// Issues a blackbox operation.
@@ -996,37 +1007,40 @@ impl BrilligContext {
     /// And the radix register limb_count times to the target vector.
     pub(crate) fn radix_instruction(
         &mut self,
-        source: MemoryAddress,
+        source_field: SingleAddrVariable,
         target_vector: BrilligVector,
-        radix: MemoryAddress,
-        limb_count: MemoryAddress,
+        radix: SingleAddrVariable,
+        limb_count: SingleAddrVariable,
         big_endian: bool,
     ) {
-        self.mov_instruction(target_vector.size, limb_count);
+        assert!(source_field.bit_size == FieldElement::max_num_bits());
+        assert!(radix.bit_size == 32);
+        assert!(limb_count.bit_size == 32);
+
+        self.cast_instruction(
+            SingleAddrVariable::new(target_vector.size, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            limb_count,
+        );
         self.usize_const(target_vector.rc, 1_usize.into());
         self.allocate_array_instruction(target_vector.pointer, target_vector.size);
 
-        let shifted_register = self.allocate_register();
-        self.mov_instruction(shifted_register, source);
+        let shifted_field =
+            SingleAddrVariable::new(self.allocate_register(), FieldElement::max_num_bits());
+        self.mov_instruction(shifted_field.address, source_field.address);
 
-        let modulus_register: MemoryAddress = self.allocate_register();
+        let modulus_field =
+            SingleAddrVariable::new(self.allocate_register(), FieldElement::max_num_bits());
 
         self.loop_instruction(target_vector.size, |ctx, iterator_register| {
             // Compute the modulus
-            ctx.modulo_instruction(
-                modulus_register,
-                shifted_register,
-                radix,
-                FieldElement::max_num_bits(),
-                false,
-            );
+            ctx.modulo_instruction(modulus_field, shifted_field, radix, false);
             // Write it
-            ctx.array_set(target_vector.pointer, iterator_register, modulus_register);
+            ctx.array_set(target_vector.pointer, iterator_register, modulus_field.address);
             // Integer div the field
             ctx.binary_instruction(
-                shifted_register,
+                shifted_field,
                 radix,
-                shifted_register,
+                shifted_field,
                 BrilligBinaryOp::Integer {
                     op: BinaryIntOp::UnsignedDiv,
                     bit_size: FieldElement::max_num_bits(),
@@ -1035,8 +1049,8 @@ impl BrilligContext {
         });
 
         // Deallocate our temporary registers
-        self.deallocate_register(shifted_register);
-        self.deallocate_register(modulus_register);
+        self.deallocate_register(shifted_field.address);
+        self.deallocate_register(modulus_field.address);
 
         if big_endian {
             self.reverse_vector_in_place_instruction(target_vector);
@@ -1061,16 +1075,24 @@ impl BrilligContext {
             ctx.usize_op_in_place(index_at_end_of_array, BinaryIntOp::Sub, 1);
             ctx.memory_op(
                 index_at_end_of_array,
-                iterator_register,
+                iterator_register.address,
                 index_at_end_of_array,
                 BinaryIntOp::Sub,
             );
 
-            ctx.array_get(vector.pointer, index_at_end_of_array, end_value_register);
+            ctx.array_get(
+                vector.pointer,
+                SingleAddrVariable::new(index_at_end_of_array, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                end_value_register,
+            );
 
             // Write both values
             ctx.array_set(vector.pointer, iterator_register, end_value_register);
-            ctx.array_set(vector.pointer, index_at_end_of_array, start_value_register);
+            ctx.array_set(
+                vector.pointer,
+                SingleAddrVariable::new(index_at_end_of_array, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                start_value_register,
+            );
         });
 
         self.deallocate_register(iteration_count);

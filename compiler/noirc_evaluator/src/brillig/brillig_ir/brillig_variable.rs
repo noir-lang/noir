@@ -11,6 +11,12 @@ pub(crate) struct SingleAddrVariable {
     pub(crate) bit_size: u32,
 }
 
+impl SingleAddrVariable {
+    pub(crate) fn new(address: MemoryAddress, bit_size: u32) -> Self {
+        SingleAddrVariable { address, bit_size }
+    }
+}
+
 /// The representation of a noir array in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligArray {
