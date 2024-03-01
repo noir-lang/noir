@@ -9,6 +9,7 @@ import {
   L2BlockContext,
   L2BlockL2Logs,
   Note,
+  TaggedNote,
   TxL2Logs,
 } from '@aztec/circuit-types';
 import { Fr, MAX_NEW_NOTE_HASHES_PER_TX } from '@aztec/circuits.js';
@@ -47,8 +48,8 @@ describe('Note Processor', () => {
   const computeMockNoteHash = (note: Note) => pedersenHash(note.items.map(i => i.toBuffer()));
 
   // ownedData: [tx1, tx2, ...], the numbers in each tx represents the indices of the note hashes the account owns.
-  const createEncryptedLogsAndOwnedL1NotePayloads = (ownedData: number[][], ownedNotes: L1NotePayload[]) => {
-    const newNotes: L1NotePayload[] = [];
+  const createEncryptedLogsAndOwnedL1NotePayloads = (ownedData: number[][], ownedNotes: TaggedNote[]) => {
+    const newNotes: TaggedNote[] = [];
     const ownedL1NotePayloads: L1NotePayload[] = [];
     const txLogs: TxL2Logs[] = [];
     let usedOwnedNote = 0;
@@ -62,12 +63,13 @@ describe('Note Processor', () => {
       for (let noteIndex = 0; noteIndex < MAX_NEW_NOTE_HASHES_PER_TX; ++noteIndex) {
         const isOwner = ownedDataIndices.includes(noteIndex);
         const publicKey = isOwner ? owner.getPublicKey() : Point.random();
-        const note = (isOwner && ownedNotes[usedOwnedNote]) || L1NotePayload.random();
+        const note = (isOwner && ownedNotes[usedOwnedNote]) || TaggedNote.random();
         usedOwnedNote += note === ownedNotes[usedOwnedNote] ? 1 : 0;
         newNotes.push(note);
         if (isOwner) {
-          ownedL1NotePayloads.push(note);
+          ownedL1NotePayloads.push(note.notePayload);
         }
+        // const encryptedNote =
         const log = note.toEncryptedBuffer(publicKey, grumpkin);
         // 1 tx containing 1 function invocation containing 1 log
         logs.push(new FunctionL2Logs([log]));
@@ -80,10 +82,10 @@ describe('Note Processor', () => {
   };
 
   const mockData = (
-    ownedData: number[][],
+    ownedData: number[][], // = [[2]]
     prependedBlocks = 0,
     appendedBlocks = 0,
-    ownedNotes: L1NotePayload[] = [],
+    ownedNotes: TaggedNote[] = [], // L1NotePayload[] = [],
   ) => {
     if (ownedData.length > TXS_PER_BLOCK) {
       throw new Error(`Tx size should be less than ${TXS_PER_BLOCK}.`);
@@ -108,7 +110,7 @@ describe('Note Processor', () => {
       ownedL1NotePayloads.push(...payloads);
       for (let i = 0; i < TXS_PER_BLOCK; i++) {
         block.body.txEffects[i].newNoteHashes = newNotes
-          .map(n => computeMockNoteHash(n.note))
+          .map(n => computeMockNoteHash(n.notePayload.note))
           .slice(i * MAX_NEW_NOTE_HASHES_PER_TX, (i + 1) * MAX_NEW_NOTE_HASHES_PER_TX) as Tuple<
           Fr,
           typeof MAX_NEW_NOTE_HASHES_PER_TX
@@ -208,8 +210,8 @@ describe('Note Processor', () => {
   });
 
   it('should be able to recover two note payloads with containing the same note', async () => {
-    const note = L1NotePayload.random();
-    const note2 = L1NotePayload.random();
+    const note = TaggedNote.random(); // L1NotePayload.random();
+    const note2 = TaggedNote.random(); // L1NotePayload.random();
     // All note payloads except one have the same contract address, storage slot, and the actual note.
     const notes = [note, note, note, note2, note];
     const { blockContexts, encryptedLogsArr, ownedL1NotePayloads } = mockData([[0, 2], [], [0, 1, 3]], 0, 0, notes);

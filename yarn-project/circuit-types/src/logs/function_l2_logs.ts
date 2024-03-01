@@ -1,5 +1,5 @@
 import { sha256 } from '@aztec/foundation/crypto';
-import { Point } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 
 import { randomBytes } from 'crypto';
@@ -77,7 +77,7 @@ export class FunctionL2Logs {
       if (logType === LogType.ENCRYPTED) {
         const randomEphPubKey = Point.random();
         const randomLogContent = randomBytes(144 - Point.SIZE_IN_BYTES);
-        logs.push(Buffer.concat([randomLogContent, randomEphPubKey.toBuffer()]));
+        logs.push(Buffer.concat([Fr.random().toBuffer(), randomLogContent, randomEphPubKey.toBuffer()]));
       } else {
         logs.push(UnencryptedL2Log.random().toBuffer());
       }
