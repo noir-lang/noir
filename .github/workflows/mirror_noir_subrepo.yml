@@ -64,7 +64,7 @@ jobs:
       - name: Push to branch
         run: |
           set -xue # print commands
-          SUBREPO_PATH=noir
+          SUBREPO_PATH=noir/noir-repo
           BRANCH=aztec-packages
           if [[ "$PR_URL" == "" ]]; then
             # if no staging branch, we can overwrite
@@ -73,7 +73,7 @@ jobs:
             # otherwise we first reset our staging branch
             STAGING_BRANCH=$BRANCH-staging
           fi
-          BASE_NOIR_COMMIT=`git config --file=noir/noir-repo/.gitrepo subrepo.commit`
+          BASE_NOIR_COMMIT=`git config --file=$SUBREPO_PATH/.gitrepo subrepo.commit`
           COMMIT=$(git rev-parse HEAD)
           COMMIT_MESSAGE=$(git log -1 --pretty=format:%B)
 
@@ -91,7 +91,7 @@ jobs:
           }
           # force_sync_staging: Push to our aztec-packages staging branch.
           function force_sync_staging() {
-            echo "$COMMIT" > noir/noir-repo/.aztec-sync-commit && git add noir/noir-repo/.aztec-sync-commit
+            echo "$COMMIT" > $SUBREPO_PATH/.aztec-sync-commit && git add $SUBREPO_PATH/.aztec-sync-commit
             # make a new commit with our previous message
             git commit -am "$COMMIT_MESSAGE"
             # Now push to it with subrepo with computed commit messages
