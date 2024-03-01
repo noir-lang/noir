@@ -9,7 +9,7 @@ function emptyExecutionResult(): ExecutionResult {
     vk: Buffer.from(''),
     partialWitness: new Map(),
     callStackItem: PrivateCallStackItem.empty(),
-    readRequestPartialWitnesses: [],
+    noteHashReadRequestPartialWitnesses: [],
     newNotes: [],
     returnValues: [],
     nestedExecutions: [],

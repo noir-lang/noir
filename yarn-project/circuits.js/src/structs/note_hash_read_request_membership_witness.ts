@@ -11,7 +11,7 @@ import { MembershipWitness } from './membership_witness.js';
  * some additional fields used to direct the kernel regarding whether a read is transient
  * and if so which commitment it corresponds to.
  */
-export class ReadRequestMembershipWitness {
+export class NoteHashReadRequestMembershipWitness {
   constructor(
     /**
      * Index of a leaf in the Merkle tree.
@@ -49,7 +49,7 @@ export class ReadRequestMembershipWitness {
   }
 
   static mock(size: number, start: number) {
-    return new ReadRequestMembershipWitness(
+    return new NoteHashReadRequestMembershipWitness(
       new Fr(start),
       range(size, start).map(x => new Fr(BigInt(x))) as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
       false,
@@ -62,7 +62,7 @@ export class ReadRequestMembershipWitness {
    * @returns Random membership witness.
    */
   public static random() {
-    return new ReadRequestMembershipWitness(
+    return new NoteHashReadRequestMembershipWitness(
       new Fr(0n),
       makeTuple(NOTE_HASH_TREE_HEIGHT, () => Fr.random()),
       false,
@@ -75,18 +75,18 @@ export class ReadRequestMembershipWitness {
    * @param leafIndex - Index of the leaf in the Merkle tree.
    * @returns Membership witness with zero sibling path.
    */
-  public static empty(leafIndex: bigint): ReadRequestMembershipWitness {
+  public static empty(leafIndex: bigint): NoteHashReadRequestMembershipWitness {
     const arr = makeTuple(NOTE_HASH_TREE_HEIGHT, () => Fr.ZERO);
-    return new ReadRequestMembershipWitness(new Fr(leafIndex), arr, false, new Fr(0));
+    return new NoteHashReadRequestMembershipWitness(new Fr(leafIndex), arr, false, new Fr(0));
   }
 
   /**
    * Creates a transient read request membership witness.
    * @returns an empty transient read request membership witness.
    */
-  public static emptyTransient(): ReadRequestMembershipWitness {
+  public static emptyTransient(): NoteHashReadRequestMembershipWitness {
     const arr = makeTuple(NOTE_HASH_TREE_HEIGHT, () => Fr.ZERO);
-    return new ReadRequestMembershipWitness(new Fr(0), arr, true, new Fr(0));
+    return new NoteHashReadRequestMembershipWitness(new Fr(0), arr, true, new Fr(0));
   }
 
   static fromBufferArray(
@@ -94,8 +94,8 @@ export class ReadRequestMembershipWitness {
     siblingPath: Tuple<Buffer, typeof NOTE_HASH_TREE_HEIGHT>,
     isTransient: boolean,
     hintToNoteHash: Fr,
-  ): ReadRequestMembershipWitness {
-    return new ReadRequestMembershipWitness(
+  ): NoteHashReadRequestMembershipWitness {
+    return new NoteHashReadRequestMembershipWitness(
       leafIndex,
       siblingPath.map(x => Fr.fromBuffer(x)) as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
       isTransient,
@@ -107,8 +107,8 @@ export class ReadRequestMembershipWitness {
     membershipWitness: MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>,
     isTransient: boolean,
     hintToNoteHash: Fr,
-  ): ReadRequestMembershipWitness {
-    return new ReadRequestMembershipWitness(
+  ): NoteHashReadRequestMembershipWitness {
+    return new NoteHashReadRequestMembershipWitness(
       new Fr(membershipWitness.leafIndex),
       membershipWitness.siblingPath as Tuple<Fr, typeof NOTE_HASH_TREE_HEIGHT>,
       isTransient,
@@ -121,12 +121,12 @@ export class ReadRequestMembershipWitness {
    * @param buffer - Buffer or reader to read from.
    * @returns The deserialized `ReadRequestMembershipWitness`.
    */
-  static fromBuffer(buffer: Buffer | BufferReader): ReadRequestMembershipWitness {
+  static fromBuffer(buffer: Buffer | BufferReader): NoteHashReadRequestMembershipWitness {
     const reader = BufferReader.asReader(buffer);
     const leafIndex = Fr.fromBuffer(reader);
     const siblingPath = reader.readArray<Fr, typeof NOTE_HASH_TREE_HEIGHT>(NOTE_HASH_TREE_HEIGHT, Fr);
     const isTransient = reader.readBoolean();
     const hintToNoteHash = Fr.fromBuffer(reader);
-    return new ReadRequestMembershipWitness(leafIndex, siblingPath, isTransient, hintToNoteHash);
+    return new NoteHashReadRequestMembershipWitness(leafIndex, siblingPath, isTransient, hintToNoteHash);
   }
 }

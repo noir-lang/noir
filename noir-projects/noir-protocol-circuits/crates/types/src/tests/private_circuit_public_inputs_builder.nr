@@ -11,8 +11,9 @@ use crate::{
     tests::{fixtures, testing_harness::build_contract_deployment_data}
 };
 use crate::constants::{
-    MAX_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
-    MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
+    MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
+    MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
+    MAX_NEW_NULLIFIERS_PER_CALL, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, NUM_FIELDS_PER_SHA256,
     RETURN_VALUES_LENGTH
 };
@@ -25,7 +26,7 @@ struct PrivateCircuitPublicInputsBuilder {
 
     min_revertible_side_effect_counter: u32,
 
-    read_requests: BoundedVec<SideEffect, MAX_READ_REQUESTS_PER_CALL>,
+    note_hash_read_requests: BoundedVec<SideEffect, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>,
     nullifier_read_requests: BoundedVec<ReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_CALL>,
     nullifier_key_validation_requests: BoundedVec<NullifierKeyValidationRequest, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL>,
 
@@ -108,7 +109,7 @@ impl PrivateCircuitPublicInputsBuilder {
             args_hash: self.args_hash,
             return_values: self.return_values.storage,
             min_revertible_side_effect_counter: self.min_revertible_side_effect_counter,
-            read_requests: self.read_requests.storage,
+            note_hash_read_requests: self.note_hash_read_requests.storage,
             nullifier_read_requests: self.nullifier_read_requests.storage,
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
             new_note_hashes: self.new_note_hashes.storage,

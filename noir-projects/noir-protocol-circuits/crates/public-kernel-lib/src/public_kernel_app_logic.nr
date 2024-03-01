@@ -213,7 +213,7 @@ mod tests {
         builder.previous_kernel.append_public_data_read_requests(2);
         let previous = builder.previous_kernel.end.public_data_reads.storage;
         // Setup 2 data reads on the current public inputs.
-        builder.public_call.append_read_requests(2);
+        builder.public_call.append_public_data_read_requests(2);
         let current = builder.get_current_public_data_reads();
         let public_data_read_requests = [previous[0], previous[1], current[0], current[1]];
         let public_inputs = builder.execute();
@@ -400,7 +400,7 @@ mod tests {
         let storage = builder.get_current_public_data_update_requests();
         let update_requests = [storage[0], storage[1]];
 
-        builder.public_call.append_read_requests(3);
+        builder.public_call.append_public_data_read_requests(3);
         let storage = builder.get_current_public_data_reads();
         let read_requests = [storage[0], storage[1], storage[2]];
 

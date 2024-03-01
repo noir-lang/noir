@@ -171,9 +171,9 @@ mod tests {
     #[test]
     fn only_valid_public_data_reads_should_be_propagated() {
         let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-        builder.public_call.append_read_requests(1);
-        builder.public_call.append_empty_read_requests(1);
-        builder.public_call.append_read_requests(1);
+        builder.public_call.append_public_data_read_requests(1);
+        builder.public_call.append_empty_public_data_read_requests(1);
+        builder.public_call.append_public_data_read_requests(1);
         let _ = builder.get_current_public_data_reads();
 
         let _ = builder.execute();
@@ -414,7 +414,7 @@ mod tests {
         let storage = builder.get_current_public_data_update_requests();
         let update_requests = [storage[0], storage[1]];
 
-        builder.public_call.append_read_requests(3);
+        builder.public_call.append_public_data_read_requests(3);
         let storage = builder.get_current_public_data_reads();
         let read_requests = [storage[0], storage[1], storage[2]];
 

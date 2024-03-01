@@ -4,14 +4,14 @@ import {
   FunctionSelector,
   MAX_NEW_NOTE_HASHES_PER_CALL,
   MAX_NEW_NOTE_HASHES_PER_TX,
-  MAX_READ_REQUESTS_PER_CALL,
+  MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
   MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
   MembershipWitness,
+  NoteHashReadRequestMembershipWitness,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
   PrivateKernelInnerCircuitPublicInputs,
   PrivateKernelTailCircuitPublicInputs,
-  ReadRequestMembershipWitness,
   SideEffect,
   TxRequest,
   VK_TREE_HEIGHT,
@@ -69,8 +69,8 @@ describe('Kernel Prover', () => {
       newNotes: newNoteIndices.map(idx => notesAndSlots[idx]),
       // TODO(dbanks12): should test kernel prover with non-transient reads.
       // This will be necessary once kernel actually checks (attempts to match) transient reads.
-      readRequestPartialWitnesses: Array.from({ length: MAX_READ_REQUESTS_PER_CALL }, () =>
-        ReadRequestMembershipWitness.emptyTransient(),
+      noteHashReadRequestPartialWitnesses: Array.from({ length: MAX_NOTE_HASH_READ_REQUESTS_PER_CALL }, () =>
+        NoteHashReadRequestMembershipWitness.emptyTransient(),
       ),
       returnValues: [],
       acir: Buffer.alloc(0),

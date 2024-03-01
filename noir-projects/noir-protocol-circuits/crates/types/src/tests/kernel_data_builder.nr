@@ -115,10 +115,10 @@ impl PreviousKernelDataBuilder {
     }
 
     pub fn add_read_request_for_transient_commitment(&mut self, commitment_index: u64) -> u64 {
-        let new_read_request_index = self.end.read_requests.len();
+        let new_read_request_index = self.end.note_hash_read_requests.len();
         let commitment = self.end.new_note_hashes.get(commitment_index);
         let read_request = SideEffect { value: commitment.value, counter: self.next_sideffect_counter() };
-        self.end.read_requests.push(read_request);
+        self.end.note_hash_read_requests.push(read_request);
         new_read_request_index
     }
 

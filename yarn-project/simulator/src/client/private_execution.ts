@@ -54,7 +54,9 @@ export async function executePrivateFunction(
 
   const callStackItem = new PrivateCallStackItem(contractAddress, functionData, publicInputs);
   const returnValues = decodeReturnValues(artifact, publicInputs.returnValues);
-  const readRequestPartialWitnesses = context.getReadRequestPartialWitnesses(publicInputs.readRequests);
+  const noteHashReadRequestPartialWitnesses = context.getNoteHashReadRequestPartialWitnesses(
+    publicInputs.noteHashReadRequests,
+  );
   const newNotes = context.getNewNotes();
   const nestedExecutions = context.getNestedExecutions();
   const enqueuedPublicFunctionCalls = context.getEnqueuedPublicFunctionCalls();
@@ -66,7 +68,7 @@ export async function executePrivateFunction(
     partialWitness,
     callStackItem,
     returnValues,
-    readRequestPartialWitnesses,
+    noteHashReadRequestPartialWitnesses,
     newNotes,
     vk: Buffer.from(artifact.verificationKey!, 'hex'),
     nestedExecutions,

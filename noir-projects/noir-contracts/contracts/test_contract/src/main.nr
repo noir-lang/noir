@@ -4,7 +4,7 @@ contract Test {
     use dep::aztec::protocol_types::{
         abis::private_circuit_public_inputs::PrivateCircuitPublicInputs,
         address::{AztecAddress, EthAddress},
-        constants::{MAX_READ_REQUESTS_PER_CALL, MAX_NOTES_PER_PAGE}, hash::hash_args
+        constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTES_PER_PAGE}, hash::hash_args
     };
     // docs:start:unencrypted_import
     use dep::aztec::log::emit_unencrypted_log;
@@ -14,10 +14,10 @@ contract Test {
         context::{Context, inputs::private_context_inputs::PrivateContextInputs}, hash::pedersen_hash,
         context::PrivateContext,
         note::{
-            note_header::NoteHeader, utils as note_utils, lifecycle::{create_note, destroy_note},
-            note_getter::{get_notes, view_notes}, note_getter_options::{NoteGetterOptions, NoteStatus},
-            note_viewer_options::NoteViewerOptions
-        },
+        note_header::NoteHeader, utils as note_utils, lifecycle::{create_note, destroy_note},
+        note_getter::{get_notes, view_notes}, note_getter_options::{NoteGetterOptions, NoteStatus},
+        note_viewer_options::NoteViewerOptions
+    },
         deploy::{deploy_contract as aztec_deploy_contract},
         oracle::{get_public_key::get_public_key as get_public_key_oracle, context::get_portal_address, rand::rand},
         state_vars::PrivateImmutable, log::emit_unencrypted_log_from_private
@@ -86,7 +86,7 @@ contract Test {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
 
-        let opt_notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
+        let opt_notes: [Option<ValueNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
 
         // We can't get the return value of a private function from the outside world in an end to end test, so we
         // expose it via an unecrypted log instead.
@@ -105,7 +105,7 @@ contract Test {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
 
-        let opt_notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
+        let opt_notes: [Option<ValueNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
 
         // We can't get the return value of a private function from the outside world in an end to end test, so we
         // expose it via an unecrypted log instead.
@@ -153,7 +153,7 @@ contract Test {
         );
 
         let options = NoteGetterOptions::new();
-        let opt_notes: [Option<ValueNote>; MAX_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
+        let opt_notes: [Option<ValueNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = get_notes(&mut context, storage_slot, options);
 
         let note = opt_notes[0].unwrap();
 

@@ -1,5 +1,5 @@
 use crate::types::card_note::{CardNote, CARD_NOTE_LEN};
-use dep::aztec::protocol_types::{address::AztecAddress, constants::MAX_READ_REQUESTS_PER_CALL};
+use dep::aztec::protocol_types::{address::AztecAddress, constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL};
 use dep::aztec::note::note_getter_options::{NoteGetterOptions, Sort, SortOrder};
 use dep::std::option::Option;
 
@@ -26,10 +26,10 @@ pub fn create_exact_card_getter_options(
 
 // docs:start:state_vars-OptionFilter
 pub fn filter_min_points(
-    cards: [Option<CardNote>; MAX_READ_REQUESTS_PER_CALL],
+    cards: [Option<CardNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
     min_points: u8
-) -> [Option<CardNote>; MAX_READ_REQUESTS_PER_CALL] {
-    let mut selected_cards = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
+) -> [Option<CardNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] {
+    let mut selected_cards = [Option::none(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL];
     let mut num_selected = 0;
     for i in 0..cards.len() {
         if cards[i].is_some() & cards[i].unwrap_unchecked().points >= min_points {

@@ -411,7 +411,7 @@ describe('Private Execution test suite', () => {
       expect(changeNote.note.items[0]).toEqual(new Fr(40n));
 
       const readRequests = sideEffectArrayToValueArray(
-        nonEmptySideEffects(result.callStackItem.publicInputs.readRequests),
+        nonEmptySideEffects(result.callStackItem.publicInputs.noteHashReadRequests),
       );
 
       expect(readRequests).toHaveLength(consumedNotes.length);
@@ -799,7 +799,7 @@ describe('Private Execution test suite', () => {
 
       // Check the commitment read request was created successfully.
       const readRequests = sideEffectArrayToValueArray(
-        nonEmptySideEffects(result.callStackItem.publicInputs.readRequests),
+        nonEmptySideEffects(result.callStackItem.publicInputs.noteHashReadRequests),
       );
 
       expect(readRequests).toHaveLength(1);
@@ -926,7 +926,7 @@ describe('Private Execution test suite', () => {
       expect(noteHash).toEqual(innerNoteHash);
 
       // read request should match innerNoteHash for pending notes (there is no nonce, so can't compute "unique" hash)
-      const readRequest = sideEffectArrayToValueArray(result.callStackItem.publicInputs.readRequests)[0];
+      const readRequest = sideEffectArrayToValueArray(result.callStackItem.publicInputs.noteHashReadRequests)[0];
       expect(readRequest).toEqual(innerNoteHash);
 
       const gotNoteValue = result.callStackItem.publicInputs.returnValues[0].value;
@@ -1015,7 +1015,7 @@ describe('Private Execution test suite', () => {
       expect(noteHash).toEqual(innerNoteHash);
 
       // read request should match innerNoteHash for pending notes (there is no nonce, so can't compute "unique" hash)
-      const readRequest = execGetThenNullify.callStackItem.publicInputs.readRequests[0];
+      const readRequest = execGetThenNullify.callStackItem.publicInputs.noteHashReadRequests[0];
       expect(readRequest.value).toEqual(innerNoteHash);
 
       const gotNoteValue = execGetThenNullify.callStackItem.publicInputs.returnValues[0].value;
@@ -1080,7 +1080,7 @@ describe('Private Execution test suite', () => {
       );
 
       // read requests should be empty
-      const readRequest = result.callStackItem.publicInputs.readRequests[0].value;
+      const readRequest = result.callStackItem.publicInputs.noteHashReadRequests[0].value;
       expect(readRequest).toEqual(Fr.ZERO);
 
       // should get note value 0 because it actually gets a fake note since the real one hasn't been inserted yet!

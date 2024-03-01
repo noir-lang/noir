@@ -1,6 +1,6 @@
 use dep::std::option::Option;
 use dep::protocol_types::{
-    constants::{MAX_NOTES_PER_PAGE, MAX_READ_REQUESTS_PER_CALL},
+    constants::{MAX_NOTES_PER_PAGE, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL},
     abis::side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 };
 use crate::context::{PrivateContext, PublicContext, Context};
@@ -63,7 +63,7 @@ impl<Note> PrivateSet<Note> {
     pub fn remove<N>(self, note: Note) where Note: NoteInterface<N> {
         let context = self.context.private.unwrap();
         let note_hash = compute_note_hash_for_consumption(note);
-        let has_been_read = context.read_requests.any(|r: SideEffect| r.value == note_hash);
+        let has_been_read = context.note_hash_read_requests.any(|r: SideEffect| r.value == note_hash);
         assert(has_been_read, "Can only remove a note that has been read from the set.");
 
         destroy_note(context, note);
@@ -74,7 +74,7 @@ impl<Note> PrivateSet<Note> {
     pub fn get_notes<N, FILTER_ARGS>(
         self,
         options: NoteGetterOptions<Note, N, FILTER_ARGS>
-    ) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N> {
+    ) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N> {
         let storage_slot = self.storage_slot;
         let opt_notes = get_notes(self.context.private.unwrap(), storage_slot, options);
         opt_notes

@@ -3,9 +3,9 @@ import {
   GrumpkinScalar,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_NULLIFIER_READ_REQUESTS_PER_TX,
-  MAX_READ_REQUESTS_PER_TX,
   MembershipWitness,
   NULLIFIER_TREE_HEIGHT,
   NullifierKeyValidationRequestContext,
@@ -51,22 +51,22 @@ export class HintsBuilder {
    * note hash. Several read requests might be pointing to the same note hash. It is therefore valid
    * to return more than one hint with the same index (contrary to getNullifierHints).
    *
-   * @param readRequests - The array of read requests.
+   * @param noteHashReadRequests - The array of read requests.
    * @param noteHashes - The array of note hashes.
    * @returns An array of hints where each element is the index of the note hash in note hashes array
    *  corresponding to the read request. In other words we have readRequests[i] == noteHashes[hints[i]].
    */
-  getReadRequestHints(
-    readRequests: Tuple<SideEffect, typeof MAX_READ_REQUESTS_PER_TX>,
+  getNoteHashReadRequestHints(
+    noteHashReadRequests: Tuple<SideEffect, typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
     noteHashes: Tuple<SideEffect, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
-  ): Tuple<Fr, typeof MAX_READ_REQUESTS_PER_TX> {
-    const hints = makeTuple(MAX_READ_REQUESTS_PER_TX, Fr.zero);
-    for (let i = 0; i < MAX_READ_REQUESTS_PER_TX && !readRequests[i].isEmpty(); i++) {
-      const equalToRR = (cmt: SideEffect) => cmt.value.equals(readRequests[i].value);
+  ): Tuple<Fr, typeof MAX_NOTE_HASH_READ_REQUESTS_PER_TX> {
+    const hints = makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, Fr.zero);
+    for (let i = 0; i < MAX_NOTE_HASH_READ_REQUESTS_PER_TX && !noteHashReadRequests[i].isEmpty(); i++) {
+      const equalToRR = (cmt: SideEffect) => cmt.value.equals(noteHashReadRequests[i].value);
       const result = noteHashes.findIndex(equalToRR);
       if (result == -1) {
         throw new Error(
-          `The read request at index ${i} ${readRequests[i].toString()} does not match to any note hash.`,
+          `The read request at index ${i} ${noteHashReadRequests[i].toString()} does not match to any note hash.`,
         );
       } else {
         hints[i] = new Fr(result);
@@ -76,8 +76,8 @@ export class HintsBuilder {
   }
 
   async getNullifierReadRequestResetHints(
-    nullifiers: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
     nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
+    nullifiers: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
   ) {
     // TODO - Should be comparing un-siloed values and contract addresses.
     const builder = new NullifierReadRequestResetHintsBuilder();

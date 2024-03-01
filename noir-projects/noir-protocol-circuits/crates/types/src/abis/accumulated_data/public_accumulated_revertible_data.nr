@@ -7,7 +7,7 @@ use crate::{
 }
 };
 use crate::constants::{
-    MAX_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+    MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
     MAX_REVERTIBLE_NULLIFIERS_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
     MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX, NUM_FIELDS_PER_SHA256,
@@ -16,7 +16,7 @@ use crate::constants::{
 };
 
 struct PublicAccumulatedRevertibleData {
-    read_requests: [SideEffect; MAX_READ_REQUESTS_PER_TX],
+    note_hash_read_requests: [SideEffect; MAX_NOTE_HASH_READ_REQUESTS_PER_TX],
     nullifier_read_requests: [ReadRequestContext; MAX_NULLIFIER_READ_REQUESTS_PER_TX],
     nullifier_key_validation_requests: [NullifierKeyValidationRequestContext; MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX],
 

@@ -2,7 +2,7 @@ use crate::{
     abis::{
     call_request::{CallerContext, CallRequest}, private_call_stack_item::PrivateCallStackItem,
     function_data::FunctionData,
-    membership_witness::{ContractLeafMembershipWitness, FunctionLeafMembershipWitness, ReadRequestMembershipWitness},
+    membership_witness::{ContractLeafMembershipWitness, FunctionLeafMembershipWitness, NoteHashReadRequestMembershipWitness},
     private_circuit_public_inputs::{PrivateCircuitPublicInputs},
     private_kernel::private_call_data::PrivateCallData
 },
@@ -16,7 +16,7 @@ use crate::{
 };
 use crate::constants::{
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    MAX_READ_REQUESTS_PER_CALL, NUM_FIELDS_PER_SHA256
+    MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, NUM_FIELDS_PER_SHA256
 };
 
 struct PrivateCallDataBuilder {
@@ -35,7 +35,7 @@ struct PrivateCallDataBuilder {
     contract_class_artifact_hash: Field,
     contract_class_public_bytecode_commitment: Field,
     function_leaf_membership_witness: FunctionLeafMembershipWitness,
-    read_request_membership_witnesses: BoundedVec<ReadRequestMembershipWitness, MAX_READ_REQUESTS_PER_CALL>,
+    note_hash_read_request_membership_witnesses: BoundedVec<NoteHashReadRequestMembershipWitness, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>,
     portal_contract_address: EthAddress,
     acir_hash: Field,
 }
@@ -66,7 +66,7 @@ impl PrivateCallDataBuilder {
             public_keys_hash: contract_data.public_keys_hash,
             contract_class_artifact_hash: contract_data.artifact_hash,
             contract_class_public_bytecode_commitment: contract_data.public_bytecode_commitment,
-            read_request_membership_witnesses: dep::std::unsafe::zeroed(),
+            note_hash_read_request_membership_witnesses: dep::std::unsafe::zeroed(),
             portal_contract_address: public_inputs.call_context.portal_contract_address,
             acir_hash: contract_function.acir_hash
         }
@@ -156,16 +156,16 @@ impl PrivateCallDataBuilder {
         (hashes, call_requests)
     }
 
-    pub fn append_read_requests(&mut self, num_read_requests: u64) {
-        let (read_requests, read_request_membership_witnesses) = fixtures::read_requests::generate_read_requests(num_read_requests);
-        self.public_inputs.read_requests.extend_from_bounded_vec(read_requests);
-        self.read_request_membership_witnesses.extend_from_bounded_vec(read_request_membership_witnesses);
+    pub fn append_note_hash_read_requests(&mut self, num_read_requests: u64) {
+        let (read_requests, read_request_membership_witnesses) = fixtures::note_hash_read_requests::generate_note_hash_read_requests(num_read_requests);
+        self.public_inputs.note_hash_read_requests.extend_from_bounded_vec(read_requests);
+        self.note_hash_read_request_membership_witnesses.extend_from_bounded_vec(read_request_membership_witnesses);
     }
 
-    pub fn append_transient_read_requests(&mut self, num_read_requests: u64) {
-        let (read_requests, read_request_membership_witnesses) = fixtures::read_requests::generate_transient_read_requests(num_read_requests);
-        self.public_inputs.read_requests.extend_from_bounded_vec(read_requests);
-        self.read_request_membership_witnesses.extend_from_bounded_vec(read_request_membership_witnesses);
+    pub fn append_transient_note_hash_read_requests(&mut self, num_read_requests: u64) {
+        let (read_requests, read_request_membership_witnesses) = fixtures::note_hash_read_requests::generate_transient_note_hash_read_requests(num_read_requests);
+        self.public_inputs.note_hash_read_requests.extend_from_bounded_vec(read_requests);
+        self.note_hash_read_request_membership_witnesses.extend_from_bounded_vec(read_request_membership_witnesses);
     }
 
     pub fn set_encrypted_logs(&mut self, hash: [Field; NUM_FIELDS_PER_SHA256], preimages_length: Field) {
@@ -205,7 +205,7 @@ impl PrivateCallDataBuilder {
             public_keys_hash: self.public_keys_hash,
             contract_class_artifact_hash: self.contract_class_artifact_hash,
             contract_class_public_bytecode_commitment: self.contract_class_public_bytecode_commitment,
-            read_request_membership_witnesses: self.read_request_membership_witnesses.storage,
+            note_hash_read_request_membership_witnesses: self.note_hash_read_request_membership_witnesses.storage,
             portal_contract_address: self.portal_contract_address,
             acir_hash: self.acir_hash
         }

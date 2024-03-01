@@ -12,7 +12,7 @@ use dep::types::{
     side_effect::{SideEffect, SideEffectLinkedToNoteHash, Ordered}
 },
     constants::{
-    MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_READ_REQUESTS_PER_TX,
+    MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX
 },
@@ -25,7 +25,7 @@ struct PrivateKernelTailCircuitPrivateInputs {
     previous_kernel: PrivateKernelInnerData,
     sorted_new_note_hashes: [SideEffect; MAX_NEW_NOTE_HASHES_PER_TX],
     sorted_new_note_hashes_indexes: [u64; MAX_NEW_NOTE_HASHES_PER_TX],
-    read_commitment_hints: [u64; MAX_READ_REQUESTS_PER_TX],
+    read_commitment_hints: [u64; MAX_NOTE_HASH_READ_REQUESTS_PER_TX],
     sorted_new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
     sorted_new_nullifiers_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],
     nullifier_read_request_reset_hints: NullifierReadRequestResetHints,
@@ -89,10 +89,10 @@ impl PrivateKernelTailCircuitPrivateInputs {
 
     fn match_reads_to_commitments(self, public_inputs: &mut PrivateKernelCircuitPublicInputsBuilder) {
         let new_note_hashes = public_inputs.end.new_note_hashes;
-        let read_requests = public_inputs.end.read_requests;
+        let read_requests = public_inputs.end.note_hash_read_requests;
 
         // match reads to commitments from the previous call(s)
-        for rr_idx in 0..MAX_READ_REQUESTS_PER_TX {
+        for rr_idx in 0..MAX_NOTE_HASH_READ_REQUESTS_PER_TX {
             let read_request = read_requests.get_unchecked(rr_idx);
             let read_commitment_hint = self.read_commitment_hints[rr_idx] as u64;
 
@@ -106,7 +106,7 @@ impl PrivateKernelTailCircuitPrivateInputs {
         }
 
         // Empty out read requests after matching them to commitments
-        public_inputs.end.read_requests = BoundedVec::new();
+        public_inputs.end.note_hash_read_requests = BoundedVec::new();
     }
 
     fn assert_sorted_counters<T, N>(
@@ -266,7 +266,7 @@ mod tests {
         read_request_reset::{PendingReadHint, ReadRequestState, ReadRequestStatus}
     };
     use dep::types::constants::{
-        MAX_READ_REQUESTS_PER_TX, MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
+        MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
         MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX,
         MAX_REVERTIBLE_NOTE_HASHES_PER_TX
     };
@@ -281,7 +281,7 @@ mod tests {
 
     struct PrivateKernelTailInputsBuilder {
         previous_kernel: PreviousKernelDataBuilder,
-        read_commitment_hints: [u64; MAX_READ_REQUESTS_PER_TX],
+        read_commitment_hints: [u64; MAX_NOTE_HASH_READ_REQUESTS_PER_TX],
         nullifier_commitment_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX],
         nullifier_read_request_reset_hints_builder: NullifierReadRequestResetHintsBuilder,
     }
@@ -290,7 +290,7 @@ mod tests {
         pub fn new() -> Self {
             PrivateKernelTailInputsBuilder {
                 previous_kernel: PreviousKernelDataBuilder::new(false),
-                read_commitment_hints: [0; MAX_READ_REQUESTS_PER_TX],
+                read_commitment_hints: [0; MAX_NOTE_HASH_READ_REQUESTS_PER_TX],
                 nullifier_commitment_hints: [0; MAX_NEW_NULLIFIERS_PER_TX],
                 nullifier_read_request_reset_hints_builder: NullifierReadRequestResetHintsBuilder::new(MAX_NULLIFIER_READ_REQUESTS_PER_TX)
             }
@@ -372,7 +372,7 @@ mod tests {
 
         pub fn execute(&mut self) -> PrivateKernelTailCircuitPublicInputs {
             let (sorted_new_note_hashes, sorted_new_note_hashes_indexes) = PrivateKernelTailInputsBuilder::sort_sideffects(self.get_new_note_hashes());
-            let mut sorted_read_commitment_hints = [0; MAX_READ_REQUESTS_PER_TX];
+            let mut sorted_read_commitment_hints = [0; MAX_NOTE_HASH_READ_REQUESTS_PER_TX];
             for i in 0..sorted_read_commitment_hints.len() {
                 sorted_read_commitment_hints[i] = sorted_new_note_hashes_indexes[self.read_commitment_hints[i]];
             }
@@ -454,8 +454,8 @@ mod tests {
         builder.append_transient_commitments(1);
         builder.add_transient_read(0);
         // Tweak the read request so that it does not match the hash at index 0;
-        let read_request = builder.previous_kernel.end.read_requests.pop();
-        builder.previous_kernel.end.read_requests.push(SideEffect { value: read_request.value + 1, counter: 0 });
+        let read_request = builder.previous_kernel.end.note_hash_read_requests.pop();
+        builder.previous_kernel.end.note_hash_read_requests.push(SideEffect { value: read_request.value + 1, counter: 0 });
         builder.failed();
     }
 

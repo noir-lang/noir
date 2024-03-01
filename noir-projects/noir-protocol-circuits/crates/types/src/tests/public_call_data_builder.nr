@@ -111,7 +111,7 @@ impl PublicCallDataBuilder {
         }
     }
 
-    pub fn append_read_requests(&mut self, num_reads: Field) {
+    pub fn append_public_data_read_requests(&mut self, num_reads: Field) {
         let value_offset = self.public_inputs.contract_storage_reads.len();
         for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
             if i as u64 < num_reads as u64 {
@@ -126,7 +126,7 @@ impl PublicCallDataBuilder {
         }
     }
 
-    pub fn append_empty_read_requests(&mut self, num_reads: Field) {
+    pub fn append_empty_public_data_read_requests(&mut self, num_reads: Field) {
         for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
             if i as u64 < num_reads as u64 {
                 self.public_inputs.contract_storage_reads.push(StorageRead::empty());

@@ -16,7 +16,7 @@ use crate::{
 }
 };
 use crate::constants::{
-    MAX_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+    MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     MAX_NEW_L2_TO_L1_MSGS_PER_TX, MAX_NEW_CONTRACTS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
@@ -34,7 +34,7 @@ use crate::traits::is_empty;
 use crate::utils::arrays::{array_cp, array_concat, array_to_bounded_vec};
 
 struct CombinedAccumulatedDataBuilder {
-    read_requests: BoundedVec<SideEffect,MAX_READ_REQUESTS_PER_TX>,
+    note_hash_read_requests: BoundedVec<SideEffect,MAX_NOTE_HASH_READ_REQUESTS_PER_TX>,
     nullifier_read_requests: BoundedVec<ReadRequestContext, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
     nullifier_key_validation_requests: BoundedVec<NullifierKeyValidationRequestContext, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX>,
 
@@ -66,7 +66,7 @@ impl CombinedAccumulatedDataBuilder {
         revertible: PublicAccumulatedRevertibleData
     ) -> CombinedAccumulatedDataBuilder {
         CombinedAccumulatedDataBuilder {
-            read_requests: array_to_bounded_vec(revertible.read_requests),
+            note_hash_read_requests: array_to_bounded_vec(revertible.note_hash_read_requests),
             nullifier_read_requests: array_to_bounded_vec(revertible.nullifier_read_requests),
             nullifier_key_validation_requests: array_to_bounded_vec(revertible.nullifier_key_validation_requests),
             new_note_hashes: array_to_bounded_vec(array_concat(non_revertible.new_note_hashes, revertible.new_note_hashes)),
@@ -101,7 +101,7 @@ impl CombinedAccumulatedDataBuilder {
 
     pub fn finish(self) -> CombinedAccumulatedData {
         CombinedAccumulatedData {
-            read_requests: self.read_requests.storage,
+            note_hash_read_requests: self.note_hash_read_requests.storage,
             nullifier_read_requests: self.nullifier_read_requests.storage,
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
             new_note_hashes: self.new_note_hashes.storage,
@@ -136,7 +136,7 @@ impl CombinedAccumulatedDataBuilder {
 
     pub fn to_public_accumulated_revertible_data(self) -> PublicAccumulatedRevertibleData {
         PublicAccumulatedRevertibleData {
-            read_requests: self.read_requests.storage,
+            note_hash_read_requests: self.note_hash_read_requests.storage,
             nullifier_read_requests: self.nullifier_read_requests.storage,
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
             new_note_hashes: array_cp(self.new_note_hashes.storage),

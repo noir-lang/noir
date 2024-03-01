@@ -4,16 +4,16 @@ import {
   Fr,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-  MAX_READ_REQUESTS_PER_CALL,
+  NoteHashReadRequestMembershipWitness,
   PrivateCallData,
   PrivateKernelInitCircuitPrivateInputs,
   PrivateKernelInnerCircuitPrivateInputs,
   PrivateKernelInnerCircuitPublicInputs,
   PrivateKernelInnerData,
   PrivateKernelTailCircuitPrivateInputs,
-  ReadRequestMembershipWitness,
   SideEffect,
   SideEffectLinkedToNoteHash,
   TxRequest,
@@ -109,8 +109,8 @@ export class KernelProver {
 
       // Start with the partially filled in read request witnesses from the simulator
       // and fill the non-transient ones in with sibling paths via oracle.
-      const readRequestMembershipWitnesses = currentExecution.readRequestPartialWitnesses;
-      for (let rr = 0; rr < readRequestMembershipWitnesses.length; rr++) {
+      const noteHashReadRequestMembershipWitnesses = currentExecution.noteHashReadRequestPartialWitnesses;
+      for (let rr = 0; rr < noteHashReadRequestMembershipWitnesses.length; rr++) {
         // Pretty sure this check was forever broken. I made some changes to Fr and this started triggering.
         // The conditional makes no sense to me anyway.
         // if (currentExecution.callStackItem.publicInputs.readRequests[rr] == Fr.ZERO) {
@@ -118,7 +118,7 @@ export class KernelProver {
         //     'Number of read requests output from Noir circuit does not match number of read request commitment indices output from simulator.',
         //   );
         // }
-        const rrWitness = readRequestMembershipWitnesses[rr];
+        const rrWitness = noteHashReadRequestMembershipWitnesses[rr];
         if (!rrWitness.isTransient) {
           // Non-transient reads must contain full membership witness with sibling path from commitment to root.
           // Get regular membership witness to fill in sibling path in the read request witness.
@@ -128,17 +128,17 @@ export class KernelProver {
       }
 
       // fill in witnesses for remaining/empty read requests
-      readRequestMembershipWitnesses.push(
-        ...Array(MAX_READ_REQUESTS_PER_CALL - readRequestMembershipWitnesses.length)
+      noteHashReadRequestMembershipWitnesses.push(
+        ...Array(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL - noteHashReadRequestMembershipWitnesses.length)
           .fill(0)
-          .map(() => ReadRequestMembershipWitness.empty(BigInt(0))),
+          .map(() => NoteHashReadRequestMembershipWitness.empty(BigInt(0))),
       );
 
       const privateCallData = await this.createPrivateCallData(
         currentExecution,
         privateCallRequests,
         publicCallRequests,
-        readRequestMembershipWitnesses,
+        noteHashReadRequestMembershipWitnesses,
       );
 
       if (firstIteration) {
@@ -184,14 +184,14 @@ export class KernelProver {
       typeof MAX_NEW_NULLIFIERS_PER_TX
     >(output.publicInputs.end.newNullifiers);
 
-    const readNoteHashHints = this.hintsBuilder.getReadRequestHints(
-      output.publicInputs.end.readRequests,
+    const readNoteHashHints = this.hintsBuilder.getNoteHashReadRequestHints(
+      output.publicInputs.end.noteHashReadRequests,
       sortedNoteHashes,
     );
 
     const nullifierReadRequestResetHints = await this.hintsBuilder.getNullifierReadRequestResetHints(
-      output.publicInputs.end.newNullifiers,
       output.publicInputs.end.nullifierReadRequests,
+      output.publicInputs.end.newNullifiers,
     );
 
     const nullifierNoteHashHints = this.hintsBuilder.getNullifierHints(
@@ -232,7 +232,7 @@ export class KernelProver {
     { callStackItem, vk }: ExecutionResult,
     privateCallRequests: CallRequest[],
     publicCallRequests: CallRequest[],
-    readRequestMembershipWitnesses: ReadRequestMembershipWitness[],
+    noteHashReadRequestMembershipWitnesses: NoteHashReadRequestMembershipWitness[],
   ) {
     const { contractAddress, functionData, publicInputs } = callStackItem;
     const { portalContractAddress } = publicInputs.callContext;
@@ -273,7 +273,11 @@ export class KernelProver {
       contractClassPublicBytecodeCommitment,
       saltedInitializationHash,
       functionLeafMembershipWitness,
-      readRequestMembershipWitnesses: makeTuple(MAX_READ_REQUESTS_PER_CALL, i => readRequestMembershipWitnesses[i], 0),
+      noteHashReadRequestMembershipWitnesses: makeTuple(
+        MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
+        i => noteHashReadRequestMembershipWitnesses[i],
+        0,
+      ),
       portalContractAddress: portalContractAddress.toField(),
       acirHash,
     });

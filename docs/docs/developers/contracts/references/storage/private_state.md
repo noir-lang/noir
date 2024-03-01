@@ -226,7 +226,7 @@ An example of how to use this operation is visible in the `easy_private_state`:
 
 This function returns the notes the account has access to.
 
-The kernel circuits are constrained to a maximum number of notes this function can return at a time. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-protocol-circuits/crates/types/src/constants.nr) and look for `MAX_READ_REQUESTS_PER_CALL` for the up-to-date number.
+The kernel circuits are constrained to a maximum number of notes this function can return at a time. Check [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-protocol-circuits/crates/types/src/constants.nr) and look for `MAX_NOTE_HASH_READ_REQUESTS_PER_CALL` for the up-to-date number.
 
 Because of this limit, we should always consider using the second argument `NoteGetterOptions` to limit the number of notes we need to read and constrain in our programs. This is quite important as every extra call increases the time used to prove the program and we don't want to spend more time than necessary.
 
@@ -268,7 +268,7 @@ When the `limit` is set to a non-zero value, the data oracle will return a maxim
 
 This setting enables us to skip the first `offset` notes. It's particularly useful for pagination.
 
-### `filter: fn ([Option<Note>; MAX_READ_REQUESTS_PER_CALL], FILTER_ARGS) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL]`
+### `filter: fn ([Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL], FILTER_ARGS) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL]`
 
 Developers have the option to provide a custom filter. This allows specific logic to be applied to notes that meet the criteria outlined above. The filter takes the notes returned from the oracle and `filter_args` as its parameters.
 
@@ -292,7 +292,7 @@ This function initializes a `NoteGetterOptions` that simply returns the maximum 
 
 ### `fn with_filter(filter, filter_args) -> NoteGetterOptions<Note, N, FILTER_ARGS>`
 
-This function initializes a `NoteGetterOptions` with a [`filter`](#filter-fn-optionnote-max_read_requests_per_call-filter_args---optionnote-max_read_requests_per_call) and [`filter_args`](#filter_args-filter_args).
+This function initializes a `NoteGetterOptions` with a [`filter`](#filter-fn-optionnote-max_note_hash_read_requests_per_call-filter_args---optionnote-max_note_hash_read_requests_per_call) and [`filter_args`](#filter_args-filter_args).
 
 ### `.select`
 
@@ -346,7 +346,7 @@ We can use it as a filter to further reduce the number of the final notes:
 
 One thing to remember is, `filter` will be applied on the notes after they are picked from the database, so it is more efficient to use select with comparators where possible. Another side effect of this is that it's possible that the actual notes we end up getting are fewer than the limit.
 
-The limit is `MAX_READ_REQUESTS_PER_CALL` by default. But we can set it to any value **smaller** than that:
+The limit is `MAX_NOTE_HASH_READ_REQUESTS_PER_CALL` by default. But we can set it to any value **smaller** than that:
 
 #include_code state_vars-NoteGetterOptionsPickOne /noir-projects/noir-contracts/contracts/docs_example_contract/src/options.nr rust
 

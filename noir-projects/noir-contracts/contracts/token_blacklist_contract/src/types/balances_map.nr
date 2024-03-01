@@ -1,6 +1,7 @@
 use dep::std::option::Option;
 use dep::aztec::{
-    context::Context, protocol_types::{address::AztecAddress, constants::MAX_READ_REQUESTS_PER_CALL},
+    context::Context,
+    protocol_types::{address::AztecAddress, constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL},
     state_vars::{PrivateSet, Map},
     note::{
     note_getter::view_notes, note_getter_options::{NoteGetterOptions, SortOrder},
@@ -101,10 +102,10 @@ impl<T> BalancesMap<T> {
 }
 
 pub fn filter_notes_min_sum<T, T_SERIALIZED_LEN>(
-    notes: [Option<T>; MAX_READ_REQUESTS_PER_CALL],
+    notes: [Option<T>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
     min_sum: U128
-) -> [Option<T>; MAX_READ_REQUESTS_PER_CALL] where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
-    let mut selected = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
+) -> [Option<T>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
+    let mut selected = [Option::none(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL];
     let mut sum = U128::from_integer(0);
     for i in 0..notes.len() {
         if notes[i].is_some() & sum < min_sum {

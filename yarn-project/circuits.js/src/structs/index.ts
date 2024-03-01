@@ -39,7 +39,7 @@ export * from './public_call_request.js';
 export * from './public_call_stack_item.js';
 export * from './public_circuit_public_inputs.js';
 export * from './read_request.js';
-export * from './read_request_membership_witness.js';
+export * from './note_hash_read_request_membership_witness.js';
 export * from './read_request_reset_hints.js';
 export * from './rollup/append_only_tree_snapshot.js';
 export * from './rollup/base_or_merge_rollup_public_inputs.js';

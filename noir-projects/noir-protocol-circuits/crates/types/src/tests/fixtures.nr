@@ -2,7 +2,7 @@ mod contract_functions;
 mod contract_tree;
 mod contracts;
 mod note_hash_tree;
-mod read_requests;
+mod note_hash_read_requests;
 
 use crate::{
     abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, global_variables::GlobalVariables},

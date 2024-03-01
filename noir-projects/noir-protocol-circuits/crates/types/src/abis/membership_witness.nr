@@ -42,7 +42,7 @@ struct ArchiveRootMembershipWitness{
     sibling_path: [Field; ARCHIVE_HEIGHT]
 }
 
-struct ReadRequestMembershipWitness {
+struct NoteHashReadRequestMembershipWitness {
     leaf_index: Field,
     sibling_path: [Field; NOTE_HASH_TREE_HEIGHT],
     // whether or not the read request corresponds to a pending note hash

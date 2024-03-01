@@ -54,10 +54,10 @@ impl PrivateKernelInnerCircuitPrivateInputs {
         self.pop_and_validate_this_private_call_hash(&mut public_inputs);
 
         // TODO: Do this in a reset circuit.
-        common::validate_read_requests(
+        common::validate_note_hash_read_requests(
             public_inputs.constants.historical_header.state.partial.note_hash_tree.root,
-            self.private_call.call_stack_item.public_inputs.read_requests, // read requests from private call
-            self.private_call.read_request_membership_witnesses
+            self.private_call.call_stack_item.public_inputs.note_hash_read_requests, // read requests from private call
+            self.private_call.note_hash_read_request_membership_witnesses
         );
 
         //TODO(David): feels like update_end_values should happen later
@@ -86,7 +86,7 @@ impl PrivateKernelInnerCircuitPrivateInputs {
 
 mod tests {
     use crate::private_kernel_inner::PrivateKernelInnerCircuitPrivateInputs;
-    use dep::types::constants::{MAX_READ_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_TX};
+    use dep::types::constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_TX};
     use dep::types::{
         abis::{
         kernel_circuit_public_inputs::PrivateKernelInnerCircuitPublicInputs,
@@ -442,7 +442,7 @@ mod tests {
     fn input_validation_malformed_arrays_read_requests() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.public_inputs.read_requests.extend_from_array(
+        builder.private_call.public_inputs.note_hash_read_requests.extend_from_array(
             [
             SideEffect { value: 0, counter: 0 },
             SideEffect { value: 9123, counter: 1 }
@@ -551,51 +551,51 @@ mod tests {
     }
 
     #[test(should_fail_with="note hash tree root mismatch")]
-    fn native_read_request_bad_request() {
+    fn native_note_hash_read_request_bad_request() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.append_read_requests(2);
+        builder.private_call.append_note_hash_read_requests(2);
 
         // tweak read_request so it gives wrong root when paired with its sibling path
-        let read_request = builder.private_call.public_inputs.read_requests.pop();
-        builder.private_call.public_inputs.read_requests.push(SideEffect { value: read_request.value + 1, counter: read_request.counter });
+        let read_request = builder.private_call.public_inputs.note_hash_read_requests.pop();
+        builder.private_call.public_inputs.note_hash_read_requests.push(SideEffect { value: read_request.value + 1, counter: read_request.counter });
 
         builder.failed();
     }
 
     #[test(should_fail_with="note hash tree root mismatch")]
-    fn native_read_request_bad_leaf_index() {
+    fn native_note_hash_read_request_bad_leaf_index() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.append_read_requests(2);
+        builder.private_call.append_note_hash_read_requests(2);
 
         // Tweak leaf index so it gives wrong root when paired with its request and sibling path.
-        let mut read_request_membership_witness = builder.private_call.read_request_membership_witnesses.pop();
+        let mut read_request_membership_witness = builder.private_call.note_hash_read_request_membership_witnesses.pop();
         read_request_membership_witness.leaf_index += 1;
-        builder.private_call.read_request_membership_witnesses.push(read_request_membership_witness);
+        builder.private_call.note_hash_read_request_membership_witnesses.push(read_request_membership_witness);
 
         builder.failed();
     }
 
     #[test(should_fail_with="note hash tree root mismatch")]
-    fn native_read_request_bad_sibling_path() {
+    fn native_note_hash_read_request_bad_sibling_path() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.append_read_requests(2);
+        builder.private_call.append_note_hash_read_requests(2);
 
         // Tweak the sibling path of the second read so it gives wrong root when paired with its request.
-        let mut read_request_membership_witness = builder.private_call.read_request_membership_witnesses.pop();
+        let mut read_request_membership_witness = builder.private_call.note_hash_read_request_membership_witnesses.pop();
         read_request_membership_witness.sibling_path[1] += 1;
-        builder.private_call.read_request_membership_witnesses.push(read_request_membership_witness);
+        builder.private_call.note_hash_read_request_membership_witnesses.push(read_request_membership_witness);
 
         builder.failed();
     }
 
     #[test(should_fail_with="note hash tree root mismatch")]
-    fn native_read_request_root_mismatch() {
+    fn native_note_hash_read_request_root_mismatch() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.append_read_requests(1);
+        builder.private_call.append_note_hash_read_requests(1);
 
         // Set the root to be a different root so the above read request is not under this root.
         let old_root = builder.previous_kernel.historical_header.state.partial.note_hash_tree.root;
@@ -605,89 +605,91 @@ mod tests {
     }
 
     #[test]
-    fn native_no_read_requests_works() {
+    fn native_no_note_hash_read_requests_works() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        assert_eq(builder.private_call.public_inputs.read_requests.len(), 0);
+        assert_eq(builder.private_call.public_inputs.note_hash_read_requests.len(), 0);
 
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.read_requests), 0);
+        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 0);
     }
 
     #[test]
-    fn native_one_read_requests_works() {
+    fn native_one_note_hash_read_requests_works() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.append_read_requests(1);
+        builder.private_call.append_note_hash_read_requests(1);
 
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.read_requests), 0);
+        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 0);
     }
 
     #[test]
-    fn native_two_read_requests_works() {
+    fn native_two_note_hash_read_requests_works() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.append_read_requests(2);
+        builder.private_call.append_note_hash_read_requests(2);
 
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.read_requests), 0);
+        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 0);
     }
 
     #[test]
-    fn native_max_read_requests_works() {
+    fn native_max_note_hash_read_requests_works() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.append_read_requests(MAX_READ_REQUESTS_PER_CALL);
+        builder.private_call.append_note_hash_read_requests(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL);
 
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.read_requests), 0);
+        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 0);
     }
 
     #[test]
-    fn native_one_transient_read_requests_works() {
+    fn native_one_transient_note_hash_read_requests_works() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.append_transient_read_requests(1);
+        builder.private_call.append_transient_note_hash_read_requests(1);
 
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.read_requests), 1);
+        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 1);
     }
 
     #[test]
-    fn native_max_read_requests_one_transient_works() {
+    fn native_max_note_hash_read_requests_one_transient_works() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.append_read_requests(1);
-        builder.private_call.append_transient_read_requests(1);
-        builder.private_call.append_read_requests(MAX_READ_REQUESTS_PER_CALL - 2);
+        builder.private_call.append_note_hash_read_requests(1);
+        builder.private_call.append_transient_note_hash_read_requests(1);
+        builder.private_call.append_note_hash_read_requests(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL - 2);
 
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.read_requests), 1);
+        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 1);
     }
 
     #[test]
-    fn native_max_read_requests_all_transient_works() {
+    fn native_max_note_hash_read_requests_all_transient_works() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.private_call.append_transient_read_requests(MAX_READ_REQUESTS_PER_CALL);
+        builder.private_call.append_transient_note_hash_read_requests(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL);
 
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.read_requests), MAX_READ_REQUESTS_PER_CALL);
+        assert_eq(
+            array_length(public_inputs.end.note_hash_read_requests), MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
+        );
     }
 
     #[test]
