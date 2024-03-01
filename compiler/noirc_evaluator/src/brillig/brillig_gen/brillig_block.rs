@@ -624,37 +624,40 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let value = self.convert_ssa_single_addr_value(*value, dfg);
-                // Cast original value to field
-                let left = SingleAddrVariable {
-                    address: self.brillig_context.allocate_register(),
-                    bit_size: FieldElement::max_num_bits(),
-                };
-                self.convert_cast(left, value);
+                // SSA generates redundant range checks. A range check with a max bit size >= value.bit_size will always pass.
+                if value.bit_size > *max_bit_size {
+                    // Cast original value to field
+                    let left = SingleAddrVariable {
+                        address: self.brillig_context.allocate_register(),
+                        bit_size: FieldElement::max_num_bits(),
+                    };
+                    self.convert_cast(left, value);
 
-                // Create a field constant with the max
-                let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
-                let right = self.brillig_context.make_constant(
-                    FieldElement::from_be_bytes_reduce(&max.to_bytes_be()).into(),
-                    FieldElement::max_num_bits(),
-                );
+                    // Create a field constant with the max
+                    let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
+                    let right = self.brillig_context.make_constant(
+                        FieldElement::from_be_bytes_reduce(&max.to_bytes_be()).into(),
+                        FieldElement::max_num_bits(),
+                    );
 
-                // Check if lte max
-                let brillig_binary_op = BrilligBinaryOp::Integer {
-                    op: BinaryIntOp::LessThanEquals,
-                    bit_size: FieldElement::max_num_bits(),
-                };
-                let condition = self.brillig_context.allocate_register();
-                self.brillig_context.binary_instruction(
-                    left.address,
-                    right,
-                    condition,
-                    brillig_binary_op,
-                );
+                    // Check if lte max
+                    let brillig_binary_op = BrilligBinaryOp::Integer {
+                        op: BinaryIntOp::LessThanEquals,
+                        bit_size: FieldElement::max_num_bits(),
+                    };
+                    let condition = self.brillig_context.allocate_register();
+                    self.brillig_context.binary_instruction(
+                        left.address,
+                        right,
+                        condition,
+                        brillig_binary_op,
+                    );
 
-                self.brillig_context.constrain_instruction(condition, assert_message.clone());
-                self.brillig_context.deallocate_register(condition);
-                self.brillig_context.deallocate_register(left.address);
-                self.brillig_context.deallocate_register(right);
+                    self.brillig_context.constrain_instruction(condition, assert_message.clone());
+                    self.brillig_context.deallocate_register(condition);
+                    self.brillig_context.deallocate_register(left.address);
+                    self.brillig_context.deallocate_register(right);
+                }
             }
             Instruction::IncrementRc { value } => {
                 let rc_register = match self.convert_ssa_value(*value, dfg) {
