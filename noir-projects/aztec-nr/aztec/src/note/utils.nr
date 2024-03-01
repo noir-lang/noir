@@ -86,9 +86,10 @@ pub fn compute_note_hash_for_consumption<Note, N>(note: Note) -> Field where Not
 }
 
 pub fn compute_note_hash_and_nullifier<T, N, S>(
+    // docs:start:compute_note_hash_and_nullifier_args
     deserialize_content: fn([Field; N]) -> T,
     note_header: NoteHeader,
-    serialized_note: [Field; S]
+    serialized_note: [Field; S] // docs:end:compute_note_hash_and_nullifier_args
 ) -> [Field; 4] where T: NoteInterface<N> {
     let mut note = deserialize_content(arr_copy_slice(serialized_note, [0; N], 0));
     // TODO: change this to note.setHeader(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
@@ -101,6 +102,7 @@ pub fn compute_note_hash_and_nullifier<T, N, S>(
     let unique_siloed_note_hash = compute_unique_hash(note_header.nonce, siloed_note_hash);
 
     let inner_nullifier = note.compute_nullifier_without_context();
-
+    // docs:start:compute_note_hash_and_nullifier_returns
     [inner_note_hash, siloed_note_hash, unique_siloed_note_hash, inner_nullifier]
+    // docs:end:compute_note_hash_and_nullifier_returns
 }

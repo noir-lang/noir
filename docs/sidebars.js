@@ -350,6 +350,7 @@ const sidebars = {
                 "developers/contracts/writing_contracts/functions/visibility",
                 "developers/contracts/writing_contracts/functions/call_functions",
                 "developers/contracts/writing_contracts/functions/write_constructor",
+                "developers/contracts/writing_contracts/functions/compute_note_hash_and_nullifier",
                 "developers/contracts/writing_contracts/functions/inner_workings",
               ],
             },
