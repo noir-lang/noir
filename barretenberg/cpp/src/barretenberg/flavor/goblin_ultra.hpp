@@ -287,7 +287,7 @@ class GoblinUltraFlavor {
      * circuits.
      * @todo TODO(https://github.com/AztecProtocol/barretenberg/issues/876)
      */
-    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>>;
+    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey>;
 
     /**
      * @brief A container for storing the partially evaluated multivariates produced by sumcheck.

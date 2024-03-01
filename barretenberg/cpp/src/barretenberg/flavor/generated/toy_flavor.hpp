@@ -212,7 +212,7 @@ class ToyFlavor {
         RefArray<Polynomial, 0> get_table_column_wires() { return {}; };
     };
 
-    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>>;
+    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey>;
 
     using FoldedPolynomials = AllEntities<std::vector<FF>>;
 

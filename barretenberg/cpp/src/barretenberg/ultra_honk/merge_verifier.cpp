@@ -5,7 +5,7 @@ namespace bb {
 template <typename Flavor>
 MergeVerifier_<Flavor>::MergeVerifier_()
     : transcript(std::make_shared<Transcript>())
-    , pcs_verification_key(std::make_unique<VerifierCommitmentKey>(0, bb::srs::get_bn254_crs_factory())){};
+    , pcs_verification_key(std::make_unique<VerifierCommitmentKey>()){};
 
 /**
  * @brief Verify proper construction of the aggregate Goblin ECC op queue polynomials T_i^(j), j = 1,2,3,4.

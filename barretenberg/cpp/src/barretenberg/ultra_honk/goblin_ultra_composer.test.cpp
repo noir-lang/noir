@@ -136,8 +136,6 @@ TEST_F(GoblinUltraHonkComposerTests, MultipleCircuitsMergeOnly)
 
         generate_test_circuit(builder);
 
-        auto composer = GoblinUltraComposer();
-
         // Construct and verify Goblin ECC op queue Merge proof
         auto merge_verified = construct_and_verify_merge_proof(op_queue);
         EXPECT_TRUE(merge_verified);

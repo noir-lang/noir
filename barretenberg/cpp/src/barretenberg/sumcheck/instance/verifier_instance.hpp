@@ -10,15 +10,19 @@ namespace bb {
  *
  * @details This is ϕ in the paper.
  */
-template <class Flavor> class VerifierInstance_ {
+template <class Flavor, size_t NUM_ = 2> class VerifierInstance_ {
   public:
     using FF = typename Flavor::FF;
     using VerificationKey = typename Flavor::VerificationKey;
+    using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using WitnessCommitments = typename Flavor::WitnessCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using RelationSeparator = typename Flavor::RelationSeparator;
 
     std::shared_ptr<VerificationKey> verification_key;
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/881)?: Access throutgh vk by making sure vk is
+    // initialized in Protogalaxy?
+    std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
     std::vector<FF> public_inputs;
     size_t pub_inputs_offset = 0;
     size_t public_input_size;
@@ -34,9 +38,11 @@ template <class Flavor> class VerifierInstance_ {
 
     WitnessCommitments witness_commitments;
     CommitmentLabels commitment_labels;
-    VerifierInstance_() = default;
+    VerifierInstance_()
+        : pcs_verification_key(std::make_shared<VerifierCommitmentKey>()){};
     VerifierInstance_(std::shared_ptr<VerificationKey> vk)
         : verification_key(std::move(vk))
+        , pcs_verification_key(std::make_shared<VerifierCommitmentKey>())
     {}
 };
 } // namespace bb

@@ -28,7 +28,6 @@ template <typename Flavor> class UltraVerifier_ {
 
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;
-    std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
     std::shared_ptr<Transcript> transcript;
 };
 

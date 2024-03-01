@@ -329,7 +329,7 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
      * resolve that, and split out separate PrecomputedPolynomials/Commitments data for clarity but also for
      * portability of our circuits.
      */
-    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>>;
+    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey>;
 
     /**
      * @brief A container for polynomials produced after the first round of sumcheck.

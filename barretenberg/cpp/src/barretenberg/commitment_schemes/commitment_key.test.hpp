@@ -11,20 +11,20 @@
 
 namespace bb {
 
+constexpr size_t COMMITMENT_TEST_NUM_POINTS = 4096;
+
 template <class CK> inline std::shared_ptr<CK> CreateCommitmentKey();
 
 template <> inline std::shared_ptr<CommitmentKey<curve::BN254>> CreateCommitmentKey<CommitmentKey<curve::BN254>>()
 {
     srs::init_crs_factory("../srs_db/ignition");
-    constexpr size_t n = 4096;
-    return std::make_shared<CommitmentKey<curve::BN254>>(n);
+    return std::make_shared<CommitmentKey<curve::BN254>>(COMMITMENT_TEST_NUM_POINTS);
 }
 // For IPA
 template <> inline std::shared_ptr<CommitmentKey<curve::Grumpkin>> CreateCommitmentKey<CommitmentKey<curve::Grumpkin>>()
 {
     srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
-    constexpr size_t n = 4096;
-    return std::make_shared<CommitmentKey<curve::Grumpkin>>(n);
+    return std::make_shared<CommitmentKey<curve::Grumpkin>>(COMMITMENT_TEST_NUM_POINTS);
 }
 
 template <typename CK> inline std::shared_ptr<CK> CreateCommitmentKey()
@@ -39,20 +39,16 @@ template <>
 inline std::shared_ptr<VerifierCommitmentKey<curve::BN254>> CreateVerifierCommitmentKey<
     VerifierCommitmentKey<curve::BN254>>()
 {
-    constexpr size_t n = 4096;
-    std::shared_ptr<bb::srs::factories::CrsFactory<curve::BN254>> crs_factory(
-        new bb::srs::factories::FileCrsFactory<curve::BN254>("../srs_db/ignition", 4096));
-    return std::make_shared<VerifierCommitmentKey<curve::BN254>>(n, crs_factory);
+    return std::make_shared<VerifierCommitmentKey<curve::BN254>>();
 }
 // For IPA
 template <>
 inline std::shared_ptr<VerifierCommitmentKey<curve::Grumpkin>> CreateVerifierCommitmentKey<
     VerifierCommitmentKey<curve::Grumpkin>>()
 {
-    constexpr size_t n = 4096;
-    std::shared_ptr<bb::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(
-        new bb::srs::factories::FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin", 4096));
-    return std::make_shared<VerifierCommitmentKey<curve::Grumpkin>>(n, crs_factory);
+    auto crs_factory = std::make_shared<srs::factories::FileCrsFactory<curve::Grumpkin>>("../srs_db/grumpkin",
+                                                                                         COMMITMENT_TEST_NUM_POINTS);
+    return std::make_shared<VerifierCommitmentKey<curve::Grumpkin>>(COMMITMENT_TEST_NUM_POINTS, crs_factory);
 }
 template <typename VK> inline std::shared_ptr<VK> CreateVerifierCommitmentKey()
 // requires std::default_initializable<VK>

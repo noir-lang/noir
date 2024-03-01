@@ -14,11 +14,10 @@ namespace bb {
  * */
 template <IsUltraFlavor Flavor>
 DeciderProver_<Flavor>::DeciderProver_(const std::shared_ptr<Instance>& inst,
-                                       const std::shared_ptr<CommitmentKey>& commitment_key,
                                        const std::shared_ptr<Transcript>& transcript)
     : accumulator(std::move(inst))
     , transcript(transcript)
-    , commitment_key(commitment_key)
+    , commitment_key(inst->commitment_key)
 {}
 
 /**

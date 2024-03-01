@@ -10,11 +10,13 @@ template <typename Flavor>
 DeciderVerifier_<Flavor>::DeciderVerifier_(const std::shared_ptr<Transcript>& transcript,
                                            const std::shared_ptr<VerifierInstance>& accumulator)
     : accumulator(accumulator)
+    , pcs_verification_key(accumulator->verification_key->pcs_verification_key)
     , transcript(transcript)
 {}
+
 template <typename Flavor>
 DeciderVerifier_<Flavor>::DeciderVerifier_()
-    : pcs_verification_key(std::make_unique<VerifierCommitmentKey>(0, bb::srs::get_bn254_crs_factory()))
+    : pcs_verification_key(std::make_unique<VerifierCommitmentKey>())
     , transcript(std::make_shared<Transcript>())
 {}
 
@@ -52,7 +54,7 @@ template <typename Flavor> bool DeciderVerifier_<Flavor>::verify_proof(const Hon
                                             multivariate_challenge,
                                             transcript);
 
-    auto verified = pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
+    auto verified = accumulator->pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
 
     return sumcheck_verified.value() && verified;
 }

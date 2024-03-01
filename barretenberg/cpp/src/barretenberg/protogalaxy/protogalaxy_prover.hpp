@@ -15,9 +15,9 @@
 namespace bb {
 template <class ProverInstances_> struct ProtogalaxyProofConstructionState {
     using FF = typename ProverInstances_::FF;
-    using Instance = typename ProverInstances_::Instance;
+    using ProverInstance = typename ProverInstances_::Instance;
 
-    std::shared_ptr<Instance> accumulator;
+    std::shared_ptr<ProverInstance> accumulator;
     Polynomial<FF> perturbator;
     std::vector<FF> deltas;
     Univariate<FF, ProverInstances_::BATCHED_EXTENDED_LENGTH, ProverInstances_::NUM> combiner_quotient;

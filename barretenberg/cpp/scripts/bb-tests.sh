@@ -11,8 +11,18 @@ IMAGE_URI=$(calculate_image_uri $REPOSITORY)
 retry docker pull $IMAGE_URI
 
 TESTS=(
-  client_ivc_tests
+  flavor_tests
+  relations_tests
+  transcript_tests
   commitment_schemes_tests
+  sumcheck_tests
+  eccvm_tests
+  translator_vm_tests
+  protogalaxy_tests
+  ultra_honk_tests
+  goblin_tests
+  client_ivc_tests
+  dsl_tests
   crypto_aes128_tests
   crypto_blake2s_tests
   crypto_blake3s_tests
@@ -22,23 +32,13 @@ TESTS=(
   crypto_poseidon2_tests
   crypto_schnorr_tests
   crypto_sha256_tests
-  dsl_tests
   ecc_tests
-  eccvm_tests
-  flavor_tests
-  goblin_tests
   join_split_example_proofs_inner_proof_data_tests
   join_split_example_proofs_notes_tests
   numeric_tests
   plonk_tests
   polynomials_tests
-  protogalaxy_tests
-  relations_tests
   srs_tests
-  sumcheck_tests
-  transcript_tests
-  translator_vm_tests
-  ultra_honk_tests
   vm_tests
 )
 TESTS_STR="${TESTS[@]}"
