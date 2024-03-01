@@ -63,16 +63,14 @@ export class L2Block {
 
   /**
    * Serializes a block
-   * @remarks This can be used specifying no logs, which is used when the block is being served via JSON-RPC because the logs are expected to be served
-   * separately.
-   * @returns A serialized L2 block logs.
+   * @returns A serialized L2 block as a Buffer.
    */
   toBuffer() {
     return serializeToBuffer(this.header, this.archive, this.body);
   }
 
   /**
-   * Deserializes L2 block without logs from a buffer.
+   * Deserializes L2 block from a buffer.
    * @param str - A serialized L2 block.
    * @returns Deserialized L2 block.
    */
@@ -81,10 +79,8 @@ export class L2Block {
   }
 
   /**
-   * Serializes a block without logs to a string.
-   * @remarks This is used when the block is being served via JSON-RPC because the logs are expected to be served
-   * separately.
-   * @returns A serialized L2 block without logs.
+   * Serializes a block to a string.
+   * @returns A serialized L2 block as a string.
    */
   toString(): string {
     return this.toBuffer().toString(STRING_ENCODING);
@@ -107,18 +103,24 @@ export class L2Block {
     numPublicCallsPerTx = 3,
     numEncryptedLogsPerCall = 2,
     numUnencryptedLogsPerCall = 1,
+    numL1ToL2MessagesPerCall = 2,
   ): L2Block {
+    const body = Body.random(
+      txsPerBlock,
+      numPrivateCallsPerTx,
+      numPublicCallsPerTx,
+      numEncryptedLogsPerCall,
+      numUnencryptedLogsPerCall,
+      numL1ToL2MessagesPerCall,
+    );
+
+    const txsHash = body.getCalldataHash();
+
     return L2Block.fromFields(
       {
         archive: makeAppendOnlyTreeSnapshot(1),
-        header: makeHeader(0, l2BlockNum),
-        body: Body.random(
-          txsPerBlock,
-          numPrivateCallsPerTx,
-          numPublicCallsPerTx,
-          numEncryptedLogsPerCall,
-          numUnencryptedLogsPerCall,
-        ),
+        header: makeHeader(0, l2BlockNum, txsHash),
+        body,
       },
       // just for testing purposes, each random L2 block got emitted in the equivalent L1 block
       BigInt(l2BlockNum),

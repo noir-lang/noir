@@ -129,7 +129,7 @@ export class SoloBlockBuilder implements BlockBuilder {
         ),
     );
 
-    const blockBody = new Body(newL1ToL2Messages, txEffects);
+    const blockBody = new Body(padArrayEnd(newL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP), txEffects);
 
     const l2Block = L2Block.fromFields({
       archive: circuitsOutput.archive,

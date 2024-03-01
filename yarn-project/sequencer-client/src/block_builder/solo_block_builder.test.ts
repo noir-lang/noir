@@ -57,7 +57,7 @@ import {
 } from '@aztec/circuits.js/testing';
 import { makeTuple, range } from '@aztec/foundation/array';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { times } from '@aztec/foundation/collection';
+import { padArrayEnd, times } from '@aztec/foundation/collection';
 import { Tuple, to2Fields } from '@aztec/foundation/serialize';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
@@ -256,7 +256,7 @@ describe('sequencer/solo_block_builder', () => {
         ),
     );
 
-    const body = new Body(mockL1ToL2Messages, txEffects);
+    const body = new Body(padArrayEnd(mockL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP), txEffects);
     // We are constructing the block here just to get body hash/calldata hash so we can pass in an empty archive and header
     const l2Block = L2Block.fromFields({
       archive: AppendOnlyTreeSnapshot.zero(),

@@ -115,6 +115,10 @@ export class MessageStore {
   confirmPendingMessages(entryKeys: Fr[]): Promise<boolean> {
     return this.db.transaction(() => {
       for (const entryKey of entryKeys) {
+        if (entryKey.equals(Fr.ZERO)) {
+          continue;
+        }
+
         const messageCtx = this.#messages.get(entryKey.toString());
         if (!messageCtx) {
           throw new Error(`Message ${entryKey.toString()} not found`);

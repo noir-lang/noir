@@ -1,4 +1,5 @@
 import {
+  Body,
   ContractData,
   ExtendedContractData,
   ExtendedUnencryptedL2Log,
@@ -30,6 +31,11 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * An array containing all the L2 blocks that have been fetched so far.
    */
   private l2BlockContexts: L2BlockContext[] = [];
+
+  /**
+   * A mapping of body hash to body
+   */
+  private l2BlockBodies: Map<string, Body> = new Map();
 
   /**
    * An array containing all the L2 Txs in the L2 blocks that have been fetched so far.
@@ -119,6 +125,35 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
+   * Append new block bodies to the store's list.
+   * @param blockBodies - The L2 block bodies to be added to the store.
+   * @returns True if the operation is successful.
+   */
+  addBlockBodies(blockBodies: Body[]): Promise<boolean> {
+    for (const body of blockBodies) {
+      void this.l2BlockBodies.set(body.getCalldataHash().toString('hex'), body);
+    }
+
+    return Promise.resolve(true);
+  }
+
+  /**
+   * Gets block bodies that have the same txHashes as we supply.
+   *
+   * @param txsHashes - A list of txsHashes (body hashes).
+   * @returns The requested L2 block bodies
+   */
+  getBlockBodies(txsHashes: Buffer[]): Promise<Body[]> {
+    const blockBodies = txsHashes.map(txsHash => this.l2BlockBodies.get(txsHash.toString('hex')));
+
+    if (blockBodies.some(bodyBuffer => bodyBuffer === undefined)) {
+      throw new Error('Block body is undefined');
+    }
+
+    return Promise.resolve(blockBodies as Body[]);
+  }
+
+  /**
    * Append new logs to the store's list.
    * @param encryptedLogs - The encrypted logs to be added to the store.
    * @param unencryptedLogs - The unencrypted logs to be added to the store.
@@ -181,6 +216,10 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    */
   public confirmL1ToL2EntryKeys(entryKeys: Fr[]): Promise<boolean> {
     entryKeys.forEach(entryKey => {
+      if (entryKey.equals(Fr.ZERO)) {
+        return;
+      }
+
       this.confirmedL1ToL2Messages.addMessage(entryKey, this.pendingL1ToL2Messages.getMessage(entryKey)!);
       this.pendingL1ToL2Messages.removeMessage(entryKey);
     });

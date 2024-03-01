@@ -1,14 +1,16 @@
 import { INITIAL_L2_BLOCK_NUM, L2Block, L2Tx, TxHash } from '@aztec/circuit-types';
-import { AztecAddress } from '@aztec/circuits.js';
+import { AppendOnlyTreeSnapshot, AztecAddress, Header } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecKVStore, AztecMap, Range } from '@aztec/kv-store';
 
+import { BlockBodyStore } from './block_body_store.js';
+
 type BlockIndexValue = [blockNumber: number, index: number];
 
-type BlockContext = {
-  blockNumber: number;
+type BlockStorage = {
   l1BlockNumber: bigint;
-  block: Buffer;
+  header: Buffer;
+  archive: Buffer;
 };
 
 /**
@@ -16,7 +18,7 @@ type BlockContext = {
  */
 export class BlockStore {
   /** Map block number to block data */
-  #blocks: AztecMap<number, BlockContext>;
+  #blocks: AztecMap<number, BlockStorage>;
 
   /** Index mapping transaction hash (as a string) to its location in a block */
   #txIndex: AztecMap<string, BlockIndexValue>;
@@ -26,9 +28,12 @@ export class BlockStore {
 
   #log = createDebugLogger('aztec:archiver:block_store');
 
-  constructor(private db: AztecKVStore) {
-    this.#blocks = db.openMap('archiver_blocks');
+  #blockBodyStore: BlockBodyStore;
 
+  constructor(private db: AztecKVStore, blockBodyStore: BlockBodyStore) {
+    this.#blockBodyStore = blockBodyStore;
+
+    this.#blocks = db.openMap('archiver_blocks');
     this.#txIndex = db.openMap('archiver_tx_index');
     this.#contractIndex = db.openMap('archiver_contract_index');
   }
@@ -42,25 +47,27 @@ export class BlockStore {
     return this.db.transaction(() => {
       for (const block of blocks) {
         void this.#blocks.set(block.number, {
-          blockNumber: block.number,
-          block: block.toBuffer(),
+          header: block.header.toBuffer(),
+          archive: block.archive.toBuffer(),
           l1BlockNumber: block.getL1BlockNumber(),
         });
 
-        for (const [i, tx] of block.getTxs().entries()) {
+        block.getTxs().forEach((tx, i) => {
           if (tx.txHash.isZero()) {
-            continue;
+            return;
           }
           void this.#txIndex.set(tx.txHash.toString(), [block.number, i]);
-        }
+        });
 
-        for (const [i, contractData] of block.body.txEffects.flatMap(txEffect => txEffect.contractData).entries()) {
-          if (contractData.contractAddress.isZero()) {
-            continue;
-          }
+        block.body.txEffects
+          .flatMap(txEffect => txEffect.contractData)
+          .forEach((contractData, i) => {
+            if (contractData.contractAddress.isZero()) {
+              return;
+            }
 
-          void this.#contractIndex.set(contractData.contractAddress.toString(), [block.number, i]);
-        }
+            void this.#contractIndex.set(contractData.contractAddress.toString(), [block.number, i]);
+          });
       }
 
       return true;
@@ -71,26 +78,42 @@ export class BlockStore {
    * Gets up to `limit` amount of L2 blocks starting from `from`.
    * @param start - Number of the first block to return (inclusive).
    * @param limit - The number of blocks to return.
-   * @returns The requested L2 blocks, without logs attached
+   * @returns The requested L2 blocks
    */
   *getBlocks(start: number, limit: number): IterableIterator<L2Block> {
-    for (const blockCtx of this.#blocks.values(this.#computeBlockRange(start, limit))) {
-      yield L2Block.fromBuffer(blockCtx.block);
+    for (const blockStorage of this.#blocks.values(this.#computeBlockRange(start, limit))) {
+      yield this.getBlockFromBlockStorage(blockStorage);
     }
   }
 
   /**
    * Gets an L2 block.
    * @param blockNumber - The number of the block to return.
-   * @returns The requested L2 block, without logs attached
+   * @returns The requested L2 block.
    */
   getBlock(blockNumber: number): L2Block | undefined {
-    const blockCtx = this.#blocks.get(blockNumber);
-    if (!blockCtx || !blockCtx.block) {
+    const blockStorage = this.#blocks.get(blockNumber);
+    if (!blockStorage || !blockStorage.header) {
       return undefined;
     }
 
-    return L2Block.fromBuffer(blockCtx.block);
+    return this.getBlockFromBlockStorage(blockStorage);
+  }
+
+  private getBlockFromBlockStorage(blockStorage: BlockStorage) {
+    const header = Header.fromBuffer(blockStorage.header);
+    const archive = AppendOnlyTreeSnapshot.fromBuffer(blockStorage.archive);
+    const body = this.#blockBodyStore.getBlockBody(header.contentCommitment.txsHash);
+
+    if (body === undefined) {
+      throw new Error('Body is not able to be retrieved from BodyStore');
+    }
+
+    return L2Block.fromFields({
+      header,
+      archive,
+      body,
+    });
   }
 
   /**

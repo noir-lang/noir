@@ -1,4 +1,5 @@
 import {
+  Body,
   ContractData,
   ExtendedContractData,
   GetUnencryptedLogsResponse,
@@ -37,6 +38,21 @@ export interface ArchiverDataStore {
    * @returns True if the operation is successful.
    */
   addBlocks(blocks: L2Block[]): Promise<boolean>;
+
+  /**
+   * Append new block bodies to the store's list.
+   * @param blockBodies - The L2 block bodies to be added to the store.
+   * @returns True if the operation is successful.
+   */
+  addBlockBodies(blockBodies: Body[]): Promise<boolean>;
+
+  /**
+   * Gets block bodies that have the same txsHashes as we supply.
+   *
+   * @param txsHashes - A list of txsHashes (body hashes).
+   * @returns The requested L2 block bodies
+   */
+  getBlockBodies(txsHashes: Buffer[]): Promise<Body[]>;
 
   /**
    * Gets up to `limit` amount of L2 blocks starting from `from`.
