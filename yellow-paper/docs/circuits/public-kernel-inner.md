@@ -35,13 +35,6 @@ It verifies the public deployment of the contract instance by conducting a membe
 - The index and sibling path are provided in `contract_deployment_membership_witness` through [`private_inputs`](#private-inputs)[`.public_call`](#publiccall)\_.
 - The root is the `nullifier_tree_root` in the [`header`](./private-function.md#header) within [`public_inputs`](#public-inputs)[`.constant_data`](./private-kernel-initial.mdx#constantdata).
 
-#### Ensuring the function is legitimate:
-
-For the [`function_data`](./private-kernel-initial.mdx#functiondata) in [`public_call`](#publiccall)[`.call_stack_item`](#publiccallstackitem), this circuit verifies that:
-
-- It must be a public function:
-  - `function_data.function_type == public`
-
 #### Ensuring the current call matches the call request.
 
 The top item in the `public_call_requests` of the [`previous_kernel`](#previouskernel) must pertain to the current function call.
@@ -216,7 +209,7 @@ The format aligns with the [`PublicInputs`](./public-kernel-tail.md#public-input
 | Field              | Type                                                        | Description                                               |
 | ------------------ | ----------------------------------------------------------- | --------------------------------------------------------- |
 | `contract_address` | `AztecAddress`                                              | Address of the contract on which the function is invoked. |
-| `function_data`    | [`FunctionData`](#functiondata)                             | Data of the function being called.                        |
+| `function_data`    | [`FunctionData`](./private-kernel-initial.mdx#functiondata) | Data of the function being called.                        |
 | `public_inputs`    | [`PublicFunctionPublicInputs`](#publicfunctionpublicinputs) | Public inputs of the public vm circuit.                   |
 | `counter_start`    | `field`                                                     | Counter at which the function call was initiated.         |
 | `counter_end`      | `field`                                                     | Counter at which the function call ended.                 |

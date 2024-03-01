@@ -22,7 +22,7 @@ The preceding proof can only be:
 
 The following must be empty to ensure all the public function calls are processed:
 
-- `public_call_requests` within [`private_inputs`](#private-inputs)[`.previous_kernel`](#previouskernel)[`.public_inputs`](./public-kernel-tail.md#public-inputs)[`.transient_accumulated_data`](./public-kernel-tail.md#transientaccumulateddata).
+- `public_call_requests` in both `revertible_accumulated_data` and `non_revertible_accumulated_data` within [`private_inputs`](#private-inputs)[`.previous_kernel`](#previouskernel)[`.public_inputs`](./public-kernel-tail.md#public-inputs).
 
 ### Processing Final Outputs
 
@@ -290,27 +290,54 @@ Data that aids in the verifications carried out in this circuit:
 
 ## Public Inputs
 
+| Field                             | Type                                                            | Description                                                 |
+| --------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------- |
+| `constant_data`                   | [`ConstantData`](#constantdata)                                 |                                                             |
+| `revertible_accumulated_data`     | [`RevertibleAccumulatedData`](#revertibleaccumulateddata)       |                                                             |
+| `non_revertible_accumulated_data` | [`NonRevertibleAccumulatedData`](#nonrevertibleaccumulateddata) |                                                             |
+| `transient_accumulated_data`      | [`TransientAccumulatedData`](#transientaccumulateddata)         |                                                             |
+| `old_public_data_tree_snapshot`   | [`[TreeSnapshot]`](#treesnapshot)                               | Snapshot of the public data tree prior to this transaction. |
+| `new_public_data_tree_snapshot`   | [`[TreeSnapshot]`](#treesnapshot)                               | Snapshot of the public data tree after this transaction.    |
+
 ### `ConstantData`
 
 These are constants that remain the same throughout the entire transaction. Its format aligns with the [ConstantData](./private-kernel-initial.mdx#constantdata) of the initial private kernel circuit.
 
-### `AccumulatedData`
+### `RevertibleAccumulatedData`
 
 Data accumulated during the execution of the transaction.
 
-| Field                              | Type                              | Description                                                 |
-| ---------------------------------- | --------------------------------- | ----------------------------------------------------------- |
-| `note_hashes`                      | `[field; C]`                      | Note hashes created in the transaction.                     |
-| `nullifiers`                       | `[field; C]`                      | Nullifiers created in the transaction.                      |
-| `l2_to_l1_messages`                | `[field; C]`                      | L2-to-L1 messages created in the transaction.               |
-| `unencrypted_logs_hash`            | `field`                           | Hash of the accumulated unencrypted logs.                   |
-| `unencrypted_log_preimages_length` | `field`                           | Length of all unencrypted log preimages.                    |
-| `encrypted_logs_hash`              | `field`                           | Hash of the accumulated encrypted logs.                     |
-| `encrypted_log_preimages_length`   | `field`                           | Length of all encrypted log preimages.                      |
-| `encrypted_note_preimages_hash`    | `field`                           | Hash of the accumulated encrypted note preimages.           |
-| `encrypted_note_preimages_length`  | `field`                           | Length of all encrypted note preimages.                     |
-| `old_public_data_tree_snapshot`    | [`[TreeSnapshot]`](#treesnapshot) | Snapshot of the public data tree prior to this transaction. |
-| `new_public_data_tree_snapshot`    | [`[TreeSnapshot]`](#treesnapshot) | Snapshot of the public data tree after this transaction.    |
+| Field                              | Type                                                         | Description                                       |
+| ---------------------------------- | ------------------------------------------------------------ | ------------------------------------------------- |
+| `note_hashes`                      | `[field; C]`                                                 | Note hashes created in the transaction.           |
+| `nullifiers`                       | `[field; C]`                                                 | Nullifiers created in the transaction.            |
+| `l2_to_l1_messages`                | `[field; C]`                                                 | L2-to-L1 messages created in the transaction.     |
+| `unencrypted_logs_hash`            | `field`                                                      | Hash of the accumulated unencrypted logs.         |
+| `unencrypted_log_preimages_length` | `field`                                                      | Length of all unencrypted log preimages.          |
+| `encrypted_logs_hash`              | `field`                                                      | Hash of the accumulated encrypted logs.           |
+| `encrypted_log_preimages_length`   | `field`                                                      | Length of all encrypted log preimages.            |
+| `encrypted_note_preimages_hash`    | `field`                                                      | Hash of the accumulated encrypted note preimages. |
+| `encrypted_note_preimages_length`  | `field`                                                      | Length of all encrypted note preimages.           |
+| `public_call_requests`             | [`[PublicCallRequestContext; C]`](#publiccallrequestcontext) | Requests to call public functions.                |
+
+> The above `C`s represent constants defined by the protocol. Each `C` might have a different value from the others.
+
+### `NonRevertibleAccumulatedData`
+
+Data accumulated during the execution of the transaction.
+
+| Field                              | Type                                                         | Description                                       |
+| ---------------------------------- | ------------------------------------------------------------ | ------------------------------------------------- |
+| `note_hashes`                      | `[field; C]`                                                 | Note hashes created in the transaction.           |
+| `nullifiers`                       | `[field; C]`                                                 | Nullifiers created in the transaction.            |
+| `l2_to_l1_messages`                | `[field; C]`                                                 | L2-to-L1 messages created in the transaction.     |
+| `unencrypted_logs_hash`            | `field`                                                      | Hash of the accumulated unencrypted logs.         |
+| `unencrypted_log_preimages_length` | `field`                                                      | Length of all unencrypted log preimages.          |
+| `encrypted_logs_hash`              | `field`                                                      | Hash of the accumulated encrypted logs.           |
+| `encrypted_log_preimages_length`   | `field`                                                      | Length of all encrypted log preimages.            |
+| `encrypted_note_preimages_hash`    | `field`                                                      | Hash of the accumulated encrypted note preimages. |
+| `encrypted_note_preimages_length`  | `field`                                                      | Length of all encrypted note preimages.           |
+| `public_call_requests`             | [`[PublicCallRequestContext; C]`](#publiccallrequestcontext) | Requests to call public functions.                |
 
 > The above `C`s represent constants defined by the protocol. Each `C` might have a different value from the others.
 
@@ -323,7 +350,6 @@ Data accumulated during the execution of the transaction.
 | `l2_to_l1_message_contexts` | [`[L2toL1MessageContext; C]`](./private-kernel-initial.mdx#l2tol1messagecontext) | L2-to-l1 messages with extra data aiding verification. |
 | `storage_reads`             | [`[StorageRead; C]`](#storageread)                                               | Reads of the public data.                              |
 | `storage_writes`            | [`[StorageWrite; C]`](#storagewrite)                                             | Writes of the public data.                             |
-| `public_call_requests`      | [`[CallRequest; C]`](./private-kernel-initial.mdx#callrequest)                   | Requests to call publics functions.                    |
 
 > The above `C`s represent constants defined by the protocol. Each `C` might have a different value from the others.
 
@@ -343,7 +369,7 @@ Data accumulated during the execution of the transaction.
 | `contract_address` | `AztecAddress` | Address of the contract.            |
 | `storage_slot`     | `field`        | Storage slot.                       |
 | `value`            | `field`        | Value read from the storage slot.   |
-| `counter`          | `field`        | Counter at which the read happened. |
+| `counter`          | `u32`          | Counter at which the read happened. |
 
 ### `StorageWrite`
 
@@ -352,7 +378,7 @@ Data accumulated during the execution of the transaction.
 | `contract_address` | `AztecAddress` | Address of the contract.               |
 | `storage_slot`     | `field`        | Storage slot.                          |
 | `value`            | `field`        | New value written to the storage slot. |
-| `counter`          | `field`        | Counter at which the write happened.   |
+| `counter`          | `u32`          | Counter at which the write happened.   |
 
 ### `StorageReadContext`
 
@@ -361,7 +387,7 @@ Data accumulated during the execution of the transaction.
 | `contract_address` | `AztecAddress` | Address of the contract.            |
 | `storage_slot`     | `field`        | Storage slot.                       |
 | `value`            | `field`        | Value read from the storage slot.   |
-| `counter`          | `field`        | Counter at which the read happened. |
+| `counter`          | `u32`          | Counter at which the read happened. |
 
 ### `StorageWriteContext`
 
@@ -370,7 +396,7 @@ Data accumulated during the execution of the transaction.
 | `contract_address` | `AztecAddress` | Address of the contract.                                               |
 | `storage_slot`     | `field`        | Storage slot.                                                          |
 | `value`            | `field`        | New value written to the storage slot.                                 |
-| `counter`          | `field`        | Counter at which the write happened.                                   |
+| `counter`          | `u32`          | Counter at which the write happened.                                   |
 | `prev_counter`     | `field`        | Counter of the previous write to the storage slot.                     |
 | `next_counter`     | `field`        | Counter of the next write to the storage slot.                         |
 | `exists`           | `bool`         | A flag indicating whether the storage slot is in the public data tree. |
@@ -392,3 +418,12 @@ Data accumulated during the execution of the transaction.
 | `value`        | `field` | Value of the storage slot.     |
 | `next_slot`    | `field` | Storage slot of the next leaf. |
 | `next_index`   | `field` | Index of the next leaf.        |
+
+### `PublicCallRequestContext`
+
+| Field                     | Type                                                          | Description                                   |
+| ------------------------- | ------------------------------------------------------------- | --------------------------------------------- |
+| `call_stack_item_hash`    | `field`                                                       | Hash of the call stack item.                  |
+| `counter`                 | `u32`                                                         | Counter at which the request was made.        |
+| `caller_contract_address` | `AztecAddress`                                                | Address of the contract calling the function. |
+| `caller_context`          | [`CallerContext`](./private-kernel-initial.mdx#callercontext) | Context of the contract calling the function. |

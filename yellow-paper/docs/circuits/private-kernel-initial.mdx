@@ -18,22 +18,13 @@ In the **initial** kernel iteration, the process involves taking a [`transaction
 
 #### This first function call of the transaction must match the caller's intent
 
-The following data in the [`private_inputs`](#private-inputs)[`.private_call`](#privatecall) must match the corresponding fields of the user's [`private_inputs`](#private-inputs)[`.transaction_request`](#transactionrequest):
+The following data in the [`private_inputs`](#private-inputs).[`private_call`](#privatecall) must match the corresponding fields of the user's [`private_inputs`](#private-inputs).[`transaction_request`](#transactionrequest):
 
 - `contract_address`
 - `function_data`
 - `args_hash`: Hash of the function arguments.
 
 > Notice: a `transaction_request` doesn't explicitly contain a signature. Aztec implements [account abstraction](../addresses-and-keys/keys-requirements.md#authorization-keys), so the process for authorizing a transaction (if at all) is dictated by the logic of the functions of that transaction. In particular, an account contract can be called as an 'entrypoint' to a transaction, and there, custom authorization logic can be executed.
-
-#### The function call must be a [private function](./private-function.md)
-
-For the [`private_inputs`](#private-inputs)[`.private_call`](#privatecall)[`.call_stack_item`](#privatecallstackitem)[`.function_data`](#functiondata), the circuit verifies that:
-
-- It must be a private function: <!-- Q: is this actually needed? Or is it implied, because private functions look different from public functions (and are verified to exist within a class_id through a different approach to public functions)? -->
-  - `function_data.function_type == private`
-- It must not be an internal function: <!-- TODO: I believe @spalladino has removed `internal` as an enshrined concept, so we can probably get rid of this check. -->
-  - `function_data.is_internal == false`
 
 #### It must be a standard [synchronous function call](../calls/sync-calls.md)
 
@@ -70,9 +61,7 @@ This nullifier serves multiple purposes:
 
 - Identifying a transaction.
 - Non-malleability. Preventing the signature of a transaction request from being reused in another transaction.
-- Generating values that should be maintained within the transaction's scope. For example, it is utilized to [compute the nonces](./private-kernel-tail.md#siloing-values) for all the note hashes in a transaction.
-
-<!-- TODO: note nonces should be consistently named "note nonces", because "nonce" isn't clear enough -->
+- Generating values that should be maintained within the transaction's scope. For example, it is utilized to [compute the note nonces](./private-kernel-tail.md#siloing-values) for all the note hashes in a transaction.
 
 > Note that the final transaction data is not deterministic for a given transaction request. The production of new notes, the destruction of notes, and various other values are likely to change based on the time and conditions when a transaction is being composed. However, the intricacies of implementation should not be a concern for the entity initiating the transaction.
 
@@ -121,66 +110,96 @@ I.e. `private_inputs.private_call.vk`, `private_inputs.private_call.proof`, and 
 
 #### Validate the counters.
 
-It validates that all of the counters follow the rules of the protocol. <!-- TODO: perhaps we also need a section somewhere in this yp which explains side effect counters, in isolation, e.g. with pretty diagrams and/or examples. -->
+In ensuring the integrity of emitted data, counters play a crucial role in establishing the chronological order of elements generated during a transaction. This validation process not only guards against misinterpretations but also reinforces trust in the sequence of transactions.
 
-1. For the [`private_inputs.private_call.call_stack_item`](#privatecallstackitem):
+Counters are employed to validate the following aspects:
 
-   - The `counter_start` must be `0`.
-     - This check can be skipped for [inner private kernel circuit](./private-kernel-inner.mdx#verifying-the-counters).
-   - The `counter_end` must be strictly greater than the `counter_start`. <!-- Is it possible that a counter can be exactly equal to the start counter? E.g. if a function does nothing? -->
+1. **Read Requests**: Verify that a read request is reading a value created before the request is submitted.
+   - Refer to [Read Request Reset Private Kernel Circuit](./private-kernel-reset.md#read-request-reset-private-kernel-circuit) for verification details.
+2. **Ordered Emission**: Ensure that side effects (note hashes, nullifiers, logs) are emitted in the same order as they were created.
+   - Refer to [Tail Private Kernel Circuit](./private-kernel-tail.md#verifying-and-splitting-ordered-data) for order enforcement.
 
-2. Validate the items in each ordered array of [private_inputs.private_call.call_stack_item](#privatecallstackitem).[public_inputs](./private-function.md#public-inputs).
+For these operations to be effective, specific requirements for the counters must be met:
 
-The "ordered arrays" include:
+- Each counter for values of the same type must be unique, avoiding confusion about the order.
+- Values emitted within a function call must not be mistaken for values emitted from another function call.
 
-- `note_hashes`
-- `nullifiers`
-- `read_requests`
-- `unencrypted_log_hashes`
-- `encrypted_log_hashes`
-- `encrypted_note_preimage_hashes`
+The circuit undergoes the following validations for data within [`private_inputs`](#privateinputs).[`private_call`](#privatecall).[public_inputs](./private-function.md#public-inputs):
 
-<!-- Please can you provide an explanation for why they're being grouped and referred-to collectively as "the ordered arrays"? Questions to consider: What makes these arrays special? Why are other arrays not included in these ordered arrays? I had a go below. I also rearranged so this explanation of what an ordered array is comes before the bullet points explaining the constraints on the counters. -->
+1.  Validate the counter range of [`call_stack_item`](#privatecallstackitem).
 
-Notice that each element of these arrays is a [type](./private-function.md#types) that contains a `counter`. They are so-called "ordered arrays" because the counters must be in a strictly-increasing order within an array.
+    - The `counter_start` must be `0`.
+      - This check can be skipped for [inner private kernel circuit](./private-kernel-inner.mdx#verifying-the-counters).
+    - The `counter_end` must be strictly greater than the `counter_start`.
 
-For each element of each "ordered array" of [`private_inputs.private_call.call_stack_item`](#privatecallstackitem)[`.public_inputs`](./private-function.md#public-inputs):
+    The counter range (`counter_start` to `counter_end`) is later used to restrict counters emitted within the call.
 
-- The `counter` of the first element must be strictly greater than the `counter_start` of the `private_inputs.private_call.call_stack_item`.
-- The `counter` of each subsequent element must be strictly greater than the `counter` of the previous item.
-- The `counter` of the last element must be strictly less than the `counter_end` of the `private_inputs.private_call.call_stack_item`.
+2.  Validate the counter ranges of non-empty requests in `private_call_requests`.
 
+    - The `counter_end` of each request must be strictly greater than its `counter_start`.
+    - The `counter_start` of the first request must be strictly greater than the `counter_start` of the `call_stack_item`.
+    - The `counter_start` of the second and each of the subsequent requests must be strictly greater than the `counter_end` of the previous request.
+    - The `counter_end` of the last request must be strictly less than the `counter_end` of the `call_stack_item`.
+
+    When a `request` is [popped](./private-kernel-inner.mdx#ensuring-the-current-call-matches-the-call-request) in a nested iteration, its counter range is checked against the `call_stack_item`, as described [here](./private-kernel-inner.mdx#verifying-the-counters). By enforcing that the counter ranges of all nested `private_call_requests` do not overlap with one another in this step, a function circuit will not be able to emit a value whose counter falls in the range of another call.
+
+3.  Validate the counters of the non-empty elements in the following arrays:
+
+    - `note_hashes`
+    - `nullifiers`
+    - `l2_to_l1_messages`
+    - `unencrypted_log_hashes`
+    - `encrypted_log_hashes`
+    - `encrypted_note_preimage_hashes`
+    - `note_hash_read_requests`
+    - `nullifier_read_requests`
+    - `public_call_requests`
+
+    1. For each of the above "ordered" array, the counters of the non-empty elements must be in a strictly-increasing order:
+
+       - The `counter` of the first element must be strictly greater than the `counter_start` of the `call_stack_item`.
+       - The `counter` of each subsequent element must be strictly greater than the `counter` of the previous item.
+       - The `counter` of the last element must be strictly less than the `counter_end` of the `call_stack_item`.
+
+    2. Additionally, the counters must not fall within the counter range of any nested private call.
+
+       Get the value `NE`, which is the number of non-empty requests in `private_call_requests`. If `NE` is greater than `0`, the circuit checks the following:
+
+       For each `note_hash` at index `i` in `note_hashes`:
+
+       - Find the `request_index` at [`hints`](#hints).`note_hash_range_hints[i]`, which is the index of the `private_call_requests` with the smallest `counter_start` that was emitted after the `note_hash`.
+       - If `request_index` equals `NM`, indicating no request was emitted after the `note_hash`, its counter must be greater the the `counter_end` of the last request.
+       - If `request_index` equals `0`, indicating no request was emitted before the `note_hash`. Its counter must be less the the `counter_start` of the first request.
+       - Otherwise, the request was emitted after the `note_hash`, and its immediate previous request was emitted before the `note_hash`. Its counter must fall between those two requests.
+
+       The code simplifies as:
+
+       ```rust
+       let NE = count_non_empty_elements(private_call_requests);
+       for i in 0..note_hashes.len() {
+          let note_hash = note_hashes[i];
+          if !note_hash.is_empty() {
+            let request_index = note_hash_range_hints[i];
+            if request_index != NE {
+              note_hash.counter < private_call_requests[request_index].counter_start;
+            }
+            if request_index != 0 {
+              note_hash.counter > private_call_requests[request_index - 1].counter_end;
+            }
+          }
+       }
+       ```
+
+       Repeat the above process for emitted data, including:
+
+       - `nullifiers`
+       - `unencrypted_log_hashes`
+       - `encrypted_log_hashes`
+       - `encrypted_note_preimage_hashes`
+
+<!-- Leila: Do we need to perform the last check for requests? Do we even need to do it at all? -->
 <!-- Do we need to validate that, across all of the counters, it is possible to count 0, 1, 2, 3, 4, ... , with no gaps? Or does the kernel not care about that, and entrusts the private function to enforce this monotonically-increasing counting? -->
 <!-- Do we need to validate that there are no duplicate counters _across_ arrays. E.g. if an element of note_hashes has a counter=7 and an element of nullifiers also has a counter=7, is that a problem? -->
-
-3. For the `N` non-empty requests in [`public_inputs`](#public-inputs)[`.transient_accumulated_data`](#transientaccumulateddata)[`.private_call_requests: [CallRequest; _]`](#callrequest):
-
-<!-- Is transient_accumulated_data.private_call_requests one of these arrays that the kernel reverses the order of, so that the array is populated from "right to left"? If so, perhaps we should explain here that this array is reversed (or arranged from right-to-left), and explain why that's the case. -->
-
-<!-- Do we actually need to iterate over _all_ items in the accumulated data, or can we instead just perform checks on the `requests` being inserted into these arrays, somehow? I'm wondering if we can save some constraints... -->
-
-> `N` is the number of non-zero entries in [`private_inputs`](#private-inputs)[`.private_call`](#privatecall)[`.call_stack_item`](#privatecallstackitem)[`.public_inputs`](./private-function.md#public-inputs)[`.private_call_stack_item_hashes: [Field; _]`].
-
-<!-- In this loop are we iterating through the `private_call_stack_item_hashes` from right-to-left, or from left-to-right? The last two bullet points (immediately below) confused me. -->
-
-- The `counter_end` of each request must be strictly greater than its `counter_start`.
-- The `counter_end` of the first request must be strictly less than the `counter_end` of the `call_stack_item`.
-- The `counter_end` of the second and each of the subsequent requests must be strictly less than the `counter_start` of the previous request. <!-- Is "less than" correct here? I'm confused.  -->
-- The `counter_start` of the last request must be strictly greater than the `counter_start` of the `call_stack_item`.
-
-4. For the `N` non-empty requests in [`public_inputs.transient_accumulated_data`](#transientaccumulateddata)`.public_call_requests`:
-
-   > `N` is the number of non-zero entries in the `public_call_stack_item_hashes` in [`private_inputs`](#private-inputs)[`.private_call`](#privatecall)[`.public_inputs`](./private-function.md#public-inputs).
-
-<!-- Contrary to the ordering of the loop in bullet point (3) (immediately above), it seems this look is being done from left to right? Why are they handled in different "directions"?  -->
-
-- The `counter_start` of the first request must be strictly greater than the `counter_start` of the `call_stack_item`.
-- The `counter_start` of each subsequent request must be strictly greater than the `counter_start` of the previous item.
-- The `counter_start` of the last item must be strictly less than the `counter_end` of the `call_stack_item`.
-
-> Note that the `counter_end` of each public call request is unknown at this point <!-- and so it is set to 0? Does it need to be constrained to be equal to 0 at this point? -->. Both the `counter_start` and `counter_end` of a `PublicCallStackItem` will be [recalibrated](./public-kernel-initial.md#recalibrating-counters) in the initial _public_ kernel circuit following the simulation of all public function calls.
-
-> Note that, for this initial private kernel circuit, all values within the [`public_inputs.transient_accumulated_data`](#transientaccumulateddata) originate from the [`private_call`](#privatecall). However, this process of counter verification is also applicable to the [inner private kernel circuit](./private-kernel-inner.mdx#verifying-the-counters), where the `transient_accumulated_data` comprises values from previous iterations and the current function call. Therefore, only the last `N` requests (which correspond to the new requests which originated from the `private_inputs.private_call`) need to be checked in the above operations.
 
 ### Validating Public Inputs
 
@@ -197,27 +216,27 @@ This circuit verifies that the values in [`private_inputs`](#private-inputs)[`.p
 - `nullifier_contexts`
   - `value`, `counter`
 - `l2_to_l1_message_contexts`
-  - `value`
-- `read_request_contexts`
-  - `note_hash`, `counter`
-- `nullifier_key_validation_request`
-  - `public_key`, `secret_key`
+  - `value`, `counter`
+- `note_hash_read_requests`
+  - `value`, `contract_address`, `counter`
+- `nullifier_read_requests`
+  - `value`, `contract_address`, `counter`
+- `nullifier_key_validation_request_contexts`
+  - `parent_public_key`, `hardened_child_secret_key`
 - `unencrypted_log_hash_contexts`
   - `hash`, `length`, `counter`
 - `encrypted_log_hash_contexts`
   - `hash`, `length`, `randomness`, `counter`
 - `encrypted_note_preimage_hash_contexts`
   - `hash`, `length`, `counter`, `note_hash_counter`
-- `private_call_requests`
-  - `hash`, `counter`
-- `public_call_requests`
-  - `hash`, `counter`
+- `public_call_request_contexts`
+  - `call_stack_item_hash`, `counter`
 
-2. Check that the hashes in the `private_call_requests` align with the values in the `private_call_stack_item_hashes` in the `private_function_public_inputs`, but in **reverse** order.
+1. Check that the values in `private_call_request_stack` align with the values in `private_call_requests` within `private_function_public_inputs`, but in **reverse** order.
 
-   > It's important that the `private_call_requests` are arranged in reverse order to ensure they are executed in chronological order. <!-- What about the public function requests? Why don't we order those in reverse? -->
+   > It's important that the `private_call_requests` are "pushed" to the `private_call_request_stack` in reverse order to ensure that they are executed in chronological order. <!-- What about the public function requests? Why don't we order those in reverse? -->
 
-3. For each non-empty call request in both `public_inputs.transient_accumulated_data.private_call_requests` and `public_inputs.transient_accumulated_data.public_call_requests`:
+2. For each non-empty call request in both `private_call_request_stack` and `public_call_request_contexts` within `public_inputs.transient_accumulated_data`:
 
    - The `caller_contract_address` equals the [`private_call`](#privatecall)[`.call_stack_item`](#privatecallstackitem)[`.contract_address`].
    - The following values in `caller_context` are either empty or align with the values in the `private_inputs.private_call.call_stack_item.public_inputs.call_context`:
@@ -235,7 +254,6 @@ This circuit verifies that the values in [`private_inputs`](#private-inputs)[`.p
    - `note_hash_contexts`
    - `nullifier_contexts`
    - `l2_to_l1_message_contexts`
-   - `read_request_contexts`
    - `nullifier_key_validation_request_contexts`
    - `unencrypted_log_hash_contexts`
    - `encrypted_log_hash_contexts`
@@ -263,6 +281,10 @@ It verifies that:
 
 - The `tx_context` in the [`constant_data`](#constantdata) matches the `tx_context` in the [`transaction_request`](#transactionrequest).
 - The `block_header` must align with the one used in the private function circuit, as verified [earlier](#verifying-the-public-inputs-of-the-private-function-circuit).
+
+#### Verifying the `min_revertible_side_effect_counter`.
+
+It verifies that the `min_revertible_side_effect_counter` equals the value in the [`public_inputs`](./private-function.md#public-inputs) of the private function circuit.
 
 ## Diagram
 
@@ -382,8 +404,6 @@ class PrivateCallStackItem {
     contract_address: AztecAddress
     function_data: FunctionData
     public_inputs: PrivateFunctionPublicInputs
-    counter_start: field
-    counter_end: field
 }
 PrivateCallStackItem *-- FunctionData: function_data
 PrivateCallStackItem *-- PrivateFunctionPublicInputs: public_inputs
@@ -395,7 +415,7 @@ PrivateCallStackItem .. CallContext: if is_delegatecall then\n contract_address 
 
 PrivateCallStackItem .. PrivateFunctionPublicInputs: Validate counter_start & counter_end\nvs. the counters of the ordered arrays
 
-PrivateCallStackItem .. CallRequest: Validate all counter_start\n& counter_end values.
+PrivateCallStackItem .. PrivateCallRequestContext: Validate all counter_start\n& counter_end values.
 
 TransactionRequest .. PrivateFunctionPublicInputs: args_hash == args_hash
 
@@ -405,8 +425,7 @@ ContractInstance .. PrivateCallStackItem: hash(contract_instance) == contract_ad
 
 class FunctionData {
     function_selector: u32
-    function_type: private|public|unconstrained
-    is_internal: bool
+    function_type: private|public
 }
 
 class PrivateFunctionPublicInputs {
@@ -416,13 +435,17 @@ class PrivateFunctionPublicInputs {
     note_hashes: List~NoteHash~
     nullifiers: List~Nullifier~
     l2_to_l1_messages: List~field~
-    read_requests: List~ReadRequest~
-    nullifier_key_validation_requests: List~NullifierKeyValidationRequest~
+    note_hash_read_requests: List~ReadRequest~
+    nullifier_read_requests: List~ReadRequest~
+    nullifier_key_validation_requests: List~ParentSecretKeyValidationRequest~
     unencrypted_log_hashes: List~UnencryptedLogHash~
     encrypted_log_hashes: List~EncryptedLogHash~
     encrypted_note_preimage_hashes: List~EncryptedNotePreimageHash~
-    private_call_stack_item_hashes: List~field~
-    public_call_stack_item_hashes: List~field~
+    public_call_requests: List~PublicCallRequest~
+    private_call_requests: List~PrivateCallRequest~
+    counter_start: u32
+    counter_end: u32
+    min_revertible_side_effect_counter: u32
     block_header: BlockHeader
     chain_id: field
     version: field
@@ -430,8 +453,9 @@ class PrivateFunctionPublicInputs {
 PrivateFunctionPublicInputs *-- CallContext: call_context
 PrivateFunctionPublicInputs *-- NoteHash: note_hashes
 PrivateFunctionPublicInputs *-- Nullifier: nullifiers
-PrivateFunctionPublicInputs *-- ReadRequest: read_requests
-PrivateFunctionPublicInputs *-- NullifierKeyValidationRequest: nullifier_key_validation_requests
+PrivateFunctionPublicInputs *-- ReadRequest: note_hash_read_requests
+PrivateFunctionPublicInputs *-- ReadRequest: nullifier_read_requests
+PrivateFunctionPublicInputs *-- ParentSecretKeyValidationRequest: nullifier_key_validation_requests
 PrivateFunctionPublicInputs *-- UnencryptedLogHash: unencrypted_log_hashes
 PrivateFunctionPublicInputs *-- EncryptedLogHash: encrypted_log_hashes
 PrivateFunctionPublicInputs *-- EncryptedNotePreimageHash: encrypted_note_preimage_hashes
@@ -459,8 +483,7 @@ CallContext ..> CallerContext : call_context
 
 CallContext .. NoteHashContext: storage_contract_address\n== contract_address
 CallContext .. NullifierContext: storage_contract_address\n== contract_address
-CallContext .. ReadRequestContext: storage_contract_address\n== contract_address
-CallContext .. NullifierKeyValidationRequestContext: storage_contract_address\n== contract_address
+CallContext .. ParentSecretKeyValidationRequestContext: storage_contract_address\n== contract_address
 CallContext .. UnencryptedLogHashContext: storage_contract_address\n== contract_address
 CallContext .. EncryptedLogHashContext: storage_contract_address\n== contract_address
 CallContext .. EncryptedNotePreimageHashContext: storage_contract_address\n== contract_address
@@ -483,15 +506,15 @@ Nullifier ..> NullifierContext: nullifiers\n->nullifier_contexts
 
 class ReadRequest {
     note_hash: field
+    contract_address: AztecAddress
     counter: field
 }
-ReadRequest ..> ReadRequestContext: read_requests\n->read_request_contexts
 
-class NullifierKeyValidationRequest {
-    public_key: GrumpkinPoint
-    secret_key: fq
+class ParentSecretKeyValidationRequest {
+    parent_public_key: GrumpkinPoint
+    hardened_child_secret_key: fq
 }
-NullifierKeyValidationRequest ..> NullifierKeyValidationRequestContext: nullifier_key_validation_requests\n->nullifier_key_validation_request_contexts
+ParentSecretKeyValidationRequest ..> ParentSecretKeyValidationRequestContext: nullifier_key_validation_requests\n->nullifier_key_validation_request_contexts
 
 class UnencryptedLogHash {
     hash: field
@@ -526,16 +549,26 @@ class BlockHeader {
     global_variables_hash: field
 }
 
-class CallRequest {
+class PublicCallRequestContext {
     call_stack_item_hash: field
-    caller_contract: AztecAddress
+    caller_contract_address: AztecAddress
+    caller_context: CallerContext
+    counter: field
+}
+CallerContext --* PublicCallRequestContext : caller_context
+
+PublicCallRequest ..> PublicCallRequestContext: public_call_requests->public_call_request_contexts
+
+class PrivateCallRequestContext {
+    call_stack_item_hash: field
+    caller_contract_address: AztecAddress
     caller_context: CallerContext
     counter_start: field
     counter_end: field
 }
-CallerContext --* CallRequest : caller_context
+CallerContext --* PrivateCallRequestContext : caller_context
 
-PrivateFunctionPublicInputs ..> CallRequest: private_call_stack_item_hash->call_stack_item_hash\npublic_call_stack_item_hash->call_stack_item_hash
+PrivateCallRequest ..> PrivateCallRequestContext: private_call_requests->private_call_request_stack
 
 class CallerContext {
     msg_sender: AztecAddress
@@ -565,15 +598,9 @@ class L2ToL1MessageContext {
     contract_address: AztecAddress
 }
 
-class ReadRequestContext {
-    note_hash: field
-    counter: field
-    contract_address: AztecAddress
-}
-
-class NullifierKeyValidationRequestContext {
-    public_key: field
-    secret_key: field
+class ParentSecretKeyValidationRequestContext {
+    parent_public_key: GrumpkinPoint
+    hardened_child_secret_key: fq
     contract_address: AztecAddress
 }
 
@@ -612,31 +639,33 @@ class ContractInstance {
   contract_class_id: field
   contract_args_hash: field
   portal_contract_address: EthereumAddress
-  public_keys_hash: Field
+  public_keys_hash: field
 }
 
 class TransientAccumulatedData {
   note_hash_contexts: List~NoteHashContext~
   nullifier_contexts: List~NullifierContext~
   l2_to_l1_message_contexts: List~L2ToL1MessageContext~
-  read_request_contexts: List~ReadRequestContext~
-  nullifier_key_validation_request_contexts: List~NullifierKeyValidationRequestContext~
+  nullifier_key_validation_request_contexts: List~ParentSecretKeyValidationRequestContext~
   unencrypted_log_hash_contexts: List~UnencryptedLogHashContext~
   encrypted_log_hash_contexts: List~EncryptedLogHashContext~
   encrypted_note_preimage_hash_contexts: List~EncryptedNotePreimageHashContext~
-  private_call_requests: List~CallRequest~
-  public_call_requests: List~CallRequest~
+  note_hash_read_requests: List~ReadRequest~
+  nullifier_read_requests: List~ReadRequest~
+  public_call_requests: List~PublicCallRequestContext~
+  private_call_request_stack: List~PrivateCallRequestContext~
 }
 NoteHashContext --* TransientAccumulatedData: note_hash_contexts
 NullifierContext --* TransientAccumulatedData: nullifier_contexts
 L2ToL1MessageContext --* TransientAccumulatedData: l2_to_l1_message_contexts
-ReadRequestContext --* TransientAccumulatedData: read_request_contexts
-NullifierKeyValidationRequestContext --* TransientAccumulatedData: nullifier_key_validation_request_contexts
+ReadRequest --* TransientAccumulatedData: note_hash_read_requests
+ReadRequest --* TransientAccumulatedData: nullifier_read_requests
+ParentSecretKeyValidationRequestContext --* TransientAccumulatedData: nullifier_key_validation_request_contexts
 UnencryptedLogHashContext --* TransientAccumulatedData: unencrypted_log_hash_contexts
 EncryptedLogHashContext --* TransientAccumulatedData: encrypted_log_hash_contexts
 EncryptedNotePreimageHashContext --* TransientAccumulatedData: encrypted_note_preimage_hash_contexts
-CallRequest --* TransientAccumulatedData: private_call_requests
-CallRequest --* TransientAccumulatedData: public_call_requests
+PublicCallRequestContext --* TransientAccumulatedData: public_call_requests
+PrivateCallRequestContext --* TransientAccumulatedData: private_call_request_stack
 
 class ConstantData {
     block_header: BlockHeader
@@ -671,7 +700,7 @@ Data that represents the caller's intent.
 | --------------- | ------------------------------------------- | -------------------------------------------- |
 | `origin`        | `AztecAddress`                              | The Aztec address of the transaction sender. |
 | `function_data` | [`FunctionData`](#functiondata)             | Data of the function being called.           |
-| `args_hash`     | `Field`                                     | Hash of the function arguments.              |
+| `args_hash`     | `field`                                     | Hash of the function arguments.              |
 | `tx_context`    | [`TransactionContext`](#transactioncontext) | Information about the transaction.           |
 
 ### `PrivateCall`
@@ -683,17 +712,28 @@ Data that holds details about the current private function call.
 | `call_stack_item`                  | [`PrivateCallStackItem`](#privatecallstackitem)                     | Information about the current private function call. |
 | `proof`                            | `Proof`                                                             | Proof of the private function circuit.               |
 | `vk`                               | `VerificationKey`                                                   | Verification key of the private function circuit.    |
-| `bytecode_hash`                    | `Field`                                                             | Hash of the function bytecode.                       |
+| `bytecode_hash`                    | `field`                                                             | Hash of the function bytecode.                       |
 | `contract_instance`                | [`ContractInstance`](../contract-deployment/instances.md#structure) | Data of the contract instance being called.          |
 | `contract_class`                   | [`ContractClass`](#contractclassdata)                               | Data of the contract class.                          |
 | `function_leaf_membership_witness` | [`MembershipWitness`](#membershipwitness)                           | Membership witness for the function being called.    |
 
+### `Hints`
+
+| Field                         | Type                                                                                          | Description                                                             |
+| ----------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `note_hash_range_hints`       | [`field`, [`MAX_NEW_NOTE_HASHES_PER_CALL`](../constants.md#circuit-constants)]                | Indices of the next emitted private call requests for note hashes.      |
+| `nullifier_range_hints`       | [`field`, [`MAX_NEW_NULLIFIERS_PER_CALL`](../constants.md#circuit-constants)]                 | Indices of the next emitted private call requests for nullifiers.       |
+| `unencrypted_log_range_hints` | [`field`, [`MAX_UNENCRYPTED_LOG_HASHES_PER_CALL`](../constants.md#circuit-constants)]         | Indices of the next emitted private call requests for unencrypted logs. |
+| `encrypted_log_range_hints`   | [`field`, [`MAX_ENCRYPTED_LOG_HASHES_PER_CALL`](../constants.md#circuit-constants)]           | Indices of the next emitted private call requests for encrypted logs.   |
+| `encrypted_note_range_hints`  | [`field`, [`MAX_ENCRYPTED_NOTE_PREIMAGE_HASHES_PER_CALL`](../constants.md#circuit-constants)] | Indices of the next emitted private call requests for encrypted notes.  |
+
 ## `PublicInputs`
 
-| Field                        | Type                                                    | Description |
-| ---------------------------- | ------------------------------------------------------- | ----------- |
-| `constant_data`              | [`ConstantData`](#constantdata)                         |             |
-| `transient_accumulated_data` | [`TransientAccumulatedData`](#transientaccumulateddata) |             |
+| Field                                | Type                                                    | Description |
+| ------------------------------------ | ------------------------------------------------------- | ----------- |
+| `constant_data`                      | [`ConstantData`](#constantdata)                         |             |
+| `transient_accumulated_data`         | [`TransientAccumulatedData`](#transientaccumulateddata) |             |
+| `min_revertible_side_effect_counter` | `u32`                                                   |             |
 
 ### `ConstantData`
 
@@ -710,35 +750,28 @@ Data that remains the same throughout the entire transaction.
 Would it be accurate to describe this as `AccumulatedTransientSideEffects`, perhaps?
 -->
 
-| Field                                       | Type                                                                                 | Description                                                                 |
-| ------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| `note_hash_contexts`                        | [`[NoteHashContext; C]`](#notehashcontext)                                           | Note hashes with extra data aiding verification.                            |
-| `nullifier_contexts`                        | [`[NullifierContext; C]`](#nullifiercontext)                                         | Nullifiers with extra data aiding verification.                             |
-| `l2_to_l1_message_contexts`                 | [`[L2toL1MessageContext; C]`](#l2tol1messagecontext)                                 | L2-to-l1 messages with extra data aiding verification.                      |
-| `read_request_contexts`                     | [`[ReadRequestContext; C]`](#readrequestcontext)                                     | Requests to read notes in the note hash tree.                               |
-| `nullifier_key_validation_request_contexts` | [`[NullifierKeyValidationRequestContext; C]`](#nullifierkeyvalidationrequestcontext) | Requests to validate nullifier keys.                                        |
-| `unencrypted_log_hash_contexts`             | [`[UnencryptedLogHashContext; C]`](#unencryptedloghashcontext)                       | Hashes of the unencrypted logs with extra data aiding verification.         |
-| `encrypted_log_hash_contexts`               | [`[EncryptedLogHashContext; C]`](#encryptedloghashcontext)                           | Hashes of the encrypted logs with extra data aiding verification.           |
-| `encrypted_note_preimage_hash_contexts`     | [`[EncryptedNotePreimageHashContext; C]`](#encryptednotepreimagehash)                | Hashes of the encrypted note preimages with extra data aiding verification. |
-| `private_call_requests`                     | [`[CallRequest; C]`](#callrequest)                                                   | Requests to call private functions.                                         |
-| `public_call_requests`                      | [`[CallRequest; C]`](#callrequest)                                                   | Requests to call publics functions.                                         |
-
-> The above **C**s represent constants defined by the protocol. Each **C** might have a different value from the others.
+| Field                                       | Type                                                                                                                                                                         | Description                                                                                                                    |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `note_hash_contexts`                        | [[`NoteHashContext`](#notehashcontext); [`MAX_NEW_NOTE_HASHES_PER_TX`](../constants.md#circuit-constants)]                                                                   | Note hashes with extra data aiding verification.                                                                               |
+| `nullifier_contexts`                        | [[`NullifierContext`](#nullifiercontext); [`MAX_NEW_NULLIFIERS_PER_TX`](../constants.md#circuit-constants)]                                                                  | Nullifiers with extra data aiding verification.                                                                                |
+| `l2_to_l1_message_contexts`                 | [[`L2toL1MessageContext`](#l2tol1messagecontext); [`MAX_NEW_L2_TO_L1_MSGS_PER_TX`](../constants.md#circuit-constants)]                                                       | L2-to-l1 messages with extra data aiding verification.                                                                         |
+| `unencrypted_log_hash_contexts`             | [[`UnencryptedLogHashContext`](#unencryptedloghashcontext); [`MAX_UNENCRYPTED_LOG_HASHES_PER_TX`](../constants.md#circuit-constants)]                                        | Hashes of the unencrypted logs with extra data aiding verification.                                                            |
+| `encrypted_log_hash_contexts`               | [[`EncryptedLogHashContext`](#encryptedloghashcontext); [`MAX_ENCRYPTED_LOG_HASHES_PER_TX`](../constants.md#circuit-constants)]                                              | Hashes of the encrypted logs with extra data aiding verification.                                                              |
+| `encrypted_note_preimage_hash_contexts`     | [[`EncryptedNotePreimageHashContext`](#encryptednotepreimagehash); [`MAX_ENCRYPTED_NOTE_PREIMAGE_HASHES_PER_TX`](../constants.md#circuit-constants)]                         | Hashes of the encrypted note preimages with extra data aiding verification.                                                    |
+| `note_hash_read_requests`                   | [[`ReadRequest`](./private-function#readrequest); [`MAX_NOTE_HASH_READ_REQUESTS_PER_TX`](../constants.md#circuit-constants)]                                                 | Requests to prove the note hashes being read exist.                                                                            |
+| `nullifier_read_requests`                   | [[`ReadRequest`](./private-function#readrequest); [`MAX_NULLIFIER_READ_REQUESTS_PER_TX`](../constants.md#circuit-constants)]                                                 | Requests to prove the nullifiers being read exist.                                                                             |
+| `nullifier_key_validation_request_contexts` | [[`ParentSecretKeyValidationRequestContext`](#parentsecretkeyvalidationrequestcontext); [`MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX`](../constants.md#circuit-constants)] | Requests to validate nullifier keys.                                                                                           |
+| `public_call_request_contexts`              | [[`PublicCallRequestContext`](./public-kernel-tail.md#publiccallrequestcontext); [`MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX`](../constants.md#circuit-constants)]                 | Requests to call publics functions.                                                                                            |
+| `private_call_request_stack`                | [[`PrivateCallRequestContext`](#privatecallrequestcontext); [`MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX`](../constants.md#circuit-constants)]                                     | Requests to call private functions. Pushed to the stack in reverse order so that they will be executed in chronological order. |
 
 ## Types
 
 ### `FunctionData`
 
-<!-- Is it even possible for a kernel circuit to process an unconstrained function? Does the `function_type` need to include `unconstrained`? -->
-
-<!-- prettier-ignore -->
-| Field               | Type                               | Description                                         |
-| ------------------- | ---------------------------------- | --------------------------------------------------- |
-| `function_selector` | `u32`                              | Selector of the function being called.              |
-| `function_type`     | `private | public | unconstrained` | Type of the function being called.                  |
-| `is_internal`       | `bool`                             | A flag indicating whether the function is internal. |
-
-<!-- TODO: Palla is considering removing `is_internal` from the protocol and instead making it an explicit check in the body of a public function instead (via a macro). Please discuss with him :) -->
+| Field               | Type                  | Description                            |
+| ------------------- | --------------------- | -------------------------------------- |
+| `function_selector` | `u32`                 | Selector of the function being called. |
+| `function_type`     | `private` \| `public` | Type of the function being called.     |
 
 ### `ContractClass`
 
@@ -751,19 +784,18 @@ Public functions and unconstrained functions won't be stored in a function tree;
 | ------------------------- | -------------- | ------------------------------------------------------------------ |
 | `version`                 | `u8`           | Version identifier.                                                |
 | `registerer_address`      | `AztecAddress` | Address of the canonical contract used for registering this class. |
-| `artifact_hash`           | `Field`        | Hash of the contract artifact.                                     |
-| `private_functions`       | `Field`        | Merkle root of the private function tree.                          |
-| `public_functions`        | `Field`        | Merkle root of the public function tree.                           |
-| `unconstrained_functions` | `Field`        | Merkle root of the unconstrained function tree.                    |
+| `artifact_hash`           | `field`        | Hash of the contract artifact.                                     |
+| `private_functions`       | `field`        | Merkle root of the private function tree.                          |
+| `public_functions`        | `field`        | Merkle root of the public function tree.                           |
+| `unconstrained_functions` | `field`        | Merkle root of the unconstrained function tree.                    |
 
 ### `TransactionContext`
 
-<!-- prettier-ignore -->
-| Field      | Type                                 | Description                  |
-| ---------- | ------------------------------------ | ---------------------------- |
-| `tx_type`  | `standard | fee_paying | fee_rebate` | Type of the transaction.     |
-| `chain_id` | `Field`                              | Chain ID of the transaction. |
-| `version`  | `Field`                              | Version of the transaction.  |
+| Field      | Type                                       | Description                  |
+| ---------- | ------------------------------------------ | ---------------------------- |
+| `tx_type`  | `standard` \| `fee_paying` \| `fee_rebate` | Type of the transaction.     |
+| `chain_id` | `field`                                    | Chain ID of the transaction. |
+| `version`  | `field`                                    | Version of the transaction.  |
 
 ### `PrivateCallStackItem`
 
@@ -772,36 +804,33 @@ Public functions and unconstrained functions won't be stored in a function tree;
 | `contract_address` | `AztecAddress`                                                       | Address of the contract on which the function is invoked. |
 | `function_data`    | [`FunctionData`](#functiondata)                                      | Data of the function being called.                        |
 | `public_inputs`    | [`PrivateFunctionPublicInputs`](./private-function.md#public-inputs) | Public inputs of the private function circuit.            |
-| `counter_start`    | `Field`                                                              | Counter at which the function call was initiated.         |
-| `counter_end`      | `Field`                                                              | Counter at which the function call ended.                 |
 
 <!--
 What's the mental model for when a PrivateCallStackItem should be used vs a CallRequest. They look very similar, and seem to contain very similar information.
 Is the PrivateCallStackItem a struct representing function call (request) _that is created directly by a private function_? But the CallRequest is a struct representing a function call (request) _that is created by the kernel circuit as a modification of a PrivateCallStackItem_? Perhaps the names can be edited to describe the distinction?
  -->
 
-### `CallRequest`
+### `PrivateCallRequestContext`
 
-<!-- consider renaming caller_contract to caller_contract_address -->
 <!-- Q: Why is `caller_contract(_address)` needed if caller_context already contains msg_sender? Is it because delegatecalls can make the call_context data different from what you want here? -->
 
-| Field                  | Type                              | Description                                   |
-| ---------------------- | --------------------------------- | --------------------------------------------- |
-| `call_stack_item_hash` | `Field`                           | Hash of the call stack item.                  |
-| `caller_contract`      | `AztecAddress`                    | Address of the contract calling the function. |
-| `caller_context`       | [`CallerContext`](#callercontext) | Context of the contract calling the function. |
-| `counter_start`        | `Field`                           | Counter at which the call was initiated.      |
-| `counter_end`          | `Field`                           | Counter at which the call ended.              |
+| Field                     | Type                              | Description                                   |
+| ------------------------- | --------------------------------- | --------------------------------------------- |
+| `call_stack_item_hash`    | `field`                           | Hash of the call stack item.                  |
+| `counter_start`           | `u32`                             | Counter at which the call was initiated.      |
+| `counter_end`             | `u32`                             | Counter at which the call ended.              |
+| `caller_contract_address` | `AztecAddress`                    | Address of the contract calling the function. |
+| `caller_context`          | [`CallerContext`](#callercontext) | Context of the contract calling the function. |
 
 ### `CallerContext`
 
 <!-- Is this missing a `is_delegate_call` field? What about the other kinds of calls (see ../calls/*)? -->
 
-| Field              | Type           | Description                                          |
-| ------------------ | -------------- | ---------------------------------------------------- |
-| `msg_sender`       | `AztecAddress` | Address of the caller contract.                      |
-| `storage_contract` | `AztecAddress` | Storage contract address of the caller contract.     |
-| `is_static_call`   | `bool`         | A flag indicating whether the call is a static call. |
+| Field                      | Type           | Description                                          |
+| -------------------------- | -------------- | ---------------------------------------------------- |
+| `msg_sender`               | `AztecAddress` | Address of the caller contract.                      |
+| `storage_contract_address` | `AztecAddress` | Storage contract address of the caller contract.     |
+| `is_static_call`           | `bool`         | A flag indicating whether the call is a static call. |
 
 ### `NoteHashContext`
 
@@ -819,43 +848,36 @@ etc.
 
 | Field               | Type           | Description                                              |
 | ------------------- | -------------- | -------------------------------------------------------- |
-| `value`             | `Field`        | Hash of the note.                                        |
-| `counter`           | `Field`        | Counter at which the note hash was created.              |
-| `nullifier_counter` | `Field`        | Counter at which the nullifier for the note was created. |
+| `value`             | `field`        | Hash of the note.                                        |
+| `counter`           | `u32`          | Counter at which the note hash was created.              |
+| `nullifier_counter` | `field`        | Counter at which the nullifier for the note was created. |
 | `contract_address`  | `AztecAddress` | Address of the contract the note was created.            |
 
 ### `NullifierContext`
 
 | Field               | Type           | Description                                                                                                              |
 | ------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `value`             | `Field`        | Value of the nullifier.                                                                                                  |
-| `counter`           | `Field`        | Counter at which the nullifier was created.                                                                              |
-| `note_hash_counter` | `Field`        | Counter of the transient note the nullifier is created for. 0 if the nullifier does not associate with a transient note. |
+| `value`             | `field`        | Value of the nullifier.                                                                                                  |
+| `counter`           | `u32`          | Counter at which the nullifier was created.                                                                              |
+| `note_hash_counter` | `u32`          | Counter of the transient note the nullifier is created for. 0 if the nullifier does not associate with a transient note. |
 | `contract_address`  | `AztecAddress` | Address of the contract the nullifier was created.                                                                       |
 
 ### `L2toL1MessageContext`
 
 | Field                     | Type           | Description                                      |
 | ------------------------- | -------------- | ------------------------------------------------ |
-| `value`                   | `Field`        | L2-to-l2 message.                                |
+| `value`                   | `field`        | L2-to-l2 message.                                |
+| `counter`                 | `u32`          | Counter at which the message was emitted.        |
 | `portal_contract_address` | `AztecAddress` | Address of the portal contract to the contract.  |
 | `contract_address`        | `AztecAddress` | Address of the contract the message was created. |
 
-### `ReadRequestContext`
+### `ParentSecretKeyValidationRequestContext`
 
-| Field              | Type           | Description                                   |
-| ------------------ | -------------- | --------------------------------------------- |
-| `note_hash`        | `Field`        | Hash of the note to be read.                  |
-| `counter`          | `Field`        | Counter at which the request was made.        |
-| `contract_address` | `AztecAddress` | Address of the contract the request was made. |
-
-### `NullifierKeyValidationRequestContext`
-
-| Field              | Type           | Description                                                |
-| ------------------ | -------------- | ---------------------------------------------------------- |
-| `public_key`       | `Field`        | Nullifier public key of an account.                        |
-| `secret_key`       | `Field`        | Secret key of an account siloed with the contract address. |
-| `contract_address` | `AztecAddress` | Address of the contract the request was made.              |
+| Field                       | Type            | Description                                   |
+| --------------------------- | --------------- | --------------------------------------------- |
+| `parent_public_key`         | `GrumpkinPoint` | Claimed parent public key of the secret key.  |
+| `hardened_child_secret_key` | `fq`            | Secret key passed to the contract.            |
+| `contract_address`          | `AztecAddress`  | Address of the contract the request was made. |
 
 ### `UnencryptedLogHashContext`
 
@@ -863,36 +885,34 @@ etc.
 
 | Field              | Type           | Description                                  |
 | ------------------ | -------------- | -------------------------------------------- |
-| `hash`             | `Field`        | Hash of the unencrypted log.                 |
-| `length`           | `Field`        | Number of fields of the log preimage.        |
-| `counter`          | `Field`        | Counter at which the hash was emitted.       |
+| `hash`             | `field`        | Hash of the unencrypted log.                 |
+| `length`           | `field`        | Number of fields of the log preimage.        |
+| `counter`          | `u32`          | Counter at which the hash was emitted.       |
 | `contract_address` | `AztecAddress` | Address of the contract the log was emitted. |
 
 ### `EncryptedLogHashContext`
 
 | Field              | Type           | Description                                  |
 | ------------------ | -------------- | -------------------------------------------- |
-| `hash`             | `Field`        | Hash of the encrypted log.                   |
-| `length`           | `Field`        | Number of fields of the log preimage.        |
-| `counter`          | `Field`        | Counter at which the hash was emitted.       |
+| `hash`             | `field`        | Hash of the encrypted log.                   |
+| `length`           | `field`        | Number of fields of the log preimage.        |
+| `counter`          | `u32`          | Counter at which the hash was emitted.       |
 | `contract_address` | `AztecAddress` | Address of the contract the log was emitted. |
-| `randomness`       | `Field`        | A random value to hide the contract address. |
+| `randomness`       | `field`        | A random value to hide the contract address. |
 
 ### `EncryptedNotePreimageHashContext`
 
 | Field               | Type           | Description                                  |
 | ------------------- | -------------- | -------------------------------------------- |
-| `hash`              | `Field`        | Hash of the encrypted note preimage.         |
-| `length`            | `Field`        | Number of fields of the note preimage.       |
-| `counter`           | `Field`        | Counter at which the hash was emitted.       |
+| `hash`              | `field`        | Hash of the encrypted note preimage.         |
+| `length`            | `field`        | Number of fields of the note preimage.       |
+| `counter`           | `u32`          | Counter at which the hash was emitted.       |
 | `contract_address`  | `AztecAddress` | Address of the contract the log was emitted. |
-| `note_hash_counter` | `Field`        | Counter of the corresponding note hash.      |
+| `note_hash_counter` | `field`        | Counter of the corresponding note hash.      |
 
 ### `MembershipWitness`
 
-| Field          | Type         | Description                           |
-| -------------- | ------------ | ------------------------------------- |
-| `leaf_index`   | `Field`      | Index of the leaf in the tree.        |
-| `sibling_path` | `[Field; H]` | Sibling path to the leaf in the tree. |
-
-> `H` represents the height of the tree.
+| Field          | Type           | Description                                                                  |
+| -------------- | -------------- | ---------------------------------------------------------------------------- |
+| `leaf_index`   | `field`        | Index of the leaf in the tree.                                               |
+| `sibling_path` | [`field`; `H`] | Sibling path to the leaf in the tree. `H` represents the height of the tree. |

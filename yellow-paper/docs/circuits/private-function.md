@@ -38,32 +38,30 @@ Some tweaks might be needed following this discussion: https://docs.google.com/s
 
 The public inputs of _every_ private function _must_ adhere to the following ABI:
 
-| Field                               | Type                                                                    | Description                                                           |
-| ----------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `call_context`                      | [`CallContext`](#callcontext)                                           | Context of the call corresponding to this function execution.         |
-| `args_hash`                         | `field`                                                                 | Hash of the function arguments.                                       |
-| `return_values`                     | `[field; C]`                                                            | Return values of this function call.                                  |
-| `read_requests`                     | [`[ReadRequest; C]`](#readrequest)                                      | Requests to read notes in the note hash tree.                         |
-| `nullifier_key_validation_requests` | [`[NullifierKeyValidationRequest]; C]`](#nullifierkeyvalidationrequest) | Requests to validate nullifier keys used in this function call.       |
-| `note_hashes`                       | [`[NoteHash; C]`](#notehash)                                            | New note hashes created in this function call.                        |
-| `nullifiers`                        | [`[Nullifier; C]`](#nullifier)                                          | New nullifiers created in this function call.                         |
-| `l2_to_l1_messages`                 | `[field; C]`                                                            | New L2 to L1 messages created in this function call.                  |
-| `unencrypted_log_hashes`            | [`[UnencryptedLogHash; C]`](#unencryptedloghash)                        | Hashes of the unencrypted logs emitted in this function call.         |
-| `encrypted_log_hashes`              | [`[EncryptedLogHash; C]`](#encryptedloghash)                            | Hashes of the encrypted logs emitted in this function call.           |
-| `encrypted_note_preimage_hashes`    | [`[EncryptedNotePreimageHash]; C]`](#encryptednotepreimagehash)         | Hashes of the encrypted note preimages emitted in this function call. |
-| `private_call_stack_item_hashes`    | `[field; C]`                                                            | Hashes of the private function calls initiated by this function.      |
-| `public_call_stack_item_hashes`     | `[field; C]`                                                            | Hashes of the public function calls initiated by this function.       |
-| `block_header`                      | [`BlockHeader`](#blockheader)                                           | Information about the trees used for the transaction.                 |
-| `chain_id`                          | `field`                                                                 | Chain ID of the transaction.                                          |
-| `version`                           | `field`                                                                 | Version of the transaction.                                           |
+| Field                                | Type                                                                                                                                                             | Description                                                           |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `call_context`                       | [`CallContext`](#callcontext)                                                                                                                                    | Context of the call corresponding to this function execution.         |
+| `args_hash`                          | `field`                                                                                                                                                          | Hash of the function arguments.                                       |
+| `return_values`                      | [`field`; [`RETURN_VALUES_LENGTH`](../constants.md#circuit-constants)]                                                                                           | Return values of this function call.                                  |
+| `note_hashes`                        | [[`NoteHash`](#notehash); [`MAX_NEW_NOTE_HASHES_PER_CALL`](../constants.md#circuit-constants)]                                                                   | New note hashes created in this function call.                        |
+| `nullifiers`                         | [[`Nullifier`](#nullifier); [`MAX_NEW_NULLIFIERS_PER_CALL`](../constants.md#circuit-constants)]                                                                  | New nullifiers created in this function call.                         |
+| `l2_to_l1_messages`                  | [[`L2toL1Message`](#l2tol1message); [`MAX_NEW_L2_TO_L1_MSGS_PER_CALL`](../constants.md#circuit-constants)]                                                       | New L2 to L1 messages created in this function call.                  |
+| `unencrypted_log_hashes`             | [[`UnencryptedLogHash`](#unencryptedloghash); [`MAX_UNENCRYPTED_LOG_HASHES_PER_CALL`](../constants.md#circuit-constants)]                                        | Hashes of the unencrypted logs emitted in this function call.         |
+| `encrypted_log_hashes`               | [[`EncryptedLogHash`](#encryptedloghash); [`MAX_ENCRYPTED_LOG_HASHES_PER_CALL`](../constants.md#circuit-constants)]                                              | Hashes of the encrypted logs emitted in this function call.           |
+| `encrypted_note_preimage_hashes`     | [[`EncryptedNotePreimageHash`](#encryptednotepreimagehash); [`MAX_ENCRYPTED_NOTE_PREIMAGE_HASHES_PER_CALL`](../constants.md#circuit-constants)]                  | Hashes of the encrypted note preimages emitted in this function call. |
+| `note_hash_read_requests`            | [[`ReadRequest`](#readrequest); [`MAX_NOTE_HASH_READ_REQUESTS_PER_CALL`](../constants.md#circuit-constants)]                                                     | Requests to prove the note hashes being read exist.                   |
+| `nullifier_read_requests`            | [[`ReadRequest`](#readrequest); [`MAX_NULLIFIER_READ_REQUESTS_PER_CALL`](../constants.md#circuit-constants)]                                                     | Requests to prove the nullifiers being read exist.                    |
+| `nullifier_key_validation_requests`  | [[`ParentSecretKeyValidationRequest`](#parentsecretkeyvalidationrequest); [`MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL`](../constants.md#circuit-constants)] | Requests to validate nullifier keys used in this function call.       |
+| `public_call_requests`               | [[`PublicCallRequest`](#publiccallrequest); [`MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL`](../constants.md#circuit-constants)]                                        | Requests to call public functions.                                    |
+| `private_call_requests`              | [[`PrivateCallRequest`](#privatecallrequest); [`MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL`](../constants.md#circuit-constants)]                                     | Requests to call Private functions.                                   |
+| `counter_start`                      | `u32`                                                                                                                                                            | Counter at which the function call was initiated.                     |
+| `counter_end`                        | `u32`                                                                                                                                                            | Counter at which the function call ended.                             |
+| `min_revertible_side_effect_counter` | `u32`                                                                                                                                                            | Counter below which the side effects are non-revertible.              |
+| `block_header`                       | [`BlockHeader`](#blockheader)                                                                                                                                    | Information about the trees used for the transaction.                 |
+| `chain_id`                           | `field`                                                                                                                                                          | Chain ID of the transaction.                                          |
+| `version`                            | `field`                                                                                                                                                          | Version of the transaction.                                           |
 
 After generating a proof for a private function circuit, that proof (and associated public inputs) will be passed-into a private kernel circuit as private inputs. Private kernel circuits use the private function's proof, public inputs, and verification key, to verify the correct execution of the private function. Private kernel circuits then perform a number of checks and computations on the private function's public inputs.
-
-> The above `C`s represent constants defined by the protocol. Each `C` might have a different value from the others.
-
-<!--
-TODO: use different values for each constant, instead of `C`, so that this document is as precise as possible.
--->
 
 ## Types
 
@@ -77,36 +75,27 @@ TODO: use different values for each constant, instead of `C`, so that this docum
 | `is_delegate_call`         | `bool`         | A flag indicating whether the call is a [delegate call](../calls/delegate-calls.md).                                                                                                      |
 | `is_static_call`           | `bool`         | A flag indicating whether the call is a [static call](../calls/static-calls.md).                                                                                                          |
 
-### `ReadRequest`
-
-| Field       | Type    | Description                            |
-| ----------- | ------- | -------------------------------------- |
-| `note_hash` | `field` | Hash of the note to be read.           |
-| `counter`   | `field` | Counter at which the request was made. |
-
-### `NullifierKeyValidationRequest`
-
-<!-- These types might be wrong. The public key needs to be some encoding of a grumpkin point. The secret key needs to be an Fq field instead of an Fr field. -->
-
-| Field        | Type    | Description                                                          |
-| ------------ | ------- | -------------------------------------------------------------------- |
-| `public_key` | `field` | Nullifier public key of an account.                                  |
-| `secret_key` | `field` | Nullifier secret key of an account siloed with the contract address. |
-
 ### `NoteHash`
 
 | Field     | Type    | Description                                 |
 | --------- | ------- | ------------------------------------------- |
 | `value`   | `field` | Hash of the note.                           |
-| `counter` | `field` | Counter at which the note hash was created. |
+| `counter` | `u32`   | Counter at which the note hash was created. |
 
 ### `Nullifier`
 
 | Field               | Type    | Description                                                                                                              |
 | ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `value`             | `field` | Value of the nullifier.                                                                                                  |
-| `counter`           | `field` | Counter at which the nullifier was created.                                                                              |
-| `note_hash_counter` | `field` | Counter of the transient note the nullifier is created for. 0 if the nullifier does not associate with a transient note. |
+| `counter`           | `u32`   | Counter at which the nullifier was created.                                                                              |
+| `note_hash_counter` | `u32`   | Counter of the transient note the nullifier is created for. 0 if the nullifier does not associate with a transient note. |
+
+### `L2toL1Message`
+
+| Field     | Type    | Description                               |
+| --------- | ------- | ----------------------------------------- |
+| `value`   | `field` | L2-to-l2 message.                         |
+| `counter` | `u32`   | Counter at which the message was emitted. |
 
 ### `UnencryptedLogHash`
 
@@ -116,7 +105,7 @@ TODO: use different values for each constant, instead of `C`, so that this docum
 | --------- | ------- | -------------------------------------- |
 | `hash`    | `field` | Hash of the unencrypted log.           |
 | `length`  | `field` | Number of fields of the log preimage.  |
-| `counter` | `field` | Counter at which the hash was emitted. |
+| `counter` | `u32`   | Counter at which the hash was emitted. |
 
 ### `EncryptedLogHash`
 
@@ -124,7 +113,7 @@ TODO: use different values for each constant, instead of `C`, so that this docum
 | ------------ | ------- | -------------------------------------------- |
 | `hash`       | `field` | Hash of the encrypted log.                   |
 | `length`     | `field` | Number of fields of the log preimage.        |
-| `counter`    | `field` | Counter at which the hash was emitted.       |
+| `counter`    | `u32`   | Counter at which the hash was emitted.       |
 | `randomness` | `field` | A random value to hide the contract address. |
 
 ### `EncryptedNotePreimageHash`
@@ -133,8 +122,40 @@ TODO: use different values for each constant, instead of `C`, so that this docum
 | ------------------- | ------- | --------------------------------------- |
 | `hash`              | `field` | Hash of the encrypted note preimage.    |
 | `length`            | `field` | Number of fields of the note preimage.  |
-| `counter`           | `field` | Counter at which the hash was emitted.  |
-| `note_hash_counter` | `field` | Counter of the corresponding note hash. |
+| `counter`           | `u32`   | Counter at which the hash was emitted.  |
+| `note_hash_counter` | `u32`   | Counter of the corresponding note hash. |
+
+### `ReadRequest`
+
+| Field              | Type           | Description                                    |
+| ------------------ | -------------- | ---------------------------------------------- |
+| `value`            | `field`        | Value being read.                              |
+| `contract_address` | `AztecAddress` | Address of the contract the value was created. |
+| `counter`          | `u32`          | Counter at which the request was made.         |
+
+### `ParentSecretKeyValidationRequest`
+
+| Field                       | Type            | Description                                  |
+| --------------------------- | --------------- | -------------------------------------------- |
+| `parent_public_key`         | `GrumpkinPoint` | Claimed parent public key of the secret key. |
+| `hardened_child_secret_key` | `fq`            | Secret key passed to the function.           |
+
+### `PublicCallRequest`
+
+| Field                  | Type    | Description                            |
+| ---------------------- | ------- | -------------------------------------- |
+| `call_stack_item_hash` | `field` | Hash of the call stack item.           |
+| `counter`              | `u32`   | Counter at which the request was made. |
+
+<!-- TODO: change call_stack_item_hash to actual data for the public call request -->
+
+### `PrivateCallRequest`
+
+| Field                  | Type    | Description                              |
+| ---------------------- | ------- | ---------------------------------------- |
+| `call_stack_item_hash` | `field` | Hash of the call stack item.             |
+| `counter_start`        | `u32`   | Counter at which the call was initiated. |
+| `counter_end`          | `u32`   | Counter at which the call ended.         |
 
 ### `BlockHeader`
 
