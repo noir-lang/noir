@@ -42,6 +42,7 @@ contract TokenBlacklist {
 
     // docs:start:constructor
     #[aztec(private)]
+    #[aztec(initializer)]
     fn constructor(admin: AztecAddress, slow_updates_contract: AztecAddress) {
         // docs:end:constructor
         let selector = FunctionSelector::from_signature("_initialize((Field),(Field))");

@@ -29,6 +29,7 @@ contract SchnorrAccount {
 
     // Constructs the contract
     #[aztec(private)]
+    #[aztec(initializer)]
     fn constructor(signing_pub_key_x: pub Field, signing_pub_key_y: pub Field) {
         let this = context.this_address();
         // docs:start:initialize

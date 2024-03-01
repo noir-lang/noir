@@ -9,6 +9,7 @@ import {
   L2BlockL2Logs,
   LogId,
   Note,
+  NullifierMembershipWitness,
   PXE,
   Tx,
   TxEffect,
@@ -51,7 +52,7 @@ export function createPXERpcServer(pxeService: PXE): JsonRpcServer {
       TxEffect,
       LogId,
     },
-    { Tx, TxReceipt, L2BlockL2Logs },
+    { Tx, TxReceipt, L2BlockL2Logs, NullifierMembershipWitness },
     ['start', 'stop'],
   );
 }

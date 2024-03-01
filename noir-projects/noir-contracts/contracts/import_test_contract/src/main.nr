@@ -10,6 +10,7 @@ contract ImportTest {
         ManyNotesADeepStructTestCodeGenStruct
     };
 
+    // TODO(@spalladino): Delete all empty constructors
     #[aztec(private)]
     fn constructor(
     ) {}

@@ -24,6 +24,7 @@ contract TokenBridge {
 
     // Constructs the contract.
     #[aztec(private)]
+    #[aztec(initializer)]
     fn constructor(token: AztecAddress) {
         let selector = FunctionSelector::from_signature("_initialize((Field))");
         context.call_public_function(context.this_address(), selector, [token.to_field()]);

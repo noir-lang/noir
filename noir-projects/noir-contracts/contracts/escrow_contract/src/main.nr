@@ -19,6 +19,7 @@ contract Escrow {
     // Creates a new instance
     // docs:start:constructor
     #[aztec(private)]
+    #[aztec(initializer)]
     fn constructor(owner: pub AztecAddress) {
         let this = context.this_address();
 

@@ -11,7 +11,8 @@ contract Test {
     // docs:end:unencrypted_import
 
     use dep::aztec::{
-        context::{Context, inputs::private_context_inputs::PrivateContextInputs}, hash::pedersen_hash,
+        context::{Context, inputs::private_context_inputs::PrivateContextInputs}, 
+        hash::{pedersen_hash, compute_secret_hash},
         context::PrivateContext,
         note::{
         note_header::NoteHeader, utils as note_utils, lifecycle::{create_note, destroy_note},
@@ -20,7 +21,7 @@ contract Test {
     },
         deploy::{deploy_contract as aztec_deploy_contract},
         oracle::{get_public_key::get_public_key as get_public_key_oracle, context::get_portal_address, rand::rand},
-        state_vars::PrivateImmutable, log::emit_unencrypted_log_from_private
+        state_vars::{PrivateImmutable, PrivateSet}, log::emit_unencrypted_log_from_private
     };
     use dep::token_portal_content_hash_lib::{get_mint_private_content_hash, get_mint_public_content_hash};
     use dep::field_note::field_note::FieldNote;
@@ -33,8 +34,10 @@ contract Test {
 
     struct Storage {
         example_constant: PrivateImmutable<FieldNote>,
+        example_set: PrivateSet<FieldNote>,
     }
 
+    // TODO(@spalladino): Delete all empty constructors
     #[aztec(private)]
     // docs:start:empty-constructor
     fn constructor() {}
@@ -348,6 +351,17 @@ contract Test {
     #[aztec(private)]
     fn deploy_contract(target: AztecAddress) {
         aztec_deploy_contract(&mut context, target);
+    }
+
+    #[aztec(private)]
+    // Adapted from TokenContract#redeem_shield but without an initcheck so it can be run in simulator/src/client/private_execution.test.ts
+    fn consume_note_from_secret(secret: Field) {
+        let notes_set = storage.example_set;
+        let secret_hash = compute_secret_hash(secret);
+        let options = NoteGetterOptions::new().select(0, secret_hash, Option::none()).set_limit(1);
+        let notes = notes_set.get_notes(options);
+        let note = notes[0].unwrap_unchecked();
+        notes_set.remove(note);
     }
 
     unconstrained fn get_constant() -> pub Field {

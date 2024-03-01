@@ -12,6 +12,7 @@ contract FPC {
     }
 
     #[aztec(private)]
+    #[aztec(initializer)]
     fn constructor(other_asset: AztecAddress, fee_asset: AztecAddress) {
         let selector = FunctionSelector::from_signature("_initialize((Field),(Field))");
         context.call_public_function(

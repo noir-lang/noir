@@ -25,7 +25,6 @@ contract StatefulTest {
     }
 
     #[aztec(private)]
-    #[aztec(initcheck)]
     fn create_note(owner: AztecAddress, value: Field) {
         if (value != 0) {
             let loc = storage.notes.at(owner);
@@ -34,6 +33,7 @@ contract StatefulTest {
     }
 
     #[aztec(private)]
+    #[aztec(noinitcheck)]
     fn create_note_no_init_check(owner: AztecAddress, value: Field) {
         if (value != 0) {
             let loc = storage.notes.at(owner);
@@ -54,6 +54,7 @@ contract StatefulTest {
     }
 
     #[aztec(private)]
+    #[aztec(noinitcheck)]
     fn destroy_and_create_no_init_check(recipient: AztecAddress, amount: Field) {
         let sender = context.msg_sender();
 

@@ -35,6 +35,7 @@ contract AppSubscription {
 
     // Constructs the contract
     #[aztec(private)]
+    #[aztec(initializer)]
     fn constructor(
         target_address: AztecAddress,
         subscription_recipient_address: AztecAddress,

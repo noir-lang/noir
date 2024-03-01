@@ -54,6 +54,7 @@ contract Token {
 
     // docs:start:constructor
     #[aztec(private)]
+    #[aztec(initializer)]
     fn constructor(admin: AztecAddress, name: str<31>, symbol: str<31>, decimals: u8) {
         let selector = FunctionSelector::from_signature("_initialize((Field),(Field),(Field),u8)");
         let name_s = FieldCompressedString::from_string(name);

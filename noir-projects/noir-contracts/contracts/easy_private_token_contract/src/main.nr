@@ -13,6 +13,7 @@ contract EasyPrivateToken {
      * initialize the contract's initial state variables.
      */
     #[aztec(private)]
+    #[aztec(initializer)]
     fn constructor(initial_supply: u64, owner: AztecAddress) {
         let balances = storage.balances;
 

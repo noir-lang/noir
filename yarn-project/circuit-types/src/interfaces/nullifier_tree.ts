@@ -31,4 +31,20 @@ export class NullifierMembershipWitness {
   public toFields(): Fr[] {
     return [new Fr(this.index), ...this.leafPreimage.toFields(), ...this.siblingPath.toFields()];
   }
+
+  public toJSON() {
+    return {
+      index: '0x' + this.index.toString(16),
+      leafPreimage: this.leafPreimage.toJSON(),
+      siblingPath: this.siblingPath.toString(),
+    };
+  }
+
+  static fromJSON(json: any): NullifierMembershipWitness {
+    return new NullifierMembershipWitness(
+      BigInt(json.index),
+      NullifierLeafPreimage.fromJSON(json.leafPreimage),
+      SiblingPath.fromString<typeof NULLIFIER_TREE_HEIGHT>(json.siblingPath),
+    );
+  }
 }

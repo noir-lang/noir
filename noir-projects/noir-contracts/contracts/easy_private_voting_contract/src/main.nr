@@ -14,7 +14,8 @@ contract EasyPrivateVoting {
     // docs:end:storage_struct
 
     // docs:start:constructor
-    #[aztec(private)] // annotation to mark function as private and expose private context
+    #[aztec(private)]
+    #[aztec(initializer)] // annotation to mark function as private and expose private context
     fn constructor(admin: AztecAddress) { // called when contract is deployed
         context.call_public_function(
             // we cannot update public state directly from private function but we can call public function (which queues it)

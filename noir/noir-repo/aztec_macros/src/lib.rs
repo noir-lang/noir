@@ -435,22 +435,32 @@ fn transform_module(
         }
     }
 
+    let has_initializer = module.functions.iter().any(|func| {
+        func.def
+            .attributes
+            .secondary
+            .iter()
+            .any(|attr| is_custom_attribute(&attr, "aztec(initializer)"))
+    });
+
     for func in module.functions.iter_mut() {
         let mut is_private = false;
         let mut is_public = false;
         let mut is_public_vm = false;
         let mut is_initializer = false;
-        let mut skip_init_check = true; // Default to true once we're confident that the approach works
+        let mut insert_init_check = has_initializer;
 
         for secondary_attribute in func.def.attributes.secondary.clone() {
             if is_custom_attribute(&secondary_attribute, "aztec(private)") {
                 is_private = true;
             } else if is_custom_attribute(&secondary_attribute, "aztec(initializer)") {
                 is_initializer = true;
-            } else if is_custom_attribute(&secondary_attribute, "aztec(initcheck)") {
-                skip_init_check = false;
+                insert_init_check = false;
+            } else if is_custom_attribute(&secondary_attribute, "aztec(noinitcheck)") {
+                insert_init_check = false;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
                 is_public = true;
+                insert_init_check = false;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public-vm)") {
                 is_public_vm = true;
             }
@@ -463,7 +473,7 @@ fn transform_module(
                 func,
                 storage_defined,
                 is_initializer,
-                skip_init_check,
+                insert_init_check,
             )
             .map_err(|err| (err, crate_graph.root_file_id))?;
             has_transformed_module = true;
@@ -655,14 +665,14 @@ fn transform_function(
     func: &mut NoirFunction,
     storage_defined: bool,
     is_initializer: bool,
-    skip_init_check: bool,
+    insert_init_check: bool,
 ) -> Result<(), AztecMacroError> {
     let context_name = format!("{}Context", ty);
     let inputs_name = format!("{}ContextInputs", ty);
     let return_type_name = format!("{}CircuitPublicInputs", ty);
 
     // Add initialization check
-    if !skip_init_check {
+    if insert_init_check {
         if ty == "Public" {
             let error = AztecMacroError::UnsupportedAttributes {
                 span: func.def.name.span(),

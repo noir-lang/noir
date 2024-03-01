@@ -7,6 +7,7 @@ import {
   L2Block,
   L2BlockL2Logs,
   LogId,
+  NullifierMembershipWitness,
   SiblingPath,
   Tx,
   TxEffect,
@@ -43,7 +44,7 @@ export function createAztecNodeRpcServer(node: AztecNode) {
       SiblingPath,
       L1ToL2MessageAndIndex,
     },
-    { Tx, TxReceipt, L2BlockL2Logs },
+    { Tx, TxReceipt, L2BlockL2Logs, NullifierMembershipWitness },
     // disable methods not part of the AztecNode interface
     ['start', 'stop'],
   );

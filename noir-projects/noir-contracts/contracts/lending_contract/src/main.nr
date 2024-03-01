@@ -36,6 +36,7 @@ contract Lending {
 
     // Constructs the contract.
     #[aztec(private)]
+    #[aztec(initializer)]
     fn constructor(
     ) {}
 

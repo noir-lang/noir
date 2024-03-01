@@ -6,6 +6,7 @@ import {
   L1ToL2Message,
   L2Block,
   L2BlockL2Logs,
+  NullifierMembershipWitness,
   TxEffect,
   TxReceipt,
 } from '@aztec/circuit-types';
@@ -34,7 +35,7 @@ export function createArchiverRpcServer(archiverService: Archiver): JsonRpcServe
       L2BlockL2Logs,
       TxEffect,
     },
-    { TxReceipt },
+    { TxReceipt, NullifierMembershipWitness },
     ['start', 'stop'],
   );
 }

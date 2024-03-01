@@ -19,12 +19,7 @@ import {
   nonEmptySideEffects,
   sideEffectArrayToValueArray,
 } from '@aztec/circuits.js';
-import {
-  computeCommitmentNonce,
-  computeMessageSecretHash,
-  computeVarArgsHash,
-  siloNoteHash,
-} from '@aztec/circuits.js/hash';
+import { computeCommitmentNonce, computeMessageSecretHash, computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { makeContractDeploymentData, makeHeader } from '@aztec/circuits.js/testing';
 import {
   FunctionArtifact,
@@ -50,7 +45,6 @@ import {
   PendingNoteHashesContractArtifact,
   StatefulTestContractArtifact,
   TestContractArtifact,
-  TokenContractArtifact,
 } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
@@ -763,16 +757,11 @@ describe('Private Execution test suite', () => {
     });
 
     it('Should be able to consume a dummy public to private message', async () => {
-      const amount = 100n;
-      const artifact = getFunctionArtifact(TokenContractArtifact, 'redeem_shield');
-
+      const artifact = getFunctionArtifact(TestContractArtifact, 'consume_note_from_secret');
       const secret = new Fr(1n);
       const secretHash = computeMessageSecretHash(secret);
-      const note = new Note([new Fr(amount), secretHash]);
-      const noteHash = hashFields(note.items);
+      const note = new Note([secretHash]);
       const storageSlot = new Fr(5);
-      const innerNoteHash = hashFields([storageSlot, noteHash]);
-      const siloedNoteHash = siloNoteHash(contractAddress, innerNoteHash);
       oracle.getNotes.mockResolvedValue([
         {
           contractAddress,
@@ -785,10 +774,7 @@ describe('Private Execution test suite', () => {
         },
       ]);
 
-      const result = await runSimulator({
-        artifact,
-        args: [recipient, amount, secret],
-      });
+      const result = await runSimulator({ artifact, args: [secret] });
 
       // Check a nullifier has been inserted.
       const newNullifiers = sideEffectArrayToValueArray(
@@ -803,7 +789,6 @@ describe('Private Execution test suite', () => {
       );
 
       expect(readRequests).toHaveLength(1);
-      expect(readRequests[0]).toEqual(siloedNoteHash);
     });
   });
 
