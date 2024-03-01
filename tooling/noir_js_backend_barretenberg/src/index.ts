@@ -6,7 +6,6 @@ import { deflattenPublicInputs, flattenPublicInputsAsArray } from './public_inpu
 import { type Barretenberg } from '@aztec/bb.js';
 
 export { publicInputsToWitnessMap } from './public_inputs.js';
-import { cpus } from 'os';
 
 // This is the number of bytes in a UltraPlonk proof
 // minus the public inputs.
@@ -25,7 +24,7 @@ export class BarretenbergBackend implements Backend {
 
   constructor(
     acirCircuit: CompiledCircuit,
-    private options: BackendOptions = { threads: typeof navigator !== "undefined" ? navigator.hardwareConcurrency : cpus().length},
+    private options: BackendOptions = { threads: 1 },
   ) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
@@ -34,6 +33,16 @@ export class BarretenbergBackend implements Backend {
   /** @ignore */
   async instantiate(): Promise<void> {
     if (!this.api) {
+      if (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) {
+        this.options.threads = navigator.hardwareConcurrency;
+      } else {
+        try {
+          const os = await import('os');
+          this.options.threads = os.cpus().length;
+        } catch (e) {
+          console.log('Could not detect environment. Falling back to one thread.', e);
+        }
+      }
       const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
       const api = await Barretenberg.new(this.options);
 
