@@ -71,6 +71,10 @@ impl ContextInterface for PublicContext {
         self.inputs.call_context.function_selector
     }
 
+    fn get_header(self) -> Header {
+        self.historical_header
+    }
+
     fn push_new_note_hash(&mut self, note_hash: Field) {
         let side_effect = SideEffect { value: note_hash, counter: self.side_effect_counter };
         self.new_note_hashes.push(side_effect);

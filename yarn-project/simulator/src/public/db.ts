@@ -1,3 +1,4 @@
+import { NullifierMembershipWitness } from '@aztec/circuit-types';
 import { EthAddress, FunctionSelector, L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -66,7 +67,7 @@ export interface PublicContractsDB {
   getPortalContractAddress(address: AztecAddress): Promise<EthAddress | undefined>;
 }
 
-/** Database interface for providing access to commitment tree and l1 to l2 message tree (append only data trees). */
+/** Database interface for providing access to commitment tree, l1 to l2 message tree, and nullifier tree. */
 export interface CommitmentsDB {
   /**
    * Gets a confirmed L1 to L2 message for the given entry key.
@@ -89,4 +90,11 @@ export interface CommitmentsDB {
    * @returns - The index of the nullifier. Undefined if it does not exist in the tree.
    */
   getNullifierIndex(nullifier: Fr): Promise<bigint | undefined>;
+
+  /**
+   * Returns a nullifier membership witness for the given nullifier or undefined if not found.
+   * REFACTOR: Same as getL1ToL2MembershipWitness, can be combined with aztec-node method that does almost the same thing.
+   * @param nullifier - Nullifier we're looking for.
+   */
+  getNullifierMembershipWitnessAtLatestBlock(nullifier: Fr): Promise<NullifierMembershipWitness | undefined>;
 }

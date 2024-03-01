@@ -3,6 +3,7 @@ import {
   ExtendedContractData,
   L1ToL2MessageSource,
   MerkleTreeId,
+  NullifierMembershipWitness,
   Tx,
   UnencryptedL2Log,
 } from '@aztec/circuit-types';
@@ -14,6 +15,8 @@ import {
   Fr,
   FunctionSelector,
   L1_TO_L2_MSG_TREE_HEIGHT,
+  NULLIFIER_TREE_HEIGHT,
+  NullifierLeafPreimage,
   PublicDataTreeLeafPreimage,
 } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
@@ -216,6 +219,29 @@ export class WorldStatePublicDB implements PublicStateDB {
  */
 export class WorldStateDB implements CommitmentsDB {
   constructor(private db: MerkleTreeOperations, private l1ToL2MessageSource: L1ToL2MessageSource) {}
+
+  public async getNullifierMembershipWitnessAtLatestBlock(
+    nullifier: Fr,
+  ): Promise<NullifierMembershipWitness | undefined> {
+    const index = await this.db.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
+    if (!index) {
+      return undefined;
+    }
+
+    const leafPreimagePromise = this.db.getLeafPreimage(MerkleTreeId.NULLIFIER_TREE, index);
+    const siblingPathPromise = this.db.getSiblingPath<typeof NULLIFIER_TREE_HEIGHT>(
+      MerkleTreeId.NULLIFIER_TREE,
+      BigInt(index),
+    );
+
+    const [leafPreimage, siblingPath] = await Promise.all([leafPreimagePromise, siblingPathPromise]);
+
+    if (!leafPreimage) {
+      return undefined;
+    }
+
+    return new NullifierMembershipWitness(BigInt(index), leafPreimage as NullifierLeafPreimage, siblingPath);
+  }
 
   public async getL1ToL2MembershipWitness(
     entryKey: Fr,

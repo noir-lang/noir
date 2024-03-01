@@ -1,6 +1,7 @@
 use dep::protocol_types::{
   abis::function_selector::FunctionSelector,
   address::{AztecAddress, EthAddress},
+  header::Header,
 };
 
 trait ContextInterface {
@@ -12,4 +13,5 @@ trait ContextInterface {
     fn chain_id(self) -> Field;
     fn version(self) -> Field;
     fn selector(self) -> FunctionSelector;
+    fn get_header(self) -> Header;
 }

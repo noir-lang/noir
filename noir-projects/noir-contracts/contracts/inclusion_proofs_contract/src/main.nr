@@ -183,6 +183,12 @@ contract InclusionProofs {
         }
     }
 
+    // Proves nullifier existed at latest block
+    #[aztec(public)]
+    fn test_nullifier_inclusion_from_public(nullifier: Field) {
+        prove_nullifier_inclusion(nullifier, context);
+    }
+
     #[aztec(private)]
     fn test_public_unused_value_inclusion(block_number: u32 // The block at which we'll prove that the public value exists
     ) {

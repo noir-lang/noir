@@ -228,6 +228,13 @@ describe('e2e_inclusion_proofs_contract', () => {
       await contract.methods.test_nullifier_inclusion(nullifier!, false, 0n).send().wait();
     });
 
+    it('proves existence of a nullifier in public context', async () => {
+      const block = await pxe.getBlock(deploymentBlockNumber);
+      const nullifier = block?.body.txEffects[0].nullifiers[0];
+
+      await contract.methods.test_nullifier_inclusion_from_public(nullifier!).send().wait();
+    });
+
     it('nullifier existence failure case', async () => {
       // Choose random block number between first block and current block number to test archival node
       const blockNumber = await getRandomBlockNumber();

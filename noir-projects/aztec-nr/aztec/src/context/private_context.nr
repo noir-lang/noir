@@ -93,6 +93,12 @@ impl ContextInterface for PrivateContext {
         self.inputs.call_context.function_selector
     }
 
+    // Returns the header of a block whose state is used during private execution (not the block the transaction is
+    // included in).
+    pub fn get_header(self) -> Header {
+        self.historical_header
+    }
+
     fn push_new_note_hash(&mut self, note_hash: Field) {
         let side_effect = SideEffect { value: note_hash, counter: self.side_effect_counter };
         self.new_note_hashes.push(side_effect);
@@ -138,12 +144,6 @@ impl PrivateContext {
     pub fn is_deployment(self) -> bool {
         // TODO(#4738): Implement this
         false
-    }
-
-    // Returns the header of a block whose state is used during private execution (not the block the transaction is
-    // included in).
-    pub fn get_header(self) -> Header {
-        self.historical_header
     }
 
     // Returns the header of an arbitrary block whose block number is less than or equal to the block number

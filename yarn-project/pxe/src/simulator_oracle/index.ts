@@ -176,6 +176,10 @@ export class SimulatorOracle implements DBOracle {
     }
   }
 
+  public async getNullifierMembershipWitnessAtLatestBlock(nullifier: Fr) {
+    return this.getNullifierMembershipWitness(await this.getBlockNumber(), nullifier);
+  }
+
   public getNullifierMembershipWitness(
     blockNumber: number,
     nullifier: Fr,
