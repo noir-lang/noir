@@ -26,10 +26,7 @@ impl<T> BalancesMap<T> {
         }
     }
 
-    unconstrained pub fn balance_of<T_SERIALIZED_LEN>(
-        self: Self,
-        owner: AztecAddress
-    ) -> U128 where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
+    unconstrained pub fn balance_of<T_SERIALIZED_LEN>(self: Self, owner: AztecAddress) -> U128 where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
         self.balance_of_with_offset(owner, 0)
     }
 
@@ -38,7 +35,6 @@ impl<T> BalancesMap<T> {
         owner: AztecAddress,
         offset: u32
     ) -> U128 where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
-        // Same as SafeU120::new(0), but fewer constraints because no check. 
         let mut balance = U128::from_integer(0);
         // docs:start:view_notes
         let options = NoteViewerOptions::new().set_offset(offset);

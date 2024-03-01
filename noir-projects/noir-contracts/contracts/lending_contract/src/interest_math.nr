@@ -1,5 +1,5 @@
 // Binomial approximation of exponential
-// using lower than desired precisions for everything due to u120 limit
+// using lower than desired precisions for everything due to u128 limit
 // (1+x)^n = 1+n*x+[n/2*(n-1)]*x^2+[n/6*(n-1)*(n-2)*x^3]...
 // we are loosing around almost 8 digits of precision from yearly -> daily interest
 // dividing with 31536000 (seconds per year).
@@ -24,7 +24,7 @@ pub fn compute_multiplier(rate_per_second: U128, dt: u64) -> U128 {
         let second_term = temp.mul(base_power_two).div(U128::from_integer(2));
         let third_term = temp.mul(exp_minus_two).mul(base_power_three).div(U128::from_integer(6));
 
-        // throwing away precision to keep us under u120 :sob:
+        // throwing away precision to keep us under u128 :sob:
         let offset = dt.mul(rate).add(second_term).add(third_term).div(diff);
 
         res = base.add(offset);

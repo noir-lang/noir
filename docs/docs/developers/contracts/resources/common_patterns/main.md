@@ -10,14 +10,6 @@ Similarly we have discovered some anti-patterns too (like privacy leakage) that 
 
 ## Common Patterns
 
-### Safe Math and SafeU120
-
-Field operations may overflow/underflow. Hence we have built a SafeMath library that you can use [based on instructions here](../dependencies.md#safe-math)
-
-### SafeU120 for comparison operations on Field elements
-
-Comparison on Field is also not possible today. For such cases, we recommend using u120, which is wrapped under the SafeU120 class found in the SafeMath library.
-
 ### Approving another user/contract to execute an action on your behalf
 
 We call this the "authentication witness" pattern or authwit for short.

@@ -91,7 +91,7 @@ When this function is called, a nullifier of the storage slot is created, preven
 :::danger Privacy-Leak
 Beware that because this nullifier is created only from the storage slot without randomness it leaks privacy. This means that it is possible for an external observer to determine when the note is nullified.
 
-For example, if the storage slot depends on the an address then it is possible to link the nullifier to the address. If the singleton is part of a `map` with an `AztecAddress` as the key then the nullifier will be linked to the address.
+For example, if the storage slot depends on the an address then it is possible to link the nullifier to the address. If the PrivateMutable is part of a `map` with an `AztecAddress` as the key then the nullifier will be linked to the address.
 :::
 
 Unlike public states, which have a default initial value of `0` (or many zeros, in the case of a struct, array or map), a private state (of type `PrivateMutable`, `PrivateImmutable` or `PrivateSet`) does not have a default initial value. The `initialize` method (or `insert`, in the case of a `PrivateSet`) must be called.
@@ -149,7 +149,7 @@ When this function is invoked, it creates a nullifier for the storage slot, ensu
 :::danger Privacy-Leak
 Beware that because this nullifier is created only from the storage slot without randomness it leaks privacy. This means that it is possible for an external observer to determine when the note is nullified.
 
-For example, if the storage slot depends on the an address then it is possible to link the nullifier to the address. If the singleton is part of a `map` with an `AztecAddress` as the key then the nullifier will be linked to the address.
+For example, if the storage slot depends on the an address then it is possible to link the nullifier to the address. If the PrivateImmutable is part of a `map` with an `AztecAddress` as the key then the nullifier will be linked to the address.
 :::
 
 Set the value of an PrivateImmutable by calling the `initialize` method:

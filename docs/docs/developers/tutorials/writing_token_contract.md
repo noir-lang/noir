@@ -206,7 +206,6 @@ Just below the contract definition, add the following imports:
 
 We are importing the Option type, items from the `value_note` library to help manage private value storage, note utilities, context (for managing private and public execution contexts), `state_vars` for helping manage state, `types` for data manipulation and `oracle` for help passing data from the private to public execution context. We also import the `auth` [library](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/auth.nr) to handle token authorizations from [Account Contracts](../../learn/concepts/accounts/main). Check out the Account Contract with AuthWitness [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-contracts/contracts/schnorr_single_key_account_contract/src/main.nr).
 
-[SafeU120](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/safe-math/src/safe_u120.nr) is a library to do safe math operations on unsigned integers that protects against overflows and underflows.
 
 For more detail on execution contexts, see [Contract Communication](../../learn/concepts/communication/main).
 
@@ -277,7 +276,7 @@ This function allows the `admin` to add or a remove a `minter` from the public `
 
 This function allows an account approved in the public `minters` mapping to create new public tokens owned by the provided `to` address.
 
-First, storage is initialized. Then the function checks that the `msg_sender` is approved to mint in the `minters` mapping. If it is, a new `SafeU120` value is created of the `amount` provided. The function reads the recipients public balance and then adds the amount to mint, saving the output as `new_balance`, then reads to total supply and adds the amount to mint, saving the output as `supply`. `new_balance` and `supply` are then written to storage.
+First, storage is initialized. Then the function checks that the `msg_sender` is approved to mint in the `minters` mapping. If it is, a new `U128` value is created of the `amount` provided. The function reads the recipients public balance and then adds the amount to mint, saving the output as `new_balance`, then reads to total supply and adds the amount to mint, saving the output as `supply`. `new_balance` and `supply` are then written to storage.
 
 The function returns 1 to indicate successful execution.
 
@@ -311,7 +310,7 @@ It returns `1` to indicate successful execution.
 
 This public function enables public transfers between Aztec accounts. The sender's public balance will be debited the specified `amount` and the recipient's public balances will be credited with that amount.
 
-After storage is initialized, the [authorization flow specified above](#authorizing-token-spends) is checked. Then the sender and recipient's balances are updated and saved to storage using the `SafeU120` library.
+After storage is initialized, the [authorization flow specified above](#authorizing-token-spends) is checked. Then the sender and recipient's balances are updated and saved to storage.
 
 #include_code transfer_public /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
@@ -319,7 +318,7 @@ After storage is initialized, the [authorization flow specified above](#authoriz
 
 This public function enables public burning (destroying) of tokens from the sender's public balance.
 
-After storage is initialized, the [authorization flow specified above](#authorizing-token-spends) is checked. Then the sender's public balance and the `total_supply` are updated and saved to storage using the `SafeU120` library.
+After storage is initialized, the [authorization flow specified above](#authorizing-token-spends) is checked. Then the sender's public balance and the `total_supply` are updated and saved to storage.
 
 #include_code burn_public /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 

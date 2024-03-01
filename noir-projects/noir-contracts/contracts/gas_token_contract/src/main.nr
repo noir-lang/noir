@@ -26,8 +26,8 @@ contract GasToken {
 
     #[aztec(public)]
     fn check_balance(fee_limit: Field) {
-        let fee_limit_u120 = U128::from_integer(fee_limit);
-        assert(storage.balances.at(context.msg_sender()).read() >= fee_limit_u120, "Balance too low");
+        let fee_limit = U128::from_integer(fee_limit);
+        assert(storage.balances.at(context.msg_sender()).read() >= fee_limit, "Balance too low");
     }
 
     #[aztec(public)]
