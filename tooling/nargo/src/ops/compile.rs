@@ -107,7 +107,7 @@ pub fn compile_contract(
     noirc_driver::compile_contract(&mut context, crate_id, compile_options)
 }
 
-pub(crate) fn report_errors<T>(
+pub fn report_errors<T>(
     result: CompilationResult<T>,
     file_manager: &FileManager,
     deny_warnings: bool,

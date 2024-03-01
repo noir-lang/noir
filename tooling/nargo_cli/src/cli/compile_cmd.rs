@@ -2,8 +2,7 @@ use std::path::Path;
 
 use fm::FileManager;
 use nargo::artifacts::program::ProgramArtifact;
-use nargo::errors::CompileError;
-use nargo::ops::{compile_contract, compile_program};
+use nargo::ops::{compile_contract, compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
@@ -171,31 +170,4 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
         &format!("{}-{}", package.name, contract_name),
         circuit_dir,
     );
-}
-
-/// Helper function for reporting any errors in a `CompilationResult<T>`
-/// structure that is commonly used as a return result in this file.
-pub(crate) fn report_errors<T>(
-    result: CompilationResult<T>,
-    file_manager: &FileManager,
-    deny_warnings: bool,
-    silence_warnings: bool,
-) -> Result<T, CompileError> {
-    let (t, warnings) = result.map_err(|errors| {
-        noirc_errors::reporter::report_all(
-            file_manager.as_file_map(),
-            &errors,
-            deny_warnings,
-            silence_warnings,
-        )
-    })?;
-
-    noirc_errors::reporter::report_all(
-        file_manager.as_file_map(),
-        &warnings,
-        deny_warnings,
-        silence_warnings,
-    );
-
-    Ok(t)
 }
