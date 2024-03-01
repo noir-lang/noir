@@ -400,7 +400,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // n * MAX_LOAD_FACTOR_DEN0MINATOR >= m * MAX_LOAD_FACTOR_NUMERATOR
     fn assert_load_factor(self) {
         let lhs = self._len * MAX_LOAD_FACTOR_DEN0MINATOR;
-        let rhs = self._table.len() as u64 * MAX_LOAD_FACTOR_NUMERATOR;
+        let rhs = self._table.len() * MAX_LOAD_FACTOR_NUMERATOR;
         let exceeded = lhs >= rhs;
         assert(!exceeded, "Load factor is exceeded, consider increasing the capacity.");
     }
