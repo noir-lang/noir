@@ -43,3 +43,10 @@ struct PublicKernelData {
     vk_path : [Field; VK_TREE_HEIGHT],
 }
 
+struct RollupKernelData {
+    public_inputs : RollupKernelCircuitPublicInputs,
+    proof : Proof,
+    vk : VerificationKey,
+    vk_index : u32,
+    vk_path : [Field; VK_TREE_HEIGHT],
+}

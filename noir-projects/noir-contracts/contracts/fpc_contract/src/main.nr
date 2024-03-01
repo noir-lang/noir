@@ -40,9 +40,9 @@ contract FPC {
         );
 
         let _void = context.call_public_function(
-            storage.fee_asset.read_private(),
-            FunctionSelector::from_signature("pay_fee(Field)"),
-            [amount.to_field()]
+            context.this_address(),
+            FunctionSelector::from_signature("pay_fee((Field),Field,(Field))"),
+            [context.msg_sender().to_field(), amount, asset.to_field()]
         );
     }
 
@@ -67,12 +67,14 @@ contract FPC {
     }
 
     #[aztec(public)]
-    internal fn pay_fee(from: AztecAddress, amount: Field, asset: AztecAddress) {
-        let _void = context.call_public_function(
+    internal fn pay_fee(refund_address: AztecAddress, amount: Field, asset: AztecAddress) {
+        let refund = context.call_public_function(
             storage.fee_asset.read_public(),
             FunctionSelector::from_signature("pay_fee(Field)"),
-            [amount.to_field()]
-        );
-        // TODO handle refunds
+            [amount]
+        )[0];
+
+        // Just do public refunds for the present
+        Token::at(asset).transfer_public(context, context.this_address(), refund_address, refund, 0)
     }
 }

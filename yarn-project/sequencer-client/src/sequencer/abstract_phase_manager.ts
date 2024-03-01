@@ -40,7 +40,7 @@ import {
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { to2Fields } from '@aztec/foundation/serialize';
+import { Tuple, to2Fields } from '@aztec/foundation/serialize';
 import {
   PublicExecution,
   PublicExecutionResult,
@@ -63,6 +63,12 @@ export enum PublicKernelPhase {
   APP_LOGIC = 'app-logic',
   TEARDOWN = 'teardown',
 }
+
+export const PhaseIsRevertible: Record<PublicKernelPhase, boolean> = {
+  [PublicKernelPhase.SETUP]: false,
+  [PublicKernelPhase.APP_LOGIC]: true,
+  [PublicKernelPhase.TEARDOWN]: false,
+};
 
 export abstract class AbstractPhaseManager {
   protected log: DebugLogger;
@@ -243,11 +249,11 @@ export abstract class AbstractPhaseManager {
       }
       // HACK(#1622): Manually patches the ordering of public state actions
       // TODO(#757): Enforce proper ordering of public state actions
-      this.patchPublicStorageActionOrdering(kernelOutput, enqueuedExecutionResult!);
+      patchPublicStorageActionOrdering(kernelOutput, enqueuedExecutionResult!, this.phase);
     }
 
     // TODO(#3675): This should be done in a public kernel circuit
-    this.removeRedundantPublicDataWrites(kernelOutput);
+    removeRedundantPublicDataWrites(kernelOutput);
 
     return [kernelOutput, kernelProof, newUnencryptedFunctionLogs];
   }
@@ -377,165 +383,107 @@ export abstract class AbstractPhaseManager {
     const proof = await this.publicProver.getPublicCircuitProof(callStackItem.publicInputs);
     return new PublicCallData(callStackItem, publicCallStack, proof, portalContractAddress, bytecodeHash);
   }
+}
 
-  // HACK(#1622): this is a hack to fix ordering of public state in the call stack. Since the private kernel
-  // cannot keep track of side effects that happen after or before a nested call, we override the public
-  // state actions it emits with whatever we got from the simulator. As a sanity check, we at least verify
-  // that the elements are the same, so we are only tweaking their ordering.
-  // See yarn-project/end-to-end/src/e2e_ordering.test.ts
-  // See https://github.com/AztecProtocol/aztec-packages/issues/1616
-  // TODO(#757): Enforce proper ordering of public state actions
-  /**
-   * Patch the ordering of storage actions output from the public kernel.
-   * @param publicInputs - to be patched here: public inputs to the kernel iteration up to this point
-   * @param execResult - result of the top/first execution for this enqueued public call
-   */
-  private patchPublicStorageActionOrdering(
-    publicInputs: PublicKernelCircuitPublicInputs,
-    execResult: PublicExecutionResult,
-  ) {
-    const { publicDataReads: revertiblePublicDataReads, publicDataUpdateRequests: revertiblePublicDataUpdateRequests } =
-      publicInputs.end; // from kernel
-    const {
-      publicDataReads: nonRevertiblePublicDataReads,
-      publicDataUpdateRequests: nonRevertiblePublicDataUpdateRequests,
-    } = publicInputs.endNonRevertibleData; // from kernel
-
-    // Convert ContractStorage* objects to PublicData* objects and sort them in execution order
-    const simPublicDataReads = collectPublicDataReads(execResult);
-    const simPublicDataUpdateRequests = collectPublicDataUpdateRequests(execResult);
-
-    const simRevertiblePublicDataReads = simPublicDataReads.filter(read =>
-      revertiblePublicDataReads.find(item => item.leafSlot.equals(read.leafSlot) && item.value.equals(read.value)),
-    );
-    const simRevertiblePublicDataUpdateRequests = simPublicDataUpdateRequests.filter(update =>
-      revertiblePublicDataUpdateRequests.find(
-        item => item.leafSlot.equals(update.leafSlot) && item.newValue.equals(update.newValue),
-      ),
-    );
-
-    const simNonRevertiblePublicDataReads = simPublicDataReads.filter(read =>
-      nonRevertiblePublicDataReads.find(item => item.leafSlot.equals(read.leafSlot) && item.value.equals(read.value)),
-    );
-    const simNonRevertiblePublicDataUpdateRequests = simPublicDataUpdateRequests.filter(update =>
-      nonRevertiblePublicDataUpdateRequests.find(
-        item => item.leafSlot.equals(update.leafSlot) && item.newValue.equals(update.newValue),
-      ),
-    );
-
-    // Assume that kernel public inputs has the right number of items.
-    // We only want to reorder the items from the public inputs of the
-    // most recently processed top/enqueued call.
-    const numRevertibleReadsInKernel = arrayNonEmptyLength(publicInputs.end.publicDataReads, f => f.isEmpty());
-    const numRevertibleUpdatesInKernel = arrayNonEmptyLength(publicInputs.end.publicDataUpdateRequests, f =>
-      f.isEmpty(),
-    );
-    const numNonRevertibleReadsInKernel = arrayNonEmptyLength(publicInputs.endNonRevertibleData.publicDataReads, f =>
-      f.isEmpty(),
-    );
-    const numNonRevertibleUpdatesInKernel = arrayNonEmptyLength(
-      publicInputs.endNonRevertibleData.publicDataUpdateRequests,
-      f => f.isEmpty(),
-    );
-
-    // Validate all items in enqueued public calls are in the kernel emitted stack
-    const readsAreEqual =
-      simRevertiblePublicDataReads.length + simNonRevertiblePublicDataReads.length === simPublicDataReads.length;
-
-    const updatesAreEqual =
-      simRevertiblePublicDataUpdateRequests.length + simNonRevertiblePublicDataUpdateRequests.length ===
-      simPublicDataUpdateRequests.length;
-
-    if (!readsAreEqual) {
-      throw new Error(
-        `Public data reads from simulator do not match those from public kernel.\nFrom simulator: ${simPublicDataReads
-          .map(p => p.toFriendlyJSON())
-          .join(', ')}\nFrom public kernel revertible: ${revertiblePublicDataReads
-          .map(i => i.toFriendlyJSON())
-          .join(', ')}\nFrom public kernel non-revertible: ${nonRevertiblePublicDataReads
-          .map(i => i.toFriendlyJSON())
-          .join(', ')}`,
-      );
-    }
-    if (!updatesAreEqual) {
-      throw new Error(
-        `Public data update requests from simulator do not match those from public kernel.\nFrom simulator: ${simPublicDataUpdateRequests
-          .map(p => p.toFriendlyJSON())
-          .join(', ')}\nFrom public kernel revertible: ${revertiblePublicDataUpdateRequests
-          .map(i => i.toFriendlyJSON())
-          .join(', ')}\nFrom public kernel non-revertible: ${nonRevertiblePublicDataUpdateRequests
-          .map(i => i.toFriendlyJSON())
-          .join(', ')}`,
-      );
-    }
-
-    const numRevertibleReadsBeforeThisEnqueuedCall = numRevertibleReadsInKernel - simRevertiblePublicDataReads.length;
-    const numRevertibleUpdatesBeforeThisEnqueuedCall =
-      numRevertibleUpdatesInKernel - simRevertiblePublicDataUpdateRequests.length;
-
-    const numNonRevertibleReadsBeforeThisEnqueuedCall =
-      numNonRevertibleReadsInKernel - simNonRevertiblePublicDataReads.length;
-    const numNonRevertibleUpdatesBeforeThisEnqueuedCall =
-      numNonRevertibleUpdatesInKernel - simNonRevertiblePublicDataUpdateRequests.length;
-
-    // Override revertible kernel output
-    publicInputs.end.publicDataReads = padArrayEnd(
-      [
-        // do not mess with items from previous top/enqueued calls in kernel output
-        ...publicInputs.end.publicDataReads.slice(0, numRevertibleReadsBeforeThisEnqueuedCall),
-        ...simRevertiblePublicDataReads,
-      ],
-      PublicDataRead.empty(),
-      MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
-    );
-
-    publicInputs.end.publicDataUpdateRequests = padArrayEnd(
-      [
-        ...publicInputs.end.publicDataUpdateRequests.slice(0, numRevertibleUpdatesBeforeThisEnqueuedCall),
-        ...simRevertiblePublicDataUpdateRequests,
-      ],
-      PublicDataUpdateRequest.empty(),
-      MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    );
-
-    publicInputs.endNonRevertibleData.publicDataReads = padArrayEnd(
-      [
-        ...publicInputs.endNonRevertibleData.publicDataReads.slice(0, numNonRevertibleReadsBeforeThisEnqueuedCall),
-        ...simNonRevertiblePublicDataReads,
-      ],
-      PublicDataRead.empty(),
-      MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
-    );
-
-    publicInputs.endNonRevertibleData.publicDataUpdateRequests = padArrayEnd(
-      [
-        ...publicInputs.endNonRevertibleData.publicDataUpdateRequests.slice(
-          0,
-          numNonRevertibleUpdatesBeforeThisEnqueuedCall,
-        ),
-        ...simNonRevertiblePublicDataUpdateRequests,
-      ],
-      PublicDataUpdateRequest.empty(),
-      MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    );
-  }
-
-  private removeRedundantPublicDataWrites(publicInputs: PublicKernelCircuitPublicInputs) {
+function removeRedundantPublicDataWrites(publicInputs: PublicKernelCircuitPublicInputs) {
+  const patch = <N extends number>(requests: Tuple<PublicDataUpdateRequest, N>) => {
     const lastWritesMap = new Map<string, PublicDataUpdateRequest>();
-    for (const write of publicInputs.end.publicDataUpdateRequests) {
+    for (const write of requests) {
       const key = write.leafSlot.toString();
       lastWritesMap.set(key, write);
     }
+    return requests.filter(write => lastWritesMap.get(write.leafSlot.toString())?.equals(write));
+  };
 
-    const lastWrites = publicInputs.end.publicDataUpdateRequests.filter(write =>
-      lastWritesMap.get(write.leafSlot.toString())?.equals(write),
-    );
+  publicInputs.end.publicDataUpdateRequests = padArrayEnd(
+    patch(publicInputs.end.publicDataUpdateRequests),
+    PublicDataUpdateRequest.empty(),
+    MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  );
 
-    publicInputs.end.publicDataUpdateRequests = padArrayEnd(
-      lastWrites,
+  publicInputs.endNonRevertibleData.publicDataUpdateRequests = padArrayEnd(
+    patch(publicInputs.endNonRevertibleData.publicDataUpdateRequests),
+    PublicDataUpdateRequest.empty(),
+    MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  );
+}
 
-      PublicDataUpdateRequest.empty(),
-      MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    );
+// HACK(#1622): this is a hack to fix ordering of public state in the call stack. Since the private kernel
+// cannot keep track of side effects that happen after or before a nested call, we override the public
+// state actions it emits with whatever we got from the simulator. As a sanity check, we at least verify
+// that the elements are the same, so we are only tweaking their ordering.
+// See yarn-project/end-to-end/src/e2e_ordering.test.ts
+// See https://github.com/AztecProtocol/aztec-packages/issues/1616
+// TODO(#757): Enforce proper ordering of public state actions
+/**
+ * Patch the ordering of storage actions output from the public kernel.
+ * @param publicInputs - to be patched here: public inputs to the kernel iteration up to this point
+ * @param execResult - result of the top/first execution for this enqueued public call
+ */
+function patchPublicStorageActionOrdering(
+  publicInputs: PublicKernelCircuitPublicInputs,
+  execResult: PublicExecutionResult,
+  phase: PublicKernelPhase,
+) {
+  const { publicDataReads, publicDataUpdateRequests } = PhaseIsRevertible[phase]
+    ? publicInputs.end
+    : publicInputs.endNonRevertibleData;
+
+  // Convert ContractStorage* objects to PublicData* objects and sort them in execution order.
+  // Note, this only pulls simulated reads/writes from the current phase,
+  // so the returned result will be a subset of the public kernel output.
+
+  const simPublicDataReads = collectPublicDataReads(execResult);
+  // verify that each read is in the kernel output
+  for (const read of simPublicDataReads) {
+    if (!publicDataReads.find(item => item.equals(read))) {
+      throw new Error(
+        `Public data reads from simulator do not match those from public kernel.\nFrom simulator: ${simPublicDataReads
+          .map(p => p.toFriendlyJSON())
+          .join(', ')}\nFrom public kernel: ${publicDataReads.map(i => i.toFriendlyJSON()).join(', ')}`,
+      );
+    }
   }
+
+  const simPublicDataUpdateRequests = collectPublicDataUpdateRequests(execResult);
+  for (const update of simPublicDataUpdateRequests) {
+    if (!publicDataUpdateRequests.find(item => item.equals(update))) {
+      throw new Error(
+        `Public data update requests from simulator do not match those from public kernel.\nFrom simulator: ${simPublicDataUpdateRequests
+          .map(p => p.toFriendlyJSON())
+          .join(', ')}\nFrom public kernel revertible: ${publicDataUpdateRequests
+          .map(i => i.toFriendlyJSON())
+          .join(', ')}`,
+      );
+    }
+  }
+  // We only want to reorder the items from the public inputs of the
+  // most recently processed top/enqueued call.
+
+  const effectSet = PhaseIsRevertible[phase] ? 'end' : 'endNonRevertibleData';
+
+  const numReadsInKernel = arrayNonEmptyLength(publicDataReads, f => f.isEmpty());
+  const numReadsBeforeThisEnqueuedCall = numReadsInKernel - simPublicDataReads.length;
+  publicInputs[effectSet].publicDataReads = padArrayEnd(
+    [
+      // do not mess with items from previous top/enqueued calls in kernel output
+      ...publicInputs[effectSet].publicDataReads.slice(0, numReadsBeforeThisEnqueuedCall),
+      ...simPublicDataReads,
+    ],
+    PublicDataRead.empty(),
+    PhaseIsRevertible[phase] ? MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX : MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
+  );
+
+  const numUpdatesInKernel = arrayNonEmptyLength(publicDataUpdateRequests, f => f.isEmpty());
+  const numUpdatesBeforeThisEnqueuedCall = numUpdatesInKernel - simPublicDataUpdateRequests.length;
+  publicInputs[effectSet].publicDataUpdateRequests = padArrayEnd(
+    [
+      ...publicInputs[effectSet].publicDataUpdateRequests.slice(0, numUpdatesBeforeThisEnqueuedCall),
+      ...simPublicDataUpdateRequests,
+    ],
+    PublicDataUpdateRequest.empty(),
+    PhaseIsRevertible[phase]
+      ? MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+      : MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  );
 }

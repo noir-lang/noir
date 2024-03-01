@@ -7,7 +7,7 @@ use crate::{
     PrivateKernelInnerCircuitPublicInputs, PrivateKernelTailCircuitPublicInputs,
     PublicKernelCircuitPublicInputs, RollupKernelCircuitPublicInputs
 },
-    kernel_data::{PrivateKernelInnerData, PrivateKernelTailData, PublicKernelData},
+    kernel_data::{PrivateKernelInnerData, PrivateKernelTailData, PublicKernelData, RollupKernelData},
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
     read_request::ReadRequestContext, side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
@@ -291,5 +291,15 @@ impl PreviousKernelDataBuilder {
         };
 
         PublicKernelData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
+    }
+
+    pub fn to_rollup_kernel_data(self) -> RollupKernelData {
+        let public_inputs = RollupKernelCircuitPublicInputs {
+            aggregation_object: AggregationObject {},
+            end: self.end.finish(),
+            constants: CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context }
+        };
+
+        RollupKernelData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
     }
 }

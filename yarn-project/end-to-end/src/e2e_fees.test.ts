@@ -6,7 +6,6 @@ import {
   Note,
   PrivateFeePaymentMethod,
   TxHash,
-  computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { decodeFunctionSignature } from '@aztec/foundation/abi';
@@ -14,17 +13,11 @@ import { TokenContract as BananaCoin, FPCContract, GasTokenContract } from '@azt
 
 import { jest } from '@jest/globals';
 
-import {
-  EndToEndContext,
-  PublicBalancesFn,
-  assertPublicBalances,
-  getPublicBalancesFn,
-  setup,
-} from './fixtures/utils.js';
-import { GasBridgingTestHarness } from './shared/gas_portal_test_harness.js';
+import { BalancesFn, EndToEndContext, expectMapping, getBalancesFn, setup } from './fixtures/utils.js';
+import { GasPortalTestingHarnessFactory, IGasBridgingTestHarness } from './shared/gas_portal_test_harness.js';
 
 const TOKEN_NAME = 'BananaCoin';
-const TOKEN_SYMBOL = 'BAC';
+const TOKEN_SYMBOL = 'BC';
 const TOKEN_DECIMALS = 18n;
 
 jest.setTimeout(100_000);
@@ -36,11 +29,12 @@ describe('e2e_fees', () => {
   let bananaCoin: BananaCoin;
   let bananaFPC: FPCContract;
 
-  let gasBridgeTestHarness: GasBridgingTestHarness;
+  let gasBridgeTestHarness: IGasBridgingTestHarness;
   let e2eContext: EndToEndContext;
 
-  let gasBalances: PublicBalancesFn;
-  let bananaBalances: PublicBalancesFn;
+  let gasBalances: BalancesFn;
+  let bananaPublicBalances: BalancesFn;
+  let bananaPrivateBalances: BalancesFn;
 
   beforeAll(async () => {
     process.env.PXE_URL = '';
@@ -48,13 +42,14 @@ describe('e2e_fees', () => {
 
     const { wallets, accounts, logger, aztecNode, pxe, deployL1ContractsValues } = e2eContext;
 
-    gasBridgeTestHarness = await GasBridgingTestHarness.new(
-      pxe,
-      deployL1ContractsValues.publicClient,
-      deployL1ContractsValues.walletClient,
-      wallets[0],
+    gasBridgeTestHarness = await GasPortalTestingHarnessFactory.create({
+      pxeService: pxe,
+      publicClient: deployL1ContractsValues.publicClient,
+      walletClient: deployL1ContractsValues.walletClient,
+      wallet: wallets[0],
       logger,
-    );
+      mockL1: false,
+    });
 
     gasTokenContract = gasBridgeTestHarness.l2Token;
 
@@ -99,20 +94,20 @@ describe('e2e_fees', () => {
     e2eContext.logger(`bananaPay deployed at ${bananaFPC.address}`);
     await gasBridgeTestHarness.bridgeFromL1ToL2(InitialFPCGas + 1n, InitialFPCGas, bananaFPC.address);
 
-    gasBalances = getPublicBalancesFn('⛽', gasTokenContract, e2eContext.logger);
-    bananaBalances = getPublicBalancesFn('🍌', bananaCoin, e2eContext.logger);
-    await assertPublicBalances(
-      gasBalances,
-      [sequencerAddress, aliceAddress, bananaFPC.address],
-      [0n, 0n, InitialFPCGas],
-    );
-    await assertPublicBalances(bananaBalances, [sequencerAddress, aliceAddress, bananaFPC.address], [0n, 0n, 0n]);
+    gasBalances = getBalancesFn('⛽', gasTokenContract.methods.balance_of_public, e2eContext.logger);
+    bananaPublicBalances = getBalancesFn('🍌.public', bananaCoin.methods.balance_of_public, e2eContext.logger);
+    bananaPrivateBalances = getBalancesFn('🍌.private', bananaCoin.methods.balance_of_private, e2eContext.logger);
+    await expectMapping(bananaPrivateBalances, [aliceAddress, bananaFPC.address, sequencerAddress], [0n, 0n, 0n]);
+    await expectMapping(bananaPublicBalances, [aliceAddress, bananaFPC.address, sequencerAddress], [0n, 0n, 0n]);
+    await expectMapping(gasBalances, [aliceAddress, bananaFPC.address, sequencerAddress], [0n, InitialFPCGas, 0n]);
   }, 100_000);
 
   it('mint banana privately, pay privately with banana via FPC', async () => {
     const PrivateInitialBananasAmount = 100n;
     const MintedBananasAmount = 1000n;
     const FeeAmount = 1n;
+    const RefundAmount = 2n;
+    const MaxFee = FeeAmount + RefundAmount;
     const { wallets, accounts } = e2eContext;
 
     // Mint bananas privately
@@ -127,34 +122,61 @@ describe('e2e_fees', () => {
     const { visibleNotes } = receiptClaim.debugInfo!;
     expect(visibleNotes[0].note.items[0].toBigInt()).toBe(PrivateInitialBananasAmount);
 
-    // set up auth wit for FPC for to unshield Alice's bananas to itself
-    const nonce = 1;
-    const messageHash = computeAuthWitMessageHash(
-      bananaFPC.address,
-      bananaCoin.methods.unshield(accounts[0].address, bananaFPC.address, FeeAmount, nonce).request(),
+    await expectMapping(
+      bananaPrivateBalances,
+      [aliceAddress, bananaFPC.address, sequencerAddress],
+      [PrivateInitialBananasAmount, 0n, 0n],
     );
-    await wallets[0].createAuthWitness(messageHash);
+    await expectMapping(bananaPublicBalances, [aliceAddress, bananaFPC.address, sequencerAddress], [0n, 0n, 0n]);
+    await expectMapping(gasBalances, [aliceAddress, bananaFPC.address, sequencerAddress], [0n, InitialFPCGas, 0n]);
 
+    /**
+     * PRIVATE SETUP
+     * check authwit
+     * reduce alice BC.private by MaxFee
+     * enqueue public call to increase FPC BC.public by MaxFee
+     * enqueue public call for fpc.pay_fee
+     *
+     * PUBLIC SETUP
+     * increase FPC BC.public by MaxFee
+     *
+     * PUBLIC APP LOGIC
+     * increase alice BC.public by MintedBananasAmount
+     * increase BC total supply by MintedBananasAmount
+     *
+     * PUBLIC TEARDOWN
+     * call gas.pay_fee
+     *   decrease FPC AZT by FeeAmount
+     *   increase sequencer AZT by FeeAmount
+     * call banana.transfer_public
+     *   decrease FPC BC.public by RefundAmount
+     *   increase alice BC.public by RefundAmount
+     *
+     */
     await bananaCoin.methods
       .mint_public(aliceAddress, MintedBananasAmount)
       .send({
         fee: {
-          maxFee: FeeAmount,
+          maxFee: MaxFee,
           paymentMethod: new PrivateFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
         },
       })
       .wait();
 
-    await assertPublicBalances(
-      gasBalances,
-      [sequencerAddress, aliceAddress, bananaFPC.address],
-      [FeeAmount, 0n, InitialFPCGas - FeeAmount],
+    await expectMapping(
+      bananaPrivateBalances,
+      [aliceAddress, bananaFPC.address, sequencerAddress],
+      [PrivateInitialBananasAmount - MaxFee, 0n, 0n],
     );
-
-    await assertPublicBalances(
-      bananaBalances,
-      [sequencerAddress, aliceAddress, bananaFPC.address],
-      [0n, MintedBananasAmount, FeeAmount],
+    await expectMapping(
+      bananaPublicBalances,
+      [aliceAddress, bananaFPC.address, sequencerAddress],
+      [MintedBananasAmount + RefundAmount, MaxFee - RefundAmount, 0n],
+    );
+    await expectMapping(
+      gasBalances,
+      [aliceAddress, bananaFPC.address, sequencerAddress],
+      [0n, InitialFPCGas - FeeAmount, FeeAmount],
     );
   }, 100_000);
 

@@ -138,7 +138,7 @@ export class PublicExecutionContext extends TypedOracle {
   public async storageWrite(startStorageSlot: Fr, values: Fr[]) {
     const newValues = [];
     for (let i = 0; i < values.length; i++) {
-      const storageSlot = new Fr(startStorageSlot.value + BigInt(i));
+      const storageSlot = new Fr(startStorageSlot.toBigInt() + BigInt(i));
       const newValue = values[i];
       const sideEffectCounter = this.sideEffectCounter.count();
       this.storageActions.write(storageSlot, newValue, sideEffectCounter);

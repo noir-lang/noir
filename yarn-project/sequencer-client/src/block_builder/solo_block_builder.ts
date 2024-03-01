@@ -6,6 +6,7 @@ import {
   BaseRollupInputs,
   CONTRACT_SUBTREE_HEIGHT,
   CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
+  CombinedAccumulatedData,
   ConstantRollupData,
   GlobalVariables,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
@@ -32,8 +33,9 @@ import {
   Proof,
   PublicDataTreeLeaf,
   PublicDataTreeLeafPreimage,
-  PublicKernelData,
   ROLLUP_VK_TREE_HEIGHT,
+  RollupKernelCircuitPublicInputs,
+  RollupKernelData,
   RollupTypes,
   RootRollupInputs,
   RootRollupPublicInputs,
@@ -44,7 +46,7 @@ import {
   VK_TREE_HEIGHT,
   VerificationKey,
 } from '@aztec/circuits.js';
-import { makeTuple } from '@aztec/foundation/array';
+import { assertPermutation, makeTuple } from '@aztec/foundation/array';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
@@ -416,9 +418,14 @@ export class SoloBlockBuilder implements BlockBuilder {
     );
   }
 
-  protected getKernelDataFor(tx: ProcessedTx) {
-    return new PublicKernelData(
-      tx.data,
+  protected getKernelDataFor(tx: ProcessedTx): RollupKernelData {
+    const inputs = new RollupKernelCircuitPublicInputs(
+      tx.data.aggregationObject,
+      CombinedAccumulatedData.recombine(tx.data.endNonRevertibleData, tx.data.end),
+      tx.data.constants,
+    );
+    return new RollupKernelData(
+      inputs,
       tx.proof,
 
       // VK for the kernel circuit
@@ -500,12 +507,12 @@ export class SoloBlockBuilder implements BlockBuilder {
 
   protected async processPublicDataUpdateRequests(tx: ProcessedTx) {
     const combinedPublicDataUpdateRequests = tx.data.combinedData.publicDataUpdateRequests.map(updateRequest => {
-      return new PublicDataTreeLeaf(updateRequest.leafSlot, updateRequest.newValue).toBuffer();
+      return new PublicDataTreeLeaf(updateRequest.leafSlot, updateRequest.newValue);
     });
     const { lowLeavesWitnessData, newSubtreeSiblingPath, sortedNewLeaves, sortedNewLeavesIndexes } =
       await this.db.batchInsert(
         MerkleTreeId.PUBLIC_DATA_TREE,
-        combinedPublicDataUpdateRequests,
+        combinedPublicDataUpdateRequests.map(x => x.toBuffer()),
         // TODO(#3675) remove oldValue from update requests
         PUBLIC_DATA_SUBTREE_HEIGHT,
       );
@@ -544,6 +551,12 @@ export class SoloBlockBuilder implements BlockBuilder {
     > = makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => {
       return lowLeavesWitnessData[i].leafPreimage as PublicDataTreeLeafPreimage;
     });
+
+    // validate that the sortedPublicDataWrites and sortedPublicDataWritesIndexes are in the correct order
+    // otherwise it will just fail in the circuit
+    assertPermutation(combinedPublicDataUpdateRequests, sortedPublicDataWrites, sortedPublicDataWritesIndexes, (a, b) =>
+      a.equals(b),
+    );
 
     return {
       lowPublicDataWritesPreimages,

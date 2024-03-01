@@ -1,7 +1,7 @@
 mod subscription_note;
 mod dapp_payload;
 
-contract AppSubscriptionContract {
+contract AppSubscription {
     use dep::std;
     use dep::std::option::Option;
     use crate::dapp_payload::DAppPayload;

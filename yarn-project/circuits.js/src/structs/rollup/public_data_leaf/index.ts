@@ -110,6 +110,14 @@ export class PublicDataTreeLeaf implements IndexedTreeLeaf {
     return new PublicDataTreeLeaf(Fr.fromBuffer(reader), Fr.fromBuffer(reader));
   }
 
+  equals(another: PublicDataTreeLeaf): boolean {
+    return this.slot.equals(another.slot) && this.value.equals(another.value);
+  }
+
+  toString(): string {
+    return `PublicDataTreeLeaf(${this.slot.toString()}, ${this.value.toString()})`;
+  }
+
   isEmpty(): boolean {
     return this.slot.isZero() && this.value.isZero();
   }

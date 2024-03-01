@@ -49,7 +49,13 @@ impl PublicKernelTeardownCircuitPrivateInputs {
             &mut public_inputs
         );
 
-        public_inputs.to_inner()
+        let mut output = public_inputs.to_inner();
+
+        // If we enqueued multiple public functions as part of executing the teardown circuit,
+        // continue to treat them as part of teardown.
+        output.needs_setup = false;
+
+        output
     }
 }
 

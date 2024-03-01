@@ -29,17 +29,6 @@
     "remake-constants": "node --loader ts-node/esm src/scripts/constants.in.ts && prettier -w src/constants.gen.ts && cd ../../l1-contracts && ./.foundry/bin/forge fmt",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },
-  "inherits": [
-    "../package.common.json"
-  ],
-  "jest": {
-    "preset": "ts-jest/presets/default-esm",
-    "moduleNameMapper": {
-      "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
-    },
-    "testRegex": "./src/.*\\.test\\.(js|mjs|ts)$",
-    "rootDir": "./src"
-  },
   "dependencies": {
     "@aztec/bb.js": "portal:../../barretenberg/ts",
     "@aztec/foundation": "workspace:^",

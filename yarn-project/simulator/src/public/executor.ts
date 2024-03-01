@@ -61,8 +61,14 @@ export async function executePublicFunction(
   const newNullifiers = newNullifiersPadded.filter(v => !v.isEmpty());
 
   const { contractStorageReads, contractStorageUpdateRequests } = context.getStorageActionData();
+
   log(
     `Contract storage reads: ${contractStorageReads
+      .map(r => r.toFriendlyJSON() + ` - sec: ${r.sideEffectCounter}`)
+      .join(', ')}`,
+  );
+  log(
+    `Contract storage update requests: ${contractStorageUpdateRequests
       .map(r => r.toFriendlyJSON() + ` - sec: ${r.sideEffectCounter}`)
       .join(', ')}`,
   );

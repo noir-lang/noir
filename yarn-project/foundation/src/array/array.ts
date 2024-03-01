@@ -84,3 +84,36 @@ export function assertItemsLength<
     }
   }
 }
+
+/**
+ * Checks that the permutation is valid. Throws an error if it is not.
+ * @param original - The original array.
+ * @param permutation - The array which is allegedly a permutation of the original.
+ * @param indexes - The indices of the original array which the permutation should map to.
+ * @param isEqual - A function to compare the elements of the original and permutation arrays.
+ */
+export function assertPermutation<T>(
+  original: T[],
+  permutation: T[],
+  indexes: number[],
+  isEqual: (a: T, b: T) => boolean,
+): void {
+  if (original.length !== permutation.length || original.length !== indexes.length) {
+    throw new Error(`Invalid lengths: ${original.length}, ${permutation.length}, ${indexes.length}`);
+  }
+
+  const seenValue = new Set<number>();
+  for (let i = 0; i < indexes.length; i++) {
+    const index = indexes[i];
+    const permutedValue = permutation[i];
+    const originalValueAtIndex = original[index];
+
+    if (!isEqual(permutedValue, originalValueAtIndex)) {
+      throw new Error(`Invalid permutation at index ${index}: ${permutedValue} !== ${originalValueAtIndex}`);
+    }
+    if (seenValue.has(index)) {
+      throw new Error(`Duplicate index in permutation: ${index}`);
+    }
+    seenValue.add(index);
+  }
+}

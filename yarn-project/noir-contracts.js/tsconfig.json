@@ -10,9 +10,6 @@
       "path": "../aztec.js"
     }
   ],
-  "include": [
-    "src",
-    "artifacts",
-    "artifacts/*.json",
-  ],
+  "include": ["src", "artifacts", "artifacts/*.json"],
+  "exclude": ["dest"]
 }

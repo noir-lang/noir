@@ -24,6 +24,17 @@ contract GasToken {
         storage.balances.at(to).write(new_balance);
     }
 
+    // TODO(@just-mitch): remove this function before mainnet deployment
+    // convenience function for testing
+    // the true canonical gas token contract will not have this function
+    #[aztec(public)]
+    fn mint_public(to: AztecAddress, amount: Field) {
+        let amount = U128::from_integer(amount);
+        let new_balance = storage.balances.at(to).read().add(amount);
+
+        storage.balances.at(to).write(new_balance);
+    }
+
     #[aztec(public)]
     fn check_balance(fee_limit: Field) {
         let fee_limit = U128::from_integer(fee_limit);

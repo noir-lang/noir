@@ -58,7 +58,7 @@ export class ContractStorageActionsCollector {
    * @param sideEffectCounter - Side effect counter associated with this storage action.
    */
   public write(storageSlot: Fr, newValue: Fr, sideEffectCounter: number): void {
-    const slot = storageSlot.value;
+    const slot = storageSlot.toBigInt();
     const updateRequest = this.contractStorageUpdateRequests.get(slot);
     if (updateRequest) {
       this.contractStorageUpdateRequests.set(slot, { newValue, sideEffectCounter });

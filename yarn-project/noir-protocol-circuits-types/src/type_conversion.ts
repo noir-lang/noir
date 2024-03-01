@@ -87,6 +87,8 @@ import {
   ReadRequestContext,
   ReadRequestMembershipWitness,
   ReadRequestStatus,
+  RollupKernelCircuitPublicInputs,
+  RollupKernelData,
   RootRollupInputs,
   RootRollupPublicInputs,
   SettledReadHint,
@@ -170,6 +172,8 @@ import {
   PublicDataMembershipWitness as PublicDataMembershipWitnessNoir,
   PublicDataTreeLeaf as PublicDataTreeLeafNoir,
   PublicDataTreeLeafPreimage as PublicDataTreeLeafPreimageNoir,
+  RollupKernelCircuitPublicInputs as RollupKernelCircuitPublicInputsNoir,
+  RollupKernelData as RollupKernelDataNoir,
   StateDiffHints as StateDiffHintsNoir,
 } from './types/rollup_base_types.js';
 import { MergeRollupInputs as MergeRollupInputsNoir } from './types/rollup_merge_types.js';
@@ -1184,6 +1188,16 @@ export function mapPublicKernelCircuitPublicInputsToNoir(
   };
 }
 
+export function mapRollupKernelCircuitPublicInputsToNoir(
+  inputs: RollupKernelCircuitPublicInputs,
+): RollupKernelCircuitPublicInputsNoir {
+  return {
+    aggregation_object: {},
+    constants: mapCombinedConstantDataToNoir(inputs.constants),
+    end: mapCombinedAccumulatedDataToNoir(inputs.end),
+  };
+}
+
 export function mapPublicAccumulatedRevertibleDataToNoir(
   data: PublicAccumulatedRevertibleData,
 ): PublicAccumulatedRevertibleDataNoir {
@@ -1233,6 +1247,16 @@ export function mapPublicKernelDataToNoir(publicKernelData: PublicKernelData): P
     vk: {},
     vk_index: mapFieldToNoir(new Fr(publicKernelData.vkIndex)),
     vk_path: mapTuple(publicKernelData.vkPath, mapFieldToNoir),
+  };
+}
+
+export function mapRollupKernelDataToNoir(rollupKernelData: RollupKernelData): RollupKernelDataNoir {
+  return {
+    public_inputs: mapRollupKernelCircuitPublicInputsToNoir(rollupKernelData.publicInputs),
+    proof: {},
+    vk: {},
+    vk_index: mapFieldToNoir(new Fr(rollupKernelData.vkIndex)),
+    vk_path: mapTuple(rollupKernelData.vkPath, mapFieldToNoir),
   };
 }
 
@@ -1924,7 +1948,7 @@ export function mapStateDiffHintsToNoir(hints: StateDiffHints): StateDiffHintsNo
  */
 export function mapBaseRollupInputsToNoir(inputs: BaseRollupInputs): BaseRollupInputsNoir {
   return {
-    kernel_data: mapPublicKernelDataToNoir(inputs.kernelData),
+    kernel_data: mapRollupKernelDataToNoir(inputs.kernelData),
     start: mapPartialStateReferenceToNoir(inputs.start),
     state_diff_hints: mapStateDiffHintsToNoir(inputs.stateDiffHints),
 

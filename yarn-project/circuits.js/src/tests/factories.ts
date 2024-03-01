@@ -129,6 +129,8 @@ import { GlobalVariables } from '../structs/global_variables.js';
 import { Header } from '../structs/header.js';
 import { PrivateKernelInitCircuitPrivateInputs } from '../structs/kernel/private_kernel_init_circuit_private_inputs.js';
 import { PrivateKernelInnerCircuitPrivateInputs } from '../structs/kernel/private_kernel_inner_circuit_private_inputs.js';
+import { RollupKernelCircuitPublicInputs } from '../structs/kernel/rollup_kernel_circuit_public_inputs.js';
+import { RollupKernelData } from '../structs/kernel/rollup_kernel_data.js';
 
 /**
  * Creates an arbitrary side effect object with the given seed.
@@ -256,7 +258,7 @@ export function makeContractStorageRead(seed = 1): ContractStorageRead {
  * @param seed - The seed to use for generating the accumulated data.
  * @returns An accumulated data.
  */
-export function makeAccumulatedData(seed = 1, full = false): CombinedAccumulatedData {
+export function makeCombinedAccumulatedData(seed = 1, full = false): CombinedAccumulatedData {
   const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
 
   return new CombinedAccumulatedData(
@@ -453,6 +455,22 @@ export function makePublicKernelCircuitPublicInputs(
     true,
   );
 }
+
+/**
+ * Creates arbitrary public kernel circuit public inputs.
+ * @param seed - The seed to use for generating the kernel circuit public inputs.
+ * @returns Public kernel circuit public inputs.
+ */
+export function makeRollupKernelCircuitPublicInputs(
+  seed = 1,
+  fullAccumulatedData = true,
+): RollupKernelCircuitPublicInputs {
+  return new RollupKernelCircuitPublicInputs(
+    makeAggregationObject(seed),
+    makeCombinedAccumulatedData(seed, fullAccumulatedData),
+    makeConstantData(seed + 0x100),
+  );
+}
 /**
  * Creates arbitrary private kernel inner circuit public inputs.
  * @param seed - The seed to use for generating the kernel circuit public inputs.
@@ -465,7 +483,7 @@ export function makePrivateKernelInnerCircuitPublicInputs(
   return new PrivateKernelInnerCircuitPublicInputs(
     makeAggregationObject(seed),
     fr(seed + 0x100),
-    makeAccumulatedData(seed, full),
+    makeCombinedAccumulatedData(seed, full),
     makeConstantData(seed + 0x100),
     true,
   );
@@ -601,6 +619,22 @@ export function makeGrumpkinPrivateKey(seed = 1): GrumpkinPrivateKey {
 export function makePublicKernelData(seed = 1, kernelPublicInputs?: PublicKernelCircuitPublicInputs): PublicKernelData {
   return new PublicKernelData(
     kernelPublicInputs ?? makePublicKernelCircuitPublicInputs(seed, true),
+    new Proof(Buffer.alloc(16, seed + 0x80)),
+    makeVerificationKey(),
+    0x42,
+    makeTuple(VK_TREE_HEIGHT, fr, 0x1000),
+  );
+}
+
+/**
+ * Makes arbitrary public kernel data.
+ * @param seed - The seed to use for generating the previous kernel data.
+ * @param kernelPublicInputs - The public kernel public inputs to use for generating the public kernel data.
+ * @returns A previous kernel data.
+ */
+export function makeRollupKernelData(seed = 1, kernelPublicInputs?: RollupKernelCircuitPublicInputs): RollupKernelData {
+  return new RollupKernelData(
+    kernelPublicInputs ?? makeRollupKernelCircuitPublicInputs(seed, true),
     new Proof(Buffer.alloc(16, seed + 0x80)),
     makeVerificationKey(),
     0x42,
@@ -1167,7 +1201,7 @@ export function makeStateDiffHints(seed = 1): StateDiffHints {
  * @returns A base rollup inputs.
  */
 export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
-  const kernelData = makePublicKernelData(seed);
+  const kernelData = makeRollupKernelData(seed);
 
   const start = makePartialStateReference(seed + 0x100);
 

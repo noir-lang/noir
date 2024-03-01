@@ -1,4 +1,3 @@
-// docs:start:cross_chain_test_harness
 import {
   AztecAddress,
   DebugLogger,
@@ -17,7 +16,11 @@ import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
 
-// docs:start:deployAndInitializeTokenAndBridgeContracts
+export interface IGasBridgingTestHarness {
+  bridgeFromL1ToL2(l1TokenBalance: bigint, bridgeAmount: bigint, owner: AztecAddress): Promise<void>;
+  l2Token: GasTokenContract;
+}
+
 /**
  * Deploy L1 token and portal, initialize portal, deploy a non native l2 token contract, its L2 bridge contract and attach is to the portal.
  * @param wallet - the wallet instance
@@ -83,21 +86,33 @@ export async function deployAndInitializeTokenAndBridgeContracts(
 
   return { gasL2, gasPortalAddress, gasPortal, gasL1 };
 }
-// docs:end:deployAndInitializeTokenAndBridgeContracts
 
-/**
- * A Class for testing cross chain interactions, contains common interactions
- * shared between cross chain tests.
- */
-export class GasBridgingTestHarness {
-  static async new(
-    pxeService: PXE,
-    publicClient: PublicClient<HttpTransport, Chain>,
-    walletClient: any,
-    wallet: Wallet,
-    logger: DebugLogger,
-    underlyingERC20Address?: EthAddress,
-  ): Promise<GasBridgingTestHarness> {
+export interface GasPortalTestingHarnessFactoryConfig {
+  pxeService: PXE;
+  publicClient: PublicClient<HttpTransport, Chain>;
+  walletClient: WalletClient<HttpTransport, Chain, Account>;
+  wallet: Wallet;
+  logger: DebugLogger;
+  underlyingERC20Address?: EthAddress;
+  mockL1?: boolean;
+}
+export class GasPortalTestingHarnessFactory {
+  private constructor(private config: GasPortalTestingHarnessFactoryConfig) {}
+
+  private async createMock() {
+    const wallet = this.config.wallet;
+
+    const gasL2 = await GasTokenContract.deploy(wallet)
+      .send({
+        contractAddressSalt: getCanonicalGasToken().instance.salt,
+      })
+      .deployed();
+    return Promise.resolve(new MockGasBridgingTestHarness(gasL2));
+  }
+
+  private async createReal() {
+    const { pxeService, publicClient, walletClient, wallet, logger, underlyingERC20Address } = this.config;
+
     const ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
     const owner = wallet.getCompleteAddress();
     const l1ContractAddresses = (await pxeService.getNodeInfo()).l1ContractAddresses;
@@ -134,6 +149,28 @@ export class GasBridgingTestHarness {
     );
   }
 
+  static create(config: GasPortalTestingHarnessFactoryConfig): Promise<IGasBridgingTestHarness> {
+    const factory = new GasPortalTestingHarnessFactory(config);
+    if (config.mockL1) {
+      return factory.createMock();
+    } else {
+      return factory.createReal();
+    }
+  }
+}
+
+class MockGasBridgingTestHarness implements IGasBridgingTestHarness {
+  constructor(public l2Token: GasTokenContract) {}
+  async bridgeFromL1ToL2(_l1TokenBalance: bigint, bridgeAmount: bigint, owner: AztecAddress): Promise<void> {
+    await this.l2Token.methods.mint_public(owner, bridgeAmount).send().wait();
+  }
+}
+
+/**
+ * A Class for testing cross chain interactions, contains common interactions
+ * shared between cross chain tests.
+ */
+class GasBridgingTestHarness implements IGasBridgingTestHarness {
   constructor(
     /** Private eXecution Environment (PXE). */
     public pxeService: PXE,
