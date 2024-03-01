@@ -12,7 +12,6 @@ import {
   L2BlockL2Logs,
   L2BlockSource,
   L2LogsSource,
-  L2Tx,
   LogFilter,
   LogType,
   MerkleTreeId,
@@ -21,7 +20,10 @@ import {
   SequencerConfig,
   SiblingPath,
   Tx,
+  TxEffect,
   TxHash,
+  TxReceipt,
+  TxStatus,
 } from '@aztec/circuit-types';
 import {
   ARCHIVE_HEIGHT,
@@ -285,8 +287,27 @@ export class AztecNodeService implements AztecNode {
     await this.p2pClient!.sendTx(tx);
   }
 
-  public getTx(txHash: TxHash): Promise<L2Tx | undefined> {
-    return this.blockSource.getL2Tx(txHash);
+  public async getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
+    let txReceipt = new TxReceipt(txHash, TxStatus.DROPPED, 'Tx dropped by P2P node.');
+
+    // We first check if the tx is in pending (instead of first checking if it is mined) because if we first check
+    // for mined and then for pending there could be a race condition where the tx is mined between the two checks
+    // and we would incorrectly return a TxReceipt with status DROPPED
+    const pendingTx = await this.getPendingTxByHash(txHash);
+    if (pendingTx) {
+      txReceipt = new TxReceipt(txHash, TxStatus.PENDING, '');
+    }
+
+    const settledTxReceipt = await this.blockSource.getSettledTxReceipt(txHash);
+    if (settledTxReceipt) {
+      txReceipt = settledTxReceipt;
+    }
+
+    return txReceipt;
+  }
+
+  public getTxEffect(txHash: TxHash): Promise<TxEffect | undefined> {
+    return this.blockSource.getTxEffect(txHash);
   }
 
   /**

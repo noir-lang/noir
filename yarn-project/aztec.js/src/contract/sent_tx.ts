@@ -68,15 +68,15 @@ export class SentTx {
     }
     if (opts?.debug) {
       const txHash = await this.getTxHash();
-      const tx = (await this.pxe.getTx(txHash))!;
+      const tx = (await this.pxe.getTxEffect(txHash))!;
       const visibleNotes = await this.pxe.getNotes({ txHash });
       receipt.debugInfo = {
-        newNoteHashes: tx.newNoteHashes,
-        newNullifiers: tx.newNullifiers,
-        newPublicDataWrites: tx.newPublicDataWrites,
-        newL2ToL1Msgs: tx.newL2ToL1Msgs,
-        newContracts: tx.newContracts,
-        newContractData: tx.newContractData,
+        noteHashes: tx.noteHashes.filter(n => !n.isZero()),
+        nullifiers: tx.nullifiers.filter(n => !n.isZero()),
+        publicDataWrites: tx.publicDataWrites.filter(p => !p.isEmpty()),
+        l2ToL1Msgs: tx.l2ToL1Msgs.filter(l => !l.isZero()),
+        contractsLeaves: tx.contractLeaves.filter(c => !c.isZero()),
+        contractData: tx.contractData.filter(c => !c.isEmpty()),
         visibleNotes,
       };
     }

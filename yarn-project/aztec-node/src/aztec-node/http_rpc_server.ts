@@ -6,11 +6,12 @@ import {
   L1ToL2MessageAndIndex,
   L2Block,
   L2BlockL2Logs,
-  L2Tx,
   LogId,
   SiblingPath,
   Tx,
+  TxEffect,
   TxHash,
+  TxReceipt,
 } from '@aztec/circuit-types';
 import { FunctionSelector, Header } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -36,13 +37,13 @@ export function createAztecNodeRpcServer(node: AztecNode) {
       FunctionSelector,
       Header,
       L2Block,
-      L2Tx,
+      TxEffect,
       LogId,
       TxHash,
       SiblingPath,
       L1ToL2MessageAndIndex,
     },
-    { Tx, L2BlockL2Logs },
+    { Tx, TxReceipt, L2BlockL2Logs },
     // disable methods not part of the AztecNode interface
     ['start', 'stop'],
   );

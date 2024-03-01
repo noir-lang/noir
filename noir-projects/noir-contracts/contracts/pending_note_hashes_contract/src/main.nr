@@ -2,7 +2,7 @@
 // read (eventually even nullified) in the same TX. This contract
 // also contains some "bad" test cases to ensure that notes cannot
 // be read/nullified before their creation etc.
-contract PendingCommitments {
+contract PendingNoteHashes {
     // Libs
     use dep::std::option::Option;
     use dep::value_note::{balance_utils, filter::filter_notes_min_sum, value_note::{VALUE_NOTE_LEN, ValueNote}};
@@ -47,7 +47,7 @@ contract PendingCommitments {
         note0.value
     }
 
-    // Confirm cannot access commitments inserted later in same function
+    // Confirm cannot access note hashes inserted later in same function
     #[aztec(private)]
     fn test_bad_get_then_insert_flat(amount: Field, owner: AztecAddress) -> Field {
         let owner_balance = storage.balances.at(owner);
@@ -108,7 +108,7 @@ contract PendingCommitments {
     }
 
     // Test pending note hashes with note insertion done in a nested call
-    // and "read" / get of that pending note/commitment in another nested call
+    // and "read" / get of that pending note hash in another nested call
     // Realistic way to describe this test is "Mint note A, then burn note A in the same transaction"
     #[aztec(private)]
     fn test_insert_then_get_then_nullify_all_in_nested_calls(
@@ -248,7 +248,7 @@ contract PendingCommitments {
     // that is created/inserted later in execution but in the parent.
     // NOTE: This test is especially important in an end-to-end context because the parent call
     // (and therefore the insertion) will be processed in an earlier kernel iteration, but the
-    // nested call (later kernel iteration) should not be able to read the commitment despite
+    // nested call (later kernel iteration) should not be able to read the note hash despite
     // it being present at that stage in the kernel.
     // If we can somehow force the simulator to allow execution to succeed can ensure that this test fails in the kernel
     // #[aztec(private)]

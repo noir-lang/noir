@@ -109,7 +109,7 @@ describe('Note Processor', () => {
       encryptedLogsArr.push(encryptedLogs);
       ownedL1NotePayloads.push(...payloads);
       for (let i = 0; i < TXS_PER_BLOCK; i++) {
-        block.body.txEffects[i].newNoteHashes = newNotes
+        block.body.txEffects[i].noteHashes = newNotes
           .map(n => computeMockNoteHash(n.notePayload.note))
           .slice(i * MAX_NEW_NOTE_HASHES_PER_TX, (i + 1) * MAX_NEW_NOTE_HASHES_PER_TX) as Tuple<
           Fr,

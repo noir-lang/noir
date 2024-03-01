@@ -156,7 +156,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       });
     });
 
-    describe('getL2Tx', () => {
+    describe('getTxEffect', () => {
       beforeEach(async () => {
         await Promise.all(
           blocks.map(block => store.addLogs(block.body.encryptedLogs, block.body.unencryptedLogs, block.number)),
@@ -173,12 +173,12 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         () => blocks[1].getTx(0),
       ])('retrieves a previously stored transaction', async getExpectedTx => {
         const expectedTx = getExpectedTx();
-        const actualTx = await store.getL2Tx(expectedTx.txHash);
+        const actualTx = await store.getTxEffect(expectedTx.txHash);
         expect(actualTx).toEqual(expectedTx);
       });
 
       it('returns undefined if tx is not found', async () => {
-        await expect(store.getL2Tx(new TxHash(Fr.random().toBuffer()))).resolves.toBeUndefined();
+        await expect(store.getTxEffect(new TxHash(Fr.random().toBuffer()))).resolves.toBeUndefined();
       });
     });
 

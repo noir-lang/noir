@@ -181,7 +181,7 @@ describe('e2e_deploy_contract', () => {
         const contract = await registerContract(testWallet, TestContract);
         const receipt = await contract.methods.emit_nullifier(10).send().wait({ debug: true });
         const expected = siloNullifier(contract.address, new Fr(10));
-        expect(receipt.debugInfo?.newNullifiers[1]).toEqual(expected);
+        expect(receipt.debugInfo?.nullifiers[1]).toEqual(expected);
       },
       30_000,
     );

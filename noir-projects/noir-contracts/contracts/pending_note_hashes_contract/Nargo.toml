@@ -1,5 +1,5 @@
 [package]
-name = "pending_commitments_contract"
+name = "pending_note_hashes_contract"
 authors = [""]
 compiler_version = ">=0.18.0"
 type = "contract"

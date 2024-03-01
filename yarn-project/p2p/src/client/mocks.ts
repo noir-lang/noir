@@ -1,4 +1,4 @@
-import { L2Block, L2BlockSource, L2Tx, TxHash } from '@aztec/circuit-types';
+import { L2Block, L2BlockSource, TxEffect, TxHash, TxReceipt, TxStatus } from '@aztec/circuit-types';
 import { EthAddress } from '@aztec/circuits.js';
 
 /**
@@ -6,13 +6,13 @@ import { EthAddress } from '@aztec/circuits.js';
  */
 export class MockBlockSource implements L2BlockSource {
   private l2Blocks: L2Block[] = [];
-  private l2Txs: L2Tx[] = [];
+  private txEffects: TxEffect[] = [];
 
   constructor(private numBlocks = 100) {
     for (let i = 0; i < this.numBlocks; i++) {
       const block = L2Block.random(i);
       this.l2Blocks.push(block);
-      this.l2Txs.push(...block.getTxs());
+      this.txEffects.push(...block.getTxs());
     }
   }
 
@@ -60,13 +60,29 @@ export class MockBlockSource implements L2BlockSource {
   }
 
   /**
-   * Gets an l2 tx.
-   * @param txHash - The txHash of the l2 tx.
-   * @returns The requested L2 tx.
+   * Gets a tx effect.
+   * @param txHash - The hash of a transaction which resulted in the returned tx effect.
+   * @returns The requested tx effect.
    */
-  getL2Tx(txHash: TxHash) {
-    const l2Tx = this.l2Txs.find(tx => tx.txHash.equals(txHash));
-    return Promise.resolve(l2Tx);
+  public getTxEffect(txHash: TxHash) {
+    const txEffect = this.txEffects.find(tx => tx.txHash.equals(txHash));
+    return Promise.resolve(txEffect);
+  }
+
+  /**
+   * Gets a receipt of a settled tx.
+   * @param txHash - The hash of a tx we try to get the receipt for.
+   * @returns The requested tx receipt (or undefined if not found).
+   */
+  public getSettledTxReceipt(txHash: TxHash): Promise<TxReceipt | undefined> {
+    for (const block of this.l2Blocks) {
+      for (const txEffect of block.body.txEffects) {
+        if (txEffect.txHash.equals(txHash)) {
+          return Promise.resolve(new TxReceipt(txHash, TxStatus.MINED, '', block.hash().toBuffer(), block.number));
+        }
+      }
+    }
+    return Promise.resolve(undefined);
   }
 
   /**

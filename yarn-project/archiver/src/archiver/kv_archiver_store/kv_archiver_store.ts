@@ -6,10 +6,11 @@ import {
   L1ToL2Message,
   L2Block,
   L2BlockL2Logs,
-  L2Tx,
   LogFilter,
   LogType,
+  TxEffect,
   TxHash,
+  TxReceipt,
 } from '@aztec/circuit-types';
 import { Fr } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -115,12 +116,21 @@ export class KVArchiverDataStore implements ArchiverDataStore {
   }
 
   /**
-   * Gets an l2 tx.
-   * @param txHash - The txHash of the l2 tx.
-   * @returns The requested L2 tx.
+   * Gets a tx effect.
+   * @param txHash - The txHash of the tx corresponding to the tx effect.
+   * @returns The requested tx effect (or undefined if not found).
    */
-  getL2Tx(txHash: TxHash): Promise<L2Tx | undefined> {
-    return Promise.resolve(this.#blockStore.getL2Tx(txHash));
+  getTxEffect(txHash: TxHash): Promise<TxEffect | undefined> {
+    return Promise.resolve(this.#blockStore.getTxEffect(txHash));
+  }
+
+  /**
+   * Gets a receipt of a settled tx.
+   * @param txHash - The hash of a tx we try to get the receipt for.
+   * @returns The requested tx receipt (or undefined if not found).
+   */
+  getSettledTxReceipt(txHash: TxHash): Promise<TxReceipt | undefined> {
+    return Promise.resolve(this.#blockStore.getSettledTxReceipt(txHash));
   }
 
   /**

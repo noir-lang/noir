@@ -1,4 +1,4 @@
-import { Body, L2Tx, TxHash } from '@aztec/circuit-types';
+import { Body, TxEffect, TxHash } from '@aztec/circuit-types';
 import { AppendOnlyTreeSnapshot, Header, STRING_ENCODING } from '@aztec/circuits.js';
 import { makeAppendOnlyTreeSnapshot, makeHeader } from '@aztec/circuits.js/testing';
 import { sha256 } from '@aztec/foundation/crypto';
@@ -238,28 +238,9 @@ export class L2Block {
    * @param txIndex - The index of the tx in the block.
    * @returns The tx.
    */
-  getTx(txIndex: number) {
+  getTx(txIndex: number): TxEffect {
     this.assertIndexInRange(txIndex);
-
-    const txEffect = this.body.txEffects[txIndex];
-
-    const newNoteHashes = txEffect.newNoteHashes.filter(x => !x.isZero());
-    const newNullifiers = txEffect.newNullifiers.filter(x => !x.isZero());
-    const newPublicDataWrites = txEffect.newPublicDataWrites.filter(x => !x.isEmpty());
-    const newL2ToL1Msgs = txEffect.newL2ToL1Msgs.filter(x => !x.isZero());
-    const newContracts = txEffect.contractLeaves.filter(x => !x.isZero());
-    const newContractData = txEffect.contractData.filter(x => !x.isEmpty());
-
-    return new L2Tx(
-      newNoteHashes,
-      newNullifiers,
-      newPublicDataWrites,
-      newL2ToL1Msgs,
-      newContracts,
-      newContractData,
-      this.hash(),
-      Number(this.header.globalVariables.blockNumber.toBigInt()),
-    );
+    return this.body.txEffects[txIndex];
   }
 
   /**
@@ -271,7 +252,7 @@ export class L2Block {
     this.assertIndexInRange(txIndex);
 
     // Gets the first nullifier of the tx specified by txIndex
-    const firstNullifier = this.body.txEffects[txIndex].newNullifiers[0];
+    const firstNullifier = this.body.txEffects[txIndex].nullifiers[0];
 
     return new TxHash(firstNullifier.toBuffer());
   }

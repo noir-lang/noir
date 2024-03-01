@@ -1,4 +1,4 @@
-import { INITIAL_L2_BLOCK_NUM, L2Block, L2Tx, TxHash } from '@aztec/circuit-types';
+import { INITIAL_L2_BLOCK_NUM, L2Block, TxEffect, TxHash, TxReceipt, TxStatus } from '@aztec/circuit-types';
 import { AppendOnlyTreeSnapshot, AztecAddress, Header } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecKVStore, AztecMap, Range } from '@aztec/kv-store';
@@ -117,12 +117,12 @@ export class BlockStore {
   }
 
   /**
-   * Gets an l2 tx.
-   * @param txHash - The txHash of the l2 tx.
-   * @returns The requested L2 tx.
+   * Gets a tx effect.
+   * @param txHash - The txHash of the tx corresponding to the tx effect.
+   * @returns The requested tx effect (or undefined if not found).
    */
-  getL2Tx(txHash: TxHash): L2Tx | undefined {
-    const [blockNumber, txIndex] = this.getL2TxLocation(txHash) ?? [];
+  getTxEffect(txHash: TxHash): TxEffect | undefined {
+    const [blockNumber, txIndex] = this.getTxLocation(txHash) ?? [];
     if (typeof blockNumber !== 'number' || typeof txIndex !== 'number') {
       return undefined;
     }
@@ -132,11 +132,26 @@ export class BlockStore {
   }
 
   /**
-   * Looks up which block included the requested L2 tx.
-   * @param txHash - The txHash of the l2 tx.
+   * Gets a receipt of a settled tx.
+   * @param txHash - The hash of a tx we try to get the receipt for.
+   * @returns The requested tx receipt (or undefined if not found).
+   */
+  getSettledTxReceipt(txHash: TxHash): TxReceipt | undefined {
+    const [blockNumber, txIndex] = this.getTxLocation(txHash) ?? [];
+    if (typeof blockNumber !== 'number' || typeof txIndex !== 'number') {
+      return undefined;
+    }
+
+    const block = this.getBlock(blockNumber)!;
+    return new TxReceipt(txHash, TxStatus.MINED, '', block.hash().toBuffer(), block.number);
+  }
+
+  /**
+   * Looks up which block included the requested tx effect.
+   * @param txHash - The txHash of the tx.
    * @returns The block number and index of the tx.
    */
-  getL2TxLocation(txHash: TxHash): [blockNumber: number, txIndex: number] | undefined {
+  getTxLocation(txHash: TxHash): [blockNumber: number, txIndex: number] | undefined {
     return this.#txIndex.get(txHash.toString());
   }
 

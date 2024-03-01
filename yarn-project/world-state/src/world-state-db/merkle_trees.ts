@@ -510,7 +510,7 @@ export class MerkleTrees implements MerkleTreeDb {
       // Sync the append only trees
       for (const [tree, leaves] of [
         [MerkleTreeId.CONTRACT_TREE, l2Block.body.txEffects.flatMap(txEffect => txEffect.contractLeaves)],
-        [MerkleTreeId.NOTE_HASH_TREE, l2Block.body.txEffects.flatMap(txEffect => txEffect.newNoteHashes)],
+        [MerkleTreeId.NOTE_HASH_TREE, l2Block.body.txEffects.flatMap(txEffect => txEffect.noteHashes)],
         [MerkleTreeId.L1_TO_L2_MESSAGE_TREE, l2Block.body.l1ToL2Messages],
       ] as const) {
         await this.#appendLeaves(
@@ -521,13 +521,13 @@ export class MerkleTrees implements MerkleTreeDb {
 
       // Sync the indexed trees
       await (this.trees[MerkleTreeId.NULLIFIER_TREE] as StandardIndexedTree).batchInsert(
-        l2Block.body.txEffects.flatMap(txEffect => txEffect.newNullifiers.map(nullifier => nullifier.toBuffer())),
+        l2Block.body.txEffects.flatMap(txEffect => txEffect.nullifiers.map(nullifier => nullifier.toBuffer())),
         NULLIFIER_SUBTREE_HEIGHT,
       );
 
       const publicDataTree = this.trees[MerkleTreeId.PUBLIC_DATA_TREE] as StandardIndexedTree;
 
-      const publicDataWrites = l2Block.body.txEffects.flatMap(txEffect => txEffect.newPublicDataWrites);
+      const publicDataWrites = l2Block.body.txEffects.flatMap(txEffect => txEffect.publicDataWrites);
 
       // We insert the public data tree leaves with one batch per tx to avoid updating the same key twice
       for (let i = 0; i < publicDataWrites.length / MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX; i++) {

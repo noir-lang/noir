@@ -10,18 +10,17 @@ import {
   GetUnencryptedLogsResponse,
   KeyStore,
   L2Block,
-  L2Tx,
   LogFilter,
   MerkleTreeId,
   NoteFilter,
   PXE,
   SimulationError,
   Tx,
+  TxEffect,
   TxExecutionRequest,
   TxHash,
   TxL2Logs,
   TxReceipt,
-  TxStatus,
   getNewContractPublicFunctions,
   isNoirCallStackUnresolved,
 } from '@aztec/circuit-types';
@@ -336,14 +335,14 @@ export class PXEService implements PXE {
    * @remarks More than a single nonce may be returned since there might be more than one nonce for a given note.
    */
   private async getNoteNonces(note: ExtendedNote): Promise<Fr[]> {
-    const tx = await this.node.getTx(note.txHash);
+    const tx = await this.node.getTxEffect(note.txHash);
     if (!tx) {
       throw new Error(`Unknown tx: ${note.txHash}`);
     }
 
     const nonces: Fr[] = [];
-    const firstNullifier = tx.newNullifiers[0];
-    const hashes = tx.newNoteHashes;
+    const firstNullifier = tx.nullifiers[0];
+    const hashes = tx.noteHashes;
     for (let i = 0; i < hashes.length; ++i) {
       const hash = hashes[i];
       if (hash.equals(Fr.ZERO)) {
@@ -413,7 +412,7 @@ export class PXEService implements PXE {
 
   public async sendTx(tx: Tx): Promise<TxHash> {
     const txHash = tx.getTxHash();
-    if (await this.node.getTx(txHash)) {
+    if (await this.node.getTxEffect(txHash)) {
       throw new Error(`A settled tx with equal hash ${txHash.toString()} exists.`);
     }
     this.log.info(`Sending transaction ${txHash}`);
@@ -438,27 +437,12 @@ export class PXEService implements PXE {
     });
   }
 
-  public async getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
-    let txReceipt = new TxReceipt(txHash, TxStatus.DROPPED, 'Tx dropped by P2P node.');
-
-    // We first check if the tx is in pending (instead of first checking if it is mined) because if we first check
-    // for mined and then for pending there could be a race condition where the tx is mined between the two checks
-    // and we would incorrectly return a TxReceipt with status DROPPED
-    const pendingTx = await this.node.getPendingTxByHash(txHash);
-    if (pendingTx) {
-      txReceipt = new TxReceipt(txHash, TxStatus.PENDING, '');
-    }
-
-    const settledTx = await this.node.getTx(txHash);
-    if (settledTx) {
-      txReceipt = new TxReceipt(txHash, TxStatus.MINED, '', settledTx.blockHash.toBuffer(), settledTx.blockNumber);
-    }
-
-    return txReceipt;
+  public getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
+    return this.node.getTxReceipt(txHash);
   }
 
-  public async getTx(txHash: TxHash): Promise<L2Tx | undefined> {
-    return await this.node.getTx(txHash);
+  public getTxEffect(txHash: TxHash): Promise<TxEffect | undefined> {
+    return this.node.getTxEffect(txHash);
   }
 
   async getBlockNumber(): Promise<number> {

@@ -9,11 +9,13 @@ import {
   L2Block,
   L2BlockContext,
   L2BlockL2Logs,
-  L2Tx,
   LogFilter,
   LogId,
   LogType,
+  TxEffect,
   TxHash,
+  TxReceipt,
+  TxStatus,
   UnencryptedL2Log,
 } from '@aztec/circuit-types';
 import { Fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
@@ -38,9 +40,9 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   private l2BlockBodies: Map<string, Body> = new Map();
 
   /**
-   * An array containing all the L2 Txs in the L2 blocks that have been fetched so far.
+   * An array containing all the the tx effects in the L2 blocks that have been fetched so far.
    */
-  private l2Txs: L2Tx[] = [];
+  private txEffects: TxEffect[] = [];
 
   /**
    * An array containing all the encrypted logs that have been fetched so far.
@@ -120,7 +122,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    */
   public addBlocks(blocks: L2Block[]): Promise<boolean> {
     this.l2BlockContexts.push(...blocks.map(block => new L2BlockContext(block)));
-    this.l2Txs.push(...blocks.flatMap(b => b.getTxs()));
+    this.txEffects.push(...blocks.flatMap(b => b.getTxs()));
     return Promise.resolve(true);
   }
 
@@ -271,13 +273,31 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
-   * Gets an l2 tx.
-   * @param txHash - The txHash of the l2 tx.
-   * @returns The requested L2 tx.
+   * Gets a tx effect.
+   * @param txHash - The txHash of the tx effect.
+   * @returns The requested tx effect.
    */
-  public getL2Tx(txHash: TxHash): Promise<L2Tx | undefined> {
-    const l2Tx = this.l2Txs.find(tx => tx.txHash.equals(txHash));
-    return Promise.resolve(l2Tx);
+  public getTxEffect(txHash: TxHash): Promise<TxEffect | undefined> {
+    const txEffect = this.txEffects.find(tx => tx.txHash.equals(txHash));
+    return Promise.resolve(txEffect);
+  }
+
+  /**
+   * Gets a receipt of a settled tx.
+   * @param txHash - The hash of a tx we try to get the receipt for.
+   * @returns The requested tx receipt (or undefined if not found).
+   */
+  public getSettledTxReceipt(txHash: TxHash): Promise<TxReceipt | undefined> {
+    for (const blockContext of this.l2BlockContexts) {
+      for (const currentTxHash of blockContext.getTxHashes()) {
+        if (currentTxHash.equals(txHash)) {
+          return Promise.resolve(
+            new TxReceipt(txHash, TxStatus.MINED, '', blockContext.block.hash().toBuffer(), blockContext.block.number),
+          );
+        }
+      }
+    }
+    return Promise.resolve(undefined);
   }
 
   /**

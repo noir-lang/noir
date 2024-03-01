@@ -10,10 +10,11 @@ import {
   L2BlockL2Logs,
   L2BlockSource,
   L2LogsSource,
-  L2Tx,
   LogFilter,
   LogType,
+  TxEffect,
   TxHash,
+  TxReceipt,
   UnencryptedL2Log,
 } from '@aztec/circuit-types';
 import { ContractClassRegisteredEvent, FunctionSelector } from '@aztec/circuits.js';
@@ -434,8 +435,12 @@ export class Archiver implements ArchiveSource {
     return blocks.length === 0 ? undefined : blocks[0];
   }
 
-  public getL2Tx(txHash: TxHash): Promise<L2Tx | undefined> {
-    return this.store.getL2Tx(txHash);
+  public getTxEffect(txHash: TxHash): Promise<TxEffect | undefined> {
+    return this.store.getTxEffect(txHash);
+  }
+
+  public getSettledTxReceipt(txHash: TxHash): Promise<TxReceipt | undefined> {
+    return this.store.getSettledTxReceipt(txHash);
   }
 
   /**

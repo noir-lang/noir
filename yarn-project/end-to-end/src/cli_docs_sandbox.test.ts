@@ -116,7 +116,7 @@ ImportTestContractArtifact
 InclusionProofsContractArtifact
 LendingContractArtifact
 ParentContractArtifact
-PendingCommitmentsContractArtifact
+PendingNoteHashesContractArtifact
 PriceFeedContractArtifact
 ReaderContractArtifact
 SchnorrAccountContractArtifact

@@ -258,7 +258,7 @@ describe('L1Publisher integration', () => {
       messages: {
         l1ToL2Messages: l1ToL2Messages.map(m => `0x${m.toBuffer().toString('hex').padStart(64, '0')}`),
         l2ToL1Messages: block.body.txEffects
-          .flatMap(txEffect => txEffect.newL2ToL1Msgs)
+          .flatMap(txEffect => txEffect.l2ToL1Msgs)
           .map(m => `0x${m.toBuffer().toString('hex').padStart(64, '0')}`),
       },
       block: {
@@ -415,7 +415,7 @@ describe('L1Publisher integration', () => {
         expect(await inbox.read.contains([l1ToL2Messages[j].toString()])).toBeTruthy();
       }
 
-      const newL2ToL1MsgsArray = block.body.txEffects.flatMap(txEffect => txEffect.newL2ToL1Msgs);
+      const newL2ToL1MsgsArray = block.body.txEffects.flatMap(txEffect => txEffect.l2ToL1Msgs);
 
       // check that values are not in the outbox
       for (let j = 0; j < newL2ToL1MsgsArray.length; j++) {

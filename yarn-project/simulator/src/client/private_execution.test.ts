@@ -47,7 +47,7 @@ import {
   ChildContractArtifact,
   ImportTestContractArtifact,
   ParentContractArtifact,
-  PendingCommitmentsContractArtifact,
+  PendingNoteHashesContractArtifact,
   StatefulTestContractArtifact,
   TestContractArtifact,
   TokenContractArtifact,
@@ -880,10 +880,10 @@ describe('Private Execution test suite', () => {
 
     beforeEach(() => {
       oracle.getFunctionArtifact.mockImplementation((_, selector) =>
-        Promise.resolve(getFunctionArtifactWithSelector(PendingCommitmentsContractArtifact, selector)),
+        Promise.resolve(getFunctionArtifactWithSelector(PendingNoteHashesContractArtifact, selector)),
       );
       oracle.getFunctionArtifactByName.mockImplementation((_, functionName: string) =>
-        Promise.resolve(getFunctionArtifact(PendingCommitmentsContractArtifact, functionName)),
+        Promise.resolve(getFunctionArtifact(PendingNoteHashesContractArtifact, functionName)),
       );
     });
 
@@ -893,10 +893,7 @@ describe('Private Execution test suite', () => {
       const amountToTransfer = 100n;
 
       const contractAddress = AztecAddress.random();
-      const artifact = getFunctionArtifact(
-        PendingCommitmentsContractArtifact,
-        'test_insert_then_get_then_nullify_flat',
-      );
+      const artifact = getFunctionArtifact(PendingNoteHashesContractArtifact, 'test_insert_then_get_then_nullify_flat');
 
       const args = [amountToTransfer, owner];
       const result = await runSimulator({
@@ -955,14 +952,14 @@ describe('Private Execution test suite', () => {
 
       const contractAddress = AztecAddress.random();
       const artifact = getFunctionArtifact(
-        PendingCommitmentsContractArtifact,
+        PendingNoteHashesContractArtifact,
         'test_insert_then_get_then_nullify_all_in_nested_calls',
       );
-      const insertArtifact = getFunctionArtifact(PendingCommitmentsContractArtifact, 'insert_note');
+      const insertArtifact = getFunctionArtifact(PendingNoteHashesContractArtifact, 'insert_note');
 
-      const getThenNullifyArtifact = getFunctionArtifact(PendingCommitmentsContractArtifact, 'get_then_nullify_note');
+      const getThenNullifyArtifact = getFunctionArtifact(PendingNoteHashesContractArtifact, 'get_then_nullify_note');
 
-      const getZeroArtifact = getFunctionArtifact(PendingCommitmentsContractArtifact, 'get_note_zero_balance');
+      const getZeroArtifact = getFunctionArtifact(PendingNoteHashesContractArtifact, 'get_note_zero_balance');
 
       const insertFnSelector = FunctionSelector.fromNameAndParameters(insertArtifact.name, insertArtifact.parameters);
       const getThenNullifyFnSelector = FunctionSelector.fromNameAndParameters(
@@ -1048,7 +1045,7 @@ describe('Private Execution test suite', () => {
 
       const contractAddress = AztecAddress.random();
 
-      const artifact = getFunctionArtifact(PendingCommitmentsContractArtifact, 'test_bad_get_then_insert_flat');
+      const artifact = getFunctionArtifact(PendingNoteHashesContractArtifact, 'test_bad_get_then_insert_flat');
 
       const args = [amountToTransfer, owner];
       const result = await runSimulator({

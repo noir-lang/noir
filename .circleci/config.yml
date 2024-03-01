@@ -893,7 +893,7 @@ jobs:
           command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_inclusion_proofs_contract.test.ts
           aztec_manifest_key: end-to-end
 
-  e2e-pending-commitments-contract:
+  e2e-pending-note-hashes-contract:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -902,7 +902,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_pending_commitments_contract.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_pending_note_hashes_contract.test.ts
           aztec_manifest_key: end-to-end
 
   e2e-ordering:
@@ -1493,7 +1493,7 @@ workflows:
       - e2e-account-contracts: *e2e_test
       - e2e-escrow-contract: *e2e_test
       - e2e-inclusion-proofs-contract: *e2e_test
-      - e2e-pending-commitments-contract: *e2e_test
+      - e2e-pending-note-hashes-contract: *e2e_test
       - e2e-ordering: *e2e_test
       - e2e-counter: *e2e_test
       - e2e-private-voting: *e2e_test
@@ -1539,7 +1539,7 @@ workflows:
             - e2e-account-contracts
             - e2e-escrow-contract
             - e2e-inclusion-proofs-contract
-            - e2e-pending-commitments-contract
+            - e2e-pending-note-hashes-contract
             - e2e-ordering
             - e2e-counter
             - e2e-private-voting
