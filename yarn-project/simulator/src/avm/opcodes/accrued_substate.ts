@@ -6,6 +6,43 @@ import { Opcode, OperandType } from '../serialization/instruction_serialization.
 import { Instruction } from './instruction.js';
 import { StaticCallStorageAlterError } from './storage.js';
 
+export class NoteHashExists extends Instruction {
+  static type: string = 'NOTEHASHEXISTS';
+  static readonly opcode: Opcode = Opcode.NOTEHASHEXISTS;
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat = [
+    OperandType.UINT8,
+    OperandType.UINT8,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+  ];
+
+  constructor(
+    private indirect: number,
+    private noteHashOffset: number,
+    private leafIndexOffset: number,
+    private existsOffset: number,
+  ) {
+    super();
+  }
+
+  async execute(context: AvmContext): Promise<void> {
+    // Note that this instruction accepts any type in memory, and converts to Field.
+    const noteHash = context.machineState.memory.get(this.noteHashOffset).toFr();
+    const leafIndex = context.machineState.memory.get(this.leafIndexOffset).toFr();
+
+    const exists = await context.persistableState.checkNoteHashExists(
+      context.environment.storageAddress,
+      noteHash,
+      leafIndex,
+    );
+    context.machineState.memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
+
+    context.machineState.incrementPc();
+  }
+}
+
 export class EmitNoteHash extends Instruction {
   static type: string = 'EMITNOTEHASH';
   static readonly opcode: Opcode = Opcode.EMITNOTEHASH;

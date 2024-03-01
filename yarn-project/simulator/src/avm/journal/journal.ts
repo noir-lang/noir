@@ -4,12 +4,13 @@ import { HostStorage } from './host_storage.js';
 import { Nullifiers } from './nullifiers.js';
 import { PublicStorage } from './public_storage.js';
 import { WorldStateAccessTrace } from './trace.js';
-import { TracedNullifierCheck } from './trace_types.js';
+import { TracedNoteHashCheck, TracedNullifierCheck } from './trace_types.js';
 
 /**
  * Data held within the journal
  */
 export type JournalData = {
+  noteHashChecks: TracedNoteHashCheck[];
   newNoteHashes: Fr[];
   nullifierChecks: TracedNullifierCheck[];
   newNullifiers: Fr[];
@@ -94,11 +95,27 @@ export class AvmPersistableStateManager {
     return Promise.resolve(value);
   }
 
+  // TODO(4886): We currently don't silo note hashes.
+  /**
+   * Check if a note hash exists at the given leaf index, trace the check.
+   *
+   * @param storageAddress - the address of the contract whose storage is being read from
+   * @param noteHash - the unsiloed note hash being checked
+   * @param leafIndex - the leaf index being checked
+   * @returns true if the note hash exists at the given leaf index, false otherwise
+   */
+  public async checkNoteHashExists(storageAddress: Fr, noteHash: Fr, leafIndex: Fr): Promise<boolean> {
+    const gotLeafIndex = await this.hostStorage.commitmentsDb.getCommitmentIndex(noteHash);
+    const exists = gotLeafIndex === leafIndex.toBigInt();
+    this.trace.traceNoteHashCheck(storageAddress, noteHash, exists, leafIndex);
+    return Promise.resolve(exists);
+  }
+
   public writeNoteHash(noteHash: Fr) {
     this.trace.traceNewNoteHash(/*storageAddress*/ Fr.ZERO, noteHash);
   }
 
-  public async checkNullifierExists(storageAddress: Fr, nullifier: Fr) {
+  public async checkNullifierExists(storageAddress: Fr, nullifier: Fr): Promise<boolean> {
     const [exists, isPending, leafIndex] = await this.nullifiers.checkExists(storageAddress, nullifier);
     this.trace.traceNullifierCheck(storageAddress, nullifier, exists, isPending, leafIndex);
     return Promise.resolve(exists);
@@ -149,6 +166,7 @@ export class AvmPersistableStateManager {
    */
   public flush(): JournalData {
     return {
+      noteHashChecks: this.trace.noteHashChecks,
       newNoteHashes: this.trace.newNoteHashes,
       nullifierChecks: this.trace.nullifierChecks,
       newNullifiers: this.trace.newNullifiers,

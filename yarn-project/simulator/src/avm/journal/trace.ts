@@ -1,6 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { TracedNullifierCheck } from './trace_types.js';
+import { TracedNoteHashCheck, TracedNullifierCheck } from './trace_types.js';
 
 export class WorldStateAccessTrace {
   public accessCounter: number;
@@ -11,7 +11,7 @@ export class WorldStateAccessTrace {
   //public publicStorageWrites: Array<TracedPublicStorageWrite> = [];
   public publicStorageWrites: Map<bigint, Map<bigint, Fr[]>> = new Map();
 
-  //public noteHashChecks: TracedNoteHashCheck[] = [];
+  public noteHashChecks: TracedNoteHashCheck[] = [];
   //public newNoteHashes: TracedNoteHash[] = [];
   public newNoteHashes: Fr[] = [];
   public nullifierChecks: TracedNullifierCheck[] = [];
@@ -58,6 +58,20 @@ export class WorldStateAccessTrace {
     //};
     //this.publicStorageWrites.push(traced);
     this.journalWrite(storageAddress, slot, value);
+    this.incrementAccessCounter();
+  }
+
+  public traceNoteHashCheck(storageAddress: Fr, noteHash: Fr, exists: boolean, leafIndex: Fr) {
+    const traced: TracedNoteHashCheck = {
+      callPointer: Fr.ZERO, // FIXME
+      storageAddress,
+      noteHash,
+      exists,
+      counter: new Fr(this.accessCounter),
+      endLifetime: Fr.ZERO,
+      leafIndex,
+    };
+    this.noteHashChecks.push(traced);
     this.incrementAccessCounter();
   }
 
@@ -122,6 +136,7 @@ export class WorldStateAccessTrace {
     mergeContractJournalMaps(this.publicStorageReads, incomingTrace.publicStorageReads);
     mergeContractJournalMaps(this.publicStorageWrites, incomingTrace.publicStorageWrites);
     // Merge new note hashes and nullifiers
+    this.noteHashChecks = this.noteHashChecks.concat(incomingTrace.noteHashChecks);
     this.newNoteHashes = this.newNoteHashes.concat(incomingTrace.newNoteHashes);
     this.nullifierChecks = this.nullifierChecks.concat(incomingTrace.nullifierChecks);
     this.newNullifiers = this.newNullifiers.concat(incomingTrace.newNullifiers);

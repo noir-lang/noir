@@ -238,6 +238,61 @@ describe('AVM simulator', () => {
     });
 
     describe('Test tree access functions from noir contract', () => {
+      it(`Should execute contract function that checks if a note hash exists (it does not)`, async () => {
+        const noteHash = new Fr(42);
+        const leafIndex = new Fr(7);
+        const calldata = [noteHash, leafIndex];
+
+        // Get contract function artifact
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === 'avm_note_hash_exists')!;
+
+        // Decode bytecode into instructions
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        await new AvmSimulator(context).execute();
+        const results = await new AvmSimulator(context).execute();
+        expect(results.reverted).toBe(false);
+        expect(results.output).toEqual([/*exists=false*/ new Fr(0)]);
+
+        // Note hash existence check should be in trace
+        const trace = context.persistableState.flush();
+        expect(trace.noteHashChecks).toEqual([expect.objectContaining({ noteHash, leafIndex, exists: false })]);
+      });
+      it(`Should execute contract function that checks if a note hash exists (it does)`, async () => {
+        const noteHash = new Fr(42);
+        const leafIndex = new Fr(7);
+        const calldata = [noteHash, leafIndex];
+
+        // Get contract function artifact
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === 'avm_note_hash_exists')!;
+
+        // Decode bytecode into instructions
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        // note hash exists!
+        jest
+          .spyOn(context.persistableState.hostStorage.commitmentsDb, 'getCommitmentIndex')
+          .mockReturnValue(Promise.resolve(BigInt(7)));
+
+        await new AvmSimulator(context).execute();
+        const results = await new AvmSimulator(context).execute();
+        expect(results.reverted).toBe(false);
+        expect(results.output).toEqual([/*exists=true*/ new Fr(1)]);
+
+        // Note hash existence check should be in trace
+        const trace = context.persistableState.flush();
+        expect(trace.noteHashChecks).toEqual([expect.objectContaining({ noteHash, leafIndex, exists: true })]);
+      });
       it(`Should execute contract function to emit note hash (should be traced)`, async () => {
         const utxo = new Fr(42);
         const calldata = [utxo];

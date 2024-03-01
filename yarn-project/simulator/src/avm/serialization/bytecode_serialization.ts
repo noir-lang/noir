@@ -26,6 +26,7 @@ import {
   Mov,
   Mul,
   Not,
+  NoteHashExists,
   NullifierExists,
   Or,
   Origin,
@@ -112,7 +113,7 @@ const INSTRUCTION_SET = () =>
     // World State
     [SLoad.opcode, SLoad], // Public Storage
     [SStore.opcode, SStore], // Public Storage
-    //[NoteHashExists.opcode, NoteHashExists], // Notes & Nullifiers
+    [NoteHashExists.opcode, NoteHashExists], // Notes & Nullifiers
     [EmitNoteHash.opcode, EmitNoteHash], // Notes & Nullifiers
     [NullifierExists.opcode, NullifierExists], // Notes & Nullifiers
     [EmitNullifier.opcode, EmitNullifier], // Notes & Nullifiers

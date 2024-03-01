@@ -140,6 +140,11 @@ contract AvmTest {
     //     context.contract_call_depth()
     // }
 
+    #[aztec(public-vm)]
+    fn note_hash_exists(note_hash: Field, leaf_index: Field) -> pub u8 {
+        context.note_hash_exists(note_hash, leaf_index)
+    }
+
     // Use the standard context interface to emit a new note hash
     #[aztec(public-vm)]
     fn new_note_hash(note_hash: Field) {

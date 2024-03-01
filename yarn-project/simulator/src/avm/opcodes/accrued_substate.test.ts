@@ -10,6 +10,7 @@ import {
   EmitNoteHash,
   EmitNullifier,
   EmitUnencryptedLog,
+  NoteHashExists,
   NullifierExists,
   SendL2ToL1Message,
 } from './accrued_substate.js';
@@ -20,6 +21,105 @@ describe('Accrued Substate', () => {
 
   beforeEach(() => {
     context = initContext();
+  });
+
+  describe('NoteHashExists', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        NoteHashExists.opcode, // opcode
+        0x01, // indirect
+        ...Buffer.from('12345678', 'hex'), // noteHashOffset
+        ...Buffer.from('23456789', 'hex'), // leafIndexOffset
+        ...Buffer.from('456789AB', 'hex'), // existsOffset
+      ]);
+      const inst = new NoteHashExists(
+        /*indirect=*/ 0x01,
+        /*noteHashOffset=*/ 0x12345678,
+        /*leafIndexOffset=*/ 0x23456789,
+        /*existsOffset=*/ 0x456789ab,
+      );
+
+      expect(NoteHashExists.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
+    it('Should correctly return false when noteHash does not exist', async () => {
+      const noteHash = new Field(69n);
+      const noteHashOffset = 0;
+      const leafIndex = new Field(7n);
+      const leafIndexOffset = 1;
+      const existsOffset = 2;
+
+      // mock host storage this so that persistable state's getCommitmentIndex returns UNDEFINED
+      const commitmentsDb = mock<CommitmentsDB>();
+      commitmentsDb.getCommitmentIndex.mockResolvedValue(Promise.resolve(undefined));
+      const hostStorage = initHostStorage({ commitmentsDb });
+      context = initContext({ persistableState: new AvmPersistableStateManager(hostStorage) });
+
+      context.machineState.memory.set(noteHashOffset, noteHash);
+      context.machineState.memory.set(leafIndexOffset, leafIndex);
+      await new NoteHashExists(/*indirect=*/ 0, noteHashOffset, leafIndexOffset, existsOffset).execute(context);
+
+      const exists = context.machineState.memory.getAs<Uint8>(existsOffset);
+      expect(exists).toEqual(new Uint8(0));
+
+      const journalState = context.persistableState.flush();
+      expect(journalState.noteHashChecks).toEqual([
+        expect.objectContaining({ exists: false, leafIndex: leafIndex.toFr(), noteHash: noteHash.toFr() }),
+      ]);
+    });
+
+    it('Should correctly return false when note hash exists at a different leaf index', async () => {
+      const noteHash = new Field(69n);
+      const noteHashOffset = 0;
+      const leafIndex = new Field(7n);
+      const storedLeafIndex = 88n;
+      const leafIndexOffset = 1;
+      const existsOffset = 2;
+
+      const commitmentsDb = mock<CommitmentsDB>();
+      commitmentsDb.getCommitmentIndex.mockResolvedValue(Promise.resolve(storedLeafIndex));
+      const hostStorage = initHostStorage({ commitmentsDb });
+      context = initContext({ persistableState: new AvmPersistableStateManager(hostStorage) });
+
+      context.machineState.memory.set(noteHashOffset, noteHash);
+      context.machineState.memory.set(leafIndexOffset, leafIndex);
+      await new NoteHashExists(/*indirect=*/ 0, noteHashOffset, leafIndexOffset, existsOffset).execute(context);
+
+      const exists = context.machineState.memory.getAs<Uint8>(existsOffset);
+      expect(exists).toEqual(new Uint8(0));
+
+      const journalState = context.persistableState.flush();
+      expect(journalState.noteHashChecks).toEqual([
+        expect.objectContaining({ exists: false, leafIndex: leafIndex.toFr(), noteHash: noteHash.toFr() }),
+      ]);
+    });
+
+    it('Should correctly return true when note hash exists at the given leaf index', async () => {
+      const noteHash = new Field(69n);
+      const noteHashOffset = 0;
+      const leafIndex = new Field(7n);
+      const storedLeafIndex = 7n;
+      const leafIndexOffset = 1;
+      const existsOffset = 2;
+
+      const commitmentsDb = mock<CommitmentsDB>();
+      commitmentsDb.getCommitmentIndex.mockResolvedValue(Promise.resolve(storedLeafIndex));
+      const hostStorage = initHostStorage({ commitmentsDb });
+      context = initContext({ persistableState: new AvmPersistableStateManager(hostStorage) });
+
+      context.machineState.memory.set(noteHashOffset, noteHash);
+      context.machineState.memory.set(leafIndexOffset, leafIndex);
+      await new NoteHashExists(/*indirect=*/ 0, noteHashOffset, leafIndexOffset, existsOffset).execute(context);
+
+      const exists = context.machineState.memory.getAs<Uint8>(existsOffset);
+      expect(exists).toEqual(new Uint8(1));
+
+      const journalState = context.persistableState.flush();
+      expect(journalState.noteHashChecks).toEqual([
+        expect.objectContaining({ exists: true, leafIndex: leafIndex.toFr(), noteHash: noteHash.toFr() }),
+      ]);
+    });
   });
 
   describe('EmitNoteHash', () => {
