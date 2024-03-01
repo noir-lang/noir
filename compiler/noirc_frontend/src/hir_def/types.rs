@@ -1558,7 +1558,7 @@ impl Type {
     }
 
     /// True if the given TypeVariableId is free anywhere within self
-    fn occurs(&self, target_id: TypeVariableId) -> bool {
+    pub fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
             Type::String(len) => len.occurs(target_id),
