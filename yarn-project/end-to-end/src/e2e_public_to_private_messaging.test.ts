@@ -47,7 +47,7 @@ describe('e2e_public_to_private_messaging', () => {
     const [secret, secretHash] = crossChainTestHarness.generateClaimSecret();
 
     await crossChainTestHarness.mintTokensOnL1(l1TokenBalance);
-    const messageKey = await crossChainTestHarness.sendTokensToPortalPublic(bridgeAmount, secretHash);
+    await crossChainTestHarness.sendTokensToPortalPublic(bridgeAmount, secretHash);
     expect(await underlyingERC20.read.balanceOf([ethAccount.toString()])).toBe(l1TokenBalance - bridgeAmount);
 
     // Wait for the archiver to process the message
@@ -58,7 +58,7 @@ describe('e2e_public_to_private_messaging', () => {
     await crossChainTestHarness.mintTokensPublicOnL2(initialBalance);
     await crossChainTestHarness.expectPublicBalanceOnL2(ownerAddress, initialBalance);
 
-    await crossChainTestHarness.consumeMessageOnAztecAndMintPublicly(bridgeAmount, messageKey, secret);
+    await crossChainTestHarness.consumeMessageOnAztecAndMintPublicly(bridgeAmount, secret);
     await crossChainTestHarness.expectPublicBalanceOnL2(ownerAddress, initialBalance + bridgeAmount);
 
     // Create the commitment to be spent in the private domain

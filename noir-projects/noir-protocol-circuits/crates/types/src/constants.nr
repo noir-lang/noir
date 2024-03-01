@@ -130,7 +130,7 @@ global DEPLOYER_CONTRACT_ADDRESS = 0x0747a20ed0c86035e44ea5606f30de459f40b55c5e8
 // Some are defined here because Noir doesn't yet support globals referencing other globals yet.
 // Move these constants to a noir file once the issue below is resolved:
 // https://github.com/noir-lang/noir/issues/1734
-global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH: u64 = 25;
+global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH: u64 = 17;
 global MAX_NOTE_FIELDS_LENGTH: u64 = 20;
 // GET_NOTE_ORACLE_RETURN_LENGT = MAX_NOTE_FIELDS_LENGTH + 1 + 2
 // The plus 1 is 1 extra field for nonce.

@@ -164,7 +164,7 @@ impl PublicContext {
         self.new_l2_to_l1_msgs.push(message);
     }
 
-    pub fn consume_l1_to_l2_message(&mut self, msg_key: Field, content: Field, secret: Field, sender: EthAddress) {
+    pub fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress) {
         let this = (*self).this_address();
         let nullifier = process_l1_to_l2_message(
             self.historical_header.state.l1_to_l2_message_tree.root,
@@ -172,7 +172,6 @@ impl PublicContext {
             sender,
             self.chain_id(),
             self.version(),
-            msg_key,
             content,
             secret
         );

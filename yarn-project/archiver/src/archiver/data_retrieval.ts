@@ -154,7 +154,7 @@ export async function retrieveNewPendingL1ToL2Messages(
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
  * @param searchStartBlock - The block number to use for starting the search.
  * @param searchEndBlock - The highest block number that we should search up to.
- * @returns An array of message keys that were cancelled and next eth block to search from.
+ * @returns An array of entry keys that were cancelled and next eth block to search from.
  */
 export async function retrieveNewCancelledL1ToL2Messages(
   publicClient: PublicClient,

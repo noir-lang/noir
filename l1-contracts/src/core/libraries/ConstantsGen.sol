@@ -87,7 +87,7 @@ library Constants {
     0x85864497636cf755ae7bde03f267ce01a520981c21c3682aaf82a631;
   uint256 internal constant DEPLOYER_CONTRACT_ADDRESS =
     0x0747a20ed0c86035e44ea5606f30de459f40b55c5e82012640aa554546af9044;
-  uint256 internal constant L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 25;
+  uint256 internal constant L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 17;
   uint256 internal constant MAX_NOTE_FIELDS_LENGTH = 20;
   uint256 internal constant GET_NOTE_ORACLE_RETURN_LENGTH = 23;
   uint256 internal constant MAX_NOTES_PER_PAGE = 10;

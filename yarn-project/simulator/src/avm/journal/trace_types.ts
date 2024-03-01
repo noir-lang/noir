@@ -69,7 +69,7 @@ export type TracedNullifierCheck = {
 //  callPointer: Fr;
 //  portal: Fr; // EthAddress
 //  leafIndex: Fr;
-//  msgKey: Fr;
+//  entryKey: Fr;
 //  exists: Fr;
 //  message: []; // omitted from VM public inputs
 //};

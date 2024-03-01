@@ -76,33 +76,33 @@ export interface ArchiverDataStore {
 
   /**
    * Remove pending L1 to L2 messages from the store (if they were cancelled).
-   * @param message - The message keys to be removed from the store.
+   * @param entryKeys - The entry keys to be removed from the store.
    * @param l1BlockNumber - The block number of the L1 block that cancelled the messages.
    * @returns True if the operation is successful.
    */
-  cancelPendingL1ToL2Messages(message: Fr[], l1BlockNumber: bigint): Promise<boolean>;
+  cancelPendingL1ToL2EntryKeys(entryKeys: Fr[], l1BlockNumber: bigint): Promise<boolean>;
 
   /**
    * Messages that have been published in an L2 block are confirmed.
    * Add them to the confirmed store, also remove them from the pending store.
-   * @param messageKeys - The message keys to be removed from the store.
+   * @param entryKeys - The entry keys to be removed from the store.
    * @returns True if the operation is successful.
    */
-  confirmL1ToL2Messages(messageKeys: Fr[]): Promise<boolean>;
+  confirmL1ToL2EntryKeys(entryKeys: Fr[]): Promise<boolean>;
 
   /**
    * Gets up to `limit` amount of pending L1 to L2 messages, sorted by fee
-   * @param limit - The number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
-   * @returns The requested L1 to L2 message keys.
+   * @param limit - The number of entries to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
+   * @returns The requested L1 to L2 entry keys.
    */
-  getPendingL1ToL2MessageKeys(limit: number): Promise<Fr[]>;
+  getPendingL1ToL2EntryKeys(limit: number): Promise<Fr[]>;
 
   /**
-   * Gets the confirmed L1 to L2 message corresponding to the given message key.
-   * @param messageKey - The message key to look up.
+   * Gets the confirmed L1 to L2 message corresponding to the given entry key.
+   * @param entryKey - The entry key to look up.
    * @returns The requested L1 to L2 message or throws if not found.
    */
-  getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message>;
+  getConfirmedL1ToL2Message(entryKey: Fr): Promise<L1ToL2Message>;
 
   /**
    * Gets up to `limit` amount of logs starting from `from`.

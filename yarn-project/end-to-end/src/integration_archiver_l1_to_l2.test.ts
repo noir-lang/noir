@@ -116,14 +116,14 @@ describe('archiver integration with l1 to l2 messages', () => {
     await delay(5000);
 
     // archiver shouldn't have any pending messages.
-    expect((await archiver.getPendingL1ToL2Messages(10)).length).toEqual(0);
+    expect((await archiver.getPendingL1ToL2EntryKeys(10)).length).toEqual(0);
   }, 80_000);
 
   it('archiver handles l1 to l2 message correctly even when l2block has no such messages', async () => {
     // send a transfer tx to force through rollup with the message included
     await l2Token.methods.transfer_public(owner, receiver, 0n, 0n).send().wait();
 
-    expect((await archiver.getPendingL1ToL2Messages(10)).length).toEqual(0);
+    expect((await archiver.getPendingL1ToL2EntryKeys(10)).length).toEqual(0);
     await expect(archiver.getConfirmedL1ToL2Message(Fr.ZERO)).rejects.toThrow();
   }, 30_000);
 });

@@ -1,58 +1,38 @@
 mod l1_to_l2_message;
-mod l1_to_l2_message_getter_data;
 
-use l1_to_l2_message_getter_data::make_l1_to_l2_message_getter_data;
-
-use crate::oracle::get_l1_to_l2_message::get_l1_to_l2_message_call;
+use crate::oracle::get_l1_to_l2_membership_witness::get_l1_to_l2_membership_witness;
 
 use dep::std::merkle::compute_merkle_root;
+use crate::messaging::l1_to_l2_message::L1ToL2Message;
+use dep::protocol_types::{constants::L1_TO_L2_MSG_TREE_HEIGHT, address::{AztecAddress, EthAddress}, utils::arr_copy_slice};
 
-use dep::protocol_types::address::{AztecAddress, EthAddress};
-
-// Returns the nullifier for the message
 pub fn process_l1_to_l2_message(
     l1_to_l2_root: Field,
     storage_contract_address: AztecAddress,
     portal_contract_address: EthAddress,
     chain_id: Field,
     version: Field,
-    msg_key: Field,
     content: Field,
     secret: Field
 ) -> Field {
-    let returned_message = get_l1_to_l2_message_call(msg_key);
-    let l1_to_l2_message_data = make_l1_to_l2_message_getter_data(returned_message, 0, secret);
+    let msg = L1ToL2Message::new(
+        portal_contract_address,
+        chain_id,
+        storage_contract_address,
+        version,
+        content,
+        secret
+    );
+    let entry_key = msg.hash();
 
-    // Check that the returned message is actually the message we looked up
-    let msg_hash = l1_to_l2_message_data.message.hash();
-    assert(msg_hash == msg_key, "Message not matching requested key");
+    let returned_message = get_l1_to_l2_membership_witness(entry_key);
+    let leaf_index = returned_message[0];
+    let sibling_path = arr_copy_slice(returned_message, [0; L1_TO_L2_MSG_TREE_HEIGHT], 1);
 
     // Check that the message is in the tree
-    let root = compute_merkle_root(
-        msg_hash,
-        l1_to_l2_message_data.leaf_index,
-        l1_to_l2_message_data.sibling_path
-    );
+    // This is implicitly checking that the values of the message are correct
+    let root = compute_merkle_root(entry_key, leaf_index, sibling_path);
     assert(root == l1_to_l2_root, "Message not in state");
 
-    // Validate this is the target contract
-    assert(l1_to_l2_message_data.message.recipient.eq(storage_contract_address), "Invalid recipient");
-
-    // Validate the sender is the portal contract
-    assert(l1_to_l2_message_data.message.sender.eq(portal_contract_address), "Invalid sender");
-
-    // Validate the chain id is correct
-    assert(l1_to_l2_message_data.message.chainId == chain_id, "Invalid Chainid");
-
-    // Validate the version is correct
-    assert(l1_to_l2_message_data.message.version == version, "Invalid Version");
-
-    // Validate the message hash is correct
-    assert(l1_to_l2_message_data.message.content == content, "Invalid Content");
-
-    // Validate the message secret is correct
-    l1_to_l2_message_data.message.validate_message_secret();
-
-    // Compute Nullifier
-    l1_to_l2_message_data.message.compute_nullifier()
+    msg.compute_nullifier()
 }

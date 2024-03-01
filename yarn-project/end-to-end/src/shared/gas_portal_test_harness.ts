@@ -192,12 +192,12 @@ export class GasBridgingTestHarness {
       deadline,
       secretHash.toString(),
     ] as const;
-    const { result: messageKeyHex } = await this.tokenPortal.simulate.depositToAztecPublic(args, {
+    const { result: entryKeyHex } = await this.tokenPortal.simulate.depositToAztecPublic(args, {
       account: this.ethAccount.toString(),
     } as any);
     await this.tokenPortal.write.depositToAztecPublic(args, {} as any);
 
-    return Fr.fromString(messageKeyHex);
+    return Fr.fromString(entryKeyHex);
   }
 
   async sendTokensToPortalPrivate(
@@ -218,18 +218,18 @@ export class GasBridgingTestHarness {
       deadline,
       secretHashForL2MessageConsumption.toString(),
     ] as const;
-    const { result: messageKeyHex } = await this.tokenPortal.simulate.depositToAztecPrivate(args, {
+    const { result: entryKeyHex } = await this.tokenPortal.simulate.depositToAztecPrivate(args, {
       account: this.ethAccount.toString(),
     } as any);
     await this.tokenPortal.write.depositToAztecPrivate(args, {} as any);
 
-    return Fr.fromString(messageKeyHex);
+    return Fr.fromString(entryKeyHex);
   }
 
-  async consumeMessageOnAztecAndMintPublicly(bridgeAmount: bigint, owner: AztecAddress, messageKey: Fr, secret: Fr) {
+  async consumeMessageOnAztecAndMintPublicly(bridgeAmount: bigint, owner: AztecAddress, secret: Fr) {
     this.logger('Consuming messages on L2 Publicly');
     // Call the mint tokens function on the Aztec.nr contract
-    const tx = this.l2Token.methods.claim_public(owner, bridgeAmount, this.ethAccount, messageKey, secret).send();
+    const tx = this.l2Token.methods.claim_public(owner, bridgeAmount, this.ethAccount, secret).send();
     const receipt = await tx.wait();
     expect(receipt.status).toBe(TxStatus.MINED);
   }
@@ -250,7 +250,7 @@ export class GasBridgingTestHarness {
     await this.mintTokensOnL1(l1TokenBalance);
 
     // 2. Deposit tokens to the TokenPortal
-    const messageKey = await this.sendTokensToPortalPublic(bridgeAmount, owner, secretHash);
+    await this.sendTokensToPortalPublic(bridgeAmount, owner, secretHash);
     expect(await this.getL1BalanceOf(this.ethAccount)).toBe(l1TokenBalance - bridgeAmount);
 
     // Wait for the archiver to process the message
@@ -260,7 +260,7 @@ export class GasBridgingTestHarness {
     await this.l2Token.methods.check_balance(0).send().wait();
 
     // 3. Consume L1-> L2 message and mint public tokens on L2
-    await this.consumeMessageOnAztecAndMintPublicly(bridgeAmount, owner, messageKey, secret);
+    await this.consumeMessageOnAztecAndMintPublicly(bridgeAmount, owner, secret);
     await this.expectPublicBalanceOnL2(owner, bridgeAmount);
   }
 }

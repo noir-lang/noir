@@ -101,12 +101,12 @@ describe('Archiver', () => {
 
     // Check that only 2 messages (l1ToL2MessageAddedEvents[3][2] and l1ToL2MessageAddedEvents[3][3]) are pending.
     // Other two (l1ToL2MessageAddedEvents[3][0..2]) were cancelled. And the previous messages were confirmed.
-    const expectedPendingMessageKeys = [
+    const expectedPendingEntryKeys = [
       l1ToL2MessageAddedEvents[3][2].args.entryKey,
       l1ToL2MessageAddedEvents[3][3].args.entryKey,
     ];
-    const actualPendingMessageKeys = (await archiver.getPendingL1ToL2Messages(10)).map(key => key.toString());
-    expect(expectedPendingMessageKeys).toEqual(actualPendingMessageKeys);
+    const actualPendingEntryKeys = (await archiver.getPendingL1ToL2EntryKeys(10)).map(key => key.toString());
+    expect(expectedPendingEntryKeys).toEqual(actualPendingEntryKeys);
 
     // Expect logs to correspond to what is set by L2Block.random(...)
     const encryptedLogs = await archiver.getLogs(1, 100, LogType.ENCRYPTED);
@@ -199,9 +199,9 @@ describe('Archiver', () => {
     expect(latestBlockNum).toEqual(numL2BlocksInTest);
 
     // Check that the only pending L1 to L2 messages are those from eth bock 102
-    const expectedPendingMessageKeys = additionalL1ToL2MessagesBlock102;
-    const actualPendingMessageKeys = (await archiver.getPendingL1ToL2Messages(100)).map(key => key.toString());
-    expect(actualPendingMessageKeys).toEqual(expectedPendingMessageKeys);
+    const expectedPendingEntryKeys = additionalL1ToL2MessagesBlock102;
+    const actualPendingEntryKeys = (await archiver.getPendingL1ToL2EntryKeys(100)).map(key => key.toString());
+    expect(actualPendingEntryKeys).toEqual(expectedPendingEntryKeys);
 
     await archiver.stop();
   }, 10_000);

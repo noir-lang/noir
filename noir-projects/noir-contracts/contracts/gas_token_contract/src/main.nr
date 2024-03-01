@@ -14,11 +14,11 @@ contract GasToken {
     fn constructor() {}
 
     #[aztec(public)]
-    fn claim_public(to: AztecAddress, amount: Field, canceller: EthAddress, msg_key: Field, secret: Field) {
+    fn claim_public(to: AztecAddress, amount: Field, canceller: EthAddress, secret: Field) {
         let content_hash = get_bridge_gas_msg_hash(to, amount, canceller);
 
         // Consume message and emit nullifier
-        context.consume_l1_to_l2_message(msg_key, content_hash, secret, context.this_portal_address());
+        context.consume_l1_to_l2_message(content_hash, secret, context.this_portal_address());
 
         let new_balance = storage.balances.at(to).read() + U128::from_integer(amount);
         storage.balances.at(to).write(new_balance);

@@ -237,7 +237,7 @@ impl PrivateContext {
 
     // docs:start:context_consume_l1_to_l2_message
     // docs:start:consume_l1_to_l2_message
-    pub fn consume_l1_to_l2_message(&mut self, msg_key: Field, content: Field, secret: Field, sender: EthAddress) {
+    pub fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress) {
         // docs:end:context_consume_l1_to_l2_message
         let nullifier = process_l1_to_l2_message(
             self.historical_header.state.l1_to_l2_message_tree.root,
@@ -245,7 +245,6 @@ impl PrivateContext {
             sender,
             self.chain_id(),
             self.version(),
-            msg_key,
             content,
             secret
         );

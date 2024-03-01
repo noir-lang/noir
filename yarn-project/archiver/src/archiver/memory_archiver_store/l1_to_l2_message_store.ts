@@ -7,29 +7,29 @@ import { Fr } from '@aztec/foundation/fields';
  */
 export class L1ToL2MessageStore {
   /**
-   * A map containing the message key to the corresponding L1 to L2
+   * A map containing the entry key to the corresponding L1 to L2
    * messages (and the number of times the message has been seen).
    */
   protected store: Map<bigint, L1ToL2MessageAndCount> = new Map();
 
   constructor() {}
 
-  addMessage(messageKey: Fr, message: L1ToL2Message) {
-    const messageKeyBigInt = messageKey.toBigInt();
-    const msgAndCount = this.store.get(messageKeyBigInt);
+  addMessage(entryKey: Fr, message: L1ToL2Message) {
+    const entryKeyBigInt = entryKey.toBigInt();
+    const msgAndCount = this.store.get(entryKeyBigInt);
     if (msgAndCount) {
       msgAndCount.count++;
     } else {
-      this.store.set(messageKeyBigInt, { message, count: 1 });
+      this.store.set(entryKeyBigInt, { message, count: 1 });
     }
   }
 
-  getMessage(messageKey: Fr): L1ToL2Message | undefined {
-    return this.store.get(messageKey.value)?.message;
+  getMessage(entryKey: Fr): L1ToL2Message | undefined {
+    return this.store.get(entryKey.value)?.message;
   }
 
-  getMessageAndCount(messageKey: Fr): L1ToL2MessageAndCount | undefined {
-    return this.store.get(messageKey.value);
+  getMessageAndCount(entryKey: Fr): L1ToL2MessageAndCount | undefined {
+    return this.store.get(entryKey.value);
   }
 }
 
@@ -38,7 +38,7 @@ export class L1ToL2MessageStore {
  * for removing messages or fetching multiple messages.
  */
 export class PendingL1ToL2MessageStore extends L1ToL2MessageStore {
-  getMessageKeys(limit: number): Fr[] {
+  getEntryKeys(limit: number): Fr[] {
     if (limit < 1) {
       return [];
     }
@@ -57,21 +57,21 @@ export class PendingL1ToL2MessageStore extends L1ToL2MessageStore {
     return messages;
   }
 
-  removeMessage(messageKey: Fr) {
-    // ignore 0 - messageKey is a hash, so a 0 can probabilistically never occur. It is best to skip it.
-    if (messageKey.equals(Fr.ZERO)) {
+  removeMessage(entryKey: Fr) {
+    // ignore 0 - entryKey is a hash, so a 0 can probabilistically never occur. It is best to skip it.
+    if (entryKey.equals(Fr.ZERO)) {
       return;
     }
 
-    const messageKeyBigInt = messageKey.value;
-    const msgAndCount = this.store.get(messageKeyBigInt);
+    const entryKeyBigInt = entryKey.value;
+    const msgAndCount = this.store.get(entryKeyBigInt);
     if (!msgAndCount) {
-      throw new Error(`Unable to remove message: L1 to L2 Message with key ${messageKeyBigInt} not found in store`);
+      throw new Error(`Unable to remove message: L1 to L2 Message with key ${entryKeyBigInt} not found in store`);
     }
     if (msgAndCount.count > 1) {
       msgAndCount.count--;
     } else {
-      this.store.delete(messageKeyBigInt);
+      this.store.delete(entryKeyBigInt);
     }
   }
 }

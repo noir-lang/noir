@@ -205,7 +205,7 @@ export class Sequencer {
 
       // Get l1 to l2 messages from the contract
       this.log('Requesting L1 to L2 messages from contract');
-      const l1ToL2Messages = await this.getPendingL1ToL2Messages();
+      const l1ToL2Messages = await this.getPendingL1ToL2EntryKeys();
       this.log('Successfully retrieved L1 to L2 messages from contract');
 
       // Build the new block by running the rollup circuits
@@ -371,12 +371,12 @@ export class Sequencer {
   }
 
   /**
-   * Calls the archiver to pull upto `NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP` message keys
+   * Calls the archiver to pull upto `NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP` entry keys
    * (archiver returns the top messages sorted by fees)
-   * @returns An array of L1 to L2 messages' messageKeys
+   * @returns An array of L1 to L2 messages' entryKeys
    */
-  protected async getPendingL1ToL2Messages(): Promise<Fr[]> {
-    return await this.l1ToL2MessageSource.getPendingL1ToL2Messages();
+  protected async getPendingL1ToL2EntryKeys(): Promise<Fr[]> {
+    return await this.l1ToL2MessageSource.getPendingL1ToL2EntryKeys();
   }
 
   /**

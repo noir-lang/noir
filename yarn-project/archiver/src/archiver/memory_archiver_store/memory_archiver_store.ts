@@ -157,11 +157,11 @@ export class MemoryArchiverStore implements ArchiverDataStore {
 
   /**
    * Remove pending L1 to L2 messages from the store (if they were cancelled).
-   * @param messages - The message keys to be removed from the store.
+   * @param messages - The entry keys to be removed from the store.
    * @param l1BlockNumber - The L1 block number for which to remove the messages.
    * @returns True if the operation is successful (always in this implementation).
    */
-  public cancelPendingL1ToL2Messages(messages: Fr[], l1BlockNumber: bigint): Promise<boolean> {
+  public cancelPendingL1ToL2EntryKeys(messages: Fr[], l1BlockNumber: bigint): Promise<boolean> {
     if (l1BlockNumber <= this.lastL1BlockCancelledMessages) {
       return Promise.resolve(false);
     }
@@ -176,13 +176,13 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   /**
    * Messages that have been published in an L2 block are confirmed.
    * Add them to the confirmed store, also remove them from the pending store.
-   * @param messageKeys - The message keys to be removed from the store.
+   * @param entryKeys - The entry keys to be removed from the store.
    * @returns True if the operation is successful (always in this implementation).
    */
-  public confirmL1ToL2Messages(messageKeys: Fr[]): Promise<boolean> {
-    messageKeys.forEach(messageKey => {
-      this.confirmedL1ToL2Messages.addMessage(messageKey, this.pendingL1ToL2Messages.getMessage(messageKey)!);
-      this.pendingL1ToL2Messages.removeMessage(messageKey);
+  public confirmL1ToL2EntryKeys(entryKeys: Fr[]): Promise<boolean> {
+    entryKeys.forEach(entryKey => {
+      this.confirmedL1ToL2Messages.addMessage(entryKey, this.pendingL1ToL2Messages.getMessage(entryKey)!);
+      this.pendingL1ToL2Messages.removeMessage(entryKey);
     });
     return Promise.resolve(true);
   }
@@ -244,21 +244,21 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   /**
    * Gets up to `limit` amount of pending L1 to L2 messages, sorted by fee
    * @param limit - The number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
-   * @returns The requested L1 to L2 message keys.
+   * @returns The requested L1 to L2 entry keys.
    */
-  public getPendingL1ToL2MessageKeys(limit: number = NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP): Promise<Fr[]> {
-    return Promise.resolve(this.pendingL1ToL2Messages.getMessageKeys(limit));
+  public getPendingL1ToL2EntryKeys(limit: number = NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP): Promise<Fr[]> {
+    return Promise.resolve(this.pendingL1ToL2Messages.getEntryKeys(limit));
   }
 
   /**
-   * Gets the confirmed L1 to L2 message corresponding to the given message key.
-   * @param messageKey - The message key to look up.
+   * Gets the confirmed L1 to L2 message corresponding to the given entry key.
+   * @param entryKey - The entry key to look up.
    * @returns The requested L1 to L2 message or throws if not found.
    */
-  public getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message> {
-    const message = this.confirmedL1ToL2Messages.getMessage(messageKey);
+  public getConfirmedL1ToL2Message(entryKey: Fr): Promise<L1ToL2Message> {
+    const message = this.confirmedL1ToL2Messages.getMessage(entryKey);
     if (!message) {
-      throw new Error(`L1 to L2 Message with key ${messageKey.toString()} not found in the confirmed messages store`);
+      throw new Error(`L1 to L2 Message with key ${entryKey.toString()} not found in the confirmed messages store`);
     }
     return Promise.resolve(message);
   }

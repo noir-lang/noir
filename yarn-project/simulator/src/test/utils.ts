@@ -32,7 +32,7 @@ export const buildL1ToL2Message = (
     new L2Actor(targetContract, 1),
     content,
     secretHash,
-    0,
+    2 ** 32 - 1,
     0,
   );
 };

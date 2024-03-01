@@ -46,7 +46,7 @@ export function processPendingL1ToL2MessageAddedLogs(
 /**
  * Process newly received L1ToL2MessageCancelled logs.
  * @param logs - L1ToL2MessageCancelled logs.
- * @returns Array of message keys of the L1 to L2 messages that were cancelled
+ * @returns Array of entry keys of the L1 to L2 messages that were cancelled
  */
 export function processCancelledL1ToL2MessagesLogs(
   logs: Log<bigint, number, false, undefined, true, typeof InboxAbi, 'L1ToL2MessageCancelled'>[],

@@ -133,7 +133,7 @@ contract TokenPortal {
       fee: _fee
     });
     bytes32 entryKey = inbox.cancelL2Message(message, address(this));
-    // release the funds to msg.sender (since the content hash (& message key) is derived by hashing the caller,
+    // release the funds to msg.sender (since the content hash (& entry key) is derived by hashing the caller,
     // we confirm that msg.sender is same as `_canceller` supplied when creating the message)
     underlying.transfer(msg.sender, _amount);
     return entryKey;
@@ -175,7 +175,7 @@ contract TokenPortal {
       fee: _fee
     });
     bytes32 entryKey = inbox.cancelL2Message(message, address(this));
-    // release the funds to msg.sender (since the content hash (& message key) is derived by hashing the caller,
+    // release the funds to msg.sender (since the content hash (& entry key) is derived by hashing the caller,
     // we confirm that msg.sender is same as `_canceller` supplied when creating the message)
     underlying.transfer(msg.sender, _amount);
     return entryKey;

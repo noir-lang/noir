@@ -14,15 +14,15 @@ export interface L1ToL2MessageSource {
    * @param limit - The maximum number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
    * @returns The requested L1 to L2 messages' keys.
    */
-  getPendingL1ToL2Messages(limit?: number): Promise<Fr[]>;
+  getPendingL1ToL2EntryKeys(limit?: number): Promise<Fr[]>;
 
   /**
-   * Gets the confirmed L1 to L2 message with the given message key.
+   * Gets the confirmed L1 to L2 message with the given entry key.
    * i.e. message that has already been consumed by the sequencer and published in an L2 Block
-   * @param messageKey - The message key.
+   * @param entryKey - The entry key.
    * @returns The confirmed L1 to L2 message (throws if not found)
    */
-  getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message>;
+  getConfirmedL1ToL2Message(entryKey: Fr): Promise<L1ToL2Message>;
 
   /**
    * Gets the number of the latest L2 block processed by the implementation.

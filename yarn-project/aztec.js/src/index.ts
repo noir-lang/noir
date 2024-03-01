@@ -89,6 +89,8 @@ export {
   FunctionCall,
   GrumpkinPrivateKey,
   INITIAL_L2_BLOCK_NUM,
+  L1ToL2Message,
+  L1Actor,
   L2Actor,
   L2Block,
   L2BlockL2Logs,

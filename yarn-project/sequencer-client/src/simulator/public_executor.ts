@@ -217,16 +217,18 @@ export class WorldStatePublicDB implements PublicStateDB {
 export class WorldStateDB implements CommitmentsDB {
   constructor(private db: MerkleTreeOperations, private l1ToL2MessageSource: L1ToL2MessageSource) {}
 
-  public async getL1ToL2Message(messageKey: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
-    // todo: #697 - make this one lookup.
-    const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(messageKey);
-    const index = (await this.db.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, messageKey.toBuffer()))!;
+  public async getL1ToL2MembershipWitness(
+    entryKey: Fr,
+  ): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
+    const index = (await this.db.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, entryKey.toBuffer()))!;
+    if (index === undefined) {
+      throw new Error(`Message ${entryKey.toString()} not found`);
+    }
     const siblingPath = await this.db.getSiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>(
       MerkleTreeId.L1_TO_L2_MESSAGE_TREE,
       index,
     );
-
-    return new MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>(message, index, siblingPath);
+    return new MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>(index, siblingPath);
   }
 
   public async getCommitmentIndex(commitment: Fr): Promise<bigint | undefined> {

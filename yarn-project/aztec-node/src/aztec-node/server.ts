@@ -377,15 +377,15 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Gets a confirmed/consumed L1 to L2 message for the given message key
+   * Gets a confirmed/consumed L1 to L2 message for the given entry key
    * and its index in the merkle tree.
-   * @param messageKey - The message key.
+   * @param entryKey - The entry key.
    * @returns The map containing the message and index.
    */
-  public async getL1ToL2MessageAndIndex(messageKey: Fr): Promise<L1ToL2MessageAndIndex> {
+  public async getL1ToL2MessageAndIndex(entryKey: Fr): Promise<L1ToL2MessageAndIndex> {
     // todo: #697 - make this one lookup.
-    const index = (await this.findLeafIndex('latest', MerkleTreeId.L1_TO_L2_MESSAGE_TREE, messageKey))!;
-    const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(messageKey);
+    const index = (await this.findLeafIndex('latest', MerkleTreeId.L1_TO_L2_MESSAGE_TREE, entryKey))!;
+    const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(entryKey);
     return Promise.resolve(new L1ToL2MessageAndIndex(index, message));
   }
 

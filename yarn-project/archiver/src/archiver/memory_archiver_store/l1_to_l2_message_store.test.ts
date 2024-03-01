@@ -60,12 +60,12 @@ describe('pending_l1_to_l2_message_store', () => {
   });
 
   it('get messages for an empty store', () => {
-    expect(store.getMessageKeys(10)).toEqual([]);
+    expect(store.getEntryKeys(10)).toEqual([]);
   });
 
-  it('getMessageKeys returns an empty array if limit is 0', () => {
+  it('getEntryKeys returns an empty array if limit is 0', () => {
     store.addMessage(entryKey, msg);
-    expect(store.getMessageKeys(0)).toEqual([]);
+    expect(store.getEntryKeys(0)).toEqual([]);
   });
 
   it('get messages for a non-empty store when limit > number of messages in store', () => {
@@ -73,7 +73,7 @@ describe('pending_l1_to_l2_message_store', () => {
     entryKeys.forEach(entryKey => {
       store.addMessage(entryKey, L1ToL2Message.random());
     });
-    expect(store.getMessageKeys(10).length).toEqual(5);
+    expect(store.getEntryKeys(10).length).toEqual(5);
   });
 
   it('get messages returns messages sorted by fees and also includes multiple of the same message', () => {
@@ -92,7 +92,7 @@ describe('pending_l1_to_l2_message_store', () => {
       store.addMessage(entryKey, msg);
     });
     const expectedMessageFees = [4n, 3n, 3n, 3n]; // the top 4.
-    const receivedMessageFees = store.getMessageKeys(4).map(key => key.value);
+    const receivedMessageFees = store.getEntryKeys(4).map(key => key.value);
     expect(receivedMessageFees).toEqual(expectedMessageFees);
   });
 });

@@ -4,9 +4,14 @@ import {
   DebugLogger,
   EthAddress,
   Fr,
+  L1Actor,
+  L1ToL2Message,
+  L2Actor,
   TxStatus,
   computeAuthWitMessageHash,
 } from '@aztec/aztec.js';
+import { keccak, sha256 } from '@aztec/foundation/crypto';
+import { serializeToBuffer } from '@aztec/foundation/serialize';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts.js';
 
 import { delay, setup } from './fixtures/utils.js';
@@ -67,12 +72,13 @@ describe('e2e_cross_chain_messaging', () => {
     await crossChainTestHarness.mintTokensOnL1(l1TokenBalance);
 
     // 2. Deposit tokens to the TokenPortal
-    const messageKey = await crossChainTestHarness.sendTokensToPortalPrivate(
+    const entryKeyInbox = await crossChainTestHarness.sendTokensToPortalPrivate(
       secretHashForRedeemingMintedNotes,
       bridgeAmount,
       secretHashForL2MessageConsumption,
     );
     expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount);
+    expect(await crossChainTestHarness.inbox.read.contains([entryKeyInbox.toString()])).toBeTruthy();
 
     // Wait for the archiver to process the message
     await delay(5000); /// waiting 5 seconds.
@@ -86,7 +92,6 @@ describe('e2e_cross_chain_messaging', () => {
     await crossChainTestHarness.consumeMessageOnAztecAndMintSecretly(
       secretHashForRedeemingMintedNotes,
       bridgeAmount,
-      messageKey,
       secretForL2MessageConsumption,
     );
     // tokens were minted privately in a TransparentNote which the owner (person who knows the secret) must redeem:
@@ -132,12 +137,13 @@ describe('e2e_cross_chain_messaging', () => {
       crossChainTestHarness.generateClaimSecret();
 
     await crossChainTestHarness.mintTokensOnL1(l1TokenBalance);
-    const messageKey = await crossChainTestHarness.sendTokensToPortalPrivate(
+    const entryKeyInbox = await crossChainTestHarness.sendTokensToPortalPrivate(
       secretHashForRedeemingMintedNotes,
       bridgeAmount,
       secretHashForL2MessageConsumption,
     );
     expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount);
+    expect(await crossChainTestHarness.inbox.read.contains([entryKeyInbox.toString()])).toBeTruthy();
 
     // Wait for the archiver to process the message
     await delay(5000); /// waiting 5 seconds.
@@ -148,6 +154,22 @@ describe('e2e_cross_chain_messaging', () => {
     await crossChainTestHarness.expectPublicBalanceOnL2(ownerAddress, unrelatedMintAmount);
 
     // 3. Consume L1-> L2 message and mint private tokens on L2
+    const content = Fr.fromBufferReduce(
+      sha256(
+        Buffer.concat([
+          keccak(Buffer.from('mint_private(bytes32,uint256,address)')).subarray(0, 4),
+          serializeToBuffer(...[secretHashForL2MessageConsumption, new Fr(bridgeAmount), ethAccount.toBuffer32()]),
+        ]),
+      ),
+    );
+    const wrongMessage = new L1ToL2Message(
+      new L1Actor(crossChainTestHarness.tokenPortalAddress, crossChainTestHarness.publicClient.chain.id),
+      new L2Actor(l2Bridge.address, 1),
+      content,
+      secretHashForL2MessageConsumption,
+      2 ** 32 - 1,
+      0,
+    );
 
     // Sending wrong secret hashes should fail:
     await expect(
@@ -157,22 +179,15 @@ describe('e2e_cross_chain_messaging', () => {
           secretHashForL2MessageConsumption,
           bridgeAmount,
           ethAccount,
-          messageKey,
           secretForL2MessageConsumption,
         )
         .simulate(),
-    ).rejects.toThrowError("Invalid Content 'l1_to_l2_message_data.message.content == content'");
+    ).rejects.toThrowError(`Message ${wrongMessage.hash().toString()} not found`);
 
     // send the right one -
     const consumptionTx = l2Bridge
       .withWallet(user2Wallet)
-      .methods.claim_private(
-        secretHashForRedeemingMintedNotes,
-        bridgeAmount,
-        ethAccount,
-        messageKey,
-        secretForL2MessageConsumption,
-      )
+      .methods.claim_private(secretHashForRedeemingMintedNotes, bridgeAmount, ethAccount, secretForL2MessageConsumption)
       .send();
     const consumptionReceipt = await consumptionTx.wait();
     expect(consumptionReceipt.status).toBe(TxStatus.MINED);
@@ -215,12 +230,13 @@ describe('e2e_cross_chain_messaging', () => {
     const [secretForL2MessageConsumption, secretHashForL2MessageConsumption] =
       crossChainTestHarness.generateClaimSecret();
 
-    const messageKey = await crossChainTestHarness.sendTokensToPortalPrivate(
+    const entryKey = await crossChainTestHarness.sendTokensToPortalPrivate(
       Fr.random(),
       bridgeAmount,
       secretHashForL2MessageConsumption,
     );
     expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(0n);
+    expect(await crossChainTestHarness.inbox.read.contains([entryKey.toString()])).toBeTruthy();
 
     // Wait for the archiver to process the message
     await delay(5000); /// waiting 5 seconds.
@@ -228,12 +244,29 @@ describe('e2e_cross_chain_messaging', () => {
     // Perform an unrelated transaction on L2 to progress the rollup. Here we mint public tokens.
     await crossChainTestHarness.mintTokensPublicOnL2(0n);
 
+    const content = Fr.fromBufferReduce(
+      sha256(
+        Buffer.concat([
+          keccak(Buffer.from('mint_public(bytes32,uint256,address)')).subarray(0, 4),
+          serializeToBuffer(...[ownerAddress, new Fr(bridgeAmount), ethAccount.toBuffer32()]),
+        ]),
+      ),
+    );
+    const wrongMessage = new L1ToL2Message(
+      new L1Actor(crossChainTestHarness.tokenPortalAddress, crossChainTestHarness.publicClient.chain.id),
+      new L2Actor(l2Bridge.address, 1),
+      content,
+      secretHashForL2MessageConsumption,
+      2 ** 32 - 1,
+      0,
+    );
+
     // 3. Consume L1-> L2 message and try to mint publicly on L2  - should fail
     await expect(
       l2Bridge
         .withWallet(user2Wallet)
-        .methods.claim_public(ownerAddress, bridgeAmount, ethAccount, messageKey, secretForL2MessageConsumption)
+        .methods.claim_public(ownerAddress, bridgeAmount, ethAccount, secretForL2MessageConsumption)
         .simulate(),
-    ).rejects.toThrowError("Invalid Content 'l1_to_l2_message_data.message.content == content'");
+    ).rejects.toThrowError(`Message ${wrongMessage.hash().toString()} not found`);
   }, 120_000);
 });

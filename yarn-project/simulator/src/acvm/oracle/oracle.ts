@@ -237,8 +237,8 @@ export class Oracle {
     return toACVMField(exists);
   }
 
-  async getL1ToL2Message([msgKey]: ACVMField[]): Promise<ACVMField[]> {
-    const message = await this.typedOracle.getL1ToL2Message(fromACVMField(msgKey));
+  async getL1ToL2MembershipWitness([entryKey]: ACVMField[]): Promise<ACVMField[]> {
+    const message = await this.typedOracle.getL1ToL2MembershipWitness(fromACVMField(entryKey));
     return message.toFields().map(toACVMField);
   }
 
