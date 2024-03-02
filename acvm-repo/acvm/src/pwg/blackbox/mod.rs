@@ -5,7 +5,9 @@ use acir::{
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccak256, keccakf1600, sha256};
 
-use self::{bigint::BigIntSolver, pedersen::pedersen_hash};
+use self::{
+    bigint::BigIntSolver, hash::solve_poseidon2_permutation_opcode, pedersen::pedersen_hash,
+};
 
 use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
 use crate::{pwg::witness_to_value, BlackBoxFunctionSolver};
@@ -204,7 +206,6 @@ pub(crate) fn solve(
         BlackBoxFuncCall::BigIntToLeBytes { input, outputs } => {
             bigint_solver.bigint_to_bytes(*input, outputs, initial_witness)
         }
-        BlackBoxFuncCall::Poseidon2Permutation { .. } => todo!(),
         BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
             solve_sha_256_permutation_opcode(
                 initial_witness,
@@ -213,6 +214,9 @@ pub(crate) fn solve(
                 outputs,
                 bb_func.get_black_box_func(),
             )
+        }
+        BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
+            solve_poseidon2_permutation_opcode(backend, initial_witness, inputs, outputs, *len)
         }
     }
 }

@@ -184,7 +184,18 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         BlackBoxOp::BigIntDiv { .. } => todo!(),
         BlackBoxOp::BigIntFromLeBytes { .. } => todo!(),
         BlackBoxOp::BigIntToLeBytes { .. } => todo!(),
-        BlackBoxOp::Poseidon2Permutation { .. } => todo!(),
+        BlackBoxOp::Poseidon2Permutation { message, output, len } => {
+            let input = read_heap_vector(memory, message);
+            let input: Vec<FieldElement> = input.iter().map(|x| x.to_field()).collect();
+            let len = memory.read(*len).to_u128() as u32;
+            let result = solver.poseidon2_permutation(&input, len)?;
+            let mut values = Vec::new();
+            for i in result {
+                values.push(Value::from(i));
+            }
+            memory.write_slice(memory.read_ref(output.pointer), &values);
+            Ok(())
+        }
         BlackBoxOp::Sha256Compression { input, hash_values, output } => {
             let mut message = [0; 16];
             let inputs = read_heap_vector(memory, input);
