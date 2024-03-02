@@ -1,7 +1,6 @@
-import { fileURLToPath } from '@aztec/foundation/url';
-
 import * as fs from 'fs';
 import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
 const NOIR_CONSTANTS_FILE = '../../../../noir-projects/noir-protocol-circuits/crates/types/src/constants.nr';
 const TS_CONSTANTS_FILE = '../constants.gen.ts';
@@ -157,6 +156,7 @@ function main(): void {
 
   // Solidity
   const solidityTargetPath = join(__dirname, SOLIDITY_CONSTANTS_FILE);
+  fs.mkdirSync(dirname(solidityTargetPath), { recursive: true });
   generateSolidityConstants(parsedContent, solidityTargetPath);
 }
 

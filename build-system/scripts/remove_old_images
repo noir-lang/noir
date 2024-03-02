@@ -7,7 +7,7 @@ REPOSITORY=$1
 shift
 
 IMAGE_COMMIT_URI=$(calculate_image_uri $REPOSITORY)
-for IMAGE in $(docker images --format "{{.ID}}" aztecprotocol/$REPOSITORY --filter "before=$IMAGE_COMMIT_URI"); do
+for IMAGE in $(docker images --format "{{.ID}}" $ECR_URL/$REPOSITORY --filter "before=$IMAGE_COMMIT_URI"); do
   echo "Removing $IMAGE..."
   docker rmi --force $IMAGE
 done

@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "build": "yarn clean && yarn build:contracts && yarn formatting:fix",
-    "build:contracts": "./scripts/generate-types.sh",
+    "build": "yarn clean && yarn generate",
+    "generate": "./scripts/generate-types.sh && run -T prettier -w ./src",
     "clean": "rm -rf .tsbuildinfo ./artifacts ./codegenCache.json"
   }
 }

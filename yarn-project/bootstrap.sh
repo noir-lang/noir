@@ -8,6 +8,12 @@ major=${node_version%%.*}
 rest=${node_version#*.}
 minor=${rest%%.*}
 
+YELLOW="\033[93m"
+BLUE="\033[34m"
+GREEN="\033[32m"
+BOLD="\033[1m"
+RESET="\033[0m"
+
 if ((major < 18 || (major == 18 && minor < 19))); then
   echo "Node.js version is less than 18.19. Exiting."
   exit 1
@@ -27,32 +33,17 @@ if [ -n "$CMD" ]; then
   fi
 fi
 
+# Fast build does not delete everything first.
+# It regenerates all generated code, then performs an incremental tsc build.
+echo -e "${BLUE}${BOLD}Attempting fast incremental build...${RESET}"
+echo
 yarn install --immutable
 
-echo -e "\033[1mGenerating constants files...\033[0m"
-# Required to run remake-constants.
-yarn workspace @aztec/foundation build
-# Run remake constants before building Aztec.nr contracts or l1 contracts as they depend on files created by it.
-yarn workspace @aztec/circuits.js remake-constants
-
-echo -e "\033[1mSetting up compiler and building contracts...\033[0m"
-# This is actually our code generation tool. Needed to build contract typescript wrappers.
-echo "Building noir compiler..."
-yarn workspace @aztec/noir-compiler build
-# Builds noir contracts (TODO: move this stage pre yarn-project). Generates typescript wrappers.
-echo "Building contracts from noir-contracts..."
-yarn workspace @aztec/noir-contracts.js build
-# Bundle compiled contracts into other packages
-echo "Copying account contracts..."
-yarn workspace @aztec/accounts build:copy-contracts
-echo "Copying protocol contracts..."
-yarn workspace @aztec/protocol-contracts build:copy-contracts
-# Build protocol circuits. TODO: move pre yarn-project.
-echo "Building circuits from noir-protocol-circuits..."
-yarn workspace @aztec/noir-protocol-circuits-types build
-
-echo -e "\033[1mBuilding all packages...\033[0m"
-yarn build
+if ! yarn build:fast; then
+  echo -e "${YELLOW}${BOLD}Incremental build failed for some reason, attempting full build...${RESET}"
+  echo
+  yarn build
+fi
 
 echo
-echo "Yarn project successfully built."
+echo -e "${GREEN}Yarn project successfully built!${RESET}"

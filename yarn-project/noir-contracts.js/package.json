@@ -8,13 +8,13 @@
     "./*": "./dest/src/*.js"
   },
   "scripts": {
-    "build": "yarn clean && yarn build:contracts && yarn formatting:fix",
+    "build": "yarn clean && yarn generate",
     "build:dev": "tsc -b --watch",
     "clean": "rm -rf .tsbuildinfo ./artifacts ./codegenCache.json",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "build:contracts": "./scripts/generate-types.sh"
+    "generate": "./scripts/generate-types.sh && run -T prettier -w ./src"
   },
   "inherits": [
     "../package.common.json",
@@ -33,6 +33,7 @@
     "tslib": "^2.4.0"
   },
   "devDependencies": {
+    "@aztec/noir-compiler": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.5.0",
     "jest": "^29.5.0",

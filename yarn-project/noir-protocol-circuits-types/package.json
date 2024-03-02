@@ -7,12 +7,12 @@
     "./types": "./dest/types/index.js"
   },
   "scripts": {
-    "build": "yarn clean && yarn noir:types && tsc -b",
+    "build": "yarn clean && yarn generate && tsc -b",
     "clean": "rm -rf ./dest .tsbuildinfo src/types src/target",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "NODE_OPTIONS='--max-old-space-size=8096' run -T eslint --fix ./src && run -T prettier -w ./src",
     "formatting:fix:types": "NODE_OPTIONS='--max-old-space-size=8096' run -T eslint --fix ./src/types && run -T prettier -w ./src/types",
-    "noir:types": "cp -r ../../noir-projects/noir-protocol-circuits/target ./src/target && node --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && yarn formatting:fix:types",
+    "generate": "mkdir -p ./src/target && cp ../../noir-projects/noir-protocol-circuits/target/* ./src/target && node --no-warnings --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && run -T prettier -w ./src/types",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },
   "jest": {

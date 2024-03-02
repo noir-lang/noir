@@ -10,9 +10,11 @@
     "formatting:fix": "FORCE_COLOR=true yarn workspaces foreach -p -v run formatting:fix",
     "lint": "yarn eslint --cache --ignore-pattern l1-artifacts .",
     "format": "yarn prettier --cache -w .",
-    "test": "FORCE_COLOR=true yarn workspaces foreach --exclude @aztec/aztec3-packages --exclude @aztec/end-to-end --exclude private-token -p -j ${JOBS:-unlimited} -v run test",
-    "build": "yarn workspace @aztec/l1-artifacts build && tsc -b tsconfig.json",
-    "build:dev": "yarn workspace @aztec/l1-artifacts build && tsc -b tsconfig.json --watch",
+    "test": "FORCE_COLOR=true yarn workspaces foreach --exclude @aztec/aztec3-packages --exclude @aztec/end-to-end -p -j ${JOBS:-unlimited} -v run test",
+    "build": "FORCE_COLOR=true yarn workspaces foreach --parallel --topological-dev --verbose --exclude @aztec/aztec3-packages --exclude @aztec/docs run build",
+    "build:fast": "yarn generate && tsc -b",
+    "build:dev": "tsc -b tsconfig.json --watch",
+    "generate": "FORCE_COLOR=true yarn workspaces foreach --parallel --topological-dev --verbose run generate",
     "clean": "yarn workspaces foreach -p -v run clean"
   },
   "workspaces": [
