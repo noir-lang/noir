@@ -1,7 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::ssa::{
-    ir::instruction::{Instruction, InstructionId},
+    ir::{
+        function::RuntimeType,
+        instruction::{ConstrainError, Instruction, InstructionId},
+        value::ValueId,
+    },
     ssa_gen::Ssa,
 };
 
@@ -11,6 +15,11 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn bubble_up_constrains(mut self) -> Ssa {
         for function in self.functions.values_mut() {
+            // We only bubble up constraints in ACIR functions
+            if function.runtime() == RuntimeType::Brillig {
+                continue;
+            }
+
             for block in function.reachable_blocks() {
                 let instructions = function.dfg[block].take_instructions();
                 let mut filtered_instructions = Vec::with_capacity(instructions.len());
@@ -23,8 +32,27 @@ impl Ssa {
 
                 let dfg = &function.dfg;
                 for instruction in instructions {
-                    let (lhs, rhs) = match dfg[instruction] {
-                        Instruction::Constrain(lhs, rhs, ..) => (lhs, rhs),
+                    let constraint_inputs: HashSet<ValueId> = match &dfg[instruction] {
+                        Instruction::Constrain(lhs, rhs, assert_message) => {
+                            let mut inputs = assert_message
+                                .as_ref()
+                                .and_then(|msg| {
+                                    if let ConstrainError::Dynamic(Instruction::Call {
+                                        arguments,
+                                        ..
+                                    }) = msg.as_ref()
+                                    {
+                                        Some(arguments.to_vec())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .unwrap_or_default();
+
+                            inputs.extend([lhs, rhs]);
+
+                            HashSet::from_iter(inputs)
+                        }
                         _ => {
                             filtered_instructions.push(instruction);
                             continue;
@@ -36,7 +64,7 @@ impl Ssa {
                         .rev()
                         .position(|&instruction_id| {
                             let results = dfg.instruction_results(instruction_id).to_vec();
-                            results.contains(&lhs) || results.contains(&rhs)
+                            constraint_inputs.iter().any(|input| results.contains(input))
                         })
                         // We iterate through the previous instructions in reverse order so the index is from the
                         // back of the vector
