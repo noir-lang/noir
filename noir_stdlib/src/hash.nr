@@ -4,6 +4,7 @@ mod poseidon2;
 mod pedersen;
 
 use crate::default::Default;
+use crate::uint128::U128;
 
 #[foreign(sha256)]
 // docs:start:sha256
@@ -132,12 +133,6 @@ impl Hash for u8 {
     }
 }
 
-impl Hash for u16 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self as Field]);
-    }
-}
-
 impl Hash for u32 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
         H::write(state, [self as Field]);
@@ -151,12 +146,6 @@ impl Hash for u64 {
 }
 
 impl Hash for i8 {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self as Field]);
-    }
-}
-
-impl Hash for i16 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
         H::write(state, [self as Field]);
     }
@@ -181,7 +170,7 @@ impl Hash for bool {
 }
 
 impl Hash for () {
-    fn hash<H>(self, state: &mut H) where H: Hasher {}
+    fn hash<H>(_self: Self, _state: &mut H) where H: Hasher {}
 }
 
 impl Hash for U128 {

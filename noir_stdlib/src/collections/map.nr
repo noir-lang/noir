@@ -12,13 +12,11 @@ use crate::collections::bounded_vec::BoundedVec;
 global MAX_LOAD_FACTOR_NUMERATOR = 3;
 global MAX_LOAD_FACTOR_DEN0MINATOR = 4;
 
-type HashMap<K, V, N> = HashMapWithHasher<K, V, N, BuildHasherDefault<PedersenHasher>>;
-
 // Hash table with open addressing and quadratic probing.
 // Size of the underlying table must be known at compile time.
 // It is advised to select capacity N as a power of two, or a prime number 
 // because utilized probing scheme is best tailored for it.
-struct HashMapWithHasher<K, V, N, B> {
+struct HashMap<K, V, N, B> {
     _table: [Slot<K, V>; N],
 
     // Amount of valid elements in the map.
@@ -80,7 +78,7 @@ impl<K, V> Slot<K, V> {
 // While conducting lookup, we iterate attempt from 0 to N - 1 due to heuristic,
 // that if we have went that far without finding desired, 
 // it is very unlikely to be after - performance will be heavily degraded.
-impl<K, V, N, B, H> HashMapWithHasher<K, V, N, B> {
+impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // Creates a new instance of HashMap with specified BuildHasher.
     // docs:start:with_hasher
     pub fn with_hasher(_build_hasher: B) -> Self
