@@ -122,7 +122,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // The length of the returned vector will always match the length of this HashMap.
     // docs:start:entries
     pub fn entries(self) -> BoundedVec<(K, V), N> {
-        // docs:end:keys
+        // docs:end:entries
         let mut entries = BoundedVec::new();
 
         for slot in self._table {
