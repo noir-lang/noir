@@ -111,10 +111,10 @@ impl PublicCallDataBuilder {
         }
     }
 
-    pub fn append_public_data_read_requests(&mut self, num_reads: Field) {
+    pub fn append_public_data_read_requests(&mut self, num_reads: u64) {
         let value_offset = self.public_inputs.contract_storage_reads.len();
         for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
-            if i as u64 < num_reads as u64 {
+            if i < num_reads {
                 let read_request = StorageRead {
                     // The default storage slot is its index + 1.
                     storage_slot: (value_offset + i + 1) as Field,
@@ -126,18 +126,18 @@ impl PublicCallDataBuilder {
         }
     }
 
-    pub fn append_empty_public_data_read_requests(&mut self, num_reads: Field) {
+    pub fn append_empty_public_data_read_requests(&mut self, num_reads: u64) {
         for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
-            if i as u64 < num_reads as u64 {
+            if i < num_reads {
                 self.public_inputs.contract_storage_reads.push(StorageRead::empty());
             }
         }
     }
 
-    pub fn append_update_requests(&mut self, num_updates: Field) {
+    pub fn append_update_requests(&mut self, num_updates: u64) {
         let value_offset = self.public_inputs.contract_storage_update_requests.len();
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
-            if i as u64 < num_updates as u64 {
+            if i < num_updates {
                 let update_request = StorageUpdateRequest {
                     // The default storage slot is its index + 1.
                     storage_slot: (value_offset + i + 1) as Field,
@@ -149,9 +149,9 @@ impl PublicCallDataBuilder {
         }
     }
 
-    pub fn append_empty_update_requests(&mut self, num_updates: Field) {
+    pub fn append_empty_update_requests(&mut self, num_updates: u64) {
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
-            if i as u64 < num_updates as u64 {
+            if i < num_updates {
                 self.public_inputs.contract_storage_update_requests.push(StorageUpdateRequest::empty());
             }
         }

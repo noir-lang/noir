@@ -105,8 +105,8 @@ impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkl
 
     pub fn get_sibling_path(self, leaf_index: u64) -> [Field; TREE_HEIGHT] {
         let mut path = [0; TREE_HEIGHT];
-        let mut current_index = leaf_index as u64;
-        let mut subtree_width = SUBTREE_ITEMS as u64;
+        let mut current_index = leaf_index;
+        let mut subtree_width = SUBTREE_ITEMS;
 
         let mut sibling_index = MerkleTree::sibling_index(current_index);
 
@@ -139,7 +139,7 @@ impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkl
     }
 
     pub fn update_leaf(&mut self, index: u64, value: Field) {
-        assert(index < SUBTREE_ITEMS as u64, "index must be less than the number of leaves in the subtree");
+        assert(index < SUBTREE_ITEMS, "index must be less than the number of leaves in the subtree");
 
         self.subtree.update_leaf(index, value, [0; SUBTREE_HEIGHT]);
 

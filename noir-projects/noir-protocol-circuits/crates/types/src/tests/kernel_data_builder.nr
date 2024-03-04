@@ -78,10 +78,10 @@ impl PreviousKernelDataBuilder {
         *self
     }
 
-    pub fn append_public_data_update_requests(&mut self, num_updates: Field) {
+    pub fn append_public_data_update_requests(&mut self, num_updates: u64) {
         let value_offset = self.end.public_data_update_requests.len();
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
-            if i as u64 < num_updates as u64 {
+            if i < num_updates {
                 let update_request = PublicDataUpdateRequest {
                     // The default leaf index is its index + 23.
                     leaf_slot: (value_offset + i + 23) as Field,
@@ -93,10 +93,10 @@ impl PreviousKernelDataBuilder {
         }
     }
 
-    pub fn append_public_data_read_requests(&mut self, num_reads: Field) {
+    pub fn append_public_data_read_requests(&mut self, num_reads: u64) {
         let value_offset = self.end.public_data_reads.len();
         for i in 0..MAX_PUBLIC_DATA_READS_PER_TX {
-            if i as u64 < num_reads as u64 {
+            if i < num_reads {
                 let read_request = PublicDataRead {
                     // The default leaf index is its index + 34.
                     leaf_slot: (value_offset + i + 34) as Field,
@@ -145,7 +145,7 @@ impl PreviousKernelDataBuilder {
         // so the tx nullifier is in `end`
         let index_offset = self.end.new_nullifiers.len();
         for i in 0..MAX_NEW_NULLIFIERS_PER_TX {
-            if i as u64 < num_extra_nullifier as u64 {
+            if i < num_extra_nullifier {
                 let mock_value = self.get_mock_nullifier_value(index_offset + i);
                 self.end.new_nullifiers.push(
                     SideEffectLinkedToNoteHash {
@@ -161,7 +161,7 @@ impl PreviousKernelDataBuilder {
     pub fn append_new_nullifiers_from_public(&mut self, num_extra_nullifier: u64) {
         let index_offset = self.end.new_nullifiers.len();
         for i in 1..MAX_NEW_NULLIFIERS_PER_TX {
-            if i as u64 <= num_extra_nullifier as u64 {
+            if i <= num_extra_nullifier {
                 self.end.new_nullifiers.push(
                     SideEffectLinkedToNoteHash {
                     value: self.get_mock_nullifier_value(index_offset + i),
@@ -176,7 +176,7 @@ impl PreviousKernelDataBuilder {
     pub fn append_new_nullifiers_non_revertible(&mut self, num_extra_nullifier: u64) {
         let index_offset = self.end_non_revertible.new_nullifiers.len();
         for i in 1..MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX {
-            if i as u64 <= num_extra_nullifier as u64 {
+            if i <= num_extra_nullifier {
                 self.end_non_revertible.new_nullifiers.push(
                     SideEffectLinkedToNoteHash {
                     value: self.get_mock_nullifier_value(index_offset + i),

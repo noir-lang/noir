@@ -94,7 +94,7 @@ impl PrivateKernelTailCircuitPrivateInputs {
         // match reads to commitments from the previous call(s)
         for rr_idx in 0..MAX_NOTE_HASH_READ_REQUESTS_PER_TX {
             let read_request = read_requests.get_unchecked(rr_idx);
-            let read_commitment_hint = self.read_commitment_hints[rr_idx] as u64;
+            let read_commitment_hint = self.read_commitment_hints[rr_idx];
 
             if (read_request.value != 0) {
                 let hash = new_note_hashes.get_unchecked(read_commitment_hint);
@@ -160,7 +160,7 @@ impl PrivateKernelTailCircuitPrivateInputs {
             let nullifier = new_nullifiers[n_idx];
             // TODO - should not be able to squash the first nullifier.
             let nullified_note_hash = nullifier.note_hash;
-            let hint_pos = self.nullifier_commitment_hints[n_idx] as u64;
+            let hint_pos = self.nullifier_commitment_hints[n_idx];
 
             // Nullified_commitment of value `0` implies non-transient (persistable)
             // nullifier in which case no attempt will be made to match it to a hash.
@@ -168,7 +168,7 @@ impl PrivateKernelTailCircuitPrivateInputs {
             // 0-valued nullified_note_hash is empty and will be ignored
             if nullified_note_hash != 0 {
                 assert(
-                    hint_pos < MAX_NEW_NOTE_HASHES_PER_TX as u64, "New nullifier is transient but hint is invalid"
+                    hint_pos < MAX_NEW_NOTE_HASHES_PER_TX, "New nullifier is transient but hint is invalid"
                 );
                 let hash = new_note_hashes[hint_pos];
                 assert_eq(nullified_note_hash, hash.value, "Hinted hash does not match");
@@ -179,7 +179,7 @@ impl PrivateKernelTailCircuitPrivateInputs {
                 // squash both the nullifier and the hash
                 // (set to 0 here and then rearrange array after loop)
                 new_note_hashes[hint_pos] = SideEffect::empty();
-                new_nullifiers[n_idx as u64] = SideEffectLinkedToNoteHash::empty();
+                new_nullifiers[n_idx] = SideEffectLinkedToNoteHash::empty();
             }
             // non-transient (persistable) nullifiers are just kept in new_nullifiers array and forwarded
             // to public inputs (used later by base rollup circuit)

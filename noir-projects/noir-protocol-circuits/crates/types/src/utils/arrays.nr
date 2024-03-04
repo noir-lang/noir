@@ -30,7 +30,7 @@ pub fn validate_array<T, N>(array: [T; N]) where T: Empty + Eq {
             first_zero_pos = i;
         }
     }
-    assert((last_non_zero_pos as u64) <= (first_zero_pos as u64), "invalid array");
+    assert(last_non_zero_pos <= first_zero_pos, "invalid array");
 }
 
 // Helper method to determine the number of non-zero/empty elements in a validated array (ie, validate_array(array)

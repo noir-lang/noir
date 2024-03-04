@@ -169,7 +169,7 @@ pub fn get_pack_cards(seed: Field, owner: AztecAddress, context: &mut PrivateCon
 
     let mut cards = [Card::from_field(0); PACK_CARDS];
     // we generate PACK_CARDS cards
-    assert((PACK_CARDS as u64) < 8, "Cannot generate more than 8 cards");
+    assert(PACK_CARDS < 8, "Cannot generate more than 8 cards");
     for i in 0..PACK_CARDS {
         let strength = (random_bytes[i] as u32) + (random_bytes[i + 1] as u32) * 256;
         let points = (random_bytes[i + 2] as u32) + (random_bytes[i + 3] as u32) * 256;
