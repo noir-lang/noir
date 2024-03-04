@@ -3951,6 +3951,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@import-maps/resolve@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "@import-maps/resolve@npm:1.0.1"
+  checksum: 17ee033e26a0fd82294de87eae76d32b553a130fdbf0fb8c70d39f2087a3e8a4a5908970a99aa32bd175153efe9b7dfee6b7f99df36f41abed08c1911dbdb19c
+  languageName: node
+  linkType: hard
+
 "@isaacs/cliui@npm:^8.0.2":
   version: 8.0.2
   resolution: "@isaacs/cliui@npm:8.0.2"
@@ -6674,6 +6681,20 @@ __metadata:
     parse5: ^6.0.1
     ua-parser-js: ^1.0.33
   checksum: ed29357d8a832c695f129de62bd658744b46b1e17a5aab24ad6d7cd09a90f27714d83fc6ece2471c35bff55f4f09435a18af65b37d65709019bfe09c10f4f9eb
+  languageName: node
+  linkType: hard
+
+"@web/dev-server-import-maps@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@web/dev-server-import-maps@npm:0.2.0"
+  dependencies:
+    "@import-maps/resolve": ^1.0.1
+    "@types/parse5": ^6.0.1
+    "@web/dev-server-core": ^0.7.0
+    "@web/parse5-utils": ^2.1.0
+    parse5: ^6.0.1
+    picomatch: ^2.2.2
+  checksum: 15dabfa385f023bab70758b80cc09443455830799793c1a404a7230d90ebf60e40984a10d8a6ceea2afb8f057e90a9f7356a76f867d5e5a2eeacbc397e41535a
   languageName: node
   linkType: hard
 
@@ -13416,6 +13437,7 @@ __metadata:
     "@nomicfoundation/hardhat-chai-matchers": ^2.0.0
     "@nomicfoundation/hardhat-ethers": ^3.0.0
     "@web/dev-server-esbuild": ^0.3.6
+    "@web/dev-server-import-maps": ^0.2.0
     "@web/test-runner": ^0.15.3
     "@web/test-runner-playwright": ^0.10.0
     eslint: ^8.56.0

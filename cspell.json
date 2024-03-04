@@ -13,6 +13,8 @@
         "arithmetization",
         "arity",
         "arkworks",
+        "backpropagate",
+        "Backpropagation",
         "barebones",
         "barretenberg",
         "bincode",
