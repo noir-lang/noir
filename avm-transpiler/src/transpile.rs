@@ -233,14 +233,14 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
 /// - TODO: support for avm external calls through this function
 fn handle_foreign_call(
     avm_instrs: &mut Vec<AvmInstruction>,
-    function: &String,
+    function: &str,
     destinations: &Vec<ValueOrArray>,
     inputs: &Vec<ValueOrArray>,
 ) {
-    match function.as_str() {
+    match function {
         "avmOpcodeNoteHashExists" => handle_note_hash_exists(avm_instrs, destinations, inputs),
         "emitNoteHash" | "emitNullifier" => handle_emit_note_hash_or_nullifier(
-            function.as_str() == "emitNullifier",
+            function == "emitNullifier",
             avm_instrs,
             destinations,
             inputs,
@@ -252,7 +252,15 @@ fn handle_foreign_call(
         "poseidon" => {
             handle_single_field_hash_instruction(avm_instrs, function, destinations, inputs)
         }
-        _ => handle_getter_instruction(avm_instrs, function, destinations, inputs),
+        // Getters.
+        _ if inputs.len() == 0 && destinations.len() == 1 => {
+            handle_getter_instruction(avm_instrs, function, destinations, inputs)
+        }
+        // Anything else.
+        _ => panic!(
+            "Transpiler doesn't know how to process ForeignCall function {}",
+            function
+        ),
     }
 }
 
@@ -384,7 +392,7 @@ fn handle_nullifier_exists(
 /// to reason about. In order to decrease user friction we will use two field outputs.
 fn handle_2_field_hash_instruction(
     avm_instrs: &mut Vec<AvmInstruction>,
-    function: &String,
+    function: &str,
     destinations: &[ValueOrArray],
     inputs: &[ValueOrArray],
 ) {
@@ -405,7 +413,7 @@ fn handle_2_field_hash_instruction(
         _ => panic!("Keccak | Poseidon address destination should be a single value"),
     };
 
-    let opcode = match function.as_str() {
+    let opcode = match function {
         "keccak256" => AvmOpcode::KECCAK,
         "sha256" => AvmOpcode::SHA256,
         _ => panic!(
@@ -443,7 +451,7 @@ fn handle_2_field_hash_instruction(
 /// representation.
 fn handle_single_field_hash_instruction(
     avm_instrs: &mut Vec<AvmInstruction>,
-    function: &String,
+    function: &str,
     destinations: &[ValueOrArray],
     inputs: &[ValueOrArray],
 ) {
@@ -461,7 +469,7 @@ fn handle_single_field_hash_instruction(
         _ => panic!("Poseidon address destination should be a single value"),
     };
 
-    let opcode = match function.as_str() {
+    let opcode = match function {
         "poseidon" => AvmOpcode::POSEIDON,
         _ => panic!(
             "Transpiler doesn't know how to process ForeignCall function {:?}",
@@ -497,20 +505,21 @@ fn handle_single_field_hash_instruction(
 /// - ...
 fn handle_getter_instruction(
     avm_instrs: &mut Vec<AvmInstruction>,
-    function: &String,
+    function: &str,
     destinations: &Vec<ValueOrArray>,
     inputs: &Vec<ValueOrArray>,
 ) {
     // For the foreign calls we want to handle, we do not want inputs, as they are getters
     assert!(inputs.is_empty());
     assert!(destinations.len() == 1);
+
     let dest_offset_maybe = destinations[0];
     let dest_offset = match dest_offset_maybe {
         ValueOrArray::MemoryAddress(dest_offset) => dest_offset.0,
         _ => panic!("ForeignCall address destination should be a single value"),
     };
 
-    let opcode = match function.as_str() {
+    let opcode = match function {
         "address" => AvmOpcode::ADDRESS,
         "storageAddress" => AvmOpcode::STORAGEADDRESS,
         "origin" => AvmOpcode::ORIGIN,
@@ -529,6 +538,7 @@ fn handle_getter_instruction(
             function
         ),
     };
+
     avm_instrs.push(AvmInstruction {
         opcode,
         indirect: Some(ALL_DIRECT),
