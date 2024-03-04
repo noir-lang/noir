@@ -143,8 +143,18 @@ pub(crate) fn solve_poseidon2_permutation_opcode(
         return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
             acir::BlackBoxFunc::Poseidon2Permutation,
             format!(
-                "the number of inputs does not match specified length. {} > {}",
+                "the number of inputs does not match specified length. {} != {}",
                 inputs.len(),
+                len
+            ),
+        ));
+    }
+    if len as usize != outputs.len() {
+        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
+            acir::BlackBoxFunc::Poseidon2Permutation,
+            format!(
+                "the number of outputs does not match specified length. {} != {}",
+                outputs.len(),
                 len
             ),
         ));

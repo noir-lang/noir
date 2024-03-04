@@ -25,7 +25,7 @@ use fixed_base_scalar_mul::{embedded_curve_add, fixed_base_scalar_mul};
 use hash::{solve_generic_256_hash_opcode, solve_sha_256_permutation_opcode};
 use logic::{and, xor};
 use pedersen::pedersen;
-use range::solve_range_opcode;
+pub(crate) use range::solve_range_opcode;
 use signature::{
     ecdsa::{secp256k1_prehashed, secp256r1_prehashed},
     schnorr::schnorr_verify,

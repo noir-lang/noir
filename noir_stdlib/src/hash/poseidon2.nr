@@ -93,7 +93,8 @@ impl Poseidon2 {
     }
 
     fn hash_internal<N>(input: [Field; N], in_len: u32, is_variable_length: bool) -> Field {
-        let iv : Field = (in_len as Field) * 18446744073709551616;
+        let two_pow_64 = 18446744073709551616;
+        let iv : Field = (in_len as Field) * two_pow_64;
         let mut sponge = Poseidon2::new(iv);
         for i in 0..input.len() {
             if i as u32 < in_len {
