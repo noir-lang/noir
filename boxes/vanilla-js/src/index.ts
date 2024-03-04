@@ -46,7 +46,6 @@ document.querySelector('#set').addEventListener('submit', async (e: Event) => {
 
   const { value } = document.querySelector('#number') as HTMLInputElement;
   const owner = wallet.getCompleteAddress().address;
-  console.log(owner);
   await contract.methods.setNumber(parseInt(value), owner).send().wait();
   alert('Number set!');
 

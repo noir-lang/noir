@@ -128,6 +128,7 @@ __metadata:
   dependencies:
     "@aztec/accounts": "npm:latest"
     "@aztec/aztec.js": "npm:latest"
+    "@playwright/test": "npm:1.42.0"
     "@types/node": "npm:^20.11.17"
     copy-webpack-plugin: "npm:^11.0.0"
     html-webpack-plugin: "npm:^5.6.0"
@@ -190,7 +191,7 @@ __metadata:
     "@aztec/foundation": "workspace:^"
     dotenv: "npm:^16.0.3"
     tslib: "npm:^2.4.0"
-    viem: "npm:^1.2.5"
+    viem: "npm:^2.7.15"
   languageName: node
   linkType: soft
 
@@ -1271,6 +1272,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@playwright/test@npm:1.42.0":
+  version: 1.42.0
+  resolution: "@playwright/test@npm:1.42.0"
+  dependencies:
+    playwright: "npm:1.42.0"
+  bin:
+    playwright: cli.js
+  checksum: 10c0/1505544fd4962cc9463c2e0d21958507b4b23ecb835ef19d81a97ae01cda9030585dc321263486cce4d1eac53724615b7b3ec41a94b6c1a54a2b7ed01157de60
+  languageName: node
+  linkType: hard
+
 "@scure/base@npm:~1.1.0, @scure/base@npm:~1.1.2":
   version: 1.1.5
   resolution: "@scure/base@npm:1.1.5"
@@ -2131,18 +2143,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"abitype@npm:0.9.8":
-  version: 0.9.8
-  resolution: "abitype@npm:0.9.8"
+"abitype@npm:1.0.0":
+  version: 1.0.0
+  resolution: "abitype@npm:1.0.0"
   peerDependencies:
     typescript: ">=5.0.4"
-    zod: ^3 >=3.19.1
+    zod: ^3 >=3.22.0
   peerDependenciesMeta:
     typescript:
       optional: true
     zod:
       optional: true
-  checksum: 10c0/ec559461d901d456820faf307e21b2c129583d44f4c68257ed9d0d44eae461114a7049046e715e069bc6fa70c410f644e06bdd2c798ac30d0ada794cd2a6c51e
+  checksum: 10c0/d685351a725c49f81bdc588e2f3825c28ad96c59048d4f36bf5e4ef30935c31f7e60b5553c70177b77a9e4d8b04290eea43d3d9c1c2562cb130381c88b15d39f
   languageName: node
   linkType: hard
 
@@ -4930,12 +4942,31 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fsevents@npm:2.3.2":
+  version: 2.3.2
+  resolution: "fsevents@npm:2.3.2"
+  dependencies:
+    node-gyp: "npm:latest"
+  checksum: 10c0/be78a3efa3e181cda3cf7a4637cb527bcebb0bd0ea0440105a3bb45b86f9245b307dc10a2507e8f4498a7d4ec349d1910f4d73e4d4495b16103106e07eee735b
+  conditions: os=darwin
+  languageName: node
+  linkType: hard
+
 "fsevents@npm:^2.3.2, fsevents@npm:~2.3.2":
   version: 2.3.3
   resolution: "fsevents@npm:2.3.3"
   dependencies:
     node-gyp: "npm:latest"
   checksum: 10c0/a1f0c44595123ed717febbc478aa952e47adfc28e2092be66b8ab1635147254ca6cfe1df792a8997f22716d4cbafc73309899ff7bfac2ac3ad8cf2e4ecc3ec60
+  conditions: os=darwin
+  languageName: node
+  linkType: hard
+
+"fsevents@patch:fsevents@npm%3A2.3.2#optional!builtin<compat/fsevents>":
+  version: 2.3.2
+  resolution: "fsevents@patch:fsevents@npm%3A2.3.2#optional!builtin<compat/fsevents>::version=2.3.2&hash=df0bf1"
+  dependencies:
+    node-gyp: "npm:latest"
   conditions: os=darwin
   languageName: node
   linkType: hard
@@ -8285,6 +8316,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"playwright-core@npm:1.42.0":
+  version: 1.42.0
+  resolution: "playwright-core@npm:1.42.0"
+  bin:
+    playwright-core: cli.js
+  checksum: 10c0/f08700ec743734247a0e025249ccaf1f58beb95b5c8ef6a4319f636db83ea668222967ae10299114e9f4725318f80185c7c7d97fe051ebd617acec5ae67af31a
+  languageName: node
+  linkType: hard
+
+"playwright@npm:1.42.0":
+  version: 1.42.0
+  resolution: "playwright@npm:1.42.0"
+  dependencies:
+    fsevents: "npm:2.3.2"
+    playwright-core: "npm:1.42.0"
+  dependenciesMeta:
+    fsevents:
+      optional: true
+  bin:
+    playwright: cli.js
+  checksum: 10c0/4960431c89097d7a79a24d3d4e5896cd9e4253dacfdf2891ed8a32f31c6f665a3df9af636baa23a93382733667a4d997afadb6148e6ba71f42202eeafc8968b7
+  languageName: node
+  linkType: hard
+
 "possible-typed-array-names@npm:^1.0.0":
   version: 1.0.0
   resolution: "possible-typed-array-names@npm:1.0.0"
@@ -10444,16 +10499,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"viem@npm:^1.2.5":
-  version: 1.21.4
-  resolution: "viem@npm:1.21.4"
+"viem@npm:^2.7.15":
+  version: 2.7.19
+  resolution: "viem@npm:2.7.19"
   dependencies:
     "@adraffy/ens-normalize": "npm:1.10.0"
     "@noble/curves": "npm:1.2.0"
     "@noble/hashes": "npm:1.3.2"
     "@scure/bip32": "npm:1.3.2"
     "@scure/bip39": "npm:1.2.1"
-    abitype: "npm:0.9.8"
+    abitype: "npm:1.0.0"
     isows: "npm:1.0.3"
     ws: "npm:8.13.0"
   peerDependencies:
@@ -10461,7 +10516,7 @@ __metadata:
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10c0/8b29c790181e44c4c95b9ffed1a8c1b6c2396eb949b95697cc390ca8c49d88ef9e2cd56bd4800b90a9bbc93681ae8d63045fc6fa06e00d84f532bef77967e751
+  checksum: 10c0/aa7e8750eca7d02eab1819ec7d85ba2d3669c65b133c919dc34ea0052c236e75220e25d667a604dd76d36f92958d60a52d6772c58cf725435f728ca4c70ee9b7
   languageName: node
   linkType: hard
 

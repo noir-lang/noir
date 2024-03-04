@@ -25,6 +25,7 @@ export default (_, argv) => ({
     new webpack.DefinePlugin({
       'process.env': {
         NODE_ENV: JSON.stringify(argv.mode || 'production'),
+        PXE_URL: JSON.stringify(process.env.PXE_URL || 'http://localhost:8080'),
       },
     }),
     new webpack.ProvidePlugin({ Buffer: ['buffer', 'Buffer'] }),
