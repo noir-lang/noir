@@ -1,15 +1,22 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ops::Deref;
 
 use arena::{Arena, Index};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
+use petgraph::algo::tarjan_scc;
+use petgraph::prelude::DiGraph;
+use petgraph::prelude::NodeIndex as PetGraphIndex;
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
+use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
@@ -22,7 +29,7 @@ use crate::hir_def::{
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
     BinaryOpKind, ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared,
-    TypeAliasType, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -41,6 +48,7 @@ type StructAttributes = Vec<SecondaryAttribute>;
 pub struct NodeInterner {
     pub(crate) nodes: Arena<Node>,
     pub(crate) func_meta: HashMap<FuncId, FuncMeta>,
+
     function_definition_ids: HashMap<FuncId, DefinitionId>,
 
     // For a given function ID, this gives the function's modifiers which includes
@@ -51,6 +59,14 @@ pub struct NodeInterner {
     // Contains the source module each function was defined in
     function_modules: HashMap<FuncId, ModuleId>,
 
+    /// This graph tracks dependencies between different global definitions.
+    /// This is used to ensure the absense of dependency cycles for globals and types.
+    dependency_graph: DiGraph<DependencyId, ()>,
+
+    /// To keep track of where each DependencyId is in `dependency_graph`, we need
+    /// this separate graph to map between the ids and indices.
+    dependency_graph_indices: HashMap<DependencyId, PetGraphIndex>,
+
     // Map each `Index` to it's own location
     pub(crate) id_to_location: HashMap<Index, Location>,
 
@@ -59,12 +75,13 @@ pub struct NodeInterner {
 
     // Type checking map
     //
-    // Notice that we use `Index` as the Key and not an ExprId or IdentId
-    // Therefore, If a raw index is passed in, then it is not safe to assume that it will have
-    // a Type, as not all Ids have types associated to them.
-    // Further note, that an ExprId and an IdentId will never have the same underlying Index
-    // Because we use one Arena to store all Definitions/Nodes
+    // This should only be used with indices from the `nodes` arena.
+    // Otherwise the indices used may overwrite other existing indices.
+    // Each type for each index is filled in during type checking.
     id_to_type: HashMap<Index, Type>,
+
+    // Similar to `id_to_type` but maps definitions to their type
+    definition_to_type: HashMap<DefinitionId, Type>,
 
     // Struct map.
     //
@@ -74,11 +91,12 @@ pub struct NodeInterner {
     structs: HashMap<StructId, Shared<StructType>>,
 
     struct_attributes: HashMap<StructId, StructAttributes>,
-    // Type Aliases map.
+
+    // Maps TypeAliasId -> Shared<TypeAlias>
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    pub(crate) type_aliases: Vec<TypeAliasType>,
+    pub(crate) type_aliases: Vec<Shared<TypeAlias>>,
 
     // Trait map.
     //
@@ -125,7 +143,9 @@ pub struct NodeInterner {
     /// checking.
     field_indices: HashMap<ExprId, usize>,
 
-    globals: HashMap<StmtId, GlobalInfo>, // NOTE: currently only used for checking repeat globals and restricting their scope to a module
+    // Maps GlobalId -> GlobalInfo
+    // NOTE: currently only used for checking repeat globals and restricting their scope to a module
+    globals: Vec<GlobalInfo>,
 
     next_type_variable_id: std::cell::Cell<usize>,
 
@@ -149,6 +169,24 @@ pub struct NodeInterner {
 
     /// Stores the [Location] of a [Type] reference
     pub(crate) type_ref_locations: Vec<(Type, Location)>,
+}
+
+/// A dependency in the dependency graph may be a type or a definition.
+/// Types can depend on definitions too. E.g. `Foo` depends on `COUNT` in:
+///
+/// ```struct
+/// global COUNT = 3;
+///
+/// struct Foo {
+///     array: [Field; COUNT],
+/// }
+/// ```
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum DependencyId {
+    Struct(StructId),
+    Global(GlobalId),
+    Function(FuncId),
+    Alias(TypeAliasId),
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -240,9 +278,14 @@ impl DefinitionId {
     }
 }
 
-impl From<DefinitionId> for Index {
-    fn from(id: DefinitionId) -> Self {
-        Index::from_raw_parts(id.0, u64::MAX)
+/// An ID for a global value
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
+pub struct GlobalId(usize);
+
+impl GlobalId {
+    // Dummy id for error reporting
+    pub fn dummy_id() -> Self {
+        GlobalId(std::usize::MAX)
     }
 }
 
@@ -254,7 +297,7 @@ impl StmtId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> StmtId {
-        StmtId(Index::from_raw_parts(std::usize::MAX, 0))
+        StmtId(Index::dummy())
     }
 }
 
@@ -263,7 +306,7 @@ pub struct ExprId(Index);
 
 impl ExprId {
     pub fn empty_block_id() -> ExprId {
-        ExprId(Index::from_raw_parts(0, 0))
+        ExprId(Index::unsafe_zeroed())
     }
 }
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
@@ -274,7 +317,7 @@ impl FuncId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> FuncId {
-        FuncId(Index::from_raw_parts(std::usize::MAX, 0))
+        FuncId(Index::dummy())
     }
 }
 
@@ -324,7 +367,7 @@ impl TraitId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
-pub struct TraitImplId(usize);
+pub struct TraitImplId(pub usize);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TraitMethodId {
@@ -348,22 +391,8 @@ macro_rules! into_index {
     };
 }
 
-macro_rules! partialeq {
-    ($id_type:ty) => {
-        impl PartialEq<usize> for &$id_type {
-            fn eq(&self, other: &usize) -> bool {
-                let (index, _) = self.0.into_raw_parts();
-                index == *other
-            }
-        }
-    };
-}
-
 into_index!(ExprId);
 into_index!(StmtId);
-
-partialeq!(ExprId);
-partialeq!(StmtId);
 
 /// A Definition enum specifies anything that we can intern in the NodeInterner
 /// We use one Arena for all types that can be interned as that has better cache locality
@@ -396,7 +425,7 @@ impl DefinitionInfo {
 pub enum DefinitionKind {
     Function(FuncId),
 
-    Global(ExprId),
+    Global(GlobalId),
 
     /// Locals may be defined in let statements or parameters,
     /// in which case they will not have an associated ExprId
@@ -417,7 +446,7 @@ impl DefinitionKind {
     pub fn get_rhs(&self) -> Option<ExprId> {
         match self {
             DefinitionKind::Function(_) => None,
-            DefinitionKind::Global(id) => Some(*id),
+            DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
             DefinitionKind::GenericType(_) => None,
         }
@@ -426,8 +455,12 @@ impl DefinitionKind {
 
 #[derive(Debug, Clone)]
 pub struct GlobalInfo {
+    pub id: GlobalId,
+    pub definition_id: DefinitionId,
     pub ident: Ident,
     pub local_id: LocalModuleId,
+    pub location: Location,
+    pub let_statement: StmtId,
 }
 
 impl Default for NodeInterner {
@@ -439,9 +472,12 @@ impl Default for NodeInterner {
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
             func_id_to_trait: HashMap::new(),
+            dependency_graph: petgraph::graph::DiGraph::new(),
+            dependency_graph_indices: HashMap::new(),
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
+            definition_to_type: HashMap::new(),
             structs: HashMap::new(),
             struct_attributes: HashMap::new(),
             type_aliases: Vec::new(),
@@ -454,7 +490,7 @@ impl Default for NodeInterner {
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
-            globals: HashMap::new(),
+            globals: Vec::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
@@ -491,8 +527,13 @@ impl NodeInterner {
     }
 
     /// Store the type for an interned expression
-    pub fn push_expr_type(&mut self, expr_id: &ExprId, typ: Type) {
+    pub fn push_expr_type(&mut self, expr_id: ExprId, typ: Type) {
         self.id_to_type.insert(expr_id.into(), typ);
+    }
+
+    /// Store the type for an interned expression
+    pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
+        self.definition_to_type.insert(definition_id, typ);
     }
 
     pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait) {
@@ -551,13 +592,13 @@ impl NodeInterner {
     pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
-        self.type_aliases.push(TypeAliasType::new(
+        self.type_aliases.push(Shared::new(TypeAlias::new(
             type_id,
             typ.type_alias_def.name.clone(),
             Location::new(typ.type_alias_def.span, typ.file_id),
             Type::Error,
             vecmap(&typ.type_alias_def.generics, |_| TypeVariable::unbound(TypeVariableId(0))),
-        ));
+        )));
 
         type_id
     }
@@ -579,7 +620,7 @@ impl NodeInterner {
 
     pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
         let type_alias_type = &mut self.type_aliases[type_id.0];
-        type_alias_type.set_type_and_generics(typ, generics);
+        type_alias_type.borrow_mut().set_type_and_generics(typ, generics);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -606,36 +647,46 @@ impl NodeInterner {
         }
     }
 
-    /// Store the type for an interned Identifier
-    pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
-        self.id_to_type.insert(definition_id.into(), typ);
-    }
-
     /// Store [Location] of [Type] reference
     pub fn push_type_ref_location(&mut self, typ: Type, location: Location) {
         self.type_ref_locations.push((typ, location));
     }
 
-    pub fn push_global(&mut self, stmt_id: StmtId, ident: Ident, local_id: LocalModuleId) {
-        self.globals.insert(stmt_id, GlobalInfo { ident, local_id });
+    fn push_global(
+        &mut self,
+        ident: Ident,
+        local_id: LocalModuleId,
+        let_statement: StmtId,
+        file: FileId,
+    ) -> GlobalId {
+        let id = GlobalId(self.globals.len());
+        let location = Location::new(ident.span(), file);
+        let name = ident.to_string();
+        let definition_id = self.push_definition(name, false, DefinitionKind::Global(id), location);
+        self.globals.push(GlobalInfo {
+            id,
+            definition_id,
+            ident,
+            local_id,
+            let_statement,
+            location,
+        });
+        id
     }
 
-    /// Intern an empty global stmt. Used for collecting globals
-    pub fn push_empty_global(&mut self) -> StmtId {
-        self.push_stmt(HirStatement::Error)
+    pub fn next_global_id(&mut self) -> GlobalId {
+        GlobalId(self.globals.len())
     }
 
-    pub fn update_global(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
-        let def =
-            self.nodes.get_mut(stmt_id.0).expect("ice: all function ids should have definitions");
-
-        let stmt = match def {
-            Node::Statement(stmt) => stmt,
-            _ => {
-                panic!("ice: all global ids should correspond to a statement in the interner")
-            }
-        };
-        *stmt = hir_stmt;
+    /// Intern an empty global. Used for collecting globals before they're defined
+    pub fn push_empty_global(
+        &mut self,
+        name: Ident,
+        local_id: LocalModuleId,
+        file: FileId,
+    ) -> GlobalId {
+        let statement = self.push_stmt(HirStatement::Error);
+        self.push_global(name, local_id, statement, file)
     }
 
     /// Intern an empty function.
@@ -815,19 +866,19 @@ impl NodeInterner {
         }
     }
 
-    /// Returns the interned let statement corresponding to `stmt_id`
-    pub fn let_statement(&self, stmt_id: &StmtId) -> HirLetStatement {
-        let def =
-            self.nodes.get(stmt_id.0).expect("ice: all statement ids should have definitions");
+    /// Try to get the `HirLetStatement` which defines a given global value
+    pub fn get_global_let_statement(&self, global: GlobalId) -> Option<HirLetStatement> {
+        let global = self.get_global(global);
+        let def = self.nodes.get(global.let_statement.0)?;
 
         match def {
-            Node::Statement(hir_stmt) => {
-                match hir_stmt {
-                    HirStatement::Let(let_stmt) => let_stmt.clone(),
-                    _ => panic!("ice: all let statement ids should correspond to a let statement in the interner"),
+            Node::Statement(hir_stmt) => match hir_stmt {
+                HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
+                _ => {
+                    panic!("ice: all globals should correspond to a let statement in the interner")
                 }
             },
-            _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
+            _ => panic!("ice: all globals should correspond to a statement in the interner"),
         }
     }
 
@@ -889,16 +940,21 @@ impl NodeInterner {
         self.traits.get(&id)
     }
 
-    pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
-        &self.type_aliases[id.0]
+    pub fn get_type_alias(&self, id: TypeAliasId) -> Shared<TypeAlias> {
+        self.type_aliases[id.0].clone()
     }
 
-    pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {
-        self.globals.get(stmt_id).cloned()
+    pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
+        &self.globals[global_id.0]
     }
 
-    pub fn get_all_globals(&self) -> HashMap<StmtId, GlobalInfo> {
-        self.globals.clone()
+    pub fn get_global_definition(&self, global_id: GlobalId) -> &DefinitionInfo {
+        let global = self.get_global(global_id);
+        self.definition(global.definition_id)
+    }
+
+    pub fn get_all_globals(&self) -> &[GlobalInfo] {
+        &self.globals
     }
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.
@@ -906,8 +962,13 @@ impl NodeInterner {
         self.id_to_type.get(&index.into()).cloned().unwrap_or(Type::Error)
     }
 
+    /// Returns the type of the definition or `Type::Error` if it was not found.
+    pub fn definition_type(&self, id: DefinitionId) -> Type {
+        self.definition_to_type.get(&id).cloned().unwrap_or(Type::Error)
+    }
+
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Type {
-        let typ = self.id_type(def_id);
+        let typ = self.definition_type(def_id);
         if let Type::Function(args, ret, env) = &typ {
             let def = self.definition(def_id);
             if let Type::TraitAsType(..) = ret.as_ref() {
@@ -932,6 +993,12 @@ impl NodeInterner {
     pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
         let old = self.nodes.get_mut(id.into()).unwrap();
         *old = Node::Expression(new);
+    }
+
+    /// Replaces the HirStatement at the given StmtId with a new HirStatement
+    pub fn replace_statement(&mut self, stmt_id: StmtId, hir_stmt: HirStatement) {
+        let old = self.nodes.get_mut(stmt_id.0).unwrap();
+        *old = Node::Statement(hir_stmt);
     }
 
     pub fn next_type_variable_id(&self) -> TypeVariableId {
@@ -1040,6 +1107,34 @@ impl NodeInterner {
 
         Type::apply_type_bindings(bindings);
         Ok(impl_kind)
+    }
+
+    /// Given a `ObjectType: TraitId` pair, find all implementations without taking constraints into account or
+    /// applying any type bindings. Useful to look for a specific trait in a type that is used in a macro.
+    pub fn lookup_all_trait_implementations(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+    ) -> Vec<&TraitImplKind> {
+        let trait_impl = self.trait_implementation_map.get(&trait_id);
+
+        trait_impl
+            .map(|trait_impl| {
+                trait_impl
+                    .iter()
+                    .filter_map(|(typ, impl_kind)| match &typ {
+                        Type::Forall(_, typ) => {
+                            if typ.deref() == object_type {
+                                Some(impl_kind)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
@@ -1263,7 +1358,6 @@ impl NodeInterner {
         force_type_check: bool,
     ) -> Option<FuncId> {
         let methods = self.struct_methods.get(&(id, method_name.to_owned()));
-
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
         if !force_type_check {
@@ -1418,6 +1512,115 @@ impl NodeInterner {
     pub(crate) fn ordering_type(&self) -> Type {
         self.ordering_type.clone().expect("Expected ordering_type to be set in the NodeInterner")
     }
+
+    /// Register that `dependent` depends on `dependency`.
+    /// This is usually because `dependent` refers to `dependency` in one of its struct fields.
+    pub fn add_type_dependency(&mut self, dependent: DependencyId, dependency: StructId) {
+        self.add_dependency(dependent, DependencyId::Struct(dependency));
+    }
+
+    pub fn add_global_dependency(&mut self, dependent: DependencyId, dependency: GlobalId) {
+        self.add_dependency(dependent, DependencyId::Global(dependency));
+    }
+
+    pub fn add_function_dependency(&mut self, dependent: DependencyId, dependency: FuncId) {
+        self.add_dependency(dependent, DependencyId::Function(dependency));
+    }
+
+    pub fn add_type_alias_dependency(&mut self, dependent: DependencyId, dependency: TypeAliasId) {
+        self.add_dependency(dependent, DependencyId::Alias(dependency));
+    }
+
+    fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
+        let dependent_index = self.get_or_insert_dependency(dependent);
+        let dependency_index = self.get_or_insert_dependency(dependency);
+        self.dependency_graph.update_edge(dependent_index, dependency_index, ());
+    }
+
+    fn get_or_insert_dependency(&mut self, id: DependencyId) -> PetGraphIndex {
+        if let Some(index) = self.dependency_graph_indices.get(&id) {
+            return *index;
+        }
+
+        let index = self.dependency_graph.add_node(id);
+        self.dependency_graph_indices.insert(id, index);
+        index
+    }
+
+    pub(crate) fn check_for_dependency_cycles(&self) -> Vec<(CompilationError, FileId)> {
+        let strongly_connected_components = tarjan_scc(&self.dependency_graph);
+        let mut errors = Vec::new();
+
+        let mut push_error = |item: String, scc: &[_], i, location: Location| {
+            let cycle = self.get_cycle_error_string(scc, i);
+            let span = location.span;
+            let error = ResolverError::DependencyCycle { item, cycle, span };
+            errors.push((error.into(), location.file));
+        };
+
+        for scc in strongly_connected_components {
+            if scc.len() > 1 {
+                // If a SCC contains a type, type alias, or global, it must be the only element in the SCC
+                for (i, index) in scc.iter().enumerate() {
+                    match self.dependency_graph[*index] {
+                        DependencyId::Struct(struct_id) => {
+                            let struct_type = self.get_struct(struct_id);
+                            let struct_type = struct_type.borrow();
+                            push_error(struct_type.name.to_string(), &scc, i, struct_type.location);
+                            break;
+                        }
+                        DependencyId::Global(global_id) => {
+                            let global = self.get_global(global_id);
+                            let name = global.ident.to_string();
+                            push_error(name, &scc, i, global.location);
+                            break;
+                        }
+                        DependencyId::Alias(alias_id) => {
+                            let alias = self.get_type_alias(alias_id);
+                            // If type aliases form a cycle, we have to manually break the cycle
+                            // here to prevent infinite recursion in the type checker.
+                            alias.borrow_mut().typ = Type::Error;
+
+                            // push_error will borrow the alias so we have to drop the mutable borrow
+                            let alias = alias.borrow();
+                            push_error(alias.name.to_string(), &scc, i, alias.location);
+                            break;
+                        }
+                        // Mutually recursive functions are allowed
+                        DependencyId::Function(_) => (),
+                    }
+                }
+            }
+        }
+
+        errors
+    }
+
+    /// Build up a string starting from the given item containing each item in the dependency
+    /// cycle. The final result will resemble `foo -> bar -> baz -> foo`, always going back to the
+    /// element at the given start index.
+    fn get_cycle_error_string(&self, scc: &[PetGraphIndex], start_index: usize) -> String {
+        let index_to_string = |index: PetGraphIndex| match self.dependency_graph[index] {
+            DependencyId::Struct(id) => Cow::Owned(self.get_struct(id).borrow().name.to_string()),
+            DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
+            DependencyId::Alias(id) => {
+                Cow::Owned(self.get_type_alias(id).borrow().name.to_string())
+            }
+            DependencyId::Global(id) => {
+                Cow::Borrowed(self.get_global(id).ident.0.contents.as_ref())
+            }
+        };
+
+        let mut cycle = index_to_string(scc[start_index]).to_string();
+
+        // Reversing the dependencies here matches the order users would expect for the error message
+        for i in (0..scc.len()).rev() {
+            cycle += " -> ";
+            cycle += &index_to_string(scc[(start_index + i) % scc.len()]);
+        }
+
+        cycle
+    }
 }
 
 impl Methods {
@@ -1454,7 +1657,7 @@ impl Methods {
         for method in self.iter() {
             match interner.function_meta(&method).typ.instantiate(interner).0 {
                 Type::Function(args, _, _) => {
-                    if let Some(object) = args.get(0) {
+                    if let Some(object) = args.first() {
                         let mut bindings = TypeBindings::new();
 
                         if object.try_unify(typ, &mut bindings).is_ok() {
@@ -1495,6 +1698,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Array(_, _) => Some(Array),
         Type::Integer(_, _) => Some(FieldOrInt),
         Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::Integer) => Some(FieldOrInt),
         Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::FmtString(_, _) => Some(FmtString),
@@ -1503,6 +1707,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Function(_, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),
         Type::MutableReference(element) => get_type_method_key(element),
+        Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
 
         // We do not support adding methods to these types
         Type::TypeVariable(_, _)

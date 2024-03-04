@@ -306,7 +306,7 @@ impl IntType {
     // XXX: Result<Option<Token, LexerErrorKind>
     // Is not the best API. We could split this into two functions. One that checks if the the
     // word is a integer, which only returns an Option
-    pub(crate) fn lookup_int_type(word: &str, span: Span) -> Result<Option<Token>, LexerErrorKind> {
+    pub(crate) fn lookup_int_type(word: &str) -> Result<Option<Token>, LexerErrorKind> {
         // Check if the first string is a 'u' or 'i'
 
         let is_signed = if word.starts_with('i') {
@@ -323,12 +323,6 @@ impl IntType {
             Ok(str_as_u32) => str_as_u32,
             Err(_) => return Ok(None),
         };
-
-        let max_bits = FieldElement::max_num_bits() / 2;
-
-        if str_as_u32 > max_bits {
-            return Err(LexerErrorKind::TooManyBits { span, max: max_bits, got: str_as_u32 });
-        }
 
         if is_signed {
             Ok(Some(Token::IntType(IntType::Signed(str_as_u32))))
@@ -491,6 +485,7 @@ impl Attribute {
                 Attribute::Function(FunctionAttribute::Oracle(name.to_string()))
             }
             ["test"] => Attribute::Function(FunctionAttribute::Test(TestScope::None)),
+            ["recursive"] => Attribute::Function(FunctionAttribute::Recursive),
             ["test", name] => {
                 validate(name)?;
                 let malformed_scope =
@@ -541,6 +536,7 @@ pub enum FunctionAttribute {
     Builtin(String),
     Oracle(String),
     Test(TestScope),
+    Recursive,
 }
 
 impl FunctionAttribute {
@@ -562,6 +558,10 @@ impl FunctionAttribute {
         matches!(self, FunctionAttribute::Foreign(_))
     }
 
+    pub fn is_oracle(&self) -> bool {
+        matches!(self, FunctionAttribute::Oracle(_))
+    }
+
     pub fn is_low_level(&self) -> bool {
         matches!(self, FunctionAttribute::Foreign(_) | FunctionAttribute::Builtin(_))
     }
@@ -574,6 +574,7 @@ impl fmt::Display for FunctionAttribute {
             FunctionAttribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             FunctionAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
+            FunctionAttribute::Recursive => write!(f, "#[recursive]"),
         }
     }
 }
@@ -617,6 +618,7 @@ impl AsRef<str> for FunctionAttribute {
             FunctionAttribute::Builtin(string) => string,
             FunctionAttribute::Oracle(string) => string,
             FunctionAttribute::Test { .. } => "",
+            FunctionAttribute::Recursive => "",
         }
     }
 }
@@ -671,6 +673,7 @@ pub enum Keyword {
     Struct,
     Trait,
     Type,
+    Unchecked,
     Unconstrained,
     Use,
     Where,
@@ -713,6 +716,7 @@ impl fmt::Display for Keyword {
             Keyword::Struct => write!(f, "struct"),
             Keyword::Trait => write!(f, "trait"),
             Keyword::Type => write!(f, "type"),
+            Keyword::Unchecked => write!(f, "unchecked"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
             Keyword::Use => write!(f, "use"),
             Keyword::Where => write!(f, "where"),
@@ -758,6 +762,7 @@ impl Keyword {
             "struct" => Keyword::Struct,
             "trait" => Keyword::Trait,
             "type" => Keyword::Type,
+            "unchecked" => Keyword::Unchecked,
             "unconstrained" => Keyword::Unconstrained,
             "use" => Keyword::Use,
             "where" => Keyword::Where,
@@ -769,6 +774,27 @@ impl Keyword {
         };
 
         Some(Token::Keyword(keyword))
+    }
+}
+
+pub struct Tokens(pub Vec<SpannedToken>);
+
+type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;
+
+impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
+    fn from(tokens: Tokens) -> Self {
+        let end_of_input = match tokens.0.last() {
+            Some(spanned_token) => spanned_token.to_span(),
+            None => Span::single_char(0),
+        };
+
+        fn get_span(token: SpannedToken) -> (Token, Span) {
+            let span = token.to_span();
+            (token.into_token(), span)
+        }
+
+        let iter = tokens.0.into_iter().map(get_span as fn(_) -> _);
+        chumsky::Stream::from_iter(end_of_input, iter)
     }
 }
 
@@ -792,26 +818,5 @@ mod keywords {
                 "Keyword::lookup_keyword returns unexpected Keyword"
             );
         }
-    }
-}
-
-pub struct Tokens(pub Vec<SpannedToken>);
-
-type TokenMapIter = Map<IntoIter<SpannedToken>, fn(SpannedToken) -> (Token, Span)>;
-
-impl<'a> From<Tokens> for chumsky::Stream<'a, Token, Span, TokenMapIter> {
-    fn from(tokens: Tokens) -> Self {
-        let end_of_input = match tokens.0.last() {
-            Some(spanned_token) => spanned_token.to_span(),
-            None => Span::single_char(0),
-        };
-
-        fn get_span(token: SpannedToken) -> (Token, Span) {
-            let span = token.to_span();
-            (token.into_token(), span)
-        }
-
-        let iter = tokens.0.into_iter().map(get_span as fn(_) -> _);
-        chumsky::Stream::from_iter(end_of_input, iter)
     }
 }

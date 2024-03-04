@@ -1,5 +1,5 @@
 use acvm::{acir::native_types::WitnessMap, BlackBoxFunctionSolver};
-use noirc_driver::{compile_no_check, CompileOptions};
+use noirc_driver::{compile_no_check, CompileError, CompileOptions};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_evaluator::errors::RuntimeError;
 use noirc_frontend::hir::{def_map::TestFunction, Context};
@@ -16,7 +16,7 @@ pub enum TestStatus {
 
 pub fn run_test<B: BlackBoxFunctionSolver>(
     blackbox_solver: &B,
-    context: &Context,
+    context: &mut Context,
     test_function: TestFunction,
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
@@ -45,14 +45,18 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
 /// that a constraint was never satisfiable.
 /// An example of this is the program `assert(false)`
 /// In that case, we check if the test function should fail, and if so, we return `TestStatus::Pass`.
-fn test_status_program_compile_fail(err: RuntimeError, test_function: TestFunction) -> TestStatus {
+fn test_status_program_compile_fail(err: CompileError, test_function: TestFunction) -> TestStatus {
     // The test has failed compilation, but it should never fail. Report error.
     if !test_function.should_fail() {
         return TestStatus::CompileError(err.into());
     }
 
     // The test has failed compilation, extract the assertion message if present and check if it's expected.
-    let assert_message = if let RuntimeError::FailedConstraint { assert_message, .. } = &err {
+    let assert_message = if let CompileError::RuntimeError(RuntimeError::FailedConstraint {
+        assert_message,
+        ..
+    }) = &err
+    {
         assert_message.clone()
     } else {
         None

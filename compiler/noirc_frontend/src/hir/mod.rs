@@ -4,6 +4,7 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
+use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, StructId};
@@ -31,6 +32,8 @@ pub struct Context<'file_manager, 'parsed_files> {
     // is read-only however, once it has been passed to the Context.
     pub file_manager: Cow<'file_manager, FileManager>,
 
+    pub debug_instrumenter: DebugInstrumenter,
+
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
     pub visited_files: BTreeMap<fm::FileId, Location>,
@@ -56,6 +59,7 @@ impl Context<'_, '_> {
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Owned(file_manager),
+            debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Owned(parsed_files),
         }
     }
@@ -70,6 +74,7 @@ impl Context<'_, '_> {
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Borrowed(file_manager),
+            debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Borrowed(parsed_files),
         }
     }
@@ -84,6 +89,10 @@ impl Context<'_, '_> {
     /// This is how the compiler knows to compile a Crate.
     pub fn def_map(&self, crate_id: &CrateId) -> Option<&CrateDefMap> {
         self.def_maps.get(crate_id)
+    }
+
+    pub fn def_map_mut(&mut self, crate_id: &CrateId) -> Option<&mut CrateDefMap> {
+        self.def_maps.get_mut(crate_id)
     }
 
     /// Return the CrateId for each crate that has been compiled

@@ -46,7 +46,7 @@ jobs:
           echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-platform-version)" >> $GITHUB_ENV
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.71.1
+        uses: dtolnay/rust-toolchain@1.73.0
         with:
           targets: ${{ matrix.target }}
 
@@ -67,7 +67,7 @@ jobs:
           7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nargo-${{ matrix.target }}
           path: ./dist/*
@@ -120,7 +120,7 @@ jobs:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.71.1
+        uses: dtolnay/rust-toolchain@1.73.0
         with:
           targets: ${{ matrix.target }}
 
@@ -145,7 +145,7 @@ jobs:
           7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nargo-${{ matrix.target }}
           path: ./dist/*

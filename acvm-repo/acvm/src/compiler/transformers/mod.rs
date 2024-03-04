@@ -1,11 +1,9 @@
 use acir::{
-    circuit::{brillig::BrilligOutputs, directives::Directive, Circuit, Opcode},
+    circuit::{brillig::BrilligOutputs, directives::Directive, Circuit, ExpressionWidth, Opcode},
     native_types::{Expression, Witness},
     FieldElement,
 };
 use indexmap::IndexMap;
-
-use crate::ExpressionWidth;
 
 mod csat;
 mod r1cs;
@@ -44,11 +42,11 @@ pub(super) fn transform_internal(
     acir_opcode_positions: Vec<usize>,
 ) -> (Circuit, Vec<usize>) {
     let mut transformer = match &expression_width {
-        crate::ExpressionWidth::Unbounded => {
+        ExpressionWidth::Unbounded => {
             let transformer = R1CSTransformer::new(acir);
             return (transformer.transform(), acir_opcode_positions);
         }
-        crate::ExpressionWidth::Bounded { width } => {
+        ExpressionWidth::Bounded { width } => {
             let mut csat = CSatTransformer::new(*width);
             for value in acir.circuit_arguments() {
                 csat.mark_solvable(value);
@@ -113,11 +111,6 @@ pub(super) fn transform_internal(
                             transformer.mark_solvable(*witness);
                         }
                     }
-                    Directive::PermutationSort { bits, .. } => {
-                        for witness in bits {
-                            transformer.mark_solvable(*witness);
-                        }
-                    }
                 }
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
@@ -159,6 +152,7 @@ pub(super) fn transform_internal(
 
     let acir = Circuit {
         current_witness_index,
+        expression_width,
         opcodes: transformed_opcodes,
         // The transformer does not add new public inputs
         ..acir

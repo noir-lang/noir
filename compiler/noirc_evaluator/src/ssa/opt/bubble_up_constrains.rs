@@ -109,11 +109,11 @@ mod test {
 
         let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
         let v2 = builder.insert_binary(v1, BinaryOp::Add, one);
-        builder.insert_constrain(v0, one, Some("With message".to_string()));
+        builder.insert_constrain(v0, one, Some("With message".to_string().into()));
         builder.insert_constrain(v2, three, None);
         builder.insert_constrain(v0, one, None);
         builder.insert_constrain(v1, two, None);
-        builder.insert_constrain(v1, two, Some("With message".to_string()));
+        builder.insert_constrain(v1, two, Some("With message".to_string().into()));
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
@@ -137,11 +137,11 @@ mod test {
         assert_eq!(block.instructions().len(), 7);
 
         let expected_instructions = vec![
-            Instruction::Constrain(v0, one, Some("With message".to_string())),
+            Instruction::Constrain(v0, one, Some("With message".to_string().into())),
             Instruction::Constrain(v0, one, None),
             Instruction::Binary(Binary { lhs: v0, rhs: one, operator: BinaryOp::Add }),
             Instruction::Constrain(v1, two, None),
-            Instruction::Constrain(v1, two, Some("With message".to_string())),
+            Instruction::Constrain(v1, two, Some("With message".to_string().into())),
             Instruction::Binary(Binary { lhs: v1, rhs: one, operator: BinaryOp::Add }),
             Instruction::Constrain(v2, three, None),
         ];

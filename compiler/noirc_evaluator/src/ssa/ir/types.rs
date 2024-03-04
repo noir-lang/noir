@@ -90,6 +90,11 @@ impl Type {
         Type::Numeric(NumericType::NativeField)
     }
 
+    /// Creates the type of an array's length.
+    pub(crate) fn length_type() -> Type {
+        Type::unsigned(64)
+    }
+
     /// Returns the bit size of the provided numeric type.
     ///
     /// # Panics
@@ -120,7 +125,7 @@ impl Type {
             }
             Type::Slice(_) => true,
             Type::Numeric(_) => false,
-            Type::Reference(_) => false,
+            Type::Reference(element) => element.contains_slice_element(),
             Type::Function => false,
         }
     }

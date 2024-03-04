@@ -23,5 +23,7 @@ serde.workspace = true
 fxhash.workspace = true
 rust-embed.workspace = true
 tracing.workspace = true
+thiserror.workspace = true
 
 aztec_macros = { path = "../../aztec_macros" }
+noirc_macros = { path = "../../noirc_macros" }

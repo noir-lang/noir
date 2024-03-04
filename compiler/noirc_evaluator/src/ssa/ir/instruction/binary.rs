@@ -38,6 +38,10 @@ pub(crate) enum BinaryOp {
     Or,
     /// Bitwise xor (^)
     Xor,
+    /// Bitshift left (<<)
+    Shl,
+    /// Bitshift right (>>)
+    Shr,
 }
 
 impl std::fmt::Display for BinaryOp {
@@ -53,6 +57,8 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::And => write!(f, "and"),
             BinaryOp::Or => write!(f, "or"),
             BinaryOp::Xor => write!(f, "xor"),
+            BinaryOp::Shl => write!(f, "shl"),
+            BinaryOp::Shr => write!(f, "shr"),
         }
     }
 }
@@ -135,6 +141,23 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
+                if operand_type.is_unsigned() {
+                    // lhs % 2**bit_size is equivalent to truncating `lhs` to `bit_size` bits.
+                    // We then convert to a truncation for consistency, allowing more optimizations.
+                    if let Some(modulus) = rhs {
+                        let modulus = modulus.to_u128();
+                        if modulus.is_power_of_two() {
+                            let bit_size = modulus.ilog2();
+                            return SimplifyResult::SimplifiedToInstruction(
+                                Instruction::Truncate {
+                                    value: self.lhs,
+                                    bit_size,
+                                    max_bit_size: operand_type.bit_size(),
+                                },
+                            );
+                        }
+                    }
+                }
             }
             BinaryOp::Eq => {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
@@ -191,6 +214,32 @@ impl Binary {
                     let instruction = Instruction::binary(BinaryOp::Mul, self.lhs, self.rhs);
                     return SimplifyResult::SimplifiedToInstruction(instruction);
                 }
+                if operand_type.is_unsigned() {
+                    // It's common in other programming languages to truncate values to a certain bit size using
+                    // a bitwise AND with a bit mask. However this operation is quite inefficient inside a snark.
+                    //
+                    // We then replace this bitwise operation with an equivalent truncation instruction.
+                    match (lhs, rhs) {
+                        (Some(bitmask), None) | (None, Some(bitmask)) => {
+                            // This substitution requires the bitmask to retain all of the lower bits.
+                            // The bitmask must then be one less than a power of 2.
+                            let bitmask_plus_one = bitmask.to_u128() + 1;
+                            if bitmask_plus_one.is_power_of_two() {
+                                let value = if lhs.is_some() { self.rhs } else { self.lhs };
+                                let num_bits = bitmask_plus_one.ilog2();
+                                return SimplifyResult::SimplifiedToInstruction(
+                                    Instruction::Truncate {
+                                        value,
+                                        bit_size: num_bits,
+                                        max_bit_size: operand_type.bit_size(),
+                                    },
+                                );
+                            }
+                        }
+
+                        _ => (),
+                    }
+                }
             }
             BinaryOp::Or => {
                 if lhs_is_zero {
@@ -215,7 +264,27 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(zero);
                 }
             }
-        }
+            BinaryOp::Shl => return SimplifyResult::None,
+            BinaryOp::Shr => {
+                // Bit shifts by constants can be treated as divisions.
+                if let Some(rhs_const) = rhs {
+                    if rhs_const >= FieldElement::from(operand_type.bit_size() as u128) {
+                        // Shifting by the full width of the operand type, any `lhs` goes to zero.
+                        let zero = dfg.make_constant(FieldElement::zero(), operand_type);
+                        return SimplifyResult::SimplifiedTo(zero);
+                    }
+
+                    // `two_pow_rhs` is limited to be at most `2 ^ {operand_bitsize - 1}` so it fits in `operand_type`.
+                    let two_pow_rhs = FieldElement::from(2u128).pow(&rhs_const);
+                    let two_pow_rhs = dfg.make_constant(two_pow_rhs, operand_type);
+                    return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                        BinaryOp::Div,
+                        self.lhs,
+                        two_pow_rhs,
+                    ));
+                }
+            }
+        };
         SimplifyResult::None
     }
 }
@@ -314,6 +383,8 @@ impl BinaryOp {
             BinaryOp::And => None,
             BinaryOp::Or => None,
             BinaryOp::Xor => None,
+            BinaryOp::Shl => None,
+            BinaryOp::Shr => None,
         }
     }
 
@@ -329,6 +400,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as u128),
             BinaryOp::Lt => |x, y| Some((x < y) as u128),
+            BinaryOp::Shl => |x, y| Some(x << y),
+            BinaryOp::Shr => |x, y| Some(x >> y),
         }
     }
 
@@ -344,6 +417,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as i128),
             BinaryOp::Lt => |x, y| Some((x < y) as i128),
+            BinaryOp::Shl => |x, y| Some(x << y),
+            BinaryOp::Shr => |x, y| Some(x >> y),
         }
     }
 }

@@ -1,13 +1,13 @@
 use acvm::FieldElement;
 
-use super::{Binary, BinaryOp, DataFlowGraph, Instruction, Type, Value, ValueId};
+use super::{Binary, BinaryOp, ConstrainError, DataFlowGraph, Instruction, Type, Value, ValueId};
 
 /// Try to decompose this constrain instruction. This constraint will be broken down such that it instead constrains
 /// all the values which are used to compute the values which were being constrained.
 pub(super) fn decompose_constrain(
     lhs: ValueId,
     rhs: ValueId,
-    msg: Option<String>,
+    msg: &Option<Box<ConstrainError>>,
     dfg: &mut DataFlowGraph,
 ) -> Vec<Instruction> {
     let lhs = dfg.resolve(lhs);
@@ -39,7 +39,7 @@ pub(super) fn decompose_constrain(
                         // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
 
-                        vec![Instruction::Constrain(lhs, rhs, msg)]
+                        vec![Instruction::Constrain(lhs, rhs, msg.clone())]
                     }
 
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul })
@@ -64,7 +64,7 @@ pub(super) fn decompose_constrain(
                         let one = dfg.make_constant(one, Type::bool());
 
                         [
-                            decompose_constrain(lhs, one, msg.clone(), dfg),
+                            decompose_constrain(lhs, one, msg, dfg),
                             decompose_constrain(rhs, one, msg, dfg),
                         ]
                         .concat()
@@ -92,7 +92,7 @@ pub(super) fn decompose_constrain(
                         let zero = dfg.make_constant(zero, dfg.type_of_value(lhs));
 
                         [
-                            decompose_constrain(lhs, zero, msg.clone(), dfg),
+                            decompose_constrain(lhs, zero, msg, dfg),
                             decompose_constrain(rhs, zero, msg, dfg),
                         ]
                         .concat()
@@ -116,11 +116,28 @@ pub(super) fn decompose_constrain(
                         decompose_constrain(value, reversed_constant, msg, dfg)
                     }
 
-                    _ => vec![Instruction::Constrain(lhs, rhs, msg)],
+                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
                 }
             }
 
-            _ => vec![Instruction::Constrain(lhs, rhs, msg)],
+            (
+                Value::Instruction { instruction: instruction_lhs, .. },
+                Value::Instruction { instruction: instruction_rhs, .. },
+            ) => {
+                match (&dfg[*instruction_lhs], &dfg[*instruction_rhs]) {
+                    // Casting two values just to enforce an equality on them.
+                    //
+                    // This is equivalent to enforcing equality on the original values.
+                    (Instruction::Cast(original_lhs, _), Instruction::Cast(original_rhs, _))
+                        if dfg.type_of_value(*original_lhs) == dfg.type_of_value(*original_rhs) =>
+                    {
+                        vec![Instruction::Constrain(*original_lhs, *original_rhs, msg.clone())]
+                    }
+
+                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+                }
+            }
+            _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
         }
     }
 }

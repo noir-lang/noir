@@ -1,6 +1,6 @@
 use clap::Args;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
-use nargo::ops::compile_program;
+use nargo::ops::{compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
@@ -11,7 +11,6 @@ use noirc_driver::{
 };
 use noirc_frontend::graph::CrateName;
 
-use super::compile_cmd::report_errors;
 use super::fs::{
     inputs::{read_inputs_from_file, write_inputs_to_file},
     proof::save_proof_to_dir,
@@ -138,12 +137,11 @@ pub(crate) fn prove_package(
         Format::Toml,
     )?;
 
-    let proof = backend.prove(&compiled_program.circuit, solved_witness, false)?;
+    let proof = backend.prove(&compiled_program.circuit, solved_witness)?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
-        let valid_proof =
-            backend.verify(&proof, public_inputs, &compiled_program.circuit, false)?;
+        let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.circuit)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));

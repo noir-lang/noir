@@ -1,7 +1,10 @@
 [workspace]
 
 members = [
+    # Macros crates for metaprogramming
     "aztec_macros",
+    "noirc_macros",
+    # Compiler crates
     "compiler/noirc_evaluator",
     "compiler/noirc_frontend",
     "compiler/noirc_errors",
@@ -38,23 +41,23 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.23.0"
+version = "0.24.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
-rust-version = "1.71.1"
+rust-version = "1.73.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "0.39.0", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "0.39.0", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "0.39.0", path = "acvm-repo/acvm" }
-brillig = { version = "0.39.0", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "0.39.0", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "0.39.0", path = "acvm-repo/blackbox_solver", default-features = false }
+acir_field = { version = "0.40.0", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "0.40.0", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "0.40.0", path = "acvm-repo/acvm" }
+brillig = { version = "0.40.0", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "0.40.0", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "0.40.0", path = "acvm-repo/blackbox_solver", default-features = false }
 bn254_blackbox_solver = { version = "0.39.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
@@ -66,12 +69,10 @@ noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
 noirc_frontend = { path = "compiler/noirc_frontend" }
 noirc_printable_type = { path = "compiler/noirc_printable_type" }
-noir_wasm = { path = "compiler/wasm" }
 
 # Noir tooling workspace dependencies
 nargo = { path = "tooling/nargo" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
-nargo_cli = { path = "tooling/nargo_cli" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
@@ -94,8 +95,6 @@ getrandom = "0.2"
 
 # Debugger
 dap = "0.4.1-alpha1"
-
-cfg-if = "1.0.0"
 clap = { version = "4.3.19", features = ["derive", "env"] }
 codespan = { version = "0.11.1", features = ["serialization"] }
 codespan-lsp = "0.11.1"

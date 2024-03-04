@@ -54,10 +54,10 @@ allow = [
     "LicenseRef-ring",
     # https://github.com/rustls/webpki/blob/main/LICENSE ISC Style
     "LicenseRef-rustls-webpki",
-    # bitmaps 2.1.0, generational-arena 0.2.9,im 15.1.0
+    # bitmaps 2.1.0, im 15.1.0
     "MPL-2.0",
     # Boost Software License
-    "BSL-1.0"
+    "BSL-1.0",
 ]
 
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
@@ -93,7 +93,12 @@ unknown-registry = "warn"
 # Lint level for what to happen when a crate from a git repository that is not
 # in the allow list is encountered
 unknown-git = "deny"
+
+# DON'T YOU DARE ADD ANYTHING TO THIS IF YOU WANT TO PUBLISH ANYTHING NOIR RELATED TO CRATES.IO
+#
+# crates.io rejects git dependencies so anything depending on these is unpublishable and you'll ruin my day
+# when I find out.
 allow-git = [
-    "https://github.com/noir-lang/grumpkin",
-    "https://github.com/jfecher/chumsky"
+    "https://github.com/jfecher/chumsky",
+    "https://github.com/noir-lang/clap-markdown",
 ]

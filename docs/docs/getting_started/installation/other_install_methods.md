@@ -1,38 +1,102 @@
 ---
 title: Alternative Install Methods
-description:
-  There are different ways to install Nargo, the one-stop shop and command-line tool for developing Noir programs. This guide explains other methods that don't rely on noirup, such as compiling from source, installing from binaries, and using WSL for windows
+description: There are different ways to install Nargo, the one-stop shop and command-line tool for developing Noir programs. This guide explains other methods that don't rely on noirup, such as compiling from source, installing from binaries, and using WSL for windows
 keywords: [
-   Installation
-   Nargo
-   Noirup
-   Binaries
-   Compiling from Source
-   WSL for Windows
-   macOS
-   Linux
-   Nix
-   Direnv
-   Shell & editor experience
-   Building and testing
-   Uninstalling Nargo
-   Noir vs code extension
-]
+    Installation
+    Nargo
+    Noirup
+    Binaries
+    Compiling from Source
+    WSL for Windows
+    macOS
+    Linux
+    Nix
+    Direnv
+    Shell & editor experience
+    Building and testing
+    Uninstalling Nargo
+    Noir vs code extension,
+  ]
 sidebar_position: 1
 ---
 
+## Encouraged Installation Method: Noirup
 
-## Installation
+Noirup is the endorsed method for installing Nargo, streamlining the process of fetching binaries or compiling from source. It supports a range of options to cater to your specific needs, from nightly builds and specific versions to compiling from various sources.
 
-The most common method of installing Nargo is through [Noirup](./index.md)
+### Installing Noirup
+
+First, ensure you have `noirup` installed:
+
+```sh
+curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
+```
+
+### Fetching Binaries
+
+With `noirup`, you can easily switch between different Nargo versions, including nightly builds:
+
+- **Nightly Version**: Install the latest nightly build.
+
+  ```sh
+  noirup --version nightly
+  ```
+
+- **Specific Version**: Install a specific version of Nargo.
+  ```sh
+  noirup --version <version>
+  ```
+
+### Compiling from Source
+
+`noirup` also enables compiling Nargo from various sources:
+
+- **From a Specific Branch**: Install from the latest commit on a branch.
+
+  ```sh
+  noirup --branch <branch-name>
+  ```
+
+- **From a Fork**: Install from the main branch of a fork.
+
+  ```sh
+  noirup --repo <username/repo>
+  ```
+
+- **From a Specific Branch in a Fork**: Install from a specific branch in a fork.
+
+  ```sh
+  noirup --repo <username/repo> --branch <branch-name>
+  ```
+
+- **From a Specific Pull Request**: Install from a specific PR.
+
+  ```sh
+  noirup --pr <pr-number>
+  ```
+
+- **From a Specific Commit**: Install from a specific commit.
+
+  ```sh
+  noirup -C <commit-hash>
+  ```
+
+- **From Local Source**: Compile and install from a local directory.
+  ```sh
+  noirup --path ./path/to/local/source
+  ```
+
+## Alternate Installation Methods (No Longer Recommended)
+
+While the following methods are available, they are no longer recommended. We advise using noirup for a more efficient and flexible installation experience.
 
 However, there are other methods for installing Nargo:
 
-- [Binaries](#binaries)
-- [Compiling from Source](#compile-from-source)
-- [WSL for Windows](#wsl-for-windows)
+- [Binaries](#option-1-installing-from-binaries)
+- [Compiling from Source](#option-2-compile-from-source)
+- [WSL for Windows](#option-3-wsl-for-windows)
 
-### Binaries
+### Option 1: Installing from Binaries
 
 See [GitHub Releases](https://github.com/noir-lang/noir/releases) for the latest and previous
 platform specific binaries.
@@ -48,7 +112,7 @@ Paste and run the following in the terminal to extract and install the binary:
 
 ```bash
 mkdir -p $HOME/.nargo/bin && \
-curl -o $HOME/.nargo/bin/nargo-aarch64-apple-darwin.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.6.0/nargo-aarch64-apple-darwin.tar.gz && \
+curl -o $HOME/.nargo/bin/nargo-aarch64-apple-darwin.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.24.0/nargo-aarch64-apple-darwin.tar.gz && \
 tar -xvf $HOME/.nargo/bin/nargo-aarch64-apple-darwin.tar.gz -C $HOME/.nargo/bin/ && \
 echo '\nexport PATH=$PATH:$HOME/.nargo/bin' >> ~/.zshrc && \
 source ~/.zshrc
@@ -58,7 +122,7 @@ source ~/.zshrc
 
 ```bash
 mkdir -p $HOME/.nargo/bin && \
-curl -o $HOME/.nargo/bin/nargo-x86_64-apple-darwin.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.6.0/nargo-x86_64-apple-darwin.tar.gz && \
+curl -o $HOME/.nargo/bin/nargo-x86_64-apple-darwin.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.24.0/nargo-x86_64-apple-darwin.tar.gz && \
 tar -xvf $HOME/.nargo/bin/nargo-x86_64-apple-darwin.tar.gz -C $HOME/.nargo/bin/ && \
 echo '\nexport PATH=$PATH:$HOME/.nargo/bin' >> ~/.zshrc && \
 source ~/.zshrc
@@ -68,7 +132,7 @@ source ~/.zshrc
 
 ```bash
 mkdir -p $HOME/.nargo/bin && \
-curl -o $HOME/.nargo/bin/nargo-x86_64-unknown-linux-gnu.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.6.0/nargo-x86_64-unknown-linux-gnu.tar.gz && \
+curl -o $HOME/.nargo/bin/nargo-x86_64-unknown-linux-gnu.tar.gz -L https://github.com/noir-lang/noir/releases/download/v0.24.0/nargo-x86_64-unknown-linux-gnu.tar.gz && \
 tar -xvf $HOME/.nargo/bin/nargo-x86_64-unknown-linux-gnu.tar.gz -C $HOME/.nargo/bin/ && \
 echo -e '\nexport PATH=$PATH:$HOME/.nargo/bin' >> ~/.bashrc && \
 source ~/.bashrc
@@ -81,7 +145,7 @@ Check if the installation was successful by running `nargo --version`. You shoul
 > **macOS:** If you are prompted with an OS alert, right-click and open the _nargo_ executable from
 > Finder. Close the new terminal popped up and `nargo` should now be accessible.
 
-### Option 3: Compile from Source
+### Option 2: Compile from Source
 
 Due to the large number of native dependencies, Noir projects uses [Nix](https://nixos.org/) and [direnv](https://direnv.net/) to streamline the development experience. It helps mitigating issues commonly associated with dependency management, such as conflicts between required package versions for different projects (often referred to as "dependency hell").
 
@@ -148,7 +212,7 @@ code .
 #### Building and testing
 
 Assuming you are using `direnv` to populate your environment, building and testing the project can be done
-with the typical `cargo build`, `cargo test`, and `cargo clippy` commands. You'll notice that the `cargo` version matches the version we specify in `rust-toolchain.toml`, which is 1.71.1 at the time of this writing.
+with the typical `cargo build`, `cargo test`, and `cargo clippy` commands. You'll notice that the `cargo` version matches the version we specify in `rust-toolchain.toml`, which is 1.73.0 at the time of this writing.
 
 If you want to build the entire project in an isolated sandbox, you can use Nix commands:
 
@@ -161,19 +225,19 @@ If you have hesitations with using direnv, you can launch a subshell with `nix d
 
 Advanced: If you aren't using direnv nor launching your editor within the subshell, you can try to install Barretenberg and other global dependencies the package needs. This is an advanced workflow and likely won't receive support!
 
-### Option 4: WSL (for Windows)
+### Option 3: WSL (for Windows)
 
 The default backend for Noir (Barretenberg) doesn't provide Windows binaries at this time. For that reason, Noir cannot be installed natively. However, it is available by using Windows Subsystem for Linux (WSL).
 
 Step 1: Follow the instructions [here](https://learn.microsoft.com/en-us/windows/wsl/install) to install and run WSL.
 
-step 2: Follow the [Noirup instructions](./index.md).
+step 2: Follow the [Noirup instructions](#encouraged-installation-method-noirup).
 
 ## Uninstalling Nargo
 
 ### Noirup
 
-If you installed Noir with `noirup`, you can uninstall Noir by removing the files in `~/.nargo`, `~/nargo` and `~/noir_cache`.
+If you installed Nargo with `noirup` or through directly downloading binaries, you can uninstall Nargo by removing the files in `~/.nargo`, `~/nargo`, and `~/noir_cache`. This ensures that all installed binaries, configurations, and cache related to Nargo are fully removed from your system.
 
 ```bash
 rm -r ~/.nargo
@@ -183,7 +247,7 @@ rm -r ~/noir_cache
 
 ### Nix
 
-If you installed Noir with Nix or from source, you can remove the binary located at `~/.nix-profile/bin/nargo`.
+If you installed Nargo with Nix or compiled it from source, you can remove the binary located at `~/.nix-profile/bin/nargo`.
 
 ```bash
 rm ~/.nix-profile/bin/nargo

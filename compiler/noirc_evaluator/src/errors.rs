@@ -46,6 +46,8 @@ pub enum RuntimeError {
     NestedSlice { call_stack: CallStack },
     #[error("Big Integer modulus do no match")]
     BigIntModulus { call_stack: CallStack },
+    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
 }
 
 // We avoid showing the actual lhs and rhs since most of the time they are just 0
@@ -135,7 +137,8 @@ impl RuntimeError {
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
-            | RuntimeError::BigIntModulus { call_stack, .. } => call_stack,
+            | RuntimeError::BigIntModulus { call_stack, .. }
+            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack } => call_stack,
         }
     }
 }
@@ -155,15 +158,26 @@ impl RuntimeError {
             RuntimeError::InternalError(cause) => {
                 Diagnostic::simple_error(
                     "Internal Consistency Evaluators Errors: \n
-                    This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
+                    This is likely a bug. Consider opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                     cause.to_string(),
                     noirc_errors::Span::inclusive(0, 0)
+                )
+            }
+            RuntimeError::UnknownLoopBound { .. } => {
+                let primary_message = self.to_string();
+                let location =
+                    self.call_stack().back().expect("Expected RuntimeError to have a location");
+
+                Diagnostic::simple_error(
+                    primary_message,
+                    "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
+                    location.span,
                 )
             }
             _ => {
                 let message = self.to_string();
                 let location =
-                    self.call_stack().back().expect("Expected RuntimeError to have a location");
+                    self.call_stack().back().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
 
                 Diagnostic::simple_error(message, String::new(), location.span)
             }

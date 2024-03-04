@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "preprocess": "yarn node ./scripts/preprocess/index.js",
+    "preprocess": "./scripts/codegen_nargo_reference.sh && yarn node ./scripts/preprocess/index.js",
     "start": "yarn preprocess && docusaurus start",
     "build": "yarn preprocess && yarn version::stables && docusaurus build",
     "version::stables": "ts-node ./scripts/setStable.ts",
@@ -18,7 +18,6 @@
     "@noir-lang/noir_js": "workspace:*",
     "@noir-lang/noirc_abi": "workspace:*",
     "@noir-lang/types": "workspace:*",
-    "@signorecello/noir_playground": "^0.7.0",
     "axios": "^1.4.0",
     "clsx": "^1.2.1",
     "hast-util-is-element": "^1.1.0",

@@ -1,4 +1,4 @@
-use acvm::brillig_vm::brillig::{BinaryIntOp, RegisterIndex};
+use acvm::brillig_vm::brillig::{BinaryIntOp, MemoryAddress};
 
 use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, BrilligVector};
 
@@ -20,7 +20,7 @@ impl<'block> BrilligBlock<'block> {
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
         // We initialize the RC of the target vector to 1
-        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
+        self.brillig_context.usize_const(target_vector.rc, 1_usize.into());
 
         // Now we copy the source vector into the target vector
         self.brillig_context.copy_array_instruction(
@@ -30,7 +30,7 @@ impl<'block> BrilligBlock<'block> {
         );
 
         for (index, variable) in variables_to_insert.iter().enumerate() {
-            let target_index = self.brillig_context.make_constant(index.into());
+            let target_index = self.brillig_context.make_usize_constant(index.into());
             self.brillig_context.memory_op(
                 target_index,
                 source_vector.size,
@@ -57,7 +57,7 @@ impl<'block> BrilligBlock<'block> {
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
         // We initialize the RC of the target vector to 1
-        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
+        self.brillig_context.usize_const(target_vector.rc, 1_usize.into());
 
         // Now we offset the target pointer by variables_to_insert.len()
         let destination_copy_pointer = self.brillig_context.allocate_register();
@@ -77,7 +77,7 @@ impl<'block> BrilligBlock<'block> {
 
         // Then we write the items to insert at the start
         for (index, variable) in variables_to_insert.iter().enumerate() {
-            let target_index = self.brillig_context.make_constant(index.into());
+            let target_index = self.brillig_context.make_usize_constant(index.into());
             self.store_variable_in_array(target_vector.pointer, target_index, *variable);
             self.brillig_context.deallocate_register(target_index);
         }
@@ -100,7 +100,7 @@ impl<'block> BrilligBlock<'block> {
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
         // We initialize the RC of the target vector to 1
-        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
+        self.brillig_context.usize_const(target_vector.rc, 1_usize.into());
 
         // Now we offset the source pointer by removed_items.len()
         let source_copy_pointer = self.brillig_context.allocate_register();
@@ -119,7 +119,7 @@ impl<'block> BrilligBlock<'block> {
         );
 
         for (index, variable) in removed_items.iter().enumerate() {
-            let target_index = self.brillig_context.make_constant(index.into());
+            let target_index = self.brillig_context.make_usize_constant(index.into());
             self.retrieve_variable_from_array(source_vector.pointer, target_index, *variable);
             self.brillig_context.deallocate_register(target_index);
         }
@@ -142,7 +142,7 @@ impl<'block> BrilligBlock<'block> {
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
         // We initialize the RC of the target vector to 1
-        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
+        self.brillig_context.usize_const(target_vector.rc, 1_usize.into());
 
         // Now we copy all elements except the last items into the target vector
         self.brillig_context.copy_array_instruction(
@@ -152,7 +152,7 @@ impl<'block> BrilligBlock<'block> {
         );
 
         for (index, variable) in removed_items.iter().enumerate() {
-            let target_index = self.brillig_context.make_constant(index.into());
+            let target_index = self.brillig_context.make_usize_constant(index.into());
             self.brillig_context.memory_op(
                 target_index,
                 target_vector.size,
@@ -168,7 +168,7 @@ impl<'block> BrilligBlock<'block> {
         &mut self,
         target_vector: BrilligVector,
         source_vector: BrilligVector,
-        index: RegisterIndex,
+        index: MemoryAddress,
         items: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector incrementing the size by items.len()
@@ -180,7 +180,7 @@ impl<'block> BrilligBlock<'block> {
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
         // We initialize the RC of the target vector to 1
-        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
+        self.brillig_context.usize_const(target_vector.rc, 1_usize.into());
 
         // Copy the elements to the left of the index
         self.brillig_context.copy_array_instruction(
@@ -225,7 +225,7 @@ impl<'block> BrilligBlock<'block> {
 
         // Write the items to insert starting at the index
         for (subitem_index, variable) in items.iter().enumerate() {
-            let target_index = self.brillig_context.make_constant(subitem_index.into());
+            let target_index = self.brillig_context.make_usize_constant(subitem_index.into());
             self.brillig_context.memory_op(target_index, index, target_index, BinaryIntOp::Add);
             self.store_variable_in_array(target_vector.pointer, target_index, *variable);
             self.brillig_context.deallocate_register(target_index);
@@ -240,7 +240,7 @@ impl<'block> BrilligBlock<'block> {
         &mut self,
         target_vector: BrilligVector,
         source_vector: BrilligVector,
-        index: RegisterIndex,
+        index: MemoryAddress,
         removed_items: &[BrilligVariable],
     ) {
         // First we need to allocate the target vector decrementing the size by removed_items.len()
@@ -252,7 +252,7 @@ impl<'block> BrilligBlock<'block> {
         );
         self.brillig_context.allocate_array_instruction(target_vector.pointer, target_vector.size);
         // We initialize the RC of the target vector to 1
-        self.brillig_context.const_instruction(target_vector.rc, 1_usize.into());
+        self.brillig_context.usize_const(target_vector.rc, 1_usize.into());
 
         // Copy the elements to the left of the index
         self.brillig_context.copy_array_instruction(
@@ -298,7 +298,7 @@ impl<'block> BrilligBlock<'block> {
 
         // Get the removed items
         for (subitem_index, variable) in removed_items.iter().enumerate() {
-            let target_index = self.brillig_context.make_constant(subitem_index.into());
+            let target_index = self.brillig_context.make_usize_constant(subitem_index.into());
             self.brillig_context.memory_op(target_index, index, target_index, BinaryIntOp::Add);
             self.retrieve_variable_from_array(source_vector.pointer, target_index, *variable);
             self.brillig_context.deallocate_register(target_index);
@@ -328,19 +328,18 @@ mod tests {
     use std::vec;
 
     use acvm::acir::brillig::Value;
-    use acvm::brillig_vm::brillig::RegisterIndex;
 
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
     use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
     use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
     use crate::brillig::brillig_ir::artifact::BrilligParameter;
     use crate::brillig::brillig_ir::brillig_variable::{
-        BrilligArray, BrilligVariable, BrilligVector,
+        BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
     };
     use crate::brillig::brillig_ir::tests::{
         create_and_run_vm, create_context, create_entry_point_bytecode,
     };
-    use crate::brillig::brillig_ir::BrilligContext;
+    use crate::brillig::brillig_ir::{BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
     use crate::ssa::function_builder::FunctionBuilder;
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::map::Id;
@@ -375,17 +374,20 @@ mod tests {
         fn test_case_push(
             push_back: bool,
             array: Vec<Value>,
-            expected_mem: Vec<Value>,
             item_to_push: Value,
+            expected_return: Vec<Value>,
         ) {
             let arguments = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len()),
-                BrilligParameter::Simple,
+                BrilligParameter::Array(
+                    vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    array.len(),
+                ),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
-            let returns = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() + 1),
-                BrilligParameter::Simple,
-            ];
+            let returns = vec![BrilligParameter::Array(
+                vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                array.len() + 1,
+            )];
 
             let (_, mut function_context, mut context) = create_test_environment();
 
@@ -395,7 +397,10 @@ mod tests {
                 size: array.len(),
                 rc: context.allocate_register(),
             };
-            let item_to_insert = context.allocate_register();
+            let item_to_insert = SingleAddrVariable {
+                address: context.allocate_register(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            };
 
             // Cast the source array to a vector
             let source_vector = context.array_to_vector(&array_variable);
@@ -413,65 +418,52 @@ mod tests {
                 block.slice_push_back_operation(
                     target_vector,
                     source_vector,
-                    &[BrilligVariable::Simple(item_to_insert)],
+                    &[BrilligVariable::SingleAddr(item_to_insert)],
                 );
             } else {
                 block.slice_push_front_operation(
                     target_vector,
                     source_vector,
-                    &[BrilligVariable::Simple(item_to_insert)],
+                    &[BrilligVariable::SingleAddr(item_to_insert)],
                 );
             }
 
-            context.return_instruction(&[
-                target_vector.pointer,
-                target_vector.rc,
-                target_vector.size,
-            ]);
+            context.return_instruction(&[target_vector.pointer, target_vector.rc]);
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
-            let vm = create_and_run_vm(
-                array.clone(),
-                vec![Value::from(0_usize), item_to_push],
-                &bytecode,
+            let (vm, return_data_offset, return_data_size) =
+                create_and_run_vm(array.into_iter().chain(vec![item_to_push]).collect(), &bytecode);
+            assert_eq!(return_data_size, expected_return.len());
+            assert_eq!(
+                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())],
+                expected_return
             );
-
-            assert_eq!(vm.get_memory(), &expected_mem);
-
-            assert_eq!(vm.get_registers().get(RegisterIndex(0)), Value::from(array.len()));
-            assert_eq!(vm.get_registers().get(RegisterIndex(1)), Value::from(array.len() + 1));
         }
 
         test_case_push(
             true,
             vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
+            Value::from(27_usize),
             vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
                 Value::from(1_usize),
                 Value::from(2_usize),
                 Value::from(3_usize),
                 Value::from(27_usize),
             ],
-            Value::from(27_usize),
         );
-        test_case_push(true, vec![], vec![Value::from(27_usize)], Value::from(27_usize));
+        test_case_push(true, vec![], Value::from(27_usize), vec![Value::from(27_usize)]);
         test_case_push(
             false,
             vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
+            Value::from(27_usize),
             vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
                 Value::from(27_usize),
                 Value::from(1_usize),
                 Value::from(2_usize),
                 Value::from(3_usize),
             ],
-            Value::from(27_usize),
         );
-        test_case_push(false, vec![], vec![Value::from(27_usize)], Value::from(27_usize));
+        test_case_push(false, vec![], Value::from(27_usize), vec![Value::from(27_usize)]);
     }
 
     #[test]
@@ -479,15 +471,19 @@ mod tests {
         fn test_case_pop(
             pop_back: bool,
             array: Vec<Value>,
-            expected_mem: Vec<Value>,
-            expected_removed_item: Value,
+            expected_return_array: Vec<Value>,
+            expected_return_item: Value,
         ) {
-            let arguments =
-                vec![BrilligParameter::Array(vec![BrilligParameter::Simple], array.len())];
+            let arguments = vec![BrilligParameter::Array(
+                vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                array.len(),
+            )];
             let returns = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() - 1),
-                BrilligParameter::Simple,
-                BrilligParameter::Simple,
+                BrilligParameter::Array(
+                    vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    array.len() - 1,
+                ),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
 
             let (_, mut function_context, mut context) = create_test_environment();
@@ -508,7 +504,10 @@ mod tests {
                 size: context.allocate_register(),
                 rc: context.allocate_register(),
             };
-            let removed_item = context.allocate_register();
+            let removed_item = SingleAddrVariable {
+                address: context.allocate_register(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            };
 
             let mut block = create_brillig_block(&mut function_context, &mut context);
 
@@ -516,61 +515,46 @@ mod tests {
                 block.slice_pop_back_operation(
                     target_vector,
                     source_vector,
-                    &[BrilligVariable::Simple(removed_item)],
+                    &[BrilligVariable::SingleAddr(removed_item)],
                 );
             } else {
                 block.slice_pop_front_operation(
                     target_vector,
                     source_vector,
-                    &[BrilligVariable::Simple(removed_item)],
+                    &[BrilligVariable::SingleAddr(removed_item)],
                 );
             }
 
             context.return_instruction(&[
                 target_vector.pointer,
                 target_vector.rc,
-                target_vector.size,
-                removed_item,
+                removed_item.address,
             ]);
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
-            let vm = create_and_run_vm(array.clone(), vec![Value::from(0_usize)], &bytecode);
+            let expected_return: Vec<_> =
+                expected_return_array.into_iter().chain(vec![expected_return_item]).collect();
+            let (vm, return_data_offset, return_data_size) =
+                create_and_run_vm(array.clone(), &bytecode);
+            assert_eq!(return_data_size, expected_return.len());
 
-            assert_eq!(vm.get_memory(), &expected_mem);
-
-            assert_eq!(vm.get_registers().get(RegisterIndex(0)), Value::from(array.len()));
-            assert_eq!(vm.get_registers().get(RegisterIndex(1)), Value::from(array.len() - 1));
-            assert_eq!(vm.get_registers().get(RegisterIndex(2)), expected_removed_item);
+            assert_eq!(
+                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())],
+                expected_return
+            );
         }
 
         test_case_pop(
             true,
             vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-                Value::from(1_usize),
-                Value::from(2_usize),
-            ],
+            vec![Value::from(1_usize), Value::from(2_usize)],
             Value::from(3_usize),
         );
-        test_case_pop(
-            true,
-            vec![Value::from(1_usize)],
-            vec![Value::from(1_usize)],
-            Value::from(1_usize),
-        );
+        test_case_pop(true, vec![Value::from(1_usize)], vec![], Value::from(1_usize));
         test_case_pop(
             false,
             vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-            ],
+            vec![Value::from(2_usize), Value::from(3_usize)],
             Value::from(1_usize),
         );
     }
@@ -579,19 +563,22 @@ mod tests {
     fn test_slice_insert_operation() {
         fn test_case_insert(
             array: Vec<Value>,
-            expected_mem: Vec<Value>,
             item: Value,
             index: Value,
+            expected_return: Vec<Value>,
         ) {
             let arguments = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len()),
-                BrilligParameter::Simple,
-                BrilligParameter::Simple,
+                BrilligParameter::Array(
+                    vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    array.len(),
+                ),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
-            let returns = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() + 1),
-                BrilligParameter::Simple,
-            ];
+            let returns = vec![BrilligParameter::Array(
+                vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                array.len() + 1,
+            )];
 
             let (_, mut function_context, mut context) = create_test_environment();
 
@@ -601,7 +588,10 @@ mod tests {
                 size: array.len(),
                 rc: context.allocate_register(),
             };
-            let item_to_insert = context.allocate_register();
+            let item_to_insert = SingleAddrVariable {
+                address: context.allocate_register(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            };
             let index_to_insert = context.allocate_register();
 
             // Cast the source array to a vector
@@ -620,90 +610,72 @@ mod tests {
                 target_vector,
                 source_vector,
                 index_to_insert,
-                &[BrilligVariable::Simple(item_to_insert)],
+                &[BrilligVariable::SingleAddr(item_to_insert)],
             );
 
-            context.return_instruction(&[
-                target_vector.pointer,
-                target_vector.rc,
-                target_vector.size,
-            ]);
+            context.return_instruction(&[target_vector.pointer, target_vector.rc]);
+            let calldata = array.into_iter().chain(vec![item]).chain(vec![index]).collect();
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
-            let vm = create_and_run_vm(
-                array.clone(),
-                vec![Value::from(0_usize), item, index],
-                &bytecode,
+            let (vm, return_data_offset, return_data_size) = create_and_run_vm(calldata, &bytecode);
+            assert_eq!(return_data_size, expected_return.len());
+
+            assert_eq!(
+                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())],
+                expected_return
             );
-
-            assert_eq!(vm.get_memory(), &expected_mem);
-
-            assert_eq!(vm.get_registers().get(RegisterIndex(0)), Value::from(array.len()));
-            assert_eq!(vm.get_registers().get(RegisterIndex(1)), Value::from(array.len() + 1));
         }
 
         test_case_insert(
             vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
+            Value::from(27_usize),
+            Value::from(1_usize),
             vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
                 Value::from(1_usize),
                 Value::from(27_usize),
                 Value::from(2_usize),
                 Value::from(3_usize),
             ],
-            Value::from(27_usize),
-            Value::from(1_usize),
         );
 
         test_case_insert(
             vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-                Value::from(27_usize),
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-            ],
             Value::from(27_usize),
             Value::from(0_usize),
+            vec![
+                Value::from(27_usize),
+                Value::from(1_usize),
+                Value::from(2_usize),
+                Value::from(3_usize),
+            ],
         );
         test_case_insert(
             vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(27_usize),
-                Value::from(3_usize),
-            ],
             Value::from(27_usize),
             Value::from(2_usize),
-        );
-        test_case_insert(
-            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
             vec![
                 Value::from(1_usize),
                 Value::from(2_usize),
+                Value::from(27_usize),
                 Value::from(3_usize),
+            ],
+        );
+        test_case_insert(
+            vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
+            Value::from(27_usize),
+            Value::from(3_usize),
+            vec![
                 Value::from(1_usize),
                 Value::from(2_usize),
                 Value::from(3_usize),
                 Value::from(27_usize),
             ],
-            Value::from(27_usize),
-            Value::from(3_usize),
         );
         test_case_insert(
             vec![],
-            vec![Value::from(27_usize)],
             Value::from(27_usize),
             Value::from(0_usize),
+            vec![Value::from(27_usize)],
         );
     }
 
@@ -711,18 +683,23 @@ mod tests {
     fn test_slice_remove_operation() {
         fn test_case_remove(
             array: Vec<Value>,
-            expected_mem: Vec<Value>,
             index: Value,
+            expected_array: Vec<Value>,
             expected_removed_item: Value,
         ) {
             let arguments = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len()),
-                BrilligParameter::Simple,
+                BrilligParameter::Array(
+                    vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    array.len(),
+                ),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
             let returns = vec![
-                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() - 1),
-                BrilligParameter::Simple,
-                BrilligParameter::Simple,
+                BrilligParameter::Array(
+                    vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    array.len() - 1,
+                ),
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
 
             let (_, mut function_context, mut context) = create_test_environment();
@@ -744,7 +721,10 @@ mod tests {
                 size: context.allocate_register(),
                 rc: context.allocate_register(),
             };
-            let removed_item = context.allocate_register();
+            let removed_item = SingleAddrVariable {
+                address: context.allocate_register(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            };
 
             let mut block = create_brillig_block(&mut function_context, &mut context);
 
@@ -752,68 +732,54 @@ mod tests {
                 target_vector,
                 source_vector,
                 index_to_insert,
-                &[BrilligVariable::Simple(removed_item)],
+                &[BrilligVariable::SingleAddr(removed_item)],
             );
 
             context.return_instruction(&[
                 target_vector.pointer,
-                target_vector.rc,
                 target_vector.size,
-                removed_item,
+                removed_item.address,
             ]);
 
+            let calldata: Vec<_> = array.into_iter().chain(vec![index]).collect();
+
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
-            let vm = create_and_run_vm(array.clone(), vec![Value::from(0_usize), index], &bytecode);
+            let (vm, return_data_offset, return_data_size) = create_and_run_vm(calldata, &bytecode);
 
-            assert_eq!(vm.get_memory(), &expected_mem);
+            let expected_return: Vec<_> =
+                expected_array.into_iter().chain(vec![expected_removed_item]).collect();
+            assert_eq!(return_data_size, expected_return.len());
 
-            assert_eq!(vm.get_registers().get(RegisterIndex(0)), Value::from(array.len()));
-            assert_eq!(vm.get_registers().get(RegisterIndex(1)), Value::from(array.len() - 1));
-            assert_eq!(vm.get_registers().get(RegisterIndex(2)), expected_removed_item);
+            assert_eq!(
+                vm.get_memory()[return_data_offset..(return_data_offset + expected_return.len())],
+                expected_return
+            );
         }
 
         test_case_remove(
             vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-            ],
             Value::from(0_usize),
+            vec![Value::from(2_usize), Value::from(3_usize)],
             Value::from(1_usize),
         );
 
         test_case_remove(
             vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-                Value::from(1_usize),
-                Value::from(3_usize),
-            ],
             Value::from(1_usize),
+            vec![Value::from(1_usize), Value::from(3_usize)],
             Value::from(2_usize),
         );
 
         test_case_remove(
             vec![Value::from(1_usize), Value::from(2_usize), Value::from(3_usize)],
-            vec![
-                Value::from(1_usize),
-                Value::from(2_usize),
-                Value::from(3_usize),
-                Value::from(1_usize),
-                Value::from(2_usize),
-            ],
             Value::from(2_usize),
+            vec![Value::from(1_usize), Value::from(2_usize)],
             Value::from(3_usize),
         );
         test_case_remove(
             vec![Value::from(1_usize)],
-            vec![Value::from(1_usize)],
             Value::from(0_usize),
+            vec![],
             Value::from(1_usize),
         );
     }

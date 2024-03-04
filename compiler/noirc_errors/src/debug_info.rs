@@ -16,9 +16,25 @@ use std::io::Write;
 use std::mem;
 
 use crate::Location;
+use noirc_printable_type::PrintableType;
 use serde::{
     de::Error as DeserializationError, ser::Error as SerializationError, Deserialize, Serialize,
 };
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct DebugVarId(pub u32);
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct DebugTypeId(pub u32);
+
+#[derive(Debug, Clone, Hash, Deserialize, Serialize)]
+pub struct DebugVariable {
+    pub name: String,
+    pub debug_type_id: DebugTypeId,
+}
+
+pub type DebugVariables = BTreeMap<DebugVarId, DebugVariable>;
+pub type DebugTypes = BTreeMap<DebugTypeId, PrintableType>;
 
 #[serde_as]
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -28,6 +44,8 @@ pub struct DebugInfo {
     /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+    pub variables: DebugVariables,
+    pub types: DebugTypes,
 }
 
 /// Holds OpCodes Counts for Acir and Brillig Opcodes
@@ -39,8 +57,12 @@ pub struct OpCodesCount {
 }
 
 impl DebugInfo {
-    pub fn new(locations: BTreeMap<OpcodeLocation, Vec<Location>>) -> Self {
-        DebugInfo { locations }
+    pub fn new(
+        locations: BTreeMap<OpcodeLocation, Vec<Location>>,
+        variables: DebugVariables,
+        types: DebugTypes,
+    ) -> Self {
+        Self { locations, variables, types }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
@@ -68,7 +90,7 @@ impl DebugInfo {
 
         for (opcode_location, locations) in self.locations.iter() {
             for location in locations.iter() {
-                let opcodes = accumulator.entry(*location).or_insert(Vec::new());
+                let opcodes = accumulator.entry(*location).or_default();
                 opcodes.push(opcode_location);
             }
         }

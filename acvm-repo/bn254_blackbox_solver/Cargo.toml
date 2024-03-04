@@ -16,6 +16,7 @@ repository.workspace = true
 acir.workspace = true
 acvm_blackbox_solver.workspace = true
 thiserror.workspace = true
+num-traits.workspace = true
 
 rust-embed = { version = "6.6.0", features = [
     "debug-embed",
@@ -23,8 +24,9 @@ rust-embed = { version = "6.6.0", features = [
     "include-exclude",
 ] }
 
-# BN254 fixed base scalar multiplication solver
-grumpkin = { git = "https://github.com/noir-lang/grumpkin", rev = "56d99799381f79e42148aaef0de2b0cf9a4b9a5d", features = ["std"] }
+grumpkin = { version = "0.1.0", package = "noir_grumpkin", features = [
+    "std",
+] } # BN254 fixed base scalar multiplication solver
 ark-ec = { version = "^0.4.0", default-features = false }
 ark-ff = { version = "^0.4.0", default-features = false }
 num-bigint.workspace = true

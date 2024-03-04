@@ -8,6 +8,7 @@ use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
 use crate::BinaryOpKind;
 use crate::FunctionReturnType;
+use crate::IntegerBitSize;
 use crate::Signedness;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -67,7 +68,7 @@ pub enum TypeCheckError {
     #[error("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?}")]
     IntegerSignedness { sign_x: Signedness, sign_y: Signedness, span: Span },
     #[error("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}")]
-    IntegerBitWidth { bit_width_x: u32, bit_width_y: u32, span: Span },
+    IntegerBitWidth { bit_width_x: IntegerBitSize, bit_width_y: IntegerBitSize, span: Span },
     #[error("{kind} cannot be used in an infix operation")]
     InvalidInfixOp { kind: &'static str, span: Span },
     #[error("{kind} cannot be used in a unary operation")]
@@ -115,6 +116,12 @@ pub enum TypeCheckError {
     NoMatchingImplFound { constraints: Vec<(Type, String)>, span: Span },
     #[error("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope")]
     UnneededTraitConstraint { trait_name: String, typ: Type, span: Span },
+    #[error(
+        "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime"
+    )]
+    ConstrainedReferenceToUnconstrained { span: Span },
+    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedSliceReturnToConstrained { span: Span },
 }
 
 impl TypeCheckError {
@@ -202,7 +209,9 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::AmbiguousBitWidth { span, .. }
             | TypeCheckError::IntegerAndFieldBinaryOperation { span }
             | TypeCheckError::OverflowingAssignment { span, .. }
-            | TypeCheckError::FieldModulo { span } => {
+            | TypeCheckError::FieldModulo { span }
+            | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
+            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(

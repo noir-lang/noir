@@ -31,7 +31,7 @@ pub struct LocalModuleId(pub Index);
 
 impl LocalModuleId {
     pub fn dummy_id() -> LocalModuleId {
-        LocalModuleId(Index::from_raw_parts(std::usize::MAX, std::u64::MAX))
+        LocalModuleId(Index::dummy())
     }
 }
 
@@ -135,6 +135,11 @@ impl CrateDefMap {
     pub fn modules(&self) -> &Arena<ModuleData> {
         &self.modules
     }
+
+    pub fn modules_mut(&mut self) -> &mut Arena<ModuleData> {
+        &mut self.modules
+    }
+
     pub fn krate(&self) -> CrateId {
         self.krate
     }

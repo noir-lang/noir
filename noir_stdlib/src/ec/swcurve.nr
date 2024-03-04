@@ -27,14 +27,14 @@ mod affine {
     impl Point {
         // Point constructor
         pub fn new(x: Field, y: Field) -> Self {
-            Self {x, y, infty: false}
+            Self { x, y, infty: false }
         }
 
         // Check if zero
         pub fn is_zero(self) -> bool {
             self.eq(Point::zero())
         }
-        
+
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Point {
             let Self {x, y, infty} = self;
@@ -45,16 +45,16 @@ mod affine {
                 curvegroup::Point::new(x, y, 1)
             }
         }
-        
+
         // Additive identity
         pub fn zero() -> Self {
-            Self {x: 0, y: 0, infty: true}
+            Self { x: 0, y: 0, infty: true }
         }
-        
+
         // Negation
         fn negate(self) -> Self {
             let Self {x, y, infty} = self;
-            Self {x, y: 0-y, infty}
+            Self { x, y: 0 - y, infty }
         }
     }
 
@@ -72,8 +72,8 @@ mod affine {
         // Curve constructor
         pub fn new(a: Field, b: Field, gen: Point) -> Curve {
             // Check curve coefficients
-            assert(4*a*a*a + 27*b*b != 0);
-            
+            assert(4 * a * a * a + 27 * b * b != 0);
+
             let curve = Curve { a, b, gen };
 
             // gen should be on the curve
@@ -85,16 +85,16 @@ mod affine {
         // Conversion to CurveGroup coordinates
         fn into_group(self) -> curvegroup::Curve {
             let Curve{a, b, gen} = self;
-            
-            curvegroup::Curve {a, b, gen: gen.into_group()}
+
+            curvegroup::Curve { a, b, gen: gen.into_group() }
         }
 
         // Membership check
         pub fn contains(self, p: Point) -> bool {
             let Point {x, y, infty} = p;
-            infty | (y*y == x*x*x + self.a*x + self.b)
+            infty | (y * y == x * x * x + self.a * x + self.b)
         }
-        
+
         // Point addition, implemented in terms of mixed addition for reasons of efficiency
         pub fn add(self, p1: Point, p2: Point) -> Point {
             self.mixed_add(p1, p2.into_group()).into_affine()
@@ -109,9 +109,9 @@ mod affine {
             } else {
                 let Point {x: x1, y: y1, infty: _inf} = p1;
                 let curvegroup::Point {x: x2, y: y2, z: z2} = p2;
-                let you1 = x1*z2*z2;
+                let you1 = x1 * z2 * z2;
                 let you2 = x2;
-                let s1 = y1*z2*z2*z2;
+                let s1 = y1 * z2 * z2 * z2;
                 let s2 = y2;
 
                 if you1 == you2 {
@@ -120,15 +120,14 @@ mod affine {
                     } else {
                         self.into_group().double(p2)
                     }
-                } else
-                {
+                } else {
                     let h = you2 - you1;
                     let r = s2 - s1;
-                    let x3 = r*r - h*h*h - 2*you1*h*h;
-                    let y3 = r*(you1*h*h - x3) - s1*h*h*h;
-                    let z3 = h*z2;
+                    let x3 = r * r - h * h * h - 2 * you1 * h * h;
+                    let y3 = r * (you1 * h * h - x3) - s1 * h * h * h;
+                    let z3 = h * z2;
 
-                    curvegroup::Point::new(x3,y3,z3)
+                    curvegroup::Point::new(x3, y3, z3)
                 }
             }
         }
@@ -138,7 +137,7 @@ mod affine {
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
             self.into_group().bit_mul(bits, p.into_group()).into_affine()
         }
-        
+
         // Scalar multiplication (p + ... + p n times)
         pub fn mul(self, n: Field, p: Point) -> Point {
             self.into_group().mul(n, p.into_group()).into_affine()
@@ -165,17 +164,25 @@ mod affine {
         // where g(x) = x^3 + a*x + b. swu_map(c,z,.) then maps a Field element to a point on curve c.
         fn swu_map(self, z: Field, u: Field) -> Point {
             // Check whether curve is admissible
-            assert(self.a*self.b != 0);
-            
+            assert(self.a * self.b != 0);
+
             let Curve {a, b, gen: _gen} = self;
-            
-            let tv1 = safe_inverse(z*z*u*u*u*u + u*u*z);
-            let x1 = if tv1 == 0 {b/(z*a)} else {(0-b/a)*(1 + tv1)};
-            let gx1 = x1*x1*x1 + a*x1 + b;
-            let x2 = z*u*u*x1;
-            let gx2 = x2*x2*x2 + a*x2 + b;
-            let (x,y) = if is_square(gx1) {(x1, sqrt(gx1))} else {(x2, sqrt(gx2))};
-            Point::new(x, if u.sgn0() != y.sgn0() {0-y} else {y})
+
+            let tv1 = safe_inverse(z * z * u * u * u * u + u * u * z);
+            let x1 = if tv1 == 0 {
+                b / (z * a)
+            } else {
+                (0 - b / a) * (1 + tv1)
+            };
+            let gx1 = x1 * x1 * x1 + a * x1 + b;
+            let x2 = z * u * u * x1;
+            let gx2 = x2 * x2 * x2 + a * x2 + b;
+            let (x,y) = if is_square(gx1) {
+                (x1, sqrt(gx1))
+            } else {
+                (x2, sqrt(gx2))
+            };
+            Point::new(x, if u.sgn0() != y.sgn0() { 0 - y } else { y })
         }
     }
 }
@@ -205,14 +212,14 @@ mod curvegroup {
     impl Point {
         // Point constructor
         pub fn new(x: Field, y: Field, z: Field) -> Self {
-            Self {x, y, z}
+            Self { x, y, z }
         }
 
         // Check if zero
         pub fn is_zero(self) -> bool {
             self.eq(Point::zero())
         }
-        
+
         // Conversion to affine coordinates
         pub fn into_affine(self) -> affine::Point {
             let Self {x, y, z} = self;
@@ -220,20 +227,19 @@ mod curvegroup {
             if z == 0 {
                 affine::Point::zero()
             } else {
-                affine::Point::new(x/(z*z), y/(z*z*z))
+                affine::Point::new(x / (z * z), y / (z * z * z))
             }
         }
 
         // Additive identity
         pub fn zero() -> Self {
-            Self {x: 0, y: 0, z: 0}
+            Self { x: 0, y: 0, z: 0 }
         }
-        
-        
+
         // Negation
         fn negate(self) -> Self {
             let Self {x, y, z} = self;
-            Self {x, y: 0-y, z}
+            Self { x, y: 0 - y, z }
         }
     }
 
@@ -250,8 +256,8 @@ mod curvegroup {
         // Curve constructor
         pub fn new(a: Field, b: Field, gen: Point) -> Curve {
             // Check curve coefficients
-            assert(4*a*a*a + 27*b*b != 0);
-            
+            assert(4 * a * a * a + 27 * b * b != 0);
+
             let curve = Curve { a, b, gen };
 
             // gen should be on the curve
@@ -264,7 +270,7 @@ mod curvegroup {
         pub fn into_affine(self) -> affine::Curve {
             let Curve{a, b, gen} = self;
 
-            affine::Curve {a, b, gen: gen.into_affine()}
+            affine::Curve { a, b, gen: gen.into_affine() }
         }
 
         // Membership check
@@ -273,13 +279,12 @@ mod curvegroup {
             if z == 0 {
                 true
             } else {
-                y*y == x*x*x + self.a*x*z*z*z*z +  self.b*z*z*z*z*z*z
+                y * y == x * x * x + self.a * x * z * z * z * z + self.b * z * z * z * z * z * z
             }
         }
-        
+
         // Addition
         pub fn add(self, p1: Point, p2: Point) -> Point {
-
             if p1.is_zero() {
                 p2
             } else if p2.is_zero() {
@@ -287,10 +292,10 @@ mod curvegroup {
             } else {
                 let Point {x: x1, y: y1, z: z1} = p1;
                 let Point {x: x2, y: y2, z: z2} = p2;
-                let you1 = x1*z2*z2;
-                let you2 = x2*z1*z1;
-                let s1 = y1*z2*z2*z2;
-                let s2 = y2*z1*z1*z1;
+                let you1 = x1 * z2 * z2;
+                let you2 = x2 * z1 * z1;
+                let s1 = y1 * z2 * z2 * z2;
+                let s2 = y2 * z1 * z1 * z1;
 
                 if you1 == you2 {
                     if s1 != s2 {
@@ -301,11 +306,11 @@ mod curvegroup {
                 } else {
                     let h = you2 - you1;
                     let r = s2 - s1;
-                    let x3 = r*r - h*h*h - 2*you1*h*h;
-                    let y3 = r*(you1*h*h - x3) - s1*h*h*h;
-                    let z3 = h*z1*z2;
+                    let x3 = r * r - h * h * h - 2 * you1 * h * h;
+                    let y3 = r * (you1 * h * h - x3) - s1 * h * h * h;
+                    let z3 = h * z1 * z2;
 
-                    Point::new(x3,y3,z3)
+                    Point::new(x3, y3, z3)
                 }
             }
         }
@@ -313,19 +318,19 @@ mod curvegroup {
         // Point doubling
         pub fn double(self, p: Point) -> Point {
             let Point {x, y, z} = p;
-            
+
             if p.is_zero() {
                 p
             } else if y == 0 {
                 Point::zero()
             } else {
-                let s = 4*x*y*y;
-                let m = 3*x*x + self.a*z*z*z*z;
-                let x0 = m*m - 2*s;
-                let y0 = m*(s-x0) - 8*y*y*y*y;
-                let z0 = 2*y*z;
+                let s = 4 * x * y * y;
+                let m = 3 * x * x + self.a * z * z * z * z;
+                let x0 = m * m - 2 * s;
+                let y0 = m * (s - x0) - 8 * y * y * y * y;
+                let z0 = 2 * y * z;
 
-                Point::new(x0,y0,z0)
+                Point::new(x0, y0, z0)
             }
         }
 
@@ -351,7 +356,7 @@ mod curvegroup {
             let mut n_as_bits: [u1; 254] = [0; 254];
             let tmp = n.to_le_bits(N_BITS as u32);
             for i in 0..254 {
-               n_as_bits[i] = tmp[i]; 
+                n_as_bits[i] = tmp[i];
             }
 
             self.bit_mul(n_as_bits, p)
@@ -375,7 +380,7 @@ mod curvegroup {
 
         // Simplified SWU map-to-curve method
         fn swu_map(self, z: Field, u: Field) -> Point {
-            self.into_affine().swu_map(z,u).into_group()
+            self.into_affine().swu_map(z, u).into_group()
         }
     }
 }

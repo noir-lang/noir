@@ -120,7 +120,7 @@ pub enum BlackBoxFuncCall {
         rhs: u32,
         output: u32,
     },
-    BigIntNeg {
+    BigIntSub {
         lhs: u32,
         rhs: u32,
         output: u32,
@@ -193,7 +193,7 @@ impl BlackBoxFuncCall {
             BlackBoxFuncCall::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
             BlackBoxFuncCall::RecursiveAggregation { .. } => BlackBoxFunc::RecursiveAggregation,
             BlackBoxFuncCall::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,
-            BlackBoxFuncCall::BigIntNeg { .. } => BlackBoxFunc::BigIntNeg,
+            BlackBoxFuncCall::BigIntSub { .. } => BlackBoxFunc::BigIntSub,
             BlackBoxFuncCall::BigIntMul { .. } => BlackBoxFunc::BigIntMul,
             BlackBoxFuncCall::BigIntDiv { .. } => BlackBoxFunc::BigIntDiv,
             BlackBoxFuncCall::BigIntFromLeBytes { .. } => BlackBoxFunc::BigIntFromLeBytes,
@@ -217,13 +217,15 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
             | BlackBoxFuncCall::PedersenHash { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. }
-            | BlackBoxFuncCall::Sha256Compression { inputs, .. } => inputs.to_vec(),
+            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
+            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
+                inputs.iter().chain(hash_values).copied().collect()
+            }
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
             }
             BlackBoxFuncCall::BigIntAdd { .. }
-            | BlackBoxFuncCall::BigIntNeg { .. }
+            | BlackBoxFuncCall::BigIntSub { .. }
             | BlackBoxFuncCall::BigIntMul { .. }
             | BlackBoxFuncCall::BigIntDiv { .. }
             | BlackBoxFuncCall::BigIntToLeBytes { .. } => Vec::new(),
@@ -328,7 +330,7 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::RecursiveAggregation { .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { .. }
             | BlackBoxFuncCall::BigIntAdd { .. }
-            | BlackBoxFuncCall::BigIntNeg { .. }
+            | BlackBoxFuncCall::BigIntSub { .. }
             | BlackBoxFuncCall::BigIntMul { .. }
             | BlackBoxFuncCall::BigIntDiv { .. } => {
                 vec![]

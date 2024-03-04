@@ -2,7 +2,7 @@
 name = "acvm_blackbox_solver"
 description = "A solver for the blackbox functions found in ACIR and Brillig"
 # x-release-please-start-version
-version = "0.39.0"
+version = "0.40.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -18,7 +18,7 @@ thiserror.workspace = true
 
 blake2 = "0.10.6"
 blake3 = "1.5.0"
-sha2 = "0.10.6"
+sha2 = { version="0.10.6", features = ["compress",] }
 sha3 = "0.10.6"
 keccak = "0.1.4"
 k256 = { version = "0.11.0", features = [

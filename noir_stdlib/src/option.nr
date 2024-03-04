@@ -39,11 +39,7 @@ impl<T> Option<T> {
 
     /// Returns the wrapped value if `self.is_some()`. Otherwise, returns the given default value.
     pub fn unwrap_or(self, default: T) -> T {
-        if self._is_some {
-            self._value
-        } else {
-            default
-        }
+        if self._is_some { self._value } else { default }
     }
 
     /// Returns the wrapped value if `self.is_some()`. Otherwise, calls the given function to return
@@ -54,6 +50,12 @@ impl<T> Option<T> {
         } else {
             default()
         }
+    }
+
+    /// Asserts `self.is_some()` with a provided custom message and returns the contained `Some` value
+    fn expect<N, MessageTypes>(self, message: fmtstr<N, MessageTypes>) -> T {
+        assert(self.is_some(), message);
+        self._value
     }
 
     /// If self is `Some(x)`, this returns `Some(f(x))`. Otherwise, this returns `None`.
@@ -106,31 +108,19 @@ impl<T> Option<T> {
 
     /// If self is Some, return self. Otherwise, return `other`.
     pub fn or(self, other: Self) -> Self {
-        if self._is_some {
-            self
-        } else {
-            other
-        }
+        if self._is_some { self } else { other }
     }
 
     /// If self is Some, return self. Otherwise, return `default()`.
     pub fn or_else<U, Env>(self, default: fn[Env]() -> Self) -> Self {
-        if self._is_some {
-            self
-        } else {
-            default()
-        }
+        if self._is_some { self } else { default() }
     }
 
     // If only one of the two Options is Some, return that option.
     // Otherwise, if both options are Some or both are None, None is returned.
     pub fn xor(self, other: Self) -> Self {
         if self._is_some {
-            if other._is_some {
-                Option::none()
-            } else {
-                self
-            }
+            if other._is_some { Option::none() } else { self }
         } else if other._is_some {
             other
         } else {
