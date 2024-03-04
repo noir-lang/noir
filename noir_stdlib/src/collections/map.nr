@@ -459,14 +459,14 @@ where
     }
 }
 
-// docs:start:eq
+// docs:start:default
 impl<K, V, N, B, H> Default for HashMap<K, V, N, B>
 where
     B: BuildHasher<H> + Default,
     H: Hasher + Default
 {
     fn default() -> Self {
-// docs:end:eq
+// docs:end:default
         let _build_hasher = B::default();
         let map: HashMap<K, V, N, B> = HashMap::with_hasher(_build_hasher);
         map
