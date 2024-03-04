@@ -68,3 +68,11 @@ pub fn wrapping_sub<T>(x: T, y: T) -> T {
 pub fn wrapping_mul<T>(x: T, y: T) -> T {
     crate::from_field(crate::as_field(x) * crate::as_field(y))
 }
+
+#[oracle(assert_message)]
+unconstrained fn assert_message_oracle<T>(_input: T) {}
+unconstrained pub fn resolve_assert_message<T>(input: T, condition: bool) {
+    if !condition {
+        assert_message_oracle(input);
+    }
+}
