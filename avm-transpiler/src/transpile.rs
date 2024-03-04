@@ -239,19 +239,19 @@ fn handle_foreign_call(
 ) {
     match function {
         "avmOpcodeNoteHashExists" => handle_note_hash_exists(avm_instrs, destinations, inputs),
-        "emitNoteHash" | "emitNullifier" => handle_emit_note_hash_or_nullifier(
-            function == "emitNullifier",
+        "avmOpcodeEmitNoteHash" | "avmOpcodeEmitNullifier" => handle_emit_note_hash_or_nullifier(
+            function == "avmOpcodeEmitNullifier",
             avm_instrs,
             destinations,
             inputs,
         ),
-        "nullifierExists" => handle_nullifier_exists(avm_instrs, destinations, inputs),
-        "l1ToL2MsgExists" => handle_l1_to_l2_msg_exists(avm_instrs, destinations, inputs),
-        "sendL2ToL1Msg" => handle_send_l2_to_l1_msg(avm_instrs, destinations, inputs),
-        "keccak256" | "sha256" => {
+        "avmOpcodeNullifierExists" => handle_nullifier_exists(avm_instrs, destinations, inputs),
+        "avmOpcodeL1ToL2MsgExists" => handle_l1_to_l2_msg_exists(avm_instrs, destinations, inputs),
+        "avmOpcodeSendL2ToL1Msg" => handle_send_l2_to_l1_msg(avm_instrs, destinations, inputs),
+        "avmOpcodeKeccak256" | "avmOpcodeSha256" => {
             handle_2_field_hash_instruction(avm_instrs, function, destinations, inputs)
         }
-        "poseidon" => {
+        "avmOpcodePoseidon" => {
             handle_single_field_hash_instruction(avm_instrs, function, destinations, inputs)
         }
         // Getters.
@@ -509,8 +509,8 @@ fn handle_2_field_hash_instruction(
     };
 
     let opcode = match function {
-        "keccak256" => AvmOpcode::KECCAK,
-        "sha256" => AvmOpcode::SHA256,
+        "avmOpcodeKeccak256" => AvmOpcode::KECCAK,
+        "avmOpcodeSha256" => AvmOpcode::SHA256,
         _ => panic!(
             "Transpiler doesn't know how to process ForeignCall function {:?}",
             function
@@ -565,7 +565,7 @@ fn handle_single_field_hash_instruction(
     };
 
     let opcode = match function {
-        "poseidon" => AvmOpcode::POSEIDON,
+        "avmOpcodePoseidon" => AvmOpcode::POSEIDON,
         _ => panic!(
             "Transpiler doesn't know how to process ForeignCall function {:?}",
             function
@@ -615,18 +615,18 @@ fn handle_getter_instruction(
     };
 
     let opcode = match function {
-        "address" => AvmOpcode::ADDRESS,
-        "storageAddress" => AvmOpcode::STORAGEADDRESS,
-        "origin" => AvmOpcode::ORIGIN,
-        "sender" => AvmOpcode::SENDER,
-        "portal" => AvmOpcode::PORTAL,
-        "feePerL1Gas" => AvmOpcode::FEEPERL1GAS,
-        "feePerL2Gas" => AvmOpcode::FEEPERL2GAS,
-        "feePerDaGas" => AvmOpcode::FEEPERDAGAS,
-        "chainId" => AvmOpcode::CHAINID,
-        "version" => AvmOpcode::VERSION,
-        "blockNumber" => AvmOpcode::BLOCKNUMBER,
-        "timestamp" => AvmOpcode::TIMESTAMP,
+        "avmOpcodeAddress" => AvmOpcode::ADDRESS,
+        "avmOpcodeStorageAddress" => AvmOpcode::STORAGEADDRESS,
+        "avmOpcodeOrigin" => AvmOpcode::ORIGIN,
+        "avmOpcodeSender" => AvmOpcode::SENDER,
+        "avmOpcodePortal" => AvmOpcode::PORTAL,
+        "avmOpcodeFeePerL1Gas" => AvmOpcode::FEEPERL1GAS,
+        "avmOpcodeFeePerL2Gas" => AvmOpcode::FEEPERL2GAS,
+        "avmOpcodeFeePerDaGas" => AvmOpcode::FEEPERDAGAS,
+        "avmOpcodeChainId" => AvmOpcode::CHAINID,
+        "avmOpcodeVersion" => AvmOpcode::VERSION,
+        "avmOpcodeBlockNumber" => AvmOpcode::BLOCKNUMBER,
+        "avmOpcodeTimestamp" => AvmOpcode::TIMESTAMP,
         // "callStackDepth" => AvmOpcode::CallStackDepth,
         _ => panic!(
             "Transpiler doesn't know how to process ForeignCall function {:?}",

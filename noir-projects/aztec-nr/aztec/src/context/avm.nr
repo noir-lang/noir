@@ -11,61 +11,61 @@ impl AVMContext {
     }
 
     // OPCODES
-    #[oracle(address)]
+    #[oracle(avmOpcodeAddress)]
     pub fn address(self) -> AztecAddress {}
 
-    #[oracle(storageAddress)]
+    #[oracle(avmOpcodeStorageAddress)]
     pub fn storage_address(self) -> AztecAddress {}
 
-    #[oracle(origin)]
+    #[oracle(avmOpcodeOrigin)]
     pub fn origin(self) -> AztecAddress {}
 
-    #[oracle(sender)]
+    #[oracle(avmOpcodeSender)]
     pub fn sender(self) -> AztecAddress {}
 
-    #[oracle(portal)]
+    #[oracle(avmOpcodePortal)]
     pub fn portal(self) -> EthAddress {}
 
-    #[oracle(feePerL1Gas)]
+    #[oracle(avmOpcodeFeePerL1Gas)]
     pub fn fee_per_l1_gas(self) -> Field {}
 
-    #[oracle(feePerL2Gas)]
+    #[oracle(avmOpcodeFeePerL2Gas)]
     pub fn fee_per_l2_gas(self) -> Field {}
 
-    #[oracle(feePerDaGas)]
+    #[oracle(avmOpcodeFeePerDaGas)]
     pub fn fee_per_da_gas(self) -> Field {}
 
-    #[oracle(chainId)]
+    #[oracle(avmOpcodeChainId)]
     pub fn chain_id(self) -> Field {}
 
-    #[oracle(version)]
+    #[oracle(avmOpcodeVersion)]
     pub fn version(self) -> Field {}
 
-    #[oracle(blockNumber)]
+    #[oracle(avmOpcodeBlockNumber)]
     pub fn block_number(self) -> Field {}
 
-    #[oracle(timestamp)]
+    #[oracle(avmOpcodeTimestamp)]
     pub fn timestamp(self) -> Field {}
 
-    // #[oracle(contractCallDepth)]
+    // #[oracle(avmOpcodeContractCallDepth)]
     // pub fn contract_call_depth(self) -> Field {}
 
     #[oracle(avmOpcodeNoteHashExists)]
     pub fn note_hash_exists(self, note_hash: Field, leaf_index: Field) -> u8 {}
 
-    #[oracle(emitNoteHash)]
+    #[oracle(avmOpcodeEmitNoteHash)]
     pub fn emit_note_hash(self, note_hash: Field) {}
 
-    #[oracle(nullifierExists)]
+    #[oracle(avmOpcodeNullifierExists)]
     pub fn nullifier_exists(self, nullifier: Field) -> u8 {}
 
-    #[oracle(emitNullifier)]
+    #[oracle(avmOpcodeEmitNullifier)]
     pub fn emit_nullifier(self, nullifier: Field) {}
 
-    #[oracle(l1ToL2MsgExists)]
+    #[oracle(avmOpcodeL1ToL2MsgExists)]
     pub fn l1_to_l2_msg_exists(self, msg_hash: Field, msg_leaf_index: Field) -> u8 {}
 
-    #[oracle(sendL2ToL1Msg)]
+    #[oracle(avmOpcodeSendL2ToL1Msg)]
     pub fn send_l2_to_l1_msg(self, recipient: EthAddress, content: Field) {}
 
     ///////////////////////////////////////////////////////////////////////////
@@ -75,7 +75,7 @@ impl AVMContext {
         self.address()
     }
 
-    #[oracle(sendL2ToL1Msg)]
+    #[oracle(avmOpcodeSendL2ToL1Msg)]
     pub fn message_portal(&mut self, recipient: EthAddress, content: Field) {}
 
     pub fn consume_l1_to_l2_message(
@@ -88,7 +88,7 @@ impl AVMContext {
         assert(false, "Not implemented!");
     }
 
-    #[oracle(emitNoteHash)]
+    #[oracle(avmOpcodeEmitNoteHash)]
     pub fn push_new_note_hash(self: &mut Self, note_hash: Field) {}
 
     pub fn push_new_nullifier(self: &mut Self, nullifier: Field, _nullified_commitment: Field) {
