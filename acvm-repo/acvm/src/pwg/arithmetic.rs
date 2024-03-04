@@ -7,7 +7,7 @@ use super::{insert_value, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionErro
 
 /// An Expression solver will take a Circuit's assert-zero opcodes with witness assignments
 /// and create the other witness variables
-pub(super) struct ExpressionSolver;
+pub(crate) struct ExpressionSolver;
 
 #[allow(clippy::enum_variant_names)]
 pub(super) enum OpcodeStatus {
@@ -24,13 +24,18 @@ pub(crate) enum MulTerm {
 
 impl ExpressionSolver {
     /// Derives the rest of the witness based on the initial low level variables
-    pub(super) fn solve(
+    pub(crate) fn solve(
         initial_witness: &mut WitnessMap,
         opcode: &Expression,
     ) -> Result<(), OpcodeResolutionError> {
         let opcode = &ExpressionSolver::evaluate(opcode, initial_witness);
         // Evaluate multiplication term
-        let mul_result = ExpressionSolver::solve_mul_term(opcode, initial_witness);
+        let mul_result =
+            ExpressionSolver::solve_mul_term(opcode, initial_witness).map_err(|_| {
+                OpcodeResolutionError::OpcodeNotSolvable(
+                    OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+                )
+            })?;
         // Evaluate the fan-in terms
         let opcode_status = ExpressionSolver::solve_fan_in_term(opcode, initial_witness);
 
@@ -54,9 +59,7 @@ impl ExpressionSolver {
                         }
                     } else {
                         let assignment = -total_sum / (q + b);
-                        // Add this into the witness assignments
-                        insert_value(&w1, assignment, initial_witness)?;
-                        Ok(())
+                        insert_value(&w1, assignment, initial_witness)
                     }
                 } else {
                     // TODO: can we be more specific with this error?
@@ -84,9 +87,7 @@ impl ExpressionSolver {
                     }
                 } else {
                     let assignment = -(total_sum / partial_prod);
-                    // Add this into the witness assignments
-                    insert_value(&unknown_var, assignment, initial_witness)?;
-                    Ok(())
+                    insert_value(&unknown_var, assignment, initial_witness)
                 }
             }
             (MulTerm::Solved(a), OpcodeStatus::OpcodeSatisfied(b)) => {
@@ -118,9 +119,7 @@ impl ExpressionSolver {
                     }
                 } else {
                     let assignment = -(total_sum / coeff);
-                    // Add this into the witness assignments
-                    insert_value(&unknown_var, assignment, initial_witness)?;
-                    Ok(())
+                    insert_value(&unknown_var, assignment, initial_witness)
                 }
             }
         }
@@ -130,16 +129,19 @@ impl ExpressionSolver {
     /// If the witness values are not known, then the function returns a None
     /// XXX: Do we need to account for the case where 5xy + 6x = 0 ? We do not know y, but it can be solved given x . But I believe x can be solved with another opcode
     /// XXX: What about making a mul opcode = a constant 5xy + 7 = 0 ? This is the same as the above.
-    fn solve_mul_term(arith_opcode: &Expression, witness_assignments: &WitnessMap) -> MulTerm {
+    fn solve_mul_term(
+        arith_opcode: &Expression,
+        witness_assignments: &WitnessMap,
+    ) -> Result<MulTerm, OpcodeStatus> {
         // First note that the mul term can only contain one/zero term
         // We are assuming it has been optimized.
         match arith_opcode.mul_terms.len() {
-            0 => MulTerm::Solved(FieldElement::zero()),
-            1 => ExpressionSolver::solve_mul_term_helper(
+            0 => Ok(MulTerm::Solved(FieldElement::zero())),
+            1 => Ok(ExpressionSolver::solve_mul_term_helper(
                 &arith_opcode.mul_terms[0],
                 witness_assignments,
-            ),
-            _ => panic!("Mul term in the assert-zero opcode must contain either zero or one term"),
+            )),
+            _ => Err(OpcodeStatus::OpcodeUnsolvable),
         }
     }
 
@@ -209,7 +211,7 @@ impl ExpressionSolver {
     }
 
     // Partially evaluate the opcode using the known witnesses
-    pub(super) fn evaluate(expr: &Expression, initial_witness: &WitnessMap) -> Expression {
+    pub(crate) fn evaluate(expr: &Expression, initial_witness: &WitnessMap) -> Expression {
         let mut result = Expression::default();
         for &(c, w1, w2) in &expr.mul_terms {
             let mul_result = ExpressionSolver::solve_mul_term_helper(&(c, w1, w2), initial_witness);
