@@ -140,10 +140,6 @@ export class L1ToL2MessageExists extends Instruction {
   }
 
   async execute(context: AvmContext): Promise<void> {
-    if (context.environment.isStaticCall) {
-      throw new StaticCallStorageAlterError();
-    }
-
     const msgHash = context.machineState.memory.get(this.msgHashOffset).toFr();
     const msgLeafIndex = context.machineState.memory.get(this.msgLeafIndexOffset).toFr();
     const exists = await context.persistableState.checkL1ToL2MessageExists(msgHash, msgLeafIndex);

@@ -105,9 +105,11 @@ export function allSameExcept(original: any, overrides: any): any {
 /**
  * Create an empty L1ToL2Message oracle input
  */
-export function initL1ToL2MessageOracleInput(leafIndex?: bigint): any {
+export function initL1ToL2MessageOracleInput(
+  leafIndex?: bigint,
+): MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT> {
   return new MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>(
-    leafIndex ? leafIndex : BigInt(0),
+    leafIndex ?? 0n,
     new SiblingPath(L1_TO_L2_MSG_TREE_HEIGHT, Array(L1_TO_L2_MSG_TREE_HEIGHT)),
   );
 }

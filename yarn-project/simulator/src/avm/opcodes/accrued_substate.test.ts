@@ -280,7 +280,7 @@ describe('Accrued Substate', () => {
     });
   });
 
-  describe('L1ToL1MessageExists', () => {
+  describe('L1ToL2MessageExists', () => {
     it('Should (de)serialize correctly', () => {
       const buf = Buffer.from([
         L1ToL2MessageExists.opcode, // opcode
@@ -397,7 +397,7 @@ describe('Accrued Substate', () => {
       expect(inst.serialize()).toEqual(buf);
     });
 
-    it('Should append l1 to l2 messages correctly', async () => {
+    it('Should append l2 to l1 messages correctly', async () => {
       const recipientOffset = 0;
       const recipient = new Fr(42);
       const contentOffset = 1;
