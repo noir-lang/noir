@@ -114,7 +114,7 @@ jobs:
 
   noir-ecr-manifest:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: medium
     steps:
       - *checkout
@@ -259,7 +259,7 @@ jobs:
 
   barretenberg-docs:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -313,7 +313,7 @@ jobs:
     machine:
       # NOTE: we usually use alpine build image when making spot images, but
       # we are not able to upload to S3 with it
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: medium
     steps:
       - *checkout
@@ -377,7 +377,7 @@ jobs:
 
   bb-js:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -413,7 +413,7 @@ jobs:
 
   l1-contracts:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -425,7 +425,7 @@ jobs:
 
   noir-projects:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -437,7 +437,7 @@ jobs:
 
   boxes-files:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: medium
     steps:
       - *checkout
@@ -449,7 +449,7 @@ jobs:
 
   yarn-project-base:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -461,7 +461,7 @@ jobs:
 
   yarn-project:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -473,7 +473,7 @@ jobs:
 
   yarn-project-prod:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -509,7 +509,7 @@ jobs:
 
   aztec-package:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -521,7 +521,7 @@ jobs:
 
   cli:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -533,7 +533,7 @@ jobs:
 
   mainnet-fork:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -545,7 +545,7 @@ jobs:
 
   aztec-faucet:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -593,7 +593,7 @@ jobs:
 
   end-to-end:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -1135,7 +1135,7 @@ jobs:
 
   build-docs:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -1165,7 +1165,7 @@ jobs:
 
   yellow-paper:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: large
     steps:
       - *checkout
@@ -1195,7 +1195,7 @@ jobs:
 
   bench-summary:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     steps:
       - *checkout
       - *setup_env
@@ -1206,7 +1206,7 @@ jobs:
   # Deploy & release jobs.
   deploy-and-release:
     machine:
-      image: ubuntu-2204:2023.07.2
+      image: default
     resource_class: medium
     steps:
       - *checkout
