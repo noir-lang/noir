@@ -2,6 +2,7 @@
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
+retry ecr_login
 extract_repo docs /usr/src extracted-repo
 cd extracted-repo/src/docs
 npm install netlify-cli -g
@@ -12,7 +13,7 @@ DEPLOY_OUTPUT=""
 if [ "$1" = "master" ]; then
     # Deploy to production if the argument is "master"
     DEPLOY_OUTPUT=$(netlify deploy --site aztec-docs-dev --prod)
-else    
+else
     # TODO we should prob see if check_rebuild can be used for this
     PR_URL="$2"
     API_URL="${PR_URL/github.com/api.github.com/repos}"

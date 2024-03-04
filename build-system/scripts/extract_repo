@@ -12,7 +12,6 @@ if docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q -w "$IMAGE_COMM
   echo -e "Image exists locally. No need to pull."
 else
   echo "Pulling $IMAGE_COMMIT_URI..."
-  retry ecr_login
   retry docker pull $IMAGE_COMMIT_URI
 fi
 TEMP_CONTAINER=$(docker create $IMAGE_COMMIT_URI dummy_cmd)

@@ -4,6 +4,7 @@
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
+retry ecr_login
 extract_repo barretenberg-docs /usr/src extracted-repo
 
 BUCKET_NAME="aztec-ci-artifacts"

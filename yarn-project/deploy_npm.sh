@@ -7,6 +7,7 @@ if [ -z "$COMMIT_TAG" ]; then
   exit 0
 fi
 
+retry ecr_login
 extract_repo yarn-project-prod /usr/src project
 cd project/src/yarn-project
 

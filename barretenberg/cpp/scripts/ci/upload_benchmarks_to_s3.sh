@@ -1,8 +1,9 @@
-# Uploads to S3 a recent barretenberg benchmark run. 
+# Uploads to S3 a recent barretenberg benchmark run.
 #!/usr/bin/env bash
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
 
+retry ecr_login
 extract_repo barretenberg-bench /usr/src extracted-repo
 
 BUCKET_NAME="aztec-ci-artifacts"
