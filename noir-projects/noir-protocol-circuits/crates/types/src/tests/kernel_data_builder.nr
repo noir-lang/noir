@@ -135,8 +135,13 @@ impl PreviousKernelDataBuilder {
     }
 
     fn get_mock_nullifier_value(self, nullifier_index: u64) -> Field {
-        let first_nullifier = self.end.new_nullifiers.get(0);
-        first_nullifier.value + nullifier_index as Field
+        let first_nullifier = if (self.end.new_nullifiers.len() > 0) {
+            self.end.new_nullifiers.get(0).value
+        } else {
+            0 as Field
+        };
+
+        first_nullifier + nullifier_index as Field
     }
 
     pub fn append_new_nullifiers_from_private(&mut self, num_extra_nullifier: u64) {
