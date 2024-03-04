@@ -22,6 +22,8 @@ namespace {
 auto& engine = numeric::get_debug_randomness();
 }
 
+using VerificationKey = UltraFlavor::VerificationKey;
+
 std::vector<uint32_t> add_variables(auto& circuit_builder, std::vector<bb::fr> variables)
 {
     std::vector<uint32_t> res;
@@ -35,7 +37,8 @@ void prove_and_verify(auto& circuit_builder, auto& composer, bool expected_resul
 {
     auto instance = composer.create_prover_instance(circuit_builder);
     auto prover = composer.create_prover(instance);
-    auto verifier = composer.create_verifier(instance->verification_key);
+    auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
+    auto verifier = composer.create_verifier(verification_key);
     auto proof = prover.construct_proof();
     bool verified = verifier.verify_proof(proof);
     EXPECT_EQ(verified, expected_result);
@@ -200,7 +203,8 @@ TEST_F(UltraHonkComposerTests, create_gates_from_plookup_accumulators)
     auto composer = UltraComposer();
     auto instance = composer.create_prover_instance(circuit_builder);
     auto prover = composer.create_prover(instance);
-    auto verifier = composer.create_verifier(instance->verification_key);
+    auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
+    auto verifier = composer.create_verifier(verification_key);
     auto proof = prover.construct_proof();
 
     bool result = verifier.verify_proof(proof);

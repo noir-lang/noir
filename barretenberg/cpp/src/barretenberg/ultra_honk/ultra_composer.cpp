@@ -16,7 +16,8 @@ template <IsUltraFlavor Flavor>
 std::shared_ptr<VerifierInstance_<Flavor>> UltraComposer_<Flavor>::create_verifier_instance(
     std::shared_ptr<ProverInstance_<Flavor>>& prover_instance)
 {
-    auto instance = std::make_shared<VerifierInstance>(prover_instance->verification_key);
+    auto verification_key = std::make_shared<VerificationKey>(prover_instance->proving_key);
+    auto instance = std::make_shared<VerifierInstance>(verification_key);
     return instance;
 }
 

@@ -48,7 +48,6 @@ template <IsUltraFlavor Flavor_> class UltraComposer_ {
     DeciderVerifier_<Flavor> create_decider_verifier(
         const std::shared_ptr<VerifierInstance>&,
         const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
-    UltraVerifier_<Flavor> create_verifier(CircuitBuilder& circuit);
 
     UltraVerifier_<Flavor> create_ultra_with_keccak_verifier(CircuitBuilder& circuit);
 

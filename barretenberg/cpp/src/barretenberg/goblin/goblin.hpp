@@ -36,6 +36,7 @@ class Goblin {
     using RecursiveMergeVerifier = bb::stdlib::recursion::goblin::MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
     using MergeProver = bb::MergeProver_<GoblinUltraFlavor>;
     using MergeVerifier = bb::MergeVerifier_<GoblinUltraFlavor>;
+    using VerificationKey = GoblinUltraFlavor::VerificationKey;
     /**
      * @brief Output of goblin::accumulate; an Ultra proof and the corresponding verification key
      *
@@ -105,6 +106,7 @@ class Goblin {
         // Construct a Honk proof for the main circuit
         GoblinUltraComposer composer;
         auto instance = composer.create_prover_instance(circuit_builder);
+        auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
         auto prover = composer.create_prover(instance);
         auto ultra_proof = prover.construct_proof();
 
@@ -116,7 +118,7 @@ class Goblin {
             merge_proof_exists = true;
         }
 
-        return { ultra_proof, instance->verification_key };
+        return { ultra_proof, verification_key };
     };
 
     /**
@@ -231,10 +233,11 @@ class Goblin {
         // Construct a Honk proof for the main circuit
         GoblinUltraComposer composer;
         auto instance = composer.create_prover_instance(circuit_builder);
+        auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
         auto prover = composer.create_prover(instance);
         auto ultra_proof = prover.construct_proof();
 
-        accumulator = { ultra_proof, instance->verification_key };
+        accumulator = { ultra_proof, verification_key };
 
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): no merge prover for now since we're not
         // mocking the first set of ecc ops

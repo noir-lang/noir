@@ -36,7 +36,6 @@ template <class Flavor> class ProverInstance_ {
     // currently commitment_key needs to be here, and not accessed through the proving key, since sometimes the proving
     // key is null during protogalaxy proving (TODO(https://github.com/AztecProtocol/barretenberg/issues/881)?)
     std::shared_ptr<CommitmentKey> commitment_key;
-    std::shared_ptr<VerificationKey> verification_key;
 
     ProverPolynomials prover_polynomials;
     WitnessCommitments witness_commitments;
@@ -92,7 +91,6 @@ template <class Flavor> class ProverInstance_ {
 
         sorted_polynomials = construct_sorted_list_polynomials<Flavor>(circuit, dyadic_circuit_size);
 
-        verification_key = std::make_shared<VerificationKey>(proving_key);
         commitment_key = proving_key->commitment_key;
     }
 

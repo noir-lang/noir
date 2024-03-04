@@ -33,7 +33,6 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
     using RecursiveFlavor = UltraRecursiveFlavor_<BuilderType>;
     using RecursiveVerifier = UltraRecursiveVerifier_<RecursiveFlavor>;
     using OuterBuilder = BuilderType;
-    using VerificationKey = typename RecursiveVerifier::VerificationKey;
 
     // Helper for getting composer for prover/verifier of recursive (outer) circuit
     template <typename BuilderT> static auto get_outer_composer()
@@ -133,8 +132,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
         // Compute native verification key
         InnerComposer inner_composer;
         auto instance = inner_composer.create_prover_instance(inner_circuit);
-        auto prover = inner_composer.create_prover(instance); // A prerequisite for computing VK
-        auto verification_key = instance->verification_key;
+        auto verification_key = std::make_shared<typename InnerFlavor::VerificationKey>(instance->proving_key);
         // Instantiate the recursive verifier using the native verification key
         RecursiveVerifier verifier{ &outer_circuit, verification_key };
 
@@ -164,9 +162,11 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
         auto inner_prover = inner_composer.create_prover(instance);
         auto inner_proof = inner_prover.construct_proof();
 
+        auto verification_key = std::make_shared<typename InnerFlavor::VerificationKey>(instance->proving_key);
+
         // Create a recursive verification circuit for the proof of the inner circuit
         OuterBuilder outer_circuit;
-        RecursiveVerifier verifier{ &outer_circuit, instance->verification_key };
+        RecursiveVerifier verifier{ &outer_circuit, verification_key };
         auto pairing_points = verifier.verify_proof(inner_proof);
         info("Recursive Verifier Ultra: num gates = ", outer_circuit.num_gates);
 
@@ -175,7 +175,7 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
 
         // Check 1: Perform native verification then perform the pairing on the outputs of the recursive
         // verifier and check that the result agrees.
-        auto native_verifier = inner_composer.create_verifier(instance->verification_key);
+        auto native_verifier = inner_composer.create_verifier(verification_key);
         auto native_result = native_verifier.verify_proof(inner_proof);
         auto recursive_result = native_verifier.key->pcs_verification_key->pairing_check(pairing_points[0].get_value(),
                                                                                          pairing_points[1].get_value());
@@ -194,7 +194,8 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
             auto composer = get_outer_composer<OuterBuilder>();
             auto instance = composer.create_prover_instance(outer_circuit);
             auto prover = composer.create_prover(instance);
-            auto verifier = composer.create_verifier(instance->verification_key);
+            auto verifier_instance = composer.create_verifier_instance(instance);
+            auto verifier = composer.create_verifier(verifier_instance->verification_key);
             auto proof = prover.construct_proof();
             bool verified = verifier.verify_proof(proof);
 
@@ -226,9 +227,11 @@ template <typename BuilderType> class RecursiveVerifierTest : public testing::Te
         inner_prover.transcript->serialize_full_transcript();
         inner_proof = inner_prover.export_proof();
 
+        auto verification_key = std::make_shared<typename InnerFlavor::VerificationKey>(instance->proving_key);
+
         // Create a recursive verification circuit for the proof of the inner circuit
         OuterBuilder outer_circuit;
-        RecursiveVerifier verifier{ &outer_circuit, instance->verification_key };
+        RecursiveVerifier verifier{ &outer_circuit, verification_key };
         verifier.verify_proof(inner_proof);
 
         // We expect the circuit check to fail due to the bad proof

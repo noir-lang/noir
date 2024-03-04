@@ -91,13 +91,14 @@ HonkProof ClientIVC::decider_prove() const
 void ClientIVC::precompute_folding_verification_keys()
 {
     using VerifierInstance = VerifierInstance_<GoblinUltraFlavor>;
+    using VerificationKey = Flavor::VerificationKey;
 
     ClientCircuit initial_function_circuit{ goblin.op_queue };
     GoblinMockCircuits::construct_mock_function_circuit(initial_function_circuit);
 
     // Initialise both the first prover and verifier accumulator from the inital function circuit
     initialize(initial_function_circuit);
-    vks.first_func_vk = prover_fold_output.accumulator->verification_key;
+    vks.first_func_vk = std::make_shared<VerificationKey>(prover_fold_output.accumulator->proving_key);
     auto initial_verifier_acc = std::make_shared<VerifierInstance>(vks.first_func_vk);
 
     // Accumulate the next function circuit
@@ -106,14 +107,14 @@ void ClientIVC::precompute_folding_verification_keys()
     auto function_fold_proof = accumulate(function_circuit);
 
     // Create its verification key (we have called accumulate so it includes the recursive merge verifier)
-    vks.func_vk = prover_instance->verification_key;
+    vks.func_vk = std::make_shared<VerificationKey>(prover_instance->proving_key);
 
     // Create the initial kernel iteration and precompute its verification key
     ClientCircuit kernel_circuit{ goblin.op_queue };
     auto kernel_acc = GoblinMockCircuits::construct_mock_folding_kernel(
         kernel_circuit, { function_fold_proof, vks.func_vk }, {}, initial_verifier_acc);
     auto kernel_fold_proof = accumulate(kernel_circuit);
-    vks.first_kernel_vk = prover_instance->verification_key;
+    vks.first_kernel_vk = std::make_shared<VerificationKey>(prover_instance->proving_key);
 
     // Create another mock function circuit to run the full kernel
     function_circuit = ClientCircuit{ goblin.op_queue };
@@ -126,7 +127,7 @@ void ClientIVC::precompute_folding_verification_keys()
         kernel_circuit, { function_fold_proof, vks.func_vk }, { kernel_fold_proof, vks.first_kernel_vk }, kernel_acc);
     kernel_fold_proof = accumulate(kernel_circuit);
 
-    vks.kernel_vk = prover_instance->verification_key;
+    vks.kernel_vk = std::make_shared<VerificationKey>(prover_instance->proving_key);
 
     // Clean the ivc state
     goblin.op_queue = std::make_shared<Goblin::OpQueue>();

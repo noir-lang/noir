@@ -87,7 +87,8 @@ TEST_F(DataBusComposerTests, CallDataRead)
     auto instance = composer.create_prover_instance(builder);
     // For debugging, use "instance_inspector::print_databus_info(instance)"
     auto prover = composer.create_prover(instance);
-    auto verifier = composer.create_verifier(instance->verification_key);
+    auto verification_key = std::make_shared<GoblinUltraFlavor::VerificationKey>(instance->proving_key);
+    auto verifier = composer.create_verifier(verification_key);
     auto proof = prover.construct_proof();
     bool verified = verifier.verify_proof(proof);
     EXPECT_TRUE(verified);
