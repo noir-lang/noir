@@ -11,7 +11,7 @@ use super::{get_value, insert_value, ErrorLocation};
 /// Returns `Ok(OpcodeResolution)` to signal whether the directive was successful solved.
 ///
 /// Returns `Err(OpcodeResolutionError)` if a circuit constraint is unsatisfied.
-pub(super) fn solve_directives(
+pub(crate) fn solve_directives(
     initial_witness: &mut WitnessMap,
     directive: &Directive,
 ) -> Result<(), OpcodeResolutionError> {

@@ -1,11 +1,10 @@
-use super::compile_cmd::report_errors;
 use super::fs::{inputs::read_inputs_from_file, load_hex_data};
 use super::NargoConfig;
 use crate::{backends::Backend, errors::CliError};
 
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
-use nargo::ops::compile_program;
+use nargo::ops::{compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
