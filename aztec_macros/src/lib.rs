@@ -63,17 +63,18 @@ impl MacroProcessor for AztecMacro {
 }
 
 const FUNCTION_TREE_HEIGHT: u32 = 5;
-const MAX_CONTRACT_FUNCTIONS: usize = 2_usize.pow(FUNCTION_TREE_HEIGHT);
+const MAX_CONTRACT_PRIVATE_FUNCTIONS: usize = 2_usize.pow(FUNCTION_TREE_HEIGHT);
 
 #[derive(Debug, Clone)]
 pub enum AztecMacroError {
     AztecDepNotFound,
-    ContractHasTooManyFunctions { span: Span },
+    ContractHasTooManyPrivateFunctions { span: Span },
     ContractConstructorMissing { span: Span },
     UnsupportedFunctionArgumentType { span: Span, typ: UnresolvedTypeData },
     UnsupportedStorageType { span: Option<Span>, typ: UnresolvedTypeData },
     CouldNotAssignStorageSlots { secondary_message: Option<String> },
     EventError { span: Span, message: String },
+    UnsupportedAttributes { span: Span, secondary_message: Option<String> },
 }
 
 impl From<AztecMacroError> for MacroError {
@@ -84,8 +85,8 @@ impl From<AztecMacroError> for MacroError {
                 secondary_message: None,
                 span: None,
             },
-            AztecMacroError::ContractHasTooManyFunctions { span } => MacroError {
-                primary_message: format!("Contract can only have a maximum of {} functions", MAX_CONTRACT_FUNCTIONS),
+            AztecMacroError::ContractHasTooManyPrivateFunctions { span } => MacroError {
+                primary_message: format!("Contract can only have a maximum of {} private functions", MAX_CONTRACT_PRIVATE_FUNCTIONS),
                 secondary_message: None,
                 span: Some(span),
             },
@@ -112,6 +113,11 @@ impl From<AztecMacroError> for MacroError {
             AztecMacroError::EventError { span, message } => MacroError {
                 primary_message: message,
                 secondary_message: None,
+                span: Some(span),
+            },
+            AztecMacroError::UnsupportedAttributes { span, secondary_message } => MacroError {
+                primary_message: "Unsupported attributes in contract function".to_string(),
+                secondary_message,
                 span: Some(span),
             },
         }
@@ -429,23 +435,54 @@ fn transform_module(
         }
     }
 
+    let has_initializer = module.functions.iter().any(|func| {
+        func.def
+            .attributes
+            .secondary
+            .iter()
+            .any(|attr| is_custom_attribute(&attr, "aztec(initializer)"))
+    });
+
     for func in module.functions.iter_mut() {
+        let mut is_private = false;
+        let mut is_public = false;
+        let mut is_public_vm = false;
+        let mut is_initializer = false;
+        let mut insert_init_check = has_initializer;
+
         for secondary_attribute in func.def.attributes.secondary.clone() {
-            let crate_graph = &context.crate_graph[crate_id];
             if is_custom_attribute(&secondary_attribute, "aztec(private)") {
-                transform_function("Private", func, storage_defined)
-                    .map_err(|err| (err, crate_graph.root_file_id))?;
-                has_transformed_module = true;
+                is_private = true;
+            } else if is_custom_attribute(&secondary_attribute, "aztec(initializer)") {
+                is_initializer = true;
+                insert_init_check = false;
+            } else if is_custom_attribute(&secondary_attribute, "aztec(noinitcheck)") {
+                insert_init_check = false;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
-                transform_function("Public", func, storage_defined)
-                    .map_err(|err| (err, crate_graph.root_file_id))?;
-                has_transformed_module = true;
+                is_public = true;
+                insert_init_check = false;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public-vm)") {
-                transform_vm_function(func, storage_defined)
-                    .map_err(|err| (err, crate_graph.root_file_id))?;
-                has_transformed_module = true;
+                is_public_vm = true;
             }
         }
+
+        // Apply transformations to the function based on collected attributes
+        if is_private || is_public {
+            transform_function(
+                if is_private { "Private" } else { "Public" },
+                func,
+                storage_defined,
+                is_initializer,
+                insert_init_check,
+            )
+            .map_err(|err| (err, crate_graph.root_file_id))?;
+            has_transformed_module = true;
+        } else if is_public_vm {
+            transform_vm_function(func, storage_defined)
+                .map_err(|err| (err, crate_graph.root_file_id))?;
+            has_transformed_module = true;
+        }
+
         // Add the storage struct to the beginning of the function if it is unconstrained in an aztec contract
         if storage_defined && func.def.is_unconstrained {
             transform_unconstrained(func);
@@ -456,10 +493,22 @@ fn transform_module(
     if has_transformed_module {
         // We only want to run these checks if the macro processor has found the module to be an Aztec contract.
 
-        if module.functions.len() > MAX_CONTRACT_FUNCTIONS {
+        let private_functions_count = module
+            .functions
+            .iter()
+            .filter(|func| {
+                func.def
+                    .attributes
+                    .secondary
+                    .iter()
+                    .any(|attr| is_custom_attribute(attr, "aztec(private)"))
+            })
+            .count();
+
+        if private_functions_count > MAX_CONTRACT_PRIVATE_FUNCTIONS {
             let crate_graph = &context.crate_graph[crate_id];
             return Err((
-                AztecMacroError::ContractHasTooManyFunctions { span: Span::default() },
+                AztecMacroError::ContractHasTooManyPrivateFunctions { span: Span::default() },
                 crate_graph.root_file_id,
             ));
         }
@@ -615,10 +664,27 @@ fn transform_function(
     ty: &str,
     func: &mut NoirFunction,
     storage_defined: bool,
+    is_initializer: bool,
+    insert_init_check: bool,
 ) -> Result<(), AztecMacroError> {
     let context_name = format!("{}Context", ty);
     let inputs_name = format!("{}ContextInputs", ty);
     let return_type_name = format!("{}CircuitPublicInputs", ty);
+
+    // Add initialization check
+    if insert_init_check {
+        if ty == "Public" {
+            let error = AztecMacroError::UnsupportedAttributes {
+                span: func.def.name.span(),
+                secondary_message: Some(
+                    "public functions do not yet support initialization check".to_owned(),
+                ),
+            };
+            return Err(error);
+        }
+        let init_check = create_init_check();
+        func.def.body.0.insert(0, init_check);
+    }
 
     // Add access to the storage struct
     if storage_defined {
@@ -636,7 +702,26 @@ fn transform_function(
 
     // Abstract return types such that they get added to the kernel's return_values
     if let Some(return_values) = abstract_return_values(func) {
+        // In case we are pushing return values to the context, we remove the statement that originated it
+        // This avoids running duplicate code, since blocks like if/else can be value returning statements
+        func.def.body.0.pop();
+        // Add the new return statement
         func.def.body.0.push(return_values);
+    }
+
+    // Before returning mark the contract as initialized
+    if is_initializer {
+        if ty == "Public" {
+            let error = AztecMacroError::UnsupportedAttributes {
+                span: func.def.name.span(),
+                secondary_message: Some(
+                    "public functions cannot yet be used as initializers".to_owned(),
+                ),
+            };
+            return Err(error);
+        }
+        let mark_initialized = create_mark_as_initialized();
+        func.def.body.0.push(mark_initialized);
     }
 
     // Push the finish method call to the end of the function
@@ -1075,6 +1160,32 @@ fn create_inputs(ty: &str) -> Param {
     Param { pattern: context_pattern, typ: context_type, visibility, span: Span::default() }
 }
 
+/// Creates an initialization check to ensure that the contract has been initialized, meant to
+/// be injected as the first statement of any function after the context has been created.
+///
+/// ```noir
+/// assert_is_initialized(&mut context);
+/// ```
+fn create_init_check() -> Statement {
+    make_statement(StatementKind::Expression(call(
+        variable_path(chained_path!("aztec", "initializer", "assert_is_initialized")),
+        vec![mutable_reference("context")],
+    )))
+}
+
+/// Creates a call to mark_as_initialized which emits the initialization nullifier, meant to
+/// be injected as the last statement before returning in a constructor.
+///
+/// ```noir
+/// mark_as_initialized(&mut context);
+/// ```
+fn create_mark_as_initialized() -> Statement {
+    make_statement(StatementKind::Expression(call(
+        variable_path(chained_path!("aztec", "initializer", "mark_as_initialized")),
+        vec![mutable_reference("context")],
+    )))
+}
+
 /// Creates the private context object to be accessed within the function, the parameters need to be extracted to be
 /// appended into the args hash object.
 ///
@@ -1243,15 +1354,13 @@ fn create_avm_context() -> Result<Statement, AztecMacroError> {
 /// Any primitive type that can be cast will be casted to a field and pushed to the context.
 fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
     let current_return_type = func.return_type().typ;
-    let len = func.def.body.len();
-    let last_statement = &func.def.body.0[len - 1];
+    let last_statement = func.def.body.0.last();
 
     // TODO: (length, type) => We can limit the size of the array returned to be limited by kernel size
     // Doesn't need done until we have settled on a kernel size
     // TODO: support tuples here and in inputs -> convert into an issue
-
     // Check if the return type is an expression, if it is, we can handle it
-    match last_statement {
+    match last_statement? {
         Statement { kind: StatementKind::Expression(expression), .. } => {
             match current_return_type {
                 // Call serialize on structs, push the whole array, calling push_array
