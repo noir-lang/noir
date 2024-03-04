@@ -1,4 +1,3 @@
-export * from './constants.js';
 export * from './contract_dao.js';
 export * from './contract_database.js';
 export * from './contract_data.js';

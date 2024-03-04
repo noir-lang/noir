@@ -1,7 +1,6 @@
 import {
   AztecNode,
   FunctionL2Logs,
-  INITIAL_L2_BLOCK_NUM,
   KeyPair,
   KeyStore,
   L1NotePayload,
@@ -12,7 +11,7 @@ import {
   TaggedNote,
   TxL2Logs,
 } from '@aztec/circuit-types';
-import { Fr, MAX_NEW_NOTE_HASHES_PER_TX } from '@aztec/circuits.js';
+import { Fr, INITIAL_L2_BLOCK_NUM, MAX_NEW_NOTE_HASHES_PER_TX } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';

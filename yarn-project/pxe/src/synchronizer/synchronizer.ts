@@ -1,14 +1,6 @@
-import {
-  AztecNode,
-  INITIAL_L2_BLOCK_NUM,
-  KeyStore,
-  L2BlockContext,
-  L2BlockL2Logs,
-  MerkleTreeId,
-  TxHash,
-} from '@aztec/circuit-types';
+import { AztecNode, KeyStore, L2BlockContext, L2BlockL2Logs, MerkleTreeId, TxHash } from '@aztec/circuit-types';
 import { NoteProcessorCaughtUpStats } from '@aztec/circuit-types/stats';
-import { AztecAddress, Fr, PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, Fr, INITIAL_L2_BLOCK_NUM, PublicKey } from '@aztec/circuits.js';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';

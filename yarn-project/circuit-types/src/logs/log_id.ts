@@ -1,7 +1,6 @@
+import { INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js/constants';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { BufferReader } from '@aztec/foundation/serialize';
-
-import { INITIAL_L2_BLOCK_NUM } from '../constants.js';
 
 /** A globally unique log id. */
 export class LogId {

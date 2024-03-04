@@ -1,11 +1,13 @@
+import { DeployedContract, PXE, TxExecutionRequest, randomDeployedContract } from '@aztec/circuit-types';
 import {
-  DeployedContract,
+  AztecAddress,
+  CompleteAddress,
+  Fr,
+  FunctionData,
   INITIAL_L2_BLOCK_NUM,
-  PXE,
-  TxExecutionRequest,
-  randomDeployedContract,
-} from '@aztec/circuit-types';
-import { AztecAddress, CompleteAddress, Fr, FunctionData, Point, TxContext } from '@aztec/circuits.js';
+  Point,
+  TxContext,
+} from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { ConstantKeyPair } from '@aztec/key-store';
 

@@ -4,7 +4,6 @@ import {
   ExtendedContractData,
   ExtendedUnencryptedL2Log,
   GetUnencryptedLogsResponse,
-  INITIAL_L2_BLOCK_NUM,
   L1ToL2Message,
   L2Block,
   L2BlockContext,
@@ -18,7 +17,7 @@ import {
   TxStatus,
   UnencryptedL2Log,
 } from '@aztec/circuit-types';
-import { Fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
+import { Fr, INITIAL_L2_BLOCK_NUM, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 

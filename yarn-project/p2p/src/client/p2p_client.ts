@@ -1,12 +1,5 @@
-import {
-  INITIAL_L2_BLOCK_NUM,
-  L2Block,
-  L2BlockContext,
-  L2BlockDownloader,
-  L2BlockSource,
-  Tx,
-  TxHash,
-} from '@aztec/circuit-types';
+import { L2Block, L2BlockContext, L2BlockDownloader, L2BlockSource, Tx, TxHash } from '@aztec/circuit-types';
+import { INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js/constants';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecKVStore, AztecSingleton } from '@aztec/kv-store';
 

@@ -104,6 +104,9 @@ global ARGS_HASH_CHUNK_COUNT: u64 = 32;
 // The initialization slot is computed by adding the constant bellow to the variable's storage slot. This constant has
 // to be large enough so that it's ensured that it doesn't collide with storage slots of other variables.
 global INITIALIZATION_SLOT_SEPARATOR: Field = 1000_000_000;
+global INITIAL_L2_BLOCK_NUM: Field = 1;
+// 126976 = 31 * 4096;
+global BLOB_SIZE_IN_BYTES: Field = 126976;
 
 // CONTRACT CLASS CONSTANTS
 global MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS: u64 = 8000;

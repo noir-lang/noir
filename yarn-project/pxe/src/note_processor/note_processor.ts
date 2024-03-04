@@ -1,14 +1,6 @@
-import {
-  AztecNode,
-  INITIAL_L2_BLOCK_NUM,
-  KeyStore,
-  L1NotePayload,
-  L2BlockContext,
-  L2BlockL2Logs,
-  TaggedNote,
-} from '@aztec/circuit-types';
+import { AztecNode, KeyStore, L1NotePayload, L2BlockContext, L2BlockL2Logs, TaggedNote } from '@aztec/circuit-types';
 import { NoteProcessorStats } from '@aztec/circuit-types/stats';
-import { MAX_NEW_NOTE_HASHES_PER_TX, PublicKey } from '@aztec/circuits.js';
+import { INITIAL_L2_BLOCK_NUM, MAX_NEW_NOTE_HASHES_PER_TX, PublicKey } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';

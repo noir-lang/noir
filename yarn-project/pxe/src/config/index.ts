@@ -1,4 +1,4 @@
-import { INITIAL_L2_BLOCK_NUM } from '@aztec/circuit-types';
+import { INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js/constants';
 
 import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
