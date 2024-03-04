@@ -191,8 +191,9 @@ describe('Accrued Substate', () => {
       expect(exists).toEqual(new Uint8(0));
 
       const journalState = context.persistableState.flush();
-      expect(journalState.nullifierChecks.length).toEqual(1);
-      expect(journalState.nullifierChecks[0].exists).toEqual(false);
+      expect(journalState.nullifierChecks).toEqual([
+        expect.objectContaining({ nullifier: value.toFr(), exists: false }),
+      ]);
     });
 
     it('Should correctly show true when nullifier exists', async () => {
@@ -214,8 +215,9 @@ describe('Accrued Substate', () => {
       expect(exists).toEqual(new Uint8(1));
 
       const journalState = context.persistableState.flush();
-      expect(journalState.nullifierChecks.length).toEqual(1);
-      expect(journalState.nullifierChecks[0].exists).toEqual(true);
+      expect(journalState.nullifierChecks).toEqual([
+        expect.objectContaining({ nullifier: value.toFr(), exists: true }),
+      ]);
     });
   });
 
@@ -314,8 +316,9 @@ describe('Accrued Substate', () => {
       expect(exists).toEqual(new Uint8(0));
 
       const journalState = context.persistableState.flush();
-      expect(journalState.l1ToL2MessageChecks.length).toEqual(1);
-      expect(journalState.l1ToL2MessageChecks[0].exists).toEqual(false);
+      expect(journalState.l1ToL2MessageChecks).toEqual([
+        expect.objectContaining({ leafIndex: leafIndex.toFr(), msgHash: msgHash.toFr(), exists: false }),
+      ]);
     });
 
     it('Should correctly show true when L1ToL2 message exists', async () => {
@@ -340,8 +343,9 @@ describe('Accrued Substate', () => {
       expect(exists).toEqual(new Uint8(1));
 
       const journalState = context.persistableState.flush();
-      expect(journalState.l1ToL2MessageChecks.length).toEqual(1);
-      expect(journalState.l1ToL2MessageChecks[0].exists).toEqual(true);
+      expect(journalState.l1ToL2MessageChecks).toEqual([
+        expect.objectContaining({ leafIndex: leafIndex.toFr(), msgHash: msgHash.toFr(), exists: true }),
+      ]);
     });
   });
 

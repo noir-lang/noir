@@ -224,5 +224,9 @@ describe('world state access trace', () => {
         exists: c.exists,
       })),
     ).toEqual([expectedMessageCheck, expectedMessageCheckT1]);
+    expect(trace.l1ToL2MessageChecks).toEqual([
+      expect.objectContaining({ leafIndex: msgLeafIndex, msgHash: msgHash, exists: msgExists }),
+      expect.objectContaining({ leafIndex: msgLeafIndexT1, msgHash: msgHashT1, exists: msgExistsT1 }),
+    ]);
   });
 });

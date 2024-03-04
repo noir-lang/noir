@@ -70,7 +70,7 @@ describe('journal', () => {
       expect(exists).toEqual(false);
 
       const journalUpdates = journal.flush();
-      expect(journalUpdates.nullifierChecks.map(c => [c.nullifier, c.exists])).toEqual([[utxo, false]]);
+      expect(journalUpdates.nullifierChecks).toEqual([expect.objectContaining({ nullifier: utxo, exists: false })]);
     });
     it('checkNullifierExists works for existing nullifiers', async () => {
       const contractAddress = new Fr(1);
@@ -82,7 +82,7 @@ describe('journal', () => {
       expect(exists).toEqual(true);
 
       const journalUpdates = journal.flush();
-      expect(journalUpdates.nullifierChecks.map(c => [c.nullifier, c.exists])).toEqual([[utxo, true]]);
+      expect(journalUpdates.nullifierChecks).toEqual([expect.objectContaining({ nullifier: utxo, exists: true })]);
     });
     it('Should maintain nullifiers', async () => {
       const contractAddress = new Fr(1);
@@ -100,8 +100,8 @@ describe('journal', () => {
       expect(exists).toEqual(false);
 
       const journalUpdates = journal.flush();
-      expect(journalUpdates.l1ToL2MessageChecks.map(c => [c.leafIndex, c.msgHash, c.exists])).toEqual([
-        [leafIndex, utxo, false],
+      expect(journalUpdates.l1ToL2MessageChecks).toEqual([
+        expect.objectContaining({ leafIndex: leafIndex, msgHash: utxo, exists: false }),
       ]);
     });
     it('checkL1ToL2MessageExists works for existing nullifiers', async () => {
@@ -113,8 +113,8 @@ describe('journal', () => {
       expect(exists).toEqual(true);
 
       const journalUpdates = journal.flush();
-      expect(journalUpdates.l1ToL2MessageChecks.map(c => [c.leafIndex, c.msgHash, c.exists])).toEqual([
-        [leafIndex, utxo, true],
+      expect(journalUpdates.l1ToL2MessageChecks).toEqual([
+        expect.objectContaining({ leafIndex: leafIndex, msgHash: utxo, exists: true }),
       ]);
     });
     it('Should maintain nullifiers', async () => {
@@ -200,14 +200,14 @@ describe('journal', () => {
       { recipient, content: commitment },
       { recipient, content: commitmentT1 },
     ]);
-    expect(journalUpdates.nullifierChecks.map(c => [c.nullifier, c.exists])).toEqual([
-      [commitment, true],
-      [commitmentT1, true],
+    expect(journalUpdates.nullifierChecks).toEqual([
+      expect.objectContaining({ nullifier: commitment, exists: true }),
+      expect.objectContaining({ nullifier: commitmentT1, exists: true }),
     ]);
     expect(journalUpdates.newNullifiers).toEqual([commitment, commitmentT1]);
-    expect(journalUpdates.l1ToL2MessageChecks.map(c => [c.leafIndex, c.msgHash, c.exists])).toEqual([
-      [index, commitment, false],
-      [indexT1, commitmentT1, false],
+    expect(journalUpdates.l1ToL2MessageChecks).toEqual([
+      expect.objectContaining({ leafIndex: index, msgHash: commitment, exists: false }),
+      expect.objectContaining({ leafIndex: indexT1, msgHash: commitmentT1, exists: false }),
     ]);
   });
 
@@ -274,14 +274,14 @@ describe('journal', () => {
 
     // Check that the world state _traces_ are merged even on rejection
     expect(journalUpdates.newNoteHashes).toEqual([commitment, commitmentT1]);
-    expect(journalUpdates.nullifierChecks.map(c => [c.nullifier, c.exists])).toEqual([
-      [commitment, true],
-      [commitmentT1, true],
+    expect(journalUpdates.nullifierChecks).toEqual([
+      expect.objectContaining({ nullifier: commitment, exists: true }),
+      expect.objectContaining({ nullifier: commitmentT1, exists: true }),
     ]);
     expect(journalUpdates.newNullifiers).toEqual([commitment, commitmentT1]);
-    expect(journalUpdates.l1ToL2MessageChecks.map(c => [c.leafIndex, c.msgHash, c.exists])).toEqual([
-      [index, commitment, false],
-      [indexT1, commitmentT1, false],
+    expect(journalUpdates.l1ToL2MessageChecks).toEqual([
+      expect.objectContaining({ leafIndex: index, msgHash: commitment, exists: false }),
+      expect.objectContaining({ leafIndex: indexT1, msgHash: commitmentT1, exists: false }),
     ]);
 
     // Check that rejected Accrued Substate is absent
