@@ -155,5 +155,8 @@
   "C_Cpp.vcpkg.enabled": false,
   "C_Cpp.default.includePath": [
     "barretenberg/cpp/src"
-  ]
+  ],
+  "rust-analyzer.linkedProjects": [
+    "noir/noir-repo/Cargo.toml"
+  ] 
 }
