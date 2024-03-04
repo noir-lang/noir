@@ -90,6 +90,7 @@ Note that the diagram does not include much of the operations for kernels, but m
 
 <!-- NOTE: If you're editing this diagram, there will be other diagrams (e.g. in the state / circuits sections) that will need to be updated too. There are also class definitions in other sections which will need to be updated. -->
 
+<!-- TODO(@spalladino): `contract_tree` in `PartialStateReference` and `ContractData` below -->
 ```mermaid
 classDiagram
 direction TB

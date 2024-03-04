@@ -16,7 +16,7 @@ This might practically happen through a series of "squisher" circuits that will 
 :::
 
 ## Overview
-
+<!-- TODO(@spalladino): `contract_tree` in `PartialStateReference` and `ContractData` below -->
 ```mermaid
 classDiagram
 direction TB
@@ -40,7 +40,8 @@ class GlobalVariables {
     version: Fr
     chain_id: Fr
     coinbase: EthAddress
-    fee_recipient: Address}
+    fee_recipient: Address
+}
 
 class ContentCommitment {
     tx_tree_height: Fr
