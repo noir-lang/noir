@@ -181,13 +181,53 @@ impl Hash for bool {
 }
 
 impl Hash for () {
-    fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self as Field]);
-    }
+    fn hash<H>(self, state: &mut H) where H: Hasher {}
 }
 
 impl Hash for U128 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
         H::write(state, [self.lo as Field, self.hi as Field]);
+    }
+}
+
+impl<T, N> Hash for [T; N] where T: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        for elem in self {
+            elem.hash(state);
+        }
+    }
+}
+
+impl<A, B> Hash for (A, B) where A: Hash, B: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        self.0.hash(state);
+        self.1.hash(state);
+    }
+}
+
+impl<A, B, C> Hash for (A, B, C) where A: Hash, B: Hash, C: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+    }
+}
+
+impl<A, B, C, D> Hash for (A, B, C, D) where A: Hash, B: Hash, C: Hash, D: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+        self.3.hash(state);
+    }
+}
+
+impl<A, B, C, D, E> Hash for (A, B, C, D, E) where A: Hash, B: Hash, C: Hash, D: Hash, E: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+        self.3.hash(state);
+        self.4.hash(state);
     }
 }

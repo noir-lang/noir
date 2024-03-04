@@ -2,7 +2,8 @@ use crate::cmp::Eq;
 use crate::collections::vec::Vec;
 use crate::option::Option;
 use crate::default::Default;
-use crate::hash::{Hash, Hasher, BuildHasher};
+use crate::hash::{Hash, Hasher, BuildHasher, BuildHasherDefault};
+use crate::hash::pedersen::PedersenHasher;
 use crate::collections::bounded_vec::BoundedVec;
 
 // We use load factor α_max = 0.75. 
@@ -11,7 +12,7 @@ use crate::collections::bounded_vec::BoundedVec;
 global MAX_LOAD_FACTOR_NUMERATOR = 3;
 global MAX_LOAD_FACTOR_DEN0MINATOR = 4;
 
-type HashMap<K, V, N> = HashMapWithHasher<K, V, N, BuildHasherDefault<Pedersen>>;
+type HashMap<K, V, N> = HashMapWithHasher<K, V, N, BuildHasherDefault<PedersenHasher>>;
 
 // Hash table with open addressing and quadratic probing.
 // Size of the underlying table must be known at compile time.
