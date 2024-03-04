@@ -45,6 +45,46 @@ Shared: R from private, R/W from public
 
 Note: `SlowUpdates` will be renamed to `SharedMutable` once the implementation is ready.
 
+### [Aztec.nr] Authwit updates
+
+Authentication Witnesses have been updates such that they are now cancellable and scoped to a specific consumer.
+This means that the `authwit` nullifier must be emitted from the account contract, which require changes to the interface.
+Namely, the `assert_current_call_valid_authwit_public` and `assert_current_call_valid_authwit` in `auth.nr` will **NO LONGER** emit a nullifier.
+Instead it will call a `spend_*_authwit` function in the account contract - which will emit the nullifier and perform a few checks.
+This means that the `is_valid` functions have been removed to not confuse it for a non-mutating function (static).
+Furthermore, the `caller` parameter of the "authwits" have been moved "further out" such that the account contract can use it in validation, allowing scoped approvals from the account POV.
+For most contracts, this won't be changing much, but for the account contract, it will require a few changes.
+
+Before:
+```rust
+#[aztec(public)]
+fn is_valid_public(message_hash: Field) -> Field {
+    let actions = AccountActions::public(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
+    actions.is_valid_public(message_hash)
+}
+
+#[aztec(private)]
+fn is_valid(message_hash: Field) -> Field {
+    let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
+    actions.is_valid(message_hash)
+}
+```
+
+After:
+```rust
+#[aztec(private)]
+fn spend_private_authwit(inner_hash: Field) -> Field {
+    let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
+    actions.spend_private_authwit(inner_hash)
+}
+
+#[aztec(public)]
+fn spend_public_authwit(inner_hash: Field) -> Field {
+    let actions = AccountActions::public(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
+    actions.spend_public_authwit(inner_hash)
+}
+```
+
 ## 0.24.0
 
 ### Introduce Note Type IDs
