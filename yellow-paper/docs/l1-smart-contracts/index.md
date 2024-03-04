@@ -33,12 +33,19 @@ def process(block: ProvenBlock, proof: Proof):
     assert self.outbox.insert(
         block_number, 
         header.content_commitment.out_hash, 
-        header.content_commitment.tx_tree_height
+        header.content_commitment.tx_tree_height + math.ceil(log2(MAX_NEW_L2_TO_L1_MSGS_PER_TX))
     )
     self.archive = block.archive
 
     emit BlockProcessed(block_number)
 ```
+
+:::info Why `math.ceil(log2(MAX_NEW_L2_TO_L1_MSGS_PER_TX))`?
+The argument to the `insert` function is the `outbox` is the heigh of the message tree.
+Since every transaction can hold more than 1 message, it might add multiple layers to the tree.
+For a binary tree, the number of extra layers to add is computed as `math.ceil(log2(MAX_NEW_L2_TO_L1_MSGS_PER_TX))`.
+Currently, `MAX_NEW_L2_TO_L1_MSGS_PER_TX = 2` which means that we are simply adding 1 extra layer. 
+:::
 
 While the `ProvenBlock` must be published and available for nodes to build the state of the rollup, we can build the validating light node (the contract) such that as long as the node can be _convinced_ that the data is available we can progress the state. 
 This means our light node can be built to only require a subset of the `ProvenBlock` to be published to Ethereum L1 as calldata and use a different data availability layer for most of the block body.
@@ -112,17 +119,16 @@ class StateTransitioner:
         archive: Fr,
         proof: Proof
     ):
-        assert self.AVAILABILITY_ORACLE.is_available(txs_hash)
+        assert self.AVAILABILITY_ORACLE.is_available(header.content_commitment.txs_hash)
         assert self.validate_header(header)
-        assert self.archive == header.last_archive
-        assert VERIFIER.verify(header, block.archive, proof)
-        assert self.INBOX.consume() == header.in_hash
+        assert VERIFIER.verify(header, archive, proof)
+        assert self.INBOX.consume() == header.content_commitment.in_hash
         assert self.OUTBOX.insert(
             block_number, 
             header.content_commitment.out_hash, 
-            header.content_commitment.tx_tree_height
+            header.content_commitment.tx_tree_height + math.ceil(log2(MAX_NEW_L2_TO_L1_MSGS_PER_TX))
         )
-        self.archive = block.archive
+        self.archive = archive
         emit BlockProcessed(block_number)
 
     def validate_header(
@@ -287,10 +293,7 @@ As mentioned earlier, this is done to ensure that the messages are not used to D
 Since we will be building the tree on L1, we need to use a gas-friendly hash-function such as SHA256. 
 However, as we need to allow users to prove inclusion in this tree, we cannot just insert the SHA256 tree into the rollup state, it requires too many constraints to be used by most small users. 
 Therefore, we need to "convert" the tree into a tree using a more snark-friendly hash.
-This part is done in a to-be-defined circuit.
-:::info TODO
-Write about the `MessageCompression` circuits
-:::
+This part is done in the [tree parity circuits](./../rollup-circuits/tree-parity.md).
 
 Furthermore, to build the tree on L1, we need to put some storage on L1 such that the insertions don't need to provide a lot of merkle-related data which could be cumbersome to do and prone to race-conditions. 
 For example two insertions based on inclusion paths that are created at the same time will invalidate each other. 
@@ -423,6 +426,7 @@ class Outbox:
     inclusion_proof: bytes[]
   ):
     leaf = message.hash_to_field()
+    assert msg_sender == message.recipient.actor
     assert merkle_verify(
       self.roots[root_index].root,
       self.roots[root_index].height,
@@ -466,9 +470,7 @@ Also, some of the conditions are repetitions of what we saw earlier from the [st
   - The `(sender|recipient).version` MUST be the version of the state transitioner (the version of the L2 specified in the L1 contract)
   - The `content` MUST fit within a field element
   - For L1 to L2 messages:
-    - The `deadline` MUST be in the future, `> block.timestamp`
     - The `secretHash` MUST fit in a field element
-    - The caller MAY append a `fee` to incentivize the sequencer to pick up the message
 - **Moving tree roots**:
   - Moves MUST be atomic:
     - Any message that is inserted into an outbox MUST be consumed from the matching inbox

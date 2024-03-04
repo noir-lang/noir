@@ -190,6 +190,7 @@ const sidebars = {
       items: [
         "rollup-circuits/base-rollup",
         "rollup-circuits/merge-rollup",
+        "rollup-circuits/tree-parity",
         "rollup-circuits/root-rollup",
       ],
     },

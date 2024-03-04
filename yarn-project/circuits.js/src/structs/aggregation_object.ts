@@ -6,7 +6,7 @@ import { UInt32, Vector } from './shared.js';
 import { G1AffineElement } from './verification_key.js';
 
 /**
- * Contains the aggregated proof of all the previous kernel iterations.
+ * Contains the aggregated elements to be used as public inputs for delayed final verification.
  *
  * See barretenberg/cpp/src/barretenberg/stdlib/recursion/aggregation_state/native_aggregation_state.hpp
  * for more context.
