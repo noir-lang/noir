@@ -1144,22 +1144,13 @@ jobs:
           name: "Copy docs dockerignore"
           command: cp docs/.dockerignore .
       - run:
-          name: "Require released code"
-          command: |
-            LAST_TAG="aztec-packages-v$(jq -r '.["."]' .release-please-manifest.json)"
-            if git ls-remote --tags origin | grep "$LAST_TAG" > /dev/null; then
-              echo "Using code released from $LAST_TAG"
-              echo "INCLUDE_RELEASED_CODE=1" >> docs/.env
-              git fetch origin --refetch --no-filter refs/tags/$LAST_TAG:refs/tags/$LAST_TAG
-            else
-              echo "Skipping as $LAST_TAG is not yet published"
-            fi
-      - run:
           name: "Build docs"
           command: |
             echo "Building docs"
             build docs
-
+      - run:
+          name: "Deploy docs"
+          command: |
             echo "Deploying docs"
             docs/deploy_netlify.sh $BRANCH $PULL_REQUEST
 

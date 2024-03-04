@@ -9,11 +9,11 @@ npm install netlify-cli -g
 
 DEPLOY_OUTPUT=""
 
-# Check if we're on master
-if [ "$1" = "master" ]; then
-    # Deploy to production if the argument is "master"
+if should_release; then
+    # Deploy to production only on a release
     DEPLOY_OUTPUT=$(netlify deploy --site aztec-docs-dev --prod)
-else
+elif [ "$1" != "master" ]; then
+    # Deploy preview on PRs
     # TODO we should prob see if check_rebuild can be used for this
     PR_URL="$2"
     API_URL="${PR_URL/github.com/api.github.com/repos}"
