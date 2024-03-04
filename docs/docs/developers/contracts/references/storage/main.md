@@ -63,11 +63,11 @@ We will see examples of map constructors for public and private variables in lat
 
 #### As private storage
 
-When declaring a mapping in private storage, we have to specify which type of Note to use. In the example below, we are specifying that we want to use the `Singleton` note type.
+When declaring a mapping in private storage, we have to specify which type of Note to use. In the example below, we are specifying that we want to use the `PrivateMutable` note type.
 
 In the Storage struct:
 
-#include_code storage-map-singleton-declaration /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
+#include_code storage-private-mutable-declaration /noir-projects/noir-contracts/contracts/docs_example_contract/src/main.nr rust
 
 #### Public Example
 
