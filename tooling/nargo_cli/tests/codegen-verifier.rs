@@ -32,6 +32,6 @@ fn simple_verifier_codegen() {
     project_dir
         .child("contract")
         .child("hello_world")
-        .child("plonk_vk.sol")
+        .child("hello_world_verifier.sol")
         .assert(predicate::path::is_file());
 }

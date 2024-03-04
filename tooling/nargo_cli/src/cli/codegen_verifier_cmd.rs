@@ -1,4 +1,6 @@
 use super::fs::{create_named_dir, write_to_file};
+use std::path::PathBuf;
+use std::fs::create_dir_all;
 use super::NargoConfig;
 use crate::backends::Backend;
 use crate::errors::CliError;
@@ -20,6 +22,16 @@ pub(crate) struct CodegenVerifierCommand {
     /// Codegen all packages in the workspace
     #[clap(long, conflicts_with = "package")]
     workspace: bool,
+
+    /// The path of the directory to save the contract
+    ///
+    /// If not specified, the contract will be saved in the contracts directory of the package.
+    #[clap(
+        short,
+        long,
+        value_hint = clap::ValueHint::DirPath,
+    )]
+    output_directory: Option<PathBuf>,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -66,9 +78,14 @@ pub(crate) fn run(
 
         let smart_contract_string = backend.eth_contract(&program.circuit)?;
 
-        let contract_dir = workspace.contracts_directory_path(package);
-        create_named_dir(&contract_dir, "contract");
-        let contract_path = contract_dir.join("plonk_vk").with_extension("sol");
+        let contract_path = if let Some(ref loc) = args.output_directory {
+            create_dir_all(loc).unwrap_or_else(|_| panic!("failed to create directories for {:?}", loc));
+            PathBuf::from(loc).join(format!("{}_verifier",package.name)).with_extension("sol")
+        } else {
+            let contract_dir = workspace.contracts_directory_path(package);
+            create_named_dir(&contract_dir, "contract");
+            contract_dir.join(format!("{}_verifier",package.name)).with_extension("sol")
+        };
 
         let path = write_to_file(smart_contract_string.as_bytes(), &contract_path);
         println!("[{}] Contract successfully created and located at {path}", package.name);
