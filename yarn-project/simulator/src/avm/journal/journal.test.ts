@@ -1,8 +1,10 @@
+import { EthAddress } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from '../../index.js';
+import { initL1ToL2MessageOracleInput } from '../fixtures/index.js';
 import { HostStorage } from './host_storage.js';
 import { AvmPersistableStateManager, JournalData } from './journal.js';
 
@@ -53,7 +55,7 @@ describe('journal', () => {
     });
   });
 
-  describe('UTXOs', () => {
+  describe('UTXOs & messages', () => {
     it('Should maintain commitments', () => {
       const utxo = new Fr(1);
       journal.writeNoteHash(utxo);
@@ -90,12 +92,46 @@ describe('journal', () => {
       const journalUpdates = journal.flush();
       expect(journalUpdates.newNullifiers).toEqual([utxo]);
     });
-    it('Should maintain l1 messages', () => {
-      const utxo = [new Fr(1)];
-      journal.writeL1Message(utxo);
+    it('checkL1ToL2MessageExists works for missing message', async () => {
+      const utxo = new Fr(2);
+      const leafIndex = new Fr(42);
+
+      const exists = await journal.checkL1ToL2MessageExists(utxo, leafIndex);
+      expect(exists).toEqual(false);
 
       const journalUpdates = journal.flush();
-      expect(journalUpdates.newL1Messages).toEqual([utxo]);
+      expect(journalUpdates.l1ToL2MessageChecks.map(c => [c.leafIndex, c.msgHash, c.exists])).toEqual([
+        [leafIndex, utxo, false],
+      ]);
+    });
+    it('checkL1ToL2MessageExists works for existing nullifiers', async () => {
+      const utxo = new Fr(2);
+      const leafIndex = new Fr(42);
+
+      commitmentsDb.getL1ToL2MembershipWitness.mockResolvedValue(initL1ToL2MessageOracleInput(leafIndex.toBigInt()));
+      const exists = await journal.checkL1ToL2MessageExists(utxo, leafIndex);
+      expect(exists).toEqual(true);
+
+      const journalUpdates = journal.flush();
+      expect(journalUpdates.l1ToL2MessageChecks.map(c => [c.leafIndex, c.msgHash, c.exists])).toEqual([
+        [leafIndex, utxo, true],
+      ]);
+    });
+    it('Should maintain nullifiers', async () => {
+      const contractAddress = new Fr(1);
+      const utxo = new Fr(2);
+      await journal.writeNullifier(contractAddress, utxo);
+
+      const journalUpdates = journal.flush();
+      expect(journalUpdates.newNullifiers).toEqual([utxo]);
+    });
+    it('Should maintain l1 messages', () => {
+      const recipient = EthAddress.fromField(new Fr(1));
+      const utxo = new Fr(2);
+      journal.writeL1Message(recipient, utxo);
+
+      const journalUpdates = journal.flush();
+      expect(journalUpdates.newL1Messages).toEqual([{ recipient, content: utxo }]);
     });
   });
 
@@ -111,27 +147,32 @@ describe('journal', () => {
     const key = new Fr(2);
     const value = new Fr(1);
     const valueT1 = new Fr(2);
+    const recipient = EthAddress.fromField(new Fr(42));
     const commitment = new Fr(10);
     const commitmentT1 = new Fr(20);
     const logs = [new Fr(1), new Fr(2)];
     const logsT1 = [new Fr(3), new Fr(4)];
+    const index = new Fr(42);
+    const indexT1 = new Fr(24);
 
     journal.writeStorage(contractAddress, key, value);
     await journal.readStorage(contractAddress, key);
     journal.writeNoteHash(commitment);
     journal.writeLog(logs);
-    journal.writeL1Message(logs);
+    journal.writeL1Message(recipient, commitment);
     await journal.writeNullifier(contractAddress, commitment);
     await journal.checkNullifierExists(contractAddress, commitment);
+    await journal.checkL1ToL2MessageExists(commitment, index);
 
     const childJournal = new AvmPersistableStateManager(journal.hostStorage, journal);
     childJournal.writeStorage(contractAddress, key, valueT1);
     await childJournal.readStorage(contractAddress, key);
     childJournal.writeNoteHash(commitmentT1);
     childJournal.writeLog(logsT1);
-    childJournal.writeL1Message(logsT1);
+    childJournal.writeL1Message(recipient, commitmentT1);
     await childJournal.writeNullifier(contractAddress, commitmentT1);
     await childJournal.checkNullifierExists(contractAddress, commitmentT1);
+    await childJournal.checkL1ToL2MessageExists(commitmentT1, indexT1);
 
     journal.acceptNestedCallState(childJournal);
 
@@ -155,12 +196,19 @@ describe('journal', () => {
 
     expect(journalUpdates.newNoteHashes).toEqual([commitment, commitmentT1]);
     expect(journalUpdates.newLogs).toEqual([logs, logsT1]);
-    expect(journalUpdates.newL1Messages).toEqual([logs, logsT1]);
+    expect(journalUpdates.newL1Messages).toEqual([
+      { recipient, content: commitment },
+      { recipient, content: commitmentT1 },
+    ]);
     expect(journalUpdates.nullifierChecks.map(c => [c.nullifier, c.exists])).toEqual([
       [commitment, true],
       [commitmentT1, true],
     ]);
     expect(journalUpdates.newNullifiers).toEqual([commitment, commitmentT1]);
+    expect(journalUpdates.l1ToL2MessageChecks.map(c => [c.leafIndex, c.msgHash, c.exists])).toEqual([
+      [index, commitment, false],
+      [indexT1, commitmentT1, false],
+    ]);
   });
 
   it('Should merge failed journals together', async () => {
@@ -177,18 +225,22 @@ describe('journal', () => {
     const key = new Fr(2);
     const value = new Fr(1);
     const valueT1 = new Fr(2);
+    const recipient = EthAddress.fromField(new Fr(42));
     const commitment = new Fr(10);
     const commitmentT1 = new Fr(20);
     const logs = [new Fr(1), new Fr(2)];
     const logsT1 = [new Fr(3), new Fr(4)];
+    const index = new Fr(42);
+    const indexT1 = new Fr(24);
 
     journal.writeStorage(contractAddress, key, value);
     await journal.readStorage(contractAddress, key);
     journal.writeNoteHash(commitment);
     await journal.writeNullifier(contractAddress, commitment);
     await journal.checkNullifierExists(contractAddress, commitment);
+    await journal.checkL1ToL2MessageExists(commitment, index);
     journal.writeLog(logs);
-    journal.writeL1Message(logs);
+    journal.writeL1Message(recipient, commitment);
 
     const childJournal = new AvmPersistableStateManager(journal.hostStorage, journal);
     childJournal.writeStorage(contractAddress, key, valueT1);
@@ -196,8 +248,9 @@ describe('journal', () => {
     childJournal.writeNoteHash(commitmentT1);
     await childJournal.writeNullifier(contractAddress, commitmentT1);
     await childJournal.checkNullifierExists(contractAddress, commitmentT1);
+    await journal.checkL1ToL2MessageExists(commitmentT1, indexT1);
     childJournal.writeLog(logsT1);
-    childJournal.writeL1Message(logsT1);
+    childJournal.writeL1Message(recipient, commitmentT1);
 
     journal.rejectNestedCallState(childJournal);
 
@@ -226,10 +279,14 @@ describe('journal', () => {
       [commitmentT1, true],
     ]);
     expect(journalUpdates.newNullifiers).toEqual([commitment, commitmentT1]);
+    expect(journalUpdates.l1ToL2MessageChecks.map(c => [c.leafIndex, c.msgHash, c.exists])).toEqual([
+      [index, commitment, false],
+      [indexT1, commitmentT1, false],
+    ]);
 
     // Check that rejected Accrued Substate is absent
     expect(journalUpdates.newLogs).toEqual([logs]);
-    expect(journalUpdates.newL1Messages).toEqual([logs]);
+    expect(journalUpdates.newL1Messages).toEqual([{ recipient, content: commitment }]);
   });
 
   it('Can fork and merge journals', () => {

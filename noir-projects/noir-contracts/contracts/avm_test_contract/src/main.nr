@@ -1,6 +1,6 @@
 contract AvmTest {
     // Libs
-    use dep::aztec::protocol_types::address::{AztecAddress, EthAddress};
+    use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH};
 
     // avm lib
     use dep::aztec::avm::hash::{keccak256, poseidon, sha256};
@@ -159,15 +159,15 @@ contract AvmTest {
 
     // Use the standard context interface to emit a new nullifier
     #[aztec(public-vm)]
-    fn check_nullifier_exists(nullifier: Field) -> pub u8 {
-        context.check_nullifier_exists(nullifier)
+    fn nullifier_exists(nullifier: Field) -> pub u8 {
+        context.nullifier_exists(nullifier)
     }
 
     // Use the standard context interface to emit a new nullifier
     #[aztec(public-vm)]
     fn emit_nullifier_and_check(nullifier: Field) {
         context.emit_nullifier(nullifier);
-        let exists = context.check_nullifier_exists(nullifier);
+        let exists = context.nullifier_exists(nullifier);
         assert(exists == 1, "Nullifier was just created, but its existence wasn't detected!");
     }
 
@@ -177,5 +177,15 @@ contract AvmTest {
         context.push_new_nullifier(nullifier, 0);
         // Can't do this twice!
         context.push_new_nullifier(nullifier, 0);
+    }
+
+    #[aztec(public-vm)]
+    fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> pub u8 {
+        context.l1_to_l2_msg_exists(msg_hash, msg_leaf_index)
+    }
+
+    #[aztec(public-vm)]
+    fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {
+        context.message_portal(recipient, content)
     }
 }

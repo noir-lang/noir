@@ -21,6 +21,7 @@ import {
   InternalReturn,
   Jump,
   JumpI,
+  L1ToL2MessageExists,
   Lt,
   Lte,
   Mov,
@@ -117,7 +118,7 @@ const INSTRUCTION_SET = () =>
     [EmitNoteHash.opcode, EmitNoteHash], // Notes & Nullifiers
     [NullifierExists.opcode, NullifierExists], // Notes & Nullifiers
     [EmitNullifier.opcode, EmitNullifier], // Notes & Nullifiers
-    //[Readl1tol2msg.opcode, Readl1tol2msg], // Messages
+    [L1ToL2MessageExists.opcode, L1ToL2MessageExists], // Messages
     //[HeaderMember.opcode, HeaderMember], // Header
 
     // Accrued Substate

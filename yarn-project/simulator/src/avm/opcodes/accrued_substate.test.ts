@@ -1,15 +1,23 @@
+import { EthAddress, Fr } from '@aztec/circuits.js';
+
 import { mock } from 'jest-mock-extended';
 
 import { CommitmentsDB } from '../../index.js';
 import { AvmContext } from '../avm_context.js';
 import { Field, Uint8 } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
-import { initContext, initExecutionEnvironment, initHostStorage } from '../fixtures/index.js';
+import {
+  initContext,
+  initExecutionEnvironment,
+  initHostStorage,
+  initL1ToL2MessageOracleInput,
+} from '../fixtures/index.js';
 import { AvmPersistableStateManager } from '../journal/journal.js';
 import {
   EmitNoteHash,
   EmitNullifier,
   EmitUnencryptedLog,
+  L1ToL2MessageExists,
   NoteHashExists,
   NullifierExists,
   SendL2ToL1Message,
@@ -270,6 +278,73 @@ describe('Accrued Substate', () => {
     });
   });
 
+  describe('L1ToL1MessageExists', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        L1ToL2MessageExists.opcode, // opcode
+        0x01, // indirect
+        ...Buffer.from('12345678', 'hex'), // msgHashOffset
+        ...Buffer.from('456789AB', 'hex'), // msgLeafIndexOffset
+        ...Buffer.from('CDEF0123', 'hex'), // existsOffset
+      ]);
+      const inst = new L1ToL2MessageExists(
+        /*indirect=*/ 0x01,
+        /*msgHashOffset=*/ 0x12345678,
+        /*msgLeafIndexOffset=*/ 0x456789ab,
+        /*existsOffset=*/ 0xcdef0123,
+      );
+
+      expect(L1ToL2MessageExists.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
+    it('Should correctly show false when L1ToL2 message does not exist', async () => {
+      const msgHash = new Field(69n);
+      const leafIndex = new Field(42n);
+      const msgHashOffset = 0;
+      const msgLeafIndexOffset = 1;
+      const existsOffset = 2;
+
+      context.machineState.memory.set(msgHashOffset, msgHash);
+      context.machineState.memory.set(msgLeafIndexOffset, leafIndex);
+      await new L1ToL2MessageExists(/*indirect=*/ 0, msgHashOffset, msgLeafIndexOffset, existsOffset).execute(context);
+
+      // never created, doesn't exist!
+      const exists = context.machineState.memory.getAs<Uint8>(existsOffset);
+      expect(exists).toEqual(new Uint8(0));
+
+      const journalState = context.persistableState.flush();
+      expect(journalState.l1ToL2MessageChecks.length).toEqual(1);
+      expect(journalState.l1ToL2MessageChecks[0].exists).toEqual(false);
+    });
+
+    it('Should correctly show true when L1ToL2 message exists', async () => {
+      const msgHash = new Field(69n);
+      const leafIndex = new Field(42n);
+      const msgHashOffset = 0;
+      const msgLeafIndexOffset = 1;
+      const existsOffset = 2;
+
+      // mock commitments db to show message exists
+      const commitmentsDb = mock<CommitmentsDB>();
+      commitmentsDb.getL1ToL2MembershipWitness.mockResolvedValue(initL1ToL2MessageOracleInput(leafIndex.toBigInt()));
+      const hostStorage = initHostStorage({ commitmentsDb });
+      context = initContext({ persistableState: new AvmPersistableStateManager(hostStorage) });
+
+      context.machineState.memory.set(msgHashOffset, msgHash);
+      context.machineState.memory.set(msgLeafIndexOffset, leafIndex);
+      await new L1ToL2MessageExists(/*indirect=*/ 0, msgHashOffset, msgLeafIndexOffset, existsOffset).execute(context);
+
+      // never created, doesn't exist!
+      const exists = context.machineState.memory.getAs<Uint8>(existsOffset);
+      expect(exists).toEqual(new Uint8(1));
+
+      const journalState = context.persistableState.flush();
+      expect(journalState.l1ToL2MessageChecks.length).toEqual(1);
+      expect(journalState.l1ToL2MessageChecks[0].exists).toEqual(true);
+    });
+  });
+
   describe('EmitUnencryptedLog', () => {
     it('Should (de)serialize correctly', () => {
       const buf = Buffer.from([
@@ -305,28 +380,36 @@ describe('Accrued Substate', () => {
       const buf = Buffer.from([
         SendL2ToL1Message.opcode, // opcode
         0x01, // indirect
-        ...Buffer.from('12345678', 'hex'), // offset
-        ...Buffer.from('a2345678', 'hex'), // length
+        ...Buffer.from('12345678', 'hex'), // recipientOffset
+        ...Buffer.from('a2345678', 'hex'), // contentOffset
       ]);
-      const inst = new SendL2ToL1Message(/*indirect=*/ 0x01, /*offset=*/ 0x12345678, /*length=*/ 0xa2345678);
+      const inst = new SendL2ToL1Message(
+        /*indirect=*/ 0x01,
+        /*recipientOffset=*/ 0x12345678,
+        /*contentOffset=*/ 0xa2345678,
+      );
 
       expect(SendL2ToL1Message.deserialize(buf)).toEqual(inst);
       expect(inst.serialize()).toEqual(buf);
     });
 
     it('Should append l1 to l2 messages correctly', async () => {
-      const startOffset = 0;
+      const recipientOffset = 0;
+      const recipient = new Fr(42);
+      const contentOffset = 1;
+      const content = new Fr(69);
 
-      const values = [new Field(69n), new Field(420n), new Field(Field.MODULUS - 1n)];
-      context.machineState.memory.setSlice(0, values);
+      context.machineState.memory.set(recipientOffset, new Field(recipient));
+      context.machineState.memory.set(contentOffset, new Field(content));
 
-      const length = values.length;
-
-      await new SendL2ToL1Message(/*indirect=*/ 0, /*offset=*/ startOffset, length).execute(context);
+      await new SendL2ToL1Message(
+        /*indirect=*/ 0,
+        /*recipientOffset=*/ recipientOffset,
+        /*contentOffset=*/ contentOffset,
+      ).execute(context);
 
       const journalState = context.persistableState.flush();
-      const expected = values.map(v => v.toFr());
-      expect(journalState.newL1Messages).toEqual([expected]);
+      expect(journalState.newL1Messages).toEqual([{ recipient: EthAddress.fromField(recipient), content }]);
     });
   });
 
@@ -337,7 +420,7 @@ describe('Accrued Substate', () => {
       new EmitNoteHash(/*indirect=*/ 0, /*offset=*/ 0),
       new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0),
       new EmitUnencryptedLog(/*indirect=*/ 0, /*offset=*/ 0, 1),
-      new SendL2ToL1Message(/*indirect=*/ 0, /*offset=*/ 0, 1),
+      new SendL2ToL1Message(/*indirect=*/ 0, /*recipientOffset=*/ 0, /*contentOffset=*/ 1),
     ];
 
     for (const instruction of instructions) {

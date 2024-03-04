@@ -215,7 +215,7 @@ The AVM's exceptional halting conditions area listed below:
         AND worldStateAccessTrace.newNoteHashes.length <= 1024
         AND worldStateAccessTrace.nullifierChecks.length <= 1024
         AND worldStateAccessTrace.newNullifiers.length <= 1024
-        AND worldStateAccessTrace.l1ToL2MessageReads.length <= 1024
+        AND worldStateAccessTrace.l1ToL2MessageChecks.length <= 1024
         AND worldStateAccessTrace.archiveChecks.length <= 1024
 
     // Storage
@@ -237,8 +237,8 @@ The AVM's exceptional halting conditions area listed below:
         OR newNullifiers.length < 1024
 
     // Read L1 to L2 messages
-    assert instructions[machineState.pc].opcode != READL1TOL2MSG
-        OR worldStateAccessTrace.l1ToL2MessagesReads.length < 1024
+    assert instructions[machineState.pc].opcode != L1TOL2MSGEXISTS
+        OR worldStateAccessTrace.l1ToL2MessagesChecks.length < 1024
 
     // Archive tree & Headers
     assert instructions[machineState.pc].opcode != HEADERMEMBER
@@ -250,7 +250,7 @@ The AVM's exceptional halting conditions area listed below:
         AND accruedSubstate.sentL2ToL1Messages.length <= MAX_SENT_L2_TO_L1_MESSAGES
 
     // Unencrypted logs
-    assert instructions[machineState.pc].opcode != ULOG
+    assert instructions[machineState.pc].opcode != EMITUNENCRYPTEDLOG
         OR unencryptedLogs.length < MAX_UNENCRYPTED_LOGS
 
     // Sent L2 to L1 messages

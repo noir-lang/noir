@@ -12,16 +12,14 @@ This section lists type definitions relevant to AVM State and Circuit I/O.
 | `counter`         | `field`  | When did this occur relative to other world state accesses. |
 | `endLifetime`     | `field`  | End lifetime of a call. Final `accessCounter` for reverted calls, `endLifetime` of parent for successful calls. Successful initial/top-level calls have infinite (max-value) `endLifetime`. |
 
-#### _TracedL1ToL2MessageRead_
+#### _TracedL1ToL2MessageCheck_
 
 | Field             | Type                                   | Description |
 | ---               | ---                                    | ---         |
 | `callPointer`     | `field`                                | Associates this item with a `TracedContractCall` entry in `worldStateAccessTrace.contractCalls` |
-| `portal`          | `EthAddress`                           |             |
 | `leafIndex`       | `field`                                |             |
-| `msgKey`          | `field`                                | The entry key which is also the tree leaf value. |
+| `msgHash`         | `field`                                | The message hash which is also the tree leaf value. |
 | `exists`          | `field`                                |             |
-| `message`         | `[field; MAX_L1_TO_L2_MESSAGE_LENGTH]` | **Omitted from public inputs** |
 | `endLifetime`     | `field`                                | Equivalent to `endLifetime` of the containing contract call. |
 
 #### _TracedStorageRead_
@@ -61,7 +59,7 @@ This section lists type definitions relevant to AVM State and Circuit I/O.
 | Field                | Type           | Description |
 | ---                  | ---            | ---         |
 | `callPointer`        | `field`        | Associates this item with a `TracedContractCall` entry in `worldStateAccessTrace.contractCalls` |
-| `value`              | `field`        |             |
+| `noteHash`           | `field`        |             |
 | `counter`            | `field`        |             |
 | `endLifetime`        | `field`        | Equivalent to `endLifetime` of the containing contract call. The last `counter` at which this object should be considered to "exist" if this call or a parent reverted. |
 
@@ -82,7 +80,7 @@ This section lists type definitions relevant to AVM State and Circuit I/O.
 | Field                | Type           | Description |
 | ---                  | ---            | ---         |
 | `callPointer`        | `field`        | Associates this item with a `TracedContractCall` entry in `worldStateAccessTrace.contractCalls` |
-| `value`              | `field`        |             |
+| `nullifier`          | `field`        |             |
 | `counter`            | `field`        |             |
 | `endLifetime`        | `field`        | Equivalent to `endLifetime` of the containing contract call. The last `counter` at which this object should be considered to "exist" if this call or a parent reverted. |
 
@@ -102,8 +100,8 @@ This section lists type definitions relevant to AVM State and Circuit I/O.
 
 #### _SentL2ToL1Message_
 
-| Field     | Type                                   | Description |
-| ---       | ---                                    | ---         |
-| `address` | `AztecAddress`                         | Contract address that emitted the message. |
-| `portal`  | `EthAddress`                           | L1 portal address to send the message to.  |
-| `message` | `[field, MAX_L2_TO_L1_MESSAGE_LENGTH]` |             |
+| Field       | Type           | Description |
+| ---         | ---            | ---         |
+| `address`   | `AztecAddress` | L2 contract address that emitted the message. |
+| `recipient` | `EthAddress`   | L1 contract address to send the message to.  |
+| `content`   | `field`        | Message content. |

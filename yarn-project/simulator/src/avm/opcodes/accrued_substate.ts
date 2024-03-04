@@ -118,6 +118,41 @@ export class EmitNullifier extends Instruction {
   }
 }
 
+export class L1ToL2MessageExists extends Instruction {
+  static type: string = 'L1TOL2MSGEXISTS';
+  static readonly opcode: Opcode = Opcode.L1TOL2MSGEXISTS;
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat = [
+    OperandType.UINT8,
+    OperandType.UINT8,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+  ];
+
+  constructor(
+    private indirect: number,
+    private msgHashOffset: number,
+    private msgLeafIndexOffset: number,
+    private existsOffset: number,
+  ) {
+    super();
+  }
+
+  async execute(context: AvmContext): Promise<void> {
+    if (context.environment.isStaticCall) {
+      throw new StaticCallStorageAlterError();
+    }
+
+    const msgHash = context.machineState.memory.get(this.msgHashOffset).toFr();
+    const msgLeafIndex = context.machineState.memory.get(this.msgLeafIndexOffset).toFr();
+    const exists = await context.persistableState.checkL1ToL2MessageExists(msgHash, msgLeafIndex);
+    context.machineState.memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
+
+    context.machineState.incrementPc();
+  }
+}
+
 export class EmitUnencryptedLog extends Instruction {
   static type: string = 'EMITUNENCRYPTEDLOG';
   static readonly opcode: Opcode = Opcode.EMITUNENCRYPTEDLOG;
@@ -146,7 +181,7 @@ export class SendL2ToL1Message extends Instruction {
   // Informs (de)serialization. See Instruction.deserialize.
   static readonly wireFormat = [OperandType.UINT8, OperandType.UINT8, OperandType.UINT32, OperandType.UINT32];
 
-  constructor(private indirect: number, private msgOffset: number, private msgSize: number) {
+  constructor(private indirect: number, private recipientOffset: number, private contentOffset: number) {
     super();
   }
 
@@ -155,8 +190,9 @@ export class SendL2ToL1Message extends Instruction {
       throw new StaticCallStorageAlterError();
     }
 
-    const msg = context.machineState.memory.getSlice(this.msgOffset, this.msgSize).map(f => f.toFr());
-    context.persistableState.writeL1Message(msg);
+    const recipient = context.machineState.memory.get(this.recipientOffset).toFr();
+    const content = context.machineState.memory.get(this.contentOffset).toFr();
+    context.persistableState.writeL1Message(recipient, content);
 
     context.machineState.incrementPc();
   }

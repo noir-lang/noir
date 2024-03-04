@@ -1,10 +1,11 @@
+import { EthAddress, L2ToL1Message } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
 import { HostStorage } from './host_storage.js';
 import { Nullifiers } from './nullifiers.js';
 import { PublicStorage } from './public_storage.js';
 import { WorldStateAccessTrace } from './trace.js';
-import { TracedNoteHashCheck, TracedNullifierCheck } from './trace_types.js';
+import { TracedL1toL2MessageCheck, TracedNoteHashCheck, TracedNullifierCheck } from './trace_types.js';
 
 /**
  * Data held within the journal
@@ -14,8 +15,9 @@ export type JournalData = {
   newNoteHashes: Fr[];
   nullifierChecks: TracedNullifierCheck[];
   newNullifiers: Fr[];
+  l1ToL2MessageChecks: TracedL1toL2MessageCheck[];
 
-  newL1Messages: Fr[][];
+  newL1Messages: L2ToL1Message[];
   newLogs: Fr[][];
 
   /** contract address -\> key -\> value */
@@ -50,7 +52,7 @@ export class AvmPersistableStateManager {
   private trace: WorldStateAccessTrace;
 
   /** Accrued Substate **/
-  private newL1Messages: Fr[][] = [];
+  private newL1Messages: L2ToL1Message[] = [];
   private newLogs: Fr[][] = [];
 
   constructor(hostStorage: HostStorage, parent?: AvmPersistableStateManager) {
@@ -111,16 +113,31 @@ export class AvmPersistableStateManager {
     return Promise.resolve(exists);
   }
 
+  /**
+   * Write a note hash, trace the write.
+   * @param noteHash - the unsiloed note hash to write
+   */
   public writeNoteHash(noteHash: Fr) {
     this.trace.traceNewNoteHash(/*storageAddress*/ Fr.ZERO, noteHash);
   }
 
+  /**
+   * Check if a nullifier exists, trace the check.
+   * @param storageAddress - address of the contract that the nullifier is associated with
+   * @param nullifier - the unsiloed nullifier to check
+   * @returns exists - whether the nullifier exists in the nullifier set
+   */
   public async checkNullifierExists(storageAddress: Fr, nullifier: Fr): Promise<boolean> {
     const [exists, isPending, leafIndex] = await this.nullifiers.checkExists(storageAddress, nullifier);
     this.trace.traceNullifierCheck(storageAddress, nullifier, exists, isPending, leafIndex);
     return Promise.resolve(exists);
   }
 
+  /**
+   * Write a nullifier to the nullifier set, trace the write.
+   * @param storageAddress - address of the contract that the nullifier is associated with
+   * @param nullifier - the unsiloed nullifier to write
+   */
   public async writeNullifier(storageAddress: Fr, nullifier: Fr) {
     // Cache pending nullifiers for later access
     await this.nullifiers.append(storageAddress, nullifier);
@@ -128,8 +145,33 @@ export class AvmPersistableStateManager {
     this.trace.traceNewNullifier(storageAddress, nullifier);
   }
 
-  public writeL1Message(message: Fr[]) {
-    this.newL1Messages.push(message);
+  /**
+   * Check if an L1 to L2 message exists, trace the check.
+   * @param msgHash - the message hash to check existence of
+   * @param msgLeafIndex - the message leaf index to use in the check
+   * @returns exists - whether the message exists in the L1 to L2 Messages tree
+   */
+  public async checkL1ToL2MessageExists(msgHash: Fr, msgLeafIndex: Fr): Promise<boolean> {
+    let exists = false;
+    try {
+      const gotMessage = await this.hostStorage.commitmentsDb.getL1ToL2MembershipWitness(msgHash);
+      exists = gotMessage !== undefined && gotMessage.index == msgLeafIndex.toBigInt();
+    } catch {
+      // error getting message - doesn't exist!
+      exists = false;
+    }
+    this.trace.traceL1ToL2MessageCheck(msgHash, msgLeafIndex, exists);
+    return Promise.resolve(exists);
+  }
+
+  /**
+   * Write an L2 to L1 message.
+   * @param recipient - L1 contract address to send the message to.
+   * @param content - Message content.
+   */
+  public writeL1Message(recipient: EthAddress | Fr, content: Fr) {
+    const recipientAddress = recipient instanceof EthAddress ? recipient : EthAddress.fromField(recipient);
+    this.newL1Messages.push(new L2ToL1Message(recipientAddress, content));
   }
 
   public writeLog(log: Fr[]) {
@@ -170,6 +212,7 @@ export class AvmPersistableStateManager {
       newNoteHashes: this.trace.newNoteHashes,
       nullifierChecks: this.trace.nullifierChecks,
       newNullifiers: this.trace.newNullifiers,
+      l1ToL2MessageChecks: this.trace.l1ToL2MessageChecks,
       newL1Messages: this.newL1Messages,
       newLogs: this.newLogs,
       currentStorageValue: this.publicStorage.getCache().cachePerContract,

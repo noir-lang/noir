@@ -80,7 +80,7 @@ enum class OpCode : uint8_t {
     EMITNOTEHASH,    // Notes & Nullifiers
     NULLIFIEREXISTS, // Notes & Nullifiers
     EMITNULLIFIER,   // Notes & Nullifiers
-    READL1TOL2MSG,   // Messages
+    L1TOL2MSGEXISTS, // Messages
     HEADERMEMBER,    // Archive tree & Headers
 
     // Accrued Substate

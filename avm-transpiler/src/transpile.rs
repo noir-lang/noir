@@ -246,6 +246,8 @@ fn handle_foreign_call(
             inputs,
         ),
         "nullifierExists" => handle_nullifier_exists(avm_instrs, destinations, inputs),
+        "l1ToL2MsgExists" => handle_l1_to_l2_msg_exists(avm_instrs, destinations, inputs),
+        "sendL2ToL1Msg" => handle_send_l2_to_l1_msg(avm_instrs, destinations, inputs),
         "keccak256" | "sha256" => {
             handle_2_field_hash_instruction(avm_instrs, function, destinations, inputs)
         }
@@ -376,6 +378,99 @@ fn handle_nullifier_exists(
             },
             AvmOperand::U32 {
                 value: exists_offset_operand,
+            },
+        ],
+        ..Default::default()
+    });
+}
+
+/// Handle an AVM L1TOL2MSGEXISTS instruction
+/// (a l1ToL2MsgExists brillig foreign call was encountered)
+/// Adds the new instruction to the avm instructions list.
+fn handle_l1_to_l2_msg_exists(
+    avm_instrs: &mut Vec<AvmInstruction>,
+    destinations: &Vec<ValueOrArray>,
+    inputs: &Vec<ValueOrArray>,
+) {
+    if destinations.len() != 1 || inputs.len() != 2 {
+        panic!(
+            "Transpiler expects ForeignCall::L1TOL2MSGEXISTS to have 1 destinations and 2 input, got {} and {}",
+            destinations.len(),
+            inputs.len()
+        );
+    }
+    let msg_hash_offset_operand = match &inputs[0] {
+        ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
+        _ => panic!(
+            "Transpiler does not know how to handle ForeignCall::L1TOL2MSGEXISTS with HeapArray/Vector inputs",
+        ),
+    };
+    let msg_leaf_index_offset_operand = match &inputs[1] {
+        ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
+        _ => panic!(
+            "Transpiler does not know how to handle ForeignCall::L1TOL2MSGEXISTS with HeapArray/Vector inputs",
+        ),
+    };
+    let exists_offset_operand = match &destinations[0] {
+        ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
+        _ => panic!(
+            "Transpiler does not know how to handle ForeignCall::L1TOL2MSGEXISTS with HeapArray/Vector inputs",
+        ),
+    };
+    avm_instrs.push(AvmInstruction {
+        opcode: AvmOpcode::L1TOL2MSGEXISTS,
+        indirect: Some(ALL_DIRECT),
+        operands: vec![
+            AvmOperand::U32 {
+                value: msg_hash_offset_operand,
+            },
+            AvmOperand::U32 {
+                value: msg_leaf_index_offset_operand,
+            },
+            AvmOperand::U32 {
+                value: exists_offset_operand,
+            },
+        ],
+        ..Default::default()
+    });
+}
+
+/// Handle an AVM SENDL2TOL1MSG
+/// (a sendL2ToL1Msg brillig foreign call was encountered)
+/// Adds the new instruction to the avm instructions list.
+fn handle_send_l2_to_l1_msg(
+    avm_instrs: &mut Vec<AvmInstruction>,
+    destinations: &Vec<ValueOrArray>,
+    inputs: &Vec<ValueOrArray>,
+) {
+    if destinations.len() != 0 || inputs.len() != 2 {
+        panic!(
+            "Transpiler expects ForeignCall::SENDL2TOL1MSG to have 0 destinations and 2 inputs, got {} and {}",
+            destinations.len(),
+            inputs.len()
+        );
+    }
+    let recipient_offset_operand = match &inputs[0] {
+        ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
+        _ => panic!(
+            "Transpiler does not know how to handle ForeignCall::SENDL2TOL1MSG with HeapArray/Vector inputs",
+        ),
+    };
+    let content_offset_operand = match &inputs[1] {
+        ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
+        _ => panic!(
+            "Transpiler does not know how to handle ForeignCall::SENDL2TOL1MSG with HeapArray/Vector inputs",
+        ),
+    };
+    avm_instrs.push(AvmInstruction {
+        opcode: AvmOpcode::SENDL2TOL1MSG,
+        indirect: Some(ALL_DIRECT),
+        operands: vec![
+            AvmOperand::U32 {
+                value: recipient_offset_operand,
+            },
+            AvmOperand::U32 {
+                value: content_offset_operand,
             },
         ],
         ..Default::default()

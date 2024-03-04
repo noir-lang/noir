@@ -66,7 +66,7 @@ pub enum AvmOpcode {
     EMITNOTEHASH,    // Notes & Nullifiers
     NULLIFIEREXISTS, // Notes & Nullifiers
     EMITNULLIFIER,   // Notes & Nullifiers
-    READL1TOL2MSG,   // Messages
+    L1TOL2MSGEXISTS, // Messages
     HEADERMEMBER,    // Archive tree & Headers
 
     // Accrued Substate
@@ -154,7 +154,7 @@ impl AvmOpcode {
             AvmOpcode::EMITNOTEHASH => "EMITNOTEHASH", // Notes & Nullifiers
             AvmOpcode::NULLIFIEREXISTS => "NULLIFIEREXISTS", // Notes & Nullifiers
             AvmOpcode::EMITNULLIFIER => "EMITNULLIFIER", // Notes & Nullifiers
-            AvmOpcode::READL1TOL2MSG => "READL1TOL2MSG", // Messages
+            AvmOpcode::L1TOL2MSGEXISTS => "L1TOL2MSGEXISTS", // Messages
             AvmOpcode::HEADERMEMBER => "HEADERMEMBER", // Archive tree & Headers
 
             // Accrued Substate

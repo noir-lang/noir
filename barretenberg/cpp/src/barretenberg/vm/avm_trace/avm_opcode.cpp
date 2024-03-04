@@ -72,7 +72,7 @@ const std::unordered_map<OpCode, size_t> Bytecode::OPERANDS_NUM = {
     //{ OpCode::EMITNOTEHASH, }, // Notes & Nullifiers
     //{ OpCode::NULLIFIEREXISTS, }, // Notes & Nullifiers
     //{ OpCode::EMITNULLIFIER, }, // Notes & Nullifiers
-    //{ OpCode::READL1TOL2MSG, }, // Messages
+    //{ OpCode::L1TOL2MSGEXISTS, }, // Messages
     //{ OpCode::HEADERMEMBER, },
 
     //// Accrued Substate
@@ -146,7 +146,7 @@ bool Bytecode::has_in_tag(OpCode const op_code)
     case OpCode::EMITNOTEHASH:
     case OpCode::NULLIFIEREXISTS:
     case OpCode::EMITNULLIFIER:
-    case OpCode::READL1TOL2MSG:
+    case OpCode::L1TOL2MSGEXISTS:
     case OpCode::HEADERMEMBER:
     case OpCode::EMITUNENCRYPTEDLOG:
     case OpCode::SENDL2TOL1MSG:

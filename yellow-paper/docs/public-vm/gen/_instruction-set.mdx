@@ -362,17 +362,13 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x30</td>	<td style={{'text-align': 'center'}}><a id='isa-table-readl1tol2msg'/><Markdown>[`READL1TOL2MSG`](#isa-section-readl1tol2msg)</Markdown></td>
-	<td><Markdown>Check if a message exists in the L1-to-L2 message tree and reads it if so</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x30</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l1tol2msgexists'/><Markdown>[`L1TOL2MSGEXISTS`](#isa-section-l1tol2msgexists)</Markdown></td>
+	<td><Markdown>Check if a message exists in the L1-to-L2 message tree</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.l1ToL2Messages.has({
-    leafIndex: M[msgLeafIndex], leaf: M[msgKeyOffset]
+    leafIndex: M[msgLeafIndexOffset], leaf: M[msgHashOffset]
 })
-M[existsOffset] = exists
-if exists:
-    M[dstOffset:dstOffset+msgSize] = context.worldState.l1ToL2Messages.get({
-        leafIndex: M[msgLeafIndex], leaf: M[msgKeyOffset]
-    })`}
+M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
@@ -407,8 +403,8 @@ if exists:
 {`context.accruedSubstate.sentL2ToL1Messages.append(
     SentL2ToL1Message {
         address: context.environment.address,
-        portal: context.environment.portal,
-        message: M[msgOffset:msgOffset+msgSize]
+        recipient: M[recipientOffset],
+        message: M[contentOffset]
     }
 )`}
 	</CodeBlock></td>
@@ -1401,7 +1397,7 @@ Emit a new note hash to be inserted into the note hash tree
 {`context.worldStateAccessTrace.newNoteHashes.append(
     TracedNoteHash {
         callPointer: context.environment.callPointer,
-        value: M[noteHashOffset], // unsiloed note hash
+        noteHash: M[noteHashOffset], // unsiloed note hash
         counter: ++context.worldStateAccessTrace.accessCounter,
     }
 )`}
@@ -1468,7 +1464,7 @@ Emit a new nullifier to be inserted into the nullifier tree
 {`context.worldStateAccessTrace.newNullifiers.append(
     TracedNullifier {
         callPointer: context.environment.callPointer,
-        value: M[nullifierOffset], // unsiloed nullifier
+        nullifier: M[nullifierOffset], // unsiloed nullifier
         counter: ++context.worldStateAccessTrace.accessCounter,
     }
 )`}
@@ -1478,54 +1474,44 @@ Emit a new nullifier to be inserted into the nullifier tree
 
 [![](./images/bit-formats/EMITNULLIFIER.png)](./images/bit-formats/EMITNULLIFIER.png)
 
-### <a id='isa-section-readl1tol2msg'/>`READL1TOL2MSG`
-Check if a message exists in the L1-to-L2 message tree and reads it if so
+### <a id='isa-section-l1tol2msgexists'/>`L1TOL2MSGEXISTS`
+Check if a message exists in the L1-to-L2 message tree
 
-[See in table.](#isa-table-readl1tol2msg)
+[See in table.](#isa-table-l1tol2msgexists)
 
 - **Opcode**: 0x30
 - **Category**: World State - Messaging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **msgKeyOffset**: memory offset of the message's key
-	- **msgLeafIndex**: memory offset of the message's leaf index in the L1-to-L2 message tree
+	- **msgHashOffset**: memory offset of the message hash
+	- **msgLeafIndexOffset**: memory offset of the message's leaf index in the L1-to-L2 message tree
 	- **existsOffset**: memory offset specifying where to store operation's result (whether the message exists in the L1-to-L2 message tree)
-	- **dstOffset**: memory offset to place the 0th word of the message content
-	- **msgSize**: number of words in the message
 - **Expression**: 
 <CodeBlock language="jsx">
 {`exists = context.worldState.l1ToL2Messages.has({
-    leafIndex: M[msgLeafIndex], leaf: M[msgKeyOffset]
+    leafIndex: M[msgLeafIndexOffset], leaf: M[msgHashOffset]
 })
-M[existsOffset] = exists
-if exists:
-    M[dstOffset:dstOffset+msgSize] = context.worldState.l1ToL2Messages.get({
-        leafIndex: M[msgLeafIndex], leaf: M[msgKeyOffset]
-    })`}
+M[existsOffset] = exists`}
 </CodeBlock>
 - **World State access tracing**: 
 <CodeBlock language="jsx">
-{`context.worldStateAccessTrace.l1ToL2MessagesReads.append(
-    ReadL1ToL2Message {
+{`context.worldStateAccessTrace.l1ToL2MessagesChecks.append(
+    L1ToL2Message {
         callPointer: context.environment.callPointer,
-        portal: context.environment.portal,
-        leafIndex: M[msgLeafIndex],
-        msgKey: M[msgKeyOffset],
+        leafIndex: M[msgLeafIndexOffset],
+        msgHash: M[msgHashOffset],
         exists: exists, // defined above
     }
 )`}
 </CodeBlock>
-- **Additional AVM circuit checks**: `msgKey == sha256_to_field(msg)`
 - **Triggers downstream circuit operations**: L1-to-L2 message tree membership check
 - **Tag updates**: 
 <CodeBlock language="jsx">
-{`T[existsOffset] = u8,
-T[dstOffset:dstOffset+msgSize] = field`}
+{`T[existsOffset] = u8,`}
 </CodeBlock>
-- **Bit-size**: 184
+- **Bit-size**: 120
 
-[![](./images/bit-formats/READL1TOL2MSG.png)](./images/bit-formats/READL1TOL2MSG.png)
 
 ### <a id='isa-section-headermember'/>`HEADERMEMBER`
 Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so
@@ -1605,15 +1591,15 @@ Send an L2-to-L1 message
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
-	- **msgOffset**: memory offset of the message content
-	- **msgSize**: number of words in the message
+	- **recipientOffset**: memory offset of the message recipient
+	- **contentOffset**: memory offset of the message content
 - **Expression**: 
 <CodeBlock language="jsx">
 {`context.accruedSubstate.sentL2ToL1Messages.append(
     SentL2ToL1Message {
         address: context.environment.address,
-        portal: context.environment.portal,
-        message: M[msgOffset:msgOffset+msgSize]
+        recipient: M[recipientOffset],
+        message: M[contentOffset]
     }
 )`}
 </CodeBlock>
