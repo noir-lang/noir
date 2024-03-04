@@ -2,7 +2,7 @@ use dep::std::compat;
 use dep::std::ec::consts::te::baby_jubjub;
 use dep::std::ec::tecurve::affine::Point as TEPoint;
 use dep::std::hash;
-use dep::std::eddsa::{eddsa_poseidon_to_pub, eddsa_poseidon_verify};
+use dep::std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify};
 
 fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
     // Skip this test for non-bn254 backends
@@ -11,8 +11,8 @@ fn main(msg: pub Field, _priv_key_a: Field, _priv_key_b: Field) {
 
         let pub_key_a = bjj.curve.mul(_priv_key_a, bjj.curve.gen);
         let pub_key_b = bjj.curve.mul(_priv_key_b, bjj.curve.gen);
-        let (pub_key_a_x, pub_key_a_y) = eddsa_poseidon_to_pub(_priv_key_a);
-        let (pub_key_b_x, pub_key_b_y) = eddsa_poseidon_to_pub(_priv_key_b);
+        let (pub_key_a_x, pub_key_a_y) = eddsa_to_pub(_priv_key_a);
+        let (pub_key_b_x, pub_key_b_y) = eddsa_to_pub(_priv_key_b);
         assert(TEPoint::new(pub_key_a_x, pub_key_a_y) == pub_key_a);
         assert(TEPoint::new(pub_key_b_x, pub_key_b_y) == pub_key_b);
         // Manually computed as fields can't use modulo. Importantantly the commitment is within

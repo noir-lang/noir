@@ -40,7 +40,7 @@ pub fn eddsa_poseidon_verify(
 }
 
 // Returns the public key of the given secret key as (pub_key_x, pub_key_y)
-pub fn eddsa_poseidon_to_pub(
+pub fn eddsa_to_pub(
     secret: Field,
 ) -> (Field, Field) {
     let bjj = baby_jubjub();
