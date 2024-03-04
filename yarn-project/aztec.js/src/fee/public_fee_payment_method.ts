@@ -5,7 +5,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
 import { computeAuthWitMessageHash } from '../utils/authwit.js';
-import { AccountWalletWithPrivateKey } from '../wallet/account_wallet_with_private_key.js';
+import { AccountWallet } from '../wallet/account_wallet.js';
 import { FeePaymentMethod } from './fee_payment_method.js';
 
 /**
@@ -25,7 +25,7 @@ export class PublicFeePaymentMethod implements FeePaymentMethod {
     /**
      * An auth witness provider to authorize fee payments
      */
-    private wallet: AccountWalletWithPrivateKey,
+    private wallet: AccountWallet,
   ) {}
 
   /**

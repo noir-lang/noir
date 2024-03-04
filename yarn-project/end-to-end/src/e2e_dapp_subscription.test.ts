@@ -19,7 +19,14 @@ import {
 
 import { jest } from '@jest/globals';
 
-import { BalancesFn, EndToEndContext, expectMapping, getBalancesFn, setup } from './fixtures/utils.js';
+import {
+  BalancesFn,
+  EndToEndContext,
+  expectMapping,
+  getBalancesFn,
+  publicDeployAccounts,
+  setup,
+} from './fixtures/utils.js';
 import { GasPortalTestingHarnessFactory, IGasBridgingTestHarness } from './shared/gas_portal_test_harness.js';
 
 jest.setTimeout(1_000_000);
@@ -118,6 +125,8 @@ describe('e2e_dapp_subscription', () => {
       [aliceAddress, sequencerAddress, subscriptionContract.address, bananaFPC.address],
       [0n, 0n, BRIDGED_GAS_BALANCE, BRIDGED_GAS_BALANCE],
     );
+
+    await publicDeployAccounts(e2eContext.wallet, e2eContext.accounts);
   });
 
   it('should allow Alice to subscribe by paying privately with bananas', async () => {

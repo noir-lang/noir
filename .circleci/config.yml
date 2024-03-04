@@ -711,7 +711,6 @@ jobs:
           command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_authwit.test.ts
           aztec_manifest_key: end-to-end
 
-
   e2e-blacklist-token-contract:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -1023,6 +1022,18 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_fees.test.ts
+          aztec_manifest_key: end-to-end
+
+  e2e-dapp-subscription:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_dapp_subscription.test.ts
           aztec_manifest_key: end-to-end
 
   pxe:
@@ -1496,6 +1507,7 @@ workflows:
       - e2e-card-game: *e2e_test
       - e2e-avm-simulator: *e2e_test
       - e2e-fees: *e2e_test
+      - e2e-dapp-subscription: *e2e_test
       - pxe: *e2e_test
       - cli-docs-sandbox: *e2e_test
       - e2e-docs-examples: *e2e_test
@@ -1542,6 +1554,7 @@ workflows:
             - e2e-card-game
             - e2e-avm-simulator
             - e2e-fees
+            - e2e-dapp-subscription
             - pxe
             - boxes-vanilla
             - boxes-react
