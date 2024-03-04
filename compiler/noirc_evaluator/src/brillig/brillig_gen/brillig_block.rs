@@ -1,9 +1,7 @@
 use crate::brillig::brillig_ir::brillig_variable::{
     type_to_heap_value_type, BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
 };
-use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
-};
+use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::instruction::ConstrainError;
 use crate::ssa::ir::{
@@ -626,37 +624,40 @@ impl<'block> BrilligBlock<'block> {
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let value = self.convert_ssa_single_addr_value(*value, dfg);
-                // Cast original value to field
-                let left = SingleAddrVariable {
-                    address: self.brillig_context.allocate_register(),
-                    bit_size: FieldElement::max_num_bits(),
-                };
-                self.convert_cast(left, value);
+                // SSA generates redundant range checks. A range check with a max bit size >= value.bit_size will always pass.
+                if value.bit_size > *max_bit_size {
+                    // Cast original value to field
+                    let left = SingleAddrVariable {
+                        address: self.brillig_context.allocate_register(),
+                        bit_size: FieldElement::max_num_bits(),
+                    };
+                    self.convert_cast(left, value);
 
-                // Create a field constant with the max
-                let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
-                let right = self.brillig_context.make_constant(
-                    FieldElement::from_be_bytes_reduce(&max.to_bytes_be()).into(),
-                    FieldElement::max_num_bits(),
-                );
+                    // Create a field constant with the max
+                    let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
+                    let right = self.brillig_context.make_constant(
+                        FieldElement::from_be_bytes_reduce(&max.to_bytes_be()).into(),
+                        FieldElement::max_num_bits(),
+                    );
 
-                // Check if lte max
-                let brillig_binary_op = BrilligBinaryOp::Integer {
-                    op: BinaryIntOp::LessThanEquals,
-                    bit_size: FieldElement::max_num_bits(),
-                };
-                let condition = self.brillig_context.allocate_register();
-                self.brillig_context.binary_instruction(
-                    left.address,
-                    right,
-                    condition,
-                    brillig_binary_op,
-                );
+                    // Check if lte max
+                    let brillig_binary_op = BrilligBinaryOp::Integer {
+                        op: BinaryIntOp::LessThanEquals,
+                        bit_size: FieldElement::max_num_bits(),
+                    };
+                    let condition = self.brillig_context.allocate_register();
+                    self.brillig_context.binary_instruction(
+                        left.address,
+                        right,
+                        condition,
+                        brillig_binary_op,
+                    );
 
-                self.brillig_context.constrain_instruction(condition, assert_message.clone());
-                self.brillig_context.deallocate_register(condition);
-                self.brillig_context.deallocate_register(left.address);
-                self.brillig_context.deallocate_register(right);
+                    self.brillig_context.constrain_instruction(condition, assert_message.clone());
+                    self.brillig_context.deallocate_register(condition);
+                    self.brillig_context.deallocate_register(left.address);
+                    self.brillig_context.deallocate_register(right);
+                }
             }
             Instruction::IncrementRc { value } => {
                 let rc_register = match self.convert_ssa_value(*value, dfg) {
@@ -1197,7 +1198,7 @@ impl<'block> BrilligBlock<'block> {
         let left = self.convert_ssa_single_addr_value(binary.lhs, dfg);
         let right = self.convert_ssa_single_addr_value(binary.rhs, dfg);
 
-        let brillig_binary_op =
+        let (brillig_binary_op, is_signed) =
             convert_ssa_binary_op_to_brillig_binary_op(binary.operator, &binary_type);
 
         self.brillig_context.binary_instruction(
@@ -1206,6 +1207,93 @@ impl<'block> BrilligBlock<'block> {
             result_variable.address,
             brillig_binary_op,
         );
+
+        self.add_overflow_check(brillig_binary_op, left, right, result_variable, is_signed);
+    }
+
+    fn add_overflow_check(
+        &mut self,
+        binary_operation: BrilligBinaryOp,
+        left: SingleAddrVariable,
+        right: SingleAddrVariable,
+        result: SingleAddrVariable,
+        is_signed: bool,
+    ) {
+        let (op, bit_size) = if let BrilligBinaryOp::Integer { op, bit_size } = binary_operation {
+            (op, bit_size)
+        } else {
+            return;
+        };
+
+        match (op, is_signed) {
+            (BinaryIntOp::Add, false) => {
+                let condition = self.brillig_context.allocate_register();
+                // Check that lhs <= result
+                self.brillig_context.binary_instruction(
+                    left.address,
+                    result.address,
+                    condition,
+                    BrilligBinaryOp::Integer { op: BinaryIntOp::LessThanEquals, bit_size },
+                );
+                self.brillig_context.constrain_instruction(
+                    condition,
+                    Some("attempt to add with overflow".to_string()),
+                );
+                self.brillig_context.deallocate_register(condition);
+            }
+            (BinaryIntOp::Sub, false) => {
+                let condition = self.brillig_context.allocate_register();
+                // Check that rhs <= lhs
+                self.brillig_context.binary_instruction(
+                    right.address,
+                    left.address,
+                    condition,
+                    BrilligBinaryOp::Integer { op: BinaryIntOp::LessThanEquals, bit_size },
+                );
+                self.brillig_context.constrain_instruction(
+                    condition,
+                    Some("attempt to subtract with overflow".to_string()),
+                );
+                self.brillig_context.deallocate_register(condition);
+            }
+            (BinaryIntOp::Mul, false) => {
+                // Multiplication overflow is only possible for bit sizes > 1
+                if bit_size > 1 {
+                    let is_right_zero = self.brillig_context.allocate_register();
+                    let zero = self.brillig_context.make_constant(0_usize.into(), bit_size);
+                    self.brillig_context.binary_instruction(
+                        zero,
+                        right.address,
+                        is_right_zero,
+                        BrilligBinaryOp::Integer { op: BinaryIntOp::Equals, bit_size },
+                    );
+                    self.brillig_context.if_not_instruction(is_right_zero, |ctx| {
+                        let condition = ctx.allocate_register();
+                        // Check that result / rhs == lhs
+                        ctx.binary_instruction(
+                            result.address,
+                            right.address,
+                            condition,
+                            BrilligBinaryOp::Integer { op: BinaryIntOp::UnsignedDiv, bit_size },
+                        );
+                        ctx.binary_instruction(
+                            condition,
+                            left.address,
+                            condition,
+                            BrilligBinaryOp::Integer { op: BinaryIntOp::Equals, bit_size },
+                        );
+                        ctx.constrain_instruction(
+                            condition,
+                            Some("attempt to multiply with overflow".to_string()),
+                        );
+                        ctx.deallocate_register(condition);
+                    });
+                    self.brillig_context.deallocate_register(is_right_zero);
+                    self.brillig_context.deallocate_register(zero);
+                }
+            }
+            _ => {}
+        }
     }
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
@@ -1403,8 +1491,6 @@ impl<'block> BrilligBlock<'block> {
 }
 
 /// Returns the type of the operation considering the types of the operands
-/// TODO: SSA issues binary operations between fields and integers.
-/// This probably should be explicitly casted in SSA to avoid having to coerce at this level.
 pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type {
     match (lhs_type, rhs_type) {
         (_, Type::Function) | (Type::Function, _) => {
@@ -1419,10 +1505,6 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
         (_, Type::Slice(..)) | (Type::Slice(..), _) => {
             unreachable!("Arrays are invalid in binary operations")
         }
-        // If either side is a Field constant then, we coerce into the type
-        // of the other operand
-        (Type::Numeric(NumericType::NativeField), typ)
-        | (typ, Type::Numeric(NumericType::NativeField)) => typ.clone(),
         // If both sides are numeric type, then we expect their types to be
         // the same.
         (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
@@ -1441,7 +1523,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
 pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
     ssa_op: BinaryOp,
     typ: &Type,
-) -> BrilligBinaryOp {
+) -> (BrilligBinaryOp, bool) {
     // First get the bit size and whether its a signed integer, if it is a numeric type
     // if it is not,then we return None, indicating that
     // it is a Field.
@@ -1461,10 +1543,6 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
             BinaryOp::Mul => BrilligBinaryOp::Field { op: BinaryFieldOp::Mul },
             BinaryOp::Div => BrilligBinaryOp::Field { op: BinaryFieldOp::Div },
             BinaryOp::Eq => BrilligBinaryOp::Field { op: BinaryFieldOp::Equals },
-            BinaryOp::Lt => BrilligBinaryOp::Integer {
-                op: BinaryIntOp::LessThan,
-                bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
-            },
             _ => unreachable!(
                 "Field type cannot be used with {op}. This should have been caught by the frontend"
             ),
@@ -1500,7 +1578,9 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
 
     // If bit size is available then it is a binary integer operation
     match bit_size_signedness {
-        Some((bit_size, is_signed)) => binary_op_to_int_op(ssa_op, *bit_size, is_signed),
-        None => binary_op_to_field_op(ssa_op),
+        Some((bit_size, is_signed)) => {
+            (binary_op_to_int_op(ssa_op, *bit_size, is_signed), is_signed)
+        }
+        None => (binary_op_to_field_op(ssa_op), false),
     }
 }

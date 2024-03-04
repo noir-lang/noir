@@ -326,7 +326,10 @@ impl<'interner> TypeChecker<'interner> {
             assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
 
             for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
-                bindings.insert(param.id(), (param.clone(), arg.clone()));
+                // Avoid binding t = t
+                if !arg.occurs(param.id()) {
+                    bindings.insert(param.id(), (param.clone(), arg.clone()));
+                }
             }
         }
 
