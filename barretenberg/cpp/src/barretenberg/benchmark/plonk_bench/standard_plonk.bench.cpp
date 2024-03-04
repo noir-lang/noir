@@ -13,7 +13,7 @@ using StandardPlonk = bb::plonk::StandardComposer;
 static void construct_proof_standard_power_of_2(State& state) noexcept
 {
     auto log2_of_gates = static_cast<size_t>(state.range(0));
-    bb::mock_proofs::construct_proof_with_specified_num_iterations<bb::plonk::StandardComposer>(
+    bb::mock_proofs::construct_proof_with_specified_num_iterations<bb::plonk::StandardProver>(
         state, &bb::mock_proofs::generate_basic_arithmetic_circuit<bb::StandardCircuitBuilder>, log2_of_gates);
 }
 

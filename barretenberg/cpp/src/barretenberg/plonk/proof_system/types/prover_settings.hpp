@@ -13,6 +13,7 @@ class settings_base {
 class standard_settings : public settings_base {
   public:
     using Arithmetization = StandardArith<bb::fr>;
+    using Flavor = plonk::flavor::Standard;
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
     static constexpr size_t program_width = 3;
@@ -26,6 +27,7 @@ class standard_settings : public settings_base {
 
 class ultra_settings : public settings_base {
   public:
+    using Flavor = plonk::flavor::Ultra;
     static constexpr size_t num_challenge_bytes = 16;
     static constexpr transcript::HashType hash_type = transcript::HashType::PedersenBlake3s;
     static constexpr size_t program_width = 4;

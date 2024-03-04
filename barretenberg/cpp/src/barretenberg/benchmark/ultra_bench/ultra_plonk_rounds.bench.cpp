@@ -52,10 +52,9 @@ BB_PROFILE static void test_round(State& state, size_t index) noexcept
     bb::srs::init_crs_factory("../srs_db/ignition");
     for (auto _ : state) {
         state.PauseTiming();
-        plonk::UltraComposer composer;
         // TODO: https://github.com/AztecProtocol/barretenberg/issues/761 benchmark both sparse and dense circuits
-        plonk::UltraProver prover = bb::mock_proofs::get_prover(
-            composer, &bb::stdlib::generate_ecdsa_verification_test_circuit<UltraCircuitBuilder>, 10);
+        auto prover = bb::mock_proofs::get_prover<plonk::UltraProver>(
+            &bb::stdlib::generate_ecdsa_verification_test_circuit<UltraCircuitBuilder>, 10);
         test_round_inner(state, prover, index);
         // NOTE: google bench is very finnicky, must end in ResumeTiming() for correctness
         state.ResumeTiming();

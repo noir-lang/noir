@@ -10,21 +10,26 @@
 
 namespace bb {
 
-template <IsUltraFlavor Flavor> class UltraProver_ {
+template <IsUltraFlavor Flavor_> class UltraProver_ {
+  public:
+    using Flavor = Flavor_;
     using FF = typename Flavor::FF;
+    using Builder = typename Flavor::CircuitBuilder;
     using Commitment = typename Flavor::Commitment;
     using CommitmentKey = typename Flavor::CommitmentKey;
     using Polynomial = typename Flavor::Polynomial;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using Curve = typename Flavor::Curve;
-    using Instance = ProverInstance_<Flavor>;
+    using ProverInstance = ProverInstance_<Flavor>;
+    using Instance = ProverInstance;
     using Transcript = typename Flavor::Transcript;
     using RelationSeparator = typename Flavor::RelationSeparator;
 
-  public:
     explicit UltraProver_(const std::shared_ptr<Instance>&,
                           const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
+
+    explicit UltraProver_(Builder&);
 
     BB_PROFILE void execute_preamble_round();
     BB_PROFILE void execute_wire_commitments_round();

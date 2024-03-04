@@ -53,6 +53,7 @@ template <IsUltraFlavor Flavor> class DeciderProver_ {
     HonkProof proof;
 };
 
-using DeciderProver = DeciderProver_<UltraFlavor>;
+using UltraDeciderProver = DeciderProver_<UltraFlavor>;
+using GoblinUltraDeciderProver = DeciderProver_<GoblinUltraFlavor>;
 
 } // namespace bb

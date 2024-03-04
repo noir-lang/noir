@@ -17,8 +17,8 @@ template <typename Flavor> class DeciderVerifier_ {
 
   public:
     explicit DeciderVerifier_();
-    explicit DeciderVerifier_(const std::shared_ptr<Transcript>& transcript,
-                              const std::shared_ptr<VerifierInstance>& accumulator = nullptr);
+    explicit DeciderVerifier_(const std::shared_ptr<VerifierInstance>& accumulator,
+                              const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
     bool verify_proof(const HonkProof& proof);
 
@@ -29,6 +29,7 @@ template <typename Flavor> class DeciderVerifier_ {
     std::shared_ptr<Transcript> transcript;
 };
 
-using DeciderVerifier = DeciderVerifier_<UltraFlavor>;
+using UltraDeciderVerifier = DeciderVerifier_<UltraFlavor>;
+using GoblinUltraDeciderVerifier = DeciderVerifier_<GoblinUltraFlavor>;
 
 } // namespace bb

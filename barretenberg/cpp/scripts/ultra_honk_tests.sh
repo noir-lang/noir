@@ -19,4 +19,7 @@ cd build/
 ./bin/ultra_honk_tests
 ./bin/goblin_tests
 ./bin/client_ivc_tests
-./bin/stdlib_recursion_tests
+./bin/stdlib_recursion_tests --gtest_filter=Goblin*
+./bin/stdlib_recursion_tests --gtest_filter=Honk*
+./bin/stdlib_recursion_tests --gtest_filter=Proto*
+./bin/stdlib_recursion_tests --gtest_filter=RecursiveMerge*

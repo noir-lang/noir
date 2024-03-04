@@ -12,6 +12,8 @@ namespace bb::plonk {
 template <typename settings> class ProverBase {
 
   public:
+    using Flavor = typename settings::Flavor;
+
     ProverBase(std::shared_ptr<proving_key> input_key = nullptr,
                const transcript::Manifest& manifest = transcript::Manifest());
     ProverBase(ProverBase&& other);
@@ -100,6 +102,7 @@ template <typename settings> class ProverBase {
 };
 
 typedef ProverBase<standard_settings> Prover;
+typedef Prover StandardProver;
 typedef ProverBase<ultra_settings> UltraProver; // TODO(Mike): maybe just return a templated proverbase so that I don't
                                                 // need separate cases for ultra vs ultra_to_standard...???
                                                 // TODO(Cody): Make this into an issue?

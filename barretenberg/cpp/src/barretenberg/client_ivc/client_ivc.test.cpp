@@ -4,7 +4,6 @@
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/stdlib/recursion/honk/verifier/protogalaxy_recursive_verifier.hpp"
-#include "barretenberg/ultra_honk/ultra_composer.hpp"
 
 #include <gtest/gtest.h>
 using namespace bb;
@@ -20,7 +19,6 @@ class ClientIVCTests : public ::testing::Test {
     using Flavor = ClientIVC::Flavor;
     using FF = typename Flavor::FF;
     using Builder = ClientIVC::ClientCircuit;
-    using Composer = GoblinUltraComposer;
     using ProverAccumulator = ClientIVC::ProverAccumulator;
     using VerifierAccumulator = ClientIVC::VerifierAccumulator;
     using VerifierInstance = ClientIVC::VerifierInstance;
@@ -32,6 +30,12 @@ class ClientIVCTests : public ::testing::Test {
     using RecursiveVerifierInstances = ::bb::stdlib::recursion::honk::RecursiveVerifierInstances_<GURecursiveFlavor, 2>;
     using FoldingRecursiveVerifier =
         bb::stdlib::recursion::honk::ProtoGalaxyRecursiveVerifier_<RecursiveVerifierInstances>;
+    using DeciderProver = ClientIVC::DeciderProver;
+    using DeciderVerifier = ClientIVC::DeciderVerifier;
+    using ProverInstances = ProverInstances_<Flavor>;
+    using FoldingProver = ProtoGalaxyProver_<ProverInstances>;
+    using VerifierInstances = VerifierInstances_<Flavor>;
+    using FoldingVerifier = ProtoGalaxyVerifier_<VerifierInstances>;
 
     /**
      * @brief Construct mock circuit with arithmetic gates and goblin ops
@@ -83,14 +87,13 @@ class ClientIVCTests : public ::testing::Test {
         const std::shared_ptr<Flavor::VerificationKey>& verifier_inst_vk)
     {
         // Verify fold proof
-        Composer composer;
         auto new_verifier_inst = std::make_shared<VerifierInstance>(verifier_inst_vk);
-        auto folding_verifier = composer.create_folding_verifier({ prev_verifier_accumulator, new_verifier_inst });
+        FoldingVerifier folding_verifier({ prev_verifier_accumulator, new_verifier_inst });
         auto verifier_accumulator = folding_verifier.verify_folding_proof(fold_proof);
 
         // Run decider
-        auto decider_prover = composer.create_decider_prover(prover_accumulator);
-        auto decider_verifier = composer.create_decider_verifier(verifier_accumulator);
+        DeciderProver decider_prover(prover_accumulator);
+        DeciderVerifier decider_verifier(verifier_accumulator);
         auto decider_proof = decider_prover.construct_proof();
         bool decision = decider_verifier.verify_proof(decider_proof);
         EXPECT_TRUE(decision);

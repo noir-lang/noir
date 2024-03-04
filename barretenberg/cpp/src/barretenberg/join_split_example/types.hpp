@@ -2,7 +2,6 @@
 
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
-#include "barretenberg/ultra_honk/ultra_composer.hpp"
 
 #include "barretenberg/crypto/merkle_tree/hash_path.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"

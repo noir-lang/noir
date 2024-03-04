@@ -5,7 +5,6 @@
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
-#include "barretenberg/ultra_honk/ultra_composer.hpp"
 
 #include <chrono>
 #include <cstdlib>

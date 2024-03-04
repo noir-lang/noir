@@ -17,8 +17,7 @@ ClientIVC::ClientIVC()
 void ClientIVC::initialize(ClientCircuit& circuit)
 {
     goblin.merge(circuit); // Construct new merge proof
-    Composer composer;
-    prover_fold_output.accumulator = composer.create_prover_instance(circuit);
+    prover_fold_output.accumulator = std::make_shared<ProverInstance>(circuit);
 }
 
 /**
@@ -31,9 +30,8 @@ void ClientIVC::initialize(ClientCircuit& circuit)
 ClientIVC::FoldProof ClientIVC::accumulate(ClientCircuit& circuit)
 {
     goblin.merge(circuit); // Add recursive merge verifier and construct new merge proof
-    Composer composer;
-    prover_instance = composer.create_prover_instance(circuit);
-    auto folding_prover = composer.create_folding_prover({ prover_fold_output.accumulator, prover_instance });
+    prover_instance = std::make_shared<ProverInstance>(circuit);
+    FoldingProver folding_prover({ prover_fold_output.accumulator, prover_instance });
     prover_fold_output = folding_prover.fold_instances();
     return prover_fold_output.folding_data;
 }
@@ -60,11 +58,10 @@ bool ClientIVC::verify(Proof& proof, const std::vector<VerifierAccumulator>& ver
     bool goblin_verified = goblin.verify(proof.goblin_proof);
 
     // Decider verification
-    Composer composer;
-    auto folding_verifier = composer.create_folding_verifier({ verifier_instances[0], verifier_instances[1] });
+    ClientIVC::FoldingVerifier folding_verifier({ verifier_instances[0], verifier_instances[1] });
     auto verifier_accumulator = folding_verifier.verify_folding_proof(proof.fold_proof);
 
-    auto decider_verifier = composer.create_decider_verifier(verifier_accumulator);
+    ClientIVC::DeciderVerifier decider_verifier(verifier_accumulator);
     bool decision = decider_verifier.verify_proof(proof.decider_proof);
     return goblin_verified && decision;
 }
@@ -76,8 +73,7 @@ bool ClientIVC::verify(Proof& proof, const std::vector<VerifierAccumulator>& ver
  */
 HonkProof ClientIVC::decider_prove() const
 {
-    Composer composer;
-    auto decider_prover = composer.create_decider_prover(prover_fold_output.accumulator);
+    GoblinUltraDeciderProver decider_prover(prover_fold_output.accumulator);
     return decider_prover.construct_proof();
 }
 

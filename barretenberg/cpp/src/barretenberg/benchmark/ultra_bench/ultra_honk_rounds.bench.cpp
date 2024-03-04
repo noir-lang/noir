@@ -3,7 +3,7 @@
 #include "barretenberg/benchmark/ultra_bench/mock_proofs.hpp"
 #include "barretenberg/common/op_count_google_bench.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
-#include "barretenberg/ultra_honk/ultra_composer.hpp"
+
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 
 using namespace benchmark;
@@ -58,10 +58,9 @@ BB_PROFILE static void test_round(State& state, size_t index) noexcept
     auto log2_num_gates = static_cast<size_t>(state.range(0));
     bb::srs::init_crs_factory("../srs_db/ignition");
 
-    GoblinUltraComposer composer;
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/761) benchmark both sparse and dense circuits
-    GoblinUltraProver prover = bb::mock_proofs::get_prover(
-        composer, &bb::mock_proofs::generate_basic_arithmetic_circuit<GoblinUltraCircuitBuilder>, log2_num_gates);
+    auto prover = bb::mock_proofs::get_prover<GoblinUltraProver>(
+        &bb::mock_proofs::generate_basic_arithmetic_circuit<GoblinUltraCircuitBuilder>, log2_num_gates);
     for (auto _ : state) {
         test_round_inner(state, prover, index);
     }
