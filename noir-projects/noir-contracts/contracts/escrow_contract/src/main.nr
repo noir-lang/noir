@@ -1,40 +1,31 @@
 // Sample escrow contract that stores a balance of a private token on behalf of an owner.
 contract Escrow {
-    use dep::aztec::prelude::{AztecAddress, EthAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, PrivateSet};
+    use dep::aztec::prelude::{AztecAddress, EthAddress, FunctionSelector, NoteHeader, PrivateContext, PrivateImmutable};
 
     use dep::aztec::{context::{PublicContext, Context}, oracle::get_public_key::get_public_key};
 
     use dep::address_note::address_note::{AddressNote, ADDRESS_NOTE_LEN};
 
     struct Storage {
-        owners: PrivateSet<AddressNote>,
+        owner: PrivateImmutable<AddressNote>,
     }
 
     // Creates a new instance
-    // docs:start:constructor
     #[aztec(private)]
     #[aztec(initializer)]
     fn constructor(owner: pub AztecAddress) {
-        let this = context.this_address();
-
-        // Create a new note and add it to the owners set.
-        let mut note = AddressNote::new(owner, this);
-
-        // Insert the owner into storage
-        storage.owners.insert(&mut note, true);
+        let mut note = AddressNote::new(owner, owner);
+        storage.owner.initialize(&mut note, true);
     }
-    // docs:end:constructor
 
-    // Withdraws balance. Requires that msg.sender is registered as an owner.
+    // Withdraws balance. Requires that msg.sender is the owner.
     #[aztec(private)]
     fn withdraw(token: AztecAddress, amount: Field, recipient: AztecAddress) {
         let this = context.this_address();
         let sender = context.msg_sender();
 
-        // We don't remove note from the owners set. If a note exists, the owner and recipient are legit.
-        let options = NoteGetterOptions::new().select(0, sender.to_field(), Option::none()).select(1, this.to_field(), Option::none()).set_limit(1);
-        let notes = storage.owners.get_notes(options);
-        assert(notes[0].is_some(), "Sender is not an owner.");
+        let note = storage.owner.get_note();
+        assert(note.address == sender);
 
         let selector = FunctionSelector::from_signature("transfer((Field),(Field),Field,Field)");
         let _callStackItem = context.call_private_function(
