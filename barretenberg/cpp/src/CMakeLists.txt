@@ -82,7 +82,6 @@ add_subdirectory(barretenberg/wasi)
 
 
 if(SMT)
-    include_directories(${CMAKE_CURRENT_SOURCE_DIR} $ENV{HOME}/cvc5/tmp-lib/include)
     add_subdirectory(barretenberg/smt_verification)
 endif()
 

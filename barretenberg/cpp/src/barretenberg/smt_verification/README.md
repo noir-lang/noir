@@ -71,7 +71,7 @@ To store it on the disk just do
     
     `FFTerm` - the symbolic value that simulates finite field elements. 
 
-    `FFTerm` - the symbolic value that simulates integer elements which behave like finite field ones. Useful, when you want to create range constraints or perform operations like XOR.
+    `FFITerm` - the symbolic value that simulates integer elements which behave like finite field ones. Useful, when you want to create range constraints or perform operations like XOR.
     
     `Bool` - simulates the boolean values and mostly will be used only to simulate complex `if` statements if needed.
 	

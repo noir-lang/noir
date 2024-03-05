@@ -55,6 +55,12 @@ FFTerm FFTerm::operator-(const FFTerm& other) const
     return { res, this->solver };
 }
 
+FFTerm FFTerm::operator-() const
+{
+    cvc5::Term res = this->solver->s.mkTerm(cvc5::Kind::FINITE_FIELD_NEG, { this->term });
+    return { res, this->solver };
+}
+
 void FFTerm::operator-=(const FFTerm& other)
 {
     cvc5::Term tmp_term = this->solver->s.mkTerm(cvc5::Kind::FINITE_FIELD_NEG, { other.term });
@@ -84,34 +90,22 @@ void FFTerm::operator*=(const FFTerm& other)
  */
 FFTerm FFTerm::operator/(const FFTerm& other) const
 {
-    cvc5::Term nz = this->solver->s.mkTerm(cvc5::Kind::EQUAL,
-                                           { other.term, this->solver->s.mkFiniteFieldElem("0", this->solver->fp) });
-    nz = this->solver->s.mkTerm(cvc5::Kind::EQUAL, { nz, this->solver->s.mkBoolean(false) });
-    this->solver->s.assertFormula(nz);
-
-    cvc5::Term res = this->solver->s.mkConst(this->solver->fp,
-                                             "fe0f65a52067384116dc1137d798e0ca00a7ed46950e4eab7db51e08481535f2_div_" +
-                                                 std::string(*this) + "_" + std::string(other));
-    cvc5::Term div = this->solver->s.mkTerm(cvc5::Kind::FINITE_FIELD_MULT, { res, other.term });
-    cvc5::Term eq = this->solver->s.mkTerm(cvc5::Kind::EQUAL, { this->term, div });
-    this->solver->s.assertFormula(eq);
-    return { res, this->solver };
+    other != bb::fr(0);
+    FFTerm res = Var("df8b586e3fa7a1224ec95a886e17a7da_div_" + static_cast<std::string>(*this) + "_" +
+                         static_cast<std::string>(other),
+                     this->solver);
+    res* other == *this;
+    return res;
 }
 
 void FFTerm::operator/=(const FFTerm& other)
 {
-    cvc5::Term nz = this->solver->s.mkTerm(cvc5::Kind::EQUAL,
-                                           { other.term, this->solver->s.mkFiniteFieldElem("0", this->solver->fp) });
-    nz = this->solver->s.mkTerm(cvc5::Kind::EQUAL, { nz, this->solver->s.mkBoolean(false) });
-    this->solver->s.assertFormula(nz);
-
-    cvc5::Term res = this->solver->s.mkConst(this->solver->fp,
-                                             "fe0f65a52067384116dc1137d798e0ca00a7ed46950e4eab7db51e08481535f2_div_" +
-                                                 std::string(*this) + "__" + std::string(other));
-    cvc5::Term div = this->solver->s.mkTerm(cvc5::Kind::FINITE_FIELD_MULT, { res, other.term });
-    cvc5::Term eq = this->solver->s.mkTerm(cvc5::Kind::EQUAL, { this->term, div });
-    this->solver->s.assertFormula(eq);
-    this->term = res;
+    other != bb::fr(0);
+    FFTerm res = Var("df8b586e3fa7a1224ec95a886e17a7da_div_" + static_cast<std::string>(*this) + "_" +
+                         static_cast<std::string>(other),
+                     this->solver);
+    res* other == *this;
+    this->term = res.term;
 }
 
 /**
@@ -133,5 +127,41 @@ void FFTerm::operator!=(const FFTerm& other) const
     cvc5::Term eq = this->solver->s.mkTerm(cvc5::Kind::EQUAL, { this->term, other.term });
     eq = this->solver->s.mkTerm(cvc5::Kind::EQUAL, { eq, this->solver->s.mkBoolean(false) });
     this->solver->s.assertFormula(eq);
+}
+
+FFTerm operator+(const bb::fr& lhs, const FFTerm& rhs)
+{
+    return rhs + lhs;
+}
+
+FFTerm operator-(const bb::fr& lhs, const FFTerm& rhs)
+{
+    return (-rhs) + lhs;
+}
+
+FFTerm operator*(const bb::fr& lhs, const FFTerm& rhs)
+{
+    return rhs * lhs;
+}
+
+FFTerm operator^(__attribute__((unused)) const bb::fr& lhs, __attribute__((unused)) const FFTerm& rhs)
+{
+    info("Not compatible with Finite Field");
+    return {};
+}
+
+FFTerm operator/(const bb::fr& lhs, const FFTerm& rhs)
+{
+    return FFTerm(lhs, rhs.solver) / rhs;
+}
+
+void operator==(const bb::fr& lhs, const FFTerm& rhs)
+{
+    rhs == lhs;
+}
+
+void operator!=(const bb::fr& lhs, const FFTerm& rhs)
+{
+    rhs != lhs;
 }
 } // namespace smt_terms
