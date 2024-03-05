@@ -4,6 +4,7 @@ use acvm::BlackBoxFunctionSolver;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
+use iter_extended::vecmap;
 use nargo::{
     insert_all_files_for_workspace_into_file_manager,
     ops::{run_test, TestStatus},
@@ -149,23 +150,27 @@ fn run_tests<S: BlackBoxFunctionSolver>(
     let plural = if count_all == 1 { "" } else { "s" };
     println!("[{}] Running {count_all} test function{plural}", package.name);
 
+    let test_report = vecmap(test_functions, |(test_name, test_function)| {
+        (
+            test_name,
+            run_test(
+                blackbox_solver,
+                &mut context,
+                test_function,
+                show_output,
+                foreign_call_resolver_url,
+                compile_options,
+            ),
+        )
+    });
+
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
 
-    let mut test_report: Vec<(String, TestStatus)> = Vec::new();
-    for (test_name, test_function) in test_functions {
+    for (test_name, test_status) in &test_report {
         write!(writer, "[{}] Testing {test_name}... ", package.name)
             .expect("Failed to write to stderr");
         writer.flush().expect("Failed to flush writer");
-
-        let test_status = run_test(
-            blackbox_solver,
-            &mut context,
-            test_function,
-            show_output,
-            foreign_call_resolver_url,
-            compile_options,
-        );
 
         match &test_status {
             TestStatus::Pass { .. } => {
@@ -197,9 +202,6 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                 );
             }
         }
-
-        test_report.push((test_name, test_status));
-
         writer.reset().expect("Failed to reset writer");
     }
 
