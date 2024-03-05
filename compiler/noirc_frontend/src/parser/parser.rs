@@ -192,6 +192,110 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
         })
 }
 
+/// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
+///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
+fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
+    attributes()
+        .then(function_modifiers())
+        .then_ignore(keyword(Keyword::Fn))
+        .then(ident())
+        .then(generics())
+        .then(parenthesized(function_parameters(allow_self)))
+        .then(function_return_type())
+        .then(where_clause())
+        .then(spanned(block(fresh_statement())))
+        .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
+            let ((((attributes, modifiers), name), generics), parameters) = args;
+
+            // Validate collected attributes, filtering them into function and secondary variants
+            let attributes = validate_attributes(attributes, span, emit);
+            FunctionDefinition {
+                span: body_span,
+                name,
+                attributes,
+                is_unconstrained: modifiers.0,
+                is_open: modifiers.2,
+                // Whether a function is internal or not is now set through `aztec_macros`
+                is_internal: false,
+                visibility: if modifiers.1 {
+                    FunctionVisibility::PublicCrate
+                } else if modifiers.3 {
+                    FunctionVisibility::Public
+                } else {
+                    FunctionVisibility::Private
+                },
+                generics,
+                parameters,
+                body,
+                where_clause,
+                return_type: ret.1,
+                return_visibility: ret.0 .1,
+                return_distinctness: ret.0 .0,
+            }
+            .into()
+        })
+}
+
+/// function_modifiers: 'unconstrained'? 'pub(crate)'? 'pub'? 'open'?
+///
+/// returns (is_unconstrained, is_pub_crate, is_open, is_pub) for whether each keyword was present
+fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool)> {
+    keyword(Keyword::Unconstrained)
+        .or_not()
+        .then(is_pub_crate())
+        .then(keyword(Keyword::Pub).or_not())
+        .then(keyword(Keyword::Open).or_not())
+        .map(|(((unconstrained, pub_crate), public), open)| {
+            (unconstrained.is_some(), pub_crate, open.is_some(), public.is_some())
+        })
+}
+
+fn is_pub_crate() -> impl NoirParser<bool> {
+    (keyword(Keyword::Pub)
+        .then_ignore(just(Token::LeftParen))
+        .then_ignore(keyword(Keyword::Crate))
+        .then_ignore(just(Token::RightParen)))
+    .or_not()
+    .map(|a| a.is_some())
+}
+
+/// non_empty_ident_list: ident ',' non_empty_ident_list
+///                     | ident
+///
+/// generics: '<' non_empty_ident_list '>'
+///         | %empty
+fn generics() -> impl NoirParser<Vec<Ident>> {
+    ident()
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .at_least(1)
+        .delimited_by(just(Token::Less), just(Token::Greater))
+        .or_not()
+        .map(|opt| opt.unwrap_or_default())
+}
+
+fn struct_definition() -> impl NoirParser<TopLevelStatement> {
+    use self::Keyword::Struct;
+    use Token::*;
+
+    let fields = struct_fields()
+        .delimited_by(just(LeftBrace), just(RightBrace))
+        .recover_with(nested_delimiters(
+            LeftBrace,
+            RightBrace,
+            [(LeftParen, RightParen), (LeftBracket, RightBracket)],
+            |_| vec![],
+        ))
+        .or(just(Semicolon).to(Vec::new()));
+
+    attributes().then_ignore(keyword(Struct)).then(ident()).then(generics()).then(fields).validate(
+        |(((raw_attributes, name), generics), fields), span, emit| {
+            let attributes = validate_struct_attributes(raw_attributes, span, emit);
+            TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
+        },
+    )
+}
+
 fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Type;
 
