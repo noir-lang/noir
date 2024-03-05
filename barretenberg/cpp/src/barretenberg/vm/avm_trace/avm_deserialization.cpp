@@ -14,10 +14,7 @@ namespace bb::avm_trace {
 namespace {
 
 const std::vector<OperandType> three_operand_format = {
-    OperandType::TAG,
-    OperandType::UINT32,
-    OperandType::UINT32,
-    OperandType::UINT32,
+    OperandType::INDIRECT, OperandType::TAG, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32,
 };
 
 // Contrary to TS, the format does not contain the opcode byte which prefixes any instruction.
@@ -32,9 +29,9 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
     // Compute - Comparators
     { OpCode::EQ, three_operand_format },
     // Compute - Bitwise
-    { OpCode::NOT, { OperandType::TAG, OperandType::UINT32, OperandType::UINT32 } },
+    { OpCode::NOT, { OperandType::INDIRECT, OperandType::TAG, OperandType::UINT32, OperandType::UINT32 } },
     // Execution Environment - Calldata
-    { OpCode::CALLDATACOPY, { OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },
+    { OpCode::CALLDATACOPY, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },
     // Machine State - Internal Control Flow
     { OpCode::JUMP, { OperandType::UINT32 } },
     { OpCode::INTERNALCALL, { OperandType::UINT32 } },
@@ -42,12 +39,12 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
     // Machine State - Memory
     // OpCode::SET is handled differently
     // Control Flow - Contract Calls
-    { OpCode::RETURN, { OperandType::UINT32, OperandType::UINT32 } },
+    { OpCode::RETURN, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
 };
 
 const std::unordered_map<OperandType, size_t> OPERAND_TYPE_SIZE = {
-    { OperandType::TAG, 1 },    { OperandType::UINT8, 1 },  { OperandType::UINT16, 2 },
-    { OperandType::UINT32, 4 }, { OperandType::UINT64, 8 }, { OperandType::UINT128, 16 },
+    { OperandType::INDIRECT, 1 }, { OperandType::TAG, 1 },    { OperandType::UINT8, 1 },    { OperandType::UINT16, 2 },
+    { OperandType::UINT32, 4 },   { OperandType::UINT64, 8 }, { OperandType::UINT128, 16 },
 };
 
 } // Anonymous namespace
@@ -80,7 +77,11 @@ std::vector<Instruction> Deserialization::parse(std::vector<uint8_t> const& byte
         std::vector<OperandType> inst_format;
 
         if (opcode == OpCode::SET) {
-            if (pos == length) {
+            // Small hack here because of the structure of SET (where Indirect is the first flag).
+            // Right now pos is pointing to the indirect flag, but we want it to point to the memory tag.
+            // We cannot increment pos again because we need to read from pos later when parsing the SET opcode
+            // So we effectively peek at the next pos
+            if (pos + 1 == length) {
                 throw_or_abort("Operand for SET opcode is missing at position " + std::to_string(pos));
             }
 
@@ -89,29 +90,30 @@ std::vector<Instruction> Deserialization::parse(std::vector<uint8_t> const& byte
                                                    static_cast<uint8_t>(AvmMemoryTag::U32),
                                                    static_cast<uint8_t>(AvmMemoryTag::U64),
                                                    static_cast<uint8_t>(AvmMemoryTag::U128) };
-            uint8_t set_tag_u8 = bytecode.at(pos);
+            // Peek again here for the mem tag
+            uint8_t set_tag_u8 = bytecode.at(pos + 1);
 
             if (!valid_tags.contains(set_tag_u8)) {
-                throw_or_abort("Instruction tag for SET opcode is invalid at position " + std::to_string(pos) +
+                throw_or_abort("Instruction tag for SET opcode is invalid at position " + std::to_string(pos + 1) +
                                " value: " + std::to_string(set_tag_u8));
             }
 
             auto in_tag = static_cast<AvmMemoryTag>(set_tag_u8);
             switch (in_tag) {
             case AvmMemoryTag::U8:
-                inst_format = { OperandType::TAG, OperandType::UINT8, OperandType::UINT32 };
+                inst_format = { OperandType::INDIRECT, OperandType::TAG, OperandType::UINT8, OperandType::UINT32 };
                 break;
             case AvmMemoryTag::U16:
-                inst_format = { OperandType::TAG, OperandType::UINT16, OperandType::UINT32 };
+                inst_format = { OperandType::INDIRECT, OperandType::TAG, OperandType::UINT16, OperandType::UINT32 };
                 break;
             case AvmMemoryTag::U32:
-                inst_format = { OperandType::TAG, OperandType::UINT32, OperandType::UINT32 };
+                inst_format = { OperandType::INDIRECT, OperandType::TAG, OperandType::UINT32, OperandType::UINT32 };
                 break;
             case AvmMemoryTag::U64:
-                inst_format = { OperandType::TAG, OperandType::UINT64, OperandType::UINT32 };
+                inst_format = { OperandType::INDIRECT, OperandType::TAG, OperandType::UINT64, OperandType::UINT32 };
                 break;
             case AvmMemoryTag::U128:
-                inst_format = { OperandType::TAG, OperandType::UINT128, OperandType::UINT32 };
+                inst_format = { OperandType::INDIRECT, OperandType::TAG, OperandType::UINT128, OperandType::UINT32 };
                 break;
             default: // This branch is guarded above.
                 std::cerr << "This code branch must have been guarded by the tag validation. \n";
@@ -130,6 +132,10 @@ std::vector<Instruction> Deserialization::parse(std::vector<uint8_t> const& byte
             }
 
             switch (opType) {
+            case OperandType::INDIRECT: {
+                operands.emplace_back(bytecode.at(pos));
+                break;
+            }
             case OperandType::TAG: {
                 uint8_t tag_u8 = bytecode.at(pos);
                 if (tag_u8 == static_cast<uint8_t>(AvmMemoryTag::U0) || tag_u8 > MAX_MEM_TAG) {
