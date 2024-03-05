@@ -11,11 +11,11 @@ use noirc_frontend::macros_api::FieldElement;
 use noirc_frontend::macros_api::{
     BlockExpression, CallExpression, CastExpression, Distinctness, Expression, ExpressionKind,
     ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility,
-    HirContext, HirExpression, HirLiteral, HirStatement, Ident, IndexExpression,
-    LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct,
-    Param, Path, PathKind, Pattern, PrefixExpression, SecondaryAttribute, Signedness, Span,
-    Statement, StatementKind, StructType, Type, TypeImpl, UnaryOp, UnresolvedType,
-    UnresolvedTypeData, Visibility,
+    HirContext, HirExpression, HirLiteral, HirStatement, Ident, IndexExpression, LetStatement,
+    Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct, Param, Path,
+    PathKind, Pattern, PrefixExpression, SecondaryAttribute, Signedness, Span, Statement,
+    StatementKind, StructType, Type, TypeImpl, UnaryOp, UnresolvedType, UnresolvedTypeData,
+    Visibility,
 };
 use noirc_frontend::macros_api::{CrateId, FileId};
 use noirc_frontend::macros_api::{MacroError, MacroProcessor};
