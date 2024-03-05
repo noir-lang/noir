@@ -255,8 +255,7 @@ fn display_test_report(
     write!(writer, "[{}] ", package.name).expect("Failed to write to stderr");
 
     let count_all = test_report.len();
-    let count_failed =
-        test_report.iter().filter(|(_, status)| !matches!(status, TestStatus::Pass)).count();
+    let count_failed = test_report.iter().filter(|(_, status)| status.failed()).count();
     let plural = if count_all == 1 { "" } else { "s" };
     if count_failed == 0 {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
