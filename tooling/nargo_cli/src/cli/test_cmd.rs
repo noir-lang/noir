@@ -164,10 +164,20 @@ fn run_tests<S: BlackBoxFunctionSolver>(
         )
     });
 
+    display_test_report(&context.file_manager, package, compile_options, &test_report)?;
+    Ok(test_report)
+}
+
+fn display_test_report(
+    file_manager: &FileManager,
+    package: &Package,
+    compile_options: &CompileOptions,
+    test_report: &[(String, TestStatus)],
+) -> Result<(), CliError> {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
 
-    for (test_name, test_status) in &test_report {
+    for (test_name, test_status) in test_report {
         write!(writer, "[{}] Testing {test_name}... ", package.name)
             .expect("Failed to write to stderr");
         writer.flush().expect("Failed to flush writer");
@@ -186,7 +196,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                 writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
-                        context.file_manager.as_file_map(),
+                        file_manager.as_file_map(),
                         &[diag.clone()],
                         compile_options.deny_warnings,
                         compile_options.silence_warnings,
@@ -195,7 +205,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
             }
             TestStatus::CompileError(err) => {
                 noirc_errors::reporter::report_all(
-                    context.file_manager.as_file_map(),
+                    file_manager.as_file_map(),
                     &[err.clone()],
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
@@ -207,8 +217,10 @@ fn run_tests<S: BlackBoxFunctionSolver>(
 
     write!(writer, "[{}] ", package.name).expect("Failed to write to stderr");
 
+    let count_all = test_report.len();
     let count_failed =
         test_report.iter().filter(|(_, status)| !matches!(status, TestStatus::Pass)).count();
+    let plural = if count_all == 1 { "" } else { "s" };
     if count_failed == 0 {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
         write!(writer, "{count_all} test{plural} passed").expect("Failed to write to stderr");
@@ -233,5 +245,5 @@ fn run_tests<S: BlackBoxFunctionSolver>(
         writer.reset().expect("Failed to reset writer");
     }
 
-    Ok(test_report)
+    Ok(())
 }
