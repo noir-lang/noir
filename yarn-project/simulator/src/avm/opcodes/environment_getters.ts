@@ -1,3 +1,5 @@
+import { Fr } from '@aztec/circuits.js';
+
 import type { AvmContext } from '../avm_context.js';
 import type { AvmExecutionEnvironment } from '../avm_execution_environment.js';
 import { Field } from '../avm_memory_types.js';
@@ -18,14 +20,14 @@ abstract class GetterInstruction extends Instruction {
     context.machineState.incrementPc();
   }
 
-  protected abstract getIt(env: AvmExecutionEnvironment): any;
+  protected abstract getIt(env: AvmExecutionEnvironment): Fr | number | bigint;
 }
 
 export class Address extends GetterInstruction {
   static type: string = 'ADDRESS';
   static readonly opcode: Opcode = Opcode.ADDRESS;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.address;
   }
 }
@@ -34,7 +36,7 @@ export class StorageAddress extends GetterInstruction {
   static type: string = 'STORAGEADDRESS';
   static readonly opcode: Opcode = Opcode.STORAGEADDRESS;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.storageAddress;
   }
 }
@@ -43,7 +45,7 @@ export class Sender extends GetterInstruction {
   static type: string = 'SENDER';
   static readonly opcode: Opcode = Opcode.SENDER;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.sender;
   }
 }
@@ -52,7 +54,7 @@ export class Origin extends GetterInstruction {
   static type: string = 'ORIGIN';
   static readonly opcode: Opcode = Opcode.ORIGIN;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.origin;
   }
 }
@@ -61,7 +63,7 @@ export class FeePerL1Gas extends GetterInstruction {
   static type: string = 'FEEPERL1GAS';
   static readonly opcode: Opcode = Opcode.FEEPERL1GAS;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.feePerL1Gas;
   }
 }
@@ -70,7 +72,7 @@ export class FeePerL2Gas extends GetterInstruction {
   static type: string = 'FEEPERL2GAS';
   static readonly opcode: Opcode = Opcode.FEEPERL2GAS;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.feePerL2Gas;
   }
 }
@@ -79,7 +81,7 @@ export class FeePerDAGas extends GetterInstruction {
   static type: string = 'FEEPERDAGAS';
   static readonly opcode: Opcode = Opcode.FEEPERDAGAS;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.feePerDaGas;
   }
 }
@@ -88,7 +90,7 @@ export class Portal extends GetterInstruction {
   static type: string = 'PORTAL';
   static readonly opcode: Opcode = Opcode.PORTAL;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.portal.toField();
   }
 }
@@ -97,7 +99,7 @@ export class ChainId extends GetterInstruction {
   static type: string = 'CHAINID';
   static readonly opcode: Opcode = Opcode.CHAINID;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.globals.chainId;
   }
 }
@@ -106,7 +108,7 @@ export class Version extends GetterInstruction {
   static type: string = 'VERSION';
   static readonly opcode: Opcode = Opcode.VERSION;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.globals.version;
   }
 }
@@ -115,7 +117,7 @@ export class BlockNumber extends GetterInstruction {
   static type: string = 'BLOCKNUMBER';
   static readonly opcode: Opcode = Opcode.BLOCKNUMBER;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.globals.blockNumber;
   }
 }
@@ -124,7 +126,7 @@ export class Timestamp extends GetterInstruction {
   static type: string = 'TIMESTAMP';
   static readonly opcode: Opcode = Opcode.TIMESTAMP;
 
-  protected getIt(env: AvmExecutionEnvironment): any {
+  protected getIt(env: AvmExecutionEnvironment) {
     return env.globals.timestamp;
   }
 }
