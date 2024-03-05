@@ -1,9 +1,9 @@
 use super::fs::{create_named_dir, write_to_file};
-use std::path::PathBuf;
-use std::fs::create_dir_all;
 use super::NargoConfig;
 use crate::backends::Backend;
 use crate::errors::CliError;
+use std::fs::create_dir_all;
+use std::path::PathBuf;
 
 use clap::Args;
 use nargo::ops::{compile_program, report_errors};
@@ -79,12 +79,13 @@ pub(crate) fn run(
         let smart_contract_string = backend.eth_contract(&program.circuit)?;
 
         let contract_path = if let Some(ref loc) = args.output_directory {
-            create_dir_all(loc).unwrap_or_else(|_| panic!("failed to create directories for {:?}", loc));
-            PathBuf::from(loc).join(format!("{}_verifier",package.name)).with_extension("sol")
+            create_dir_all(loc)
+                .unwrap_or_else(|_| panic!("failed to create directories for {:?}", loc));
+            PathBuf::from(loc).join(format!("{}_verifier", package.name)).with_extension("sol")
         } else {
             let contract_dir = workspace.contracts_directory_path(package);
             create_named_dir(&contract_dir, "contract");
-            contract_dir.join(format!("{}_verifier",package.name)).with_extension("sol")
+            contract_dir.join(format!("{}_verifier", package.name)).with_extension("sol")
         };
 
         let path = write_to_file(smart_contract_string.as_bytes(), &contract_path);
