@@ -136,7 +136,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 64] {
             msg_block[i as Field] = 0;
             i += 1;
         } else if i < 128 {
-            let mut len = 8 * msg.len() as u64; // u128 unsupported
+            let mut len = 8 * msg.len(); // u128 unsupported
             for j in 0..16 {
                 msg_block[127 - j] = len as u8;
                 len >>= 8;
