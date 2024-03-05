@@ -16,3 +16,14 @@ fn eddsa_poseidon_verify(public_key_x : Field, public_key_y : Field, signature_s
 ```
 
 <BlackBoxInfo />
+
+## eddsa::eddsa_to_pub
+
+Private to public key conversion.
+
+Returns `(pub_key_x, pub_key_y)`
+
+```rust
+fn eddsa_to_pub(secret : Field) -> (Field, Field)
+```
+
