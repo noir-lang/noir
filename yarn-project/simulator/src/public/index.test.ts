@@ -1,4 +1,4 @@
-import { L1ToL2Message, SiblingPath } from '@aztec/circuit-types';
+import { L1ToL2Message, NullifierMembershipWitness, SiblingPath } from '@aztec/circuit-types';
 import {
   AppendOnlyTreeSnapshot,
   CallContext,
@@ -7,13 +7,19 @@ import {
   Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
   L2ToL1Message,
+  NULLIFIER_TREE_HEIGHT,
+  NullifierLeaf,
+  NullifierLeafPreimage,
 } from '@aztec/circuits.js';
+import { siloNullifier } from '@aztec/circuits.js/hash';
 import { makeHeader } from '@aztec/circuits.js/testing';
 import { FunctionArtifact, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
+import { openTmpStore } from '@aztec/kv-store/utils';
+import { Pedersen, StandardIndexedTreeWithAppend } from '@aztec/merkle-tree';
 import { ChildContractArtifact } from '@aztec/noir-contracts.js/Child';
 import { ParentContractArtifact } from '@aztec/noir-contracts.js/Parent';
 import { TestContractArtifact } from '@aztec/noir-contracts.js/Test';
@@ -50,16 +56,46 @@ describe('ACIR public execution simulator', () => {
     executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, header);
   }, 10000);
 
+  const mockInitializationNullifierCallback = async (contractAddress: AztecAddress) => {
+    // We create a nullifier tree just to get the membership witness for the token contract
+    // initialization nullifier, which is checked by all of the Token contract functions.
+    const nullifierTree = new StandardIndexedTreeWithAppend(
+      openTmpStore(),
+      new Pedersen(),
+      'nullifier',
+      NULLIFIER_TREE_HEIGHT,
+      0n,
+      NullifierLeafPreimage,
+      NullifierLeaf,
+    );
+    await nullifierTree.init(1);
+    const initializationNullifier = siloNullifier(contractAddress, contractAddress.toField());
+    await nullifierTree.appendLeaves([initializationNullifier.toBuffer()]);
+    header.state.partial.nullifierTree.root = Fr.fromBuffer(nullifierTree.getRoot(true));
+    commitmentsDb.getNullifierMembershipWitnessAtLatestBlock.mockImplementation(async nullifier => {
+      if (nullifier.equals(initializationNullifier)) {
+        const index = 1n;
+        const preimage = nullifierTree.getLatestLeafPreimageCopy(index, true);
+        const siblingPath = await nullifierTree.getSiblingPath<typeof NULLIFIER_TREE_HEIGHT>(index, true);
+        return new NullifierMembershipWitness(index, preimage as NullifierLeafPreimage, siblingPath);
+      } else {
+        throw new Error(`Unexpected nullifier witness request for ${nullifier}`);
+      }
+    });
+  };
+
   describe('Token contract', () => {
     let recipient: AztecAddress;
+    let contractAddress: AztecAddress;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       recipient = AztecAddress.random();
+      contractAddress = AztecAddress.random();
+      await mockInitializationNullifierCallback(contractAddress);
     });
 
     describe('mint', () => {
       it('should run the mint_public function', async () => {
-        const contractAddress = AztecAddress.random();
         const mintArtifact = TokenContractArtifact.functions.find(f => f.name === 'mint_public')!;
         const functionData = FunctionData.fromAbi(mintArtifact);
 
@@ -126,7 +162,6 @@ describe('ACIR public execution simulator', () => {
     });
 
     describe('transfer', () => {
-      let contractAddress: AztecAddress;
       let transferArtifact: FunctionArtifact;
       let functionData: FunctionData;
       let args: Fr[];
@@ -137,7 +172,6 @@ describe('ACIR public execution simulator', () => {
       let execution: PublicExecution;
 
       beforeEach(() => {
-        contractAddress = AztecAddress.random();
         transferArtifact = TokenContractArtifact.functions.find(f => f.name === 'transfer_public')!;
         functionData = new FunctionData(FunctionSelector.empty(), false, false, false);
         sender = AztecAddress.random();
@@ -295,8 +329,9 @@ describe('ACIR public execution simulator', () => {
     let amount: Fr;
     let params: Fr[];
 
-    beforeEach(() => {
+    beforeEach(async () => {
       contractAddress = AztecAddress.random();
+      await mockInitializationNullifierCallback(contractAddress);
       functionData = new FunctionData(FunctionSelector.empty(), false, false, false);
       amount = new Fr(1);
       params = [amount, new Fr(1)];

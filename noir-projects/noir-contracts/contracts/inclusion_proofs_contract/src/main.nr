@@ -38,6 +38,7 @@ contract InclusionProofs {
 
     #[aztec(public)]
     #[aztec(internal)]
+    #[aztec(noinitcheck)]
     fn _initialize(value: Field) {
         storage.public_value.write(value);
     }

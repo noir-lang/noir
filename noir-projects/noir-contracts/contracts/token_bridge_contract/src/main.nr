@@ -139,6 +139,7 @@ contract TokenBridge {
 
     #[aztec(public)]
     #[aztec(internal)]
+    #[aztec(noinitcheck)]
     fn _initialize(token: AztecAddress) {
         storage.token.write(token);
     }

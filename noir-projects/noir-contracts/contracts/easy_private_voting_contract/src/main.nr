@@ -28,8 +28,9 @@ contract EasyPrivateVoting {
     // docs:end:constructor
     // docs:start:initialize
     #[aztec(public)] // annotation to mark function as public and expose public context
-    #[aztec(internal)]
-    fn _initialize(admin: AztecAddress) { // internal - can only be called by contract
+    #[aztec(internal)] // internal - can only be called by contract
+    #[aztec(noinitcheck)]
+    fn _initialize(admin: AztecAddress) { 
         storage.admin.write(admin);
         storage.voteEnded.write(false);
     }

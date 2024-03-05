@@ -451,7 +451,6 @@ fn transform_module(
                 is_internal = true;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
                 is_public = true;
-                insert_init_check = false;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public-vm)") {
                 is_public_vm = true;
             }
@@ -673,15 +672,6 @@ fn transform_function(
 
     // Add initialization check
     if insert_init_check {
-        if ty == "Public" {
-            let error = AztecMacroError::UnsupportedAttributes {
-                span: func.def.name.span(),
-                secondary_message: Some(
-                    "public functions do not yet support initialization check".to_owned(),
-                ),
-            };
-            return Err(error);
-        }
         let init_check = create_init_check();
         func.def.body.0.insert(0, init_check);
     }

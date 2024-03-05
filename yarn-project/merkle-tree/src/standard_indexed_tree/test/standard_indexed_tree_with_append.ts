@@ -1,4 +1,4 @@
-import { StandardIndexedTree } from '../../index.js';
+import { StandardIndexedTree } from '../standard_indexed_tree.js';
 
 /**
  * A testing utility which is here to store the original implementation of StandardIndexedTree.appendLeaves method

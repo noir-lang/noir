@@ -70,12 +70,12 @@ contract StatefulTest {
 
     #[aztec(public)]
     fn increment_public_value(owner: AztecAddress, value: Field) {
-        assert_is_initialized(&mut context);
         let loc = storage.public_values.at(owner);
         loc.write(loc.read() + value);
     }
 
     #[aztec(public)]
+    #[aztec(noinitcheck)]
     fn increment_public_value_no_init_check(owner: AztecAddress, value: Field) {
         let loc = storage.public_values.at(owner);
         loc.write(loc.read() + value);
