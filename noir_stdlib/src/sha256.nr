@@ -57,7 +57,7 @@ pub fn digest<N>(msg: [u8; N]) -> [u8; 32] {
             msg_block[i as Field] = 0;
             i = i + 1;
         } else if i < 64 {
-            let mut len = 8 * msg.len() as u64;
+            let mut len = 8 * msg.len();
             for j in 0..8 {
                 msg_block[63 - j] = len as u8;
                 len >>= 8;
