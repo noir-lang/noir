@@ -123,7 +123,6 @@ pub(crate) fn run(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn run_tests<S: BlackBoxFunctionSolver + Default>(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
