@@ -14,6 +14,12 @@ pub enum TestStatus {
     CompileError(FileDiagnostic),
 }
 
+impl TestStatus {
+    pub fn failed(&self) -> bool {
+        !matches!(self, TestStatus::Pass)
+    }
+}
+
 pub fn run_test<B: BlackBoxFunctionSolver>(
     blackbox_solver: &B,
     context: &mut Context,

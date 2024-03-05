@@ -116,7 +116,7 @@ pub(crate) fn run(
         };
     }
 
-    if test_report.iter().any(|(_, status)| matches!(status, TestStatus::Fail { .. })) {
+    if test_report.iter().any(|(_, status)| status.failed()) {
         Err(CliError::Generic(String::new()))
     } else {
         Ok(())
