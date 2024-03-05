@@ -157,6 +157,7 @@
     "barretenberg/cpp/src"
   ],
   "rust-analyzer.linkedProjects": [
-    "noir/noir-repo/Cargo.toml"
+    "noir/noir-repo/Cargo.toml",
+    "avm-transpiler/Cargo.toml"
   ] 
 }
