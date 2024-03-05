@@ -190,7 +190,6 @@ export class EthAddress {
    *
    * @returns A 32-byte Buffer containing the padded Ethereum address.
    */
-  // TODO(#3938): nuke this
   public toBuffer32() {
     const buffer = Buffer.alloc(32);
     this.buffer.copy(buffer, 12);

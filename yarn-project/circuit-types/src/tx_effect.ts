@@ -115,7 +115,6 @@ export class TxEffect {
       publicDataUpdateRequestsBuffer,
       this.contractLeaves[0].toBuffer(),
       this.contractData[0].contractAddress.toBuffer(),
-      // TODO(#3938): make portal address 20 bytes here when updating the hashing
       this.contractData[0].portalContractAddress.toBuffer32(),
       encryptedLogsHashKernel0,
       unencryptedLogsHashKernel0,

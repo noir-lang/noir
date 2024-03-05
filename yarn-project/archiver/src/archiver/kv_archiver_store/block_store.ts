@@ -53,9 +53,6 @@ export class BlockStore {
         });
 
         block.getTxs().forEach((tx, i) => {
-          if (tx.txHash.isZero()) {
-            return;
-          }
           void this.#txIndex.set(tx.txHash.toString(), [block.number, i]);
         });
 

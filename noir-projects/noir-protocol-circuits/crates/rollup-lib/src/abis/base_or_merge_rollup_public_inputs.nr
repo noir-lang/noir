@@ -25,7 +25,7 @@ struct BaseOrMergeRollupPublicInputs {
     // U128 isn't safe if it's an input to the circuit (it won't automatically constrain the witness)
     // So we want to constrain it when casting these fields to U128
 
-    // TODO(#3938): split this to txs_hash and out_hash
+    // TODO(#4492): update this when implementing the new message model
     // We hash public inputs to make them constant-sized (to then be unpacked on-chain)
     calldata_hash : [Field; 2],
 }

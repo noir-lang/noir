@@ -52,11 +52,10 @@ library TxsDecoder {
   struct ArrayOffsets {
     uint256 noteHash;
     uint256 nullifier;
-    uint256 publicData;
     uint256 l2ToL1Msgs;
+    uint256 publicData;
     uint256 contracts;
     uint256 contractData;
-    uint256 l1ToL2Msgs;
   }
 
   struct Counts {
@@ -71,11 +70,9 @@ library TxsDecoder {
   // Note: Used in `computeConsumables` to get around stack too deep errors.
   struct ConsumablesVars {
     bytes32[] baseLeaves;
-    bytes32[] l2ToL1Msgs;
     bytes baseLeaf;
     bytes32 encryptedLogsHash;
     bytes32 unencryptedLogsHash;
-    uint256 l1Tol2MsgsCount;
   }
 
   /**
@@ -91,8 +88,8 @@ library TxsDecoder {
 
     {
       // L1 to L2 messages
+      // TODO(#4492): update this when implementing the new message model
       uint256 count = read4(_body, offset);
-      vars.l1Tol2MsgsCount = count;
       offset += 0x4 + count * 0x20;
 
       count = read4(_body, offset); // number of tx effects

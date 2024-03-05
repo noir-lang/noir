@@ -14,6 +14,6 @@ struct RootRollupPublicInputs {
     // New block header
     header: Header,
 
-    // TODO(#3938): Nuke this once body hash/calldata hash is updated
+    // TODO(#4492): Nuke this once body hash/calldata hash is updated
     l1_to_l2_messages_hash : [Field; NUM_FIELDS_PER_SHA256],
 }
