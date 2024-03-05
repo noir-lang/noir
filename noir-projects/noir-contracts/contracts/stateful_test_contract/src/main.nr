@@ -20,6 +20,13 @@ contract StatefulTest {
         let _res = context.call_private_function(context.this_address(), selector, [owner.to_field(), value]);
     }
 
+    #[aztec(public)]
+    #[aztec(initializer)]
+    fn public_constructor(owner: AztecAddress, value: Field) {
+        let selector = FunctionSelector::from_signature("increment_public_value_no_init_check((Field),Field)");
+        let _res = context.call_public_function(context.this_address(), selector, [owner.to_field(), value]);
+    }
+
     #[aztec(private)]
     fn create_note(owner: AztecAddress, value: Field) {
         if (value != 0) {

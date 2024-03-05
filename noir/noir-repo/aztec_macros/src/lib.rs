@@ -711,16 +711,7 @@ fn transform_function(
 
     // Before returning mark the contract as initialized
     if is_initializer {
-        if ty == "Public" {
-            let error = AztecMacroError::UnsupportedAttributes {
-                span: func.def.name.span(),
-                secondary_message: Some(
-                    "public functions cannot yet be used as initializers".to_owned(),
-                ),
-            };
-            return Err(error);
-        }
-        let mark_initialized = create_mark_as_initialized();
+        let mark_initialized = create_mark_as_initialized(ty);
         func.def.body.0.push(mark_initialized);
     }
 
@@ -1179,9 +1170,10 @@ fn create_init_check() -> Statement {
 /// ```noir
 /// mark_as_initialized(&mut context);
 /// ```
-fn create_mark_as_initialized() -> Statement {
+fn create_mark_as_initialized(ty: &str) -> Statement {
+    let name = if ty == "Public" { "mark_as_initialized_public" } else { "mark_as_initialized" };
     make_statement(StatementKind::Expression(call(
-        variable_path(chained_dep!("aztec", "initializer", "mark_as_initialized")),
+        variable_path(chained_dep!("aztec", "initializer", name)),
         vec![mutable_reference("context")],
     )))
 }

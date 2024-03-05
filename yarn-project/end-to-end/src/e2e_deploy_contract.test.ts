@@ -24,7 +24,7 @@ import {
   deployInstance,
   registerContractClass,
 } from '@aztec/aztec.js/deployment';
-import { ContractClassIdPreimage, Point, PublicKey } from '@aztec/circuits.js';
+import { ContractClassIdPreimage, Point } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/hash';
 import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { StatefulTestContract } from '@aztec/noir-contracts.js';
@@ -258,10 +258,6 @@ describe('e2e_deploy_contract', () => {
         /nullifier witness not found/i,
       );
     });
-
-    it('refuses to call a public function that requires initialization', async () => {
-      // TODO(@spalladino)
-    });
   });
 
   describe('registering a contract class', () => {
@@ -309,16 +305,14 @@ describe('e2e_deploy_contract', () => {
       describe(`deploying a contract instance ${how}`, () => {
         let instance: ContractInstanceWithAddress;
         let initArgs: StatefulContractCtorArgs;
-        let publicKey: PublicKey;
         let contract: StatefulTestContract;
 
-        beforeAll(async () => {
-          initArgs = [accounts[0].address, 42];
+        const deployInstance = async () => {
+          const initArgs = [accounts[0].address, 42] as StatefulContractCtorArgs;
           const salt = Fr.random();
           const portalAddress = EthAddress.random();
-          publicKey = Point.random();
-
-          instance = getContractInstanceFromDeployParams(artifact, initArgs, salt, publicKey, portalAddress);
+          const publicKey = Point.random();
+          const instance = getContractInstanceFromDeployParams(artifact, initArgs, salt, publicKey, portalAddress);
           const { address, contractClassId } = instance;
           logger(`Deploying contract instance at ${address.toString()} class id ${contractClassId.toString()}`);
           await deployFn(instance);
@@ -338,7 +332,12 @@ describe('e2e_deploy_contract', () => {
             publicKey,
           });
           expect(registered.address).toEqual(instance.address);
-          contract = await StatefulTestContract.at(instance.address, wallet);
+          const contract = await StatefulTestContract.at(instance.address, wallet);
+          return { contract, initArgs, instance, publicKey };
+        };
+
+        beforeAll(async () => {
+          ({ instance, initArgs, contract } = await deployInstance());
         }, 60_000);
 
         it('stores contract instance in the aztec node', async () => {
@@ -381,6 +380,32 @@ describe('e2e_deploy_contract', () => {
           const stored = await contract.methods.get_public_value(whom).view();
           expect(stored).toEqual(10n);
         }, 30_000);
+
+        it('refuses to reinitialize the contract', async () => {
+          await expect(
+            contract.methods
+              .public_constructor(...initArgs)
+              .send({ skipPublicSimulation: true })
+              .wait(),
+          ).rejects.toThrow(/dropped/i);
+        }, 30_000);
+
+        it('initializes a new instance of the contract via a public function', async () => {
+          const { contract, initArgs } = await deployInstance();
+          const whom = initArgs[0];
+          logger.info(`Initializing contract at ${contract.address} via a public function`);
+          await contract.methods
+            .public_constructor(...initArgs)
+            .send({ skipPublicSimulation: true })
+            .wait();
+          expect(await contract.methods.get_public_value(whom).view()).toEqual(42n);
+          logger.info(`Calling a public function that requires initialization on ${contract.address}`);
+          await contract.methods.increment_public_value(whom, 10).send().wait();
+          expect(await contract.methods.get_public_value(whom).view()).toEqual(52n);
+          logger.info(`Calling a private function that requires initialization on ${contract.address}`);
+          await contract.methods.create_note(whom, 10).send().wait();
+          expect(await contract.methods.summed_values(whom).view()).toEqual(10n);
+        }, 90_000);
       });
 
     testDeployingAnInstance('from a wallet', async instance => {
