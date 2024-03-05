@@ -2,10 +2,7 @@
 // Account contract that uses Schnorr signatures for authentication using a hardcoded public key.
 contract SchnorrHardcodedAccount {
     use dep::std;
-    use dep::aztec::{
-        context::PrivateContext,
-        protocol_types::{address::AztecAddress, abis::function_selector::FunctionSelector}
-    };
+    use dep::aztec::prelude::{AztecAddress, FunctionSelector, PrivateContext};
 
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,

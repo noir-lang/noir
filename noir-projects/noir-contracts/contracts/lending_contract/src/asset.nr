@@ -1,4 +1,5 @@
-use dep::aztec::protocol_types::{address::AztecAddress, traits::{Deserialize, Serialize}};
+use dep::aztec::prelude::AztecAddress;
+use dep::aztec::protocol_types::traits::{Deserialize, Serialize};
 
 // Struct to be used to represent "totals". Generally, there should be one per asset.
 // It stores the global values that are shared among all users, such as an accumulator

@@ -1,4 +1,3 @@
-use dep::std::option::Option;
 use dep::protocol_types::{constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL};
 use crate::note::note_interface::NoteInterface;
 

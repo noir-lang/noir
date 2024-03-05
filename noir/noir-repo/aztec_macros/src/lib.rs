@@ -1887,7 +1887,7 @@ fn generate_compute_note_hash_and_nullifier_source(note_types: &Vec<String>) -> 
 
         let if_statements: Vec<String> = note_types.iter().map(|note_type| format!(
             "if (note_type_id == {0}::get_note_type_id()) {{
-                note_utils::compute_note_hash_and_nullifier({0}::deserialize_content, note_header, serialized_note)
+                dep::aztec::note::utils::compute_note_hash_and_nullifier({0}::deserialize_content, note_header, serialized_note)
             }}"
         , note_type)).collect();
 
@@ -1907,7 +1907,7 @@ fn generate_compute_note_hash_and_nullifier_source(note_types: &Vec<String>) -> 
                 note_type_id: Field,
                 serialized_note: [Field; 20]
             ) -> pub [Field; 4] {{
-                let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
+                let note_header = dep::aztec::prelude::NoteHeader::new(contract_address, nonce, storage_slot);
 
                 {}
             }}",

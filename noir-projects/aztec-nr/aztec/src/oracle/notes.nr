@@ -1,4 +1,3 @@
-use dep::std::option::Option;
 use crate::note::{note_header::NoteHeader, note_interface::NoteInterface};
 
 use dep::protocol_types::{address::AztecAddress, utils::arr_copy_slice};

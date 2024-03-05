@@ -1,12 +1,7 @@
-use dep::std::option::Option;
+use dep::aztec::prelude::{AztecAddress, NoteHeader, NoteInterface, NoteGetterOptions, NoteViewerOptions, PrivateSet, Map};
 use dep::aztec::{
-    context::Context,
-    protocol_types::{address::AztecAddress, constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL},
-    state_vars::{PrivateSet, Map},
-    note::{
-    note_getter::view_notes, note_getter_options::{NoteGetterOptions, SortOrder},
-    note_viewer_options::NoteViewerOptions, note_header::NoteHeader, note_interface::NoteInterface
-}
+    context::Context, protocol_types::{constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL},
+    note::{note_getter::view_notes, note_getter_options::SortOrder}
 };
 use crate::types::token_note::{TokenNote, OwnedNote};
 
@@ -26,7 +21,10 @@ impl<T> BalancesMap<T> {
         }
     }
 
-    unconstrained pub fn balance_of<T_SERIALIZED_LEN>(self: Self, owner: AztecAddress) -> U128 where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
+    unconstrained pub fn balance_of<T_SERIALIZED_LEN>(
+        self: Self,
+        owner: AztecAddress
+    ) -> U128 where T: NoteInterface<T_SERIALIZED_LEN> + OwnedNote {
         self.balance_of_with_offset(owner, 0)
     }
 

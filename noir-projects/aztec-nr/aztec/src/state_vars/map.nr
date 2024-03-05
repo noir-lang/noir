@@ -1,5 +1,4 @@
 use crate::context::{PrivateContext, PublicContext, Context};
-use dep::std::option::Option;
 use dep::protocol_types::{hash::pedersen_hash, traits::{ToField}};
 use crate::state_vars::storage::Storage;
 

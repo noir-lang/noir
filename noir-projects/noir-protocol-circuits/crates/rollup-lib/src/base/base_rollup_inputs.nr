@@ -583,7 +583,6 @@ mod tests {
     },
         utils::{field::full_field_less_than, uint256::U256}
     };
-    use dep::std::option::Option;
 
     struct NullifierInsertion {
         existing_index: u64,

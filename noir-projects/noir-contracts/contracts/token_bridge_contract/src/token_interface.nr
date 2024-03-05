@@ -1,6 +1,6 @@
 // docs:start:token_bridge_token_interface
-use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress}};
-use dep::aztec::{context::{PrivateContext, PublicContext, Context}};
+use dep::aztec::prelude::{FunctionSelector, AztecAddress, EthAddress, PrivateContext};
+use dep::aztec::context::{PublicContext, Context};
 
 struct Token {
   address: AztecAddress,

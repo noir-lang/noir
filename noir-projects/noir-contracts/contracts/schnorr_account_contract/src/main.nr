@@ -4,14 +4,10 @@ mod public_key_note;
 // The signing key is stored in an immutable private note and should be different from the encryption/nullifying key.
 contract SchnorrAccount {
     use dep::std;
-    use dep::std::option::Option;
 
-    use dep::aztec::protocol_types::{address::AztecAddress, abis::function_selector::FunctionSelector};
+    use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, PrivateContext, PrivateImmutable};
 
-    use dep::aztec::{
-        context::{PrivateContext, Context}, note::{note_header::NoteHeader, utils as note_utils},
-        oracle::get_public_key::get_public_key, state_vars::PrivateImmutable
-    };
+    use dep::aztec::{context::Context, oracle::get_public_key::get_public_key};
     use dep::authwit::{
         entrypoint::{app::AppPayload, fee::FeePayload}, account::AccountActions,
         auth_witness::get_auth_witness

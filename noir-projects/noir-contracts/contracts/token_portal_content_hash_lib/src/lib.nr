@@ -1,16 +1,10 @@
 // docs:start:mint_public_content_hash_nr
-use dep::aztec::protocol_types::{
-    address::{
-        AztecAddress,
-        EthAddress,
-    },
-    hash::sha256_to_field,
-};
+use dep::aztec::prelude::{AztecAddress, EthAddress};
+use dep::aztec::protocol_types::hash::sha256_to_field;
 
 // Computes a content hash of a deposit/mint_public message.
 // Refer TokenPortal.sol for reference on L1.
 pub fn get_mint_public_content_hash(owner: AztecAddress, amount: Field, canceller: EthAddress) -> Field {
-    
     let mut hash_bytes: [u8; 100] = [0; 100];
     let recipient_bytes = owner.to_field().to_be_bytes(32);
     let amount_bytes = amount.to_be_bytes(32);
@@ -36,7 +30,11 @@ pub fn get_mint_public_content_hash(owner: AztecAddress, amount: Field, cancelle
 // docs:start:get_mint_private_content_hash
 // Computes a content hash of a deposit/mint_private message.
 // Refer TokenPortal.sol for reference on L1.
-pub fn get_mint_private_content_hash(secret_hash_for_redeeming_minted_notes: Field, amount: Field, canceller: EthAddress) -> Field {
+pub fn get_mint_private_content_hash(
+    secret_hash_for_redeeming_minted_notes: Field,
+    amount: Field,
+    canceller: EthAddress
+) -> Field {
     let mut hash_bytes: [u8; 100] = [0; 100];
     let secret_hash_bytes = secret_hash_for_redeeming_minted_notes.to_be_bytes(32);
     let amount_bytes = amount.to_be_bytes(32);

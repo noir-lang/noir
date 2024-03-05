@@ -1,8 +1,8 @@
+use dep::aztec::prelude::{AztecAddress, NoteInterface, NoteHeader, PrivateContext, emit_encrypted_log};
 use dep::aztec::{
-    note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
+    note::{utils::compute_note_hash_for_consumption},
     oracle::{nullifier_key::get_nullifier_secret_key, get_public_key::get_public_key},
-    log::emit_encrypted_log, hash::pedersen_hash, context::PrivateContext,
-    protocol_types::{address::AztecAddress, traits::Empty}
+    hash::pedersen_hash, protocol_types::traits::Empty
 };
 
 // Shows how to create a custom note

@@ -1,4 +1,4 @@
-use dep::aztec::context::PrivateContext;
+use dep::aztec::prelude::PrivateContext;
 use dep::aztec::protocol_types::{constants::GENERATOR_INDEX__SIGNATURE_PAYLOAD, hash::pedersen_hash, traits::{Hash, Serialize}};
 
 use crate::entrypoint::function_call::{FunctionCall, FUNCTION_CALL_SIZE_IN_BYTES};

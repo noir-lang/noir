@@ -1,7 +1,6 @@
 mod events;
 
 contract ContractInstanceDeployer {
-    use dep::std::option::Option;
     use dep::aztec::protocol_types::{
         address::{AztecAddress, EthAddress, PublicKeysHash, PartialAddress},
         contract_class_id::ContractClassId,

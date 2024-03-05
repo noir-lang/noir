@@ -1,14 +1,8 @@
 // Sample escrow contract that stores a balance of a private token on behalf of an owner.
 contract Escrow {
-    use dep::std::option::Option;
+    use dep::aztec::prelude::{AztecAddress, EthAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, PrivateSet};
 
-    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
-
-    use dep::aztec::{
-        context::{PrivateContext, PublicContext, Context},
-        note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader, utils as note_utils},
-        oracle::get_public_key::get_public_key, state_vars::PrivateSet
-    };
+    use dep::aztec::{context::{PublicContext, Context}, oracle::get_public_key::get_public_key};
 
     use dep::address_note::address_note::{AddressNote, ADDRESS_NOTE_LEN};
 

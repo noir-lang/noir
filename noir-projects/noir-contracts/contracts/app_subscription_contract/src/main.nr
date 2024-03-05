@@ -3,16 +3,14 @@ mod dapp_payload;
 
 contract AppSubscription {
     use dep::std;
-    use dep::std::option::Option;
     use crate::dapp_payload::DAppPayload;
 
-    use dep::aztec::protocol_types::{address::AztecAddress, abis::function_selector::FunctionSelector};
-
-    use dep::aztec::{
-        context::{PrivateContext, Context}, note::{note_header::NoteHeader, utils as note_utils},
-        oracle::get_public_key::get_public_key,
-        state_vars::{Map, PrivateMutable, PublicMutable, SharedImmutable}
+    use dep::aztec::prelude::{
+        AztecAddress, FunctionSelector, PrivateContext, NoteHeader, Map, PrivateMutable, PublicMutable,
+        SharedImmutable
     };
+
+    use dep::aztec::{context::Context, oracle::get_public_key::get_public_key};
     use dep::authwit::{account::AccountActions, auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit};
 
     use crate::subscription_note::{SubscriptionNote, SUBSCRIPTION_NOTE_LEN};

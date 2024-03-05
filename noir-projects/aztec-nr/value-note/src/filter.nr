@@ -1,4 +1,3 @@
-use dep::std::option::Option;
 use dep::aztec::protocol_types::constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL;
 use crate::value_note::ValueNote;
 

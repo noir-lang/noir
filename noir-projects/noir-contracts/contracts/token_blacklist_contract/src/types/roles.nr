@@ -10,33 +10,29 @@ struct UserFlags {
 
 impl UserFlags {
 
-  pub fn new(value: U128) -> Self {
-    let is_admin = value & ADMIN_FLAG == ADMIN_FLAG;
-    let is_minter = value & MINTER_FLAG == MINTER_FLAG;
-    let is_blacklisted = value & BLACKLIST_FLAG == BLACKLIST_FLAG;
+    pub fn new(value: U128) -> Self {
+        let is_admin = value & ADMIN_FLAG == ADMIN_FLAG;
+        let is_minter = value & MINTER_FLAG == MINTER_FLAG;
+        let is_blacklisted = value & BLACKLIST_FLAG == BLACKLIST_FLAG;
 
-    Self {
-      is_admin,
-      is_minter,
-      is_blacklisted,
-    }
-  }
-
-  pub fn get_value(self) -> U128 {
-    let mut value: U128 = U128::from_integer(0);
-
-    if self.is_admin {
-      value = value | ADMIN_FLAG;
+        Self { is_admin, is_minter, is_blacklisted }
     }
 
-    if self.is_minter {
-      value = value | MINTER_FLAG;
-    }
+    pub fn get_value(self) -> U128 {
+        let mut value: U128 = U128::from_integer(0);
 
-    if self.is_blacklisted {
-      value = value | BLACKLIST_FLAG;
-    }
+        if self.is_admin {
+            value = value | ADMIN_FLAG;
+        }
 
-    value
-  }
+        if self.is_minter {
+            value = value | MINTER_FLAG;
+        }
+
+        if self.is_blacklisted {
+            value = value | BLACKLIST_FLAG;
+        }
+
+        value
+    }
 }

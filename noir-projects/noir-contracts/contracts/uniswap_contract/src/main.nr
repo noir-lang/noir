@@ -6,8 +6,8 @@ mod util;
 // Has two separate flows for private and public respectively
 // Uses the token bridge contract, which tells which input token we need to talk to and handles the exit funds to L1 
 contract Uniswap {
-    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress}};
-    use dep::aztec::{oracle::{context::get_portal_address}, state_vars::{Map, PublicMutable}};
+    use dep::aztec::prelude::{FunctionSelector, AztecAddress, EthAddress, Map, PublicMutable};
+    use dep::aztec::oracle::context::get_portal_address;
 
     use dep::authwit::auth::{
         IS_VALID_SELECTOR, assert_current_call_valid_authwit_public, compute_call_authwit_hash,

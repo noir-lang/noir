@@ -1,9 +1,10 @@
 contract EasyPrivateVoting {
     // docs:start:imports
-    use dep::aztec::{
-        protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress},
-        context::{PrivateContext, Context}, state_vars::{Map, PublicMutable}
+    use dep::aztec::prelude::{
+        AztecAddress, FunctionSelector, NoteHeader, NoteInterface, NoteGetterOptions, PrivateContext,
+        Map, PublicMutable
     };
+    use dep::aztec::context::Context;
     // docs:end:imports
     // docs:start:storage_struct
     struct Storage {

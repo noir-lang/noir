@@ -1,7 +1,9 @@
-use dep::aztec::context::{PrivateContext, PublicContext};
+use dep::aztec::prelude::{FunctionSelector, AztecAddress, PrivateContext};
+
+use dep::aztec::context::PublicContext;
+use dep::aztec::protocol_types::constants::RETURN_VALUES_LENGTH;
 
 use crate::asset::Asset;
-use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress, constants::RETURN_VALUES_LENGTH};
 
 struct PriceFeed {
   address: AztecAddress,

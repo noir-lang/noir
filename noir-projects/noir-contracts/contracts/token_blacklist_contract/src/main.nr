@@ -14,11 +14,10 @@ mod interfaces;
 
 contract TokenBlacklist {
     // Libs
-    use dep::std::option::Option;
 
     use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
     use dep::aztec::{
-        note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader, utils as note_utils},
+        note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
         hash::{compute_secret_hash}, state_vars::{Map, PublicMutable, PrivateSet, SharedImmutable}
     };
 

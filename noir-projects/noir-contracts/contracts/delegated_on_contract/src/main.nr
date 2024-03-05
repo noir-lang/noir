@@ -1,16 +1,11 @@
 // A contract used along with `Parent` contract to test nested calls.
 contract DelegatedOn {
-    use dep::std::option::Option;
-
-    use dep::aztec::{
-        context::{PrivateContext, PublicContext, Context}, log::emit_unencrypted_log,
-        state_vars::{PublicMutable, PrivateSet},
-        protocol_types::{abis::{function_selector::FunctionSelector, call_context::CallContext}, address::AztecAddress},
-        note::{
-        note_getter_options::NoteGetterOptions, note_viewer_options::NoteViewerOptions,
-        utils as note_utils, note_header::NoteHeader
-    }
+    use dep::aztec::prelude::{
+        AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, NoteViewerOptions,
+        emit_unencrypted_log, PublicMutable, PrivateSet, PrivateContext
     };
+
+    use dep::aztec::{context::{PublicContext, Context}, protocol_types::abis::call_context::CallContext};
     use dep::value_note::value_note::{ValueNote, VALUE_NOTE_LEN};
 
     struct Storage {

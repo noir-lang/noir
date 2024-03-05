@@ -1,5 +1,6 @@
+use dep::aztec::prelude::{AztecAddress, EthAddress};
 use dep::aztec::context::PublicContext;
-use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, hash::sha256_to_field};
+use dep::aztec::protocol_types::hash::sha256_to_field;
 
 pub fn calculate_fee(_context: PublicContext) -> U128 {
     U128::from_integer(1)

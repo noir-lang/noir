@@ -7,9 +7,9 @@ mod token_interface;
 // Bridge has to be set as a minter on the token before it can be used
 
 contract TokenBridge {
-    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::{AztecAddress, EthAddress}};
+    use dep::aztec::prelude::{FunctionSelector, AztecAddress, EthAddress, PublicMutable};
 
-    use dep::aztec::{context::{Context}, hash::{compute_secret_hash}, state_vars::{PublicMutable}};
+    use dep::aztec::{context::Context, hash::compute_secret_hash};
 
     use dep::token_portal_content_hash_lib::{get_mint_public_content_hash, get_mint_private_content_hash, get_withdraw_content_hash};
 

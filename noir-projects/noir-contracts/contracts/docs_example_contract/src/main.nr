@@ -13,15 +13,12 @@ mod types;
 
 contract DocsExample {
     // how to import dependencies defined in your workspace
-    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
-    use dep::aztec::{
-        note::{
-        note_header::NoteHeader, note_getter_options::{NoteGetterOptions, Comparator},
-        note_viewer_options::{NoteViewerOptions}, utils as note_utils
-    },
-        context::{PrivateContext, PublicContext, Context},
-        state_vars::{Map, PublicMutable, PublicImmutable, PrivateMutable, PrivateImmutable, PrivateSet, SharedImmutable}
+    use dep::aztec::prelude::{
+        AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, NoteViewerOptions,
+        PrivateContext, Map, PublicMutable, PublicImmutable, PrivateMutable, PrivateImmutable,
+        PrivateSet, SharedImmutable
     };
+    use dep::aztec::{note::note_getter_options::Comparator, context::{PublicContext, Context}};
     // how to import methods from other files/folders within your workspace
     use crate::options::create_account_card_getter_options;
     use crate::types::{card_note::{CardNote, CARD_NOTE_LEN}, leader::Leader};

@@ -11,9 +11,9 @@ mod interfaces;
 // - A way to repay all debt at once
 // - Liquidations
 contract Lending {
-    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
-    use dep::std::option::Option;
-    use dep::aztec::{context::{PrivateContext, PublicContext, Context}, state_vars::{Map, PublicMutable}};
+    use dep::aztec::prelude::{FunctionSelector, AztecAddress, PrivateContext, Map, PublicMutable};
+    use dep::aztec::context::{PublicContext, Context};
+
     use crate::asset::Asset;
     use crate::interest_math::compute_multiplier;
     use crate::helpers::{covered_by_collateral, DebtReturn, debt_updates, debt_value, compute_identifier};

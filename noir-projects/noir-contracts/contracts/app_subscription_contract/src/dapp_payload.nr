@@ -1,8 +1,5 @@
-use dep::aztec::context::PrivateContext;
-use dep::aztec::protocol_types::{
-    constants::GENERATOR_INDEX__SIGNATURE_PAYLOAD, hash::pedersen_hash, traits::{Hash, Serialize},
-    address::AztecAddress
-};
+use dep::aztec::prelude::{PrivateContext, AztecAddress};
+use dep::aztec::protocol_types::{constants::GENERATOR_INDEX__SIGNATURE_PAYLOAD, hash::pedersen_hash, traits::{Hash, Serialize}};
 
 use dep::authwit::entrypoint::function_call::{FunctionCall, FUNCTION_CALL_SIZE_IN_BYTES};
 

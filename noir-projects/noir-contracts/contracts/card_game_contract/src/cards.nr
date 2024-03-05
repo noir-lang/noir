@@ -1,11 +1,8 @@
+use dep::aztec::prelude::{AztecAddress, FunctionSelector, PrivateContext, NoteHeader, NoteGetterOptions, NoteViewerOptions};
+
 use dep::aztec::{
-    protocol_types::{address::AztecAddress, constants::{MAX_NOTES_PER_PAGE, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL}},
-    context::{PrivateContext, PublicContext, Context},
-    note::{
-    note_getter_options::NoteGetterOptions, note_viewer_options::NoteViewerOptions,
-    note_getter::view_notes
-},
-    state_vars::PrivateSet
+    protocol_types::constants::{MAX_NOTES_PER_PAGE, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL},
+    context::{PublicContext, Context}, note::note_getter::view_notes, state_vars::PrivateSet
 };
 use dep::std;
 use dep::std::{option::Option};
@@ -161,7 +158,11 @@ impl Deck {
 
 global PACK_CARDS = 3; // Limited by number of write requests (max 4)
 
-pub fn get_pack_cards(seed: Field, owner: AztecAddress, context: &mut PrivateContext) -> [Card; PACK_CARDS] {
+pub fn get_pack_cards(
+    seed: Field,
+    owner: AztecAddress,
+    context: &mut PrivateContext
+) -> [Card; PACK_CARDS] {
     // generate pseudo randomness deterministically from 'seed' and user secret
     let secret = context.request_nullifier_secret_key(owner);
     let mix = secret.high + secret.low + seed;

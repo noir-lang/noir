@@ -1,12 +1,10 @@
 // A contract used along with `Parent` contract to test nested calls.
 contract Child {
-    use dep::std::option::Option;
+    use dep::aztec::prelude::{AztecAddress, FunctionSelector, PublicMutable, PrivateSet, PrivateContext, emit_unencrypted_log};
 
     use dep::aztec::{
-        context::{PrivateContext, PublicContext, Context}, log::emit_unencrypted_log,
-        state_vars::{PublicMutable, PrivateSet},
-        protocol_types::{abis::{function_selector::FunctionSelector, call_context::CallContext}, address::AztecAddress},
-        note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader, utils as note_utils}
+        context::{PublicContext, Context}, protocol_types::{abis::{call_context::CallContext}},
+        note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader}
     };
     use dep::value_note::value_note::{ValueNote, VALUE_NOTE_LEN};
 

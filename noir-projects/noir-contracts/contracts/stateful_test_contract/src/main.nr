@@ -1,15 +1,11 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract StatefulTest {
-    use dep::std::option::Option;
+    use dep::aztec::prelude::{PrivateContext, NoteHeader, Map, PublicMutable, PrivateSet, AztecAddress, FunctionSelector};
     use dep::value_note::{balance_utils, utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote}};
     use dep::aztec::{
-        deploy::{deploy_contract as aztec_deploy_contract},
-        context::{PrivateContext, PublicContext, Context},
-        note::{note_header::NoteHeader, utils as note_utils},
-        state_vars::{Map, PublicMutable, PrivateSet},
+        deploy::{deploy_contract as aztec_deploy_contract}, context::{PublicContext, Context},
         oracle::get_contract_instance::get_contract_instance,
-        initializer::{mark_as_initialized, assert_is_initialized},
-        protocol_types::{address::AztecAddress, abis::function_selector::FunctionSelector},
+        initializer::{mark_as_initialized, assert_is_initialized}
     };
 
     struct Storage {
@@ -64,7 +60,6 @@ contract StatefulTest {
         let recipient_notes = storage.notes.at(recipient);
         increment(recipient_notes, amount, recipient);
     }
-
 
     #[aztec(public)]
     fn increment_public_value(owner: AztecAddress, value: Field) {

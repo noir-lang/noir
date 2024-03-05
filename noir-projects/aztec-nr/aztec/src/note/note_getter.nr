@@ -1,4 +1,3 @@
-use dep::std::option::Option;
 use dep::protocol_types::{
     constants::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, GET_NOTE_ORACLE_RETURN_LENGTH, GET_NOTES_ORACLE_RETURN_LENGTH,
@@ -13,11 +12,7 @@ use crate::note::{
 };
 use crate::oracle;
 
-fn check_note_header<Note, N>(
-    context: PrivateContext,
-    storage_slot: Field,
-    note: Note
-) where Note: NoteInterface<N> {
+fn check_note_header<Note, N>(context: PrivateContext, storage_slot: Field, note: Note) where Note: NoteInterface<N> {
     let header = note.get_header();
     let contract_address = context.this_address();
     assert(header.contract_address.eq(contract_address));

@@ -30,7 +30,6 @@ use dep::protocol_types::{
     grumpkin_private_key::GrumpkinPrivateKey, hash::hash_args, header::Header,
     messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader, traits::is_empty
 };
-use dep::std::option::Option;
 
 // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
 // use dep::std::collections::vec::Vec;

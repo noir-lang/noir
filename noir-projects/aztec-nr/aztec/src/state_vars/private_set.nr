@@ -1,4 +1,3 @@
-use dep::std::option::Option;
 use dep::protocol_types::{
     constants::{MAX_NOTES_PER_PAGE, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL},
     abis::side_effect::{SideEffect, SideEffectLinkedToNoteHash}
