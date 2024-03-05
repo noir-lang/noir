@@ -185,7 +185,6 @@ fn get_tests_in_package(
     parsed_files: &ParsedFiles,
     package: &Package,
     fn_name: FunctionNameMatch,
-
     compile_options: &CompileOptions,
 ) -> Result<Vec<String>, CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
