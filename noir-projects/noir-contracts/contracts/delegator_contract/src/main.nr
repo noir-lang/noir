@@ -54,16 +54,4 @@ contract Delegator {
     unconstrained fn view_public_value() -> pub Field {
         storage.current_value.read()
     }
-
-    // TODO: remove this placeholder once https://github.com/AztecProtocol/aztec-packages/issues/2918 is implemented
-    unconstrained fn compute_note_hash_and_nullifier(
-        contract_address: AztecAddress,
-        nonce: Field,
-        storage_slot: Field,
-        note_type_id: Field,
-        serialized_note: [Field; VALUE_NOTE_LEN]
-    ) -> pub [Field; 4] {
-        let note_header = NoteHeader::new(contract_address, nonce, storage_slot);
-        dep::aztec::note::utils::compute_note_hash_and_nullifier(ValueNote::deserialize_content, note_header, serialized_note)
-    }
 }
