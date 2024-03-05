@@ -292,8 +292,9 @@ template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public tes
         // check that the result agrees.
         NativeDeciderVerifier native_decider_verifier(verifier_accumulator);
         auto native_result = native_decider_verifier.verify_proof(decider_proof);
-        auto recursive_result = native_decider_verifier.accumulator->pcs_verification_key->pairing_check(
-            pairing_points[0].get_value(), pairing_points[1].get_value());
+        auto recursive_result =
+            native_decider_verifier.accumulator->verification_key->pcs_verification_key->pairing_check(
+                pairing_points[0].get_value(), pairing_points[1].get_value());
         EXPECT_EQ(native_result, recursive_result);
 
         // Ensure that the underlying native and recursive decider verification algorithms agree by ensuring

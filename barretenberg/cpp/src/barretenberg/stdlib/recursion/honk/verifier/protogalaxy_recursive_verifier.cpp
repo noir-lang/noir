@@ -212,6 +212,7 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyRecursiveVerifi
 
     next_accumulator->verification_key =
         std::make_shared<VerificationKey>(instances[0]->instance_size, instances[0]->public_input_size);
+    next_accumulator->verification_key->pcs_verification_key = accumulator->verification_key->pcs_verification_key;
     size_t vk_idx = 0;
     for (auto& expected_vk : next_accumulator->verification_key->get_all()) {
         size_t inst = 0;

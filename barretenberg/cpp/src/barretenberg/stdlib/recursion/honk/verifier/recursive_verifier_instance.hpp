@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/commitment_schemes/verification_key.hpp"
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/instance/verifier_instance.hpp"
@@ -63,6 +64,7 @@ template <IsRecursiveFlavor Flavor> class RecursiveVerifierInstance_ {
             public_input_idx++;
         }
         verification_key = std::make_shared<VerificationKey>(instance_size, public_input_size);
+        verification_key->pcs_verification_key = instance->verification_key->pcs_verification_key;
         auto other_vks = instance->verification_key->get_all();
         size_t vk_idx = 0;
         for (auto& vk : verification_key->get_all()) {
@@ -105,7 +107,13 @@ template <IsRecursiveFlavor Flavor> class RecursiveVerifierInstance_ {
      */
     VerifierInstance get_value()
     {
-        VerifierInstance inst;
+        auto inst_verification_key = std::make_shared<NativeVerificationKey>(instance_size, public_input_size);
+        inst_verification_key->pcs_verification_key = verification_key->pcs_verification_key;
+        for (auto [vk, inst_vk] : zip_view(verification_key->get_all(), inst_verification_key->get_all())) {
+            inst_vk = vk.get_value();
+        }
+
+        VerifierInstance inst(inst_verification_key);
         inst.pub_inputs_offset = pub_inputs_offset;
         inst.public_input_size = public_input_size;
         inst.log_instance_size = log_instance_size;
@@ -115,11 +123,6 @@ template <IsRecursiveFlavor Flavor> class RecursiveVerifierInstance_ {
         inst.public_inputs = std::vector<NativeFF>(public_input_size);
         for (auto [public_input, inst_public_input] : zip_view(public_inputs, inst.public_inputs)) {
             inst_public_input = public_input.get_value();
-        }
-
-        inst.verification_key = std::make_shared<NativeVerificationKey>(instance_size, public_input_size);
-        for (auto [vk, inst_vk] : zip_view(verification_key->get_all(), inst.verification_key->get_all())) {
-            inst_vk = vk.get_value();
         }
 
         for (auto [alpha, inst_alpha] : zip_view(alphas, inst.alphas)) {

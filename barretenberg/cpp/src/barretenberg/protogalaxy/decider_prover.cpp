@@ -17,7 +17,7 @@ DeciderProver_<Flavor>::DeciderProver_(const std::shared_ptr<Instance>& inst,
                                        const std::shared_ptr<Transcript>& transcript)
     : accumulator(std::move(inst))
     , transcript(transcript)
-    , commitment_key(inst->commitment_key)
+    , commitment_key(inst->proving_key->commitment_key)
 {}
 
 /**
