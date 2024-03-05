@@ -183,10 +183,11 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                 attributes,
                 is_unconstrained: modifiers.0,
                 is_open: modifiers.2,
-                is_internal: modifiers.3,
+                // Whether a function is internal or not is now set through `aztec_macros`
+                is_internal: false,
                 visibility: if modifiers.1 {
                     FunctionVisibility::PublicCrate
-                } else if modifiers.4 {
+                } else if modifiers.3 {
                     FunctionVisibility::Public
                 } else {
                     FunctionVisibility::Private
@@ -203,24 +204,17 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         })
 }
 
-/// function_modifiers: 'unconstrained'? 'pub(crate)'? 'pub'? 'open'? 'internal'?
+/// function_modifiers: 'unconstrained'? 'pub(crate)'? 'pub'? 'open'?
 ///
-/// returns (is_unconstrained, is_pub_crate, is_open, is_internal, is_pub) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool, bool)> {
+/// returns (is_unconstrained, is_pub_crate, is_open, is_pub) for whether each keyword was present
+fn function_modifiers() -> impl NoirParser<(bool, bool, bool, bool)> {
     keyword(Keyword::Unconstrained)
         .or_not()
         .then(is_pub_crate())
         .then(keyword(Keyword::Pub).or_not())
         .then(keyword(Keyword::Open).or_not())
-        .then(keyword(Keyword::Internal).or_not())
-        .map(|((((unconstrained, pub_crate), public), open), internal)| {
-            (
-                unconstrained.is_some(),
-                pub_crate,
-                open.is_some(),
-                internal.is_some(),
-                public.is_some(),
-            )
+        .map(|(((unconstrained, pub_crate), public), open)| {
+            (unconstrained.is_some(), pub_crate, open.is_some(), public.is_some())
         })
 }
 
