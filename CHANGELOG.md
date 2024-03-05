@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.26.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.25.0...aztec-packages-v0.26.0) (2024-03-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* Internal as a macro ([#4898](https://github.com/AztecProtocol/aztec-packages/issues/4898))
+
+### Features
+
+* Add init check by default to public fns ([#4897](https://github.com/AztecProtocol/aztec-packages/issues/4897)) ([4550f25](https://github.com/AztecProtocol/aztec-packages/commit/4550f2596b51a985d6677191fd83bb2e621c5bc3))
+* Enable public constructor functions ([#4896](https://github.com/AztecProtocol/aztec-packages/issues/4896)) ([7b06895](https://github.com/AztecProtocol/aztec-packages/commit/7b068957b41069a2ed8fd0f64ba1b95eb0299ee0))
+* Internal as a macro ([#4898](https://github.com/AztecProtocol/aztec-packages/issues/4898)) ([73d640a](https://github.com/AztecProtocol/aztec-packages/commit/73d640a4a033f0c865d45da470ef40c1fb03a844))
+* We no longer update version packages via scripts ([#4962](https://github.com/AztecProtocol/aztec-packages/issues/4962)) ([31d470b](https://github.com/AztecProtocol/aztec-packages/commit/31d470b5940408feb8beceacff35f0207f6d5588))
+
+
+### Miscellaneous
+
+* Disable failing test temporarily ([ec61974](https://github.com/AztecProtocol/aztec-packages/commit/ec6197407a924ea6f0133122cdfc49a064804b72))
+* Fixed call nesting, tests and docs ([#4932](https://github.com/AztecProtocol/aztec-packages/issues/4932)) ([bd5c879](https://github.com/AztecProtocol/aztec-packages/commit/bd5c8793c91214ee2e85ded245e336953fe7abdf))
+* Specify packages individually for release-please ([#4960](https://github.com/AztecProtocol/aztec-packages/issues/4960)) ([dddc35f](https://github.com/AztecProtocol/aztec-packages/commit/dddc35f30711a27d1bbcc3414ea53b33880e390f))
+* Sync noir repo ([#4947](https://github.com/AztecProtocol/aztec-packages/issues/4947)) ([7ff9b71](https://github.com/AztecProtocol/aztec-packages/commit/7ff9b71d8d87fc93ae7dbd8ba63f5176b0cd17be))
+* Unused vars cleanup + updated TODOs ([#4883](https://github.com/AztecProtocol/aztec-packages/issues/4883)) ([3747619](https://github.com/AztecProtocol/aztec-packages/commit/374761962fdc3711b6169dcceaba81add04b7082))
+* Update escrow to use PrivateImmutable ([#4942](https://github.com/AztecProtocol/aztec-packages/issues/4942)) ([245d801](https://github.com/AztecProtocol/aztec-packages/commit/245d801240998d945e6d5d3371f32eb2b31b66e5))
+
 ## [0.25.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.24.0...aztec-packages-v0.25.0) (2024-03-05)
 
 
