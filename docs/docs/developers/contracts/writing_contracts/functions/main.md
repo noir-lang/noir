@@ -6,7 +6,7 @@ Functions serve as the building blocks of smart contracts. Functions can be eith
 
 For a more practical guide of using multiple types of functions, follow the [token tutorial](../../../tutorials/writing_token_contract.md).
 
-Currently, any function is "mutable" in the sense that it might alter state. In the future, we will support static calls, similarly to EVM. A static call is essentially a call that does not alter state (it keeps state static). 
+Currently, any function is "mutable" in the sense that it might alter state. However, we also support support static calls, similarly to EVM. A static call is essentially a call that does not alter state (it keeps state static). 
 
 ## Constructors
 

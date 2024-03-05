@@ -163,6 +163,8 @@ export class PublicExecutionContext extends TypedOracle {
     isStaticCall: boolean,
     isDelegateCall: boolean,
   ) {
+    isStaticCall = isStaticCall || this.execution.callContext.isStaticCall;
+
     const args = this.packedArgsCache.unpack(argsHash);
     this.log(`Public function call: addr=${targetContractAddress} selector=${functionSelector} args=${args.join(',')}`);
 

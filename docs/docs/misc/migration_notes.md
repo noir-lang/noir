@@ -8,6 +8,16 @@ Aztec is in full-speed development. Literally every version breaks compatibility
 
 ## 0.25.0
 
+### [Aztec.nr] Static calls
+
+It is now possible to perform static calls from both public and private functions. Static calls forbid any modification to the state, including L2->L1 messages or log generation. Once a static context is set through a static all, every subsequent call will also be treated as static via context propagation.
+
+```rust
+context.static_call_private_function(targetContractAddress, targetSelector, args);
+
+context.static_call_public_function(targetContractAddress, targetSelector, args);
+```
+
 ### [Aztec.nr] Introduction to `prelude`
 
 A new `prelude` module to include common Aztec modules and types.

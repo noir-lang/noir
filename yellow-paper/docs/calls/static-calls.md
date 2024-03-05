@@ -5,13 +5,6 @@
 In particular, the following fields of the returned `CallStackItem` must be zero or empty in a static call:
 
 <!-- Please can we have a similar list for the side effects of a public call? We're missing things like public state writes. -->
-<!--
-What about nested calls? Is a function which is 'staticcalled' allowed to make calls?
-I think the options are:
-- No. Or,
-- Yes, but any nested calls from a staticcalled function must also be static calls.
-Thoughts? Ethereum does the latter. We should write about whichever we choose in this page.
--->
 
 - `new_note_hashes`
 - `new_nullifiers`
@@ -21,6 +14,8 @@ Thoughts? Ethereum does the latter. We should write about whichever we choose in
 - `unencrypted_logs_hash`
 - `encrypted_log_preimages_length`
 - `unencrypted_log_preimages_length`
+
+From the moment a static call is made, every subsequent nested call is forced to be static by setting a flag in the derived `CallContext`, which propagates through the call stack.
 
 At the protocol level, a static call is identified by a `is_static_call` flag in the `CircuitPublicInputs` of the `CallStackItem`. The kernel is responsible for asserting that the call and all nested calls do not emit any forbidden side effects.
 

@@ -31,16 +31,40 @@ describe('e2e_static_calls', () => {
         .wait();
     }, 100_000);
 
+    it('performs legal (nested) private to private static calls', async () => {
+      await parentContract.methods
+        .privateStaticCallNested(childContract.address, childContract.methods.privateGetValue.selector, [
+          42n,
+          wallet.getCompleteAddress().address,
+        ])
+        .send()
+        .wait();
+    }, 100_000);
+
     it('performs legal public to public static calls', async () => {
       await parentContract.methods
-        .enqueueStaticCallToPubFunction(childContract.address, childContract.methods.pubGetValue.selector, [42n])
+        .publicStaticCall(childContract.address, childContract.methods.pubGetValue.selector, [42n])
+        .send()
+        .wait();
+    }, 100_000);
+
+    it('performs legal (nested) public to public static calls', async () => {
+      await parentContract.methods
+        .publicNestedStaticCall(childContract.address, childContract.methods.pubGetValue.selector, [42n])
         .send()
         .wait();
     }, 100_000);
 
     it('performs legal enqueued public static calls', async () => {
       await parentContract.methods
-        .publicStaticCall(childContract.address, childContract.methods.pubGetValue.selector, [42n])
+        .enqueueStaticCallToPubFunction(childContract.address, childContract.methods.pubGetValue.selector, [42n])
+        .send()
+        .wait();
+    }, 100_000);
+
+    it('performs legal (nested) enqueued public static calls', async () => {
+      await parentContract.methods
+        .enqueueStaticNestedCallToPubFunction(childContract.address, childContract.methods.pubGetValue.selector, [42n])
         .send()
         .wait();
     }, 100_000);
@@ -49,6 +73,18 @@ describe('e2e_static_calls', () => {
       await expect(
         parentContract.methods
           .privateStaticCall(childContract.address, childContract.methods.privateSetValue.selector, [
+            42n,
+            wallet.getCompleteAddress().address,
+          ])
+          .send()
+          .wait(),
+      ).rejects.toThrow('Static call cannot create new notes, emit L2->L1 messages or generate logs');
+    }, 100_000);
+
+    it('fails when performing illegal (nested) private to private static calls', async () => {
+      await expect(
+        parentContract.methods
+          .privateStaticCallNested(childContract.address, childContract.methods.privateSetValue.selector, [
             42n,
             wallet.getCompleteAddress().address,
           ])
@@ -66,10 +102,30 @@ describe('e2e_static_calls', () => {
       ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');
     }, 100_000);
 
+    it('fails when performing illegal (nested) public to public static calls', async () => {
+      await expect(
+        parentContract.methods
+          .publicNestedStaticCall(childContract.address, childContract.methods.pubSetValue.selector, [42n])
+          .send()
+          .wait(),
+      ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');
+    }, 100_000);
+
     it('fails when performing illegal enqueued public static calls', async () => {
       await expect(
         parentContract.methods
           .enqueueStaticCallToPubFunction(childContract.address, childContract.methods.pubSetValue.selector, [42n])
+          .send()
+          .wait(),
+      ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');
+    }, 100_000);
+
+    it('fails when performing illegal (nested) enqueued public static calls', async () => {
+      await expect(
+        parentContract.methods
+          .enqueueStaticNestedCallToPubFunction(childContract.address, childContract.methods.pubSetValue.selector, [
+            42n,
+          ])
           .send()
           .wait(),
       ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');

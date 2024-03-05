@@ -343,6 +343,8 @@ export class ClientExecutionContext extends ViewDataOracle {
       `Calling private function ${this.contractAddress}:${functionSelector} from ${this.callContext.storageContractAddress}`,
     );
 
+    isStaticCall = isStaticCall || this.callContext.isStaticCall;
+
     const targetArtifact = await this.db.getFunctionArtifact(targetContractAddress, functionSelector);
     const targetFunctionData = FunctionData.fromAbi(targetArtifact);
 
@@ -412,6 +414,8 @@ export class ClientExecutionContext extends ViewDataOracle {
     isStaticCall: boolean,
     isDelegateCall: boolean,
   ): Promise<PublicCallRequest> {
+    isStaticCall = isStaticCall || this.callContext.isStaticCall;
+
     const targetArtifact = await this.db.getFunctionArtifact(targetContractAddress, functionSelector);
     const derivedCallContext = await this.deriveCallContext(
       targetContractAddress,

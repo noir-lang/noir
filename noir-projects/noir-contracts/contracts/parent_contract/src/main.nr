@@ -149,6 +149,39 @@ contract Parent {
         return_values[0]
     }
 
+    #[aztec(private)]
+    fn privateCall(
+        targetContract: AztecAddress,
+        targetSelector: FunctionSelector,
+        args: [Field; 2]
+    ) -> Field {
+        // Call the target private function
+        let return_values = context.call_private_function(targetContract, targetSelector, args);
+
+        // Copy the return value from the call to this function's return values
+        return_values[0]
+    }
+
+    // Private function to set a static context and verify correct propagation for nested private calls
+    #[aztec(private)]
+    fn privateStaticCallNested(
+        targetContract: AztecAddress,
+        targetSelector: FunctionSelector,
+        args: [Field; 2]
+    ) -> Field {
+        // Call the target private function statically
+        let privateCallSelector = FunctionSelector::from_signature("privateCall((Field),(u32),[Field;2])");
+        let thisAddress = context.this_address();
+        let return_values = context.static_call_private_function(
+            thisAddress,
+            privateCallSelector,
+            [targetContract.to_field(), targetSelector.to_field(), args[0], args[1]]
+        );
+
+        // Copy the return value from the call to this function's return values
+        return_values[0]
+    }
+
     // Public function to directly call another public function to the targetContract using the selector and value provided
     #[aztec(public)]
     fn publicStaticCall(
@@ -159,6 +192,41 @@ contract Parent {
         let return_values = context.static_call_public_function(targetContract, targetSelector, args);
 
         return_values[0]
+    }
+
+    // Public function to set a static context and verify correct propagation for nested public calls
+    #[aztec(public)]
+    fn publicNestedStaticCall(
+        targetContract: AztecAddress,
+        targetSelector: FunctionSelector,
+        args: [Field; 1]
+    ) -> Field {
+        // Call the target public function through the pub entrypoint statically
+        let pubEntryPointSelector = FunctionSelector::from_signature("pubEntryPoint((Field),(u32),Field)");
+        let thisAddress = context.this_address();
+        let return_values = context.static_call_public_function(
+            thisAddress,
+            pubEntryPointSelector,
+            [targetContract.to_field(), targetSelector.to_field(), args[0]]
+        );
+        return_values[0]
+    }
+
+    // Private function to enqueue a static call to the pubEntryPoint function of another contract, passing the target arguments provided
+    #[aztec(private)]
+    fn enqueueStaticNestedCallToPubFunction(
+        targetContract: AztecAddress,
+        targetSelector: FunctionSelector,
+        args: [Field; 1]
+    ) {
+        // Call the target public function through the pub entrypoint statically
+        let pubEntryPointSelector = FunctionSelector::from_signature("pubEntryPoint((Field),(u32),Field)");
+        let thisAddress = context.this_address();
+        context.static_call_public_function(
+            thisAddress,
+            pubEntryPointSelector,
+            [targetContract.to_field(), targetSelector.to_field(), args[0]]
+        );
     }
 
     // Private function to enqueue a static call to the pubEntryPoint function of another contract, passing the target arguments provided

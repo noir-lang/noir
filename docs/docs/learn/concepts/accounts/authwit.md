@@ -132,10 +132,6 @@ sequenceDiagram
 The call to the account contract for checking authentication should be a static call, meaning that it cannot change state or make calls that change state. If this call is not static, it could be used to re-enter the flow and change the state of the contract.
 :::
 
-:::danger Static call currently unsupported
-The current execution layer does not implement static call. So currently you will be passing along the control flow :grimacing:.
-:::
-
 :::danger Re-entries
 The above flow could be re-entered at token transfer. It is mainly for show to illustrate a logic outline.
 :::
