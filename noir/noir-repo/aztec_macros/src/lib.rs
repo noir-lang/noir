@@ -11,11 +11,11 @@ use noirc_frontend::macros_api::FieldElement;
 use noirc_frontend::macros_api::{
     BlockExpression, CallExpression, CastExpression, Distinctness, Expression, ExpressionKind,
     ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility,
-    HirContext, HirExpression, HirLiteral, HirStatement, Ident, ImportStatement, IndexExpression,
-    LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct,
-    Param, Path, PathKind, Pattern, PrefixExpression, SecondaryAttribute, Signedness, Span,
-    Statement, StatementKind, StructType, Type, TypeImpl, UnaryOp, UnresolvedType,
-    UnresolvedTypeData, Visibility,
+    HirContext, HirExpression, HirLiteral, HirStatement, Ident, IndexExpression, LetStatement,
+    Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct, Param, Path,
+    PathKind, Pattern, PrefixExpression, SecondaryAttribute, Signedness, Span, Statement,
+    StatementKind, StructType, Type, TypeImpl, UnaryOp, UnresolvedType, UnresolvedTypeData,
+    Visibility,
 };
 use noirc_frontend::macros_api::{CrateId, FileId};
 use noirc_frontend::macros_api::{MacroError, MacroProcessor};
@@ -428,7 +428,7 @@ fn transform_module(
             .attributes
             .secondary
             .iter()
-            .any(|attr| is_custom_attribute(&attr, "aztec(initializer)"))
+            .any(|attr| is_custom_attribute(attr, "aztec(initializer)"))
     });
 
     for func in module.functions.iter_mut() {
@@ -1355,13 +1355,13 @@ fn create_avm_context() -> Result<Statement, AztecMacroError> {
 /// Any primitive type that can be cast will be casted to a field and pushed to the context.
 fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
     let current_return_type = func.return_type().typ;
-    let last_statement = func.def.body.0.last();
+    let last_statement = func.def.body.0.last()?;
 
     // TODO: (length, type) => We can limit the size of the array returned to be limited by kernel size
     // Doesn't need done until we have settled on a kernel size
     // TODO: support tuples here and in inputs -> convert into an issue
     // Check if the return type is an expression, if it is, we can handle it
-    match last_statement? {
+    match last_statement {
         Statement { kind: StatementKind::Expression(expression), .. } => {
             match current_return_type {
                 // Call serialize on structs, push the whole array, calling push_array
