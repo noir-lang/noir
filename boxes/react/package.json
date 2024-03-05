@@ -11,10 +11,12 @@
     "prep": "yarn clean && yarn compile && yarn codegen",
     "dev": "yarn prep && webpack serve --mode development",
     "build": "yarn prep && webpack",
-    "serve": "serve -p 3000 ./dist",
+    "serve": "webpack serve --no-open --mode development",
     "formatting": "prettier --check ./src && eslint ./src",
     "formatting:fix": "prettier -w ./src",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand"
+    "test": "yarn test:node && yarn test:browser",
+    "test:node": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand",
+    "test:browser": "npx playwright test"
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",
@@ -45,6 +47,7 @@
     "yup": "^1.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.42.0",
     "@types/jest": "^29.5.0",
     "@types/node": "^20.5.9",
     "@types/react": "^18.2.15",

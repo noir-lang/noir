@@ -1,20 +1,14 @@
-import {
-  GrumpkinScalar,
-  createPXEClient,
-  AccountManager,
-  ContractDeployer,
-  Fr,
-  AccountWalletWithPrivateKey,
-} from '@aztec/aztec.js';
+import { GrumpkinScalar, createPXEClient, AccountManager, ContractDeployer, Fr, Wallet } from '@aztec/aztec.js';
 
 import { SingleKeyAccountContract } from '@aztec/accounts/single_key';
 import { VanillaContract } from '../artifacts/Vanilla';
 
 const privateKey: GrumpkinScalar = GrumpkinScalar.random();
 const pxe = createPXEClient(process.env.PXE_URL || 'http://localhost:8080');
+
 const account = new AccountManager(pxe, privateKey, new SingleKeyAccountContract(privateKey));
 let contract: any = null;
-let wallet: AccountWalletWithPrivateKey | null = null;
+let wallet: Wallet | null = null;
 
 const setWait = (state: boolean): void =>
   document.querySelectorAll('*').forEach((e: HTMLElement & HTMLButtonElement) => {
@@ -47,9 +41,9 @@ document.querySelector('#set').addEventListener('submit', async (e: Event) => {
   const { value } = document.querySelector('#number') as HTMLInputElement;
   const owner = wallet.getCompleteAddress().address;
   await contract.methods.setNumber(parseInt(value), owner).send().wait();
-  alert('Number set!');
 
   setWait(false);
+  alert('Number set!');
 });
 
 document.querySelector('#get').addEventListener('click', async () => {
