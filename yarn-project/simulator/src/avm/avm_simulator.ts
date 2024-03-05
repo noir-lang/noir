@@ -17,8 +17,27 @@ export class AvmSimulator {
    * Fetch the bytecode and execute it in the current context.
    */
   public async execute(): Promise<AvmContractCallResults> {
-    const instructions = await this.fetchAndDecodeBytecode();
-    return this.executeInstructions(instructions);
+    const selector = this.context.environment.temporaryFunctionSelector;
+    const bytecode = await this.context.persistableState.hostStorage.contractsDb.getBytecode(
+      this.context.environment.address,
+      selector,
+    );
+
+    // This assumes that we will not be able to send messages to accounts without code
+    // Pending classes and instances impl details
+    if (!bytecode) {
+      throw new NoBytecodeForContractError(this.context.environment.address);
+    }
+
+    return await this.executeBytecode(bytecode);
+  }
+
+  /**
+   * Executes the provided bytecode in the current context.
+   * This method is useful for testing and debugging.
+   */
+  public async executeBytecode(bytecode: Buffer): Promise<AvmContractCallResults> {
+    return await this.executeInstructions(decodeFromBytecode(bytecode));
   }
 
   /**
@@ -64,26 +83,5 @@ export class AvmSimulator {
       this.log(`Context execution results: ${results.toString()}`);
       return results;
     }
-  }
-
-  /**
-   * Fetch contract bytecode from world state and decode into executable instructions.
-   */
-  private async fetchAndDecodeBytecode(): Promise<Instruction[]> {
-    // NOTE: the following is mocked as getPublicBytecode does not exist yet
-
-    const selector = this.context.environment.temporaryFunctionSelector;
-    const bytecode = await this.context.persistableState.hostStorage.contractsDb.getBytecode(
-      this.context.environment.address,
-      selector,
-    );
-
-    // This assumes that we will not be able to send messages to accounts without code
-    // Pending classes and instances impl details
-    if (!bytecode) {
-      throw new NoBytecodeForContractError(this.context.environment.address);
-    }
-
-    return decodeFromBytecode(bytecode);
   }
 }

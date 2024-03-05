@@ -168,7 +168,7 @@ contract AvmTest {
         context.push_new_nullifier(nullifier, 0);
     }
 
-    // Use the standard context interface to emit a new nullifier
+    // Use the standard context interface to check for a nullifier
     #[aztec(public-vm)]
     fn nullifier_exists(nullifier: Field) -> pub u8 {
         context.nullifier_exists(nullifier)
