@@ -451,7 +451,6 @@ fn transform_module(
                 is_internal = true;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
                 is_public = true;
-                insert_init_check = false;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public-vm)") {
                 is_public_vm = true;
             }
@@ -673,15 +672,6 @@ fn transform_function(
 
     // Add initialization check
     if insert_init_check {
-        if ty == "Public" {
-            let error = AztecMacroError::UnsupportedAttributes {
-                span: func.def.name.span(),
-                secondary_message: Some(
-                    "public functions do not yet support initialization check".to_owned(),
-                ),
-            };
-            return Err(error);
-        }
         let init_check = create_init_check();
         func.def.body.0.insert(0, init_check);
     }
@@ -711,16 +701,7 @@ fn transform_function(
 
     // Before returning mark the contract as initialized
     if is_initializer {
-        if ty == "Public" {
-            let error = AztecMacroError::UnsupportedAttributes {
-                span: func.def.name.span(),
-                secondary_message: Some(
-                    "public functions cannot yet be used as initializers".to_owned(),
-                ),
-            };
-            return Err(error);
-        }
-        let mark_initialized = create_mark_as_initialized();
+        let mark_initialized = create_mark_as_initialized(ty);
         func.def.body.0.push(mark_initialized);
     }
 
@@ -1179,9 +1160,10 @@ fn create_init_check() -> Statement {
 /// ```noir
 /// mark_as_initialized(&mut context);
 /// ```
-fn create_mark_as_initialized() -> Statement {
+fn create_mark_as_initialized(ty: &str) -> Statement {
+    let name = if ty == "Public" { "mark_as_initialized_public" } else { "mark_as_initialized" };
     make_statement(StatementKind::Expression(call(
-        variable_path(chained_dep!("aztec", "initializer", "mark_as_initialized")),
+        variable_path(chained_dep!("aztec", "initializer", name)),
         vec![mutable_reference("context")],
     )))
 }
@@ -1373,13 +1355,13 @@ fn create_avm_context() -> Result<Statement, AztecMacroError> {
 /// Any primitive type that can be cast will be casted to a field and pushed to the context.
 fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
     let current_return_type = func.return_type().typ;
-    let last_statement = func.def.body.0.last();
+    let last_statement = func.def.body.0.last()?;
 
     // TODO: (length, type) => We can limit the size of the array returned to be limited by kernel size
     // Doesn't need done until we have settled on a kernel size
     // TODO: support tuples here and in inputs -> convert into an issue
     // Check if the return type is an expression, if it is, we can handle it
-    match last_statement? {
+    match last_statement {
         Statement { kind: StatementKind::Expression(expression), .. } => {
             match current_return_type {
                 // Call serialize on structs, push the whole array, calling push_array
