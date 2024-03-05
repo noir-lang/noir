@@ -47,8 +47,6 @@ def is_already_built_circleci_job(circleci_job, already_built_manifest_jobs):
 
 def get_already_built_circleci_job_names(circleci_jobs):
     already_built_manifest_jobs = list(get_already_built_manifest_job_names())
-    for key in already_built_manifest_jobs:
-        eprint("Detected cached manifest key:", key)
     for job_name, circleci_job in circleci_jobs.items():
         if is_already_built_circleci_job(circleci_job, already_built_manifest_jobs):
             yield job_name
@@ -58,19 +56,20 @@ def _get_already_built_manifest_job_names(manifest_name):
     content_hash = subprocess.check_output(['calculate_content_hash', manifest_name]).decode("utf-8")
     completed = subprocess.run(["check_rebuild", f"cache-{content_hash}", manifest_name], stdout=subprocess.DEVNULL)
     if completed.returncode == 0:
-        return manifest_name
+        return manifest_name, content_hash
     else:
-        return None
+        return None, None
 
 def get_already_built_manifest_job_names():
     manifest_names = get_manifest_job_names()
 
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor(max_workers=8) as executor:
         futures = {executor.submit(_get_already_built_manifest_job_names, key): key for key in manifest_names}
         for future in as_completed(futures):
-            result = future.result()
-            if result is not None:
-                yield result
+            key, content_hash = future.result()
+            if key is not None:
+                eprint("Detected cached manifest key:", key, "with content hash", content_hash)
+                yield key
 
 def remove_jobs_from_workflow(jobs, to_remove):
     """
