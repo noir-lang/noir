@@ -12,7 +12,12 @@ import { Contract } from '../contract/index.js';
  * @remarks Keeping this around even though we have Aztec.nr contract types because it can be useful for non-TS users.
  */
 export class ContractDeployer {
-  constructor(private artifact: ContractArtifact, private wallet: Wallet, private publicKey?: PublicKey) {}
+  constructor(
+    private artifact: ContractArtifact,
+    private wallet: Wallet,
+    private publicKey?: PublicKey,
+    private constructorName?: string,
+  ) {}
 
   /**
    * Deploy a contract using the provided ABI and constructor arguments.
@@ -25,6 +30,13 @@ export class ContractDeployer {
    */
   public deploy(...args: any[]) {
     const postDeployCtor = (address: AztecAddress, wallet: Wallet) => Contract.at(address, this.artifact, wallet);
-    return new DeployMethod(this.publicKey ?? Point.ZERO, this.wallet, this.artifact, postDeployCtor, args);
+    return new DeployMethod(
+      this.publicKey ?? Point.ZERO,
+      this.wallet,
+      this.artifact,
+      postDeployCtor,
+      args,
+      this.constructorName,
+    );
   }
 }

@@ -438,7 +438,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     // side-effects occurred in the TX. Ultimately the private kernel should
     // just output everything in the proper order without any counters.
     this.log(
-      `Enqueued call to public function (with side-effect counter #${sideEffectCounter}) ${targetContractAddress}:${functionSelector}`,
+      `Enqueued call to public function (with side-effect counter #${sideEffectCounter}) ${targetContractAddress}:${functionSelector}(${targetArtifact.name})`,
     );
 
     this.enqueuedPublicFunctionCalls.push(enqueuedRequest);

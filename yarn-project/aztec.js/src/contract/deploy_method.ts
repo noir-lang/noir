@@ -58,9 +58,10 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     private artifact: ContractArtifact,
     private postDeployCtor: (address: AztecAddress, wallet: Wallet) => Promise<TContract>,
     private args: any[] = [],
+    constructorName: string = 'constructor',
   ) {
     super(wallet);
-    const constructorArtifact = artifact.functions.find(f => f.name === 'constructor');
+    const constructorArtifact = artifact.functions.find(f => f.name === constructorName);
     if (!constructorArtifact) {
       throw new Error('Cannot find constructor in the artifact.');
     }

@@ -36,10 +36,11 @@ export class Contract extends ContractBase {
    * @param wallet - The wallet for executing the deployment.
    * @param artifact - Build artifact of the contract to deploy
    * @param args - Arguments for the constructor.
+   * @param constructorName - The name of the constructor function to call.
    */
-  public static deploy(wallet: Wallet, artifact: ContractArtifact, args: any[]) {
+  public static deploy(wallet: Wallet, artifact: ContractArtifact, args: any[], constructorName?: string) {
     const postDeployCtor = (address: AztecAddress, wallet: Wallet) => Contract.at(address, artifact, wallet);
-    return new DeployMethod(Point.ZERO, wallet, artifact, postDeployCtor, args);
+    return new DeployMethod(Point.ZERO, wallet, artifact, postDeployCtor, args, constructorName);
   }
 
   /**
@@ -48,9 +49,16 @@ export class Contract extends ContractBase {
    * @param wallet - The wallet for executing the deployment.
    * @param artifact - Build artifact of the contract.
    * @param args - Arguments for the constructor.
+   * @param constructorName - The name of the constructor function to call.
    */
-  public static deployWithPublicKey(publicKey: PublicKey, wallet: Wallet, artifact: ContractArtifact, args: any[]) {
+  public static deployWithPublicKey(
+    publicKey: PublicKey,
+    wallet: Wallet,
+    artifact: ContractArtifact,
+    args: any[],
+    constructorName?: string,
+  ) {
     const postDeployCtor = (address: AztecAddress, wallet: Wallet) => Contract.at(address, artifact, wallet);
-    return new DeployMethod(publicKey, wallet, artifact, postDeployCtor, args);
+    return new DeployMethod(publicKey, wallet, artifact, postDeployCtor, args, constructorName);
   }
 }

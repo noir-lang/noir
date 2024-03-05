@@ -446,6 +446,18 @@ describe('e2e_deploy_contract', () => {
       expect(await token.methods.is_minter(owner).view()).toEqual(true);
     }, 60_000);
 
+    it('publicly deploys and initializes via a public function', async () => {
+      const owner = accounts[0];
+      logger.debug(`Deploying contract via a public constructor`);
+      const contract = await StatefulTestContract.deployWithOpts({ wallet, method: 'public_constructor' }, owner, 42)
+        .send()
+        .deployed();
+      expect(await contract.methods.get_public_value(owner).view()).toEqual(42n);
+      logger.debug(`Calling a private function to ensure the contract was properly initialized`);
+      await contract.methods.create_note(owner, 30).send().wait();
+      expect(await contract.methods.summed_values(owner).view()).toEqual(30n);
+    }, 60_000);
+
     it.skip('publicly deploys and calls a public function in the same batched call', async () => {
       // TODO(@spalladino)
     });
