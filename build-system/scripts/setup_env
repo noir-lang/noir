@@ -100,6 +100,7 @@ echo export DEPLOY_TAG=${DEPLOY_TAG:-} >> $BASH_ENV
 echo export BRANCH=$BRANCH >> $BASH_ENV
 echo export PULL_REQUEST=$PULL_REQUEST >> $BASH_ENV
 echo export DRY_DEPLOY=${DRY_DEPLOY:-0} >> $BASH_ENV
+echo export DOCKER_CLI_HINTS=false >> $BASH_ENV
 
 # We want very strict failures on any failing command, undefined variable, or commands that pipe to other commands.
 echo set -euo pipefail >> $BASH_ENV
