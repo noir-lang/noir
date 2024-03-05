@@ -116,10 +116,10 @@ pub(crate) fn run(
         };
     }
 
-    if test_report.iter().any(|(_, status)| !matches!(status, TestStatus::Fail { .. })) {
-        Ok(())
-    } else {
+    if test_report.iter().any(|(_, status)| matches!(status, TestStatus::Fail { .. })) {
         Err(CliError::Generic(String::new()))
+    } else {
+        Ok(())
     }
 }
 
