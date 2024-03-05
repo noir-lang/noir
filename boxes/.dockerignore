@@ -1,9 +1,0 @@
-.yarn/*
-!.yarn/releases
-dest
-node_modules
-.tsbuildinfo
-Dockerfile*
-.dockerignore
-docker-compose.yml
-**/artifacts

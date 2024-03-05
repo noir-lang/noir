@@ -31,28 +31,6 @@ echo "Working directory: $PWD"
 echo "Dockerfile: $DOCKERFILE"
 echo "Build directory: $BUILD_DIR"
 
-# Fetch images with retries
-function fetch_image() {
-  echo "Pulling: $1"
-  if ! retry docker pull $1 > /dev/null 2>&1; then
-    echo "Image not found: $1"
-    return 1
-  fi
-  return 0
-}
-
-# Fetch images, but don't assume this will work
-function try_fetch_image() {
-  echo "Pulling: $1"
-  if ! docker pull $1 > /dev/null 2>&1; then
-    echo "Image not found: $1"
-    return 1
-  fi
-  return 0
-}
-
-NOREPO=$(query_manifest noRepo $REPOSITORY)
-
 # Login to ECR and ensure repository exists.
 retry ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
 # Login to dockerhub.
@@ -91,6 +69,7 @@ if [ -d $ROOT_PATH/$PROJECT_DIR/terraform ]; then
 fi
 
 # For each dependency, substitute references to the dependency in dockerfile, with the relevent built image uri.
+# This is necessary vs pulling and retagging the image, as that doesn't work with buildx.
 # We have to perform a bit of probing to determine which actual image we want to use.
 # When we used buildx to create a multiarch image, there will be no images with "-$ARCH" suffixes (normalise this?).
 # Also we sometimes build an arm image from an x86 parent, so there won't always be an arm parent, and we fallback.
@@ -115,8 +94,11 @@ for PARENT_REPO in $(query_manifest dependencies $REPOSITORY); do
   # Substitute references to parent repo, with the relevent built image uri.
   DEPLOY_URI=aztecprotocol/$PARENT_REPO
   PARENT_IMAGE_URI=$ECR_URL/$PARENT_REPO:$PARENT_IMAGE_TAG
-  awk '{if ($1 == "FROM" && $2 == "'$DEPLOY_URI'") $2 = "'$PARENT_IMAGE_URI'"; print $0}' $DOCKERFILE > _temp && mv _temp $DOCKERFILE
+  sed -i "s#^FROM \\(.*\\)${DEPLOY_URI}\\( \|$\\)#FROM \\1${PARENT_IMAGE_URI}\\2#" $DOCKERFILE
 done
+
+# Build a dockerignore file that only permits git files and untracked files.
+create_dockerignore $REPOSITORY
 
 COMMIT_TAG_VERSION=$(extract_tag_version $REPOSITORY false)
 echo "Commit tag version: $COMMIT_TAG_VERSION"

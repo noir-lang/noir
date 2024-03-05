@@ -35,6 +35,6 @@ echo "Success tag: $SUCCESS_TAG"
 
 if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
   init_submodules $REPOSITORY
-  spot_run_script $SUCCESS_TAG $CPUS $ARCH $@
+  spot_run_script $REPOSITORY $SUCCESS_TAG $CPUS $ARCH $@
   retry tag_remote_image $REPOSITORY $BASE_TAG $SUCCESS_TAG
 fi

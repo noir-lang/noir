@@ -11,3 +11,5 @@ for IMAGE in $(docker images --format "{{.ID}}" $ECR_URL/$REPOSITORY --filter "b
   echo "Removing $IMAGE..."
   docker rmi --force $IMAGE
 done
+
+docker image prune -f > /dev/null

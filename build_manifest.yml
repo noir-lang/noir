@@ -142,24 +142,19 @@ barretenberg-docs:
 l1-contracts:
   buildDir: l1-contracts
 
-# Just contains the source code for the boxes (starter kits).
-# Needed to pull into yarn-project, as we wanted to keep them separate to yarn-project itself.
-boxes-files:
-  buildDir: boxes
-  dockerfile: Dockerfile.files
-
-# Contains just the npm/js dependencies needed by yarn-project.
-# It's its own thing, to avoid continuously downloading all dependencies every build.
-yarn-project-base:
+# Runs all yarn-projects checks and tests.
+yarn-project-test:
   buildDir: yarn-project
-  projectDir: yarn-project/yarn-project-base
+  dockerfile: Dockerfile.test
   rebuildPatterns:
-    - ^yarn-project/yarn-project-base/
-    - ^yarn-project/yarn.lock
-    - ^yarn-project/.*/package.json$
+    - ^yarn-project/.*\.(ts|tsx|js|cjs|mjs|json|html|md|sh|nr|toml|snap)$
+    - ^yarn-project/Dockerfile$
+    - ^yarn-project/cli/aztec-cli
   dependencies:
     - bb.js
     - noir-packages
+    - l1-contracts
+    - noir-projects
 
 # Builds all of yarn-project, with all developer dependencies.
 # Creates a runnable container used to run tests and formatting checks.
@@ -170,41 +165,34 @@ yarn-project:
     - ^yarn-project/Dockerfile$
     - ^yarn-project/cli/aztec-cli
   dependencies:
-    - yarn-project-base
+    - bb.js
+    - noir-packages
     - l1-contracts
-    - boxes-files
     - noir-projects
-
-# Productionifies yarn-project (removes all dev dependencies, multiarch).
-yarn-project-prod:
-  buildDir: yarn-project
-  dockerfile: Dockerfile.prod
-  rebuildPatterns:
-    - ^yarn-project/Dockerfile.prod
-  dependencies:
-    - yarn-project
-  multiarch: buildx
+  multiarch: host
 
 # A runnable container, sets entrypoint to be the aztec infrastructure entrypoint.
 aztec:
   buildDir: yarn-project
   projectDir: yarn-project/aztec
   dependencies:
-    - yarn-project-prod
+    - yarn-project
   multiarch: buildx
 
+# Aztec faucet server. Has these dependencies because it's part of workspace. Consider moving out?
 aztec-faucet:
   buildDir: yarn-project
   projectDir: yarn-project/aztec-faucet
   dependencies:
-    - yarn-project-prod
+    - bb.js
+    - noir-packages
 
 # A runnable container, sets entrypoint to be the aztec-cli entrypoint.
 cli:
   buildDir: yarn-project
   projectDir: yarn-project/cli
   dependencies:
-    - yarn-project-prod
+    - yarn-project
   multiarch: buildx
 
 # Builds all the boxes. They are then independently tested in the container.
@@ -217,12 +205,16 @@ boxes:
   runDependencies:
     - aztec
 
-# Builds a runnable container for running end-to-end tests (requires installing puppeteer etc).
+# Builds a runnable container for running end-to-end tests (requires installing chromium etc).
+# We add the runnable dependency 'aztec' to ensure the container is pulled before running the test compose file.
 end-to-end:
   buildDir: yarn-project
   projectDir: yarn-project/end-to-end
   dependencies:
-    - yarn-project
+    - bb.js
+    - noir-packages
+    - l1-contracts
+    - noir-projects
   runDependencies:
     - aztec
 
@@ -241,7 +233,9 @@ docs:
     - ^.release-please-manifest\.json$
     - ^.*\.nr$
   dependencies:
-    - yarn-project
+    - bb.js
+    - noir-packages
+    - l1-contracts
     - noir-projects
 
 yellow-paper:

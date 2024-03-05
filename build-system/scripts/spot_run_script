@@ -8,16 +8,22 @@
 # JOB_NAME: Set within setup-env. The job name as per CI.
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 set -eu
-NAME=$1
-CPUS=$2
-ARCH=$3
-shift 3
+REPOSITORY=$1
+NAME=$2
+CPUS=$3
+ARCH=$4
+shift 4
 IP=
 
 # On any sort of exit (error or not).
 function on_exit {
     # We want to execute all this block, regardless of potential errors.
     set +e
+
+    if [[ "$COMMIT_MESSAGE" == *"[ci no-term $REPOSITORY]"* ]]; then
+        echo "Not terminating instance on request. You can connect with 'ssh -i build_instance_key ubuntu@$IP'"
+        return
+    fi
 
     if [ -n "$IP" ]; then
         echo "Terminating spot instance..."

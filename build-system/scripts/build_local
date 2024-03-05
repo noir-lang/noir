@@ -40,6 +40,10 @@ for DEP in ${DEPS[@]}; do
   PROJECTS+=("$DEP:$BUILD_DIR:$DOCKERFILE")
 done
 
+if [ -z "$NO_CACHE" ] && can_use_ci_cache; then
+  USE_CACHE=1
+fi
+
 for E in "${PROJECTS[@]}"; do
   ARR=(${E//:/ })
   PROJECT_DIR_NAME=${ARR[0]}
@@ -64,6 +68,9 @@ for E in "${PROJECTS[@]}"; do
       fi
     fi
   fi
+
+  # Build a dockerignore file that only permits git files and untracked files.
+  create_dockerignore $REPO
 
   DEPLOY_IMAGE_URI=aztecprotocol/$REPO:latest
   CACHE_IMAGE_URI=$(calculate_image_uri $REPO)
@@ -101,7 +108,7 @@ for E in "${PROJECTS[@]}"; do
     if [ -z "$NO_CACHE" ] && docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -q -w "$CACHE_IMAGE_URI$"; then
       echo -e "${GREEN}Image exists locally. Tagging as $DEPLOY_IMAGE_URI${RESET}"
     else
-      if [ -z "$NO_CACHE" ] && [ -f ~/.aws/credentials ] && ecr_login && image_exists $REPO $TAG ; then
+      if [ -n "$USE_CACHE" ] && image_exists $REPO $TAG ; then
         docker pull $CACHE_IMAGE_URI
       else
         docker build ${ADDITIONAL_ARGS:-} --build-arg COMMIT_HASH=$COMMIT_HASH -f $DOCKERFILE -t $CACHE_IMAGE_URI .

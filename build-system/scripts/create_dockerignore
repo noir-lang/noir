@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Build a dockerignore file that only permits git files and untracked files.
+# Exludes any docker related files.
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+set -eu
+
+REPOSITORY=$1
+
+BUILD_DIR=$(query_manifest buildDir $REPOSITORY)
+DOCKERFILE=$(query_manifest dockerfile $REPOSITORY)
+
+cd $BUILD_DIR
+DOCKERIGNOREFILE=$DOCKERFILE.dockerignore
+echo '*' > $DOCKERIGNOREFILE
+(git ls-files; git ls-files --others --exclude-standard) | sort -u | sed 's/^/!/' >> $DOCKERIGNOREFILE
+echo '**/Dockerfile*' >> $DOCKERIGNOREFILE

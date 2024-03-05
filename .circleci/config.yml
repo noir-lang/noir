@@ -435,7 +435,40 @@ jobs:
           command: build noir-projects
           aztec_manifest_key: noir-projects
 
-  boxes-files:
+  yarn-project-pre-join:
+    docker:
+      - image: cimg/base:2023.09
+    resource_class: small
+    steps:
+      - run:
+          name: "Noop"
+          command: echo Noop
+
+  yarn-project-x86_64:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build yarn-project 64
+          aztec_manifest_key: yarn-project
+
+  yarn-project-arm64:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build yarn-project 64 arm64
+          aztec_manifest_key: yarn-project
+
+  yarn-project-ecr-manifest:
     machine:
       image: default
     resource_class: medium
@@ -443,47 +476,11 @@ jobs:
       - *checkout
       - *setup_env
       - run:
-          name: "Build"
-          command: build boxes-files
-          aztec_manifest_key: boxes-files
-
-  yarn-project-base:
-    machine:
-      image: default
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: build yarn-project-base | add_timestamps
-          aztec_manifest_key: yarn-project-base
-
-  yarn-project:
-    machine:
-      image: default
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: Build
-          command: build yarn-project | add_timestamps
+          name: "Create ECR manifest"
+          command: create_ecr_manifest yarn-project x86_64,arm64
           aztec_manifest_key: yarn-project
 
-  yarn-project-prod:
-    machine:
-      image: default
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: Build
-          command: build yarn-project-prod | add_timestamps
-          aztec_manifest_key: yarn-project-prod
-
-  yarn-project-formatting:
+  yarn-project-test:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -491,21 +488,9 @@ jobs:
       - *checkout
       - *setup_env
       - run:
-          name: Check Formatting
-          command: cond_spot_run_container yarn-project 8 formatting | add_timestamps
-          aztec_manifest_key: yarn-project
-
-  yarn-project-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: Test
-          command: cond_spot_run_container yarn-project 64 test | add_timestamps
-          aztec_manifest_key: yarn-project
+          name: "Build and test"
+          command: cond_spot_run_build yarn-project-test 64
+          aztec_manifest_key: yarn-project-test
 
   aztec-package:
     machine:
@@ -985,7 +970,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose-browser.yml TEST=e2e_aztec_js_browser.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_aztec_js_browser.test.ts
           aztec_manifest_key: end-to-end
 
   e2e-card-game:
@@ -1152,9 +1137,6 @@ jobs:
       - *checkout
       - *setup_env
       - run:
-          name: "Copy docs dockerignore"
-          command: cp docs/.dockerignore .
-      - run:
           name: "Build docs"
           command: |
             echo "Building docs"
@@ -1317,14 +1299,14 @@ defaults: &defaults
         event: fail
         branch_pattern: "master"
 
-defaults_yarn_project: &defaults_yarn_project
+defaults_yarn_project_pre_join: &defaults_yarn_project_pre_join
   requires:
-    - yarn-project
+    - yarn-project-pre-join
   <<: *defaults
 
-defaults_yarn_project_prod: &defaults_yarn_project_prod
+defaults_yarn_project: &defaults_yarn_project
   requires:
-    - yarn-project-prod
+    - yarn-project-ecr-manifest
   <<: *defaults
 
 defaults_deploy: &defaults_deploy
@@ -1418,8 +1400,6 @@ workflows:
 
       - yellow-paper: *defaults
 
-      - boxes-files: *defaults
-
       - noir-projects:
           requires:
             - avm-transpiler
@@ -1427,28 +1407,28 @@ workflows:
           <<: *defaults
 
       # Yarn Project
-      - yarn-project-base:
+      - yarn-project-pre-join:
           requires:
             - bb-js
             - noir-packages
-          <<: *defaults
-      - yarn-project:
-          requires:
-            - yarn-project-base
             - l1-contracts
             - noir-projects
-            - boxes-files
           <<: *defaults
-      - yarn-project-prod: *defaults_yarn_project
-      - yarn-project-formatting: *defaults_yarn_project
-      - yarn-project-tests: *defaults_yarn_project
-      - end-to-end: *defaults_yarn_project
-      - build-docs: *defaults_yarn_project
+      - end-to-end: *defaults_yarn_project_pre_join
+      - aztec-faucet: *defaults_yarn_project_pre_join
+      - build-docs: *defaults_yarn_project_pre_join
+      - yarn-project-test: *defaults_yarn_project_pre_join
+      - yarn-project-x86_64: *defaults_yarn_project_pre_join
+      - yarn-project-arm64: *defaults_yarn_project_pre_join
+      - yarn-project-ecr-manifest:
+          requires:
+            - yarn-project-x86_64
+            - yarn-project-arm64
+          <<: *defaults
 
       # Artifacts
-      - aztec-package: *defaults_yarn_project_prod
-      - cli: *defaults_yarn_project_prod
-      - aztec-faucet: *defaults_yarn_project_prod
+      - aztec-package: *defaults_yarn_project
+      - cli: *defaults_yarn_project
 
       # Boxes.
       - boxes:

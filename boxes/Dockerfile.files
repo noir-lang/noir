@@ -1,4 +1,0 @@
-# For carrying the files into yarn-project-base, needed for the cli to do unboxing.
-FROM scratch
-WORKDIR /usr/src/boxes
-COPY . .

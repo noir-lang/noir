@@ -946,12 +946,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/yarn-project-base@workspace:yarn-project-base":
-  version: 0.0.0-use.local
-  resolution: "@aztec/yarn-project-base@workspace:yarn-project-base"
-  languageName: unknown
-  linkType: soft
-
 "@babel/code-frame@npm:^7.0.0, @babel/code-frame@npm:^7.12.13, @babel/code-frame@npm:^7.22.13, @babel/code-frame@npm:^7.23.5":
   version: 7.23.5
   resolution: "@babel/code-frame@npm:7.23.5"

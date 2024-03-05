@@ -23,20 +23,14 @@ RUN apk update && apk add git curl build-base openmp-dev bash
 COPY --from=0 /usr/src/barretenberg/cpp/build/bin /usr/src/barretenberg/cpp/build/bin
 COPY --from=0 /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
 WORKDIR /usr/src/barretenberg/sol
-RUN git init
 COPY ./sol .
 
 # Copy forge binary directly from foundry
 COPY --from=ghcr.io/foundry-rs/foundry:latest /usr/local/bin/forge /usr/local/bin/forge
 
-RUN forge install --no-commit \
-  https://github.com/foundry-rs/forge-std \
-  https://github.com/openzeppelin/openzeppelin-contracts \
-  https://github.com/Arachnid/solidity-stringutils
-
 RUN cd ../cpp/srs_db && ./download_ignition.sh 3 && cd ../../sol
 
 RUN ./scripts/init.sh
 
-# TestBase is excluded as it is just boilerplate 
+# TestBase is excluded as it is just boilerplate
 RUN forge test --no-match-contract TestBase

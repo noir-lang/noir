@@ -1,7 +1,0 @@
-**
-
-!avm-transpiler/
-!noir/
-**/target/
-**/node_modules/
-**/packages/
