@@ -176,7 +176,8 @@ contract Token {
     }
 
     #[aztec(public)]
-    internal fn assert_minter_and_mint(minter: AztecAddress, amount: Field) {
+    #[aztec(internal)]
+    fn assert_minter_and_mint(minter: AztecAddress, amount: Field) {
         assert(storage.minters.at(minter).read(), "caller is not minter");
         let supply = storage.total_supply.read() + U128::from_integer(amount);
         storage.total_supply.write(supply);
@@ -312,7 +313,8 @@ contract Token {
 
     // docs:start:initialize
     #[aztec(public)]
-    internal fn _initialize(
+    #[aztec(internal)]
+    fn _initialize(
         new_admin: AztecAddress,
         name: FieldCompressedString,
         symbol: FieldCompressedString,
@@ -333,7 +335,8 @@ contract Token {
 
     // docs:start:increase_public_balance
     #[aztec(public)]
-    internal fn _increase_public_balance(to: AztecAddress, amount: Field) {
+    #[aztec(internal)]
+    fn _increase_public_balance(to: AztecAddress, amount: Field) {
         let new_balance = storage.public_balances.at(to).read().add(U128::from_integer(amount));
         storage.public_balances.at(to).write(new_balance);
     }
@@ -341,7 +344,8 @@ contract Token {
 
     // docs:start:reduce_total_supply
     #[aztec(public)]
-    internal fn _reduce_total_supply(amount: Field) {
+    #[aztec(internal)]
+    fn _reduce_total_supply(amount: Field) {
         // Only to be called from burn.
         let new_supply = storage.total_supply.read().sub(U128::from_integer(amount));
         storage.total_supply.write(new_supply);

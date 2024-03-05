@@ -73,7 +73,8 @@ contract SlowTree {
     // docs:end:read_at_private
     // docs:start:assert_current_root
     #[aztec(public)]
-    internal fn _assert_current_root(caller: Field, expected: Field) {
+    #[aztec(internal)]
+    fn _assert_current_root(caller: Field, expected: Field) {
         let root = storage.trees.at(caller).current_root();
         assert(root == expected, "Root does not match expected");
     }
@@ -115,7 +116,8 @@ contract SlowTree {
     // docs:end:update_at_private
     // docs:start:_update
     #[aztec(public)]
-    internal fn _update(
+    #[aztec(internal)]
+    fn _update(
         caller: Field,
         index: Field,
         new_value: Field,

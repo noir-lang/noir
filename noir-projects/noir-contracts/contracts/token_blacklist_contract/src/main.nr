@@ -70,13 +70,15 @@ contract TokenBlacklist {
     }
 
     #[aztec(public)]
-    internal fn _init_slow_tree(caller: AztecAddress) {
+    #[aztec(internal)]
+    fn _init_slow_tree(caller: AztecAddress) {
         assert(storage.admin.read().eq(caller), "caller is not admin");
     }
 
     ///////
     #[aztec(public)]
-    internal fn _initialize(new_admin: AztecAddress, slow_updates_contract: AztecAddress) {
+    #[aztec(internal)]
+    fn _initialize(new_admin: AztecAddress, slow_updates_contract: AztecAddress) {
         assert(!new_admin.is_zero(), "invalid admin");
         storage.admin.write(new_admin);
         // docs:start:write_slow_update_public
@@ -282,13 +284,15 @@ contract TokenBlacklist {
     /// Internal ///
 
     #[aztec(public)]
-    internal fn _increase_public_balance(to: AztecAddress, amount: Field) {
+    #[aztec(internal)]
+    fn _increase_public_balance(to: AztecAddress, amount: Field) {
         let new_balance = storage.public_balances.at(to).read().add(U128::from_integer(amount));
         storage.public_balances.at(to).write(new_balance);
     }
 
     #[aztec(public)]
-    internal fn _reduce_total_supply(amount: Field) {
+    #[aztec(internal)]
+    fn _reduce_total_supply(amount: Field) {
         // Only to be called from burn.
         let new_supply = storage.total_supply.read().sub(U128::from_integer(amount));
         storage.total_supply.write(new_supply);

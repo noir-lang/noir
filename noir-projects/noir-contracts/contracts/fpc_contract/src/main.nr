@@ -23,7 +23,8 @@ contract FPC {
     }
 
     #[aztec(public)]
-    internal fn _initialize(other_asset: AztecAddress, fee_asset: AztecAddress) {
+    #[aztec(internal)]
+    fn _initialize(other_asset: AztecAddress, fee_asset: AztecAddress) {
         storage.other_asset.initialize(other_asset);
         storage.fee_asset.initialize(fee_asset);
     }
@@ -63,12 +64,14 @@ contract FPC {
     }
 
     #[aztec(public)]
-    internal fn prepare_fee(from: AztecAddress, amount: Field, asset: AztecAddress, nonce: Field) {
+    #[aztec(internal)]
+    fn prepare_fee(from: AztecAddress, amount: Field, asset: AztecAddress, nonce: Field) {
         let _res = Token::at(asset).transfer_public(context, from, context.this_address(), amount, nonce);
     }
 
     #[aztec(public)]
-    internal fn pay_fee(refund_address: AztecAddress, amount: Field, asset: AztecAddress) {
+    #[aztec(internal)]
+    fn pay_fee(refund_address: AztecAddress, amount: Field, asset: AztecAddress) {
         let refund = context.call_public_function(
             storage.fee_asset.read_public(),
             FunctionSelector::from_signature("pay_fee(Field)"),

@@ -51,7 +51,8 @@ contract CardGame {
     }
 
     #[aztec(public)]
-    internal fn on_game_joined(game: u32, player: AztecAddress, deck_strength: u32) {
+    #[aztec(internal)]
+    fn on_game_joined(game: u32, player: AztecAddress, deck_strength: u32) {
         let game_storage = storage.games.at(game as Field);
 
         let mut game_data = game_storage.read();
@@ -87,7 +88,8 @@ contract CardGame {
     }
 
     #[aztec(public)]
-    internal fn on_card_played(game: u32, player: AztecAddress, card_as_field: Field) {
+    #[aztec(internal)]
+    fn on_card_played(game: u32, player: AztecAddress, card_as_field: Field) {
         let game_storage = storage.games.at(game as Field);
 
         let mut game_data = game_storage.read();
@@ -117,7 +119,8 @@ contract CardGame {
     }
 
     #[aztec(public)]
-    internal fn on_cards_claimed(game: u32, player: AztecAddress, cards_hash: Field) {
+    #[aztec(internal)]
+    fn on_cards_claimed(game: u32, player: AztecAddress, cards_hash: Field) {
         let game_storage = storage.games.at(game as Field);
         let mut game_data = game_storage.read();
 

@@ -214,7 +214,8 @@ contract DocsExample {
     }
 
     #[aztec(public)]
-    internal fn update_leader(account: AztecAddress, points: u8) {
+    #[aztec(internal)]
+    fn update_leader(account: AztecAddress, points: u8) {
         let new_leader = Leader { account, points };
         storage.leader.write(new_leader);
     }

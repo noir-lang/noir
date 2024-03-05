@@ -3,7 +3,7 @@ use std::vec;
 
 use convert_case::{Case, Casing};
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::{Location, Spanned};
 use noirc_frontend::hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl};
 use noirc_frontend::hir::def_map::{LocalModuleId, ModuleId};
 use noirc_frontend::macros_api::parse_program;
@@ -21,7 +21,7 @@ use noirc_frontend::macros_api::{CrateId, FileId};
 use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 use noirc_frontend::macros_api::{ModuleDefId, NodeInterner, SortedModule, StructId};
 use noirc_frontend::node_interner::{FuncId, TraitId, TraitImplId, TraitImplKind};
-use noirc_frontend::Lambda;
+use noirc_frontend::{BinaryOpKind, ConstrainKind, ConstrainStatement, InfixExpression, Lambda};
 pub struct AztecMacro;
 
 impl MacroProcessor for AztecMacro {
@@ -218,6 +218,14 @@ fn lambda(parameters: Vec<(Pattern, UnresolvedType)>, body: Expression) -> Expre
             span: Some(Span::default()),
         },
         body,
+    })))
+}
+
+fn make_eq(lhs: Expression, rhs: Expression) -> Expression {
+    expression(ExpressionKind::Infix(Box::new(InfixExpression {
+        lhs,
+        rhs,
+        operator: Spanned::from(Span::default(), BinaryOpKind::Equal),
     })))
 }
 
@@ -428,6 +436,7 @@ fn transform_module(
         let mut is_public = false;
         let mut is_public_vm = false;
         let mut is_initializer = false;
+        let mut is_internal = false;
         let mut insert_init_check = has_initializer;
 
         for secondary_attribute in func.def.attributes.secondary.clone() {
@@ -438,6 +447,8 @@ fn transform_module(
                 insert_init_check = false;
             } else if is_custom_attribute(&secondary_attribute, "aztec(noinitcheck)") {
                 insert_init_check = false;
+            } else if is_custom_attribute(&secondary_attribute, "aztec(internal)") {
+                is_internal = true;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
                 is_public = true;
                 insert_init_check = false;
@@ -454,6 +465,7 @@ fn transform_module(
                 storage_defined,
                 is_initializer,
                 insert_init_check,
+                is_internal,
             )
             .map_err(|err| (err, crate_graph.root_file_id))?;
             has_transformed_module = true;
@@ -646,10 +658,18 @@ fn transform_function(
     storage_defined: bool,
     is_initializer: bool,
     insert_init_check: bool,
+    is_internal: bool,
 ) -> Result<(), AztecMacroError> {
     let context_name = format!("{}Context", ty);
     let inputs_name = format!("{}ContextInputs", ty);
     let return_type_name = format!("{}CircuitPublicInputs", ty);
+
+    // Add check that msg sender equals this address and flag function as internal
+    if is_internal {
+        let is_internal_check = create_internal_check(func.name());
+        func.def.body.0.insert(0, is_internal_check);
+        func.def.is_internal = true;
+    }
 
     // Add initialization check
     if insert_init_check {
@@ -1163,6 +1183,25 @@ fn create_mark_as_initialized() -> Statement {
     make_statement(StatementKind::Expression(call(
         variable_path(chained_dep!("aztec", "initializer", "mark_as_initialized")),
         vec![mutable_reference("context")],
+    )))
+}
+
+/// Creates a check for internal functions ensuring that the caller is self.
+///
+/// ```noir
+/// assert(context.msg_sender() == context.this_address(), "Function can only be called internally");
+/// ```
+fn create_internal_check(fname: &str) -> Statement {
+    make_statement(StatementKind::Constrain(ConstrainStatement(
+        make_eq(
+            method_call(variable("context"), "msg_sender", vec![]),
+            method_call(variable("context"), "this_address", vec![]),
+        ),
+        Some(expression(ExpressionKind::Literal(Literal::Str(format!(
+            "Function {} can only be called internally",
+            fname
+        ))))),
+        ConstrainKind::Assert,
     )))
 }
 

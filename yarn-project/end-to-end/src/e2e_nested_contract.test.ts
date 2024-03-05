@@ -68,9 +68,9 @@ describe('e2e_nested_contract', () => {
     it('fails simulation if calling a function not allowed to be called externally', async () => {
       await expect(
         parentContract.methods
-          .entryPoint(childContract.address, childContract.methods.valueInternal.selector)
+          .entryPoint(childContract.address, (childContract.methods as any).valueInternal.selector)
           .simulate(),
-      ).rejects.toThrowError('Assertion failed: Sender must be this contract');
+      ).rejects.toThrow(/Assertion failed: Function valueInternal can only be called internally/);
     }, 100_000);
 
     it('performs public nested calls', async () => {
@@ -91,9 +91,9 @@ describe('e2e_nested_contract', () => {
     it('fails simulation if calling a public function not allowed to be called externally', async () => {
       await expect(
         parentContract.methods
-          .enqueueCallToChild(childContract.address, childContract.methods.pubIncValueInternal.selector, 42n)
+          .enqueueCallToChild(childContract.address, (childContract.methods as any).pubIncValueInternal.selector, 42n)
           .simulate(),
-      ).rejects.toThrowError('Assertion failed: Sender must be this contract');
+      ).rejects.toThrow(/Assertion failed: Function pubIncValueInternal can only be called internally/);
     }, 100_000);
 
     it('enqueues multiple public calls', async () => {

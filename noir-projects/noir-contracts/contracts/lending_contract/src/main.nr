@@ -130,7 +130,8 @@ contract Lending {
     }
 
     #[aztec(public)]
-    internal fn _deposit(owner: AztecAddress, amount: Field, collateral_asset: AztecAddress) {
+    #[aztec(internal)]
+    fn _deposit(owner: AztecAddress, amount: Field, collateral_asset: AztecAddress) {
         let _asset = Lending::at(context.this_address()).update_accumulator(context);
 
         let coll_asset = storage.collateral_asset.read();
@@ -163,7 +164,8 @@ contract Lending {
     }
 
     #[aztec(public)]
-    internal fn _withdraw(owner: AztecAddress, recipient: AztecAddress, amount: Field) {
+    #[aztec(internal)]
+    fn _withdraw(owner: AztecAddress, recipient: AztecAddress, amount: Field) {
         let asset = Lending::at(context.this_address()).update_accumulator(context);
         let price = PriceFeed::at(asset.oracle).get_price(context);
 
@@ -220,7 +222,8 @@ contract Lending {
     }
 
     #[aztec(public)]
-    internal fn _borrow(owner: AztecAddress, to: AztecAddress, amount: Field) {
+    #[aztec(internal)]
+    fn _borrow(owner: AztecAddress, to: AztecAddress, amount: Field) {
         let asset = Lending::at(context.this_address()).update_accumulator(context);
         let price = PriceFeed::at(asset.oracle).get_price(context);
 
@@ -282,7 +285,8 @@ contract Lending {
     }
 
     #[aztec(public)]
-    internal fn _repay(owner: AztecAddress, amount: Field, stable_coin: AztecAddress) {
+    #[aztec(internal)]
+    fn _repay(owner: AztecAddress, amount: Field, stable_coin: AztecAddress) {
         let asset = Lending::at(context.this_address()).update_accumulator(context);
 
         // To ensure that private is using the correct token.

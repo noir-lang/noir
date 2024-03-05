@@ -138,7 +138,8 @@ contract TokenBridge {
     // docs:end:read_token
 
     #[aztec(public)]
-    internal fn _initialize(token: AztecAddress) {
+    #[aztec(internal)]
+    fn _initialize(token: AztecAddress) {
         storage.token.write(token);
     }
 
@@ -147,14 +148,16 @@ contract TokenBridge {
     // Also, note that user hashes their secret in private and only sends the hash in public
     // meaning only user can `redeem_shield` at a later time with their secret.
     #[aztec(public)]
-    internal fn _call_mint_on_token(amount: Field, secret_hash: Field) {
+    #[aztec(internal)]
+    fn _call_mint_on_token(amount: Field, secret_hash: Field) {
         Token::at(storage.token.read()).mint_private(context, amount, secret_hash);
     }
     // docs:end:call_mint_on_token
 
     // docs:start:assert_token_is_same
     #[aztec(public)]
-    internal fn _assert_token_is_same(token: AztecAddress) {
+    #[aztec(internal)]
+    fn _assert_token_is_same(token: AztecAddress) {
         assert(storage.token.read().eq(token), "Token address is not the same as seen in storage");
     }
     // docs:end:assert_token_is_same

@@ -28,7 +28,8 @@ contract EasyPrivateVoting {
     // docs:end:constructor
     // docs:start:initialize
     #[aztec(public)] // annotation to mark function as public and expose public context
-    internal fn _initialize(admin: AztecAddress) { // internal - can only be called by contract
+    #[aztec(internal)]
+    fn _initialize(admin: AztecAddress) { // internal - can only be called by contract
         storage.admin.write(admin);
         storage.voteEnded.write(false);
     }
@@ -49,7 +50,8 @@ contract EasyPrivateVoting {
 
     // docs:start:add_to_tally_public
     #[aztec(public)]
-    internal fn add_to_tally_public(candidate: Field) {
+    #[aztec(internal)]
+    fn add_to_tally_public(candidate: Field) {
         assert(storage.voteEnded.read() == false, "Vote has ended"); // assert that vote has not ended
         let new_tally = storage.tally.at(candidate).read() + 1;
         storage.tally.at(candidate).write(new_tally);
