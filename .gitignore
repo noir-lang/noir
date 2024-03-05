@@ -50,8 +50,5 @@ tooling/noirc_abi_wasm/nodejs
 tooling/noirc_abi_wasm/web
 tooling/noir_js/lib
 
-**/package.tgz
-packages
-
 # docs autogen build
 /docs/docs/noir_js/reference/
