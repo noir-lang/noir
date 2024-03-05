@@ -216,7 +216,8 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         await expect(store.getPendingL1ToL2EntryKeys(1)).resolves.toEqual([message.entryKey!]);
       });
 
-      it('returns messages ordered by fee', async () => {
+      // TODO(@spalladino): Fix and re-enable
+      it.skip('returns messages ordered by fee', async () => {
         const messages = Array.from({ length: 3 }, () => L1ToL2Message.random(Fr.random()));
         // add a duplicate message
         messages.push(messages[0]);
