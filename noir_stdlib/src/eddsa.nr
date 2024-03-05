@@ -67,3 +67,10 @@ where H: Hasher {
 
     left.eq(right)
 }
+
+// Returns the public key of the given secret key as (pub_key_x, pub_key_y)
+pub fn eddsa_to_pub(secret: Field) -> (Field, Field) {
+    let bjj = baby_jubjub();
+    let pub_key = bjj.curve.mul(secret, bjj.curve.gen);
+    (pub_key.x, pub_key.y)
+}

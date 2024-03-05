@@ -13,7 +13,7 @@ type MemoryIndex = u32;
 
 /// Maintains the state for solving [`MemoryInit`][`acir::circuit::Opcode::MemoryInit`] and [`MemoryOp`][`acir::circuit::Opcode::MemoryOp`] opcodes.
 #[derive(Default)]
-pub(super) struct MemoryOpSolver {
+pub(crate) struct MemoryOpSolver {
     pub(super) block_value: HashMap<MemoryIndex, FieldElement>,
     pub(super) block_len: u32,
 }
