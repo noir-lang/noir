@@ -1,4 +1,6 @@
-import { EthAddress, L2ToL1Message } from '@aztec/circuits.js';
+import { UnencryptedL2Log } from '@aztec/circuit-types';
+import { AztecAddress, EthAddress, L2ToL1Message } from '@aztec/circuits.js';
+import { EventSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 
 import { HostStorage } from './host_storage.js';
@@ -18,7 +20,7 @@ export type JournalData = {
   l1ToL2MessageChecks: TracedL1toL2MessageCheck[];
 
   newL1Messages: L2ToL1Message[];
-  newLogs: Fr[][];
+  newLogs: UnencryptedL2Log[];
 
   /** contract address -\> key -\> value */
   currentStorageValue: Map<bigint, Map<bigint, Fr>>;
@@ -53,7 +55,7 @@ export class AvmPersistableStateManager {
 
   /** Accrued Substate **/
   private newL1Messages: L2ToL1Message[] = [];
-  private newLogs: Fr[][] = [];
+  private newLogs: UnencryptedL2Log[] = [];
 
   constructor(hostStorage: HostStorage, parent?: AvmPersistableStateManager) {
     this.hostStorage = hostStorage;
@@ -174,8 +176,14 @@ export class AvmPersistableStateManager {
     this.newL1Messages.push(new L2ToL1Message(recipientAddress, content));
   }
 
-  public writeLog(log: Fr[]) {
-    this.newLogs.push(log);
+  public writeLog(contractAddress: Fr, event: Fr, log: Fr[]) {
+    this.newLogs.push(
+      new UnencryptedL2Log(
+        AztecAddress.fromField(contractAddress),
+        EventSelector.fromField(event),
+        Buffer.concat(log.map(f => f.toBuffer())),
+      ),
+    );
   }
 
   /**

@@ -35,7 +35,7 @@ export class AvmSimulator {
         const instruction = instructions[this.context.machineState.pc];
         assert(!!instruction); // This should never happen
 
-        this.log(`Executing PC=${this.context.machineState.pc}: ${instruction.toString()}`);
+        this.log.debug(`@${this.context.machineState.pc} ${instruction.toString()}`);
         // Execute the instruction.
         // Normal returns and reverts will return normally here.
         // "Exceptional halts" will throw.

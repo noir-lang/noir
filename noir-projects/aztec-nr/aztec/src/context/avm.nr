@@ -1,4 +1,5 @@
 use dep::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH};
+use dep::protocol_types::traits::{Serialize};
 
 // Getters that will be converted by the transpiler into their
 // own opcodes
@@ -61,6 +62,17 @@ impl AVMContext {
 
     #[oracle(avmOpcodeEmitNullifier)]
     pub fn emit_nullifier(self, nullifier: Field) {}
+
+    /**
+     * Emit a log with the given event selector and message.
+     *
+     * @param event_selector The event selector for the log.
+     * @param message The message to emit in the log.
+     * Should be automatically convertible to [Field; N]. For example str<N> works with
+     * one char per field. Otherwise you can use CompressedString.
+     */
+    #[oracle(amvOpcodeEmitUnencryptedLog)]
+    pub fn emit_unencrypted_log<T>(self, event_selector: Field, message: T) {}
 
     #[oracle(avmOpcodeL1ToL2MsgExists)]
     pub fn l1_to_l2_msg_exists(self, msg_hash: Field, msg_leaf_index: Field) -> u8 {}

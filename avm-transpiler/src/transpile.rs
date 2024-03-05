@@ -238,6 +238,9 @@ fn handle_foreign_call(
     inputs: &Vec<ValueOrArray>,
 ) {
     match function {
+        "amvOpcodeEmitUnencryptedLog" => {
+            handle_emit_unencrypted_log(avm_instrs, destinations, inputs)
+        },
         "avmOpcodeNoteHashExists" => handle_note_hash_exists(avm_instrs, destinations, inputs),
         "avmOpcodeEmitNoteHash" | "avmOpcodeEmitNullifier" => handle_emit_note_hash_or_nullifier(
             function == "avmOpcodeEmitNullifier",
@@ -300,6 +303,43 @@ fn handle_note_hash_exists(
             },
             AvmOperand::U32 {
                 value: exists_offset_operand,
+            },
+        ],
+        ..Default::default()
+    });
+}
+
+fn handle_emit_unencrypted_log(
+    avm_instrs: &mut Vec<AvmInstruction>,
+    destinations: &Vec<ValueOrArray>,
+    inputs: &Vec<ValueOrArray>,
+) {
+    if destinations.len() != 0 || inputs.len() != 2 {
+        panic!(
+            "Transpiler expects ForeignCall::EMITUNENCRYPTEDLOG to have 0 destinations and 3 inputs, got {} and {}",
+            destinations.len(),
+            inputs.len()
+        );
+    }
+    let (event_offset, message_array) = match &inputs[..] {
+        [ValueOrArray::MemoryAddress(offset), ValueOrArray::HeapArray(array)] => {
+            (offset.to_usize() as u32, array)
+        }
+        _ => panic!("Unexpected inputs for ForeignCall::EMITUNENCRYPTEDLOG: {:?}", inputs),
+    };
+    avm_instrs.push(AvmInstruction {
+        opcode: AvmOpcode::EMITUNENCRYPTEDLOG,
+        // The message array from Brillig is indirect.
+        indirect: Some(FIRST_OPERAND_INDIRECT),
+        operands: vec![
+            AvmOperand::U32 {
+                value: event_offset,
+            },
+            AvmOperand::U32 {
+                value: message_array.pointer.to_usize() as u32,
+            },
+            AvmOperand::U32 {
+                value: message_array.size as u32,
             },
         ],
         ..Default::default()

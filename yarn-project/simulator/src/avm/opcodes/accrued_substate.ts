@@ -3,6 +3,7 @@ import { Uint8 } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { NullifierCollisionError } from '../journal/nullifiers.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
+import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
 import { StaticCallStorageAlterError } from './storage.js';
 
@@ -153,9 +154,20 @@ export class EmitUnencryptedLog extends Instruction {
   static type: string = 'EMITUNENCRYPTEDLOG';
   static readonly opcode: Opcode = Opcode.EMITUNENCRYPTEDLOG;
   // Informs (de)serialization. See Instruction.deserialize.
-  static readonly wireFormat = [OperandType.UINT8, OperandType.UINT8, OperandType.UINT32, OperandType.UINT32];
+  static readonly wireFormat = [
+    OperandType.UINT8,
+    OperandType.UINT8,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+  ];
 
-  constructor(private indirect: number, private logOffset: number, private logSize: number) {
+  constructor(
+    private indirect: number,
+    private eventSelectorOffset: number,
+    private logOffset: number,
+    private logSize: number,
+  ) {
     super();
   }
 
@@ -164,8 +176,15 @@ export class EmitUnencryptedLog extends Instruction {
       throw new StaticCallStorageAlterError();
     }
 
-    const log = context.machineState.memory.getSlice(this.logOffset, this.logSize).map(f => f.toFr());
-    context.persistableState.writeLog(log);
+    const [eventSelectorOffset, logOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.eventSelectorOffset, this.logOffset],
+      context.machineState.memory,
+    );
+
+    const contractAddress = context.environment.address;
+    const event = context.machineState.memory.get(eventSelectorOffset).toFr();
+    const log = context.machineState.memory.getSlice(logOffset, this.logSize).map(f => f.toFr());
+    context.persistableState.writeLog(contractAddress, event, log);
 
     context.machineState.incrementPc();
   }

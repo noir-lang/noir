@@ -1028,6 +1028,7 @@ T[dstOffset] = field
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
         ],
         "Args": [
+            {"name": "eventSelectorOffset", "description": "memory offset of the event selector"},
             {"name": "logOffset", "description": "memory offset of the data to log"},
             {"name": "logSize", "description": "number of words to log", "mode": "immediate", "type": "u32"},
         ],
@@ -1035,6 +1036,7 @@ T[dstOffset] = field
 context.accruedSubstate.unencryptedLogs.append(
     UnencryptedLog {
         address: context.environment.address,
+        eventSelector: M[eventSelectorOffset],
         log: M[logOffset:logOffset+logSize],
     }
 )

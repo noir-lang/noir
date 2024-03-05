@@ -1,3 +1,5 @@
+import { UnencryptedL2Log } from '@aztec/circuit-types';
+import { EventSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { keccak, pedersenHash, poseidonHash, sha256 } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -297,6 +299,44 @@ describe('AVM simulator', () => {
         // Note hash existence check should be in trace
         const trace = context.persistableState.flush();
         expect(trace.noteHashChecks).toEqual([expect.objectContaining({ noteHash, leafIndex, exists: true })]);
+      });
+      it(`Should execute contract function to emit unencrypted logs (should be traced)`, async () => {
+        // Get contract function artifact
+        const artifact = AvmTestContractArtifact.functions.find(f => f.name === 'avm_emit_unencrypted_log')!;
+
+        // Decode bytecode into instructions
+        const bytecode = Buffer.from(artifact.bytecode, 'base64');
+
+        const context = initContext();
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValue(Promise.resolve(bytecode));
+
+        const results = await new AvmSimulator(context).execute();
+
+        expect(results.reverted).toBe(false);
+
+        const expectedFields = [new Fr(10), new Fr(20), new Fr(30)];
+        const expectedString = 'Hello, world!'.split('').map(c => new Fr(c.charCodeAt(0)));
+        // FIXME: Try this once Brillig codegen produces uniform bit sizes for LT
+        // const expectedCompressedString = Buffer.from('Hello, world!');
+        expect(context.persistableState.flush().newLogs).toEqual([
+          new UnencryptedL2Log(
+            context.environment.address,
+            new EventSelector(5),
+            Buffer.concat(expectedFields.map(f => f.toBuffer())),
+          ),
+          new UnencryptedL2Log(
+            context.environment.address,
+            new EventSelector(8),
+            Buffer.concat(expectedString.map(f => f.toBuffer())),
+          ),
+          // new UnencryptedL2Log(
+          //   context.environment.address,
+          //   new EventSelector(10),
+          //   expectedCompressedString,
+          // ),
+        ]);
       });
       it(`Should execute contract function to emit note hash (should be traced)`, async () => {
         const utxo = new Fr(42);
