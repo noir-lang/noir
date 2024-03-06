@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.2](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.26.1...aztec-packages-v0.26.2) (2024-03-06)
+
+
+### Bug Fixes
+
+* Pw/disable generate config ([#4976](https://github.com/AztecProtocol/aztec-packages/issues/4976)) ([d7549fe](https://github.com/AztecProtocol/aztec-packages/commit/d7549fe27558678956d57c4f525d719922946fa9))
+
 ## [0.26.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.26.0...aztec-packages-v0.26.1) (2024-03-06)
 
 

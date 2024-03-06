@@ -1,6 +1,6 @@
 {
   "name": "@aztec/cli",
-  "version": "0.26.1",
+  "version": "0.26.2",
   "type": "module",
   "main": "./dest/index.js",
   "bin": {
