@@ -21,9 +21,9 @@ All issues being worked on are tracked on the [Aztec Github Project](https://git
 
 ## Development Setup
 
-Run `bootstrap.sh` in the project root to set up your environment. This will update git submodules, download ignition transcripts, install Foundry, compile Solidity contracts, install the current node version via nvm, and build all typescript packages.
+Run `bootstrap.sh full` in the project root to set up your environment. This will update git submodules, download ignition transcripts, install Foundry, compile Solidity contracts, install the current node version via nvm, and build all typescript packages.
 
-Alternatively, to just hack on Noir contracts and Typescript, run `BOOTSTRAP_USE_REMOTE_CACHE=1 ./bootstrap.sh`, which will download existing builds for barretenberg and nargo from the CI cache. Note that this only works on Ubuntu.
+Alternatively, to just hack on Noir contracts and Typescript, run `./bootstrap.sh fast`, which will download existing builds for barretenberg and nargo from the CI cache. Note that this requires AWS ECR credentials, and only works on Ubuntu.
 
 To build Typescript code, make sure to have [`nvm`](https://github.com/nvm-sh/nvm) (node version manager) installed.
 
