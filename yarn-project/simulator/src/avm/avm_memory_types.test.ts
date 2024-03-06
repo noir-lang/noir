@@ -177,6 +177,13 @@ describe('Field', () => {
     expect(field1.equals(field3)).toBe(false);
   });
 
+  it(`Should check if one Field is less than another correctly`, () => {
+    const field1 = new Field(5);
+    const field2 = new Field(10);
+    expect(field1.lt(field2)).toBe(true);
+    expect(field2.lt(field1)).toBe(false);
+  });
+
   it(`Should convert Field to BigInt correctly`, () => {
     const field = new Field(5);
     expect(field.toBigInt()).toStrictEqual(5n);

@@ -130,7 +130,7 @@ const INSTRUCTION_SET_RAW = [
         "Category": "Compute - Comparators",
         "Flags": [
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-            {"name": "inTag", "description": IN_TAG_DESCRIPTION_NO_FIELD},
+            {"name": "inTag", "description": IN_TAG_DESCRIPTION},
         ],
         "Args": [
             {"name": "aOffset", "description": "memory offset of the operation's left input"},
@@ -149,7 +149,7 @@ const INSTRUCTION_SET_RAW = [
         "Category": "Compute - Comparators",
         "Flags": [
             {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
-            {"name": "inTag", "description": IN_TAG_DESCRIPTION_NO_FIELD},
+            {"name": "inTag", "description": IN_TAG_DESCRIPTION},
         ],
         "Args": [
             {"name": "aOffset", "description": "memory offset of the operation's left input"},
