@@ -1011,6 +1011,7 @@ export function makeBaseOrMergeRollupPublicInputs(
     makePartialStateReference(seed + 0x300),
     makePartialStateReference(seed + 0x400),
     [fr(seed + 0x901), fr(seed + 0x902)],
+    [fr(seed + 0x903), fr(seed + 0x904)],
   );
 }
 

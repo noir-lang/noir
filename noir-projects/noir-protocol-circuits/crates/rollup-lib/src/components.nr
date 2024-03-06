@@ -92,3 +92,20 @@ pub fn compute_calldata_hash(previous_rollup_data: [PreviousRollupData; 2]) -> [
     ]
     )
 }
+
+/**
+ * @brief From two previous rollup data, compute a single out hash
+ *
+ * @param previous_rollup_data
+ * @return out hash stored in 2 fields
+ */
+pub fn compute_out_hash(previous_rollup_data: [PreviousRollupData; 2]) -> [Field; NUM_FIELDS_PER_SHA256] {
+    accumulate_sha256(
+        [
+        U128::from_integer(previous_rollup_data[0].base_or_merge_rollup_public_inputs.out_hash[0]),
+        U128::from_integer(previous_rollup_data[0].base_or_merge_rollup_public_inputs.out_hash[1]),
+        U128::from_integer(previous_rollup_data[1].base_or_merge_rollup_public_inputs.out_hash[0]),
+        U128::from_integer(previous_rollup_data[1].base_or_merge_rollup_public_inputs.out_hash[1])
+    ]
+    )
+}

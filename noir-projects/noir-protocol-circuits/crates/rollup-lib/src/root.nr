@@ -45,7 +45,7 @@ impl RootRollupInputs {
             tx_tree_height: right.height_in_block_tree + 1,
             txs_hash: components::compute_calldata_hash(self.previous_rollup_data),
             in_hash: [0, 0],
-            out_hash: [0, 0]
+            out_hash: components::compute_out_hash(self.previous_rollup_data)
         };
 
         let header = Header {

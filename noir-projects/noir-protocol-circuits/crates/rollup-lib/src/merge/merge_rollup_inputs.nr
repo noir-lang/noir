@@ -26,6 +26,7 @@ impl MergeRollupInputs {
 
         // compute calldata hash:
         let new_calldata_hash = components::compute_calldata_hash(self.previous_rollup_data);
+        let new_out_hash = components::compute_out_hash(self.previous_rollup_data);
 
         let public_inputs = BaseOrMergeRollupPublicInputs {
             rollup_type: MERGE_ROLLUP_TYPE,
@@ -34,7 +35,8 @@ impl MergeRollupInputs {
             constants: left.constants,
             start: left.start,
             end: right.end,
-            calldata_hash: new_calldata_hash
+            calldata_hash: new_calldata_hash,
+            out_hash: new_out_hash
         };
 
         public_inputs
