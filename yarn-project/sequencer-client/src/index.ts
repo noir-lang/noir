@@ -12,4 +12,6 @@ export * from './global_variable_builder/index.js';
 export { RealRollupCircuitSimulator } from './simulator/rollup.js';
 export { EmptyRollupProver } from './prover/empty.js';
 export { SoloBlockBuilder } from './block_builder/solo_block_builder.js';
+export { WASMSimulator } from './simulator/acvm_wasm.js';
+export { SimulationProvider } from './simulator/simulation_provider.js';
 export { makeProcessedTx, makeEmptyProcessedTx } from './sequencer/processed_tx.js';

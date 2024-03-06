@@ -11,6 +11,7 @@ import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from '../simulator/public_executor.js';
 import { RealPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
+import { SimulationProvider } from '../simulator/simulation_provider.js';
 import { AbstractPhaseManager } from './abstract_phase_manager.js';
 import { PhaseManagerFactory } from './phase_manager_factory.js';
 import { FailedTx, ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
@@ -23,6 +24,7 @@ export class PublicProcessorFactory {
     private merkleTree: MerkleTreeOperations,
     private contractDataSource: ContractDataSource,
     private l1Tol2MessagesDataSource: L1ToL2MessageSource,
+    private simulator: SimulationProvider,
   ) {}
 
   /**
@@ -45,7 +47,7 @@ export class PublicProcessorFactory {
     return new PublicProcessor(
       this.merkleTree,
       publicExecutor,
-      new RealPublicKernelCircuitSimulator(),
+      new RealPublicKernelCircuitSimulator(this.simulator),
       new EmptyPublicProver(),
       globalVariables,
       historicalHeader,

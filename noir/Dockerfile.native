@@ -12,4 +12,5 @@ FROM ubuntu:focal
 # Install git as nargo needs it to clone.
 RUN apt-get update && apt-get install -y git tini && rm -rf /var/lib/apt/lists/* && apt-get clean
 COPY --from=0 /usr/src/noir/noir-repo/target/release/nargo /usr/src/noir/noir-repo/target/release/nargo
+COPY --from=0 /usr/src/noir/noir-repo/target/release/acvm /usr/src/noir/noir-repo/target/release/acvm
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/src/noir/noir-repo/target/release/nargo"]

@@ -48,6 +48,7 @@ import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
 
 import { PublicProver } from '../prover/index.js';
+import { WASMSimulator } from '../simulator/acvm_wasm.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ContractsDataSourcePublicDB, WorldStatePublicDB } from '../simulator/public_executor.js';
 import { RealPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
@@ -167,7 +168,7 @@ describe('public_processor', () => {
     beforeEach(() => {
       const path = times(PUBLIC_DATA_TREE_HEIGHT, i => Buffer.alloc(32, i));
       db.getSiblingPath.mockResolvedValue(new SiblingPath<number>(PUBLIC_DATA_TREE_HEIGHT, path));
-      publicKernel = new RealPublicKernelCircuitSimulator();
+      publicKernel = new RealPublicKernelCircuitSimulator(new WASMSimulator());
       processor = new PublicProcessor(
         db,
         publicExecutor,

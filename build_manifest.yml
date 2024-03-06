@@ -10,7 +10,7 @@
 # dependencies: An array of other projects that this project depends on.
 # runDependencies: Additional projects that are needed to run a container/compose file. Ensures they're pulled first.
 
-# Builds noir for x86_64 and arm64, creating a runnable container just with nargo.
+# Builds noir for x86_64 and arm64, creating a runnable container just with nargo + acvm.
 noir:
   buildDir: noir
   dockerfile: Dockerfile.native
@@ -169,6 +169,7 @@ yarn-project:
     - noir-packages
     - l1-contracts
     - noir-projects
+    - noir
   multiarch: host
 
 # A runnable container, sets entrypoint to be the aztec infrastructure entrypoint.
@@ -215,6 +216,7 @@ end-to-end:
     - noir-packages
     - l1-contracts
     - noir-projects
+    - noir
   runDependencies:
     - aztec
 

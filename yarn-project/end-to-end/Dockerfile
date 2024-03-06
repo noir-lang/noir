@@ -2,6 +2,7 @@ FROM --platform=linux/amd64 aztecprotocol/bb.js as bb.js
 FROM --platform=linux/amd64 aztecprotocol/noir-packages as noir-packages
 FROM --platform=linux/amd64 aztecprotocol/l1-contracts as contracts
 FROM --platform=linux/amd64 aztecprotocol/noir-projects as noir-projects
+FROM --platform=linux/amd64 aztecprotocol/noir as noir
 
 FROM node:18.19.0 as builder
 RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
@@ -11,6 +12,8 @@ COPY --from=bb.js /usr/src/barretenberg/ts /usr/src/barretenberg/ts
 COPY --from=noir-packages /usr/src/noir/packages /usr/src/noir/packages
 COPY --from=contracts /usr/src/l1-contracts /usr/src/l1-contracts
 COPY --from=noir-projects /usr/src/noir-projects /usr/src/noir-projects
+# We want the native ACVM binary
+COPY --from=noir /usr/src/noir/noir-repo/target/release/acvm /usr/src/noir/noir-repo/target/release/acvm
 
 WORKDIR /usr/src/yarn-project
 COPY . .
@@ -32,8 +35,8 @@ RUN ./bootstrap.sh
 RUN yarn workspace @aztec/end-to-end run build:web
 RUN yarn workspaces focus @aztec/end-to-end --production && yarn cache clean
 
-# We no longer need nargo etc.
-RUN rm -rf /usr/src/noir/noir-repo /usr/src/noir-projects /usr/src/l1-contracts
+# We no longer need these
+RUN rm -rf /usr/src/noir-projects /usr/src/l1-contracts
 
 # Create minimal image.
 FROM node:18.19.1-slim

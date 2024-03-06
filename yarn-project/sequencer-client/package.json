@@ -33,6 +33,8 @@
     "@aztec/simulator": "workspace:^",
     "@aztec/types": "workspace:^",
     "@aztec/world-state": "workspace:^",
+    "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js",
+    "@noir-lang/types": "portal:../../noir/packages/types",
     "lodash.chunk": "^4.2.0",
     "lodash.pick": "^4.4.0",
     "tslib": "^2.4.0",

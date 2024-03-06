@@ -12,3 +12,4 @@
 ^noir/noir-repo/tooling/nargo_toml
 ^noir/noir-repo/tooling/nargo_fmt
 ^noir/noir-repo/tooling/noirc_abi
+^noir/noir-repo/tooling/acvm_cli

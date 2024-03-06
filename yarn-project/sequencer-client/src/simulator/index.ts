@@ -55,3 +55,4 @@ export interface PublicKernelCircuitSimulator {
    */
   publicKernelCircuitTeardown(inputs: PublicKernelCircuitPrivateInputs): Promise<PublicKernelCircuitPublicInputs>;
 }
+export * from './acvm_wasm.js';

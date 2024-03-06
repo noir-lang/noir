@@ -50,6 +50,7 @@ import {
   GlobalVariableBuilder,
   PublicProcessorFactory,
   SequencerClient,
+  WASMSimulator,
   getGlobalVariableBuilder,
 } from '@aztec/sequencer-client';
 import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -605,6 +606,7 @@ export class AztecNodeService implements AztecNode {
       merkleTrees.asLatest(),
       this.contractDataSource,
       this.l1ToL2MessageSource,
+      new WASMSimulator(),
     );
     const processor = await publicProcessorFactory.create(prevHeader, newGlobalVariables);
     const [, failedTxs] = await processor.process([tx]);

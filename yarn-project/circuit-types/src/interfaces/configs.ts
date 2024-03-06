@@ -14,4 +14,8 @@ export interface SequencerConfig {
   coinbase?: EthAddress;
   /** Address to receive fees. */
   feeRecipient?: AztecAddress;
+  /** The working directory to use for simulation/proving */
+  acvmWorkingDirectory?: string;
+  /** The path to the ACVM binary */
+  acvmBinaryPath?: string;
 }

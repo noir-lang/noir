@@ -48,6 +48,8 @@ export function getConfigEnvVars(): SequencerClientConfig {
     OUTBOX_CONTRACT_ADDRESS,
     COINBASE,
     FEE_RECIPIENT,
+    ACVM_WORKING_DIRECTORY,
+    ACVM_BINARY_PATH,
   } = process.env;
 
   const publisherPrivateKey: Hex = SEQ_PUBLISHER_PRIVATE_KEY
@@ -82,5 +84,7 @@ export function getConfigEnvVars(): SequencerClientConfig {
     // TODO: undefined should not be allowed for the following 2 values in PROD
     coinbase: COINBASE ? EthAddress.fromString(COINBASE) : undefined,
     feeRecipient: FEE_RECIPIENT ? AztecAddress.fromString(FEE_RECIPIENT) : undefined,
+    acvmWorkingDirectory: ACVM_WORKING_DIRECTORY ? ACVM_WORKING_DIRECTORY : undefined,
+    acvmBinaryPath: ACVM_BINARY_PATH ? ACVM_BINARY_PATH : undefined,
   };
 }
