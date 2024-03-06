@@ -57,13 +57,12 @@ pub mod macros_api {
     pub use crate::{
         hir::Context as HirContext, BlockExpression, CallExpression, CastExpression, Distinctness,
         Expression, ExpressionKind, FunctionReturnType, Ident, IndexExpression, LetStatement,
-        Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, Path, PathKind,
-        Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
+        Literal, MemberAccessExpression, MethodCallExpression, ModuleVisibility, NoirFunction,
+        Path, PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
     };
     pub use crate::{
-        ForLoopStatement, ForRange, FunctionDefinition, FunctionVisibility, ImportStatement,
-        NoirStruct, Param, PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl,
-        UnaryOp,
+        ForLoopStatement, ForRange, FunctionDefinition, ImportStatement, NoirStruct, Param,
+        PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
     };
 
     /// Methods to process the AST before and after type checking
