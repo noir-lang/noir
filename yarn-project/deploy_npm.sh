@@ -86,6 +86,7 @@ deploy_package circuits.js
 deploy_package circuit-types
 deploy_package protocol-contracts
 deploy_package aztec.js
+deploy_package entrypoints
 deploy_package accounts
 deploy_package l1-artifacts
 deploy_package ethereum
