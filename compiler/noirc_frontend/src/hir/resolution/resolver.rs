@@ -1433,30 +1433,33 @@ impl<'a> Resolver<'a> {
                     // Otherwise, then it is referring to an Identifier
                     // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
                     // If the expression is a singular indent, we search the resolver's current scope as normal.
-                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
+                    let (hir_ident, var_scope_index) = self.get_ident_from_path(path.clone());
 
                     if hir_ident.id != DefinitionId::dummy_id() {
                         match self.interner.definition(hir_ident.id).kind {
-                            DefinitionKind::Function(id) => {
+                            DefinitionKind::Function(func_id) => {
                                 if let Some(current_item) = self.current_item {
-                                    self.interner.add_function_dependency(current_item, id);
+                                    self.interner.add_function_dependency(current_item, func_id);
                                 }
 
-                                if self.interner.function_visibility(id)
-                                    != FunctionVisibility::Public
-                                {
+                                let visibility = self.interner.function_visibility(func_id);
+                                if visibility != FunctionVisibility::Public {
                                     let span = hir_ident.location.span;
-                                    self.check_can_reference_function(
-                                        id,
-                                        span,
-                                        self.interner.function_visibility(id),
-                                    );
+                                    self.check_can_reference_function(func_id, span, visibility);
                                 }
+
+                                let variable = DependencyId::Variable(hir_ident.location);
+                                let function = DependencyId::Function(func_id);
+                                self.interner.add_reference(function, variable);
                             }
                             DefinitionKind::Global(global_id) => {
                                 if let Some(current_item) = self.current_item {
                                     self.interner.add_global_dependency(current_item, global_id);
                                 }
+
+                                let variable = DependencyId::Variable(hir_ident.location);
+                                let global = DependencyId::Global(global_id);
+                                self.interner.add_reference(global, variable);
                             }
                             DefinitionKind::GenericType(_) => {
                                 // Initialize numeric generics to a polymorphic integer type in case

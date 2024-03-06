@@ -392,6 +392,7 @@ impl<'a> ModCollector<'a> {
                         let func_id = context.def_interner.push_empty_fn();
                         method_ids.insert(name.to_string(), func_id);
 
+                        let location = Location::new(name.span(), self.file_id);
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
                             visibility: crate::FunctionVisibility::Public,
@@ -400,9 +401,9 @@ impl<'a> ModCollector<'a> {
                             is_unconstrained: false,
                             contract_function_type: None,
                             is_internal: None,
+                            name_location: location,
                         };
 
-                        let location = Location::new(name.span(), self.file_id);
                         context
                             .def_interner
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
