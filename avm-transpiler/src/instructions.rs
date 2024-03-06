@@ -7,6 +7,7 @@ use crate::opcodes::AvmOpcode;
 pub const ALL_DIRECT: u8 = 0b00000000;
 pub const ZEROTH_OPERAND_INDIRECT: u8 = 0b00000001;
 pub const FIRST_OPERAND_INDIRECT: u8 = 0b00000010;
+pub const SECOND_OPERAND_INDIRECT: u8 = 0b00000100;
 pub const ZEROTH_FIRST_OPERANDS_INDIRECT: u8 = ZEROTH_OPERAND_INDIRECT | FIRST_OPERAND_INDIRECT;
 
 /// A simple representation of an AVM instruction for the purpose

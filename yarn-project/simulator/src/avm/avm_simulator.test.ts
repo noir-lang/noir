@@ -111,6 +111,64 @@ describe('AVM simulator', () => {
       });
     });
 
+    describe('Storage accesses', () => {
+      it('Should set a single value in storage', async () => {
+        // We are setting the owner
+        const slot = 1n;
+        const sender = AztecAddress.fromField(new Fr(1));
+        const address = AztecAddress.fromField(new Fr(420));
+
+        const context = initContext({
+          env: initExecutionEnvironment({ sender, address, storageAddress: address }),
+        });
+        const bytecode = getAvmTestContractBytecode('avm_setAdmin');
+        const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+        // Get contract function artifact
+        expect(results.reverted).toBe(false);
+
+        // Contract 420 - Storage slot 1 should contain the value 1
+        const worldState = context.persistableState.flush();
+
+        const storageSlot = worldState.currentStorageValue.get(address.toBigInt())!;
+        const adminSlotValue = storageSlot.get(slot);
+        expect(adminSlotValue).toEqual(sender.toField());
+
+        // Tracing
+        const storageTrace = worldState.storageWrites.get(address.toBigInt())!;
+        const slotTrace = storageTrace.get(slot);
+        expect(slotTrace).toEqual([sender.toField()]);
+      });
+
+      it('Should read a value from storage', async () => {
+        // We are setting the owner
+        const sender = AztecAddress.fromField(new Fr(1));
+        const address = AztecAddress.fromField(new Fr(420));
+
+        const context = initContext({
+          env: initExecutionEnvironment({ sender, address, storageAddress: address }),
+        });
+        const bytecode = getAvmTestContractBytecode('avm_setAndRead');
+        const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+        expect(results.reverted).toBe(false);
+
+        expect(results.output).toEqual([sender.toField()]);
+
+        const worldState = context.persistableState.flush();
+
+        // Test read trace
+        const storageReadTrace = worldState.storageReads.get(address.toBigInt())!;
+        const slotReadTrace = storageReadTrace.get(1n);
+        expect(slotReadTrace).toEqual([sender.toField()]);
+
+        // Test write trace
+        const storageWriteTrace = worldState.storageWrites.get(address.toBigInt())!;
+        const slotWriteTrace = storageWriteTrace.get(1n);
+        expect(slotWriteTrace).toEqual([sender.toField()]);
+      });
+    });
+
     describe('Test env getters from noir contract', () => {
       const testEnvGetter = async (valueName: string, value: any, functionName: string, globalVar: boolean = false) => {
         // Execute

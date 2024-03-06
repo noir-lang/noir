@@ -7,7 +7,7 @@ use acvm::brillig_vm::brillig::{
 
 use crate::instructions::{
     AvmInstruction, AvmOperand, AvmTypeTag, ALL_DIRECT, FIRST_OPERAND_INDIRECT,
-    ZEROTH_OPERAND_INDIRECT,
+    SECOND_OPERAND_INDIRECT, ZEROTH_OPERAND_INDIRECT,
 };
 use crate::opcodes::AvmOpcode;
 use crate::utils::{dbg_print_avm_program, dbg_print_brillig_program};
@@ -257,8 +257,10 @@ fn handle_foreign_call(
         "avmOpcodePoseidon" => {
             handle_single_field_hash_instruction(avm_instrs, function, destinations, inputs)
         }
+        "storageWrite" => emit_storage_write(avm_instrs, destinations, inputs),
+        "storageRead" => emit_storage_read(avm_instrs, destinations, inputs),
         // Getters.
-        _ if inputs.len() == 0 && destinations.len() == 1 => {
+        _ if inputs.is_empty() && destinations.len() == 1 => {
             handle_getter_instruction(avm_instrs, function, destinations, inputs)
         }
         // Anything else.
@@ -361,7 +363,7 @@ fn handle_emit_note_hash_or_nullifier(
         "EMITNOTEHASH"
     };
 
-    if destinations.len() != 0 || inputs.len() != 1 {
+    if !destinations.is_empty() || inputs.len() != 1 {
         panic!(
             "Transpiler expects ForeignCall::{} to have 0 destinations and 1 input, got {} and {}",
             function_name,
@@ -388,6 +390,87 @@ fn handle_emit_note_hash_or_nullifier(
         }],
         ..Default::default()
     });
+}
+
+/// Emit a storage write opcode
+/// The current implementation writes an array of values into storage ( contiguous slots in memory )
+fn emit_storage_write(
+    avm_instrs: &mut Vec<AvmInstruction>,
+    destinations: &Vec<ValueOrArray>,
+    inputs: &Vec<ValueOrArray>,
+) {
+    assert!(inputs.len() == 2);
+    assert!(destinations.len() == 1);
+
+    let slot_offset_maybe = inputs[0];
+    let slot_offset = match slot_offset_maybe {
+        ValueOrArray::MemoryAddress(slot_offset) => slot_offset.0,
+        _ => panic!("ForeignCall address destination should be a single value"),
+    };
+
+    let src_offset_maybe = inputs[1];
+    let (src_offset, src_size) = match src_offset_maybe {
+        ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0, size),
+        _ => panic!("Storage write address inputs should be an array of values"),
+    };
+
+    avm_instrs.push(AvmInstruction {
+        opcode: AvmOpcode::SSTORE,
+        indirect: Some(ZEROTH_OPERAND_INDIRECT),
+        operands: vec![
+            AvmOperand::U32 {
+                value: src_offset as u32,
+            },
+            AvmOperand::U32 {
+                value: src_size as u32,
+            },
+            AvmOperand::U32 {
+                value: slot_offset as u32,
+            },
+        ],
+        ..Default::default()
+    })
+}
+
+/// Emit a storage read opcode
+/// The current implementation reads an array of values from storage ( contiguous slots in memory )
+fn emit_storage_read(
+    avm_instrs: &mut Vec<AvmInstruction>,
+    destinations: &Vec<ValueOrArray>,
+    inputs: &Vec<ValueOrArray>,
+) {
+    // For the foreign calls we want to handle, we do not want inputs, as they are getters
+    assert!(inputs.len() == 2); // output, len - but we dont use this len - its for the oracle
+    assert!(destinations.len() == 1);
+
+    let slot_offset_maybe = inputs[0];
+    let slot_offset = match slot_offset_maybe {
+        ValueOrArray::MemoryAddress(slot_offset) => slot_offset.0,
+        _ => panic!("ForeignCall address destination should be a single value"),
+    };
+
+    let dest_offset_maybe = destinations[0];
+    let (dest_offset, src_size) = match dest_offset_maybe {
+        ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0, size),
+        _ => panic!("Storage write address inputs should be an array of values"),
+    };
+
+    avm_instrs.push(AvmInstruction {
+        opcode: AvmOpcode::SLOAD,
+        indirect: Some(SECOND_OPERAND_INDIRECT),
+        operands: vec![
+            AvmOperand::U32 {
+                value: slot_offset as u32,
+            },
+            AvmOperand::U32 {
+                value: src_size as u32,
+            },
+            AvmOperand::U32 {
+                value: dest_offset as u32,
+            },
+        ],
+        ..Default::default()
+    })
 }
 
 /// Handle an AVM NULLIFIEREXISTS instruction
@@ -483,7 +566,7 @@ fn handle_send_l2_to_l1_msg(
     destinations: &Vec<ValueOrArray>,
     inputs: &Vec<ValueOrArray>,
 ) {
-    if destinations.len() != 0 || inputs.len() != 2 {
+    if !destinations.is_empty() || inputs.len() != 2 {
         panic!(
             "Transpiler expects ForeignCall::SENDL2TOL1MSG to have 0 destinations and 2 inputs, got {} and {}",
             destinations.len(),
