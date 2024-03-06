@@ -35,6 +35,9 @@ jobs:
           # Do we have a PR active?
           PR_URL=$(gh pr list --repo noir-lang/noir --head aztec-packages --json url --jq ".[0].url")
           echo "PR_URL=$PR_URL" >> $GITHUB_ENV
+          # What was our last merge?
+          LAST_PR_MERGE=`gh pr list --repo=noir-lang/noir --state merged --head aztec-packages --json mergeCommit --jq=.[0].mergeCommit.oid`
+          echo "LAST_PR_MERGE=$LAST_PR_MERGE" >> $GITHUB_ENV
 
       - name: Generate PR body
         run: |
@@ -73,9 +76,12 @@ jobs:
             # otherwise we first reset our staging branch
             STAGING_BRANCH=$BRANCH-staging
           fi
-          BASE_NOIR_COMMIT=`git config --file=$SUBREPO_PATH/.gitrepo subrepo.commit`
-          COMMIT=$(git rev-parse HEAD)
+
+          BASE_NOIR_COMMIT="$LAST_PR_MERGE"
+          COMMIT=$(git rev-parse HEAD)            
           COMMIT_MESSAGE=$(git log -1 --pretty=format:%B)
+          # Fix Aztec PR links and output message
+          COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed -E 's/\(#([0-9]+)\)/(https:\/\/github.com\/AztecProtocol\/aztec-packages\/pull\/\1)/g')
 
           # clone noir repo for manipulations, we use aztec bot token for writeability
           git clone https://x-access-token:${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}@github.com/noir-lang/noir.git noir-repo
@@ -92,6 +98,8 @@ jobs:
           # force_sync_staging: Push to our aztec-packages staging branch.
           function force_sync_staging() {
             echo "$COMMIT" > $SUBREPO_PATH/.aztec-sync-commit && git add $SUBREPO_PATH/.aztec-sync-commit
+            # force gitrepo to point to the right HEAD (we ignore .gitrepo contents otherwise)
+            git config --file="$SUBREPO_PATH/.gitrepo" subrepo.commit "$BASE_NOIR_COMMIT"
             # make a new commit with our previous message
             git commit -am "$COMMIT_MESSAGE"
             # Now push to it with subrepo with computed commit messages
