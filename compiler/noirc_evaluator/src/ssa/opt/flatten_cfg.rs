@@ -298,14 +298,12 @@ impl<'f> Context<'f> {
 
     /// Returns the current condition
     fn get_last_condition(&self) -> Option<ValueId> {
-        if let Some(context) = self.condition_stack.last() {
-            if let Some(else_branch) = &context.else_branch {
-                return Some(else_branch.condition);
-            } else {
-                return Some(context.then_branch.condition);
+        self.condition_stack.last().map(|context| {
+            match &context.else_branch {
+                Some(else_branch) => else_branch.condition,
+                None => context.then_branch.condition,
             }
-        }
-        None
+        })
     }
 
     // Inline all instructions from the given block into the entry block, and track slice capacities
