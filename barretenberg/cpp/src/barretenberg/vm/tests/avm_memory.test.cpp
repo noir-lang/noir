@@ -1,4 +1,5 @@
 #include "avm_common.test.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
 
 using namespace bb;
 
@@ -27,9 +28,9 @@ class AvmMemoryTests : public ::testing::Test {
  * trace is the focus.
  ******************************************************************************/
 
-// Testing an operation with a mismatched memory tag.
+// Testing an addition operation with a mismatched memory tag.
 // The proof must pass and we check that the AVM error is raised.
-TEST_F(AvmMemoryTests, mismatchedTag)
+TEST_F(AvmMemoryTests, mismatchedTagAddOperation)
 {
     trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 98, 12 });
 
@@ -49,7 +50,7 @@ TEST_F(AvmMemoryTests, mismatchedTag)
 
     auto clk = row->avm_main_clk;
 
-    // Find the memory trace position corresponding to the add sub-operation of register ia.
+    // Find the memory trace position corresponding to the load sub-operation of register ia.
     row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
         return r.avm_mem_m_clk == clk && r.avm_mem_m_sub_clk == AvmMemTraceBuilder::SUB_CLK_LOAD_A;
     });
@@ -70,6 +71,49 @@ TEST_F(AvmMemoryTests, mismatchedTag)
     EXPECT_EQ(row->avm_mem_m_tag_err, FF(1)); // Error is raised
     EXPECT_EQ(row->avm_mem_m_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
     EXPECT_EQ(row->avm_mem_m_tag, FF(static_cast<uint32_t>(AvmMemoryTag::FF)));
+
+    validate_trace_proof(std::move(trace));
+}
+
+// Testing an equality operation with a mismatched memory tag.
+// The proof must pass and we check that the AVM error is raised.
+TEST_F(AvmMemoryTests, mismatchedTagEqOperation)
+{
+    trace_builder.set(3, 0, AvmMemoryTag::U32);
+    trace_builder.set(5, 1, AvmMemoryTag::U16);
+
+    trace_builder.op_eq(0, 1, 2, AvmMemoryTag::U32);
+    trace_builder.halt();
+    auto trace = trace_builder.finalize();
+
+    // Find the first row enabling the equality selector
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_eq == FF(1); });
+
+    EXPECT_TRUE(row != trace.end());
+
+    auto clk = row->avm_main_clk;
+
+    // Find the memory trace position corresponding to the load sub-operation of register ia.
+    row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
+        return r.avm_mem_m_clk == clk && r.avm_mem_m_sub_clk == AvmMemTraceBuilder::SUB_CLK_LOAD_A;
+    });
+
+    EXPECT_TRUE(row != trace.end());
+
+    EXPECT_EQ(row->avm_mem_m_tag_err, FF(0)); // Error is NOT raised
+    EXPECT_EQ(row->avm_mem_m_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
+    EXPECT_EQ(row->avm_mem_m_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
+
+    // Find the memory trace position corresponding to the load sub-operation of register ib.
+    row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
+        return r.avm_mem_m_clk == clk && r.avm_mem_m_sub_clk == AvmMemTraceBuilder::SUB_CLK_LOAD_B;
+    });
+
+    EXPECT_TRUE(row != trace.end());
+
+    EXPECT_EQ(row->avm_mem_m_tag_err, FF(1)); // Error is raised
+    EXPECT_EQ(row->avm_mem_m_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
+    EXPECT_EQ(row->avm_mem_m_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U16)));
 
     validate_trace_proof(std::move(trace));
 }

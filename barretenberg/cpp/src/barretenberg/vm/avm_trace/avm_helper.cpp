@@ -9,7 +9,7 @@ namespace bb::avm_trace {
  * @param beg The index of the beginning of the slice. (included)
  * @param end The index of the end of the slice (not included).
  */
-void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end)
+void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end, bool enable_selectors)
 {
     info("Built circuit with ", trace.size(), " rows");
 
@@ -67,6 +67,17 @@ void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end)
         info("mem_op_c:           ", trace.at(i).avm_main_mem_op_c);
         info("mem_idx_c:          ", trace.at(i).avm_main_mem_idx_c);
         info("rwc:                ", trace.at(i).avm_main_rwc);
+
+        if (enable_selectors) {
+            info("=======SELECTORS======================================================================");
+            info("sel_op_add:           ", trace.at(i).avm_main_sel_op_add);
+            info("sel_op_sub:           ", trace.at(i).avm_main_sel_op_sub);
+            info("sel_op_mul:           ", trace.at(i).avm_main_sel_op_mul);
+            info("sel_op_eq:            ", trace.at(i).avm_main_sel_op_eq);
+            info("sel_op_not:           ", trace.at(i).avm_main_sel_op_not);
+            info("sel_op_sel_alu:       ", trace.at(i).avm_main_alu_sel);
+        }
+
         info("\n");
     }
 }

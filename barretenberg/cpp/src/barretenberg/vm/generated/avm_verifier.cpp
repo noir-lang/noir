@@ -84,6 +84,10 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_not);
     commitments.avm_alu_alu_op_eq =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_eq);
+    commitments.avm_alu_alu_sel =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_sel);
+    commitments.avm_alu_alu_in_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_in_tag);
     commitments.avm_alu_alu_ff_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_ff_tag);
     commitments.avm_alu_alu_u8_tag =
@@ -144,6 +148,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_not);
     commitments.avm_main_sel_op_eq =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_eq);
+    commitments.avm_main_alu_sel =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_alu_sel);
     commitments.avm_main_in_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_in_tag);
     commitments.avm_main_op_err =
@@ -170,6 +176,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
     commitments.avm_main_mem_idx_c =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_idx_c);
     commitments.avm_main_last = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_last);
+    commitments.equiv_inter_reg_alu =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.equiv_inter_reg_alu);
     commitments.equiv_tag_err = transcript->template receive_from_prover<Commitment>(commitment_labels.equiv_tag_err);
     commitments.equiv_tag_err_counts =
         transcript->template receive_from_prover<Commitment>(commitment_labels.equiv_tag_err_counts);

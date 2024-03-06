@@ -52,7 +52,9 @@ void AvmTraceBuilder::op_add(uint32_t a_offset, uint32_t b_offset, uint32_t dst_
     // a + b = c
     FF a = tag_match ? read_a.val : FF(0);
     FF b = tag_match ? read_b.val : FF(0);
-    FF c = alu_trace_builder.op_add(a, b, in_tag, clk);
+
+    // In case of a memory tag error, we must not generate an entry in the ALU table.
+    FF c = tag_match ? alu_trace_builder.op_add(a, b, in_tag, clk) : FF(0);
 
     // Write into memory value c from intermediate register ic.
     mem_trace_builder.write_into_memory(clk, IntermRegister::IC, dst_offset, c, in_tag);
@@ -97,7 +99,9 @@ void AvmTraceBuilder::op_sub(uint32_t a_offset, uint32_t b_offset, uint32_t dst_
     // a - b = c
     FF a = tag_match ? read_a.val : FF(0);
     FF b = tag_match ? read_b.val : FF(0);
-    FF c = alu_trace_builder.op_sub(a, b, in_tag, clk);
+
+    // In case of a memory tag error, we must not generate an entry in the ALU table.
+    FF c = tag_match ? alu_trace_builder.op_sub(a, b, in_tag, clk) : FF(0);
 
     // Write into memory value c from intermediate register ic.
     mem_trace_builder.write_into_memory(clk, IntermRegister::IC, dst_offset, c, in_tag);
@@ -142,7 +146,9 @@ void AvmTraceBuilder::op_mul(uint32_t a_offset, uint32_t b_offset, uint32_t dst_
     // a * b = c
     FF a = tag_match ? read_a.val : FF(0);
     FF b = tag_match ? read_b.val : FF(0);
-    FF c = alu_trace_builder.op_mul(a, b, in_tag, clk);
+
+    // In case of a memory tag error, we must not generate an entry in the ALU table.
+    FF c = tag_match ? alu_trace_builder.op_mul(a, b, in_tag, clk) : FF(0);
 
     // Write into memory value c from intermediate register ic.
     mem_trace_builder.write_into_memory(clk, IntermRegister::IC, dst_offset, c, in_tag);
@@ -243,11 +249,9 @@ void AvmTraceBuilder::op_not(uint32_t a_offset, uint32_t dst_offset, AvmMemoryTa
 
     // ~a = c
     FF a = read_a.tag_match ? read_a.val : FF(0);
-    // TODO(4613): If tag_match == false, then the value of c
-    // will not be zero which would not satisfy the constraint that
-    // ic == 0 whenever tag_err == 1. This constraint might be removed
-    // as part of #4613.
-    FF c = alu_trace_builder.op_not(a, in_tag, clk);
+
+    // In case of a memory tag error, we must not generate an entry in the ALU table.
+    FF c = read_a.tag_match ? alu_trace_builder.op_not(a, in_tag, clk) : FF(0);
 
     // Write into memory value c from intermediate register ic.
     mem_trace_builder.write_into_memory(clk, IntermRegister::IC, dst_offset, c, in_tag);
@@ -290,11 +294,8 @@ void AvmTraceBuilder::op_eq(uint32_t a_offset, uint32_t b_offset, uint32_t dst_o
     FF a = tag_match ? read_a.val : FF(0);
     FF b = tag_match ? read_b.val : FF(0);
 
-    // TODO(4613): If tag_match == false, then the value of c
-    // will not be zero which would not satisfy the constraint that
-    // ic == 0 whenever tag_err == 1. This constraint might be removed
-    // as part of #4613.
-    FF c = alu_trace_builder.op_eq(a, b, in_tag, clk);
+    // In case of a memory tag error, we must not generate an entry in the ALU table.
+    FF c = tag_match ? alu_trace_builder.op_eq(a, b, in_tag, clk) : FF(0);
 
     // Write into memory value c from intermediate register ic.
     mem_trace_builder.write_into_memory(clk, IntermRegister::IC, dst_offset, c, in_tag);
@@ -509,7 +510,7 @@ std::vector<FF> AvmTraceBuilder::return_op(uint32_t ret_offset, uint32_t ret_siz
             auto read_b =
                 mem_trace_builder.read_and_load_from_memory(clk, IntermRegister::IB, mem_idx_b, AvmMemoryTag::FF);
             tag_match = tag_match && read_b.tag_match;
-            FF ib = read_b.val;
+            ib = read_b.val;
             returnMem.push_back(ib);
         }
 
@@ -521,7 +522,7 @@ std::vector<FF> AvmTraceBuilder::return_op(uint32_t ret_offset, uint32_t ret_siz
             auto read_c =
                 mem_trace_builder.read_and_load_from_memory(clk, IntermRegister::IC, mem_idx_c, AvmMemoryTag::FF);
             tag_match = tag_match && read_c.tag_match;
-            FF ic = read_c.val;
+            ic = read_c.val;
             returnMem.push_back(ic);
         }
 
@@ -768,6 +769,10 @@ std::vector<Row> AvmTraceBuilder::finalize()
         dest.avm_alu_alu_u64_tag = FF(static_cast<uint32_t>(src.alu_u64_tag));
         dest.avm_alu_alu_u128_tag = FF(static_cast<uint32_t>(src.alu_u128_tag));
 
+        dest.avm_alu_alu_in_tag = dest.avm_alu_alu_u8_tag + FF(2) * dest.avm_alu_alu_u16_tag +
+                                  FF(3) * dest.avm_alu_alu_u32_tag + FF(4) * dest.avm_alu_alu_u64_tag +
+                                  FF(5) * dest.avm_alu_alu_u128_tag + FF(6) * dest.avm_alu_alu_ff_tag;
+
         dest.avm_alu_alu_ia = src.alu_ia;
         dest.avm_alu_alu_ib = src.alu_ib;
         dest.avm_alu_alu_ic = src.alu_ic;
@@ -788,6 +793,21 @@ std::vector<Row> AvmTraceBuilder::finalize()
 
         dest.avm_alu_alu_u64_r0 = FF(src.alu_u64_r0);
         dest.avm_alu_alu_op_eq_diff_inv = FF(src.alu_op_eq_diff_inv);
+
+        // Not all rows in ALU are enabled with a selector. For instance,
+        // multiplication over u128 is taking two lines.
+        if (dest.avm_alu_alu_op_add == FF(1) || dest.avm_alu_alu_op_sub == FF(1) || dest.avm_alu_alu_op_mul == FF(1) ||
+            dest.avm_alu_alu_op_eq == FF(1) || dest.avm_alu_alu_op_not == FF(1)) {
+            dest.avm_alu_alu_sel = FF(1);
+        }
+    }
+
+    for (Row& r : main_trace) {
+        if ((r.avm_main_sel_op_add == FF(1) || r.avm_main_sel_op_sub == FF(1) || r.avm_main_sel_op_mul == FF(1) ||
+             r.avm_main_sel_op_eq == FF(1) || r.avm_main_sel_op_not == FF(1)) &&
+            r.avm_main_tag_err == FF(0)) {
+            r.avm_main_alu_sel = FF(1);
+        }
     }
 
     // Adding extra row for the shifted values at the top of the execution trace.

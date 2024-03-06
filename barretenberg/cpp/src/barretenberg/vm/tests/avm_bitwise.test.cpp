@@ -211,6 +211,7 @@ TEST_F(AvmBitwiseNegativeTestsFF, UndefinedOverFF)
         trace.at(i).avm_alu_alu_ff_tag = FF::one();
         trace.at(i).avm_alu_alu_u8_tag = FF::zero();
         trace.at(i).avm_main_in_tag = FF(6);
+        trace.at(i).avm_alu_alu_in_tag = FF(6);
     }
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "ALU_FF_NOT_XOR");
