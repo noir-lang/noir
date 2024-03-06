@@ -578,9 +578,9 @@ const sidebars = {
       ],
     },
     {
-      label: "Updating",
+      label: "Versions and Updating",
       type: "doc",
-      id: "developers/updating",
+      id: "developers/versions-updating",
     },
     {
       label: "Wallets",

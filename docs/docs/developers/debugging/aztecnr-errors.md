@@ -16,7 +16,7 @@ You can learn more about dependencies and their paths [here](../contracts/resour
 
 #### `backend has encountered an error`
 
-This is likely due to a version mismatch or bad install of barretenberg. Try [reinstalling nargo](../updating.md) or uninstalling barretenberg:
+This is likely due to a version mismatch or bad install of barretenberg. Try [reinstalling nargo](../versions-updating.md#updating) or uninstalling barretenberg:
 
 ```bash
 nargo backend uninstall acvm-backend-barretenberg
