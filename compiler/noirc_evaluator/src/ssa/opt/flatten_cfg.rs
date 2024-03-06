@@ -275,9 +275,9 @@ impl<'f> Context<'f> {
         while let Some(block) = queue.pop() {
             self.inline_block(block);
             let to_process = self.handle_terminator(block, &queue);
-            for i in to_process {
-                if !queue.contains(&i) {
-                    queue.push(i);
+            for incoming_block in to_process {
+                if !queue.contains(&incoming_block) {
+                    queue.push(incoming_block);
                 }
             }
         }
