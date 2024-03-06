@@ -373,10 +373,16 @@ fn module_declaration() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Mod).ignore_then(ident()).map(TopLevelStatement::Module)
 }
 
+fn import_visibility() -> impl NoirParser<crate::hir::def_map::Visibility> {
+    choice((
+        keyword(Keyword::Pub).map(|_| crate::hir::def_map::Visibility::Public),
+        empty().map(|_| crate::hir::def_map::Visibility::Private),
+    ))
+}
+
 fn use_statement() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Pub)
-        .or_not()
-        .then_with(|is_pub| keyword(Keyword::Use).ignore_then(use_tree(is_pub.is_some())))
+    import_visibility()
+        .then_with(|visibility| keyword(Keyword::Use).ignore_then(use_tree(visibility)))
         .map(TopLevelStatement::Import)
 }
 
@@ -384,12 +390,7 @@ fn rename() -> impl NoirParser<Option<Ident>> {
     ignore_then_commit(keyword(Keyword::As), ident()).or_not()
 }
 
-fn use_tree(is_pub: bool) -> impl NoirParser<UseTree> {
-    let visibility = if is_pub {
-        crate::hir::def_map::Visibility::Public
-    } else {
-        crate::hir::def_map::Visibility::Private
-    };
+fn use_tree(visibility: crate::hir::def_map::Visibility) -> impl NoirParser<UseTree> {
     recursive(move |use_tree| {
         let simple = path().then(rename()).map(move |(mut prefix, alias)| {
             let ident = prefix.pop();
