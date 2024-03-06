@@ -561,7 +561,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=box-vanilla
+          command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=vanilla
           aztec_manifest_key: boxes
 
   boxes-react:
@@ -573,7 +573,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=box-react
+          command: cond_spot_run_compose boxes 4 ./docker-compose.yml BOX=react
           aztec_manifest_key: boxes
 
   end-to-end:

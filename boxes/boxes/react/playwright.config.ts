@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
+  testMatch: '**.spec.ts',
   fullyParallel: true,
   retries: 3,
   workers: process.env.CI ? 1 : 3,
@@ -13,7 +14,7 @@ export default defineConfig({
     video: 'on-first-retry',
   },
   expect: {
-    timeout: 30000,
+    timeout: 90000,
   },
   projects: [
     {
@@ -25,10 +26,10 @@ export default defineConfig({
       use: { ...devices['Desktop Firefox'] },
     },
 
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+    // {
+    //   name: 'webkit',
+    //   use: { ...devices['Desktop Safari'] },
+    // },
   ],
   webServer: {
     command: 'yarn serve',

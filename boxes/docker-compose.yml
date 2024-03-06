@@ -29,4 +29,4 @@ services:
       ETHEREUM_HOST: http://ethereum:8545
       CHAIN_ID: 31337
       PXE_URL: http://aztec:8080
-      BOX: ${BOX:-box-vanilla}
+      BOX: ${BOX:-vanilla}

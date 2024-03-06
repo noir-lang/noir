@@ -4,9 +4,10 @@
 node_modules
 dist
 artifacts
-src/contracts/target
-src/contracts/log
+boxes/src/contracts/target
+boxes/src/contracts/log
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+codegenCache.json

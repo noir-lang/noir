@@ -1,0 +1,9 @@
+[package]
+name = "boxreact"
+authors = [""]
+compiler_version = ">=0.18.0"
+type = "contract"
+
+[dependencies]
+aztec = { path = "../../../../../noir-projects/aztec-nr/aztec" }
+value_note = { path = "../../../../../noir-projects/aztec-nr/value-note" }

@@ -1,5 +1,6 @@
 {
-  "name": "@aztec/box-vanilla",
+  "name": "@aztec/vanilla",
+  "description": "Vanilla HTML/JS App",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,7 +12,7 @@
     "dev": "yarn prep && webpack serve --mode development",
     "build": "yarn prep && webpack",
     "serve": "webpack serve --no-open --mode development",
-    "test": "npx playwright test",
+    "test": "yarn prep && npx playwright test",
     "formatting": "prettier --check ./src && eslint ./src",
     "formatting:fix": "prettier -w ./src"
   },
