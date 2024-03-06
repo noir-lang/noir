@@ -11,21 +11,9 @@ contract FPC {
         fee_asset: SharedImmutable<AztecAddress>,
     }
 
-    #[aztec(private)]
+    #[aztec(public)]
     #[aztec(initializer)]
     fn constructor(other_asset: AztecAddress, fee_asset: AztecAddress) {
-        let selector = FunctionSelector::from_signature("_initialize((Field),(Field))");
-        context.call_public_function(
-            context.this_address(),
-            selector,
-            [other_asset.to_field(), fee_asset.to_field()]
-        );
-    }
-
-    #[aztec(public)]
-    #[aztec(internal)]
-    #[aztec(noinitcheck)]
-    fn _initialize(other_asset: AztecAddress, fee_asset: AztecAddress) {
         storage.other_asset.initialize(other_asset);
         storage.fee_asset.initialize(fee_asset);
     }

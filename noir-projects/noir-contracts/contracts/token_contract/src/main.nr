@@ -52,17 +52,17 @@ contract Token {
     // docs:end:storage_struct
 
     // docs:start:constructor
-    #[aztec(private)]
+    #[aztec(public)]
     #[aztec(initializer)]
     fn constructor(admin: AztecAddress, name: str<31>, symbol: str<31>, decimals: u8) {
-        let selector = FunctionSelector::from_signature("_initialize((Field),(Field),(Field),u8)");
-        let name_s = FieldCompressedString::from_string(name);
-        let symbol_s = FieldCompressedString::from_string(symbol);
-        context.call_public_function(
-            context.this_address(),
-            selector,
-            [admin.to_field(), name_s.serialize()[0], symbol_s.serialize()[0], decimals as Field]
-        );
+        assert(!admin.is_zero(), "invalid admin");
+        storage.admin.write(admin);
+        storage.minters.at(admin).write(true);
+        storage.name.initialize(FieldCompressedString::from_string(name));
+        storage.symbol.initialize(FieldCompressedString::from_string(symbol));
+        // docs:start:initialize_decimals
+        storage.decimals.initialize(decimals);
+        // docs:end:initialize_decimals
     }
     // docs:end:constructor
 
@@ -310,27 +310,6 @@ contract Token {
         let _void = context.call_public_function(context.this_address(), selector, [amount]);
     }
     // docs:end:burn
-
-    // docs:start:initialize
-    #[aztec(public)]
-    #[aztec(internal)]
-    #[aztec(noinitcheck)]
-    fn _initialize(
-        new_admin: AztecAddress,
-        name: FieldCompressedString,
-        symbol: FieldCompressedString,
-        decimals: u8
-    ) {
-        assert(!new_admin.is_zero(), "invalid admin");
-        storage.admin.write(new_admin);
-        storage.minters.at(new_admin).write(true);
-        storage.name.initialize(name);
-        storage.symbol.initialize(symbol);
-        // docs:start:initialize_decimals
-        storage.decimals.initialize(decimals);
-        // docs:end:initialize_decimals
-    }
-    // docs:end:initialize
 
     /// Internal ///
 

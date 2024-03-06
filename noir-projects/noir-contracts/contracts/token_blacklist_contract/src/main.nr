@@ -40,16 +40,18 @@ contract TokenBlacklist {
     }
 
     // docs:start:constructor
-    #[aztec(private)]
+    #[aztec(public)]
     #[aztec(initializer)]
     fn constructor(admin: AztecAddress, slow_updates_contract: AztecAddress) {
         // docs:end:constructor
-        let selector = FunctionSelector::from_signature("_initialize((Field),(Field))");
-        context.call_public_function(
-            context.this_address(),
-            selector,
-            [admin.to_field(), slow_updates_contract.to_field()]
-        );
+        assert(!admin.is_zero(), "invalid admin");
+        storage.admin.write(admin);
+        // docs:start:write_slow_update_public
+        storage.slow_update.initialize(slow_updates_contract);
+        // docs:end:write_slow_update_public
+        // docs:start:slowmap_initialize
+        SlowMap::at(slow_updates_contract).initialize(context);
+        // docs:end:slowmap_initialize
         // We cannot do the following atm
         // let roles = UserFlags { is_admin: true, is_minter: false, is_blacklisted: false }.get_value().to_field();
         // SlowMap::at(slow_updates_contract).update_at_private(&mut context, admin.to_field(), roles);
@@ -73,21 +75,6 @@ contract TokenBlacklist {
     #[aztec(internal)]
     fn _init_slow_tree(caller: AztecAddress) {
         assert(storage.admin.read().eq(caller), "caller is not admin");
-    }
-
-    ///////
-    #[aztec(public)]
-    #[aztec(internal)]
-    #[aztec(noinitcheck)]
-    fn _initialize(new_admin: AztecAddress, slow_updates_contract: AztecAddress) {
-        assert(!new_admin.is_zero(), "invalid admin");
-        storage.admin.write(new_admin);
-        // docs:start:write_slow_update_public
-        storage.slow_update.initialize(slow_updates_contract);
-        // docs:end:write_slow_update_public
-        // docs:start:slowmap_initialize
-        SlowMap::at(slow_updates_contract).initialize(context);
-        // docs:end:slowmap_initialize
     }
 
     #[aztec(private)]

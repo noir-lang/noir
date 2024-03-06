@@ -34,9 +34,6 @@ pub fn validate_inputs(public_call: PublicCallData) {
     );
     assert(this_call_stack_item.function_data.selector.to_field() != 0, "Function signature cannot be zero");
     assert(
-        this_call_stack_item.function_data.is_constructor == false, "Constructors cannot be public functions"
-    );
-    assert(
         this_call_stack_item.function_data.is_private == false, "Cannot execute a private function with the public kernel circuit"
     );
     assert(public_call.bytecode_hash != 0, "Bytecode hash cannot be zero");

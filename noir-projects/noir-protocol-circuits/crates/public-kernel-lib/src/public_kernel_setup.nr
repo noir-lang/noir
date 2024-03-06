@@ -199,22 +199,6 @@ mod tests {
     //     assert_eq_public_data_update_requests(public_inputs.end.public_data_update_requests, expected);
     // }
 
-    #[test(should_fail_with="Constructors cannot be public functions")]
-    fn constructor_should_fail() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-        builder.public_call.function_data.is_constructor = true;
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="Contract deployment cannot be a public function")]
-    fn constructor_should_fail_2() {
-        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-        builder.public_call.public_inputs.call_context.is_contract_deployment = true;
-
-        builder.failed();
-    }
-
     #[test(should_fail_with="Bytecode hash cannot be zero")]
     fn no_bytecode_hash_should_fail() {
         let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();

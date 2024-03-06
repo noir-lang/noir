@@ -244,11 +244,9 @@ Copy and paste the body of each function into the appropriate place in your proj
 
 ### Constructor
 
-In the source code, the constructor logic is commented out due to some limitations of the current state of the development.
+This function sets the creator of the contract (passed as `msg_sender` from the constructor) as the admin and makes them a minter, and sets name, symbol, and decimals.
 
 #include_code constructor /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
-
-The constructor is a private function. There isn't any private state to set up in this function, but there is public state to set up. The `context` is a global variable that is available to private and public functions, but the available methods differ based on the context. You can see the implementation details [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/context.nr). The `context.call_public_function` allows a private function to call a public function on any contract. In this case, the constructor is passing the `msg_sender` as the argument to the `_initialize` function, which is also defined in this contract.
 
 ### Public function implementations
 
@@ -374,14 +372,6 @@ After initializing storage, the function checks that the `msg_sender` is authori
 ### Internal function implementations
 
 Internal functions are functions that can only be called by this contract. The following 3 functions are public functions that are called from the [private execution context](#execution-contexts). Marking these as `internal` ensures that only the desired private functions in this contract are able to call them. Private functions defer execution to public functions because private functions cannot update public state directly.
-
-#### `_initialize`
-
-This function is called via the [constructor](#constructor).
-
-This function sets the creator of the contract (passed as `msg_sender` from the constructor) as the admin and makes them a minter.
-
-#include_code initialize /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
 #### `_increase_public_balance`
 
