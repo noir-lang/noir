@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.26.3](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.26.2...aztec-packages-v0.26.3) (2024-03-06)
+
+
+### Features
+
+* New Inbox ([#4880](https://github.com/AztecProtocol/aztec-packages/issues/4880)) ([c5e8014](https://github.com/AztecProtocol/aztec-packages/commit/c5e80142ddb2c928639af02d59b2b9e9cc8b0a9b)), closes [#4825](https://github.com/AztecProtocol/aztec-packages/issues/4825)
+
+
+### Bug Fixes
+
+* Remove l1 contracts publishing ([#4985](https://github.com/AztecProtocol/aztec-packages/issues/4985)) ([fb6552c](https://github.com/AztecProtocol/aztec-packages/commit/fb6552c945bc25e4599a0500167a04a5e0177708))
+
+
+### Miscellaneous
+
+* Update bootstrap instructions in the readme ([#4968](https://github.com/AztecProtocol/aztec-packages/issues/4968)) ([959158b](https://github.com/AztecProtocol/aztec-packages/commit/959158b9ed5ffe367c5d0253a87aec734fd64128))
+
 ## [0.26.2](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.26.1...aztec-packages-v0.26.2) (2024-03-06)
 
 
