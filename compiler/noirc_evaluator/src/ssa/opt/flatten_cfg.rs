@@ -627,7 +627,7 @@ impl<'f> Context<'f> {
     /// Expects that the `arguments` given are already translated via self.inserter.resolve.
     /// If they are not, it is possible some values which no longer exist, such as block
     /// parameters, will be kept in the program.
-    fn inline_block(&mut self, destination: BasicBlockId, arguments: &[ValueId]) -> BasicBlockId {        
+    fn inline_block(&mut self, destination: BasicBlockId, arguments: &[ValueId]) -> BasicBlockId {
         self.inserter.remember_block_params(destination, arguments);
 
         // If this is not a separate variable, clippy gets confused and says the to_vec is

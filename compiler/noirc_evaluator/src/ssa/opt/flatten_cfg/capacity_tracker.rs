@@ -80,7 +80,8 @@ impl<'a> SliceCapacityTracker<'a> {
                         Intrinsic::SlicePushBack
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SliceInsert => {
-                            let argument_index = argument_index.expect("ICE: Should have an argument index for slice intrinsics");
+                            let argument_index = argument_index
+                                .expect("ICE: Should have an argument index for slice intrinsics");
                             let slice_contents = arguments[argument_index];
 
                             for arg in &arguments[(argument_index + 1)..] {
@@ -97,7 +98,8 @@ impl<'a> SliceCapacityTracker<'a> {
                         Intrinsic::SlicePopBack
                         | Intrinsic::SliceRemove
                         | Intrinsic::SlicePopFront => {
-                            let argument_index = argument_index.expect("ICE: Should have an argument index for slice intrinsics");
+                            let argument_index = argument_index
+                                .expect("ICE: Should have an argument index for slice intrinsics");
                             let slice_contents = arguments[argument_index];
 
                             // We do not decrement the size on intrinsics that could remove values from a slice.
@@ -116,11 +118,12 @@ impl<'a> SliceCapacityTracker<'a> {
                         Intrinsic::ToRadix(_) => {
                             // Compiler sanity check
                             assert!(matches!(self.dfg.type_of_value(result_slice), Type::Slice(_)));
-                            slice_sizes.insert(result_slice, FieldElement::max_num_bytes() as usize);
+                            slice_sizes
+                                .insert(result_slice, FieldElement::max_num_bytes() as usize);
                         }
                         _ => {}
                     }
-                } 
+                }
             }
             Instruction::Store { address, value } => {
                 let value_typ = self.dfg.type_of_value(*value);
