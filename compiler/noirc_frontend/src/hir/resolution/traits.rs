@@ -9,7 +9,7 @@ use crate::{
     hir::{
         def_collector::{
             dc_crate::{
-                check_methods_signatures, CompilationError, UnresolvedTrait, UnresolvedTraitImpl,
+                CompilationError, UnresolvedTrait, UnresolvedTraitImpl,
             },
             errors::{DefCollectorErrorKind, DuplicateType},
         },
@@ -365,6 +365,7 @@ pub(crate) fn resolve_trait_by_path(
         Err(_) => Err(DefCollectorErrorKind::TraitNotFound { trait_path: path }),
     }
 }
+
 pub(crate) fn resolve_trait_impls(
     context: &mut Context,
     traits: Vec<UnresolvedTraitImpl>,
@@ -424,17 +425,6 @@ pub(crate) fn resolve_trait_impls(
         new_resolver.set_self_type(Some(self_type.clone()));
 
         if let Some(trait_id) = maybe_trait_id {
-            check_methods_signatures(
-                &mut new_resolver,
-                &impl_methods,
-                trait_id,
-                trait_impl.trait_path.span(),
-                trait_impl.trait_generics,
-                trait_impl.generics.len(),
-                trait_impl.file_id,
-                errors,
-            );
-
             let where_clause = trait_impl
                 .where_clause
                 .into_iter()
