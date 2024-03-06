@@ -1328,7 +1328,7 @@ bb_test: &bb_test
 workflows:
   setup-workflow:
     jobs:
-      - generate-config
+      - generate-config: *defaults
   system:
     when:
       # Used to generate a dynamic 'system' workflow
