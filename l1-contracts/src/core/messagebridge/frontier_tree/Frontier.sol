@@ -5,7 +5,7 @@ pragma solidity >=0.8.18;
 import {IFrontier} from "../../interfaces/messagebridge/IFrontier.sol";
 
 contract FrontierMerkle is IFrontier {
-  uint256 public immutable DEPTH;
+  uint256 public immutable HEIGHT;
   uint256 public immutable SIZE;
 
   uint256 internal nextIndex = 0;
@@ -16,33 +16,37 @@ contract FrontierMerkle is IFrontier {
   // for the zeros at each level. This would save gas on computations
   mapping(uint256 level => bytes32 zero) public zeros;
 
-  constructor(uint256 _depth) {
-    DEPTH = _depth;
-    SIZE = 2 ** _depth;
+  constructor(uint256 _height) {
+    HEIGHT = _height;
+    SIZE = 2 ** _height;
 
     zeros[0] = bytes32(0);
-    for (uint256 i = 1; i <= DEPTH; i++) {
+    for (uint256 i = 1; i <= HEIGHT; i++) {
       zeros[i] = sha256(bytes.concat(zeros[i - 1], zeros[i - 1]));
     }
   }
 
-  function insertLeaf(bytes32 _leaf) external override(IFrontier) {
-    uint256 level = _computeLevel(nextIndex);
+  function insertLeaf(bytes32 _leaf) external override(IFrontier) returns (uint256) {
+    uint256 index = nextIndex;
+    uint256 level = _computeLevel(index);
     bytes32 right = _leaf;
     for (uint256 i = 0; i < level; i++) {
       right = sha256(bytes.concat(frontier[i], right));
     }
     frontier[level] = right;
+
     nextIndex++;
+
+    return index;
   }
 
   function root() external view override(IFrontier) returns (bytes32) {
     uint256 next = nextIndex;
     if (next == 0) {
-      return zeros[DEPTH];
+      return zeros[HEIGHT];
     }
     if (next == SIZE) {
-      return frontier[DEPTH];
+      return frontier[HEIGHT];
     }
 
     uint256 index = next - 1;
@@ -52,7 +56,7 @@ contract FrontierMerkle is IFrontier {
     bytes32 temp = frontier[level];
 
     uint256 bits = index >> level;
-    for (uint256 i = level; i < DEPTH; i++) {
+    for (uint256 i = level; i < HEIGHT; i++) {
       bool isRight = bits & 1 == 1;
       if (isRight) {
         if (frontier[i] == temp) {
@@ -69,6 +73,10 @@ contract FrontierMerkle is IFrontier {
     }
 
     return temp;
+  }
+
+  function isFull() external view override(IFrontier) returns (bool) {
+    return nextIndex == SIZE;
   }
 
   function _computeLevel(uint256 _leafIndex) internal pure returns (uint256) {
