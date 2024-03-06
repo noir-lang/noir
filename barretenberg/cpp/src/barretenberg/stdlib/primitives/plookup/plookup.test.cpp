@@ -1,5 +1,6 @@
 #include "plookup.hpp"
 #include "../byte_array/byte_array.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/numeric/bitop/rotate.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
@@ -94,7 +95,7 @@ auto& engine = numeric::get_debug_randomness();
 //         EXPECT_EQ(lookup_hi[ColumnIdx::C3][i].get_value(), expected_y[i + num_lookups_lo]);
 //     }
 
-//     bool result = builder.check_circuit();
+//     bool result = CircuitChecker::check(builder);
 
 //     EXPECT_EQ(result, true);
 // }
@@ -171,7 +172,7 @@ auto& engine = numeric::get_debug_randomness();
 //         EXPECT_EQ(lookup_hi[ColumnIdx::C3][i].get_value(), expected_y[i + num_lookups_lo]);
 //     }
 
-//     bool result = builder.check_circuit();
+//     bool result = CircuitChecker::check(builder);
 
 //     EXPECT_EQ(result, true);
 // }
@@ -215,7 +216,7 @@ TEST(stdlib_plookup, uint32_xor)
         EXPECT_EQ(lookup[ColumnIdx::C3][i].get_value(), bb::fr(out_expected[i]));
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
 
     EXPECT_EQ(result, true);
 }
@@ -284,7 +285,7 @@ TEST(stdlib_plookup, blake2s_xor_rotate_16)
     uint32_t xor_rotate_output = numeric::rotate32(uint32_t(left_value) ^ uint32_t(right_value), 16);
     EXPECT_EQ(fr(uint256_t(xor_rotate_output)), lookup_output);
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
 
     EXPECT_EQ(result, true);
 }
@@ -342,7 +343,7 @@ TEST(stdlib_plookup, blake2s_xor_rotate_8)
     uint32_t xor_rotate_output = numeric::rotate32(uint32_t(left_value) ^ uint32_t(right_value), 8);
     EXPECT_EQ(fr(uint256_t(xor_rotate_output)), lookup_output);
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
 
     EXPECT_EQ(result, true);
 }
@@ -400,7 +401,7 @@ TEST(stdlib_plookup, blake2s_xor_rotate_7)
     uint32_t xor_rotate_output = numeric::rotate32(uint32_t(left_value) ^ uint32_t(right_value), 7);
     EXPECT_EQ(fr(uint256_t(xor_rotate_output)), lookup_output);
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
 
     EXPECT_EQ(result, true);
 }
@@ -463,7 +464,7 @@ TEST(stdlib_plookup, blake2s_xor)
         EXPECT_EQ(lookup[ColumnIdx::C3][i].get_value(), bb::fr(out_expected[i]));
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
 
     EXPECT_EQ(result, true);
 }
@@ -505,7 +506,7 @@ TEST(stdlib_plookup, uint32_and)
         EXPECT_EQ(lookup[ColumnIdx::C3][i].get_value(), bb::fr(out_expected[i]));
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
 
     EXPECT_EQ(result, true);
 }
@@ -601,6 +602,6 @@ TEST(stdlib_plookup, secp256k1_generator)
     curve::g1::affine_element expected(curve::g1::one * input_value);
     EXPECT_EQ(result, expected);
 
-    bool proof_result = builder.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }

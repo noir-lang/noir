@@ -1,5 +1,6 @@
 #pragma once
 #include "../../primitives/field/field.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 
 namespace bb::stdlib::recursion {
 
@@ -68,7 +69,7 @@ template <typename Curve> struct aggregation_state {
 
         auto* context = P0.get_context();
 
-        context->check_circuit();
+        CircuitChecker::check(*context);
         info("checked circuit before add_recursive_proof");
         context->add_recursive_proof(proof_witness_indices);
     }

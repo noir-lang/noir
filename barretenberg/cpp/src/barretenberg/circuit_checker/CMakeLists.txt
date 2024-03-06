@@ -1,0 +1,1 @@
+barretenberg_module(circuit_checker proof_system flavor)

@@ -1,4 +1,5 @@
 #include "barretenberg/stdlib/recursion/honk/verifier/protogalaxy_recursive_verifier.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/flavor/ultra_recursive.hpp"
 #include "barretenberg/protogalaxy/decider_prover.hpp"
@@ -136,7 +137,7 @@ template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public tes
 
         create_function_circuit(builder);
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     };
 
@@ -337,7 +338,7 @@ template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public tes
         info("Decider Recursive Verifier: num gates = ", decider_circuit.num_gates);
 
         // We expect the decider circuit check to fail due to the bad proof
-        EXPECT_FALSE(decider_circuit.check_circuit());
+        EXPECT_FALSE(CircuitChecker::check(decider_circuit));
     };
 
     static void test_tampered_accumulator()

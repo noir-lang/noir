@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "ram_table.hpp"
@@ -45,7 +46,7 @@ TEST(ram_table, ram_table_init_read_consistency)
 
     EXPECT_EQ(result.get_value(), expected);
 
-    bool verified = builder.check_circuit();
+    bool verified = CircuitChecker::check(builder);
     EXPECT_EQ(verified, true);
 }
 
@@ -95,6 +96,6 @@ TEST(ram_table, ram_table_read_write_consistency)
 
     EXPECT_EQ(result.get_value(), expected);
 
-    bool verified = builder.check_circuit();
+    bool verified = CircuitChecker::check(builder);
     EXPECT_EQ(verified, true);
 }

@@ -514,34 +514,6 @@ void StandardCircuitBuilder_<FF>::assert_equal_constant(uint32_t const a_idx, FF
 }
 
 /**
- * Check if all the circuit gates are correct given the witnesses.
- * Goes through each gates and checks if the identity holds.
- *
- * @return true if the circuit is correct.
- * */
-template <typename FF> bool StandardCircuitBuilder_<FF>::check_circuit()
-{
-
-    FF gate_sum;
-    FF left, right, output;
-    for (size_t i = 0; i < this->num_gates; i++) {
-
-        gate_sum = FF::zero();
-        left = this->get_variable(blocks.arithmetic.w_l()[i]);
-        right = this->get_variable(blocks.arithmetic.w_r()[i]);
-        output = this->get_variable(blocks.arithmetic.w_o()[i]);
-        gate_sum = blocks.arithmetic.q_m()[i] * left * right + blocks.arithmetic.q_1()[i] * left +
-                   blocks.arithmetic.q_2()[i] * right + blocks.arithmetic.q_3()[i] * output +
-                   blocks.arithmetic.q_c()[i];
-        if (!gate_sum.is_zero()) {
-            info("gate number", i);
-            return false;
-        }
-    }
-    return true;
-}
-
-/**
  * Export the existing circuit as msgpack compatible buffer.
  *
  * @return msgpack compatible buffer

@@ -1,5 +1,6 @@
 #include "ec_operations.hpp"
 #include "acir_format.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 
@@ -82,7 +83,7 @@ TEST_F(EcOperations, TestECOperations)
     auto prover = composer.create_prover(builder);
 
     auto proof = prover.construct_proof();
-    EXPECT_TRUE(builder.check_circuit());
+    EXPECT_TRUE(CircuitChecker::check(builder));
     auto verifier = composer.create_verifier(builder);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }

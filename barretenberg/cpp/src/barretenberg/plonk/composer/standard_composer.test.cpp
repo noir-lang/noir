@@ -1,4 +1,5 @@
 #include "barretenberg/plonk/composer/standard_composer.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/crypto/generators/generator_data.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
@@ -486,7 +487,7 @@ TEST_F(StandardPlonkComposer, TestCheckCircuitCorrect)
     builder.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     builder.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -507,6 +508,6 @@ TEST_F(StandardPlonkComposer, TestCheckCircuitBroken)
     builder.create_add_gate({ a_idx, b_idx, c_idx, fr::one(), fr::one(), fr::neg_one(), fr::zero() });
     builder.create_add_gate({ d_idx, c_idx, a_idx, fr::one(), fr::neg_one(), fr::neg_one(), fr::zero() });
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, false);
 }

@@ -2,6 +2,7 @@
 #include "../bigfield/bigfield.hpp"
 #include "../bool/bool.hpp"
 #include "../field/field.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
@@ -43,7 +44,7 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
 
     static constexpr auto EXPECT_CIRCUIT_CORRECTNESS = [](Builder& builder, bool expected_result = true) {
         info("num gates = ", builder.get_num_gates());
-        EXPECT_EQ(builder.check_circuit(), expected_result);
+        EXPECT_EQ(CircuitChecker::check(builder), expected_result);
     };
 
   public:

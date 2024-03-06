@@ -1,4 +1,5 @@
 #include "poseidon2.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/crypto/poseidon2/poseidon2.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
@@ -45,7 +46,7 @@ template <typename Builder> class StdlibPoseidon2 : public testing::Test {
 
         EXPECT_EQ(result.get_value(), expected);
 
-        bool proof_result = builder.check_circuit();
+        bool proof_result = CircuitChecker::check(builder);
         EXPECT_EQ(proof_result, true);
     }
 
@@ -73,7 +74,7 @@ template <typename Builder> class StdlibPoseidon2 : public testing::Test {
 
         info("num gates = ", builder.get_num_gates());
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
     /**
@@ -100,7 +101,7 @@ template <typename Builder> class StdlibPoseidon2 : public testing::Test {
 
         info("num gates = ", builder.get_num_gates());
 
-        bool proof_result = builder.check_circuit();
+        bool proof_result = CircuitChecker::check(builder);
         EXPECT_EQ(proof_result, true);
     }
 

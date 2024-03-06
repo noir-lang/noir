@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
@@ -82,7 +83,7 @@ TYPED_TEST(ByteArrayTest, test_byte_array_input_output_consistency)
     EXPECT_EQ(a_result.get_value(), a_expected);
     EXPECT_EQ(b_result.get_value(), b_expected);
 
-    bool verified = builder.check_circuit();
+    bool verified = CircuitChecker::check(builder);
     EXPECT_EQ(verified, true);
 }
 
@@ -113,7 +114,7 @@ TYPED_TEST(ByteArrayTest, get_bit)
 
     EXPECT_EQ(arr.size(), 4UL);
 
-    bool proof_result = builder.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }
 
@@ -134,6 +135,6 @@ TYPED_TEST(ByteArrayTest, set_bit)
     EXPECT_EQ(out[1], uint8_t(7));
     EXPECT_EQ(out[3], uint8_t(5));
 
-    bool proof_result = builder.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }

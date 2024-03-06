@@ -1,4 +1,5 @@
-#include "goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include <gtest/gtest.h>
 
 using namespace bb;
@@ -39,13 +40,13 @@ TEST(GoblinUltraCircuitBuilder, CopyConstructor)
     circuit_constructor.queue_ecc_mul_accum(P2, z);
     circuit_constructor.queue_ecc_eq();
 
-    bool result = circuit_constructor.check_circuit();
+    bool result = CircuitChecker::check(circuit_constructor);
     EXPECT_EQ(result, true);
 
     GoblinUltraCircuitBuilder duplicate_circuit_constructor{ circuit_constructor };
 
     EXPECT_EQ(duplicate_circuit_constructor, circuit_constructor);
-    EXPECT_TRUE(duplicate_circuit_constructor.check_circuit());
+    EXPECT_TRUE(CircuitChecker::check(duplicate_circuit_constructor));
 }
 
 TEST(GoblinUltraCircuitBuilder, BaseCase)
@@ -53,7 +54,7 @@ TEST(GoblinUltraCircuitBuilder, BaseCase)
     GoblinUltraCircuitBuilder circuit_constructor = GoblinUltraCircuitBuilder();
     fr a = fr::one();
     circuit_constructor.add_public_variable(a);
-    bool result = circuit_constructor.check_circuit();
+    bool result = CircuitChecker::check(circuit_constructor);
     EXPECT_EQ(result, true);
 }
 

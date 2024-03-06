@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include <concepts>
@@ -157,7 +158,7 @@ concept ArithmeticFuzzHelperConstraint = requires {
 template <typename T>
 concept CheckableComposer = requires(T a) {
                                 {
-                                    a.check_circuit()
+                                    CircuitChecker::check(a)
                                     } -> std::same_as<bool>;
                             };
 
@@ -642,7 +643,7 @@ class ArithmeticFuzzHelper {
             }
 #endif
         }
-        bool check_result = composer.check_circuit() && final_value_check;
+        bool check_result = bb::CircuitChecker::check(composer) && final_value_check;
         // If the circuit is correct, but it should fail, abort
         if (check_result && circuit_should_fail) {
             abort();

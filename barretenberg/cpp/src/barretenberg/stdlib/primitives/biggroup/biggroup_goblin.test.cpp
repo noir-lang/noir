@@ -2,6 +2,7 @@
 #include <type_traits>
 
 #include "../biggroup/biggroup.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
@@ -29,7 +30,7 @@ template <typename Curve> class stdlib_biggroup_goblin : public testing::Test {
 
     static constexpr auto EXPECT_CIRCUIT_CORRECTNESS = [](Builder& builder, bool expected_result = true) {
         info("builder gates = ", builder.get_num_gates());
-        EXPECT_EQ(builder.check_circuit(), expected_result);
+        EXPECT_EQ(CircuitChecker::check(builder), expected_result);
     };
 
   public:

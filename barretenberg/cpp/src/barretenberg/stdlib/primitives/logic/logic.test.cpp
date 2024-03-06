@@ -2,6 +2,7 @@
 
 #include "../bool/bool.hpp"
 #include "../circuit_builders/circuit_builders.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
@@ -80,7 +81,7 @@ TYPED_TEST(LogicTest, TestCorrectLogic)
     for (size_t i = 8; i < 248; i += 8) {
         run_test(i, builder);
     }
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -108,7 +109,7 @@ TYPED_TEST(LogicTest, LargeOperands)
     EXPECT_EQ(uint256_t(and_result.get_value()), and_expected);
     EXPECT_EQ(uint256_t(xor_result.get_value()), xor_expected);
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -140,7 +141,7 @@ TYPED_TEST(LogicTest, DifferentWitnessSameResult)
         field_ct xor_result = stdlib::logic<Builder>::create_logic_constraint(x, y, 32, true, get_bad_chunk);
         EXPECT_EQ(uint256_t(xor_result.get_value()), xor_expected);
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, false);
     }
 }

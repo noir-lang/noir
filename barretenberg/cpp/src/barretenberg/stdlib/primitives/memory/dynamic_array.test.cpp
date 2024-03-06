@@ -6,6 +6,7 @@
 
 #include "../bool/bool.hpp"
 #include "../circuit_builders/circuit_builders.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 
 using namespace bb;
 
@@ -59,6 +60,6 @@ TEST(DynamicArray, DynamicArrayReadWriteConsistency)
     array.conditional_pop(true);
     EXPECT_EQ(array.native_size(), max_size - 1);
 
-    bool verified = builder.check_circuit();
+    bool verified = CircuitChecker::check(builder);
     EXPECT_EQ(verified, true);
 }

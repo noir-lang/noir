@@ -1,5 +1,6 @@
 #include "bigint_constraint.hpp"
 #include "acir_format.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
@@ -205,7 +206,7 @@ TEST_F(BigIntTests, TestBigIntConstraintMultiple)
     auto composer = Composer();
     auto prover = composer.create_ultra_with_keccak_prover(builder);
     auto proof = prover.construct_proof();
-    EXPECT_TRUE(builder.check_circuit());
+    EXPECT_TRUE(CircuitChecker::check(builder));
     auto verifier = composer.create_ultra_with_keccak_verifier(builder);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
@@ -270,7 +271,7 @@ TEST_F(BigIntTests, TestBigIntConstraintSimple)
     auto composer = Composer();
     auto prover = composer.create_ultra_with_keccak_prover(builder);
     auto proof = prover.construct_proof();
-    EXPECT_TRUE(builder.check_circuit());
+    EXPECT_TRUE(CircuitChecker::check(builder));
     auto verifier = composer.create_ultra_with_keccak_verifier(builder);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
@@ -329,7 +330,7 @@ TEST_F(BigIntTests, TestBigIntConstraintReuse)
     auto composer = Composer();
     auto prover = composer.create_ultra_with_keccak_prover(builder);
     auto proof = prover.construct_proof();
-    EXPECT_TRUE(builder.check_circuit());
+    EXPECT_TRUE(CircuitChecker::check(builder));
     auto verifier = composer.create_ultra_with_keccak_verifier(builder);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }
@@ -386,7 +387,7 @@ TEST_F(BigIntTests, TestBigIntConstraintReuse2)
     auto composer = Composer();
     auto prover = composer.create_ultra_with_keccak_prover(builder);
     auto proof = prover.construct_proof();
-    EXPECT_TRUE(builder.check_circuit());
+    EXPECT_TRUE(CircuitChecker::check(builder));
     auto verifier = composer.create_ultra_with_keccak_verifier(builder);
     EXPECT_EQ(verifier.verify_proof(proof), true);
 }

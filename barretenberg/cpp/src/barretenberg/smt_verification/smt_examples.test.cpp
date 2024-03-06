@@ -1,3 +1,4 @@
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include <fstream>
 #include <gtest/gtest.h>
@@ -29,7 +30,7 @@ TEST(circuit_verification, multiplication_true)
     builder.set_variable_name(a.witness_index, "a");
     builder.set_variable_name(b.witness_index, "b");
     builder.set_variable_name(c.witness_index, "c");
-    ASSERT_TRUE(builder.check_circuit());
+    ASSERT_TRUE(CircuitChecker::check(builder));
 
     auto buf = builder.export_circuit();
 
@@ -60,7 +61,7 @@ TEST(circuit_verification, multiplication_true_kind)
     builder.set_variable_name(a.witness_index, "a");
     builder.set_variable_name(b.witness_index, "b");
     builder.set_variable_name(c.witness_index, "c");
-    ASSERT_TRUE(builder.check_circuit());
+    ASSERT_TRUE(CircuitChecker::check(builder));
 
     auto buf = builder.export_circuit();
 
@@ -91,7 +92,7 @@ TEST(circuit_verification, multiplication_false)
     builder.set_variable_name(a.witness_index, "a");
     builder.set_variable_name(b.witness_index, "b");
     builder.set_variable_name(c.witness_index, "c");
-    ASSERT_TRUE(builder.check_circuit());
+    ASSERT_TRUE(CircuitChecker::check(builder));
 
     auto buf = builder.export_circuit();
 

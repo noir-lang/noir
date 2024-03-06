@@ -10,4 +10,5 @@ barretenberg_module(
     crypto_merkle_tree
     stdlib_schnorr
     crypto_sha256
+    circuit_checker
 )

@@ -1,4 +1,5 @@
 #include "barretenberg/crypto/blake3s/blake3s.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "blake3s.hpp"
 #include "blake3s_plookup.hpp"
@@ -28,7 +29,7 @@ TEST(stdlib_blake3s, test_single_block)
 
     info("builder gates = ", builder.get_num_gates());
 
-    bool proof_result = builder.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }
 
@@ -47,7 +48,7 @@ TEST(stdlib_blake3s, test_single_block_plookup)
 
     info("builder gates = ", builder.get_num_gates());
 
-    bool proof_result = builder.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }
 
@@ -66,7 +67,7 @@ TEST(stdlib_blake3s, test_double_block)
 
     info("builder gates = ", builder.get_num_gates());
 
-    bool proof_result = builder.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }
 
@@ -85,6 +86,6 @@ TEST(stdlib_blake3s, test_double_block_plookup)
 
     info("builder gates = ", builder.get_num_gates());
 
-    bool proof_result = builder.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/flavor/ultra.hpp"
@@ -116,7 +117,7 @@ TEST(RecursiveHonkTranscript, InterfacesMatch)
 
     // TODO(#1351): The Honk stdlib transcript does not currently lay down contraints for fiat-shamir hashing so
     // check_circuit has limited value.
-    EXPECT_TRUE(builder.check_circuit());
+    EXPECT_TRUE(CircuitChecker::check(builder));
 }
 
 /**

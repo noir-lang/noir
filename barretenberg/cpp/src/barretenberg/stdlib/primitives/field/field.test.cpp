@@ -1,6 +1,7 @@
 #include "field.hpp"
 #include "../bool/bool.hpp"
 #include "array.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
@@ -91,7 +92,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
             field_ct a(witness_ct(&builder, elt));
             a.create_range_constraint(num_bits, "field_tests: range_constraint on a fails");
 
-            bool verified = builder.check_circuit();
+            bool verified = CircuitChecker::check(builder);
             EXPECT_EQ(verified, expect_verified);
             if (verified != expect_verified) {
                 info("Range constraint malfunction on ", elt, " with num_bits ", num_bits);
@@ -164,7 +165,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
             EXPECT_EQ(x.get_value(), 1);
             EXPECT_EQ(y.get_value(), 1);
 
-            bool result = builder.check_circuit();
+            bool result = CircuitChecker::check(builder);
 
             EXPECT_EQ(result, expected_result);
         };
@@ -187,7 +188,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
             EXPECT_EQ(builder.get_variable(builder.blocks.main.w_o()[gates_after - 1]), fr(expected));
         }
         info("Number of gates added", gates_after - gates_before);
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -219,7 +220,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(out.get_value(), 0);
         EXPECT_EQ(out.is_constant(), true);
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -234,7 +235,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(b.get_value(), 10);
         EXPECT_EQ(a.get_value(), 11);
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -249,7 +250,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(b.get_value(), 11);
         EXPECT_EQ(a.get_value(), 11);
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -267,7 +268,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         }
         EXPECT_EQ(gates_after - gates_before, 18UL);
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -288,7 +289,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         // builder.assert_equal(sum_sqrs.witness_index, c_sqr.witness_index, "triple is not pythagorean");
         c_sqr.assert_equal(sum_sqrs);
 
-        bool verified = builder.check_circuit();
+        bool verified = CircuitChecker::check(builder);
 
         for (size_t i = 0; i < builder.variables.size(); i++) {
             info(i, builder.variables[i]);
@@ -318,7 +319,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
             EXPECT_EQ(gates_after - gates_before, 4UL);
         }
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -346,7 +347,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
             EXPECT_EQ(gates_after - gates_before, 4UL);
         }
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -375,7 +376,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
             EXPECT_EQ(gates_after - gates_before, 7UL);
         }
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -386,7 +387,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
 
         generate_test_plonk_circuit(builder, n);
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -426,7 +427,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(d_zero.get_value(), true);
         EXPECT_EQ(e_zero.get_value(), false);
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -475,7 +476,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         n = n.normalize();
         EXPECT_EQ(m.get_value(), n.get_value());
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -502,7 +503,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(result_c.get_value(), c.get_value());
         EXPECT_EQ(result_d.get_value(), d.get_value());
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -522,7 +523,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(slice_data[1].get_value(), fr(169));
         EXPECT_EQ(slice_data[2].get_value(), fr(61));
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -542,7 +543,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(slice_data[1].get_value(), fr(1));
         EXPECT_EQ(slice_data[2].get_value(), fr(986));
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -565,7 +566,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(slice[1].get_value(), fr(expected1));
         EXPECT_EQ(slice[2].get_value(), fr(expected2));
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -604,7 +605,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(result_g.get_value(), g.get_value());
         EXPECT_EQ(result_h.get_value(), h.get_value());
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -643,7 +644,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
                 EXPECT_EQ(bit_sum, a_expected);
             };
 
-            bool verified = builder.check_circuit();
+            bool verified = CircuitChecker::check(builder);
             ASSERT_TRUE(verified);
         };
 
@@ -671,7 +672,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
             field_ct a = witness_ct(&builder, a_expected);
             std::vector<bool_ct> c = a.decompose_into_bits(256, witness_supplier);
 
-            bool verified = builder.check_circuit();
+            bool verified = CircuitChecker::check(builder);
             ASSERT_FALSE(verified);
         };
 
@@ -694,7 +695,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         a.assert_is_in_set(set);
         info("num gates = ", builder.get_num_gates());
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -713,7 +714,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         f.assert_is_in_set(set);
 
         info("num gates = ", builder.get_num_gates());
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, false);
     }
 
@@ -732,7 +733,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(result.get_value(), expected);
 
         info("num gates = ", builder.get_num_gates());
-        bool check_result = builder.check_circuit();
+        bool check_result = CircuitChecker::check(builder);
         EXPECT_EQ(check_result, true);
     }
 
@@ -750,7 +751,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(result.get_value(), bb::fr(1));
 
         info("num gates = ", builder.get_num_gates());
-        bool check_result = builder.check_circuit();
+        bool check_result = CircuitChecker::check(builder);
         EXPECT_EQ(check_result, true);
     }
 
@@ -768,7 +769,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(result.get_value(), base_val);
         info("num gates = ", builder.get_num_gates());
 
-        bool check_result = builder.check_circuit();
+        bool check_result = CircuitChecker::check(builder);
         EXPECT_EQ(check_result, true);
     }
 
@@ -807,7 +808,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(result.get_value(), expected);
 
         info("num gates = ", builder.get_num_gates());
-        bool check_result = builder.check_circuit();
+        bool check_result = CircuitChecker::check(builder);
         EXPECT_EQ(check_result, true);
     }
 
@@ -826,7 +827,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         EXPECT_EQ(result.get_value(), expected);
         info("num gates = ", builder.get_num_gates());
 
-        bool check_result = builder.check_circuit();
+        bool check_result = CircuitChecker::check(builder);
         EXPECT_EQ(check_result, true);
     };
 
@@ -866,7 +867,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
 
         info("num gates = ", builder.get_num_gates());
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -910,7 +911,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
 
             EXPECT_EQ(result.get_value(), expected);
         }
-        bool check_result = builder.check_circuit();
+        bool check_result = CircuitChecker::check(builder);
         EXPECT_EQ(check_result, true);
     }
 };

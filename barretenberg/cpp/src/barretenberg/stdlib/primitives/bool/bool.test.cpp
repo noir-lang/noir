@@ -1,4 +1,5 @@
 #include "bool.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.cpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 #include <gtest/gtest.h>
@@ -44,7 +45,7 @@ TYPED_TEST(BoolTest, TestBasicOperations)
     d = (!f) & a; // d = 1
     EXPECT_EQ(d.get_value(), 1);
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 
     auto gates_after = builder.get_num_gates();
@@ -69,7 +70,7 @@ TYPED_TEST(BoolTest, Xor)
             EXPECT_EQ(c.get_value(), a.get_value() ^ b.get_value());
         }
     }
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -95,7 +96,7 @@ TYPED_TEST(BoolTest, XorConstants)
         }
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -123,7 +124,7 @@ TYPED_TEST(BoolTest, XorTwinConstants)
         }
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -136,7 +137,7 @@ TYPED_TEST(BoolTest, LogicalAnd)
     bool_ct b = witness_ct(&builder, 1);
     (!a) && (!b);
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -151,7 +152,7 @@ TYPED_TEST(BoolTest, And)
         a& b;
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -177,7 +178,7 @@ TYPED_TEST(BoolTest, AndConstants)
         }
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -192,7 +193,7 @@ TYPED_TEST(BoolTest, or)
         a | b;
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -218,7 +219,7 @@ TYPED_TEST(BoolTest, OrConstants)
         }
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -268,7 +269,7 @@ TYPED_TEST(BoolTest, Eq)
         EXPECT_EQ(d[i].get_value(), d_alt[i]);
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -291,7 +292,7 @@ TYPED_TEST(BoolTest, Implies)
         }
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -314,7 +315,7 @@ TYPED_TEST(BoolTest, ImpliesBothWays)
         }
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -340,7 +341,7 @@ TYPED_TEST(BoolTest, MustImply)
         }
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -405,7 +406,7 @@ TYPED_TEST(BoolTest, MustImplyMultiple)
             if (builder.failed()) {
                 EXPECT_EQ(builder.err(), "multi implication fail: g(x) is a multiple of 6");
             } else {
-                bool result = builder.check_circuit();
+                bool result = CircuitChecker::check(builder);
                 EXPECT_EQ(result, true);
             }
         }
@@ -467,7 +468,7 @@ TYPED_TEST(BoolTest, ConditionalAssign)
         EXPECT_EQ(result.get_value(), condition ? left : right);
     }
     info("num gates = ", builder.get_num_gates());
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -499,7 +500,7 @@ TYPED_TEST(BoolTest, TestSimpleProof)
         f = b;
     }
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -524,6 +525,6 @@ TYPED_TEST(BoolTest, Normalize)
     generate_constraints(true, true, false);
     generate_constraints(true, true, true);
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }

@@ -1,4 +1,5 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
@@ -46,7 +47,7 @@ template <typename Builder> class StdlibPedersen : public testing::Test {
 
         info("num gates = ", builder.get_num_gates());
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
 
         fr hash_native = crypto::pedersen_hash::hash({ left.get_value(), right.get_value() });
@@ -77,7 +78,7 @@ template <typename Builder> class StdlibPedersen : public testing::Test {
 
         info("num gates = ", builder.get_num_gates());
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
 
         EXPECT_EQ(bool(out_1_with_zero.get_value() == out_1_with_r.get_value()), true);
@@ -120,7 +121,7 @@ template <typename Builder> class StdlibPedersen : public testing::Test {
 
         info("num gates = ", builder.get_num_gates());
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -145,7 +146,7 @@ template <typename Builder> class StdlibPedersen : public testing::Test {
 
         info("num gates = ", builder.get_num_gates());
 
-        bool proof_result = builder.check_circuit();
+        bool proof_result = CircuitChecker::check(builder);
         EXPECT_EQ(proof_result, true);
     }
 
@@ -196,7 +197,7 @@ template <typename Builder> class StdlibPedersen : public testing::Test {
 
         info("num gates = ", builder.get_num_gates());
 
-        bool proof_result = builder.check_circuit();
+        bool proof_result = CircuitChecker::check(builder);
         EXPECT_EQ(proof_result, true);
     }
 
@@ -252,7 +253,7 @@ TYPED_TEST(StdlibPedersen, TestHash)
     using Builder = TypeParam;
     using field_ct = stdlib::field_t<Builder>;
     using witness_ct = stdlib::witness_t<Builder>;
-    auto composer = Builder();
+    auto builder = Builder();
 
     const size_t num_inputs = 10;
 
@@ -262,7 +263,7 @@ TYPED_TEST(StdlibPedersen, TestHash)
     for (size_t i = 0; i < num_inputs; ++i) {
         const auto element = fr::random_element(&engine);
         inputs_native.emplace_back(element);
-        inputs.emplace_back(field_ct(witness_ct(&composer, element)));
+        inputs.emplace_back(field_ct(witness_ct(&builder, element)));
     }
 
     auto result = stdlib::pedersen_hash<Builder>::hash(inputs);
@@ -270,7 +271,7 @@ TYPED_TEST(StdlibPedersen, TestHash)
 
     EXPECT_EQ(result.get_value(), expected);
 
-    bool proof_result = composer.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }
 

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
@@ -49,7 +50,7 @@ TEST(stdlib_schnorr, schnorr_verify_signature)
         schnorr_verify_signature(message, pub_key, sig);
 
         info("num gates = ", builder.get_num_gates());
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 }
@@ -92,7 +93,7 @@ TEST(stdlib_schnorr, verify_signature_failure)
 
     info("num gates = ", builder.get_num_gates());
 
-    bool verification_result = builder.check_circuit();
+    bool verification_result = CircuitChecker::check(builder);
     EXPECT_EQ(verification_result, false);
 }
 
@@ -127,7 +128,7 @@ TEST(stdlib_schnorr, schnorr_signature_verification_result)
 
     info("num gates = ", builder.get_num_gates());
 
-    bool result = builder.check_circuit();
+    bool result = CircuitChecker::check(builder);
     EXPECT_EQ(result, true);
 }
 
@@ -170,6 +171,6 @@ TEST(stdlib_schnorr, signature_verification_result_failure)
 
     info("num gates = ", builder.get_num_gates());
 
-    bool verification_result = builder.check_circuit();
+    bool verification_result = CircuitChecker::check(builder);
     EXPECT_EQ(verification_result, true);
 }

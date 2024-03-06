@@ -1,4 +1,4 @@
-barretenberg_module(smt_verification common proof_system stdlib_primitives stdlib_sha256 cvc5)
+barretenberg_module(smt_verification common proof_system stdlib_primitives stdlib_sha256 cvc5 circuit_checker)
 
 set(CVC5_INCLUDE $ENV{HOME}/cvc5/tmp-lib/include)
 set(CVC5_LIB $ENV{HOME}/cvc5/tmp-lib/lib)

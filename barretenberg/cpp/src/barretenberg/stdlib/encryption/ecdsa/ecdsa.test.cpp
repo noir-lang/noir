@@ -3,6 +3,7 @@
 #include "../../primitives/biggroup/biggroup.hpp"
 #include "../../primitives/curves/secp256k1.hpp"
 #include "../../primitives/curves/secp256r1.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/test.hpp"
 #include "ecdsa.hpp"
 
@@ -51,7 +52,7 @@ TEST(stdlib_ecdsa, verify_signature)
 
     std::cerr << "num gates = " << builder.get_num_gates() << std::endl;
     benchmark_info(Builder::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", builder.get_num_gates());
-    bool proof_result = builder.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }
 
@@ -92,7 +93,7 @@ TEST(stdlib_ecdsa, verify_r1_signature)
 
     std::cerr << "num gates = " << builder.get_num_gates() << std::endl;
     benchmark_info(Builder::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", builder.get_num_gates());
-    bool proof_result = builder.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }
 
@@ -136,7 +137,7 @@ TEST(stdlib_ecdsa, ecdsa_verify_signature_noassert_succeed)
 
     std::cerr << "num gates = " << builder.get_num_gates() << std::endl;
     benchmark_info(Builder::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", builder.get_num_gates());
-    bool proof_result = builder.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }
 
@@ -180,6 +181,6 @@ TEST(stdlib_ecdsa, ecdsa_verify_signature_noassert_fail)
 
     std::cerr << "num gates = " << builder.get_num_gates() << std::endl;
     benchmark_info(Builder::NAME_STRING, "ECDSA", "Signature Verification Test", "Gate Count", builder.get_num_gates());
-    bool proof_result = builder.check_circuit();
+    bool proof_result = CircuitChecker::check(builder);
     EXPECT_EQ(proof_result, true);
 }

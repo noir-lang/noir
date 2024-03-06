@@ -105,8 +105,6 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
 
     size_t get_num_constant_gates() const override { return 0; }
 
-    bool check_circuit();
-
     msgpack::sbuffer export_circuit() override;
 
   private:

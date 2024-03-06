@@ -1,6 +1,7 @@
 #include "verifier.hpp"
 #include "program_settings.hpp"
 
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
@@ -346,7 +347,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     static void check_recursive_verification_circuit(OuterBuilder& outer_circuit, bool expected_result)
     {
         info("number of gates in recursive verification circuit = ", outer_circuit.get_num_gates());
-        bool result = outer_circuit.check_circuit();
+        bool result = CircuitChecker::check(outer_circuit);
         EXPECT_EQ(result, expected_result);
         auto g2_lines = srs::get_bn254_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
         EXPECT_EQ(check_recursive_proof_public_inputs(outer_circuit, g2_lines), true);
@@ -364,7 +365,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         create_inner_circuit(builder, inputs);
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 

@@ -140,37 +140,6 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
 
     void create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in);
     void create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in);
-
-    FF compute_poseidon2_external_identity(FF q_poseidon2_external_value,
-                                           FF q_1_value,
-                                           FF q_2_value,
-                                           FF q_3_value,
-                                           FF q_4_value,
-                                           FF w_1_value,
-                                           FF w_2_value,
-                                           FF w_3_value,
-                                           FF w_4_value,
-                                           FF w_1_shifted_value,
-                                           FF w_2_shifted_value,
-                                           FF w_3_shifted_value,
-                                           FF w_4_shifted_value,
-                                           FF alpha_base,
-                                           FF alpha) const;
-
-    FF compute_poseidon2_internal_identity(FF q_poseidon2_internal_value,
-                                           FF q_1_value,
-                                           FF w_1_value,
-                                           FF w_2_value,
-                                           FF w_3_value,
-                                           FF w_4_value,
-                                           FF w_1_shifted_value,
-                                           FF w_2_shifted_value,
-                                           FF w_3_shifted_value,
-                                           FF w_4_shifted_value,
-                                           FF alpha_base,
-                                           FF alpha) const;
-
-    bool check_circuit();
 };
 using GoblinUltraCircuitBuilder = GoblinUltraCircuitBuilder_<bb::fr>;
 } // namespace bb

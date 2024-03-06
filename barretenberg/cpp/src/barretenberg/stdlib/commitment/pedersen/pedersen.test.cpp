@@ -1,4 +1,5 @@
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/crypto/pedersen_commitment/c_bind.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
@@ -47,7 +48,7 @@ template <typename Builder> class StdlibPedersen : public testing::Test {
 
         info("num gates = ", builder.get_num_gates());
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
 
         auto commit_native = crypto::pedersen_commitment::commit_native({ left.get_value(), right.get_value() });

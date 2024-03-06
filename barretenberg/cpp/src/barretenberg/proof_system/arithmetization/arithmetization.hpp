@@ -52,7 +52,7 @@ template <typename FF, size_t NUM_WIRES, size_t NUM_SELECTORS> class ExecutionTr
 
     bool operator==(const ExecutionTraceBlock& other) const = default;
 
-    size_t size() { return std::get<0>(this->wires).size(); }
+    size_t size() const { return std::get<0>(this->wires).size(); }
 
     void reserve(size_t size_hint)
     {
@@ -85,12 +85,20 @@ template <typename FF_> class StandardArith {
         auto& w_l() { return std::get<0>(this->wires); };
         auto& w_r() { return std::get<1>(this->wires); };
         auto& w_o() { return std::get<2>(this->wires); };
+        const auto& w_l() const { return std::get<0>(this->wires); };
+        const auto& w_r() const { return std::get<1>(this->wires); };
+        const auto& w_o() const { return std::get<2>(this->wires); };
 
         auto& q_m() { return this->selectors[0]; };
         auto& q_1() { return this->selectors[1]; };
         auto& q_2() { return this->selectors[2]; };
         auto& q_3() { return this->selectors[3]; };
         auto& q_c() { return this->selectors[4]; };
+        const auto& q_m() const { return this->selectors[0]; };
+        const auto& q_1() const { return this->selectors[1]; };
+        const auto& q_2() const { return this->selectors[2]; };
+        const auto& q_3() const { return this->selectors[3]; };
+        const auto& q_c() const { return this->selectors[4]; };
     };
 
     struct TraceBlocks {

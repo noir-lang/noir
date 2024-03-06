@@ -9,6 +9,7 @@
 #include "../byte_array/byte_array.hpp"
 #include "../field/field.hpp"
 #include "./bigfield.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
@@ -52,7 +53,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
         fq_ct tval1 = tval - tval;
         fq_ct tval2 = tval1 / tval;
         (void)tval2;
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -64,7 +65,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
         fq_ct tval1 = tval - tval;
         fq_ct tval2 = tval1 / tval;
         (void)tval2;
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -125,7 +126,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result.hi.data[2], 0ULL);
             EXPECT_EQ(result.hi.data[3], 0ULL);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -163,7 +164,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result.hi.data[2], 0ULL);
             EXPECT_EQ(result.hi.data[3], 0ULL);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -209,7 +210,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result.hi.data[2], 0ULL);
             EXPECT_EQ(result.hi.data[3], 0ULL);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -278,7 +279,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
         if (builder.failed()) {
             info("Builder failed with error: ", builder.err());
         };
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -333,7 +334,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
         if (builder.failed()) {
             info("Builder failed with error: ", builder.err());
         };
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -377,7 +378,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result.hi.data[2], 0ULL);
             EXPECT_EQ(result.hi.data[3], 0ULL);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -419,7 +420,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result.hi.data[2], 0ULL);
             EXPECT_EQ(result.hi.data[3], 0ULL);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -456,7 +457,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result.hi.data[2], 0ULL);
             EXPECT_EQ(result.hi.data[3], 0ULL);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -490,7 +491,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result.hi.data[2], 0ULL);
             EXPECT_EQ(result.hi.data[3], 0ULL);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -527,7 +528,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result.hi.data[2], 0ULL);
             EXPECT_EQ(result.hi.data[3], 0ULL);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -550,7 +551,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result_ct.get_value().lo, uint256_t(expected));
             EXPECT_EQ(result_ct.get_value().hi, uint256_t(0));
 
-            bool result = builder.check_circuit();
+            bool result = CircuitChecker::check(builder);
             EXPECT_EQ(result, true);
         }
     }
@@ -593,7 +594,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result_d, expected_d);
             EXPECT_EQ(result_e, fq(0));
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -640,7 +641,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result_y.lo.data[2], expected_y.data[2]);
             EXPECT_EQ(result_y.lo.data[3], expected_y.data[3]);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -671,7 +672,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result, expected);
             EXPECT_EQ(c.get_value().get_msb() < 254, true);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -702,7 +703,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result, uint256_t(expected));
             EXPECT_EQ(c.get_value().get_msb() < 254, true);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -738,7 +739,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             EXPECT_EQ(result, uint256_t(expected));
             EXPECT_EQ(c.get_value().get_msb() < num_bits, true);
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
         // Checking edge conditions
         fq random_input = fq::random_element();
@@ -747,10 +748,10 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
                            fr(uint256_t(random_input).slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 4))));
 
         a.assert_less_than(random_input + 1);
-        EXPECT_EQ(builder.check_circuit(), true);
+        EXPECT_EQ(CircuitChecker::check(builder), true);
 
         a.assert_less_than(random_input);
-        EXPECT_EQ(builder.check_circuit(), false);
+        EXPECT_EQ(CircuitChecker::check(builder), false);
     }
 
     static void test_byte_array_constructors()
@@ -777,7 +778,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
             uint256_t result = (c.get_value().lo);
             EXPECT_EQ(result, uint256_t(expected));
         }
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
@@ -819,7 +820,7 @@ template <typename Builder> class stdlib_bigfield : public testing::Test {
         auto f = fq_ct::mult_madd({ a4 }, { a4 }, {}, false);
         (void)f;
 
-        bool result = builder.check_circuit();
+        bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);
     }
 
