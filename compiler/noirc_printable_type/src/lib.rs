@@ -15,6 +15,10 @@ pub enum PrintableType {
         #[serde(rename = "type")]
         typ: Box<PrintableType>,
     },
+    Slice {
+        #[serde(rename = "type")]
+        typ: Box<PrintableType>,
+    },
     Tuple {
         types: Vec<PrintableType>,
     },
@@ -48,7 +52,10 @@ pub enum PrintableType {
 pub enum PrintableValue {
     Field(FieldElement),
     String(String),
-    Vec(Vec<PrintableValue>),
+    Vec {
+        array_elements: Vec<PrintableValue>,
+        is_slice: bool,
+    },
     Struct(BTreeMap<String, PrintableValue>),
     Other,
 }
@@ -182,9 +189,12 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
         (_, PrintableType::MutableReference { .. }) => {
             output.push_str("<<mutable ref>>");
         }
-        (PrintableValue::Vec(vector), PrintableType::Array { typ, .. }) => {
+        (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. }) => {
+            if *is_slice {
+                output.push('&')
+            }
             output.push('[');
-            let mut values = vector.iter().peekable();
+            let mut values = array_elements.iter().peekable();
             while let Some(value) = values.next() {
                 output.push_str(&format!(
                     "{}",
@@ -219,9 +229,9 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
             output.push_str(" }");
         }
 
-        (PrintableValue::Vec(values), PrintableType::Tuple { types }) => {
+        (PrintableValue::Vec { array_elements, .. }, PrintableType::Tuple { types }) => {
             output.push('(');
-            let mut elems = values.iter().zip(types).peekable();
+            let mut elems = array_elements.iter().zip(types).peekable();
             while let Some((value, typ)) = elems.next() {
                 output.push_str(
                     &PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
@@ -320,7 +330,7 @@ pub fn decode_value(
                 array_elements.push(decode_value(field_iterator, typ));
             }
 
-            PrintableValue::Vec(array_elements)
+            PrintableValue::Vec { array_elements, is_slice: false }
         }
         PrintableType::Array { length: Some(length), typ } => {
             let length = *length as usize;
@@ -329,10 +339,22 @@ pub fn decode_value(
                 array_elements.push(decode_value(field_iterator, typ));
             }
 
-            PrintableValue::Vec(array_elements)
+            PrintableValue::Vec { array_elements, is_slice: false }
+        }
+        PrintableType::Slice { typ } => {
+            let length = field_iterator
+                .next()
+                .expect("not enough data to decode variable array length")
+                .to_u128() as usize;
+            let mut array_elements = Vec::with_capacity(length);
+            for _ in 0..length {
+                array_elements.push(decode_value(field_iterator, typ));
+            }
+
+            PrintableValue::Vec { array_elements, is_slice: true }
         }
         PrintableType::Tuple { types } => {
-            PrintableValue::Vec(vecmap(types, |typ| decode_value(field_iterator, typ)))
+            PrintableValue::Vec { array_elements: vecmap(types, |typ| decode_value(field_iterator, typ)), is_slice: false }
         }
         PrintableType::String { length } => {
             let field_elements: Vec<FieldElement> = field_iterator.take(*length as usize).collect();

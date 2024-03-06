@@ -70,6 +70,17 @@ impl ExpressionKind {
         }))
     }
 
+    pub fn slice(contents: Vec<Expression>) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(contents)))
+    }
+
+    pub fn repeated_slice(repeated_element: Expression, length: Expression) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Repeated {
+            repeated_element: Box::new(repeated_element),
+            length: Box::new(length),
+        }))
+    }
+
     pub fn integer(contents: FieldElement) -> ExpressionKind {
         ExpressionKind::Literal(Literal::Integer(contents, false))
     }
@@ -319,6 +330,7 @@ impl UnaryOp {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Literal {
     Array(ArrayLiteral),
+    Slice(ArrayLiteral),
     Bool(bool),
     Integer(FieldElement, /*sign*/ bool), // false for positive integer and true for negative
     Str(String),
@@ -514,6 +526,13 @@ impl Display for Literal {
             }
             Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                 write!(f, "[{repeated_element}; {length}]")
+            }
+            Literal::Slice(ArrayLiteral::Standard(elements)) => {
+                let contents = vecmap(elements, ToString::to_string);
+                write!(f, "&[{}]", contents.join(", "))
+            }
+            Literal::Slice(ArrayLiteral::Repeated { repeated_element, length }) => {
+                write!(f, "&[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer, sign) => {

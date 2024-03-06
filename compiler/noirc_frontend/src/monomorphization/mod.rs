@@ -417,9 +417,15 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
-                HirArrayLiteral::Standard(array) => self.standard_array(expr, array)?,
+                HirArrayLiteral::Standard(array) => self.standard_array(expr, array, false)?,
                 HirArrayLiteral::Repeated { repeated_element, length } => {
-                    self.repeated_array(expr, repeated_element, length)?
+                    self.repeated_array(expr, repeated_element, length, false)?
+                }
+            },
+            HirExpression::Literal(HirLiteral::Slice(array)) => match array {
+                HirArrayLiteral::Standard(array) => self.standard_array(expr, array, true)?,
+                HirArrayLiteral::Repeated { repeated_element, length } => {
+                    self.repeated_array(expr, repeated_element, length, true)?
                 }
             },
             HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
@@ -518,10 +524,15 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         array: node_interner::ExprId,
         array_elements: Vec<node_interner::ExprId>,
+        is_slice: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.convert_type(&self.interner.id_type(array));
         let contents = try_vecmap(array_elements, |id| self.expr(id))?;
-        Ok(ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ })))
+        if is_slice {
+            Ok(ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral { contents, typ })))
+        } else {
+            Ok(ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ })))
+        }
     }
 
     fn repeated_array(
@@ -529,6 +540,7 @@ impl<'interner> Monomorphizer<'interner> {
         array: node_interner::ExprId,
         repeated_element: node_interner::ExprId,
         length: HirType,
+        is_slice: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.convert_type(&self.interner.id_type(array));
 
@@ -538,7 +550,11 @@ impl<'interner> Monomorphizer<'interner> {
         })?;
 
         let contents = try_vecmap(0..length, |_| self.expr(repeated_element))?;
-        Ok(ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ })))
+        if is_slice {
+            Ok(ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral { contents, typ })))
+        } else {
+            Ok(ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ })))
+        }
     }
 
     fn index(
@@ -858,6 +874,10 @@ impl<'interner> Monomorphizer<'interner> {
                     ast::Type::Slice(element)
                 }
             }
+            HirType::Slice(element) => {
+                let element = Box::new(self.convert_type(element.as_ref()));
+                ast::Type::Slice(element)
+            }
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
@@ -933,7 +953,6 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirType::Forall(_, _)
             | HirType::Constant(_)
-            | HirType::NotConstant
             | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
@@ -1149,11 +1168,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
         // Disallow printing slices and mutable references for consistency,
         // since they cannot be passed from ACIR into Brillig
-        if let HirType::Array(size, _) = typ {
-            if let HirType::NotConstant = **size {
-                unreachable!("println and format strings do not support slices. Convert the slice to an array before passing it to println");
-            }
-        } else if matches!(typ, HirType::MutableReference(_)) {
+        if matches!(typ, HirType::MutableReference(_)) {
             unreachable!("println and format strings do not support mutable references.");
         }
 

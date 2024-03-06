@@ -563,6 +563,7 @@ fn parse_type_inner(
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
+        slice_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         parenthesized_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
@@ -699,10 +700,19 @@ fn generic_type_args(
 fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
     just(Token::LeftBracket)
         .ignore_then(type_parser)
-        .then(just(Token::Semicolon).ignore_then(type_expression()).or_not())
+        .then(just(Token::Semicolon).ignore_then(type_expression()))
         .then_ignore(just(Token::RightBracket))
         .map_with_span(|(element_type, size), span| {
             UnresolvedTypeData::Array(size, Box::new(element_type)).with_span(span)
+        })
+}
+
+fn slice_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+    just(Token::LeftBracket)
+        .ignore_then(type_parser)
+        .then_ignore(just(Token::RightBracket))
+        .map_with_span(|element_type, span| {
+            UnresolvedTypeData::Slice(Box::new(element_type)).with_span(span)
         })
 }
 
@@ -1067,6 +1077,14 @@ where
         .map(|(lhs, count)| ExpressionKind::repeated_array(lhs, count))
 }
 
+/// &[array_expr]
+fn slice_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
+    just(Token::Ampersand).ignore_then(array_expr(expr_parser))
+}
+
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
 where
     P: ExprParser,
@@ -1090,6 +1108,7 @@ where
 {
     choice((
         if_expr(expr_no_constructors, statement.clone()),
+        slice_expr(expr_parser.clone()),
         array_expr(expr_parser.clone()),
         if allow_constructors {
             constructor(expr_parser.clone()).boxed()
@@ -1168,7 +1187,7 @@ where
 mod test {
     use super::test_helpers::*;
     use super::*;
-    use crate::{ArrayLiteral, Literal};
+    use crate::{ArrayLiteral, SliceLiteral, Literal};
 
     #[test]
     fn parse_infix() {
@@ -1279,6 +1298,50 @@ mod test {
 
         let invalid = vec!["[0;;4]", "[1, 2; 3]"];
         parse_all_failing(array_expr(expression()), invalid);
+    }
+
+    fn expr_to_slice(expr: ExpressionKind) -> SliceLiteral {
+        let lit = match expr {
+            ExpressionKind::Literal(literal) => literal,
+            _ => unreachable!("expected a literal"),
+        };
+
+        match lit {
+            Literal::Slice(arr) => arr,
+            _ => unreachable!("expected an slice"),
+        }
+    }
+
+    #[test]
+    fn parse_slice() {
+        let valid = vec![
+            "&[0, 1, 2,3, 4]",
+            "&[0,1,2,3,4,]", // Trailing commas are valid syntax
+            "&[0;5]",
+        ];
+
+        for expr in parse_all(slice_expr(expression()), valid) {
+            match expr_to_slice(expr) {
+                SliceLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
+                SliceLiteral::Repeated { length, .. } => {
+                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()));
+                }
+            }
+        }
+
+        parse_all_failing(
+            slice_expr(expression()),
+            vec!["0,1,2,3,4]", "&[[0,1,2,3,4]", "&[0,1,2,,]", "&[0,1,2,3,4"],
+        );
+    }
+
+    #[test]
+    fn parse_slice_sugar() {
+        let valid = vec!["&[0;7]", "&[(1, 2); 4]", "&[0;Four]", "&[2;1+3-a]"];
+        parse_all(slice_expr(expression()), valid);
+
+        let invalid = vec!["&[0;;4]", "&[1, 2; 3]"];
+        parse_all_failing(slice_expr(expression()), invalid);
     }
 
     #[test]

@@ -194,6 +194,18 @@ impl<'a> FunctionContext<'a> {
                     ast::Type::Array(_, _) => {
                         self.codegen_array_checked(elements, typ[0].clone())?
                     }
+                    _ => unreachable!(
+                        "ICE: unexpected array literal type, got {}",
+                        array.typ
+                    ),
+                })
+            }
+            ast::Literal::Slice(array) => {
+                let elements =
+                    try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
+
+                let typ = Self::convert_type(&array.typ).flatten();
+                Ok(match array.typ {
                     ast::Type::Slice(_) => {
                         let slice_length =
                             self.builder.length_constant(array.contents.len() as u128);
@@ -202,7 +214,7 @@ impl<'a> FunctionContext<'a> {
                         Tree::Branch(vec![slice_length.into(), slice_contents])
                     }
                     _ => unreachable!(
-                        "ICE: array literal type must be an array or a slice, but got {}",
+                        "ICE: unexpected slice literal type, got {}",
                         array.typ
                     ),
                 })
