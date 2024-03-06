@@ -38,7 +38,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
-    FunctionReturnType, Generics, LValue, ModuleVisibility, NoirStruct, NoirTypeAlias, Param, Path,
+    FunctionReturnType, Generics, ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path,
     PathKind, Pattern, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind,
     UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression, Visibility, ERROR_IDENT,
@@ -236,8 +236,8 @@ impl<'a> Resolver<'a> {
             is_open: false,
             is_internal: false,
             is_unconstrained: false,
-            visibility: ModuleVisibility::Public, // Trait functions are always public
-            generics: Vec::new(),                 // self.generics should already be set
+            visibility: ItemVisibility::Public, // Trait functions are always public
+            generics: Vec::new(),               // self.generics should already be set
             parameters: vecmap(parameters, |(name, typ)| Param {
                 visibility: Visibility::Private,
                 pattern: Pattern::Identifier(name.clone()),
@@ -1315,7 +1315,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         func: FuncId,
         span: Span,
-        visibility: ModuleVisibility,
+        visibility: ItemVisibility,
     ) {
         let function_module = self.interner.function_module(func);
         let current_module = self.path_resolver.module_id();
@@ -1325,8 +1325,8 @@ impl<'a> Resolver<'a> {
         let current_module = current_module.local_id;
         let name = self.interner.function_name(&func).to_string();
         match visibility {
-            ModuleVisibility::Public => (),
-            ModuleVisibility::Private => {
+            ItemVisibility::Public => (),
+            ItemVisibility::Private => {
                 if !same_crate
                     || !self.module_descendent_of_target(
                         krate,
@@ -1337,7 +1337,7 @@ impl<'a> Resolver<'a> {
                     self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
                 }
             }
-            ModuleVisibility::PublicCrate => {
+            ItemVisibility::PublicCrate => {
                 if !same_crate {
                     self.errors.push(ResolverError::NonCrateFunctionCalled { span, name });
                 }
@@ -1446,8 +1446,7 @@ impl<'a> Resolver<'a> {
                                     self.interner.add_function_dependency(current_item, id);
                                 }
 
-                                if self.interner.function_visibility(id) != ModuleVisibility::Public
-                                {
+                                if self.interner.function_visibility(id) != ItemVisibility::Public {
                                     let span = hir_ident.location.span;
                                     self.check_can_reference_function(
                                         id,

@@ -21,7 +21,7 @@ use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 use noirc_frontend::macros_api::{ModuleDefId, NodeInterner, SortedModule, StructId};
 use noirc_frontend::node_interner::{FuncId, TraitId, TraitImplId, TraitImplKind};
 use noirc_frontend::{
-    BinaryOpKind, ConstrainKind, ConstrainStatement, InfixExpression, Lambda, ModuleVisibility,
+    BinaryOpKind, ConstrainKind, ConstrainStatement, InfixExpression, ItemVisibility, Lambda,
 };
 pub struct AztecMacro;
 
@@ -1101,7 +1101,7 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
         &return_type,
     );
 
-    selector_fn_def.visibility = ModuleVisibility::Public;
+    selector_fn_def.visibility = ItemVisibility::Public;
 
     // Seems to be necessary on contract modules
     selector_fn_def.return_visibility = Visibility::Public;

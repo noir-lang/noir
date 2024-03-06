@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
 use crate::{
-    Distinctness, Ident, ModuleVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
+    Distinctness, Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
@@ -378,7 +378,7 @@ pub struct FunctionDefinition {
     pub is_unconstrained: bool,
 
     /// Indicate if this function was defined with the 'pub' keyword
-    pub visibility: ModuleVisibility,
+    pub visibility: ItemVisibility,
 
     pub generics: UnresolvedGenerics,
     pub parameters: Vec<Param>,
@@ -677,7 +677,7 @@ impl FunctionDefinition {
             is_open: false,
             is_internal: false,
             is_unconstrained: false,
-            visibility: ModuleVisibility::Private,
+            visibility: ItemVisibility::Private,
             generics: generics.clone(),
             parameters: p,
             body: body.clone(),

@@ -28,7 +28,7 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    BinaryOpKind, ContractFunctionType, FunctionDefinition, Generics, ModuleVisibility, Shared,
+    BinaryOpKind, ContractFunctionType, FunctionDefinition, Generics, ItemVisibility, Shared,
     TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
@@ -236,7 +236,7 @@ pub struct FunctionModifiers {
     pub name: String,
 
     /// Whether the function is `pub` or not.
-    pub visibility: ModuleVisibility,
+    pub visibility: ItemVisibility,
 
     pub attributes: Attributes,
 
@@ -259,7 +259,7 @@ impl FunctionModifiers {
     pub fn new() -> Self {
         Self {
             name: String::new(),
-            visibility: ModuleVisibility::Public,
+            visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
             is_internal: None,
@@ -799,7 +799,7 @@ impl NodeInterner {
     ///
     /// The underlying function_visibilities map is populated during def collection,
     /// so this function can be called anytime afterward.
-    pub fn function_visibility(&self, func: FuncId) -> ModuleVisibility {
+    pub fn function_visibility(&self, func: FuncId) -> ItemVisibility {
         self.function_modifiers[&func].visibility
     }
 

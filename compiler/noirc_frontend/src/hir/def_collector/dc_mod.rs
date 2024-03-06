@@ -394,7 +394,7 @@ impl<'a> ModCollector<'a> {
 
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
-                            visibility: crate::ModuleVisibility::Public,
+                            visibility: crate::ItemVisibility::Public,
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
                             is_unconstrained: false,
