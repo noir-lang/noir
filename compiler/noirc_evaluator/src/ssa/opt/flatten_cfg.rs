@@ -477,7 +477,7 @@ impl<'f> Context<'f> {
         let else_args =
             self.inserter.function.dfg[else_branch.last_block].terminator_arguments().to_vec();
 
-        let params = self.inserter.function.dfg.block_parameters(destination);
+        let params = self.inserter.function.dfg.block_parameters(destination).to_vec();
         assert_eq!(params.len(), then_args.len());
         assert_eq!(params.len(), else_args.len());
 
@@ -487,8 +487,8 @@ impl<'f> Context<'f> {
 
         let block = self.inserter.function.entry_block();
 
-        // Make sure we have tracked the slice capacities of any block arguments
         let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+        // Make sure we have tracked the slice capacities of any block arguments
         for (then_arg, else_arg) in args.iter() {
             capacity_tracker.compute_slice_capacity(*then_arg, &mut self.slice_sizes);
             capacity_tracker.compute_slice_capacity(*else_arg, &mut self.slice_sizes);
@@ -506,6 +506,18 @@ impl<'f> Context<'f> {
                 else_arg,
             )
         });
+
+        // We need a fresh `SliceCapacityTracker` as we borrow a mutable `DataFlowGraph` to perform a value merger
+        let capacity_tracker = SliceCapacityTracker::new(&self.inserter.function.dfg);
+        // For not yet inlined blocks instructions will still use the original `ValueId`.
+        // If we do not update the old parameter we will hit a panic when trying to process an instruction
+        // that uses the old parameter.
+        for (old_param, new_param) in params.iter().zip(args.iter()) {
+            capacity_tracker.compute_slice_capacity(*new_param, &mut self.slice_sizes);
+            if let Some(new_capacity) = self.slice_sizes.get(new_param) {
+                self.slice_sizes.insert(*old_param, *new_capacity);
+            }
+        }
 
         self.merge_stores(then_branch, else_branch);
 
@@ -615,7 +627,7 @@ impl<'f> Context<'f> {
     /// Expects that the `arguments` given are already translated via self.inserter.resolve.
     /// If they are not, it is possible some values which no longer exist, such as block
     /// parameters, will be kept in the program.
-    fn inline_block(&mut self, destination: BasicBlockId, arguments: &[ValueId]) -> BasicBlockId {
+    fn inline_block(&mut self, destination: BasicBlockId, arguments: &[ValueId]) -> BasicBlockId {        
         self.inserter.remember_block_params(destination, arguments);
 
         // If this is not a separate variable, clippy gets confused and says the to_vec is
