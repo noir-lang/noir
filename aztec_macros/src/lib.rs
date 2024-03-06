@@ -20,7 +20,9 @@ use noirc_frontend::macros_api::{CrateId, FileId};
 use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 use noirc_frontend::macros_api::{ModuleDefId, NodeInterner, SortedModule, StructId};
 use noirc_frontend::node_interner::{FuncId, TraitId, TraitImplId, TraitImplKind};
-use noirc_frontend::{BinaryOpKind, ConstrainKind, ConstrainStatement, InfixExpression, Lambda, ModuleVisibility};
+use noirc_frontend::{
+    BinaryOpKind, ConstrainKind, ConstrainStatement, InfixExpression, Lambda, ModuleVisibility,
+};
 pub struct AztecMacro;
 
 impl MacroProcessor for AztecMacro {
