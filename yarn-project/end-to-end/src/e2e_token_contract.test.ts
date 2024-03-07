@@ -101,30 +101,22 @@ describe('e2e_token_contract', () => {
     });
 
     describe('name', () => {
-      it('private', async () => {
-        const t = toString(await asset.methods.un_get_name().view());
-        expect(t).toBe(TOKEN_NAME);
-
-        const tx = reader.methods.check_name_private(asset.address, TOKEN_NAME).send();
-        const receipt = await tx.wait();
-        expect(receipt.status).toBe(TxStatus.MINED);
-
-        await expect(reader.methods.check_name_private(asset.address, 'WRONG_NAME').simulate()).rejects.toThrowError(
-          "Cannot satisfy constraint 'name.is_eq(_what)'",
-        );
-      });
-
-      it('public', async () => {
-        const t = toString(await asset.methods.un_get_name().view());
-        expect(t).toBe(TOKEN_NAME);
-
-        const tx = reader.methods.check_name_public(asset.address, TOKEN_NAME).send();
-        const receipt = await tx.wait();
-        expect(receipt.status).toBe(TxStatus.MINED);
-
-        await expect(reader.methods.check_name_public(asset.address, 'WRONG_NAME').simulate()).rejects.toThrowError(
+      it.each([
+        ['private', 'check_name_private' as const, "Cannot satisfy constraint 'name.is_eq(_what)'"],
+        [
+          'public',
+          'check_name_public' as const,
           "Failed to solve brillig function, reason: explicit trap hit in brillig 'name.is_eq(_what)'",
-        );
+        ],
+      ])('name - %s', async (_type, method, errorMessage) => {
+        const t = toString(await asset.methods.un_get_name().view());
+        expect(t).toBe(TOKEN_NAME);
+
+        const tx = reader.methods[method](asset.address, TOKEN_NAME).send();
+        const receipt = await tx.wait();
+        expect(receipt.status).toBe(TxStatus.MINED);
+
+        await expect(reader.methods[method](asset.address, 'WRONG_NAME').simulate()).rejects.toThrow(errorMessage);
       });
     });
 

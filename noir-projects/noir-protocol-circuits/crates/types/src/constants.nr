@@ -168,7 +168,7 @@ global PRIVATE_CALL_STACK_ITEM_LENGTH: u64 = 223;
 // constant as well PRIVATE_CALL_STACK_ITEM_LENGTH
 global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 218;
 // Change this ONLY if you have changed the PublicCircuitPublicInputs structure.
-global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 194;
+global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 195;
 global STATE_REFERENCE_LENGTH: u64 = 10; // 2 for snap + 8 for partial
 global TX_CONTEXT_DATA_LENGTH: u64 = 11;
 global TX_REQUEST_LENGTH: u64 = 17;

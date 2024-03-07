@@ -574,7 +574,7 @@ export const uniswapL1L2TestSuite = (
       await ownerWallet.setPublicAuth(swapMessageHash, true).send().wait();
 
       // Swap!
-      await expect(action.simulate()).rejects.toThrowError(
+      await expect(action.simulate()).rejects.toThrow(
         "Assertion failed: Message not authorized by account 'is_valid == true'",
       );
     });

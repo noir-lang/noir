@@ -93,4 +93,8 @@ export class PublicDataWrite {
   static random(): PublicDataWrite {
     return new PublicDataWrite(Fr.random(), Fr.random());
   }
+
+  static isEmpty(data: PublicDataWrite): boolean {
+    return data.isEmpty();
+  }
 }

@@ -52,6 +52,7 @@ import {
   SequencerClient,
   WASMSimulator,
   getGlobalVariableBuilder,
+  partitionReverts,
 } from '@aztec/sequencer-client';
 import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 import {
@@ -609,9 +610,15 @@ export class AztecNodeService implements AztecNode {
       new WASMSimulator(),
     );
     const processor = await publicProcessorFactory.create(prevHeader, newGlobalVariables);
-    const [, failedTxs] = await processor.process([tx]);
+    const [processedTxs, failedTxs] = await processor.process([tx]);
     if (failedTxs.length) {
+      this.log.warn(`Simulated tx ${tx.getTxHash()} fails: ${failedTxs[0].error}`);
       throw failedTxs[0].error;
+    }
+    const { reverted } = partitionReverts(processedTxs);
+    if (reverted.length) {
+      this.log.warn(`Simulated tx ${tx.getTxHash()} reverts: ${reverted[0].revertReason}`);
+      throw reverted[0].revertReason;
     }
     this.log.info(`Simulated tx ${tx.getTxHash()} succeeds`);
   }

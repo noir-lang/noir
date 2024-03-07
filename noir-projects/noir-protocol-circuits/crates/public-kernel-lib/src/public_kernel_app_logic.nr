@@ -2,6 +2,7 @@ use dep::types::abis::public_call_data::PublicCallData;
 use dep::types::abis::kernel_data::{PublicKernelData};
 use dep::types::PublicKernelCircuitPublicInputs;
 use dep::types::abis::kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder;
+use dep::types::utils::arrays::array_to_bounded_vec;
 use crate::common;
 use dep::std::unsafe;
 
@@ -22,6 +23,7 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
     fn public_kernel_app_logic(self) -> PublicKernelCircuitPublicInputs {
         // construct the circuit outputs
         let mut public_inputs: PublicKernelCircuitPublicInputsBuilder = unsafe::zeroed();
+        common::initialize_reverted_flag(self.previous_kernel, self.public_call, &mut public_inputs);
 
         // initialise the end state with our provided previous kernel state
         common::initialize_end_values(self.previous_kernel, &mut public_inputs);
@@ -32,18 +34,31 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
         // validate the inputs unique to having a previous public kernel
         self.validate_inputs();
 
-        // Pops the item from the call stack and validates it against the current execution.
-        let call_request = public_inputs.end.public_call_stack.pop();
-        common::validate_call_against_request(self.public_call, call_request);
-
-        common::update_public_end_values(self.public_call, &mut public_inputs);
-
-        common::accumulate_unencrypted_logs(
-            self.public_call,
-            self.previous_kernel.public_inputs.end.unencrypted_logs_hash,
-            self.previous_kernel.public_inputs.end.unencrypted_log_preimages_length,
-            &mut public_inputs
-        );
+        if public_inputs.reverted == false {
+            // Pops the item from the call stack and validates it against the current execution.
+            let call_request = public_inputs.end.public_call_stack.pop();
+            common::validate_call_against_request(self.public_call, call_request);
+            common::update_public_end_values(self.public_call, &mut public_inputs);
+            common::accumulate_unencrypted_logs(
+                self.public_call,
+                self.previous_kernel.public_inputs.end.unencrypted_logs_hash,
+                self.previous_kernel.public_inputs.end.unencrypted_log_preimages_length,
+                &mut public_inputs
+            );
+        } else {
+            let mut remaining_calls = array_to_bounded_vec(self.previous_kernel.public_inputs.end.public_call_stack);
+            let reverted_call_request = remaining_calls.pop();
+            // even though we reverted, we still need to make sure the correct call was made
+            // but don't do the full `validate_call_against_request` because 
+            // that makes a bunch of assertions that we don't want to make
+            // e.g. that msg_sender is self in the case of internal.
+            // We don't want to make those checks because we already know we reverted,
+            // and we aren't updating the public end values, so we want this kernel circuit to solve.
+            // So just check that the call request is the same as the one we expected.
+            assert(
+                reverted_call_request.hash == self.public_call.call_stack_item.hash(), "calculated public_kernel_inputs_hash does not match provided public_kernel_inputs_hash at the top of the call stack"
+            );
+        }
 
         public_inputs.to_inner()
     }

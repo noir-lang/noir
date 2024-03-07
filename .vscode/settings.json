@@ -126,7 +126,9 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   // Now when a new file is pasted in /yellow-paper/docs/readme.md, the image file is created at /yellow-paper/docs/images/readme/image.png.
-  "markdown.copyFiles.destination": {"/yellow-paper/**/*": "images/${documentBaseName}/"},
+  "markdown.copyFiles.destination": {
+    "/yellow-paper/**/*": "images/${documentBaseName}/"
+  },
   ///////////////////////////////////////
   // C++/Circuits settings
   ///////////////////////////////////////
@@ -153,11 +155,9 @@
   "C_Cpp.default.enableConfigurationSquiggles": false,
   "C_Cpp.formatting": "disabled",
   "C_Cpp.vcpkg.enabled": false,
-  "C_Cpp.default.includePath": [
-    "barretenberg/cpp/src"
-  ],
+  "C_Cpp.default.includePath": ["barretenberg/cpp/src"],
   "rust-analyzer.linkedProjects": [
     "noir/noir-repo/Cargo.toml",
     "avm-transpiler/Cargo.toml"
-  ] 
+  ]
 }

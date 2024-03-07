@@ -1,5 +1,7 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { inspect } from 'util';
+
 import { AggregationObject } from '../aggregation_object.js';
 import {
   CombinedAccumulatedData,
@@ -44,6 +46,10 @@ export class PublicKernelCircuitPublicInputs {
      * Indicates whether the teardown kernel is needed.
      */
     public needsTeardown: boolean,
+    /**
+     * Indicates whether execution of the public circuit reverted.
+     */
+    public reverted: boolean,
   ) {}
 
   toBuffer() {
@@ -55,12 +61,17 @@ export class PublicKernelCircuitPublicInputs {
       this.needsSetup,
       this.needsAppLogic,
       this.needsTeardown,
+      this.reverted,
     );
   }
 
   get combinedData() {
+    if (this.needsSetup || this.needsAppLogic || this.needsTeardown) {
+      throw new Error('Cannot combine data when the circuit is not finished');
+    }
+
     if (!this.combined) {
-      this.combined = CombinedAccumulatedData.recombine(this.endNonRevertibleData, this.end);
+      this.combined = CombinedAccumulatedData.recombine(this.endNonRevertibleData, this.end, this.reverted);
     }
     return this.combined;
   }
@@ -80,6 +91,7 @@ export class PublicKernelCircuitPublicInputs {
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readBoolean(),
+      reader.readBoolean(),
     );
   }
 
@@ -89,9 +101,23 @@ export class PublicKernelCircuitPublicInputs {
       PublicAccumulatedNonRevertibleData.empty(),
       PublicAccumulatedRevertibleData.empty(),
       CombinedConstantData.empty(),
-      true,
-      true,
-      true,
+      false,
+      false,
+      false,
+      false,
     );
+  }
+
+  [inspect.custom]() {
+    return `PublicKernelCircuitPublicInputs {
+      aggregationObject: ${this.aggregationObject},
+      endNonRevertibleData: ${inspect(this.endNonRevertibleData)},
+      end: ${inspect(this.end)},
+      constants: ${this.constants},
+      needsSetup: ${this.needsSetup},
+      needsAppLogic: ${this.needsAppLogic},
+      needsTeardown: ${this.needsTeardown},
+      reverted: ${this.reverted}
+      }`;
   }
 }

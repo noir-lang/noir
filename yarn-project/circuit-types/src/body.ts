@@ -6,6 +6,8 @@ import { sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { inspect } from 'util';
+
 export class Body {
   constructor(
     public l1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
@@ -32,6 +34,16 @@ export class Body {
       padArrayEnd(l1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP),
       reader.readVector(TxEffect),
     );
+  }
+
+  [inspect.custom]() {
+    // print non empty l2ToL1Messages and txEffects
+    const l1ToL2Messages = this.l1ToL2Messages.filter(h => !h.isZero());
+
+    return `Body {
+  l1ToL2Messages: ${inspect(l1ToL2Messages)},
+  txEffects: ${inspect(this.txEffects)},
+}`;
   }
 
   /**

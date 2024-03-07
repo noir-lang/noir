@@ -10,6 +10,7 @@ import {
 } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
+import { createSimulationError } from '../common/errors.js';
 import { PublicExecution, PublicExecutionResult } from '../public/execution.js';
 import { AvmExecutionEnvironment } from './avm_execution_environment.js';
 import { AvmContractCallResults } from './avm_message_call_result.js';
@@ -105,5 +106,7 @@ export function temporaryConvertAvmResults(
     returnValues,
     nestedExecutions,
     unencryptedLogs,
+    reverted: result.reverted,
+    revertReason: result.revertReason ? createSimulationError(result.revertReason) : undefined,
   };
 }

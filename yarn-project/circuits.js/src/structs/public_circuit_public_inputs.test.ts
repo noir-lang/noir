@@ -35,6 +35,6 @@ describe('PublicCircuitPublicInputs', () => {
     expect(hash).toMatchSnapshot();
 
     // Value used in empty_hash test in public_circuit_public_inputs.nr
-    // console.log("hash", hash.toString());
+    // console.log('hash', hash.toString());
   });
 });

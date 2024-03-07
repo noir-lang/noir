@@ -1,4 +1,4 @@
-import { Body, ContractData, L2Block, MerkleTreeId, PublicDataWrite, TxEffect, TxL2Logs } from '@aztec/circuit-types';
+import { Body, L2Block, MerkleTreeId, TxEffect } from '@aztec/circuit-types';
 import { CircuitSimulationStats } from '@aztec/circuit-types/stats';
 import {
   ARCHIVE_HEIGHT,
@@ -7,13 +7,10 @@ import {
   BaseRollupInputs,
   CONTRACT_SUBTREE_HEIGHT,
   CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
-  CombinedAccumulatedData,
   ConstantRollupData,
   GlobalVariables,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
-  MAX_NEW_CONTRACTS_PER_TX,
-  MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
@@ -40,8 +37,6 @@ import {
   RollupTypes,
   RootRollupInputs,
   RootRollupPublicInputs,
-  SideEffect,
-  SideEffectLinkedToNoteHash,
   StateDiffHints,
   StateReference,
   VK_TREE_HEIGHT,
@@ -57,10 +52,11 @@ import { elapsed } from '@aztec/foundation/timer';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
 import chunk from 'lodash.chunk';
+import { inspect } from 'util';
 
 import { VerificationKeys } from '../mocks/verification_keys.js';
 import { RollupProver } from '../prover/index.js';
-import { ProcessedTx } from '../sequencer/processed_tx.js';
+import { ProcessedTx, toTxEffect } from '../sequencer/processed_tx.js';
 import { RollupSimulator } from '../simulator/index.js';
 import { BlockBuilder } from './index.js';
 import { TreeNames } from './types.js';
@@ -107,30 +103,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     const [circuitsOutput, proof] = await this.runCircuits(globalVariables, txs, newL1ToL2Messages);
 
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
-    const txEffects: TxEffect[] = txs.map(
-      tx =>
-        new TxEffect(
-          tx.data.combinedData.newNoteHashes.map((c: SideEffect) => c.value) as Tuple<
-            Fr,
-            typeof MAX_NEW_NOTE_HASHES_PER_TX
-          >,
-          tx.data.combinedData.newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value) as Tuple<
-            Fr,
-            typeof MAX_NEW_NULLIFIERS_PER_TX
-          >,
-          tx.data.combinedData.newL2ToL1Msgs,
-          tx.data.combinedData.publicDataUpdateRequests.map(t => new PublicDataWrite(t.leafSlot, t.newValue)) as Tuple<
-            PublicDataWrite,
-            typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
-          >,
-          tx.data.combinedData.newContracts.map(cd => cd.hash()) as Tuple<Fr, typeof MAX_NEW_CONTRACTS_PER_TX>,
-          tx.data.combinedData.newContracts.map(
-            cd => new ContractData(cd.contractAddress, cd.portalContractAddress),
-          ) as Tuple<ContractData, typeof MAX_NEW_CONTRACTS_PER_TX>,
-          tx.encryptedLogs || new TxL2Logs([]),
-          tx.unencryptedLogs || new TxL2Logs([]),
-        ),
-    );
+    const txEffects: TxEffect[] = txs.map(tx => toTxEffect(tx));
 
     const blockBody = new Body(padArrayEnd(newL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP), txEffects);
 
@@ -141,6 +114,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     });
 
     if (!l2Block.body.getTxsEffectsHash().equals(circuitsOutput.header.contentCommitment.txsEffectsHash)) {
+      this.debug(inspect(blockBody));
       throw new Error(
         `Txs effects hash mismatch, ${l2Block.body
           .getTxsEffectsHash()
@@ -479,7 +453,7 @@ export class SoloBlockBuilder implements BlockBuilder {
   protected getKernelDataFor(tx: ProcessedTx): RollupKernelData {
     const inputs = new RollupKernelCircuitPublicInputs(
       tx.data.aggregationObject,
-      CombinedAccumulatedData.recombine(tx.data.endNonRevertibleData, tx.data.end),
+      tx.data.combinedData,
       tx.data.constants,
     );
     return new RollupKernelData(

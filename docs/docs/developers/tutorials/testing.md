@@ -130,18 +130,16 @@ Keep in mind that public function calls behave as in EVM blockchains, in that th
 
 #### A public call fails on the sequencer
 
-We can ignore a local simulation error for a public function via the `skipPublicSimulation`. This will submit a failing call to the sequencer, who will then reject it and drop the transaction.
+We can ignore a local simulation error for a public function via the `skipPublicSimulation`. This will submit a failing call to the sequencer, who will include the transaction, but without any side effects from our application logic.
 
-#include_code pub-dropped /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
-
-If you run the snippet above, you'll see the following error in the Sandbox logs:
+#include_code pub-reverted /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
 
 ```
 WARN Error processing tx 06dc87c4d64462916ea58426ffcfaf20017880b353c9ec3e0f0ee5fab3ea923f: Assertion failed: Balance too low.
 ```
 
 :::info
-In the near future, transactions where a public function call fails will get mined but flagged as reverted, instead of dropped.
+Presently, the transaction is included, but no additional information is included in the block to mark it as reverted. This will change in the near future.
 :::
 
 ### State

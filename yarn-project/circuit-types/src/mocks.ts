@@ -31,12 +31,12 @@ export function makeEmptyLogs(): TxL2Logs {
 
 export const randomTxHash = (): TxHash => new TxHash(randomBytes(32));
 
-export const mockTx = (seed = 1) => {
+export const mockTx = (seed = 1, logs = true) => {
   const tx = new Tx(
     makePrivateKernelTailCircuitPublicInputs(seed),
     new Proof(Buffer.alloc(0)),
-    TxL2Logs.random(8, 3), // 8 priv function invocations creating 3 encrypted logs each
-    TxL2Logs.random(11, 2), // 8 priv + 3 pub function invocations creating 2 unencrypted logs each
+    logs ? TxL2Logs.random(8, 3) : TxL2Logs.empty(), // 8 priv function invocations creating 3 encrypted logs each
+    logs ? TxL2Logs.random(11, 2) : TxL2Logs.empty(), // 8 priv + 3 pub function invocations creating 2 unencrypted logs each
     times(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makePublicCallRequest),
     times(MAX_NEW_CONTRACTS_PER_TX, () => ExtendedContractData.random()) as Tuple<
       ExtendedContractData,

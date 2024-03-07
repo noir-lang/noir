@@ -35,7 +35,8 @@ struct PreviousKernelDataBuilder {
     vk_index: u32,
     vk_path: [Field; VK_TREE_HEIGHT],
     sideffect_counter: u32,
-    min_revertible_side_effect_counter: u32
+    min_revertible_side_effect_counter: u32,
+    reverted: bool
 }
 
 impl PreviousKernelDataBuilder {
@@ -69,7 +70,8 @@ impl PreviousKernelDataBuilder {
             vk_index: 0,
             vk_path: [0; VK_TREE_HEIGHT],
             sideffect_counter: 2,
-            min_revertible_side_effect_counter: 2
+            min_revertible_side_effect_counter: 2,
+            reverted: false
         }
     }
 
@@ -144,6 +146,11 @@ impl PreviousKernelDataBuilder {
         first_nullifier + nullifier_index as Field
     }
 
+    fn get_mock_nullifier_value_non_revertible(self, nullifier_index: u64) -> Field {
+        let first_nullifier = self.end_non_revertible.new_nullifiers.get(0);
+        first_nullifier.value + nullifier_index as Field
+    }
+
     pub fn append_new_nullifiers_from_private(&mut self, num_extra_nullifier: u64) {
         // in private kernel, the nullifiers have not yet been partitioned
         // (that is part of the job of the private kernel tail)
@@ -169,7 +176,7 @@ impl PreviousKernelDataBuilder {
             if i <= num_extra_nullifier {
                 self.end.new_nullifiers.push(
                     SideEffectLinkedToNoteHash {
-                    value: self.get_mock_nullifier_value(index_offset + i),
+                    value: self.get_mock_nullifier_value_non_revertible(index_offset + i),
                     note_hash: 0,
                     counter: self.next_sideffect_counter()
                 }
@@ -292,7 +299,8 @@ impl PreviousKernelDataBuilder {
             constants: CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context },
             needs_setup: end_non_revertible.needs_setup(),
             needs_app_logic: end.needs_app_logic(),
-            needs_teardown: end_non_revertible.needs_teardown()
+            needs_teardown: end_non_revertible.needs_teardown(),
+            reverted: self.reverted
         };
 
         PublicKernelData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }

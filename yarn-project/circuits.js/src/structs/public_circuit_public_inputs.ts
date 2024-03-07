@@ -87,6 +87,11 @@ export class PublicCircuitPublicInputs {
      * Address of the prover.
      */
     public proverAddress: AztecAddress,
+
+    /**
+     * Flag indicating if the call was reverted.
+     */
+    public reverted: boolean,
   ) {}
 
   /**
@@ -117,6 +122,7 @@ export class PublicCircuitPublicInputs {
       Fr.ZERO,
       Header.empty(),
       AztecAddress.ZERO,
+      false,
     );
   }
 
@@ -138,7 +144,8 @@ export class PublicCircuitPublicInputs {
       isFrArrayEmpty(this.unencryptedLogsHash) &&
       this.unencryptedLogPreimagesLength.isZero() &&
       this.historicalHeader.isEmpty() &&
-      this.proverAddress.isZero()
+      this.proverAddress.isZero() &&
+      this.reverted === false
     );
   }
 
@@ -162,6 +169,7 @@ export class PublicCircuitPublicInputs {
       fields.unencryptedLogPreimagesLength,
       fields.historicalHeader,
       fields.proverAddress,
+      fields.reverted,
     ] as const;
   }
 
@@ -204,6 +212,7 @@ export class PublicCircuitPublicInputs {
       reader.readObject(Fr),
       reader.readObject(Header),
       reader.readObject(AztecAddress),
+      reader.readBoolean(),
     );
   }
 
@@ -224,6 +233,7 @@ export class PublicCircuitPublicInputs {
       reader.readField(),
       Header.fromFields(reader),
       AztecAddress.fromFields(reader),
+      reader.readBoolean(),
     );
   }
 

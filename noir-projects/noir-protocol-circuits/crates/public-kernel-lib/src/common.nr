@@ -39,6 +39,14 @@ pub fn validate_inputs(public_call: PublicCallData) {
     assert(public_call.bytecode_hash != 0, "Bytecode hash cannot be zero");
 }
 
+pub fn initialize_reverted_flag(
+    previous_kernel: PublicKernelData,
+    public_call: PublicCallData,
+    circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
+) {
+    circuit_outputs.reverted = previous_kernel.public_inputs.reverted | public_call.call_stack_item.public_inputs.reverted;
+}
+
 pub fn initialize_end_values(
     previous_kernel: PublicKernelData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
@@ -50,21 +58,23 @@ pub fn initialize_end_values(
     // functions within this circuit:
     let start = previous_kernel.public_inputs.end;
 
-    circuit_outputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
-    circuit_outputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
+    if circuit_outputs.reverted == false {
+        circuit_outputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
+        circuit_outputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
 
-    circuit_outputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack);
-    circuit_outputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
-    circuit_outputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs);
+        circuit_outputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack);
+        circuit_outputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
+        circuit_outputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs);
 
-    circuit_outputs.end.public_data_update_requests = array_to_bounded_vec(start.public_data_update_requests);
-    circuit_outputs.end.public_data_reads = array_to_bounded_vec(start.public_data_reads);
+        circuit_outputs.end.public_data_update_requests = array_to_bounded_vec(start.public_data_update_requests);
+        circuit_outputs.end.public_data_reads = array_to_bounded_vec(start.public_data_reads);
 
-    // Public kernel does not modify encrypted logs values --> we just copy them to output
-    circuit_outputs.end.encrypted_logs_hash = start.encrypted_logs_hash;
-    circuit_outputs.end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
+        // Public kernel does not modify encrypted logs values --> we just copy them to output
+        circuit_outputs.end.encrypted_logs_hash = start.encrypted_logs_hash;
+        circuit_outputs.end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
 
-    circuit_outputs.end.new_contracts = array_to_bounded_vec(previous_kernel.public_inputs.end.new_contracts);
+        circuit_outputs.end.new_contracts = array_to_bounded_vec(previous_kernel.public_inputs.end.new_contracts);
+    }
 
     let start_non_revertible = previous_kernel.public_inputs.end_non_revertible;
     circuit_outputs.end_non_revertible.new_note_hashes = array_to_bounded_vec(start_non_revertible.new_note_hashes);

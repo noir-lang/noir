@@ -1,13 +1,10 @@
 import {
   Body,
-  ContractData,
   ExtendedContractData,
   L2Block,
   MerkleTreeId,
-  PublicDataWrite,
   Tx,
   TxEffect,
-  TxL2Logs,
   makeEmptyLogs,
   mockTx,
 } from '@aztec/circuit-types';
@@ -19,15 +16,12 @@ import {
   Fr,
   GlobalVariables,
   Header,
-  MAX_NEW_CONTRACTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-  MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX,
   MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
   MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
   MAX_REVERTIBLE_NULLIFIERS_PER_TX,
   MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
@@ -40,7 +34,6 @@ import {
   PublicDataUpdateRequest,
   PublicKernelCircuitPublicInputs,
   RootRollupPublicInputs,
-  SideEffect,
   SideEffectLinkedToNoteHash,
   StateReference,
 } from '@aztec/circuits.js';
@@ -58,10 +51,11 @@ import {
 import { makeTuple, range } from '@aztec/foundation/array';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { padArrayEnd, times } from '@aztec/foundation/collection';
-import { Tuple, to2Fields } from '@aztec/foundation/serialize';
+import { to2Fields } from '@aztec/foundation/serialize';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
+import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { type MemDown, default as memdown } from 'memdown';
 
@@ -72,6 +66,7 @@ import {
   ProcessedTx,
   makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricalTreeRoots,
   makeProcessedTx,
+  toTxEffect,
 } from '../sequencer/processed_tx.js';
 import { WASMSimulator } from '../simulator/acvm_wasm.js';
 import { RollupSimulator } from '../simulator/index.js';
@@ -206,6 +201,9 @@ describe('sequencer/solo_block_builder', () => {
   const buildMockSimulatorInputs = async () => {
     const kernelOutput = makePrivateKernelTailCircuitPublicInputs();
     kernelOutput.constants.historicalHeader = await expectsDb.buildInitialHeader();
+    kernelOutput.needsAppLogic = false;
+    kernelOutput.needsSetup = false;
+    kernelOutput.needsTeardown = false;
 
     const tx = makeProcessedTx(
       new Tx(
@@ -223,39 +221,18 @@ describe('sequencer/solo_block_builder', () => {
     // Calculate what would be the tree roots after the first tx and update mock circuit output
     await updateExpectedTreesFromTxs([txs[0]]);
     baseRollupOutputLeft.end = await getPartialStateReference();
+    baseRollupOutputLeft.txsEffectsHash = to2Fields(toTxEffect(tx).hash());
 
     // Same for the tx on the right
     await updateExpectedTreesFromTxs([txs[1]]);
     baseRollupOutputRight.end = await getPartialStateReference();
+    baseRollupOutputRight.txsEffectsHash = to2Fields(toTxEffect(tx).hash());
 
     // Update l1 to l2 message tree
     await updateL1ToL2MessageTree(mockL1ToL2Messages);
 
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
-    const txEffects: TxEffect[] = txs.map(
-      tx =>
-        new TxEffect(
-          tx.data.combinedData.newNoteHashes.map((c: SideEffect) => c.value) as Tuple<
-            Fr,
-            typeof MAX_NEW_NOTE_HASHES_PER_TX
-          >,
-          tx.data.combinedData.newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value) as Tuple<
-            Fr,
-            typeof MAX_NEW_NULLIFIERS_PER_TX
-          >,
-          tx.data.combinedData.newL2ToL1Msgs,
-          tx.data.combinedData.publicDataUpdateRequests.map(t => new PublicDataWrite(t.leafSlot, t.newValue)) as Tuple<
-            PublicDataWrite,
-            typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
-          >,
-          tx.data.combinedData.newContracts.map(cd => cd.hash()) as Tuple<Fr, typeof MAX_NEW_CONTRACTS_PER_TX>,
-          tx.data.combinedData.newContracts.map(
-            cd => new ContractData(cd.contractAddress, cd.portalContractAddress),
-          ) as Tuple<ContractData, typeof MAX_NEW_CONTRACTS_PER_TX>,
-          tx.encryptedLogs || new TxL2Logs([]),
-          tx.unencryptedLogs || new TxL2Logs([]),
-        ),
-    );
+    const txEffects: TxEffect[] = txs.map(tx => toTxEffect(tx));
 
     const body = new Body(padArrayEnd(mockL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP), txEffects);
     // We are constructing the block here just to get body hash/calldata hash so we can pass in an empty archive and header
@@ -278,9 +255,21 @@ describe('sequencer/solo_block_builder', () => {
   };
 
   describe('mock simulator', () => {
+    beforeAll(() => {
+      jest.spyOn(TxEffect.prototype, 'hash').mockImplementation(() => {
+        return Buffer.alloc(32, 0);
+      });
+    });
+
+    afterAll(() => {
+      jest.restoreAllMocks();
+    });
+
     beforeEach(() => {
       // Create instance to test
       builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
+      // since we now assert on the hash of the tx effect while running the base rollup,
+      // we need to mock the hash function to return a constant value
     });
 
     it('builds an L2 block using mock simulator', async () => {

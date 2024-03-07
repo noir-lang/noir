@@ -27,34 +27,20 @@ export class SetupPhaseManager extends AbstractPhaseManager {
     super(db, publicExecutor, publicKernel, publicProver, globalVariables, historicalHeader, phase);
   }
 
-  // this is a no-op for now
-  async handle(
+  override async handle(
     tx: Tx,
     previousPublicKernelOutput: PublicKernelCircuitPublicInputs,
     previousPublicKernelProof: Proof,
-  ): Promise<{
-    /**
-     * the output of the public kernel circuit for this phase
-     */
-    publicKernelOutput: PublicKernelCircuitPublicInputs;
-    /**
-     * the proof of the public kernel circuit for this phase
-     */
-    publicKernelProof: Proof;
-  }> {
+  ) {
     this.log(`Processing tx ${tx.getTxHash()}`);
-    this.log(`Executing enqueued public calls for tx ${tx.getTxHash()}`);
-    const [publicKernelOutput, publicKernelProof, newUnencryptedFunctionLogs] = await this.processEnqueuedPublicCalls(
-      tx,
-      previousPublicKernelOutput,
-      previousPublicKernelProof,
-    );
+    const [publicKernelOutput, publicKernelProof, newUnencryptedFunctionLogs, revertReason] =
+      await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput, previousPublicKernelProof);
     tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
 
     // commit the state updates from this transaction
     await this.publicStateDB.commit();
 
-    return { publicKernelOutput, publicKernelProof };
+    return { publicKernelOutput, publicKernelProof, revertReason };
   }
 
   async rollback(tx: Tx, err: unknown): Promise<FailedTx> {

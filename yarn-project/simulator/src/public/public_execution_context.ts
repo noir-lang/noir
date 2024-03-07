@@ -211,7 +211,7 @@ export class PublicExecutionContext extends TypedOracle {
       this.log,
     );
 
-    const childExecutionResult = await executePublicFunction(context, acir);
+    const childExecutionResult = await executePublicFunction(context, acir, true /** nested */);
 
     if (isStaticCall) {
       checkValidStaticCall(

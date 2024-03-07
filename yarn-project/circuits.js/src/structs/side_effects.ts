@@ -113,6 +113,10 @@ export class SideEffectLinkedToNoteHash implements SideEffectType {
     public counter: Fr,
   ) {}
 
+  toString(): string {
+    return `value=${this.value.toString()} noteHash=${this.noteHash.toString()} counter=${this.counter.toString()}`;
+  }
+
   /**
    * Serialize this as a buffer.
    * @returns The buffer.

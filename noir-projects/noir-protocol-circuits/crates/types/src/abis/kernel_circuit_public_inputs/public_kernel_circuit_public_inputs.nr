@@ -13,4 +13,5 @@ struct PublicKernelCircuitPublicInputs {
     needs_setup: bool,
     needs_app_logic: bool,
     needs_teardown: bool,
+    reverted: bool,
 }

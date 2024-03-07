@@ -27,6 +27,7 @@ struct PublicCircuitPublicInputsBuilder {
     unencrypted_log_preimages_length: Field,
     historical_header: Header,
     prover_address: AztecAddress,
+    reverted: bool,
 }
 
 impl PublicCircuitPublicInputsBuilder {
@@ -51,7 +52,8 @@ impl PublicCircuitPublicInputsBuilder {
             unencrypted_logs_hash: self.unencrypted_logs_hash,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historical_header: self.historical_header,
-            prover_address: self.prover_address
+            prover_address: self.prover_address,
+            reverted: self.reverted
         }
     }
 }

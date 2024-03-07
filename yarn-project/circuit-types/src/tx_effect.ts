@@ -7,10 +7,12 @@ import {
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
 } from '@aztec/circuits.js';
-import { makeTuple } from '@aztec/foundation/array';
+import { assertRightPadded, makeTuple } from '@aztec/foundation/array';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';
-import { BufferReader, Tuple, serializeArrayOfBufferableToVector } from '@aztec/foundation/serialize';
+import { BufferReader, Tuple, assertLength, serializeArrayOfBufferableToVector } from '@aztec/foundation/serialize';
+
+import { inspect } from 'util';
 
 export class TxEffect {
   constructor(
@@ -97,10 +99,22 @@ export class TxEffect {
   }
 
   hash() {
+    assertLength(this.noteHashes, MAX_NEW_NOTE_HASHES_PER_TX);
+    assertRightPadded(this.noteHashes, Fr.isZero);
     const noteHashesBuffer = Buffer.concat(this.noteHashes.map(x => x.toBuffer()));
+
+    assertLength(this.nullifiers, MAX_NEW_NULLIFIERS_PER_TX);
+    assertRightPadded(this.nullifiers, Fr.isZero);
     const nullifiersBuffer = Buffer.concat(this.nullifiers.map(x => x.toBuffer()));
+
+    assertLength(this.l2ToL1Msgs, MAX_NEW_L2_TO_L1_MSGS_PER_TX);
+    assertRightPadded(this.l2ToL1Msgs, Fr.isZero);
     const newL2ToL1MsgsBuffer = Buffer.concat(this.l2ToL1Msgs.map(x => x.toBuffer()));
+
+    assertLength(this.publicDataWrites, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX);
+    assertRightPadded(this.publicDataWrites, PublicDataWrite.isEmpty);
     const publicDataUpdateRequestsBuffer = Buffer.concat(this.publicDataWrites.map(x => x.toBuffer()));
+
     const encryptedLogsHashKernel0 = this.encryptedLogs.hash();
     const unencryptedLogsHashKernel0 = this.unencryptedLogs.hash();
 
@@ -146,6 +160,21 @@ export class TxEffect {
    */
   toString(): string {
     return this.toBuffer().toString('hex');
+  }
+
+  [inspect.custom]() {
+    // print out the non-empty fields
+
+    return `TxEffect { 
+      note hashes: [${this.noteHashes.map(h => h.toString()).join(', ')}],
+      nullifiers: [${this.nullifiers.map(h => h.toString()).join(', ')}],
+      l2ToL1Msgs: [${this.l2ToL1Msgs.map(h => h.toString()).join(', ')}],
+      publicDataWrites: [${this.publicDataWrites.map(h => h.toString()).join(', ')}],
+      contractLeaves: [${this.contractLeaves.map(h => h.toString()).join(', ')}],
+      contractData: [${this.contractData.map(h => h.toString()).join(', ')}],
+      encryptedLogs: ${JSON.stringify(this.encryptedLogs.toJSON())},
+      unencryptedLogs: ${JSON.stringify(this.unencryptedLogs.toJSON())}
+     }`;
   }
 
   /**

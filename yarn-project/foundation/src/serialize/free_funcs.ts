@@ -1,4 +1,5 @@
 import { Fr } from '../fields/fields.js';
+import { Tuple } from './types.js';
 
 /**
  * Convert a boolean value to its corresponding byte representation in a Buffer of size 1.
@@ -139,9 +140,13 @@ export function from2Fields(field1: Fr, field2: Fr): Buffer {
   const buf2 = field2.toBuffer();
 
   // Remove the padding (first 16 bytes) from each buffer
-  const originalPart1 = buf1.slice(16, 32);
-  const originalPart2 = buf2.slice(16, 32);
+  const originalPart1 = buf1.subarray(Fr.SIZE_IN_BYTES / 2, Fr.SIZE_IN_BYTES);
+  const originalPart2 = buf2.subarray(Fr.SIZE_IN_BYTES / 2, Fr.SIZE_IN_BYTES);
 
   // Concatenate the two parts to form the original buffer
   return Buffer.concat([originalPart1, originalPart2]);
+}
+
+export function fromFieldsTuple(fields: Tuple<Fr, 2>): Buffer {
+  return from2Fields(fields[0], fields[1]);
 }

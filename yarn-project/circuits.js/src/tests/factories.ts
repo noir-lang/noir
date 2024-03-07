@@ -433,6 +433,7 @@ export function makePublicCircuitPublicInputs(
     fr(seed + 0x902),
     makeHeader(seed + 0xa00, undefined),
     makeAztecAddress(seed + 0xb01),
+    false, // reverted
   );
 }
 
@@ -453,6 +454,7 @@ export function makePublicKernelCircuitPublicInputs(
     true,
     true,
     true,
+    false,
   );
 }
 

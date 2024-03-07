@@ -203,6 +203,10 @@ export class Fr extends BaseField {
     return Fr.ZERO;
   }
 
+  static isZero(value: Fr) {
+    return value.isZero();
+  }
+
   static fromBuffer(buffer: Buffer | BufferReader) {
     return fromBuffer(buffer, Fr);
   }

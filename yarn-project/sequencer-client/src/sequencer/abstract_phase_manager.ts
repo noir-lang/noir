@@ -1,4 +1,4 @@
-import { FunctionL2Logs, MerkleTreeId, Tx } from '@aztec/circuit-types';
+import { FunctionL2Logs, MerkleTreeId, SimulationError, Tx } from '@aztec/circuit-types';
 import {
   AztecAddress,
   CallRequest,
@@ -21,8 +21,6 @@ import {
   MembershipWitness,
   PrivateKernelTailCircuitPublicInputs,
   Proof,
-  PublicAccumulatedNonRevertibleData,
-  PublicAccumulatedRevertibleData,
   PublicCallData,
   PublicCallRequest,
   PublicCallStackItem,
@@ -102,6 +100,10 @@ export abstract class AbstractPhaseManager {
      * the proof of the public kernel circuit for this phase
      */
     publicKernelProof: Proof;
+    /**
+     * revert reason, if any
+     */
+    revertReason: SimulationError | undefined;
   }>;
   abstract rollback(tx: Tx, err: unknown): Promise<FailedTx>;
 
@@ -158,55 +160,18 @@ export abstract class AbstractPhaseManager {
     return calls;
   }
 
-  public static getKernelOutputAndProof(
-    tx: Tx,
-    publicKernelPublicInput?: PublicKernelCircuitPublicInputs,
-    previousPublicKernelProof?: Proof,
-  ): {
-    /**
-     * the output of the public kernel circuit for this phase
-     */
-    publicKernelPublicInput: PublicKernelCircuitPublicInputs;
-    /**
-     * the proof of the public kernel circuit for this phase
-     */
-    publicKernelProof: Proof;
-  } {
-    if (publicKernelPublicInput && previousPublicKernelProof) {
-      return {
-        publicKernelPublicInput: publicKernelPublicInput,
-        publicKernelProof: previousPublicKernelProof,
-      };
-    } else {
-      const publicKernelPublicInput = new PublicKernelCircuitPublicInputs(
-        tx.data.aggregationObject,
-        PublicAccumulatedNonRevertibleData.fromPrivateAccumulatedNonRevertibleData(tx.data.endNonRevertibleData),
-        PublicAccumulatedRevertibleData.fromPrivateAccumulatedRevertibleData(tx.data.end),
-        tx.data.constants,
-        tx.data.needsSetup,
-        tx.data.needsAppLogic,
-        tx.data.needsTeardown,
-      );
-      const publicKernelProof = previousPublicKernelProof || tx.proof;
-      return {
-        publicKernelPublicInput,
-        publicKernelProof,
-      };
-    }
-  }
-
   protected async processEnqueuedPublicCalls(
     tx: Tx,
     previousPublicKernelOutput: PublicKernelCircuitPublicInputs,
     previousPublicKernelProof: Proof,
-  ): Promise<[PublicKernelCircuitPublicInputs, Proof, FunctionL2Logs[]]> {
+  ): Promise<[PublicKernelCircuitPublicInputs, Proof, FunctionL2Logs[], SimulationError | undefined]> {
     let kernelOutput = previousPublicKernelOutput;
     let kernelProof = previousPublicKernelProof;
 
     const enqueuedCalls = this.extractEnqueuedPublicCalls(tx);
 
     if (!enqueuedCalls || !enqueuedCalls.length) {
-      return [kernelOutput, kernelProof, []];
+      return [kernelOutput, kernelProof, [], undefined];
     }
 
     const newUnencryptedFunctionLogs: FunctionL2Logs[] = [];
@@ -243,6 +208,17 @@ export abstract class AbstractPhaseManager {
 
         [kernelOutput, kernelProof] = await this.runKernelCircuit(callData, kernelOutput, kernelProof);
 
+        if (kernelOutput.reverted && this.phase === PublicKernelPhase.APP_LOGIC) {
+          this.log.debug(
+            `Reverting on ${result.execution.contractAddress.toString()}:${functionSelector} with reason: ${
+              result.revertReason
+            }`,
+          );
+          // halt immediately if the public kernel circuit has reverted.
+          // return no logs, as they should not go on-chain.
+          return [kernelOutput, kernelProof, [], result.revertReason];
+        }
+
         if (!enqueuedExecutionResult) {
           enqueuedExecutionResult = result;
         }
@@ -255,7 +231,7 @@ export abstract class AbstractPhaseManager {
     // TODO(#3675): This should be done in a public kernel circuit
     removeRedundantPublicDataWrites(kernelOutput);
 
-    return [kernelOutput, kernelProof, newUnencryptedFunctionLogs];
+    return [kernelOutput, kernelProof, newUnencryptedFunctionLogs, undefined];
   }
 
   protected async runKernelCircuit(
@@ -334,6 +310,7 @@ export abstract class AbstractPhaseManager {
       unencryptedLogsHash,
       unencryptedLogPreimagesLength,
       historicalHeader: this.historicalHeader,
+      reverted: result.reverted,
     });
   }
 

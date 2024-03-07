@@ -13,6 +13,7 @@ import {
   Fr,
   PXE,
   SignerlessWallet,
+  TxStatus,
   Wallet,
   getContractClassFromArtifact,
   getContractInstanceFromDeployParams,
@@ -140,14 +141,16 @@ describe('e2e_deploy_contract', () => {
         const [goodTxPromiseResult, badTxReceiptResult] = await Promise.allSettled([goodTx.wait(), badTx.wait()]);
 
         expect(goodTxPromiseResult.status).toBe('fulfilled');
-        expect(badTxReceiptResult.status).toBe('rejected');
+        expect(badTxReceiptResult.status).toBe('fulfilled'); // but reverted
 
         const [goodTxReceipt, badTxReceipt] = await Promise.all([goodTx.getReceipt(), badTx.getReceipt()]);
 
         expect(goodTxReceipt.blockNumber).toEqual(expect.any(Number));
-        expect(badTxReceipt.blockNumber).toBeUndefined();
+        // the bad transaction is included
+        expect(badTxReceipt.blockNumber).toEqual(expect.any(Number));
 
         await expect(pxe.getContractData(badDeploy.getInstance().address)).resolves.toBeUndefined();
+        // but did not deploy
         await expect(pxe.getExtendedContractData(badDeploy.getInstance().address)).resolves.toBeUndefined();
       } finally {
         sequencer?.updateSequencerConfig({ minTxsPerBlock: 1 });
@@ -351,12 +354,13 @@ describe('e2e_deploy_contract', () => {
         }, 30_000);
 
         it('refuses to call a public function with init check if the instance is not initialized', async () => {
-          await expect(
-            contract.methods
-              .increment_public_value(AztecAddress.random(), 10)
-              .send({ skipPublicSimulation: true })
-              .wait(),
-          ).rejects.toThrow(/dropped/i);
+          // TODO(#4972) check for reverted flag
+          const receipt = await contract.methods
+            .increment_public_value(AztecAddress.random(), 10)
+            .send({ skipPublicSimulation: true })
+            .wait();
+
+          expect(receipt.status).toEqual(TxStatus.MINED);
         }, 30_000);
 
         it('calls a public function with init check after initialization', async () => {
