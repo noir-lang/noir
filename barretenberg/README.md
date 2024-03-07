@@ -261,3 +261,15 @@ mv build build-native # your native build folders are mounted, but will not work
 cmake --preset gcc ;  cmake --build build
 ```
 This will allow you to rebuild as efficiently as if you were running native code, and not have to see a full compile cycle.
+
+### Building docs
+
+If doxygen is installed on the system, you can use the **build_docs** target to build documentation, which can be configured in vscode CMake extension or using
+```bash
+cmake --build . --target build_docs
+```
+in the cpp/build directory. The documentation will be generated in cpp/docs/build folder. You can then run a python http server in the folder:
+```bash
+python3 -m http.server <port>
+```
+and tunnel the port through ssh.

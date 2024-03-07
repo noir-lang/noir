@@ -10,15 +10,19 @@ using Fr = Curve::ScalarField;
 
 constexpr size_t MIN_POLYNOMIAL_DEGREE_LOG2 = 10;
 constexpr size_t MAX_POLYNOMIAL_DEGREE_LOG2 = 16;
-std::shared_ptr<bb::srs::factories::CrsFactory<curve::Grumpkin>> crs_factory(
-    new bb::srs::factories::FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin", 1 << 16));
 
-auto ck = std::make_shared<CommitmentKey<Curve>>(1 << MAX_POLYNOMIAL_DEGREE_LOG2);
-auto vk = std::make_shared<VerifierCommitmentKey<Curve>>(1 << MAX_POLYNOMIAL_DEGREE_LOG2, crs_factory);
-
+std::shared_ptr<CommitmentKey<Curve>> ck;
+std::shared_ptr<VerifierCommitmentKey<Curve>> vk;
 std::vector<std::shared_ptr<NativeTranscript>> prover_transcripts(MAX_POLYNOMIAL_DEGREE_LOG2 -
                                                                   MIN_POLYNOMIAL_DEGREE_LOG2 + 1);
 std::vector<OpeningClaim<Curve>> opening_claims(MAX_POLYNOMIAL_DEGREE_LOG2 - MIN_POLYNOMIAL_DEGREE_LOG2 + 1);
+static void DoSetup(const benchmark::State&)
+{
+    srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+    ck = std::make_shared<CommitmentKey<Curve>>(1 << MAX_POLYNOMIAL_DEGREE_LOG2);
+    vk = std::make_shared<VerifierCommitmentKey<Curve>>(1 << MAX_POLYNOMIAL_DEGREE_LOG2,
+                                                        srs::get_grumpkin_crs_factory());
+}
 
 void ipa_open(State& state) noexcept
 {
@@ -61,6 +65,12 @@ void ipa_verify(State& state) noexcept
     }
 }
 } // namespace
-BENCHMARK(ipa_open)->Unit(kMillisecond)->DenseRange(MIN_POLYNOMIAL_DEGREE_LOG2, MAX_POLYNOMIAL_DEGREE_LOG2);
-BENCHMARK(ipa_verify)->Unit(kMillisecond)->DenseRange(MIN_POLYNOMIAL_DEGREE_LOG2, MAX_POLYNOMIAL_DEGREE_LOG2);
+BENCHMARK(ipa_open)
+    ->Unit(kMillisecond)
+    ->DenseRange(MIN_POLYNOMIAL_DEGREE_LOG2, MAX_POLYNOMIAL_DEGREE_LOG2)
+    ->Setup(DoSetup);
+BENCHMARK(ipa_verify)
+    ->Unit(kMillisecond)
+    ->DenseRange(MIN_POLYNOMIAL_DEGREE_LOG2, MAX_POLYNOMIAL_DEGREE_LOG2)
+    ->Setup(DoSetup);
 BENCHMARK_MAIN();

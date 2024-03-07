@@ -16,6 +16,15 @@ configure_file(
     @ONLY
 )
 
+# Add doxygen build command
+find_package(Doxygen)
+if (DOXYGEN_FOUND)
+add_custom_target(build_docs 
+COMMAND ${DOXYGEN_EXECUTABLE} ${PROJECT_SOURCE_DIR}/docs/Doxyfile
+WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+COMMENT "Generate documentation with Doxygen")
+endif(DOXYGEN_FOUND)
+
 option(DISABLE_ASM "Disable custom assembly" OFF)
 option(DISABLE_ADX "Disable ADX assembly variant" OFF)
 option(MULTITHREADING "Enable multi-threading" ON)
