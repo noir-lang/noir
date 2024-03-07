@@ -9,8 +9,8 @@ use crate::{
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
-    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
+    FunctionDefinition, Ident, ItemVisibility, LetStatement, NoirFunction, NoirStruct, NoirTrait,
+    NoirTraitImpl, NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
@@ -219,6 +219,7 @@ impl<'a> ModCollector<'a> {
 
             let name = function.name_ident().clone();
             let func_id = context.def_interner.push_empty_fn();
+            let visibility = function.def.visibility;
 
             // First create dummy function in the DefInterner
             // So that we can get a FuncId
@@ -235,7 +236,7 @@ impl<'a> ModCollector<'a> {
 
             // Add function to scope/ns of the module
             let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_function(name, func_id);
+                .declare_function(visibility, name, func_id);
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {
@@ -394,7 +395,7 @@ impl<'a> ModCollector<'a> {
 
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
-                            visibility: crate::ItemVisibility::Public,
+                            visibility: ItemVisibility::Public,
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
                             is_unconstrained: false,
@@ -408,7 +409,7 @@ impl<'a> ModCollector<'a> {
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
                         match self.def_collector.def_map.modules[trait_id.0.local_id.0]
-                            .declare_function(name.clone(), func_id)
+                            .declare_function(ItemVisibility::Public, name.clone(), func_id)
                         {
                             Ok(()) => {
                                 if let Some(body) = body {
