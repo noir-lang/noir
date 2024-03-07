@@ -136,6 +136,7 @@ export class PublicExecutionContext extends TypedOracle {
    * @param values - The values to be written.
    */
   public async storageWrite(startStorageSlot: Fr, values: Fr[]) {
+    const newValues = [];
     for (let i = 0; i < values.length; i++) {
       const storageSlot = new Fr(startStorageSlot.toBigInt() + BigInt(i));
       const newValue = values[i];
@@ -143,7 +144,9 @@ export class PublicExecutionContext extends TypedOracle {
       this.storageActions.write(storageSlot, newValue, sideEffectCounter);
       await this.stateDb.storageWrite(this.execution.callContext.storageContractAddress, storageSlot, newValue);
       this.log(`Oracle storage write: slot=${storageSlot.toString()} value=${newValue.toString()}`);
+      newValues.push(newValue);
     }
+    return newValues;
   }
 
   /**

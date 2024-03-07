@@ -255,12 +255,6 @@ export class TaggedMemory {
     }
   }
 
-  public checkIsValidMemoryOffsetTag(offset: number) {
-    if (this.getTag(offset) > TypeTag.UINT64) {
-      throw TagCheckError.forOffset(offset, TypeTag[this.getTag(offset)], 'UINT64');
-    }
-  }
-
   public static checkIsIntegralTag(tag: TypeTag) {
     if (![TypeTag.UINT8, TypeTag.UINT16, TypeTag.UINT32, TypeTag.UINT64, TypeTag.UINT128].includes(tag)) {
       throw TagCheckError.forTag(TypeTag[tag], 'integral');

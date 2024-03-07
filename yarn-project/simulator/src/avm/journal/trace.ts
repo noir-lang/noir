@@ -46,7 +46,7 @@ export class WorldStateAccessTrace {
   }
 
   public tracePublicStorageWrite(storageAddress: Fr, slot: Fr, value: Fr) {
-    // TODO: check if some threshold is reached for max storage writes
+    // TODO(4805): check if some threshold is reached for max storage writes
     // (need access to parent length, or trace needs to be initialized with parent's contents)
     //const traced: TracedPublicStorageWrite = {
     //  callPointer: Fr.ZERO,
@@ -57,7 +57,6 @@ export class WorldStateAccessTrace {
     //  endLifetime: Fr.ZERO,
     //};
     //this.publicStorageWrites.push(traced);
-
     this.journalWrite(storageAddress, slot, value);
     this.incrementAccessCounter();
   }

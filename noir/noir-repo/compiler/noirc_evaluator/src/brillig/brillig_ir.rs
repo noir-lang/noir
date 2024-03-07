@@ -32,7 +32,7 @@ use num_bigint::BigUint;
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 64 bits. This means that we assume that
 /// memory has 2^64 memory slots.
-pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
 // Registers reserved in runtime for special purposes.
 pub(crate) enum ReservedRegisters {
@@ -562,7 +562,6 @@ impl BrilligContext {
         bit_size: u32,
     ) {
         self.debug_show.const_instruction(result, constant);
-
         self.push_opcode(BrilligOpcode::Const { destination: result, value: constant, bit_size });
     }
 

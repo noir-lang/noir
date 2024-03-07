@@ -1,6 +1,5 @@
 contract AvmTest {
     // Libs
-    use dep::aztec::state_vars::PublicMutable;
     use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH};
     use dep::compressed_string::CompressedString;
 
@@ -10,21 +9,7 @@ contract AvmTest {
     #[aztec(private)]
     fn constructor() {}
 
-    struct Storage {
-        owner: PublicMutable<AztecAddress>
-    }
-
-    #[aztec(public-vm)]
-    fn setAdmin() {
-        storage.owner.write(context.sender());
-    }
-
-    #[aztec(public-vm)]
-    fn setAndRead() -> pub AztecAddress {
-        storage.owner.write(context.sender());
-        storage.owner.read()
-    }
-
+    // Public-vm macro will prefix avm to the function name for transpilation
     #[aztec(public-vm)]
     fn addArgsReturn(argA: Field, argB: Field) -> pub Field {
         argA + argB

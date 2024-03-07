@@ -12,8 +12,8 @@ pub fn storage_read<N>(storage_slot: Field) -> [Field; N] {
 }
 
 #[oracle(storageWrite)]
-fn storage_write_oracle<N>(_storage_slot: Field, _values: [Field; N]) -> Field {}
+fn storage_write_oracle<N>(_storage_slot: Field, _values: [Field; N]) -> [Field; N] {}
 
 unconstrained pub fn storage_write<N>(storage_slot: Field, fields: [Field; N]) {
-    let _ = storage_write_oracle(storage_slot, fields);
+    let _hash = storage_write_oracle(storage_slot, fields);
 }

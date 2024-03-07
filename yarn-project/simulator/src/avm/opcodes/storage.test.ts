@@ -28,15 +28,9 @@ describe('Storage Instructions', () => {
         SStore.opcode, // opcode
         0x01, // indirect
         ...Buffer.from('12345678', 'hex'), // srcOffset
-        ...Buffer.from('a2345678', 'hex'), // size
-        ...Buffer.from('3456789a', 'hex'), // slotOffset
+        ...Buffer.from('a2345678', 'hex'), // slotOffset
       ]);
-      const inst = new SStore(
-        /*indirect=*/ 0x01,
-        /*srcOffset=*/ 0x12345678,
-        /*size=*/ 0xa2345678,
-        /*slotOffset=*/ 0x3456789a,
-      );
+      const inst = new SStore(/*indirect=*/ 0x01, /*srcOffset=*/ 0x12345678, /*slotOffset=*/ 0xa2345678);
 
       expect(SStore.deserialize(buf)).toEqual(inst);
       expect(inst.serialize()).toEqual(buf);
@@ -49,7 +43,7 @@ describe('Storage Instructions', () => {
       context.machineState.memory.set(0, a);
       context.machineState.memory.set(1, b);
 
-      await new SStore(/*indirect=*/ 0, /*srcOffset=*/ 1, /*size=*/ 1, /*slotOffset=*/ 0).execute(context);
+      await new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*slotOffset=*/ 1).execute(context);
 
       expect(journal.writeStorage).toHaveBeenCalledWith(address, new Fr(a.toBigInt()), new Fr(b.toBigInt()));
     });
@@ -66,8 +60,7 @@ describe('Storage Instructions', () => {
       context.machineState.memory.set(0, a);
       context.machineState.memory.set(1, b);
 
-      const instruction = () =>
-        new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*size=*/ 1, /*slotOffset=*/ 1).execute(context);
+      const instruction = () => new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*slotOffset=*/ 1).execute(context);
       await expect(instruction()).rejects.toThrow(StaticCallStorageAlterError);
     });
   });
@@ -78,15 +71,9 @@ describe('Storage Instructions', () => {
         SLoad.opcode, // opcode
         0x01, // indirect
         ...Buffer.from('12345678', 'hex'), // slotOffset
-        ...Buffer.from('a2345678', 'hex'), // size
-        ...Buffer.from('3456789a', 'hex'), // dstOffset
+        ...Buffer.from('a2345678', 'hex'), // dstOffset
       ]);
-      const inst = new SLoad(
-        /*indirect=*/ 0x01,
-        /*slotOffset=*/ 0x12345678,
-        /*size=*/ 0xa2345678,
-        /*dstOffset=*/ 0x3456789a,
-      );
+      const inst = new SLoad(/*indirect=*/ 0x01, /*slotOffset=*/ 0x12345678, /*dstOffset=*/ 0xa2345678);
 
       expect(SLoad.deserialize(buf)).toEqual(inst);
       expect(inst.serialize()).toEqual(buf);
@@ -103,7 +90,7 @@ describe('Storage Instructions', () => {
       context.machineState.memory.set(0, a);
       context.machineState.memory.set(1, b);
 
-      await new SLoad(/*indirect=*/ 0, /*slotOffset=*/ 0, /*size=*/ 1, /*dstOffset=*/ 1).execute(context);
+      await new SLoad(/*indirect=*/ 0, /*slotOffset=*/ 0, /*dstOffset=*/ 1).execute(context);
 
       expect(journal.readStorage).toHaveBeenCalledWith(address, new Fr(a.toBigInt()));
 

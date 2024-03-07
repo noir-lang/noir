@@ -727,14 +727,8 @@ fn transform_function(
 /// Transform a function to work with AVM bytecode
 fn transform_vm_function(
     func: &mut NoirFunction,
-    storage_defined: bool,
+    _storage_defined: bool,
 ) -> Result<(), AztecMacroError> {
-    // Create access to storage
-    if storage_defined {
-        let storage = abstract_storage("public_vm", true);
-        func.def.body.0.insert(0, storage);
-    }
-
     // Push Avm context creation to the beginning of the function
     let create_context = create_avm_context()?;
     func.def.body.0.insert(0, create_context);
