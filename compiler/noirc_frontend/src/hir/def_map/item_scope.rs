@@ -43,6 +43,11 @@ impl ItemScope {
             if let Entry::Occupied(mut o) = map.entry(name.clone()) {
                 let trait_hashmap = o.get_mut();
                 if let Entry::Occupied(mut n) = trait_hashmap.entry(trait_id) {
+                    // Generally we want to reject having two of the same ident in the same namespace.
+                    // The exception to this is when we're explicitly importing something
+                    // which exists in the Noir stdlib prelude.
+                    //
+                    // In this case we ignore the prelude and favour the explicit import.
                     let is_prelude = std::mem::replace(&mut n.get_mut().2, is_prelude);
                     let old_ident = o.key();
 
