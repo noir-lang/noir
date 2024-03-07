@@ -863,7 +863,13 @@ impl<'interner> TypeChecker<'interner> {
                     span: op.location.span,
                 });
 
-                self.comparator_operand_type_rules(x_type, y_type, op, span)
+                self.comparator_operand_type_rules(x_type, y_type, op, span)?;
+
+                // If the size is not constant, we must fall back to a user-provided impl for
+                // equality on slices.
+                let size = x_size.follow_bindings();
+                let use_src_code_impl = size.evaluate_to_u64().is_none();
+                Ok((Bool, use_src_code_impl))
             }
 
             (String(x_size), String(y_size)) => {
