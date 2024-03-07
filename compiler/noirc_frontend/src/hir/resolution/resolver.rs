@@ -1256,13 +1256,17 @@ impl<'a> Resolver<'a> {
         let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
         let assert_msg_call_path = if is_in_stdlib {
             ExpressionKind::Variable(Path {
-                segments: vec![Ident::from("resolve_assert_message")],
+                segments: vec![Ident::from("internal"), Ident::from("resolve_assert_message")],
                 kind: PathKind::Crate,
                 span,
             })
         } else {
             ExpressionKind::Variable(Path {
-                segments: vec![Ident::from("std"), Ident::from("resolve_assert_message")],
+                segments: vec![
+                    Ident::from("std"),
+                    Ident::from("internal"),
+                    Ident::from("resolve_assert_message"),
+                ],
                 kind: PathKind::Dep,
                 span,
             })
