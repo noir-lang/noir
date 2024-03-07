@@ -16,6 +16,7 @@ import {
   FPCContract,
   GasTokenContract,
 } from '@aztec/noir-contracts.js';
+import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
 import { jest } from '@jest/globals';
 
@@ -27,7 +28,6 @@ import {
   publicDeployAccounts,
   setup,
 } from './fixtures/utils.js';
-import { GasPortalTestingHarnessFactory, IGasBridgingTestHarness } from './shared/gas_portal_test_harness.js';
 
 jest.setTimeout(1_000_000);
 
@@ -48,13 +48,12 @@ describe('e2e_dapp_subscription', () => {
   let gasTokenContract: GasTokenContract;
   let bananaFPC: FPCContract;
   let e2eContext: EndToEndContext;
-  let gasBridgeTestHarness: IGasBridgingTestHarness;
   let gasBalances: BalancesFn;
   let bananasPublicBalances: BalancesFn;
   let bananasPrivateBalances: BalancesFn;
 
   const SUBSCRIPTION_AMOUNT = 100n;
-  const BRIDGED_GAS_BALANCE = 1000n;
+  const INITIAL_GAS_BALANCE = 1000n;
   const PUBLICLY_MINTED_BANANAS = 500n;
   const PRIVATELY_MINTED_BANANAS = 600n;
 
@@ -64,24 +63,17 @@ describe('e2e_dapp_subscription', () => {
 
   beforeAll(async () => {
     process.env.PXE_URL = '';
-    e2eContext = await setup(3);
+    e2eContext = await setup(3, { deployProtocolContracts: true });
+    await publicDeployAccounts(e2eContext.wallet, e2eContext.accounts);
 
-    const { wallets, accounts, aztecNode, deployL1ContractsValues, logger, pxe } = e2eContext;
+    const { wallets, accounts, aztecNode } = e2eContext;
+
+    // this should be a SignerlessWallet but that can't call public functions directly
+    gasTokenContract = await GasTokenContract.at(GasTokenAddress, wallets[0]);
 
     aliceAddress = accounts.at(0)!.address;
     bobAddress = accounts.at(1)!.address;
     sequencerAddress = accounts.at(2)!.address;
-
-    gasBridgeTestHarness = await GasPortalTestingHarnessFactory.create({
-      pxeService: pxe,
-      publicClient: deployL1ContractsValues.publicClient,
-      walletClient: deployL1ContractsValues.walletClient,
-      wallet: wallets[0],
-      logger,
-      mockL1: true,
-    });
-
-    gasTokenContract = gasBridgeTestHarness.l2Token;
 
     await aztecNode.setConfig({
       feeRecipient: sequencerAddress,
@@ -113,8 +105,8 @@ describe('e2e_dapp_subscription', () => {
     // she'll pay for the subscription with these
     await bananaCoin.methods.privately_mint_private_note(PRIVATELY_MINTED_BANANAS).send().wait();
     await bananaCoin.methods.mint_public(aliceAddress, PUBLICLY_MINTED_BANANAS).send().wait();
-    await gasBridgeTestHarness.bridgeFromL1ToL2(BRIDGED_GAS_BALANCE, BRIDGED_GAS_BALANCE, subscriptionContract.address);
-    await gasBridgeTestHarness.bridgeFromL1ToL2(BRIDGED_GAS_BALANCE, BRIDGED_GAS_BALANCE, bananaFPC.address);
+    await gasTokenContract.methods.mint_public(subscriptionContract.address, INITIAL_GAS_BALANCE).send().wait();
+    await gasTokenContract.methods.mint_public(bananaFPC.address, INITIAL_GAS_BALANCE).send().wait();
 
     gasBalances = getBalancesFn('⛽', gasTokenContract.methods.balance_of_public, e2eContext.logger);
     bananasPublicBalances = getBalancesFn('Public 🍌', bananaCoin.methods.balance_of_public, e2eContext.logger);
@@ -123,10 +115,8 @@ describe('e2e_dapp_subscription', () => {
     await expectMapping(
       gasBalances,
       [aliceAddress, sequencerAddress, subscriptionContract.address, bananaFPC.address],
-      [0n, 0n, BRIDGED_GAS_BALANCE, BRIDGED_GAS_BALANCE],
+      [0n, 0n, INITIAL_GAS_BALANCE, INITIAL_GAS_BALANCE],
     );
-
-    await publicDeployAccounts(e2eContext.wallet, e2eContext.accounts);
   });
 
   it('should allow Alice to subscribe by paying privately with bananas', async () => {
@@ -160,7 +150,7 @@ describe('e2e_dapp_subscription', () => {
       gasBalances,
       // note the subscription contract hasn't paid any fees yet
       [bananaFPC.address, subscriptionContract.address, sequencerAddress],
-      [BRIDGED_GAS_BALANCE - FEE_AMOUNT, BRIDGED_GAS_BALANCE, FEE_AMOUNT],
+      [INITIAL_GAS_BALANCE - FEE_AMOUNT, INITIAL_GAS_BALANCE, FEE_AMOUNT],
     );
   });
 
@@ -201,7 +191,7 @@ describe('e2e_dapp_subscription', () => {
     await expectMapping(
       gasBalances,
       [subscriptionContract.address, bananaFPC.address, sequencerAddress],
-      [BRIDGED_GAS_BALANCE, BRIDGED_GAS_BALANCE - 2n * FEE_AMOUNT, 2n * FEE_AMOUNT],
+      [INITIAL_GAS_BALANCE, INITIAL_GAS_BALANCE - 2n * FEE_AMOUNT, 2n * FEE_AMOUNT],
     );
   });
 
@@ -219,7 +209,7 @@ describe('e2e_dapp_subscription', () => {
     await expectMapping(
       gasBalances,
       [subscriptionContract.address, bananaFPC.address, sequencerAddress],
-      [BRIDGED_GAS_BALANCE - FEE_AMOUNT, BRIDGED_GAS_BALANCE - 2n * FEE_AMOUNT, FEE_AMOUNT * 3n],
+      [INITIAL_GAS_BALANCE - FEE_AMOUNT, INITIAL_GAS_BALANCE - 2n * FEE_AMOUNT, FEE_AMOUNT * 3n],
     );
   });
 
