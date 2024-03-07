@@ -81,7 +81,7 @@ mod test {
                 &mut context,
                 program.clone().into_sorted(),
                 root_file_id,
-                Vec::new(), // No macro processors
+                &[], // No macro processors
             ));
         }
         (program, context, errors)
