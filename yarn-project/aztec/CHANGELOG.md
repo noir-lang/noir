@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.5](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.26.4...aztec-package-v0.26.5) (2024-03-07)
+
+
+### Features
+
+* Integrated native ACVM ([#4903](https://github.com/AztecProtocol/aztec-packages/issues/4903)) ([3fd7025](https://github.com/AztecProtocol/aztec-packages/commit/3fd7025ab43e705cab4aa67ca057e54316a1715b))
+
 ## [0.26.4](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.26.3...aztec-package-v0.26.4) (2024-03-06)
 
 

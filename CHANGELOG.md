@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.26.5](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.26.4...aztec-packages-v0.26.5) (2024-03-07)
+
+
+### Features
+
+* Crowdfunding contract ([#4917](https://github.com/AztecProtocol/aztec-packages/issues/4917)) ([ba3aff2](https://github.com/AztecProtocol/aztec-packages/commit/ba3aff2d32f88218543082ab91060ae549f1666a))
+* Integrated native ACVM ([#4903](https://github.com/AztecProtocol/aztec-packages/issues/4903)) ([3fd7025](https://github.com/AztecProtocol/aztec-packages/commit/3fd7025ab43e705cab4aa67ca057e54316a1715b))
+
+
+### Bug Fixes
+
+* Dependency for yarn-project-tests ([#5031](https://github.com/AztecProtocol/aztec-packages/issues/5031)) ([4b5db50](https://github.com/AztecProtocol/aztec-packages/commit/4b5db50df68380e787cf499efac78835f927bea6))
+* **docs:** Update writing_token_contract.md ([#5020](https://github.com/AztecProtocol/aztec-packages/issues/5020)) ([5b0f38f](https://github.com/AztecProtocol/aztec-packages/commit/5b0f38f5e3b7f5c6ad950572341859d12bbf46bc))
+* End to end dependency fix ([#5029](https://github.com/AztecProtocol/aztec-packages/issues/5029)) ([191ad93](https://github.com/AztecProtocol/aztec-packages/commit/191ad9314263aae7fde75e510a6b866631d5d3de))
+* Missing dependency end-to-end =&gt; yarn-project ([#5018](https://github.com/AztecProtocol/aztec-packages/issues/5018)) ([f930bdd](https://github.com/AztecProtocol/aztec-packages/commit/f930bdd49bfdf77eed166634e07ef49c93ffce07))
+* **revert:** "feat(avm): storage" ([#5019](https://github.com/AztecProtocol/aztec-packages/issues/5019)) ([ba31016](https://github.com/AztecProtocol/aztec-packages/commit/ba3101610217ec1ac9976fed0962790b319cb01c))
+
+
+### Miscellaneous
+
+* **boxes:** Refactor npx to improve readability, added upgrade option and manual versioning ([#4855](https://github.com/AztecProtocol/aztec-packages/issues/4855)) ([ef76d3f](https://github.com/AztecProtocol/aztec-packages/commit/ef76d3f37dfc338bda1742baf006129ff9b3ed74))
+* Purging calldata hash ([#4984](https://github.com/AztecProtocol/aztec-packages/issues/4984)) ([f6f34b7](https://github.com/AztecProtocol/aztec-packages/commit/f6f34b7cebc757aa7974cd2c947815132ec703d6))
+
+
+### Documentation
+
+* Add versions section to updating doc ([#4916](https://github.com/AztecProtocol/aztec-packages/issues/4916)) ([d4d935f](https://github.com/AztecProtocol/aztec-packages/commit/d4d935f05ae7026420aca4550a2b80e196028299))
+
 ## [0.26.4](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.26.3...aztec-packages-v0.26.4) (2024-03-06)
 
 
