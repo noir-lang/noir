@@ -67,6 +67,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "acvm_cli"
+version = "0.40.0"
+dependencies = [
+ "acir",
+ "acvm",
+ "bn254_blackbox_solver",
+ "clap",
+ "color-eyre",
+ "const_format",
+ "nargo",
+ "paste",
+ "proptest",
+ "rand 0.8.5",
+ "thiserror",
+ "toml 0.7.6",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "acvm_js"
 version = "0.40.0"
 dependencies = [
