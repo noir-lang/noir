@@ -1206,4 +1206,16 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         "#;
         assert_eq!(get_program_errors(src).len(), 1);
     }
+
+    // This is a regression for #4507
+    #[test]
+    fn slice_eq_works() {
+        let src = r#"
+            fn main() {
+                let slice: [Field] = [1, 2, 3];
+                assert(slice == slice);
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
 }
