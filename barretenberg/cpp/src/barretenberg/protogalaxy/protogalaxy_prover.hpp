@@ -294,7 +294,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances, PowPolynomial<FF>& pow_betas)
     {
         BB_OP_COUNT_TIME();
-        size_t common_instance_size = instances[0]->instance_size;
+        size_t common_instance_size = instances[0]->proving_key->circuit_size;
         pow_betas.compute_values();
         // Determine number of threads for multithreading.
         // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based

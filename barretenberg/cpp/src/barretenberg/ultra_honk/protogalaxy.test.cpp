@@ -81,7 +81,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
 
     static void check_accumulator_target_sum_manual(std::shared_ptr<ProverInstance>& accumulator, bool expected_result)
     {
-        auto instance_size = accumulator->instance_size;
+        auto instance_size = accumulator->proving_key->circuit_size;
         auto expected_honk_evals = ProtoGalaxyProver::compute_full_honk_evaluations(
             accumulator->prover_polynomials, accumulator->alphas, accumulator->relation_parameters);
         // Construct pow(\vec{betas*}) as in the paper

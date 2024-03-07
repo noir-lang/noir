@@ -20,11 +20,6 @@ template <class Flavor, size_t NUM_ = 2> class VerifierInstance_ {
     using RelationSeparator = typename Flavor::RelationSeparator;
 
     std::shared_ptr<VerificationKey> verification_key;
-    std::vector<FF> public_inputs;
-    size_t pub_inputs_offset = 0;
-    size_t public_input_size;
-    size_t instance_size;
-    size_t log_instance_size;
     RelationParameters<FF> relation_parameters;
     RelationSeparator alphas;
     bool is_accumulator = false;

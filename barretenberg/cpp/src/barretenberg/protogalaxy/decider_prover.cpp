@@ -28,7 +28,7 @@ DeciderProver_<Flavor>::DeciderProver_(const std::shared_ptr<Instance>& inst,
 template <IsUltraFlavor Flavor> void DeciderProver_<Flavor>::execute_relation_check_rounds()
 {
     using Sumcheck = SumcheckProver<Flavor>;
-    auto instance_size = accumulator->instance_size;
+    auto instance_size = accumulator->proving_key->circuit_size;
     auto sumcheck = Sumcheck(instance_size, transcript);
     sumcheck_output = sumcheck.prove(accumulator);
 }

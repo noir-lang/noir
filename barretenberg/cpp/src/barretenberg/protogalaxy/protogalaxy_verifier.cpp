@@ -7,18 +7,20 @@ void ProtoGalaxyVerifier_<VerifierInstances>::receive_and_finalise_instance(cons
                                                                             const std::string& domain_separator)
 {
     // Get circuit parameters and the public inputs
-    inst->instance_size = transcript->template receive_from_prover<uint32_t>(domain_separator + "_instance_size");
-    inst->log_instance_size = static_cast<size_t>(numeric::get_msb(inst->instance_size));
-    inst->public_input_size =
+    inst->verification_key->circuit_size =
+        transcript->template receive_from_prover<uint32_t>(domain_separator + "_instance_size");
+    inst->verification_key->log_circuit_size =
+        static_cast<size_t>(numeric::get_msb(inst->verification_key->circuit_size));
+    inst->verification_key->num_public_inputs =
         transcript->template receive_from_prover<uint32_t>(domain_separator + "_public_input_size");
-
-    for (size_t i = 0; i < inst->public_input_size; ++i) {
+    inst->verification_key->public_inputs.clear();
+    for (size_t i = 0; i < inst->verification_key->num_public_inputs; ++i) {
         auto public_input_i =
             transcript->template receive_from_prover<FF>(domain_separator + "_public_input_" + std::to_string(i));
-        inst->public_inputs.emplace_back(public_input_i);
+        inst->verification_key->public_inputs.emplace_back(public_input_i);
     }
 
-    inst->pub_inputs_offset =
+    inst->verification_key->pub_inputs_offset =
         transcript->template receive_from_prover<uint32_t>(domain_separator + "_pub_inputs_offset");
 
     // Get commitments to first three wire polynomials
@@ -66,9 +68,13 @@ void ProtoGalaxyVerifier_<VerifierInstances>::receive_and_finalise_instance(cons
         transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.z_lookup);
 
     // Compute correction terms for grand products
-    const FF public_input_delta = compute_public_input_delta<Flavor>(
-        inst->public_inputs, beta, gamma, inst->instance_size, inst->pub_inputs_offset);
-    const FF lookup_grand_product_delta = compute_lookup_grand_product_delta<FF>(beta, gamma, inst->instance_size);
+    const FF public_input_delta = compute_public_input_delta<Flavor>(inst->verification_key->public_inputs,
+                                                                     beta,
+                                                                     gamma,
+                                                                     inst->verification_key->circuit_size,
+                                                                     inst->verification_key->pub_inputs_offset);
+    const FF lookup_grand_product_delta =
+        compute_lookup_grand_product_delta<FF>(beta, gamma, inst->verification_key->circuit_size);
     inst->relation_parameters =
         RelationParameters<FF>{ eta, beta, gamma, public_input_delta, lookup_grand_product_delta };
 
@@ -90,7 +96,7 @@ void ProtoGalaxyVerifier_<VerifierInstances>::prepare_for_folding(const std::vec
     if (!inst->is_accumulator) {
         receive_and_finalise_instance(inst, domain_separator);
         inst->target_sum = 0;
-        inst->gate_challenges = std::vector<FF>(inst->log_instance_size, 0);
+        inst->gate_challenges = std::vector<FF>(inst->verification_key->log_circuit_size, 0);
     }
     index++;
 
@@ -109,11 +115,11 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyVerifier_<Verif
 
     auto delta = transcript->template get_challenge<FF>("delta");
     auto accumulator = get_accumulator();
-    auto deltas = compute_round_challenge_pows(accumulator->log_instance_size, delta);
+    auto deltas = compute_round_challenge_pows(accumulator->verification_key->log_circuit_size, delta);
 
-    std::vector<FF> perturbator_coeffs(accumulator->log_instance_size + 1, 0);
+    std::vector<FF> perturbator_coeffs(accumulator->verification_key->log_circuit_size + 1, 0);
     if (accumulator->is_accumulator) {
-        for (size_t idx = 1; idx <= accumulator->log_instance_size; idx++) {
+        for (size_t idx = 1; idx <= accumulator->verification_key->log_circuit_size; idx++) {
             perturbator_coeffs[idx] =
                 transcript->template receive_from_prover<FF>("perturbator_" + std::to_string(idx));
         }
@@ -140,8 +146,36 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyVerifier_<Verif
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/881): bad pattern
     auto next_accumulator = std::make_shared<Instance>(accumulator->verification_key);
-    next_accumulator->instance_size = accumulator->instance_size;
-    next_accumulator->log_instance_size = accumulator->log_instance_size;
+    next_accumulator->verification_key = std::make_shared<VerificationKey>(
+        accumulator->verification_key->circuit_size, accumulator->verification_key->num_public_inputs);
+    next_accumulator->verification_key->pcs_verification_key = accumulator->verification_key->pcs_verification_key;
+    next_accumulator->verification_key->pub_inputs_offset = accumulator->verification_key->pub_inputs_offset;
+    size_t vk_idx = 0;
+    for (auto& expected_vk : next_accumulator->verification_key->get_all()) {
+        size_t inst = 0;
+        expected_vk = Commitment::infinity();
+        for (auto& instance : instances) {
+            expected_vk = expected_vk + instance->verification_key->get_all()[vk_idx] * lagranges[inst];
+            inst++;
+        }
+        vk_idx++;
+    }
+    next_accumulator->verification_key->num_public_inputs = accumulator->verification_key->num_public_inputs;
+    next_accumulator->verification_key->public_inputs =
+        std::vector<FF>(next_accumulator->verification_key->num_public_inputs, 0);
+    size_t public_input_idx = 0;
+    for (auto& public_input : next_accumulator->verification_key->public_inputs) {
+        size_t inst = 0;
+        for (auto& instance : instances) {
+            // TODO(https://github.com/AztecProtocol/barretenberg/issues/830)
+            if (instance->verification_key->num_public_inputs >=
+                next_accumulator->verification_key->num_public_inputs) {
+                public_input += instance->verification_key->public_inputs[public_input_idx] * lagranges[inst];
+                inst++;
+            }
+        }
+        public_input_idx++;
+    }
     next_accumulator->is_accumulator = true;
 
     // Compute next folding parameters
@@ -161,21 +195,6 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyVerifier_<Verif
             inst++;
         }
         comm_idx++;
-    }
-
-    next_accumulator->public_input_size = instances[0]->public_input_size;
-    next_accumulator->public_inputs = std::vector<FF>(next_accumulator->public_input_size, 0);
-    size_t public_input_idx = 0;
-    for (auto& public_input : next_accumulator->public_inputs) {
-        size_t inst = 0;
-        for (auto& instance : instances) {
-            // TODO(https://github.com/AztecProtocol/barretenberg/issues/830)
-            if (instance->public_inputs.size() >= next_accumulator->public_input_size) {
-                public_input += instance->public_inputs[public_input_idx] * lagranges[inst];
-                inst++;
-            }
-        }
-        public_input_idx++;
     }
 
     size_t alpha_idx = 0;
@@ -198,20 +217,6 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyVerifier_<Verif
             instance->relation_parameters.public_input_delta * lagranges[inst_idx];
         expected_parameters.lookup_grand_product_delta +=
             instance->relation_parameters.lookup_grand_product_delta * lagranges[inst_idx];
-    }
-
-    next_accumulator->verification_key =
-        std::make_shared<VerificationKey>(instances[0]->instance_size, instances[0]->public_input_size);
-    next_accumulator->verification_key->pcs_verification_key = accumulator->verification_key->pcs_verification_key;
-    size_t vk_idx = 0;
-    for (auto& expected_vk : next_accumulator->verification_key->get_all()) {
-        size_t inst = 0;
-        expected_vk = Commitment::infinity();
-        for (auto& instance : instances) {
-            expected_vk = expected_vk + instance->verification_key->get_all()[vk_idx] * lagranges[inst];
-            inst++;
-        }
-        vk_idx++;
     }
 
     return next_accumulator;

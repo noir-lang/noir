@@ -43,6 +43,7 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     // For debugging purposes only
     ASSERT(static_cast<uint32_t>(circuit_size.get_value()) == key->circuit_size);
     ASSERT(static_cast<uint32_t>(public_input_size.get_value()) == key->num_public_inputs);
+    ASSERT(static_cast<uint32_t>(pub_inputs_offset.get_value()) == key->pub_inputs_offset);
 
     std::vector<FF> public_inputs;
     for (size_t i = 0; i < key->num_public_inputs; ++i) {

@@ -47,10 +47,10 @@ template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_preamble_roun
 
     transcript->send_to_verifier("circuit_size", circuit_size);
     transcript->send_to_verifier("public_input_size", num_public_inputs);
-    transcript->send_to_verifier("pub_inputs_offset", static_cast<uint32_t>(instance->pub_inputs_offset));
+    transcript->send_to_verifier("pub_inputs_offset", static_cast<uint32_t>(proving_key->pub_inputs_offset));
 
     for (size_t i = 0; i < proving_key->num_public_inputs; ++i) {
-        auto public_input_i = instance->public_inputs[i];
+        auto public_input_i = proving_key->public_inputs[i];
         transcript->send_to_verifier("public_input_" + std::to_string(i), public_input_i);
     }
 }
@@ -125,6 +125,8 @@ template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_sorted_list_a
  */
 template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivative_inverse_round()
 {
+    auto& proving_key = instance->proving_key;
+
     // Compute and store challenges beta and gamma
     auto [beta, gamma] = transcript->template get_challenges<FF>("beta", "gamma");
     relation_parameters.beta = beta;
@@ -132,8 +134,7 @@ template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivativ
 
     if constexpr (IsGoblinFlavor<Flavor>) {
         instance->compute_logderivative_inverse(beta, gamma);
-        instance->witness_commitments.lookup_inverses =
-            commitment_key->commit(instance->prover_polynomials.lookup_inverses);
+        instance->witness_commitments.lookup_inverses = commitment_key->commit(proving_key->lookup_inverses);
         transcript->send_to_verifier(commitment_labels.lookup_inverses, instance->witness_commitments.lookup_inverses);
     }
 }
@@ -144,12 +145,13 @@ template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_log_derivativ
  */
 template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_grand_product_computation_round()
 {
+    auto& proving_key = instance->proving_key;
 
     instance->compute_grand_product_polynomials(relation_parameters.beta, relation_parameters.gamma);
 
     auto& witness_commitments = instance->witness_commitments;
-    witness_commitments.z_perm = commitment_key->commit(instance->prover_polynomials.z_perm);
-    witness_commitments.z_lookup = commitment_key->commit(instance->prover_polynomials.z_lookup);
+    witness_commitments.z_perm = commitment_key->commit(proving_key->z_perm);
+    witness_commitments.z_lookup = commitment_key->commit(proving_key->z_lookup);
     transcript->send_to_verifier(commitment_labels.z_perm, instance->witness_commitments.z_perm);
     transcript->send_to_verifier(commitment_labels.z_lookup, instance->witness_commitments.z_lookup);
 }

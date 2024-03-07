@@ -66,6 +66,9 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
     if (public_input_size != key->num_public_inputs) {
         return false;
     }
+    if (pub_inputs_offset != key->pub_inputs_offset) {
+        return false;
+    }
 
     std::vector<FF> public_inputs;
     for (size_t i = 0; i < public_input_size; ++i) {
