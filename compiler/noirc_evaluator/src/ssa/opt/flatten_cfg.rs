@@ -298,11 +298,9 @@ impl<'f> Context<'f> {
 
     /// Returns the current condition
     fn get_last_condition(&self) -> Option<ValueId> {
-        self.condition_stack.last().map(|context| {
-            match &context.else_branch {
-                Some(else_branch) => else_branch.condition,
-                None => context.then_branch.condition,
-            }
+        self.condition_stack.last().map(|context| match &context.else_branch {
+            Some(else_branch) => else_branch.condition,
+            None => context.then_branch.condition,
         })
     }
 
