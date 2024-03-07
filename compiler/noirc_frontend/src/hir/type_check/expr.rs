@@ -108,7 +108,7 @@ impl<'interner> TypeChecker<'interner> {
                 match literal {
                     HirLiteral::Array(hir_array_literal) => {
                         let (length, elem_type) = self.check_hir_array_literal(hir_array_literal);
-                        Type::Array(elem_type, length.unwrap_or_else(|constant| Box::new(Type::constant_variable(constant, self.interner))))
+                        Type::Array(length.unwrap_or_else(|constant| Box::new(Type::constant_variable(constant, self.interner))), elem_type)
                     },
                     HirLiteral::Slice(hir_array_literal) => {
                         let (length_type, elem_type) = self.check_hir_array_literal(hir_array_literal);
