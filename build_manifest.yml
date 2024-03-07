@@ -217,6 +217,7 @@ end-to-end:
     - l1-contracts
     - noir-projects
     - noir
+    - yarn-project
   runDependencies:
     - aztec
 
