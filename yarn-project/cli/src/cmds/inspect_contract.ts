@@ -5,6 +5,7 @@ import {
   decodeFunctionSignature,
   decodeFunctionSignatureWithParameterNames,
 } from '@aztec/foundation/abi';
+import { sha256 } from '@aztec/foundation/crypto';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
 import { getContractArtifact } from '../utils.js';
@@ -34,7 +35,9 @@ function logFunction(fn: FunctionArtifact, log: LogFn) {
   const signatureWithParameterNames = decodeFunctionSignatureWithParameterNames(fn.name, fn.parameters);
   const signature = decodeFunctionSignature(fn.name, fn.parameters);
   const selector = FunctionSelector.fromSignature(signature);
+  const bytecodeSize = Buffer.from(fn.bytecode, 'base64').length;
+  const bytecodeHash = sha256(Buffer.from(fn.bytecode, 'base64')).toString('hex');
   log(
-    `${fn.functionType} ${signatureWithParameterNames} \n\tfunction signature: ${signature}\n\tselector: ${selector}`,
+    `${fn.functionType} ${signatureWithParameterNames} \n\tfunction signature: ${signature}\n\tselector: ${selector}\n\tbytecode: ${bytecodeSize} bytes (sha256 ${bytecodeHash})`,
   );
 }
