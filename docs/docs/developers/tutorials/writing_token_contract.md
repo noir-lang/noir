@@ -229,12 +229,12 @@ Below the dependencies, paste the following Storage struct:
 
 Reading through the storage variables:
 
-- `admin` a single Field value stored in public state. A `Field` is basically an unsigned integer with a maximum value determined by the underlying cryptographic curve.
-- `minters` is a mapping of Fields in public state. This will store whether an account is an approved minter on the contract.
+- `admin` an Aztec address stored in public state.
+- `minters` is a mapping of Aztec addresses in public state. This will store whether an account is an approved minter on the contract.
 - `balances` is a mapping of private balances. Private balances are stored in a `PrivateSet` of `ValueNote`s. The balance is the sum of all of an account's `ValueNote`s.
-- `total_supply` is a Field value stored in public state and represents the total number of tokens minted.
+- `total_supply` is an unsigned integer (max 128 bit value) stored in public state and represents the total number of tokens minted.
 - `pending_shields` is a `PrivateSet` of `TransparentNote`s stored in private state. What is stored publicly is a set of commitments to `TransparentNote`s.
-- `public_balances` is a mapping field elements in public state and represents the publicly viewable balances of accounts.
+- `public_balances` is a mapping of Aztec addresses in public state and represents the publicly viewable balances of accounts.
 
 You can read more about it [here](../contracts/writing_contracts/storage/main.md).
 
