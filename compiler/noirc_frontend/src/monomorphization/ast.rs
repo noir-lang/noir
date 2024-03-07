@@ -1,7 +1,7 @@
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{
-    debug_info::{DebugTypes, DebugVariables},
+    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
     Location,
 };
 
@@ -253,6 +253,7 @@ pub struct Program {
     /// Indicates to a backend whether a SNARK-friendly prover should be used.  
     pub recursive: bool,
     pub debug_variables: DebugVariables,
+    pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
 }
 
@@ -266,6 +267,7 @@ impl Program {
         return_visibility: Visibility,
         recursive: bool,
         debug_variables: DebugVariables,
+        debug_functions: DebugFunctions,
         debug_types: DebugTypes,
     ) -> Program {
         Program {
@@ -276,6 +278,7 @@ impl Program {
             return_visibility,
             recursive,
             debug_variables,
+            debug_functions,
             debug_types,
         }
     }
