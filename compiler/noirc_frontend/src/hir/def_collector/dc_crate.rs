@@ -253,7 +253,7 @@ impl DefCollector {
         context.def_maps.insert(crate_id, def_collector.def_map);
 
         // TODO(#4653): generalize this function
-        for macro_processor in &macro_processors {
+        for macro_processor in macro_processors {
             macro_processor
                 .process_unresolved_traits_impls(
                     &crate_id,
