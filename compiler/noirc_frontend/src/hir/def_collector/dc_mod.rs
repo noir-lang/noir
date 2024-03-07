@@ -9,8 +9,8 @@ use crate::{
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
-    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
+    FunctionDefinition, Ident, LetStatement, ModuleDeclaration, NoirFunction, NoirStruct,
+    NoirTrait, NoirTraitImpl, NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
@@ -522,15 +522,15 @@ impl<'a> ModCollector<'a> {
     fn parse_module_declaration(
         &mut self,
         context: &mut Context,
-        mod_name: &Ident,
+        mod_decl: &ModuleDeclaration,
         crate_id: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let child_file_id =
-            match find_module(&context.file_manager, self.file_id, &mod_name.0.contents) {
+            match find_module(&context.file_manager, self.file_id, &mod_decl.ident.0.contents) {
                 Ok(child_file_id) => child_file_id,
                 Err(expected_path) => {
-                    let mod_name = mod_name.clone();
+                    let mod_name = mod_decl.ident.clone();
                     let err =
                         DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path };
                     errors.push((err.into(), self.file_id));
@@ -538,17 +538,17 @@ impl<'a> ModCollector<'a> {
                 }
             };
 
-        let location = Location { file: self.file_id, span: mod_name.span() };
+        let location = Location { file: self.file_id, span: mod_decl.ident.span() };
 
         if let Some(old_location) = context.visited_files.get(&child_file_id) {
             let error = DefCollectorErrorKind::ModuleAlreadyPartOfCrate {
-                mod_name: mod_name.clone(),
+                mod_name: mod_decl.ident.clone(),
                 span: location.span,
             };
             errors.push((error.into(), location.file));
 
             let error = DefCollectorErrorKind::ModuleOriginallyDefined {
-                mod_name: mod_name.clone(),
+                mod_name: mod_decl.ident.clone(),
                 span: old_location.span,
             };
             errors.push((error.into(), old_location.file));
@@ -566,7 +566,7 @@ impl<'a> ModCollector<'a> {
         );
 
         // Add module into def collector and get a ModuleId
-        match self.push_child_module(mod_name, child_file_id, true, false) {
+        match self.push_child_module(&mod_decl.ident, child_file_id, true, false) {
             Ok(child_mod_id) => {
                 errors.extend(collect_defs(
                     self.def_collector,

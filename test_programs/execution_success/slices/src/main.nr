@@ -50,6 +50,8 @@ fn main(x: Field, y: pub Field) {
     // The parameters to this function must come from witness values (inputs to main)
     regression_merge_slices(x, y);
     regression_2370();
+
+    regression_4506();
 }
 // Ensure that slices of struct/tuple values work.
 fn regression_2083() {
@@ -296,4 +298,9 @@ fn merge_slices_remove_between_ifs(x: Field, y: Field) -> [Field] {
 fn regression_2370() {
     let mut slice = [];
     slice = [1, 2, 3];
+}
+
+fn regression_4506() {
+    let slice: [Field] = [1, 2, 3];
+    assert(slice == slice);
 }
