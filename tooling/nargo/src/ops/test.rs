@@ -14,10 +14,16 @@ pub enum TestStatus {
     CompileError(FileDiagnostic),
 }
 
+impl TestStatus {
+    pub fn failed(&self) -> bool {
+        !matches!(self, TestStatus::Pass)
+    }
+}
+
 pub fn run_test<B: BlackBoxFunctionSolver>(
     blackbox_solver: &B,
     context: &mut Context,
-    test_function: TestFunction,
+    test_function: &TestFunction,
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
     config: &CompileOptions,
@@ -45,7 +51,7 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
 /// that a constraint was never satisfiable.
 /// An example of this is the program `assert(false)`
 /// In that case, we check if the test function should fail, and if so, we return `TestStatus::Pass`.
-fn test_status_program_compile_fail(err: CompileError, test_function: TestFunction) -> TestStatus {
+fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunction) -> TestStatus {
     // The test has failed compilation, but it should never fail. Report error.
     if !test_function.should_fail() {
         return TestStatus::CompileError(err.into());
@@ -70,7 +76,7 @@ fn test_status_program_compile_fail(err: CompileError, test_function: TestFuncti
 /// We now check whether execution passed/failed and whether it should have
 /// passed/failed to determine the test status.
 fn test_status_program_compile_pass(
-    test_function: TestFunction,
+    test_function: &TestFunction,
     debug: DebugInfo,
     circuit_execution: Result<WitnessMap, NargoError>,
 ) -> TestStatus {
@@ -109,7 +115,7 @@ fn test_status_program_compile_pass(
 }
 
 fn check_expected_failure_message(
-    test_function: TestFunction,
+    test_function: &TestFunction,
     failed_assertion: Option<String>,
     error_diagnostic: Option<FileDiagnostic>,
 ) -> TestStatus {
