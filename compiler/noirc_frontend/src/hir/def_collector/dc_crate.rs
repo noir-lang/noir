@@ -10,7 +10,9 @@ use crate::hir::resolution::{
     resolve_impls, resolve_structs, resolve_trait_by_path, resolve_trait_impls, resolve_traits,
     resolve_type_aliases,
 };
-use crate::hir::type_check::{type_check_func, TypeCheckError, TypeChecker, check_trait_impl_method_matches_declaration};
+use crate::hir::type_check::{
+    check_trait_impl_method_matches_declaration, type_check_func, TypeCheckError, TypeChecker,
+};
 use crate::hir::Context;
 
 use crate::macros_api::{MacroError, MacroProcessor};
@@ -19,8 +21,7 @@ use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId, TraitId, Ty
 use crate::parser::{ParserError, SortedModule};
 use crate::{
     ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, Path, PathKind, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType,
+    NoirTypeAlias, Path, PathKind, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;

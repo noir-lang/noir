@@ -171,7 +171,6 @@ fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_e
 pub(crate) fn check_trait_impl_method_matches_declaration(
     interner: &mut NodeInterner,
     function: FuncId,
-
     // impl_methods: &[(FileId, FuncId)],
     // trait_id: TraitId,
     // trait_name_span: Span,
@@ -193,7 +192,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         let tmeta = interner.get_trait(impl_.trait_id);
 
         let mut bindings = TypeBindings::new();
-        bindings.insert(tmeta.self_type_typevar_id, (tmeta.self_type_typevar.clone(), impl_.typ.clone()));
+        bindings.insert(
+            tmeta.self_type_typevar_id,
+            (tmeta.self_type_typevar.clone(), impl_.typ.clone()),
+        );
 
         for (generic, arg) in tmeta.generics.iter().zip(&impl_.trait_generics) {
             bindings.insert(generic.id(), (generic.clone(), arg.clone()));
@@ -202,11 +204,24 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         if let Some(tfn_id) = tmeta.method_ids.get(n) {
             let tfn_meta = interner.function_meta(tfn_id);
 
-            let (declaration_type, bindings) = tfn_meta.typ.instantiate_with_bindings(bindings, interner);
+            if tfn_meta.direct_generics.len() != meta.direct_generics.len() {
+                eprintln!("Generic count mismatch!  trait len = {}, impl len = {}", tfn_meta.direct_generics.len(), meta.direct_generics.len());
+            }
+
+            for (trait_fn_generic, impl_fn_generic) in tfn_meta.direct_generics.iter().zip(&meta.direct_generics) {
+                let arg = Type::TypeVariable(impl_fn_generic.clone(), crate::TypeVariableKind::Normal);
+                bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
+            }
+
+            let (declaration_type, _) =
+                tfn_meta.typ.instantiate_with_bindings(bindings, interner);
 
             let error = |text: &str| {
                 let g = vecmap(&impl_.trait_generics, |t| format!("{t:?}")).join(", ");
-                eprintln!("impl {}<{}> for {}  (method {})   {}", tmeta.name, g, impl_.typ, n, text);
+                eprintln!(
+                    "impl {}<{}> for {}  (method {})   {}",
+                    tmeta.name, g, impl_.typ, n, text
+                );
                 eprintln!("  {:?}", definition_type);
                 eprintln!("and");
                 eprintln!("  {:?}\n", declaration_type);
@@ -218,7 +233,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
                     if !result_bindings.is_empty() {
                         error(&format!("Result bindings has length: {}", result_bindings.len()));
                     }
-                },
+                }
                 Err(_) => error("failed to unify"),
             }
         } else {

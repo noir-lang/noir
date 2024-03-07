@@ -5,8 +5,8 @@ use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
-use crate::FunctionKind;
 use crate::{Distinctness, FunctionReturnType, Type, Visibility};
+use crate::{FunctionKind, Generics};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -102,6 +102,12 @@ pub struct FuncMeta {
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.
     pub typ: Type,
+
+    /// The set of generics that are declared directly on this function in the source code.
+    /// This does not include generics from an outer scope, like those introduced by
+    /// an `impl<T>` block. This also does not include implicit generics added by the compiler
+    /// such as a trait's `Self` type variable.
+    pub direct_generics: Generics,
 
     pub location: Location,
 

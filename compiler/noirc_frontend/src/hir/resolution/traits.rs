@@ -8,9 +8,7 @@ use crate::{
     graph::CrateId,
     hir::{
         def_collector::{
-            dc_crate::{
-                CompilationError, UnresolvedTrait, UnresolvedTraitImpl,
-            },
+            dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTraitImpl},
             errors::{DefCollectorErrorKind, DuplicateType},
         },
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
@@ -131,6 +129,7 @@ fn resolve_trait_methods(
             let func_id = unresolved_trait.method_ids[&name.0.contents];
             let (_, func_meta) = resolver.resolve_trait_function(
                 name,
+                generics,
                 parameters,
                 return_type,
                 where_clause,
