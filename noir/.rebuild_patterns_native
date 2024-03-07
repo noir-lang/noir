@@ -1,4 +1,6 @@
 ^noir/Dockerfile
+^noir/scripts/bootstrap_native.sh
+^noir/scripts/test_native.sh
 ^noir/noir-repo/acvm-repo
 ^noir/noir-repo/compiler
 ^noir/noir-repo/aztec_macros

@@ -1,4 +1,6 @@
 ^noir/Dockerfile.packages
+^noir/scripts/bootstrap_packages.sh
+^noir/scripts/test_js_packages.sh
 ^noir/noir-repo/.yarn
 ^noir/noir-repo/.yarnrc.yml
 ^noir/noir-repo/package.json
