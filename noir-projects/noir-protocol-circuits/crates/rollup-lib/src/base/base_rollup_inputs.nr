@@ -155,6 +155,8 @@ impl BaseRollupInputs {
 
     // Cpp code says calculate_contract_subtree, so I'm leaving it as is for now
     fn calculate_contract_subtree_root(self, leaves: [Field; MAX_NEW_CONTRACTS_PER_TX]) -> Field {
+        // Silence warning for unused self, pending proper fix.
+        let _  = self;
         assert_eq(leaves.len(), 1);
         leaves[0]
     }

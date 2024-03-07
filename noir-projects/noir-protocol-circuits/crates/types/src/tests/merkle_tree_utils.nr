@@ -154,6 +154,8 @@ impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkl
     }
 
     pub fn get_next_available_index(self) -> Field {
+        // Silence warning for unused self, pending proper fix.
+        let _  = self;
         SUBTREE_ITEMS
     }
 }

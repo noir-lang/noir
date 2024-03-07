@@ -360,7 +360,6 @@ fn propagate_new_nullifiers(
 fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &mut PublicKernelCircuitPublicInputsBuilder) {
     // new l2 to l1 messages
     let public_call_public_inputs = public_call.call_stack_item.public_inputs;
-    let portal_contract_address = public_call.portal_contract_address;
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
     let new_l2_to_l1_msgs = public_call_public_inputs.new_l2_to_l1_msgs;
