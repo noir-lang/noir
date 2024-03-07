@@ -1333,7 +1333,7 @@ workflows:
             - l1-contracts
             - noir-projects
           <<: *defaults
-      - end-to-end: *defaults_yarn_project_pre_join
+      - end-to-end: *defaults_yarn_project
       - aztec-faucet: *defaults_yarn_project_pre_join
       - build-docs: *defaults_yarn_project_pre_join
       - yarn-project-test: *defaults_yarn_project_pre_join
