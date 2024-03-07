@@ -126,7 +126,6 @@ describe('Hashing Opcodes', () => {
 
       expect(combined).toEqual(expectedHash);
     });
-    // TODO: indirect
   });
 
   describe('Sha256', () => {
