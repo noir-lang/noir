@@ -786,6 +786,18 @@ jobs:
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
+  e2e-crowdfunding-and-claim:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_crowdfunding_and_claim.test.ts
+          aztec_manifest_key: end-to-end
+
   e2e-public-cross-chain-messaging:
     steps:
       - *checkout
@@ -1377,6 +1389,7 @@ workflows:
       - e2e-multiple-accounts-1-enc-key: *e2e_test
       - e2e-cli: *e2e_test
       - e2e-cross-chain-messaging: *e2e_test
+      - e2e-crowdfunding-and-claim: *e2e_test
       - e2e-public-cross-chain-messaging: *e2e_test
       - e2e-public-to-private-messaging: *e2e_test
       - e2e-account-contracts: *e2e_test
@@ -1440,6 +1453,7 @@ workflows:
             - e2e-multiple-accounts-1-enc-key
             - e2e-cli
             - e2e-cross-chain-messaging
+            - e2e-crowdfunding-and-claim
             - e2e-public-cross-chain-messaging
             - e2e-public-to-private-messaging
             - e2e-account-contracts

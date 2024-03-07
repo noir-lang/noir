@@ -333,8 +333,9 @@ export class PXEService implements PXE {
    * @param note - The note to find the nonces for.
    * @returns The nonces of the note.
    * @remarks More than a single nonce may be returned since there might be more than one nonce for a given note.
+   * TODO(#4956): Un-expose this
    */
-  private async getNoteNonces(note: ExtendedNote): Promise<Fr[]> {
+  public async getNoteNonces(note: ExtendedNote): Promise<Fr[]> {
     const tx = await this.node.getTxEffect(note.txHash);
     if (!tx) {
       throw new Error(`Unknown tx: ${note.txHash}`);

@@ -96,3 +96,11 @@ impl ValueNote {
         ValueNote { value, owner, randomness, header }
     }
 }
+
+impl Serialize<7> for ValueNote {
+    fn serialize(self) -> [Field; 7] {
+        let header = self.header.serialize();
+
+        [self.value, self.owner.to_field(), self.randomness, header[0], header[1], header[2], header[3]]
+    }
+}

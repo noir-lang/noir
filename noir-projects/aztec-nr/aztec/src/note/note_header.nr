@@ -1,5 +1,5 @@
 use dep::protocol_types::address::AztecAddress;
-use dep::protocol_types::traits::Empty;
+use dep::protocol_types::traits::{Empty, Serialize};
 
 struct NoteHeader {
     contract_address: AztecAddress,
@@ -19,5 +19,11 @@ impl Empty for NoteHeader {
 impl NoteHeader {
     pub fn new(contract_address: AztecAddress, nonce: Field, storage_slot: Field) -> Self {
         NoteHeader { contract_address, nonce, storage_slot, is_transient: false }
+    }
+}
+
+impl Serialize<4> for NoteHeader {
+    fn serialize(self) -> [Field; 4] {
+        [self.contract_address.to_field(), self.nonce, self.storage_slot, self.is_transient as Field]
     }
 }
