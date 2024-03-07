@@ -122,6 +122,8 @@ pub enum TypeCheckError {
     ConstrainedReferenceToUnconstrained { span: Span },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { span: Span },
+    #[error("Only sized types may be used in the entry point to a program")]
+    InvalidTypeForEntryPoint { span: Span },
 }
 
 impl TypeCheckError {
@@ -284,6 +286,9 @@ impl From<TypeCheckError> for Diagnostic {
                 let msg = format!("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope");
                 Diagnostic::simple_warning(msg, "Unnecessary trait constraint in where clause".into(), span)
             }
+            TypeCheckError::InvalidTypeForEntryPoint { span } => Diagnostic::simple_error(
+                "Only sized types may be used in the entry point to a program".to_string(),
+                "Slices, references, or any type containing them may not be used in main or a contract function".to_string(), span),
         }
     }
 }
