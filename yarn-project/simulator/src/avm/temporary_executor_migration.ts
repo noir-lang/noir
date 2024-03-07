@@ -5,6 +5,7 @@ import {
   ContractStorageUpdateRequest,
   GlobalVariables,
   L2ToL1Message,
+  ReadRequest,
   SideEffect,
   SideEffectLinkedToNoteHash,
 } from '@aztec/circuits.js';
@@ -92,12 +93,14 @@ export function temporaryConvertAvmResults(
   // TODO(follow up in pr tree): NOT SUPPORTED YET, make sure hashing and log resolution is done correctly
   // Disabled.
   const nestedExecutions: PublicExecutionResult[] = [];
+  const nullifierReadRequests: ReadRequest[] = [];
   const newNullifiers: SideEffectLinkedToNoteHash[] = [];
   const unencryptedLogs = FunctionL2Logs.empty();
   const newL2ToL1Messages = newWorldState.newL1Messages.map(() => L2ToL1Message.empty());
 
   return {
     execution,
+    nullifierReadRequests,
     newNoteHashes,
     newL2ToL1Messages,
     newNullifiers,

@@ -80,6 +80,7 @@ export async function executePublicFunction(
       newNoteHashes: [],
       newL2ToL1Messages: [],
       newNullifiers: [],
+      nullifierReadRequests: [],
       contractStorageReads: [],
       contractStorageUpdateRequests: [],
       nestedExecutions: [],
@@ -96,11 +97,13 @@ export async function executePublicFunction(
   const returnWitness = extractReturnWitness(acir, partialWitness);
   const {
     returnValues,
+    nullifierReadRequests: nullifierReadRequestsPadded,
     newL2ToL1Msgs,
     newNoteHashes: newNoteHashesPadded,
     newNullifiers: newNullifiersPadded,
   } = PublicCircuitPublicInputs.fromFields(returnWitness);
 
+  const nullifierReadRequests = nullifierReadRequestsPadded.filter(v => !v.isEmpty());
   const newL2ToL1Messages = newL2ToL1Msgs.filter(v => !v.isEmpty());
   const newNoteHashes = newNoteHashesPadded.filter(v => !v.isEmpty());
   const newNullifiers = newNullifiersPadded.filter(v => !v.isEmpty());
@@ -126,6 +129,7 @@ export async function executePublicFunction(
     newNoteHashes,
     newL2ToL1Messages,
     newNullifiers,
+    nullifierReadRequests,
     contractStorageReads,
     contractStorageUpdateRequests,
     returnValues,

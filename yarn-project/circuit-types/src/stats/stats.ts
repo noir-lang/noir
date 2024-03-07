@@ -62,7 +62,8 @@ export type CircuitSimulationStats = {
     | 'private-kernel-inner'
     | 'public-kernel-setup'
     | 'public-kernel-app-logic'
-    | 'public-kernel-teardown';
+    | 'public-kernel-teardown'
+    | 'public-kernel-tail';
   /** Duration in ms. */
   duration: number;
   /** Size in bytes of circuit inputs. */

@@ -114,7 +114,7 @@ library Constants {
   uint256 internal constant PARTIAL_STATE_REFERENCE_LENGTH = 8;
   uint256 internal constant PRIVATE_CALL_STACK_ITEM_LENGTH = 223;
   uint256 internal constant PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH = 218;
-  uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH = 195;
+  uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH = 199;
   uint256 internal constant STATE_REFERENCE_LENGTH = 10;
   uint256 internal constant TX_CONTEXT_DATA_LENGTH = 11;
   uint256 internal constant TX_REQUEST_LENGTH = 17;

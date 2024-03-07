@@ -767,6 +767,10 @@ export class PrivateAccumulatedNonRevertibleData {
 export class PublicAccumulatedNonRevertibleData {
   constructor(
     /**
+     * The nullifier read requests made in this transaction.
+     */
+    public nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
+    /**
      * The new non-revertible commitments made in this transaction.
      */
     public newNoteHashes: Tuple<SideEffect, typeof MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX>,
@@ -792,12 +796,20 @@ export class PublicAccumulatedNonRevertibleData {
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.newNoteHashes, this.newNullifiers, this.publicCallStack);
+    return serializeToBuffer(
+      this.nullifierReadRequests,
+      this.newNoteHashes,
+      this.newNullifiers,
+      this.publicCallStack,
+      this.publicDataUpdateRequests,
+      this.publicDataReads,
+    );
   }
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new this(
+      reader.readArray(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ReadRequestContext),
       reader.readArray(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect),
       reader.readArray(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
@@ -816,6 +828,7 @@ export class PublicAccumulatedNonRevertibleData {
 
   static empty() {
     return new this(
+      makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ReadRequestContext.empty),
       makeTuple(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect.empty),
       makeTuple(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
@@ -826,6 +839,7 @@ export class PublicAccumulatedNonRevertibleData {
 
   static fromPrivateAccumulatedNonRevertibleData(data: PrivateAccumulatedNonRevertibleData) {
     return new this(
+      makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ReadRequestContext.empty),
       data.newNoteHashes,
       data.newNullifiers,
       data.publicCallStack,

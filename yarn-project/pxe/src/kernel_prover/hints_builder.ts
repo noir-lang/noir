@@ -9,13 +9,12 @@ import {
   MembershipWitness,
   NULLIFIER_TREE_HEIGHT,
   NullifierKeyValidationRequestContext,
-  NullifierReadRequestResetHintsBuilder,
   ReadRequestContext,
   SideEffect,
   SideEffectLinkedToNoteHash,
   SideEffectType,
+  buildNullifierReadRequestResetHints,
 } from '@aztec/circuits.js';
-import { siloNullifier } from '@aztec/circuits.js/hash';
 import { makeTuple } from '@aztec/foundation/array';
 import { Tuple } from '@aztec/foundation/serialize';
 
@@ -75,42 +74,28 @@ export class HintsBuilder {
     return hints;
   }
 
-  async getNullifierReadRequestResetHints(
+  getNullifierReadRequestResetHints(
     nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
     nullifiers: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
   ) {
-    // TODO - Should be comparing un-siloed values and contract addresses.
-    const builder = new NullifierReadRequestResetHintsBuilder();
-    const nullifierIndexMap: Map<bigint, number> = new Map();
-    nullifiers.forEach((n, i) => nullifierIndexMap.set(n.value.toBigInt(), i));
-    const siloedReadRequestValues = nullifierReadRequests.map(r =>
-      r.isEmpty() ? Fr.ZERO : siloNullifier(r.contractAddress, r.value),
-    );
-    for (let i = 0; i < nullifierReadRequests.length; ++i) {
-      const value = siloedReadRequestValues[i];
-      if (value.isZero()) {
-        break;
-      }
-      const pendingValueIndex = nullifierIndexMap.get(value.toBigInt());
-      if (pendingValueIndex !== undefined) {
-        builder.addPendingReadRequest(i, pendingValueIndex);
-      } else {
-        const membershipWitness = await this.oracle.getNullifierMembershipWitness(0, value);
-        if (!membershipWitness) {
-          throw new Error('Read request is reading an unknown nullifier value.');
-        }
-        builder.addSettledReadRequest(
-          i,
-          new MembershipWitness(
-            NULLIFIER_TREE_HEIGHT,
-            membershipWitness.index,
-            membershipWitness.siblingPath.toTuple<typeof NULLIFIER_TREE_HEIGHT>(),
-          ),
-          membershipWitness.leafPreimage,
-        );
-      }
+    return buildNullifierReadRequestResetHints(this, nullifierReadRequests, nullifiers);
+  }
+
+  async getNullifierMembershipWitness(nullifier: Fr) {
+    const res = await this.oracle.getNullifierMembershipWitness(nullifier);
+    if (!res) {
+      return;
     }
-    return builder.toHints();
+
+    const { index, siblingPath, leafPreimage } = res;
+    return {
+      membershipWitness: new MembershipWitness(
+        NULLIFIER_TREE_HEIGHT,
+        index,
+        siblingPath.toTuple<typeof NULLIFIER_TREE_HEIGHT>(),
+      ),
+      leafPreimage,
+    };
   }
 
   /**

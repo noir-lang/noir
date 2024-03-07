@@ -174,6 +174,10 @@ export class NullifierReadRequestResetHintsBuilder {
     );
   }
 
+  static empty() {
+    return new NullifierReadRequestResetHintsBuilder().toHints();
+  }
+
   addPendingReadRequest(readRequestIndex: number, nullifierIndex: number) {
     this.hints.readRequestStatuses[readRequestIndex] = new ReadRequestStatus(
       ReadRequestState.PENDING,
@@ -189,7 +193,7 @@ export class NullifierReadRequestResetHintsBuilder {
     leafPreimage: NullifierLeafPreimage,
   ) {
     this.hints.readRequestStatuses[readRequestIndex] = new ReadRequestStatus(
-      ReadRequestState.PENDING,
+      ReadRequestState.SETTLED,
       this.numSettledReadHints,
     );
     this.hints.settledReadHints[this.numSettledReadHints] = new SettledReadHint(

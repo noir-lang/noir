@@ -84,6 +84,7 @@ import {
   PublicKernelCircuitPrivateInputs,
   PublicKernelCircuitPublicInputs,
   PublicKernelData,
+  PublicKernelTailCircuitPrivateInputs,
   ReadRequest,
   ReadRequestContext,
   ReadRequestStatus,
@@ -164,6 +165,7 @@ import {
   StorageRead as StorageReadNoir,
   StorageUpdateRequest as StorageUpdateRequestNoir,
 } from './types/public_kernel_setup_types.js';
+import { PublicKernelTailCircuitPrivateInputs as PublicKernelTailCircuitPrivateInputsNoir } from './types/public_kernel_tail_types.js';
 import {
   ArchiveRootMembershipWitness as ArchiveRootMembershipWitnessNoir,
   BaseRollupInputs as BaseRollupInputsNoir,
@@ -723,7 +725,7 @@ export function mapPrivateCircuitPublicInputsToNoir(
     args_hash: mapFieldToNoir(privateCircuitPublicInputs.argsHash),
     return_values: mapTuple(privateCircuitPublicInputs.returnValues, mapFieldToNoir),
     note_hash_read_requests: mapTuple(privateCircuitPublicInputs.noteHashReadRequests, mapSideEffectToNoir),
-    nullifier_read_requests: mapTuple(privateCircuitPublicInputs.nullifierReadRequests, mapSideEffectToNoir),
+    nullifier_read_requests: mapTuple(privateCircuitPublicInputs.nullifierReadRequests, mapReadRequestToNoir),
     nullifier_key_validation_requests: mapTuple(
       privateCircuitPublicInputs.nullifierKeyValidationRequests,
       mapNullifierKeyValidationRequestToNoir,
@@ -1232,6 +1234,7 @@ export function mapPublicAccumulatedNonRevertibleDataToNoir(
   data: PublicAccumulatedNonRevertibleData,
 ): PublicAccumulatedNonRevertibleDataNoir {
   return {
+    nullifier_read_requests: mapTuple(data.nullifierReadRequests, mapReadRequestContextToNoir),
     new_note_hashes: mapTuple(data.newNoteHashes, mapSideEffectToNoir),
     new_nullifiers: mapTuple(data.newNullifiers, mapSideEffectLinkedToNoir),
     public_call_stack: mapTuple(data.publicCallStack, mapCallRequestToNoir),
@@ -1400,6 +1403,15 @@ export function mapPublicKernelCircuitPrivateInputsToNoir(
   };
 }
 
+export function mapPublicKernelTailCircuitPrivateInputsToNoir(
+  inputs: PublicKernelTailCircuitPrivateInputs,
+): PublicKernelTailCircuitPrivateInputsNoir {
+  return {
+    previous_kernel: mapPublicKernelDataToNoir(inputs.previousKernel),
+    nullifier_read_request_reset_hints: mapNullifierReadRequestResetHintsToNoir(inputs.nullifierReadRequestResetHints),
+  };
+}
+
 export function mapPublicKernelCircuitPublicInputsFromNoir(
   inputs: PublicKernelCircuitPublicInputsNoir,
 ): PublicKernelCircuitPublicInputs {
@@ -1419,6 +1431,7 @@ export function mapPublicAccumulatedNonRevertibleDataFromNoir(
   data: PublicAccumulatedNonRevertibleDataNoir,
 ): PublicAccumulatedNonRevertibleData {
   return new PublicAccumulatedNonRevertibleData(
+    mapTupleFromNoir(data.nullifier_read_requests, MAX_NULLIFIER_READ_REQUESTS_PER_TX, mapReadRequestContextFromNoir),
     mapTupleFromNoir(data.new_note_hashes, MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, mapSideEffectFromNoir),
     mapTupleFromNoir(data.new_nullifiers, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, mapSideEffectLinkedFromNoir),
     mapTupleFromNoir(
@@ -1549,6 +1562,7 @@ export function mapPublicCircuitPublicInputsToNoir(
     call_context: mapCallContextToNoir(publicInputs.callContext),
     args_hash: mapFieldToNoir(publicInputs.argsHash),
     return_values: mapTuple(publicInputs.returnValues, mapFieldToNoir),
+    nullifier_read_requests: mapTuple(publicInputs.nullifierReadRequests, mapReadRequestToNoir),
     contract_storage_update_requests: mapTuple(
       publicInputs.contractStorageUpdateRequests,
       mapStorageUpdateRequestToNoir,

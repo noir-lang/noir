@@ -26,6 +26,7 @@ export * from './kernel/public_call_data.js';
 export * from './kernel/public_kernel_circuit_private_inputs.js';
 export * from './kernel/public_kernel_circuit_public_inputs.js';
 export * from './kernel/public_kernel_data.js';
+export * from './kernel/public_kernel_tail_circuit_private_inputs.js';
 export * from './kernel/rollup_kernel_circuit_public_inputs.js';
 export * from './kernel/rollup_kernel_data.js';
 export * from './l2_to_l1_message.js';

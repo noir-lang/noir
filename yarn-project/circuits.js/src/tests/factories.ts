@@ -179,6 +179,14 @@ export function makeSelector(seed: number): FunctionSelector {
   return new FunctionSelector(seed);
 }
 
+function makeReadRequest(n: number): ReadRequest {
+  return new ReadRequest(new Fr(BigInt(n)), n + 1);
+}
+
+function makeReadRequestContext(n: number): ReadRequestContext {
+  return new ReadRequestContext(new Fr(BigInt(n)), n + 1, AztecAddress.fromBigInt(BigInt(n + 2)));
+}
+
 /**
  * Creates arbitrary NullifierKeyValidationRequest from the given seed.
  * @param seed - The seed to use for generating the NullifierKeyValidationRequest.
@@ -263,7 +271,7 @@ export function makeCombinedAccumulatedData(seed = 1, full = false): CombinedAcc
 
   return new CombinedAccumulatedData(
     tupleGenerator(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, sideEffectFromNumber, seed + 0x80),
-    tupleGenerator(MAX_NULLIFIER_READ_REQUESTS_PER_TX, readRequestContextFromNumber, seed + 0x90),
+    tupleGenerator(MAX_NULLIFIER_READ_REQUESTS_PER_TX, makeReadRequestContext, seed + 0x90),
     tupleGenerator(
       MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
       makeNullifierKeyValidationRequestContext,
@@ -294,7 +302,7 @@ export function makeCombinedAccumulatedRevertibleData(seed = 1, full = false): P
 
   return new PublicAccumulatedRevertibleData(
     tupleGenerator(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, sideEffectFromNumber, seed + 0x80),
-    tupleGenerator(MAX_NULLIFIER_READ_REQUESTS_PER_TX, readRequestContextFromNumber, seed + 0x90),
+    tupleGenerator(MAX_NULLIFIER_READ_REQUESTS_PER_TX, makeReadRequestContext, seed + 0x90),
     tupleGenerator(
       MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
       makeNullifierKeyValidationRequestContext,
@@ -356,6 +364,7 @@ export function makeCombinedAccumulatedNonRevertibleData(seed = 1, full = false)
   const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
 
   return new PublicAccumulatedNonRevertibleData(
+    tupleGenerator(MAX_NULLIFIER_READ_REQUESTS_PER_TX, makeReadRequestContext, seed + 0x91),
     tupleGenerator(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, sideEffectFromNumber, seed + 0x101),
     tupleGenerator(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, sideEffectLinkedFromNumber, seed + 0x201),
     tupleGenerator(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x501),
@@ -423,6 +432,7 @@ export function makePublicCircuitPublicInputs(
     makeCallContext(seed, storageContractAddress),
     fr(seed + 0x100),
     tupleGenerator(RETURN_VALUES_LENGTH, fr, seed + 0x200),
+    tupleGenerator(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, makeReadRequest, seed + 0x400),
     tupleGenerator(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, makeContractStorageUpdateRequest, seed + 0x400),
     tupleGenerator(MAX_PUBLIC_DATA_READS_PER_CALL, makeContractStorageRead, seed + 0x500),
     tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x600),
@@ -863,7 +873,7 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     returnValues: makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x200),
     minRevertibleSideEffectCounter: fr(0),
     noteHashReadRequests: makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, sideEffectFromNumber, seed + 0x300),
-    nullifierReadRequests: makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, readRequestFromNumber, seed + 0x310),
+    nullifierReadRequests: makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_CALL, makeReadRequest, seed + 0x310),
     nullifierKeyValidationRequests: makeTuple(
       MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
       makeNullifierKeyValidationRequest,
@@ -1326,12 +1336,4 @@ export function sideEffectFromNumber(n: number): SideEffect {
  */
 export function sideEffectLinkedFromNumber(n: number): SideEffectLinkedToNoteHash {
   return new SideEffectLinkedToNoteHash(new Fr(BigInt(n)), Fr.zero(), Fr.zero());
-}
-
-function readRequestFromNumber(n: number): ReadRequest {
-  return new ReadRequest(new Fr(BigInt(n)), n + 1);
-}
-
-function readRequestContextFromNumber(n: number): ReadRequestContext {
-  return new ReadRequestContext(new Fr(BigInt(n)), n + 1, AztecAddress.fromBigInt(BigInt(n + 2)));
 }

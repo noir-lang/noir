@@ -13,6 +13,7 @@ import {
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
   MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_CALL,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
@@ -30,7 +31,9 @@ import {
   PublicKernelCircuitPrivateInputs,
   PublicKernelCircuitPublicInputs,
   PublicKernelData,
+  PublicKernelTailCircuitPrivateInputs,
   RETURN_VALUES_LENGTH,
+  ReadRequest,
   SideEffect,
   SideEffectLinkedToNoteHash,
   VK_TREE_HEIGHT,
@@ -54,21 +57,25 @@ import { env } from 'process';
 import { getVerificationKeys } from '../mocks/verification_keys.js';
 import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
+import { HintsBuilder } from './hints_builder.js';
 import { FailedTx } from './processed_tx.js';
 
 export enum PublicKernelPhase {
   SETUP = 'setup',
   APP_LOGIC = 'app-logic',
   TEARDOWN = 'teardown',
+  TAIL = 'tail',
 }
 
 export const PhaseIsRevertible: Record<PublicKernelPhase, boolean> = {
   [PublicKernelPhase.SETUP]: false,
   [PublicKernelPhase.APP_LOGIC]: true,
   [PublicKernelPhase.TEARDOWN]: false,
+  [PublicKernelPhase.TAIL]: false,
 };
 
 export abstract class AbstractPhaseManager {
+  protected hintsBuilder: HintsBuilder;
   protected log: DebugLogger;
   constructor(
     protected db: MerkleTreeOperations,
@@ -79,6 +86,7 @@ export abstract class AbstractPhaseManager {
     protected historicalHeader: Header,
     public phase: PublicKernelPhase,
   ) {
+    this.hintsBuilder = new HintsBuilder(db);
     this.log = createDebugLogger(`aztec:sequencer:${phase}`);
   }
   /**
@@ -129,6 +137,7 @@ export abstract class AbstractPhaseManager {
         [PublicKernelPhase.SETUP]: [],
         [PublicKernelPhase.APP_LOGIC]: [],
         [PublicKernelPhase.TEARDOWN]: [],
+        [PublicKernelPhase.TAIL]: [],
       };
     }
 
@@ -142,12 +151,14 @@ export abstract class AbstractPhaseManager {
         [PublicKernelPhase.SETUP]: [],
         [PublicKernelPhase.APP_LOGIC]: publicCallsStack,
         [PublicKernelPhase.TEARDOWN]: [],
+        [PublicKernelPhase.TAIL]: [],
       };
     } else {
       return {
         [PublicKernelPhase.SETUP]: publicCallsStack.slice(0, firstRevertibleCallIndex - 1),
         [PublicKernelPhase.APP_LOGIC]: publicCallsStack.slice(firstRevertibleCallIndex),
         [PublicKernelPhase.TEARDOWN]: [publicCallsStack[firstRevertibleCallIndex - 1]],
+        [PublicKernelPhase.TAIL]: [],
       };
     }
   }
@@ -206,7 +217,7 @@ export abstract class AbstractPhaseManager {
         executionStack.push(...result.nestedExecutions);
         const callData = await this.getPublicCallData(result, isExecutionRequest);
 
-        [kernelOutput, kernelProof] = await this.runKernelCircuit(callData, kernelOutput, kernelProof);
+        [kernelOutput, kernelProof] = await this.runKernelCircuit(kernelOutput, kernelProof, callData);
 
         if (kernelOutput.reverted && this.phase === PublicKernelPhase.APP_LOGIC) {
           this.log.debug(
@@ -235,21 +246,38 @@ export abstract class AbstractPhaseManager {
   }
 
   protected async runKernelCircuit(
-    callData: PublicCallData,
     previousOutput: PublicKernelCircuitPublicInputs,
     previousProof: Proof,
+    callData?: PublicCallData,
   ): Promise<[PublicKernelCircuitPublicInputs, Proof]> {
-    const output = await this.getKernelCircuitOutput(callData, previousOutput, previousProof);
+    const output = await this.getKernelCircuitOutput(previousOutput, previousProof, callData);
     const proof = await this.publicProver.getPublicKernelCircuitProof(output);
     return [output, proof];
   }
 
-  protected getKernelCircuitOutput(
-    callData: PublicCallData,
+  protected async getKernelCircuitOutput(
     previousOutput: PublicKernelCircuitPublicInputs,
     previousProof: Proof,
+    callData?: PublicCallData,
   ): Promise<PublicKernelCircuitPublicInputs> {
     const previousKernel = this.getPreviousKernelData(previousOutput, previousProof);
+
+    if (this.phase === PublicKernelPhase.TAIL) {
+      const { endNonRevertibleData, end } = previousOutput;
+      const nullifierReadRequestResetHints = await this.hintsBuilder.getNullifierReadRequestResetHints(
+        endNonRevertibleData.nullifierReadRequests,
+        end.nullifierReadRequests,
+        endNonRevertibleData.newNullifiers,
+        end.newNullifiers,
+      );
+      const inputs = new PublicKernelTailCircuitPrivateInputs(previousKernel, nullifierReadRequestResetHints);
+      return this.publicKernel.publicKernelCircuitTail(inputs);
+    }
+
+    if (!callData) {
+      throw new Error(`Cannot run public kernel circuit without call data for phase '${this.phase}'.`);
+    }
+
     const inputs = new PublicKernelCircuitPrivateInputs(previousKernel, callData);
     switch (this.phase) {
       case PublicKernelPhase.SETUP:
@@ -296,6 +324,11 @@ export abstract class AbstractPhaseManager {
       newNullifiers: padArrayEnd(result.newNullifiers, SideEffectLinkedToNoteHash.empty(), MAX_NEW_NULLIFIERS_PER_CALL),
       newL2ToL1Msgs: padArrayEnd(result.newL2ToL1Messages, L2ToL1Message.empty(), MAX_NEW_L2_TO_L1_MSGS_PER_CALL),
       returnValues: padArrayEnd(result.returnValues, Fr.ZERO, RETURN_VALUES_LENGTH),
+      nullifierReadRequests: padArrayEnd(
+        result.nullifierReadRequests,
+        ReadRequest.empty(),
+        MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
+      ),
       contractStorageReads: padArrayEnd(
         result.contractStorageReads,
         ContractStorageRead.empty(),

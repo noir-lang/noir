@@ -4,6 +4,7 @@ import {
   MergeRollupInputs,
   PublicKernelCircuitPrivateInputs,
   PublicKernelCircuitPublicInputs,
+  PublicKernelTailCircuitPrivateInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
@@ -54,5 +55,11 @@ export interface PublicKernelCircuitSimulator {
    * @returns The public inputs as outputs of the simulation.
    */
   publicKernelCircuitTeardown(inputs: PublicKernelCircuitPrivateInputs): Promise<PublicKernelCircuitPublicInputs>;
+  /**
+   * Simulates the public kernel tail circuit from its inputs.
+   * @param inputs - Inputs to the circuit.
+   * @returns The public inputs as outputs of the simulation.
+   */
+  publicKernelCircuitTail(inputs: PublicKernelTailCircuitPrivateInputs): Promise<PublicKernelCircuitPublicInputs>;
 }
 export * from './acvm_wasm.js';

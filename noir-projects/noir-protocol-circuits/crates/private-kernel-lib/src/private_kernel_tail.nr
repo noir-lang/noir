@@ -1,8 +1,6 @@
-use crate::{
-    common, nullifier_read_request_reset::NullifierReadRequestResetHints,
-    read_request_reset::reset_read_requests
-};
+use crate::common;
 use dep::std::{cmp::Eq, option::Option, unsafe};
+use dep::reset_kernel_lib::{NullifierReadRequestResetHints, reset_read_requests};
 use dep::types::{
     abis::{
     call_request::CallRequest, nullifier_key_validation_request::NullifierKeyValidationRequestContext,
@@ -109,11 +107,7 @@ impl PrivateKernelTailCircuitPrivateInputs {
         public_inputs.end.note_hash_read_requests = BoundedVec::new();
     }
 
-    fn assert_sorted_counters<T, N>(
-        original: [T; N],
-        sorted: [T; N],
-        indexes: [u64; N]
-    ) where T: Eq + Ordered + Empty {
+    fn assert_sorted_counters<T, N>(original: [T; N], sorted: [T; N], indexes: [u64; N]) where T: Eq + Ordered + Empty {
         let mut prev_was_empty = false;
 
         for i in 0..N {
@@ -260,9 +254,9 @@ impl PrivateKernelTailCircuitPrivateInputs {
 
 mod tests {
     use dep::std::{cmp::Eq, unsafe};
-    use crate::{
-        nullifier_read_request_reset::NullifierReadRequestResetHintsBuilder,
-        private_kernel_tail::PrivateKernelTailCircuitPrivateInputs,
+    use crate::{private_kernel_tail::PrivateKernelTailCircuitPrivateInputs};
+    use dep::reset_kernel_lib::{
+        NullifierReadRequestResetHintsBuilder,
         read_request_reset::{PendingReadHint, ReadRequestState, ReadRequestStatus}
     };
     use dep::types::constants::{

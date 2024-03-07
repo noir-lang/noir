@@ -8,6 +8,7 @@ import {
   PublicCallRequest,
   PublicDataRead,
   PublicDataUpdateRequest,
+  ReadRequest,
   SideEffect,
   SideEffectLinkedToNoteHash,
 } from '@aztec/circuits.js';
@@ -27,6 +28,8 @@ export interface PublicExecutionResult {
   newL2ToL1Messages: L2ToL1Message[];
   /** The new nullifiers to be inserted into the nullifier tree. */
   newNullifiers: SideEffectLinkedToNoteHash[];
+  /** The nullifier read requests emitted in this call. */
+  nullifierReadRequests: ReadRequest[];
   /** The contract storage reads performed by the function. */
   contractStorageReads: ContractStorageRead[];
   /** The contract storage update requests performed by the function. */

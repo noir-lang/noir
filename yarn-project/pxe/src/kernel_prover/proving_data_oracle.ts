@@ -60,7 +60,7 @@ export interface ProvingDataOracle {
    */
   getNoteMembershipWitness(leafIndex: bigint): Promise<MembershipWitness<typeof NOTE_HASH_TREE_HEIGHT>>;
 
-  getNullifierMembershipWitness(blockNumber: number, nullifier: Fr): Promise<NullifierMembershipWitness | undefined>;
+  getNullifierMembershipWitness(nullifier: Fr): Promise<NullifierMembershipWitness | undefined>;
 
   /**
    * Get the root of the note hash tree.

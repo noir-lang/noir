@@ -9,6 +9,7 @@ import { ContractsDataSourcePublicDB } from '../simulator/public_executor.js';
 import { AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
 import { AppLogicPhaseManager } from './app_logic_phase_manager.js';
 import { SetupPhaseManager } from './setup_phase_manager.js';
+import { TailPhaseManager } from './tail_phase_manager.js';
 import { TeardownPhaseManager } from './teardown_phase_manager.js';
 
 export class PhaseDidNotChangeError extends Error {
@@ -106,6 +107,17 @@ export class PhaseManagerFactory {
         throw new PhaseDidNotChangeError(currentPhaseManager.phase);
       }
       return new TeardownPhaseManager(
+        db,
+        publicExecutor,
+        publicKernel,
+        publicProver,
+        globalVariables,
+        historicalHeader,
+        publicContractsDB,
+        publicStateDB,
+      );
+    } else if (currentPhaseManager.phase !== PublicKernelPhase.TAIL) {
+      return new TailPhaseManager(
         db,
         publicExecutor,
         publicKernel,

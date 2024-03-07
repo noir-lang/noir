@@ -237,7 +237,7 @@ describe('public_processor', () => {
       expect(processed).toEqual([expectedTxByHash(tx)]);
       expect(failed).toHaveLength(0);
       expect(publicExecutor.simulate).toHaveBeenCalledTimes(2);
-      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
+      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(2);
       expect(publicWorldStateDB.rollback).toHaveBeenCalledTimes(0);
     });
 
@@ -288,7 +288,7 @@ describe('public_processor', () => {
       expect(processed).toEqual([expectedTxByHash(tx)]);
       expect(failed).toHaveLength(0);
       expect(publicExecutor.simulate).toHaveBeenCalledTimes(1);
-      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(1);
+      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(2);
       expect(publicWorldStateDB.rollback).toHaveBeenCalledTimes(0);
     });
 
@@ -390,7 +390,7 @@ describe('public_processor', () => {
       expect(appLogicSpy).toHaveBeenCalledTimes(2);
       expect(teardownSpy).toHaveBeenCalledTimes(2);
       expect(publicExecutor.simulate).toHaveBeenCalledTimes(3);
-      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(2);
+      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(3);
       expect(publicWorldStateDB.rollback).toHaveBeenCalledTimes(1);
 
       expect(arrayNonEmptyLength(processed[0].data.combinedData.publicCallStack, i => i.isEmpty())).toEqual(0);
@@ -502,7 +502,7 @@ describe('public_processor', () => {
       expect(appLogicSpy).toHaveBeenCalledTimes(1);
       expect(teardownSpy).toHaveBeenCalledTimes(3);
       expect(publicExecutor.simulate).toHaveBeenCalledTimes(3);
-      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(3);
+      expect(publicWorldStateDB.commit).toHaveBeenCalledTimes(4);
       expect(publicWorldStateDB.rollback).toHaveBeenCalledTimes(0);
 
       const txEffect = toTxEffect(processed[0]);
@@ -611,6 +611,7 @@ class PublicExecutionResultBuilder {
     return {
       execution: this._execution,
       nestedExecutions: this._nestedExecutions,
+      nullifierReadRequests: [],
       contractStorageUpdateRequests: this._contractStorageUpdateRequests,
       returnValues: this._returnValues,
       newNoteHashes: [],
