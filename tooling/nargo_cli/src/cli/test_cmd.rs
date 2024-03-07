@@ -5,10 +5,8 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
-    insert_all_files_for_workspace_into_file_manager,
-    ops::{run_test, TestStatus},
-    package::Package,
-    parse_all, prepare_package,
+    insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
+    prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
@@ -18,7 +16,7 @@ use noirc_frontend::{
     graph::CrateName,
     hir::{FunctionNameMatch, ParsedFiles},
 };
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+use rayon::prelude::{IntoParallelIterator, ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{backends::Backend, cli::check_cmd::check_crate_and_report_errors, errors::CliError};
@@ -87,6 +85,7 @@ pub(crate) fn run(
 
     let test_reports: Vec<Vec<(String, TestStatus)>> = workspace
         .into_iter()
+        .par_bridge()
         .map(|package| {
             run_tests::<Bn254BlackBoxSolver>(
                 &workspace_file_manager,
@@ -143,41 +142,59 @@ fn run_tests<S: BlackBoxFunctionSolver + Default>(
     let test_report: Vec<(String, TestStatus)> = test_functions
         .into_par_iter()
         .map(|test_name| {
-            // This is really hacky but we can't share `Context` or `S` across threads.
-            // We then need to construct a separate copy for each test.
-
-            let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-            check_crate(
-                &mut context,
-                crate_id,
-                compile_options.deny_warnings,
-                compile_options.disable_macros,
-            )
-            .expect("Any errors should have occurred when collecting test functions");
-
-            let test_functions = context.get_all_test_functions_in_crate_matching(
-                &crate_id,
-                FunctionNameMatch::Exact(&test_name),
-            );
-            let (_, test_function) = test_functions.first().expect("Test function should exist");
-
-            let blackbox_solver = S::default();
-
-            let test_output = run_test(
-                &blackbox_solver,
-                &mut context,
-                test_function,
+            let status = run_test::<S>(
+                file_manager,
+                parsed_files,
+                package,
+                &test_name,
                 show_output,
                 foreign_call_resolver_url,
                 compile_options,
             );
 
-            (test_name, test_output)
+            (test_name, status)
         })
         .collect();
 
     display_test_report(file_manager, package, compile_options, &test_report)?;
     Ok(test_report)
+}
+
+fn run_test<S: BlackBoxFunctionSolver + Default>(
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+    package: &Package,
+    fn_name: &str,
+    show_output: bool,
+    foreign_call_resolver_url: Option<&str>,
+    compile_options: &CompileOptions,
+) -> TestStatus {
+    // This is really hacky but we can't share `Context` or `S` across threads.
+    // We then need to construct a separate copy for each test.
+
+    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    check_crate(
+        &mut context,
+        crate_id,
+        compile_options.deny_warnings,
+        compile_options.disable_macros,
+    )
+    .expect("Any errors should have occurred when collecting test functions");
+
+    let test_functions = context
+        .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Exact(fn_name));
+    let (_, test_function) = test_functions.first().expect("Test function should exist");
+
+    let blackbox_solver = S::default();
+
+    nargo::ops::run_test(
+        &blackbox_solver,
+        &mut context,
+        test_function,
+        show_output,
+        foreign_call_resolver_url,
+        compile_options,
+    )
 }
 
 fn get_tests_in_package(
