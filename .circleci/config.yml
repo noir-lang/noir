@@ -1336,7 +1336,7 @@ workflows:
       - end-to-end: *defaults_yarn_project
       - aztec-faucet: *defaults_yarn_project_pre_join
       - build-docs: *defaults_yarn_project_pre_join
-      - yarn-project-test: *defaults_yarn_project_pre_join
+      - yarn-project-test: *defaults_yarn_project
       - yarn-project-x86_64: *defaults_yarn_project_pre_join
       - yarn-project-arm64: *defaults_yarn_project_pre_join
       - yarn-project-ecr-manifest:
