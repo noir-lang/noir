@@ -123,23 +123,17 @@ describe('e2e_deploy_contract', () => {
       );
     }, 60_000);
 
-    // TODO(@spalladino): Review this test, it's showing an unexpected 'Bytecode not found' error in logs.
-    // It's possible it is failing for the wrong reason, and the getContractData checks are returning wrong data.
     it('should not deploy a contract which failed the public part of the execution', async () => {
-      sequencer?.updateSequencerConfig({
-        minTxsPerBlock: 2,
-      });
-
+      sequencer?.updateSequencerConfig({ minTxsPerBlock: 2 });
       try {
         // This test requires at least another good transaction to go through in the same block as the bad one.
-        // I deployed the same contract again but it could really be any valid transaction here.
         const artifact = TokenContractArtifact;
         const initArgs = ['TokenName', 'TKN', 18] as const;
-        const goodDeploy = new ContractDeployer(artifact, wallet).deploy(AztecAddress.random(), ...initArgs);
+        const goodDeploy = StatefulTestContract.deploy(wallet, accounts[0], 42);
         const badDeploy = new ContractDeployer(artifact, wallet).deploy(AztecAddress.ZERO, ...initArgs);
 
-        const firstOpts = { skipPublicSimulation: true };
-        const secondOpts = { skipPublicSimulation: true, skipClassRegistration: true };
+        const firstOpts = { skipPublicSimulation: true, skipClassRegistration: true, skipInstanceDeploy: true };
+        const secondOpts = { skipPublicSimulation: true };
 
         await Promise.all([goodDeploy.simulate(firstOpts), badDeploy.simulate(secondOpts)]);
         const [goodTx, badTx] = [goodDeploy.send(firstOpts), badDeploy.send(secondOpts)];
@@ -153,15 +147,10 @@ describe('e2e_deploy_contract', () => {
         expect(goodTxReceipt.blockNumber).toEqual(expect.any(Number));
         expect(badTxReceipt.blockNumber).toBeUndefined();
 
-        await expect(pxe.getContractData(goodDeploy.getInstance().address)).resolves.toBeDefined();
-        await expect(pxe.getExtendedContractData(goodDeploy.getInstance().address)).resolves.toBeDefined();
-
         await expect(pxe.getContractData(badDeploy.getInstance().address)).resolves.toBeUndefined();
         await expect(pxe.getExtendedContractData(badDeploy.getInstance().address)).resolves.toBeUndefined();
       } finally {
-        sequencer?.updateSequencerConfig({
-          minTxsPerBlock: 1,
-        });
+        sequencer?.updateSequencerConfig({ minTxsPerBlock: 1 });
       }
     }, 90_000);
   });
