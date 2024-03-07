@@ -706,7 +706,7 @@ impl Type {
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
                 alias.get_type(generics).is_valid_for_program_input()
-            },
+            }
 
             Type::Array(length, element) => {
                 length.is_valid_for_program_input() && element.is_valid_for_program_input()
