@@ -305,7 +305,7 @@ PrivateKernelInnerCircuitPublicInputs {
             "type": "Buffer",
           },
         },
-        "txsHash": {
+        "txsEffectsHash": {
           "data": [
             205,
             51,
@@ -35830,7 +35830,7 @@ PrivateKernelTailCircuitPublicInputs {
             "type": "Buffer",
           },
         },
-        "txsHash": {
+        "txsEffectsHash": {
           "data": [
             0,
             0,

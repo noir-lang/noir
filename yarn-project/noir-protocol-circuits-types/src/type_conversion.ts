@@ -1594,7 +1594,7 @@ export function mapBaseOrMergeRollupPublicInputsToNoir(
     constants: mapConstantRollupDataToNoir(baseOrMergeRollupPublicInputs.constants),
     start: mapPartialStateReferenceToNoir(baseOrMergeRollupPublicInputs.start),
     end: mapPartialStateReferenceToNoir(baseOrMergeRollupPublicInputs.end),
-    calldata_hash: mapTuple(baseOrMergeRollupPublicInputs.calldataHash, mapFieldToNoir),
+    txs_effects_hash: mapTuple(baseOrMergeRollupPublicInputs.txsEffectsHash, mapFieldToNoir),
     out_hash: mapTuple(baseOrMergeRollupPublicInputs.outHash, mapFieldToNoir),
   };
 }
@@ -1642,7 +1642,7 @@ export function mapBaseOrMergeRollupPublicInputsFromNoir(
     mapConstantRollupDataFromNoir(baseOrMergeRollupPublicInputs.constants),
     mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.start),
     mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.end),
-    mapTupleFromNoir(baseOrMergeRollupPublicInputs.calldata_hash, 2, mapFieldFromNoir),
+    mapTupleFromNoir(baseOrMergeRollupPublicInputs.txs_effects_hash, 2, mapFieldFromNoir),
     mapTupleFromNoir(baseOrMergeRollupPublicInputs.out_hash, 2, mapFieldFromNoir),
   );
 }
@@ -1763,7 +1763,7 @@ export function mapHeaderFromNoir(header: HeaderNoir): Header {
 export function mapContentCommitmentToNoir(contentCommitment: ContentCommitment): ContentCommitmentNoir {
   return {
     tx_tree_height: mapFieldToNoir(contentCommitment.txTreeHeight),
-    txs_hash: mapSha256HashToNoir(contentCommitment.txsHash),
+    txs_effects_hash: mapSha256HashToNoir(contentCommitment.txsEffectsHash),
     in_hash: mapSha256HashToNoir(contentCommitment.inHash),
     out_hash: mapSha256HashToNoir(contentCommitment.outHash),
   };
@@ -1776,7 +1776,7 @@ export function mapContentCommitmentToNoir(contentCommitment: ContentCommitment)
 export function mapContentCommitmentFromNoir(contentCommitment: ContentCommitmentNoir): ContentCommitment {
   return new ContentCommitment(
     mapFieldFromNoir(contentCommitment.tx_tree_height),
-    mapSha256HashFromNoir(contentCommitment.txs_hash),
+    mapSha256HashFromNoir(contentCommitment.txs_effects_hash),
     mapSha256HashFromNoir(contentCommitment.in_hash),
     mapSha256HashFromNoir(contentCommitment.out_hash),
   );

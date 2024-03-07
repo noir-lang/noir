@@ -6,9 +6,9 @@ import { CONTENT_COMMITMENT_LENGTH } from '../constants.gen.js';
 export const NUM_BYTES_PER_SHA256 = 32;
 
 export class ContentCommitment {
-  constructor(public txTreeHeight: Fr, public txsHash: Buffer, public inHash: Buffer, public outHash: Buffer) {
-    if (txsHash.length !== NUM_BYTES_PER_SHA256) {
-      throw new Error(`txsHash buffer must be ${NUM_BYTES_PER_SHA256} bytes`);
+  constructor(public txTreeHeight: Fr, public txsEffectsHash: Buffer, public inHash: Buffer, public outHash: Buffer) {
+    if (txsEffectsHash.length !== NUM_BYTES_PER_SHA256) {
+      throw new Error(`txsEffectsHash buffer must be ${NUM_BYTES_PER_SHA256} bytes`);
     }
     if (inHash.length !== NUM_BYTES_PER_SHA256) {
       throw new Error(`inHash buffer must be ${NUM_BYTES_PER_SHA256} bytes`);
@@ -19,13 +19,13 @@ export class ContentCommitment {
   }
 
   toBuffer() {
-    return serializeToBuffer(this.txTreeHeight, this.txsHash, this.inHash, this.outHash);
+    return serializeToBuffer(this.txTreeHeight, this.txsEffectsHash, this.inHash, this.outHash);
   }
 
   toFields(): Fr[] {
     const serialized = [
       this.txTreeHeight,
-      ...to2Fields(this.txsHash),
+      ...to2Fields(this.txsEffectsHash),
       ...to2Fields(this.inHash),
       ...to2Fields(this.outHash),
     ];
@@ -68,7 +68,7 @@ export class ContentCommitment {
   isEmpty(): boolean {
     return (
       this.txTreeHeight.isZero() &&
-      this.txsHash.equals(Buffer.alloc(NUM_BYTES_PER_SHA256)) &&
+      this.txsEffectsHash.equals(Buffer.alloc(NUM_BYTES_PER_SHA256)) &&
       this.inHash.equals(Buffer.alloc(NUM_BYTES_PER_SHA256)) &&
       this.outHash.equals(Buffer.alloc(NUM_BYTES_PER_SHA256))
     );

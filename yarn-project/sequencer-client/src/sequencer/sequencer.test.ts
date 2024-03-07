@@ -257,7 +257,7 @@ describe('sequencer', () => {
     );
 
     // check that the empty contract did not get published
-    expect(publisher.processNewContractData).toHaveBeenCalledWith(block.number, block.body.getCalldataHash(), [
+    expect(publisher.processNewContractData).toHaveBeenCalledWith(block.number, block.body.getTxsEffectsHash(), [
       txWithContract.newContracts[0],
     ]);
   });

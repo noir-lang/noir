@@ -268,7 +268,7 @@ describe('sequencer/solo_block_builder', () => {
 
     // Now we update can make the final header, compute the block hash and update archive
     rootRollupOutput.header.globalVariables = globalVariables;
-    rootRollupOutput.header.contentCommitment.txsHash = l2Block.body.getCalldataHash();
+    rootRollupOutput.header.contentCommitment.txsEffectsHash = l2Block.body.getTxsEffectsHash();
     rootRollupOutput.header.state = await getStateReference();
 
     await updateArchive();

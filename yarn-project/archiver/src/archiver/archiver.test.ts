@@ -82,14 +82,14 @@ describe('Archiver', () => {
     publicClient.getLogs
       .mockResolvedValueOnce(l1ToL2MessageAddedEvents.slice(0, 2).flat())
       .mockResolvedValueOnce([]) // no messages to cancel
-      .mockResolvedValueOnce([makeTxsPublishedEvent(101n, blocks[0].body.getCalldataHash())])
+      .mockResolvedValueOnce([makeTxsPublishedEvent(101n, blocks[0].body.getTxsEffectsHash())])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(101n, 1n)])
       .mockResolvedValueOnce([makeContractDeploymentEvent(103n, blocks[0])]) // the first loop of the archiver ends here at block 2500
       .mockResolvedValueOnce(l1ToL2MessageAddedEvents.slice(2, 4).flat())
       .mockResolvedValueOnce(makeL1ToL2MessageCancelledEvents(2503n, l1ToL2MessagesToCancel))
       .mockResolvedValueOnce([
-        makeTxsPublishedEvent(2510n, blocks[1].body.getCalldataHash()),
-        makeTxsPublishedEvent(2520n, blocks[2].body.getCalldataHash()),
+        makeTxsPublishedEvent(2510n, blocks[1].body.getTxsEffectsHash()),
+        makeTxsPublishedEvent(2520n, blocks[2].body.getTxsEffectsHash()),
       ])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(2510n, 2n), makeL2BlockProcessedEvent(2520n, 3n)])
       .mockResolvedValueOnce([makeContractDeploymentEvent(2540n, blocks[1])])
@@ -200,8 +200,8 @@ describe('Archiver', () => {
       })
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        makeTxsPublishedEvent(70n, blocks[0].body.getCalldataHash()),
-        makeTxsPublishedEvent(80n, blocks[1].body.getCalldataHash()),
+        makeTxsPublishedEvent(70n, blocks[0].body.getTxsEffectsHash()),
+        makeTxsPublishedEvent(80n, blocks[1].body.getTxsEffectsHash()),
       ])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(70n, 1n), makeL2BlockProcessedEvent(80n, 2n)])
       .mockResolvedValue([]);
@@ -255,7 +255,7 @@ describe('Archiver', () => {
         ),
       )
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([makeTxsPublishedEvent(101n, block.body.getCalldataHash())])
+      .mockResolvedValueOnce([makeTxsPublishedEvent(101n, block.body.getTxsEffectsHash())])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(101n, 1n)])
       .mockResolvedValue([]);
     publicClient.getTransaction.mockResolvedValueOnce(publishTx);
@@ -297,14 +297,14 @@ function makeL2BlockProcessedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
 /**
  * Makes a fake TxsPublished event for testing purposes.
  * @param l1BlockNum - L1 block number.
- * @param txsHash - txsHash for the body.
+ * @param txsEffectsHash - txsEffectsHash for the body.
  * @returns A TxsPublished event log.
  */
-function makeTxsPublishedEvent(l1BlockNum: bigint, txsHash: Buffer) {
+function makeTxsPublishedEvent(l1BlockNum: bigint, txsEffectsHash: Buffer) {
   return {
     blockNumber: l1BlockNum,
     args: {
-      txsHash: txsHash.toString('hex'),
+      txsEffectsHash: txsEffectsHash.toString('hex'),
     },
   } as Log<bigint, number, false, undefined, true, typeof AvailabilityOracleAbi, 'TxsPublished'>;
 }
@@ -324,7 +324,7 @@ function makeContractDeploymentEvent(l1BlockNum: bigint, l2Block: L2Block) {
       l2BlockNum: BigInt(l2Block.number),
       aztecAddress: extendedContractData.contractData.contractAddress.toString(),
       portalAddress: extendedContractData.contractData.portalContractAddress.toString(),
-      l2BlockHash: `0x${l2Block.body.getCalldataHash().toString('hex')}`,
+      l2BlockHash: `0x${l2Block.body.getTxsEffectsHash().toString('hex')}`,
       contractClassId: extendedContractData.contractClassId.toString(),
       saltedInitializationHash: extendedContractData.saltedInitializationHash.toString(),
       publicKeyHash: extendedContractData.publicKeyHash.toString(),

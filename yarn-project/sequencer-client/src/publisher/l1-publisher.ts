@@ -172,15 +172,15 @@ export class L1Publisher implements L2BlockReceiver {
       }
 
       if (receipt.status) {
-        let txsHash;
+        let txsEffectsHash;
         if (receipt.logs.length === 1) {
-          // txsHash from IAvailabilityOracle.TxsPublished event
-          txsHash = receipt.logs[0].data;
+          // txsEffectsHash from IAvailabilityOracle.TxsPublished event
+          txsEffectsHash = receipt.logs[0].data;
         } else {
           this.log(`Expected 1 log, got ${receipt.logs.length}`);
         }
 
-        this.log.info(`Block txs effects published, txsHash: ${txsHash}`);
+        this.log.info(`Block txs effects published, txsEffectsHash: ${txsEffectsHash}`);
         break;
       }
 

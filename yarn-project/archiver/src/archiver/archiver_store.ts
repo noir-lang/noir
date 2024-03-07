@@ -48,12 +48,12 @@ export interface ArchiverDataStore {
   addBlockBodies(blockBodies: Body[]): Promise<boolean>;
 
   /**
-   * Gets block bodies that have the same txsHashes as we supply.
+   * Gets block bodies that have the same txsEffectsHashes as we supply.
    *
-   * @param txsHashes - A list of txsHashes (body hashes).
+   * @param txsEffectsHashes - A list of txsEffectsHashes.
    * @returns The requested L2 block bodies
    */
-  getBlockBodies(txsHashes: Buffer[]): Promise<Body[]>;
+  getBlockBodies(txsEffectsHashes: Buffer[]): Promise<Body[]>;
 
   /**
    * Gets up to `limit` amount of L2 blocks starting from `from`.

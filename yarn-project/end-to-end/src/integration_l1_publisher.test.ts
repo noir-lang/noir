@@ -267,13 +267,13 @@ describe('L1Publisher integration', () => {
         // This should not be a problem for testing as long as the values are not larger than u32.
         archive: `0x${block.archive.root.toBuffer().toString('hex').padStart(64, '0')}`,
         body: `0x${block.body.toBuffer().toString('hex')}`,
-        calldataHash: `0x${block.body.getCalldataHash().toString('hex').padStart(64, '0')}`,
+        txsEffectsHash: `0x${block.body.getTxsEffectsHash().toString('hex').padStart(64, '0')}`,
         decodedHeader: {
           contentCommitment: {
             inHash: `0x${block.header.contentCommitment.inHash.toString('hex').padStart(64, '0')}`,
             outHash: `0x${block.header.contentCommitment.outHash.toString('hex').padStart(64, '0')}`,
             txTreeHeight: Number(block.header.contentCommitment.txTreeHeight.toBigInt()),
-            txsHash: `0x${block.header.contentCommitment.txsHash.toString('hex').padStart(64, '0')}`,
+            txsEffectsHash: `0x${block.header.contentCommitment.txsEffectsHash.toString('hex').padStart(64, '0')}`,
           },
           globalVariables: {
             blockNumber: block.number,
@@ -344,8 +344,8 @@ describe('L1Publisher integration', () => {
       topics: txLog.topics,
     });
 
-    // We check that the txsHash in the TxsPublished event is as expected
-    expect(topics.args.txsHash).toEqual(`0x${body.getCalldataHash().toString('hex')}`);
+    // We check that the txsEffectsHash in the TxsPublished event is as expected
+    expect(topics.args.txsEffectsHash).toEqual(`0x${body.getTxsEffectsHash().toString('hex')}`);
   });
 
   it(`Build ${numberOfConsecutiveBlocks} blocks of 4 bloated txs building on each other`, async () => {

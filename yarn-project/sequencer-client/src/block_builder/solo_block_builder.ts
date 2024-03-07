@@ -140,11 +140,11 @@ export class SoloBlockBuilder implements BlockBuilder {
       body: blockBody,
     });
 
-    if (!l2Block.body.getCalldataHash().equals(circuitsOutput.header.contentCommitment.txsHash)) {
+    if (!l2Block.body.getTxsEffectsHash().equals(circuitsOutput.header.contentCommitment.txsEffectsHash)) {
       throw new Error(
-        `Calldata hash mismatch, ${l2Block.body
-          .getCalldataHash()
-          .toString('hex')} == ${circuitsOutput.header.contentCommitment.txsHash.toString('hex')} `,
+        `Txs effects hash mismatch, ${l2Block.body
+          .getTxsEffectsHash()
+          .toString('hex')} == ${circuitsOutput.header.contentCommitment.txsEffectsHash.toString('hex')} `,
       );
     }
 

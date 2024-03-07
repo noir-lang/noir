@@ -26,7 +26,7 @@ import {Hash} from "./Hash.sol";
  *  | 0x0020                                                                           | 0x04         |   lastArchive.nextAvailableLeafIndex
  *  |                                                                                  |              |   ContentCommitment {
  *  | 0x0024                                                                           | 0x20         |     txTreeHeight
- *  | 0x0044                                                                           | 0x20         |     txsHash
+ *  | 0x0044                                                                           | 0x20         |     txsEffectsHash
  *  | 0x0064                                                                           | 0x20         |     inHash
  *  | 0x0084                                                                           | 0x20         |     outHash
  *  |                                                                                  |              |   StateReference {
@@ -84,7 +84,7 @@ library HeaderLib {
 
   struct ContentCommitment {
     uint256 txTreeHeight;
-    bytes32 txsHash;
+    bytes32 txsEffectsHash;
     bytes32 inHash;
     bytes32 outHash;
   }
@@ -156,7 +156,7 @@ library HeaderLib {
 
     // Reading ContentCommitment
     header.contentCommitment.txTreeHeight = uint256(bytes32(_header[0x0024:0x0044]));
-    header.contentCommitment.txsHash = bytes32(_header[0x0044:0x0064]);
+    header.contentCommitment.txsEffectsHash = bytes32(_header[0x0044:0x0064]);
     header.contentCommitment.inHash = bytes32(_header[0x0064:0x0084]);
     header.contentCommitment.outHash = bytes32(_header[0x0084:0x00a4]);
 

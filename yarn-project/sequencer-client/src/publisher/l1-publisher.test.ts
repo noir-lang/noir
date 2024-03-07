@@ -15,7 +15,7 @@ describe('L1Publisher', () => {
 
   let header: Buffer;
   let archive: Buffer;
-  let txsHash: Buffer;
+  let txsEffectsHash: Buffer;
   let body: Buffer;
   let proof: Buffer;
 
@@ -26,7 +26,7 @@ describe('L1Publisher', () => {
 
     header = l2Block.header.toBuffer();
     archive = l2Block.archive.root.toBuffer();
-    txsHash = l2Block.body.getCalldataHash();
+    txsEffectsHash = l2Block.body.getTxsEffectsHash();
     body = l2Block.body.toBuffer();
     proof = Buffer.alloc(0);
 
@@ -37,7 +37,7 @@ describe('L1Publisher', () => {
     publishTxReceipt = {
       transactionHash: publishTxHash,
       status: true,
-      logs: [{ data: txsHash.toString('hex') }],
+      logs: [{ data: txsEffectsHash.toString('hex') }],
     } as MinimalTransactionReceipt;
     processTxReceipt = {
       transactionHash: processTxHash,

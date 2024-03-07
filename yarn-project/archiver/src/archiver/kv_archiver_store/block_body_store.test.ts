@@ -15,9 +15,9 @@ describe('Block Body Store', () => {
 
     await archiverStore.addBlockBodies([body]);
 
-    const txsHash = body.getCalldataHash();
+    const txsEffectsHash = body.getTxsEffectsHash();
 
-    const [returnedBody] = await archiverStore.getBlockBodies([txsHash]);
+    const [returnedBody] = await archiverStore.getBlockBodies([txsEffectsHash]);
 
     expect(body).toStrictEqual(returnedBody);
   });

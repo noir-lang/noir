@@ -3,7 +3,8 @@ use crate::{
     constant_rollup_data::ConstantRollupData,
     base_or_merge_rollup_public_inputs::{BaseOrMergeRollupPublicInputs, BASE_ROLLUP_TYPE}
 },
-    base::state_diff_hints::StateDiffHints
+    base::state_diff_hints::StateDiffHints,
+    components::{compute_tx_effects_hash, compute_kernel_out_hash}
 };
 use dep::types::{
     abis::{
@@ -105,9 +106,9 @@ impl BaseRollupInputs {
         // Validate public public data reads and public data update requests, and update public data tree
         let end_public_data_tree_snapshot = self.validate_and_process_public_state();
 
-        // Calculate the overall calldata hash
-        let calldata_hash = BaseRollupInputs::components_compute_kernel_calldata_hash(self.kernel_data.public_inputs.end);
-        let out_hash = BaseRollupInputs::components_compute_kernel_out_hash(self.kernel_data.public_inputs.end);
+        // Calculate the tx effects hash of the transaction
+        let tx_effects_hash = compute_tx_effects_hash(self.kernel_data.public_inputs.end);
+        let out_hash = compute_kernel_out_hash(self.kernel_data.public_inputs.end);
 
         // Perform membership checks that the notes provided exist within the historical trees data
         self.perform_archive_membership_checks();
@@ -126,7 +127,7 @@ impl BaseRollupInputs {
                 contract_tree: end_contract_tree_snapshot,
                 public_data_tree: end_public_data_tree_snapshot
             },
-            calldata_hash,
+            txs_effects_hash: tx_effects_hash,
             out_hash
         }
     }
@@ -245,112 +246,6 @@ impl BaseRollupInputs {
         );
 
         end_public_data_tree_snapshot
-    }
-
-    // Computes the calldata hash for a base rollup
-    // TODO(Kev): move this into components module
-    // TODO(Alvaro): This is too slow for brillig without the array optimization
-    fn components_compute_kernel_calldata_hash(combined: CombinedAccumulatedData) -> [Field; NUM_FIELDS_PER_SHA256] {
-        // Compute calldata hashes
-        // Consist of
-        // MAX_NEW_NOTE_HASHES_PER_TX fields for note hashes
-        // MAX_NEW_NULLIFIERS_PER_TX fields for nullifiers
-        // 2 l2 -> l1 messages -> 2 fields
-        // 32 public data update requests -> 64 fields
-        // 1 contract deployments -> 3 fields
-        // 1 encrypted logs hash --> 1 sha256 hash -> 2 fields --> 32 bytes
-        // 1 unencrypted logs hash --> 1 sha256 hash -> 2 fields --> 32 bytes
-        let mut calldata_hash_inputs = [0; CALLDATA_HASH_INPUT_SIZE];
-
-        let new_note_hashes = combined.new_note_hashes;
-        let new_nullifiers = combined.new_nullifiers;
-        let newL2ToL1msgs = combined.new_l2_to_l1_msgs;
-        let public_data_update_requests = combined.public_data_update_requests;
-        let encryptedLogsHash = combined.encrypted_logs_hash;
-        let unencryptedLogsHash = combined.unencrypted_logs_hash;
-
-        let mut offset = 0;
-
-        for j in 0..MAX_NEW_NOTE_HASHES_PER_TX {
-            calldata_hash_inputs[offset + j] = new_note_hashes[j].value;
-        }
-        offset += MAX_NEW_NOTE_HASHES_PER_TX ;
-
-        for j in 0..MAX_NEW_NULLIFIERS_PER_TX {
-            calldata_hash_inputs[offset + j] = new_nullifiers[j].value;
-        }
-        offset += MAX_NEW_NULLIFIERS_PER_TX ;
-
-        for j in 0..MAX_NEW_L2_TO_L1_MSGS_PER_TX {
-            calldata_hash_inputs[offset + j] = newL2ToL1msgs[j];
-        }
-        offset += MAX_NEW_L2_TO_L1_MSGS_PER_TX;
-
-        for j in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
-            calldata_hash_inputs[offset + j * 2] =
-                public_data_update_requests[j].leaf_slot;
-            calldata_hash_inputs[offset + j * 2 + 1] =
-                public_data_update_requests[j].new_value;
-        }
-        offset += MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2;
-
-        let contract_leaf = combined.new_contracts[0];
-        calldata_hash_inputs[offset] = contract_leaf.hash();
-
-        offset += MAX_NEW_CONTRACTS_PER_TX;
-
-        let new_contracts = combined.new_contracts;
-        calldata_hash_inputs[offset] = new_contracts[0].contract_address.to_field();
-        calldata_hash_inputs[offset + 1] = new_contracts[0].portal_contract_address.to_field();
-
-        offset += MAX_NEW_CONTRACTS_PER_TX * 2;
-
-        for j in 0..NUM_FIELDS_PER_SHA256 {
-            calldata_hash_inputs[offset + j] = encryptedLogsHash[j];
-        }
-
-        offset += NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
-
-        for j in 0..NUM_FIELDS_PER_SHA256 {
-            calldata_hash_inputs[offset + j] = unencryptedLogsHash[j];
-        }
-
-        offset += NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
-        assert_eq(offset, CALLDATA_HASH_INPUT_SIZE); // Sanity check
-
-        let mut hash_input_flattened = [0; CALL_DATA_HASH_FULL_FIELDS * 32 + CALL_DATA_HASH_LOG_FIELDS * 16];
-        for offset in 0..CALL_DATA_HASH_FULL_FIELDS {
-            let input_as_bytes = calldata_hash_inputs[offset].to_be_bytes(32);
-            for byte_index in 0..32 {
-                hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];
-            }
-        }
-
-        for log_field_index in 0..CALL_DATA_HASH_LOG_FIELDS {
-            let input_as_bytes = calldata_hash_inputs[CALL_DATA_HASH_FULL_FIELDS + log_field_index].to_be_bytes(16);
-            for byte_index in 0..16 {
-                hash_input_flattened[CALL_DATA_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] = input_as_bytes[byte_index];
-            }
-        }
-
-        let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-        U256::from_bytes32(sha_digest).to_u128_limbs()
-    }
-
-    // Computes the out hash for a base rollup
-    fn components_compute_kernel_out_hash(combined: CombinedAccumulatedData) -> [Field; NUM_FIELDS_PER_SHA256] {
-        let mut out_hash_inputs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_TX] = combined.new_l2_to_l1_msgs;
-
-        let mut hash_input_flattened = [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32];
-        for offset in 0..MAX_NEW_L2_TO_L1_MSGS_PER_TX {
-            let input_as_bytes = out_hash_inputs[offset].to_be_bytes(32);
-            for byte_index in 0..32 {
-                hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];
-            }
-        }
-
-        let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-        U256::from_bytes32(sha_digest).to_u128_limbs()
     }
 
     // Check that the block header used by each kernel is a member of the blocks tree --> since the block header
@@ -509,39 +404,6 @@ fn consistent_not_hash_subtree_width() {
     );
 }
 
-global CALLDATA_HASH_INPUT_SIZE = 201;
-
-#[test]
-fn consistent_calldata_hash_input_size() {
-    let expected_size = MAX_NEW_NOTE_HASHES_PER_TX
-        + MAX_NEW_NULLIFIERS_PER_TX
-        + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2
-        + MAX_NEW_L2_TO_L1_MSGS_PER_TX
-        + MAX_NEW_CONTRACTS_PER_TX * 3
-        + NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256
-        + NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
-    assert(CALLDATA_HASH_INPUT_SIZE == expected_size, "calldata hash input size is incorrect");
-}
-
-global CALL_DATA_HASH_LOG_FIELDS = 4;
-
-#[test]
-fn consistent_call_data_hash_log_fields() {
-    assert_eq(
-        CALL_DATA_HASH_LOG_FIELDS, NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256
-        + NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256, "calldata hash log fields is incorrect"
-    );
-}
-
-global CALL_DATA_HASH_FULL_FIELDS = 197;
-
-#[test]
-fn consistent_call_data_hash_full_fields() {
-    assert_eq(
-        CALL_DATA_HASH_FULL_FIELDS, CALLDATA_HASH_INPUT_SIZE - CALL_DATA_HASH_LOG_FIELDS, "calldata hash log fields is incorrect"
-    );
-}
-
 #[test]
 fn test_u256_less_than() {
     assert(full_field_less_than(1, 1000));
@@ -566,10 +428,8 @@ mod tests {
         constant_rollup_data::ConstantRollupData,
         base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs
     },
-        base::{
-        state_diff_hints::StateDiffHints,
-        base_rollup_inputs::{CALL_DATA_HASH_FULL_FIELDS, CALL_DATA_HASH_LOG_FIELDS, BaseRollupInputs}
-    }
+        base::{state_diff_hints::StateDiffHints, base_rollup_inputs::BaseRollupInputs},
+        components::{TX_EFFECTS_HASH_FULL_FIELDS, TX_EFFECTS_HASH_LOG_FIELDS, compute_kernel_out_hash}
     };
     use dep::types::{
         abis::{
@@ -1232,14 +1092,14 @@ mod tests {
     }
 
     #[test]
-    unconstrained fn empty_block_calldata_hash() {
+    unconstrained fn empty_tx_effects_hash() {
         let outputs = BaseRollupInputsBuilder::new().execute();
 
-        let hash_input_flattened = [0; CALL_DATA_HASH_FULL_FIELDS * 32 + CALL_DATA_HASH_LOG_FIELDS * 16];
+        let hash_input_flattened = [0; TX_EFFECTS_HASH_FULL_FIELDS * 32 + TX_EFFECTS_HASH_LOG_FIELDS * 16];
         let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-        let expected_calldata_hash = U256::from_bytes32(sha_digest).to_u128_limbs();
+        let expected_tx_effects_hash = U256::from_bytes32(sha_digest).to_u128_limbs();
         for i in 0..NUM_FIELDS_PER_SHA256 {
-            assert_eq(outputs.calldata_hash[i], expected_calldata_hash[i]);
+            assert_eq(outputs.txs_effects_hash[i], expected_tx_effects_hash[i]);
         }
     }
 
@@ -1260,7 +1120,7 @@ mod tests {
         let mut end: CombinedAccumulatedData = dep::std::unsafe::zeroed();
         end.new_l2_to_l1_msgs[MAX_NEW_L2_TO_L1_MSGS_PER_TX - 1] = 123;
 
-        let out_hash = BaseRollupInputs::components_compute_kernel_out_hash(end);
+        let out_hash = compute_kernel_out_hash(end);
 
         let mut hash_input_flattened = [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32];
         hash_input_flattened[MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32 - 1] = 123;

@@ -17,7 +17,7 @@ export class BlockBodyStore {
   addBlockBodies(blockBodies: Body[]): Promise<boolean> {
     return this.db.transaction(() => {
       for (const body of blockBodies) {
-        void this.#blockBodies.set(body.getCalldataHash().toString('hex'), body.toBuffer());
+        void this.#blockBodies.set(body.getTxsEffectsHash().toString('hex'), body.toBuffer());
       }
 
       return true;
@@ -25,13 +25,13 @@ export class BlockBodyStore {
   }
 
   /**
-   * Gets a list of L2 block bodies with its associated txsHashes
-   * @param txsHashes - The txsHashes list that corresponds to the blockBodies we want to retrieve
+   * Gets a list of L2 block bodies with its associated txsEffectsHashes
+   * @param txsEffectsHashes - The txsEffectsHashes list that corresponds to the blockBodies we want to retrieve
    * @returns The requested L2 block bodies
    */
-  async getBlockBodies(txsHashes: Buffer[]): Promise<Body[]> {
+  async getBlockBodies(txsEffectsHashes: Buffer[]): Promise<Body[]> {
     const blockBodiesBuffer = await this.db.transaction(() =>
-      txsHashes.map(txsHash => this.#blockBodies.get(txsHash.toString('hex'))),
+      txsEffectsHashes.map(txsEffectsHash => this.#blockBodies.get(txsEffectsHash.toString('hex'))),
     );
 
     if (blockBodiesBuffer.some(bodyBuffer => bodyBuffer === undefined)) {
@@ -43,11 +43,11 @@ export class BlockBodyStore {
 
   /**
    * Gets an L2 block body.
-   * @param txsHash - The txHash of the the block body to return
+   * @param txsEffectsHash - The txHash of the the block body to return
    * @returns The requested L2 block body
    */
-  getBlockBody(txsHash: Buffer): Body | undefined {
-    const blockBody = this.#blockBodies.get(txsHash.toString('hex'));
+  getBlockBody(txsEffectsHash: Buffer): Body | undefined {
+    const blockBody = this.#blockBodies.get(txsEffectsHash.toString('hex'));
 
     return blockBody && Body.fromBuffer(blockBody);
   }

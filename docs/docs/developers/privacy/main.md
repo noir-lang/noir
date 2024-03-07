@@ -87,7 +87,7 @@ A 'Function Fingerprint' is any data which is exposed by a function to the outsi
 
 > Note: many of these were mentioned in the ["Crossing the private -> public boundary"](#crossing-the-private---public-boundary) section.
 
-> Note: the calldata submitted to L1 is [encoded](https://github.com/AztecProtocol/aztec-packages/blob/master/l1-contracts/src/core/libraries/Decoder.sol) in such a way that all categories of data are packed together, when submitted. E.g. all commitments from all txs in a block are arranged as contiguous bytes of calldata. But that _doesn't_ mean the data from a particular tx is garbled in with all other txs' calldata: the distinct Tx Fingerprint of each tx can is publicly visible when a tx is submitted to the L2 tx pool.
+> Note: the transaction effects submitted to L1 is [encoded](https://github.com/AztecProtocol/aztec-packages/blob/master/l1-contracts/src/core/libraries/Decoder.sol) but not garbled with other transactions: the distinct Tx Fingerprint of each tx can is publicly visible when a tx is submitted to the L2 tx pool.
 
 #### Standardizing Fingerprints
 

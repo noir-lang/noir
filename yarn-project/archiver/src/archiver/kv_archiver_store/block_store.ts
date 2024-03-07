@@ -100,7 +100,7 @@ export class BlockStore {
   private getBlockFromBlockStorage(blockStorage: BlockStorage) {
     const header = Header.fromBuffer(blockStorage.header);
     const archive = AppendOnlyTreeSnapshot.fromBuffer(blockStorage.archive);
-    const body = this.#blockBodyStore.getBlockBody(header.contentCommitment.txsHash);
+    const body = this.#blockBodyStore.getBlockBody(header.contentCommitment.txsEffectsHash);
 
     if (body === undefined) {
       throw new Error('Body is not able to be retrieved from BodyStore');

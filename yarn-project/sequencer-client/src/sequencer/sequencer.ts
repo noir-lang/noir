@@ -255,12 +255,12 @@ export class Sequencer {
       return;
     }
 
-    const blockCalldataHash = block.body.getCalldataHash();
+    const txsEffectsHash = block.body.getTxsEffectsHash();
     this.log.info(`Publishing ${newContracts.length} contracts in block ${block.number}`);
 
     const publishedContractData = await this.publisher.processNewContractData(
       block.number,
-      blockCalldataHash,
+      txsEffectsHash,
       newContracts,
     );
 

@@ -132,7 +132,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    */
   addBlockBodies(blockBodies: Body[]): Promise<boolean> {
     for (const body of blockBodies) {
-      void this.l2BlockBodies.set(body.getCalldataHash().toString('hex'), body);
+      void this.l2BlockBodies.set(body.getTxsEffectsHash().toString('hex'), body);
     }
 
     return Promise.resolve(true);
@@ -141,11 +141,11 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   /**
    * Gets block bodies that have the same txHashes as we supply.
    *
-   * @param txsHashes - A list of txsHashes (body hashes).
+   * @param txsEffectsHashes - A list of txsEffectsHashes (body hashes).
    * @returns The requested L2 block bodies
    */
-  getBlockBodies(txsHashes: Buffer[]): Promise<Body[]> {
-    const blockBodies = txsHashes.map(txsHash => this.l2BlockBodies.get(txsHash.toString('hex')));
+  getBlockBodies(txsEffectsHashes: Buffer[]): Promise<Body[]> {
+    const blockBodies = txsEffectsHashes.map(txsEffectsHash => this.l2BlockBodies.get(txsEffectsHash.toString('hex')));
 
     if (blockBodies.some(bodyBuffer => bodyBuffer === undefined)) {
       throw new Error('Block body is undefined');

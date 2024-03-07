@@ -35,12 +35,11 @@ export class Body {
   }
 
   /**
-   * Computes the calldata hash for the L2 block
-   * This calldata hash is also computed by the rollup contract when the block is submitted,
-   * and inside the circuit, it is part of the public inputs.
-   * @returns The calldata hash.
+   * Computes the transactions effects hash for the L2 block
+   * This hash is also computed in the `AvailabilityOracle` and the `Circuit`.
+   * @returns The txs effects hash.
    */
-  getCalldataHash() {
+  getTxsEffectsHash() {
     const computeRoot = (leafs: Buffer[]): Buffer => {
       const layers: Buffer[][] = [leafs];
       let activeLayer = 0;

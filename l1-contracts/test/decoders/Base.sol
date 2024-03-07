@@ -36,11 +36,11 @@ contract DecoderBase is Test {
   struct Data {
     bytes32 archive;
     bytes body;
-    bytes32 calldataHash;
     DecodedHeader decodedHeader;
     bytes header;
     bytes32 l1ToL2MessagesHash;
     bytes32 publicInputsHash;
+    bytes32 txsEffectsHash;
   }
 
   struct DecodedHeader {
@@ -68,7 +68,7 @@ contract DecoderBase is Test {
     bytes32 inHash;
     bytes32 outHash;
     uint256 txTreeHeight;
-    bytes32 txsHash;
+    bytes32 txsEffectsHash;
   }
 
   struct PartialStateReference {

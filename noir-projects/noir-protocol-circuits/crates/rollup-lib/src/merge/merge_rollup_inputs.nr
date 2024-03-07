@@ -25,8 +25,8 @@ impl MergeRollupInputs {
         components::assert_prev_rollups_follow_on_from_each_other(left, right);
 
         // compute calldata hash:
-        let new_calldata_hash = components::compute_calldata_hash(self.previous_rollup_data);
-        let new_out_hash = components::compute_out_hash(self.previous_rollup_data);
+        let txs_effects_hash = components::compute_txs_effects_hash(self.previous_rollup_data);
+        let out_hash = components::compute_out_hash(self.previous_rollup_data);
 
         let public_inputs = BaseOrMergeRollupPublicInputs {
             rollup_type: MERGE_ROLLUP_TYPE,
@@ -35,8 +35,8 @@ impl MergeRollupInputs {
             constants: left.constants,
             start: left.start,
             end: right.end,
-            calldata_hash: new_calldata_hash,
-            out_hash: new_out_hash
+            txs_effects_hash,
+            out_hash
         };
 
         public_inputs
@@ -137,9 +137,9 @@ mod tests {
     }
 
     #[test]
-    fn calldata_hash() {
+    fn txs_effects_hash() {
         let mut inputs = default_merge_rollup_inputs();
-        let expected_calldata_hash = accumulate_sha256(
+        let expected_hash = accumulate_sha256(
             [
             U128::from_integer(0),
             U128::from_integer(1),
@@ -149,7 +149,7 @@ mod tests {
         );
         let outputs = inputs.merge_rollup_circuit();
 
-        assert_eq(outputs.calldata_hash, expected_calldata_hash);
+        assert_eq(outputs.txs_effects_hash, expected_hash);
     }
 
     #[test]

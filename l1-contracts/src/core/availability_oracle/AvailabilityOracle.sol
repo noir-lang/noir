@@ -17,16 +17,16 @@ contract AvailabilityOracle is IAvailabilityOracle {
   mapping(bytes32 txsHash => bool available) public override(IAvailabilityOracle) isAvailable;
 
   /**
-   * @notice Publishes transactions and marks its commitment, the TxsHash, as available
+   * @notice Publishes transactions and marks its commitment, the TxsEffectsHash, as available
    * @param _body - The block body
-   * @return txsHash - The TxsHash
+   * @return txsEffectsHash - The TxsEffectsHash
    */
   function publish(bytes calldata _body) external override(IAvailabilityOracle) returns (bytes32) {
-    bytes32 _txsHash = TxsDecoder.decode(_body);
-    isAvailable[_txsHash] = true;
+    bytes32 txsEffectsHash = TxsDecoder.decode(_body);
+    isAvailable[txsEffectsHash] = true;
 
-    emit TxsPublished(_txsHash);
+    emit TxsPublished(txsEffectsHash);
 
-    return _txsHash;
+    return txsEffectsHash;
   }
 }

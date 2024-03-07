@@ -114,12 +114,12 @@ export class L2Block {
       numL1ToL2MessagesPerCall,
     );
 
-    const txsHash = body.getCalldataHash();
+    const txsEffectsHash = body.getTxsEffectsHash();
 
     return L2Block.fromFields(
       {
         archive: makeAppendOnlyTreeSnapshot(1),
-        header: makeHeader(0, l2BlockNum, txsHash),
+        header: makeHeader(0, l2BlockNum, txsEffectsHash),
         body,
       },
       // just for testing purposes, each random L2 block got emitted in the equivalent L1 block
@@ -179,7 +179,7 @@ export class L2Block {
       this.header.state.partial.publicDataTree,
       this.header.state.l1ToL2MessageTree,
       this.archive,
-      this.body.getCalldataHash(),
+      this.body.getTxsEffectsHash(),
       this.getL1ToL2MessagesHash(),
     );
 

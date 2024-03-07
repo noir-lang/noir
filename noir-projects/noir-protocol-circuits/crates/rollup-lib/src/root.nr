@@ -43,7 +43,7 @@ impl RootRollupInputs {
         // TODO: in_hash: #4633 and out_hash: #4561
         let content_commitment = ContentCommitment {
             tx_tree_height: right.height_in_block_tree + 1,
-            txs_hash: components::compute_calldata_hash(self.previous_rollup_data),
+            txs_effects_hash: components::compute_txs_effects_hash(self.previous_rollup_data),
             in_hash: [0, 0],
             out_hash: components::compute_out_hash(self.previous_rollup_data)
         };
@@ -135,7 +135,7 @@ mod tests {
     fn check_block_hashes_empty_blocks() {
         let expected_messages_hash = U256::from_bytes32(dep::std::hash::sha256([0; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES])).to_u128_limbs();
 
-        let expected_calldata_hash = accumulate_sha256(
+        let expected_txs_effects_hash = accumulate_sha256(
             [
             U128::from_integer(0),
             U128::from_integer(1),
@@ -147,8 +147,8 @@ mod tests {
         let inputs = default_root_rollup_inputs();
         let outputs = inputs.root_rollup_circuit();
 
-        // check calldata hash
-        assert_eq(outputs.header.content_commitment.txs_hash, expected_calldata_hash);
+        // check txs effects hash
+        assert_eq(outputs.header.content_commitment.txs_effects_hash, expected_txs_effects_hash);
         // Check messages hash
         assert_eq(outputs.l1_to_l2_messages_hash, expected_messages_hash);
     }

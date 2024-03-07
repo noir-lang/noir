@@ -61,8 +61,8 @@ contract Rollup is IRollup {
     HeaderLib.validate(header, VERSION, lastBlockTs, archive);
 
     // Check if the data is available using availability oracle (change availability oracle if you want a different DA layer)
-    if (!AVAILABILITY_ORACLE.isAvailable(header.contentCommitment.txsHash)) {
-      revert Errors.Rollup__UnavailableTxs(header.contentCommitment.txsHash);
+    if (!AVAILABILITY_ORACLE.isAvailable(header.contentCommitment.txsEffectsHash)) {
+      revert Errors.Rollup__UnavailableTxs(header.contentCommitment.txsEffectsHash);
     }
 
     // Decode the cross-chain messages (Will be removed as part of message model change)

@@ -98,7 +98,7 @@ export async function processTxsPublishedLogs(
   const retrievedBlockBodies: [Body, Buffer][] = [];
   for (const log of logs) {
     const newBlockBody = await getBlockBodiesFromAvailabilityOracleTx(publicClient, log.transactionHash!);
-    retrievedBlockBodies.push([newBlockBody, Buffer.from(hexToBytes(log.args.txsHash))]);
+    retrievedBlockBodies.push([newBlockBody, Buffer.from(hexToBytes(log.args.txsEffectsHash))]);
   }
 
   return retrievedBlockBodies;
