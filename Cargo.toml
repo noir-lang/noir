@@ -26,6 +26,7 @@ members = [
     "tooling/nargo_toml",
     "tooling/noirc_abi",
     "tooling/noirc_abi_wasm",
+    "tooling/acvm_cli",
     # ACVM
     "acvm-repo/acir_field",
     "acvm-repo/acir",
@@ -36,7 +37,7 @@ members = [
     "acvm-repo/blackbox_solver",
     "acvm-repo/bn254_blackbox_solver",
 ]
-default-members = ["tooling/nargo_cli"]
+default-members = ["tooling/nargo_cli", "tooling/acvm_cli"]
 resolver = "2"
 
 [workspace.package]
@@ -78,6 +79,7 @@ noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
+acvm_cli = { path = "tooling/acvm_cli" }
 
 # LSP
 async-lsp = { version = "0.1.0", default-features = false }
