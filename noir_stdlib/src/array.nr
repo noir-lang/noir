@@ -54,7 +54,7 @@ impl<T, N> [T; N] {
 
     // Converts an array into a slice.
     pub fn as_slice(self) -> [T] {
-        let mut slice = [];
+        let mut slice = &[];
         for elem in self {
             slice = slice.push_back(elem);
         }

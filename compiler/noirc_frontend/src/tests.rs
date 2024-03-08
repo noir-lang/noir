@@ -915,8 +915,18 @@ mod test {
                 assert(const_0(y) == x);
             }
         "#;
-        // assert!(get_program_errors(src).is_empty());
-        assert!(get_program_errors(src) == vec![], "{:?}", get_program_errors(src));
+        assert!(get_program_errors(src).is_empty());
+    }
+
+    #[test]
+    fn index_literal_slice() {
+        let src = r#"
+            fn main(x : Field) {
+                let y: [Field] = &[1, 2, 3];
+                assert(y[0] == x);
+            }
+        "#;
+        assert!(get_program_errors(src).is_empty());
     }
 
     #[test]
