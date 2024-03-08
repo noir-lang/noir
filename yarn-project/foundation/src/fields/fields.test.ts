@@ -171,4 +171,18 @@ describe('Bn254 arithmetic', () => {
       expect(() => a.div(b)).toThrowError();
     });
   });
+
+  describe('Comparison', () => {
+    it.each([
+      [new Fr(5), new Fr(10), -1],
+      [new Fr(10), new Fr(5), 1],
+      [new Fr(5), new Fr(5), 0],
+      [new Fr(0), new Fr(Fr.MODULUS - 1n), -1],
+      [new Fr(Fr.MODULUS - 1n), new Fr(0), 1],
+      [Fr.ZERO, Fr.ZERO, 0],
+      [Fr.zero(), Fr.ZERO, 0],
+    ])('Should compare field elements correctly', (a, b, expected) => {
+      expect(a.cmp(b)).toEqual(expected);
+    });
+  });
 });

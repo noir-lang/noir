@@ -24,13 +24,6 @@ exports[`ContractClass creates a contract class from a contract compilation arti
   "privateFunctions": [
     {
       "selector": {
-        "value": 2432309179
-      },
-      "vkHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-      "isInternal": false
-    },
-    {
-      "selector": {
         "value": 283286945
       },
       "vkHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -39,6 +32,13 @@ exports[`ContractClass creates a contract class from a contract compilation arti
     {
       "selector": {
         "value": 332459554
+      },
+      "vkHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "isInternal": false
+    },
+    {
+      "selector": {
+        "value": 2432309179
       },
       "vkHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "isInternal": false

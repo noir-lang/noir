@@ -1,21 +1,29 @@
 mod interfaces;
 
 contract FPC {
-    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
+    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress, traits::is_empty};
     use dep::aztec::state_vars::SharedImmutable;
 
     use crate::interfaces::Token;
 
     struct Storage {
         other_asset: SharedImmutable<AztecAddress>,
-        fee_asset: SharedImmutable<AztecAddress>,
+        gas_token_address: SharedImmutable<AztecAddress>,
     }
+
+    global CANONICAL_GAS_TOKEN_ADDRESS = AztecAddress::from_field(0x22a29a9544c0cbdbc35bb21caa78b6f08903be4b390a65319e33afd7443f3499);
 
     #[aztec(public)]
     #[aztec(initializer)]
-    fn constructor(other_asset: AztecAddress, fee_asset: AztecAddress) {
+    fn constructor(other_asset: AztecAddress, gas_token_address: AztecAddress) {
+        let actual_gas_token_address = if is_empty(gas_token_address) {
+            CANONICAL_GAS_TOKEN_ADDRESS
+        } else {
+            gas_token_address
+        };
+
         storage.other_asset.initialize(other_asset);
-        storage.fee_asset.initialize(fee_asset);
+        storage.gas_token_address.initialize(actual_gas_token_address);
     }
 
     #[aztec(private)]
@@ -62,7 +70,7 @@ contract FPC {
     #[aztec(internal)]
     fn pay_fee(refund_address: AztecAddress, amount: Field, asset: AztecAddress) {
         let refund = context.call_public_function(
-            storage.fee_asset.read_public(),
+            storage.gas_token_address.read_public(),
             FunctionSelector::from_signature("pay_fee(Field)"),
             [amount]
         )[0];

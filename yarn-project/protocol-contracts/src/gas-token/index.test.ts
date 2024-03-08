@@ -2,12 +2,20 @@ import omit from 'lodash.omit';
 
 import { GasTokenAddress, getCanonicalGasToken } from './index.js';
 
-describe.skip('GasToken', () => {
+describe('GasToken', () => {
   it('returns canonical protocol contract', () => {
+    // if you're updating the snapshots here then you'll also have to update CANONICAL_GAS_TOKEN_ADDRESS in
+    // - noir-projects/noir-contracts/contracts/fpc_contract/src/main.nr
+    // - noir-projects/noir-contracts/contracts/app_subscription_contract/src/main.nr
     const contract = getCanonicalGasToken();
-    contract.contractClass.privateFunctions.sort((a, b) => a.selector.value - b.selector.value);
-    contract.contractClass.publicFunctions.sort((a, b) => a.selector.value - b.selector.value);
-    expect(omit(contract, 'artifact')).toMatchSnapshot();
+    expect(omit(contract, ['artifact', 'contractClass'])).toMatchSnapshot();
+
+    // bytecode is very large
+    expect(omit(contract.contractClass, ['packedBytecode', 'publicFunctions'])).toMatchSnapshot();
+
+    // this contract has public bytecode
+    expect(contract.contractClass.publicFunctions.map(x => omit(x, 'bytecode'))).toMatchSnapshot();
+    expect(contract.contractClass.packedBytecode.length).toBeGreaterThan(0);
     expect(contract.address.toString()).toEqual(GasTokenAddress.toString());
   });
 });
