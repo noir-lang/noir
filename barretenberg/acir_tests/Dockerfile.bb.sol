@@ -10,6 +10,12 @@ COPY --from=noir-acir-tests /usr/src/noir/noir-repo/test_programs /usr/src/noir/
 COPY --from=ghcr.io/foundry-rs/foundry:latest /usr/local/bin/anvil /usr/local/bin/anvil
 WORKDIR /usr/src/barretenberg/acir_tests
 COPY . .
-# Run every acir test through a solidity verifier.
+# Run the relevant acir tests through a solidity verifier.
+# This includes the basic `assert_statement` test that contains a single public input
+# and the recursive aggregation circuits which use the Keccak based prover.
+#
+# NOTE: When circuits are marked `recursive` it means the backend will use a prover that
+# produces SNARK recursion friendly proofs, while the solidity verifier expects proofs
+# whose transcript uses Keccak hashing. 
 RUN (cd sol-test && yarn)
-RUN PARALLEL=1 FLOW=sol ./run_acir_tests.sh
+RUN PARALLEL=1 FLOW=sol ./run_acir_tests.sh assert_statement double_verify_proof double_verify_nested_proof

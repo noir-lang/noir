@@ -380,6 +380,18 @@ jobs:
           command: cond_spot_run_build barretenberg-acir-tests-bb 32
           aztec_manifest_key: barretenberg-acir-tests-bb
 
+  barretenberg-acir-tests-bb-sol:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: cond_spot_run_build barretenberg-acir-tests-bb-sol 32
+          aztec_manifest_key: barretenberg-acir-tests-bb-sol
+
   bb-js:
     machine:
       image: default
@@ -1217,6 +1229,12 @@ defaults: &defaults
     - slack/notify:
         event: fail
         branch_pattern: "master"
+      
+bb_acir_tests: &bb_acir_tests
+  requires:
+    - barretenberg-x86_64-linux-clang-assert
+    - noir-compile-acir-tests
+  <<: *defaults
 
 defaults_yarn_project_pre_join: &defaults_yarn_project_pre_join
   requires:
@@ -1293,11 +1311,8 @@ workflows:
       - barretenberg-stdlib-tests: *bb_test
       - barretenberg-stdlib-recursion-ultra-tests: *bb_test
       - barretenberg-join-split-tests: *bb_test
-      - barretenberg-acir-tests-bb:
-          requires:
-            - barretenberg-x86_64-linux-clang-assert
-            - noir-compile-acir-tests
-          <<: *defaults
+      - barretenberg-acir-tests-bb: *bb_acir_tests
+      - barretenberg-acir-tests-bb-sol: *bb_acir_tests
       - barretenberg-docs: *defaults
       - bb-js:
           requires:
@@ -1433,6 +1448,7 @@ workflows:
             - barretenberg-stdlib-recursion-ultra-tests
             - barretenberg-join-split-tests
             - barretenberg-acir-tests-bb
+            - barretenberg-acir-tests-bb-sol
             - barretenberg-docs
             - build-docs
             - mainnet-fork

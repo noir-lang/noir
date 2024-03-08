@@ -59,4 +59,4 @@ To generate a new input you can run the script again. To generate a new file und
 
 You can then copy these inputs over to your working branch in Noir and regenerate the witness for `double_verify_proof`. You can then change the branch in `run_acir_tests.sh` to this Noir working branch as well and `double_verify_proof` should pass.
 
-The same process should then be repeated, but now `double_verify_proof` will be the circuit for which we will be generating recursive inputs using `gen_inner_proof_inputs.sh`. The recursive artifacts should then supplied as inputs to `double_verify_nested_proof`. 
+The same process should then be repeated, but now `double_verify_proof_recursive` will be the circuit for which we will be generating recursive inputs using `gen_inner_proof_inputs.sh`. The recursive artifacts should then supplied as inputs to `double_verify_nested_proof`. 
