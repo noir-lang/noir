@@ -983,7 +983,7 @@ impl<'a> Resolver<'a> {
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
             .filter_map(|generic| self.find_generic(&generic.0.contents))
-            .map(|(_name, typevar, _span)| typevar.clone())
+            .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
             .collect();
 
         FuncMeta {

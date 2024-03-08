@@ -165,6 +165,22 @@ fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_e
 /// Checks that the type of a function in a trait impl matches the type
 /// of the corresponding function declaration in the trait itself.
 ///
+/// To do this, given a trait such as:
+/// `trait Foo<A> { fn foo<B>(...); }`
+///
+/// And an impl such as:
+/// `impl<C> Foo<D> for Bar<E> { fn foo<F>(...); } `
+///
+/// We have to substitute:
+/// - Self for Bar<E>
+/// - A for D
+/// - B for F
+///
+/// Before we can type check. Finally, we must also check that the unification
+/// result does not introduce any new bindings. This can happen if the impl
+/// function's type is more general than that of the trait function. E.g.
+/// `fn baz<A, B>(a: A, b: B)` when the impl required `fn baz<A>(a: A, b: A)`.
+///
 /// This does not type check the body of the impl function.
 pub(crate) fn check_trait_impl_method_matches_declaration(
     interner: &mut NodeInterner,
@@ -176,24 +192,25 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
     let definition_type = meta.typ.as_monotype();
 
-    let impl_ = meta.trait_impl.expect("Trait impl function should have a corresponding trait impl");
+    let impl_ =
+        meta.trait_impl.expect("Trait impl function should have a corresponding trait impl");
     let impl_ = interner.get_trait_implementation(impl_);
     let impl_ = impl_.borrow();
     let tmeta = interner.get_trait(impl_.trait_id);
 
     let mut bindings = TypeBindings::new();
-    bindings.insert(
-        tmeta.self_type_typevar_id,
-        (tmeta.self_type_typevar.clone(), impl_.typ.clone()),
-    );
+    bindings
+        .insert(tmeta.self_type_typevar_id, (tmeta.self_type_typevar.clone(), impl_.typ.clone()));
 
     if tmeta.generics.len() != impl_.trait_generics.len() {
         let expected = tmeta.generics.len();
         let found = impl_.trait_generics.len();
         let span = impl_.ident.span();
-        errors.push(TypeCheckError::ParameterCountMismatch { expected, found, span });
+        let item = tmeta.name.to_string();
+        errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, span });
     }
 
+    // Substitute each generic on the trait with the corresponding generic on the impl
     for (generic, arg) in tmeta.generics.iter().zip(&impl_.trait_generics) {
         bindings.insert(generic.id(), (generic.clone(), arg.clone()));
     }
@@ -208,16 +225,19 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             let expected = tfn_meta.direct_generics.len();
             let found = meta.direct_generics.len();
             let span = meta.name.location.span;
-            errors.push(TypeCheckError::ParameterCountMismatch { expected, found, span });
+            let item = interner.function_name(tfn_id).to_string();
+            errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, span });
         }
 
-        for (trait_fn_generic, impl_fn_generic) in tfn_meta.direct_generics.iter().zip(&meta.direct_generics) {
-            let arg = Type::TypeVariable(impl_fn_generic.clone(), crate::TypeVariableKind::Normal);
+        // Substitute each generic on the trait function with the corresponding generic on the impl function
+        for ((name, trait_fn_generic), (_, impl_fn_generic)) in
+            tfn_meta.direct_generics.iter().zip(&meta.direct_generics)
+        {
+            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
         }
 
-        let (declaration_type, _) =
-            tfn_meta.typ.instantiate_with_bindings(bindings, interner);
+        let (declaration_type, _) = tfn_meta.typ.instantiate_with_bindings(bindings, interner);
 
         let mut result_bindings = TypeBindings::new();
         let result = definition_type.try_unify(&declaration_type, &mut result_bindings);

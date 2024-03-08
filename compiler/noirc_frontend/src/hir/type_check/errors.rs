@@ -53,8 +53,10 @@ pub enum TypeCheckError {
     ExpectedFunction { found: Type, span: Span },
     #[error("Type {lhs_type} has no member named {field_name}")]
     AccessUnknownMember { lhs_type: Type, field_name: String, span: Span },
-    #[error("Function expects {expected} parameters but {found} given")]
+    #[error("Function expects {expected} parameters but {found} were given")]
     ParameterCountMismatch { expected: usize, found: usize, span: Span },
+    #[error("{item} expects {expected} generics but {found} were given")]
+    GenericCountMismatch { item: String, expected: usize, found: usize, span: Span },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { span: Span },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
@@ -189,6 +191,12 @@ impl From<TypeCheckError> for Diagnostic {
                 let empty_or_s = if expected == 1 { "" } else { "s" };
                 let was_or_were = if found == 1 { "was" } else { "were" };
                 let msg = format!("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given");
+                Diagnostic::simple_error(msg, String::new(), span)
+            }
+            TypeCheckError::GenericCountMismatch { item, expected, found, span } => {
+                let empty_or_s = if expected == 1 { "" } else { "s" };
+                let was_or_were = if found == 1 { "was" } else { "were" };
+                let msg = format!("{item} expects {expected} generic{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), span)
             }
             TypeCheckError::InvalidCast { span, .. }
