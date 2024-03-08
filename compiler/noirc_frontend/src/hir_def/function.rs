@@ -120,6 +120,10 @@ pub struct FuncMeta {
 
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
+
+    /// True if this function is an entry point to the program.
+    /// For non-contracts, this means the function is `main`.
+    pub is_entry_point: bool,
 }
 
 impl FuncMeta {
