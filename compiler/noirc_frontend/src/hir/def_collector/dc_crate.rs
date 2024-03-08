@@ -136,7 +136,7 @@ pub struct DefCollector {
 pub(crate) type ImplMap =
     HashMap<(UnresolvedType, LocalModuleId), Vec<(UnresolvedGenerics, Span, UnresolvedFunctions)>>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CompilationError {
     ParseError(ParserError),
     DefinitionError(DefCollectorErrorKind),

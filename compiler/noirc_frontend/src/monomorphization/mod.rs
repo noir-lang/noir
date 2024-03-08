@@ -867,12 +867,11 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
                 let element = Box::new(self.convert_type(element.as_ref()));
-
-                if let Some(length) = length.evaluate_to_u64() {
-                    ast::Type::Array(length, element)
-                } else {
-                    ast::Type::Slice(element)
-                }
+                // TODO: convert to MonomorphizationError
+                let length = length.evaluate_to_u64().unwrap_or_else(|| {
+                    panic!("Length of generic array could not be determined.")
+                });
+                ast::Type::Array(length, element)
             }
             HirType::Slice(element) => {
                 let element = Box::new(self.convert_type(element.as_ref()));
@@ -1236,6 +1235,10 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
     ) -> ast::Expression {
         use ast::*;
+
+        // TODO: remove
+        println!("modulus_array_literal: {:?}, {:?}, {:?}", bytes, arr_elem_bits, location);
+
         let int_type = Type::Integer(crate::Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {

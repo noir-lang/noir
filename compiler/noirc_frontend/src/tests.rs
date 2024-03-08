@@ -905,6 +905,21 @@ mod test {
     }
 
     #[test]
+    fn resolve_literal_slice() {
+        let src = r#"
+            fn const_0(_x : [Field]) -> Field {
+                0
+            }
+            fn main(x : Field) {
+                let y: [Field] = &[1, 2, 3];
+                assert(const_0(y) == x);
+            }
+        "#;
+        // assert!(get_program_errors(src).is_empty());
+        assert!(get_program_errors(src) == vec![], "{:?}", get_program_errors(src));
+    }
+
+    #[test]
     fn multiple_resolution_errors() {
         let src = r#"
             fn main(x : Field) {

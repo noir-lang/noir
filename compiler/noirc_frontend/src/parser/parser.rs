@@ -1077,12 +1077,33 @@ where
         .map(|(lhs, count)| ExpressionKind::repeated_array(lhs, count))
 }
 
-/// &[array_expr]
 fn slice_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
 {
-    just(Token::Ampersand).ignore_then(array_expr(expr_parser))
+    just(Token::Ampersand).ignore_then(standard_slice(expr_parser.clone()).or(slice_sugar(expr_parser)))
+}
+
+/// &[a, b, c, ...]
+fn standard_slice<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
+    expression_list(expr_parser)
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .validate(|elements, _span, _emit| ExpressionKind::slice(elements))
+}
+
+/// &[a; N]
+fn slice_sugar<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
+    expr_parser
+        .clone()
+        .then(just(Token::Semicolon).ignore_then(expr_parser))
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .map(|(lhs, count)| ExpressionKind::repeated_slice(lhs, count))
 }
 
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
@@ -1187,7 +1208,7 @@ where
 mod test {
     use super::test_helpers::*;
     use super::*;
-    use crate::{ArrayLiteral, SliceLiteral, Literal};
+    use crate::{ArrayLiteral, Literal};
 
     #[test]
     fn parse_infix() {
@@ -1300,7 +1321,7 @@ mod test {
         parse_all_failing(array_expr(expression()), invalid);
     }
 
-    fn expr_to_slice(expr: ExpressionKind) -> SliceLiteral {
+    fn expr_to_slice(expr: ExpressionKind) -> ArrayLiteral {
         let lit = match expr {
             ExpressionKind::Literal(literal) => literal,
             _ => unreachable!("expected a literal"),
@@ -1308,7 +1329,7 @@ mod test {
 
         match lit {
             Literal::Slice(arr) => arr,
-            _ => unreachable!("expected an slice"),
+            _ => unreachable!("expected a slice: {:?}", lit),
         }
     }
 
@@ -1322,8 +1343,8 @@ mod test {
 
         for expr in parse_all(slice_expr(expression()), valid) {
             match expr_to_slice(expr) {
-                SliceLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
-                SliceLiteral::Repeated { length, .. } => {
+                ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
+                ArrayLiteral::Repeated { length, .. } => {
                     assert_eq!(length.kind, ExpressionKind::integer(5i128.into()));
                 }
             }

@@ -155,7 +155,7 @@ impl Type {
 
     pub(crate) fn is_nested_slice(&self) -> bool {
         match self {
-            Type::Slice(_) => true,
+            Type::Slice(elem) => elem.as_ref().contains_slice(),
             Type::Array(_, elem) => {
                 elem.as_ref().contains_slice()
             }
@@ -1149,6 +1149,10 @@ impl Type {
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
                 len_a.try_unify(len_b, bindings)?;
+                elem_a.try_unify(elem_b, bindings)
+            }
+
+            (Slice(elem_a), Slice(elem_b)) => {
                 elem_a.try_unify(elem_b, bindings)
             }
 

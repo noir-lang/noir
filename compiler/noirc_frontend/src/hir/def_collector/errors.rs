@@ -23,7 +23,7 @@ pub enum DuplicateType {
     TraitAssociatedFunction,
 }
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum DefCollectorErrorKind {
     #[error("duplicate {typ} found in namespace")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
@@ -78,7 +78,7 @@ pub enum DefCollectorErrorKind {
 }
 
 /// An error struct that macro processors can return.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MacroError {
     pub primary_message: String,
     pub secondary_message: Option<String>,
