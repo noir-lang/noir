@@ -81,7 +81,7 @@ mod test {
                 &mut context,
                 program.clone().into_sorted(),
                 root_file_id,
-                Vec::new(), // No macro processors
+                &[], // No macro processors
             ));
         }
         (program, context, errors)
@@ -1205,5 +1205,14 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
             }
         "#;
         assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn type_aliases_in_entry_point() {
+        let src = r#"
+            type Foo = u8;
+            fn main(_x: Foo) {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 0);
     }
 }

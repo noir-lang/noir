@@ -4,9 +4,11 @@ use crate::{
     ast::{Path, PathKind},
     parser::{Item, ItemKind},
 };
+use noirc_errors::debug_info::{DebugFnId, DebugFunction};
 use noirc_errors::{Span, Spanned};
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::mem::take;
 
 const MAX_MEMBER_ASSIGN_DEPTH: usize = 8;
 
@@ -26,8 +28,12 @@ pub struct DebugInstrumenter {
     // all field names referenced when assigning to a member of a variable
     pub field_names: HashMap<SourceFieldId, String>,
 
+    // all collected function metadata (name + argument names)
+    pub functions: HashMap<DebugFnId, DebugFunction>,
+
     next_var_id: u32,
     next_field_name_id: u32,
+    next_fn_id: u32,
 
     // last seen variable names and their IDs grouped by scope
     scope: Vec<HashMap<String, SourceVarId>>,
@@ -38,9 +44,11 @@ impl Default for DebugInstrumenter {
         Self {
             variables: HashMap::default(),
             field_names: HashMap::default(),
+            functions: HashMap::default(),
             scope: vec![],
             next_var_id: 0,
             next_field_name_id: 1,
+            next_fn_id: 0,
         }
     }
 }
@@ -76,10 +84,22 @@ impl DebugInstrumenter {
         field_name_id
     }
 
+    fn insert_function(&mut self, fn_name: String, arguments: Vec<String>) -> DebugFnId {
+        let fn_id = DebugFnId(self.next_fn_id);
+        self.next_fn_id += 1;
+        self.functions.insert(fn_id, DebugFunction { name: fn_name, arg_names: arguments });
+        fn_id
+    }
+
     fn walk_fn(&mut self, func: &mut ast::FunctionDefinition) {
+        let func_name = func.name.0.contents.clone();
+        let func_args =
+            func.parameters.iter().map(|param| pattern_to_string(&param.pattern)).collect();
+        let fn_id = self.insert_function(func_name, func_args);
+        let enter_stmt = build_debug_call_stmt("enter", fn_id, func.span);
         self.scope.push(HashMap::default());
 
-        let set_fn_params = func
+        let set_fn_params: Vec<_> = func
             .parameters
             .iter()
             .flat_map(|param| {
@@ -93,10 +113,21 @@ impl DebugInstrumenter {
             })
             .collect();
 
-        self.walk_scope(&mut func.body.0, func.span);
+        let func_body = &mut func.body.0;
+        let mut statements = take(func_body);
 
-        // prepend fn params:
-        func.body.0 = [set_fn_params, func.body.0.clone()].concat();
+        self.walk_scope(&mut statements, func.span);
+
+        // walk_scope ensures that the last statement is the return value of the function
+        let last_stmt = statements.pop().expect("at least one statement after walk_scope");
+        let exit_stmt = build_debug_call_stmt("exit", fn_id, last_stmt.span);
+
+        // rebuild function body
+        func_body.push(enter_stmt);
+        func_body.extend(set_fn_params);
+        func_body.extend(statements);
+        func_body.push(exit_stmt);
+        func_body.push(last_stmt);
     }
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
@@ -427,6 +458,8 @@ impl DebugInstrumenter {
             use dep::__debug::{{
                 __debug_var_assign,
                 __debug_var_drop,
+                __debug_fn_enter,
+                __debug_fn_exit,
                 __debug_dereference_assign,
                 {member_assigns},
             }};"#
@@ -451,12 +484,30 @@ pub fn build_debug_crate_file() -> String {
             }
 
             #[oracle(__debug_var_drop)]
-            unconstrained fn __debug_var_drop_oracle<T>(_var_id: u32) {}
-            unconstrained fn __debug_var_drop_inner<T>(var_id: u32) {
+            unconstrained fn __debug_var_drop_oracle(_var_id: u32) {}
+            unconstrained fn __debug_var_drop_inner(var_id: u32) {
                 __debug_var_drop_oracle(var_id);
             }
-            pub fn __debug_var_drop<T>(var_id: u32) {
+            pub fn __debug_var_drop(var_id: u32) {
                 __debug_var_drop_inner(var_id);
+            }
+
+            #[oracle(__debug_fn_enter)]
+            unconstrained fn __debug_fn_enter_oracle(_fn_id: u32) {}
+            unconstrained fn __debug_fn_enter_inner(fn_id: u32) {
+                __debug_fn_enter_oracle(fn_id);
+            }
+            pub fn __debug_fn_enter(fn_id: u32) {
+                __debug_fn_enter_inner(fn_id);
+            }
+
+            #[oracle(__debug_fn_exit)]
+            unconstrained fn __debug_fn_exit_oracle(_fn_id: u32) {}
+            unconstrained fn __debug_fn_exit_inner(fn_id: u32) {
+                __debug_fn_exit_oracle(fn_id);
+            }
+            pub fn __debug_fn_exit(fn_id: u32) {
+                __debug_fn_exit_inner(fn_id);
             }
 
             #[oracle(__debug_dereference_assign)]
@@ -561,6 +612,21 @@ fn build_assign_member_stmt(
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
 }
 
+fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, span: Span) -> ast::Statement {
+    let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
+        func: Box::new(ast::Expression {
+            kind: ast::ExpressionKind::Variable(ast::Path {
+                segments: vec![ident(&format!["__debug_fn_{fname}"], span)],
+                kind: PathKind::Plain,
+                span,
+            }),
+            span,
+        }),
+        arguments: vec![uint_expr(fn_id.0 as u128, span)],
+    }));
+    ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
+}
+
 fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
     let mut vars = vec![];
     let mut stack = VecDeque::from([(pattern, false)]);
@@ -583,6 +649,30 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
         }
     }
     vars
+}
+
+fn pattern_to_string(pattern: &ast::Pattern) -> String {
+    match pattern {
+        ast::Pattern::Identifier(id) => id.0.contents.clone(),
+        ast::Pattern::Mutable(mpat, _, _) => format!("mut {}", pattern_to_string(mpat.as_ref())),
+        ast::Pattern::Tuple(elements, _) => format!(
+            "({})",
+            elements.iter().map(pattern_to_string).collect::<Vec<String>>().join(", ")
+        ),
+        ast::Pattern::Struct(name, fields, _) => {
+            format!(
+                "{} {{ {} }}",
+                name,
+                fields
+                    .iter()
+                    .map(|(field_ident, field_pattern)| {
+                        format!("{}: {}", &field_ident.0.contents, pattern_to_string(field_pattern))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )
+        }
+    }
 }
 
 fn ident(s: &str, span: Span) -> ast::Ident {

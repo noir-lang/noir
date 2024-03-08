@@ -14,7 +14,7 @@ mod stmt;
 pub use errors::TypeCheckError;
 
 use crate::{
-    hir_def::{expr::HirExpression, stmt::HirStatement, traits::TraitConstraint},
+    hir_def::{expr::HirExpression, function::Param, stmt::HirStatement, traits::TraitConstraint},
     node_interner::{ExprId, FuncId, GlobalId, NodeInterner},
     Type,
 };
@@ -74,6 +74,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // This is locally obvious, but it must be bound here so that the
     // Definition object of the parameter in the NodeInterner is given the correct type.
     for param in parameters {
+        check_if_type_is_valid_for_program_input(&type_checker, func_id, &param, &mut errors);
         type_checker.bind_pattern(&param.0, param.1);
     }
 
@@ -141,6 +142,22 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     }
 
     errors
+}
+
+/// Only sized types are valid to be used as main's parameters or the parameters to a contract
+/// function. If the given type is not sized (e.g. contains a slice or NamedGeneric type), an
+/// error is issued.
+fn check_if_type_is_valid_for_program_input(
+    type_checker: &TypeChecker<'_>,
+    func_id: FuncId,
+    param: &Param,
+    errors: &mut Vec<TypeCheckError>,
+) {
+    let meta = type_checker.interner.function_meta(&func_id);
+    if meta.is_entry_point && !param.1.is_valid_for_program_input() {
+        let span = param.0.span();
+        errors.push(TypeCheckError::InvalidTypeForEntryPoint { span });
+    }
 }
 
 fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_errors::Span, bool) {
@@ -329,6 +346,7 @@ mod test {
             trait_impl: None,
             return_type: FunctionReturnType::Default(Span::default()),
             trait_constraints: Vec::new(),
+            is_entry_point: true,
         };
         interner.push_fn_meta(func_meta, func_id);
 

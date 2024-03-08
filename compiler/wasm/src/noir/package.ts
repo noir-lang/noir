@@ -105,7 +105,12 @@ export class Package {
       handles
         .filter((handle) => SOURCE_EXTENSIONS.find((ext) => handle.endsWith(ext)))
         .map(async (file) => {
-          const suffix = file.replace(this.#srcPath, '');
+          // Github deps are directly added to the file manager, which causes them to be missing the absolute path to the source file
+          // and only include the extraction directory relative to the fm root directory
+          // This regexp ensures we remove the "real" source path for all dependencies, providing the compiler with what it expects for each source file:
+          // <absoluteSourcePath> -> <sourceAsString> for bin/contract packages
+          // <depAlias/relativePathToSource> -> <sourceAsString> for libs
+          const suffix = file.replace(new RegExp(`.*${this.#srcPath}`), '');
           return {
             path: this.getType() === 'lib' ? `${alias ? alias : this.#config.package.name}${suffix}` : file,
             source: (await fm.readFile(file, 'utf-8')).toString(),
