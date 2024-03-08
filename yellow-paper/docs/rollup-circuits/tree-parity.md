@@ -11,17 +11,17 @@ As SHA256 is not snark-friendly, weak devices would not be able to prove inclusi
 This circuit is responsible for converting the tree such that users can easily build the proofs.
 We essentially use this circuit to front-load the work needed to prove the inclusion of messages in the tree.
 As earlier we are using a tree-like structure.
-Instead of having a `base`, `merge` and `root` circuits, we will have only `leaf` and `root` parity circuits.
+Instead of having a `base`, `merge` and `root` circuits, we will have only `base` and `root` parity circuits.
 We only need these two, since what would have been the `merge` is doing the same as the `root` for this case.
 
 ```mermaid
 graph BT
     R((RootParity))
 
-    T0[LeafParity]
-    T1[LeafParity]
-    T2[LeafParity]
-    T3[LeafParity]
+    T0[BaseParity]
+    T1[BaseParity]
+    T2[BaseParity]
+    T3[BaseParity]
 
     T0_P((RootParity 0))
     T1_P((RootParity 1))
@@ -91,7 +91,7 @@ class RootParityInput {
 }
 RootParityInput *-- ParityPublicInputs: public_inputs
 
-class LeafParityInputs {
+class BaseParityInputs {
     msgs: List~Fr[2]~
 }
 ```
@@ -101,7 +101,7 @@ If each just take 2 inputs, the overhead of recursing through the layers might b
 Recall that all the inputs are already chosen by the L1, so we don't need to worry about which to chose.
 
 ```python
-def base_parity_circuit(inputs: LeafParityInputs) -> ParityPublicInputs:
+def base_parity_circuit(inputs: BaseParityInputs) -> ParityPublicInputs:
     sha_root = MERKLE_TREE(inputs.msgs, SHA256);
     converted_root = MERKLE_TREE(inputs.msgs, SNARK_FRIENDLY_HASH_FUNCTION);
     return ParityPublicInputs(sha_root, converted_root)

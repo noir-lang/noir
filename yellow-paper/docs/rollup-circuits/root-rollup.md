@@ -132,7 +132,7 @@ class ChildRollupData {
 ChildRollupData *-- BaseOrMergeRollupPublicInputs: public_inputs
 
 
-class LeafParityInputs {
+class BaseParityInputs {
     msgs: List~Fr[2]~
 }
 

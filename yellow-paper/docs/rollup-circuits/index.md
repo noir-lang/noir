@@ -23,9 +23,9 @@ For transactions we have:
   - Merges two `merge` rollup proofs
 
 And for the message parity we have:
-- The `root` circuit
-  - Merges `N` `root` or `leaf` proofs
-- The `leaf` circuit
+- The `root_parity` circuit
+  - Merges `N` `root` or `base_parity` proofs
+- The `base_parity` circuit
   - Merges `N` l1 to l2 messages in a subtree 
 
 In the diagram the size of the tree is limited for demonstration purposes, but a larger tree would have more layers of merge rollups proofs. 
@@ -91,10 +91,10 @@ graph BT
 
     R((RootParity))
 
-    T0[LeafParity]
-    T1[LeafParity]
-    T2[LeafParity]
-    T3[LeafParity]
+    T0[BaseParity]
+    T1[BaseParity]
+    T2[BaseParity]
+    T3[BaseParity]
 
     T0_P((RootParity 0))
     T1_P((RootParity 1))
@@ -371,7 +371,7 @@ class MergeRollupInputs {
 MergeRollupInputs *-- ChildRollupData: left
 MergeRollupInputs *-- ChildRollupData: right
 
-class LeafParityInputs {
+class BaseParityInputs {
     msgs: List~Fr[2]~
 }
 
