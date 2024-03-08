@@ -1,11 +1,12 @@
 #include <gtest/gtest.h>
 
-#include "../../constants.hpp"
-#include "../inner_proof_data/inner_proof_data.hpp"
-#include "../notes/native/index.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/crypto/merkle_tree/index.hpp"
+#include "barretenberg/join_split_example/constants.hpp"
+#include "barretenberg/join_split_example/proofs/inner_proof_data/inner_proof_data.hpp"
+#include "barretenberg/join_split_example/proofs/notes/native/index.hpp"
 #include "barretenberg/join_split_example/types.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "index.hpp"
@@ -41,14 +42,6 @@ auto create_account_leaf_data(fr const& account_alias_hash,
 class join_split_tests : public ::testing::Test {
   protected:
     static constexpr size_t ACCOUNT_INDEX = 14;
-    static void SetUpTestCase()
-    {
-        srs::init_crs_factory("../srs_db/ignition");
-        init_proving_key(false);
-        auto crs_factory = std::make_unique<bb::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
-        init_verification_key();
-        info("vk hash: ", get_verification_key()->sha256_hash());
-    }
 
     virtual void SetUp()
     {
@@ -264,17 +257,17 @@ class join_split_tests : public ::testing::Test {
         return tx;
     }
 
-    plonk::proof sign_and_create_proof(join_split_tx& tx, key_pair const& signing_key)
+    Builder sign_and_create_circuit(join_split_tx& tx, key_pair const& signing_key)
     {
         tx.signature = sign_join_split_tx(tx, signing_key);
-
-        auto prover = new_join_split_prover(tx, false);
-        return prover.construct_proof();
+        circuit = new_join_split_circuit(tx);
+        return circuit;
     }
 
-    bool sign_and_verify(join_split_tx& tx, key_pair const& signing_key)
+    bool sign_and_check_circuit(join_split_tx& tx, key_pair const& signing_key)
     {
-        return verify_proof(sign_and_create_proof(tx, signing_key));
+        circuit = sign_and_create_circuit(tx, signing_key);
+        return CircuitChecker::check(circuit);
     }
 
     struct verify_result {
@@ -286,12 +279,12 @@ class join_split_tests : public ::testing::Test {
 
     verify_result verify_logic(join_split_tx& tx)
     {
-        Builder builder;
-        join_split_circuit(builder, tx);
-        if (builder.failed()) {
-            std::cout << "Logic failed: " << builder.err() << std::endl;
+        circuit = Builder();
+        join_split_circuit(circuit, tx);
+        if (circuit.failed()) {
+            info("Logic failed: ", circuit.err());
         }
-        return { !builder.failed(), builder.err(), builder.get_public_inputs(), builder.get_num_gates() };
+        return { !circuit.failed(), circuit.err(), circuit.get_public_inputs(), circuit.get_num_gates() };
     }
 
     verify_result sign_and_verify_logic(join_split_tx& tx, key_pair const& signing_key)
@@ -300,6 +293,7 @@ class join_split_tests : public ::testing::Test {
         return verify_logic(tx);
     }
 
+    Builder circuit;
     join_split_example::fixtures::user_context user;
     std::unique_ptr<MemoryStore> store;
     std::unique_ptr<MerkleTree<MemoryStore, PedersenHashPolicy>> tree;
@@ -705,25 +699,18 @@ TEST_F(join_split_tests, test_0_input_notes_and_detect_circuit_change)
     EXPECT_TRUE(result.valid);
 
     // The below part detects any changes in the join-split circuit
-    constexpr uint32_t CIRCUIT_GATE_COUNT = 49492;
-    constexpr uint32_t GATES_NEXT_POWER_OF_TWO = 65535;
-    const uint256_t VK_HASH("29f333ac68164d4e079b3d4243c95425432f317aa26ad67fd668ca883b28e236");
+    constexpr size_t DYADIC_CIRCUIT_SIZE = 1 << 16;
 
-    auto number_of_gates_js = result.number_of_gates;
-    std::cout << get_verification_key()->sha256_hash() << std::endl;
-    auto vk_hash_js = get_verification_key()->sha256_hash();
+    constexpr uint256_t CIRCUIT_HASH("0x3792ae05102a73979a20d1962e30720ea083f87341a79f7714f356adbe670222");
 
+    const uint256_t circuit_hash = circuit.hash_circuit();
+    // circuit is finalized now
     if (!CIRCUIT_CHANGE_EXPECTED) {
-        EXPECT_EQ(number_of_gates_js, CIRCUIT_GATE_COUNT) << "The gate count for the join_split circuit is changed.";
-        EXPECT_EQ(from_buffer<uint256_t>(vk_hash_js), VK_HASH)
-            << "The verification key hash for the join_split circuit is changed: "
-            << from_buffer<uint256_t>(vk_hash_js);
+        EXPECT_LT(circuit.get_num_gates(), DYADIC_CIRCUIT_SIZE)
+            << "The gate count for the join-split circuit has crossed a power-of-two boundary.";
+        EXPECT_EQ(circuit_hash, CIRCUIT_HASH)
+            << "The circuit hash for the join_split circuit has changed to: " << circuit_hash;
     }
-
-    // For the next power of two limit, we need to consider that we reserve four gates for adding
-    // randomness/zero-knowledge
-    EXPECT_LE(number_of_gates_js, GATES_NEXT_POWER_OF_TWO - Composer::NUM_RESERVED_GATES)
-        << "You have exceeded the next power of two limit for the join_split circuit.";
 }
 
 // Bespoke test seeking bug.
@@ -1099,27 +1086,6 @@ TEST_F(join_split_tests, test_random_output_note_owners)
     tx.output_note[1].owner = grumpkin::g1::element::random_element();
 
     EXPECT_TRUE(sign_and_verify_logic(tx, user.owner).valid);
-}
-
-TEST_F(join_split_tests, test_tainted_output_owner_fails)
-{
-    join_split_tx tx = simple_setup();
-    tx.proof_id = proof_ids::DEPOSIT;
-    tx.public_value = 1;
-    tx.signing_pub_key = user.owner.public_key;
-    uint8_t public_owner[32] = { 0x01, 0xaa, 0x42, 0xd4, 0x72, 0x88, 0x8e, 0xae, 0xa5, 0x56, 0x39,
-                                 0x46, 0xeb, 0x5c, 0xf5, 0x6c, 0x81, 0x6,  0x4d, 0x80, 0xc6, 0xf5,
-                                 0xa5, 0x38, 0xcc, 0x87, 0xae, 0x54, 0xae, 0xdb, 0x75, 0xd9 };
-    tx.public_owner = from_buffer<fr>(public_owner);
-    tx.signature = sign_join_split_tx(tx, user.owner);
-
-    auto prover = new_join_split_prover(tx, false);
-    auto proof = prover.construct_proof();
-
-    EXPECT_EQ(proof.proof_data[inner_proof_offsets::PUBLIC_OWNER], 0x01);
-    proof.proof_data[inner_proof_fields::PUBLIC_OWNER] = 0x02;
-
-    EXPECT_FALSE(verify_proof(proof));
 }
 
 // *************************************************************************************************************
@@ -2215,11 +2181,10 @@ TEST_F(join_split_tests, test_incorrect_output_note_creator_pubkey_x)
 }
 
 // *************************************************************************************************************
-// Full proofs
+// Basic success tests
 // *************************************************************************************************************
 
-// Named differently from *_full_proof tests to let us run just this one full proof test in CI with a gtest filter
-TEST_F(join_split_tests, test_deposit_construct_proof)
+TEST_F(join_split_tests, test_deposit)
 {
     join_split_tx tx = zero_input_setup();
     tx.proof_id = proof_ids::DEPOSIT;
@@ -2234,35 +2199,11 @@ TEST_F(join_split_tests, test_deposit_construct_proof)
      *   - fee = 3
      */
 
-    auto proof = sign_and_create_proof(tx, user.owner);
-    auto proof_data = inner_proof_data(proof.proof_data);
-
-    auto input_note1_commitment = tx.input_note[0].commit();
-    auto input_note2_commitment = tx.input_note[1].commit();
-    uint256_t nullifier1 = compute_nullifier(input_note1_commitment, user.owner.private_key, false);
-    uint256_t nullifier2 = compute_nullifier(input_note2_commitment, user.owner.private_key, false);
-    auto output_note1_commitment = tx.output_note[0].commit();
-    auto output_note2_commitment = tx.output_note[1].commit();
-
-    EXPECT_EQ(proof_data.proof_id, proof_ids::DEPOSIT);
-    EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
-    EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
-    EXPECT_EQ(proof_data.nullifier1, nullifier1);
-    EXPECT_EQ(proof_data.nullifier2, nullifier2);
-    EXPECT_EQ(proof_data.public_value, tx.public_value);
-    EXPECT_EQ(proof_data.public_owner, tx.public_owner);
-    EXPECT_EQ(proof_data.asset_id, tx.asset_id);
-    EXPECT_EQ(proof_data.merkle_root, tree->root());
-    EXPECT_EQ(proof_data.tx_fee, uint256_t(3));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, tx.asset_id);
-    EXPECT_EQ(proof_data.bridge_call_data, uint256_t(0));
-    EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
-    EXPECT_EQ(proof_data.defi_root, fr(0));
-
-    EXPECT_TRUE(verify_proof(proof));
+    Builder circuit = sign_and_create_circuit(tx, user.owner);
+    EXPECT_TRUE(CircuitChecker::check(circuit));
 }
 
-TEST_F(join_split_tests, test_withdraw_full_proof)
+TEST_F(join_split_tests, test_withdraw)
 {
     join_split_tx tx = simple_setup();
     tx.proof_id = proof_ids::WITHDRAW;
@@ -2279,35 +2220,11 @@ TEST_F(join_split_tests, test_withdraw_full_proof)
      *   - 3 paid as fee (in1's asset_id)
      */
 
-    auto proof = sign_and_create_proof(tx, user.owner);
-    auto proof_data = inner_proof_data(proof.proof_data);
-
-    auto input_note1_commitment = tx.input_note[0].commit();
-    auto input_note2_commitment = tx.input_note[1].commit();
-    uint256_t nullifier1 = compute_nullifier(input_note1_commitment, user.owner.private_key, true);
-    uint256_t nullifier2 = compute_nullifier(input_note2_commitment, user.owner.private_key, true);
-    auto output_note1_commitment = tx.output_note[0].commit();
-    auto output_note2_commitment = tx.output_note[1].commit();
-
-    EXPECT_EQ(proof_data.proof_id, proof_ids::WITHDRAW);
-    EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
-    EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
-    EXPECT_EQ(proof_data.nullifier1, nullifier1);
-    EXPECT_EQ(proof_data.nullifier2, nullifier2);
-    EXPECT_EQ(proof_data.public_value, tx.public_value);
-    EXPECT_EQ(proof_data.public_owner, tx.public_owner);
-    EXPECT_EQ(proof_data.asset_id, tx.asset_id);
-    EXPECT_EQ(proof_data.merkle_root, tree->root());
-    EXPECT_EQ(proof_data.tx_fee, uint256_t(3));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, tx.asset_id);
-    EXPECT_EQ(proof_data.bridge_call_data, uint256_t(0));
-    EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
-    EXPECT_EQ(proof_data.defi_root, fr(0));
-
-    EXPECT_TRUE(verify_proof(proof));
+    Builder circuit = sign_and_create_circuit(tx, user.owner);
+    EXPECT_TRUE(CircuitChecker::check(circuit));
 }
 
-TEST_F(join_split_tests, test_private_send_full_proof)
+TEST_F(join_split_tests, test_private_send)
 {
     join_split_tx tx = simple_setup();
     tx.output_note[0].value -= 3;
@@ -2320,37 +2237,12 @@ TEST_F(join_split_tests, test_private_send_full_proof)
      *   - 3 paid as fee (in1's asset_id)
      */
 
-    auto proof = sign_and_create_proof(tx, user.owner);
-    auto proof_data = inner_proof_data(proof.proof_data);
+    Builder circuit = sign_and_create_circuit(tx, user.owner);
 
-    auto input_note1_commitment = tx.input_note[0].commit();
-    auto input_note2_commitment = tx.input_note[1].commit();
-    auto output_note1_commitment = tx.output_note[0].commit();
-    auto output_note2_commitment = tx.output_note[1].commit();
-    uint256_t nullifier1 = compute_nullifier(input_note1_commitment, user.owner.private_key, true);
-    uint256_t nullifier2 = compute_nullifier(input_note2_commitment, user.owner.private_key, true);
-
-    EXPECT_EQ(proof_data.proof_id, proof_ids::SEND);
-    EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
-    EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
-    EXPECT_EQ(proof_data.nullifier1, nullifier1);
-    EXPECT_EQ(proof_data.nullifier2, nullifier2);
-    EXPECT_EQ(proof_data.public_value, uint256_t(0));
-    EXPECT_EQ(proof_data.public_owner, fr(0));
-    EXPECT_EQ(proof_data.asset_id, uint256_t(0));
-    EXPECT_EQ(proof_data.merkle_root, tree->root());
-    EXPECT_EQ(proof_data.tx_fee, uint256_t(3));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, tx.asset_id);
-    EXPECT_EQ(proof_data.bridge_call_data, uint256_t(0));
-    EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
-    EXPECT_EQ(proof_data.defi_root, fr(0));
-    EXPECT_EQ(proof_data.backward_link, fr(0));
-    EXPECT_EQ(proof_data.allow_chain, uint256_t(0));
-
-    EXPECT_TRUE(verify_proof(proof));
+    EXPECT_TRUE(CircuitChecker::check(circuit));
 }
 
-TEST_F(join_split_tests, test_defi_deposit_full_proof)
+TEST_F(join_split_tests, test_defi_deposit)
 {
     join_split_tx tx = simple_setup();
 
@@ -2375,44 +2267,11 @@ TEST_F(join_split_tests, test_defi_deposit_full_proof)
      *   - 10 paid as fee (in1's asset_id)
      */
 
-    auto proof = sign_and_create_proof(tx, user.owner);
-    EXPECT_TRUE(verify_proof(proof));
-
-    auto proof_data = inner_proof_data(proof.proof_data);
-
-    auto partial_value_commitment = value::create_partial_commitment(
-        tx.partial_claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].account_required, 0);
-    claim::claim_note claim_note = {
-        tx.partial_claim_note.deposit_value,  tx.partial_claim_note.bridge_call_data, 0, 0, partial_value_commitment,
-        tx.partial_claim_note.input_nullifier
-    };
-
-    auto input_note1_commitment = tx.input_note[0].commit();
-    auto input_note2_commitment = tx.input_note[1].commit();
-    auto output_note1_commitment = claim_note.partial_commit();
-    auto output_note2_commitment = tx.output_note[1].commit();
-    uint256_t nullifier1 = compute_nullifier(input_note1_commitment, user.owner.private_key, true);
-    uint256_t nullifier2 = compute_nullifier(input_note2_commitment, user.owner.private_key, true);
-
-    EXPECT_EQ(proof_data.proof_id, proof_ids::DEFI_DEPOSIT);
-    EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
-    EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
-    EXPECT_EQ(proof_data.nullifier1, nullifier1);
-    EXPECT_EQ(proof_data.nullifier2, nullifier2);
-    EXPECT_EQ(proof_data.public_value, uint256_t(0));
-    EXPECT_EQ(proof_data.public_owner, fr(0));
-    EXPECT_EQ(proof_data.asset_id, uint256_t(0));
-    EXPECT_EQ(proof_data.merkle_root, tree->root());
-    EXPECT_EQ(proof_data.tx_fee, uint256_t(10));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_call_data.input_asset_id_a);
-    EXPECT_EQ(proof_data.bridge_call_data, tx.partial_claim_note.bridge_call_data);
-    EXPECT_EQ(proof_data.defi_deposit_value, tx.partial_claim_note.deposit_value);
-    EXPECT_EQ(proof_data.defi_root, fr(0));
-
-    EXPECT_TRUE(verify_proof(proof));
+    Builder circuit = sign_and_create_circuit(tx, user.owner);
+    EXPECT_TRUE(CircuitChecker::check(circuit));
 }
 
-TEST_F(join_split_tests, test_repayment_full_proof)
+TEST_F(join_split_tests, test_repayment)
 {
     join_split_tx tx = simple_setup({ 0, 11 });
 
@@ -2439,79 +2298,8 @@ TEST_F(join_split_tests, test_repayment_full_proof)
     tx.partial_claim_note.bridge_call_data = bridge_call_data.to_uint256_t();
     tx.partial_claim_note.input_nullifier = tx.output_note[0].input_nullifier;
 
-    auto proof = sign_and_create_proof(tx, user.owner);
-    auto proof_data = inner_proof_data(proof.proof_data);
-
-    auto partial_commitment = value::create_partial_commitment(
-        tx.partial_claim_note.note_secret, tx.input_note[0].owner, tx.input_note[0].account_required, 0);
-    claim::claim_note claim_note = {
-        tx.partial_claim_note.deposit_value,  tx.partial_claim_note.bridge_call_data, 0, 0, partial_commitment,
-        tx.partial_claim_note.input_nullifier
-    };
-
-    auto input_note1_commitment = tx.input_note[0].commit();
-    auto input_note2_commitment = tx.input_note[1].commit();
-    auto output_note1_commitment = claim_note.partial_commit();
-    auto output_note2_commitment = tx.output_note[1].commit();
-    uint256_t nullifier1 = compute_nullifier(input_note1_commitment, user.owner.private_key, true);
-    uint256_t nullifier2 = compute_nullifier(input_note2_commitment, user.owner.private_key, true);
-
-    EXPECT_EQ(proof_data.proof_id, proof_ids::DEFI_DEPOSIT);
-    EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
-    EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
-    EXPECT_EQ(proof_data.nullifier1, nullifier1);
-    EXPECT_EQ(proof_data.nullifier2, nullifier2);
-    EXPECT_EQ(proof_data.public_value, uint256_t(0));
-    EXPECT_EQ(proof_data.public_owner, fr(0));
-    EXPECT_EQ(proof_data.asset_id, uint256_t(0));
-    EXPECT_EQ(proof_data.merkle_root, tree->root());
-    EXPECT_EQ(proof_data.tx_fee, uint256_t(0));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, bridge_call_data.input_asset_id_a);
-    EXPECT_EQ(proof_data.bridge_call_data, tx.partial_claim_note.bridge_call_data);
-    EXPECT_EQ(proof_data.defi_deposit_value, tx.partial_claim_note.deposit_value);
-    EXPECT_EQ(proof_data.defi_root, fr(0));
-
-    EXPECT_TRUE(verify_proof(proof));
-}
-
-TEST_F(join_split_tests, test_send_two_virtual_notes_full_proof)
-{
-    join_split_tx tx = simple_setup({ 4, 5 });
-
-    /**
-     * SEND tx represents:
-     *   - 100 in1 (virtual)
-     *   - 30 in2 (virtual, same asset_id)
-     *   - 130 out1
-     *   - 0 out2
-     */
-
-    auto proof = sign_and_create_proof(tx, user.owner);
-
-    auto proof_data = inner_proof_data(proof.proof_data);
-
-    auto input_note1_commitment = tx.input_note[0].commit();
-    auto input_note2_commitment = tx.input_note[1].commit();
-    auto output_note1_commitment = tx.output_note[0].commit();
-    auto output_note2_commitment = tx.output_note[1].commit();
-    uint256_t nullifier1 = compute_nullifier(input_note1_commitment, user.owner.private_key, true);
-    uint256_t nullifier2 = compute_nullifier(input_note2_commitment, user.owner.private_key, true);
-
-    EXPECT_EQ(proof_data.proof_id, proof_ids::SEND);
-    EXPECT_EQ(proof_data.note_commitment1, output_note1_commitment);
-    EXPECT_EQ(proof_data.note_commitment2, output_note2_commitment);
-    EXPECT_EQ(proof_data.nullifier1, nullifier1);
-    EXPECT_EQ(proof_data.nullifier2, nullifier2);
-    EXPECT_EQ(proof_data.public_value, uint256_t(0));
-    EXPECT_EQ(proof_data.public_owner, fr(0));
-    EXPECT_EQ(proof_data.asset_id, uint256_t(0));
-    EXPECT_EQ(proof_data.merkle_root, tree->root());
-    EXPECT_EQ(proof_data.tx_fee, uint256_t(0));
-    EXPECT_EQ(proof_data.tx_fee_asset_id, tx.asset_id);
-    EXPECT_EQ(proof_data.defi_deposit_value, uint256_t(0));
-    EXPECT_EQ(proof_data.defi_root, fr(0));
-
-    EXPECT_TRUE(verify_proof(proof));
+    Builder circuit = sign_and_create_circuit(tx, user.owner);
+    EXPECT_TRUE(CircuitChecker::check(circuit));
 }
 
 } // namespace bb::join_split_example::proofs::join_split

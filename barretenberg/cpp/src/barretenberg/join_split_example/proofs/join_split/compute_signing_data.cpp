@@ -1,6 +1,6 @@
 #include "compute_signing_data.hpp"
-#include "../notes/native/index.hpp"
 #include "barretenberg/crypto/pedersen_hash/pedersen.hpp"
+#include "barretenberg/join_split_example/proofs/notes/native/index.hpp"
 
 namespace bb::join_split_example::proofs::join_split {
 

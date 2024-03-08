@@ -79,6 +79,9 @@
     // Some settings can only be configured here.
     // The following are just provided as example.
     "settings": {
+        "files.associations": {
+            "*.tcc": "cpp",
+          },
         //
         // Clangd. Note that this setting may be overridden by  user settings
         // to the default value "clangd".

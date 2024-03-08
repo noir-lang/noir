@@ -1,6 +1,6 @@
 #pragma once
-#include "../notes/native/value/value_note.hpp"
 #include "barretenberg/crypto/schnorr/schnorr.hpp"
+#include "barretenberg/join_split_example/proofs/notes/native/value/value_note.hpp"
 #include "join_split_tx.hpp"
 
 namespace bb::join_split_example::proofs::join_split {

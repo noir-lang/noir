@@ -2659,6 +2659,36 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
     }
 }
 
+template <typename Arithmetization> uint256_t UltraCircuitBuilder_<Arithmetization>::hash_circuit()
+{
+    finalize_circuit();
+
+    size_t sum_of_block_sizes(0);
+    for (auto& block : blocks.get()) {
+        sum_of_block_sizes += block.size();
+    }
+
+    size_t num_bytes_in_selectors = sizeof(FF) * Arithmetization::NUM_SELECTORS * sum_of_block_sizes;
+    size_t num_bytes_in_wires_and_copy_constraints =
+        sizeof(uint32_t) * (Arithmetization::NUM_WIRES * sum_of_block_sizes + this->real_variable_index.size());
+    size_t num_bytes_to_hash = num_bytes_in_selectors + num_bytes_in_wires_and_copy_constraints;
+
+    std::vector<uint8_t> to_hash(num_bytes_to_hash);
+
+    const auto convert_and_insert = [&to_hash](auto& vector) {
+        std::vector<uint8_t> buffer = to_buffer(vector);
+        to_hash.insert(to_hash.end(), buffer.begin(), buffer.end());
+    };
+
+    for (auto& block : blocks.get()) {
+        std::for_each(block.selectors.begin(), block.selectors.end(), convert_and_insert);
+        std::for_each(block.wires.begin(), block.wires.end(), convert_and_insert);
+    }
+    convert_and_insert(this->real_variable_index);
+
+    return from_buffer<uint256_t>(crypto::sha256(to_hash));
+}
+
 template class UltraCircuitBuilder_<UltraArith<bb::fr>>;
 template class UltraCircuitBuilder_<UltraHonkArith<bb::fr>>;
 // To enable this we need to template plookup

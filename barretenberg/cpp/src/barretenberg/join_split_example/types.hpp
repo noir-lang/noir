@@ -1,10 +1,7 @@
 #pragma once
 
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/ultra_composer.hpp"
-
 #include "barretenberg/crypto/merkle_tree/hash_path.hpp"
-#include "barretenberg/plonk/proof_system/prover/prover.hpp"
+#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
@@ -16,28 +13,20 @@
 
 namespace bb::join_split_example {
 
-using Builder = bb::UltraCircuitBuilder;
-using Composer = plonk::UltraComposer;
+using Builder = UltraCircuitBuilder;
 
-using Prover = std::conditional_t<std::same_as<Composer, plonk::UltraComposer>, plonk::UltraProver, plonk::Prover>;
-
-using Verifier =
-    std::conditional_t<std::same_as<Composer, plonk::UltraComposer>, plonk::UltraVerifier, plonk::Verifier>;
-
-using witness_ct = bb::stdlib::witness_t<Builder>;
-using public_witness_ct = bb::stdlib::public_witness_t<Builder>;
-using bool_ct = bb::stdlib::bool_t<Builder>;
-using byte_array_ct = bb::stdlib::byte_array<Builder>;
-using field_ct = bb::stdlib::field_t<Builder>;
-using suint_ct = bb::stdlib::safe_uint_t<Builder>;
-using uint32_ct = bb::stdlib::uint32<Builder>;
-using group_ct = bb::stdlib::cycle_group<Builder>;
-using pedersen_commitment = bb::stdlib::pedersen_commitment<Builder>;
-using pedersen_hash = bb::stdlib::pedersen_hash<Builder>;
-using bn254 = bb::stdlib::bn254<Builder>;
-
-using hash_path_ct = bb::crypto::merkle_tree::hash_path<Builder>;
-
-using schnorr_signature_bits = bb::stdlib::schnorr_signature_bits<Builder>;
+using witness_ct = stdlib::witness_t<Builder>;
+using public_witness_ct = stdlib::public_witness_t<Builder>;
+using bool_ct = stdlib::bool_t<Builder>;
+using byte_array_ct = stdlib::byte_array<Builder>;
+using field_ct = stdlib::field_t<Builder>;
+using suint_ct = stdlib::safe_uint_t<Builder>;
+using uint32_ct = stdlib::uint32<Builder>;
+using group_ct = stdlib::cycle_group<Builder>;
+using pedersen_commitment = stdlib::pedersen_commitment<Builder>;
+using pedersen_hash = stdlib::pedersen_hash<Builder>;
+using bn254 = stdlib::bn254<Builder>;
+using hash_path_ct = crypto::merkle_tree::hash_path<Builder>;
+using schnorr_signature_bits = stdlib::schnorr_signature_bits<Builder>;
 
 } // namespace bb::join_split_example

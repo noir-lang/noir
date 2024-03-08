@@ -1,8 +1,8 @@
 #pragma once
-#include "../notes/native/claim/claim_note_tx_data.hpp"
-#include "../notes/native/value/value_note.hpp"
 #include "barretenberg/crypto/merkle_tree/hash_path.hpp"
 #include "barretenberg/crypto/schnorr/schnorr.hpp"
+#include "barretenberg/join_split_example/proofs/notes/native/claim/claim_note_tx_data.hpp"
+#include "barretenberg/join_split_example/proofs/notes/native/value/value_note.hpp"
 #include "barretenberg/join_split_example/types.hpp"
 
 namespace bb::join_split_example::proofs::join_split {

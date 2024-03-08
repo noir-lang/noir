@@ -88,7 +88,7 @@ schnorr_signature schnorr_construct_signature(const std::string& message, const 
     // method is overloaded to utilise a suitable entropy source
     // (see https://github.com/WebAssembly/WASI/blob/main/phases/snapshot/docs.md)
     //
-    // TODO: securely erase `k`
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/895): securely erase `k`
     Fr k = Fr::random_element();
 
     typename G1::affine_element R(G1::one * k);
