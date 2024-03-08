@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.6](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.26.5...aztec-cli-v0.26.6) (2024-03-08)
+
+
+### Features
+
+* Show bytecode size per function in CLI inspect-contract ([#5059](https://github.com/AztecProtocol/aztec-packages/issues/5059)) ([cb9fdc6](https://github.com/AztecProtocol/aztec-packages/commit/cb9fdc6b5069ee2ab8fb1f68f369e360039fa18b))
+
 ## [0.26.5](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.26.4...aztec-cli-v0.26.5) (2024-03-07)
 
 
