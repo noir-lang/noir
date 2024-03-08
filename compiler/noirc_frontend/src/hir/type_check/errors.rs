@@ -44,7 +44,7 @@ pub enum TypeCheckError {
     #[error("Expected type {expected} is not the same as {actual}")]
     TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
     #[error("Expected {expected:?} found {found:?}")]
-    ArityMisMatch { expected: u16, found: u16, span: Span },
+    ArityMisMatch { expected: usize, found: usize, span: Span },
     #[error("Return type in a function cannot be public")]
     PublicReturnType { typ: Type, span: Span },
     #[error("Cannot cast type {from}, 'as' is only for primitive field or integer types")]
@@ -126,6 +126,14 @@ pub enum TypeCheckError {
     UnconstrainedSliceReturnToConstrained { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
     InvalidTypeForEntryPoint { span: Span },
+    #[error("Mismatched number of parameters in trait implementation")]
+    MismatchTraitImplNumParameters {
+        actual_num_parameters: usize,
+        expected_num_parameters: usize,
+        trait_name: String,
+        method_name: String,
+        span: Span,
+    },
 }
 
 impl TypeCheckError {
@@ -297,6 +305,18 @@ impl From<TypeCheckError> for Diagnostic {
             TypeCheckError::InvalidTypeForEntryPoint { span } => Diagnostic::simple_error(
                 "Only sized types may be used in the entry point to a program".to_string(),
                 "Slices, references, or any type containing them may not be used in main or a contract function".to_string(), span),
+            TypeCheckError::MismatchTraitImplNumParameters {
+                expected_num_parameters,
+                actual_num_parameters,
+                trait_name,
+                method_name,
+                span,
+            } => {
+                let plural = if expected_num_parameters == 1 { "" } else { "s" };
+                let primary_message = format!(
+                    "`{trait_name}::{method_name}` expects {expected_num_parameters} parameter{plural}, but this method has {actual_num_parameters}");
+                Diagnostic::simple_error(primary_message, "".to_string(), span)
+            }
         }
     }
 }
