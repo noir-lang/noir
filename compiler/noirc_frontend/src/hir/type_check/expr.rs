@@ -1,3 +1,4 @@
+use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::{
