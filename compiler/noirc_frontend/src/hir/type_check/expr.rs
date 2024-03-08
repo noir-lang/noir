@@ -989,11 +989,11 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
-    fn bind_function_type_impl<'a>(
+    fn bind_function_type_impl(
         &mut self,
         fn_params: &[Type],
         fn_ret: &Type,
-        callsite_args: impl ExactSizeIterator<Item = (&'a Type, Span)> + 'a,
+        callsite_args: &[(Type, ExprId, Span)],
         span: Span,
     ) -> Type {
         if fn_params.len() != callsite_args.len() {
@@ -1005,11 +1005,11 @@ impl<'interner> TypeChecker<'interner> {
             return Type::Error;
         }
 
-        for (param, (arg, arg_span)) in fn_params.iter().zip(callsite_args) {
+        for (param, (arg, _, arg_span)) in fn_params.iter().zip(callsite_args) {
             self.unify(arg, param, || TypeCheckError::TypeMismatch {
                 expected_typ: param.to_string(),
                 expr_typ: arg.to_string(),
-                expr_span: arg_span,
+                expr_span: *arg_span,
             });
         }
 
@@ -1042,8 +1042,7 @@ impl<'interner> TypeChecker<'interner> {
             }
             // ignoring env for subtype on purpose
             Type::Function(parameters, ret, _env) => {
-                let args = args.iter().map(|(typ, _expr, span)| (typ, *span));
-                self.bind_function_type_impl(parameters.as_ref(), ret.as_ref(), args, span)
+                self.bind_function_type_impl(&parameters, &ret, &args, span)
             }
             Type::Error => Type::Error,
             found => {
