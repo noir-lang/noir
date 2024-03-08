@@ -241,6 +241,17 @@ pub trait Recoverable {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ModuleDeclaration {
+    pub ident: Ident,
+}
+
+impl std::fmt::Display for ModuleDeclaration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "mod {}", self.ident)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ImportStatement {
     pub path: Path,
     pub alias: Option<Ident>,
