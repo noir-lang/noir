@@ -21,9 +21,7 @@ import { InterruptError } from '../errors/index.js';
  * setTimeout(() =\> sleeper.interrupt(true), 1500); // Interrupt the sleep after 1.5 seconds
  */
 export class InterruptibleSleep {
-  private interruptResolve: (shouldThrow: boolean) => void = () => {};
-  private interruptPromise = new Promise<boolean>(resolve => (this.interruptResolve = resolve));
-  private timeouts: NodeJS.Timeout[] = [];
+  private interrupts: Array<(shouldThrow: boolean) => void> = [];
 
   /**
    * Sleep for a specified amount of time in milliseconds.
@@ -33,13 +31,18 @@ export class InterruptibleSleep {
    * @param ms - The number of milliseconds to sleep.
    * @returns A Promise that resolves after the specified time has passed.
    */
-  public async sleep(ms: number) {
-    let timeout!: NodeJS.Timeout;
-    const promise = new Promise<boolean>(resolve => (timeout = setTimeout(() => resolve(false), ms)));
-    this.timeouts.push(timeout);
-    const shouldThrow = await Promise.race([promise, this.interruptPromise]);
-    clearTimeout(timeout);
-    this.timeouts.splice(this.timeouts.indexOf(timeout), 1);
+  public async sleep(ms: number): Promise<void> {
+    let interruptResolve: (shouldThrow: boolean) => void;
+    const interruptPromise = new Promise<boolean>(resolve => {
+      interruptResolve = resolve;
+      this.interrupts.push(resolve);
+    });
+
+    const timeoutPromise = new Promise<boolean>(resolve => setTimeout(() => resolve(false), ms));
+    const shouldThrow = await Promise.race([interruptPromise, timeoutPromise]);
+
+    this.interrupts = this.interrupts.filter(res => res !== interruptResolve);
+
     if (shouldThrow) {
       throw new InterruptError('Interrupted.');
     }
@@ -52,9 +55,9 @@ export class InterruptibleSleep {
    *
    * @param sleepShouldThrow - A boolean value indicating whether the sleep operation should throw an error when interrupted. Default is false.
    */
-  public interrupt(sleepShouldThrow = false) {
-    this.interruptResolve(sleepShouldThrow);
-    this.interruptPromise = new Promise(resolve => (this.interruptResolve = resolve));
+  public interrupt(sleepShouldThrow = false): void {
+    this.interrupts.forEach(resolve => resolve(sleepShouldThrow));
+    this.interrupts = [];
   }
 }
 
