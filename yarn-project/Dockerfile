@@ -2,7 +2,7 @@ FROM --platform=linux/amd64 aztecprotocol/bb.js as bb.js
 FROM --platform=linux/amd64 aztecprotocol/noir-packages as noir-packages
 FROM --platform=linux/amd64 aztecprotocol/l1-contracts as contracts
 FROM --platform=linux/amd64 aztecprotocol/noir-projects as noir-projects
-FROM --platform=linux/amd64 aztecprotocol/noir as noir
+FROM aztecprotocol/noir as noir
 
 FROM node:18.19.0 as builder
 RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
