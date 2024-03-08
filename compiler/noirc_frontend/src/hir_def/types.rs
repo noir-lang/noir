@@ -703,10 +703,10 @@ impl Type {
             | Type::TraitAsType(..)
             | Type::NotConstant => false,
 
-            // This function is called during name resolution before we've verified aliases
-            // are not cyclic. As a result, it wouldn't be safe to check this alias' definition
-            // to see if the aliased type is valid.
-            Type::Alias(..) => false,
+            Type::Alias(alias, generics) => {
+                let alias = alias.borrow();
+                alias.get_type(generics).is_valid_for_program_input()
+            }
 
             Type::Array(length, element) => {
                 length.is_valid_for_program_input() && element.is_valid_for_program_input()

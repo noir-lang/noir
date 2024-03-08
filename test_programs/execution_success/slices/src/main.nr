@@ -53,6 +53,7 @@ fn main(x: Field, y: pub Field) {
 
     regression_4418(x);
     regression_slice_call_result(x, y);
+    regression_4506();
 }
 // Ensure that slices of struct/tuple values work.
 fn regression_2083() {
@@ -323,4 +324,9 @@ fn regression_slice_call_result(x: Field, y: Field) {
     assert(slice[2] == 10);
     assert(slice[3] == 5);
     assert(slice[4] == 10);
+}
+
+fn regression_4506() {
+    let slice: [Field] = [1, 2, 3];
+    assert(slice == slice);
 }
