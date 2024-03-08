@@ -61,6 +61,8 @@ class Bool {
     Bool operator&(const bool& other) const;
     void operator&=(const bool& other);
 
+    Bool operator!() const;
+
     Bool operator==(const Bool& other) const;
     Bool operator!=(const Bool& other) const;
 

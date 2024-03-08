@@ -34,7 +34,13 @@ Bool Bool::operator==(const Bool& other) const
 Bool Bool::operator!=(const Bool& other) const
 {
     cvc5::Term res = solver->mkTerm(cvc5::Kind::EQUAL, { this->term, other.term });
-    res = solver->mkTerm(cvc5::Kind::EQUAL, { res, this->solver->mkBoolean(false) });
+    res = solver->mkTerm(cvc5::Kind::NOT, { res });
+    return { res, this->solver };
+}
+
+Bool Bool::operator!() const
+{
+    cvc5::Term res = solver->mkTerm(cvc5::Kind::NOT, { this->term });
     return { res, this->solver };
 }
 }; // namespace smt_terms

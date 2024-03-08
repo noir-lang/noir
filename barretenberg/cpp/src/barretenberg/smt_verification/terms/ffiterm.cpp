@@ -152,19 +152,8 @@ void FFITerm::operator!=(const FFITerm& other) const
         tmp2.mod();
     }
     cvc5::Term eq = this->solver->s.mkTerm(cvc5::Kind::EQUAL, { tmp1.term, tmp2.term });
-    eq = this->solver->s.mkTerm(cvc5::Kind::EQUAL, { eq, this->solver->s.mkBoolean(false) });
+    eq = this->solver->s.mkTerm(cvc5::Kind::NOT, { eq });
     this->solver->s.assertFormula(eq);
-}
-
-FFITerm FFITerm::operator^(const FFITerm& other) const
-{
-    cvc5::Term res = this->solver->s.mkTerm(cvc5::Kind::XOR, { this->term, other.term });
-    return { res, this->solver };
-}
-
-void FFITerm::operator^=(const FFITerm& other)
-{
-    this->term = this->solver->s.mkTerm(cvc5::Kind::XOR, { this->term, other.term });
 }
 
 FFITerm operator+(const bb::fr& lhs, const FFITerm& rhs)
@@ -187,9 +176,10 @@ FFITerm operator/(const bb::fr& lhs, const FFITerm& rhs)
     return FFITerm(lhs, rhs.solver) / rhs;
 }
 
-FFITerm operator^(const bb::fr& lhs, const FFITerm& rhs)
+FFITerm operator^(__attribute__((unused)) const bb::fr& lhs, __attribute__((unused)) const FFITerm& rhs)
 {
-    return rhs ^ lhs;
+    info("Not compatible with Integers");
+    return {};
 }
 void operator==(const bb::fr& lhs, const FFITerm& rhs)
 {

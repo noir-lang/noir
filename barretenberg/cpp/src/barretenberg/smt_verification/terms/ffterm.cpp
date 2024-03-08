@@ -125,7 +125,7 @@ void FFTerm::operator==(const FFTerm& other) const
 void FFTerm::operator!=(const FFTerm& other) const
 {
     cvc5::Term eq = this->solver->s.mkTerm(cvc5::Kind::EQUAL, { this->term, other.term });
-    eq = this->solver->s.mkTerm(cvc5::Kind::EQUAL, { eq, this->solver->s.mkBoolean(false) });
+    eq = this->solver->s.mkTerm(cvc5::Kind::NOT, { eq });
     this->solver->s.assertFormula(eq);
 }
 

@@ -41,8 +41,6 @@ using fq_ct = bn254::BaseField;
 using public_witness_ct = bn254::public_witness_ct;
 using witness_ct = bn254::witness_ct;
 
-SolverConfiguration config = { true, 0 };
-
 msgpack::sbuffer create_circuit(bool pub_ab, bool ab)
 {
     StandardCircuitBuilder builder = StandardCircuitBuilder();
@@ -182,7 +180,7 @@ TEST(bigfield, multiplication_equal)
     auto buf = create_circuit(public_a_b, a_neq_b);
 
     CircuitSchema circuit_info = unpack_from_buffer(buf);
-    Solver s(circuit_info.modulus, config);
+    Solver s(circuit_info.modulus);
     Circuit<FFTerm> circuit(circuit_info, &s);
     std::vector<FFTerm> ev = correct_result(circuit, &s);
 
@@ -207,7 +205,7 @@ TEST(bigfield, unique_square)
 
     CircuitSchema circuit_info = unpack_from_buffer(buf);
 
-    Solver s(circuit_info.modulus, config);
+    Solver s(circuit_info.modulus);
 
     std::pair<Circuit<FFTerm>, Circuit<FFTerm>> cs =
         unique_witness<FFTerm>(circuit_info,

@@ -35,7 +35,7 @@ TEST(circuit_verification, multiplication_true)
     auto buf = builder.export_circuit();
 
     smt_circuit::CircuitSchema circuit_info = smt_circuit::unpack_from_buffer(buf);
-    smt_solver::Solver s(circuit_info.modulus, { true, 0 });
+    smt_solver::Solver s(circuit_info.modulus);
     smt_circuit::Circuit<smt_terms::FFTerm> circuit(circuit_info, &s);
     smt_terms::FFTerm a1 = circuit["a"];
     smt_terms::FFTerm b1 = circuit["b"];
@@ -66,7 +66,7 @@ TEST(circuit_verification, multiplication_true_kind)
     auto buf = builder.export_circuit();
 
     smt_circuit::CircuitSchema circuit_info = smt_circuit::unpack_from_buffer(buf);
-    smt_solver::Solver s(circuit_info.modulus, { true, 0 });
+    smt_solver::Solver s(circuit_info.modulus);
     smt_circuit::Circuit<smt_terms::FFTerm> circuit(circuit_info, &s);
     smt_terms::FFTerm a1 = circuit["a"];
     smt_terms::FFTerm b1 = circuit["b"];
@@ -97,7 +97,7 @@ TEST(circuit_verification, multiplication_false)
     auto buf = builder.export_circuit();
 
     smt_circuit::CircuitSchema circuit_info = smt_circuit::unpack_from_buffer(buf);
-    smt_solver::Solver s(circuit_info.modulus, { true, 0 });
+    smt_solver::Solver s(circuit_info.modulus);
     smt_circuit::Circuit<smt_terms::FFTerm> circuit(circuit_info, &s);
 
     smt_terms::FFTerm a1 = circuit["a"];
@@ -140,7 +140,7 @@ TEST(circuit_verifiaction, unique_witness)
     auto buf = builder.export_circuit();
 
     smt_circuit::CircuitSchema circuit_info = smt_circuit::unpack_from_buffer(buf);
-    smt_solver::Solver s(circuit_info.modulus, { true, 0 });
+    smt_solver::Solver s(circuit_info.modulus);
 
     std::pair<smt_circuit::Circuit<smt_terms::FFTerm>, smt_circuit::Circuit<smt_terms::FFTerm>> cirs =
         smt_circuit::unique_witness<smt_terms::FFTerm>(circuit_info, &s, { "ev" }, { "z" });
@@ -157,7 +157,7 @@ using namespace smt_terms;
 
 TEST(solver_use_case, solver)
 {
-    Solver s("11", { true, 0 }, 10);
+    Solver s("11", default_solver_config, 10);
     FFTerm x = FFTerm::Var("x", &s);
     FFTerm y = FFTerm::Var("y", &s);
 
