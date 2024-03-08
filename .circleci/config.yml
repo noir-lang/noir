@@ -356,18 +356,6 @@ jobs:
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 3 stdlib_recursion_tests --gtest_filter=-*turbo*
           aztec_manifest_key: barretenberg-x86_64-linux-clang-assert
 
-  barretenberg-join-split-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 3 join_split_example_proofs_join_split_tests --gtest_filter=-*full_proof*
-          aztec_manifest_key: barretenberg-x86_64-linux-clang-assert
-
   barretenberg-acir-tests-bb:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -1310,7 +1298,6 @@ workflows:
       - barretenberg-tests: *bb_test
       - barretenberg-stdlib-tests: *bb_test
       - barretenberg-stdlib-recursion-ultra-tests: *bb_test
-      - barretenberg-join-split-tests: *bb_test
       - barretenberg-acir-tests-bb: *bb_acir_tests
       - barretenberg-acir-tests-bb-sol: *bb_acir_tests
       - barretenberg-docs: *defaults
@@ -1446,7 +1433,6 @@ workflows:
             - barretenberg-tests
             - barretenberg-stdlib-tests
             - barretenberg-stdlib-recursion-ultra-tests
-            - barretenberg-join-split-tests
             - barretenberg-acir-tests-bb
             - barretenberg-acir-tests-bb-sol
             - barretenberg-docs

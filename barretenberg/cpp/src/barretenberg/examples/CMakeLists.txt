@@ -1,3 +1,2 @@
-barretenberg_module(examples
-  stdlib_pedersen_commitment
-)
+add_subdirectory(simple)
+add_subdirectory(join_split)

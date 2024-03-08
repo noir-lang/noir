@@ -1,9 +1,0 @@
-barretenberg_module(
-  join_split_example_proofs_notes
-  crypto_schnorr
-  stdlib_blake2s
-  stdlib_sha256
-  stdlib_pedersen_commitment
-  stdlib_schnorr
-  stdlib_primitives
-  crypto_merkle_tree)
