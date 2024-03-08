@@ -1875,8 +1875,8 @@ fn generate_compute_note_hash_and_nullifier_source(note_types: &Vec<String>) -> 
     // For now we hardcode it to 20, which is the same as MAX_NOTE_FIELDS_LENGTH.
 
     if note_types.is_empty() {
-        // TODO(#4520): Even if the contract does not include any notes, other parts of the stack expect for this
-        // function to exist, so we include a dummy version. We likely should error out here instead.
+        // Even if the contract does not include any notes, other parts of the stack expect for this function to exist,
+        // so we include a dummy version.
         "
         unconstrained fn compute_note_hash_and_nullifier(
             contract_address: AztecAddress,
@@ -1885,6 +1885,7 @@ fn generate_compute_note_hash_and_nullifier_source(note_types: &Vec<String>) -> 
             note_type_id: Field,
             serialized_note: [Field; 20]
         ) -> pub [Field; 4] {
+            assert(false, \"This contract does not use private notes\");
             [0, 0, 0, 0]
         }"
         .to_string()
@@ -1898,10 +1899,10 @@ fn generate_compute_note_hash_and_nullifier_source(note_types: &Vec<String>) -> 
             }}"
         , note_type)).collect();
 
-        // TODO(#4520): error out on the else instead of returning a zero array
         let full_if_statement = if_statements.join(" else ")
             + "
             else {
+                assert(false, \"Unknown note type ID\");
                 [0, 0, 0, 0]
             }";
 
