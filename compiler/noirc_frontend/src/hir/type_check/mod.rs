@@ -167,22 +167,13 @@ fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_e
 /// of the corresponding function declaration in the trait itself.
 ///
 /// This does not type check the body of the impl function.
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn check_trait_impl_method_matches_declaration(
     interner: &mut NodeInterner,
     function: FuncId,
-    // impl_methods: &[(FileId, FuncId)],
-    // trait_id: TraitId,
-    // trait_name_span: Span,
-    // // These are the generics on the trait itself from the impl.
-    // // E.g. in `impl Foo<A, B> for Bar<B, C>`, this is `vec![A, B]`.
-    // trait_generics: Vec<UnresolvedType>,
-    // trait_impl_generic_count: usize,
-    // file_id: FileId,
-    // errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&function);
     let n = interner.function_name(&function);
+    let mut errors = Vec::new();
 
     let definition_type = meta.typ.as_monotype();
 
@@ -205,7 +196,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             let tfn_meta = interner.function_meta(tfn_id);
 
             if tfn_meta.direct_generics.len() != meta.direct_generics.len() {
-                eprintln!("Generic count mismatch!  trait len = {}, impl len = {}", tfn_meta.direct_generics.len(), meta.direct_generics.len());
+                let expected = tfn_meta.direct_generics.len();
+                let found = meta.direct_generics.len();
+                let span = meta.name.location.span;
+                errors.push(TypeCheckError::ParameterCountMismatch { expected, found, span });
             }
 
             for (trait_fn_generic, impl_fn_generic) in tfn_meta.direct_generics.iter().zip(&meta.direct_generics) {
@@ -216,25 +210,17 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             let (declaration_type, _) =
                 tfn_meta.typ.instantiate_with_bindings(bindings, interner);
 
-            let error = |text: &str| {
-                let g = vecmap(&impl_.trait_generics, |t| format!("{t:?}")).join(", ");
-                eprintln!(
-                    "impl {}<{}> for {}  (method {})   {}",
-                    tmeta.name, g, impl_.typ, n, text
-                );
-                eprintln!("  {:?}", definition_type);
-                eprintln!("and");
-                eprintln!("  {:?}\n", declaration_type);
-            };
-
             let mut result_bindings = TypeBindings::new();
-            match definition_type.try_unify(&declaration_type, &mut result_bindings) {
-                Ok(_) => {
-                    if !result_bindings.is_empty() {
-                        error(&format!("Result bindings has length: {}", result_bindings.len()));
-                    }
-                }
-                Err(_) => error("failed to unify"),
+            let result = definition_type.try_unify(&declaration_type, &mut result_bindings);
+
+            // If result bindings is not empty, a type variable was bound which means the two
+            // signatures were not a perfect match. Note that this relies on us already binding
+            // all the expected generics to each other prior to this check.
+            if result.is_err() || !result_bindings.is_empty() {
+                let expected_typ = declaration_type.to_string();
+                let expr_typ = definition_type.to_string();
+                let expr_span = meta.name.location.span;
+                errors.push(TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span });
             }
         } else {
             eprintln!("trait has no corresponding trait fn!!");
@@ -243,7 +229,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         eprintln!("{n} does not have an impl");
     }
 
-    Vec::new()
+    errors
 
     // let self_type = resolver.get_self_type().expect("trait impl must have a Self type").clone();
     // let trait_generics = vecmap(trait_generics, |typ| resolver.resolve_type(typ));
