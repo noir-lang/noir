@@ -33,9 +33,9 @@ TYPED_TEST_SUITE(ECCVMComposerTests, FlavorTypes);
 namespace {
 auto& engine = numeric::get_debug_randomness();
 }
-template <typename Flavor> ECCVMCircuitBuilder<Flavor> generate_trace(numeric::RNG* engine = nullptr)
+template <typename Flavor> ECCVMCircuitBuilder<Flavor> generate_circuit(numeric::RNG* engine = nullptr)
 {
-    ECCVMCircuitBuilder<Flavor> result;
+    std::shared_ptr<ECCOpQueue> op_queue = std::make_shared<ECCOpQueue>();
     using G1 = typename Flavor::CycleGroup;
     using Fr = typename G1::Fr;
 
@@ -47,38 +47,35 @@ template <typename Flavor> ECCVMCircuitBuilder<Flavor> generate_trace(numeric::R
     Fr x = Fr::random_element(engine);
     Fr y = Fr::random_element(engine);
 
-    typename G1::element expected_1 = (a * x) + a + a + (b * y) + (b * x) + (b * x);
-    typename G1::element expected_2 = (a * x) + c + (b * x);
-
-    result.add_accumulate(a);
-    result.mul_accumulate(a, x);
-    result.mul_accumulate(b, x);
-    result.mul_accumulate(b, y);
-    result.add_accumulate(a);
-    result.mul_accumulate(b, x);
-    result.eq_and_reset(expected_1);
-    result.add_accumulate(c);
-    result.mul_accumulate(a, x);
-    result.mul_accumulate(b, x);
-    result.eq_and_reset(expected_2);
-    result.mul_accumulate(a, x);
-    result.mul_accumulate(b, x);
-    result.mul_accumulate(c, x);
-
-    return result;
+    op_queue->add_accumulate(a);
+    op_queue->mul_accumulate(a, x);
+    op_queue->mul_accumulate(b, x);
+    op_queue->mul_accumulate(b, y);
+    op_queue->add_accumulate(a);
+    op_queue->mul_accumulate(b, x);
+    op_queue->eq();
+    op_queue->add_accumulate(c);
+    op_queue->mul_accumulate(a, x);
+    op_queue->mul_accumulate(b, x);
+    op_queue->eq();
+    op_queue->mul_accumulate(a, x);
+    op_queue->mul_accumulate(b, x);
+    op_queue->mul_accumulate(c, x);
+    ECCVMCircuitBuilder<Flavor> builder{ op_queue };
+    return builder;
 }
 
 TYPED_TEST(ECCVMComposerTests, BaseCase)
 {
     using Flavor = TypeParam;
 
-    auto circuit_constructor = generate_trace<Flavor>(&engine);
+    auto builder = generate_circuit<Flavor>(&engine);
 
     auto composer = ECCVMComposer_<Flavor>();
-    auto prover = composer.create_prover(circuit_constructor);
+    auto prover = composer.create_prover(builder);
 
     auto proof = prover.construct_proof();
-    auto verifier = composer.create_verifier(circuit_constructor);
+    auto verifier = composer.create_verifier(builder);
     bool verified = verifier.verify_proof(proof);
 
     ASSERT_TRUE(verified);
@@ -87,16 +84,23 @@ TYPED_TEST(ECCVMComposerTests, BaseCase)
 TYPED_TEST(ECCVMComposerTests, EqFails)
 {
     using Flavor = TypeParam;
-
     using G1 = typename Flavor::CycleGroup;
-    auto circuit_constructor = generate_trace<Flavor>(&engine);
-    // create an eq opcode that is not satisfied
-    circuit_constructor.eq_and_reset(G1::affine_one);
+    using ECCVMOperation = eccvm::VMOperation<G1>;
+    auto builder = generate_circuit<Flavor>(&engine);
+    // Tamper with the eq op such that the expected value is incorect
+    builder.op_queue->raw_ops.emplace_back(ECCVMOperation{ .add = false,
+                                                           .mul = false,
+                                                           .eq = true,
+                                                           .reset = true,
+                                                           .base_point = G1::affine_one,
+                                                           .z1 = 0,
+                                                           .z2 = 0,
+                                                           .mul_scalar_full = 0 });
     auto composer = ECCVMComposer_<Flavor>();
-    auto prover = composer.create_prover(circuit_constructor);
+    auto prover = composer.create_prover(builder);
 
     auto proof = prover.construct_proof();
-    auto verifier = composer.create_verifier(circuit_constructor);
+    auto verifier = composer.create_verifier(builder);
     bool verified = verifier.verify_proof(proof);
     ASSERT_FALSE(verified);
 }

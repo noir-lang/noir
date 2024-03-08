@@ -7,6 +7,17 @@ namespace bb {
 
 enum EccOpCode { NULL_OP, ADD_ACCUM, MUL_ACCUM, EQUALITY };
 
+struct UltraOp {
+    using Fr = curve::BN254::ScalarField;
+    Fr op;
+    Fr x_lo;
+    Fr x_hi;
+    Fr y_lo;
+    Fr y_hi;
+    Fr z_1;
+    Fr z_2;
+};
+
 /**
  * @brief Used to construct execution trace representations of elliptic curve operations.
  *
@@ -34,7 +45,6 @@ class ECCOpQueue {
     size_t previous_ultra_ops_size = 0; // M_{i-1}
 
     std::array<Point, 4> ultra_ops_commitments;
-    std::array<Point, 4> previous_ultra_ops_commitments;
 
     Point get_accumulator() { return accumulator; }
 
@@ -75,7 +85,6 @@ class ECCOpQueue {
         previous_ultra_ops_size += previous.ultra_ops[0].size();
         // Update commitments
         ultra_ops_commitments = previous.ultra_ops_commitments;
-        previous_ultra_ops_commitments = previous.previous_ultra_ops_commitments;
     }
     /**
      * @brief Prepend the information from the previous queue (used before accumulation/merge proof to be able to run
@@ -104,10 +113,7 @@ class ECCOpQueue {
         lhs.previous_ultra_ops_size = rhs.previous_ultra_ops_size;
         rhs.previous_ultra_ops_size = temp;
         // Swap commitments
-        auto commit_temp = lhs.previous_ultra_ops_commitments;
-        lhs.previous_ultra_ops_commitments = rhs.previous_ultra_ops_commitments;
-        rhs.previous_ultra_ops_commitments = commit_temp;
-        commit_temp = lhs.ultra_ops_commitments;
+        auto commit_temp = lhs.ultra_ops_commitments;
         lhs.ultra_ops_commitments = rhs.ultra_ops_commitments;
         rhs.ultra_ops_commitments = commit_temp;
     }
@@ -127,11 +133,7 @@ class ECCOpQueue {
     [[nodiscard]] size_t get_previous_size() const { return previous_ultra_ops_size; }
     [[nodiscard]] size_t get_current_size() const { return current_ultra_ops_size; }
 
-    void set_commitment_data(std::array<Point, 4>& commitments)
-    {
-        previous_ultra_ops_commitments = ultra_ops_commitments;
-        ultra_ops_commitments = commitments;
-    }
+    void set_commitment_data(std::array<Point, 4>& commitments) { ultra_ops_commitments = commitments; }
 
     /**
      * @brief Get a 'view' of the current ultra ops object
@@ -280,6 +282,25 @@ class ECCOpQueue {
             .z2 = 0,
             .mul_scalar_full = 0,
         });
+    }
+
+    /**
+     * @brief Populate two rows of the ultra ops,representing a complete ECC operation. Note that this has 7 inputs so
+     * the second row of ultra_ops[0] (storing the opcodes) will be set to 0.
+     *
+     * @param tuple
+     */
+    void populate_ultra_ops(UltraOp tuple)
+    {
+        ultra_ops[0].emplace_back(tuple.op);
+        ultra_ops[1].emplace_back(tuple.x_lo);
+        ultra_ops[2].emplace_back(tuple.x_hi);
+        ultra_ops[3].emplace_back(tuple.y_lo);
+
+        ultra_ops[0].emplace_back(0);
+        ultra_ops[1].emplace_back(tuple.y_hi);
+        ultra_ops[2].emplace_back(tuple.z_1);
+        ultra_ops[3].emplace_back(tuple.z_2);
     }
 };
 

@@ -15,7 +15,7 @@ namespace {
 
 Builder generate_trace(size_t target_num_gates)
 {
-    Builder builder;
+    std::shared_ptr<ECCOpQueue> op_queue = std::make_shared<ECCOpQueue>();
     using G1 = typename Flavor::CycleGroup;
     using Fr = typename G1::Fr;
 
@@ -26,20 +26,20 @@ Builder generate_trace(size_t target_num_gates)
     Fr x = Fr::random_element();
     Fr y = Fr::random_element();
 
-    typename G1::element expected_1 = (a * x) + a + a + (b * y) + (b * x) + (b * x);
-
     // Each loop adds 163 gates. Note: builder.get_num_gates() is very expensive here (bug?) and it's actually painful
     // to use a `while` loop
     size_t num_iterations = target_num_gates / 163;
     for (size_t _ = 0; _ < num_iterations; _++) {
-        builder.add_accumulate(a);
-        builder.mul_accumulate(a, x);
-        builder.mul_accumulate(b, x);
-        builder.mul_accumulate(b, y);
-        builder.add_accumulate(a);
-        builder.mul_accumulate(b, x);
-        builder.eq_and_reset(expected_1);
+        op_queue->add_accumulate(a);
+        op_queue->mul_accumulate(a, x);
+        op_queue->mul_accumulate(b, x);
+        op_queue->mul_accumulate(b, y);
+        op_queue->add_accumulate(a);
+        op_queue->mul_accumulate(b, x);
+        op_queue->eq();
     }
+
+    Builder builder{ op_queue };
     return builder;
 }
 

@@ -170,15 +170,7 @@ ecc_op_tuple GoblinUltraCircuitBuilder_<FF>::decompose_ecc_operands(uint32_t op_
     z_2 = z_2.to_montgomery_form();
 
     // Populate ultra ops in OpQueue with the decomposed operands
-    op_queue->ultra_ops[0].emplace_back(this->variables[op_idx]);
-    op_queue->ultra_ops[1].emplace_back(x_lo);
-    op_queue->ultra_ops[2].emplace_back(x_hi);
-    op_queue->ultra_ops[3].emplace_back(y_lo);
-
-    op_queue->ultra_ops[0].emplace_back(this->zero_idx);
-    op_queue->ultra_ops[1].emplace_back(y_hi);
-    op_queue->ultra_ops[2].emplace_back(z_1);
-    op_queue->ultra_ops[3].emplace_back(z_2);
+    op_queue->populate_ultra_ops({ this->variables[op_idx], x_lo, x_hi, y_lo, y_hi, z_1, z_2 });
 
     // Add variables for decomposition and get indices needed for op wires
     auto x_lo_idx = this->add_variable(x_lo);

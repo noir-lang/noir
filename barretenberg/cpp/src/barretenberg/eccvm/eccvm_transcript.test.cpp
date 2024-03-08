@@ -185,7 +185,7 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
     }
     ECCVMCircuitBuilder<Flavor> generate_trace(numeric::RNG* engine = nullptr)
     {
-        ECCVMCircuitBuilder<Flavor> result;
+        std::shared_ptr<ECCOpQueue> op_queue = std::make_shared<ECCOpQueue>();
         using G1 = typename Flavor::CycleGroup;
         using Fr = typename G1::Fr;
 
@@ -197,25 +197,22 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
         Fr x = Fr::random_element(engine);
         Fr y = Fr::random_element(engine);
 
-        typename G1::element expected_1 = (a * x) + a + a + (b * y) + (b * x) + (b * x);
-        typename G1::element expected_2 = (a * x) + c + (b * x);
-
-        result.add_accumulate(a);
-        result.mul_accumulate(a, x);
-        result.mul_accumulate(b, x);
-        result.mul_accumulate(b, y);
-        result.add_accumulate(a);
-        result.mul_accumulate(b, x);
-        result.eq_and_reset(expected_1);
-        result.add_accumulate(c);
-        result.mul_accumulate(a, x);
-        result.mul_accumulate(b, x);
-        result.eq_and_reset(expected_2);
-        result.mul_accumulate(a, x);
-        result.mul_accumulate(b, x);
-        result.mul_accumulate(c, x);
-
-        return result;
+        op_queue->add_accumulate(a);
+        op_queue->mul_accumulate(a, x);
+        op_queue->mul_accumulate(b, x);
+        op_queue->mul_accumulate(b, y);
+        op_queue->add_accumulate(a);
+        op_queue->mul_accumulate(b, x);
+        op_queue->eq();
+        op_queue->add_accumulate(c);
+        op_queue->mul_accumulate(a, x);
+        op_queue->mul_accumulate(b, x);
+        op_queue->eq();
+        op_queue->mul_accumulate(a, x);
+        op_queue->mul_accumulate(b, x);
+        op_queue->mul_accumulate(c, x);
+        ECCVMCircuitBuilder<Flavor> builder{ op_queue };
+        return builder;
     }
 };
 

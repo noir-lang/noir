@@ -41,9 +41,6 @@ template <typename Flavor> class ECCVMCircuitBuilder {
     using ScalarMul = bb::eccvm::ScalarMul<CycleGroup>;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
 
-    ECCVMCircuitBuilder()
-        : op_queue(std::make_shared<ECCOpQueue>()){};
-
     ECCVMCircuitBuilder(std::shared_ptr<ECCOpQueue>& op_queue)
         : op_queue(op_queue){};
 
@@ -175,68 +172,6 @@ template <typename Flavor> class ECCVMCircuitBuilder {
             }
         }
         return result;
-    }
-
-    void add_accumulate(const AffineElement& to_add)
-    {
-        op_queue->raw_ops.emplace_back(VMOperation{
-            .add = true,
-            .mul = false,
-            .eq = false,
-            .reset = false,
-            .base_point = to_add,
-            .z1 = 0,
-            .z2 = 0,
-            .mul_scalar_full = 0,
-        });
-    }
-
-    void mul_accumulate(const AffineElement& to_mul, const CycleScalar& scalar)
-    {
-        CycleScalar z1 = 0;
-        CycleScalar z2 = 0;
-        auto converted = scalar.from_montgomery_form();
-        CycleScalar::split_into_endomorphism_scalars(converted, z1, z2);
-        z1 = z1.to_montgomery_form();
-        z2 = z2.to_montgomery_form();
-        op_queue->raw_ops.emplace_back(VMOperation{
-            .add = false,
-            .mul = true,
-            .eq = false,
-            .reset = false,
-            .base_point = to_mul,
-            .z1 = z1,
-            .z2 = z2,
-            .mul_scalar_full = scalar,
-        });
-    }
-
-    void eq_and_reset(const AffineElement& expected)
-    {
-        op_queue->raw_ops.emplace_back(VMOperation{
-            .add = false,
-            .mul = false,
-            .eq = true,
-            .reset = true,
-            .base_point = expected,
-            .z1 = 0,
-            .z2 = 0,
-            .mul_scalar_full = 0,
-        });
-    }
-
-    void empty_row()
-    {
-        op_queue->raw_ops.emplace_back(VMOperation{
-            .add = false,
-            .mul = false,
-            .eq = false,
-            .reset = false,
-            .base_point = CycleGroup::affine_point_at_infinity,
-            .z1 = 0,
-            .z2 = 0,
-            .mul_scalar_full = 0,
-        });
     }
 
     /**
