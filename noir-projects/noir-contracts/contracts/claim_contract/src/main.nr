@@ -3,11 +3,8 @@ contract Claim {
 
     use dep::aztec::{
         history::note_inclusion::prove_note_inclusion,
-        protocol_types::{
-            abis::function_selector::FunctionSelector,
-            address::AztecAddress,
-        },
-        state_vars::SharedImmutable,
+        protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress},
+        state_vars::SharedImmutable
     };
     use dep::value_note::value_note::ValueNote;
     use interfaces::Token;
@@ -41,7 +38,9 @@ contract Claim {
     fn claim(proof_note: ValueNote) {
         // 1) Check that the note corresponds to the target contract
         let target_address = storage.target_contract.read_private();
-        assert(target_address == proof_note.header.contract_address, "Note does not correspond to the target contract");
+        assert(
+            target_address == proof_note.header.contract_address, "Note does not correspond to the target contract"
+        );
 
         // 2) Prove that the note hash exists in the note hash tree
         prove_note_inclusion(proof_note, context);

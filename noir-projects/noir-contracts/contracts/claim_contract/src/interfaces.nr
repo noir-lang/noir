@@ -1,6 +1,6 @@
 use dep::aztec::{
     protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress},
-    context::PrivateContext,
+    context::PrivateContext
 };
 
 struct Token {

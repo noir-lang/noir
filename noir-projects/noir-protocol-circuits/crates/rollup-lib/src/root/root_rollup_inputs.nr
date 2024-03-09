@@ -1,17 +1,13 @@
 use crate::{
-    abis::{
-        previous_rollup_data::PreviousRollupData,
-        constant_rollup_data::ConstantRollupData,
-    },
-    components,
-    root::{
-        compute_messages_hash,
-        root_rollup_public_inputs::RootRollupPublicInputs,
-    }
+    abis::{previous_rollup_data::PreviousRollupData, constant_rollup_data::ConstantRollupData},
+    components, root::{compute_messages_hash, root_rollup_public_inputs::RootRollupPublicInputs}
 };
 use dep::types::{
     abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, nullifier_leaf_preimage::NullifierLeafPreimage},
-    constants::{NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, L1_TO_L2_MSG_SUBTREE_HEIGHT, L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH, ARCHIVE_HEIGHT},
+    constants::{
+    NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, L1_TO_L2_MSG_SUBTREE_HEIGHT,
+    L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH, ARCHIVE_HEIGHT
+},
     header::Header, content_commitment::ContentCommitment,
     merkle_tree::{append_only_tree, calculate_subtree, calculate_empty_tree_root},
     state_reference::StateReference

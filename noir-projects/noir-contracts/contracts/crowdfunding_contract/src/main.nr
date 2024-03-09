@@ -3,12 +3,8 @@ contract Crowdfunding {
 
     use dep::aztec::{
         log::emit_unencrypted_log_from_private,
-        protocol_types::{
-            abis::function_selector::FunctionSelector,
-            address::AztecAddress,
-            traits::Serialize
-        },
-        state_vars::{PrivateSet, PublicImmutable, SharedImmutable},
+        protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress, traits::Serialize},
+        state_vars::{PrivateSet, PublicImmutable, SharedImmutable}
     };
     use dep::value_note::value_note::ValueNote;
     use interfaces::Token;
@@ -99,7 +95,13 @@ contract Crowdfunding {
 
         // 2) Transfer the donation tokens from this contract to the operator
         let donation_token = Token::at(storage.donation_token.read_private());
-        donation_token.transfer(&mut context, context.this_address(), operator_address, amount as Field, 0);
+        donation_token.transfer(
+            &mut context,
+            context.this_address(),
+            operator_address,
+            amount as Field,
+            0
+        );
 
         // 3) Emit an unencrypted event so that anyone can audit how much the operator has withdrawn
         let event = WithdrawalProcessed { amount, who: operator_address };
