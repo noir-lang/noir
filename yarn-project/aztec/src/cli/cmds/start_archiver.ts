@@ -24,7 +24,7 @@ export const startArchiver = async (options: any, signalHandlers: (() => Promise
 
   const storeLog = createDebugLogger('aztec:archiver:lmdb');
   const store = await initStoreForRollup(
-    AztecLmdbStore.open(archiverConfig.dataDirectory, storeLog),
+    AztecLmdbStore.open(archiverConfig.dataDirectory, false, storeLog),
     archiverConfig.l1Contracts.rollupAddress,
     storeLog,
   );

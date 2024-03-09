@@ -115,6 +115,7 @@ export {
   merkleTreeIds,
   mockTx,
   Comparator,
+  SiblingPath,
 } from '@aztec/circuit-types';
 export { NodeInfo } from '@aztec/types/interfaces';
 

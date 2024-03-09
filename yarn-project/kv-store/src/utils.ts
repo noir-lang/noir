@@ -34,8 +34,9 @@ export async function initStoreForRollup<T extends AztecKVStore>(
 
 /**
  * Opens a temporary store for testing purposes.
+ * @param ephemeral - true if the store should only exist in memory and not automatically be flushed to disk. Optional
  * @returns A new store
  */
-export function openTmpStore(): AztecKVStore {
-  return AztecLmdbStore.open();
+export function openTmpStore(ephemeral: boolean = false): AztecKVStore {
+  return AztecLmdbStore.open(undefined, ephemeral);
 }

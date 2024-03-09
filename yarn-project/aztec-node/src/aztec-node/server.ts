@@ -32,6 +32,7 @@ import {
   Header,
   INITIAL_L2_BLOCK_NUM,
   L1_TO_L2_MSG_TREE_HEIGHT,
+  L2_TO_L1_MESSAGE_LENGTH,
   NOTE_HASH_TREE_HEIGHT,
   NULLIFIER_TREE_HEIGHT,
   NullifierLeafPreimage,
@@ -44,7 +45,8 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecKVStore } from '@aztec/kv-store';
 import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
-import { initStoreForRollup } from '@aztec/kv-store/utils';
+import { initStoreForRollup, openTmpStore } from '@aztec/kv-store/utils';
+import { SHA256, StandardTree } from '@aztec/merkle-tree';
 import { AztecKVTxPool, P2P, createP2PClient } from '@aztec/p2p';
 import {
   GlobalVariableBuilder,
@@ -113,7 +115,7 @@ export class AztecNodeService implements AztecNode {
     const log = createDebugLogger('aztec:node');
     const storeLog = createDebugLogger('aztec:node:lmdb');
     const store = await initStoreForRollup(
-      AztecLmdbStore.open(config.dataDirectory, storeLog),
+      AztecLmdbStore.open(config.dataDirectory, false, storeLog),
       config.l1Contracts.rollupAddress,
       storeLog,
     );
@@ -424,6 +426,47 @@ export class AztecNodeService implements AztecNode {
   ): Promise<SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
     const committedDb = await this.#getWorldState(blockNumber);
     return committedDb.getSiblingPath(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, leafIndex);
+  }
+
+  /**
+   * Returns the index of a l2ToL1Message in a ephemeral l2 to l1 data tree as well as its sibling path.
+   * @remarks This tree is considered ephemeral because it is created on-demand by: taking all the l2ToL1 messages
+   * in a single block, and then using them to make a variable depth append-only tree with these messages as leaves.
+   * The tree is discarded immediately after calculating what we need from it.
+   * @param blockNumber - The block number at which to get the data.
+   * @param l2ToL1Message - The l2ToL1Message get the index / sibling path for.
+   * @returns A tuple of the index and the sibling path of the L2ToL1Message.
+   */
+  public async getL2ToL1MessageIndexAndSiblingPath(
+    blockNumber: number | 'latest',
+    l2ToL1Message: Fr,
+  ): Promise<[number, SiblingPath<number>]> {
+    const block = await this.blockSource.getBlock(blockNumber === 'latest' ? await this.getBlockNumber() : blockNumber);
+
+    if (block === undefined) {
+      throw new Error('Block is not defined');
+    }
+
+    const l2ToL1Messages = block.body.txEffects.flatMap(txEffect => txEffect.l2ToL1Msgs);
+
+    if (l2ToL1Messages.length !== L2_TO_L1_MESSAGE_LENGTH * block.body.txEffects.length) {
+      throw new Error('L2 to L1 Messages are not padded');
+    }
+
+    const indexOfL2ToL1Message = l2ToL1Messages.findIndex(l2ToL1MessageInBlock =>
+      l2ToL1MessageInBlock.equals(l2ToL1Message),
+    );
+
+    if (indexOfL2ToL1Message === -1) {
+      throw new Error('The L2ToL1Message you are trying to prove inclusion of does not exist');
+    }
+
+    const treeHeight = Math.ceil(Math.log2(l2ToL1Messages.length));
+
+    const tree = new StandardTree(openTmpStore(true), new SHA256(), 'temp_outhash_sibling_path', treeHeight);
+    await tree.appendLeaves(l2ToL1Messages.map(l2ToL1Msg => l2ToL1Msg.toBuffer()));
+
+    return [indexOfL2ToL1Message, await tree.getSiblingPath(BigInt(indexOfL2ToL1Message), true)];
   }
 
   /**
