@@ -1,23 +1,32 @@
-FROM alpine:3.18 AS builder
-RUN apk update \
-    && apk upgrade \
-    && apk add --no-cache \
-        build-base \
-        clang16 \
-        cmake \
-        ninja \
-        git \
-        curl \
-        perl
+FROM ubuntu:lunar as builder
+
+RUN apt update && apt install -y \
+  build-essential \
+  curl \
+  git \
+  cmake \
+  lsb-release \
+  wget \
+  software-properties-common \
+  gnupg \
+  ninja-build \
+  npm \
+  libssl-dev \
+  jq \
+  bash \
+  libstdc++6
+
+RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 16
+
 WORKDIR /usr/src/barretenberg/cpp
 COPY . .
 # Build bb binary and targets needed for benchmarking. 
 # Everything else is built as part linux-clang-assert.
 # Benchmark targets want to run without asserts, so get built alongside bb.
-RUN cmake --preset default
-RUN cmake --build --preset default --target ultra_honk_rounds_bench --target bb --target grumpkin_srs_gen
+RUN cmake --preset clang16
+RUN cmake --build --preset clang16 --target ultra_honk_rounds_bench --target bb --target grumpkin_srs_gen
 
-FROM alpine:3.18
+FROM ubuntu:lunar
 WORKDIR /usr/src/barretenberg/cpp
 COPY . .
 COPY --from=builder /usr/src/barretenberg/cpp/scripts/ci /usr/src/barretenberg/cpp/scripts/ci

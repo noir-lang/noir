@@ -1,23 +1,28 @@
-FROM alpine:3.18 AS builder
-RUN apk update && \
-    apk upgrade && \
-    apk add --no-cache \
-        build-base \
-        clang16 \
-        compiler-rt \
-        openmp-dev \
-        cmake \
-        ninja \
-        git \
-        curl \
-        perl
+FROM ubuntu:lunar as builder
+
+RUN apt update && apt install -y \
+  build-essential \
+  curl \
+  git \
+  cmake \
+  lsb-release \
+  wget \
+  software-properties-common \
+  gnupg \
+  ninja-build \
+  npm \
+  libssl-dev \
+  jq \
+  bash \
+  libstdc++6
+
+RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 16
 
 WORKDIR /usr/src/barretenberg/cpp
-
 COPY . .
-# Build the entire project, as we want to check everything builds under clang
+# Build the entire project, as we want to check everything builds under clang-fuzzing with clang-16.
 RUN cmake --preset fuzzing && cmake --build --preset fuzzing
 
-FROM alpine:3.18
-RUN apk update && apk add openmp
+FROM ubuntu:lunar
+RUN apt update && apt install libomp-dev -y
 COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db

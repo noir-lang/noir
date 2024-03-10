@@ -1,24 +1,31 @@
-# We have to stay on 3.17 for now, to get clang-format 15, as code is not yet formatted to 16.
-FROM alpine:3.17 AS builder
-RUN apk update \
-    && apk upgrade \
-    && apk add --no-cache \
-    build-base \
-    clang15 \
-    cmake \
-    ninja \
-    git \
-    curl \
-    perl \
-    clang-extra-tools \
-    bash
+FROM ubuntu:lunar as builder
+
+RUN apt update && apt install -y \
+  build-essential \
+  curl \
+  git \
+  cmake \
+  lsb-release \
+  wget \
+  software-properties-common \
+  gnupg \
+  ninja-build \
+  npm \
+  libssl-dev \
+  jq \
+  bash \
+  libstdc++6 \
+  clang-format
+
+RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 16
+
 WORKDIR /usr/src/barretenberg/cpp
 COPY . .
 # Build everything to ensure everything builds. All tests will be run from the result of this build.
-RUN ./format.sh check && cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON && cmake --build --preset default
+RUN ./format.sh check && cmake --preset clang16 -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON && cmake --build --preset clang16
 RUN srs_db/download_grumpkin.sh
 
-FROM alpine:3.17
-RUN apk update && apk add curl libstdc++
+FROM ubuntu:lunar
+RUN apt update && apt install curl libstdc++6 -y
 COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
 COPY --from=builder /usr/src/barretenberg/cpp/build/bin /usr/src/barretenberg/cpp/build/bin

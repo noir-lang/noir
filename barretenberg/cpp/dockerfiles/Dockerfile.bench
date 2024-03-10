@@ -1,4 +1,4 @@
 FROM aztecprotocol/barretenberg-x86_64-linux-clang
 WORKDIR /usr/src/barretenberg/cpp
-RUN apk update && apk add curl libstdc++ jq
+RUN apt update && apt install curl libstdc++6 jq -y
 RUN ./scripts/ci/ultra_honk_bench.sh

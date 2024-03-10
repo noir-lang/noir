@@ -1,8 +1,8 @@
 FROM aztecprotocol/barretenberg-x86_64-linux-clang-assert
 FROM aztecprotocol/noir-compile-acir-tests as noir-acir-tests
 
-FROM node:18.19.0-alpine
-RUN apk update && apk add git bash curl jq coreutils
+FROM node:18.19.0
+RUN apt update && apt install git bash curl jq coreutils -y
 COPY --from=0 /usr/src/barretenberg/cpp/build /usr/src/barretenberg/cpp/build
 COPY --from=noir-acir-tests /usr/src/noir/noir-repo/test_programs /usr/src/noir/noir-repo/test_programs
 WORKDIR /usr/src/barretenberg/acir_tests
