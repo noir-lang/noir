@@ -165,7 +165,8 @@ pub fn monomorphize_debug(
     let FuncMeta { return_distinctness, return_visibility, kind, .. } =
         monomorphizer.interner.function_meta(&main);
 
-    let (debug_variables, debug_types) = monomorphizer.debug_type_tracker.extract_vars_and_types();
+    let (debug_variables, debug_functions, debug_types) =
+        monomorphizer.debug_type_tracker.extract_vars_and_types();
     let program = Program::new(
         functions,
         function_sig,
@@ -174,6 +175,7 @@ pub fn monomorphize_debug(
         *return_visibility,
         *kind == FunctionKind::Recursive,
         debug_variables,
+        debug_functions,
         debug_types,
     );
     Ok(program)
