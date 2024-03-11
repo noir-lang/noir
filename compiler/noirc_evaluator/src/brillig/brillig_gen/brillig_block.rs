@@ -453,6 +453,15 @@ impl<'block> BrilligBlock<'block> {
                         self.convert_ssa_array_len(arguments[0], result_variable.address, dfg);
                     }
                 }
+                Value::Intrinsic(Intrinsic::AsSlice) => {
+                    let result_variable = self.variables.define_single_addr_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        dfg.instruction_results(instruction_id)[0],
+                        dfg,
+                    );
+                    self.convert_ssa_as_slice(arguments[0], result_variable.address, dfg);
+                }
                 Value::Intrinsic(
                     Intrinsic::SlicePushBack
                     | Intrinsic::SlicePopBack
@@ -1485,6 +1494,27 @@ impl<'block> BrilligBlock<'block> {
             }
             _ => {
                 unreachable!("ICE: Cannot get length of {array_variable:?}")
+            }
+        }
+    }
+
+    /// Gets the "user-facing" slice from an array
+    /// An array of structs with two fields would be stored as an 2 * array.len() array/vector.
+    fn convert_ssa_as_slice(
+        &mut self,
+        array_id: ValueId,
+        result_register: MemoryAddress,
+        dfg: &DataFlowGraph,
+    ) {
+        let array_variable = self.convert_ssa_value(array_id, dfg);
+        match array_variable {
+            BrilligVariable::BrilligArray(array) => {
+                let slice_var = self.brillig_context.array_to_vector(&array);
+
+                self.brillig_context.allocate_array_instruction(result_register, slice_var.size);
+            }
+            _ => {
+                unreachable!("ICE: Cannot convert {array_variable:?} to slice")
             }
         }
     }

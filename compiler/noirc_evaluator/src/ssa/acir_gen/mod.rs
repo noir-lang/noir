@@ -1026,7 +1026,12 @@ impl Context {
 
         let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {
             let acir_value = self.convert_value(array_id, dfg);
-            Some(self.init_element_type_sizes_array(&array_typ, array_id, Some(&acir_value), dfg)?)
+            Some(self.init_element_type_sizes_array(
+                &array_typ,
+                array_id,
+                Some(&acir_value),
+                dfg,
+            )?)
         } else {
             None
         };
@@ -1259,9 +1264,7 @@ impl Context {
         var_index: AcirVar,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
-        dbg!(!can_omit_element_sizes_array(array_typ));
         if !can_omit_element_sizes_array(array_typ) {
-            dbg!(array_typ.clone());
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
 
@@ -1675,13 +1678,11 @@ impl Context {
                 let result_block_id = self.block_id(&result_ids[1]);
                 let acir_value = self.convert_value(slice_contents, dfg);
 
-                // TODO: remove this and the assert
                 let array_len = if !slice_typ.contains_slice_element() {
                     slice_typ.flattened_size()
                 } else {
                     self.flattened_slice_size(slice_contents, dfg)
                 };
-
                 let slice_length = self.acir_context.add_constant(array_len);
                 self.copy_dynamic_array(block_id, result_block_id, array_len)?;
 
@@ -1697,7 +1698,12 @@ impl Context {
                 };
 
                 let value_types = self.convert_value(slice_contents, dfg).flat_numeric_types();
-                assert!(array_len == value_types.len(), "AsSlice: unexpected length difference: {:?} != {:?}", array_len, value_types.len());
+                assert!(
+                    array_len == value_types.len(),
+                    "AsSlice: unexpected length difference: {:?} != {:?}",
+                    array_len,
+                    value_types.len()
+                );
 
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
