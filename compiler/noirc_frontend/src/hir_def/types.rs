@@ -1295,18 +1295,13 @@ impl Type {
         let target = target.follow_bindings();
 
         if let (Type::Array(size, element1), Type::Slice(element2)) = (&this, &target) {
-            let length = size.follow_bindings();
-
-            // If we have an array and our target is a slice
-            if matches!(length, Type::Constant(_)) {
-                // Still have to ensure the element types match.
-                // Don't need to issue an error here if not, it will be done in unify_with_coercions
-                let mut bindings = TypeBindings::new();
-                if element1.try_unify(element2, &mut bindings).is_ok() {
-                    convert_array_expression_to_slice(expression, this, target, interner);
-                    Self::apply_type_bindings(bindings);
-                    return true;
-                }
+            // Still have to ensure the element types match.
+            // Don't need to issue an error here if not, it will be done in unify_with_coercions
+            let mut bindings = TypeBindings::new();
+            if element1.try_unify(element2, &mut bindings).is_ok() {
+                convert_array_expression_to_slice(expression, this, target, interner);
+                Self::apply_type_bindings(bindings);
+                return true;
             }
         }
         false
