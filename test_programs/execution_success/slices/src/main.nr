@@ -332,6 +332,6 @@ fn regression_slice_call_result(x: Field, y: Field) {
 }
 
 fn regression_4506() {
-    let slice: [Field] = [1, 2, 3];
+    let slice: [Field] = &[1, 2, 3];
     assert(slice == slice);
 }
