@@ -52,14 +52,8 @@ impl<T, N> [T; N] {
         result
     }
 
-    // Converts an array into a slice.
-    pub fn as_slice(self) -> [T] {
-        let mut slice = [];
-        for elem in self {
-            slice = slice.push_back(elem);
-        }
-        slice
-    }
+    #[builtin(as_slice)]
+    pub fn as_slice(self) -> [T] {}
 
     // Apply a function to each element of an array, returning a new array
     // containing the mapped elements.

@@ -1663,6 +1663,64 @@ impl Context {
                 };
                 Ok(vec![AcirValue::Var(self.acir_context.add_constant(len), AcirType::field())])
             }
+            Intrinsic::AsSlice => {
+                let elements = match self.convert_value(arguments[0], dfg) {
+                    AcirValue::Array(values) => values,
+                    _ => unreachable!("Non-array passed to as_slice method"),
+                };
+
+                let slice_length = self.acir_context.add_constant(elements.len());
+                let (slice_contents, slice_typ, _) =
+                    self.check_array_is_initialized(arguments[0], dfg)?;
+                assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
+
+                let slice = self.convert_value(slice_contents, dfg);
+                let mut new_elem_size = Self::flattened_value_size(&slice);
+
+                let mut new_slice = elements.clone();
+                self.slice_intrinsic_input(&mut new_slice, slice)?;
+
+                let new_slice_val = AcirValue::Array(new_slice);
+                let result_block_id = self.block_id(&result_ids[1]);
+                self.initialize_array(result_block_id, new_elem_size, Some(new_slice_val.clone()))?;
+                // The previous slice length represents the index we want to write into.
+                // Write the elements we wish to push back directly.
+                // The slice's underlying array value should already be filled with dummy data
+                // to enable this write to be within bounds.
+                // The dummy data is either attached during SSA gen or in this match case for non-nested slices.
+                // These values can then be accessed due to the increased dynamic slice length.
+                let mut var_index = slice_length;
+                for elem in elements {
+                    new_elem_size += Self::flattened_value_size(&elem);
+                    self.array_set_value(&elem, result_block_id, &mut var_index)?;
+                }
+
+                let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
+                    Some(self.init_element_type_sizes_array(
+                        &slice_typ,
+                        slice_contents,
+                        Some(&new_slice_val),
+                        dfg,
+                    )?)
+                } else {
+                    None
+                };
+
+                let value_types = new_slice_val.flat_numeric_types();
+                assert_eq!(
+                    value_types.len(),
+                    new_elem_size,
+                    "ICE: Value types array must match new slice size"
+                );
+
+                let result = AcirValue::DynamicArray(AcirDynamicArray {
+                    block_id: result_block_id,
+                    len: new_elem_size,
+                    value_types,
+                    element_type_sizes,
+                });
+                Ok(vec![AcirValue::Var(slice_length, AcirType::field()), result])
+            }
             Intrinsic::SlicePushBack => {
                 // arguments = [slice_length, slice_contents, ...elements_to_push]
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
