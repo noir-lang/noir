@@ -1,9 +1,10 @@
 import { Body, TxEffect, TxHash } from '@aztec/circuit-types';
 import { AppendOnlyTreeSnapshot, Header, STRING_ENCODING } from '@aztec/circuits.js';
-import { makeAppendOnlyTreeSnapshot, makeHeader } from '@aztec/circuits.js/testing';
 import { sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+
+import { makeAppendOnlyTreeSnapshot, makeHeader } from './l2_block_code_to_purge.js';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.

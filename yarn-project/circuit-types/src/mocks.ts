@@ -7,7 +7,6 @@ import {
   MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   Proof,
 } from '@aztec/circuits.js';
-import { makePrivateKernelTailCircuitPublicInputs, makePublicCallRequest } from '@aztec/circuits.js/testing';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { makeTuple } from '@aztec/foundation/array';
 import { times } from '@aztec/foundation/collection';
@@ -18,6 +17,7 @@ import { ContractInstanceWithAddress, SerializableContractInstance } from '@azte
 import { ExtendedContractData } from './contract_data.js';
 import { DeployedContract } from './interfaces/index.js';
 import { FunctionL2Logs, Note, TxL2Logs } from './logs/index.js';
+import { makePrivateKernelTailCircuitPublicInputs, makePublicCallRequest } from './mocks_to_purge.js';
 import { ExtendedNote } from './notes/index.js';
 import { Tx, TxHash } from './tx/index.js';
 
