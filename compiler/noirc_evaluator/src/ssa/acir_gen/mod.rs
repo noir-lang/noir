@@ -2268,10 +2268,7 @@ impl Context {
 
 // We can omit the element size array for arrays which don't contain arrays or slices.
 fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
-    if array_typ.contains_slice_element() {
-        return false;
-    }
-    let Type::Array(types, _) = array_typ else {
+    let (Type::Array(types, _) | Type::Slice(types)) = array_typ else {
         panic!("ICE: expected array type");
     };
 
