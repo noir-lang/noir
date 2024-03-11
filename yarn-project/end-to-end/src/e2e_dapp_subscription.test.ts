@@ -84,7 +84,7 @@ describe('e2e_dapp_subscription', () => {
     bananaCoin = await BananaCoin.deploy(aliceWallet, aliceAddress, TOKEN_NAME, TOKEN_SYMBOL, TOKEN_DECIMALS)
       .send()
       .deployed();
-    bananaFPC = await FPCContract.deploy(aliceWallet, bananaCoin.address, AztecAddress.ZERO).send().deployed();
+    bananaFPC = await FPCContract.deploy(aliceWallet, bananaCoin.address, gasTokenContract.address).send().deployed();
 
     counterContract = await CounterContract.deploy(bobWallet, 0, bobAddress).send().deployed();
 
@@ -95,7 +95,7 @@ describe('e2e_dapp_subscription', () => {
       // anyone can purchase a subscription for 100 test tokens
       bananaCoin.address,
       SUBSCRIPTION_AMOUNT,
-      AztecAddress.ZERO,
+      gasTokenContract.address,
     )
       .send()
       .deployed();

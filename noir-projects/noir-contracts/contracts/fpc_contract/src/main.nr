@@ -11,19 +11,11 @@ contract FPC {
         gas_token_address: SharedImmutable<AztecAddress>,
     }
 
-    global CANONICAL_GAS_TOKEN_ADDRESS = AztecAddress::from_field(10518537853519909204957666322334442672584410385979059968848104222965977783517);
-
     #[aztec(public)]
     #[aztec(initializer)]
     fn constructor(other_asset: AztecAddress, gas_token_address: AztecAddress) {
-        let actual_gas_token_address = if is_empty(gas_token_address) {
-            CANONICAL_GAS_TOKEN_ADDRESS
-        } else {
-            gas_token_address
-        };
-
         storage.other_asset.initialize(other_asset);
-        storage.gas_token_address.initialize(actual_gas_token_address);
+        storage.gas_token_address.initialize(gas_token_address);
     }
 
     #[aztec(private)]
