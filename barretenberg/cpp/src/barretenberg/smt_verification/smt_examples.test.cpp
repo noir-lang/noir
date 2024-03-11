@@ -143,7 +143,7 @@ TEST(circuit_verifiaction, unique_witness)
     smt_solver::Solver s(circuit_info.modulus);
 
     std::pair<smt_circuit::Circuit<smt_terms::FFTerm>, smt_circuit::Circuit<smt_terms::FFTerm>> cirs =
-        smt_circuit::unique_witness<smt_terms::FFTerm>(circuit_info, &s, { "ev" }, { "z" });
+        smt_circuit::unique_witness_ext<smt_terms::FFTerm>(circuit_info, &s, { "ev" }, { "z" });
 
     bool res = s.check();
     ASSERT_TRUE(res);

@@ -559,6 +559,8 @@ template <typename FF> msgpack::sbuffer StandardCircuitBuilder_<FF>::export_circ
         cir.wires.push_back(tmp_w);
     }
 
+    cir.real_variable_index = this->real_variable_index;
+
     msgpack::sbuffer buffer;
     msgpack::pack(buffer, cir);
     return buffer;
