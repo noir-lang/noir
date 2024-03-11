@@ -1294,7 +1294,7 @@ impl Type {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
 
-        if let (Type::Array(size, element1), Type::Slice(element2)) = (&this, &target) {
+        if let (Type::Array(_size, element1), Type::Slice(element2)) = (&this, &target) {
             // Still have to ensure the element types match.
             // Don't need to issue an error here if not, it will be done in unify_with_coercions
             let mut bindings = TypeBindings::new();

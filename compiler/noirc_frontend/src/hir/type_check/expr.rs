@@ -51,7 +51,7 @@ impl<'interner> TypeChecker<'interner> {
     fn check_hir_array_literal(
         &mut self,
         hir_array_literal: HirArrayLiteral,
-    ) -> (Result<Box<Type>, u64>, Box<Type>) {
+    ) -> (Result<u64, Box<Type>>, Box<Type>) {
         match hir_array_literal {
             HirArrayLiteral::Standard(arr) => {
                 let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
@@ -78,13 +78,13 @@ impl<'interner> TypeChecker<'interner> {
                     });
                 }
 
-                (Err(arr.len() as u64), Box::new(first_elem_type.clone()))
+                (Ok(arr.len() as u64), Box::new(first_elem_type.clone()))
             }
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let elem_type = self.check_expression(&repeated_element);
                 let length = match length {
-                    Type::Constant(length) => Err(length),
-                    other => Ok(Box::new(other)),
+                    Type::Constant(length) => Ok(length),
+                    other => Err(Box::new(other)),
                 };
                 (length, Box::new(elem_type))
             }
@@ -106,22 +106,23 @@ impl<'interner> TypeChecker<'interner> {
                 HirLiteral::Array(hir_array_literal) => {
                     let (length, elem_type) = self.check_hir_array_literal(hir_array_literal);
                     Type::Array(
-                        length.unwrap_or_else(|constant| {
-                            Box::new(Type::constant_variable(constant, self.interner))
-                        }),
+                        length.map_or_else(
+                            |typ| typ,
+                            |constant| Box::new(Type::constant_variable(constant, self.interner)),
+                        ),
                         elem_type,
                     )
                 }
                 HirLiteral::Slice(hir_array_literal) => {
                     let (length_type, elem_type) = self.check_hir_array_literal(hir_array_literal);
                     match length_type {
-                        Ok(_non_constant) => {
+                        Ok(_length) => Type::Slice(elem_type),
+                        Err(_non_constant) => {
                             self.errors.push(TypeCheckError::NonConstantSliceLength {
                                 span: self.interner.expr_span(expr_id),
                             });
                             Type::Error
                         }
-                        Err(_length) => Type::Slice(elem_type),
                     }
                 }
                 HirLiteral::Bool(_) => Type::Bool,
