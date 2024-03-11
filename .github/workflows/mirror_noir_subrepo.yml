@@ -86,7 +86,7 @@ jobs:
           # clone noir repo for manipulations, we use aztec bot token for writeability
           git clone https://x-access-token:${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}@github.com/noir-lang/noir.git noir-repo
 
-          # reset_pr: Reset aztec-packages staging. If no PR, this is the PR branch.
+          # reset_noir_staging_branch: Reset aztec-packages staging. If no PR, this is the PR branch.
           function reset_noir_staging_branch() {
             cd noir-repo
             git checkout $STAGING_BRANCH || git checkout -b $STAGING_BRANCH
@@ -131,7 +131,9 @@ jobs:
         run: |
           set -xue # print commands
           # Formatted for updating the PR, overrides for release-please commit message parsing
-          PR_BODY="""BEGIN_COMMIT_OVERRIDE
+          PR_BODY="""
+          Automated pull of Noir development from [aztec-packages](https://github.com/AztecProtocol/aztec-packages).
+          BEGIN_COMMIT_OVERRIDE
           $(cat .PR_BODY_MESSAGE)
           END_COMMIT_OVERRIDE"""
           # for cross-opening PR in noir repo, we use aztecbot's token
@@ -139,5 +141,6 @@ jobs:
           if [[ "$PR_URL" == "" ]]; then
             gh pr create --repo noir-lang/noir --title "feat: Sync from aztec-packages" --body "$PR_BODY" --base master --head aztec-packages
           else
+            echo "Updating existing PR."
             gh pr edit "$PR_URL" --body "$PR_BODY"
           fi

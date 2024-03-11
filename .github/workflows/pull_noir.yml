@@ -1,0 +1,130 @@
+# Create a pull request from current Noir master.
+name: Pull from noir repo
+
+# Don't allow multiple of these running at once:
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+on:
+  # o
+  workflow_dispatch: {}
+
+jobs:
+  mirror_repo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+
+      - name: Check for existing PR
+        run: |
+          set -xue # print commands
+          # Enable gh executable. We spread out the API requests between the github actions bot token, and aztecbot
+          export GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          # Do we have a PR active?
+          PR_URL=$(gh pr list --repo AztecProtocol/aztec-packages --head sync-noir --json url --jq ".[0].url")
+          echo "PR_URL=$PR_URL" >> $GITHUB_ENV
+          # What was our last merge on noir side?
+          BASE_NOIR_COMMIT=`gh pr list --repo=noir-lang/noir --state merged --head aztec-packages --json mergeCommit --jq=.[0].mergeCommit.oid`
+          echo "BASE_NOIR_COMMIT=$BASE_NOIR_COMMIT" >> $GITHUB_ENV
+          # What was our last sync on aztec side?
+          BASE_AZTEC_COMMIT=`curl https://raw.githubusercontent.com/noir-lang/noir/master/.aztec-sync-commit`
+          echo "BASE_AZTEC_COMMIT=$BASE_AZTEC_COMMIT" >> $GITHUB_ENV
+
+      - name: Generate PR body
+        run: |
+          # clone noir repo for manipulations, we use aztec bot token for writeability
+          git clone https://x-access-token:${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}@github.com/noir-lang/noir.git noir-repo
+
+          set -xue # print commands
+          # compute_commit_message: Create a filtered git log for release-please changelog / metadata
+          function compute_commit_message() {
+            cd noir-repo
+            # Create a filtered git log for release-please changelog / metadata
+            RAW_MESSAGE=$(git log --pretty=format:"%s" $BASE_NOIR_COMMIT..HEAD || true)
+            # Fix Noir PR links and output message
+            echo "$RAW_MESSAGE" | sed -E 's/\(#([0-9]+)\)/(https:\/\/github.com\/noir-lang\/noir\/pull\/\1)/g'
+            cd ..
+          }
+          echo "$(compute_commit_message)" >> .PR_BODY_MESSAGE
+
+      - name: Set git configure for commits
+        run: |
+          # identify ourselves, needed to commit
+          git config --global user.name AztecBot
+          git config --global user.email tech@aztecprotocol.com
+
+      # We push using git subrepo (https://github.com/ingydotnet/git-subrepo)
+      # and push all Aztec commits as a single commit with metadata.
+      - name: Push to branch
+        run: |
+          set -xue # print commands
+          SUBREPO_PATH=noir/noir-repo
+          BRANCH=sync-noir
+          if [[ "$PR_URL" == "" ]]; then
+            # if no staging branch, we can overwrite
+            STAGING_BRANCH=$BRANCH
+          else
+            # otherwise we first reset our staging branch
+            STAGING_BRANCH=$BRANCH-staging
+          fi
+
+          # Get the last sync PR's last commit state
+          COMMIT_MESSAGE=$(cat .PR_BODY_MESSAGE)
+          LINES=$(echo $COMMIT_MESSAGE | wc -l)
+
+          function force_sync_staging() {
+            # reset to last noir merge
+            git checkout $STAGING_BRANCH || git checkout -b $STAGING_BRANCH
+            git reset --hard "$BASE_AZTEC_COMMIT"
+            # Reset our branch to our expected target
+            git push origin $STAGING_BRANCH --force
+            # force gitrepo to point to the right HEAD (we ignore .gitrepo contents otherwise)
+            git config --file="$SUBREPO_PATH/.gitrepo" subrepo.commit "$BASE_NOIR_COMMIT"
+            # we need to commit for git-subrepo
+            git commit -am "[$LINES changes] $COMMIT_MESSAGE"
+            if ./scripts/git-subrepo/lib/git-subrepo pull --force $SUBREPO_PATH --branch=master; then
+              git reset --soft "$BASE_AZTEC_COMMIT"
+              # We don't really need the sync commit on our side, and don't need .gitrepo at all except just in time for the command.
+              git checkout origin/master -- noir/noir-repo/.aztec-sync-commit noir/noir-repo/.gitrepo
+              git commit -am "[$LINES changes] $COMMIT_MESSAGE"
+              git push origin $STAGING_BRANCH --force
+            else
+              echo "Problems syncing noir. Needs manual attention, might be a merge conflict."
+              exit 1
+            fi
+          }
+          # merge_staging_branch: Merge our staging branch into aztec-packages.
+          function merge_staging_branch() {
+            # Fix PR branch
+            git fetch # see recent change
+            git checkout $BRANCH || git checkout -b $BRANCH
+            git merge -Xtheirs origin/$STAGING_BRANCH -m "$COMMIT_MESSAGE"
+            git push origin $BRANCH
+          }
+          force_sync_staging
+          if [[ "$PR_URL" != "" ]]; then
+            merge_staging_branch
+          fi
+
+      - name: Update PR
+        run: |
+          set -xue # print commands
+          # Formatted for updating the PR, overrides for release-please commit message parsing 
+          PR_BODY="""
+          Automated pull of development from the [noir](https://github.com/noir-lang/noir) programming language, a dependency of Aztec.
+          BEGIN_COMMIT_OVERRIDE
+          $(cat .PR_BODY_MESSAGE)
+          END_COMMIT_OVERRIDE"""
+          # for cross-opening PR in noir repo, we use aztecbot's token
+          export GH_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+          if [[ "$PR_URL" == "" ]]; then
+            gh pr create --repo AztecProtocol/aztec-packages --title "feat: Sync from noir" --body "$PR_BODY" --base master --head sync-noir
+          else
+            echo "Updating existing PR."
+            gh pr edit "$PR_URL" --body "$PR_BODY"
+          fi
