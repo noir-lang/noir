@@ -15,7 +15,7 @@ fn main(x: Field, y: pub Field) {
     let qs: [Field; 4] = [3, 2, 1, 0];
 
     let mut dynamic: [Field; 4] = [3, 2, 1, 0];
-    let dynamic_expected: [Field] = [1000, 2, 1, 0];
+    let dynamic_expected: [Field; 4] = [1000, 2, 1, 0];
     dynamic[x] = 1000;
 
     assert(x != y);
@@ -24,6 +24,7 @@ fn main(x: Field, y: pub Field) {
     assert(zs.as_slice() == as_slice_push(zs));
     assert(ws.as_slice() == as_slice_push(ws));
     assert(qs.as_slice() == as_slice_push(qs));
+
     assert(dynamic.as_slice()[0] == dynamic_expected[0]);
     assert(dynamic.as_slice()[1] == dynamic_expected[1]);
     assert(dynamic.as_slice()[2] == dynamic_expected[2]);

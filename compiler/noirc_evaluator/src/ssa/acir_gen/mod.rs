@@ -1239,15 +1239,16 @@ impl Context {
         source: BlockId,
         destination: BlockId,
         array_len: usize,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
         let init_values = try_vecmap(0..array_len, |i| {
             let index_var = self.acir_context.add_constant(i);
 
             let read = self.acir_context.read_from_memory(source, &index_var)?;
             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
         })?;
-        self.initialize_array(destination, array_len, Some(AcirValue::Array(init_values.into())))?;
-        Ok(())
+        let array: im::Vector<AcirValue> = init_values.into();
+        self.initialize_array(destination, array_len, Some(AcirValue::Array(array.clone())))?;
+        Ok(array)
     }
 
     fn get_flattened_index(
@@ -1669,16 +1670,7 @@ impl Context {
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
 
                 let result_block_id = self.block_id(&result_ids[1]);
-                let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
-                    Some(self.init_element_type_sizes_array(
-                        &slice_typ,
-                        slice_contents,
-                        None,
-                        dfg,
-                    )?)
-                } else {
-                    None
-                };
+                let value_types = self.convert_value(slice_contents, dfg).flat_numeric_types();
 
                 // TODO: remove this and the assert
                 let array_len = if !slice_typ.contains_slice_element() {
@@ -1686,11 +1678,23 @@ impl Context {
                 } else {
                     self.flattened_slice_size(slice_contents, dfg)
                 };
-                let value_types = self.convert_value(slice_contents, dfg).flat_numeric_types();
                 assert!(array_len == value_types.len(), "AsSlice: unexpected length difference: {:?} != {:?}", array_len, value_types.len());
 
                 let slice_length = self.acir_context.add_constant(value_types.len());
-                self.copy_dynamic_array(block_id, result_block_id, value_types.len())?;
+                let array_elements = self.copy_dynamic_array(block_id, result_block_id, value_types.len())?;
+
+                assert!(array_elements.len() == value_types.len(), "AsSlice: unexpected length difference (2): {:?} != {:?}", array_elements.len(), value_types.len());
+
+                let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
+                    Some(self.init_element_type_sizes_array(
+                        &slice_typ,
+                        slice_contents,
+                        Some(&AcirValue::Array(array_elements)),
+                        dfg,
+                    )?)
+                } else {
+                    None
+                };
 
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
