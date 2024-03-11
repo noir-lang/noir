@@ -217,6 +217,7 @@ impl<'a> Resolver<'a> {
     pub fn resolve_trait_function(
         &mut self,
         name: &Ident,
+        generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &FunctionReturnType,
         where_clause: &[UnresolvedTraitConstraint],
@@ -237,7 +238,7 @@ impl<'a> Resolver<'a> {
             is_internal: false,
             is_unconstrained: false,
             visibility: FunctionVisibility::Public, // Trait functions are always public
-            generics: Vec::new(),                   // self.generics should already be set
+            generics: generics.clone(),
             parameters: vecmap(parameters, |(name, typ)| Param {
                 visibility: Visibility::Private,
                 pattern: Pattern::Identifier(name.clone()),
@@ -911,10 +912,6 @@ impl<'a> Resolver<'a> {
                 });
             }
 
-            if self.is_entry_point_function(func) {
-                self.verify_type_valid_for_program_input(&typ);
-            }
-
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ, &mut generics);
 
@@ -979,11 +976,18 @@ impl<'a> Resolver<'a> {
         self.handle_function_type(&func_id);
         self.handle_is_function_internal(&func_id);
 
+        let direct_generics = func.def.generics.iter();
+        let direct_generics = direct_generics
+            .filter_map(|generic| self.find_generic(&generic.0.contents))
+            .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
+            .collect();
+
         FuncMeta {
             name: name_ident,
             kind: func.kind,
             location,
             typ,
+            direct_generics,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             return_type: func.def.return_type.clone(),
@@ -991,6 +995,7 @@ impl<'a> Resolver<'a> {
             return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
+            is_entry_point: self.is_entry_point_function(func),
         }
     }
 
@@ -1256,13 +1261,17 @@ impl<'a> Resolver<'a> {
         let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
         let assert_msg_call_path = if is_in_stdlib {
             ExpressionKind::Variable(Path {
-                segments: vec![Ident::from("resolve_assert_message")],
+                segments: vec![Ident::from("internal"), Ident::from("resolve_assert_message")],
                 kind: PathKind::Crate,
                 span,
             })
         } else {
             ExpressionKind::Variable(Path {
-                segments: vec![Ident::from("std"), Ident::from("resolve_assert_message")],
+                segments: vec![
+                    Ident::from("std"),
+                    Ident::from("internal"),
+                    Ident::from("resolve_assert_message"),
+                ],
                 kind: PathKind::Dep,
                 span,
             })
@@ -1998,89 +2007,6 @@ impl<'a> Resolver<'a> {
             }
         }
         HirLiteral::FmtStr(str, fmt_str_idents)
-    }
-
-    /// Only sized types are valid to be used as main's parameters or the parameters to a contract
-    /// function. If the given type is not sized (e.g. contains a slice or NamedGeneric type), an
-    /// error is issued.
-    fn verify_type_valid_for_program_input(&mut self, typ: &UnresolvedType) {
-        match &typ.typ {
-            UnresolvedTypeData::FieldElement
-            | UnresolvedTypeData::Integer(_, _)
-            | UnresolvedTypeData::Bool
-            | UnresolvedTypeData::Unit
-            | UnresolvedTypeData::Error => (),
-
-            UnresolvedTypeData::MutableReference(_)
-            | UnresolvedTypeData::Function(_, _, _)
-            | UnresolvedTypeData::FormatString(_, _)
-            | UnresolvedTypeData::TraitAsType(..)
-            | UnresolvedTypeData::Unspecified => {
-                let span = typ.span.expect("Function parameters should always have spans");
-                self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
-            }
-
-            UnresolvedTypeData::Array(length, element) => {
-                if let Some(length) = length {
-                    self.verify_type_expression_valid_for_program_input(length);
-                } else {
-                    let span = typ.span.expect("Function parameters should always have spans");
-                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
-                }
-                self.verify_type_valid_for_program_input(element);
-            }
-            UnresolvedTypeData::Expression(expression) => {
-                self.verify_type_expression_valid_for_program_input(expression);
-            }
-            UnresolvedTypeData::String(length) => {
-                if let Some(length) = length {
-                    self.verify_type_expression_valid_for_program_input(length);
-                } else {
-                    let span = typ.span.expect("Function parameters should always have spans");
-                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
-                }
-            }
-            UnresolvedTypeData::Named(path, generics, _) => {
-                // Since the type is named, we need to resolve it to see what it actually refers to
-                // in order to check whether it is valid. Since resolving it may lead to a
-                // resolution error, we have to truncate our error count to the previous count just
-                // in case. This is to ensure resolution errors are not issued twice when this type
-                // is later resolved properly.
-                let error_count = self.errors.len();
-                let resolved = self.resolve_named_type(path.clone(), generics.clone(), &mut vec![]);
-                self.errors.truncate(error_count);
-
-                if !resolved.is_valid_for_program_input() {
-                    let span = typ.span.expect("Function parameters should always have spans");
-                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
-                }
-            }
-            UnresolvedTypeData::Tuple(elements) => {
-                for element in elements {
-                    self.verify_type_valid_for_program_input(element);
-                }
-            }
-            UnresolvedTypeData::Parenthesized(typ) => self.verify_type_valid_for_program_input(typ),
-        }
-    }
-
-    fn verify_type_expression_valid_for_program_input(&mut self, expr: &UnresolvedTypeExpression) {
-        match expr {
-            UnresolvedTypeExpression::Constant(_, _) => (),
-            UnresolvedTypeExpression::Variable(path) => {
-                let error_count = self.errors.len();
-                let resolved = self.resolve_named_type(path.clone(), vec![], &mut vec![]);
-                self.errors.truncate(error_count);
-
-                if !resolved.is_valid_for_program_input() {
-                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span: path.span() });
-                }
-            }
-            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
-                self.verify_type_expression_valid_for_program_input(lhs);
-                self.verify_type_expression_valid_for_program_input(rhs);
-            }
-        }
     }
 }
 

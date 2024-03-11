@@ -237,14 +237,8 @@ pub fn check_crate(
     deny_warnings: bool,
     disable_macros: bool,
 ) -> CompilationResult<()> {
-    let macros: Vec<&dyn MacroProcessor> = if disable_macros {
-        vec![&noirc_macros::AssertMessageMacro as &dyn MacroProcessor]
-    } else {
-        vec![
-            &aztec_macros::AztecMacro as &dyn MacroProcessor,
-            &noirc_macros::AssertMessageMacro as &dyn MacroProcessor,
-        ]
-    };
+    let macros: &[&dyn MacroProcessor] =
+        if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);

@@ -1,9 +1,8 @@
 [workspace]
 
 members = [
-    # Macros crates for metaprogramming
+    # Aztec Macro crate for metaprogramming
     "aztec_macros",
-    "noirc_macros",
     # Compiler crates
     "compiler/noirc_evaluator",
     "compiler/noirc_frontend",
