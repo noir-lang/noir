@@ -722,6 +722,11 @@ impl<'a> FunctionContext<'a> {
         let lhs = self.extract_current_value(&assign.lvalue)?;
         let rhs = self.codegen_expression(&assign.expression)?;
 
+        rhs.clone().for_each(|value| {
+            let value = value.eval(self);
+            self.builder.increment_array_reference_count(value);
+        });
+
         self.assign_new_value(lhs, rhs);
         Ok(Self::unit_value())
     }

@@ -217,6 +217,7 @@ impl<'a> Resolver<'a> {
     pub fn resolve_trait_function(
         &mut self,
         name: &Ident,
+        generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &FunctionReturnType,
         where_clause: &[UnresolvedTraitConstraint],
@@ -237,7 +238,7 @@ impl<'a> Resolver<'a> {
             is_internal: false,
             is_unconstrained: false,
             visibility: ItemVisibility::Public, // Trait functions are always public
-            generics: Vec::new(),               // self.generics should already be set
+            generics: generics.clone(),
             parameters: vecmap(parameters, |(name, typ)| Param {
                 visibility: Visibility::Private,
                 pattern: Pattern::Identifier(name.clone()),
@@ -975,11 +976,18 @@ impl<'a> Resolver<'a> {
         self.handle_function_type(&func_id);
         self.handle_is_function_internal(&func_id);
 
+        let direct_generics = func.def.generics.iter();
+        let direct_generics = direct_generics
+            .filter_map(|generic| self.find_generic(&generic.0.contents))
+            .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
+            .collect();
+
         FuncMeta {
             name: name_ident,
             kind: func.kind,
             location,
             typ,
+            direct_generics,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             return_type: func.def.return_type.clone(),
