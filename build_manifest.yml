@@ -155,6 +155,7 @@ yarn-project-test:
     - noir-packages
     - l1-contracts
     - noir-projects
+    - barretenberg-x86_64-linux-clang
 
 # Builds all of yarn-project, with all developer dependencies.
 # Creates a runnable container used to run tests and formatting checks.
@@ -170,6 +171,7 @@ yarn-project:
     - l1-contracts
     - noir-projects
     - noir
+    - barretenberg-x86_64-linux-clang
   multiarch: host
 
 # A runnable container, sets entrypoint to be the aztec infrastructure entrypoint.

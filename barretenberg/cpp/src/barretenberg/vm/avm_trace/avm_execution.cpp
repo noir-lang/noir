@@ -1,5 +1,6 @@
 #include "avm_execution.hpp"
 #include "barretenberg/common/serialize.hpp"
+#include "barretenberg/flavor/generated/avm_flavor.hpp"
 #include "barretenberg/proof_system/circuit_builder/generated/avm_circuit_builder.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_deserialization.hpp"
@@ -7,9 +8,11 @@
 #include "barretenberg/vm/avm_trace/avm_opcode.hpp"
 #include "barretenberg/vm/avm_trace/avm_trace.hpp"
 #include "barretenberg/vm/generated/avm_composer.hpp"
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <tuple>
 #include <variant>
 #include <vector>
 
@@ -35,7 +38,41 @@ HonkProof Execution::run_and_prove(std::vector<uint8_t> const& bytecode, std::ve
 
     auto composer = AvmComposer();
     auto prover = composer.create_prover(circuit_builder);
-    return prover.construct_proof();
+    auto verifier = composer.create_verifier(circuit_builder);
+    auto proof = prover.construct_proof();
+    return proof;
+}
+
+std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<uint8_t> const& bytecode,
+                                                                   std::vector<FF> const& calldata)
+{
+    auto instructions = Deserialization::parse(bytecode);
+    auto trace = gen_trace(instructions, calldata);
+    auto circuit_builder = bb::AvmCircuitBuilder();
+    circuit_builder.set_trace(std::move(trace));
+
+    // Temporarily use this until #4954 is resolved
+    assert(circuit_builder.check_circuit());
+
+    auto composer = AvmComposer();
+    auto prover = composer.create_prover(circuit_builder);
+    auto verifier = composer.create_verifier(circuit_builder);
+    auto proof = prover.construct_proof();
+    // TODO(#4887): Might need to return PCS vk when full verify is supported
+    return std::make_tuple(*verifier.key, proof);
+}
+
+bool Execution::verify(AvmFlavor::VerificationKey vk, HonkProof const& proof)
+{
+    auto verification_key = std::make_shared<AvmFlavor::VerificationKey>(vk);
+    AvmVerifier verifier(verification_key);
+
+    // todo: not needed for now until we verify the PCS/pairing of the proof
+    // auto pcs_verification_key = std::make_unique<VerifierCommitmentKey>(verification_key->circuit_size,
+    // crs_factory_);
+    // output_state.pcs_verification_key = std::move(pcs_verification_key);
+
+    return verifier.verify_proof(proof);
 }
 
 /**

@@ -2,7 +2,8 @@ FROM --platform=linux/amd64 aztecprotocol/bb.js as bb.js
 FROM --platform=linux/amd64 aztecprotocol/noir-packages as noir-packages
 FROM --platform=linux/amd64 aztecprotocol/l1-contracts as contracts
 FROM --platform=linux/amd64 aztecprotocol/noir-projects as noir-projects
-FROM aztecprotocol/noir as noir
+FROM --platform=linux/amd64 aztecprotocol/noir as noir
+FROM --platform=linux/amd64 aztecprotocol/barretenberg-x86_64-linux-clang as barretenberg
 
 FROM node:18.19.0 as builder
 RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
@@ -14,6 +15,11 @@ COPY --from=contracts /usr/src/l1-contracts /usr/src/l1-contracts
 COPY --from=noir-projects /usr/src/noir-projects /usr/src/noir-projects
 # We want the native ACVM binary
 COPY --from=noir /usr/src/noir/noir-repo/target/release/acvm /usr/src/noir/noir-repo/target/release/acvm
+COPY --from=barretenberg /usr/src/barretenberg/cpp/build/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
+
+COPY --from=barretenberg /usr/src/barretenberg/cpp/srs_db/ /usr/src/barretenberg/cpp/srs_db/
+WORKDIR /usr/src/barretenberg/cpp/srs_db
+RUN ./download_ignition.sh 0
 
 WORKDIR /usr/src/yarn-project
 COPY . .
