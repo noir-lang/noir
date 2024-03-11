@@ -420,7 +420,9 @@ impl Instruction {
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
             }
-            Instruction::IncrementRc { value } | Instruction::DecrementRc { value } | Instruction::RangeCheck { value, .. } => {
+            Instruction::IncrementRc { value }
+            | Instruction::DecrementRc { value }
+            | Instruction::RangeCheck { value, .. } => {
                 f(*value);
             }
         }
