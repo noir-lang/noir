@@ -40,7 +40,7 @@ A common use-case is when constructing a big integer from its bytes representati
 ```rust
 use dep::std::{bigint::Secpk1Fq, println};
 
-fn main() {
+fn main(x:u8, y:u8) {
  let a = Secpk1Fq::from_le_bytes([x, y, 0, 45, 2]);
  let b = Secpk1Fq::from_le_bytes([y, x, 9]);
  let c = (a + b)*b/a;
