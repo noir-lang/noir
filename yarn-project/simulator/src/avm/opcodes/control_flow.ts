@@ -4,52 +4,6 @@ import { InstructionExecutionError } from '../errors.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
 
-export class Return extends Instruction {
-  static type: string = 'RETURN';
-  static readonly opcode: Opcode = Opcode.RETURN;
-  // Informs (de)serialization. See Instruction.deserialize.
-  static readonly wireFormat: OperandType[] = [
-    OperandType.UINT8,
-    OperandType.UINT8,
-    OperandType.UINT32,
-    OperandType.UINT32,
-  ];
-
-  constructor(private indirect: number, private returnOffset: number, private copySize: number) {
-    super();
-  }
-
-  async execute(context: AvmContext): Promise<void> {
-    const output = context.machineState.memory.getSlice(this.returnOffset, this.copySize).map(word => word.toFr());
-
-    context.machineState.return(output);
-  }
-}
-
-export class Revert extends Instruction {
-  static type: string = 'RETURN';
-  static readonly opcode: Opcode = Opcode.REVERT;
-  // Informs (de)serialization. See Instruction.deserialize.
-  static readonly wireFormat: OperandType[] = [
-    OperandType.UINT8,
-    OperandType.UINT8,
-    OperandType.UINT32,
-    OperandType.UINT32,
-  ];
-
-  constructor(private indirect: number, private returnOffset: number, private retSize: number) {
-    super();
-  }
-
-  async execute(context: AvmContext): Promise<void> {
-    const output = context.machineState.memory
-      .getSlice(this.returnOffset, this.returnOffset + this.retSize)
-      .map(word => word.toFr());
-
-    context.machineState.revert(output);
-  }
-}
-
 export class Jump extends Instruction {
   static type: string = 'JUMP';
   static readonly opcode: Opcode = Opcode.JUMP;
@@ -122,7 +76,7 @@ export class InternalReturn extends Instruction {
   async execute(context: AvmContext): Promise<void> {
     const jumpOffset = context.machineState.internalCallStack.pop();
     if (jumpOffset === undefined) {
-      throw new InstructionExecutionError('Internal call empty!');
+      throw new InstructionExecutionError('Internal call stack empty!');
     }
     context.machineState.pc = jumpOffset;
   }

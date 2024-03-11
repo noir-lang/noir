@@ -9,9 +9,13 @@ import type { Instruction } from './opcodes/index.js';
 import { decodeFromBytecode } from './serialization/bytecode_serialization.js';
 
 export class AvmSimulator {
-  private log: DebugLogger = createDebugLogger('aztec:avm_simulator');
+  private log: DebugLogger;
 
-  constructor(private context: AvmContext) {}
+  constructor(private context: AvmContext) {
+    this.log = createDebugLogger(
+      `aztec:avm_simulator:core(f:${context.environment.temporaryFunctionSelector.toString()})`,
+    );
+  }
 
   /**
    * Fetch the bytecode and execute it in the current context.
@@ -52,7 +56,10 @@ export class AvmSimulator {
       // continuing until the machine state signifies a halt
       while (!this.context.machineState.halted) {
         const instruction = instructions[this.context.machineState.pc];
-        assert(!!instruction); // This should never happen
+        assert(
+          !!instruction,
+          'AVM attempted to execute non-existent instruction. This should never happen (invalid bytecode or AVM simulator bug)!',
+        );
 
         this.log.debug(`@${this.context.machineState.pc} ${instruction.toString()}`);
         // Execute the instruction.

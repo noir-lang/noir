@@ -7,6 +7,7 @@ import { BufferCursor } from './buffer_cursor.js';
  * Source: https://yp-aztec.netlify.app/docs/public-vm/instruction-set
  */
 export enum Opcode {
+  // Compute
   ADD,
   SUB,
   MUL,
@@ -21,6 +22,7 @@ export enum Opcode {
   SHL,
   SHR,
   CAST,
+  // Execution environment
   ADDRESS,
   STORAGEADDRESS,
   ORIGIN,
@@ -39,16 +41,20 @@ export enum Opcode {
   BLOCKL2GASLIMIT,
   BLOCKDAGASLIMIT,
   CALLDATACOPY,
+  // Gas
   L1GASLEFT,
   L2GASLEFT,
   DAGASLEFT,
+  // Control flow
   JUMP,
   JUMPI,
   INTERNALCALL,
   INTERNALRETURN,
+  // Memory
   SET,
   MOV,
   CMOV,
+  // World state
   SLOAD,
   SSTORE,
   NOTEHASHEXISTS,
@@ -59,17 +65,17 @@ export enum Opcode {
   HEADERMEMBER,
   EMITUNENCRYPTEDLOG,
   SENDL2TOL1MSG,
+  // External calls
   CALL,
   STATICCALL,
   DELEGATECALL,
   RETURN,
   REVERT,
+  // Gadgets
   KECCAK,
   POSEIDON,
-  // Add new opcodes before this
   SHA256, // temp - may be removed, but alot of contracts rely on it
   PEDERSEN, // temp - may be removed, but alot of contracts rely on it
-  TOTAL_OPCODES_NUMBER,
 }
 
 // Possible types for an instruction's operand in its wire format. (Keep in sync with CPP code.

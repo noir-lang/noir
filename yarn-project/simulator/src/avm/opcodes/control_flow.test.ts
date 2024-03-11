@@ -1,10 +1,8 @@
-import { Fr } from '@aztec/foundation/fields';
-
 import { AvmContext } from '../avm_context.js';
-import { Field, Uint16 } from '../avm_memory_types.js';
+import { Uint16 } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { initContext } from '../fixtures/index.js';
-import { InternalCall, InternalReturn, Jump, JumpI, Return, Revert } from './control_flow.js';
+import { InternalCall, InternalReturn, Jump, JumpI } from './control_flow.js';
 
 describe('Control Flow Opcodes', () => {
   let context: AvmContext;
@@ -82,7 +80,7 @@ describe('Control Flow Opcodes', () => {
     });
   });
 
-  describe('INTERNALCALL and RETURN', () => {
+  describe('INTERNALCALL and INTERNALRETURN', () => {
     it('INTERNALCALL Should (de)serialize correctly', () => {
       const buf = Buffer.from([
         InternalCall.opcode, // opcode
@@ -149,70 +147,6 @@ describe('Control Flow Opcodes', () => {
         await instructions[i].execute(context);
         expect(context.machineState.pc).toBe(expectedPcs[i]);
       }
-    });
-  });
-
-  describe('RETURN', () => {
-    it('Should (de)serialize correctly', () => {
-      const buf = Buffer.from([
-        Return.opcode, // opcode
-        0x01, // indirect
-        ...Buffer.from('12345678', 'hex'), // returnOffset
-        ...Buffer.from('a2345678', 'hex'), // copySize
-      ]);
-      const inst = new Return(/*indirect=*/ 0x01, /*returnOffset=*/ 0x12345678, /*copySize=*/ 0xa2345678);
-
-      expect(Return.deserialize(buf)).toEqual(inst);
-      expect(inst.serialize()).toEqual(buf);
-    });
-
-    it('Should return data from the return opcode', async () => {
-      const returnData = [new Fr(1n), new Fr(2n), new Fr(3n)];
-
-      context.machineState.memory.set(0, new Field(1n));
-      context.machineState.memory.set(1, new Field(2n));
-      context.machineState.memory.set(2, new Field(3n));
-
-      const instruction = new Return(/*indirect=*/ 0, /*returnOffset=*/ 0, returnData.length);
-      await instruction.execute(context);
-
-      expect(context.machineState.halted).toBe(true);
-      expect(context.machineState.getResults()).toEqual({
-        reverted: false,
-        output: returnData,
-      });
-    });
-  });
-
-  describe('REVERT', () => {
-    it('Should (de)serialize correctly', () => {
-      const buf = Buffer.from([
-        Revert.opcode, // opcode
-        0x01, // indirect
-        ...Buffer.from('12345678', 'hex'), // returnOffset
-        ...Buffer.from('a2345678', 'hex'), // retSize
-      ]);
-      const inst = new Revert(/*indirect=*/ 0x01, /*returnOffset=*/ 0x12345678, /*retSize=*/ 0xa2345678);
-
-      expect(Revert.deserialize(buf)).toEqual(inst);
-      expect(inst.serialize()).toEqual(buf);
-    });
-
-    it('Should return data and revert from the revert opcode', async () => {
-      const returnData = [new Fr(1n), new Fr(2n), new Fr(3n)];
-
-      context.machineState.memory.set(0, new Field(1n));
-      context.machineState.memory.set(1, new Field(2n));
-      context.machineState.memory.set(2, new Field(3n));
-
-      const instruction = new Revert(/*indirect=*/ 0, /*returnOffset=*/ 0, returnData.length);
-      await instruction.execute(context);
-
-      expect(context.machineState.halted).toBe(true);
-      expect(context.machineState.getResults()).toEqual({
-        reverted: true,
-        output: returnData,
-      });
     });
   });
 });

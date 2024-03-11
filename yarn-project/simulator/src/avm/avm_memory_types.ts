@@ -1,5 +1,6 @@
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
+import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
 import { strict as assert } from 'assert';
 
@@ -27,6 +28,10 @@ export abstract class MemoryValue {
   // To field
   public toFr(): Fr {
     return new Fr(this.toBigInt());
+  }
+
+  public toString(): string {
+    return `${this.constructor.name}(0x${this.toBigInt().toString(16)})`;
   }
 }
 
@@ -189,6 +194,8 @@ export enum TypeTag {
 
 // TODO: Consider automatic conversion when getting undefined values.
 export class TaggedMemory {
+  static readonly log: DebugLogger = createDebugLogger('aztec:avm_simulator:memory');
+
   // FIXME: memory should be 2^32, but TS doesn't allow for arrays that big.
   static readonly MAX_MEMORY_SIZE = Number((1n << 32n) - 2n);
   private _mem: MemoryValue[];
@@ -200,25 +207,29 @@ export class TaggedMemory {
 
   public get(offset: number): MemoryValue {
     assert(offset < TaggedMemory.MAX_MEMORY_SIZE);
-    return this.getAs<MemoryValue>(offset);
+    const value = this.getAs<MemoryValue>(offset);
+    return value;
   }
 
   public getAs<T>(offset: number): T {
     assert(offset < TaggedMemory.MAX_MEMORY_SIZE);
     const word = this._mem[offset];
+    TaggedMemory.log(`get(${offset}) = ${word}`);
     return word as T;
   }
 
   public getSlice(offset: number, size: number): MemoryValue[] {
     assert(offset < TaggedMemory.MAX_MEMORY_SIZE);
     assert(offset + size < TaggedMemory.MAX_MEMORY_SIZE);
-    return this._mem.slice(offset, offset + size);
+    const value = this._mem.slice(offset, offset + size);
+    TaggedMemory.log(`getSlice(${offset}, ${size}) = ${value}`);
+    return value;
   }
 
   public getSliceAs<T>(offset: number, size: number): T[] {
     assert(offset < TaggedMemory.MAX_MEMORY_SIZE);
     assert(offset + size < TaggedMemory.MAX_MEMORY_SIZE);
-    return this._mem.slice(offset, offset + size) as T[];
+    return this.getSlice(offset, size) as T[];
   }
 
   public getSliceTags(offset: number, size: number): TypeTag[] {
@@ -230,6 +241,7 @@ export class TaggedMemory {
   public set(offset: number, v: MemoryValue) {
     assert(offset < TaggedMemory.MAX_MEMORY_SIZE);
     this._mem[offset] = v;
+    TaggedMemory.log(`set(${offset}, ${v})`);
   }
 
   public setSlice(offset: number, vs: MemoryValue[]) {
@@ -240,6 +252,7 @@ export class TaggedMemory {
       this._mem.length = offset + vs.length;
     }
     this._mem.splice(offset, vs.length, ...vs);
+    TaggedMemory.log(`setSlice(${offset}, ${vs})`);
   }
 
   public getTag(offset: number): TypeTag {
@@ -323,6 +336,26 @@ export class TaggedMemory {
         return new Uint64(v & ((1n << 64n) - 1n));
       case TypeTag.UINT128:
         return new Uint128(v & ((1n << 128n) - 1n));
+      default:
+        throw new Error(`${TypeTag[tag]} is not a valid integral type.`);
+    }
+  }
+
+  // Does not truncate. Type constructor will check that it fits.
+  public static buildFromTagOrDie(v: bigint | number, tag: TypeTag): MemoryValue {
+    switch (tag) {
+      case TypeTag.UINT8:
+        return new Uint8(v);
+      case TypeTag.UINT16:
+        return new Uint16(v);
+      case TypeTag.UINT32:
+        return new Uint32(v);
+      case TypeTag.UINT64:
+        return new Uint64(v);
+      case TypeTag.UINT128:
+        return new Uint128(v);
+      case TypeTag.FIELD:
+        return new Field(v);
       default:
         throw new Error(`${TypeTag[tag]} is not a valid integral type.`);
     }

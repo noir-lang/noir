@@ -11,6 +11,8 @@ export class Add extends ThreeOperandInstruction {
   }
 
   async execute(context: AvmContext): Promise<void> {
+    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
+
     const a = context.machineState.memory.get(this.aOffset);
     const b = context.machineState.memory.get(this.bOffset);
 

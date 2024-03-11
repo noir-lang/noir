@@ -1,7 +1,7 @@
-import { Fr } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/circuits.js';
 
 import type { AvmContext } from '../avm_context.js';
-import { Field } from '../avm_memory_types.js';
+import { Field, Uint8 } from '../avm_memory_types.js';
 import { AvmSimulator } from '../avm_simulator.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
@@ -50,7 +50,7 @@ export class Call extends Instruction {
     const convertedReturnData = returnData.map(f => new Field(f));
 
     // Write our return data into memory
-    context.machineState.memory.set(this.successOffset, new Field(success ? 1 : 0));
+    context.machineState.memory.set(this.successOffset, new Uint8(success ? 1 : 0));
     context.machineState.memory.setSlice(this.retOffset, convertedReturnData);
 
     if (success) {
@@ -108,7 +108,7 @@ export class StaticCall extends Instruction {
     const convertedReturnData = returnData.map(f => new Field(f));
 
     // Write our return data into memory
-    context.machineState.memory.set(this.successOffset, new Field(success ? 1 : 0));
+    context.machineState.memory.set(this.successOffset, new Uint8(success ? 1 : 0));
     context.machineState.memory.setSlice(this.retOffset, convertedReturnData);
 
     if (success) {
@@ -118,5 +118,51 @@ export class StaticCall extends Instruction {
     }
 
     context.machineState.incrementPc();
+  }
+}
+
+export class Return extends Instruction {
+  static type: string = 'RETURN';
+  static readonly opcode: Opcode = Opcode.RETURN;
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat: OperandType[] = [
+    OperandType.UINT8,
+    OperandType.UINT8,
+    OperandType.UINT32,
+    OperandType.UINT32,
+  ];
+
+  constructor(private indirect: number, private returnOffset: number, private copySize: number) {
+    super();
+  }
+
+  async execute(context: AvmContext): Promise<void> {
+    const output = context.machineState.memory.getSlice(this.returnOffset, this.copySize).map(word => word.toFr());
+
+    context.machineState.return(output);
+  }
+}
+
+export class Revert extends Instruction {
+  static type: string = 'RETURN';
+  static readonly opcode: Opcode = Opcode.REVERT;
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat: OperandType[] = [
+    OperandType.UINT8,
+    OperandType.UINT8,
+    OperandType.UINT32,
+    OperandType.UINT32,
+  ];
+
+  constructor(private indirect: number, private returnOffset: number, private retSize: number) {
+    super();
+  }
+
+  async execute(context: AvmContext): Promise<void> {
+    const output = context.machineState.memory
+      .getSlice(this.returnOffset, this.returnOffset + this.retSize)
+      .map(word => word.toFr());
+
+    context.machineState.revert(output);
   }
 }

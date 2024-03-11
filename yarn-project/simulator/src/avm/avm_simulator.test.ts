@@ -23,7 +23,7 @@ import { encodeToBytecode } from './serialization/bytecode_serialization.js';
 function getAvmTestContractBytecode(functionName: string): Buffer {
   const artifact = AvmTestContractArtifact.functions.find(f => f.name === functionName)!;
   assert(
-    !!artifact.bytecode,
+    !!artifact?.bytecode,
     `No bytecode found for function ${functionName}. Try re-running bootstraph.sh on the repository root.`,
   );
   return Buffer.from(artifact.bytecode, 'base64');
