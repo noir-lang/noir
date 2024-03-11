@@ -83,7 +83,6 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
 
   async getStateReference(): Promise<StateReference> {
     const snapshots = await Promise.all([
-      this.#getTreeSnapshot(MerkleTreeId.CONTRACT_TREE),
       this.#getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE),
       this.#getTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE),
       this.#getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE),
@@ -104,10 +103,6 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
         new AppendOnlyTreeSnapshot(
           Fr.fromBuffer(snapshots[MerkleTreeId.NULLIFIER_TREE].getRoot()),
           Number(snapshots[MerkleTreeId.NULLIFIER_TREE].getNumLeaves()),
-        ),
-        new AppendOnlyTreeSnapshot(
-          Fr.fromBuffer(snapshots[MerkleTreeId.CONTRACT_TREE].getRoot()),
-          Number(snapshots[MerkleTreeId.CONTRACT_TREE].getNumLeaves()),
         ),
         new AppendOnlyTreeSnapshot(
           Fr.fromBuffer(snapshots[MerkleTreeId.PUBLIC_DATA_TREE].getRoot()),

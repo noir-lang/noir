@@ -227,46 +227,11 @@ export class Sequencer {
 
       await assertBlockHeight();
 
-      await this.publishExtendedContractData(processedValidTxs, block);
-
-      await assertBlockHeight();
-
       await this.publishL2Block(block);
       this.log.info(`Submitted rollup block ${block.number} with ${processedValidTxs.length} transactions`);
     } catch (err) {
       this.log.error(`Rolling back world state DB due to error assembling block`, (err as any).stack);
       await this.worldState.getLatest().rollback();
-    }
-  }
-
-  /**
-   * Gets new extended contract data from the txs and publishes it on chain.
-   * @param validTxs - The set of real transactions being published as part of the block.
-   * @param block - The L2Block to be published.
-   */
-  protected async publishExtendedContractData(validTxs: ProcessedTx[], block: L2Block) {
-    // Publishes contract data for txs to the network and awaits the tx to be mined
-    this.state = SequencerState.PUBLISHING_CONTRACT_DATA;
-    const newContracts = validTxs.flatMap(tx => tx.newContracts).filter(cd => !cd.isEmpty());
-
-    if (newContracts.length === 0) {
-      this.log.debug(`No new contracts to publish in block ${block.number}`);
-      return;
-    }
-
-    const txsEffectsHash = block.body.getTxsEffectsHash();
-    this.log.info(`Publishing ${newContracts.length} contracts in block ${block.number}`);
-
-    const publishedContractData = await this.publisher.processNewContractData(
-      block.number,
-      txsEffectsHash,
-      newContracts,
-    );
-
-    if (publishedContractData) {
-      this.log(`Successfully published new contract data for block ${block.number}`);
-    } else if (!publishedContractData && newContracts.length) {
-      this.log(`Failed to publish new contract data for block ${block.number}`);
     }
   }
 

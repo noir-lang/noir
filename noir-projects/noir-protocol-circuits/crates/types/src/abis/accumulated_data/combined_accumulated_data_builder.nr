@@ -9,8 +9,7 @@ use crate::{
     public_accumulated_revertible_data::PublicAccumulatedRevertibleData,
     public_accumulated_non_revertible_data::PublicAccumulatedNonRevertibleData
 },
-    call_request::CallRequest, new_contract_data::NewContractData,
-    nullifier_key_validation_request::NullifierKeyValidationRequestContext,
+    call_request::CallRequest, nullifier_key_validation_request::NullifierKeyValidationRequestContext,
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
     read_request::ReadRequestContext, side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 }
@@ -19,13 +18,12 @@ use crate::constants::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-    MAX_NEW_L2_TO_L1_MSGS_PER_TX, MAX_NEW_CONTRACTS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    MAX_PUBLIC_DATA_READS_PER_TX, NUM_FIELDS_PER_SHA256, MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX,
-    MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-    MAX_REVERTIBLE_NOTE_HASHES_PER_TX, MAX_REVERTIBLE_NULLIFIERS_PER_TX,
-    MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
-    MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
-    MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+    MAX_NEW_L2_TO_L1_MSGS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX,
+    NUM_FIELDS_PER_SHA256, MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
+    MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
+    MAX_REVERTIBLE_NULLIFIERS_PER_TX, MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+    MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX, MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX, MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 };
 
 use dep::std::unsafe;
@@ -52,8 +50,6 @@ struct CombinedAccumulatedDataBuilder {
     // variable-length data.
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,
-
-    new_contracts: BoundedVec<NewContractData, MAX_NEW_CONTRACTS_PER_TX>,
 
     public_data_update_requests: BoundedVec<PublicDataUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
 
@@ -83,7 +79,6 @@ impl CombinedAccumulatedDataBuilder {
             unencrypted_logs_hash: revertible.unencrypted_logs_hash,
             encrypted_log_preimages_length: revertible.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: revertible.unencrypted_log_preimages_length,
-            new_contracts: array_to_bounded_vec(revertible.new_contracts),
             public_data_update_requests: array_to_bounded_vec(
                 array_concat(
                     non_revertible.public_data_update_requests,
@@ -113,7 +108,6 @@ impl CombinedAccumulatedDataBuilder {
             unencrypted_logs_hash: self.unencrypted_logs_hash,
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
-            new_contracts: self.new_contracts.storage,
             public_data_update_requests: self.public_data_update_requests.storage,
             public_data_reads: self.public_data_reads.storage
         }
@@ -129,8 +123,7 @@ impl CombinedAccumulatedDataBuilder {
             encrypted_logs_hash: self.encrypted_logs_hash,
             unencrypted_logs_hash: self.unencrypted_logs_hash,
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
-            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
-            new_contracts: self.new_contracts.storage
+            unencrypted_log_preimages_length: self.unencrypted_log_preimages_length
         }
     }
 
@@ -148,7 +141,6 @@ impl CombinedAccumulatedDataBuilder {
             unencrypted_logs_hash: self.unencrypted_logs_hash,
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
-            new_contracts: self.new_contracts.storage,
             public_data_update_requests: array_cp(self.public_data_update_requests.storage),
             public_data_reads: array_cp(self.public_data_reads.storage)
         }
@@ -201,7 +193,6 @@ impl CombinedAccumulatedDataBuilder {
         revertible_builder.unencrypted_logs_hash = self.unencrypted_logs_hash;
         revertible_builder.encrypted_log_preimages_length =  self.encrypted_log_preimages_length;
         revertible_builder.unencrypted_log_preimages_length= self.unencrypted_log_preimages_length;
-        revertible_builder.new_contracts = self.new_contracts;
 
         (non_revertible_builder.to_private(), revertible_builder.to_private())
     }

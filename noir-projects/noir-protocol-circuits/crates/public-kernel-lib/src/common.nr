@@ -2,10 +2,9 @@ use dep::types::{
     abis::{
     call_request::CallRequest, public_call_stack_item::PublicCallStackItem,
     kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder,
-    new_contract_data::NewContractData, kernel_data::{PrivateKernelTailData, PublicKernelData},
-    public_call_data::PublicCallData, public_data_read::PublicDataRead,
-    public_data_update_request::PublicDataUpdateRequest, read_request::ReadRequestContext,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    kernel_data::{PrivateKernelTailData, PublicKernelData}, public_call_data::PublicCallData,
+    public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
+    read_request::ReadRequestContext, side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
     address::AztecAddress,
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
@@ -25,9 +24,6 @@ use crate::hash::{compute_public_data_tree_index, compute_public_data_tree_value
 pub fn validate_inputs(public_call: PublicCallData) {
     // Validates commons inputs for all type of kernel inputs
     let this_call_stack_item: PublicCallStackItem = public_call.call_stack_item;
-    assert(
-        this_call_stack_item.public_inputs.call_context.is_contract_deployment == false, "Contract deployment cannot be a public function"
-    );
     assert(
         !this_call_stack_item.contract_address.eq(AztecAddress::zero()), "Contract address cannot be zero"
     );
@@ -66,7 +62,6 @@ pub fn initialize_emitted_end_values(
         circuit_outputs.end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
         circuit_outputs.end.encrypted_logs_hash = start.encrypted_logs_hash;
         circuit_outputs.end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
-        circuit_outputs.end.new_contracts = array_to_bounded_vec(previous_kernel.public_inputs.end.new_contracts);
     }
 
     let start_non_revertible = previous_kernel.public_inputs.end_non_revertible;

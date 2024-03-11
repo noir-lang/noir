@@ -6,14 +6,12 @@ import {
   CallRequest,
   CallerContext,
   CombinedConstantData,
-  ContractDeploymentData,
   EthAddress,
   Fq,
   Fr,
   FunctionData,
   FunctionSelector,
   G1AffineElement,
-  MAX_NEW_CONTRACTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX,
   MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
@@ -22,7 +20,6 @@ import {
   MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
   MAX_REVERTIBLE_NULLIFIERS_PER_TX,
   MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-  NewContractData,
   Point,
   PrivateAccumulatedNonRevertibleData,
   PrivateAccumulatedRevertibleData,
@@ -149,17 +146,7 @@ export function makeFinalAccumulatedData(seed = 1, full = false): PrivateAccumul
     tupleGenerator(2, fr, seed + 0x800), // unencrypted logs hash
     fr(seed + 0x900), // encrypted_log_preimages_length
     fr(seed + 0xa00), // unencrypted_log_preimages_length
-    tupleGenerator(MAX_NEW_CONTRACTS_PER_TX, makeNewContractData, seed + 0xb00),
   );
-}
-
-/**
- * Creates arbitrary contract data.
- * @param seed - The seed to use for generating the contract data.
- * @returns A contract data.
- */
-export function makeNewContractData(seed = 1): NewContractData {
-  return new NewContractData(makeAztecAddress(seed), makeEthAddress(seed + 1), fr(seed + 2));
 }
 
 /**
@@ -185,25 +172,9 @@ export function makeConstantData(seed = 1): CombinedConstantData {
  * @param seed - The seed to use for generating the tx context.
  * @returns A tx context.
  */
-export function makeTxContext(seed: number): TxContext {
+export function makeTxContext(_seed: number): TxContext {
   // @todo @LHerskind should probably take value for chainId as it will be verified later.
-  // @todo @LHerskind should probably take value for version as it will be verified later.
-  return new TxContext(false, false, true, makeContractDeploymentData(seed), Fr.ZERO, Fr.ZERO);
-}
-
-/**
- * Makes arbitrary contract deployment data.
- * @param seed - The seed to use for generating the contract deployment data.
- * @returns A contract deployment data.
- */
-export function makeContractDeploymentData(seed = 1) {
-  return new ContractDeploymentData(
-    makePoint(seed),
-    fr(seed + 1),
-    fr(seed + 2),
-    fr(seed + 3),
-    makeEthAddress(seed + 4),
-  );
+  return new TxContext(false, false, Fr.ZERO, Fr.ZERO);
 }
 
 /**
@@ -229,7 +200,6 @@ export function makePublicCallRequest(seed = 1): PublicCallRequest {
     functionSelector: makeSelector(seed + 3),
     isStaticCall: false,
     isDelegateCall: false,
-    isContractDeployment: false,
     startSideEffectCounter: 0,
   });
   return new PublicCallRequest(
@@ -253,7 +223,6 @@ export function makeCallContext(seed = 0, storageContractAddress = makeAztecAddr
     storageContractAddress,
     makeEthAddress(seed + 2),
     makeSelector(seed + 3),
-    false,
     false,
     false,
     0,

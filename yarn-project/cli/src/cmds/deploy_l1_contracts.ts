@@ -17,7 +17,6 @@ export async function deployL1Contracts(
   log(`Registry Address: ${l1ContractAddresses.registryAddress.toString()}`);
   log(`L1 -> L2 Inbox Address: ${l1ContractAddresses.inboxAddress.toString()}`);
   log(`L2 -> L1 Outbox address: ${l1ContractAddresses.outboxAddress.toString()}`);
-  log(`Contract Deployment Emitter Address: ${l1ContractAddresses.contractDeploymentEmitterAddress.toString()}`);
   log(`Availability Oracle Address: ${l1ContractAddresses.availabilityOracleAddress.toString()}`);
   log('\n');
 }

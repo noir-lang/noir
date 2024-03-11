@@ -39,23 +39,6 @@ pub fn default_previous_rollup_data() -> [PreviousRollupData; 2] {
         next_available_leaf_index: 2
     };
 
-    previous_rollup_data[0].base_or_merge_rollup_public_inputs.start.contract_tree = AppendOnlyTreeSnapshot {
-        root: 0,
-        next_available_leaf_index: 0
-    };
-    previous_rollup_data[0].base_or_merge_rollup_public_inputs.end.contract_tree = AppendOnlyTreeSnapshot {
-        root: 1,
-        next_available_leaf_index: 1
-    };
-    previous_rollup_data[1].base_or_merge_rollup_public_inputs.start.contract_tree = AppendOnlyTreeSnapshot {
-        root: 1,
-        next_available_leaf_index: 1
-    };
-    previous_rollup_data[1].base_or_merge_rollup_public_inputs.end.contract_tree = AppendOnlyTreeSnapshot {
-        root: 2,
-        next_available_leaf_index: 2
-    };
-
     previous_rollup_data[0].base_or_merge_rollup_public_inputs.start.public_data_tree = AppendOnlyTreeSnapshot {
         root: 0,
         next_available_leaf_index: 1

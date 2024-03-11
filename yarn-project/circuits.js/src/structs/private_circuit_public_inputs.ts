@@ -19,7 +19,6 @@ import {
   PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
   RETURN_VALUES_LENGTH,
 } from '../constants.gen.js';
-import { ContractDeploymentData } from '../structs/contract_deployment_data.js';
 import { Header } from '../structs/header.js';
 import { SideEffect, SideEffectLinkedToNoteHash } from '../structs/side_effects.js';
 import { CallContext } from './call_context.js';
@@ -113,10 +112,6 @@ export class PrivateCircuitPublicInputs {
      */
     public historicalHeader: Header,
     /**
-     * Deployment data of contracts being deployed in this kernel iteration.
-     */
-    public contractDeploymentData: ContractDeploymentData,
-    /**
      * Chain Id of the instance.
      *
      * Note: The following 2 values are not redundant to the values in self.historical_header.global_variables because
@@ -165,7 +160,6 @@ export class PrivateCircuitPublicInputs {
       reader.readObject(Fr),
       reader.readObject(Fr),
       reader.readObject(Header),
-      reader.readObject(ContractDeploymentData),
       reader.readObject(Fr),
       reader.readObject(Fr),
     );
@@ -192,7 +186,6 @@ export class PrivateCircuitPublicInputs {
       reader.readField(),
       reader.readField(),
       reader.readObject(Header),
-      reader.readObject(ContractDeploymentData),
       reader.readField(),
       reader.readField(),
     );
@@ -222,7 +215,6 @@ export class PrivateCircuitPublicInputs {
       Fr.ZERO,
       Fr.ZERO,
       Header.empty(),
-      ContractDeploymentData.empty(),
       Fr.ZERO,
       Fr.ZERO,
     );
@@ -251,7 +243,6 @@ export class PrivateCircuitPublicInputs {
       this.encryptedLogPreimagesLength.isZero() &&
       this.unencryptedLogPreimagesLength.isZero() &&
       this.historicalHeader.isEmpty() &&
-      this.contractDeploymentData.isEmpty() &&
       this.chainId.isZero() &&
       this.version.isZero()
     );
@@ -282,7 +273,6 @@ export class PrivateCircuitPublicInputs {
       fields.encryptedLogPreimagesLength,
       fields.unencryptedLogPreimagesLength,
       fields.historicalHeader,
-      fields.contractDeploymentData,
       fields.chainId,
       fields.version,
     ] as const;

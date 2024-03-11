@@ -1,13 +1,4 @@
-import {
-  Body,
-  ExtendedContractData,
-  L2Block,
-  MerkleTreeId,
-  Tx,
-  TxEffect,
-  makeEmptyLogs,
-  mockTx,
-} from '@aztec/circuit-types';
+import { Body, L2Block, MerkleTreeId, Tx, TxEffect, makeEmptyLogs, mockTx } from '@aztec/circuit-types';
 import {
   AppendOnlyTreeSnapshot,
   AztecAddress,
@@ -40,7 +31,6 @@ import {
 import {
   fr,
   makeBaseOrMergeRollupPublicInputs,
-  makeNewContractData,
   makeNewSideEffect,
   makeNewSideEffectLinkedToNoteHash,
   makePrivateKernelTailCircuitPublicInputs,
@@ -135,18 +125,12 @@ describe('sequencer/solo_block_builder', () => {
 
   // Updates the expectedDb trees based on the new note hashes, contracts, and nullifiers from these txs
   const updateExpectedTreesFromTxs = async (txs: ProcessedTx[]) => {
-    const newContracts = txs.flatMap(tx => tx.data.end.newContracts.map(cd => cd.hash()));
-    for (const [tree, leaves] of [
-      [
-        MerkleTreeId.NOTE_HASH_TREE,
-        txs.flatMap(tx =>
-          [...tx.data.endNonRevertibleData.newNoteHashes, ...tx.data.end.newNoteHashes].map(l => l.value.toBuffer()),
-        ),
-      ],
-      [MerkleTreeId.CONTRACT_TREE, newContracts.map(x => x.toBuffer())],
-    ] as const) {
-      await expectsDb.appendLeaves(tree, leaves);
-    }
+    await expectsDb.appendLeaves(
+      MerkleTreeId.NOTE_HASH_TREE,
+      txs.flatMap(tx =>
+        [...tx.data.endNonRevertibleData.newNoteHashes, ...tx.data.end.newNoteHashes].map(l => l.value.toBuffer()),
+      ),
+    );
     await expectsDb.batchInsert(
       MerkleTreeId.NULLIFIER_TREE,
       txs.flatMap(tx =>
@@ -186,7 +170,6 @@ describe('sequencer/solo_block_builder', () => {
     return new PartialStateReference(
       await getTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE),
       await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE),
-      await getTreeSnapshot(MerkleTreeId.CONTRACT_TREE),
       await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE),
     );
   };
@@ -212,7 +195,6 @@ describe('sequencer/solo_block_builder', () => {
         makeEmptyLogs(),
         makeEmptyLogs(),
         times(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makePublicCallRequest),
-        [ExtendedContractData.random()],
       ),
     );
 
@@ -298,13 +280,8 @@ describe('sequencer/solo_block_builder', () => {
       builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
     });
 
-    const makeContractDeployProcessedTx = async (seed = 0x1) => {
-      const tx = await makeEmptyProcessedTx();
-      tx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
-      return tx;
-    };
-
     const makeBloatedProcessedTx = async (seed = 0x1) => {
+      seed *= MAX_NEW_NULLIFIERS_PER_TX; // Ensure no clashing given incremental seeds
       const tx = mockTx(seed);
       const kernelOutput = PublicKernelCircuitPublicInputs.empty();
       kernelOutput.constants.historicalHeader = await builderDb.buildInitialHeader();
@@ -334,17 +311,18 @@ describe('sequencer/solo_block_builder', () => {
       processedTx.data.end.newNullifiers = makeTuple(
         MAX_REVERTIBLE_NULLIFIERS_PER_TX,
         makeNewSideEffectLinkedToNoteHash,
-        seed + 0x200,
+        seed + 0x100000,
       );
+
       processedTx.data.endNonRevertibleData.newNullifiers = makeTuple(
         MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
         makeNewSideEffectLinkedToNoteHash,
-        seed + 0x300,
+        seed + 0x100000 + MAX_REVERTIBLE_NULLIFIERS_PER_TX,
       );
+
       processedTx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1] = SideEffectLinkedToNoteHash.empty();
 
       processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
-      processedTx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
       processedTx.data.end.encryptedLogsHash = to2Fields(processedTx.encryptedLogs.hash());
       processedTx.data.end.unencryptedLogsHash = to2Fields(processedTx.unencryptedLogs.hash());
 
@@ -358,28 +336,26 @@ describe('sequencer/solo_block_builder', () => {
       [0, 16],
       [16, 16],
     ] as const)(
-      'builds an L2 block with %i contract deploy txs and %i txs total',
-      async (deployCount: number, totalCount: number) => {
-        const contractTreeBefore = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
-
+      'builds an L2 block with %i bloated txs and %i txs total',
+      async (bloatedCount: number, totalCount: number) => {
+        const noteHashTreeBefore = await builderDb.getTreeInfo(MerkleTreeId.NOTE_HASH_TREE);
         const txs = [
-          ...(await Promise.all(times(deployCount, makeContractDeployProcessedTx))),
-          ...(await Promise.all(times(totalCount - deployCount, makeEmptyProcessedTx))),
+          ...(await Promise.all(times(bloatedCount, makeBloatedProcessedTx))),
+          ...(await Promise.all(times(totalCount - bloatedCount, makeEmptyProcessedTx))),
         ];
 
         const [l2Block] = await builder.buildL2Block(globalVariables, txs, mockL1ToL2Messages);
         expect(l2Block.number).toEqual(blockNumber);
 
         await updateExpectedTreesFromTxs(txs);
-        const contractTreeAfter = await builderDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE);
+        const noteHashTreeAfter = await builderDb.getTreeInfo(MerkleTreeId.NOTE_HASH_TREE);
 
-        if (deployCount > 0) {
-          expect(contractTreeAfter.root).not.toEqual(contractTreeBefore.root);
+        if (bloatedCount > 0) {
+          expect(noteHashTreeAfter.root).not.toEqual(noteHashTreeBefore.root);
         }
 
-        const expectedContractTreeAfter = await expectsDb.getTreeInfo(MerkleTreeId.CONTRACT_TREE).then(t => t.root);
-        expect(contractTreeAfter.root).toEqual(expectedContractTreeAfter);
-        expect(contractTreeAfter.size).toEqual(BigInt(totalCount));
+        const expectedNoteHashTreeAfter = await expectsDb.getTreeInfo(MerkleTreeId.NOTE_HASH_TREE).then(t => t.root);
+        expect(noteHashTreeAfter.root).toEqual(expectedNoteHashTreeAfter);
       },
       60000,
     );
@@ -397,12 +373,11 @@ describe('sequencer/solo_block_builder', () => {
     }, 30_000);
 
     it('builds a mixed L2 block', async () => {
-      // Ensure that each transaction has unique (non-intersecting nullifier values)
       const txs = await Promise.all([
-        makeBloatedProcessedTx(1 * MAX_NEW_NULLIFIERS_PER_TX),
-        makeBloatedProcessedTx(2 * MAX_NEW_NULLIFIERS_PER_TX),
-        makeBloatedProcessedTx(3 * MAX_NEW_NULLIFIERS_PER_TX),
-        makeBloatedProcessedTx(4 * MAX_NEW_NULLIFIERS_PER_TX),
+        makeBloatedProcessedTx(1),
+        makeBloatedProcessedTx(2),
+        makeBloatedProcessedTx(3),
+        makeBloatedProcessedTx(4),
       ]);
 
       const l1ToL2Messages = range(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, 1 + 0x400).map(fr);

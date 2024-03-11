@@ -1,7 +1,6 @@
 use crate::{
     abis::{
-    call_request::CallRequest, new_contract_data::NewContractData,
-    nullifier_key_validation_request::NullifierKeyValidationRequestContext,
+    call_request::CallRequest, nullifier_key_validation_request::NullifierKeyValidationRequestContext,
     public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
     read_request::ReadRequestContext, side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 }
@@ -11,8 +10,7 @@ use crate::constants::{
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX, MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
     MAX_REVERTIBLE_NULLIFIERS_PER_TX, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
     MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX, NUM_FIELDS_PER_SHA256,
-    MAX_NEW_CONTRACTS_PER_TX, MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX
+    MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX
 };
 
 struct PublicAccumulatedRevertibleData {
@@ -34,8 +32,6 @@ struct PublicAccumulatedRevertibleData {
     // variable-length data.
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,
-
-    new_contracts: [NewContractData; MAX_NEW_CONTRACTS_PER_TX],
 
     public_data_update_requests: [PublicDataUpdateRequest; MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     public_data_reads: [PublicDataRead; MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX],

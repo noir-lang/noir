@@ -186,7 +186,7 @@ export function getMarkdown() {
   const metricsByBlockSize = Metrics.filter(m => m.groupBy === 'block-size').map(m => m.name);
   const metricsByChainLength = Metrics.filter(m => m.groupBy === 'chain-length').map(m => m.name);
   const metricsByCircuitName = Metrics.filter(m => m.groupBy === 'circuit-name').map(m => m.name);
-  const metricsByContractCount = Metrics.filter(m => m.groupBy === 'contract-count').map(m => m.name);
+  const metricsByClassesRegistered = Metrics.filter(m => m.groupBy === 'classes-registered').map(m => m.name);
   const metricsByLeafCount = Metrics.filter(m => m.groupBy === 'leaf-count').map(m => m.name);
 
   const metricsTxPxeProcessing = Metrics.filter(m => m.name === 'tx_pxe_processing_time_ms').map(m => m.name);
@@ -239,8 +239,8 @@ ${getTableContent(pick(benchmark, metricsByLeafCount), baseBenchmark, 'leaves')}
 
 ### Miscellaneous
 
-Transaction sizes based on how many contracts are deployed in the tx.
-${getTableContent(pick(benchmark, metricsByContractCount), baseBenchmark, 'deployed contracts')}
+Transaction sizes based on how many contract classes are registered in the tx.
+${getTableContent(pick(benchmark, metricsByClassesRegistered), baseBenchmark, 'registered classes')}
 
 Transaction processing duration by data writes.
 ${getTableContent(pick(benchmark, metricsTxPxeProcessing), baseBenchmark, 'new note hashes')}

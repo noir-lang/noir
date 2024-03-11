@@ -21,7 +21,6 @@ import {
   TxHash,
   TxL2Logs,
   TxReceipt,
-  getNewContractPublicFunctions,
   isNoirCallStackUnresolved,
 } from '@aztec/circuit-types';
 import { TxPXEProcessingStats } from '@aztec/circuit-types/stats';
@@ -38,7 +37,6 @@ import {
   PublicCallRequest,
   computeArtifactHash,
   computeContractClassId,
-  computeSaltedInitializationHash,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
 import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/hash';
@@ -390,13 +388,8 @@ export class PXEService implements PXE {
 
     // all simulations must be serialized w.r.t. the synchronizer
     return await this.jobQueue.put(async () => {
-      // We get the contract address from origin, since contract deployments are signalled as origin from their own address
-      // TODO: Is this ok? Should it be changed to be from ZERO?
-      const deployedContractAddress = txRequest.txContext.isContractDeploymentTx ? txRequest.origin : undefined;
-      const newContract = deployedContractAddress ? await this.db.getContract(deployedContractAddress) : undefined;
-
       const timer = new Timer();
-      const tx = await this.#simulateAndProve(txRequest, newContract);
+      const tx = await this.#simulateAndProve(txRequest);
       this.log(`Processed private part of ${tx.getTxHash()}`, {
         eventName: 'tx-pxe-processing',
         duration: timer.ms(),
@@ -614,10 +607,9 @@ export class PXEService implements PXE {
    *
    * @param txExecutionRequest - The transaction request to be simulated and proved.
    * @param signature - The ECDSA signature for the transaction request.
-   * @param newContract - Optional. The address of a new contract to be included in the transaction object.
    * @returns A private transaction object containing the proof, public inputs, and encrypted logs.
    */
-  async #simulateAndProve(txExecutionRequest: TxExecutionRequest, newContract: ContractDao | undefined) {
+  async #simulateAndProve(txExecutionRequest: TxExecutionRequest) {
     // TODO - Pause syncing while simulating.
 
     // Get values that allow us to reconstruct the block hash
@@ -635,21 +627,11 @@ export class PXEService implements PXE {
     const unencryptedLogs = new TxL2Logs(collectUnencryptedLogs(executionResult));
     const enqueuedPublicFunctions = collectEnqueuedPublicFunctionCalls(executionResult);
 
-    const extendedContractData = newContract
-      ? new ExtendedContractData(
-          new ContractData(newContract.instance.address, newContract.instance.portalContractAddress),
-          getNewContractPublicFunctions(newContract),
-          getContractClassFromArtifact(newContract).id,
-          computeSaltedInitializationHash(newContract.instance),
-          newContract.instance.publicKeysHash,
-        )
-      : ExtendedContractData.empty();
-
     // HACK(#1639): Manually patches the ordering of the public call stack
     // TODO(#757): Enforce proper ordering of enqueued public calls
     await this.patchPublicCallStackOrdering(publicInputs, enqueuedPublicFunctions);
 
-    return new Tx(publicInputs, proof, encryptedLogs, unencryptedLogs, enqueuedPublicFunctions, [extendedContractData]);
+    return new Tx(publicInputs, proof, encryptedLogs, unencryptedLogs, enqueuedPublicFunctions);
   }
 
   /**

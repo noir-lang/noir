@@ -4,16 +4,14 @@ use crate::abis::function_selector::FunctionSelector;
 use crate::abis::function_leaf_preimage::FunctionLeafPreimage;
 use crate::abis::contract_class_function_leaf_preimage::ContractClassFunctionLeafPreimage;
 use crate::contract_class_id::ContractClassId;
-use crate::abis::new_contract_data::NewContractData as ContractLeafPreimage;
 use crate::abis::function_data::FunctionData;
 use crate::abis::side_effect::{SideEffect};
 use crate::utils::uint256::U256;
 use crate::constants::{
-    ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, CONTRACT_TREE_HEIGHT, FUNCTION_TREE_HEIGHT,
-    NUM_FIELDS_PER_SHA256, GENERATOR_INDEX__SILOED_NOTE_HASH, GENERATOR_INDEX__OUTER_NULLIFIER,
-    GENERATOR_INDEX__VK, GENERATOR_INDEX__CONSTRUCTOR, GENERATOR_INDEX__PARTIAL_ADDRESS,
-    GENERATOR_INDEX__CONTRACT_ADDRESS, GENERATOR_INDEX__NOTE_HASH_NONCE,
-    GENERATOR_INDEX__UNIQUE_NOTE_HASH, GENERATOR_INDEX__FUNCTION_ARGS
+    ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, FUNCTION_TREE_HEIGHT, NUM_FIELDS_PER_SHA256,
+    GENERATOR_INDEX__SILOED_NOTE_HASH, GENERATOR_INDEX__OUTER_NULLIFIER, GENERATOR_INDEX__VK,
+    GENERATOR_INDEX__CONSTRUCTOR, GENERATOR_INDEX__PARTIAL_ADDRESS, GENERATOR_INDEX__CONTRACT_ADDRESS,
+    GENERATOR_INDEX__NOTE_HASH_NONCE, GENERATOR_INDEX__UNIQUE_NOTE_HASH, GENERATOR_INDEX__FUNCTION_ARGS
 };
 use crate::messaging::l2_to_l1_message::L2ToL1Message;
 
@@ -117,25 +115,6 @@ pub fn function_tree_root_from_siblings(
     let function_tree_root = root_from_sibling_path(function_leaf, function_leaf_index, function_leaf_sibling_path);
 
     function_tree_root
-}
-
-// Calculate the contract tree root from the sibling path and leaf preimage.
-pub fn contract_tree_root_from_siblings(
-    contract_class_id: ContractClassId,
-    storage_contract_address: AztecAddress,
-    portal_contract_address: EthAddress,
-    contract_leaf_index: Field,
-    contract_leaf_sibling_path: [Field; CONTRACT_TREE_HEIGHT]
-) -> Field {
-    //TODO(Kev): if we use shorthand syntax here, we get an error as expected,
-    // since variable name is `storage_contract_address` but the span is incorrect.
-    let contract_leaf_preimage = ContractLeafPreimage { contract_address: storage_contract_address, portal_contract_address, contract_class_id };
-
-    let contract_leaf = contract_leaf_preimage.hash();
-
-    let computed_contract_tree_root = root_from_sibling_path(contract_leaf, contract_leaf_index, contract_leaf_sibling_path);
-
-    computed_contract_tree_root
 }
 
 pub fn private_functions_root_from_siblings(

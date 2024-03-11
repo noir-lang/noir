@@ -10,9 +10,7 @@ mod global_variables;
 
 mod membership_witness;
 
-mod new_contract_data;
 mod nullifier_leaf_preimage;
-mod contract_leaf_preimage;
 
 mod combined_constant_data;
 

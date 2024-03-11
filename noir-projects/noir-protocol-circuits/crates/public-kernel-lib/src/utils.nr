@@ -1,7 +1,7 @@
 use crate::hash::{compute_public_data_tree_index, compute_public_data_tree_value};
 use dep::types::{
     abis::{
-    call_request::CallRequest, new_contract_data::NewContractData, public_data_read::PublicDataRead,
+    call_request::CallRequest, public_data_read::PublicDataRead,
     public_data_update_request::PublicDataUpdateRequest
 },
     address::AztecAddress,
@@ -59,11 +59,4 @@ pub fn assert_eq_public_data_update_requests<N, S>(
     expected: [PublicDataUpdateRequest; S]
 ) {
     assert(array_eq(public_data_update_requests, expected));
-}
-
-pub fn assert_eq_new_contracts<N, S>(
-    new_contracts: [NewContractData; N],
-    expected: [NewContractData; S]
-) {
-    assert(array_eq(new_contracts, expected));
 }

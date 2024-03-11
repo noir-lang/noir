@@ -98,14 +98,6 @@ mod tests {
         let _output = inputs.merge_rollup_circuit();
     }
 
-    #[test(should_fail_with="input proofs have different contract tree snapshots")]
-    fn previous_rollups_dont_follow_contracts() {
-        let mut inputs = default_merge_rollup_inputs();
-        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.end.contract_tree.root = 0;
-        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.start.contract_tree.root = 1;
-        let _output = inputs.merge_rollup_circuit();
-    }
-
     #[test]
     fn rollup_fields_are_set_correctly() {
         let mut inputs = default_merge_rollup_inputs();

@@ -55,12 +55,3 @@ variable "OUTBOX_CONTRACT_ADDRESS" {
 output "outbox_contract_address" {
   value = var.OUTBOX_CONTRACT_ADDRESS
 }
-
-variable "CONTRACT_DEPLOYMENT_EMITTER_ADDRESS" {
-  type    = string
-  default = ""
-}
-
-output "contract_deployment_emitter_address" {
-  value = var.CONTRACT_DEPLOYMENT_EMITTER_ADDRESS
-}

@@ -1,9 +1,10 @@
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
 import { GLOBAL_VARIABLES_LENGTH } from '../constants.gen.js';
-import { AztecAddress, EthAddress } from './index.js';
 
 /**
  * Global variables of the L2 block.

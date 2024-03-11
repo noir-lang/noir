@@ -1,4 +1,4 @@
-import { ExtendedContractData, L2Block } from '@aztec/circuit-types';
+import { L2Block } from '@aztec/circuit-types';
 import { L1PublishStats } from '@aztec/circuit-types/stats';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { InterruptibleSleep } from '@aztec/foundation/sleep';
@@ -55,22 +55,6 @@ export interface L1PublisherTxSender {
   sendProcessTx(encodedData: L1ProcessArgs): Promise<string | undefined>;
 
   /**
-   * Sends a tx to the contract deployment emitter contract with contract deployment data such as bytecode. Returns once the tx has been mined.
-   * @param l2BlockNum - Number of the L2 block that owns this encrypted logs.
-   * @param l2BlockHash - The hash of the block corresponding to this data.
-   * @param partialAddresses - The partial addresses of the deployed contract
-   * @param publicKeys - The public keys of the deployed contract
-   * @param newExtendedContractData - Data to publish.
-   * @returns The hash of the mined tx.
-   * @remarks Partial addresses, public keys and contract data has to be in the same order. Read more {@link https://docs.aztec.network/concepts/foundation/accounts/keys#addresses-partial-addresses-and-public-keys | here}.
-   */
-  sendEmitContractDeploymentTx(
-    l2BlockNum: number,
-    l2BlockHash: Buffer,
-    newExtendedContractData: ExtendedContractData[],
-  ): Promise<(string | undefined)[]>;
-
-  /**
    * Returns a tx receipt if the tx has been mined.
    * @param txHash - Hash of the tx to look for.
    * @returns Undefined if the tx hasn't been mined yet, the receipt otherwise.
@@ -110,16 +94,6 @@ export type L1ProcessArgs = {
   /** Root rollup proof of the L2 block. */
   proof: Buffer;
 };
-
-/**
- * Helper function to filter out undefined items from an array.
- * Also asserts the resulting array is of type <T>.
- * @param item - An item from an array to check if undefined or not.
- * @returns True if the item is not undefined.
- */
-function isNotUndefined<T>(item: T | undefined): item is T {
-  return item !== undefined;
-}
 
 /**
  * Publishes L2 blocks to L1. This implementation does *not* retry a transaction in
@@ -235,49 +209,6 @@ export class L1Publisher implements L2BlockReceiver {
   }
 
   /**
-   * Publishes new contract data to L1.
-   * @param l2BlockNum - The L2 block number that the new contracts were deployed on.
-   * @param l2BlockHash - The hash of the block corresponding to this data.
-   * @param contractData - The new contract data to publish.
-   * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
-   */
-  public async processNewContractData(l2BlockNum: number, l2BlockHash: Buffer, contractData: ExtendedContractData[]) {
-    let _contractData: ExtendedContractData[] = [];
-    while (!this.interrupted) {
-      const arr = _contractData.length ? _contractData : contractData;
-      const txHashes = await this.sendEmitNewContractDataTx(l2BlockNum, l2BlockHash, arr);
-      if (!txHashes) {
-        break;
-      }
-      // filter successful txs
-      _contractData = arr.filter((_, i) => !!txHashes[i]);
-
-      const receipts = await Promise.all(
-        txHashes.filter(isNotUndefined).map(txHash => this.getTransactionReceipt(txHash)),
-      );
-      if (!receipts?.length) {
-        break;
-      }
-
-      // ALL Txs were mined successfully
-      if (receipts.length === contractData.length && receipts.every(r => r?.status)) {
-        return true;
-      }
-
-      this.log(
-        `Transaction status failed: ${receipts
-          .filter(r => !r?.status)
-          .map(r => r?.transactionHash)
-          .join(',')}`,
-      );
-      await this.sleepOrInterrupted();
-    }
-
-    this.log('L2 block data syncing interrupted while processing contract data.');
-    return false;
-  }
-
-  /**
    * Calling `interrupt` will cause any in progress call to `publishRollup` to return `false` asap.
    * Be warned, the call may return false even if the tx subsequently gets successfully mined.
    * In practice this shouldn't matter, as we'll only ever be calling `interrupt` when we know it's going to fail.
@@ -326,21 +257,6 @@ export class L1Publisher implements L2BlockReceiver {
       } catch (err) {
         this.log.error(`Rollup publish failed`, err);
         return undefined;
-      }
-    }
-  }
-
-  private async sendEmitNewContractDataTx(
-    l2BlockNum: number,
-    l2BlockHash: Buffer,
-    newExtendedContractData: ExtendedContractData[],
-  ) {
-    while (!this.interrupted) {
-      try {
-        return await this.txSender.sendEmitContractDeploymentTx(l2BlockNum, l2BlockHash, newExtendedContractData);
-      } catch (err) {
-        this.log.error(`Error sending contract data to L1`, err);
-        await this.sleepOrInterrupted();
       }
     }
   }

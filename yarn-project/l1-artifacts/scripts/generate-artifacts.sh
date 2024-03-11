@@ -16,7 +16,6 @@ CONTRACTS=(
   "l1-contracts:NewInbox"
   "l1-contracts:Outbox"
   "l1-contracts:Rollup"
-  "l1-contracts:ContractDeploymentEmitter"
   "l1-contracts:TokenPortal"
   "l1-contracts:PortalERC20"
   "l1-contracts:UniswapPortal"

@@ -23,13 +23,7 @@ import {
   PublicKernelCircuitPublicInputs,
   SideEffectLinkedToNoteHash,
 } from '@aztec/circuits.js';
-import {
-  fr,
-  makeNewContractData,
-  makeNewSideEffect,
-  makeNewSideEffectLinkedToNoteHash,
-  makeProof,
-} from '@aztec/circuits.js/testing';
+import { fr, makeNewSideEffect, makeNewSideEffectLinkedToNoteHash, makeProof } from '@aztec/circuits.js/testing';
 import { createEthereumChain } from '@aztec/ethereum';
 import { makeTuple, range } from '@aztec/foundation/array';
 import { openTmpStore } from '@aztec/kv-store/utils';
@@ -103,7 +97,7 @@ describe('L1Publisher integration', () => {
   let feeRecipient: AztecAddress;
 
   // To overwrite the test data, set this to true and run the tests.
-  const OVERWRITE_TEST_DATA = false;
+  const OVERWRITE_TEST_DATA = !!process.env.OVERWRITE_TEST_DATA;
 
   beforeEach(async () => {
     deployerAccount = privateKeyToAccount(deployerPK);
@@ -186,7 +180,6 @@ describe('L1Publisher integration', () => {
     processedTx.data.end.newNullifiers[processedTx.data.end.newNullifiers.length - 1] =
       SideEffectLinkedToNoteHash.empty();
     processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
-    processedTx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
     processedTx.data.end.encryptedLogsHash = to2Fields(processedTx.encryptedLogs.hash());
     processedTx.data.end.unencryptedLogsHash = to2Fields(processedTx.unencryptedLogs.hash());
 
@@ -293,10 +286,6 @@ describe('L1Publisher integration', () => {
               root: `0x${block.header.state.l1ToL2MessageTree.root.toBuffer().toString('hex').padStart(64, '0')}`,
             },
             partialStateReference: {
-              contractTree: {
-                nextAvailableLeafIndex: block.header.state.partial.contractTree.nextAvailableLeafIndex,
-                root: `0x${block.header.state.partial.contractTree.root.toBuffer().toString('hex').padStart(64, '0')}`,
-              },
               noteHashTree: {
                 nextAvailableLeafIndex: block.header.state.partial.noteHashTree.nextAvailableLeafIndex,
                 root: `0x${block.header.state.partial.noteHashTree.root.toBuffer().toString('hex').padStart(64, '0')}`,

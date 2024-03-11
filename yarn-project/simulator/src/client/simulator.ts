@@ -92,10 +92,9 @@ export class AcirSimulator {
       FunctionSelector.fromNameAndParameters(entryPointArtifact.name, entryPointArtifact.parameters),
       false,
       false,
-      request.functionData.isConstructor,
       // TODO: when contract deployment is done in-app, we should only reserve one counter for the tx hash
       // 2 counters are reserved for tx hash and contract deployment nullifier
-      request.txContext.isContractDeploymentTx ? 2 : 1,
+      1,
     );
     const context = new ClientExecutionContext(
       contractAddress,

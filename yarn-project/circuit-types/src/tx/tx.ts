@@ -1,5 +1,5 @@
 import {
-  MAX_NEW_CONTRACTS_PER_TX,
+  ContractClassRegisteredEvent,
   PrivateKernelTailCircuitPublicInputs,
   Proof,
   PublicCallRequest,
@@ -7,9 +7,8 @@ import {
   SideEffectLinkedToNoteHash,
 } from '@aztec/circuits.js';
 import { arrayNonEmptyLength } from '@aztec/foundation/collection';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { ExtendedContractData } from '../contract_data.js';
 import { GetUnencryptedLogsResponse } from '../logs/get_unencrypted_logs_response.js';
 import { L2LogsSource } from '../logs/l2_logs_source.js';
 import { TxL2Logs } from '../logs/tx_l2_logs.js';
@@ -42,12 +41,6 @@ export class Tx {
      * Preimages of the public call stack entries from the private kernel circuit output.
      */
     public readonly enqueuedPublicFunctionCalls: PublicCallRequest[],
-    /**
-     * Contracts deployed in this tx.
-     * Note: Portal address is always set to zero in the tx's new contracts.
-     * TODO(#3417): Check if portal addresses are still always set to zero
-     */
-    public readonly newContracts: Tuple<ExtendedContractData, typeof MAX_NEW_CONTRACTS_PER_TX>,
   ) {
     if (this.unencryptedLogs.functionLogs.length < this.encryptedLogs.functionLogs.length) {
       // This check is present because each private function invocation creates encrypted FunctionL2Logs object and
@@ -82,7 +75,6 @@ export class Tx {
       reader.readObject(TxL2Logs),
       reader.readObject(TxL2Logs),
       reader.readArray(reader.readNumber(), PublicCallRequest),
-      reader.readArray(reader.readNumber(), ExtendedContractData) as [ExtendedContractData],
     );
   }
 
@@ -98,8 +90,6 @@ export class Tx {
       this.unencryptedLogs,
       this.enqueuedPublicFunctionCalls.length,
       this.enqueuedPublicFunctionCalls,
-      this.newContracts.length,
-      this.newContracts,
     ]);
   }
 
@@ -114,7 +104,6 @@ export class Tx {
       unencryptedLogs: this.unencryptedLogs.toBuffer().toString('hex'),
       proof: this.proof.toBuffer().toString('hex'),
       enqueuedPublicFunctions: this.enqueuedPublicFunctionCalls.map(f => f.toBuffer().toString('hex')) ?? [],
-      newContracts: this.newContracts.map(c => c.toBuffer().toString('hex')),
     };
   }
 
@@ -140,15 +129,7 @@ export class Tx {
     const enqueuedPublicFunctions = obj.enqueuedPublicFunctions
       ? obj.enqueuedPublicFunctions.map((x: string) => PublicCallRequest.fromBuffer(Buffer.from(x, 'hex')))
       : [];
-    const newContracts = obj.newContracts.map((x: string) => ExtendedContractData.fromBuffer(Buffer.from(x, 'hex')));
-    return new Tx(
-      publicInputs,
-      Proof.fromBuffer(proof),
-      encryptedLogs,
-      unencryptedLogs,
-      enqueuedPublicFunctions,
-      newContracts,
-    );
+    return new Tx(publicInputs, Proof.fromBuffer(proof), encryptedLogs, unencryptedLogs, enqueuedPublicFunctions);
   }
 
   /**
@@ -172,8 +153,6 @@ export class Tx {
       unencryptedLogCount: this.unencryptedLogs.getTotalLogCount(),
       encryptedLogSize: this.encryptedLogs.getSerializedLength(),
       unencryptedLogSize: this.unencryptedLogs.getSerializedLength(),
-      newContractCount: arrayNonEmptyLength(this.newContracts, ExtendedContractData.isEmpty),
-      newContractDataSize: this.newContracts.map(c => c.toBuffer().length).reduce((a, b) => a + b, 0),
 
       newCommitmentCount:
         arrayNonEmptyLength(this.data!.endNonRevertibleData.newNoteHashes, SideEffect.isEmpty) +
@@ -185,6 +164,9 @@ export class Tx {
 
       proofSize: this.proof.buffer.length,
       size: this.toBuffer().length,
+      classRegisteredCount: this.unencryptedLogs
+        .unrollLogs()
+        .filter(log => ContractClassRegisteredEvent.isContractClassRegisteredEvent(log)).length,
     };
   }
 
@@ -220,11 +202,7 @@ export class Tx {
     const enqueuedPublicFunctions = tx.enqueuedPublicFunctionCalls.map(x => {
       return PublicCallRequest.fromBuffer(x.toBuffer());
     });
-    const newContracts = tx.newContracts.map(c => ExtendedContractData.fromBuffer(c.toBuffer())) as Tuple<
-      ExtendedContractData,
-      typeof MAX_NEW_CONTRACTS_PER_TX
-    >;
-    return new Tx(publicInputs, proof, encryptedLogs, unencryptedLogs, enqueuedPublicFunctions, newContracts);
+    return new Tx(publicInputs, proof, encryptedLogs, unencryptedLogs, enqueuedPublicFunctions);
   }
 }
 

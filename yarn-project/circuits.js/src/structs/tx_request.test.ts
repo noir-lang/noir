@@ -1,12 +1,11 @@
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/foundation/fields';
+import { updateInlineTestData } from '@aztec/foundation/testing';
 
 import { TX_REQUEST_LENGTH } from '../constants.gen.js';
 import { makeTxRequest } from '../tests/factories.js';
-import { ContractDeploymentData } from './contract_deployment_data.js';
 import { FunctionData } from './function_data.js';
-import { EthAddress } from './index.js';
 import { TxContext } from './tx_context.js';
 import { TxRequest } from './tx_request.js';
 
@@ -31,25 +30,22 @@ describe('TxRequest', () => {
   });
 
   it('compute hash', () => {
-    const deploymentData = new ContractDeploymentData(
-      new Point(new Fr(1), new Fr(2)),
-      new Fr(1),
-      new Fr(2),
-      new Fr(3),
-      EthAddress.fromField(new Fr(1)),
-    );
     const txRequest = TxRequest.from({
       origin: AztecAddress.fromBigInt(1n),
       functionData: new FunctionData(FunctionSelector.fromField(new Fr(2n)), false, true, true),
       argsHash: new Fr(3),
-      txContext: new TxContext(false, false, true, deploymentData, Fr.ZERO, Fr.ZERO),
+      txContext: new TxContext(false, false, Fr.ZERO, Fr.ZERO),
     });
 
     const hash = txRequest.hash().toString();
 
     expect(hash).toMatchSnapshot();
 
-    // Value used in hash test in tx_request.nr
-    // console.log("hash", hash);
+    // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
+    updateInlineTestData(
+      'noir-projects/noir-protocol-circuits/crates/types/src/transaction/tx_request.nr',
+      'test_data_tx_request_hash',
+      hash,
+    );
   });
 });

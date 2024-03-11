@@ -4,7 +4,6 @@ import { BufferReader, serializeToBuffer, serializeToFields } from '@aztec/found
 import { FieldsOf } from '@aztec/foundation/types';
 
 import { GeneratorIndex, TX_CONTEXT_DATA_LENGTH } from '../constants.gen.js';
-import { ContractDeploymentData } from '../structs/contract_deployment_data.js';
 
 /**
  * Transaction context.
@@ -26,14 +25,6 @@ export class TxContext {
      * the user.
      */
     public isRebatePaymentTx: boolean,
-    /**
-     * Whether this is a contract deployment tx.
-     */
-    public isContractDeploymentTx: boolean,
-    /**
-     * Contract deployment data.
-     */
-    public contractDeploymentData: ContractDeploymentData,
     /**
      * Chain ID of the transaction. Here for replay protection.
      */
@@ -69,29 +60,15 @@ export class TxContext {
    */
   static fromBuffer(buffer: Buffer | BufferReader): TxContext {
     const reader = BufferReader.asReader(buffer);
-    return new TxContext(
-      reader.readBoolean(),
-      reader.readBoolean(),
-      reader.readBoolean(),
-      reader.readObject(ContractDeploymentData),
-      Fr.fromBuffer(reader),
-      Fr.fromBuffer(reader),
-    );
+    return new TxContext(reader.readBoolean(), reader.readBoolean(), Fr.fromBuffer(reader), Fr.fromBuffer(reader));
   }
 
   static empty(chainId: Fr | number = 0, version: Fr | number = 0) {
-    return new TxContext(false, false, false, ContractDeploymentData.empty(), new Fr(chainId), new Fr(version));
+    return new TxContext(false, false, new Fr(chainId), new Fr(version));
   }
 
   isEmpty(): boolean {
-    return (
-      !this.isFeePaymentTx &&
-      !this.isRebatePaymentTx &&
-      !this.isContractDeploymentTx &&
-      this.contractDeploymentData.isEmpty() &&
-      this.chainId.isZero() &&
-      this.version.isZero()
-    );
+    return !this.isFeePaymentTx && !this.isRebatePaymentTx && this.chainId.isZero() && this.version.isZero();
   }
 
   /**
@@ -109,14 +86,7 @@ export class TxContext {
    * @returns The array.
    */
   static getFields(fields: FieldsOf<TxContext>) {
-    return [
-      fields.isFeePaymentTx,
-      fields.isRebatePaymentTx,
-      fields.isContractDeploymentTx,
-      fields.contractDeploymentData,
-      fields.chainId,
-      fields.version,
-    ] as const;
+    return [fields.isFeePaymentTx, fields.isRebatePaymentTx, fields.chainId, fields.version] as const;
   }
 
   hash(): Fr {

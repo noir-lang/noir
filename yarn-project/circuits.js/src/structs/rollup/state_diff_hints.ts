@@ -3,7 +3,6 @@ import { Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 import { FieldsOf } from '@aztec/foundation/types';
 
 import {
-  CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
   MAX_NEW_NULLIFIERS_PER_TX,
   NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
   NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
@@ -48,10 +47,6 @@ export class StateDiffHints {
      */
     public nullifierSubtreeSiblingPath: Tuple<Fr, typeof NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH>,
     /**
-     * Sibling path "pointing to" where the new contracts subtree should be inserted into the contract tree.
-     */
-    public contractSubtreeSiblingPath: Tuple<Fr, typeof CONTRACT_SUBTREE_SIBLING_PATH_LENGTH>,
-    /**
      * Sibling path "pointing to" where the new public data subtree should be inserted into the public data tree.
      */
     public publicDataSiblingPath: Tuple<Fr, typeof PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH>,
@@ -69,7 +64,6 @@ export class StateDiffHints {
       fields.sortedNullifierIndexes,
       fields.noteHashSubtreeSiblingPath,
       fields.nullifierSubtreeSiblingPath,
-      fields.contractSubtreeSiblingPath,
       fields.publicDataSiblingPath,
     ] as const;
   }

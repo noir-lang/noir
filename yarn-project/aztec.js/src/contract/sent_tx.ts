@@ -75,8 +75,6 @@ export class SentTx {
         nullifiers: tx.nullifiers.filter(n => !n.isZero()),
         publicDataWrites: tx.publicDataWrites.filter(p => !p.isEmpty()),
         l2ToL1Msgs: tx.l2ToL1Msgs.filter(l => !l.isZero()),
-        contractsLeaves: tx.contractLeaves.filter(c => !c.isZero()),
-        contractData: tx.contractData.filter(c => !c.isEmpty()),
         visibleNotes,
       };
     }

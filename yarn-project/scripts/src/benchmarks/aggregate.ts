@@ -151,7 +151,7 @@ function processNodeSyncedChain(entry: NodeSyncedChainHistoryStats, results: Ben
 
 /** Processes entries for events tx-added-to-pool, with grouping by deployed contract count. */
 function processTxAddedToPool(entry: TxAddedToPoolStats, results: BenchmarkCollectedResults) {
-  append(results, 'tx_size_in_bytes', entry.newContractCount, entry.size);
+  append(results, 'tx_size_in_bytes', entry.classRegisteredCount, entry.size);
 }
 
 /** Process entries for events tx-private-part-processed, grouped by new note hashes */

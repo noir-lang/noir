@@ -55,16 +55,6 @@ export class BlockStore {
         block.getTxs().forEach((tx, i) => {
           void this.#txIndex.set(tx.txHash.toString(), [block.number, i]);
         });
-
-        block.body.txEffects
-          .flatMap(txEffect => txEffect.contractData)
-          .forEach((contractData, i) => {
-            if (contractData.contractAddress.isZero()) {
-              return;
-            }
-
-            void this.#contractIndex.set(contractData.contractAddress.toString(), [block.number, i]);
-          });
       }
 
       return true;

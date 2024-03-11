@@ -4,11 +4,8 @@ use crate::{
     private_circuit_public_inputs::PrivateCircuitPublicInputs, read_request::ReadRequest,
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
-    address::{AztecAddress, compute_initialization_hash},
-    contrakt::contract_deployment_data::ContractDeploymentData,
-    hash::{compute_constructor_hash, hash_args}, header::Header,
-    messaging::l2_to_l1_message::L2ToL1Message,
-    tests::{fixtures, testing_harness::build_contract_deployment_data}
+    address::{AztecAddress, compute_initialization_hash}, hash::{compute_constructor_hash, hash_args},
+    header::Header, messaging::l2_to_l1_message::L2ToL1Message, tests::fixtures
 };
 use crate::constants::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
@@ -45,14 +42,12 @@ struct PrivateCircuitPublicInputsBuilder {
 
     historical_header: Header,
 
-    contract_deployment_data: ContractDeploymentData,
-
     chain_id: Field,
     version: Field,
 }
 
 impl PrivateCircuitPublicInputsBuilder {
-    pub fn new(is_constructor: bool) -> Self {
+    pub fn new() -> Self {
         let mut public_inputs: PrivateCircuitPublicInputsBuilder = dep::std::unsafe::zeroed();
 
         let args_hash = hash_args([]);
@@ -60,28 +55,10 @@ impl PrivateCircuitPublicInputsBuilder {
         let contract_data = fixtures::contracts::default_contract;
         let portal_contract_address = contract_data.portal_contract_address;
 
-        let contract_function = if is_constructor {
-            fixtures::contract_functions::default_constructor
-        } else {
-            fixtures::contract_functions::default_private_function
-        };
+        let contract_function = fixtures::contract_functions::default_private_function;
         let function_data = contract_function.data;
 
-        let contract_deployment_data = build_contract_deployment_data(is_constructor, args_hash);
-
-        let contract_address = if is_constructor {
-            let constructor = fixtures::contract_functions::default_constructor;
-            let initialization_hash = compute_initialization_hash(constructor.data.selector.to_field(), args_hash);
-            AztecAddress::compute_from_public_key(
-                contract_deployment_data.public_key,
-                contract_deployment_data.contract_class_id,
-                contract_deployment_data.contract_address_salt,
-                initialization_hash,
-                portal_contract_address
-            )
-        } else {
-            contract_data.address
-        };
+        let contract_address = contract_data.address;
 
         let call_context = CallContext {
             msg_sender: fixtures::contracts::parent_contract.address,
@@ -90,12 +67,10 @@ impl PrivateCircuitPublicInputsBuilder {
             function_selector: function_data.selector,
             is_delegate_call: false,
             is_static_call: false,
-            is_contract_deployment: is_constructor,
             start_side_effect_counter: 0
         };
         public_inputs.call_context = call_context;
         public_inputs.args_hash = args_hash;
-        public_inputs.contract_deployment_data = contract_deployment_data;
         public_inputs.historical_header = fixtures::HEADER;
         public_inputs.chain_id = 0;
         public_inputs.version = 1;
@@ -123,7 +98,6 @@ impl PrivateCircuitPublicInputsBuilder {
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             historical_header: self.historical_header,
-            contract_deployment_data: self.contract_deployment_data,
             chain_id: self.chain_id,
             version: self.version
         }

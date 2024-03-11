@@ -68,7 +68,6 @@ function makePartialStateReference(seed = 0): PartialStateReference {
     makeAppendOnlyTreeSnapshot(seed),
     makeAppendOnlyTreeSnapshot(seed + 1),
     makeAppendOnlyTreeSnapshot(seed + 2),
-    makeAppendOnlyTreeSnapshot(seed + 3),
   );
 }
 

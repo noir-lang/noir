@@ -1,11 +1,6 @@
-import { ExtendedContractData, Tx, TxHash, TxL2Logs } from '@aztec/circuit-types';
-import {
-  MAX_NEW_CONTRACTS_PER_TX,
-  PrivateKernelTailCircuitPublicInputs,
-  Proof,
-  PublicCallRequest,
-} from '@aztec/circuits.js';
-import { Tuple, numToUInt32BE } from '@aztec/foundation/serialize';
+import { Tx, TxHash, TxL2Logs } from '@aztec/circuit-types';
+import { PrivateKernelTailCircuitPublicInputs, Proof, PublicCallRequest } from '@aztec/circuits.js';
+import { numToUInt32BE } from '@aztec/foundation/serialize';
 
 /**
  * Enumeration of P2P message types.
@@ -151,7 +146,6 @@ export function toTxMessage(tx: Tx): Buffer {
     createMessageComponent(tx.encryptedLogs),
     createMessageComponent(tx.unencryptedLogs),
     createMessageComponents(tx.enqueuedPublicFunctionCalls),
-    createMessageComponents(tx.newContracts),
   ]);
   const messageLength = numToUInt32BE(messageBuffer.length);
   return Buffer.concat([messageLength, messageBuffer]);
@@ -204,13 +198,5 @@ export function fromTxMessage(buffer: Buffer): Tx {
   }
 
   const publicCalls = toObjectArray(unencryptedLogs.remainingData, PublicCallRequest);
-  const newContracts = toObjectArray(publicCalls.remainingData, ExtendedContractData);
-  return new Tx(
-    publicInputs.obj!,
-    proof.obj!,
-    encryptedLogs.obj,
-    unencryptedLogs.obj,
-    publicCalls.objects,
-    newContracts.objects as Tuple<ExtendedContractData, typeof MAX_NEW_CONTRACTS_PER_TX>,
-  );
+  return new Tx(publicInputs.obj!, proof.obj!, encryptedLogs.obj, unencryptedLogs.obj, publicCalls.objects);
 }

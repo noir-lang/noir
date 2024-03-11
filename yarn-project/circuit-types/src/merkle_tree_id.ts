@@ -1,14 +1,21 @@
+import {
+  ARCHIVE_TREE_ID,
+  L1_TO_L2_MESSAGE_TREE_ID,
+  NOTE_HASH_TREE_ID,
+  NULLIFIER_TREE_ID,
+  PUBLIC_DATA_TREE_ID,
+} from '@aztec/circuits.js';
+
 /**
  * Defines the possible Merkle tree IDs.
- * NOTE: If you change this, update get_membership_witness.nr as well.
+ * @remarks The MerkleTrees class expects these to start from zero and be in incremental order.
  */
 export enum MerkleTreeId {
-  CONTRACT_TREE = 0,
-  NULLIFIER_TREE = 1,
-  NOTE_HASH_TREE = 2,
-  PUBLIC_DATA_TREE = 3,
-  L1_TO_L2_MESSAGE_TREE = 4,
-  ARCHIVE = 5,
+  NULLIFIER_TREE = NULLIFIER_TREE_ID,
+  NOTE_HASH_TREE = NOTE_HASH_TREE_ID,
+  PUBLIC_DATA_TREE = PUBLIC_DATA_TREE_ID,
+  L1_TO_L2_MESSAGE_TREE = L1_TO_L2_MESSAGE_TREE_ID,
+  ARCHIVE = ARCHIVE_TREE_ID,
 }
 
 export const merkleTreeIds = () => {

@@ -14,7 +14,7 @@ On this page, you'll learn
 
 - The details and functionalities of the private context in Aztec.nr
 - Difference between the private and public contexts and their unified APIs
-- Components of the private context, such as inputs, block header, and contract deployment data
+- Components of the private context, such as inputs and block header.
 - Elements like return values, read requests, new note hashes, and nullifiers in transaction processing
 - Differences between the private and public contexts, especially the unique features and variables in the public context
 
@@ -42,7 +42,7 @@ The context inputs includes all of the information that is passed from the kerne
 
 #include_code private-context-inputs /noir-projects/aztec-nr/aztec/src/context/inputs/private_context_inputs.nr rust
 
-As shown in the snippet, the application context is made up of 4 main structures. The call context, the block header, the contract deployment data and the private global variables.
+As shown in the snippet, the application context is made up of 4 main structures. The call context, the block header, and the private global variables.
 
 First of all, the call context.
 
@@ -67,7 +67,6 @@ The call context contains information about the current call being made:
    - Furthermore there are a series of flags that are stored within the application context:
      - is_delegate_call: Denotes whether the current call is a delegate call. If true, then the storage contract address will be the address of the sender.
      - is_static_call: This will be set if and only if the current call is a static call. In a static call, state changing altering operations are not allowed.
-     - is_contract_deployment: This will be set if and only if the current call is the contract's constructor.
 
 ### Header
 
@@ -76,12 +75,6 @@ In the private context this is a header of a block which used to generate proofs
 In the public context this header is set by sequencer (sequencer executes public calls) and it is set to 1 block before the block in which the transaction is included.
 
 #include_code header /noir-projects/noir-protocol-circuits/crates/types/src/header.nr rust
-
-### Contract Deployment Data
-
-Just like with the `is_contract_deployment` flag mentioned earlier. This data will only be set to true when the current transaction is one in which a contract is being deployed.
-
-#include_code contract-deployment-data /noir-projects/noir-protocol-circuits/crates/types/src/contrakt/contract_deployment_data.nr rust
 
 ### Private Global Variables
 
@@ -137,7 +130,7 @@ The Public Context includes all of the information passed from the `Public VM` i
 
 ### Public Context Inputs
 
-In the current version of the system, the public context is almost a clone of the private execution context. It contains the same call context data, access to the same historical tree roots, however it does NOT have access to contract deployment data, this is due to traditional contract deployments only currently being possible from private transactions.
+In the current version of the system, the public context is almost a clone of the private execution context.
 
 #include_code public-context-inputs /noir-projects/aztec-nr/aztec/src/context/inputs/public_context_inputs.nr rust
 

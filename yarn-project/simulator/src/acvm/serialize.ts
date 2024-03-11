@@ -1,4 +1,4 @@
-import { PublicCallRequest } from '@aztec/circuits.js';
+import { ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH, PublicCallRequest } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -53,12 +53,18 @@ export function toACVMField(
  * TODO(#4380): Nuke this and replace it with PublicCallRequest.toFields()
  */
 export function toAcvmEnqueuePublicFunctionResult(item: PublicCallRequest): ACVMField[] {
-  return [
+  const fields = [
     item.contractAddress.toField(),
     ...item.functionData.toFields(),
     ...item.callContext.toFields(),
     item.getArgsHash(),
-  ].map(toACVMField);
+  ];
+  if (fields.length !== ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH) {
+    throw new Error(
+      `Invalid length for EnqueuePublicFunctionResult (got ${fields.length} expected ${ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH})`,
+    );
+  }
+  return fields.map(toACVMField);
 }
 
 /**

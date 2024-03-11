@@ -1,4 +1,4 @@
-import { ContractData, ExtendedContractData } from '@aztec/circuit-types';
+import { ExtendedContractData } from '@aztec/circuit-types';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecKVStore, AztecMap } from '@aztec/kv-store';
@@ -51,48 +51,5 @@ export class ContractStore {
     }
 
     return undefined;
-  }
-
-  /**
-   * Lookup all extended contract data in an L2 block.
-   * @param blockNumber - The block number to get all contract data from.
-   * @returns All extended contract data in the block (if found).
-   */
-  getExtendedContractDataInBlock(blockNumber: number): Array<ExtendedContractData> {
-    return (this.#extendedContractData.get(blockNumber) ?? []).map(contract =>
-      ExtendedContractData.fromBuffer(contract),
-    );
-  }
-
-  /**
-   * Get basic info for an L2 contract.
-   * Contains contract address & the ethereum portal address.
-   * @param contractAddress - The contract data address.
-   * @returns ContractData with the portal address (if we didn't throw an error).
-   */
-  getContractData(contractAddress: AztecAddress): ContractData | undefined {
-    const [blockNumber, index] = this.#blockStore.getContractLocation(contractAddress) ?? [];
-    if (typeof blockNumber !== 'number' || typeof index !== 'number') {
-      return undefined;
-    }
-
-    const block = this.#blockStore.getBlock(blockNumber);
-
-    if (block?.body.txEffects[index].contractData.length !== 1) {
-      throw new Error(`Contract data at block: ${blockNumber}, tx: ${index} does not have length of 1`);
-    }
-
-    return block?.body.txEffects[index].contractData[0];
-  }
-
-  /**
-   * Get basic info for an all L2 contracts deployed in a block.
-   * Contains contract address & the ethereum portal address.
-   * @param blockNumber - Number of the L2 block where contracts were deployed.
-   * @returns ContractData with the portal address (if we didn't throw an error).
-   */
-  getContractDataInBlock(blockNumber: number): ContractData[] {
-    const block = this.#blockStore.getBlock(blockNumber);
-    return block?.body.txEffects.flatMap(txEffect => txEffect.contractData) ?? [];
   }
 }

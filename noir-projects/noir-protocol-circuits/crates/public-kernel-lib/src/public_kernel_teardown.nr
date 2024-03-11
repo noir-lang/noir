@@ -66,16 +66,14 @@ mod tests {
     use crate::{
         public_kernel_teardown::PublicKernelTeardownCircuitPrivateInputs,
         utils::{
-        assert_eq_call_requests, assert_eq_new_contracts, assert_eq_public_data_reads,
-        assert_eq_public_data_update_requests, compute_public_data_reads,
-        compute_public_data_update_requests
+        assert_eq_call_requests, assert_eq_public_data_reads, assert_eq_public_data_update_requests,
+        compute_public_data_reads, compute_public_data_update_requests
     }
     };
     use dep::types::{
         abis::{
         call_request::CallRequest, function_selector::FunctionSelector,
-        kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs,
-        new_contract_data::NewContractData, public_data_read::PublicDataRead,
+        kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, public_data_read::PublicDataRead,
         public_data_update_request::PublicDataUpdateRequest
     },
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,

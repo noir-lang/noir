@@ -43,7 +43,6 @@ import {
   retrieveBlockBodiesFromAvailabilityOracle,
   retrieveBlockMetadataFromRollup,
   retrieveNewCancelledL1ToL2Messages,
-  retrieveNewContractData,
   retrieveNewL1ToL2Messages,
   retrieveNewPendingL1ToL2Messages,
 } from './data_retrieval.js';
@@ -76,7 +75,6 @@ export class Archiver implements ArchiveSource {
    * @param inboxAddress - Ethereum address of the inbox contract.
    * @param newInboxAddress - Ethereum address of the new inbox contract.
    * @param registryAddress - Ethereum address of the registry contract.
-   * @param contractDeploymentEmitterAddress - Ethereum address of the contractDeploymentEmitter contract.
    * @param pollingIntervalMs - The interval for polling for L1 logs (in milliseconds).
    * @param store - An archiver data store for storage & retrieval of blocks, encrypted logs & contract data.
    * @param log - A logger.
@@ -88,7 +86,6 @@ export class Archiver implements ArchiveSource {
     private readonly inboxAddress: EthAddress,
     private readonly newInboxAddress: EthAddress,
     private readonly registryAddress: EthAddress,
-    private readonly contractDeploymentEmitterAddress: EthAddress,
     private readonly store: ArchiverDataStore,
     private readonly pollingIntervalMs = 10_000,
     private readonly log: DebugLogger = createDebugLogger('aztec:archiver'),
@@ -131,7 +128,6 @@ export class Archiver implements ArchiveSource {
       config.l1Contracts.inboxAddress,
       newInboxAddress,
       config.l1Contracts.registryAddress,
-      config.l1Contracts.contractDeploymentEmitterAddress,
       archiverStore,
       config.archiverPollingIntervalMS,
     );
@@ -323,14 +319,6 @@ export class Archiver implements ArchiveSource {
     retrievedBlocks.retrievedData.forEach((block: L2Block) => {
       blockNumberToBodyHash[block.number] = block.header.contentCommitment.txsEffectsHash;
     });
-    const retrievedContracts = await retrieveNewContractData(
-      this.publicClient,
-      this.contractDeploymentEmitterAddress,
-      blockUntilSynced,
-      lastL1Blocks.addedBlock + 1n,
-      currentL1BlockNumber,
-      blockNumberToBodyHash,
-    );
 
     this.log(`Retrieved ${retrievedBlocks.retrievedData.length} block(s) from chain`);
 
@@ -352,18 +340,6 @@ export class Archiver implements ArchiveSource {
           .map(log => UnencryptedL2Log.fromBuffer(log));
         await this.storeRegisteredContractClasses(blockLogs, block.number);
         await this.storeDeployedContractInstances(blockLogs, block.number);
-      }),
-    );
-
-    // store contracts for which we have retrieved L2 blocks
-    const lastKnownL2BlockNum = retrievedBlocks.retrievedData[retrievedBlocks.retrievedData.length - 1].number;
-    await Promise.all(
-      retrievedContracts.retrievedData.map(async ([contracts, l2BlockNum]) => {
-        this.log(`Retrieved extended contract data for l2 block number: ${l2BlockNum}`);
-        if (l2BlockNum <= lastKnownL2BlockNum) {
-          await this.store.addExtendedContractData(contracts, l2BlockNum);
-          await this.storeContractDataAsClassesAndInstances(contracts, l2BlockNum);
-        }
       }),
     );
 
@@ -410,6 +386,7 @@ export class Archiver implements ArchiveSource {
    * Temporary solution until we source this data from the contract class registerer and instance deployer.
    * @param contracts - The extended contract data to be stored.
    * @param l2BlockNum - The L2 block number to which the contract data corresponds.
+   * TODO(palla/purge-old-contract-deploy): Delete this method
    */
   async storeContractDataAsClassesAndInstances(contracts: ExtendedContractData[], l2BlockNum: number) {
     const classesAndInstances = contracts.map(extendedContractDataToContractClassAndInstance);
@@ -489,6 +466,7 @@ export class Archiver implements ArchiveSource {
   /**
    * Temporary method for creating a fake extended contract data out of classes and instances registered in the node.
    * Used as a fallback if the extended contract data is not found.
+   * TODO(palla/purge-old-contract-deploy): Use proper classes
    */
   private async makeExtendedContractDataFor(address: AztecAddress): Promise<ExtendedContractData | undefined> {
     const instance = await this.store.getContractInstance(address);
@@ -506,22 +484,13 @@ export class Archiver implements ArchiveSource {
   }
 
   /**
-   * Lookup all contract data in an L2 block.
-   * @param blockNum - The block number to get all contract data from.
-   * @returns All new contract data in the block (if found).
-   */
-  public getExtendedContractDataInBlock(blockNum: number): Promise<ExtendedContractData[]> {
-    return this.store.getExtendedContractDataInBlock(blockNum);
-  }
-
-  /**
    * Lookup the contract data for this contract.
    * Contains contract address & the ethereum portal address.
    * @param contractAddress - The contract data address.
    * @returns ContractData with the portal address (if we didn't throw an error).
    */
-  public async getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
-    return (await this.store.getContractData(contractAddress)) ?? this.makeContractDataFor(contractAddress);
+  public getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
+    return this.makeContractDataFor(contractAddress);
   }
 
   /**
@@ -535,16 +504,6 @@ export class Archiver implements ArchiveSource {
     }
 
     return new ContractData(address, instance.portalContractAddress);
-  }
-
-  /**
-   * Lookup the L2 contract data inside a block.
-   * Contains contract address & the ethereum portal address.
-   * @param l2BlockNum - The L2 block number to get the contract data from.
-   * @returns ContractData with the portal address (if we didn't throw an error).
-   */
-  public getContractDataInBlock(l2BlockNum: number): Promise<ContractData[] | undefined> {
-    return this.store.getContractDataInBlock(l2BlockNum);
   }
 
   /**

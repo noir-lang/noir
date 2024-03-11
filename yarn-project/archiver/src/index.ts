@@ -47,7 +47,6 @@ async function main() {
     l1Contracts.inboxAddress,
     newInboxAddress,
     l1Contracts.registryAddress,
-    l1Contracts.contractDeploymentEmitterAddress,
     archiverStore,
   );
 

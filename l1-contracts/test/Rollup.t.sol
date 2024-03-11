@@ -62,7 +62,8 @@ contract RollupTest is DecoderBase {
     bytes memory body = data.body;
 
     assembly {
-      mstore(add(header, add(0x20, 0x0158)), 0x420)
+      // TODO: Hardcoding offsets in the middle of tests is annoying to say the least.
+      mstore(add(header, add(0x20, 0x0134)), 0x420)
     }
 
     availabilityOracle.publish(body);
@@ -78,7 +79,7 @@ contract RollupTest is DecoderBase {
     bytes memory body = data.body;
 
     assembly {
-      mstore(add(header, add(0x20, 0x0178)), 0x420)
+      mstore(add(header, add(0x20, 0x0154)), 0x420)
     }
 
     availabilityOracle.publish(body);
@@ -95,7 +96,7 @@ contract RollupTest is DecoderBase {
 
     uint256 ts = block.timestamp + 1;
     assembly {
-      mstore(add(header, add(0x20, 0x01b8)), ts)
+      mstore(add(header, add(0x20, 0x0194)), ts)
     }
 
     availabilityOracle.publish(body);

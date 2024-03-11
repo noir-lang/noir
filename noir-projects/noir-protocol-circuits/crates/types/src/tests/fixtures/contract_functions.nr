@@ -10,18 +10,6 @@ struct ContractFunction {
     membership_witness: FunctionLeafMembershipWitness,
 }
 
-global default_constructor = ContractFunction {
-    data: FunctionData {
-        selector: FunctionSelector { inner: 999 },
-        is_internal: false,
-        is_private: true,
-        is_constructor: true,
-    },
-    vk_hash: 0,
-    acir_hash: 43214321,
-    membership_witness: dep::std::unsafe::zeroed(),
-};
-
 // sibling_path taken from __snapshots__/noir_test_gen.test.ts.snap
 global default_private_function = ContractFunction {
     data: FunctionData {

@@ -215,10 +215,7 @@ resource "aws_ecs_task_definition" "aztec-node" {
         "name": "SEQ_PUBLISHER_PRIVATE_KEY",
         "value": "${local.publisher_private_keys[count.index]}"
       },
-      {
-        "name": "CONTRACT_DEPLOYMENT_EMITTER_ADDRESS",
-        "value": "${data.terraform_remote_state.l1_contracts.outputs.contract_deployment_emitter_address}"
-      },
+
       {
         "name": "ROLLUP_CONTRACT_ADDRESS",
         "value": "${data.terraform_remote_state.l1_contracts.outputs.rollup_contract_address}"

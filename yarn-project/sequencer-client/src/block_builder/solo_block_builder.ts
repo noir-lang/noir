@@ -5,8 +5,6 @@ import {
   AppendOnlyTreeSnapshot,
   BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
-  CONTRACT_SUBTREE_HEIGHT,
-  CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
   ConstantRollupData,
   GlobalVariables,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
@@ -137,9 +135,6 @@ export class SoloBlockBuilder implements BlockBuilder {
       if (txHeader.state.partial.nullifierTree.isZero()) {
         throw new Error(`Empty nullifier tree in tx: ${toFriendlyJSON(tx)}`);
       }
-      if (txHeader.state.partial.contractTree.isZero()) {
-        throw new Error(`Empty contract tree in tx: ${toFriendlyJSON(tx)}`);
-      }
       if (txHeader.state.partial.publicDataTree.isZero()) {
         throw new Error(`Empty public data tree in tx: ${toFriendlyJSON(tx)}`);
       }
@@ -171,14 +166,11 @@ export class SoloBlockBuilder implements BlockBuilder {
     for (const tx of txs) {
       const input = await this.buildBaseRollupInput(tx, globalVariables);
       baseRollupInputs.push(input);
-      const promises = [
-        MerkleTreeId.NOTE_HASH_TREE,
-        MerkleTreeId.CONTRACT_TREE,
-        MerkleTreeId.NULLIFIER_TREE,
-        MerkleTreeId.PUBLIC_DATA_TREE,
-      ].map(async (id: MerkleTreeId) => {
-        return { key: id, value: await this.getTreeSnapshot(id) };
-      });
+      const promises = [MerkleTreeId.NOTE_HASH_TREE, MerkleTreeId.NULLIFIER_TREE, MerkleTreeId.PUBLIC_DATA_TREE].map(
+        async (id: MerkleTreeId) => {
+          return { key: id, value: await this.getTreeSnapshot(id) };
+        },
+      );
       const snapshots: Map<MerkleTreeId, AppendOnlyTreeSnapshot> = new Map(
         (await Promise.all(promises)).map(obj => [obj.key, obj.value]),
       );
@@ -317,11 +309,6 @@ export class SoloBlockBuilder implements BlockBuilder {
       'NullifierTree',
     );
     this.validateSimulatedTree(
-      treeSnapshots.get(MerkleTreeId.CONTRACT_TREE)!,
-      partialState.contractTree,
-      'ContractTree',
-    );
-    this.validateSimulatedTree(
       treeSnapshots.get(MerkleTreeId.PUBLIC_DATA_TREE)!,
       partialState.publicDataTree,
       'PublicDataTree',
@@ -329,14 +316,11 @@ export class SoloBlockBuilder implements BlockBuilder {
   }
 
   protected async validateState(state: StateReference) {
-    const promises = [
-      MerkleTreeId.NOTE_HASH_TREE,
-      MerkleTreeId.CONTRACT_TREE,
-      MerkleTreeId.NULLIFIER_TREE,
-      MerkleTreeId.PUBLIC_DATA_TREE,
-    ].map(async (id: MerkleTreeId) => {
-      return { key: id, value: await this.getTreeSnapshot(id) };
-    });
+    const promises = [MerkleTreeId.NOTE_HASH_TREE, MerkleTreeId.NULLIFIER_TREE, MerkleTreeId.PUBLIC_DATA_TREE].map(
+      async (id: MerkleTreeId) => {
+        return { key: id, value: await this.getTreeSnapshot(id) };
+      },
+    );
     const snapshots: Map<MerkleTreeId, AppendOnlyTreeSnapshot> = new Map(
       (await Promise.all(promises)).map(obj => [obj.key, obj.value]),
     );
@@ -636,7 +620,6 @@ export class SoloBlockBuilder implements BlockBuilder {
     const start = new PartialStateReference(
       await this.getTreeSnapshot(MerkleTreeId.NOTE_HASH_TREE),
       await this.getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE),
-      await this.getTreeSnapshot(MerkleTreeId.CONTRACT_TREE),
       await this.getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE),
     );
 
@@ -650,25 +633,9 @@ export class SoloBlockBuilder implements BlockBuilder {
       i < noteHashSubtreeSiblingPathArray.length ? noteHashSubtreeSiblingPathArray[i] : Fr.ZERO,
     );
 
-    const contractSubtreeSiblingPathArray = await this.getSubtreeSiblingPath(
-      MerkleTreeId.CONTRACT_TREE,
-      CONTRACT_SUBTREE_HEIGHT,
-    );
-
-    const contractSubtreeSiblingPath = makeTuple(CONTRACT_SUBTREE_SIBLING_PATH_LENGTH, i =>
-      i < contractSubtreeSiblingPathArray.length ? contractSubtreeSiblingPathArray[i] : Fr.ZERO,
-    );
-
-    // Update the contract and note hash trees with the new items being inserted to get the new roots
+    // Update the note hash trees with the new items being inserted to get the new roots
     // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
-    const newContracts = tx.data.combinedData.newContracts.map(cd => cd.hash());
     const newNoteHashes = tx.data.combinedData.newNoteHashes.map(x => x.value.toBuffer());
-
-    await this.db.appendLeaves(
-      MerkleTreeId.CONTRACT_TREE,
-      newContracts.map(x => x.toBuffer()),
-    );
-
     await this.db.appendLeaves(MerkleTreeId.NOTE_HASH_TREE, newNoteHashes);
 
     // The read witnesses for a given TX should be generated before the writes of the same TX are applied.
@@ -720,7 +687,6 @@ export class SoloBlockBuilder implements BlockBuilder {
       sortedNullifierIndexes: makeTuple(MAX_NEW_NULLIFIERS_PER_TX, i => sortedNewLeavesIndexes[i]),
       noteHashSubtreeSiblingPath,
       nullifierSubtreeSiblingPath,
-      contractSubtreeSiblingPath,
       publicDataSiblingPath,
     });
 

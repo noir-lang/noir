@@ -1,15 +1,11 @@
 use crate::{
-    constants::{GENERATOR_INDEX__TX_CONTEXT, TX_CONTEXT_DATA_LENGTH},
-    contrakt::contract_deployment_data::ContractDeploymentData, hash::pedersen_hash,
+    constants::{GENERATOR_INDEX__TX_CONTEXT, TX_CONTEXT_DATA_LENGTH}, hash::pedersen_hash,
     traits::{Deserialize, Hash, Serialize}, utils::reader::Reader
 };
 
 struct TxContext {
     is_fee_payment_tx : bool,
     is_rebate_payment_tx : bool,
-    is_contract_deployment_tx : bool,
-
-    contract_deployment_data : ContractDeploymentData,
 
     chain_id : Field,
     version : Field,
@@ -19,8 +15,6 @@ impl Eq for TxContext {
     fn eq(self, other: Self) -> bool {
         (self.is_fee_payment_tx == other.is_fee_payment_tx) &
         (self.is_rebate_payment_tx == other.is_rebate_payment_tx) &
-        (self.is_contract_deployment_tx == other.is_contract_deployment_tx) &
-        self.contract_deployment_data.eq(other.contract_deployment_data) &
         (self.chain_id == other.chain_id) &
         (self.version == other.version)
     }
@@ -32,8 +26,6 @@ impl Serialize<TX_CONTEXT_DATA_LENGTH> for TxContext {
 
         fields.push(self.is_fee_payment_tx as Field);
         fields.push(self.is_rebate_payment_tx as Field);
-        fields.push(self.is_contract_deployment_tx as Field);
-        fields.extend_from_array(self.contract_deployment_data.serialize());
         fields.push(self.chain_id);
         fields.push(self.version);
 
@@ -51,8 +43,6 @@ impl Deserialize<TX_CONTEXT_DATA_LENGTH> for TxContext {
         let context = Self {
             is_fee_payment_tx: reader.read() as bool,
             is_rebate_payment_tx: reader.read() as bool,
-            is_contract_deployment_tx: reader.read() as bool,
-            contract_deployment_data: reader.read_struct(ContractDeploymentData::deserialize),
             chain_id: reader.read(),
             version: reader.read(),
         };
@@ -81,6 +71,7 @@ fn empty_hash() {
     let inputs: TxContext = dep::std::unsafe::zeroed();
     let hash = inputs.hash();
 
-    // Value from contract_deployment_data.test.ts "computes empty item hash" test
-    assert_eq(hash, 0x2e7ff14389eef3dc51597529149e01b49cb33829f7089438c8c145c8f352c17b);
+    // Value from tx_context.test.ts "computes empty item hash" test
+    let test_data_empty_hash = 0x200569267c0f73ac89aaa414239398db9445dd4ad3a8cf37015cd55b8d4c5e8d;
+    assert_eq(hash, test_data_empty_hash);
 }

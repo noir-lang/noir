@@ -1,6 +1,5 @@
 import {
   ARCHIVE_HEIGHT,
-  CONTRACT_TREE_HEIGHT,
   Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
   NOTE_HASH_TREE_HEIGHT,
@@ -40,17 +39,6 @@ export interface AztecNode {
    * @returns The index of the given leaf in the given tree or undefined if not found.
    */
   findLeafIndex(blockNumber: BlockNumber, treeId: MerkleTreeId, leafValue: Fr): Promise<bigint | undefined>;
-
-  /**
-   * Returns a sibling path for the given index in the contract tree.
-   * @param blockNumber - The block number at which to get the data.
-   * @param leafIndex - The index of the leaf for which the sibling path is required.
-   * @returns The sibling path for the leaf index.
-   */
-  getContractSiblingPath(
-    blockNumber: BlockNumber,
-    leafIndex: bigint,
-  ): Promise<SiblingPath<typeof CONTRACT_TREE_HEIGHT>>;
 
   /**
    * Returns a sibling path for the given index in the nullifier tree.

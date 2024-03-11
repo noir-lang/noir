@@ -1,15 +1,9 @@
-import { Body, ExtendedContractData, L2Block, L2BlockL2Logs, LogType } from '@aztec/circuit-types';
+import { Body, L2Block, L2BlockL2Logs, LogType } from '@aztec/circuit-types';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { sleep } from '@aztec/foundation/sleep';
-import {
-  AvailabilityOracleAbi,
-  ContractDeploymentEmitterAbi,
-  InboxAbi,
-  NewInboxAbi,
-  RollupAbi,
-} from '@aztec/l1-artifacts';
+import { AvailabilityOracleAbi, InboxAbi, NewInboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Chain, HttpTransport, Log, PublicClient, Transaction, encodeFunctionData, toHex } from 'viem';
@@ -25,7 +19,6 @@ describe('Archiver', () => {
   const newInboxAddress = EthAddress.ZERO;
   const registryAddress = EthAddress.ZERO;
   const availabilityOracleAddress = EthAddress.ZERO;
-  const contractDeploymentEmitterAddress = EthAddress.fromString('0x0000000000000000000000000000000000000001');
   const blockNumbers = [1, 2, 3];
   let publicClient: MockProxy<PublicClient<HttpTransport, Chain>>;
   let archiverStore: ArchiverDataStore;
@@ -43,7 +36,6 @@ describe('Archiver', () => {
       inboxAddress,
       newInboxAddress,
       registryAddress,
-      contractDeploymentEmitterAddress,
       archiverStore,
       1000,
     );
@@ -94,7 +86,6 @@ describe('Archiver', () => {
       .mockResolvedValueOnce([makeLeafInsertedEvent(98n, 1n, 0n), makeLeafInsertedEvent(99n, 1n, 1n)])
       .mockResolvedValueOnce([makeTxsPublishedEvent(101n, blocks[0].body.getTxsEffectsHash())])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(101n, 1n)])
-      .mockResolvedValueOnce([makeContractDeploymentEvent(103n, blocks[0])]) // the first loop of the archiver ends here at block 2500
       .mockResolvedValueOnce(l1ToL2MessageAddedEvents.slice(2, 4).flat())
       .mockResolvedValueOnce(makeL1ToL2MessageCancelledEvents(2503n, l1ToL2MessagesToCancel))
       .mockResolvedValueOnce([
@@ -108,7 +99,6 @@ describe('Archiver', () => {
         makeTxsPublishedEvent(2520n, blocks[2].body.getTxsEffectsHash()),
       ])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(2510n, 2n), makeL2BlockProcessedEvent(2520n, 3n)])
-      .mockResolvedValueOnce([makeContractDeploymentEvent(2540n, blocks[1])])
       .mockResolvedValue([]);
     publicClient.getTransaction.mockResolvedValueOnce(publishTxs[0]);
     publicClient.getTransaction.mockResolvedValueOnce(rollupTxs[0]);
@@ -182,7 +172,6 @@ describe('Archiver', () => {
       inboxAddress,
       newInboxAddress,
       registryAddress,
-      contractDeploymentEmitterAddress,
       archiverStore,
       1000,
     );
@@ -268,7 +257,6 @@ describe('Archiver', () => {
       inboxAddress,
       newInboxAddress,
       registryAddress,
-      contractDeploymentEmitterAddress,
       archiverStore,
       1000,
     );
@@ -343,31 +331,6 @@ function makeTxsPublishedEvent(l1BlockNum: bigint, txsEffectsHash: Buffer) {
       txsEffectsHash: txsEffectsHash.toString('hex'),
     },
   } as Log<bigint, number, false, undefined, true, typeof AvailabilityOracleAbi, 'TxsPublished'>;
-}
-
-/**
- * Makes a fake ContractDeployment event for testing purposes.
- * @param l1BlockNum - L1 block number.
- * @param l2Block - The l2Block this event is associated with.
- * @returns An ContractDeployment event.
- */
-function makeContractDeploymentEvent(l1BlockNum: bigint, l2Block: L2Block) {
-  const extendedContractData = ExtendedContractData.random();
-  const acir = extendedContractData.bytecode?.toString('hex');
-  return {
-    blockNumber: l1BlockNum,
-    args: {
-      l2BlockNum: BigInt(l2Block.number),
-      aztecAddress: extendedContractData.contractData.contractAddress.toString(),
-      portalAddress: extendedContractData.contractData.portalContractAddress.toString(),
-      l2BlockHash: `0x${l2Block.body.getTxsEffectsHash().toString('hex')}`,
-      contractClassId: extendedContractData.contractClassId.toString(),
-      saltedInitializationHash: extendedContractData.saltedInitializationHash.toString(),
-      publicKeyHash: extendedContractData.publicKeyHash.toString(),
-      acir: '0x' + acir,
-    },
-    transactionHash: `0x${l2Block.number}`,
-  } as Log<bigint, number, false, undefined, true, typeof ContractDeploymentEmitterAbi, 'ContractDeployment'>;
 }
 
 /**

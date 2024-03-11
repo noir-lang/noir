@@ -1,6 +1,6 @@
 use crate::abis::{
     call_request::CallRequest, private_call_stack_item::PrivateCallStackItem,
-    membership_witness::{ContractLeafMembershipWitness, FunctionLeafMembershipWitness, NoteHashReadRequestMembershipWitness}
+    membership_witness::{FunctionLeafMembershipWitness, NoteHashReadRequestMembershipWitness}
 };
 use crate::address::{SaltedInitializationHash, PublicKeysHash, EthAddress};
 use crate::contract_class_id::ContractClassId;

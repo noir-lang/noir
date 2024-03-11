@@ -19,8 +19,7 @@ use dep::types::{
 },
     constants::{
     NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
-    CONTRACT_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_TREE_HEIGHT, MAX_NEW_CONTRACTS_PER_TX,
-    NOTE_HASH_SUBTREE_HEIGHT, CONTRACT_SUBTREE_HEIGHT, NUM_FIELDS_PER_SHA256,
+    PUBLIC_DATA_TREE_HEIGHT, NOTE_HASH_SUBTREE_HEIGHT, NUM_FIELDS_PER_SHA256,
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX,
     MAX_NEW_NULLIFIERS_PER_TX, NUM_ENCRYPTED_LOGS_HASHES_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     NUM_UNENCRYPTED_LOGS_HASHES_PER_TX, NULLIFIER_SUBTREE_HEIGHT, NULLIFIER_TREE_HEIGHT,
@@ -73,11 +72,6 @@ impl BaseRollupInputs {
             == self.constants.global_variables.version, "kernel version does not match the rollup version"
         );
 
-        // First we compute the contract tree leaves
-        let contract_leaves = self.calculate_contract_leaves();
-
-        let contracts_tree_subroot = self.calculate_contract_subtree_root(contract_leaves);
-
         let commitments_tree_subroot = self.calculate_commitments_subtree();
 
         let empty_commitments_subtree_root = calculate_empty_tree_root(NOTE_HASH_SUBTREE_HEIGHT);
@@ -88,16 +82,6 @@ impl BaseRollupInputs {
             empty_commitments_subtree_root,
             commitments_tree_subroot,
             NOTE_HASH_SUBTREE_HEIGHT as u8
-        );
-
-        // Insert contract subtrees:
-        let empty_contracts_subtree_root = calculate_empty_tree_root(CONTRACT_SUBTREE_HEIGHT);
-        let end_contract_tree_snapshot = append_only_tree::insert_subtree_to_snapshot_tree(
-            self.start.contract_tree,
-            self.state_diff_hints.contract_subtree_sibling_path,
-            empty_contracts_subtree_root,
-            contracts_tree_subroot,
-            CONTRACT_SUBTREE_HEIGHT as u8
         );
 
         // Insert nullifiers:
@@ -124,41 +108,11 @@ impl BaseRollupInputs {
             end: PartialStateReference {
                 note_hash_tree: end_note_hash_tree_snapshot,
                 nullifier_tree: end_nullifier_tree_snapshot,
-                contract_tree: end_contract_tree_snapshot,
                 public_data_tree: end_public_data_tree_snapshot
             },
             txs_effects_hash: tx_effects_hash,
             out_hash
         }
-    }
-
-    fn calculate_contract_leaves(self) -> [Field; MAX_NEW_CONTRACTS_PER_TX] {
-        let mut contract_leaves = [0; MAX_NEW_CONTRACTS_PER_TX];
-        let new_contracts = self.kernel_data.public_inputs.end.new_contracts;
-
-        // loop over the new contracts
-        for i in 0..new_contracts.len() {
-            let leaf_preimage = new_contracts[i];
-            // When there is no contract deployment, we should insert a zero leaf into the tree and ignore the
-            // member-ship check. This is to ensure that we don't hit "already deployed" errors when we are not
-            // deploying contracts. e.g., when we are only calling functions on existing contracts.
-            let to_push = if leaf_preimage.contract_address.to_field() == 0 {
-                0
-            } else {
-                leaf_preimage.hash()
-            };
-            contract_leaves[i] = to_push;
-        }
-
-        contract_leaves
-    }
-
-    // Cpp code says calculate_contract_subtree, so I'm leaving it as is for now
-    fn calculate_contract_subtree_root(self, leaves: [Field; MAX_NEW_CONTRACTS_PER_TX]) -> Field {
-        // Silence warning for unused self, pending proper fix.
-        let _  = self;
-        assert_eq(leaves.len(), 1);
-        leaves[0]
     }
 
     // TODO(Kev): This should say calculate_commitments_subtree_root
@@ -437,20 +391,19 @@ mod tests {
         abis::{
         append_only_tree_snapshot::AppendOnlyTreeSnapshot,
         membership_witness::{ArchiveRootMembershipWitness, NullifierMembershipWitness, PublicDataMembershipWitness},
-        new_contract_data::NewContractData, nullifier_leaf_preimage::NullifierLeafPreimage,
-        public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
+        nullifier_leaf_preimage::NullifierLeafPreimage, public_data_read::PublicDataRead,
+        public_data_update_request::PublicDataUpdateRequest,
         kernel_data::{PublicKernelData, RollupKernelData}, side_effect::SideEffect,
         accumulated_data::CombinedAccumulatedData
     },
         address::{AztecAddress, EthAddress},
         constants::{
-        CONTRACT_SUBTREE_SIBLING_PATH_LENGTH, CONTRACT_TREE_HEIGHT, CONTRACT_SUBTREE_HEIGHT,
         ARCHIVE_HEIGHT, MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-        MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NEW_CONTRACTS_PER_TX,
-        NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, NOTE_HASH_TREE_HEIGHT, NOTE_HASH_SUBTREE_HEIGHT,
-        NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_HEIGHT,
-        PUBLIC_DATA_TREE_HEIGHT, PUBLIC_DATA_SUBTREE_HEIGHT, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
-        NUM_FIELDS_PER_SHA256, MAX_NEW_L2_TO_L1_MSGS_PER_TX
+        MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
+        NOTE_HASH_TREE_HEIGHT, NOTE_HASH_SUBTREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
+        NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_HEIGHT, PUBLIC_DATA_TREE_HEIGHT,
+        PUBLIC_DATA_SUBTREE_HEIGHT, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, NUM_FIELDS_PER_SHA256,
+        MAX_NEW_L2_TO_L1_MSGS_PER_TX
     },
         contract_class_id::ContractClassId, partial_state_reference::PartialStateReference,
         hash::assert_check_membership, merkle_tree::{calculate_empty_tree_root, calculate_subtree},
@@ -702,21 +655,6 @@ mod tests {
                 next_available_leaf_index: start_nullifier_tree.get_next_available_index() as u32
             };
 
-            let start_contract_tree = NonEmptyMerkleTree::new(
-                self.pre_existing_contracts,
-                [0; CONTRACT_TREE_HEIGHT],
-                [0; CONTRACT_TREE_HEIGHT - 1],
-                [0; 1]
-            );
-            let start_contract_tree_snapshot = AppendOnlyTreeSnapshot {
-                root: start_contract_tree.get_root(),
-                next_available_leaf_index: start_contract_tree.get_next_available_index() as u32
-            };
-            let contract_subtree_sibling_path = BaseRollupInputsBuilder::extract_subtree_sibling_path(
-                start_contract_tree.get_sibling_path(self.pre_existing_contracts.len()),
-                [0; CONTRACT_SUBTREE_SIBLING_PATH_LENGTH]
-            );
-
             let mut start_public_data_tree = NonEmptyMerkleTree::new(
                 self.pre_existing_public_data.map(|preimage: PublicDataTreeLeafPreimage| preimage.hash()),
                 [0; PUBLIC_DATA_TREE_HEIGHT],
@@ -775,7 +713,6 @@ mod tests {
             let start = PartialStateReference {
                 note_hash_tree: start_note_hash_tree_snapshot,
                 nullifier_tree: start_nullifier_tree_snapshot,
-                contract_tree: start_contract_tree_snapshot,
                 public_data_tree: start_public_data_tree_snapshot
             };
 
@@ -786,7 +723,6 @@ mod tests {
                 sorted_nullifier_indexes,
                 note_hash_subtree_sibling_path,
                 nullifier_subtree_sibling_path,
-                contract_subtree_sibling_path,
                 public_data_sibling_path
             };
 
@@ -816,75 +752,6 @@ mod tests {
         fn fails(self) {
             let _ = self.execute();
         }
-    }
-
-    #[test]
-    unconstrained fn no_new_contract_leaves() {
-        let outputs = BaseRollupInputsBuilder::new().execute();
-        let expected_start_contract_tree_snapshot = AppendOnlyTreeSnapshot { root: test_compute_empty_root([0; CONTRACT_TREE_HEIGHT]), next_available_leaf_index: 2 };
-        let expected_end_contract_tree_snapshot = AppendOnlyTreeSnapshot { root: test_compute_empty_root([0; CONTRACT_TREE_HEIGHT]), next_available_leaf_index: 3 };
-        assert(outputs.start.contract_tree.eq(expected_start_contract_tree_snapshot));
-        assert(outputs.end.contract_tree.eq(expected_end_contract_tree_snapshot));
-    }
-
-    #[test]
-    unconstrained fn contract_leaf_inserted() {
-        let new_contract = NewContractData {
-            contract_address: AztecAddress::from_field(1),
-            portal_contract_address: EthAddress::from_field(2),
-            contract_class_id: ContractClassId::from_field(3)
-        };
-
-        let mut builder = BaseRollupInputsBuilder::new();
-        let mut new_contracts = builder.kernel_data.end.new_contracts;
-        new_contracts.push(new_contract);
-        builder.kernel_data.end.new_contracts = new_contracts;
-        let mut expected_contracts_tree = NonEmptyMerkleTree::new(
-            [0; 4],
-            [0; CONTRACT_TREE_HEIGHT],
-            [0; CONTRACT_TREE_HEIGHT - 2],
-            [0; 2]
-        );
-
-        let outputs = builder.execute();
-
-        let expected_start_contract_tree_snapshot = AppendOnlyTreeSnapshot { root: expected_contracts_tree.get_root(), next_available_leaf_index: 2 };
-        assert(outputs.start.contract_tree.eq(expected_start_contract_tree_snapshot));
-
-        expected_contracts_tree.update_leaf(2, new_contract.hash());
-        let expected_end_contract_tree_snapshot = AppendOnlyTreeSnapshot { root: expected_contracts_tree.get_root(), next_available_leaf_index: 3 };
-        assert(outputs.end.contract_tree.eq(expected_end_contract_tree_snapshot));
-    }
-
-    #[test]
-    unconstrained fn contract_leaf_inserted_in_non_empty_snapshot_tree() {
-        let new_contract = NewContractData {
-            contract_address: AztecAddress::from_field(1),
-            portal_contract_address: EthAddress::from_field(2),
-            contract_class_id: ContractClassId::from_field(3)
-        };
-
-        let mut builder = BaseRollupInputsBuilder::new();
-
-        builder.pre_existing_contracts = [1,2];
-        let mut new_contracts = builder.kernel_data.end.new_contracts;
-        new_contracts.push(new_contract);
-        builder.kernel_data.end.new_contracts = new_contracts;
-        let mut expected_contracts_tree = NonEmptyMerkleTree::new(
-            [1, 2, 0, 0],
-            [0; CONTRACT_TREE_HEIGHT],
-            [0; CONTRACT_TREE_HEIGHT - 2],
-            [0; 2]
-        );
-
-        let outputs = builder.execute();
-
-        let expected_start_contract_tree_snapshot = AppendOnlyTreeSnapshot { root: expected_contracts_tree.get_root(), next_available_leaf_index: 2 };
-        assert(outputs.start.contract_tree.eq(expected_start_contract_tree_snapshot));
-
-        expected_contracts_tree.update_leaf(2, new_contract.hash());
-        let expected_end_contract_tree_snapshot = AppendOnlyTreeSnapshot { root: expected_contracts_tree.get_root(), next_available_leaf_index: 3 };
-        assert(outputs.end.contract_tree.eq(expected_end_contract_tree_snapshot));
     }
 
     #[test]

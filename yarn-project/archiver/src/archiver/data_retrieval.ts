@@ -1,18 +1,16 @@
-import { Body, ExtendedContractData, L1ToL2Message, NewInboxLeaf } from '@aztec/circuit-types';
+import { Body, L1ToL2Message, NewInboxLeaf } from '@aztec/circuit-types';
 import { AppendOnlyTreeSnapshot, Fr, Header } from '@aztec/circuits.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
 
 import { PublicClient } from 'viem';
 
 import {
-  getContractDeploymentLogs,
   getL1ToL2MessageCancelledLogs,
   getL2BlockProcessedLogs,
   getLeafInsertedLogs,
   getPendingL1ToL2MessageLogs,
   getTxsPublishedLogs,
   processCancelledL1ToL2MessagesLogs,
-  processContractDeploymentLogs,
   processL2BlockProcessedLogs,
   processLeafInsertedLogs,
   processPendingL1ToL2MessageAddedLogs,
@@ -115,45 +113,6 @@ export async function retrieveBlockBodiesFromAvailabilityOracle(
     searchStartBlock = l2TxsPublishedLogs[l2TxsPublishedLogs.length - 1].blockNumber! + 1n;
   } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
   return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedBlockBodies };
-}
-
-/**
- * Fetches new contract data.
- * @param publicClient - The viem public client to use for transaction retrieval.
- * @param contractDeploymentEmitterAddress - The address of the contract deployment emitter contract.
- * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
- * @param searchStartBlock - The block number to use for starting the search.
- * @param searchEndBlock - The highest block number that we should search up to.
- * @param blockNumberToBodyHash - A mapping from block number to relevant body hash.
- * @returns An array of ExtendedContractData and their equivalent L2 Block number along with the next eth block to search from..
- */
-export async function retrieveNewContractData(
-  publicClient: PublicClient,
-  contractDeploymentEmitterAddress: EthAddress,
-  blockUntilSynced: boolean,
-  searchStartBlock: bigint,
-  searchEndBlock: bigint,
-  blockNumberToBodyHash: { [key: number]: Buffer | undefined },
-): Promise<DataRetrieval<[ExtendedContractData[], number]>> {
-  let retrievedNewContracts: [ExtendedContractData[], number][] = [];
-  do {
-    if (searchStartBlock > searchEndBlock) {
-      break;
-    }
-    const contractDataLogs = await getContractDeploymentLogs(
-      publicClient,
-      contractDeploymentEmitterAddress,
-      searchStartBlock,
-      searchEndBlock,
-    );
-    if (contractDataLogs.length === 0) {
-      break;
-    }
-    const newContracts = processContractDeploymentLogs(blockNumberToBodyHash, contractDataLogs);
-    retrievedNewContracts = retrievedNewContracts.concat(newContracts);
-    searchStartBlock = (contractDataLogs.findLast(cd => !!cd)?.blockNumber || searchStartBlock) + 1n;
-  } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
-  return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedNewContracts };
 }
 
 /**

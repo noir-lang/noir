@@ -5,7 +5,7 @@ export type MetricGroupBy =
   | 'block-size'
   | 'chain-length'
   | 'circuit-name'
-  | 'contract-count'
+  | 'classes-registered'
   | 'leaf-count'
   | 'data-writes';
 
@@ -129,7 +129,7 @@ export const Metrics = [
   },
   {
     name: 'tx_size_in_bytes',
-    groupBy: 'contract-count',
+    groupBy: 'classes-registered',
     description: 'Size of txs received in the mempool.',
     events: ['tx-added-to-pool'],
   },

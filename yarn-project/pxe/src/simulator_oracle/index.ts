@@ -161,8 +161,6 @@ export class SimulatorOracle implements DBOracle {
 
   public async getSiblingPath(blockNumber: number, treeId: MerkleTreeId, leafIndex: bigint): Promise<Fr[]> {
     switch (treeId) {
-      case MerkleTreeId.CONTRACT_TREE:
-        return (await this.aztecNode.getContractSiblingPath(blockNumber, leafIndex)).toFields();
       case MerkleTreeId.NULLIFIER_TREE:
         return (await this.aztecNode.getNullifierSiblingPath(blockNumber, leafIndex)).toFields();
       case MerkleTreeId.NOTE_HASH_TREE:

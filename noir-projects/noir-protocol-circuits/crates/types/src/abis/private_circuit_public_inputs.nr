@@ -11,9 +11,8 @@ use crate::{
     RETURN_VALUES_LENGTH, PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
     GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS
 },
-    contrakt::contract_deployment_data::ContractDeploymentData, header::Header, hash::pedersen_hash,
-    messaging::l2_to_l1_message::L2ToL1Message, traits::{Deserialize, Hash, Serialize},
-    utils::reader::Reader
+    header::Header, hash::pedersen_hash, messaging::l2_to_l1_message::L2ToL1Message,
+    traits::{Deserialize, Hash, Serialize}, utils::reader::Reader
 };
 
 struct PrivateCircuitPublicInputs {
@@ -46,8 +45,6 @@ struct PrivateCircuitPublicInputs {
     // Header of a block whose state is used during private execution (not the block the transaction is included in).
     historical_header: Header,
 
-    contract_deployment_data: ContractDeploymentData,
-
     // Note: The following 2 values are not redundant to the values in self.historical_header.global_variables because
     // they can be different in case of a protocol upgrade. In such a situation we could be using header from a block
     // before the upgrade took place but be using the updated protocol to execute and prove the transaction.
@@ -74,7 +71,6 @@ impl Eq for PrivateCircuitPublicInputs {
         (self.encrypted_log_preimages_length == other.encrypted_log_preimages_length) &
         (self.unencrypted_log_preimages_length == other.unencrypted_log_preimages_length) &
         self.historical_header.eq(other.historical_header) &
-        self.contract_deployment_data.eq(other.contract_deployment_data) &
         self.chain_id.eq(other.chain_id) &
         self.version.eq(other.version)
     }
@@ -115,7 +111,6 @@ impl Serialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicInp
         fields.push(self.encrypted_log_preimages_length);
         fields.push(self.unencrypted_log_preimages_length);
         fields.extend_from_array(self.historical_header.serialize());
-        fields.extend_from_array(self.contract_deployment_data.serialize());
         fields.push(self.chain_id);
         fields.push(self.version);
 
@@ -148,7 +143,6 @@ impl Deserialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicI
             encrypted_log_preimages_length: reader.read(),
             unencrypted_log_preimages_length: reader.read(),
             historical_header: reader.read_struct(Header::deserialize),
-            contract_deployment_data: reader.read_struct(ContractDeploymentData::deserialize),
             chain_id: reader.read(),
             version: reader.read(),
         };
@@ -178,5 +172,6 @@ fn empty_hash() {
     let hash = inputs.hash();
 
     // Value from private_circuit_public_inputs.test.ts "computes empty item hash" test
-    assert_eq(hash, 0x13ba2af75e4afaa4e52dd1afa083e87706cdbab1a33442025dc3a9bbb546d207);
+    let test_data_empty_hash = 0x2745ec62624afeb19b86af3d440db1f8c3432e1d17a074c75cb8f44999fd3fae;
+    assert_eq(hash, test_data_empty_hash);
 }

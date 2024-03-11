@@ -128,18 +128,6 @@ contract DecodersTest is DecoderBase {
             "Invalid nullifierTree.root"
           );
 
-          // ContractTree
-          assertEq(
-            header.stateReference.partialStateReference.contractTree.nextAvailableLeafIndex,
-            partialStateReference.contractTree.nextAvailableLeafIndex,
-            "Invalid contractTree.nextAvailableLeafIndex"
-          );
-          assertEq(
-            header.stateReference.partialStateReference.contractTree.root,
-            partialStateReference.contractTree.root,
-            "Invalid contractTree.root"
-          );
-
           // PublicDataTree
           assertEq(
             header.stateReference.partialStateReference.publicDataTree.nextAvailableLeafIndex,

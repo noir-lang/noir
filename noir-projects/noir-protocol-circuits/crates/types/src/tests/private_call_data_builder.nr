@@ -2,7 +2,7 @@ use crate::{
     abis::{
     call_request::{CallerContext, CallRequest}, private_call_stack_item::PrivateCallStackItem,
     function_data::FunctionData,
-    membership_witness::{ContractLeafMembershipWitness, FunctionLeafMembershipWitness, NoteHashReadRequestMembershipWitness},
+    membership_witness::{FunctionLeafMembershipWitness, NoteHashReadRequestMembershipWitness},
     private_circuit_public_inputs::{PrivateCircuitPublicInputs},
     private_kernel::private_call_data::PrivateCallData
 },
@@ -41,15 +41,11 @@ struct PrivateCallDataBuilder {
 }
 
 impl PrivateCallDataBuilder {
-    pub fn new(is_constructor: bool) -> Self {
-        let public_inputs = PrivateCircuitPublicInputsBuilder::new(is_constructor);
+    pub fn new() -> Self {
+        let public_inputs = PrivateCircuitPublicInputsBuilder::new();
 
         let contract_data = fixtures::contracts::default_contract;
-        let contract_function = if is_constructor {
-            fixtures::contract_functions::default_constructor
-        } else {
-            fixtures::contract_functions::default_private_function
-        };
+        let contract_function = fixtures::contract_functions::default_private_function;
         let function_data = contract_function.data;
 
         PrivateCallDataBuilder {
@@ -96,10 +92,7 @@ impl PrivateCallDataBuilder {
     }
 
     pub fn build_tx_request(self) -> TxRequest {
-        let tx_context = build_tx_context(
-            self.public_inputs.call_context.is_contract_deployment,
-            self.public_inputs.args_hash
-        );
+        let tx_context = build_tx_context();
         TxRequest {
             origin: self.contract_address,
             args_hash: self.public_inputs.args_hash,

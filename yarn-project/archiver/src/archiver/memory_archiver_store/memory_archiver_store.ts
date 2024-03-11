@@ -1,6 +1,5 @@
 import {
   Body,
-  ContractData,
   ExtendedContractData,
   ExtendedUnencryptedL2Log,
   GetUnencryptedLogsResponse,
@@ -459,58 +458,13 @@ export class MemoryArchiverStore implements ArchiverDataStore {
 
   /**
    * Get the extended contract data for this contract.
+   * TODO(palla/purge-old-contract-deploy): Delete me?
    * @param contractAddress - The contract data address.
    * @returns The extended contract data or undefined if not found.
    */
   getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined> {
     const result = this.extendedContractData.get(contractAddress.toString());
     return Promise.resolve(result);
-  }
-
-  /**
-   * Lookup all contract data in an L2 block.
-   * @param blockNum - The block number to get all contract data from.
-   * @returns All extended contract data in the block (if found).
-   */
-  public getExtendedContractDataInBlock(blockNum: number): Promise<ExtendedContractData[]> {
-    if (blockNum > this.l2BlockContexts.length) {
-      return Promise.resolve([]);
-    }
-    return Promise.resolve(this.extendedContractDataByBlock[blockNum] || []);
-  }
-
-  /**
-   * Get basic info for an L2 contract.
-   * Contains contract address & the ethereum portal address.
-   * @param contractAddress - The contract data address.
-   * @returns ContractData with the portal address (if we didn't throw an error).
-   */
-  public getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
-    if (contractAddress.isZero()) {
-      return Promise.resolve(undefined);
-    }
-    for (const blockContext of this.l2BlockContexts) {
-      for (const contractData of blockContext.block.body.txEffects.flatMap(txEffect => txEffect.contractData)) {
-        if (contractData.contractAddress.equals(contractAddress)) {
-          return Promise.resolve(contractData);
-        }
-      }
-    }
-    return Promise.resolve(undefined);
-  }
-
-  /**
-   * Get basic info for an all L2 contracts deployed in a block.
-   * Contains contract address & the ethereum portal address.
-   * @param l2BlockNum - Number of the L2 block where contracts were deployed.
-   * @returns ContractData with the portal address (if we didn't throw an error).
-   */
-  public getContractDataInBlock(l2BlockNum: number): Promise<ContractData[] | undefined> {
-    if (l2BlockNum > this.l2BlockContexts.length) {
-      return Promise.resolve([]);
-    }
-    const block: L2Block | undefined = this.l2BlockContexts[l2BlockNum - INITIAL_L2_BLOCK_NUM]?.block;
-    return Promise.resolve(block?.body.txEffects.flatMap(txEffect => txEffect.contractData));
   }
 
   /**

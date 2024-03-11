@@ -1,11 +1,10 @@
 use dep::protocol_types::{
-    abis::{new_contract_data::NewContractData as ContractLeafPreimage},
     address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
     grumpkin_point::GrumpkinPoint
 };
 use dep::std::merkle::compute_merkle_root;
 
-use crate::{context::PrivateContext, oracle::get_membership_witness::get_contract_membership_witness};
+use crate::{context::PrivateContext};
 
 // Proves that a contract exists at block `block_number` and returns its address.
 // Note: This can be used to approximate a factory pattern --> a factory contract could perform this proof and that

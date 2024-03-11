@@ -5,7 +5,7 @@ use dep::types::{
     constants::{
     NUM_FIELDS_PER_SHA256, MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
     MAX_NEW_L2_TO_L1_MSGS_PER_TX, NUM_UNENCRYPTED_LOGS_HASHES_PER_TX, NUM_ENCRYPTED_LOGS_HASHES_PER_TX,
-    MAX_NEW_CONTRACTS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 },
     utils::uint256::U256,
     abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, accumulated_data::CombinedAccumulatedData}
@@ -75,9 +75,6 @@ pub fn assert_prev_rollups_follow_on_from_each_other(
         left.end.nullifier_tree.eq(right.start.nullifier_tree), "input proofs have different nullifier tree snapshots"
     );
     assert(
-        left.end.contract_tree.eq(right.start.contract_tree), "input proofs have different contract tree snapshots"
-    );
-    assert(
         left.end.public_data_tree.eq(right.start.public_data_tree), "input proofs have different public data tree snapshots"
     );
 }
@@ -131,9 +128,9 @@ pub fn compute_txs_effects_hash(previous_rollup_data: [PreviousRollupData; 2]) -
     )
 }
 
-global TX_EFFECTS_HASH_FULL_FIELDS = 197;
+global TX_EFFECTS_HASH_FULL_FIELDS = 194;
 global TX_EFFECTS_HASH_LOG_FIELDS = 4;
-global TX_EFFECTS_HASH_INPUT_FIELDS = 201; // TX_EFFECTS_HASH_FULL_FIELDS + TX_EFFECTS_HASH_LOG_FIELDS
+global TX_EFFECTS_HASH_INPUT_FIELDS = 198; // TX_EFFECTS_HASH_FULL_FIELDS + TX_EFFECTS_HASH_LOG_FIELDS
 
 // Computes the tx effects hash for a base rollup (a single transaction)
 // TODO(Alvaro): This is too slow for brillig without the array optimization
@@ -181,17 +178,6 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
     }
     offset += MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2;
 
-    let contract_leaf = combined.new_contracts[0];
-    txs_effects_hash_input[offset] = contract_leaf.hash();
-
-    offset += MAX_NEW_CONTRACTS_PER_TX;
-
-    let new_contracts = combined.new_contracts;
-    txs_effects_hash_input[offset] = new_contracts[0].contract_address.to_field();
-    txs_effects_hash_input[offset + 1] = new_contracts[0].portal_contract_address.to_field();
-
-    offset += MAX_NEW_CONTRACTS_PER_TX * 2;
-
     for j in 0..NUM_FIELDS_PER_SHA256 {
         txs_effects_hash_input[offset + j] = encryptedLogsHash[j];
     }
@@ -230,7 +216,6 @@ fn consistent_TX_EFFECTS_HASH_INPUT_FIELDS() {
         + MAX_NEW_NULLIFIERS_PER_TX
         + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2
         + MAX_NEW_L2_TO_L1_MSGS_PER_TX
-        + MAX_NEW_CONTRACTS_PER_TX * 3
         + NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256
         + NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
     assert(TX_EFFECTS_HASH_INPUT_FIELDS == expected_size, "tx effects hash input size is incorrect");

@@ -45,16 +45,6 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
    * @param tx - The transaction to add contracts from.
    */
   public addNewContracts(tx: Tx): Promise<void> {
-    for (const contract of tx.newContracts) {
-      const contractAddress = contract.contractData.contractAddress;
-
-      if (contractAddress.isZero()) {
-        continue;
-      }
-
-      this.cache.set(contractAddress.toString(), contract);
-    }
-
     // Extract contract class and instance data from logs and add to cache for this block
     const logs = tx.unencryptedLogs.unrollLogs().map(UnencryptedL2Log.fromBuffer);
     ContractClassRegisteredEvent.fromLogs(logs, ClassRegistererAddress).forEach(e => {
@@ -76,16 +66,6 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
    * @param tx - The tx's contracts to be removed
    */
   public removeNewContracts(tx: Tx): Promise<void> {
-    for (const contract of tx.newContracts) {
-      const contractAddress = contract.contractData.contractAddress;
-
-      if (contractAddress.isZero()) {
-        continue;
-      }
-
-      this.cache.delete(contractAddress.toString());
-    }
-
     // TODO(@spalladino): Can this inadvertently delete a valid contract added by another tx?
     // Let's say we have two txs adding the same contract on the same block. If the 2nd one reverts,
     // wouldn't that accidentally remove the contract added on the first one?

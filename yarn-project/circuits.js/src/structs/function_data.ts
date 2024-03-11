@@ -8,6 +8,7 @@ import { ContractFunctionDao } from '../types/contract_function_dao.js';
 
 /**
  * Function description for circuit.
+ * TODO(palla/purge-old-contract-deploy): Remove constructor and possibly internal flags from this struct.
  */
 export class FunctionData {
   constructor(

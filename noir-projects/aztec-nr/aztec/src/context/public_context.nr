@@ -117,11 +117,6 @@ impl PublicContext {
         }
     }
 
-    pub fn is_deployment(self) -> bool {
-        // TODO(#4738): Implement this
-        false
-    }
-
     pub fn block_number(self) -> Field {
         self.inputs.public_global_variables.block_number
     }

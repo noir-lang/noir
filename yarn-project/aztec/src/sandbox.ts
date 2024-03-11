@@ -13,8 +13,6 @@ import { retryUntil } from '@aztec/foundation/retry';
 import {
   AvailabilityOracleAbi,
   AvailabilityOracleBytecode,
-  ContractDeploymentEmitterAbi,
-  ContractDeploymentEmitterBytecode,
   InboxAbi,
   InboxBytecode,
   OutboxAbi,
@@ -80,10 +78,6 @@ export async function deployContractsToL1(
   contractDeployLogger = logger,
 ) {
   const l1Artifacts: L1ContractArtifactsForDeployment = {
-    contractDeploymentEmitter: {
-      contractAbi: ContractDeploymentEmitterAbi,
-      contractBytecode: ContractDeploymentEmitterBytecode,
-    },
     registry: {
       contractAbi: RegistryAbi,
       contractBytecode: RegistryBytecode,

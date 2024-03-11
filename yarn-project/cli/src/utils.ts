@@ -48,8 +48,6 @@ export async function deployAztecContracts(
   debugLogger: DebugLogger,
 ) {
   const {
-    ContractDeploymentEmitterAbi,
-    ContractDeploymentEmitterBytecode,
     InboxAbi,
     InboxBytecode,
     OutboxAbi,
@@ -67,10 +65,6 @@ export async function deployAztecContracts(
     : privateKeyToAccount(`${privateKey.startsWith('0x') ? '' : '0x'}${privateKey}` as `0x${string}`);
   const chain = createEthereumChain(rpcUrl, apiKey);
   const l1Artifacts: L1ContractArtifactsForDeployment = {
-    contractDeploymentEmitter: {
-      contractAbi: ContractDeploymentEmitterAbi,
-      contractBytecode: ContractDeploymentEmitterBytecode,
-    },
     registry: {
       contractAbi: RegistryAbi,
       contractBytecode: RegistryBytecode,

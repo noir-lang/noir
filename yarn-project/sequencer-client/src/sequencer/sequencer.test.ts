@@ -1,13 +1,4 @@
-import {
-  ExtendedContractData,
-  L1ToL2MessageSource,
-  L2Block,
-  L2BlockSource,
-  MerkleTreeId,
-  Tx,
-  TxHash,
-  mockTx,
-} from '@aztec/circuit-types';
+import { L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, Tx, TxHash, mockTx } from '@aztec/circuit-types';
 import {
   AztecAddress,
   EthAddress,
@@ -221,45 +212,6 @@ describe('sequencer', () => {
     await sequencer.work();
 
     expect(publisher.processL2Block).not.toHaveBeenCalled();
-  });
-
-  it('publishes contract data', async () => {
-    const txWithContract = mockTx(0x10000);
-    (txWithContract.newContracts as Array<ExtendedContractData>) = [ExtendedContractData.random()];
-    txWithContract.data.constants.txContext.chainId = chainId;
-
-    const txWithEmptyContract = mockTx(0x20000);
-    (txWithEmptyContract.newContracts as Array<ExtendedContractData>) = [ExtendedContractData.empty()];
-    txWithEmptyContract.data.constants.txContext.chainId = chainId;
-
-    const block = L2Block.random(lastBlockNumber + 1);
-    const proof = makeEmptyProof();
-
-    p2p.getTxs.mockResolvedValueOnce([txWithContract, txWithEmptyContract]);
-    blockBuilder.buildL2Block.mockResolvedValueOnce([block, proof]);
-    publisher.processL2Block.mockResolvedValueOnce(true);
-    publisher.processNewContractData.mockResolvedValueOnce(true);
-    globalVariableBuilder.buildGlobalVariables.mockResolvedValueOnce(
-      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient),
-    );
-
-    await sequencer.initialSync();
-    await sequencer.work();
-
-    // check that the block was built with both transactions
-    expect(blockBuilder.buildL2Block).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.arrayContaining([
-        expect.objectContaining({ hash: txWithContract.getTxHash() }),
-        expect.objectContaining({ hash: txWithEmptyContract.getTxHash() }),
-      ]),
-      expect.any(Array),
-    );
-
-    // check that the empty contract did not get published
-    expect(publisher.processNewContractData).toHaveBeenCalledWith(block.number, block.body.getTxsEffectsHash(), [
-      txWithContract.newContracts[0],
-    ]);
   });
 });
 

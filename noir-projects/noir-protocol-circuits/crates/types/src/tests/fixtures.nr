@@ -1,5 +1,4 @@
 mod contract_functions;
-mod contract_tree;
 mod contracts;
 mod note_hash_tree;
 mod note_hash_read_requests;
@@ -46,10 +45,6 @@ global HEADER = Header {
                 next_available_leaf_index: 0, // TODO: should this be populated?
             },
             nullifier_tree: empty_append_only_tree(),
-            contract_tree: AppendOnlyTreeSnapshot {
-                root: fixtures::contract_tree::ROOT,
-                next_available_leaf_index: 0, // TODO: should this be populated?
-            },
             public_data_tree: empty_append_only_tree()
         }
     },

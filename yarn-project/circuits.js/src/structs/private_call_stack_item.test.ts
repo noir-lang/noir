@@ -1,3 +1,5 @@
+import { updateInlineTestData } from '@aztec/foundation/testing';
+
 import { PRIVATE_CALL_STACK_ITEM_LENGTH } from '../constants.gen.js';
 import { makePrivateCallStackItem } from '../tests/factories.js';
 import { PrivateCallStackItem } from './private_call_stack_item.js';
@@ -39,7 +41,11 @@ describe('PrivateCallStackItem', () => {
     const hash = item.hash();
     expect(hash).toMatchSnapshot();
 
-    // Value used in empty_hash test in private_call_stack_item.nr
-    // console.log("hash", hash.toString());
+    // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
+    updateInlineTestData(
+      'noir-projects/noir-protocol-circuits/crates/types/src/abis/private_call_stack_item.nr',
+      'test_data_empty_hash',
+      hash.toString(),
+    );
   });
 });

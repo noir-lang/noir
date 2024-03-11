@@ -1,25 +1,10 @@
-import {
-  Body,
-  ContractData,
-  EncodedContractFunction,
-  ExtendedContractData,
-  L1Actor,
-  L1ToL2Message,
-  L2Actor,
-  NewInboxLeaf,
-} from '@aztec/circuit-types';
+import { Body, L1Actor, L1ToL2Message, L2Actor, NewInboxLeaf } from '@aztec/circuit-types';
 import { AppendOnlyTreeSnapshot, Header } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, numToUInt32BE } from '@aztec/foundation/serialize';
-import {
-  AvailabilityOracleAbi,
-  ContractDeploymentEmitterAbi,
-  InboxAbi,
-  NewInboxAbi,
-  RollupAbi,
-} from '@aztec/l1-artifacts';
+import { numToUInt32BE } from '@aztec/foundation/serialize';
+import { AvailabilityOracleAbi, InboxAbi, NewInboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 
 import { Hex, Log, PublicClient, decodeFunctionData, getAbiItem, getAddress, hexToBytes } from 'viem';
 
@@ -247,71 +232,6 @@ export function getTxsPublishedLogs(
     fromBlock,
     toBlock: toBlock + 1n, // the toBlock argument in getLogs is exclusive
   });
-}
-
-/**
- * Gets relevant `ContractDeployment` logs from chain.
- * @param publicClient - The viem public client to use for transaction retrieval.
- * @param contractDeploymentEmitterAddress - The address of the L2 contract deployment emitter contract.
- * @param fromBlock - First block to get logs from (inclusive).
- * @param toBlock - Last block to get logs from (inclusive).
- * @returns An array of `ContractDeployment` logs.
- */
-export function getContractDeploymentLogs(
-  publicClient: PublicClient,
-  contractDeploymentEmitterAddress: EthAddress,
-  fromBlock: bigint,
-  toBlock: bigint,
-): Promise<Log<bigint, number, false, undefined, true, typeof ContractDeploymentEmitterAbi, 'ContractDeployment'>[]> {
-  return publicClient.getLogs({
-    address: getAddress(contractDeploymentEmitterAddress.toString()),
-    event: getAbiItem({
-      abi: ContractDeploymentEmitterAbi,
-      name: 'ContractDeployment',
-    }),
-    fromBlock,
-    toBlock: toBlock + 1n, // the toBlock argument in getLogs is exclusive
-  });
-}
-
-/**
- * Processes newly received ContractDeployment logs.
- * @param blockNumberToBodyHash - A mapping from block number to relevant body hash.
- * @param logs - ContractDeployment logs.
- * @returns The set of retrieved extended contract data items.
- */
-export function processContractDeploymentLogs(
-  blockNumberToBodyHash: { [key: number]: Buffer | undefined },
-  logs: Log<bigint, number, false, undefined, true, typeof ContractDeploymentEmitterAbi, 'ContractDeployment'>[],
-): [ExtendedContractData[], number][] {
-  const extendedContractData: [ExtendedContractData[], number][] = [];
-  for (let i = 0; i < logs.length; i++) {
-    const log = logs[i];
-    const l2BlockNum = Number(log.args.l2BlockNum);
-    const blockHash = Buffer.from(hexToBytes(log.args.l2BlockHash));
-    const expectedBlockHash = blockNumberToBodyHash[l2BlockNum];
-    if (expectedBlockHash === undefined || !blockHash.equals(expectedBlockHash)) {
-      continue;
-    }
-    const publicFnsReader = BufferReader.asReader(Buffer.from(log.args.acir.slice(2), 'hex'));
-    const contractClassId = Fr.fromBuffer(Buffer.from(hexToBytes(log.args.contractClassId)));
-    const saltedInitializationHash = Fr.fromBuffer(Buffer.from(hexToBytes(log.args.saltedInitializationHash)));
-    const publicKeyHash = Fr.fromBuffer(Buffer.from(hexToBytes(log.args.publicKeyHash)));
-
-    const contractData = new ExtendedContractData(
-      new ContractData(AztecAddress.fromString(log.args.aztecAddress), EthAddress.fromString(log.args.portalAddress)),
-      publicFnsReader.readVector(EncodedContractFunction),
-      contractClassId,
-      saltedInitializationHash,
-      publicKeyHash,
-    );
-    if (extendedContractData[i]) {
-      extendedContractData[i][0].push(contractData);
-    } else {
-      extendedContractData[i] = [[contractData], l2BlockNum];
-    }
-  }
-  return extendedContractData;
 }
 
 /**

@@ -1,8 +1,7 @@
-use dep::protocol_types::{constants::{ARCHIVE_HEIGHT, CONTRACT_TREE_HEIGHT, NOTE_HASH_TREE_HEIGHT}, utils::arr_copy_slice};
+use dep::protocol_types::{constants::{ARCHIVE_HEIGHT, NOTE_HASH_TREE_HEIGHT}, utils::arr_copy_slice};
 
-global CONTRACT_TREE_ID = 0;
-global NOTE_HASH_TREE_ID = 2;
-global ARCHIVE_TREE_ID = 5;
+global NOTE_HASH_TREE_ID = 1;
+global ARCHIVE_TREE_ID = 4;
 
 // Note: We have M here because we need to somehow set it when calling get_membership_witness function and one way to
 // do it is to set M here and then set type of the return param, e.g.:
@@ -30,13 +29,6 @@ unconstrained pub fn get_membership_witness<N, M>(
 ) -> MembershipWitness<N, M> {
     let fields: [Field; M] = get_membership_witness_oracle(block_number, tree_id, leaf_value);
     MembershipWitness { index: fields[0], path: arr_copy_slice(fields, [0; N], 1) }
-}
-
-unconstrained pub fn get_contract_membership_witness(
-    block_number: u32,
-    leaf_value: Field
-) -> MembershipWitness<CONTRACT_TREE_HEIGHT, CONTRACT_TREE_HEIGHT + 1> {
-    get_membership_witness(block_number, CONTRACT_TREE_ID, leaf_value)
 }
 
 // Note: get_nullifier_membership_witness function is implemented in get_nullifier_membership_witness.nr

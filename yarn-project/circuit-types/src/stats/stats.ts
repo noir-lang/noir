@@ -138,14 +138,12 @@ export type TxStats = {
   encryptedLogSize: number;
   /** Serialized size of unencrypted logs. */
   unencryptedLogSize: number;
-  /** Serialized size of new contract data. */
-  newContractDataSize: number;
-  /** Number of new contracts deployed in this tx. */
-  newContractCount: number;
-  /** comm */
+  /** New commitments count */
   newCommitmentCount: number;
-  /** a */
+  /** New nullifier count */
   newNullifierCount: number;
+  /** How many classes were registered through the canonical class registerer. */
+  classRegisteredCount: number;
 };
 
 /**

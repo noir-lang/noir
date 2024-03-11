@@ -14,7 +14,7 @@ import {Hash} from "../Hash.sol";
  * @dev Assumes the input trees to be padded.
  *
  * -------------------
- * You can use https://gist.github.com/LHerskind/724a7e362c97e8ac2902c6b961d36830 to generate the below outline.
+ * You can use scripts/l2_block_data_specification_comment.py to generate the below outline.
  * -------------------
  * L2 Body Data Specification
  * -------------------
@@ -32,13 +32,10 @@ import {Hash} from "../Hash.sol";
  *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                                                          | d * 0x20   |   newL2ToL1Msgs
  *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                                               | 0x1        |   len(newPublicDataWrites) (denoted e)
  *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                                                        | e * 0x40   |   newPublicDataWrites
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                                             | 0x1        |   len(contracts) (denoted f)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1                                       | f * 0x20   |   newContracts
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20                            | f * 0x34   |   newContractsData
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34                 | 0x04       |   byteLen(newEncryptedLogs) (denoted g)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34 + 0x4           | g          |   newEncryptedLogs
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34 + 0x4 + g       | 0x04       |   byteLen(newUnencryptedLogs) (denoted h)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34 + 0x4 + g + 0x4 | h          |   newUnencryptedLogs
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                                             | 0x04       |   byteLen(newEncryptedLogs) (denoted f)
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4                                       | f          |   newEncryptedLogs
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f                                   | 0x04       |   byteLen(newUnencryptedLogs) (denoted g)
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4                             | g          |   newUnencryptedLogs
  *  |                                                                                                                           |            | },
  *  |                                                                                                                           |            | TxEffect 1 {
  *  |                                                                                                                           |            |   ...
@@ -54,8 +51,6 @@ library TxsDecoder {
     uint256 nullifier;
     uint256 l2ToL1Msgs;
     uint256 publicData;
-    uint256 contracts;
-    uint256 contractData;
   }
 
   struct Counts {
@@ -63,8 +58,6 @@ library TxsDecoder {
     uint256 nullifier;
     uint256 l2ToL1Msgs;
     uint256 publicData;
-    uint256 contracts;
-    uint256 contractData;
   }
 
   // Note: Used in `computeConsumables` to get around stack too deep errors.
@@ -145,27 +138,6 @@ library TxsDecoder {
         offsets.publicData = offset;
         offset += count * 0x40; // each public data write is 0x40 bytes long
 
-        // Contracts
-        count = read1(_body, offset);
-        offset += 0x1;
-        counts.contracts = count;
-        offsets.contracts = offset;
-        offset += count * 0x20; // each contract leaf is 0x20 bytes long
-
-        // Contract data
-        counts.contractData = count; // count is the same as contracts
-        offsets.contractData = offset;
-        offset += count * 0x34; // each contract data is 0x34 bytes long
-
-        bytes memory contractData = new bytes(Constants.CONTRACT_DATA_NUM_BYTES_PER_BASE_ROLLUP);
-        if (counts.contracts == 1) {
-          contractData = bytes.concat(
-            slice(_body, offsets.contractData, 0x20), // newContractDataKernel.aztecAddress
-            bytes12(0), // We pad the ethAddress to 32 bytes, we don't use sliceAndPad here because we want to prefix
-            slice(_body, offsets.contractData + 0x20, 0x14) // newContractDataKernel.ethAddress
-          );
-        }
-
         /**
          * Compute encrypted and unencrypted logs hashes corresponding to the current leaf.
          * Note: will advance offsets by the number of bytes processed.
@@ -199,15 +171,8 @@ library TxsDecoder {
               offsets.publicData,
               counts.publicData * 0x40,
               Constants.PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP
-            ),
-            sliceAndPad(
-              _body,
-              offsets.contracts,
-              counts.contracts * 0x20,
-              Constants.CONTRACTS_NUM_BYTES_PER_BASE_ROLLUP
             )
           ),
-          contractData,
           bytes.concat(vars.encryptedLogsHash, vars.unencryptedLogsHash)
         );
 

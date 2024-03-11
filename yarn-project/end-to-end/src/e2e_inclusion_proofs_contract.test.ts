@@ -9,7 +9,6 @@ import {
   Point,
   getContractInstanceFromDeployParams,
 } from '@aztec/aztec.js';
-import { NewContractData } from '@aztec/circuits.js';
 import { InclusionProofsContract } from '@aztec/noir-contracts.js/InclusionProofs';
 
 import { jest } from '@jest/globals';
@@ -297,8 +296,7 @@ describe('e2e_inclusion_proofs_contract', () => {
     it.skip('contract existence failure case', async () => {
       // This should fail because we choose a block number before the contract was deployed
       const blockNumber = deploymentBlockNumber - 1;
-      const contractData = new NewContractData(contract.address, portalContractAddress, contractClassId);
-      const leaf = contractData.hash();
+      const leaf = Fr.ZERO; // TODO: Calculate proper leaf value
 
       await expect(
         contract.methods

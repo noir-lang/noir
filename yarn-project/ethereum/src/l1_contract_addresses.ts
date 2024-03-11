@@ -6,8 +6,7 @@ export const l1ContractsNames = [
   'registryAddress',
   'inboxAddress',
   'outboxAddress',
-  'contractDeploymentEmitterAddress',
-];
+] as const;
 
 /**
  * Provides the directory of current L1 contract addresses

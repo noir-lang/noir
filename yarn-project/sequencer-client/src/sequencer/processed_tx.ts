@@ -1,17 +1,7 @@
-import {
-  ContractData,
-  ExtendedContractData,
-  PublicDataWrite,
-  SimulationError,
-  Tx,
-  TxEffect,
-  TxHash,
-  TxL2Logs,
-} from '@aztec/circuit-types';
+import { PublicDataWrite, SimulationError, Tx, TxEffect, TxHash, TxL2Logs } from '@aztec/circuit-types';
 import {
   Fr,
   Header,
-  MAX_NEW_CONTRACTS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
@@ -29,7 +19,7 @@ import { Tuple, fromFieldsTuple } from '@aztec/foundation/serialize';
  * Represents a tx that has been processed by the sequencer public processor,
  * so its kernel circuit public inputs are filled in.
  */
-export type ProcessedTx = Pick<Tx, 'proof' | 'encryptedLogs' | 'unencryptedLogs' | 'newContracts'> & {
+export type ProcessedTx = Pick<Tx, 'proof' | 'encryptedLogs' | 'unencryptedLogs'> & {
   /**
    * Output of the public kernel circuit for this tx.
    */
@@ -153,7 +143,6 @@ export function makeProcessedTx(
     proof: previousProof,
     encryptedLogs: revertReason ? new TxL2Logs([]) : tx.encryptedLogs,
     unencryptedLogs: revertReason ? new TxL2Logs([]) : tx.unencryptedLogs,
-    newContracts: revertReason ? [ExtendedContractData.empty()] : tx.newContracts,
     isEmpty: false,
     revertReason,
   };
@@ -177,7 +166,6 @@ export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr): 
     unencryptedLogs: new TxL2Logs([]),
     data: emptyKernelOutput,
     proof: emptyProof,
-    newContracts: [ExtendedContractData.empty()],
     isEmpty: true,
     revertReason: undefined,
   };
@@ -195,10 +183,6 @@ export function toTxEffect(tx: ProcessedTx): TxEffect {
       PublicDataWrite,
       typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
     >,
-    tx.data.combinedData.newContracts.map(cd => cd.hash()) as Tuple<Fr, typeof MAX_NEW_CONTRACTS_PER_TX>,
-    tx.data.combinedData.newContracts.map(
-      cd => new ContractData(cd.contractAddress, cd.portalContractAddress),
-    ) as Tuple<ContractData, typeof MAX_NEW_CONTRACTS_PER_TX>,
     tx.encryptedLogs || new TxL2Logs([]),
     tx.unencryptedLogs || new TxL2Logs([]),
   );

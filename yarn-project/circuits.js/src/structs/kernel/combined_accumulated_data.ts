@@ -7,7 +7,6 @@ import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serial
 import { inspect } from 'util';
 
 import {
-  MAX_NEW_CONTRACTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_TX,
@@ -35,7 +34,6 @@ import { CallRequest } from '../call_request.js';
 import { NullifierKeyValidationRequestContext } from '../nullifier_key_validation_request.js';
 import { ReadRequestContext } from '../read_request.js';
 import { SideEffect, SideEffectLinkedToNoteHash } from '../side_effects.js';
-import { NewContractData } from './new_contract_data.js';
 
 const log = createDebugOnlyLogger('aztec:combined_accumulated_data');
 
@@ -218,10 +216,6 @@ export class CombinedAccumulatedData {
      */
     public unencryptedLogPreimagesLength: Fr,
     /**
-     * All the new contracts deployed in this transaction.
-     */
-    public newContracts: Tuple<NewContractData, typeof MAX_NEW_CONTRACTS_PER_TX>,
-    /**
      * All the public data update requests made in this transaction.
      */
     public publicDataUpdateRequests: Tuple<PublicDataUpdateRequest, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
@@ -245,7 +239,6 @@ export class CombinedAccumulatedData {
       this.unencryptedLogsHash,
       this.encryptedLogPreimagesLength,
       this.unencryptedLogPreimagesLength,
-      this.newContracts,
       this.publicDataUpdateRequests,
       this.publicDataReads,
     );
@@ -275,7 +268,6 @@ export class CombinedAccumulatedData {
       reader.readArray(2, Fr),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
-      reader.readArray(MAX_NEW_CONTRACTS_PER_TX, NewContractData),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
       reader.readArray(MAX_PUBLIC_DATA_READS_PER_TX, PublicDataRead),
     );
@@ -304,7 +296,6 @@ export class CombinedAccumulatedData {
       makeTuple(2, Fr.zero),
       Fr.zero(),
       Fr.zero(),
-      makeTuple(MAX_NEW_CONTRACTS_PER_TX, NewContractData.empty),
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),
       makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, PublicDataRead.empty),
     );
@@ -383,7 +374,6 @@ export class CombinedAccumulatedData {
       revertible.unencryptedLogsHash,
       revertible.encryptedLogPreimagesLength,
       revertible.unencryptedLogPreimagesLength,
-      revertible.newContracts,
       publicDataUpdateRequests,
       publicDataReads,
     );
@@ -446,10 +436,6 @@ export class PublicAccumulatedRevertibleData {
      */
     public unencryptedLogPreimagesLength: Fr,
     /**
-     * All the new contracts deployed in this transaction.
-     */
-    public newContracts: Tuple<NewContractData, typeof MAX_NEW_CONTRACTS_PER_TX>,
-    /**
      * All the public data update requests made in this transaction.
      */
     public publicDataUpdateRequests: Tuple<
@@ -475,7 +461,6 @@ export class PublicAccumulatedRevertibleData {
       this.unencryptedLogsHash,
       this.encryptedLogPreimagesLength,
       this.unencryptedLogPreimagesLength,
-      this.newContracts,
       this.publicDataUpdateRequests,
       this.publicDataReads,
     );
@@ -499,7 +484,6 @@ export class PublicAccumulatedRevertibleData {
       this.unencryptedLogsHash.every(x => x.isZero()) &&
       this.encryptedLogPreimagesLength.isZero() &&
       this.unencryptedLogPreimagesLength.isZero() &&
-      this.newContracts.every(x => x.isEmpty()) &&
       this.publicDataUpdateRequests.every(x => x.isEmpty()) &&
       this.publicDataReads.every(x => x.isEmpty())
     );
@@ -520,7 +504,6 @@ export class PublicAccumulatedRevertibleData {
   unencryptedLogsHash: [${this.unencryptedLogsHash.map(h => h.toString()).join(', ')}],
   encryptedLogPreimagesLength: ${this.encryptedLogPreimagesLength}
   unencryptedLogPreimagesLength: ${this.unencryptedLogPreimagesLength}
-  newContracts: [${this.newContracts.map(h => h.toString()).join(', ')}],
   publicDataUpdateRequests: [${this.publicDataUpdateRequests.map(h => h.toString()).join(', ')}],
   publicDataReads: [${this.publicDataReads.map(h => h.toString()).join(', ')}],
 }`;
@@ -546,7 +529,6 @@ export class PublicAccumulatedRevertibleData {
       reader.readArray(2, Fr),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
-      reader.readArray(MAX_NEW_CONTRACTS_PER_TX, NewContractData),
       reader.readArray(MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
       reader.readArray(MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX, PublicDataRead),
     );
@@ -566,7 +548,6 @@ export class PublicAccumulatedRevertibleData {
       finalData.unencryptedLogsHash,
       finalData.encryptedLogPreimagesLength,
       finalData.unencryptedLogPreimagesLength,
-      finalData.newContracts,
       makeTuple(MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),
       makeTuple(MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX, PublicDataRead.empty),
     );
@@ -595,7 +576,6 @@ export class PublicAccumulatedRevertibleData {
       makeTuple(2, Fr.zero),
       Fr.zero(),
       Fr.zero(),
-      makeTuple(MAX_NEW_CONTRACTS_PER_TX, NewContractData.empty),
       makeTuple(MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),
       makeTuple(MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX, PublicDataRead.empty),
     );
@@ -647,10 +627,6 @@ export class PrivateAccumulatedRevertibleData {
      * Total accumulated length of the unencrypted log preimages emitted in all the previous kernel iterations
      */
     public unencryptedLogPreimagesLength: Fr,
-    /**
-     * All the new contracts deployed in this transaction.
-     */
-    public newContracts: Tuple<NewContractData, typeof MAX_NEW_CONTRACTS_PER_TX>,
   ) {}
 
   toBuffer() {
@@ -664,7 +640,6 @@ export class PrivateAccumulatedRevertibleData {
       this.unencryptedLogsHash,
       this.encryptedLogPreimagesLength,
       this.unencryptedLogPreimagesLength,
-      this.newContracts,
     );
   }
 
@@ -689,7 +664,6 @@ export class PrivateAccumulatedRevertibleData {
       reader.readArray(2, Fr),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
-      reader.readArray(MAX_NEW_CONTRACTS_PER_TX, NewContractData),
     );
   }
 
@@ -713,7 +687,6 @@ export class PrivateAccumulatedRevertibleData {
       makeTuple(2, Fr.zero),
       Fr.zero(),
       Fr.zero(),
-      makeTuple(MAX_NEW_CONTRACTS_PER_TX, NewContractData.empty),
     );
   }
 }

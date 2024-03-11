@@ -72,7 +72,6 @@ contract DecoderBase is Test {
   }
 
   struct PartialStateReference {
-    AppendOnlyTreeSnapshot contractTree;
     AppendOnlyTreeSnapshot noteHashTree;
     AppendOnlyTreeSnapshot nullifierTree;
     AppendOnlyTreeSnapshot publicDataTree;

@@ -13,8 +13,6 @@ export class PartialStateReference {
     public readonly noteHashTree: AppendOnlyTreeSnapshot,
     /** Snapshot of the nullifier tree. */
     public readonly nullifierTree: AppendOnlyTreeSnapshot,
-    /** Snapshot of the contract tree. */
-    public readonly contractTree: AppendOnlyTreeSnapshot,
     /** Snapshot of the public data tree. */
     public readonly publicDataTree: AppendOnlyTreeSnapshot,
   ) {}
@@ -22,7 +20,6 @@ export class PartialStateReference {
   static fromBuffer(buffer: Buffer | BufferReader): PartialStateReference {
     const reader = BufferReader.asReader(buffer);
     return new PartialStateReference(
-      reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
@@ -34,10 +31,9 @@ export class PartialStateReference {
 
     const noteHashTree = AppendOnlyTreeSnapshot.fromFields(reader);
     const nullifierTree = AppendOnlyTreeSnapshot.fromFields(reader);
-    const contractTree = AppendOnlyTreeSnapshot.fromFields(reader);
     const publicDataTree = AppendOnlyTreeSnapshot.fromFields(reader);
 
-    return new PartialStateReference(noteHashTree, nullifierTree, contractTree, publicDataTree);
+    return new PartialStateReference(noteHashTree, nullifierTree, publicDataTree);
   }
 
   static empty(): PartialStateReference {
@@ -45,19 +41,17 @@ export class PartialStateReference {
       AppendOnlyTreeSnapshot.zero(),
       AppendOnlyTreeSnapshot.zero(),
       AppendOnlyTreeSnapshot.zero(),
-      AppendOnlyTreeSnapshot.zero(),
     );
   }
 
   toBuffer() {
-    return serializeToBuffer(this.noteHashTree, this.nullifierTree, this.contractTree, this.publicDataTree);
+    return serializeToBuffer(this.noteHashTree, this.nullifierTree, this.publicDataTree);
   }
 
   toFields() {
     const fields = [
       ...this.noteHashTree.toFields(),
       ...this.nullifierTree.toFields(),
-      ...this.contractTree.toFields(),
       ...this.publicDataTree.toFields(),
     ];
     if (fields.length !== PARTIAL_STATE_REFERENCE_LENGTH) {
@@ -69,11 +63,6 @@ export class PartialStateReference {
   }
 
   isEmpty(): boolean {
-    return (
-      this.noteHashTree.isZero() &&
-      this.nullifierTree.isZero() &&
-      this.contractTree.isZero() &&
-      this.publicDataTree.isZero()
-    );
+    return this.noteHashTree.isZero() && this.nullifierTree.isZero() && this.publicDataTree.isZero();
   }
 }

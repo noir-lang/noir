@@ -1,4 +1,3 @@
-use crate::abis::membership_witness::ContractLeafMembershipWitness;
 use crate::address::{AztecAddress, EthAddress, PublicKeysHash, SaltedInitializationHash, PartialAddress};
 use crate::tests::fixtures;
 use crate::contract_class_id::ContractClassId;

@@ -2,8 +2,7 @@ use dep::types::{
     abis::{membership_witness::NullifierMembershipWitness, nullifier_leaf_preimage::NullifierLeafPreimage},
     constants::{
     MAX_NEW_NULLIFIERS_PER_TX, NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
-    NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, CONTRACT_SUBTREE_SIBLING_PATH_LENGTH,
-    PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH
+    NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH
 }
 };
 
@@ -19,6 +18,5 @@ struct StateDiffHints {
     // snapshots of the relevant trees are stored in partial state reference).
     note_hash_subtree_sibling_path: [Field; NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH],
     nullifier_subtree_sibling_path: [Field; NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH],
-    contract_subtree_sibling_path: [Field; CONTRACT_SUBTREE_SIBLING_PATH_LENGTH],
     public_data_sibling_path: [Field; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH],
 }

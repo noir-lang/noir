@@ -20,15 +20,6 @@ impl PrivateKernelInnerCircuitPrivateInputs {
         common::validate_call_against_request(self.private_call, call_request);
     }
 
-    fn validate_contract_tree_root(self) {
-        let purported_contract_tree_root = self.private_call.call_stack_item.public_inputs.historical_header.state.partial.contract_tree.root;
-        let previous_kernel_contract_tree_root = self.previous_kernel.public_inputs.constants.historical_header.state.partial.contract_tree.root;
-
-        assert(
-            purported_contract_tree_root == previous_kernel_contract_tree_root, "purported_contract_tree_root does not match previous_kernel_contract_tree_root"
-        );
-    }
-
     fn validate_inputs(self) {
         let this_call_stack_item = self.private_call.call_stack_item;
         let function_data = this_call_stack_item.function_data;
@@ -63,17 +54,7 @@ impl PrivateKernelInnerCircuitPrivateInputs {
         //TODO(David): feels like update_end_values should happen later
         common::update_end_values(self.private_call, &mut public_inputs);
 
-        // ensure that historical/purported contract tree root matches the one in previous kernel
-        self.validate_contract_tree_root();
-
-        let this_call_stack_item = self.private_call.call_stack_item;
-
-        common::contract_logic(
-            self.private_call,
-            &mut public_inputs,
-            this_call_stack_item.public_inputs.contract_deployment_data,
-            this_call_stack_item.function_data
-        );
+        common::contract_logic(self.private_call);
 
         let (is_previous_state_valid, updated_aggregation_object) = verify_previous_kernel_state(public_inputs.aggregation_object, self.private_call.proof);
         assert(is_previous_state_valid);
@@ -105,7 +86,7 @@ mod tests {
     impl PrivateKernelInnerInputsBuilder {
         pub fn new() -> Self {
             let previous_kernel = PreviousKernelDataBuilder::new(false);
-            let private_call = PrivateCallDataBuilder::new(false);
+            let private_call = PrivateCallDataBuilder::new();
 
             PrivateKernelInnerInputsBuilder { previous_kernel, private_call }
         }
@@ -155,17 +136,6 @@ mod tests {
         // Set (storage) contract_address to 0
         builder.private_call.contract_address = AztecAddress::zero();
         builder.private_call.public_inputs.call_context.storage_contract_address = AztecAddress::zero();
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "purported_contract_tree_root does not match previous_kernel_contract_tree_root")]
-    fn private_function_incorrect_contract_tree_root_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        // Set historical contract tree root to a wrong value (the correct value + 1).
-        let contract_tree_root = builder.previous_kernel.historical_header.state.partial.contract_tree.root;
-        builder.previous_kernel.historical_header.state.partial.contract_tree.root = contract_tree_root + 1;
 
         builder.failed();
     }

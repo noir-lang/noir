@@ -30,8 +30,6 @@ import { deployInstance, registerContractClass } from '@aztec/aztec.js/deploymen
 import {
   AvailabilityOracleAbi,
   AvailabilityOracleBytecode,
-  ContractDeploymentEmitterAbi,
-  ContractDeploymentEmitterBytecode,
   InboxAbi,
   InboxBytecode,
   OutboxAbi,
@@ -100,10 +98,6 @@ export const setupL1Contracts = async (
   logger: DebugLogger,
 ) => {
   const l1Artifacts: L1ContractArtifactsForDeployment = {
-    contractDeploymentEmitter: {
-      contractAbi: ContractDeploymentEmitterAbi,
-      contractBytecode: ContractDeploymentEmitterBytecode,
-    },
     registry: {
       contractAbi: RegistryAbi,
       contractBytecode: RegistryBytecode,

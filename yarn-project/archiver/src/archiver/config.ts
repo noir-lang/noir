@@ -58,7 +58,6 @@ export function getConfigEnvVars(): ArchiverConfig {
     ARCHIVER_VIEM_POLLING_INTERVAL_MS,
     AVAILABILITY_ORACLE_CONTRACT_ADDRESS,
     ROLLUP_CONTRACT_ADDRESS,
-    CONTRACT_DEPLOYMENT_EMITTER_ADDRESS,
     API_KEY,
     INBOX_CONTRACT_ADDRESS,
     OUTBOX_CONTRACT_ADDRESS,
@@ -74,9 +73,6 @@ export function getConfigEnvVars(): ArchiverConfig {
     registryAddress: REGISTRY_CONTRACT_ADDRESS ? EthAddress.fromString(REGISTRY_CONTRACT_ADDRESS) : EthAddress.ZERO,
     inboxAddress: INBOX_CONTRACT_ADDRESS ? EthAddress.fromString(INBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,
     outboxAddress: OUTBOX_CONTRACT_ADDRESS ? EthAddress.fromString(OUTBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    contractDeploymentEmitterAddress: CONTRACT_DEPLOYMENT_EMITTER_ADDRESS
-      ? EthAddress.fromString(CONTRACT_DEPLOYMENT_EMITTER_ADDRESS)
-      : EthAddress.ZERO,
   };
   return {
     rpcUrl: ETHEREUM_HOST || 'http://127.0.0.1:8545/',

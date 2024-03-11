@@ -1,5 +1,4 @@
 import { L2Block, L2BlockSource, MerkleTreeId, SiblingPath } from '@aztec/circuit-types';
-import { Fr } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { sleep } from '@aztec/foundation/sleep';
 import { AztecKVStore } from '@aztec/kv-store';
@@ -22,19 +21,6 @@ const consumeNextBlocks = () => {
   return Promise.resolve(blocks);
 };
 
-const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) => {
-  const block = L2Block.random(blockNumber);
-
-  if (newContractsCommitments) {
-    for (let i = 0; i < newContractsCommitments.length; i++) {
-      // Assuming one new contract per tx
-      block.body.txEffects[i].contractLeaves = [Fr.fromBuffer(newContractsCommitments[i])];
-    }
-  }
-
-  return block;
-};
-
 const log = createDebugLogger('aztec:server_world_state_synchronizer_test');
 
 describe('server_world_state_synchronizer', () => {
@@ -46,7 +32,7 @@ describe('server_world_state_synchronizer', () => {
 
   const merkleTreeDb = mock<MerkleTreeDb>({
     getTreeInfo: jest.fn(() =>
-      Promise.resolve({ depth: 8, treeId: MerkleTreeId.CONTRACT_TREE, root: Buffer.alloc(32, 0), size: 0n }),
+      Promise.resolve({ depth: 8, treeId: MerkleTreeId.NOTE_HASH_TREE, root: Buffer.alloc(32, 0), size: 0n }),
     ),
     getSiblingPath: jest.fn(() => {
       const pedersen: Pedersen = new Pedersen();
@@ -64,7 +50,7 @@ describe('server_world_state_synchronizer', () => {
     // create the initial blocks
     nextBlocks = Array(LATEST_BLOCK_NUMBER)
       .fill(0)
-      .map((_, index: number) => getMockBlock(index + 1));
+      .map((_, index: number) => L2Block.random(index + 1));
 
     // start the sync process and await it
     await server.start().catch(err => log.error('Sync not completed: ', err));
@@ -82,7 +68,7 @@ describe('server_world_state_synchronizer', () => {
     // create the initial blocks
     nextBlocks = Array(count)
       .fill(0)
-      .map((_, index: number) => getMockBlock(LATEST_BLOCK_NUMBER + index + 1));
+      .map((_, index: number) => L2Block.random(LATEST_BLOCK_NUMBER + index + 1));
 
     rollupSource.getBlockNumber.mockResolvedValueOnce(LATEST_BLOCK_NUMBER + count);
 
@@ -125,7 +111,7 @@ describe('server_world_state_synchronizer', () => {
 
     // create an initial block
     let currentBlockNumber = 0;
-    nextBlocks = [getMockBlock(currentBlockNumber + 1)];
+    nextBlocks = [L2Block.random(currentBlockNumber + 1)];
 
     // start the sync process but don't await
     server.start().catch(err => log.error('Sync not completed: ', err));
@@ -147,7 +133,7 @@ describe('server_world_state_synchronizer', () => {
         continue;
       }
       currentBlockNumber++;
-      nextBlocks = [getMockBlock(currentBlockNumber + 1)];
+      nextBlocks = [L2Block.random(currentBlockNumber + 1)];
     }
 
     // check the status again, should be fully synced
@@ -171,7 +157,7 @@ describe('server_world_state_synchronizer', () => {
     const newBlocks = async () => {
       while (currentBlockNumber <= LATEST_BLOCK_NUMBER) {
         await sleep(100);
-        nextBlocks = [...nextBlocks, getMockBlock(++currentBlockNumber)];
+        nextBlocks = [...nextBlocks, L2Block.random(++currentBlockNumber)];
       }
     };
 
@@ -202,7 +188,7 @@ describe('server_world_state_synchronizer', () => {
     const newBlocks = async () => {
       while (currentBlockNumber < LATEST_BLOCK_NUMBER) {
         await sleep(100);
-        const newBlock = getMockBlock(++currentBlockNumber);
+        const newBlock = L2Block.random(++currentBlockNumber);
         nextBlocks = [...nextBlocks, newBlock];
       }
     };
@@ -260,7 +246,7 @@ describe('server_world_state_synchronizer', () => {
     const totalBlocks = LATEST_BLOCK_NUMBER + 1;
     nextBlocks = Array(totalBlocks)
       .fill(0)
-      .map((_, index) => getMockBlock(index, [Buffer.alloc(32, index)]));
+      .map((_, index) => L2Block.random(index));
     // sync the server
     await server.start();
 
@@ -275,13 +261,13 @@ describe('server_world_state_synchronizer', () => {
 
     // the server should now be asleep for a long time
     // we will add a new block and force an immediate sync
-    nextBlocks = [getMockBlock(LATEST_BLOCK_NUMBER + 1)];
+    nextBlocks = [L2Block.random(LATEST_BLOCK_NUMBER + 1)];
     await server.syncImmediate();
 
     let status = await server.status();
     expect(status.syncedToL2Block).toBe(LATEST_BLOCK_NUMBER + 1);
 
-    nextBlocks = [getMockBlock(LATEST_BLOCK_NUMBER + 2), getMockBlock(LATEST_BLOCK_NUMBER + 3)];
+    nextBlocks = [L2Block.random(LATEST_BLOCK_NUMBER + 2), L2Block.random(LATEST_BLOCK_NUMBER + 3)];
     await server.syncImmediate();
 
     status = await server.status();
@@ -305,7 +291,7 @@ describe('server_world_state_synchronizer', () => {
     // we will add 20 blocks and force a sync to at least LATEST + 5
     nextBlocks = Array(20)
       .fill(0)
-      .map((_, index: number) => getMockBlock(index + 1 + LATEST_BLOCK_NUMBER));
+      .map((_, index: number) => L2Block.random(index + 1 + LATEST_BLOCK_NUMBER));
     await server.syncImmediate(LATEST_BLOCK_NUMBER + 5);
 
     // we should have synced all of the blocks
@@ -352,7 +338,7 @@ describe('server_world_state_synchronizer', () => {
     // we will add 2 blocks and force a sync to at least LATEST + 5
     nextBlocks = Array(2)
       .fill(0)
-      .map((_, index: number) => getMockBlock(index + 1 + LATEST_BLOCK_NUMBER));
+      .map((_, index: number) => L2Block.random(index + 1 + LATEST_BLOCK_NUMBER));
     await expect(server.syncImmediate(LATEST_BLOCK_NUMBER + 5)).rejects.toThrow(
       `Unable to sync to block number ${LATEST_BLOCK_NUMBER + 5}, currently synced to block ${LATEST_BLOCK_NUMBER + 2}`,
     );
@@ -380,7 +366,7 @@ describe('server_world_state_synchronizer', () => {
     // create an initial block
     nextBlocks = Array(LATEST_BLOCK_NUMBER)
       .fill(0)
-      .map((_, index: number) => getMockBlock(index + 1));
+      .map((_, index: number) => L2Block.random(index + 1));
 
     await expect(server.syncImmediate()).rejects.toThrow(`World State is not running, unable to perform sync`);
   });

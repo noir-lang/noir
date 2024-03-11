@@ -18,6 +18,9 @@ import {Hash} from "../Hash.sol";
  * -------------------
  * L2 Body Data Specification
  * -------------------
+ * -------------------
+ * L2 Body Data Specification
+ * -------------------
  *  | byte start                                                                                                                | num bytes  | name
  *  | ---                                                                                                                       | ---        | ---
  *  | 0x0                                                                                                                       | 0x4        | len(newL1ToL2Msgs) (denoted a)
@@ -32,13 +35,10 @@ import {Hash} from "../Hash.sol";
  *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                                                          | d * 0x20   |   newL2ToL1Msgs
  *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                                               | 0x1        |   len(newPublicDataWrites) (denoted e)
  *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                                                        | e * 0x40   |   newPublicDataWrites
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                                             | 0x1        |   len(contracts) (denoted f)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1                                       | f * 0x20   |   newContracts
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20                            | f * 0x34   |   newContractsData
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34                 | 0x04       |   byteLen(newEncryptedLogs) (denoted g)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34 + 0x4           | g          |   newEncryptedLogs
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34 + 0x4 + g       | 0x04       |   byteLen(newUnencryptedLogs) (denoted h)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x1 + f * 0x20 + f * 0x34 + 0x4 + g + 0x4 | h          |   newUnencryptedLogs
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                                             | 0x04       |   byteLen(newEncryptedLogs) (denoted f)
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4                                       | f          |   newEncryptedLogs
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f                                   | 0x04       |   byteLen(newUnencryptedLogs) (denoted g)
+ *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4                             | g          |   newUnencryptedLogs
  *  |                                                                                                                           |            | },
  *  |                                                                                                                           |            | TxEffect 1 {
  *  |                                                                                                                           |            |   ...
@@ -125,14 +125,6 @@ library MessagesDecoder {
       count = read1(_body, offset);
       offset += 0x1;
       offset += count * 0x40; // each public data write is 0x40 bytes long
-
-      // Contracts
-      count = read1(_body, offset);
-      offset += 0x1;
-      offset += count * 0x20; // each contract leaf is 0x20 bytes long
-
-      // Contract data
-      offset += count * 0x34; // each contract data is 0x34 bytes long
 
       // Encrypted logs
       uint256 length = read4(_body, offset);

@@ -20,7 +20,6 @@ describe('AVM WitGen and Proof Generation', () => {
     storageContractAddress: AztecAddress.random(),
     portalContractAddress: EthAddress.random(),
     functionSelector: FunctionSelector.empty(),
-    isContractDeployment: false,
     isDelegateCall: false,
     isStaticCall: false,
     startSideEffectCounter: 0,

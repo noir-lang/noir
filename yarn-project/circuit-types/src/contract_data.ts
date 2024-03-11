@@ -30,20 +30,6 @@ export interface ContractDataSource {
   getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined>;
 
   /**
-   * Gets extended contract data for all contracts deployed in L2 block.
-   * @param blockNumber - The block number.
-   * @returns Extended contract data of contracts deployed in L2 block.
-   */
-  getExtendedContractDataInBlock(blockNumber: number): Promise<ExtendedContractData[]>;
-
-  /**
-   * Lookup contract data in an L2 block.
-   * @param blockNumber - The block number.
-   * @returns Portal contract address info of contracts deployed in L2 block.
-   */
-  getContractDataInBlock(blockNumber: number): Promise<ContractData[] | undefined>;
-
-  /**
    * Returns a contract's encoded public function, given its function selector.
    * @param address - The contract aztec address.
    * @param selector - The function's selector.
@@ -141,6 +127,7 @@ export class EncodedContractFunction {
 
 /**
  * A contract data blob, containing L1 and L2 addresses, public functions' bytecode, partial address and public key.
+ * TODO(palla/purge-old-contract-deploy): Delete this class?
  */
 export class ExtendedContractData {
   /** The contract's encoded ACIR code. This should become Brillig code once implemented. */
@@ -270,6 +257,7 @@ export class ExtendedContractData {
 
 /**
  * A contract data blob, containing L1 and L2 addresses.
+ * TODO(palla/purge-old-contract-deploy): Delete me
  */
 export class ContractData {
   constructor(

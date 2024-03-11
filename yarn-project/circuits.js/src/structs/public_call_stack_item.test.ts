@@ -1,3 +1,5 @@
+import { updateInlineTestData } from '@aztec/foundation/testing';
+
 import { makePublicCallStackItem } from '../tests/factories.js';
 import { AztecAddress, Fr, FunctionData, FunctionSelector, SideEffect } from './index.js';
 import { PublicCallStackItem } from './public_call_stack_item.js';
@@ -29,8 +31,12 @@ describe('PublicCallStackItem', () => {
     const hash = callStack.hash();
     expect(hash.toString()).toMatchSnapshot();
 
-    // Value used in compute_call_stack_item_hash test in public_call_stack_item.test.ts
-    // console.log("hash", hash.toString());
+    // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
+    updateInlineTestData(
+      'noir-projects/noir-protocol-circuits/crates/types/src/abis/public_call_stack_item.nr',
+      'test_data_call_stack_item_request_hash',
+      hash.toString(),
+    );
   });
 
   it('Computes a callstack item hash', () => {
@@ -43,7 +49,11 @@ describe('PublicCallStackItem', () => {
     const hash = callStack.hash();
     expect(hash.toString()).toMatchSnapshot();
 
-    // Value used in compute_call_stack_item_request_hash test in public_call_stack_item.test.ts
-    // console.log("hash", hash.toString());
+    // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
+    updateInlineTestData(
+      'noir-projects/noir-protocol-circuits/crates/types/src/abis/public_call_stack_item.nr',
+      'test_data_call_stack_item_hash',
+      hash.toString(),
+    );
   });
 });

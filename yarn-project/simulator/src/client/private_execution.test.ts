@@ -3,7 +3,6 @@ import {
   AppendOnlyTreeSnapshot,
   CallContext,
   CompleteAddress,
-  ContractDeploymentData,
   FunctionData,
   Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
@@ -20,7 +19,7 @@ import {
   sideEffectArrayToValueArray,
 } from '@aztec/circuits.js';
 import { computeCommitmentNonce, computeMessageSecretHash, computeVarArgsHash } from '@aztec/circuits.js/hash';
-import { makeContractDeploymentData, makeHeader } from '@aztec/circuits.js/testing';
+import { makeHeader } from '@aztec/circuits.js/testing';
 import {
   FunctionArtifact,
   FunctionSelector,
@@ -86,12 +85,10 @@ describe('Private Execution test suite', () => {
 
   let trees: { [name: keyof typeof treeHeights]: AppendOnlyTree } = {};
   const txContextFields: FieldsOf<TxContext> = {
-    isContractDeploymentTx: false,
     isFeePaymentTx: false,
     isRebatePaymentTx: false,
     chainId: new Fr(10),
     version: new Fr(20),
-    contractDeploymentData: ContractDeploymentData.empty(),
   };
 
   const runSimulator = ({
@@ -154,7 +151,6 @@ describe('Private Execution test suite', () => {
           new PartialStateReference(
             name === 'noteHash' ? newSnap : header.state.partial.noteHashTree,
             header.state.partial.nullifierTree,
-            header.state.partial.contractTree,
             header.state.partial.publicDataTree,
           ),
         ),
@@ -222,13 +218,10 @@ describe('Private Execution test suite', () => {
   describe('empty constructor', () => {
     it('should run the empty constructor', async () => {
       const artifact = getFunctionArtifact(TestContractArtifact, 'constructor');
-      const contractDeploymentData = makeContractDeploymentData(100);
-      const txContext = { isContractDeploymentTx: true, contractDeploymentData };
-      const result = await runSimulator({ artifact, txContext });
+      const result = await runSimulator({ artifact });
 
       const emptyCommitments = new Array(MAX_NEW_NOTE_HASHES_PER_CALL).fill(Fr.ZERO);
       expect(sideEffectArrayToValueArray(result.callStackItem.publicInputs.newNoteHashes)).toEqual(emptyCommitments);
-      expect(result.callStackItem.publicInputs.contractDeploymentData).toEqual(contractDeploymentData);
     });
 
     it('emits a field as an unencrypted log', async () => {
@@ -795,7 +788,8 @@ describe('Private Execution test suite', () => {
   describe('enqueued calls', () => {
     it.each([false, true])('parent should enqueue call to child (internal %p)', async isInternal => {
       const parentArtifact = getFunctionArtifact(ParentContractArtifact, 'enqueueCallToChild');
-      const childContractArtifact = ParentContractArtifact.functions[0];
+      const childContractArtifact = ChildContractArtifact.functions.find(fn => fn.name === 'pubSetValue')!;
+      expect(childContractArtifact).toBeDefined();
       const childAddress = AztecAddress.random();
       const childPortalContractAddress = EthAddress.random();
       const childSelector = FunctionSelector.fromNameAndParameters(
@@ -828,7 +822,6 @@ describe('Private Execution test suite', () => {
           storageContractAddress: childAddress,
           portalContractAddress: childPortalContractAddress,
           functionSelector: childSelector,
-          isContractDeployment: false,
           isDelegateCall: false,
           isStaticCall: false,
           startSideEffectCounter: 1,
@@ -838,7 +831,6 @@ describe('Private Execution test suite', () => {
           storageContractAddress: parentAddress,
           portalContractAddress: EthAddress.ZERO,
           functionSelector: FunctionSelector.fromNameAndParameters(parentArtifact.name, parentArtifact.parameters),
-          isContractDeployment: false,
           isDelegateCall: false,
           isStaticCall: false,
           startSideEffectCounter: 1,

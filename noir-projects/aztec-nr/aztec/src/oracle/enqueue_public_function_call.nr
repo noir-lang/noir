@@ -1,11 +1,8 @@
-use dep::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
-
-// contract_address + 
-// args_hash +
-// crate::abi::FUNCTION_DATA_SIZE +
-// crate::abi::CALL_CONTEXT_SIZE
-// = 2 + 4 + 8
-global ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE: Field = 14;
+use dep::protocol_types::{
+    abis::function_selector::FunctionSelector, 
+    address::AztecAddress, 
+    constants::ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH
+};
 
 #[oracle(enqueuePublicFunctionCall)]
 fn enqueue_public_function_call_oracle(
@@ -15,7 +12,7 @@ fn enqueue_public_function_call_oracle(
     _side_effect_counter: u32,
     _is_static_call: bool,
     _is_delegate_call: bool
-) -> [Field; ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE] {}
+) -> [Field; ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH] {}
 
 unconstrained pub fn enqueue_public_function_call_internal(
     contract_address: AztecAddress,
@@ -24,7 +21,7 @@ unconstrained pub fn enqueue_public_function_call_internal(
     side_effect_counter: u32,
     is_static_call: bool,
     is_delegate_call: bool
-) -> [Field; ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_SIZE] {
+) -> [Field; ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH] {
     enqueue_public_function_call_oracle(
         contract_address,
         function_selector,

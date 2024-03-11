@@ -98,10 +98,6 @@ mod tests {
         );
 
         assert(
-            outputs.header.state.partial.contract_tree.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end.contract_tree)
-        );
-
-        assert(
             outputs.header.state.partial.public_data_tree.eq(inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end.public_data_tree)
         );
     }

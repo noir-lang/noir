@@ -1,13 +1,8 @@
-use crate::{
-    abis::{
-    call_request::CallRequest, new_contract_data::NewContractData,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
-}
-};
+use crate::{abis::{call_request::CallRequest, side_effect::{SideEffect, SideEffectLinkedToNoteHash}}};
 use crate::constants::{
     MAX_REVERTIBLE_NOTE_HASHES_PER_TX, MAX_REVERTIBLE_NULLIFIERS_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-    MAX_NEW_L2_TO_L1_MSGS_PER_TX, NUM_FIELDS_PER_SHA256, MAX_NEW_CONTRACTS_PER_TX
+    MAX_NEW_L2_TO_L1_MSGS_PER_TX, NUM_FIELDS_PER_SHA256
 };
 
 struct PrivateAccumulatedRevertibleData {
@@ -25,8 +20,6 @@ struct PrivateAccumulatedRevertibleData {
     // variable-length data.
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,
-
-    new_contracts: [NewContractData; MAX_NEW_CONTRACTS_PER_TX],
 }
 
 impl PrivateAccumulatedRevertibleData {

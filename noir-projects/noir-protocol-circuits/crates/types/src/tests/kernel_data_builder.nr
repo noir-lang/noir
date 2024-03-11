@@ -54,7 +54,7 @@ impl PreviousKernelDataBuilder {
             end.new_nullifiers.push(tx_nullifier);
         }
 
-        let tx_context = build_tx_context(false, 0);
+        let tx_context = build_tx_context();
 
         PreviousKernelDataBuilder {
             contract_address: fixtures::contracts::parent_contract.address,

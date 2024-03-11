@@ -1,3 +1,5 @@
+import { updateInlineTestData } from '@aztec/foundation/testing';
+
 import { TX_CONTEXT_DATA_LENGTH } from '../constants.gen.js';
 import { makeTxContext } from '../tests/factories.js';
 import { TxContext } from './tx_context.js';
@@ -29,7 +31,11 @@ describe('TxContext', () => {
     const hash = tc.hash();
     expect(hash).toMatchSnapshot();
 
-    // Value used in empty_hash test in contract_deployment_data.nr
-    // console.log("hash", hash.toString());
+    // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
+    updateInlineTestData(
+      'noir-projects/noir-protocol-circuits/crates/types/src/transaction/tx_context.nr',
+      'test_data_empty_hash',
+      hash.toString(),
+    );
   });
 });

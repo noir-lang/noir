@@ -54,12 +54,6 @@ It is the job of the rollup contract to store the state of the rollup and progre
 
 Currently not running any proofs _nor_ access control so blocks can be submitted by anyone and can be complete garbage.
 
-### ContractDeploymentEmitter
-
-Job: Share Contract Deployment public data on chain.
-
-For now, this include bytecode for contract deployment, but over time this will be verified for public functions.
-
 ---
 
 # Linter

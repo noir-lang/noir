@@ -39,10 +39,6 @@ export class CallContext {
      */
     public isStaticCall: boolean,
     /**
-     * Determines whether the call is a contract deployment.
-     */
-    public isContractDeployment: boolean,
-    /**
      * The start side effect counter for this call context.
      */
     public startSideEffectCounter: number,
@@ -58,7 +54,6 @@ export class CallContext {
       AztecAddress.ZERO,
       EthAddress.ZERO,
       FunctionSelector.empty(),
-      false,
       false,
       false,
       0,
@@ -87,7 +82,6 @@ export class CallContext {
       fields.functionSelector,
       fields.isDelegateCall,
       fields.isStaticCall,
-      fields.isContractDeployment,
       fields.startSideEffectCounter,
     ] as const;
   }
@@ -124,7 +118,6 @@ export class CallContext {
       reader.readObject(FunctionSelector),
       reader.readBoolean(),
       reader.readBoolean(),
-      reader.readBoolean(),
       reader.readNumber(),
     );
   }
@@ -136,7 +129,6 @@ export class CallContext {
       reader.readObject(AztecAddress),
       reader.readObject(EthAddress),
       reader.readObject(FunctionSelector),
-      reader.readBoolean(),
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readU32(),
@@ -151,7 +143,6 @@ export class CallContext {
       callContext.functionSelector.equals(this.functionSelector) &&
       callContext.isDelegateCall === this.isDelegateCall &&
       callContext.isStaticCall === this.isStaticCall &&
-      callContext.isContractDeployment === this.isContractDeployment &&
       callContext.startSideEffectCounter === this.startSideEffectCounter
     );
   }
