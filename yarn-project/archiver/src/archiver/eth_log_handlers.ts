@@ -6,15 +6,38 @@ import {
   L1Actor,
   L1ToL2Message,
   L2Actor,
+  NewInboxLeaf,
 } from '@aztec/circuit-types';
 import { AppendOnlyTreeSnapshot, Header } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, numToUInt32BE } from '@aztec/foundation/serialize';
-import { AvailabilityOracleAbi, ContractDeploymentEmitterAbi, InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
+import {
+  AvailabilityOracleAbi,
+  ContractDeploymentEmitterAbi,
+  InboxAbi,
+  NewInboxAbi,
+  RollupAbi,
+} from '@aztec/l1-artifacts';
 
 import { Hex, Log, PublicClient, decodeFunctionData, getAbiItem, getAddress, hexToBytes } from 'viem';
+
+/**
+ * Processes newly received LeafInserted (L1 to L2) logs.
+ * @param logs - LeafInserted logs.
+ * @returns Array of all processed LeafInserted logs
+ */
+export function processLeafInsertedLogs(
+  logs: Log<bigint, number, false, undefined, true, typeof NewInboxAbi, 'LeafInserted'>[],
+): NewInboxLeaf[] {
+  const leaves: NewInboxLeaf[] = [];
+  for (const log of logs) {
+    const { blockNumber, index, value } = log.args;
+    leaves.push(new NewInboxLeaf(blockNumber, index, Buffer.from(hexToBytes(value))));
+  }
+  return leaves;
+}
 
 /**
  * Processes newly received MessageAdded (L1 to L2) logs.
@@ -335,6 +358,31 @@ export function getL1ToL2MessageCancelledLogs(
     event: getAbiItem({
       abi: InboxAbi,
       name: 'L1ToL2MessageCancelled',
+    }),
+    fromBlock,
+    toBlock: toBlock + 1n, // the toBlock argument in getLogs is exclusive
+  });
+}
+
+/**
+ * Get relevant `LeafInserted` logs emitted by NewInbox on chain.
+ * @param publicClient - The viem public client to use for transaction retrieval.
+ * @param newInboxAddress - The address of the new inbox contract.
+ * @param fromBlock - First block to get logs from (inclusive).
+ * @param toBlock - Last block to get logs from (inclusive).
+ * @returns An array of `LeafInserted` logs.
+ */
+export function getLeafInsertedLogs(
+  publicClient: PublicClient,
+  newInboxAddress: EthAddress,
+  fromBlock: bigint,
+  toBlock: bigint,
+): Promise<Log<bigint, number, false, undefined, true, typeof NewInboxAbi, 'LeafInserted'>[]> {
+  return publicClient.getLogs({
+    address: getAddress(newInboxAddress.toString()),
+    event: getAbiItem({
+      abi: NewInboxAbi,
+      name: 'LeafInserted',
     }),
     fromBlock,
     toBlock: toBlock + 1n, // the toBlock argument in getLogs is exclusive

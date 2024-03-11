@@ -31,8 +31,36 @@ export interface L1ToL2MessageSource {
   getBlockNumber(): Promise<number>;
 }
 
+export class NewInboxLeaf {
+  constructor(
+    /** L2 block number in which the message will be included. */
+    public readonly blockNumber: bigint,
+    /** Index of the leaf in L2 block message subtree. */
+    public readonly index: bigint,
+    /** Leaf of the subtree. */
+    public readonly leaf: Buffer,
+  ) {
+    if (leaf.length !== 32) {
+      throw new Error('Invalid leaf length');
+    }
+  }
+
+  toBuffer(): Buffer {
+    return Buffer.concat([toBufferBE(this.blockNumber, 32), toBufferBE(this.index, 32), this.leaf]);
+  }
+
+  fromBuffer(buffer: Buffer | BufferReader): NewInboxLeaf {
+    const reader = BufferReader.asReader(buffer);
+    const blockNumber = toBigIntBE(reader.readBytes(32));
+    const index = toBigIntBE(reader.readBytes(32));
+    const leaf = reader.readBytes(32);
+    return new NewInboxLeaf(blockNumber, index, leaf);
+  }
+}
+
 /**
  * L1AndL2Message and Index (in the merkle tree) as one type
+ * TODO(#4492): Nuke the following when purging the old inbox
  */
 export class L1ToL2MessageAndIndex {
   constructor(
@@ -65,6 +93,7 @@ export class L1ToL2MessageAndIndex {
 
 /**
  * The format of an L1 to L2 Message.
+ * TODO(#4492): Nuke the following when purging the old inbox
  */
 export class L1ToL2Message {
   constructor(
@@ -160,6 +189,7 @@ export class L1ToL2Message {
 
 /**
  * The sender of an L1 to L2 message.
+ * TODO(#4492): Move to separate file when purging the old inbox
  */
 export class L1Actor {
   constructor(
@@ -199,6 +229,7 @@ export class L1Actor {
 
 /**
  * The recipient of an L2 message.
+ * TODO(#4492): Move to separate file when purging the old inbox
  */
 export class L2Actor {
   constructor(

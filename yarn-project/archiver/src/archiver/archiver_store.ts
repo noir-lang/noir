@@ -8,6 +8,7 @@ import {
   L2BlockL2Logs,
   LogFilter,
   LogType,
+  NewInboxLeaf,
   TxEffect,
   TxHash,
   TxReceipt,
@@ -22,6 +23,9 @@ import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/c
 export type ArchiverL1SynchPoint = {
   /** The last L1 block that added a new L2 block.  */
   addedBlock: bigint;
+  /** The last L1 block that added messages from the new inbox. */
+  // TODO(#4492): Clean this up and fix the naming
+  newMessages: bigint;
   /** The last L1 block that added pending messages */
   addedMessages: bigint;
   /** The last L1 block that cancelled messages */
@@ -91,10 +95,19 @@ export interface ArchiverDataStore {
   ): Promise<boolean>;
 
   /**
+   * Append new L1 to L2 messages to the store.
+   * @param messages - The L1 to L2 messages to be added to the store.
+   * @param lastMessageL1BlockNumber - The L1 block number in which the last message was emitted.
+   * @returns True if the operation is successful.
+   */
+  addNewL1ToL2Messages(messages: NewInboxLeaf[], lastMessageL1BlockNumber: bigint): Promise<boolean>;
+
+  /**
    * Append new pending L1 to L2 messages to the store.
    * @param messages - The L1 to L2 messages to be added to the store.
    * @param l1BlockNumber - The block number of the L1 block that added the messages.
    * @returns True if the operation is successful.
+   * TODO(#4492): Nuke the following when purging the old inbox
    */
   addPendingL1ToL2Messages(messages: L1ToL2Message[], l1BlockNumber: bigint): Promise<boolean>;
 
@@ -103,6 +116,7 @@ export interface ArchiverDataStore {
    * @param entryKeys - The entry keys to be removed from the store.
    * @param l1BlockNumber - The block number of the L1 block that cancelled the messages.
    * @returns True if the operation is successful.
+   * TODO(#4492): Nuke the following when purging the old inbox
    */
   cancelPendingL1ToL2EntryKeys(entryKeys: Fr[], l1BlockNumber: bigint): Promise<boolean>;
 
@@ -127,6 +141,13 @@ export interface ArchiverDataStore {
    * @returns The requested L1 to L2 message or throws if not found.
    */
   getConfirmedL1ToL2Message(entryKey: Fr): Promise<L1ToL2Message>;
+
+  /**
+   * Gets new L1 to L2 message (to be) included in a given block.
+   * @param blockNumber - L2 block number to get messages for.
+   * @returns The L1 to L2 messages/leaves of the messages subtree (throws if not found).
+   */
+  getNewL1ToL2Messages(blockNumber: bigint): Promise<Buffer[]>;
 
   /**
    * Gets up to `limit` amount of logs starting from `from`.

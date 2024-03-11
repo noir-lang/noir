@@ -8,6 +8,7 @@ import {
   L2BlockL2Logs,
   LogFilter,
   LogType,
+  NewInboxLeaf,
   TxEffect,
   TxHash,
   TxReceipt,
@@ -149,6 +150,16 @@ export class KVArchiverDataStore implements ArchiverDataStore {
   }
 
   /**
+   * Append new L1 to L2 messages to the store.
+   * @param messages - The L1 to L2 messages to be added to the store.
+   * @param lastMessageL1BlockNumber - The L1 block number in which the last message was emitted.
+   * @returns True if the operation is successful.
+   */
+  addNewL1ToL2Messages(messages: NewInboxLeaf[], lastMessageL1BlockNumber: bigint): Promise<boolean> {
+    return Promise.resolve(this.#messageStore.addNewL1ToL2Messages(messages, lastMessageL1BlockNumber));
+  }
+
+  /**
    * Append new pending L1 to L2 messages to the store.
    * @param messages - The L1 to L2 messages to be added to the store.
    * @param l1BlockNumber - The L1 block number for which to add the messages.
@@ -196,6 +207,19 @@ export class KVArchiverDataStore implements ArchiverDataStore {
   getConfirmedL1ToL2Message(entryKey: Fr): Promise<L1ToL2Message> {
     try {
       return Promise.resolve(this.#messageStore.getConfirmedMessage(entryKey));
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  /**
+   * Gets new L1 to L2 message (to be) included in a given block.
+   * @param blockNumber - L2 block number to get messages for.
+   * @returns The L1 to L2 messages/leaves of the messages subtree (throws if not found).
+   */
+  getNewL1ToL2Messages(blockNumber: bigint): Promise<Buffer[]> {
+    try {
+      return Promise.resolve(this.#messageStore.getNewL1ToL2Messages(blockNumber));
     } catch (err) {
       return Promise.reject(err);
     }
@@ -290,10 +314,11 @@ export class KVArchiverDataStore implements ArchiverDataStore {
    */
   getL1BlockNumber(): Promise<ArchiverL1SynchPoint> {
     const addedBlock = this.#blockStore.getL1BlockNumber();
-    const { addedMessages, cancelledMessages } = this.#messageStore.getL1BlockNumber();
+    const { addedMessages, cancelledMessages, newMessages } = this.#messageStore.getL1BlockNumber();
     return Promise.resolve({
       addedBlock,
       addedMessages,
+      newMessages,
       cancelledMessages,
     });
   }

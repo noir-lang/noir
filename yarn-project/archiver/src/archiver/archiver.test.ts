@@ -3,7 +3,13 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { sleep } from '@aztec/foundation/sleep';
-import { AvailabilityOracleAbi, ContractDeploymentEmitterAbi, InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
+import {
+  AvailabilityOracleAbi,
+  ContractDeploymentEmitterAbi,
+  InboxAbi,
+  NewInboxAbi,
+  RollupAbi,
+} from '@aztec/l1-artifacts';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Chain, HttpTransport, Log, PublicClient, Transaction, encodeFunctionData, toHex } from 'viem';
@@ -13,11 +19,13 @@ import { ArchiverDataStore } from './archiver_store.js';
 import { MemoryArchiverStore } from './memory_archiver_store/memory_archiver_store.js';
 
 describe('Archiver', () => {
-  const rollupAddress = EthAddress.ZERO.toString();
-  const inboxAddress = EthAddress.ZERO.toString();
-  const registryAddress = EthAddress.ZERO.toString();
-  const availabilityOracleAddress = EthAddress.ZERO.toString();
-  const contractDeploymentEmitterAddress = '0x0000000000000000000000000000000000000001';
+  const rollupAddress = EthAddress.ZERO;
+  const inboxAddress = EthAddress.ZERO;
+  // TODO(#4492): Nuke this once the old inbox is purged
+  const newInboxAddress = EthAddress.ZERO;
+  const registryAddress = EthAddress.ZERO;
+  const availabilityOracleAddress = EthAddress.ZERO;
+  const contractDeploymentEmitterAddress = EthAddress.fromString('0x0000000000000000000000000000000000000001');
   const blockNumbers = [1, 2, 3];
   let publicClient: MockProxy<PublicClient<HttpTransport, Chain>>;
   let archiverStore: ArchiverDataStore;
@@ -30,11 +38,12 @@ describe('Archiver', () => {
   it('can start, sync and stop and handle l1 to l2 messages and logs', async () => {
     const archiver = new Archiver(
       publicClient,
-      EthAddress.fromString(rollupAddress),
-      EthAddress.fromString(availabilityOracleAddress),
-      EthAddress.fromString(inboxAddress),
-      EthAddress.fromString(registryAddress),
-      EthAddress.fromString(contractDeploymentEmitterAddress),
+      rollupAddress,
+      availabilityOracleAddress,
+      inboxAddress,
+      newInboxAddress,
+      registryAddress,
+      contractDeploymentEmitterAddress,
       archiverStore,
       1000,
     );
@@ -82,11 +91,18 @@ describe('Archiver', () => {
     publicClient.getLogs
       .mockResolvedValueOnce(l1ToL2MessageAddedEvents.slice(0, 2).flat())
       .mockResolvedValueOnce([]) // no messages to cancel
+      .mockResolvedValueOnce([makeLeafInsertedEvent(98n, 1n, 0n), makeLeafInsertedEvent(99n, 1n, 1n)])
       .mockResolvedValueOnce([makeTxsPublishedEvent(101n, blocks[0].body.getTxsEffectsHash())])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(101n, 1n)])
       .mockResolvedValueOnce([makeContractDeploymentEvent(103n, blocks[0])]) // the first loop of the archiver ends here at block 2500
       .mockResolvedValueOnce(l1ToL2MessageAddedEvents.slice(2, 4).flat())
       .mockResolvedValueOnce(makeL1ToL2MessageCancelledEvents(2503n, l1ToL2MessagesToCancel))
+      .mockResolvedValueOnce([
+        makeLeafInsertedEvent(2504n, 2n, 0n),
+        makeLeafInsertedEvent(2505n, 2n, 1n),
+        makeLeafInsertedEvent(2505n, 2n, 2n),
+        makeLeafInsertedEvent(2506n, 3n, 1n),
+      ])
       .mockResolvedValueOnce([
         makeTxsPublishedEvent(2510n, blocks[1].body.getTxsEffectsHash()),
         makeTxsPublishedEvent(2520n, blocks[2].body.getTxsEffectsHash()),
@@ -109,6 +125,22 @@ describe('Archiver', () => {
 
     latestBlockNum = await archiver.getBlockNumber();
     expect(latestBlockNum).toEqual(3);
+
+    // New L1 to L2 messages
+    {
+      // Checks that I get correct amount of sequenced new messages for L2 blocks 1 and 2
+      let newL1ToL2Messages = await archiver.getNewL1ToL2Messages(1n);
+      expect(newL1ToL2Messages.length).toEqual(2);
+
+      newL1ToL2Messages = await archiver.getNewL1ToL2Messages(2n);
+      expect(newL1ToL2Messages.length).toEqual(3);
+
+      // Check that I cannot get messages for block 3 because there is a message gap (message with index 0 was not
+      // processed)
+      await expect(async () => {
+        await archiver.getNewL1ToL2Messages(3n);
+      }).rejects.toThrow(`L1 to L2 message gap found in block ${3}`);
+    }
 
     // Check that only 2 messages (l1ToL2MessageAddedEvents[3][2] and l1ToL2MessageAddedEvents[3][3]) are pending.
     // Other two (l1ToL2MessageAddedEvents[3][0..2]) were cancelled. And the previous messages were confirmed.
@@ -145,11 +177,12 @@ describe('Archiver', () => {
     const numL2BlocksInTest = 2;
     const archiver = new Archiver(
       publicClient,
-      EthAddress.fromString(rollupAddress),
-      EthAddress.fromString(availabilityOracleAddress),
-      EthAddress.fromString(inboxAddress),
-      EthAddress.fromString(registryAddress),
-      EthAddress.fromString(contractDeploymentEmitterAddress),
+      rollupAddress,
+      availabilityOracleAddress,
+      inboxAddress,
+      newInboxAddress,
+      registryAddress,
+      contractDeploymentEmitterAddress,
       archiverStore,
       1000,
     );
@@ -199,6 +232,7 @@ describe('Archiver', () => {
         );
       })
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([makeLeafInsertedEvent(66n, 1n, 0n), makeLeafInsertedEvent(68n, 1n, 1n)])
       .mockResolvedValueOnce([
         makeTxsPublishedEvent(70n, blocks[0].body.getTxsEffectsHash()),
         makeTxsPublishedEvent(80n, blocks[1].body.getTxsEffectsHash()),
@@ -229,11 +263,12 @@ describe('Archiver', () => {
   it('pads L1 to L2 messages', async () => {
     const archiver = new Archiver(
       publicClient,
-      EthAddress.fromString(rollupAddress),
-      EthAddress.fromString(availabilityOracleAddress),
-      EthAddress.fromString(inboxAddress),
-      EthAddress.fromString(registryAddress),
-      EthAddress.fromString(contractDeploymentEmitterAddress),
+      rollupAddress,
+      availabilityOracleAddress,
+      inboxAddress,
+      newInboxAddress,
+      registryAddress,
+      contractDeploymentEmitterAddress,
       archiverStore,
       1000,
     );
@@ -254,6 +289,7 @@ describe('Archiver', () => {
           block.body.l1ToL2Messages.map(x => x.toString()),
         ),
       )
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([makeTxsPublishedEvent(101n, block.body.getTxsEffectsHash())])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(101n, 1n)])
@@ -376,6 +412,24 @@ function makeL1ToL2MessageCancelledEvents(l1BlockNum: bigint, entryKeys: string[
       transactionHash: `0x${l1BlockNum}`,
     } as Log<bigint, number, false, undefined, true, typeof InboxAbi, 'L1ToL2MessageCancelled'>;
   });
+}
+
+/**
+ * Makes fake L1ToL2 LeafInserted events for testing purposes.
+ * @param l1BlockNum - L1 block number.
+ * @param l2BlockNumber - The L2 block number of the leaf inserted.
+ * @returns LeafInserted event logs.
+ */
+function makeLeafInsertedEvent(l1BlockNum: bigint, l2BlockNumber: bigint, index: bigint) {
+  return {
+    blockNumber: l1BlockNum,
+    args: {
+      blockNumber: l2BlockNumber,
+      index,
+      value: Fr.random().toString(),
+    },
+    transactionHash: `0x${l1BlockNum}`,
+  } as Log<bigint, number, false, undefined, true, typeof NewInboxAbi, 'LeafInserted'>;
 }
 
 /**

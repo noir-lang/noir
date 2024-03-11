@@ -25,6 +25,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
+import { RollupAbi } from '@aztec/l1-artifacts';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
 import { InstanceDeployerAddress } from '@aztec/protocol-contracts/instance-deployer';
 import {
@@ -34,7 +35,7 @@ import {
   ContractInstanceWithAddress,
 } from '@aztec/types/contracts';
 
-import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
+import { Chain, HttpTransport, PublicClient, createPublicClient, getAddress, getContract, http } from 'viem';
 
 import { ArchiverDataStore } from './archiver_store.js';
 import { ArchiverConfig } from './config.js';
@@ -43,6 +44,7 @@ import {
   retrieveBlockMetadataFromRollup,
   retrieveNewCancelledL1ToL2Messages,
   retrieveNewContractData,
+  retrieveNewL1ToL2Messages,
   retrieveNewPendingL1ToL2Messages,
 } from './data_retrieval.js';
 
@@ -72,6 +74,7 @@ export class Archiver implements ArchiveSource {
    * @param publicClient - A client for interacting with the Ethereum node.
    * @param rollupAddress - Ethereum address of the rollup contract.
    * @param inboxAddress - Ethereum address of the inbox contract.
+   * @param newInboxAddress - Ethereum address of the new inbox contract.
    * @param registryAddress - Ethereum address of the registry contract.
    * @param contractDeploymentEmitterAddress - Ethereum address of the contractDeploymentEmitter contract.
    * @param pollingIntervalMs - The interval for polling for L1 logs (in milliseconds).
@@ -83,6 +86,7 @@ export class Archiver implements ArchiveSource {
     private readonly rollupAddress: EthAddress,
     private readonly availabilityOracleAddress: EthAddress,
     private readonly inboxAddress: EthAddress,
+    private readonly newInboxAddress: EthAddress,
     private readonly registryAddress: EthAddress,
     private readonly contractDeploymentEmitterAddress: EthAddress,
     private readonly store: ArchiverDataStore,
@@ -109,11 +113,23 @@ export class Archiver implements ArchiveSource {
       pollingInterval: config.viemPollingIntervalMS,
     });
 
+    // TODO(#4492): Nuke this once the old inbox is purged
+    let newInboxAddress!: EthAddress;
+    {
+      const rollup = getContract({
+        address: getAddress(config.l1Contracts.rollupAddress.toString()),
+        abi: RollupAbi,
+        client: publicClient,
+      });
+      newInboxAddress = EthAddress.fromString(await rollup.read.NEW_INBOX());
+    }
+
     const archiver = new Archiver(
       publicClient,
       config.l1Contracts.rollupAddress,
       config.l1Contracts.availabilityOracleAddress,
       config.l1Contracts.inboxAddress,
+      newInboxAddress,
       config.l1Contracts.registryAddress,
       config.l1Contracts.contractDeploymentEmitterAddress,
       archiverStore,
@@ -163,6 +179,7 @@ export class Archiver implements ArchiveSource {
 
     if (
       currentL1BlockNumber <= lastL1Blocks.addedBlock &&
+      currentL1BlockNumber <= lastL1Blocks.newMessages &&
       currentL1BlockNumber <= lastL1Blocks.addedMessages &&
       currentL1BlockNumber <= lastL1Blocks.cancelledMessages
     ) {
@@ -192,6 +209,7 @@ export class Archiver implements ArchiveSource {
 
     // ********** Events that are processed per L1 block **********
 
+    // TODO(#4492): Nuke the following when purging the old inbox
     // Process l1ToL2Messages, these are consumed as time passes, not each block
     const retrievedPendingL1ToL2Messages = await retrieveNewPendingL1ToL2Messages(
       this.publicClient,
@@ -234,6 +252,20 @@ export class Archiver implements ArchiveSource {
     }
 
     // ********** Events that are processed per L2 block **********
+
+    const retrievedNewL1ToL2Messages = await retrieveNewL1ToL2Messages(
+      this.publicClient,
+      this.newInboxAddress,
+      blockUntilSynced,
+      lastL1Blocks.newMessages + 1n,
+      currentL1BlockNumber,
+    );
+    await this.store.addNewL1ToL2Messages(
+      retrievedNewL1ToL2Messages.retrievedData,
+      // -1n because the function expects the last block in which the message was emitted and not the one after next
+      // TODO(#4492): Check whether this could be cleaned up - `nextEthBlockNumber` value doesn't seem to be used much
+      retrievedNewL1ToL2Messages.nextEthBlockNumber - 1n,
+    );
 
     // Read all data from chain and then write to our stores at the end
     const nextExpectedL2BlockNum = BigInt((await this.store.getBlockNumber()) + 1);
@@ -581,6 +613,15 @@ export class Archiver implements ArchiveSource {
    */
   getConfirmedL1ToL2Message(entryKey: Fr): Promise<L1ToL2Message> {
     return this.store.getConfirmedL1ToL2Message(entryKey);
+  }
+
+  /**
+   * Gets new L1 to L2 message (to be) included in a given block.
+   * @param blockNumber - L2 block number to get messages for.
+   * @returns The L1 to L2 messages/leaves of the messages subtree (throws if not found).
+   */
+  getNewL1ToL2Messages(blockNumber: bigint): Promise<Buffer[]> {
+    return this.store.getNewL1ToL2Messages(blockNumber);
   }
 
   getContractClassIds(): Promise<Fr[]> {

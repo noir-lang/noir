@@ -210,8 +210,8 @@ def RootRollupCircuit(
         parent.state.l1_to_l2_message_tree,
         l1_to_l2_roots.public_inputs.converted_root,
         l1_to_l2_msgs_sibling_path,
-        L1_TO_L2_SUBTREE_HEIGHT,
-        L1_To_L2_HEIGHT
+        L1_TO_L2_MSG_SUBTREE_HEIGHT,
+        L1_TO_L2_MSG_TREE_HEIGHT
     )
 
     header = Header(

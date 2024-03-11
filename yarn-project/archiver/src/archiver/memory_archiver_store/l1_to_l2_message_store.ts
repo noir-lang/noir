@@ -1,5 +1,52 @@
-import { L1ToL2Message } from '@aztec/circuit-types';
+import { L1ToL2Message, NewInboxLeaf } from '@aztec/circuit-types';
+import { L1_TO_L2_MSG_SUBTREE_HEIGHT } from '@aztec/circuits.js/constants';
 import { Fr } from '@aztec/foundation/fields';
+
+/**
+ * A simple in-memory implementation of an L1 to L2 message store
+ * that handles message duplication.
+ * TODO(#4492): Clean this up
+ */
+export class NewL1ToL2MessageStore {
+  /**
+   * A map containing the entry key to the corresponding L1 to L2
+   * messages (and the number of times the message has been seen).
+   */
+  protected store: Map<string, Buffer> = new Map();
+
+  #l1ToL2MessagesSubtreeSize = 2 ** L1_TO_L2_MSG_SUBTREE_HEIGHT;
+
+  constructor() {}
+
+  addMessage(message: NewInboxLeaf) {
+    if (message.index >= this.#l1ToL2MessagesSubtreeSize) {
+      throw new Error(`Message index ${message.index} out of subtree range`);
+    }
+    const key = `${message.blockNumber}-${message.index}`;
+    this.store.set(key, message.leaf);
+  }
+
+  getMessages(blockNumber: bigint): Buffer[] {
+    const messages: Buffer[] = [];
+    let undefinedMessageFound = false;
+    for (let messageIndex = 0; messageIndex < this.#l1ToL2MessagesSubtreeSize; messageIndex++) {
+      // This is inefficient but probably fine for now.
+      const key = `${blockNumber}-${messageIndex}`;
+      const message = this.store.get(key);
+      if (message) {
+        if (undefinedMessageFound) {
+          throw new Error(`L1 to L2 message gap found in block ${blockNumber}`);
+        }
+        messages.push(message);
+      } else {
+        undefinedMessageFound = true;
+        // We continue iterating over messages here to verify that there are no more messages after the undefined one.
+        // --> If this was the case this would imply there is some issue with log fetching.
+      }
+    }
+    return messages;
+  }
+}
 
 /**
  * A simple in-memory implementation of an L1 to L2 message store

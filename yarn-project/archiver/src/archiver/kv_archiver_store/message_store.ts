@@ -1,5 +1,5 @@
-import { L1ToL2Message } from '@aztec/circuit-types';
-import { Fr } from '@aztec/circuits.js';
+import { L1ToL2Message, NewInboxLeaf } from '@aztec/circuit-types';
+import { Fr, L1_TO_L2_MSG_SUBTREE_HEIGHT } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecCounter, AztecKVStore, AztecMap, AztecSingleton } from '@aztec/kv-store';
 
@@ -19,16 +19,23 @@ type Message = {
  * LMDB implementation of the ArchiverDataStore interface.
  */
 export class MessageStore {
-  #messages: AztecMap<string, Message>;
+  #newMessages: AztecMap<string, Buffer>;
+  #lastL1BlockNewMessages: AztecSingleton<bigint>;
+  // TODO(#4492): Nuke the following when purging the old inbox
   #pendingMessagesByFee: AztecCounter<[number, string]>;
+  #messages: AztecMap<string, Message>;
   #lastL1BlockAddingMessages: AztecSingleton<bigint>;
   #lastL1BlockCancellingMessages: AztecSingleton<bigint>;
 
   #log = createDebugLogger('aztec:archiver:message_store');
 
+  #l1ToL2MessagesSubtreeSize = 2 ** L1_TO_L2_MSG_SUBTREE_HEIGHT;
+
   constructor(private db: AztecKVStore) {
+    this.#newMessages = db.openMap('archiver_l1_to_l2_new_messages');
     this.#messages = db.openMap('archiver_l1_to_l2_messages');
     this.#pendingMessagesByFee = db.openCounter('archiver_messages_by_fee');
+    this.#lastL1BlockNewMessages = db.openSingleton('archiver_last_l1_block_new_messages');
     this.#lastL1BlockAddingMessages = db.openSingleton('archiver_last_l1_block_adding_messages');
     this.#lastL1BlockCancellingMessages = db.openSingleton('archiver_last_l1_block_cancelling_messages');
   }
@@ -39,9 +46,38 @@ export class MessageStore {
    */
   getL1BlockNumber() {
     return {
+      newMessages: this.#lastL1BlockNewMessages.get() ?? 0n,
+      // TODO(#4492): Nuke the following when purging the old inbox
       addedMessages: this.#lastL1BlockAddingMessages.get() ?? 0n,
       cancelledMessages: this.#lastL1BlockCancellingMessages.get() ?? 0n,
     };
+  }
+
+  /**
+   * Append new L1 to L2 messages to the store.
+   * @param messages - The L1 to L2 messages to be added to the store.
+   * @param lastMessageL1BlockNumber - The L1 block number in which the last message was emitted.
+   * @returns True if the operation is successful.
+   */
+  addNewL1ToL2Messages(messages: NewInboxLeaf[], lastMessageL1BlockNumber: bigint): Promise<boolean> {
+    return this.db.transaction(() => {
+      const lastL1BlockNumber = this.#lastL1BlockNewMessages.get() ?? 0n;
+      if (lastL1BlockNumber >= lastMessageL1BlockNumber) {
+        return false;
+      }
+
+      void this.#lastL1BlockNewMessages.set(lastMessageL1BlockNumber);
+
+      for (const message of messages) {
+        if (message.index >= this.#l1ToL2MessagesSubtreeSize) {
+          throw new Error(`Message index ${message.index} out of subtree range`);
+        }
+        const key = `${message.blockNumber}-${message.index}`;
+        void this.#newMessages.setIfNotExists(key, message.leaf);
+      }
+
+      return true;
+    });
   }
 
   /**
@@ -170,5 +206,26 @@ export class MessageStore {
     }
 
     return entryKeys;
+  }
+
+  getNewL1ToL2Messages(blockNumber: bigint): Buffer[] {
+    const messages: Buffer[] = [];
+    let undefinedMessageFound = false;
+    for (let messageIndex = 0; messageIndex < this.#l1ToL2MessagesSubtreeSize; messageIndex++) {
+      // This is inefficient but probably fine for now.
+      const key = `${blockNumber}-${messageIndex}`;
+      const message = this.#newMessages.get(key);
+      if (message) {
+        if (undefinedMessageFound) {
+          throw new Error(`L1 to L2 message gap found in block ${blockNumber}`);
+        }
+        messages.push(message);
+      } else {
+        undefinedMessageFound = true;
+        // We continue iterating over messages here to verify that there are no more messages after the undefined one.
+        // --> If this was the case this would imply there is some issue with log fetching.
+      }
+    }
+    return messages;
   }
 }

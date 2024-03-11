@@ -5,11 +5,12 @@ import {
   L2BlockContext,
   LogId,
   LogType,
+  NewInboxLeaf,
   TxHash,
   UnencryptedL2Log,
 } from '@aztec/circuit-types';
 import '@aztec/circuit-types/jest';
-import { AztecAddress, Fr, INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js';
+import { AztecAddress, Fr, INITIAL_L2_BLOCK_NUM, L1_TO_L2_MSG_SUBTREE_HEIGHT } from '@aztec/circuits.js';
 import { makeContractClassPublic } from '@aztec/circuits.js/testing';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { ContractClassPublic, ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
@@ -96,6 +97,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
           addedBlock: 0n,
           addedMessages: 0n,
           cancelledMessages: 0n,
+          newMessages: 0n,
         });
       });
 
@@ -105,6 +107,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
           addedBlock: blocks.at(-1)!.getL1BlockNumber(),
           addedMessages: 0n,
           cancelledMessages: 0n,
+          newMessages: 0n,
         });
       });
 
@@ -114,6 +117,16 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
           addedBlock: 0n,
           addedMessages: 1n,
           cancelledMessages: 0n,
+          newMessages: 0n,
+        });
+      });
+      it('returns the L1 block number that most recently added messages from new inbox', async () => {
+        await store.addNewL1ToL2Messages([new NewInboxLeaf(0n, 0n, Buffer.alloc(32))], 1n);
+        await expect(store.getL1BlockNumber()).resolves.toEqual({
+          addedBlock: 0n,
+          addedMessages: 0n,
+          cancelledMessages: 0n,
+          newMessages: 1n,
         });
       });
       it('returns the L1 block number that most recently cancelled pending messages', async () => {
@@ -124,6 +137,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
           addedBlock: 0n,
           addedMessages: 1n,
           cancelledMessages: 2n,
+          newMessages: 0n,
         });
       });
     });
@@ -206,6 +220,45 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         await expect(store.addPendingL1ToL2Messages([message], 1n)).resolves.toEqual(true);
         await expect(store.addPendingL1ToL2Messages([message], 1n)).resolves.toEqual(false);
         await expect(store.getPendingL1ToL2EntryKeys(2)).resolves.toEqual([message.entryKey!]);
+      });
+    });
+
+    // TODO(#4492): Drop the "New" below once the old inbox is purged
+    describe('New L1 to L2 Messages', () => {
+      const l2BlockNumber = 13n;
+      const l1ToL2MessageSubtreeSize = 2 ** L1_TO_L2_MSG_SUBTREE_HEIGHT;
+
+      const generateBlockMessages = (blockNumber: bigint, numMessages: number) =>
+        Array.from({ length: numMessages }, (_, i) => new NewInboxLeaf(blockNumber, BigInt(i), randomBytes(32)));
+
+      it('returns messages in correct order', async () => {
+        const msgs = generateBlockMessages(l2BlockNumber, l1ToL2MessageSubtreeSize);
+        const shuffledMessages = msgs.slice().sort(() => Math.random() - 0.5);
+        await store.addNewL1ToL2Messages(shuffledMessages, 100n);
+        const retrievedMessages = await store.getNewL1ToL2Messages(l2BlockNumber);
+
+        const expectedLeavesOrder = msgs.map(msg => msg.leaf);
+        expect(expectedLeavesOrder).toEqual(retrievedMessages);
+      });
+
+      it('throws if it is impossible to sequence messages correctly', async () => {
+        const msgs = generateBlockMessages(l2BlockNumber, l1ToL2MessageSubtreeSize - 1);
+        // We replace a message with index 4 with a message with index at the end of the tree
+        // --> with that there will be a gap and it will be impossible to sequence the messages
+        msgs[4] = new NewInboxLeaf(l2BlockNumber, BigInt(l1ToL2MessageSubtreeSize - 1), randomBytes(32));
+
+        await store.addNewL1ToL2Messages(msgs, 100n);
+        await expect(async () => {
+          await store.getNewL1ToL2Messages(l2BlockNumber);
+        }).rejects.toThrow(`L1 to L2 message gap found in block ${l2BlockNumber}`);
+      });
+
+      it('throws if adding more messages than fits into a block', async () => {
+        const msgs = generateBlockMessages(l2BlockNumber, l1ToL2MessageSubtreeSize + 1);
+
+        await expect(async () => {
+          await store.addNewL1ToL2Messages(msgs, 100n);
+        }).rejects.toThrow(`Message index ${l1ToL2MessageSubtreeSize} out of subtree range`);
       });
     });
 
