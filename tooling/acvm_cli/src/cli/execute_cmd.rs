@@ -39,7 +39,7 @@ pub(crate) struct ExecuteCommand {
 fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
     let bytecode = read_bytecode_from_file(&args.working_directory, &args.bytecode)?;
     let circuit_inputs = read_inputs_from_file(&args.working_directory, &args.input_witness)?;
-    let output_witness = execute_program_from_witness(&circuit_inputs, &bytecode, None)?;
+    let output_witness = execute_program_from_witness(circuit_inputs, &bytecode, None)?;
     let output_witness_string = create_output_witness_string(&output_witness)?;
     if args.output_witness.is_some() {
         save_witness_to_dir(
@@ -61,19 +61,18 @@ pub(crate) fn run(args: ExecuteCommand) -> Result<String, CliError> {
 }
 
 pub(crate) fn execute_program_from_witness(
-    inputs_map: &WitnessMap,
-    bytecode: &Vec<u8>,
+    inputs_map: WitnessMap,
+    bytecode: &[u8],
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessMap, CliError> {
     let blackbox_solver = Bn254BlackBoxSolver::new();
-    let circuit: Circuit = Circuit::deserialize_circuit(&bytecode)
+    let circuit: Circuit = Circuit::deserialize_circuit(bytecode)
         .map_err(|_| CliError::CircuitDeserializationError())?;
-    let result = execute_circuit(
+    execute_circuit(
         &circuit,
-        inputs_map.clone(),
+        inputs_map,
         &blackbox_solver,
         &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),
     )
-    .map_err(|e| CliError::CircuitExecutionError(e));
-    result
+    .map_err(CliError::CircuitExecutionError)
 }
