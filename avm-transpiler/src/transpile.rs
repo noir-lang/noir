@@ -62,6 +62,7 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                 lhs,
                 rhs,
             } => {
+                assert!(is_integral_bit_size(*bit_size), "BinaryIntOp::{:?} bit_size must be integral, got {:?}", op, bit_size);
                 let avm_opcode = match op {
                     BinaryIntOp::Add => AvmOpcode::ADD,
                     BinaryIntOp::Sub => AvmOpcode::SUB,
@@ -911,6 +912,13 @@ fn map_brillig_pcs_to_avm_pcs(initial_offset: usize, brillig: &Brillig) -> Vec<u
         pc_map[i + 1] = pc_map[i] + num_avm_instrs_for_this_brillig_instr;
     }
     pc_map
+}
+
+fn is_integral_bit_size(bit_size: u32) -> bool {
+    match bit_size {
+        1 | 8 | 16 | 32 | 64 | 128 => true,
+        _ => false,
+    }
 }
 
 fn tag_from_bit_size(bit_size: u32) -> AvmTypeTag {
