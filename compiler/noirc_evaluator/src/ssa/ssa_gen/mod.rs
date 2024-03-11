@@ -194,10 +194,7 @@ impl<'a> FunctionContext<'a> {
                     ast::Type::Array(_, _) => {
                         self.codegen_array_checked(elements, typ[0].clone())?
                     }
-                    _ => unreachable!(
-                        "ICE: unexpected array literal type, got {}",
-                        array.typ
-                    ),
+                    _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
                 })
             }
             ast::Literal::Slice(array) => {
@@ -213,10 +210,7 @@ impl<'a> FunctionContext<'a> {
                             self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![slice_length.into(), slice_contents])
                     }
-                    _ => unreachable!(
-                        "ICE: unexpected slice literal type, got {}",
-                        array.typ
-                    ),
+                    _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
                 })
             }
             ast::Literal::Integer(value, typ, location) => {

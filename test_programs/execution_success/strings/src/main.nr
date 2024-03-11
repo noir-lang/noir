@@ -27,7 +27,7 @@ fn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Fie
     std::print(bad_message);
     assert(message != bad_message);
 
-    let hash = std::hash::pedersen_commitment([x]);
+    let hash = std::hash::pedersen_commitment(&[x]);
     std::println(hash);
     std::print(hash);
 
@@ -61,7 +61,7 @@ fn test_prints_array() {
 
     std::println(array);
 
-    let hash = std::hash::pedersen_commitment(array);
+    let hash = std::hash::pedersen_commitment(array.as_slice());
     std::println(hash);
 }
 

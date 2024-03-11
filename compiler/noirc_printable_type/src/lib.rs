@@ -52,10 +52,7 @@ pub enum PrintableType {
 pub enum PrintableValue {
     Field(FieldElement),
     String(String),
-    Vec {
-        array_elements: Vec<PrintableValue>,
-        is_slice: bool,
-    },
+    Vec { array_elements: Vec<PrintableValue>, is_slice: bool },
     Struct(BTreeMap<String, PrintableValue>),
     Other,
 }
@@ -353,9 +350,10 @@ pub fn decode_value(
 
             PrintableValue::Vec { array_elements, is_slice: true }
         }
-        PrintableType::Tuple { types } => {
-            PrintableValue::Vec { array_elements: vecmap(types, |typ| decode_value(field_iterator, typ)), is_slice: false }
-        }
+        PrintableType::Tuple { types } => PrintableValue::Vec {
+            array_elements: vecmap(types, |typ| decode_value(field_iterator, typ)),
+            is_slice: false,
+        },
         PrintableType::String { length } => {
             let field_elements: Vec<FieldElement> = field_iterator.take(*length as usize).collect();
 

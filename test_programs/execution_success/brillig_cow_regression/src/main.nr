@@ -25,7 +25,7 @@ struct NewContractData {
 
 impl NewContractData {
     fn hash(self) -> Field {
-        dep::std::hash::pedersen_hash([self.contract_address, self.portal_contract_address])
+        dep::std::hash::pedersen_hash(&[self.contract_address, self.portal_contract_address])
     }
 }
 
@@ -173,6 +173,6 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
         }
     }
 
-    let sha_digest = dep::std::hash::sha256(hash_input_flattened);
+    let sha_digest = dep::std::hash::sha256(hash_input_flattened.as_slice());
     U256::from_bytes32(sha_digest).to_u128_limbs()
 }

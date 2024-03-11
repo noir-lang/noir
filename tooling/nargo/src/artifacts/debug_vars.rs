@@ -62,7 +62,10 @@ impl DebugVars {
             .unwrap_or_else(|| panic!("type unavailable for type id {cursor_type_id:?}"));
         for index in indexes.iter() {
             (cursor, cursor_type) = match (cursor, cursor_type) {
-                (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { length, typ }) => {
+                (
+                    PrintableValue::Vec { array_elements, is_slice },
+                    PrintableType::Array { length, typ },
+                ) => {
                     assert!(!*is_slice, "slice has array type");
                     if let Some(len) = length {
                         if *index as u64 >= *len {
@@ -74,7 +77,10 @@ impl DebugVars {
                     }
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }
-                (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Slice { typ }) => {
+                (
+                    PrintableValue::Vec { array_elements, is_slice },
+                    PrintableType::Slice { typ },
+                ) => {
                     assert!(*is_slice, "array has slice type");
                     (array_elements.get_mut(*index as usize).unwrap(), &*Box::leak(typ.clone()))
                 }
@@ -88,7 +94,10 @@ impl DebugVars {
                     let (key, typ) = fields.get(*index as usize).unwrap();
                     (field_map.get_mut(key).unwrap(), typ)
                 }
-                (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Tuple { types }) => {
+                (
+                    PrintableValue::Vec { array_elements, is_slice },
+                    PrintableType::Tuple { types },
+                ) => {
                     assert!(!*is_slice, "slice has tuple type");
                     if *index >= types.len() as u32 {
                         panic!(

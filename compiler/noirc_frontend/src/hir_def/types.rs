@@ -156,9 +156,7 @@ impl Type {
     pub(crate) fn is_nested_slice(&self) -> bool {
         match self {
             Type::Slice(elem) => elem.as_ref().contains_slice(),
-            Type::Array(_, elem) => {
-                elem.as_ref().contains_slice()
-            }
+            Type::Array(_, elem) => elem.as_ref().contains_slice(),
             _ => false,
         }
     }
@@ -636,9 +634,7 @@ impl Type {
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
             }
-            Type::Slice(elem) => {
-                elem.contains_numeric_typevar(target_id)
-            }
+            Type::Slice(elem) => elem.contains_numeric_typevar(target_id),
             Type::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_numeric_typevar(target_id))
             }
@@ -1152,9 +1148,7 @@ impl Type {
                 elem_a.try_unify(elem_b, bindings)
             }
 
-            (Slice(elem_a), Slice(elem_b)) => {
-                elem_a.try_unify(elem_b, bindings)
-            }
+            (Slice(elem_a), Slice(elem_b)) => elem_a.try_unify(elem_b, bindings),
 
             (String(len_a), String(len_b)) => len_a.try_unify(len_b, bindings),
 
@@ -1304,7 +1298,7 @@ impl Type {
             let length = size.follow_bindings();
 
             // If we have an array and our target is a slice
-            if matches!(length, Type::Constant(_))  {
+            if matches!(length, Type::Constant(_)) {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::new();
@@ -1600,9 +1594,7 @@ impl Type {
             Array(size, elem) => {
                 Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
             }
-            Slice(elem) => {
-                Slice(Box::new(elem.follow_bindings()))
-            }
+            Slice(elem) => Slice(Box::new(elem.follow_bindings())),
             String(size) => String(Box::new(size.follow_bindings())),
             FmtString(size, args) => {
                 let size = Box::new(size.follow_bindings());
@@ -1637,13 +1629,9 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            TraitAsType(..)
-            | FieldElement
-            | Integer(_, _)
-            | Bool
-            | Constant(_)
-            | Unit
-            | Error => self.clone(),
+            TraitAsType(..) | FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Error => {
+                self.clone()
+            }
         }
     }
 
@@ -1725,7 +1713,7 @@ impl From<&Type> for PrintableType {
             }
             Type::Slice(typ) => {
                 let typ = typ.as_ref();
-                PrintableType::Slice{ typ: Box::new(typ.into()) }
+                PrintableType::Slice { typ: Box::new(typ.into()) }
             }
             Type::Integer(sign, bit_width) => match sign {
                 Signedness::Unsigned => {

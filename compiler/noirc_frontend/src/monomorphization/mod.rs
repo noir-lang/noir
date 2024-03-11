@@ -868,9 +868,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Array(length, element) => {
                 let element = Box::new(self.convert_type(element.as_ref()));
                 // TODO: convert to MonomorphizationError
-                let length = length.evaluate_to_u64().unwrap_or_else(|| {
-                    panic!("Length of generic array could not be determined.")
-                });
+                let length = length.evaluate_to_u64().unwrap_or(0);
                 ast::Type::Array(length, element)
             }
             HirType::Slice(element) => {
@@ -950,9 +948,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::MutableReference(Box::new(element))
             }
 
-            HirType::Forall(_, _)
-            | HirType::Constant(_)
-            | HirType::Error => {
+            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
         }
@@ -1235,9 +1231,6 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
     ) -> ast::Expression {
         use ast::*;
-
-        // TODO: remove
-        println!("modulus_array_literal: {:?}, {:?}, {:?}", bytes, arr_elem_bits, location);
 
         let int_type = Type::Integer(crate::Signedness::Unsigned, arr_elem_bits);
 

@@ -1081,7 +1081,8 @@ fn slice_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
 where
     P: ExprParser,
 {
-    just(Token::Ampersand).ignore_then(standard_slice(expr_parser.clone()).or(slice_sugar(expr_parser)))
+    just(Token::Ampersand)
+        .ignore_then(standard_slice(expr_parser.clone()).or(slice_sugar(expr_parser)))
 }
 
 /// &[a, b, c, ...]

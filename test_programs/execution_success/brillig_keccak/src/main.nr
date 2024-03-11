@@ -7,7 +7,7 @@ fn main(x: Field, result: [u8; 32]) {
     // The padding is taken care of by the program
     let digest = keccak256([x as u8], 1);
     assert(digest == result);
-    //#1399: variable meesage size
+    //#1399: variable message size
     let message_size = 4;
     let hash_a = keccak256([1, 2, 3, 4], message_size);
     let hash_b = keccak256([1, 2, 3, 4, 0, 0, 0, 0], message_size);
@@ -21,5 +21,5 @@ fn main(x: Field, result: [u8; 32]) {
 }
 
 unconstrained fn keccak256<N>(data: [u8; N], msg_len: u32) -> [u8; 32] {
-    std::hash::keccak256(data, msg_len)
+    std::hash::keccak256(data.as_slice(), msg_len)
 }

@@ -48,7 +48,10 @@ impl<'interner> TypeChecker<'interner> {
         false
     }
 
-    fn check_hir_array_literal(&mut self, hir_array_literal: HirArrayLiteral) -> (Result<Box<Type>, u64>, Box<Type>) {
+    fn check_hir_array_literal(
+        &mut self,
+        hir_array_literal: HirArrayLiteral,
+    ) -> (Result<Box<Type>, u64>, Box<Type>) {
         match hir_array_literal {
             HirArrayLiteral::Standard(arr) => {
                 let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
@@ -75,21 +78,16 @@ impl<'interner> TypeChecker<'interner> {
                     });
                 }
 
-                (
-                    Err(arr.len() as u64),
-                    Box::new(first_elem_type.clone())
-                )
-            },
+                (Err(arr.len() as u64), Box::new(first_elem_type.clone()))
+            }
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let elem_type = self.check_expression(&repeated_element);
                 let length = match length {
-                    Type::Constant(length) => {
-                        Err(length)
-                    }
+                    Type::Constant(length) => Err(length),
                     other => Ok(Box::new(other)),
                 };
                 (length, Box::new(elem_type))
-            },
+            }
         }
     }
 
@@ -104,38 +102,41 @@ impl<'interner> TypeChecker<'interner> {
     pub(crate) fn check_expression(&mut self, expr_id: &ExprId) -> Type {
         let typ = match self.interner.expression(expr_id) {
             HirExpression::Ident(ident) => self.check_ident(ident, expr_id),
-            HirExpression::Literal(literal) => {
-                match literal {
-                    HirLiteral::Array(hir_array_literal) => {
-                        let (length, elem_type) = self.check_hir_array_literal(hir_array_literal);
-                        Type::Array(length.unwrap_or_else(|constant| Box::new(Type::constant_variable(constant, self.interner))), elem_type)
-                    },
-                    HirLiteral::Slice(hir_array_literal) => {
-                        let (length_type, elem_type) = self.check_hir_array_literal(hir_array_literal);
-                        match length_type {
-                            Ok(_non_constant) => {
-                                self.errors.push(TypeCheckError::NonConstantSliceLength {
-                                    span: self.interner.expr_span(expr_id),
-                                });
-                                Type::Error
-                            },
-                            Err(_length) => Type::Slice(elem_type),
-                        }
-                    },
-                    HirLiteral::Bool(_) => Type::Bool,
-                    HirLiteral::Integer(_, _) => Type::polymorphic_integer_or_field(self.interner),
-                    HirLiteral::Str(string) => {
-                        let len = Type::Constant(string.len() as u64);
-                        Type::String(Box::new(len))
-                    }
-                    HirLiteral::FmtStr(string, idents) => {
-                        let len = Type::Constant(string.len() as u64);
-                        let types = vecmap(&idents, |elem| self.check_expression(elem));
-                        Type::FmtString(Box::new(len), Box::new(Type::Tuple(types)))
-                    }
-                    HirLiteral::Unit => Type::Unit,
+            HirExpression::Literal(literal) => match literal {
+                HirLiteral::Array(hir_array_literal) => {
+                    let (length, elem_type) = self.check_hir_array_literal(hir_array_literal);
+                    Type::Array(
+                        length.unwrap_or_else(|constant| {
+                            Box::new(Type::constant_variable(constant, self.interner))
+                        }),
+                        elem_type,
+                    )
                 }
-            }
+                HirLiteral::Slice(hir_array_literal) => {
+                    let (length_type, elem_type) = self.check_hir_array_literal(hir_array_literal);
+                    match length_type {
+                        Ok(_non_constant) => {
+                            self.errors.push(TypeCheckError::NonConstantSliceLength {
+                                span: self.interner.expr_span(expr_id),
+                            });
+                            Type::Error
+                        }
+                        Err(_length) => Type::Slice(elem_type),
+                    }
+                }
+                HirLiteral::Bool(_) => Type::Bool,
+                HirLiteral::Integer(_, _) => Type::polymorphic_integer_or_field(self.interner),
+                HirLiteral::Str(string) => {
+                    let len = Type::Constant(string.len() as u64);
+                    Type::String(Box::new(len))
+                }
+                HirLiteral::FmtStr(string, idents) => {
+                    let len = Type::Constant(string.len() as u64);
+                    let types = vecmap(&idents, |elem| self.check_expression(elem));
+                    Type::FmtString(Box::new(len), Box::new(Type::Tuple(types)))
+                }
+                HirLiteral::Unit => Type::Unit,
+            },
             HirExpression::Infix(infix_expr) => {
                 // The type of the infix expression must be looked up from a type table
                 let lhs_type = self.check_expression(&infix_expr.lhs);

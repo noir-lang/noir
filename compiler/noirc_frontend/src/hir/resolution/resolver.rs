@@ -1400,21 +1400,20 @@ impl<'a> Resolver<'a> {
             ArrayLiteral::Standard(elements) => {
                 let elements = vecmap(elements, |elem| self.resolve_expression(elem));
                 HirArrayLiteral::Standard(elements)
-            },
+            }
             ArrayLiteral::Repeated { repeated_element, length } => {
                 let span = length.span;
-                let length = UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(
-                    |error| {
+                let length =
+                    UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(|error| {
                         self.errors.push(ResolverError::ParserError(Box::new(error)));
                         UnresolvedTypeExpression::Constant(0, span)
-                    },
-                );
+                    });
 
                 let length = self.convert_expression_type(length);
                 let repeated_element = self.resolve_expression(*repeated_element);
 
                 HirArrayLiteral::Repeated { repeated_element, length }
-            },
+            }
         }
     }
 
@@ -1422,8 +1421,12 @@ impl<'a> Resolver<'a> {
         let hir_expr = match expr.kind {
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),
-                Literal::Array(array_literal) => HirLiteral::Array(self.resolve_array_literal(array_literal)),
-                Literal::Slice(array_literal) => HirLiteral::Slice(self.resolve_array_literal(array_literal)),
+                Literal::Array(array_literal) => {
+                    HirLiteral::Array(self.resolve_array_literal(array_literal))
+                }
+                Literal::Slice(array_literal) => {
+                    HirLiteral::Slice(self.resolve_array_literal(array_literal))
+                }
                 Literal::Integer(integer, sign) => HirLiteral::Integer(integer, sign),
                 Literal::Str(str) => HirLiteral::Str(str),
                 Literal::RawStr(str, _) => HirLiteral::Str(str),

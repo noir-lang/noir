@@ -7,5 +7,5 @@ fn main(x: [u8; 5], result: [u8; 32]) {
 }
 
 unconstrained fn blake2s(x: [u8; 5]) -> [u8; 32] {
-    std::hash::blake2s(x)
+    std::hash::blake2s(x.as_slice())
 }
