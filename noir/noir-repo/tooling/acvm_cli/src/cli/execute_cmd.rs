@@ -62,18 +62,17 @@ pub(crate) fn run(args: ExecuteCommand) -> Result<String, CliError> {
 
 pub(crate) fn execute_program_from_witness(
     inputs_map: &WitnessMap,
-    bytecode: &Vec<u8>,
+    bytecode: &[u8],
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessMap, CliError> {
     let blackbox_solver = Bn254BlackBoxSolver::new();
-    let circuit: Circuit = Circuit::deserialize_circuit(&bytecode)
+    let circuit: Circuit = Circuit::deserialize_circuit(bytecode)
         .map_err(|_| CliError::CircuitDeserializationError())?;
-    let result = execute_circuit(
+    execute_circuit(
         &circuit,
         inputs_map.clone(),
         &blackbox_solver,
         &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),
     )
-    .map_err(|e| CliError::CircuitExecutionError(e));
-    result
+    .map_err(CliError::CircuitExecutionError)
 }
