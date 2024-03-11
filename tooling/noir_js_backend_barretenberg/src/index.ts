@@ -33,8 +33,18 @@ export class BarretenbergBackend implements Backend {
   /** @ignore */
   async instantiate(): Promise<void> {
     if (!this.api) {
+      if (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) {
+        this.options.threads = navigator.hardwareConcurrency;
+      } else {
+        try {
+          const os = await import('os');
+          this.options.threads = os.cpus().length;
+        } catch (e) {
+          console.log('Could not detect environment. Falling back to one thread.', e);
+        }
+      }
       const { Barretenberg, RawBuffer, Crs } = await import('@aztec/bb.js');
-      const api = await Barretenberg.new({ threads: this.options.threads });
+      const api = await Barretenberg.new(this.options);
 
       const [_exact, _total, subgroupSize] = await api.acirGetCircuitSizes(this.acirUncompressedBytecode);
       const crs = await Crs.new(subgroupSize + 1);

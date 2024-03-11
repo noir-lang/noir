@@ -88,6 +88,7 @@ pub fn create_circuit(
 ) -> Result<(Circuit, DebugInfo, Vec<Witness>, Vec<Witness>, Vec<SsaReport>), RuntimeError> {
     let debug_variables = program.debug_variables.clone();
     let debug_types = program.debug_types.clone();
+    let debug_functions = program.debug_functions.clone();
     let func_sig = program.main_function_signature.clone();
     let recursive = program.recursive;
     let mut generated_acir = optimize_into_acir(
@@ -130,7 +131,7 @@ pub fn create_circuit(
         .map(|(index, locations)| (index, locations.into_iter().collect()))
         .collect();
 
-    let mut debug_info = DebugInfo::new(locations, debug_variables, debug_types);
+    let mut debug_info = DebugInfo::new(locations, debug_variables, debug_functions, debug_types);
 
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
