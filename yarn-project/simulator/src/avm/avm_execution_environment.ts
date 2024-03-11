@@ -36,12 +36,19 @@ export class AvmExecutionEnvironment {
 
     public readonly calldata: Fr[],
 
+    // Function selector is temporary since eventually public contract bytecode will be one blob
+    // containing all functions, and function selector will become an application-level mechanism
+    // (e.g. first few bytes of calldata + compiler-generated jump table)
     public readonly temporaryFunctionSelector: FunctionSelector,
   ) {}
 
-  public deriveEnvironmentForNestedCall(address: AztecAddress, calldata: Fr[]): AvmExecutionEnvironment {
+  public deriveEnvironmentForNestedCall(
+    address: AztecAddress,
+    calldata: Fr[],
+    temporaryFunctionSelector: FunctionSelector = FunctionSelector.empty(),
+  ): AvmExecutionEnvironment {
     return new AvmExecutionEnvironment(
-      /*address=*/ address,
+      address,
       /*storageAddress=*/ address,
       this.origin,
       this.sender,
@@ -53,14 +60,18 @@ export class AvmExecutionEnvironment {
       this.globals,
       this.isStaticCall,
       this.isDelegateCall,
-      /*calldata=*/ calldata,
-      this.temporaryFunctionSelector,
+      calldata,
+      temporaryFunctionSelector,
     );
   }
 
-  public deriveEnvironmentForNestedStaticCall(address: AztecAddress, calldata: Fr[]): AvmExecutionEnvironment {
+  public deriveEnvironmentForNestedStaticCall(
+    address: AztecAddress,
+    calldata: Fr[],
+    temporaryFunctionSelector: FunctionSelector = FunctionSelector.empty(),
+  ): AvmExecutionEnvironment {
     return new AvmExecutionEnvironment(
-      /*address=*/ address,
+      address,
       /*storageAddress=*/ address,
       this.origin,
       this.sender,
@@ -72,14 +83,18 @@ export class AvmExecutionEnvironment {
       this.globals,
       /*isStaticCall=*/ true,
       this.isDelegateCall,
-      /*calldata=*/ calldata,
-      this.temporaryFunctionSelector,
+      calldata,
+      temporaryFunctionSelector,
     );
   }
 
-  public newDelegateCall(address: AztecAddress, calldata: Fr[]): AvmExecutionEnvironment {
+  public newDelegateCall(
+    address: AztecAddress,
+    calldata: Fr[],
+    temporaryFunctionSelector: FunctionSelector = FunctionSelector.empty(),
+  ): AvmExecutionEnvironment {
     return new AvmExecutionEnvironment(
-      /*address=*/ address,
+      address,
       this.storageAddress,
       this.origin,
       this.sender,
@@ -91,8 +106,8 @@ export class AvmExecutionEnvironment {
       this.globals,
       this.isStaticCall,
       /*isDelegateCall=*/ true,
-      /*calldata=*/ calldata,
-      this.temporaryFunctionSelector,
+      calldata,
+      temporaryFunctionSelector,
     );
   }
 }

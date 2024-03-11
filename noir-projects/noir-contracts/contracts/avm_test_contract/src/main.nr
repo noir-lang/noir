@@ -2,6 +2,7 @@ contract AvmTest {
     // Libs
     use dep::aztec::state_vars::PublicMutable;
     use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH};
+    use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
     use dep::compressed_string::CompressedString;
 
     // avm lib
@@ -213,5 +214,38 @@ contract AvmTest {
     #[aztec(public-vm)]
     fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {
         context.message_portal(recipient, content)
+    }
+
+    // Directly call the external call opcode to initiate a nested call to the add function
+    #[aztec(public-vm)]
+    fn raw_nested_call_to_add(argA: Field, argB: Field) -> pub Field {
+        let selector = FunctionSelector::from_signature("avm_addArgsReturn(Field,Field)").to_field();
+        let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
+
+        // Nested call
+        let results = context.call(gas, context.address(), [argA, argB], selector);
+        let returnData: [Field; 1] = results.0;
+        // this explicit size   ^ is necessary to ensure that retSize is compile-time
+        // (ensure the returnData is in a HeapArray not a HeapVector)
+        let success: u8 = results.1;
+
+        assert(success == 1, "Call failed");
+
+        let addResult = returnData[0];
+        addResult
+    }
+
+    // Use the `call_public_function` wrapper to initiate a nested call to the add function
+    #[aztec(public-vm)]
+    fn nested_call_to_add(argA: Field, argB: Field) -> pub Field {
+        let selector = FunctionSelector::from_signature("avm_addArgsReturn(Field,Field)");
+
+        // Nested call using standard context interface function
+        let returnData: [Field; 1] = context.call_public_function(context.address(), selector, [argA, argB]);
+        // this explicit size   ^ is necessary to ensure that retSize is compile-time
+        // (ensure the returnData is in a HeapArray not a HeapVector)
+
+        let addResult = returnData[0];
+        addResult
     }
 }

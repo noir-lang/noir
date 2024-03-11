@@ -1,5 +1,6 @@
 use dep::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH};
 use dep::protocol_types::traits::{Serialize};
+use dep::protocol_types::abis::function_selector::FunctionSelector;
 
 // Getters that will be converted by the transpiler into their
 // own opcodes
@@ -80,9 +81,20 @@ impl AVMContext {
     #[oracle(avmOpcodeSendL2ToL1Msg)]
     pub fn send_l2_to_l1_msg(self, recipient: EthAddress, content: Field) {}
 
-    ///////////////////////////////////////////////////////////////////////////
-    // The functions below allow interface-equivalence with PrivateContext
-    ///////////////////////////////////////////////////////////////////////////
+    #[oracle(avmOpcodeCall)]
+    fn call<ARGS_COUNT, RET_SIZE>(
+        self,
+        gas: [Field; 3], // gas allocation: [l1Gas, l2Gas, daGas]
+        address: AztecAddress,
+        args: [Field; ARGS_COUNT],
+        // TODO(5110): consider passing in calldata directly
+        temporary_function_selector: Field
+    ) -> ([Field; RET_SIZE], u8) {}
+    //    ^ return data      ^ success
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // The functions below allow interface-equivalence with current public/private
+    ////////////////////////////////////////////////////////////////////////////////
     pub fn this_address(self) -> AztecAddress {
         self.address()
     }
@@ -106,5 +118,26 @@ impl AVMContext {
     pub fn push_new_nullifier(self: &mut Self, nullifier: Field, _nullified_commitment: Field) {
         // Cannot nullify pending commitments in AVM, so `nullified_commitment` is not used
         self.emit_nullifier(nullifier);
+    }
+
+    pub fn call_public_function<ARGS_COUNT, RET_SIZE>(
+        self: Self,
+        contract_address: AztecAddress,
+        temporary_function_selector: FunctionSelector,
+        args: [Field; ARGS_COUNT]
+    ) -> [Field; RET_SIZE] {
+        let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
+
+        let results = self.call(
+            gas,
+            contract_address,
+            args,
+            temporary_function_selector.to_field()
+        );
+        let returnData: [Field; RET_SIZE] = results.0;
+        let success: u8 = results.1;
+        assert(success == 1, "Nested call failed!");
+
+        returnData
     }
 }

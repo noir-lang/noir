@@ -39,6 +39,7 @@ describe('External Calls', () => {
         ...Buffer.from('d2345678', 'hex'), // retOffset
         ...Buffer.from('e2345678', 'hex'), // retSize
         ...Buffer.from('f2345678', 'hex'), // successOffset
+        ...Buffer.from('f3345678', 'hex'), // temporaryFunctionSelectorOffset
       ]);
       const inst = new Call(
         /*indirect=*/ 0x01,
@@ -49,6 +50,7 @@ describe('External Calls', () => {
         /*retOffset=*/ 0xd2345678,
         /*retSize=*/ 0xe2345678,
         /*successOffset=*/ 0xf2345678,
+        /*temporaryFunctionSelectorOffset=*/ 0xf3345678,
       );
 
       expect(Call.deserialize(buf)).toEqual(inst);
@@ -89,6 +91,7 @@ describe('External Calls', () => {
         retOffset,
         retSize,
         successOffset,
+        /*temporaryFunctionSelectorOffset=*/ 0,
       );
       await instruction.execute(context);
 
@@ -123,6 +126,7 @@ describe('External Calls', () => {
         ...Buffer.from('d2345678', 'hex'), // retOffset
         ...Buffer.from('e2345678', 'hex'), // retSize
         ...Buffer.from('f2345678', 'hex'), // successOffset
+        ...Buffer.from('f3345678', 'hex'), // temporaryFunctionSelectorOffset
       ]);
       const inst = new StaticCall(
         /*indirect=*/ 0x01,
@@ -133,6 +137,7 @@ describe('External Calls', () => {
         /*retOffset=*/ 0xd2345678,
         /*retSize=*/ 0xe2345678,
         /*successOffset=*/ 0xf2345678,
+        /*temporaryFunctionSelectorOffset=*/ 0xf3345678,
       );
 
       expect(StaticCall.deserialize(buf)).toEqual(inst);
@@ -176,6 +181,7 @@ describe('External Calls', () => {
         retOffset,
         retSize,
         successOffset,
+        /*temporaryFunctionSelectorOffset=*/ 0,
       );
       await instruction.execute(context);
 

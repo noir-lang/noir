@@ -1,4 +1,4 @@
-import { AztecAddress } from '@aztec/circuits.js';
+import { AztecAddress, FunctionSelector } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
 import { AvmExecutionEnvironment } from './avm_execution_environment.js';
@@ -35,8 +35,16 @@ export class AvmContext {
    * @param calldata - Data/arguments for nested call
    * @returns new AvmContext instance
    */
-  public createNestedContractCallContext(address: AztecAddress, calldata: Fr[]): AvmContext {
-    const newExecutionEnvironment = this.environment.deriveEnvironmentForNestedCall(address, calldata);
+  public createNestedContractCallContext(
+    address: AztecAddress,
+    calldata: Fr[],
+    temporaryFunctionSelector: FunctionSelector = FunctionSelector.empty(),
+  ): AvmContext {
+    const newExecutionEnvironment = this.environment.deriveEnvironmentForNestedCall(
+      address,
+      calldata,
+      temporaryFunctionSelector,
+    );
     const forkedWorldState = this.persistableState.fork();
     const machineState = AvmMachineState.fromState(this.machineState);
     return new AvmContext(forkedWorldState, newExecutionEnvironment, machineState);
@@ -54,8 +62,16 @@ export class AvmContext {
    * @param calldata - Data/arguments for nested call
    * @returns new AvmContext instance
    */
-  public createNestedContractStaticCallContext(address: AztecAddress, calldata: Fr[]): AvmContext {
-    const newExecutionEnvironment = this.environment.deriveEnvironmentForNestedStaticCall(address, calldata);
+  public createNestedContractStaticCallContext(
+    address: AztecAddress,
+    calldata: Fr[],
+    temporaryFunctionSelector: FunctionSelector = FunctionSelector.empty(),
+  ): AvmContext {
+    const newExecutionEnvironment = this.environment.deriveEnvironmentForNestedStaticCall(
+      address,
+      calldata,
+      temporaryFunctionSelector,
+    );
     const forkedWorldState = this.persistableState.fork();
     const machineState = AvmMachineState.fromState(this.machineState);
     return new AvmContext(forkedWorldState, newExecutionEnvironment, machineState);
