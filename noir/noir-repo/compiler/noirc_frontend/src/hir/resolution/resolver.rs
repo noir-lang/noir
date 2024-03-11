@@ -37,10 +37,10 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
-    FunctionReturnType, FunctionVisibility, Generics, LValue, NoirStruct, NoirTypeAlias, Param,
-    Path, PathKind, Pattern, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind,
-    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    ArrayLiteral, Distinctness, ForRange, FunctionDefinition, FunctionReturnType,
+    FunctionVisibility, Generics, LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind,
+    Pattern, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
@@ -233,8 +233,6 @@ impl<'a> Resolver<'a> {
         let def = FunctionDefinition {
             name: name.clone(),
             attributes: Attributes::empty(),
-            is_open: false,
-            is_internal: false,
             is_unconstrained: false,
             visibility: FunctionVisibility::Public, // Trait functions are always public
             generics: Vec::new(),                   // self.generics should already be set
@@ -976,9 +974,6 @@ impl<'a> Resolver<'a> {
 
         self.interner.push_definition_type(name_ident.id, typ.clone());
 
-        self.handle_function_type(&func_id);
-        self.handle_is_function_internal(&func_id);
-
         FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -1018,31 +1013,11 @@ impl<'a> Resolver<'a> {
     /// True if the `distinct` keyword is allowed on a function's return type
     fn distinct_allowed(&self, func: &NoirFunction) -> bool {
         if self.in_contract {
-            // "open" and "unconstrained" functions are compiled to brillig and thus duplication of
+            // "unconstrained" functions are compiled to brillig and thus duplication of
             // witness indices in their abis is not a concern.
-            !func.def.is_unconstrained && !func.def.is_open
+            !func.def.is_unconstrained
         } else {
             func.name() == MAIN_FUNCTION
-        }
-    }
-
-    fn handle_function_type(&mut self, function: &FuncId) {
-        let function_type = self.interner.function_modifiers(function).contract_function_type;
-
-        if !self.in_contract && function_type == Some(ContractFunctionType::Open) {
-            let span = self.interner.function_ident(function).span();
-            self.errors.push(ResolverError::ContractFunctionTypeInNormalFunction { span });
-            self.interner.function_modifiers_mut(function).contract_function_type = None;
-        }
-    }
-
-    fn handle_is_function_internal(&mut self, function: &FuncId) {
-        if !self.in_contract {
-            if self.interner.function_modifiers(function).is_internal == Some(true) {
-                let span = self.interner.function_ident(function).span();
-                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction { span });
-            }
-            self.interner.function_modifiers_mut(function).is_internal = None;
         }
     }
 

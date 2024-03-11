@@ -36,9 +36,6 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
                 name,
                 attributes,
                 is_unconstrained: modifiers.0,
-                is_open: modifiers.2,
-                // Whether a function is internal or not is now set through `aztec_macros`
-                is_internal: false,
                 visibility: modifiers.1,
                 generics,
                 parameters,
@@ -67,17 +64,14 @@ fn visibility_modifier() -> impl NoirParser<FunctionVisibility> {
     choice((is_pub_crate, is_pub, is_private))
 }
 
-/// function_modifiers: 'unconstrained'? (visibility)? 'open'?
+/// function_modifiers: 'unconstrained'? (visibility)?
 ///
-/// returns (is_unconstrained, visibility, is_open) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, FunctionVisibility, bool)> {
+/// returns (is_unconstrained, visibility) for whether each keyword was present
+fn function_modifiers() -> impl NoirParser<(bool, FunctionVisibility)> {
     keyword(Keyword::Unconstrained)
         .or_not()
         .then(visibility_modifier())
-        .then(keyword(Keyword::Open).or_not())
-        .map(|((unconstrained, visibility), open)| {
-            (unconstrained.is_some(), visibility, open.is_some())
-        })
+        .map(|(unconstrained, visibility)| (unconstrained.is_some(), visibility))
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list

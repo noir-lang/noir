@@ -151,10 +151,7 @@ fn transform_module(
             transform_vm_function(func, storage_defined)
                 .map_err(|err| (err, crate_graph.root_file_id))?;
             has_transformed_module = true;
-        }
-
-        // Add the storage struct to the beginning of the function if it is unconstrained in an aztec contract
-        if storage_defined && func.def.is_unconstrained {
+        } else if storage_defined && func.def.is_unconstrained {
             transform_unconstrained(func);
             has_transformed_module = true;
         }

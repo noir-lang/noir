@@ -411,8 +411,6 @@ impl<'a> ModCollector<'a> {
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
                             is_unconstrained: false,
-                            contract_function_type: None,
-                            is_internal: None,
                         };
 
                         let location = Location::new(name.span(), self.file_id);

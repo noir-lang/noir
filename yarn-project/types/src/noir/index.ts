@@ -7,8 +7,11 @@ import {
   EventAbi,
 } from '@aztec/foundation/abi';
 
-/** The Aztec.nr function types. */
-type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
+export const AZTEC_PRIVATE_ATTRIBUTE = 'aztec(private)';
+export const AZTEC_PUBLIC_ATTRIBUTE = 'aztec(public)';
+export const AZTEC_PUBLIC_VM_ATTRIBUTE = 'aztec(public-vm)';
+export const AZTEC_INTERNAL_ATTRIBUTE = 'aztec(internal)';
+export const AZTEC_INITIALIZER_ATTRIBUTE = 'aztec(initializer)';
 
 /** The witness indices of the parameters. */
 type ParamWitnessIndices = { /** Start */ start: number; /** End */ end: number };
@@ -40,10 +43,10 @@ export interface NoirFunctionAbi {
 export interface NoirFunctionEntry {
   /** The name of the function. */
   name: string;
-  /** The type of the function. */
-  function_type: NoirFunctionType;
-  /** Whether the function is internal. */
-  is_internal: boolean;
+  /** Whether the function is unconstrained. */
+  is_unconstrained: boolean;
+  /** Custom attributes attached to function */
+  custom_attributes: string[];
   /** The ABI of the function. */
   abi: NoirFunctionAbi;
   /** The bytecode of the function in base64. */

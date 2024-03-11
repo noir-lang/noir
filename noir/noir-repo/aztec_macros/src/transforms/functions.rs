@@ -40,7 +40,6 @@ pub fn transform_function(
     if is_internal {
         let is_internal_check = create_internal_check(func.name());
         func.def.body.0.insert(0, is_internal_check);
-        func.def.is_internal = true;
     }
 
     // Add initialization check
@@ -87,10 +86,10 @@ pub fn transform_function(
     func.def.return_visibility = Visibility::Public;
 
     // Distinct return types are only required for private functions
-    // Public functions should have open auto-inferred
+    // Public functions should have unconstrained auto-inferred
     match ty {
         "Private" => func.def.return_distinctness = Distinctness::Distinct,
-        "Public" => func.def.is_open = true,
+        "Public" => func.def.is_unconstrained = true,
         _ => (),
     }
 
@@ -113,7 +112,7 @@ pub fn transform_vm_function(
     func.def.body.0.insert(0, create_context);
 
     // We want the function to be seen as a public function
-    func.def.is_open = true;
+    func.def.is_unconstrained = true;
 
     // NOTE: the line below is a temporary hack to trigger external transpilation tools
     // It will be removed once the transpiler is integrated into the Noir compiler

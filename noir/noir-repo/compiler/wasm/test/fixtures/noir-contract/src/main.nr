@@ -5,7 +5,7 @@ contract TestContract {
         [foo::bar(param), param + pub_param]
     }
 
-    open fn openFunction() -> pub Field {
+    fn someFunction() -> pub Field {
         42
     }
 }

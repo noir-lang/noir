@@ -4,7 +4,6 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use acvm::acir::circuit::Circuit;
-use noirc_driver::ContractFunctionType;
 
 use crate::transpile::brillig_to_avm;
 use crate::utils::extract_brillig_from_acir;
@@ -40,8 +39,8 @@ pub struct CompiledAcirContract {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AvmContractFunction {
     pub name: String,
-    pub function_type: ContractFunctionType,
-    pub is_internal: bool,
+    pub is_unconstrained: bool,
+    pub custom_attributes: Vec<String>,
     pub abi: serde_json::Value,
     pub bytecode: String, // base64
     pub debug_symbols: serde_json::Value,
@@ -52,8 +51,8 @@ pub struct AvmContractFunction {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AcirContractFunction {
     pub name: String,
-    pub function_type: ContractFunctionType,
-    pub is_internal: bool,
+    pub is_unconstrained: bool,
+    pub custom_attributes: Vec<String>,
     pub abi: serde_json::Value,
     #[serde(
         serialize_with = "Circuit::serialize_circuit_base64",
@@ -82,7 +81,9 @@ impl From<CompiledAcirContract> for TranspiledContract {
         let re = Regex::new(r"avm_.*$").unwrap();
         for function in contract.functions {
             // TODO(4269): once functions are tagged for transpilation to AVM, check tag
-            if function.function_type == ContractFunctionType::Open
+            if function
+                .custom_attributes
+                .contains(&"aztec(public-vm)".to_string())
                 && re.is_match(function.name.as_str())
             {
                 info!(
@@ -99,8 +100,8 @@ impl From<CompiledAcirContract> for TranspiledContract {
                 // Push modified function entry to ABI
                 functions.push(AvmOrAcirContractFunction::Avm(AvmContractFunction {
                     name: function.name,
-                    function_type: function.function_type,
-                    is_internal: function.is_internal,
+                    is_unconstrained: function.is_unconstrained,
+                    custom_attributes: function.custom_attributes,
                     abi: function.abi,
                     bytecode: base64::prelude::BASE64_STANDARD.encode(avm_bytecode),
                     debug_symbols: function.debug_symbols,
