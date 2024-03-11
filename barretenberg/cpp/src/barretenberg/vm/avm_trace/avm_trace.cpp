@@ -50,10 +50,12 @@ void AvmTraceBuilder::op_add(uint32_t a_offset, uint32_t b_offset, uint32_t dst_
     bool tag_match = read_a.tag_match && read_b.tag_match;
 
     // a + b = c
-    FF a = tag_match ? read_a.val : FF(0);
-    FF b = tag_match ? read_b.val : FF(0);
+    FF a = read_a.val;
+    FF b = read_b.val;
 
-    // In case of a memory tag error, we must not generate an entry in the ALU table.
+    // In case of a memory tag error, we do not perform the computation.
+    // Therefore, we do not create any entry in ALU table and store the value 0 as
+    // output (c) in memory.
     FF c = tag_match ? alu_trace_builder.op_add(a, b, in_tag, clk) : FF(0);
 
     // Write into memory value c from intermediate register ic.
@@ -97,10 +99,12 @@ void AvmTraceBuilder::op_sub(uint32_t a_offset, uint32_t b_offset, uint32_t dst_
     bool tag_match = read_a.tag_match && read_b.tag_match;
 
     // a - b = c
-    FF a = tag_match ? read_a.val : FF(0);
-    FF b = tag_match ? read_b.val : FF(0);
+    FF a = read_a.val;
+    FF b = read_b.val;
 
-    // In case of a memory tag error, we must not generate an entry in the ALU table.
+    // In case of a memory tag error, we do not perform the computation.
+    // Therefore, we do not create any entry in ALU table and store the value 0 as
+    // output (c) in memory.
     FF c = tag_match ? alu_trace_builder.op_sub(a, b, in_tag, clk) : FF(0);
 
     // Write into memory value c from intermediate register ic.
@@ -144,10 +148,12 @@ void AvmTraceBuilder::op_mul(uint32_t a_offset, uint32_t b_offset, uint32_t dst_
     bool tag_match = read_a.tag_match && read_b.tag_match;
 
     // a * b = c
-    FF a = tag_match ? read_a.val : FF(0);
-    FF b = tag_match ? read_b.val : FF(0);
+    FF a = read_a.val;
+    FF b = read_b.val;
 
-    // In case of a memory tag error, we must not generate an entry in the ALU table.
+    // In case of a memory tag error, we do not perform the computation.
+    // Therefore, we do not create any entry in ALU table and store the value 0 as
+    // output (c) in memory.
     FF c = tag_match ? alu_trace_builder.op_mul(a, b, in_tag, clk) : FF(0);
 
     // Write into memory value c from intermediate register ic.
@@ -248,14 +254,15 @@ void AvmTraceBuilder::op_not(uint32_t a_offset, uint32_t dst_offset, AvmMemoryTa
     auto read_a = mem_trace_builder.read_and_load_from_memory(clk, IntermRegister::IA, a_offset, in_tag);
 
     // ~a = c
-    FF a = read_a.tag_match ? read_a.val : FF(0);
+    FF a = read_a.val;
 
-    // In case of a memory tag error, we must not generate an entry in the ALU table.
+    // In case of a memory tag error, we do not perform the computation.
+    // Therefore, we do not create any entry in ALU table and store the value 0 as
+    // output (c) in memory.
     FF c = read_a.tag_match ? alu_trace_builder.op_not(a, in_tag, clk) : FF(0);
 
     // Write into memory value c from intermediate register ic.
     mem_trace_builder.write_into_memory(clk, IntermRegister::IC, dst_offset, c, in_tag);
-
     main_trace.push_back(Row{
         .avm_main_clk = clk,
         .avm_main_pc = FF(pc++),
@@ -291,10 +298,12 @@ void AvmTraceBuilder::op_eq(uint32_t a_offset, uint32_t b_offset, uint32_t dst_o
     bool tag_match = read_a.tag_match && read_b.tag_match;
 
     // c = a == b ? 1 : 0
-    FF a = tag_match ? read_a.val : FF(0);
-    FF b = tag_match ? read_b.val : FF(0);
+    FF a = read_a.val;
+    FF b = read_b.val;
 
-    // In case of a memory tag error, we must not generate an entry in the ALU table.
+    // In case of a memory tag error, we do not perform the computation.
+    // Therefore, we do not create any entry in ALU table and store the value 0 as
+    // output (c) in memory.
     FF c = tag_match ? alu_trace_builder.op_eq(a, b, in_tag, clk) : FF(0);
 
     // Write into memory value c from intermediate register ic.
@@ -533,9 +542,9 @@ std::vector<FF> AvmTraceBuilder::return_op(uint32_t ret_offset, uint32_t ret_siz
             .avm_main_sel_halt = FF(1),
             .avm_main_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
             .avm_main_tag_err = FF(static_cast<uint32_t>(!tag_match)),
-            .avm_main_ia = tag_match ? ia : FF(0),
-            .avm_main_ib = tag_match ? ib : FF(0),
-            .avm_main_ic = tag_match ? ic : FF(0),
+            .avm_main_ia = ia,
+            .avm_main_ib = ib,
+            .avm_main_ic = ic,
             .avm_main_mem_op_a = FF(mem_op_a),
             .avm_main_mem_op_b = FF(mem_op_b),
             .avm_main_mem_op_c = FF(mem_op_c),
@@ -620,15 +629,16 @@ void AvmTraceBuilder::internal_call(uint32_t jmp_dest)
     internal_call_stack.push(stored_pc);
 
     // Add the return location to the memory trace
-    mem_trace_builder.write_into_memory(clk, IntermRegister::IB, internal_return_ptr, FF(stored_pc), AvmMemoryTag::FF);
+    mem_trace_builder.write_into_memory(clk, IntermRegister::IB, internal_return_ptr, FF(stored_pc), AvmMemoryTag::U32);
 
     main_trace.push_back(Row{
         .avm_main_clk = clk,
         .avm_main_pc = FF(pc),
         .avm_main_internal_return_ptr = FF(internal_return_ptr),
         .avm_main_sel_internal_call = FF(1),
+        .avm_main_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
         .avm_main_ia = FF(jmp_dest),
-        .avm_main_ib = stored_pc,
+        .avm_main_ib = FF(stored_pc),
         .avm_main_mem_op_b = FF(1),
         .avm_main_rwb = FF(1),
         .avm_main_mem_idx_b = FF(internal_return_ptr),
@@ -655,16 +665,17 @@ void AvmTraceBuilder::internal_return()
 
     // Internal return pointer is decremented
     // We want to load the value pointed by the internal pointer
-    auto read_a =
-        mem_trace_builder.read_and_load_from_memory(clk, IntermRegister::IA, internal_return_ptr - 1, AvmMemoryTag::FF);
+    auto read_a = mem_trace_builder.read_and_load_from_memory(
+        clk, IntermRegister::IA, internal_return_ptr - 1, AvmMemoryTag::U32);
 
     main_trace.push_back(Row{
         .avm_main_clk = clk,
         .avm_main_pc = pc,
         .avm_main_internal_return_ptr = FF(internal_return_ptr),
         .avm_main_sel_internal_return = FF(1),
+        .avm_main_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
         .avm_main_tag_err = FF(static_cast<uint32_t>(!read_a.tag_match)),
-        .avm_main_ia = read_a.tag_match ? read_a.val : FF(0),
+        .avm_main_ia = read_a.val,
         .avm_main_mem_op_a = FF(1),
         .avm_main_rwa = FF(0),
         .avm_main_mem_idx_a = FF(internal_return_ptr - 1),
@@ -740,6 +751,17 @@ std::vector<Row> AvmTraceBuilder::finalize()
         dest.avm_mem_m_tag_err = FF(static_cast<uint32_t>(src.m_tag_err));
         dest.avm_mem_m_one_min_inv = src.m_one_min_inv;
 
+        if (src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_LOAD_A ||
+            src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_STORE_A) {
+            dest.avm_mem_m_op_a = FF(1);
+        } else if (src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_LOAD_B ||
+                   src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_STORE_B) {
+            dest.avm_mem_m_op_b = FF(1);
+        } else if (src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_LOAD_C ||
+                   src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_STORE_C) {
+            dest.avm_mem_m_op_c = FF(1);
+        }
+
         if (i + 1 < mem_trace_size) {
             auto const& next = mem_trace.at(i + 1);
             dest.avm_mem_m_lastAccess = FF(static_cast<uint32_t>(src.m_addr != next.m_addr));
@@ -802,6 +824,7 @@ std::vector<Row> AvmTraceBuilder::finalize()
         }
     }
 
+    // Deriving redundant selectors/tags for the main trace.
     for (Row& r : main_trace) {
         if ((r.avm_main_sel_op_add == FF(1) || r.avm_main_sel_op_sub == FF(1) || r.avm_main_sel_op_mul == FF(1) ||
              r.avm_main_sel_op_eq == FF(1) || r.avm_main_sel_op_not == FF(1)) &&

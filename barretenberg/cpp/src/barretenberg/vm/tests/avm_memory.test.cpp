@@ -44,8 +44,8 @@ TEST_F(AvmMemoryTests, mismatchedTagAddOperation)
     EXPECT_TRUE(row != trace.end());
 
     // All intermediate registers should be set to zero.
-    EXPECT_EQ(row->avm_main_ia, FF(0));
-    EXPECT_EQ(row->avm_main_ib, FF(0));
+    EXPECT_EQ(row->avm_main_ia, FF(98));
+    EXPECT_EQ(row->avm_main_ib, FF(12));
     EXPECT_EQ(row->avm_main_ic, FF(0));
 
     auto clk = row->avm_main_clk;
@@ -122,7 +122,8 @@ TEST_F(AvmMemoryTests, mismatchedTagEqOperation)
 // in the memory trace
 TEST_F(AvmMemoryTests, mLastAccessViolation)
 {
-    trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
+    trace_builder.set(4, 0, AvmMemoryTag::U8);
+    trace_builder.set(9, 1, AvmMemoryTag::U8);
 
     //                           Memory layout:     [4,9,0,0,0,0,....]
     trace_builder.op_sub(1, 0, 2, AvmMemoryTag::U8); // [4,9,5,0,0,0.....]
@@ -152,7 +153,8 @@ TEST_F(AvmMemoryTests, mLastAccessViolation)
 // written into memory
 TEST_F(AvmMemoryTests, readWriteConsistencyValViolation)
 {
-    trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
+    trace_builder.set(4, 0, AvmMemoryTag::U8);
+    trace_builder.set(9, 1, AvmMemoryTag::U8);
 
     //                           Memory layout:      [4,9,0,0,0,0,....]
     trace_builder.op_mul(1, 0, 2, AvmMemoryTag::U8); // [4,9,36,0,0,0.....]
@@ -174,7 +176,6 @@ TEST_F(AvmMemoryTests, readWriteConsistencyValViolation)
     EXPECT_TRUE(row != trace.end());
 
     row->avm_mem_m_val = FF(35);
-
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "MEM_READ_WRITE_VAL_CONSISTENCY");
 }
 
@@ -182,7 +183,8 @@ TEST_F(AvmMemoryTests, readWriteConsistencyValViolation)
 // written into memory
 TEST_F(AvmMemoryTests, readWriteConsistencyTagViolation)
 {
-    trace_builder.calldata_copy(0, 2, 0, std::vector<FF>{ 4, 9 });
+    trace_builder.set(4, 0, AvmMemoryTag::U8);
+    trace_builder.set(9, 1, AvmMemoryTag::U8);
 
     //                           Memory layout:      [4,9,0,0,0,0,....]
     trace_builder.op_mul(1, 0, 2, AvmMemoryTag::U8); // [4,9,36,0,0,0.....]

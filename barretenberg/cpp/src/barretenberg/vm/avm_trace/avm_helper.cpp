@@ -46,14 +46,16 @@ void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end, bool e
         info("alu_ic              ", trace.at(i).avm_alu_alu_ic);
 
         info("=======MAIN TRACE====================================================================");
+        info("clk:                ", trace.at(i).avm_main_clk);
         info("ia:                 ", trace.at(i).avm_main_ia);
         info("ib:                 ", trace.at(i).avm_main_ib);
         info("ic:                 ", trace.at(i).avm_main_ic);
+        info("in_tag              ", trace.at(i).avm_main_in_tag);
+        info("tag_err             ", trace.at(i).avm_main_tag_err);
         info("first:              ", trace.at(i).avm_main_first);
         info("last:               ", trace.at(i).avm_main_last);
 
         info("=======MEM_OP_A======================================================================");
-        info("clk:                ", trace.at(i).avm_main_clk);
         info("mem_op_a:           ", trace.at(i).avm_main_mem_op_a);
         info("mem_idx_a:          ", trace.at(i).avm_main_mem_idx_a);
         info("rwa:                ", trace.at(i).avm_main_rwa);

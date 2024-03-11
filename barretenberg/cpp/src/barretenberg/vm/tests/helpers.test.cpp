@@ -12,7 +12,6 @@ void validate_trace_proof(std::vector<Row>&& trace)
 {
     auto circuit_builder = AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
-
     EXPECT_TRUE(circuit_builder.check_circuit());
 
     // TODO(#4944): uncomment the following lines to revive full verification

@@ -62,7 +62,7 @@ namespace avm_main(256);
     pol commit mem_op_a;
     pol commit mem_op_b;
     pol commit mem_op_c;
-    
+
     // Read-write flag per intermediate register: Read = 0, Write = 1
     pol commit rwa;
     pol commit rwb;
@@ -104,7 +104,7 @@ namespace avm_main(256);
     rwa * (1 - rwa) = 0;
     rwb * (1 - rwb) = 0;
     rwc * (1 - rwc) = 0;
-    
+
     // TODO: Constrain rwa, rwb, rwc to u32 type and 0 <= in_tag <= 6
 
     // Relation for division over the finite field
@@ -189,7 +189,7 @@ namespace avm_main(256);
     // TODO: we want to set an initial number for the reserved memory of the jump pointer
 
     // Inter-table Constraints
-    
+
     #[equiv_tag_err]
     avm_mem.m_tag_err {avm_mem.m_clk} in tag_err {clk};
 
@@ -207,5 +207,17 @@ namespace avm_main(256);
                      avm_alu.alu_op_add, avm_alu.alu_op_sub, avm_alu.alu_op_mul, avm_alu.alu_op_eq,
                      avm_alu.alu_op_not, avm_alu.alu_in_tag};
 
-    // TODO: Map memory trace with intermediate register values whenever there is no tag error, sthg like:
-    // mem_op_a * (1 - tag_err) {mem_idx_a, clk, ia, rwa} IS m_sub_clk == 0 && 1 - m_tag_err {m_addr, m_clk, m_val, m_rw}
+    #[equiv_main_mem_a]
+    mem_op_a {clk, mem_idx_a, ia, rwa, in_tag}
+    is
+    avm_mem.m_op_a {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw, avm_mem.m_in_tag};
+
+    #[equiv_main_mem_b]
+    mem_op_b {clk, mem_idx_b, ib, rwb, in_tag}
+    is
+    avm_mem.m_op_b {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw, avm_mem.m_in_tag};
+
+    #[equiv_main_mem_c]
+    mem_op_c {clk, mem_idx_c, ic, rwc, in_tag}
+    is
+    avm_mem.m_op_c {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw, avm_mem.m_in_tag};

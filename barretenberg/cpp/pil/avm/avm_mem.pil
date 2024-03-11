@@ -15,6 +15,11 @@ namespace avm_mem(256);
 
     pol commit m_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.in_tag)
 
+    // Indicator of the intermediate register pertaining to the memory operation (foreign key to avm_main.mem_op_XXX)
+    pol commit m_op_a;
+    pol commit m_op_b;
+    pol commit m_op_c;
+
     // Error columns
     pol commit m_tag_err; // Boolean (1 if m_in_tag != m_tag is detected)
 
@@ -26,9 +31,19 @@ namespace avm_mem(256);
     m_last * (1 - m_last) = 0;
     m_rw * (1 - m_rw) = 0;
     m_tag_err * (1 - m_tag_err) = 0;
+    m_op_a * (1 - m_op_a) = 0;
+    m_op_b * (1 - m_op_b) = 0;
+    m_op_c * (1 - m_op_c) = 0;
 
     // TODO: m_addr is u32 and 0 <= m_tag <= 6
     //       (m_in_tag will be constrained through inclusion check to main trace)
+
+    // sub_clk derivation
+    m_sub_clk = 3 * m_rw + m_op_b + 2 * m_op_c;
+
+    // Maximum one memory operation enabled per row
+    pol M_OP_SUM = m_op_a + m_op_b + m_op_c;
+    M_OP_SUM * (M_OP_SUM - 1) = 0;
 
     // Remark: m_lastAccess == 1 on first row and therefore any relation with the
     //         multiplicative term (1 - m_lastAccess) implicitly includes (1 - avm_main.first)
@@ -97,10 +112,3 @@ namespace avm_mem(256);
     // Correctness of two above checks MEM_IN_TAG_CONSISTENCY_1/2:
     // m_in_tag == m_tag ==> m_tag_err == 0 (first relation)
     // m_tag_err == 0 ==> m_one_min_inv == 0 by second relation. First relation ==> m_in_tag - m_tag == 0
-
-    // TODO: when introducing load/store as sub-operations, we will have to add consistency of intermediate
-    // register values ia, ib, ic
-
-    // Inter-table Constraints
-    
-    // TODO: {m_clk, m_in_tag} IN {avm_main.clk, avm_main.in_tag}
