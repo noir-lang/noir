@@ -1,7 +1,7 @@
 use crate::BlackBoxResolutionError;
 
-mod secp256r1;
 mod secp256k1;
+mod secp256r1;
 
 pub fn ecdsa_secp256k1_verify(
     hashed_msg: &[u8],

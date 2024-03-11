@@ -1,6 +1,7 @@
 use p256::elliptic_curve::sec1::FromEncodedPoint;
 use p256::elliptic_curve::PrimeField;
 
+use blake2::digest::generic_array::GenericArray;
 use p256::{ecdsa::Signature, Scalar};
 use p256::{
     elliptic_curve::{
@@ -9,7 +10,6 @@ use p256::{
     },
     AffinePoint, EncodedPoint, ProjectivePoint, PublicKey,
 };
-use blake2::digest::generic_array::GenericArray;
 
 pub(super) fn verify_signature(
     hashed_msg: &[u8],
@@ -95,8 +95,7 @@ mod secp256r1_tests {
 
     #[test]
     fn verifies_valid_signature_with_low_s_value() {
-        let valid =
-            verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
+        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
 
         assert!(valid);
     }
@@ -106,12 +105,7 @@ mod secp256r1_tests {
         // This signature is invalid as ECDSA specifies that `r` and `s` must be non-zero.
         let invalid_signature: [u8; 64] = [0x00; 64];
 
-        let valid = verify_signature(
-            &HASHED_MESSAGE,
-            &PUB_KEY_X,
-            &PUB_KEY_Y,
-            &invalid_signature,
-        );
+        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &invalid_signature);
         assert!(!valid);
     }
 
@@ -120,12 +114,8 @@ mod secp256r1_tests {
         let invalid_pub_key_x: [u8; 32] = [0xff; 32];
         let invalid_pub_key_y: [u8; 32] = [0xff; 32];
 
-        let valid = verify_signature(
-            &HASHED_MESSAGE,
-            &invalid_pub_key_x,
-            &invalid_pub_key_y,
-            &SIGNATURE,
-        );
+        let valid =
+            verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE);
 
         assert!(!valid);
     }
@@ -136,12 +126,7 @@ mod secp256r1_tests {
         let mut long_hashed_message = HASHED_MESSAGE.to_vec();
         long_hashed_message.push(0xff);
 
-        let valid = verify_signature(
-            &long_hashed_message,
-            &PUB_KEY_X,
-            &PUB_KEY_Y,
-            &SIGNATURE,
-        );
+        let valid = verify_signature(&long_hashed_message, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
 
         assert!(valid);
     }

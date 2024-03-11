@@ -52,7 +52,6 @@ pub fn keccakf1600(
     Ok(state)
 }
 
-
 #[cfg(test)]
 mod keccakf1600_tests {
     use super::keccakf1600;
@@ -125,4 +124,3 @@ mod keccakf1600_tests {
         assert_eq!(state_second, expected_state_second);
     }
 }
-
