@@ -154,6 +154,8 @@
         "sdiv",
         "secp256k1",
         "secp256r1",
+        "Secpk",
+        "Secpr",
         "signedness",
         "signorecello",
         "smol",
