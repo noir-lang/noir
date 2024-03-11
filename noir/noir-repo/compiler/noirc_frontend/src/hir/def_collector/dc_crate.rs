@@ -207,7 +207,7 @@ impl DefCollector {
         context: &mut Context,
         ast: SortedModule,
         root_file_id: FileId,
-        macro_processors: Vec<&dyn MacroProcessor>,
+        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let crate_id = def_map.krate;
@@ -220,11 +220,7 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            errors.extend(CrateDefMap::collect_defs(
-                dep.crate_id,
-                context,
-                macro_processors.clone(),
-            ));
+            errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, macro_processors));
 
             let dep_def_root =
                 context.def_map(&dep.crate_id).expect("ice: def map was just created").root;
@@ -250,6 +246,7 @@ impl DefCollector {
             crate_root,
             crate_id,
             context,
+            macro_processors,
         ));
 
         let submodules = vecmap(def_collector.def_map.modules().iter(), |(index, _)| index);
@@ -257,9 +254,9 @@ impl DefCollector {
         context.def_maps.insert(crate_id, def_collector.def_map);
 
         // TODO(#4653): generalize this function
-        for macro_processor in &macro_processors {
+        for macro_processor in macro_processors {
             macro_processor
-                .process_unresolved_traits_impls(
+                .process_collected_defs(
                     &crate_id,
                     context,
                     &def_collector.collected_traits_impls,

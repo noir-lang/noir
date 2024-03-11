@@ -247,7 +247,7 @@ pub fn check_crate(
     };
 
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, &macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic: CustomDiagnostic = error.into();
         diagnostic.in_file(file_id)

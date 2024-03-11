@@ -18,12 +18,12 @@ impl MacroProcessor for AssertMessageMacro {
         transform(ast, crate_id)
     }
 
-    fn process_unresolved_traits_impls(
+    fn process_collected_defs(
         &self,
         _crate_id: &CrateId,
         _context: &mut HirContext,
-        _unresolved_traits_impls: &[UnresolvedTraitImpl],
-        _collected_functions: &mut Vec<UnresolvedFunctions>,
+        _collected_trait_impls: &[UnresolvedTraitImpl],
+        _collected_functions: &mut [UnresolvedFunctions],
     ) -> Result<(), (MacroError, FileId)> {
         Ok(())
     }
