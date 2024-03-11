@@ -39,7 +39,7 @@ pub(crate) struct ExecuteCommand {
 fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
     let bytecode = read_bytecode_from_file(&args.working_directory, &args.bytecode)?;
     let circuit_inputs = read_inputs_from_file(&args.working_directory, &args.input_witness)?;
-    let output_witness = execute_program_from_witness(circuit_inputs, &bytecode, None)?;
+    let output_witness = execute_program_from_witness(&circuit_inputs, &bytecode, None)?;
     let output_witness_string = create_output_witness_string(&output_witness)?;
     if args.output_witness.is_some() {
         save_witness_to_dir(
@@ -61,7 +61,7 @@ pub(crate) fn run(args: ExecuteCommand) -> Result<String, CliError> {
 }
 
 pub(crate) fn execute_program_from_witness(
-    inputs_map: WitnessMap,
+    inputs_map: &WitnessMap,
     bytecode: &[u8],
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessMap, CliError> {
@@ -70,7 +70,7 @@ pub(crate) fn execute_program_from_witness(
         .map_err(|_| CliError::CircuitDeserializationError())?;
     execute_circuit(
         &circuit,
-        inputs_map,
+        inputs_map.clone(),
         &blackbox_solver,
         &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),
     )
