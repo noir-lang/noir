@@ -246,4 +246,44 @@ contract AvmTest {
         let addResult = returnData[0];
         addResult
     }
+
+    // Directly call_static the external call opcode to initiate a nested call to the add function
+    #[aztec(public-vm)]
+    fn raw_nested_static_call_to_add(argA: Field, argB: Field) -> pub (Field, u8) {
+        let selector = FunctionSelector::from_signature("avm_addArgsReturn(Field,Field)").to_field();
+        let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
+
+        let (resultData, success): ([Field; 1], u8) = context.call_static(gas, context.address(), [argA, argB], selector);
+
+        (resultData[0], success)
+    }
+
+    // Directly call_static setAdmin. Should fail since it's accessing storage.
+    #[aztec(public-vm)]
+    fn raw_nested_static_call_to_set_admin() -> pub u8 {
+        let selector = FunctionSelector::from_signature("avm_setAdmin()").to_field();
+        let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
+
+        let (_returnData, success): ([Field; 0], u8) = context.call_static(gas, context.address(), [], selector);
+
+        success
+    }
+
+    // Indirectly call_static the external call opcode to initiate a nested call to the add function
+    #[aztec(public-vm)]
+    fn nested_static_call_to_add(argA: Field, argB: Field) -> pub Field {
+        let selector = FunctionSelector::from_signature("avm_addArgsReturn(Field,Field)");
+
+        let resultData: [Field; 1] = context.static_call_public_function(context.address(), selector, [argA, argB]);
+
+        resultData[0]
+    }
+
+    // Indirectly call_static setAdmin. Should revert since it's accessing storage.
+    #[aztec(public-vm)]
+    fn nested_static_call_to_set_admin() {
+        let selector = FunctionSelector::from_signature("avm_setAdmin()");
+
+        let _resultData: [Field; 0] = context.static_call_public_function(context.address(), selector, []);
+    }
 }

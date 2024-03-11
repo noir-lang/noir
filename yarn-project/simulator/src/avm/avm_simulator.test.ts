@@ -24,7 +24,7 @@ function getAvmTestContractBytecode(functionName: string): Buffer {
   const artifact = AvmTestContractArtifact.functions.find(f => f.name === functionName)!;
   assert(
     !!artifact?.bytecode,
-    `No bytecode found for function ${functionName}. Try re-running bootstraph.sh on the repository root.`,
+    `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
   );
   return Buffer.from(artifact.bytecode, 'base64');
 }
@@ -420,6 +420,63 @@ describe('AVM simulator', () => {
 
         expect(results.reverted).toBe(false);
         expect(results.output).toEqual([new Fr(3)]);
+      });
+
+      it(`Should execute contract function that makes a nested static call`, async () => {
+        const calldata: Fr[] = [new Fr(1), new Fr(2)];
+        const callBytecode = getAvmTestContractBytecode('avm_raw_nested_static_call_to_add');
+        const addBytecode = getAvmTestContractBytecode('avm_addArgsReturn');
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValueOnce(Promise.resolve(addBytecode));
+
+        const results = await new AvmSimulator(context).executeBytecode(callBytecode);
+
+        expect(results.reverted).toBe(false);
+        expect(results.output).toEqual([/*result=*/ new Fr(3), /*success=*/ new Fr(1)]);
+      });
+
+      it(`Should execute contract function that makes a nested static call which modifies storage`, async () => {
+        const callBytecode = getAvmTestContractBytecode('avm_raw_nested_static_call_to_set_admin');
+        const nestedBytecode = getAvmTestContractBytecode('avm_setAdmin');
+        const context = initContext();
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValueOnce(Promise.resolve(nestedBytecode));
+
+        const results = await new AvmSimulator(context).executeBytecode(callBytecode);
+
+        expect(results.reverted).toBe(false); // The outer call should not revert.
+        expect(results.output).toEqual([new Fr(0)]); // The inner call should have reverted.
+      });
+
+      it(`Should execute contract function that makes a nested static call (old interface)`, async () => {
+        const calldata: Fr[] = [new Fr(1), new Fr(2)];
+        const callBytecode = getAvmTestContractBytecode('avm_nested_static_call_to_add');
+        const addBytecode = getAvmTestContractBytecode('avm_addArgsReturn');
+        const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValueOnce(Promise.resolve(addBytecode));
+
+        const results = await new AvmSimulator(context).executeBytecode(callBytecode);
+
+        expect(results.reverted).toBe(false);
+        expect(results.output).toEqual([/*result=*/ new Fr(3)]);
+      });
+
+      it(`Should execute contract function that makes a nested static call which modifies storage (old interface)`, async () => {
+        const callBytecode = getAvmTestContractBytecode('avm_nested_static_call_to_set_admin');
+        const nestedBytecode = getAvmTestContractBytecode('avm_setAdmin');
+        const context = initContext();
+        jest
+          .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+          .mockReturnValueOnce(Promise.resolve(nestedBytecode));
+
+        const results = await new AvmSimulator(context).executeBytecode(callBytecode);
+
+        expect(results.reverted).toBe(true); // The outer call should revert.
       });
     });
 

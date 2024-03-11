@@ -82,7 +82,17 @@ impl AVMContext {
     pub fn send_l2_to_l1_msg(self, recipient: EthAddress, content: Field) {}
 
     #[oracle(avmOpcodeCall)]
-    fn call<ARGS_COUNT, RET_SIZE>(
+    pub fn call<ARGS_COUNT, RET_SIZE>(
+        self,
+        gas: [Field; 3], // gas allocation: [l1Gas, l2Gas, daGas]
+        address: AztecAddress,
+        args: [Field; ARGS_COUNT],
+        temporary_function_selector: Field
+    ) -> ([Field; RET_SIZE], u8) {}
+    //    ^ return data      ^ success
+
+    #[oracle(avmOpcodeStaticCall)]
+    pub fn call_static<ARGS_COUNT, RET_SIZE>(
         self,
         gas: [Field; 3], // gas allocation: [l1Gas, l2Gas, daGas]
         address: AztecAddress,
@@ -138,6 +148,25 @@ impl AVMContext {
         let success: u8 = results.1;
         assert(success == 1, "Nested call failed!");
 
+        returnData
+    }
+
+    pub fn static_call_public_function<ARGS_COUNT, RET_SIZE>(
+        self: Self,
+        contract_address: AztecAddress,
+        temporary_function_selector: FunctionSelector,
+        args: [Field; ARGS_COUNT]
+    ) -> [Field; RET_SIZE] {
+        let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
+
+        let (returnData, success): ([Field; RET_SIZE], u8) = self.call_static(
+            gas,
+            contract_address,
+            args,
+            temporary_function_selector.to_field()
+        );
+
+        assert(success == 1, "Nested static call failed!");
         returnData
     }
 }

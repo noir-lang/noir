@@ -239,7 +239,10 @@ fn handle_foreign_call(
     inputs: &Vec<ValueOrArray>,
 ) {
     match function {
-        "avmOpcodeCall" => handle_external_call(avm_instrs, destinations, inputs),
+        "avmOpcodeCall" => handle_external_call(avm_instrs, destinations, inputs, AvmOpcode::CALL),
+        "avmOpcodeStaticCall" => {
+            handle_external_call(avm_instrs, destinations, inputs, AvmOpcode::STATICCALL)
+        }
         "amvOpcodeEmitUnencryptedLog" => {
             handle_emit_unencrypted_log(avm_instrs, destinations, inputs)
         }
@@ -280,10 +283,11 @@ fn handle_external_call(
     avm_instrs: &mut Vec<AvmInstruction>,
     destinations: &Vec<ValueOrArray>,
     inputs: &Vec<ValueOrArray>,
+    opcode: AvmOpcode,
 ) {
     if destinations.len() != 2 || inputs.len() != 4 {
         panic!(
-            "Transpiler expects ForeignCall::CALL to have 2 destinations and 4 inputs, got {} and {}.
+            "Transpiler expects ForeignCall (Static)Call to have 2 destinations and 4 inputs, got {} and {}.
             Make sure your call instructions's input/return arrays have static length (`[Field; <size>]`)!",
             destinations.len(),
             inputs.len()
@@ -326,7 +330,7 @@ fn handle_external_call(
         _ => panic!("Call instruction's success destination should be a basic MemoryAddress",),
     };
     avm_instrs.push(AvmInstruction {
-        opcode: AvmOpcode::CALL,
+        opcode: opcode,
         indirect: Some(0b01101), // (left to right) selector direct, ret offset INDIRECT, args offset INDIRECT, address offset direct, gas offset INDIRECT
         operands: vec![
             AvmOperand::U32 { value: gas_offset },
