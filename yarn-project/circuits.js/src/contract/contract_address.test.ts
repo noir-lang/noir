@@ -1,5 +1,6 @@
 import { ABIParameterVisibility, FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
+import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 
 import { EthAddress } from '../index.js';
 import {
@@ -12,6 +13,7 @@ import {
 } from './contract_address.js';
 
 describe('ContractAddress', () => {
+  setupCustomSnapshotSerializers(expect);
   it('computePartialAddress', () => {
     const mockInstance = {
       contractClassId: new Fr(1),

@@ -1,9 +1,11 @@
+import { setupCustomSnapshotSerializers } from '../testing/index.js';
 import { FunctionSelector } from './function_selector.js';
 
 describe('FunctionSelector', () => {
   let selector: FunctionSelector;
 
   beforeAll(() => {
+    setupCustomSnapshotSerializers(expect);
     selector = FunctionSelector.random();
   });
 

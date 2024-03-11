@@ -1,7 +1,7 @@
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
-import { updateInlineTestData } from '@aztec/foundation/testing';
+import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
 
 import { TX_REQUEST_LENGTH } from '../constants.gen.js';
 import { makeTxRequest } from '../tests/factories.js';
@@ -13,6 +13,7 @@ describe('TxRequest', () => {
   let request: TxRequest;
 
   beforeAll(() => {
+    setupCustomSnapshotSerializers(expect);
     const randomInt = Math.floor(Math.random() * 1000);
     request = makeTxRequest(randomInt);
   });

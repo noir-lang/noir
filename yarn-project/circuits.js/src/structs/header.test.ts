@@ -1,4 +1,4 @@
-import { updateInlineTestData } from '@aztec/foundation/testing';
+import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
 
 import { HEADER_LENGTH } from '../constants.gen.js';
 import { makeHeader } from '../tests/factories.js';
@@ -8,6 +8,7 @@ describe('Header', () => {
   let header: Header;
 
   beforeAll(() => {
+    setupCustomSnapshotSerializers(expect);
     const randomInt = Math.floor(Math.random() * 1000);
     header = makeHeader(randomInt, undefined);
   });

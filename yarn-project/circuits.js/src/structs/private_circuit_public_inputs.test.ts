@@ -1,4 +1,4 @@
-import { updateInlineTestData } from '@aztec/foundation/testing';
+import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
 
 import { PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH } from '../constants.gen.js';
 import { makePrivateCircuitPublicInputs } from '../tests/factories.js';
@@ -8,6 +8,7 @@ describe('PrivateCircuitPublicInputs', () => {
   let inputs: PrivateCircuitPublicInputs;
 
   beforeAll(() => {
+    setupCustomSnapshotSerializers(expect);
     const randomInt = Math.floor(Math.random() * 1000);
     inputs = makePrivateCircuitPublicInputs(randomInt);
   });

@@ -1,4 +1,5 @@
 import { FunctionSelector } from '@aztec/foundation/abi';
+import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 
 import { FUNCTION_DATA_LENGTH } from '../constants.gen.js';
 import { FunctionData } from './function_data.js';
@@ -7,6 +8,7 @@ describe('FunctionData', () => {
   let functionData: FunctionData;
 
   beforeAll(() => {
+    setupCustomSnapshotSerializers(expect);
     functionData = new FunctionData(new FunctionSelector(123), false, true, true);
   });
 

@@ -1,4 +1,4 @@
-import { updateInlineTestData } from '@aztec/foundation/testing';
+import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
 
 import { PRIVATE_CALL_STACK_ITEM_LENGTH } from '../constants.gen.js';
 import { makePrivateCallStackItem } from '../tests/factories.js';
@@ -8,6 +8,7 @@ describe('PrivateCallStackItem', () => {
   let item: PrivateCallStackItem;
 
   beforeAll(() => {
+    setupCustomSnapshotSerializers(expect);
     const randomInt = Math.floor(Math.random() * 1000);
     item = makePrivateCallStackItem(randomInt);
   });

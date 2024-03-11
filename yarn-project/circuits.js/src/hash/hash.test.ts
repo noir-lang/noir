@@ -1,4 +1,5 @@
 import { times } from '@aztec/foundation/collection';
+import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 
 import { AztecAddress, Fr, FunctionData, FunctionSelector, SideEffect, SideEffectLinkedToNoteHash } from '../index.js';
 import { makeAztecAddress, makeVerificationKey } from '../tests/factories.js';
@@ -19,6 +20,7 @@ import {
 } from './hash.js';
 
 describe('hash', () => {
+  setupCustomSnapshotSerializers(expect);
   it('hashes VK', () => {
     const vk = makeVerificationKey();
     const res = hashVK(vk.toBuffer());

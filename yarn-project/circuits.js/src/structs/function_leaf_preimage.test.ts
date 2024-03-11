@@ -1,5 +1,6 @@
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
+import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 
 import { FUNCTION_LEAF_PREIMAGE_LENGTH } from '../constants.gen.js';
 import { FunctionLeafPreimage } from './function_leaf_preimage.js';
@@ -8,6 +9,7 @@ describe('FunctionLeafPreimage', () => {
   let leaf: FunctionLeafPreimage;
 
   beforeAll(() => {
+    setupCustomSnapshotSerializers(expect);
     leaf = new FunctionLeafPreimage(new FunctionSelector(8972), false, true, Fr.ZERO, Fr.ZERO);
   });
 

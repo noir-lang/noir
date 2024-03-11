@@ -1,10 +1,11 @@
-import { updateInlineTestData } from '@aztec/foundation/testing';
+import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
 
 import { makePublicCallStackItem } from '../tests/factories.js';
 import { AztecAddress, Fr, FunctionData, FunctionSelector, SideEffect } from './index.js';
 import { PublicCallStackItem } from './public_call_stack_item.js';
 
 describe('PublicCallStackItem', () => {
+  setupCustomSnapshotSerializers(expect);
   it('serializes to buffer and deserializes it back', () => {
     const randomInt = Math.floor(Math.random() * 1000);
     const expected = makePublicCallStackItem(randomInt);

@@ -1,10 +1,12 @@
 import { Fr } from '@aztec/foundation/fields';
+import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 import { PrivateFunction } from '@aztec/types/contracts';
 
 import { fr, makeSelector } from '../tests/factories.js';
 import { computePrivateFunctionsRoot, computePrivateFunctionsTree } from './private_function.js';
 
 describe('PrivateFunction', () => {
+  setupCustomSnapshotSerializers(expect);
   const privateFunctions: PrivateFunction[] = [
     { selector: makeSelector(1), vkHash: fr(2), isInternal: false },
     { selector: makeSelector(3), vkHash: fr(4), isInternal: false },

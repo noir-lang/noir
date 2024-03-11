@@ -4,45 +4,4 @@ exports[`PublicCallStackItem Computes a callstack item hash 1`] = `"0x086b489011
 
 exports[`PublicCallStackItem Computes a callstack item request hash 1`] = `"0x09cb16dc10b48bb544bd5f4293cfd2dee539bd281aa468c0c69a9352df17a307"`;
 
-exports[`PublicCallStackItem computes hash 1`] = `
-Fr {
-  "asBigInt": 11555040142515015296271093908395853249446924243912159350088258091554726377002n,
-  "asBuffer": {
-    "data": [
-      25,
-      139,
-      235,
-      195,
-      174,
-      57,
-      172,
-      112,
-      65,
-      182,
-      246,
-      207,
-      145,
-      207,
-      32,
-      85,
-      229,
-      119,
-      73,
-      79,
-      143,
-      33,
-      69,
-      216,
-      22,
-      1,
-      177,
-      146,
-      247,
-      30,
-      118,
-      42,
-    ],
-    "type": "Buffer",
-  },
-}
-`;
+exports[`PublicCallStackItem computes hash 1`] = `Fr<0x198bebc3ae39ac7041b6f6cf91cf2055e577494f8f2145d81601b192f71e762a>`;

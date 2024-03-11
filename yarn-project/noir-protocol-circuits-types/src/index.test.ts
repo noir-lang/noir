@@ -1,5 +1,6 @@
 import { PrivateKernelInnerCircuitPrivateInputs, PrivateKernelTailCircuitPrivateInputs } from '@aztec/circuits.js';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 import { fileURLToPath } from '@aztec/foundation/url';
 
 import { readFileSync } from 'fs';
@@ -11,6 +12,7 @@ describe('Private kernel', () => {
   let logger: DebugLogger;
 
   beforeAll(() => {
+    setupCustomSnapshotSerializers(expect);
     logger = createDebugLogger('noir-private-kernel');
   });
 
