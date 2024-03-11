@@ -240,8 +240,9 @@ describe('AVM simulator', () => {
 
         const expectedFields = [new Fr(10), new Fr(20), new Fr(30)];
         const expectedString = 'Hello, world!'.split('').map(c => new Fr(c.charCodeAt(0)));
-        // FIXME: Try this once Brillig codegen produces uniform bit sizes for LT
-        // const expectedCompressedString = Buffer.from('Hello, world!');
+        const expectedCompressedString = Buffer.from(
+          '\0A long time ago, in a galaxy fa' + '\0r far away...\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+        );
         expect(context.persistableState.flush().newLogs).toEqual([
           new UnencryptedL2Log(
             context.environment.address,
@@ -253,11 +254,7 @@ describe('AVM simulator', () => {
             new EventSelector(8),
             Buffer.concat(expectedString.map(f => f.toBuffer())),
           ),
-          // new UnencryptedL2Log(
-          //   context.environment.address,
-          //   new EventSelector(10),
-          //   expectedCompressedString,
-          // ),
+          new UnencryptedL2Log(context.environment.address, new EventSelector(10), expectedCompressedString),
         ]);
       });
 

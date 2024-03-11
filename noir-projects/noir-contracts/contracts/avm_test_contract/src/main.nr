@@ -161,10 +161,8 @@ contract AvmTest {
     fn emit_unencrypted_log() {
         context.emit_unencrypted_log(/*event_selector=*/ 5, /*message=*/ [10, 20, 30]);
         context.emit_unencrypted_log(/*event_selector=*/ 8, /*message=*/ "Hello, world!");
-        // FIXME: Try this once Brillig codegen produces uniform bit sizes for LT
-        // FIXME: TagCheckError: Tag mismatch at offset 22, got UINT64, expected UINT32
-        // let s: CompressedString<1,13> = CompressedString::from_string("Hello, world!");
-        // context.emit_unencrypted_log(/*event_selector=*/ 10, /*message=*/ s);
+        let s: CompressedString<2,44> = CompressedString::from_string("A long time ago, in a galaxy far far away...");
+        context.emit_unencrypted_log(/*event_selector=*/ 10, /*message=*/ s);
     }
 
     #[aztec(public-vm)]
