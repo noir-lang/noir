@@ -37,17 +37,7 @@ Feel free to explore the source code for the other primes:
 
 A common use-case is when constructing a big integer from its bytes representation, and performing arithmetic operations on it:
 
-```rust
-use dep::std::{bigint::Secpk1Fq, println};
-
-fn main(x:u8, y:u8) {
- let a = Secpk1Fq::from_le_bytes([x, y, 0, 45, 2]);
- let b = Secpk1Fq::from_le_bytes([y, x, 9]);
- let c = (a + b)*b/a;
- let d = c.to_le_bytes();
- println(d[0]);
-}
-```
+#include_code big_int_example test_programs/execution_success/bigint/src/main.nr rust
 
 ## Methods
 
