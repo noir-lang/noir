@@ -41,14 +41,6 @@ pub enum DefCollectorErrorKind {
     OverlappingImplNote { span: Span },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { span: Span, type_name: String },
-    #[error("Mismatched number of parameters in trait implementation")]
-    MismatchTraitImplementationNumParameters {
-        actual_num_parameters: usize,
-        expected_num_parameters: usize,
-        trait_name: String,
-        method_name: String,
-        span: Span,
-    },
     #[error("Mismatched number of generics in {location}")]
     MismatchGenericCount {
         actual_generic_count: usize,
@@ -176,18 +168,6 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "".to_string(),
                 trait_path.span(),
             ),
-            DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
-                expected_num_parameters,
-                actual_num_parameters,
-                trait_name,
-                method_name,
-                span,
-            } => {
-                let plural = if expected_num_parameters == 1 { "" } else { "s" };
-                let primary_message = format!(
-                    "`{trait_name}::{method_name}` expects {expected_num_parameters} parameter{plural}, but this method has {actual_num_parameters}");
-                Diagnostic::simple_error(primary_message, "".to_string(), span)
-            }
             DefCollectorErrorKind::MismatchGenericCount {
                 actual_generic_count,
                 expected_generic_count,
