@@ -1025,7 +1025,8 @@ impl Context {
         self.array_set_value(&store_value, result_block_id, &mut var_index)?;
 
         let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {
-            Some(self.init_element_type_sizes_array(&array_typ, array_id, None, dfg)?)
+            let acir_value = self.convert_value(array_id, dfg);
+            Some(self.init_element_type_sizes_array(&array_typ, array_id, Some(&acir_value), dfg)?)
         } else {
             None
         };
@@ -1258,7 +1259,9 @@ impl Context {
         var_index: AcirVar,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
+        dbg!(!can_omit_element_sizes_array(array_typ));
         if !can_omit_element_sizes_array(array_typ) {
+            dbg!(array_typ.clone());
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
 
@@ -1670,7 +1673,7 @@ impl Context {
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
 
                 let result_block_id = self.block_id(&result_ids[1]);
-                let value_types = self.convert_value(slice_contents, dfg).flat_numeric_types();
+                let acir_value = self.convert_value(slice_contents, dfg);
 
                 // TODO: remove this and the assert
                 let array_len = if !slice_typ.contains_slice_element() {
@@ -1678,23 +1681,23 @@ impl Context {
                 } else {
                     self.flattened_slice_size(slice_contents, dfg)
                 };
-                assert!(array_len == value_types.len(), "AsSlice: unexpected length difference: {:?} != {:?}", array_len, value_types.len());
 
-                let slice_length = self.acir_context.add_constant(value_types.len());
-                let array_elements = self.copy_dynamic_array(block_id, result_block_id, value_types.len())?;
-
-                assert!(array_elements.len() == value_types.len(), "AsSlice: unexpected length difference (2): {:?} != {:?}", array_elements.len(), value_types.len());
+                let slice_length = self.acir_context.add_constant(array_len);
+                self.copy_dynamic_array(block_id, result_block_id, array_len)?;
 
                 let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
                     Some(self.init_element_type_sizes_array(
                         &slice_typ,
                         slice_contents,
-                        Some(&AcirValue::Array(array_elements)),
+                        Some(&acir_value),
                         dfg,
                     )?)
                 } else {
                     None
                 };
+
+                let value_types = self.convert_value(slice_contents, dfg).flat_numeric_types();
+                assert!(array_len == value_types.len(), "AsSlice: unexpected length difference: {:?} != {:?}", array_len, value_types.len());
 
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
@@ -2309,11 +2312,9 @@ impl Context {
 
 // We can omit the element size array for arrays which don't contain arrays or slices.
 fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
-    if array_typ.contains_slice_element() {
-        return false;
-    }
-    let Type::Array(types, _) = array_typ else {
-        panic!("ICE: expected array type");
+    let types = match array_typ {
+        Type::Array(types, _) | Type::Slice(types) => types,
+        _ => panic!("ICE: expected array or slice type"),
     };
 
     !types.iter().any(|typ| typ.contains_an_array())
