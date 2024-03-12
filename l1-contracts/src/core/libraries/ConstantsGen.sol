@@ -77,6 +77,7 @@ library Constants {
   uint256 internal constant NUM_FIELDS_PER_SHA256 = 2;
   uint256 internal constant ARGS_HASH_CHUNK_LENGTH = 32;
   uint256 internal constant ARGS_HASH_CHUNK_COUNT = 32;
+  uint256 internal constant INITIALIZATION_SLOT_SEPARATOR = 1000_000_000;
   uint256 internal constant INITIAL_L2_BLOCK_NUM = 1;
   uint256 internal constant BLOB_SIZE_IN_BYTES = 126976;
   uint256 internal constant MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS = 15000;
