@@ -3,6 +3,7 @@ use crate::collections::vec::Vec;
 use crate::option::Option;
 use crate::default::Default;
 use crate::hash::{Hash, Hasher, BuildHasher};
+use crate::collections::bounded_vec::BoundedVec;
 
 // We use load factor α_max = 0.75. 
 // Upon exceeding it, assert will fail in order to inform the user 
@@ -78,21 +79,26 @@ impl<K, V> Slot<K, V> {
 // it is very unlikely to be after - performance will be heavily degraded.
 impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // Creates a new instance of HashMap with specified BuildHasher.
+    // docs:start:with_hasher
     pub fn with_hasher(_build_hasher: B) -> Self
     where
         B: BuildHasher<H> {
+        // docs:end:with_hasher
         let _table = [Slot::default(); N];
         let _len = 0;
         Self { _table, _len, _build_hasher }
     }
 
     // Clears the map, removing all key-value entries.
+    // docs:start:clear
     pub fn clear(&mut self) {
+        // docs:end:clear
         self._table = [Slot::default(); N];
         self._len = 0;
     }
 
     // Returns true if the map contains a value for the specified key.
+    // docs:start:contains_key
     pub fn contains_key(
         self,
         key: K
@@ -101,89 +107,80 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Hash + Eq,
         B: BuildHasher<H>,
         H: Hasher {
+        // docs:end:contains_key
         self.get(key).is_some()
     }
 
     // Returns true if the map contains no elements.
+    // docs:start:is_empty
     pub fn is_empty(self) -> bool {
+        // docs:end:is_empty
         self._len == 0
     }
 
-    // Get the Option<(K, V) array of valid entries 
-    // with a length of map capacity. First len() elements 
-    // are safe to unwrap_unchecked(), whilst remaining 
-    // are guaranteed to be Option::none().
-    //
-    // This design is reasoned by compile-time limitations and
-    // temporary nested slices ban. 
-    pub fn entries(self) -> [Option<(K, V)>; N] {
-        let mut entries = [Option::none(); N];
-        let mut valid_amount = 0;
+    // Returns a BoundedVec of all valid entries in this HashMap.
+    // The length of the returned vector will always match the length of this HashMap.
+    // docs:start:entries
+    pub fn entries(self) -> BoundedVec<(K, V), N> {
+        // docs:end:entries
+        let mut entries = BoundedVec::new();
 
         for slot in self._table {
             if slot.is_valid() {
-                entries[valid_amount] = slot.key_value();
-                valid_amount += 1;
+                // SAFETY: slot.is_valid() should ensure there is a valid key-value pairing here
+                let key_value = slot.key_value().unwrap_unchecked();
+                entries.push(key_value);
             }
         }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {valid_amount}.";
-        assert(valid_amount == self._len, msg);
+        let msg = f"Amount of valid elements should have been {self._len} times, but got {entries.len()}.";
+        assert(entries.len() == self._len, msg);
 
         entries
     }
 
-    // Get the Option<K> array of valid keys 
-    // with a length of map capacity. First len() elements 
-    // are safe to unwrap_unchecked(), whilst remaining 
-    // are guaranteed to be Option::none().
-    //
-    // This design is reasoned by compile-time limitations and
-    // temporary nested slices ban. 
-    pub fn keys(self) -> [Option<K>; N] {
-        let mut keys = [Option::none(); N];
-        let mut valid_amount = 0;
+    // Returns a BoundedVec containing all the keys within this HashMap.
+    // The length of the returned vector will always match the length of this HashMap.
+    // docs:start:keys
+    pub fn keys(self) -> BoundedVec<K, N> {
+        // docs:end:keys
+        let mut keys = BoundedVec::new();
 
         for slot in self._table {
             if slot.is_valid() {
                 let (key, _) = slot.key_value_unchecked();
-                keys[valid_amount] = Option::some(key);
-                valid_amount += 1;
+                keys.push(key);
             }
         }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {valid_amount}.";
-        assert(valid_amount == self._len, msg);
+        let msg = f"Amount of valid elements should have been {self._len} times, but got {keys.len()}.";
+        assert(keys.len() == self._len, msg);
 
         keys
     }
 
-    // Get the Option<V> array of valid values 
-    // with a length of map capacity. First len() elements 
-    // are safe to unwrap_unchecked(), whilst remaining 
-    // are guaranteed to be Option::none().
-    //
-    // This design is reasoned by compile-time limitations and
-    // temporary nested slices ban. 
-    pub fn values(self) -> [Option<V>; N] {
-        let mut values = [Option::none(); N];
-        let mut valid_amount = 0;
+    // Returns a BoundedVec containing all the values within this HashMap.
+    // The length of the returned vector will always match the length of this HashMap.
+    // docs:start:values
+    pub fn values(self) -> BoundedVec<V, N> {
+        // docs:end:values
+        let mut values = BoundedVec::new();
 
         for slot in self._table {
             if slot.is_valid() {
                 let (_, value) = slot.key_value_unchecked();
-                values[valid_amount] = Option::some(value);
-                valid_amount += 1;
+                values.push(value);
             }
         }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {valid_amount}.";
-        assert(valid_amount == self._len, msg);
+        let msg = f"Amount of valid elements should have been {self._len} times, but got {values.len()}.";
+        assert(values.len() == self._len, msg);
 
         values
     }
 
     // For each key-value entry applies mutator function.
+    // docs:start:iter_mut
     pub fn iter_mut(
         &mut self,
         f: fn(K, V) -> (K, V)
@@ -192,12 +189,13 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Eq + Hash,
         B: BuildHasher<H>,
         H: Hasher {
+        // docs:end:iter_mut
         let mut entries = self.entries();
         let mut new_map = HashMap::with_hasher(self._build_hasher);
 
         for i in 0..N {
             if i < self._len {
-                let entry = entries[i].unwrap_unchecked();
+                let entry = entries.get_unchecked(i);
                 let (key, value) = f(entry.0, entry.1);
                 new_map.insert(key, value);
             }
@@ -207,6 +205,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     }
 
     // For each key applies mutator function.
+    // docs:start:iter_keys_mut
     pub fn iter_keys_mut(
         &mut self,
         f: fn(K) -> K
@@ -215,12 +214,13 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Eq + Hash,
         B: BuildHasher<H>,
         H: Hasher {
+        // docs:end:iter_keys_mut
         let mut entries = self.entries();
         let mut new_map = HashMap::with_hasher(self._build_hasher);
 
         for i in 0..N {
             if i < self._len {
-                let entry = entries[i].unwrap_unchecked();
+                let entry = entries.get_unchecked(i);
                 let (key, value) = (f(entry.0), entry.1);
                 new_map.insert(key, value);
             }
@@ -230,7 +230,9 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     }
 
     // For each value applies mutator function.
+    // docs:start:iter_values_mut
     pub fn iter_values_mut(&mut self, f: fn(V) -> V) {
+        // docs:end:iter_values_mut
         for i in 0..N {
             let mut slot = self._table[i];
             if slot.is_valid() {
@@ -242,7 +244,9 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     }
 
     // Retains only the elements specified by the predicate.
+    // docs:start:retain
     pub fn retain(&mut self, f: fn(K, V) -> bool) {
+        // docs:end:retain
         for index in 0..N {
             let mut slot = self._table[index];
             if slot.is_valid() {
@@ -257,16 +261,21 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     }
 
     // Amount of active key-value entries.
+    // docs:start:len
     pub fn len(self) -> u64 {
+        // docs:end:len
         self._len
     }
 
     // Get the compile-time map capacity.
+    // docs:start:capacity
     pub fn capacity(_self: Self) -> u64 {
+        // docs:end:capacity
         N
     }
 
     // Get the value by key. If it does not exist, returns none().
+    // docs:start:get
     pub fn get(
         self,
         key: K
@@ -275,6 +284,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Eq + Hash,
         B: BuildHasher<H>,
         H: Hasher {
+        // docs:end:get
         let mut result = Option::none();
 
         let hash = self.hash(key);
@@ -300,6 +310,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     }
 
     // Insert key-value entry. In case key was already present, value is overridden. 
+    // docs:start:insert
     pub fn insert(
         &mut self,
         key: K,
@@ -309,6 +320,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Eq + Hash,
         B: BuildHasher<H>,
         H: Hasher {
+        // docs:end:insert
         self.assert_load_factor();
 
         let hash = self.hash(key);
@@ -340,7 +352,8 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         }
     }
 
-    // Remove key-value entry. If key is not present, HashMap remains unchanged.
+    // Removes a key-value entry. If key is not present, HashMap remains unchanged.
+    // docs:start:remove
     pub fn remove(
         &mut self,
         key: K
@@ -349,6 +362,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         K: Eq + Hash,
         B: BuildHasher<H>,
         H: Hasher {
+        // docs:end:remove
         let hash = self.hash(key);
         let mut break = false;
 
@@ -409,6 +423,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
 // Equality class on HashMap has to test that they have 
 // equal sets of key-value entries, 
 // thus one is a subset of the other and vice versa.
+// docs:start:eq
 impl<K, V, N, B, H> Eq for HashMap<K, V, N, B>
 where
     K: Eq + Hash,
@@ -416,7 +431,8 @@ where
     B: BuildHasher<H>,
     H: Hasher
 {
-    fn eq(self, other: HashMap<K, V, N, B>) -> bool{
+    fn eq(self, other: HashMap<K, V, N, B>) -> bool {
+// docs:end:eq
         let mut equal = false;
 
         if self.len() == other.len(){
@@ -443,12 +459,14 @@ where
     }
 }
 
+// docs:start:default
 impl<K, V, N, B, H> Default for HashMap<K, V, N, B>
 where
     B: BuildHasher<H> + Default,
     H: Hasher + Default
 {
-    fn default() -> Self{
+    fn default() -> Self {
+// docs:end:default
         let _build_hasher = B::default();
         let map: HashMap<K, V, N, B> = HashMap::with_hasher(_build_hasher);
         map
