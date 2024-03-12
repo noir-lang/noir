@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.27.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.27.0...aztec-packages-v0.27.1) (2024-03-12)
+
+
+### Features
+
+* Further ClientIVC breakdown ([#5146](https://github.com/AztecProtocol/aztec-packages/issues/5146)) ([c8e1cb8](https://github.com/AztecProtocol/aztec-packages/commit/c8e1cb8c6bc07bda2cf4aec3b5d2b2120bfafd01))
+* Nullifier non membership ([#5152](https://github.com/AztecProtocol/aztec-packages/issues/5152)) ([426bd6d](https://github.com/AztecProtocol/aztec-packages/commit/426bd6d2490d59126a31de91cd783a76b0dfdc84))
+
+
+### Bug Fixes
+
+* Increase the json limit for RPC requests ([#5161](https://github.com/AztecProtocol/aztec-packages/issues/5161)) ([419958c](https://github.com/AztecProtocol/aztec-packages/commit/419958c7c9abc40a5d83739a74e1ea0797b4f474))
+* Move timers for ClientIVC breakdown ([#5145](https://github.com/AztecProtocol/aztec-packages/issues/5145)) ([5457edb](https://github.com/AztecProtocol/aztec-packages/commit/5457edb3ddd29df96906f98fb05469a26a644654))
+
+
+### Miscellaneous
+
+* **boxes:** Adding clone contract option ([#4980](https://github.com/AztecProtocol/aztec-packages/issues/4980)) ([a427aa5](https://github.com/AztecProtocol/aztec-packages/commit/a427aa533216187a23b0697a2d91a9d89fb1e0eb))
+* Share code between provers ([#4655](https://github.com/AztecProtocol/aztec-packages/issues/4655)) ([ef10d65](https://github.com/AztecProtocol/aztec-packages/commit/ef10d6576aa9e89eece5a40669c425ae7987ee8a))
+
 ## [0.27.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.26.6...aztec-packages-v0.27.0) (2024-03-12)
 
 
