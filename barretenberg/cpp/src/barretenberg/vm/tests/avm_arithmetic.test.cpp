@@ -1,12 +1,10 @@
 #include "avm_common.test.hpp"
-
 #include "barretenberg/numeric/uint128/uint128.hpp"
-#include "barretenberg/vm/avm_trace/avm_helper.hpp"
 
-using namespace bb;
-using namespace bb::numeric;
+namespace tests_avm {
+using namespace bb::avm_trace;
+
 namespace {
-using namespace tests_avm;
 
 void common_validate_arithmetic_op(Row const& main_row,
                                    Row const& alu_row,
@@ -245,9 +243,6 @@ std::vector<Row> gen_mutated_trace_eq(
     return trace;
 }
 } // anonymous namespace
-
-namespace tests_avm {
-using namespace bb::avm_trace;
 
 class AvmArithmeticTests : public ::testing::Test {
   public:

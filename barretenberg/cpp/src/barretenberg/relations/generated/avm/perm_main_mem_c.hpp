@@ -9,7 +9,7 @@
 
 namespace bb {
 
-class equiv_main_mem_b_permutation_settings {
+class perm_main_mem_c_permutation_settings {
   public:
     // This constant defines how many columns are bundled together to form each set.
     constexpr static size_t COLUMNS_PER_SET = 5;
@@ -23,7 +23,7 @@ class equiv_main_mem_b_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_mem_op_b == 1 || in.avm_mem_m_op_b == 1);
+        return (in.avm_main_mem_op_c == 1 || in.avm_mem_m_op_c == 1);
     }
 
     /**
@@ -46,14 +46,14 @@ class equiv_main_mem_b_permutation_settings {
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.equiv_main_mem_b,
-                                     in.avm_main_mem_op_b,
-                                     in.avm_main_mem_op_b,
-                                     in.avm_mem_m_op_b,
+        return std::forward_as_tuple(in.perm_main_mem_c,
+                                     in.avm_main_mem_op_c,
+                                     in.avm_main_mem_op_c,
+                                     in.avm_mem_m_op_c,
                                      in.avm_main_clk,
-                                     in.avm_main_mem_idx_b,
-                                     in.avm_main_ib,
-                                     in.avm_main_rwb,
+                                     in.avm_main_mem_idx_c,
+                                     in.avm_main_ic,
+                                     in.avm_main_rwc,
                                      in.avm_main_in_tag,
                                      in.avm_mem_m_clk,
                                      in.avm_mem_m_addr,
@@ -82,14 +82,14 @@ class equiv_main_mem_b_permutation_settings {
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.equiv_main_mem_b,
-                                     in.avm_main_mem_op_b,
-                                     in.avm_main_mem_op_b,
-                                     in.avm_mem_m_op_b,
+        return std::forward_as_tuple(in.perm_main_mem_c,
+                                     in.avm_main_mem_op_c,
+                                     in.avm_main_mem_op_c,
+                                     in.avm_mem_m_op_c,
                                      in.avm_main_clk,
-                                     in.avm_main_mem_idx_b,
-                                     in.avm_main_ib,
-                                     in.avm_main_rwb,
+                                     in.avm_main_mem_idx_c,
+                                     in.avm_main_ic,
+                                     in.avm_main_rwc,
                                      in.avm_main_in_tag,
                                      in.avm_mem_m_clk,
                                      in.avm_mem_m_addr,
@@ -100,7 +100,7 @@ class equiv_main_mem_b_permutation_settings {
 };
 
 template <typename FF_>
-using equiv_main_mem_b_relation = GenericPermutationRelation<equiv_main_mem_b_permutation_settings, FF_>;
-template <typename FF_> using equiv_main_mem_b = GenericPermutation<equiv_main_mem_b_permutation_settings, FF_>;
+using perm_main_mem_c_relation = GenericPermutationRelation<perm_main_mem_c_permutation_settings, FF_>;
+template <typename FF_> using perm_main_mem_c = GenericPermutation<perm_main_mem_c_permutation_settings, FF_>;
 
 } // namespace bb

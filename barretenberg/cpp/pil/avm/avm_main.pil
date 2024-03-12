@@ -190,7 +190,7 @@ namespace avm_main(256);
 
     // Inter-table Constraints
 
-    #[equiv_tag_err]
+    #[INCL_MAIN_TAG_ERR]
     avm_mem.m_tag_err {avm_mem.m_clk} in tag_err {clk};
 
     // Predicate to activate the copy of intermediate registers to ALU table. If tag_err == 1,
@@ -198,7 +198,7 @@ namespace avm_main(256);
     // TODO: when division is moved to the alu, we will need to add the selector in the list below:
     alu_sel = (sel_op_add + sel_op_sub + sel_op_mul + sel_op_not + sel_op_eq) * (1 - tag_err);
 
-    #[equiv_inter_reg_alu]
+    #[PERM_MAIN_ALU]
     alu_sel {clk, ia, ib, ic,
              sel_op_add, sel_op_sub, sel_op_mul, sel_op_eq,
              sel_op_not, in_tag}
@@ -207,17 +207,17 @@ namespace avm_main(256);
                      avm_alu.alu_op_add, avm_alu.alu_op_sub, avm_alu.alu_op_mul, avm_alu.alu_op_eq,
                      avm_alu.alu_op_not, avm_alu.alu_in_tag};
 
-    #[equiv_main_mem_a]
+    #[PERM_MAIN_MEM_A]
     mem_op_a {clk, mem_idx_a, ia, rwa, in_tag}
     is
     avm_mem.m_op_a {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw, avm_mem.m_in_tag};
 
-    #[equiv_main_mem_b]
+    #[PERM_MAIN_MEM_B]
     mem_op_b {clk, mem_idx_b, ib, rwb, in_tag}
     is
     avm_mem.m_op_b {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw, avm_mem.m_in_tag};
 
-    #[equiv_main_mem_c]
+    #[PERM_MAIN_MEM_C]
     mem_op_c {clk, mem_idx_c, ic, rwc, in_tag}
     is
     avm_mem.m_op_c {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw, avm_mem.m_in_tag};

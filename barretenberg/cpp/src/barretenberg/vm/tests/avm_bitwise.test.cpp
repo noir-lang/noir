@@ -1,15 +1,13 @@
 #include "avm_common.test.hpp"
-
 #include "barretenberg/numeric/uint128/uint128.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <vector>
 
-using namespace bb;
-using namespace bb::numeric;
+namespace tests_avm {
+using namespace bb::avm_trace;
 
 namespace {
-using namespace tests_avm;
 
 Row common_validate_op_not(std::vector<Row> const& trace,
                            FF const& a,
@@ -71,9 +69,6 @@ std::vector<Row> gen_mutated_trace_not(FF const& a, FF const& c_mutated, avm_tra
     return trace;
 }
 } // namespace
-
-namespace tests_avm {
-using namespace bb::avm_trace;
 
 class AvmBitwiseTests : public ::testing::Test {
   public:

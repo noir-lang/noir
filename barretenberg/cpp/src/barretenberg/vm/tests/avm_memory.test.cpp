@@ -1,8 +1,6 @@
 #include "avm_common.test.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 
-using namespace bb;
-
 namespace tests_avm {
 using namespace bb::avm_trace;
 

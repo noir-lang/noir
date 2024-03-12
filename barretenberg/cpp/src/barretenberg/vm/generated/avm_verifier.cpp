@@ -179,17 +179,17 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
     commitments.avm_main_mem_idx_c =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_idx_c);
     commitments.avm_main_last = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_last);
-    commitments.equiv_inter_reg_alu =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.equiv_inter_reg_alu);
-    commitments.equiv_main_mem_a =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.equiv_main_mem_a);
-    commitments.equiv_main_mem_b =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.equiv_main_mem_b);
-    commitments.equiv_main_mem_c =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.equiv_main_mem_c);
-    commitments.equiv_tag_err = transcript->template receive_from_prover<Commitment>(commitment_labels.equiv_tag_err);
-    commitments.equiv_tag_err_counts =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.equiv_tag_err_counts);
+    commitments.perm_main_alu = transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_alu);
+    commitments.perm_main_mem_a =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_mem_a);
+    commitments.perm_main_mem_b =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_mem_b);
+    commitments.perm_main_mem_c =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_mem_c);
+    commitments.incl_main_tag_err =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.incl_main_tag_err);
+    commitments.incl_main_tag_err_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.incl_main_tag_err_counts);
 
     // Execute Sumcheck Verifier
     const size_t log_circuit_size = numeric::get_msb(circuit_size);

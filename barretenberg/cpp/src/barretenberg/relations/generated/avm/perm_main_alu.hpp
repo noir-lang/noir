@@ -9,7 +9,7 @@
 
 namespace bb {
 
-class equiv_inter_reg_alu_permutation_settings {
+class perm_main_alu_permutation_settings {
   public:
     // This constant defines how many columns are bundled together to form each set.
     constexpr static size_t COLUMNS_PER_SET = 10;
@@ -46,7 +46,7 @@ class equiv_inter_reg_alu_permutation_settings {
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.equiv_inter_reg_alu,
+        return std::forward_as_tuple(in.perm_main_alu,
                                      in.avm_main_alu_sel,
                                      in.avm_main_alu_sel,
                                      in.avm_alu_alu_sel,
@@ -92,7 +92,7 @@ class equiv_inter_reg_alu_permutation_settings {
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.equiv_inter_reg_alu,
+        return std::forward_as_tuple(in.perm_main_alu,
                                      in.avm_main_alu_sel,
                                      in.avm_main_alu_sel,
                                      in.avm_alu_alu_sel,
@@ -120,7 +120,7 @@ class equiv_inter_reg_alu_permutation_settings {
 };
 
 template <typename FF_>
-using equiv_inter_reg_alu_relation = GenericPermutationRelation<equiv_inter_reg_alu_permutation_settings, FF_>;
-template <typename FF_> using equiv_inter_reg_alu = GenericPermutation<equiv_inter_reg_alu_permutation_settings, FF_>;
+using perm_main_alu_relation = GenericPermutationRelation<perm_main_alu_permutation_settings, FF_>;
+template <typename FF_> using perm_main_alu = GenericPermutation<perm_main_alu_permutation_settings, FF_>;
 
 } // namespace bb

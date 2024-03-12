@@ -1,7 +1,5 @@
 #include "avm_common.test.hpp"
 
-using namespace bb;
-
 namespace tests_avm {
 /**
  * @brief Helper routine proving and verifying a proof based on the supplied trace

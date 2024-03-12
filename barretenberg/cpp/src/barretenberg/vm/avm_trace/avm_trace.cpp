@@ -698,7 +698,7 @@ void AvmTraceBuilder::internal_return()
 void AvmTraceBuilder::finalise_mem_trace_lookup_counts(std::map<uint32_t, uint32_t> const& tag_err_lookup_counts)
 {
     for (auto const& [clk, count] : tag_err_lookup_counts) {
-        main_trace.at(clk).equiv_tag_err_counts = count;
+        main_trace.at(clk).incl_main_tag_err_counts = count;
     }
 }
 

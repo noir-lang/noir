@@ -9,7 +9,7 @@
 
 namespace bb {
 
-class equiv_main_mem_a_permutation_settings {
+class perm_main_mem_a_permutation_settings {
   public:
     // This constant defines how many columns are bundled together to form each set.
     constexpr static size_t COLUMNS_PER_SET = 5;
@@ -46,7 +46,7 @@ class equiv_main_mem_a_permutation_settings {
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.equiv_main_mem_a,
+        return std::forward_as_tuple(in.perm_main_mem_a,
                                      in.avm_main_mem_op_a,
                                      in.avm_main_mem_op_a,
                                      in.avm_mem_m_op_a,
@@ -82,7 +82,7 @@ class equiv_main_mem_a_permutation_settings {
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.equiv_main_mem_a,
+        return std::forward_as_tuple(in.perm_main_mem_a,
                                      in.avm_main_mem_op_a,
                                      in.avm_main_mem_op_a,
                                      in.avm_mem_m_op_a,
@@ -100,7 +100,7 @@ class equiv_main_mem_a_permutation_settings {
 };
 
 template <typename FF_>
-using equiv_main_mem_a_relation = GenericPermutationRelation<equiv_main_mem_a_permutation_settings, FF_>;
-template <typename FF_> using equiv_main_mem_a = GenericPermutation<equiv_main_mem_a_permutation_settings, FF_>;
+using perm_main_mem_a_relation = GenericPermutationRelation<perm_main_mem_a_permutation_settings, FF_>;
+template <typename FF_> using perm_main_mem_a = GenericPermutation<perm_main_mem_a_permutation_settings, FF_>;
 
 } // namespace bb

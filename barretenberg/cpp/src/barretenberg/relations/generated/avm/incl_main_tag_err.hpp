@@ -23,7 +23,7 @@ namespace bb {
  * FF>>;)`
  *
  */
-class equiv_tag_err_lookup_settings {
+class incl_main_tag_err_lookup_settings {
   public:
     /**
      * @brief The number of read terms (how many lookups we perform) in each row
@@ -133,8 +133,8 @@ class equiv_tag_err_lookup_settings {
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.equiv_tag_err,
-                                     in.equiv_tag_err_counts,
+        return std::forward_as_tuple(in.incl_main_tag_err,
+                                     in.incl_main_tag_err_counts,
                                      in.avm_mem_m_tag_err,
                                      in.avm_main_tag_err,
                                      in.avm_mem_m_clk,
@@ -151,8 +151,8 @@ class equiv_tag_err_lookup_settings {
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.equiv_tag_err,
-                                     in.equiv_tag_err_counts,
+        return std::forward_as_tuple(in.incl_main_tag_err,
+                                     in.incl_main_tag_err_counts,
                                      in.avm_mem_m_tag_err,
                                      in.avm_main_tag_err,
                                      in.avm_mem_m_clk,
@@ -160,7 +160,8 @@ class equiv_tag_err_lookup_settings {
     }
 };
 
-template <typename FF_> using equiv_tag_err_relation = GenericLookupRelation<equiv_tag_err_lookup_settings, FF_>;
-template <typename FF_> using equiv_tag_err = GenericLookup<equiv_tag_err_lookup_settings, FF_>;
+template <typename FF_>
+using incl_main_tag_err_relation = GenericLookupRelation<incl_main_tag_err_lookup_settings, FF_>;
+template <typename FF_> using incl_main_tag_err = GenericLookup<incl_main_tag_err_lookup_settings, FF_>;
 
 } // namespace bb

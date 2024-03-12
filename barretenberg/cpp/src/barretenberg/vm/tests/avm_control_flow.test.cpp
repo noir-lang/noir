@@ -1,7 +1,5 @@
 #include "avm_common.test.hpp"
 
-using namespace bb;
-
 namespace tests_avm {
 using namespace bb::avm_trace;
 
