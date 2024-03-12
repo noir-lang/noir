@@ -7,6 +7,16 @@ fn as_slice_push<T, N>(xs: [T; N]) -> [T] {
     slice
 }
 
+unconstrained fn brillig_as_slice(x: Field) -> bool {
+    let mut dynamic: [Field; 1] = [2];
+    dynamic[x] = 999;
+    let brillig_expected: [Field; 1] = [999];
+    let brillig_slice = dynamic.as_slice();
+
+    (brillig_slice[0] == brillig_expected[0]) &
+        (brillig_slice.len() == 1)
+}
+
 fn main(x: Field, y: pub Field) {
     let xs: [Field; 0] = [];
     let ys: [Field; 1] = [1];
@@ -30,4 +40,6 @@ fn main(x: Field, y: pub Field) {
     assert(dynamic.as_slice()[2] == dynamic_expected[2]);
     assert(dynamic.as_slice()[3] == dynamic_expected[3]);
     assert(dynamic.as_slice().len() == 4);
+
+    assert(brillig_as_slice(x));
 }
