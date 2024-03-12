@@ -2,12 +2,6 @@
 
 namespace bb {
 
-ClientIVC::ClientIVC()
-{
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/723):
-    GoblinMockCircuits::perform_op_queue_interactions_for_mock_first_circuit(goblin.op_queue);
-}
-
 /**
  * @brief Initialize the IVC with a first circuit
  * @details Initializes the accumulator and performs the initial goblin merge
@@ -83,6 +77,9 @@ HonkProof ClientIVC::decider_prove() const
  * recursive merge verifier), initial kernel verification key (with recursive merge verifier appended, no previous
  * kernel to fold), "full" kernel verification key( two recursive folding verifiers and merge verifier).
  *
+ * TODO(https://github.com/AztecProtocol/barretenberg/issues/904): This function should ultimately be moved outside of
+ * this class since it's used only for testing and benchmarking purposes and it requires us to clear state afterwards.
+ * (e.g. in the Goblin object)
  */
 void ClientIVC::precompute_folding_verification_keys()
 {
@@ -125,10 +122,8 @@ void ClientIVC::precompute_folding_verification_keys()
 
     vks.kernel_vk = std::make_shared<VerificationKey>(prover_instance->proving_key);
 
-    // Clean the ivc state
-    goblin.op_queue = std::make_shared<Goblin::OpQueue>();
-    goblin.merge_proof_exists = false;
-    GoblinMockCircuits::perform_op_queue_interactions_for_mock_first_circuit(goblin.op_queue);
+    // Clean the Goblin state (reinitialise op_queue with mocking and clear merge proofs)
+    goblin = Goblin();
 }
 
 } // namespace bb

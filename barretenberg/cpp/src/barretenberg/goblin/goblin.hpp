@@ -2,6 +2,7 @@
 
 #include "barretenberg/eccvm/eccvm_composer.hpp"
 #include "barretenberg/flavor/goblin_ultra.hpp"
+#include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_translator_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
@@ -88,6 +89,12 @@ class Goblin {
     AccumulationOutput accumulator; // Used only for ACIR methods for now
 
   public:
+    Goblin()
+    { // Mocks the interaction of a first circuit with the op queue due to the inability to currently handle zero
+      // commitments (https://github.com/AztecProtocol/barretenberg/issues/871) which would otherwise appear in the
+      // first round of the merge protocol. To be removed once the issue has been resolved.
+        GoblinMockCircuits::perform_op_queue_interactions_for_mock_first_circuit(op_queue);
+    }
     /**
      * @brief Construct a GUH proof and a merge proof for the present circuit.
      * @details If there is a previous merge proof, recursively verify it.

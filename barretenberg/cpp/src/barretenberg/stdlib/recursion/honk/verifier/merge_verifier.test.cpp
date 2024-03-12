@@ -1,7 +1,11 @@
+#include "barretenberg/ultra_honk/merge_verifier.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/recursion/honk/verifier/merge_recursive_verifier.hpp"
+#include "barretenberg/ultra_honk/merge_prover.hpp"
+#include "barretenberg/ultra_honk/ultra_prover.hpp"
+#include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
 namespace bb::stdlib::recursion::goblin {
 
@@ -42,9 +46,11 @@ class RecursiveMergeVerifierTest : public testing::Test {
     static void test_recursive_merge_verification()
     {
         auto op_queue = std::make_shared<ECCOpQueue>();
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/800) Testing cleanup
+        GoblinMockCircuits::perform_op_queue_interactions_for_mock_first_circuit(op_queue);
 
         InnerBuilder sample_circuit{ op_queue };
-        GoblinMockCircuits::construct_simple_initial_circuit(sample_circuit);
+        GoblinMockCircuits::construct_simple_circuit(sample_circuit);
 
         // Generate a proof over the inner circuit
         MergeProver merge_prover{ op_queue };

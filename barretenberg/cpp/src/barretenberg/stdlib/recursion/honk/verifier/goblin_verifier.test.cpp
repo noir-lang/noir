@@ -58,9 +58,13 @@ template <typename OuterFlavor> class GoblinRecursiveVerifierTest : public testi
 
         // Instantiate ECC op queue and add mock data to simulate interaction with a previous circuit
         auto op_queue = std::make_shared<ECCOpQueue>();
-        op_queue->populate_with_mock_initital_data();
 
         InnerBuilder builder(op_queue);
+        // Add a mul accum op and an equality op
+        auto p = point::one() * fr::random_element();
+        auto scalar = fr::random_element();
+        builder.queue_ecc_mul_accum(p, scalar);
+        builder.queue_ecc_eq();
 
         // Create 2^log_n many add gates based on input log num gates
         const size_t num_gates = 1 << log_num_gates;

@@ -39,13 +39,15 @@ TEST_F(MockCircuits, PinRecursionKernelSizes)
     const auto run_test = [](bool large) {
         {
             Goblin goblin;
-            GoblinMockCircuits::perform_op_queue_interactions_for_mock_first_circuit(goblin.op_queue);
             Goblin::AccumulationOutput kernel_accum;
             GoblinUltraCircuitBuilder app_circuit{ goblin.op_queue };
             GoblinMockCircuits::construct_mock_function_circuit(app_circuit, large);
             auto function_accum = goblin.accumulate(app_circuit);
             GoblinUltraCircuitBuilder kernel_circuit{ goblin.op_queue };
-            GoblinMockCircuits::construct_mock_recursion_kernel_circuit(kernel_circuit, function_accum, kernel_accum);
+            GoblinMockCircuits::construct_mock_recursion_kernel_circuit(
+                kernel_circuit,
+                { function_accum.proof, function_accum.verification_key },
+                { kernel_accum.proof, kernel_accum.verification_key });
 
             auto instance = std::make_shared<ProverInstance>(kernel_circuit);
             if (large) {

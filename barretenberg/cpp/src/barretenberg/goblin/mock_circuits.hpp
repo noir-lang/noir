@@ -7,7 +7,6 @@
 #include "barretenberg/crypto/merkle_tree/memory_store.hpp"
 #include "barretenberg/crypto/merkle_tree/merkle_tree.hpp"
 #include "barretenberg/flavor/goblin_ultra.hpp"
-#include "barretenberg/goblin/goblin.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/srs/global_crs.hpp"
 #include "barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp"
@@ -30,12 +29,16 @@ class GoblinMockCircuits {
     using Flavor = bb::GoblinUltraFlavor;
     using RecursiveFlavor = bb::GoblinUltraRecursiveFlavor_<GoblinUltraBuilder>;
     using RecursiveVerifier = bb::stdlib::recursion::honk::UltraRecursiveVerifier_<RecursiveFlavor>;
-    using KernelInput = Goblin::AccumulationOutput;
     using VerifierInstance = bb::VerifierInstance_<Flavor>;
     using RecursiveVerifierInstance = ::bb::stdlib::recursion::honk::RecursiveVerifierInstance_<RecursiveFlavor>;
     using RecursiveVerifierAccumulator = std::shared_ptr<RecursiveVerifierInstance>;
     using VerificationKey = Flavor::VerificationKey;
     static constexpr size_t NUM_OP_QUEUE_COLUMNS = Flavor::NUM_WIRES;
+
+    struct KernelInput {
+        HonkProof proof;
+        std::shared_ptr<Flavor::VerificationKey> verification_key;
+    };
 
     /**
      * @brief Information required by the verifier to verify a folding round besides the previous accumulator.
@@ -147,6 +150,7 @@ class GoblinMockCircuits {
         op_queue->set_size_data();
 
         // Manually compute the op queue transcript commitments (which would normally be done by the merge prover)
+        bb::srs::init_crs_factory("../srs_db/ignition");
         auto commitment_key = CommitmentKey(op_queue->get_current_size());
         std::array<Point, Flavor::NUM_WIRES> op_queue_commitments;
         size_t idx = 0;
@@ -162,11 +166,8 @@ class GoblinMockCircuits {
      *
      * @param builder
      */
-    static void construct_simple_initial_circuit(GoblinUltraBuilder& builder)
+    static void construct_simple_circuit(GoblinUltraBuilder& builder)
     {
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/800) Testing cleanup
-        perform_op_queue_interactions_for_mock_first_circuit(builder.op_queue);
-
         // Add some arbitrary ecc op gates
         for (size_t i = 0; i < 3; ++i) {
             auto point = Point::random_element();

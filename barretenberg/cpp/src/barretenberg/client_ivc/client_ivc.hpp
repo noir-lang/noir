@@ -63,8 +63,6 @@ class ClientIVC {
     // be needed in the real IVC as they are provided as inputs
     std::shared_ptr<ProverInstance> prover_instance;
 
-    ClientIVC();
-
     void initialize(ClientCircuit& circuit);
 
     FoldProof accumulate(ClientCircuit& circuit);

@@ -9,6 +9,8 @@
 #include "barretenberg/proof_system/instance_inspector.hpp"
 
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
+#include "barretenberg/ultra_honk/ultra_verifier.hpp"
+
 using namespace bb;
 
 namespace {
@@ -49,7 +51,7 @@ TEST_F(DataBusComposerTests, CallDataRead)
     auto op_queue = std::make_shared<bb::ECCOpQueue>();
 
     // Add mock data to op queue to simulate interaction with a previous circuit
-    op_queue->populate_with_mock_initital_data();
+    GoblinMockCircuits::perform_op_queue_interactions_for_mock_first_circuit(op_queue);
 
     auto builder = GoblinUltraCircuitBuilder{ op_queue };
 
