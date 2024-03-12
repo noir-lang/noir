@@ -10,18 +10,19 @@ use noirc_frontend::macros_api::parse_program;
 use noirc_frontend::macros_api::FieldElement;
 use noirc_frontend::macros_api::{
     BlockExpression, CallExpression, CastExpression, Distinctness, Expression, ExpressionKind,
-    ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility,
-    HirContext, HirExpression, HirLiteral, HirStatement, Ident, IndexExpression, LetStatement,
-    Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct, Param, Path,
-    PathKind, Pattern, PrefixExpression, SecondaryAttribute, Signedness, Span, Statement,
-    StatementKind, StructType, Type, TypeImpl, UnaryOp, UnresolvedType, UnresolvedTypeData,
-    Visibility,
+    ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, HirContext, HirExpression,
+    HirLiteral, HirStatement, Ident, IndexExpression, LetStatement, Literal,
+    MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct, Param, Path, PathKind,
+    Pattern, PrefixExpression, SecondaryAttribute, Signedness, Span, Statement, StatementKind,
+    StructType, Type, TypeImpl, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use noirc_frontend::macros_api::{CrateId, FileId};
 use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 use noirc_frontend::macros_api::{ModuleDefId, NodeInterner, SortedModule, StructId};
 use noirc_frontend::node_interner::{FuncId, TraitId, TraitImplId, TraitImplKind};
-use noirc_frontend::{BinaryOpKind, ConstrainKind, ConstrainStatement, InfixExpression, Lambda};
+use noirc_frontend::{
+    BinaryOpKind, ConstrainKind, ConstrainStatement, InfixExpression, ItemVisibility, Lambda,
+};
 pub struct AztecMacro;
 
 impl MacroProcessor for AztecMacro {
@@ -1100,7 +1101,7 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
         &return_type,
     );
 
-    selector_fn_def.visibility = FunctionVisibility::Public;
+    selector_fn_def.visibility = ItemVisibility::Public;
 
     // Seems to be necessary on contract modules
     selector_fn_def.return_visibility = Visibility::Public;
