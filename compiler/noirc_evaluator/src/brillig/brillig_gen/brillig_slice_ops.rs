@@ -1,8 +1,7 @@
 use acvm::brillig_vm::brillig::BinaryIntOp;
 
-use crate::brillig::brillig_ir::{
-    brillig_variable::{BrilligVariable, BrilligVector, SingleAddrVariable},
-    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+use crate::brillig::brillig_ir::brillig_variable::{
+    BrilligVariable, BrilligVector, SingleAddrVariable,
 };
 
 use super::brillig_block::BrilligBlock;
@@ -29,7 +28,7 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.copy_array_instruction(
             source_vector.pointer,
             target_vector.pointer,
-            SingleAddrVariable::new(source_vector.size, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            SingleAddrVariable::new_usize(source_vector.size),
         );
 
         for (index, variable) in variables_to_insert.iter().enumerate() {
@@ -75,7 +74,7 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.copy_array_instruction(
             source_vector.pointer,
             destination_copy_pointer,
-            SingleAddrVariable::new(source_vector.size, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            SingleAddrVariable::new_usize(source_vector.size),
         );
 
         // Then we write the items to insert at the start
@@ -118,7 +117,7 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.copy_array_instruction(
             source_copy_pointer,
             target_vector.pointer,
-            SingleAddrVariable::new(target_vector.size, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            SingleAddrVariable::new_usize(target_vector.size),
         );
 
         for (index, variable) in removed_items.iter().enumerate() {
@@ -151,7 +150,7 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.copy_array_instruction(
             source_vector.pointer,
             target_vector.pointer,
-            SingleAddrVariable::new(target_vector.size, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            SingleAddrVariable::new_usize(target_vector.size),
         );
 
         for (index, variable) in removed_items.iter().enumerate() {
@@ -228,7 +227,7 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.copy_array_instruction(
             source_pointer_at_index,
             target_pointer_after_index,
-            SingleAddrVariable::new(item_count, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            SingleAddrVariable::new_usize(item_count),
         );
 
         // Write the items to insert starting at the index
@@ -311,7 +310,7 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.copy_array_instruction(
             source_pointer_after_index,
             target_pointer_at_index,
-            SingleAddrVariable::new(item_count, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            SingleAddrVariable::new_usize(item_count),
         );
 
         // Get the removed items

@@ -1,4 +1,3 @@
-use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use crate::{
@@ -11,7 +10,7 @@ use crate::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId},
         post_order::PostOrder,
-        types::{NumericType, Type},
+        types::Type,
         value::ValueId,
     },
 };

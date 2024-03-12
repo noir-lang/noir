@@ -750,7 +750,7 @@ impl<'block> BrilligBlock<'block> {
                 (self.brillig_context.make_usize_constant(size.into()), true)
             }
             BrilligVariable::BrilligVector(BrilligVector { size, .. }) => {
-                (SingleAddrVariable::new(size, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE), false)
+                (SingleAddrVariable::new_usize(size), false)
             }
             _ => unreachable!("ICE: validate array index on non-array"),
         };
@@ -872,7 +872,7 @@ impl<'block> BrilligBlock<'block> {
         // Then set the value in the newly created array
         self.store_variable_in_array(
             destination_pointer,
-            SingleAddrVariable::new(index_register, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            SingleAddrVariable::new_usize(index_register),
             value_variable,
         );
 

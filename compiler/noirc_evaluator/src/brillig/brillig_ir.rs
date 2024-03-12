@@ -597,10 +597,7 @@ impl BrilligContext {
     }
 
     pub(crate) fn usize_const(&mut self, result: MemoryAddress, constant: Value) {
-        self.const_instruction(
-            SingleAddrVariable::new(result, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
-            constant,
-        );
+        self.const_instruction(SingleAddrVariable::new_usize(result), constant);
     }
 
     /// Processes a not instruction.
@@ -811,7 +808,7 @@ impl BrilligContext {
     pub(crate) fn make_usize_constant(&mut self, constant: Value) -> SingleAddrVariable {
         let register = self.allocate_register();
         self.usize_const(register, constant);
-        SingleAddrVariable::new(register, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)
+        SingleAddrVariable::new_usize(register)
     }
 
     /// Computes left % right by emitting the necessary Brillig opcodes.
@@ -964,8 +961,8 @@ impl BrilligContext {
         op: BinaryIntOp,
     ) {
         self.binary_instruction(
-            SingleAddrVariable::new(lhs, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
-            SingleAddrVariable::new(rhs, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            SingleAddrVariable::new_usize(lhs),
+            SingleAddrVariable::new_usize(rhs),
             // TODO add a function here to get the resulting bit size depending on the operation
             SingleAddrVariable::new(
                 destination,
@@ -1057,10 +1054,7 @@ impl BrilligContext {
             SingleAddrVariable::new(self.allocate_register(), FieldElement::max_num_bits());
         self.cast_instruction(radix_as_field, radix);
 
-        self.cast_instruction(
-            SingleAddrVariable::new(target_vector.size, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
-            limb_count,
-        );
+        self.cast_instruction(SingleAddrVariable::new_usize(target_vector.size), limb_count);
         self.usize_const(target_vector.rc, 1_usize.into());
         self.allocate_array_instruction(target_vector.pointer, target_vector.size);
 
@@ -1120,7 +1114,7 @@ impl BrilligContext {
 
             ctx.array_get(
                 vector.pointer,
-                SingleAddrVariable::new(index_at_end_of_array, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                SingleAddrVariable::new_usize(index_at_end_of_array),
                 end_value_register,
             );
 
@@ -1128,7 +1122,7 @@ impl BrilligContext {
             ctx.array_set(vector.pointer, iterator_register, end_value_register);
             ctx.array_set(
                 vector.pointer,
-                SingleAddrVariable::new(index_at_end_of_array, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                SingleAddrVariable::new_usize(index_at_end_of_array),
                 start_value_register,
             );
         });
