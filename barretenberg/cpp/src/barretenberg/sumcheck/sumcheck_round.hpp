@@ -106,6 +106,8 @@ template <typename Flavor> class SumcheckProverRound {
         const bb::PowPolynomial<FF>& pow_polynomial,
         const RelationSeparator alpha)
     {
+        BB_OP_COUNT_TIME();
+
         // Compute the constant contribution of pow polynomials for each edge. This is  the product of the partial
         // evaluation result c_l (i.e. pow(u_0,...,u_{l-1})) where u_0,...,u_{l-1} are the verifier challenges from
         // previous rounds) and the elements of pow(\vec{β}) not containing β_0,..., β_l.

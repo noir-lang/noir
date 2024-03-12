@@ -135,11 +135,13 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
 
 template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::preparation_round()
 {
+    BB_OP_COUNT_TIME_NAME("ProtoGalaxyProver_::preparation_round");
     prepare_for_folding();
 };
 
 template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::perturbator_round()
 {
+    BB_OP_COUNT_TIME_NAME("ProtoGalaxyProver_::perturbator_round");
     state.accumulator = get_accumulator();
     FF delta = transcript->template get_challenge<FF>("delta");
     state.deltas = compute_round_challenge_pows(state.accumulator->proving_key->log_circuit_size, delta);
@@ -157,6 +159,7 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::pertu
 
 template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::combiner_quotient_round()
 {
+    BB_OP_COUNT_TIME_NAME("ProtoGalaxyProver_::combiner_quotient_round");
     auto perturbator_challenge = transcript->template get_challenge<FF>("perturbator_challenge");
     instances.next_gate_challenges =
         update_gate_challenges(perturbator_challenge, state.accumulator->gate_challenges, state.deltas);
@@ -175,6 +178,7 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::combi
 
 template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::accumulator_update_round()
 {
+    BB_OP_COUNT_TIME_NAME("ProtoGalaxyProver_::accumulator_update_round");
     FF combiner_challenge = transcript->template get_challenge<FF>("combiner_quotient_challenge");
     std::shared_ptr<Instance> next_accumulator =
         compute_next_accumulator(instances, state.combiner_quotient, combiner_challenge, state.compressed_perturbator);
