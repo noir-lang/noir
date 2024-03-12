@@ -73,7 +73,7 @@ export class JsonRpcServer {
     app.use(compress({ br: false } as any));
     app.use(
       bodyParser({
-        jsonLimit: '10mb',
+        jsonLimit: '50mb',
         enableTypes: ['json'],
         detectJSON: () => true,
       }),
