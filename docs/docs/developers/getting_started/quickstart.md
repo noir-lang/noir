@@ -98,3 +98,5 @@ Congratulations! You are all set up with the Aztec sandbox!
 To deploy and interact with a contract using Aztec.js, go to the [next page](aztecnr-getting-started.md).
 
 You can also dig more into the sandbox and CLI [here](../sandbox/main.md).
+
+To learn more about writing contracts, consider jumping to the [tutorials section](../tutorials/main.md).
