@@ -454,8 +454,27 @@ impl<'block> BrilligBlock<'block> {
                     }
                 }
                 Value::Intrinsic(Intrinsic::AsSlice) => {
+                    let source_variable = self.convert_ssa_value(arguments[0], dfg);
                     let result_ids = dfg.instruction_results(instruction_id);
-                    self.convert_ssa_as_slice(arguments[0], result_ids[0], result_ids[1], dfg);
+
+                    // this needs to be initialized for convert_ssa_as_slice
+                    let _len_variable = self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        result_ids[0],
+                        dfg,
+                    );
+                    let destination_variable = self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        result_ids[1],
+                        dfg,
+                    );
+
+                    self.convert_ssa_as_slice(
+                        source_variable,
+                        destination_variable,
+                    );
                 }
                 Value::Intrinsic(
                     Intrinsic::SlicePushBack
@@ -1498,57 +1517,79 @@ impl<'block> BrilligBlock<'block> {
     /// An array of structs with two fields would be stored as an 2 * array.len() array/vector.
     fn convert_ssa_as_slice(
         &mut self,
-        array_id: ValueId,
-        target_len: ValueId,
-        target_variable: ValueId,
-        dfg: &DataFlowGraph,
+        source_variable: BrilligVariable,
+        destination_variable: BrilligVariable,
     ) {
-        let array_variable = self.convert_ssa_value(array_id, dfg);
-        match array_variable {
-            BrilligVariable::BrilligArray(array) => {
-                // dbg!("array: {:?}", array);
-                // dbg!("array_id: {:?}", array_id);
-                // dbg!("target_len: {:?}", target_len);
-                // dbg!("target_variable: {:?}", target_variable);
-                // dbg!("target_variable(convert): {:?}", self.convert_ssa_value(target_variable, dfg));
-                dbg!("array: {:?}", array);
-                dbg!("array.size: {:?}", array.size);
+        let destination_pointer = match destination_variable {
+            BrilligVariable::BrilligArray(BrilligArray { pointer, .. }) => pointer,
+            BrilligVariable::BrilligVector(BrilligVector { pointer, .. }) => pointer,
+            _ => unreachable!("ICE: as_slice returns non-array"),
+        };
 
-                let array_size_address = self.brillig_context.allocate_register();
-                self.brillig_context.usize_const(array_size_address, array.size.into());
+        let reference_count = match source_variable {
+            BrilligVariable::BrilligArray(BrilligArray { rc, .. })
+            | BrilligVariable::BrilligVector(BrilligVector { rc, .. }) => rc,
+            _ => unreachable!("ICE: as_slice on non-array"),
+        };
 
-                let len_variable = self.variables.define_single_addr_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    target_len,
-                    dfg,
-                );
-                self.brillig_context.mov_instruction(len_variable.address, array_size_address);
-
-                let result_variable = self.variables.define_variable(
-                    self.function_context,
-                    self.brillig_context,
-                    target_variable,
-                    dfg,
-                );
-                let target_vector = result_variable.extract_vector();
-
-                self.brillig_context.allocate_array_instruction(target_vector.pointer, array_size_address);
-                let destination_copy_pointer = self.brillig_context.allocate_register();
-                self.brillig_context.copy_array_instruction(
-                    array.pointer,
-                    destination_copy_pointer,
-                    array_size_address,
-                );
-
-                self.brillig_context.deallocate_register(array_size_address);
-                self.brillig_context.deallocate_register(destination_copy_pointer);
-
+        let (source_pointer, source_size_as_register) = match source_variable {
+            BrilligVariable::BrilligArray(BrilligArray { size, pointer, rc: _ }) => {
+                let source_size_register = self.brillig_context.allocate_register();
+                self.brillig_context.usize_const(source_size_register, size.into());
+                (pointer, source_size_register)
             }
-            _ => {
-                unreachable!("ICE: Cannot convert {array_variable:?} to slice")
+            BrilligVariable::BrilligVector(BrilligVector { size, pointer, rc: _ }) => {
+                let source_size_register = self.brillig_context.allocate_register();
+                self.brillig_context.mov_instruction(source_size_register, size);
+                (pointer, source_size_register)
             }
+            _ => unreachable!("ICE: as_slice on non-array"),
+        };
+
+        let one = self.brillig_context.make_usize_constant(1_usize.into());
+        let condition = self.brillig_context.allocate_register();
+
+        self.brillig_context.binary_instruction(
+            reference_count,
+            one,
+            condition,
+            BrilligBinaryOp::Field { op: BinaryFieldOp::Equals },
+        );
+
+        self.brillig_context.branch_instruction(condition, |ctx, cond| {
+            if cond {
+                // Reference count is 1, we can mutate the array directly
+                ctx.mov_instruction(destination_pointer, source_pointer);
+            } else {
+                // First issue a array copy to the destination
+                ctx.allocate_array_instruction(destination_pointer, source_size_as_register);
+
+                ctx.copy_array_instruction(
+                    source_pointer,
+                    destination_pointer,
+                    source_size_as_register,
+                );
+            }
+        });
+
+        match destination_variable {
+            BrilligVariable::BrilligArray(BrilligArray { rc: target_rc, .. }) => {
+                self.brillig_context.usize_const(target_rc, 1_usize.into());
+            }
+            BrilligVariable::BrilligVector(BrilligVector {
+                size: target_size,
+                rc: target_rc,
+                ..
+            }) => {
+                self.brillig_context.mov_instruction(target_size, source_size_as_register);
+                self.brillig_context.usize_const(target_rc, 1_usize.into());
+            }
+            _ => unreachable!("ICE: as_slice on non-array"),
         }
+
+        self.brillig_context.deallocate_register(source_size_as_register);
+        self.brillig_context.deallocate_register(one);
+        self.brillig_context.deallocate_register(condition);
     }
 }
 
