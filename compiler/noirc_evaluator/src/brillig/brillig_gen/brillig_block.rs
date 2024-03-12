@@ -248,17 +248,6 @@ impl<'block> BrilligBlock<'block> {
                 self.convert_ssa_binary(binary, dfg, result_var);
             }
             Instruction::Constrain(lhs, rhs, assert_message) => {
-                let condition = SingleAddrVariable {
-                    address: self.brillig_context.allocate_register(),
-                    bit_size: 1,
-                };
-
-                self.convert_ssa_binary(
-                    &Binary { lhs: *lhs, rhs: *rhs, operator: BinaryOp::Eq },
-                    dfg,
-                    condition,
-                );
-
                 let assert_message = if let Some(error) = assert_message {
                     match error.as_ref() {
                         ConstrainError::Static(string) => Some(string.clone()),
@@ -281,6 +270,17 @@ impl<'block> BrilligBlock<'block> {
                 } else {
                     None
                 };
+
+                let condition = SingleAddrVariable {
+                    address: self.brillig_context.allocate_register(),
+                    bit_size: 1,
+                };
+
+                self.convert_ssa_binary(
+                    &Binary { lhs: *lhs, rhs: *rhs, operator: BinaryOp::Eq },
+                    dfg,
+                    condition,
+                );
 
                 self.brillig_context.constrain_instruction(condition.address, assert_message);
                 self.brillig_context.deallocate_register(condition.address);
@@ -831,16 +831,10 @@ impl<'block> BrilligBlock<'block> {
             _ => unreachable!("ICE: array set on non-array"),
         };
 
+        // Here we want to compare the reference count against 1.
         let one = self.brillig_context.make_usize_constant(1_usize.into());
         let condition = self.brillig_context.allocate_register();
-
-        self.brillig_context.binary_instruction(
-            reference_count,
-            one,
-            condition,
-            BrilligBinaryOp::Field { op: BinaryFieldOp::Equals },
-        );
-
+        self.brillig_context.memory_op(reference_count, one, condition, BinaryIntOp::Equals);
         self.brillig_context.branch_instruction(condition, |ctx, cond| {
             if cond {
                 // Reference count is 1, we can mutate the array directly
