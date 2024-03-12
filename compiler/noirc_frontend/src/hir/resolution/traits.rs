@@ -303,8 +303,8 @@ fn collect_trait_impl(
                 // If not, that is specialization which is allowed.
                 if module
                     .declare_function(
-                        ItemVisibility::Public,
                         method.name_ident().clone(),
+                        ItemVisibility::Public,
                         *method_id,
                     )
                     .is_err()

@@ -61,8 +61,8 @@ impl ModuleData {
 
     pub fn declare_function(
         &mut self,
-        visibility: ItemVisibility,
         name: Ident,
+        visibility: ItemVisibility,
         id: FuncId,
     ) -> Result<(), (Ident, Ident)> {
         self.declare(name, visibility, id.into(), None)

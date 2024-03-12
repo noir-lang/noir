@@ -236,7 +236,7 @@ impl<'a> ModCollector<'a> {
 
             // Add function to scope/ns of the module
             let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_function(visibility, name, func_id);
+                .declare_function(name, visibility, func_id);
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {
@@ -409,7 +409,7 @@ impl<'a> ModCollector<'a> {
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
                         match self.def_collector.def_map.modules[trait_id.0.local_id.0]
-                            .declare_function(ItemVisibility::Public, name.clone(), func_id)
+                            .declare_function(name.clone(), ItemVisibility::Public, func_id)
                         {
                             Ok(()) => {
                                 if let Some(body) = body {
