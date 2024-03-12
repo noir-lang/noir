@@ -2,10 +2,8 @@ import confirm from "@inquirer/confirm";
 import { execSync } from "child_process";
 import pty from "node-pty";
 import { updatePathEnvVar } from "../../utils.js";
-import chalk from "chalk";
-const { log } = console;
 
-const runPty = async (command, { success, error }) => {
+const runPty = async (command, { success: exitSuccess, error }) => {
   try {
     const ptySession = new Promise((resolve, reject) => {
       const ptyProcess = pty.spawn("bash", [], {
@@ -22,20 +20,20 @@ const runPty = async (command, { success, error }) => {
 
       ptyProcess.write(command);
 
-      ptyProcess.on("exit", function (exitCode, signal) {
-        updatePathEnvVar();
+      ptyProcess.on("exit", async function (exitCode, signal) {
+        await updatePathEnvVar();
         resolve();
         if (exitCode === 0) {
-          log(chalk.bgGreen(success));
+          success(exitSuccess);
         } else {
-          reject(chalk.bgRed(error));
+          error(e);
         }
       });
     });
 
     await ptySession;
-  } catch (error) {
-    log(chalk.bgRed(error));
+  } catch (e) {
+    error(e);
   }
 };
 
@@ -78,15 +76,13 @@ function findOutUserVersion() {
   return sandboxVersion;
 }
 
-export async function sandboxInstallOrUpdate(latestStable, versionToInstall) {
+export async function sandboxInstallOrUpdate() {
   // Checking for docker
   try {
     execSync("docker info >/dev/null 2>&1");
-  } catch (error) {
-    log(
-      chalk.bgRed(
-        "Doesn't seem like Docker is installed or running. Please start it or visit https://docs.aztec.network for more information",
-      ),
+  } catch (e) {
+    error(
+      "Doesn't seem like Docker is installed or running. Please start it or visit https://docs.aztec.network for more information",
     );
     process.exit(1);
   }
@@ -116,10 +112,10 @@ export async function sandboxInstallOrUpdate(latestStable, versionToInstall) {
     // Another situation is where the sandbox matches the stable version (i.e. 0.24.0) or master
     (sandboxVersion === latestStable || sandboxVersion === "master") &&
     // but the user has chosen a different version (i.e. "master", 0.23.0, etc)
-    sandboxVersion !== versionToInstall
+    sandboxVersion !== version
   ) {
     const answer = await confirm({
-      message: `The sandbox is version ${sandboxVersion} but your chosen version is ${versionToInstall}. Do you want to install version ${versionToInstall}?`,
+      message: `The sandbox is version ${sandboxVersion} but your chosen version is ${version}. Do you want to install version ${version}?`,
       default: true,
     });
 
@@ -130,13 +126,13 @@ export async function sandboxInstallOrUpdate(latestStable, versionToInstall) {
   } else if (
     // Finally, there's a situation where
     // the user didn't want any specific version
-    sandboxVersion !== versionToInstall &&
+    sandboxVersion !== version &&
     // and the sandbox is not up to date
     // so we need to update to that since the cloned repo is also the latest
     sandboxVersion !== latestStable &&
     // we're also aware that the user might be on master
     // so his version is actually not outdated!
-    versionToInstall !== "master"
+    version !== "master"
   ) {
     const answer = await confirm({
       message: `The Sandbox is not up to date. Do you want to update it to ${latestStable}?`,

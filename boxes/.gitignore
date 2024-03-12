@@ -3,4 +3,4 @@
 
 node_modules
 dest
-src/contracts/target
+boxes/**/contracts/target

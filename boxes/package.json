@@ -1,7 +1,7 @@
 {
   "name": "create-aztec-app",
   "packageManager": "yarn@4.1.0",
-  "version": "0.2.13",
+  "version": "0.2.15",
   "type": "module",
   "scripts": {
     "compile": "yarn workspaces foreach -A -v run compile",
@@ -30,10 +30,11 @@
     "@inquirer/input": "^2.0.0",
     "@inquirer/select": "^2.0.0",
     "axios": "^1.6.7",
-    "chalk": "^5.3.0",
     "commander": "^12.0.0",
     "node-pty": "^1.0.0",
     "ora": "^8.0.1",
+    "pino": "^8.19.0",
+    "pino-pretty": "^10.3.1",
     "tiged": "^2.12.6"
   }
 }

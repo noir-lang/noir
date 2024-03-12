@@ -1,15 +1,9 @@
 import confirm from "@inquirer/confirm";
 import { execSync } from "child_process";
-import chalk from "chalk";
 import axios from "axios";
-import ora from "ora";
-const { log } = console;
 
-export async function sandboxRun(version) {
-  const spinner = ora({
-    text: "Trying to reach the sandbox...",
-    color: "blue",
-  });
+export async function sandboxRun() {
+  spinner.text = "Trying to reach the sandbox...";
 
   try {
     spinner.start();
@@ -25,10 +19,11 @@ export async function sandboxRun(version) {
         id: "null",
       }),
     });
-    spinner.stop();
-    log(chalk.green("The Sandbox already running!"));
+    spinner.succeed();
+    success("The Sandbox is already running!");
+    process.exit(0);
   } catch (error) {
-    spinner.stop();
+    spinner.fail();
     const answer = await confirm({
       message:
         "Sandbox can't be reached on localhost:8080. Do you want to start it?",
@@ -36,13 +31,9 @@ export async function sandboxRun(version) {
     });
 
     if (answer) {
-      log(
-        chalk.green("Starting the sandbox... This might take a few minutes."),
-      );
-      log(chalk.bgGreen(`Go and explore the boilerplate code while you wait!`));
+      info("Starting the sandbox... This might take a few minutes.");
+      info(`Go and explore the boilerplate code while you wait!`);
       execSync(`$HOME/.aztec/bin/aztec sandbox`, { stdio: "inherit" });
     }
-  } finally {
-    spinner.stop();
   }
 }

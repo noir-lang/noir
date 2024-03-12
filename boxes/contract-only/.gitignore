@@ -1,0 +1,12 @@
+.yarn/*
+!.yarn/releases
+
+node_modules
+dist
+artifacts
+src/contracts/target
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+codegenCache.json

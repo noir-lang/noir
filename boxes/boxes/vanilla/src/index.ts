@@ -1,4 +1,4 @@
-import { GrumpkinScalar, createPXEClient, AccountManager, ContractDeployer, Fr, Wallet } from '@aztec/aztec.js';
+import { GrumpkinScalar, createPXEClient, AccountManager, Fr, Wallet } from '@aztec/aztec.js';
 
 import { SingleKeyAccountContract } from '@aztec/accounts/single_key';
 import { VanillaContract } from '../artifacts/Vanilla';
@@ -19,15 +19,10 @@ const setWait = (state: boolean): void =>
 document.querySelector('#deploy').addEventListener('click', async ({ target }: any) => {
   setWait(true);
   wallet = await account.register();
-
-  const { artifact, at } = VanillaContract;
-  const contractDeployer = new ContractDeployer(artifact, wallet);
-  const { address: contractAddress } = await contractDeployer
-    .deploy(Fr.random(), wallet.getCompleteAddress().address)
+  contract = await VanillaContract.deploy(wallet, Fr.random(), wallet.getCompleteAddress().address)
     .send({ contractAddressSalt: Fr.random() })
     .deployed();
-  contract = await at(contractAddress, wallet);
-  alert(`Contract deployed at ${contractAddress}`);
+  alert(`Contract deployed at ${contract.address}`);
 
   target.hidden = true;
   document.querySelectorAll('#get, #set').forEach((e: HTMLButtonElement & HTMLFormElement) => (e.hidden = false));

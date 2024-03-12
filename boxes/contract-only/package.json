@@ -1,0 +1,53 @@
+{
+  "name": "@aztec/contract_box",
+  "description": "My Aztec contract",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "compile": "cd src && ${AZTEC_NARGO:-aztec-nargo} compile",
+    "codegen": "${AZTEC_CLI:-aztec-cli} codegen target -o artifacts --ts",
+    "clean": "rm -rf ./dest .tsbuildinfo ./artifacts ./target",
+    "prep": "yarn clean && yarn compile && yarn codegen && tsc -b",
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand",
+    "formatting": "prettier --check ./src && eslint ./src",
+    "formatting:fix": "prettier -w ./src"
+  },
+  "dependencies": {
+    "@aztec/accounts": "latest",
+    "@aztec/aztec.js": "latest"
+  },
+  "jest": {
+    "preset": "ts-jest/presets/default-esm",
+    "transform": {
+      "^.+\\.(ts|tsx)$": [
+        "ts-jest",
+        {
+          "useESM": true
+        }
+      ]
+    },
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "testRegex": "tests/.*\\.test\\.ts$",
+    "rootDir": "./"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.42.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.11.17",
+    "copy-webpack-plugin": "^11.0.0",
+    "html-webpack-plugin": "^5.6.0",
+    "jest": "^29.6.4",
+    "stream-browserify": "^3.0.0",
+    "ts-loader": "^9.5.1",
+    "tty-browserify": "^0.0.1",
+    "typescript": "^5.0.4",
+    "util": "^0.12.5",
+    "webpack": "^5.90.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1"
+  },
+  "packageManager": "yarn@4.0.2"
+}

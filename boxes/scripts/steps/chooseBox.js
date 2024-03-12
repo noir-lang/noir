@@ -1,13 +1,15 @@
 import select from "@inquirer/select";
-import input from "@inquirer/input";
-import tiged from "tiged";
-import { getAvailableBoxes, replacePaths } from "../utils.js";
-import chalk from "chalk";
-import ora from "ora";
-const { log } = console;
+import {
+  getAvailableBoxes,
+  getAvailableContracts,
+  processProject,
+  replacePaths,
+  clone,
+} from "../utils.js";
+import { getPlaceholders } from "../config.js";
 
-export async function chooseAndCloneBox(tag, version) {
-  const availableBoxes = await getAvailableBoxes(tag, version);
+async function chooseAndCloneBox() {
+  const availableBoxes = await getAvailableBoxes();
   const appType = await select({
     message: `Please choose your Aztec boilerplate:`,
     choices: [
@@ -18,45 +20,75 @@ export async function chooseAndCloneBox(tag, version) {
     ],
   });
 
-  if (appType === "skip") return;
-
-  log(chalk.yellow(`You chose: ${appType}`));
-
-  const spinner = ora({
-    text: "Cloning the boilerplate code...",
-    color: "blue",
+  const rootDir = await clone({
+    path: "boxes/boxes",
+    choice: appType,
+    type: "box",
+    tag,
+    version,
   });
 
-  try {
-    // STEP 1: Clone the box
-    const appName = await input({
-      message: "Your app name:",
-      default: "my-aztec-app",
-    });
+  await replacePaths({
+    rootDir,
+    tag,
+    version,
+    prefix: "",
+  });
+  success("Your code is ready!");
+}
 
-    spinner.start();
+async function chooseAndCloneContract() {
+  const availableContracts = await getAvailableContracts();
+  // let user choose one of the contracts in noir-projects
+  const contract = await select({
+    message: `Please choose your Aztec boilerplate:`,
+    choices: [
+      ...availableContracts.map((contract) => {
+        return { value: contract.name, name: contract.name };
+      }),
+      { value: "skip", name: "Skip this step" },
+    ],
+  });
 
-    const emitter = tiged(
-      // same as the nargo dependencies above:
-      // but if the user has set a semver version, we want that tag (i.e. aztec-packages-v0.23.0)
-      `AztecProtocol/aztec-packages/boxes/${appType}${tag && `#${tag}`}`,
-      {
-        verbose: true,
-      },
-    );
+  const rootDir = await clone({
+    path: "noir-projects/noir-contracts/contracts",
+    choice: contract,
+    type: "contract",
+    tag,
+    version,
+  });
 
-    emitter.on("info", (info) => {
-      log(info.message);
-    });
+  await replacePaths({
+    rootDir,
+    tag,
+    version,
+    prefix: "noir-projects/",
+  });
 
-    await emitter.clone(`./${appName}`).then(() => {
-      replacePaths(`./${appName}`, tag, version);
-      log(chalk.bgGreen("Your code is ready!"));
-    });
-  } catch (error) {
-    log(chalk.bgRed(error.message));
-    process.exit(1);
-  } finally {
-    spinner.stop();
+  await processProject({
+    rootDir,
+    placeholders: getPlaceholders(contract),
+  });
+  success("Your code is ready!");
+
+  // get the e2e test for that contract from yarn-project/end-to-end
+}
+
+export async function chooseProject() {
+  const projectType = await select({
+    message: `Please choose your type of project:`,
+    choices: [
+      { value: "fs_app", name: "Boilerplate project with frontend" },
+      { value: "contract_only", name: "Just a contract example" },
+      { value: "skip", name: "Skip this step" },
+    ],
+  });
+
+  if (projectType === "skip") {
+    return;
+  } else if (projectType === "contract_only") {
+    await chooseAndCloneContract();
+  } else if (projectType === "fs_app") {
+    await chooseAndCloneBox();
   }
 }
