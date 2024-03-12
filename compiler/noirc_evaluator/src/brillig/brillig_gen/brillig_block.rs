@@ -471,10 +471,7 @@ impl<'block> BrilligBlock<'block> {
                         dfg,
                     );
 
-                    self.convert_ssa_as_slice(
-                        source_variable,
-                        destination_variable,
-                    );
+                    self.convert_ssa_as_slice(source_variable, destination_variable);
                 }
                 Value::Intrinsic(
                     Intrinsic::SlicePushBack
@@ -1328,7 +1325,7 @@ impl<'block> BrilligBlock<'block> {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-            
+
                 self.variables.get_allocation(self.function_context, value_id, dfg)
             }
             Value::NumericConstant { constant, typ } => {
