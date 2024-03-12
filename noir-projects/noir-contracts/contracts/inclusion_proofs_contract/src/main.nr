@@ -9,7 +9,10 @@ contract InclusionProofs {
     use dep::aztec::{context::Context, note::note_getter_options::NoteStatus};
     // docs:start:imports
     use dep::aztec::history::{
-        contract_inclusion::{prove_contract_inclusion, prove_contract_inclusion_at},
+        contract_inclusion::{
+        prove_contract_deployment_at, prove_contract_non_deployment_at,
+        prove_contract_initialization_at, prove_contract_non_initialization_at
+    },
         note_inclusion::{prove_note_inclusion, prove_note_inclusion_at},
         note_validity::{prove_note_validity, prove_note_validity_at},
         nullifier_inclusion::{
@@ -216,32 +219,35 @@ contract InclusionProofs {
         }
     }
 
-    // Proves that a contract exists at block `block_number`.
-    // Note: This can be used to approximate a factory pattern --> a factory contract could perform this proof and that
-    //       way verify that a contract at a given address is what it expects. Then it could store it in an internal
-    //       map of contracts (like what Uniswap Factory does with pool contracts - it stores them in a mapping).
-    //       By passing in the construct hash the factory can also verify that the contract was constructed with the
-    //       correct constructor arguments. Typically the factory would store the expected construct hash and assert
-    //       that it is what it expects. The constructor param check is the reason of why we pass in the preimage of
-    //       contract's aztec address instead of just the address.
+    // Proves that a contract was publicly deployed and/or initialized at block `block_number`.
     #[aztec(private)]
     fn test_contract_inclusion(
-        public_key: GrumpkinPoint,
-        contract_address_salt: Field,
-        contract_class_id: ContractClassId,
-        initialization_hash: Field,
-        portal_contract_address: EthAddress,
-        block_number: u32 // The block at which we'll prove that the public value exists
+        contract_address: AztecAddress,
+        block_number: u32,
+        test_deployment: bool,
+        test_initialization: bool
     ) {
-        let proven_contract_address = prove_contract_inclusion_at(
-            public_key,
-            contract_address_salt,
-            contract_class_id,
-            initialization_hash,
-            portal_contract_address,
-            block_number,
-            context
-        );
-        // Here typically the factory would add the contract address to its internal map of deployed contracts.
+        if test_deployment {
+            prove_contract_deployment_at(contract_address, block_number, context);
+        }
+        if test_initialization {
+            prove_contract_initialization_at(contract_address, block_number, context);
+        }
+    }
+
+    // Proves that a contract was NOT publicly deployed and/or initialized at block `block_number`.
+    #[aztec(private)]
+    fn test_contract_non_inclusion(
+        contract_address: AztecAddress,
+        block_number: u32,
+        test_deployment: bool,
+        test_initialization: bool
+    ) {
+        if test_deployment {
+            prove_contract_non_deployment_at(contract_address, block_number, context);
+        }
+        if test_initialization {
+            prove_contract_non_initialization_at(contract_address, block_number, context);
+        }
     }
 }

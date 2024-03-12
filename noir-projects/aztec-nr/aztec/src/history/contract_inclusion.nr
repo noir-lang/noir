@@ -1,84 +1,64 @@
 use dep::protocol_types::{
-    address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
-    grumpkin_point::GrumpkinPoint
+    address::{AztecAddress, EthAddress}, 
+    contract_class_id::ContractClassId,
+    grumpkin_point::GrumpkinPoint,
+    hash::silo_nullifier,
+    constants::DEPLOYER_CONTRACT_ADDRESS
 };
 use dep::std::merkle::compute_merkle_root;
 
-use crate::{context::PrivateContext};
+use crate::{
+    context::PrivateContext,
+    history::{
+        nullifier_inclusion::prove_nullifier_inclusion_at,
+        nullifier_non_inclusion::prove_nullifier_not_included_at,
+    }
+};
 
-// Proves that a contract exists at block `block_number` and returns its address.
-// Note: This can be used to approximate a factory pattern --> a factory contract could perform this proof and that
-//       way verify that a contract at a given address is what it expects. Then it could store it in an internal
-//       map of contracts (like what Uniswap Factory does with pool contracts - it stores them in a mapping).
-//       By passing in the construct hash the factory can also verify that the contract was constructed with the
-//       correct constructor arguments. Typically the factory would store the expected construct hash and assert that
-//       it is what it expects. The constructor param check is the reason of why we pass in the preimage of contract's
-//       aztec address instead of just the address.
-pub fn prove_contract_inclusion(
-    public_key: GrumpkinPoint,
-    contract_address_salt: Field,
-    contract_class_id: ContractClassId,
-    initialization_hash: Field,
-    portal_contract_address: EthAddress,
-    context: PrivateContext
-) -> AztecAddress {
-    // 1) Get block header from context
-    // let block_header = context.historical_header;
-
-    // 2) Compute the contract address
-    let contract_address = AztecAddress::compute_from_public_key(
-        public_key,
-        contract_class_id,
-        contract_address_salt,
-        initialization_hash,
-        portal_contract_address
-    );
-
-    // TODO(@spalladino): Use initialization and/or deployment nullifier for this proof.
-    // Consider splitting this into 2 methods, one for initialization and one for public deployment.
-
-    // 3) Form the contract tree leaf preimage
-    // let preimage = ContractLeafPreimage { contract_address, portal_contract_address, contract_class_id };
-    //
-    // 4) Get the contract tree leaf by hashing the preimage
-    // let contract_leaf = preimage.hash();
-    //
-    // 5) Get the membership witness of the leaf in the contract tree
-    // let witness = get_contract_membership_witness(block_number, contract_leaf);
-    //
-    // 6) Prove that the leaf is in the contract tree
-    // assert(
-    //     block_header.partial.contract_tree.root
-    //     == compute_merkle_root(contract_leaf, witness.index, witness.path), "Proving contract inclusion failed"
-    // );
-    //
-    // --> Now we have traversed the trees all the way up to archive root.
-
-    contract_address
-}
-
-pub fn prove_contract_inclusion_at(
-    public_key: GrumpkinPoint,
-    contract_address_salt: Field,
-    contract_class_id: ContractClassId,
-    initialization_hash: Field,
-    portal_contract_address: EthAddress,
+pub fn prove_contract_deployment_at(
+    contract_address: AztecAddress,
     block_number: u32,
     context: PrivateContext
-) -> AztecAddress {
-    // 1) Get block header from oracle and ensure that the block is included in the archive.
-    let header = context.get_header_at(block_number);
+) {
+    // Compute deployment nullifier
+    let nullifier = silo_nullifier(AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS), contract_address.to_field());
 
-    // 2) Compute the contract address
-    let contract_address = AztecAddress::compute_from_public_key(
-        public_key,
-        contract_class_id,
-        contract_address_salt,
-        initialization_hash,
-        portal_contract_address
-    );
+    // Prove its inclusion
+    prove_nullifier_inclusion_at(nullifier, block_number, context);
+}
 
-    // TODO(@spalladino): See above func to impl 
+pub fn prove_contract_non_deployment_at(
+    contract_address: AztecAddress,
+    block_number: u32,
+    context: PrivateContext
+) {
+    // Compute deployment nullifier
+    let nullifier = silo_nullifier(AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS), contract_address.to_field());
 
-    contract_address
+    // Prove its non-inclusion
+    prove_nullifier_not_included_at(nullifier, block_number, context);
+}
+
+pub fn prove_contract_initialization_at(
+    contract_address: AztecAddress,
+    block_number: u32,
+    context: PrivateContext
+) {
+    // Compute initialization nullifier
+    let nullifier = silo_nullifier(contract_address, contract_address.to_field());
+
+    // Prove its inclusion
+    prove_nullifier_inclusion_at(nullifier, block_number, context);
+}
+
+pub fn prove_contract_non_initialization_at(
+    contract_address: AztecAddress,
+    block_number: u32,
+    context: PrivateContext
+) {
+    // Compute initialization nullifier
+    let nullifier = silo_nullifier(contract_address, contract_address.to_field());
+
+    // Prove its non-inclusion
+    prove_nullifier_not_included_at(nullifier, block_number, context);
 }

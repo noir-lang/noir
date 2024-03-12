@@ -2,13 +2,13 @@ import {
   AccountWallet,
   AztecAddress,
   CompleteAddress,
-  EthAddress,
   Fr,
   INITIAL_L2_BLOCK_NUM,
   PXE,
-  Point,
   getContractInstanceFromDeployParams,
 } from '@aztec/aztec.js';
+import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
+import { StatefulTestContract, StatefulTestContractArtifact } from '@aztec/noir-contracts.js';
 import { InclusionProofsContract } from '@aztec/noir-contracts.js/InclusionProofs';
 
 import { jest } from '@jest/globals';
@@ -250,67 +250,42 @@ describe('e2e_inclusion_proofs_contract', () => {
   });
 
   describe('contract inclusion', () => {
-    // InclusionProofs contract doesn't have associated public key because it's not an account contract
-    const publicKey = Point.ZERO;
-    let contractClassId: Fr;
-    let initializationHash: Fr;
-    let portalContractAddress: EthAddress;
+    const assertInclusion = async (
+      address: AztecAddress,
+      blockNumber: number,
+      opts: { testDeploy: boolean; testInit: boolean },
+    ) => {
+      const { testDeploy, testInit } = opts;
+      // Assert contract was publicly deployed or initialized in the block in which it was deployed
+      await contract.methods.test_contract_inclusion(address, blockNumber, testDeploy, testInit).send().wait();
 
-    beforeAll(() => {
-      const contractArtifact = contract.artifact;
-      const constructorArgs = [publicValue];
-      portalContractAddress = EthAddress.random();
+      // And prove that it was not before that
+      const olderBlock = blockNumber - 2;
+      await contract.methods.test_contract_non_inclusion(address, olderBlock, testDeploy, testInit).send().wait();
 
-      const instance = getContractInstanceFromDeployParams(
-        contractArtifact,
-        constructorArgs,
-        contractAddressSalt,
-        publicKey,
-        portalContractAddress,
-      );
-
-      contractClassId = instance.contractClassId;
-      initializationHash = instance.initializationHash;
-    });
-
-    it('proves existence of a contract', async () => {
-      // Choose random block number between first block and current block number to test archival node
-      const blockNumber = await getRandomBlockNumberSinceDeployment();
-
-      // Note: We pass in preimage of AztecAddress instead of just AztecAddress in order for the contract to be able to
-      //       test that the contract was deployed with correct constructor parameters.
-      await contract.methods
-        .test_contract_inclusion(
-          publicKey,
-          contractAddressSalt,
-          contractClassId,
-          initializationHash,
-          portalContractAddress,
-          blockNumber,
-        )
-        .send()
-        .wait();
-    });
-
-    // TODO(@spalladino): Re-enable once we add check for non-inclusion based on nullifier
-    it.skip('contract existence failure case', async () => {
-      // This should fail because we choose a block number before the contract was deployed
-      const blockNumber = deploymentBlockNumber - 1;
-      const leaf = Fr.ZERO; // TODO: Calculate proper leaf value
-
+      // Or that the positive call fails when trying to prove in the older block
       await expect(
-        contract.methods
-          .test_contract_inclusion(
-            publicKey,
-            contractAddressSalt,
-            contractClassId,
-            initializationHash,
-            portalContractAddress,
-            blockNumber,
-          )
-          .send()
-          .wait(),
-      ).rejects.toThrow(`Leaf value: ${leaf.toString()} not found in CONTRACT_TREE`);
+        contract.methods.test_contract_inclusion(address, olderBlock, testDeploy, testInit).simulate(),
+      ).rejects.toThrow(/not found/);
+    };
+
+    it('proves public deployment of a contract', async () => {
+      // Publicly deploy another contract (so we don't test on the same contract)
+      const initArgs = [accounts[0], 42n];
+      const instance = getContractInstanceFromDeployParams(StatefulTestContractArtifact, initArgs);
+      await (await registerContractClass(wallets[0], StatefulTestContractArtifact)).send().wait();
+      const receipt = await deployInstance(wallets[0], instance).send().wait();
+
+      await assertInclusion(instance.address, receipt.blockNumber!, { testDeploy: true, testInit: false });
+    });
+
+    it('proves initialization of a contract', async () => {
+      // Initialize (but not deploy) a test contract
+      const receipt = await StatefulTestContract.deploy(wallets[0], accounts[0], 42n)
+        .send({ skipClassRegistration: true, skipPublicDeployment: true })
+        .wait();
+
+      await assertInclusion(receipt.contract.address, receipt.blockNumber!, { testDeploy: false, testInit: true });
     });
   });
 
