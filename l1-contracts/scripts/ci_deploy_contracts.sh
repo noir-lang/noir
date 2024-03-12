@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 export ETHEREUM_HOST=https://$DEPLOY_TAG-mainnet-fork.aztec.network:8545/$FORK_API_KEY
 
 REPOSITORY="l1-contracts"
@@ -29,7 +31,7 @@ retry docker pull $CLI_IMAGE
 PRIVATE_KEY=${CONTRACT_PUBLISHER_PRIVATE_KEY#0x}
 docker run \
   $CLI_IMAGE \
-  deploy-l1-contracts -u $ETHEREUM_HOST -p $PRIVATE_KEY >./serve/contract_addresses.json
+  deploy-l1-contracts -u $ETHEREUM_HOST -p $PRIVATE_KEY | tee ./serve/contract_addresses.json
 
 ## Result format is:
 # Rollup Address: 0xe33d37702bb94e83ca09e7dc804c9f4c4ab8ee4a
