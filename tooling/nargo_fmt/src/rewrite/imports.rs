@@ -105,7 +105,7 @@ impl UseTree {
             let mut segment_str = segment.rewrite(visitor, shape);
             if segment_str.contains('{') && !segment_str.contains(',') {
                 let empty = "";
-                segment_str = segment_str.replace('{', empty).replace('}', empty);
+                segment_str = segment_str.replace(['{', '}'], empty);
             }
             result.push_str(&segment_str);
 
