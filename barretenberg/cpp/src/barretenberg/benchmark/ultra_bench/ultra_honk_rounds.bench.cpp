@@ -45,11 +45,11 @@ BB_PROFILE static void test_round_inner(State& state, GoblinUltraProver& prover,
         }
     };
 
-    time_if_index(PREAMBLE, [&] { prover.execute_preamble_round(); });
-    time_if_index(WIRE_COMMITMENTS, [&] { prover.execute_wire_commitments_round(); });
-    time_if_index(SORTED_LIST_ACCUMULATOR, [&] { prover.execute_sorted_list_accumulator_round(); });
-    time_if_index(LOG_DERIVATIVE_INVERSE, [&] { prover.execute_log_derivative_inverse_round(); });
-    time_if_index(GRAND_PRODUCT_COMPUTATION, [&] { prover.execute_grand_product_computation_round(); });
+    time_if_index(PREAMBLE, [&] { prover.oink_prover.execute_preamble_round(); });
+    time_if_index(WIRE_COMMITMENTS, [&] { prover.oink_prover.execute_wire_commitments_round(); });
+    time_if_index(SORTED_LIST_ACCUMULATOR, [&] { prover.oink_prover.execute_sorted_list_accumulator_round(); });
+    time_if_index(LOG_DERIVATIVE_INVERSE, [&] { prover.oink_prover.execute_log_derivative_inverse_round(); });
+    time_if_index(GRAND_PRODUCT_COMPUTATION, [&] { prover.oink_prover.execute_grand_product_computation_round(); });
     time_if_index(RELATION_CHECK, [&] { prover.execute_relation_check_rounds(); });
     time_if_index(ZEROMORPH, [&] { prover.execute_zeromorph_rounds(); });
 }
@@ -62,7 +62,10 @@ BB_PROFILE static void test_round(State& state, size_t index) noexcept
     auto prover = bb::mock_proofs::get_prover<GoblinUltraProver>(
         &bb::mock_proofs::generate_basic_arithmetic_circuit<GoblinUltraCircuitBuilder>, log2_num_gates);
     for (auto _ : state) {
+        state.PauseTiming();
         test_round_inner(state, prover, index);
+        state.ResumeTiming();
+        // NOTE: google bench is very finnicky, must end in ResumeTiming() for correctness
     }
 }
 #define ROUND_BENCHMARK(round)                                                                                         \

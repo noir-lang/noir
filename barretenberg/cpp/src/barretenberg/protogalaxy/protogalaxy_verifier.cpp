@@ -8,20 +8,19 @@ void ProtoGalaxyVerifier_<VerifierInstances>::receive_and_finalise_instance(cons
 {
     // Get circuit parameters and the public inputs
     inst->verification_key->circuit_size =
-        transcript->template receive_from_prover<uint32_t>(domain_separator + "_instance_size");
+        transcript->template receive_from_prover<uint32_t>(domain_separator + "_circuit_size");
     inst->verification_key->log_circuit_size =
         static_cast<size_t>(numeric::get_msb(inst->verification_key->circuit_size));
     inst->verification_key->num_public_inputs =
         transcript->template receive_from_prover<uint32_t>(domain_separator + "_public_input_size");
+    inst->verification_key->pub_inputs_offset =
+        transcript->template receive_from_prover<uint32_t>(domain_separator + "_pub_inputs_offset");
     inst->verification_key->public_inputs.clear();
     for (size_t i = 0; i < inst->verification_key->num_public_inputs; ++i) {
         auto public_input_i =
             transcript->template receive_from_prover<FF>(domain_separator + "_public_input_" + std::to_string(i));
         inst->verification_key->public_inputs.emplace_back(public_input_i);
     }
-
-    inst->verification_key->pub_inputs_offset =
-        transcript->template receive_from_prover<uint32_t>(domain_separator + "_pub_inputs_offset");
 
     // Get commitments to first three wire polynomials
     auto labels = inst->commitment_labels;
