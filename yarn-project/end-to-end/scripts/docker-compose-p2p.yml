@@ -1,7 +1,7 @@
 version: '3'
 services:
   fork:
-    image: ghcr.io/foundry-rs/foundry:nightly-a44aa13cfc23491ba32aaedc093e9488c1a6db43
+    image: ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916
     entrypoint: 'anvil -p 8545 --host 0.0.0.0 --chain-id 31337'
     ports:
       - '8545:8545'

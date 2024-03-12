@@ -1,7 +1,7 @@
 version: '3'
 services:
   ethereum:
-    image: ghcr.io/foundry-rs/foundry@sha256:29ba6e34379e79c342ec02d437beb7929c9e254261e8032b17e187be71a2609f
+    image: ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916
     entrypoint: >
       sh -c '
       if [ -n "$FORK_BLOCK_NUMBER" ] && [ -n "$FORK_URL" ]; then
