@@ -41,7 +41,7 @@ use crate::{
     FunctionReturnType, Generics, ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path,
     PathKind, Pattern, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind,
     UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    UnresolvedTypeExpression, Visibility, ERROR_IDENT, BinaryOpKind,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -1971,6 +1971,29 @@ impl<'a> Resolver<'a> {
         match self.interner.expression(&rhs) {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
+            }
+            HirExpression::Infix(infix) => {
+                let lhs = self.try_eval_array_length_id(infix.lhs, span)?;
+                let rhs = self.try_eval_array_length_id(infix.rhs, span)?;
+
+                match infix.operator.kind {
+                    BinaryOpKind::Add => Ok(lhs + rhs),
+                    BinaryOpKind::Subtract => Ok(lhs - rhs),
+                    BinaryOpKind::Multiply => Ok(lhs * rhs),
+                    BinaryOpKind::Divide => Ok(lhs / rhs),
+                    BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
+                    BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
+                    BinaryOpKind::Less => Ok((lhs < rhs) as u128),
+                    BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
+                    BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
+                    BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
+                    BinaryOpKind::And => Ok(lhs & rhs),
+                    BinaryOpKind::Or => Ok(lhs | rhs),
+                    BinaryOpKind::Xor => Ok(lhs ^ rhs),
+                    BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
+                    BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
+                    BinaryOpKind::Modulo => Ok(lhs % rhs),
+                }
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }

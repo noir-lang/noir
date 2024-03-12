@@ -1213,4 +1213,15 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         "#;
         assert_eq!(get_program_errors(src).len(), 0);
     }
+
+    #[test]
+    fn operators_in_global_used_in_type() {
+        let src = r#"
+            global COUNT = 1 + 2;
+            fn main() {
+                let _array: [Field; COUNT] = [1, 2, 3];
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 0);
+    }
 }
