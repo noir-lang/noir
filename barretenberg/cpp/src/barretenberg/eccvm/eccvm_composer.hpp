@@ -70,6 +70,7 @@ template <IsECCVMFlavor Flavor> class ECCVMComposer_ {
 
     void compute_commitment_key(size_t circuit_size)
     {
+        BB_OP_COUNT_TIME_NAME("ECCVMComposer::compute_commitment_key");
         commitment_key = std::make_shared<CommitmentKey>(circuit_size);
     };
 };

@@ -2,6 +2,7 @@
 #include <benchmark/benchmark.h>
 
 #include "barretenberg/client_ivc/client_ivc.hpp"
+#include "barretenberg/common/op_count.hpp"
 #include "barretenberg/common/op_count_google_bench.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
@@ -46,9 +47,12 @@ class ClientIVCBench : public benchmark::Fixture {
         std::vector<Builder> initial_function_circuits(2);
 
         // Construct 2 starting function circuits in parallel
-        parallel_for(2, [&](size_t circuit_index) {
-            GoblinMockCircuits::construct_mock_function_circuit(initial_function_circuits[circuit_index]);
-        });
+        {
+            BB_OP_COUNT_TIME_NAME("construct_circuits");
+            parallel_for(2, [&](size_t circuit_index) {
+                GoblinMockCircuits::construct_mock_function_circuit(initial_function_circuits[circuit_index]);
+            });
+        };
 
         // Prepend queue to the first circuit
         initial_function_circuits[0].op_queue->prepend_previous_queue(*ivc.goblin.op_queue);
@@ -81,25 +85,28 @@ class ClientIVCBench : public benchmark::Fixture {
             Builder kernel_circuit{ size_hint, ivc.goblin.op_queue };
             Builder function_circuit{ size_hint };
             // Construct function and kernel circuits in parallel
-            parallel_for(2, [&](size_t workload_idx) {
-                // workload index is 0 for kernel and 1 for function
-                if (workload_idx == 0) {
-                    if (circuit_idx == 0) {
+            {
+                BB_OP_COUNT_TIME_NAME("construct_circuits");
+                parallel_for(2, [&](size_t workload_idx) {
+                    // workload index is 0 for kernel and 1 for function
+                    if (workload_idx == 0) {
+                        if (circuit_idx == 0) {
 
-                        // Create the first folding kernel which only verifies the accumulation of a
-                        // function circuit
-                        kernel_verifier_accumulator = GoblinMockCircuits::construct_mock_folding_kernel(
-                            kernel_circuit, function_fold_output, {}, kernel_verifier_accumulator);
+                            // Create the first folding kernel which only verifies the accumulation of a
+                            // function circuit
+                            kernel_verifier_accumulator = GoblinMockCircuits::construct_mock_folding_kernel(
+                                kernel_circuit, function_fold_output, {}, kernel_verifier_accumulator);
+                        } else {
+                            // Create kernel circuit containing the recursive folding verification of a function circuit
+                            // and a kernel circuit
+                            kernel_verifier_accumulator = GoblinMockCircuits::construct_mock_folding_kernel(
+                                kernel_circuit, function_fold_output, kernel_fold_output, kernel_verifier_accumulator);
+                        }
                     } else {
-                        // Create kernel circuit containing the recursive folding verification of a function circuit and
-                        // a kernel circuit
-                        kernel_verifier_accumulator = GoblinMockCircuits::construct_mock_folding_kernel(
-                            kernel_circuit, function_fold_output, kernel_fold_output, kernel_verifier_accumulator);
+                        GoblinMockCircuits::construct_mock_function_circuit(function_circuit);
                     }
-                } else {
-                    GoblinMockCircuits::construct_mock_function_circuit(function_circuit);
-                }
-            });
+                });
+            };
 
             // No need to prepend queue, it's the same after last swap
             // Accumulate kernel circuit
@@ -127,14 +134,20 @@ class ClientIVCBench : public benchmark::Fixture {
             // Create and accumulate the first folding kernel which only verifies the accumulation of a function circuit
             Builder kernel_circuit{ size_hint, ivc.goblin.op_queue };
             auto kernel_verifier_accumulator = std::make_shared<ClientIVC::VerifierInstance>(ivc.vks.first_func_vk);
-            kernel_verifier_accumulator = GoblinMockCircuits::construct_mock_folding_kernel(
-                kernel_circuit, function_fold_output, {}, kernel_verifier_accumulator);
+            {
+                BB_OP_COUNT_TIME_NAME("construct_circuits");
+                kernel_verifier_accumulator = GoblinMockCircuits::construct_mock_folding_kernel(
+                    kernel_circuit, function_fold_output, {}, kernel_verifier_accumulator);
+            }
             auto kernel_fold_proof = ivc.accumulate(kernel_circuit);
             kernel_fold_output = { kernel_fold_proof, ivc.vks.first_kernel_vk };
         } else {
             Builder kernel_circuit{ size_hint, ivc.goblin.op_queue };
-            kernel_verifier_accumulator = GoblinMockCircuits::construct_mock_folding_kernel(
-                kernel_circuit, function_fold_output, kernel_fold_output, kernel_verifier_accumulator);
+            {
+                BB_OP_COUNT_TIME_NAME("construct_circuits");
+                kernel_verifier_accumulator = GoblinMockCircuits::construct_mock_folding_kernel(
+                    kernel_circuit, function_fold_output, kernel_fold_output, kernel_verifier_accumulator);
+            }
 
             auto kernel_fold_proof = ivc.accumulate(kernel_circuit);
             kernel_fold_output = { kernel_fold_proof, ivc.vks.kernel_vk };

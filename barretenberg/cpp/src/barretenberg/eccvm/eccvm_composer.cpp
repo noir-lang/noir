@@ -10,6 +10,8 @@ namespace bb {
  */
 template <IsECCVMFlavor Flavor> void ECCVMComposer_<Flavor>::compute_witness(CircuitConstructor& circuit_constructor)
 {
+    BB_OP_COUNT_TIME_NAME("ECCVMComposer::compute_witness");
+
     if (computed_witness) {
         return;
     }
@@ -67,6 +69,8 @@ template <IsECCVMFlavor Flavor>
 std::shared_ptr<typename Flavor::ProvingKey> ECCVMComposer_<Flavor>::compute_proving_key(
     CircuitConstructor& circuit_constructor)
 {
+    BB_OP_COUNT_TIME_NAME("ECCVMComposer::create_proving_key");
+
     if (proving_key) {
         return proving_key;
     }

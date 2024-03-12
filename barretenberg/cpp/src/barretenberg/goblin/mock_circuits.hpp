@@ -109,7 +109,6 @@ class GoblinMockCircuits {
      */
     static void construct_mock_function_circuit(GoblinUltraBuilder& builder, bool large = false)
     {
-        BB_OP_COUNT_TIME();
         // Determine number of times to execute the below operations that constitute the mock circuit logic. Note that
         // the circuit size does not scale linearly with number of iterations due to e.g. amortization of lookup costs
         const size_t NUM_ITERATIONS_LARGE = 13; // results in circuit size 2^19 (521327 gates)
@@ -233,7 +232,6 @@ class GoblinMockCircuits {
         const VerifierFoldData& kernel,
         std::shared_ptr<VerifierInstance>& prev_kernel_accum)
     {
-        BB_OP_COUNT_TIME();
         using GURecursiveFlavor = GoblinUltraRecursiveFlavor_<GoblinUltraBuilder>;
         using RecursiveVerifierInstances =
             bb::stdlib::recursion::honk::RecursiveVerifierInstances_<GURecursiveFlavor, 2>;

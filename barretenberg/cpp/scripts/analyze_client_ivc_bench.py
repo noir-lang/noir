@@ -7,8 +7,7 @@ BENCHMARK = "ClientIVCBench/Full/6"
 
 # Single out an independent set of functions accounting for most of BENCHMARK's real_time
 to_keep = [
-    "construct_mock_function_circuit(t)",
-    "construct_mock_folding_kernel(t)",
+    "construct_circuits(t)",
     "ProverInstance(Circuit&)(t)",
     "ProtogalaxyProver::fold_instances(t)",
     "Decider::construct_proof(t)",
@@ -42,3 +41,9 @@ totals = '\nTotal time accounted for: {:.0f}ms/{:.0f}ms = {:.2%}'
 totals = totals.format(
     sum_of_kept_times_ms, total_time_ms, sum_of_kept_times_ms/total_time_ms)
 print(totals)
+
+print('\nBreakdown of ECCVMProver::create_prover:')
+for key in ["ECCVMComposer::compute_witness(t)", "ECCVMComposer::create_proving_key(t)"]:
+    time_ms = bench[key]/1e6
+    total_time_ms = bench["ECCVMComposer::create_prover(t)"]/1e6
+    print(f"{key:<{MAX_LABEL_LENGTH}}{time_ms:>8.0f}  {time_ms/total_time_ms:>8.2%}")
