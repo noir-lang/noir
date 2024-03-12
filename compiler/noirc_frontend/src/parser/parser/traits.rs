@@ -11,7 +11,7 @@ use crate::{
         ParserErrorReason, TopLevelStatement,
     },
     token::{Keyword, Token},
-    Expression, FunctionVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,
+    Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,
     UnresolvedTraitConstraint, UnresolvedType,
 };
 
@@ -123,12 +123,12 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
         if f.def().is_internal
             || f.def().is_unconstrained
             || f.def().is_open
-            || f.def().visibility != FunctionVisibility::Private
+            || f.def().visibility != ItemVisibility::Private
         {
             emit(ParserError::with_reason(ParserErrorReason::TraitImplFunctionModifiers, span));
         }
         // Trait impl functions are always public
-        f.def_mut().visibility = FunctionVisibility::Public;
+        f.def_mut().visibility = ItemVisibility::Public;
         TraitImplItem::Function(f)
     });
 
