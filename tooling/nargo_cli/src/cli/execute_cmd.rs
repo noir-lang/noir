@@ -5,7 +5,7 @@ use clap::Args;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
-use nargo::ops::{compile_program, DefaultForeignCallExecutor};
+use nargo::ops::{compile_program, report_errors, DefaultForeignCallExecutor};
 use nargo::package::Package;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
@@ -19,7 +19,6 @@ use noirc_frontend::graph::CrateName;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::backends::Backend;
-use crate::cli::compile_cmd::report_errors;
 use crate::errors::CliError;
 
 /// Executes a circuit to calculate its return value

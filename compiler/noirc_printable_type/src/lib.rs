@@ -33,6 +33,8 @@ pub enum PrintableType {
         length: u64,
     },
     Function {
+        arguments: Vec<PrintableType>,
+        return_type: Box<PrintableType>,
         env: Box<PrintableType>,
     },
     MutableReference {
@@ -176,8 +178,8 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
                 output.push_str("false");
             }
         }
-        (PrintableValue::Field(_), PrintableType::Function { .. }) => {
-            output.push_str("<<function>>");
+        (PrintableValue::Field(_), PrintableType::Function { arguments, return_type, .. }) => {
+            output.push_str(&format!("<<fn({:?}) -> {:?}>>", arguments, return_type,));
         }
         (_, PrintableType::MutableReference { .. }) => {
             output.push_str("<<mutable ref>>");
@@ -350,7 +352,7 @@ pub fn decode_value(
 
             PrintableValue::Struct(struct_map)
         }
-        PrintableType::Function { env } => {
+        PrintableType::Function { env, .. } => {
             let field_element = field_iterator.next().unwrap();
             let func_ref = PrintableValue::Field(field_element);
             // we want to consume the fields from the environment, but for now they are not actually printed

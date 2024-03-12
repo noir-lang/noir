@@ -703,10 +703,10 @@ impl Type {
             | Type::TraitAsType(..)
             | Type::NotConstant => false,
 
-            // This function is called during name resolution before we've verified aliases
-            // are not cyclic. As a result, it wouldn't be safe to check this alias' definition
-            // to see if the aliased type is valid.
-            Type::Alias(..) => false,
+            Type::Alias(alias, generics) => {
+                let alias = alias.borrow();
+                alias.get_type(generics).is_valid_for_program_input()
+            }
 
             Type::Array(length, element) => {
                 length.is_valid_for_program_input() && element.is_valid_for_program_input()
@@ -1768,9 +1768,11 @@ impl From<&Type> for PrintableType {
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, env) => {
-                PrintableType::Function { env: Box::new(env.as_ref().into()) }
-            }
+            Type::Function(arguments, return_type, env) => PrintableType::Function {
+                arguments: arguments.iter().map(|arg| arg.into()).collect(),
+                return_type: Box::new(return_type.as_ref().into()),
+                env: Box::new(env.as_ref().into()),
+            },
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }

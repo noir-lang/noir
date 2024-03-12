@@ -80,8 +80,6 @@ pub enum ResolverError {
     PrivateFunctionCalled { name: String, span: Span },
     #[error("{name} is not visible from the current crate")]
     NonCrateFunctionCalled { name: String, span: Span },
-    #[error("Only sized types may be used in the entry point to a program")]
-    InvalidTypeForEntryPoint { span: Span },
     #[error("Nested slices are not supported")]
     NestedSlices { span: Span },
     #[error("#[recursive] attribute is only allowed on entry points to a program")]
@@ -309,9 +307,6 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::NonCrateFunctionCalled { span, name } => Diagnostic::simple_warning(
                     format!("{name} is not visible from the current crate"),
                     format!("{name} is only visible within its crate"), span),
-            ResolverError::InvalidTypeForEntryPoint { span } => Diagnostic::simple_error(
-                "Only sized types may be used in the entry point to a program".to_string(),
-                "Slices, references, or any type containing them may not be used in main or a contract function".to_string(), span),
             ResolverError::NestedSlices { span } => Diagnostic::simple_error(
                 "Nested slices are not supported".into(),
                 "Try to use a constant sized array instead".into(),

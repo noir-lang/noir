@@ -1,4 +1,5 @@
 use nargo::errors::CompileError;
+use nargo::ops::report_errors;
 use noirc_errors::FileDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
@@ -24,7 +25,6 @@ use crate::errors::CliError;
 
 use super::check_cmd::check_crate_and_report_errors;
 
-use super::compile_cmd::report_errors;
 use super::fs::program::save_program_to_file;
 use super::NargoConfig;
 

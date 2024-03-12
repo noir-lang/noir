@@ -1,11 +1,10 @@
 use super::fs::{create_named_dir, write_to_file};
 use super::NargoConfig;
 use crate::backends::Backend;
-use crate::cli::compile_cmd::report_errors;
 use crate::errors::CliError;
 
 use clap::Args;
-use nargo::ops::compile_program;
+use nargo::ops::{compile_program, report_errors};
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};

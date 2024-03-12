@@ -14,8 +14,8 @@ mod parser;
 use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
-    Ident, LetStatement, NoirFunction, NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable,
-    StatementKind, TypeImpl, UseTree,
+    Ident, LetStatement, ModuleDeclaration, NoirFunction, NoirTrait, NoirTraitImpl, NoirTypeAlias,
+    Recoverable, StatementKind, TypeImpl, UseTree,
 };
 
 use chumsky::prelude::*;
@@ -28,7 +28,7 @@ pub use parser::parse_program;
 #[derive(Debug, Clone)]
 pub(crate) enum TopLevelStatement {
     Function(NoirFunction),
-    Module(Ident),
+    Module(ModuleDeclaration),
     Import(UseTree),
     Struct(NoirStruct),
     Trait(NoirTrait),
@@ -220,7 +220,7 @@ pub struct SortedModule {
     pub globals: Vec<LetStatement>,
 
     /// Module declarations like `mod foo;`
-    pub module_decls: Vec<Ident>,
+    pub module_decls: Vec<ModuleDeclaration>,
 
     /// Full submodules as in `mod foo { ... definitions ... }`
     pub submodules: Vec<SortedSubModule>,
@@ -229,7 +229,7 @@ pub struct SortedModule {
 impl std::fmt::Display for SortedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for decl in &self.module_decls {
-            writeln!(f, "mod {decl};")?;
+            writeln!(f, "{decl};")?;
         }
 
         for import in &self.imports {
@@ -309,7 +309,7 @@ pub enum ItemKind {
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
     Global(LetStatement),
-    ModuleDecl(Ident),
+    ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
 }
 
@@ -380,8 +380,8 @@ impl SortedModule {
         self.imports.extend(import_stmt.desugar(None));
     }
 
-    fn push_module_decl(&mut self, mod_name: Ident) {
-        self.module_decls.push(mod_name);
+    fn push_module_decl(&mut self, mod_decl: ModuleDeclaration) {
+        self.module_decls.push(mod_decl);
     }
 
     fn push_submodule(&mut self, submodule: SortedSubModule) {
@@ -474,7 +474,7 @@ impl std::fmt::Display for TopLevelStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TopLevelStatement::Function(fun) => fun.fmt(f),
-            TopLevelStatement::Module(m) => write!(f, "mod {m}"),
+            TopLevelStatement::Module(m) => m.fmt(f),
             TopLevelStatement::Import(tree) => write!(f, "use {tree}"),
             TopLevelStatement::Trait(t) => t.fmt(f),
             TopLevelStatement::TraitImpl(i) => i.fmt(f),

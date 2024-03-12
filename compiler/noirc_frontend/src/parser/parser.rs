@@ -40,9 +40,9 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
-    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Literal, NoirTypeAlias,
-    Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl, UnresolvedTraitConstraint,
-    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Literal, ModuleDeclaration,
+    NoirTypeAlias, Param, Path, Pattern, Recoverable, Statement, TraitBound, TypeImpl,
+    UnresolvedTraitConstraint, UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
@@ -370,7 +370,9 @@ fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
 }
 
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Mod).ignore_then(ident()).map(TopLevelStatement::Module)
+    keyword(Keyword::Mod)
+        .ignore_then(ident())
+        .map(|ident| TopLevelStatement::Module(ModuleDeclaration { ident }))
 }
 
 fn use_statement() -> impl NoirParser<TopLevelStatement> {

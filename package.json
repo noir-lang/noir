@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "build": "yarn workspaces foreach --parallel --topological-dev --verbose run build",
-    "test": "yarn workspaces foreach run test",
+    "test": "yarn workspaces foreach --parallel --verbose run test",
     "test:integration": "yarn workspace integration-tests test",
     "clean:workspaces": "yarn workspaces foreach --exclude @noir-lang/root run clean",
     "clean:root": "rm -rf ./result ./target ./packages",

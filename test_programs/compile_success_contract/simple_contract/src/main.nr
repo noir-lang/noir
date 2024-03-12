@@ -5,10 +5,10 @@ contract Foo {
     fn triple(x: Field) -> pub Field {
         x * 3
     }
-    internal fn quadruple(x: Field) -> pub Field {
+    fn quadruple(x: Field) -> pub Field {
         x * 4
     }
-    open internal fn skibbidy(x: Field) -> pub Field {
+    open fn skibbidy(x: Field) -> pub Field {
         x * 5
     }
     // Regression for issue #3344

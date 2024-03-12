@@ -5,8 +5,8 @@ use clap::Args;
 use fm::FileManager;
 use iter_extended::btree_map;
 use nargo::{
-    errors::CompileError, insert_all_files_for_workspace_into_file_manager, package::Package,
-    parse_all, prepare_package,
+    errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
+    package::Package, parse_all, prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
@@ -152,12 +152,7 @@ pub(crate) fn check_crate_and_report_errors(
     silence_warnings: bool,
 ) -> Result<(), CompileError> {
     let result = check_crate(context, crate_id, deny_warnings, disable_macros);
-    super::compile_cmd::report_errors(
-        result,
-        &context.file_manager,
-        deny_warnings,
-        silence_warnings,
-    )
+    report_errors(result, &context.file_manager, deny_warnings, silence_warnings)
 }
 
 #[cfg(test)]

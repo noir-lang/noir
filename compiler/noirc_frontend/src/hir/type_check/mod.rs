@@ -12,11 +12,17 @@ mod expr;
 mod stmt;
 
 pub use errors::TypeCheckError;
+use noirc_errors::Span;
 
 use crate::{
-    hir_def::{expr::HirExpression, stmt::HirStatement, traits::TraitConstraint},
+    hir_def::{
+        expr::HirExpression,
+        function::{Param, Parameters},
+        stmt::HirStatement,
+        traits::TraitConstraint,
+    },
     node_interner::{ExprId, FuncId, GlobalId, NodeInterner},
-    Type,
+    Type, TypeBindings,
 };
 
 use self::errors::Source;
@@ -74,6 +80,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // This is locally obvious, but it must be bound here so that the
     // Definition object of the parameter in the NodeInterner is given the correct type.
     for param in parameters {
+        check_if_type_is_valid_for_program_input(&type_checker, func_id, &param, &mut errors);
         type_checker.bind_pattern(&param.0, param.1);
     }
 
@@ -143,6 +150,22 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     errors
 }
 
+/// Only sized types are valid to be used as main's parameters or the parameters to a contract
+/// function. If the given type is not sized (e.g. contains a slice or NamedGeneric type), an
+/// error is issued.
+fn check_if_type_is_valid_for_program_input(
+    type_checker: &TypeChecker<'_>,
+    func_id: FuncId,
+    param: &Param,
+    errors: &mut Vec<TypeCheckError>,
+) {
+    let meta = type_checker.interner.function_meta(&func_id);
+    if meta.is_entry_point && !param.1.is_valid_for_program_input() {
+        let span = param.0.span();
+        errors.push(TypeCheckError::InvalidTypeForEntryPoint { span });
+    }
+}
+
 fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_errors::Span, bool) {
     let (expr_span, empty_function) =
         if let HirExpression::Block(block) = interner.expression(function_body_id) {
@@ -160,6 +183,154 @@ fn function_info(interner: &NodeInterner, function_body_id: &ExprId) -> (noirc_e
             (interner.expr_span(function_body_id), false)
         };
     (expr_span, empty_function)
+}
+
+/// Checks that the type of a function in a trait impl matches the type
+/// of the corresponding function declaration in the trait itself.
+///
+/// To do this, given a trait such as:
+/// `trait Foo<A> { fn foo<B>(...); }`
+///
+/// And an impl such as:
+/// `impl<C> Foo<D> for Bar<E> { fn foo<F>(...); } `
+///
+/// We have to substitute:
+/// - Self for Bar<E>
+/// - A for D
+/// - B for F
+///
+/// Before we can type check. Finally, we must also check that the unification
+/// result does not introduce any new bindings. This can happen if the impl
+/// function's type is more general than that of the trait function. E.g.
+/// `fn baz<A, B>(a: A, b: B)` when the impl required `fn baz<A>(a: A, b: A)`.
+///
+/// This does not type check the body of the impl function.
+pub(crate) fn check_trait_impl_method_matches_declaration(
+    interner: &mut NodeInterner,
+    function: FuncId,
+) -> Vec<TypeCheckError> {
+    let meta = interner.function_meta(&function);
+    let method_name = interner.function_name(&function);
+    let mut errors = Vec::new();
+
+    let definition_type = meta.typ.as_monotype();
+
+    let impl_ =
+        meta.trait_impl.expect("Trait impl function should have a corresponding trait impl");
+    let impl_ = interner.get_trait_implementation(impl_);
+    let impl_ = impl_.borrow();
+    let trait_info = interner.get_trait(impl_.trait_id);
+
+    let mut bindings = TypeBindings::new();
+    bindings.insert(
+        trait_info.self_type_typevar_id,
+        (trait_info.self_type_typevar.clone(), impl_.typ.clone()),
+    );
+
+    if trait_info.generics.len() != impl_.trait_generics.len() {
+        let expected = trait_info.generics.len();
+        let found = impl_.trait_generics.len();
+        let span = impl_.ident.span();
+        let item = trait_info.name.to_string();
+        errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, span });
+    }
+
+    // Substitute each generic on the trait with the corresponding generic on the impl
+    for (generic, arg) in trait_info.generics.iter().zip(&impl_.trait_generics) {
+        bindings.insert(generic.id(), (generic.clone(), arg.clone()));
+    }
+
+    // If this is None, the trait does not have the corresponding function.
+    // This error should have been caught in name resolution already so we don't
+    // issue an error for it here.
+    if let Some(trait_fn_id) = trait_info.method_ids.get(method_name) {
+        let trait_fn_meta = interner.function_meta(trait_fn_id);
+
+        if trait_fn_meta.direct_generics.len() != meta.direct_generics.len() {
+            let expected = trait_fn_meta.direct_generics.len();
+            let found = meta.direct_generics.len();
+            let span = meta.name.location.span;
+            let item = method_name.to_string();
+            errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, span });
+        }
+
+        // Substitute each generic on the trait function with the corresponding generic on the impl function
+        for ((_, trait_fn_generic), (name, impl_fn_generic)) in
+            trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
+        {
+            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
+        }
+
+        let (declaration_type, _) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);
+
+        check_function_type_matches_expected_type(
+            &declaration_type,
+            definition_type,
+            method_name,
+            &meta.parameters,
+            meta.name.location.span,
+            &trait_info.name.0.contents,
+            &mut errors,
+        );
+    }
+
+    errors
+}
+
+fn check_function_type_matches_expected_type(
+    expected: &Type,
+    actual: &Type,
+    method_name: &str,
+    actual_parameters: &Parameters,
+    span: Span,
+    trait_name: &str,
+    errors: &mut Vec<TypeCheckError>,
+) {
+    let mut bindings = TypeBindings::new();
+    // Shouldn't need to unify envs, they should always be equal since they're both free functions
+    if let (Type::Function(params_a, ret_a, _env_a), Type::Function(params_b, ret_b, _env_b)) =
+        (expected, actual)
+    {
+        if params_a.len() == params_b.len() {
+            for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
+                if a.try_unify(b, &mut bindings).is_err() {
+                    errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
+                        method_name: method_name.to_string(),
+                        expected_typ: a.to_string(),
+                        actual_typ: b.to_string(),
+                        parameter_span: actual_parameters.0[i].0.span(),
+                        parameter_index: i + 1,
+                    });
+                }
+            }
+
+            if ret_b.try_unify(ret_a, &mut bindings).is_err() {
+                errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: ret_a.to_string(),
+                    expr_typ: ret_b.to_string(),
+                    expr_span: span,
+                });
+            }
+        } else {
+            errors.push(TypeCheckError::MismatchTraitImplNumParameters {
+                actual_num_parameters: params_b.len(),
+                expected_num_parameters: params_a.len(),
+                trait_name: trait_name.to_string(),
+                method_name: method_name.to_string(),
+                span,
+            });
+        }
+    }
+
+    // If result bindings is not empty, a type variable was bound which means the two
+    // signatures were not a perfect match. Note that this relies on us already binding
+    // all the expected generics to each other prior to this check.
+    if !bindings.is_empty() {
+        let expected_typ = expected.to_string();
+        let expr_typ = actual.to_string();
+        errors.push(TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span: span });
+    }
 }
 
 impl<'interner> TypeChecker<'interner> {
@@ -329,6 +500,8 @@ mod test {
             trait_impl: None,
             return_type: FunctionReturnType::Default(Span::default()),
             trait_constraints: Vec::new(),
+            direct_generics: Vec::new(),
+            is_entry_point: true,
         };
         interner.push_fn_meta(func_meta, func_id);
 

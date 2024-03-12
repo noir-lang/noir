@@ -20,7 +20,9 @@ jobs:
     steps:
       - name: Checkout Noir repo
         uses: actions/checkout@v4
-
+        with:
+          ref: ${{ inputs.noir-ref }}
+      
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.73.0
 
@@ -87,6 +89,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.noir-ref }}
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.73.0

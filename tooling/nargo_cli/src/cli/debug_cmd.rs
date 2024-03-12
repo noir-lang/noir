@@ -8,7 +8,7 @@ use fm::FileManager;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::CompileError;
-use nargo::ops::{compile_program, compile_program_with_debug_instrumenter};
+use nargo::ops::{compile_program, compile_program_with_debug_instrumenter, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
@@ -22,7 +22,6 @@ use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::ParsedFiles;
 
-use super::compile_cmd::report_errors;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::backends::Backend;

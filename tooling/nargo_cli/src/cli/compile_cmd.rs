@@ -2,8 +2,7 @@ use std::path::Path;
 
 use fm::FileManager;
 use nargo::artifacts::program::ProgramArtifact;
-use nargo::errors::CompileError;
-use nargo::ops::{compile_contract, compile_program};
+use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
@@ -65,11 +64,18 @@ pub(crate) fn run(
         .compile_options
         .expression_width
         .unwrap_or_else(|| backend.get_backend_info_or_default());
-    let (compiled_program, compiled_contracts) = compile_workspace(
+    let compiled_workspace = compile_workspace(
         &workspace_file_manager,
         &parsed_files,
         &workspace,
         &args.compile_options,
+    );
+
+    let (compiled_programs, compiled_contracts) = report_errors(
+        compiled_workspace,
+        &workspace_file_manager,
+        args.compile_options.deny_warnings,
+        args.compile_options.silence_warnings,
     )?;
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
@@ -80,7 +86,7 @@ pub(crate) fn run(
 
     // Save build artifacts to disk.
     let only_acir = args.compile_options.only_acir;
-    for (package, program) in binary_packages.into_iter().zip(compiled_program) {
+    for (package, program) in binary_packages.into_iter().zip(compiled_programs) {
         let program = nargo::ops::transform_program(program, expression_width);
         save_program(program.clone(), &package, &workspace.target_directory_path(), only_acir);
     }
@@ -97,7 +103,7 @@ pub(super) fn compile_workspace(
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
     compile_options: &CompileOptions,
-) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
+) -> CompilationResult<(Vec<CompiledProgram>, Vec<CompiledContract>)> {
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
         .filter(|package| !package.is_library())
@@ -123,31 +129,20 @@ pub(super) fn compile_workspace(
         .map(|package| compile_contract(file_manager, parsed_files, package, compile_options))
         .collect();
 
-    // Report any warnings/errors which were encountered during compilation.
-    let compiled_programs: Vec<CompiledProgram> = program_results
-        .into_iter()
-        .map(|compilation_result| {
-            report_errors(
-                compilation_result,
-                file_manager,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            )
-        })
-        .collect::<Result<_, _>>()?;
-    let compiled_contracts: Vec<CompiledContract> = contract_results
-        .into_iter()
-        .map(|compilation_result| {
-            report_errors(
-                compilation_result,
-                file_manager,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            )
-        })
-        .collect::<Result<_, _>>()?;
+    // Collate any warnings/errors which were encountered during compilation.
+    let compiled_programs = collect_errors(program_results);
+    let compiled_contracts = collect_errors(contract_results);
 
-    Ok((compiled_programs, compiled_contracts))
+    match (compiled_programs, compiled_contracts) {
+        (Ok((programs, program_warnings)), Ok((contracts, contract_warnings))) => {
+            let warnings = [program_warnings, contract_warnings].concat();
+            Ok(((programs, contracts), warnings))
+        }
+        (Err(program_errors), Err(contract_errors)) => {
+            Err([program_errors, contract_errors].concat())
+        }
+        (Err(errors), _) | (_, Err(errors)) => Err(errors),
+    }
 }
 
 pub(super) fn save_program(
@@ -171,31 +166,4 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
         &format!("{}-{}", package.name, contract_name),
         circuit_dir,
     );
-}
-
-/// Helper function for reporting any errors in a `CompilationResult<T>`
-/// structure that is commonly used as a return result in this file.
-pub(crate) fn report_errors<T>(
-    result: CompilationResult<T>,
-    file_manager: &FileManager,
-    deny_warnings: bool,
-    silence_warnings: bool,
-) -> Result<T, CompileError> {
-    let (t, warnings) = result.map_err(|errors| {
-        noirc_errors::reporter::report_all(
-            file_manager.as_file_map(),
-            &errors,
-            deny_warnings,
-            silence_warnings,
-        )
-    })?;
-
-    noirc_errors::reporter::report_all(
-        file_manager.as_file_map(),
-        &warnings,
-        deny_warnings,
-        silence_warnings,
-    );
-
-    Ok(t)
 }

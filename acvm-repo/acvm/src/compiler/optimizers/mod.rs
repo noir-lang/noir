@@ -1,6 +1,6 @@
 use acir::circuit::{Circuit, Opcode};
 
-mod constant_backpropagation;
+// mod constant_backpropagation;
 mod general;
 mod redundant_range;
 mod unused_memory;
@@ -11,8 +11,7 @@ pub(crate) use redundant_range::RangeOptimizer;
 use tracing::info;
 
 use crate::compiler::optimizers::witness_rebinding::WitnessRebindingOptimizer;
-
-use self::constant_backpropagation::ConstantBackpropagationOptimizer;
+// use self::constant_backpropagation::ConstantBackpropagationOptimizer;
 use self::unused_memory::UnusedMemoryOptimizer;
 
 use super::{transform_assert_messages, AcirTransformationMap};
@@ -61,8 +60,8 @@ pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
     let (acir, acir_opcode_positions) =
         memory_optimizer.remove_unused_memory_initializations(acir_opcode_positions);
 
-    let (acir, acir_opcode_positions) =
-        ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
+    // let (acir, acir_opcode_positions) =
+    // ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
 
     let (acir, acir_opcode_positions) =
         WitnessRebindingOptimizer::backpropagate_constants(acir, acir_opcode_positions);
@@ -72,8 +71,8 @@ pub(super) fn optimize_internal(acir: Circuit) -> (Circuit, Vec<usize>) {
     let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
-    let (acir, acir_opcode_positions) =
-        ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
+    // let (acir, acir_opcode_positions) =
+    // ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
 
     let (acir, acir_opcode_positions) =
         WitnessRebindingOptimizer::backpropagate_constants(acir, acir_opcode_positions);
