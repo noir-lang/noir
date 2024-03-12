@@ -37,11 +37,11 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
+    ArrayLiteral, BinaryOpKind, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
     FunctionReturnType, Generics, ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path,
     PathKind, Pattern, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind,
     UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT, BinaryOpKind,
+    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
