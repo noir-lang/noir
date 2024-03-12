@@ -11,6 +11,7 @@ import {
   sleep,
 } from '@aztec/aztec.js';
 import { times } from '@aztec/foundation/collection';
+import { randomInt } from '@aztec/foundation/crypto';
 import { BenchmarkingContract } from '@aztec/noir-contracts.js/Benchmarking';
 import { PXEService, createPXEService } from '@aztec/pxe';
 
@@ -37,9 +38,8 @@ export async function benchmarkSetup(opts: Partial<AztecNodeConfig>) {
  * @returns A path to a created dir.
  */
 export function makeDataDirectory(index: number) {
-  const random = Math.random().toString().slice(2);
   const testName = expect.getState().currentTestName!.split(' ')[0].replaceAll('/', '_');
-  const db = join('data', testName, index.toString(), random);
+  const db = join('data', testName, index.toString(), `${randomInt(99)}`);
   mkdirpSync(db);
   return db;
 }

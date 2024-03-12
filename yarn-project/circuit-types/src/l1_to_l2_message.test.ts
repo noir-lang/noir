@@ -1,3 +1,5 @@
+import { randomInt } from '@aztec/foundation/crypto';
+
 import { L1ToL2Message, L1ToL2MessageAndIndex } from './l1_to_l2_message.js';
 
 describe('L1 to L2 message', () => {
@@ -9,7 +11,7 @@ describe('L1 to L2 message', () => {
   });
 
   it('can encode an L1ToL2MessageAndIndex to buffer and back', () => {
-    const index = BigInt(Math.floor(Math.random() * 1000)); // Generate a random BigInt
+    const index = BigInt(randomInt(1000)); // Generate a random BigInt
     const msg = L1ToL2Message.random();
     const l1ToL2MsgAndIndex = new L1ToL2MessageAndIndex(index, msg);
 
@@ -20,7 +22,7 @@ describe('L1 to L2 message', () => {
   });
 
   it('can encode an L1ToL2MessageAndIndex to string and back', () => {
-    const index = BigInt(Math.floor(Math.random() * 1000)); // Generate a random BigInt
+    const index = BigInt(randomInt(1000)); // Generate a random BigInt
     const msg = L1ToL2Message.random();
     const l1ToL2MsgAndIndex = new L1ToL2MessageAndIndex(index, msg);
 

@@ -1,3 +1,5 @@
+import { randomInt } from '@aztec/foundation/crypto';
+
 import { STATE_REFERENCE_LENGTH } from '../constants.gen.js';
 import { makeStateReference } from '../tests/factories.js';
 import { StateReference } from './state_reference.js';
@@ -6,8 +8,7 @@ describe('StateReference', () => {
   let state: StateReference;
 
   beforeAll(() => {
-    const randomInt = Math.floor(Math.random() * 1000);
-    state = makeStateReference(randomInt);
+    state = makeStateReference(randomInt(1000));
   });
 
   it('serializes to buffer and deserializes it back', () => {

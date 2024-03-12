@@ -1,3 +1,5 @@
+import { randomBigInt } from '@aztec/foundation/crypto';
+
 import { TreeBase } from '../tree_base.js';
 import { TreeSnapshotBuilder } from './snapshot_builder.js';
 
@@ -16,7 +18,7 @@ export function describeSnapshotBuilderTestSuite<T extends TreeBase, S extends T
       tree = getTree();
       snapshotBuilder = getSnapshotBuilder();
 
-      leaves = Array.from({ length: 4 }).map(() => BigInt(Math.floor(Math.random() * 2 ** tree.getDepth())));
+      leaves = Array.from({ length: 4 }).map(() => randomBigInt(BigInt(2 ** tree.getDepth())));
     });
 
     describe('snapshot', () => {

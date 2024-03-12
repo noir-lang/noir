@@ -1,3 +1,4 @@
+import { randomBytes } from '@aztec/foundation/crypto';
 import { AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 
@@ -20,7 +21,7 @@ describe('FullSnapshotBuilder', () => {
     () => tree,
     () => snapshotBuilder,
     async () => {
-      const newLeaves = Array.from({ length: 2 }).map(() => Buffer.from(Math.random().toString()));
+      const newLeaves = Array.from({ length: 2 }).map(() => randomBytes(32));
       await tree.appendLeaves(newLeaves);
     },
   );

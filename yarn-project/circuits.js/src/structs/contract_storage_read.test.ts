@@ -1,3 +1,5 @@
+import { randomInt } from '@aztec/foundation/crypto';
+
 import { CONTRACT_STORAGE_READ_LENGTH } from '../constants.gen.js';
 import { makeContractStorageRead } from '../tests/factories.js';
 import { ContractStorageRead } from './contract_storage_read.js';
@@ -6,8 +8,7 @@ describe('ContractStorageRead', () => {
   let read: ContractStorageRead;
 
   beforeAll(() => {
-    const randomInt = Math.floor(Math.random() * 1000);
-    read = makeContractStorageRead(randomInt);
+    read = makeContractStorageRead(randomInt(1000));
   });
 
   it('serializes to buffer and deserializes it back', () => {

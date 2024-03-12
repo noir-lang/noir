@@ -11,7 +11,7 @@ import {
 import '@aztec/circuit-types/jest';
 import { AztecAddress, Fr, INITIAL_L2_BLOCK_NUM, L1_TO_L2_MSG_SUBTREE_HEIGHT } from '@aztec/circuits.js';
 import { makeContractClassPublic } from '@aztec/circuits.js/testing';
-import { randomBytes } from '@aztec/foundation/crypto';
+import { randomBytes, randomInt } from '@aztec/foundation/crypto';
 import { ContractClassPublic, ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
 
 import { ArchiverDataStore } from './archiver_store.js';
@@ -232,7 +232,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
 
       it('returns messages in correct order', async () => {
         const msgs = generateBlockMessages(l2BlockNumber, l1ToL2MessageSubtreeSize);
-        const shuffledMessages = msgs.slice().sort(() => Math.random() - 0.5);
+        const shuffledMessages = msgs.slice().sort(() => randomInt(1) - 0.5);
         await store.addNewL1ToL2Messages(shuffledMessages, 100n);
         const retrievedMessages = await store.getNewL1ToL2Messages(l2BlockNumber);
 
@@ -440,8 +440,8 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
 
       it('"txHash" filter param is respected', async () => {
         // get random tx
-        const targetBlockIndex = Math.floor(Math.random() * numBlocks);
-        const targetTxIndex = Math.floor(Math.random() * txsPerBlock);
+        const targetBlockIndex = randomInt(numBlocks);
+        const targetTxIndex = randomInt(txsPerBlock);
         const targetTxHash = new L2BlockContext(blocks[targetBlockIndex]).getTxHash(targetTxIndex);
 
         const response = await store.getUnencryptedLogs({ txHash: targetTxHash });
@@ -481,10 +481,10 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
 
       it('"contractAddress" filter param is respected', async () => {
         // Get a random contract address from the logs
-        const targetBlockIndex = Math.floor(Math.random() * numBlocks);
-        const targetTxIndex = Math.floor(Math.random() * txsPerBlock);
-        const targetFunctionLogIndex = Math.floor(Math.random() * numPublicFunctionCalls);
-        const targetLogIndex = Math.floor(Math.random() * numUnencryptedLogs);
+        const targetBlockIndex = randomInt(numBlocks);
+        const targetTxIndex = randomInt(txsPerBlock);
+        const targetFunctionLogIndex = randomInt(numPublicFunctionCalls);
+        const targetLogIndex = randomInt(numUnencryptedLogs);
         const targetContractAddress = UnencryptedL2Log.fromBuffer(
           blocks[targetBlockIndex].body.txEffects[targetTxIndex].unencryptedLogs.functionLogs[targetFunctionLogIndex]
             .logs[targetLogIndex],
@@ -501,10 +501,10 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
 
       it('"selector" filter param is respected', async () => {
         // Get a random selector from the logs
-        const targetBlockIndex = Math.floor(Math.random() * numBlocks);
-        const targetTxIndex = Math.floor(Math.random() * txsPerBlock);
-        const targetFunctionLogIndex = Math.floor(Math.random() * numPublicFunctionCalls);
-        const targetLogIndex = Math.floor(Math.random() * numUnencryptedLogs);
+        const targetBlockIndex = randomInt(numBlocks);
+        const targetTxIndex = randomInt(txsPerBlock);
+        const targetFunctionLogIndex = randomInt(numPublicFunctionCalls);
+        const targetLogIndex = randomInt(numUnencryptedLogs);
         const targetSelector = UnencryptedL2Log.fromBuffer(
           blocks[targetBlockIndex].body.txEffects[targetTxIndex].unencryptedLogs.functionLogs[targetFunctionLogIndex]
             .logs[targetLogIndex],
@@ -521,9 +521,9 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
 
       it('"afterLog" filter param is respected', async () => {
         // Get a random log as reference
-        const targetBlockIndex = Math.floor(Math.random() * numBlocks);
-        const targetTxIndex = Math.floor(Math.random() * txsPerBlock);
-        const targetLogIndex = Math.floor(Math.random() * numUnencryptedLogs);
+        const targetBlockIndex = randomInt(numBlocks);
+        const targetTxIndex = randomInt(txsPerBlock);
+        const targetLogIndex = randomInt(numUnencryptedLogs);
 
         const afterLog = new LogId(targetBlockIndex + INITIAL_L2_BLOCK_NUM, targetTxIndex, targetLogIndex);
 
@@ -588,9 +588,9 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
 
       it('"txIndex" and "logIndex" are respected when "afterLog.blockNumber" is equal to "fromBlock"', async () => {
         // Get a random log as reference
-        const targetBlockIndex = Math.floor(Math.random() * numBlocks);
-        const targetTxIndex = Math.floor(Math.random() * txsPerBlock);
-        const targetLogIndex = Math.floor(Math.random() * numUnencryptedLogs);
+        const targetBlockIndex = randomInt(numBlocks);
+        const targetTxIndex = randomInt(txsPerBlock);
+        const targetLogIndex = randomInt(numUnencryptedLogs);
 
         const afterLog = new LogId(targetBlockIndex + INITIAL_L2_BLOCK_NUM, targetTxIndex, targetLogIndex);
 

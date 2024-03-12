@@ -1,3 +1,5 @@
+import { randomInt } from '@aztec/foundation/crypto';
+
 import { GLOBAL_VARIABLES_LENGTH } from '../constants.gen.js';
 import { makeGlobalVariables } from '../tests/factories.js';
 import { GlobalVariables } from './global_variables.js';
@@ -6,8 +8,7 @@ describe('GlobalVariables', () => {
   let state: GlobalVariables;
 
   beforeAll(() => {
-    const randomInt = Math.floor(Math.random() * 1000);
-    state = makeGlobalVariables(randomInt);
+    state = makeGlobalVariables(randomInt(1000));
   });
 
   it('serializes to buffer and deserializes it back', () => {

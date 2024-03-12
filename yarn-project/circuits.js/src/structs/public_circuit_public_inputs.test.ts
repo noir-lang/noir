@@ -1,3 +1,4 @@
+import { randomInt } from '@aztec/foundation/crypto';
 import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
 
 import { PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH } from '../constants.gen.js';
@@ -7,8 +8,7 @@ import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';
 describe('PublicCircuitPublicInputs', () => {
   setupCustomSnapshotSerializers(expect);
   it('serializes to field array and deserializes it back', () => {
-    const randomInt = Math.floor(Math.random() * 1000);
-    const expected = makePublicCircuitPublicInputs(randomInt, undefined);
+    const expected = makePublicCircuitPublicInputs(randomInt(1000), undefined);
 
     const fieldArray = expected.toFields();
     const res = PublicCircuitPublicInputs.fromFields(fieldArray);

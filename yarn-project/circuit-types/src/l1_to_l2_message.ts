@@ -1,6 +1,6 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { sha256 } from '@aztec/foundation/crypto';
+import { randomInt, sha256 } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
@@ -180,8 +180,8 @@ export class L1ToL2Message {
       L2Actor.random(),
       Fr.random(),
       Fr.random(),
-      Math.floor(Math.random() * 1000),
-      Math.floor(Math.random() * 1000),
+      randomInt(1000),
+      randomInt(1000),
       entryKey,
     );
   }
@@ -223,7 +223,7 @@ export class L1Actor {
   }
 
   static random(): L1Actor {
-    return new L1Actor(EthAddress.random(), Math.floor(Math.random() * 1000));
+    return new L1Actor(EthAddress.random(), randomInt(1000));
   }
 }
 
@@ -263,6 +263,6 @@ export class L2Actor {
   }
 
   static random(): L2Actor {
-    return new L2Actor(AztecAddress.random(), Math.floor(Math.random() * 1000));
+    return new L2Actor(AztecAddress.random(), randomInt(1000));
   }
 }

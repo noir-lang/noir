@@ -1,8 +1,7 @@
 import { AztecAddress } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
+import { randomBytes } from '@aztec/foundation/crypto';
 import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
-
-import { randomBytes } from 'crypto';
 
 /**
  * Represents an individual unencrypted log entry.
@@ -71,8 +70,8 @@ export class UnencryptedL2Log {
    */
   public static random(): UnencryptedL2Log {
     const contractAddress = AztecAddress.random();
-    const selector = new EventSelector(Math.floor(Math.random() * (2 ** (EventSelector.SIZE * 8) - 1)));
-    const dataLength = EventSelector.SIZE + Math.floor(Math.random() * 200);
+    const selector = EventSelector.random();
+    const dataLength = EventSelector.SIZE + randomBytes(1)[0];
     const data = randomBytes(dataLength);
     return new UnencryptedL2Log(contractAddress, selector, data);
   }

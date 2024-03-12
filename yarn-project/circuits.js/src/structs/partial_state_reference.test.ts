@@ -1,3 +1,5 @@
+import { randomInt } from '@aztec/foundation/crypto';
+
 import { PARTIAL_STATE_REFERENCE_LENGTH } from '../constants.gen.js';
 import { makePartialStateReference } from '../tests/factories.js';
 import { PartialStateReference } from './partial_state_reference.js';
@@ -6,8 +8,7 @@ describe('PartialStateReference', () => {
   let partial: PartialStateReference;
 
   beforeAll(() => {
-    const randomInt = Math.floor(Math.random() * 1000);
-    partial = makePartialStateReference(randomInt);
+    partial = makePartialStateReference(randomInt(1000));
   });
 
   it('serializes to buffer and deserializes it back', () => {

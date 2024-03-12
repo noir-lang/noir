@@ -1,9 +1,8 @@
 import { SiblingPath } from '@aztec/circuit-types';
+import { randomBytes } from '@aztec/foundation/crypto';
 import { AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { Hasher } from '@aztec/types/interfaces';
-
-import { randomBytes } from 'crypto';
 
 import { INITIAL_LEAF, Pedersen } from '../index.js';
 import { AppendOnlyTree } from '../interfaces/append_only_tree.js';

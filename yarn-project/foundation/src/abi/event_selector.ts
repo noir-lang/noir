@@ -1,5 +1,5 @@
 import { fromHex, toBigIntBE } from '../bigint-buffer/index.js';
-import { keccak } from '../crypto/index.js';
+import { keccak, randomBytes } from '../crypto/index.js';
 import { Fr } from '../fields/fields.js';
 import { BufferReader } from '../serialize/buffer_reader.js';
 import { Selector } from './selector.js';
@@ -69,5 +69,13 @@ export class EventSelector extends Selector {
    */
   static empty() {
     return new EventSelector(0);
+  }
+
+  /**
+   * Creates a random selector.
+   * @returns A random selector.
+   */
+  static random() {
+    return EventSelector.fromBuffer(randomBytes(Selector.SIZE));
   }
 }

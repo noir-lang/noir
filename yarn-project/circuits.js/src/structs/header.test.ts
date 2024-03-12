@@ -1,3 +1,4 @@
+import { randomInt } from '@aztec/foundation/crypto';
 import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
 
 import { HEADER_LENGTH } from '../constants.gen.js';
@@ -9,8 +10,7 @@ describe('Header', () => {
 
   beforeAll(() => {
     setupCustomSnapshotSerializers(expect);
-    const randomInt = Math.floor(Math.random() * 1000);
-    header = makeHeader(randomInt, undefined);
+    header = makeHeader(randomInt(1000), undefined);
   });
 
   it('serializes to buffer and deserializes it back', () => {

@@ -1,8 +1,6 @@
-import { sha256 } from '@aztec/foundation/crypto';
+import { randomBytes, sha256 } from '@aztec/foundation/crypto';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
-
-import { randomBytes } from 'crypto';
 
 import { LogType } from './log_type.js';
 import { UnencryptedL2Log } from './unencrypted_l2_log.js';

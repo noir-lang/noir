@@ -1,11 +1,13 @@
+import { randomInt } from '@aztec/foundation/crypto';
+
 import { LogId } from './log_id.js';
 
 describe('LogId', () => {
   let logId: LogId;
   beforeEach(() => {
-    const blockNumber = Math.floor(Math.random() * 1000);
-    const txIndex = Math.floor(Math.random() * 1000);
-    const logIndex = Math.floor(Math.random() * 1000);
+    const blockNumber = randomInt(1000);
+    const txIndex = randomInt(1000);
+    const logIndex = randomInt(1000);
     logId = new LogId(blockNumber, txIndex, logIndex);
   });
 

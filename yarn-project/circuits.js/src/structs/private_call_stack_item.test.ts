@@ -1,3 +1,4 @@
+import { randomInt } from '@aztec/foundation/crypto';
 import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
 
 import { PRIVATE_CALL_STACK_ITEM_LENGTH } from '../constants.gen.js';
@@ -9,8 +10,7 @@ describe('PrivateCallStackItem', () => {
 
   beforeAll(() => {
     setupCustomSnapshotSerializers(expect);
-    const randomInt = Math.floor(Math.random() * 1000);
-    item = makePrivateCallStackItem(randomInt);
+    item = makePrivateCallStackItem(randomInt(1000));
   });
 
   it('serializes to buffer and deserializes it back', () => {

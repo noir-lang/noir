@@ -8,6 +8,7 @@ import {
   getContractInstanceFromDeployParams,
 } from '@aztec/aztec.js';
 import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
+import { randomInt } from '@aztec/foundation/crypto';
 import { StatefulTestContract, StatefulTestContractArtifact } from '@aztec/noir-contracts.js';
 import { InclusionProofsContract } from '@aztec/noir-contracts.js/InclusionProofs';
 
@@ -290,10 +291,10 @@ describe('e2e_inclusion_proofs_contract', () => {
   });
 
   const getRandomBlockNumberSinceDeployment = async () => {
-    return deploymentBlockNumber + Math.floor(Math.random() * ((await pxe.getBlockNumber()) - deploymentBlockNumber));
+    return deploymentBlockNumber + randomInt((await pxe.getBlockNumber()) - deploymentBlockNumber);
   };
 
   const getRandomBlockNumber = async () => {
-    return deploymentBlockNumber + Math.floor(Math.random() * ((await pxe.getBlockNumber()) - INITIAL_L2_BLOCK_NUM));
+    return deploymentBlockNumber + randomInt((await pxe.getBlockNumber()) - INITIAL_L2_BLOCK_NUM);
   };
 });

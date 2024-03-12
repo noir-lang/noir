@@ -1,4 +1,5 @@
 import { Vector } from '@aztec/circuits.js';
+import { randomInt } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
@@ -29,7 +30,7 @@ export class Note extends Vector<Fr> {
    * @returns A randomly generated Note instance.
    */
   static random() {
-    const numItems = Math.floor(Math.random() * 10) + 1;
+    const numItems = randomInt(10) + 1;
     const items = Array.from({ length: numItems }, () => Fr.random());
     return new Note(items);
   }

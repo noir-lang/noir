@@ -1,3 +1,5 @@
+import { randomInt } from '@aztec/foundation/crypto';
+
 import { CONTENT_COMMITMENT_LENGTH } from '../constants.gen.js';
 import { makeContentCommitment } from '../tests/factories.js';
 import { ContentCommitment } from './content_commitment.js';
@@ -6,8 +8,7 @@ describe('Content Commitment', () => {
   let contentCommitment: ContentCommitment;
 
   beforeAll(() => {
-    const randomInt = Math.floor(Math.random() * 1000);
-    contentCommitment = makeContentCommitment(randomInt);
+    contentCommitment = makeContentCommitment(randomInt(1000));
   });
 
   it('serializes to buffer and deserializes it back', () => {

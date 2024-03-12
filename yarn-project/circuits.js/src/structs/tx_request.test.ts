@@ -1,5 +1,6 @@
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { randomInt } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
 
@@ -14,8 +15,7 @@ describe('TxRequest', () => {
 
   beforeAll(() => {
     setupCustomSnapshotSerializers(expect);
-    const randomInt = Math.floor(Math.random() * 1000);
-    request = makeTxRequest(randomInt);
+    request = makeTxRequest(randomInt(1000));
   });
 
   it(`serializes to buffer and deserializes it back`, () => {

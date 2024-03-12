@@ -1,3 +1,5 @@
+import { randomInt } from '@aztec/foundation/crypto';
+
 import { CALL_CONTEXT_LENGTH } from '../constants.gen.js';
 import { makeCallContext } from '../tests/factories.js';
 import { CallContext } from './call_context.js';
@@ -6,8 +8,7 @@ describe('CallContext', () => {
   let callContext: CallContext;
 
   beforeAll(() => {
-    const randomInt = Math.floor(Math.random() * 1000);
-    callContext = makeCallContext(randomInt);
+    callContext = makeCallContext(randomInt(1000));
   });
 
   it(`serializes to buffer and deserializes it back`, () => {

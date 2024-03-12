@@ -1,6 +1,7 @@
 import { NoteFilter, NoteStatus, randomTxHash } from '@aztec/circuit-types';
 import { AztecAddress, CompleteAddress, INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/testing';
+import { randomInt } from '@aztec/foundation/crypto';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { BenchmarkingContractArtifact } from '@aztec/noir-contracts.js/Benchmarking';
 import { SerializableContractInstance } from '@aztec/types/contracts';
@@ -188,7 +189,7 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
 
     describe('block header', () => {
       it('stores and retrieves the block header', async () => {
-        const header = makeHeader(Math.floor(Math.random() * 1000), INITIAL_L2_BLOCK_NUM);
+        const header = makeHeader(randomInt(1000), INITIAL_L2_BLOCK_NUM);
 
         await database.setHeader(header);
         expect(database.getHeader()).toEqual(header);

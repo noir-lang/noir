@@ -1,5 +1,6 @@
 import { AztecAddress, CallContext, EthAddress, FunctionData, FunctionSelector, Header } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/testing';
+import { randomInt } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { AvmTestContractArtifact } from '@aztec/noir-contracts.js';
 
@@ -31,8 +32,7 @@ describe('AVM WitGen and Proof Generation', () => {
     publicContracts = mock<PublicContractsDB>();
     commitmentsDb = mock<CommitmentsDB>();
 
-    const randomInt = Math.floor(Math.random() * 1000000);
-    header = makeHeader(randomInt);
+    header = makeHeader(randomInt(1000000));
   }, 10000);
 
   it('Should prove valid execution of bytecode that performs addition', async () => {

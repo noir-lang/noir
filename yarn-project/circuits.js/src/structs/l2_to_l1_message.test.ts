@@ -1,3 +1,5 @@
+import { randomInt } from '@aztec/foundation/crypto';
+
 import { L2_TO_L1_MESSAGE_LENGTH } from '../constants.gen.js';
 import { makeL2ToL1Message } from '../tests/factories.js';
 import { L2ToL1Message } from './l2_to_l1_message.js';
@@ -6,8 +8,7 @@ describe('L2ToL1Message', () => {
   let message: L2ToL1Message;
 
   beforeAll(() => {
-    const randomInt = Math.floor(Math.random() * 1000);
-    message = makeL2ToL1Message(randomInt);
+    message = makeL2ToL1Message(randomInt(1000));
   });
 
   it('serializes to buffer and deserializes it back', () => {
