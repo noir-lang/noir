@@ -73,7 +73,7 @@ pub fn transform_function(
 
     // Before returning mark the contract as initialized
     if is_initializer {
-        let mark_initialized = create_mark_as_initialized(ty);
+        let mark_initialized = create_mark_as_initialized();
         func.def.body.0.push(mark_initialized);
     }
 
@@ -179,10 +179,9 @@ fn create_init_check() -> Statement {
 /// ```noir
 /// mark_as_initialized(&mut context);
 /// ```
-fn create_mark_as_initialized(ty: &str) -> Statement {
-    let name = if ty == "Public" { "mark_as_initialized_public" } else { "mark_as_initialized" };
+fn create_mark_as_initialized() -> Statement {
     make_statement(StatementKind::Expression(call(
-        variable_path(chained_dep!("aztec", "initializer", name)),
+        variable_path(chained_dep!("aztec", "initializer", "mark_as_initialized")),
         vec![mutable_reference("context")],
     )))
 }
