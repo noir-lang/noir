@@ -1245,7 +1245,7 @@ impl Context {
         source: BlockId,
         destination: BlockId,
         array_len: usize,
-    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
+    ) -> Result<(), RuntimeError> {
         let init_values = try_vecmap(0..array_len, |i| {
             let index_var = self.acir_context.add_constant(i);
 
@@ -1254,7 +1254,7 @@ impl Context {
         })?;
         let array: im::Vector<AcirValue> = init_values.into();
         self.initialize_array(destination, array_len, Some(AcirValue::Array(array.clone())))?;
-        Ok(array)
+        Ok(())
     }
 
     fn get_flattened_index(
