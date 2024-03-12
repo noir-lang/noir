@@ -6,10 +6,10 @@ use crate::{
     address::AztecAddress,
     constants::{
     MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
-    MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_DATA_READS_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, NUM_FIELDS_PER_SHA256,
-    RETURN_VALUES_LENGTH, GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS,
-    PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH
+    MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, NUM_FIELDS_PER_SHA256, RETURN_VALUES_LENGTH,
+    GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS, PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     hash::pedersen_hash, header::Header, messaging::l2_to_l1_message::L2ToL1Message,
@@ -23,6 +23,7 @@ struct PublicCircuitPublicInputs{
     return_values: [Field; RETURN_VALUES_LENGTH],
 
     nullifier_read_requests: [ReadRequest; MAX_NULLIFIER_READ_REQUESTS_PER_CALL],
+    nullifier_non_existent_read_requests: [ReadRequest; MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL],
     contract_storage_update_requests: [StorageUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL],
     contract_storage_reads: [StorageRead; MAX_PUBLIC_DATA_READS_PER_CALL],
 
@@ -62,6 +63,9 @@ impl Serialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInput
         for i in 0..MAX_NULLIFIER_READ_REQUESTS_PER_CALL {
             fields.extend_from_array(self.nullifier_read_requests[i].serialize());
         }
+        for i in 0..MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL {
+            fields.extend_from_array(self.nullifier_non_existent_read_requests[i].serialize());
+        }
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
             fields.extend_from_array(self.contract_storage_update_requests[i].serialize());
         }
@@ -97,6 +101,7 @@ impl Deserialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInp
             args_hash: reader.read(),
             return_values: reader.read_array([0; RETURN_VALUES_LENGTH]),
             nullifier_read_requests: reader.read_struct_array(ReadRequest::deserialize, [ReadRequest::empty(); MAX_NULLIFIER_READ_REQUESTS_PER_CALL]),
+            nullifier_non_existent_read_requests: reader.read_struct_array(ReadRequest::deserialize, [ReadRequest::empty(); MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL]),
             contract_storage_update_requests: reader.read_struct_array(StorageUpdateRequest::deserialize, [StorageUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL]),
             contract_storage_reads: reader.read_struct_array(StorageRead::deserialize, [StorageRead::empty(); MAX_PUBLIC_DATA_READS_PER_CALL]),
             public_call_stack_hashes: reader.read_array([0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL]),
@@ -135,6 +140,6 @@ fn empty_hash() {
     let hash = inputs.hash();
 
     // Value from public_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x153eea640dd0a53eaa029301381962507fb89e348d42d6f3335107644c6541b9;
+    let test_data_empty_hash = 0x1c9942cee14a4f84b3e606f553b2ab3151c395822ee7ffd51759d5822375d6c9;
     assert_eq(hash, test_data_empty_hash);
 }

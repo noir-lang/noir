@@ -13,6 +13,7 @@ import {
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
   MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
   MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_CALL,
@@ -264,13 +265,22 @@ export abstract class AbstractPhaseManager {
 
     if (this.phase === PublicKernelPhase.TAIL) {
       const { endNonRevertibleData, end } = previousOutput;
-      const nullifierReadRequestResetHints = await this.hintsBuilder.getNullifierReadRequestResetHints(
+      const nullifierReadRequestHints = await this.hintsBuilder.getNullifierReadRequestHints(
         endNonRevertibleData.nullifierReadRequests,
         end.nullifierReadRequests,
         endNonRevertibleData.newNullifiers,
         end.newNullifiers,
       );
-      const inputs = new PublicKernelTailCircuitPrivateInputs(previousKernel, nullifierReadRequestResetHints);
+      const nullifierNonExistentReadRequestHints = await this.hintsBuilder.getNullifierNonExistentReadRequestHints(
+        endNonRevertibleData.nullifierNonExistentReadRequests,
+        endNonRevertibleData.newNullifiers,
+        end.newNullifiers,
+      );
+      const inputs = new PublicKernelTailCircuitPrivateInputs(
+        previousKernel,
+        nullifierReadRequestHints,
+        nullifierNonExistentReadRequestHints,
+      );
       return this.publicKernel.publicKernelCircuitTail(inputs);
     }
 
@@ -328,6 +338,11 @@ export abstract class AbstractPhaseManager {
         result.nullifierReadRequests,
         ReadRequest.empty(),
         MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
+      ),
+      nullifierNonExistentReadRequests: padArrayEnd(
+        result.nullifierNonExistentReadRequests,
+        ReadRequest.empty(),
+        MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
       ),
       contractStorageReads: padArrayEnd(
         result.contractStorageReads,

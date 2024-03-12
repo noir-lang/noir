@@ -20,9 +20,10 @@ use dep::types::{
     hash::{
     compute_constructor_hash, compute_l2_to_l1_hash, compute_logs_hash,
     compute_new_contract_address_hash, function_tree_root_from_siblings, pedersen_hash,
-    private_functions_root_from_siblings, root_from_sibling_path, silo_note_hash, silo_nullifier,
+    private_functions_root_from_siblings, silo_note_hash, silo_nullifier,
     stdlib_recursion_verification_key_compress_native_vk
 },
+    merkle_tree::check_membership,
     utils::{arrays::{array_length, array_to_bounded_vec, validate_array}},
     traits::{is_empty, is_empty_array}
 };
@@ -72,8 +73,14 @@ pub fn validate_note_hash_read_requests(
         // but we use the leaf index as a placeholder to detect a 'pending note read'.
 
         if (read_request != 0) & (witness.is_transient == false) {
-            let root_for_read_request = root_from_sibling_path(read_request, witness.leaf_index, witness.sibling_path);
-            assert(root_for_read_request == historical_note_hash_tree_root, "note hash tree root mismatch");
+            assert(
+                check_membership(
+                    read_request,
+                    witness.leaf_index,
+                    witness.sibling_path,
+                    historical_note_hash_tree_root
+                ), "note hash tree root mismatch"
+            );
             // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1354): do we need to enforce
             // that a non-transient read_request was derived from the proper/current contract address?
         }

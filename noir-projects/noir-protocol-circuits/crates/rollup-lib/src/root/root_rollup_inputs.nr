@@ -9,7 +9,7 @@ use dep::types::{
     L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH, ARCHIVE_HEIGHT
 },
     header::Header, content_commitment::ContentCommitment,
-    merkle_tree::{append_only_tree, calculate_subtree, calculate_empty_tree_root},
+    merkle_tree::{append_only_tree, calculate_subtree_root, calculate_empty_tree_root},
     state_reference::StateReference
 };
 
@@ -41,7 +41,7 @@ impl RootRollupInputs {
 
         // Check correct l1 to l2 tree given
         // Compute subtree inserting l1 to l2 messages
-        let l1_to_l2_subtree_root = calculate_subtree(self.new_l1_to_l2_messages);
+        let l1_to_l2_subtree_root = calculate_subtree_root(self.new_l1_to_l2_messages);
 
         // Insert subtree into the l1 to l2 data tree
         let empty_l1_to_l2_subtree_root = calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_HEIGHT);

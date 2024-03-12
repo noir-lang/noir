@@ -1,6 +1,6 @@
 use crate::{
     abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot},
-    hash::{assert_check_membership, root_from_sibling_path}
+    merkle_tree::{membership::assert_check_membership, root::root_from_sibling_path}
 };
 
 pub fn insert_subtree_to_snapshot_tree<N>(

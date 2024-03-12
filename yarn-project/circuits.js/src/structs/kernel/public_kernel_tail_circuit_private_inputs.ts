@@ -1,6 +1,7 @@
 import { serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { NullifierReadRequestResetHints } from '../read_request_reset_hints.js';
+import { NullifierNonExistentReadRequestHints } from '../non_existent_read_request_hints.js';
+import { NullifierReadRequestHints } from '../read_request_hints.js';
 import { PublicKernelData } from './public_kernel_data.js';
 
 /**
@@ -15,10 +16,18 @@ export class PublicKernelTailCircuitPrivateInputs {
     /**
      * Contains hints for the nullifier read requests to locate corresponding pending or settled nullifiers.
      */
-    public nullifierReadRequestResetHints: NullifierReadRequestResetHints,
+    public readonly nullifierReadRequestHints: NullifierReadRequestHints,
+    /**
+     * Contains hints for the nullifier non existent read requests.
+     */
+    public readonly nullifierNonExistentReadRequestHints: NullifierNonExistentReadRequestHints,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.previousKernel, this.nullifierReadRequestResetHints);
+    return serializeToBuffer(
+      this.previousKernel,
+      this.nullifierReadRequestHints,
+      this.nullifierNonExistentReadRequestHints,
+    );
   }
 }

@@ -1,8 +1,7 @@
 // This will be moved to a separate Read Request Reset Circuit.
 use dep::types::{
-    abis::{membership_witness::MembershipWitness, read_request::ReadRequestContext, side_effect::OrderedValue},
-    hash::{silo_nullifier, root_from_sibling_path}, merkle_tree::leaf_preimage::LeafPreimage,
-    traits::{Empty, is_empty}
+    abis::{read_request::ReadRequestContext, side_effect::OrderedValue}, hash::{silo_nullifier},
+    merkle_tree::{assert_check_membership, LeafPreimage, MembershipWitness}, traits::{Empty, is_empty}
 };
 
 struct ReadRequestStateEnum {
@@ -84,7 +83,7 @@ fn validate_pending_read_requests<READ_REQUEST_LEN, T, PENDING_VALUE_LEN, NUM_PE
 fn validate_settled_read_requests<READ_REQUEST_LEN, NUM_SETTLED_READS, H, TREE_HEIGHT, LEAF_PREIMAGE>(
     read_requests: [ReadRequestContext; READ_REQUEST_LEN],
     hints: [H; NUM_SETTLED_READS],
-    historical_tree_root: Field
+    tree_root: Field
 ) where 
     H: SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE> + ReadValueHint, 
     LEAF_PREIMAGE: LeafPreimage {
@@ -99,8 +98,7 @@ fn validate_settled_read_requests<READ_REQUEST_LEN, NUM_SETTLED_READS, H, TREE_H
             );
             let leaf = leaf_preimage.as_leaf();
             let witness = hints[i].membership_witness();
-            let root_for_read_request = root_from_sibling_path(leaf, witness.leaf_index, witness.sibling_path);
-            assert(root_for_read_request == historical_tree_root, "Tree root mismatch for read request");
+            assert_check_membership(leaf, witness.leaf_index, witness.sibling_path, tree_root);
         }
     }
 }
@@ -138,14 +136,14 @@ pub fn reset_read_requests<READ_REQUEST_LEN, P, PENDING_VALUE_LEN, NUM_PENDING_R
     read_request_statuses: [ReadRequestStatus; READ_REQUEST_LEN],
     pending_read_hints: [PendingReadHint; NUM_PENDING_READS],
     settled_read_hints: [H; NUM_SETTLED_READS],
-    historical_tree_root: Field
+    tree_root: Field
 ) -> BoundedVec<ReadRequestContext, READ_REQUEST_LEN> where 
     P: OrderedValue<Field>, 
     H: SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE> + ReadValueHint,
     LEAF_PREIMAGE: LeafPreimage {
     validate_pending_read_requests(read_requests, pending_values, pending_read_hints);
 
-    validate_settled_read_requests(read_requests, settled_read_hints, historical_tree_root);
+    validate_settled_read_requests(read_requests, settled_read_hints, tree_root);
 
     propagate_unverified_read_requests(
         read_requests,
@@ -163,9 +161,8 @@ mod tests {
     };
     use dep::std::{hash::pedersen_hash, unsafe};
     use dep::types::{
-        address::AztecAddress,
-        abis::{membership_witness::MembershipWitness, read_request::ReadRequestContext, side_effect::SideEffect},
-        merkle_tree::leaf_preimage::LeafPreimage, hash::silo_nullifier,
+        address::AztecAddress, abis::{read_request::ReadRequestContext, side_effect::SideEffect},
+        merkle_tree::{LeafPreimage, MembershipWitness}, hash::silo_nullifier,
         tests::merkle_tree_utils::NonEmptyMerkleTree
     };
 
@@ -309,7 +306,7 @@ mod tests {
         validate_settled_read_requests(read_requests, hints, tree_root);
     }
 
-    #[test(should_fail_with="Tree root mismatch for read request")]
+    #[test(should_fail_with="membership check failed")]
     fn test_validate_settled_read_requests_wrong_witness_fails() {
         let (settled_hints, tree_root) = get_settled_read_hints();
         let mut hint = settled_hints[0];

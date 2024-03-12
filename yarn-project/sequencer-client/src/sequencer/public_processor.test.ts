@@ -597,6 +597,7 @@ class PublicExecutionResultBuilder {
       execution: this._execution,
       nestedExecutions: this._nestedExecutions,
       nullifierReadRequests: [],
+      nullifierNonExistentReadRequests: [],
       contractStorageUpdateRequests: this._contractStorageUpdateRequests,
       returnValues: this._returnValues,
       newNoteHashes: [],

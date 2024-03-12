@@ -15,7 +15,8 @@ use dep::protocol_types::{
     MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
-    MAX_NULLIFIER_READ_REQUESTS_PER_CALL, NUM_FIELDS_PER_SHA256, RETURN_VALUES_LENGTH
+    MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
+    NUM_FIELDS_PER_SHA256, RETURN_VALUES_LENGTH
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     hash::hash_args, header::Header, messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader
@@ -29,6 +30,7 @@ struct PublicContext {
     return_values : BoundedVec<Field, RETURN_VALUES_LENGTH>,
 
     nullifier_read_requests: BoundedVec<ReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_CALL>,
+    nullifier_non_existent_read_requests: BoundedVec<ReadRequest, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL>,
     contract_storage_update_requests: BoundedVec<StorageUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL>,
     contract_storage_reads: BoundedVec<StorageRead, MAX_PUBLIC_DATA_READS_PER_CALL>,
     public_call_stack_hashes: BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
@@ -102,6 +104,7 @@ impl PublicContext {
             args_hash,
             return_values: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),
+            nullifier_non_existent_read_requests: BoundedVec::new(),
             contract_storage_update_requests: BoundedVec::new(),
             contract_storage_reads: BoundedVec::new(),
             public_call_stack_hashes: BoundedVec::new(),
@@ -143,6 +146,7 @@ impl PublicContext {
             call_context: self.inputs.call_context, // Done
             args_hash: self.args_hash, // Done
             nullifier_read_requests: self.nullifier_read_requests.storage,
+            nullifier_non_existent_read_requests: self.nullifier_non_existent_read_requests.storage,
             contract_storage_update_requests: self.contract_storage_update_requests.storage,
             contract_storage_reads: self.contract_storage_reads.storage,
             return_values: self.return_values.storage,
@@ -162,6 +166,12 @@ impl PublicContext {
     pub fn push_nullifier_read_request(&mut self, nullifier: Field) {
         let request = ReadRequest { value: nullifier, counter: self.side_effect_counter };
         self.nullifier_read_requests.push(request);
+        self.side_effect_counter = self.side_effect_counter + 1;
+    }
+
+    pub fn push_nullifier_non_existent_read_request(&mut self, nullifier: Field) {
+        let request = ReadRequest { value: nullifier, counter: self.side_effect_counter };
+        self.nullifier_non_existent_read_requests.push(request);
         self.side_effect_counter = self.side_effect_counter + 1;
     }
 

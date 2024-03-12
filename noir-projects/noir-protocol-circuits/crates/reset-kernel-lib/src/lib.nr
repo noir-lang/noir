@@ -1,6 +1,10 @@
+use non_existent_read_request_reset::reset_non_existent_read_requests;
+use nullifier_non_existent_read_request_reset::NullifierNonExistentReadRequestHints;
+use nullifier_read_request_reset::NullifierReadRequestHints;
 use read_request_reset::reset_read_requests;
-use nullifier_read_request_reset::NullifierReadRequestResetHints;
-use nullifier_read_request_reset::NullifierReadRequestResetHintsBuilder;
 
-mod read_request_reset;
+mod non_existent_read_request_reset;
+mod nullifier_non_existent_read_request_reset;
 mod nullifier_read_request_reset;
+mod read_request_reset;
+mod tests;

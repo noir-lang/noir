@@ -1,6 +1,6 @@
 global NULLIFIER_LEAF_PREIMAGE_LENGTH: u64 = 3;
 
-use crate::{merkle_tree::leaf_preimage::LeafPreimage, traits::{Empty, Hash}};
+use crate::{merkle_tree::leaf_preimage::{LeafPreimage, IndexedTreeLeafPreimage}, traits::{Empty, Hash}};
 
 struct NullifierLeafPreimage {
     nullifier : Field,
@@ -31,6 +31,20 @@ impl Hash for NullifierLeafPreimage {
 impl LeafPreimage for NullifierLeafPreimage {
     fn get_key(self) -> Field {
         self.nullifier
+    }
+
+    fn as_leaf(self) -> Field {
+        self.hash()
+    }
+}
+
+impl IndexedTreeLeafPreimage for NullifierLeafPreimage {
+    fn get_key(self) -> Field {
+        self.nullifier
+    }
+
+    fn get_next_key(self) -> Field {
+        self.next_nullifier
     }
 
     fn as_leaf(self) -> Field {

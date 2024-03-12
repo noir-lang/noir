@@ -1,52 +1,11 @@
 use crate::{
-    abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, membership_witness::MembershipWitness},
-    hash::{assert_check_membership, root_from_sibling_path},
-    merkle_tree::{calculate_subtree, calculate_empty_tree_root}
+    abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot},
+    merkle_tree::{
+    membership::{assert_check_membership, MembershipWitness},
+    root::{calculate_subtree_root, calculate_empty_tree_root, root_from_sibling_path}
+},
+    traits::{Empty, Hash, is_empty}, utils::arrays::check_permutation
 };
-
-fn check_permutation<T, N>(
-    original_array: [T; N],
-    sorted_array: [T; N],
-    indexes: [u64; N],
-    is_equal: fn(T, T) -> bool
-) {
-    let mut seen_value = [false; N];
-    for i in 0..N {
-        let index = indexes[i];
-        let sorted_value = sorted_array[i];
-        let original_value = original_array[index];
-        assert(is_equal(sorted_value, original_value), "Invalid index");
-        assert(!seen_value[index], "Duplicated index");
-        seen_value[index] = true;
-    }
-}
-
-#[test]
-fn check_permutation_basic_test() {
-    let original_array = [1, 2, 3];
-    let sorted_array = [3, 1, 2];
-    let indexes = [2, 0, 1];
-    let is_equal = |a: Field, b: Field| a == b;
-    check_permutation(original_array, sorted_array, indexes, is_equal);
-}
-
-#[test(should_fail_with = "Duplicated index")]
-fn check_permutation_duplicated_index() {
-    let original_array = [0, 1, 0];
-    let sorted_array = [1, 0, 0];
-    let indexes = [1, 0, 0];
-    let is_equal = |a: Field, b: Field| a == b;
-    check_permutation(original_array, sorted_array, indexes, is_equal);
-}
-
-#[test(should_fail_with = "Invalid index")]
-fn check_permutation_invalid_index() {
-    let original_array = [0, 1, 2];
-    let sorted_array = [1, 0, 0];
-    let indexes = [1, 0, 2];
-    let is_equal = |a: Field, b: Field| a == b;
-    check_permutation(original_array, sorted_array, indexes, is_equal);
-}
 
 pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight, TreeHeight>(
     start_snapshot: AppendOnlyTreeSnapshot,
@@ -56,22 +15,14 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
     new_subtree_sibling_path: [Field; SiblingPathLength],
     low_leaf_preimages: [Leaf; SubtreeWidth],
     low_leaf_membership_witnesses: [MembershipWitness<TreeHeight>; SubtreeWidth],
-    is_equal: fn(Value, Value) -> bool,
-    is_empty_value: fn(Value) -> bool,
-    hash_leaf: fn(Leaf) -> Field,
     is_valid_low_leaf: fn(Leaf, Value) -> bool,
     update_low_leaf: fn(Leaf, Value, u64) -> Leaf,
     build_insertion_leaf: fn(Value, Leaf) -> Leaf,
     _subtree_height: [Field; SubtreeHeight],
     _tree_height: [Field; TreeHeight]
-) -> AppendOnlyTreeSnapshot {
+) -> AppendOnlyTreeSnapshot where Value: Eq + Empty, Leaf: Hash {
     // A permutation to the values is provided to make the insertion use only one insertion strategy
-    check_permutation(
-        values_to_insert,
-        sorted_values,
-        sorted_values_indexes,
-        is_equal
-    );
+    check_permutation(values_to_insert, sorted_values, sorted_values_indexes);
 
     // Now, update the existing leaves with the new leaves
     let mut current_tree_root = start_snapshot.root;
@@ -80,7 +31,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
 
     for i in 0..sorted_values.len() {
         let value = sorted_values[i];
-        if !is_empty_value(value) {
+        if !is_empty(value) {
             let low_leaf_preimage = low_leaf_preimages[i];
             let witness = low_leaf_membership_witnesses[i];
 
@@ -88,7 +39,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
 
             // perform membership check for the low leaf against the original root
             assert_check_membership(
-                hash_leaf(low_leaf_preimage),
+                low_leaf_preimage.hash(),
                 witness.leaf_index,
                 witness.sibling_path,
                 current_tree_root
@@ -104,7 +55,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
             );
 
             current_tree_root = root_from_sibling_path(
-                hash_leaf(updated_low_leaf), witness.leaf_index, witness.sibling_path);
+                updated_low_leaf.hash(), witness.leaf_index, witness.sibling_path);
 
             insertion_subtree[value_index] = build_insertion_leaf(value, low_leaf_preimage);
         }
@@ -121,7 +72,7 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
     );
 
     // Create new subtree to insert into the whole indexed tree
-    let subtree_root = calculate_subtree(insertion_subtree.map(hash_leaf));
+    let subtree_root = calculate_subtree_root(insertion_subtree.map(|leaf: Leaf| leaf.hash()));
 
     // Calculate the new root
     // We are inserting a subtree rather than a full tree here

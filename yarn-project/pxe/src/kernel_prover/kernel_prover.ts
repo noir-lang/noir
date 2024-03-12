@@ -189,7 +189,7 @@ export class KernelProver {
       sortedNoteHashes,
     );
 
-    const nullifierReadRequestResetHints = await this.hintsBuilder.getNullifierReadRequestResetHints(
+    const nullifierReadRequestHints = await this.hintsBuilder.getNullifierReadRequestHints(
       output.publicInputs.end.nullifierReadRequests,
       output.publicInputs.end.newNullifiers,
     );
@@ -214,7 +214,7 @@ export class KernelProver {
       readNoteHashHints,
       sortedNullifiers,
       sortedNullifiersIndexes,
-      nullifierReadRequestResetHints,
+      nullifierReadRequestHints,
       nullifierNoteHashHints,
       masterNullifierSecretKeys,
     );

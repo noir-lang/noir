@@ -13,7 +13,7 @@ import {
   SideEffect,
   SideEffectLinkedToNoteHash,
   SideEffectType,
-  buildNullifierReadRequestResetHints,
+  buildNullifierReadRequestHints,
 } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
 import { Tuple } from '@aztec/foundation/serialize';
@@ -74,11 +74,11 @@ export class HintsBuilder {
     return hints;
   }
 
-  getNullifierReadRequestResetHints(
+  getNullifierReadRequestHints(
     nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
     nullifiers: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
   ) {
-    return buildNullifierReadRequestResetHints(this, nullifierReadRequests, nullifiers);
+    return buildNullifierReadRequestHints(this, nullifierReadRequests, nullifiers);
   }
 
   async getNullifierMembershipWitness(nullifier: Fr) {

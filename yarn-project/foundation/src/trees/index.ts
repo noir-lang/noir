@@ -23,22 +23,13 @@ export interface IndexedTreeLeaf {
 }
 
 /**
- * Preimage of an indexed merkle tree leaf.
+ * Preimage of a merkle tree leaf.
  */
-export interface IndexedTreeLeafPreimage {
+export interface TreeLeafPreimage {
   /**
    * Returns key of the leaf corresponding to this preimage.
    */
   getKey(): bigint;
-  /**
-   * Returns the key of the next leaf.
-   */
-  getNextKey(): bigint;
-  /**
-   * Returns the index of the next leaf.
-   */
-  getNextIndex(): bigint;
-
   /**
    * Returns the preimage as a leaf.
    */
@@ -51,4 +42,15 @@ export interface IndexedTreeLeafPreimage {
    * Serializes the preimage to an array of buffers for hashing.
    */
   toHashInputs(): Buffer[];
+}
+
+/**
+ * Preimage of an indexed merkle tree leaf.
+ */
+export interface IndexedTreeLeafPreimage extends TreeLeafPreimage {
+  getNextKey(): bigint;
+  /**
+   * Returns the index of the next leaf.
+   */
+  getNextIndex(): bigint;
 }

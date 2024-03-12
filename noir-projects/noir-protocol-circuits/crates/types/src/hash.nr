@@ -14,6 +14,7 @@ use crate::constants::{
     GENERATOR_INDEX__NOTE_HASH_NONCE, GENERATOR_INDEX__UNIQUE_NOTE_HASH, GENERATOR_INDEX__FUNCTION_ARGS
 };
 use crate::messaging::l2_to_l1_message::L2ToL1Message;
+use crate::merkle_tree::root::root_from_sibling_path;
 
 use dep::std::hash::{pedersen_hash_with_separator, sha256};
 
@@ -59,38 +60,6 @@ pub fn hash_args<N>(args: [Field; N]) -> Field {
         }
         pedersen_hash(chunks_hashes, GENERATOR_INDEX__FUNCTION_ARGS)
     }
-}
-
-// Checks that `value` is a member of a merkle tree with root `root` at position `index`
-// The witness being the `sibling_path`
-pub fn assert_check_membership<N>(value: Field, index: Field, sibling_path: [Field; N], root: Field) {
-    let calculated_root = root_from_sibling_path(value, index, sibling_path);
-    assert(calculated_root == root, "membership check failed");
-}
-
-// Calculate the Merkle tree root from the sibling path and leaf.
-//
-// The leaf is hashed with its sibling, and then the result is hashed
-// with the next sibling etc in the path. The last hash is the root.
-//
-// TODO(David/Someone): The cpp code is using a uint256, whereas its
-// TODO a bit simpler in Noir to just have a bit array.
-// TODO: I'd generally like to avoid u256 for algorithms like 
-// this because it means we never even need to consider cases where 
-// the index is greater than p.
-pub fn root_from_sibling_path<N>(leaf: Field, leaf_index: Field, sibling_path: [Field; N]) -> Field {
-    let mut node = leaf;
-    let indices = leaf_index.to_le_bits(N);
-
-    for i in 0..N {
-        let (hash_left, hash_right) = if indices[i] == 1 {
-            (sibling_path[i], node)
-        } else {
-            (node, sibling_path[i])
-        };
-        node = merkle_hash(hash_left, hash_right);
-    }
-    node
 }
 
 // Calculate the function tree root from the sibling path and leaf preimage.
@@ -148,7 +117,7 @@ pub fn silo_nullifier(address: AztecAddress, nullifier: Field) -> Field {
     )
 }
 
-fn merkle_hash(left: Field, right: Field) -> Field {
+pub fn merkle_hash(left: Field, right: Field) -> Field {
     pedersen_hash([left, right], 0)
 }
 

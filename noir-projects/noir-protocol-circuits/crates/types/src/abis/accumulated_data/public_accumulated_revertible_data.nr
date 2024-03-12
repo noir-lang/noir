@@ -13,6 +13,7 @@ use crate::constants::{
     MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX
 };
 
+// TODO - Requests for checking data should not be revertible.
 struct PublicAccumulatedRevertibleData {
     note_hash_read_requests: [SideEffect; MAX_NOTE_HASH_READ_REQUESTS_PER_TX],
     nullifier_read_requests: [ReadRequestContext; MAX_NULLIFIER_READ_REQUESTS_PER_TX],

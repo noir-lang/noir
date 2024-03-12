@@ -3,11 +3,6 @@ use crate::constants::{
     ARCHIVE_HEIGHT, PUBLIC_DATA_TREE_HEIGHT
 };
 
-struct MembershipWitness<N> {
-    leaf_index: Field,
-    sibling_path: [Field; N]
-}
-
 // TODO(Kev): Instead of doing `MembershipWitness<FUNCTION_TREE_HEIGHT>` we are forced 
 // to  do this new struct because the typescript bindings generator
 // does not have logic to monomorphize these properly. See the file named

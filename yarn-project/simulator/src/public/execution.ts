@@ -30,6 +30,8 @@ export interface PublicExecutionResult {
   newNullifiers: SideEffectLinkedToNoteHash[];
   /** The nullifier read requests emitted in this call. */
   nullifierReadRequests: ReadRequest[];
+  /** The nullifier non existent read requests emitted in this call. */
+  nullifierNonExistentReadRequests: ReadRequest[];
   /** The contract storage reads performed by the function. */
   contractStorageReads: ContractStorageRead[];
   /** The contract storage update requests performed by the function. */

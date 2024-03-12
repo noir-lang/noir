@@ -94,6 +94,7 @@ export function temporaryConvertAvmResults(
   // Disabled.
   const nestedExecutions: PublicExecutionResult[] = [];
   const nullifierReadRequests: ReadRequest[] = [];
+  const nullifierNonExistentReadRequests: ReadRequest[] = [];
   const newNullifiers: SideEffectLinkedToNoteHash[] = [];
   const unencryptedLogs = FunctionL2Logs.empty();
   const newL2ToL1Messages = newWorldState.newL1Messages.map(() => L2ToL1Message.empty());
@@ -101,6 +102,7 @@ export function temporaryConvertAvmResults(
   return {
     execution,
     nullifierReadRequests,
+    nullifierNonExistentReadRequests,
     newNoteHashes,
     newL2ToL1Messages,
     newNullifiers,

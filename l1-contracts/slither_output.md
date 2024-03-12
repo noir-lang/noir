@@ -321,15 +321,15 @@ src/core/messagebridge/Inbox.sol#L148-L153
 Impact: Informational
 Confidence: Medium
  - [ ] ID-35
-Variable [Constants.LOGS_HASHES_NUM_BYTES_PER_BASE_ROLLUP](src/core/libraries/ConstantsGen.sol#L129) is too similar to [Constants.NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP](src/core/libraries/ConstantsGen.sol#L122)
+Variable [Constants.LOGS_HASHES_NUM_BYTES_PER_BASE_ROLLUP](src/core/libraries/ConstantsGen.sol#L131) is too similar to [Constants.NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP](src/core/libraries/ConstantsGen.sol#L124)
 
-src/core/libraries/ConstantsGen.sol#L129
+src/core/libraries/ConstantsGen.sol#L131
 
 
  - [ ] ID-36
-Variable [Constants.L1_TO_L2_MESSAGE_LENGTH](src/core/libraries/ConstantsGen.sol#L109) is too similar to [Constants.L2_TO_L1_MESSAGE_LENGTH](src/core/libraries/ConstantsGen.sol#L110)
+Variable [Constants.L1_TO_L2_MESSAGE_LENGTH](src/core/libraries/ConstantsGen.sol#L111) is too similar to [Constants.L2_TO_L1_MESSAGE_LENGTH](src/core/libraries/ConstantsGen.sol#L112)
 
-src/core/libraries/ConstantsGen.sol#L109
+src/core/libraries/ConstantsGen.sol#L111
 
 
  - [ ] ID-37

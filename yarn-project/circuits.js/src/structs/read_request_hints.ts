@@ -1,5 +1,6 @@
 import { makeTuple } from '@aztec/foundation/array';
 import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { TreeLeafPreimage } from '@aztec/foundation/trees';
 
 import { MAX_NULLIFIER_READ_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT } from '../constants.gen.js';
 import { MembershipWitness } from './membership_witness.js';
@@ -45,35 +46,31 @@ export class PendingReadHint {
   }
 }
 
-interface LeafPreimageHint {
-  toBuffer(): Buffer;
-}
-
-export class SettledReadHint<TREE_HEIGHT extends number, LEAF_PREIMAGE_HINT extends LeafPreimageHint> {
+export class SettledReadHint<TREE_HEIGHT extends number, LEAF_PREIMAGE extends TreeLeafPreimage> {
   constructor(
     public readRequestIndex: number,
     public membershipWitness: MembershipWitness<TREE_HEIGHT>,
-    public leafPreimage: LEAF_PREIMAGE_HINT,
+    public leafPreimage: LEAF_PREIMAGE,
   ) {}
 
-  static nada<TREE_HEIGHT extends number, LEAF_PREIMAGE_HINT extends LeafPreimageHint>(
+  static nada<TREE_HEIGHT extends number, LEAF_PREIMAGE extends TreeLeafPreimage>(
     readRequestLen: number,
     treeHeight: TREE_HEIGHT,
-    emptyLeafPreimage: () => LEAF_PREIMAGE_HINT,
+    emptyLeafPreimage: () => LEAF_PREIMAGE,
   ) {
     return new SettledReadHint(readRequestLen, MembershipWitness.empty(treeHeight, 0n), emptyLeafPreimage());
   }
 
-  static fromBuffer<TREE_HEIGHT extends number, LEAF_PREIMAGE_HINT extends LeafPreimageHint>(
+  static fromBuffer<TREE_HEIGHT extends number, LEAF_PREIMAGE extends TreeLeafPreimage>(
     buffer: Buffer | BufferReader,
     treeHeight: TREE_HEIGHT,
-    leafPreimageFromBuffer: { fromBuffer: (buffer: BufferReader) => LEAF_PREIMAGE_HINT },
-  ): SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE_HINT> {
+    leafPreimage: { fromBuffer(buffer: BufferReader): LEAF_PREIMAGE },
+  ): SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE> {
     const reader = BufferReader.asReader(buffer);
     return new SettledReadHint(
       reader.readNumber(),
       MembershipWitness.fromBuffer(reader, treeHeight),
-      reader.readObject(leafPreimageFromBuffer),
+      reader.readObject(leafPreimage),
     );
   }
 
@@ -90,7 +87,7 @@ export class ReadRequestResetHints<
   NUM_PENDING_READS extends number,
   NUM_SETTLED_READS extends number,
   TREE_HEIGHT extends number,
-  LEAF_PREIMAGE_HINT extends LeafPreimageHint,
+  LEAF_PREIMAGE extends TreeLeafPreimage,
 > {
   constructor(
     public readRequestStatuses: Tuple<ReadRequestStatus, READ_REQUEST_LEN>,
@@ -101,7 +98,7 @@ export class ReadRequestResetHints<
     /**
      * The hints for read requests reading settled values.
      */
-    public settledReadHints: Tuple<SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE_HINT>, NUM_SETTLED_READS>,
+    public settledReadHints: Tuple<SettledReadHint<TREE_HEIGHT, LEAF_PREIMAGE>, NUM_SETTLED_READS>,
   ) {}
 
   /**
@@ -114,15 +111,15 @@ export class ReadRequestResetHints<
     NUM_PENDING_READS extends number,
     NUM_SETTLED_READS extends number,
     TREE_HEIGHT extends number,
-    LEAF_PREIMAGE_HINT extends LeafPreimageHint,
+    LEAF_PREIMAGE extends TreeLeafPreimage,
   >(
     buffer: Buffer | BufferReader,
     readRequestLen: READ_REQUEST_LEN,
     numPendingReads: NUM_PENDING_READS,
     numSettledReads: NUM_SETTLED_READS,
     treeHeight: TREE_HEIGHT,
-    leafPreimageFromBuffer: { fromBuffer: (buffer: BufferReader) => LEAF_PREIMAGE_HINT },
-  ): ReadRequestResetHints<READ_REQUEST_LEN, NUM_PENDING_READS, NUM_SETTLED_READS, TREE_HEIGHT, LEAF_PREIMAGE_HINT> {
+    leafPreimageFromBuffer: { fromBuffer: (buffer: BufferReader) => LEAF_PREIMAGE },
+  ): ReadRequestResetHints<READ_REQUEST_LEN, NUM_PENDING_READS, NUM_SETTLED_READS, TREE_HEIGHT, LEAF_PREIMAGE> {
     const reader = BufferReader.asReader(buffer);
     return new ReadRequestResetHints(
       reader.readArray(readRequestLen, ReadRequestStatus),
@@ -138,17 +135,15 @@ export class ReadRequestResetHints<
   }
 }
 
-export type NullifierReadRequestResetHints = ReadRequestResetHints<
+export type NullifierReadRequestHints = ReadRequestResetHints<
   typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   typeof NULLIFIER_TREE_HEIGHT,
-  NullifierLeafPreimage
+  TreeLeafPreimage
 >;
 
-export function nullifierReadRequestResetHintsFromBuffer(
-  buffer: Buffer | BufferReader,
-): NullifierReadRequestResetHints {
+export function nullifierReadRequestHintsFromBuffer(buffer: Buffer | BufferReader): NullifierReadRequestHints {
   return ReadRequestResetHints.fromBuffer(
     buffer,
     MAX_NULLIFIER_READ_REQUESTS_PER_TX,
@@ -159,8 +154,8 @@ export function nullifierReadRequestResetHintsFromBuffer(
   );
 }
 
-export class NullifierReadRequestResetHintsBuilder {
-  private hints: NullifierReadRequestResetHints;
+export class NullifierReadRequestHintsBuilder {
+  private hints: NullifierReadRequestHints;
   private numPendingReadHints = 0;
   private numSettledReadHints = 0;
 
@@ -175,7 +170,7 @@ export class NullifierReadRequestResetHintsBuilder {
   }
 
   static empty() {
-    return new NullifierReadRequestResetHintsBuilder().toHints();
+    return new NullifierReadRequestHintsBuilder().toHints();
   }
 
   addPendingReadRequest(readRequestIndex: number, nullifierIndex: number) {
@@ -190,7 +185,7 @@ export class NullifierReadRequestResetHintsBuilder {
   addSettledReadRequest(
     readRequestIndex: number,
     membershipWitness: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>,
-    leafPreimage: NullifierLeafPreimage,
+    leafPreimage: TreeLeafPreimage,
   ) {
     this.hints.readRequestStatuses[readRequestIndex] = new ReadRequestStatus(
       ReadRequestState.SETTLED,
