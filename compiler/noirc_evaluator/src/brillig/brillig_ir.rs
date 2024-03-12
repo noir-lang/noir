@@ -523,6 +523,16 @@ impl BrilligContext {
         });
     }
 
+    fn binary_result_bit_size(operation: BrilligBinaryOp, arguments_bit_size: u32) -> u32 {
+        match operation {
+            BrilligBinaryOp::Field(BinaryFieldOp::Equals)
+            | BrilligBinaryOp::Integer(BinaryIntOp::Equals)
+            | BrilligBinaryOp::Integer(BinaryIntOp::LessThan)
+            | BrilligBinaryOp::Integer(BinaryIntOp::LessThanEquals) => 1,
+            _ => arguments_bit_size,
+        }
+    }
+
     /// Processes a binary instruction according `operation`.
     ///
     /// This method will compute lhs <operation> rhs
@@ -534,10 +544,24 @@ impl BrilligContext {
         result: SingleAddrVariable,
         operation: BrilligBinaryOp,
     ) {
-        // TODO assert bit sizes here
+        assert!(
+            lhs.bit_size == rhs.bit_size,
+            "Not equal bit size for lhs and rhs: lhs {}, rhs {}",
+            lhs.bit_size,
+            rhs.bit_size
+        );
+        let expected_result_bit_size =
+            BrilligContext::binary_result_bit_size(operation, lhs.bit_size);
+        assert!(
+            result.bit_size == expected_result_bit_size,
+            "Expected result bit size to be {}, got {} for operation {:?}",
+            expected_result_bit_size,
+            result.bit_size,
+            operation
+        );
         self.debug_show.binary_instruction(lhs.address, rhs.address, result.address, operation);
         match operation {
-            BrilligBinaryOp::Field { op } => {
+            BrilligBinaryOp::Field(op) => {
                 let opcode = BrilligOpcode::BinaryFieldOp {
                     op,
                     destination: result.address,
@@ -546,17 +570,17 @@ impl BrilligContext {
                 };
                 self.push_opcode(opcode);
             }
-            BrilligBinaryOp::Integer { op, bit_size } => {
+            BrilligBinaryOp::Integer(op) => {
                 let opcode = BrilligOpcode::BinaryIntOp {
                     op,
                     destination: result.address,
-                    bit_size,
+                    bit_size: lhs.bit_size,
                     lhs: lhs.address,
                     rhs: rhs.address,
                 };
                 self.push_opcode(opcode);
             }
-            BrilligBinaryOp::Modulo { is_signed_integer, bit_size } => {
+            BrilligBinaryOp::Modulo { is_signed_integer } => {
                 self.modulo_instruction(result, lhs, rhs, is_signed_integer);
             }
         }
@@ -762,7 +786,7 @@ impl BrilligContext {
             value_to_truncate,
             mask_constant,
             destination_of_truncated_value,
-            BrilligBinaryOp::Integer { op: BinaryIntOp::And, bit_size: value_to_truncate.bit_size },
+            BrilligBinaryOp::Integer(BinaryIntOp::And),
         );
 
         self.deallocate_register(mask_constant.address);
@@ -808,7 +832,12 @@ impl BrilligContext {
         let scratch_register_i = self.allocate_register();
         let scratch_register_j = self.allocate_register();
 
-        assert!(left.bit_size == right.bit_size);
+        assert!(
+            left.bit_size == right.bit_size,
+            "Not equal bitsize: lhs {}, rhs {}",
+            left.bit_size,
+            right.bit_size
+        );
         let bit_size = left.bit_size;
         // i = left / right
         self.push_opcode(BrilligOpcode::BinaryIntOp {
@@ -936,8 +965,14 @@ impl BrilligContext {
             SingleAddrVariable::new(lhs, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             SingleAddrVariable::new(rhs, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             // TODO add a function here to get the resulting bit size depending on the operation
-            SingleAddrVariable::new(destination, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
-            BrilligBinaryOp::Integer { op, bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
+            SingleAddrVariable::new(
+                destination,
+                BrilligContext::binary_result_bit_size(
+                    BrilligBinaryOp::Integer(op),
+                    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                ),
+            ),
+            BrilligBinaryOp::Integer(op),
         );
     }
 
@@ -1016,6 +1051,9 @@ impl BrilligContext {
         assert!(source_field.bit_size == FieldElement::max_num_bits());
         assert!(radix.bit_size == 32);
         assert!(limb_count.bit_size == 32);
+        let radix_as_field =
+            SingleAddrVariable::new(self.allocate_register(), FieldElement::max_num_bits());
+        self.cast_instruction(radix_as_field, radix);
 
         self.cast_instruction(
             SingleAddrVariable::new(target_vector.size, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
@@ -1033,24 +1071,22 @@ impl BrilligContext {
 
         self.loop_instruction(target_vector.size, |ctx, iterator_register| {
             // Compute the modulus
-            ctx.modulo_instruction(modulus_field, shifted_field, radix, false);
+            ctx.modulo_instruction(modulus_field, shifted_field, radix_as_field, false);
             // Write it
             ctx.array_set(target_vector.pointer, iterator_register, modulus_field.address);
             // Integer div the field
             ctx.binary_instruction(
                 shifted_field,
-                radix,
+                radix_as_field,
                 shifted_field,
-                BrilligBinaryOp::Integer {
-                    op: BinaryIntOp::UnsignedDiv,
-                    bit_size: FieldElement::max_num_bits(),
-                },
+                BrilligBinaryOp::Integer(BinaryIntOp::UnsignedDiv),
             );
         });
 
         // Deallocate our temporary registers
         self.deallocate_register(shifted_field.address);
         self.deallocate_register(modulus_field.address);
+        self.deallocate_register(radix_as_field.address);
 
         if big_endian {
             self.reverse_vector_in_place_instruction(target_vector);
@@ -1108,13 +1144,12 @@ impl BrilligContext {
 }
 
 /// Type to encapsulate the binary operation types in Brillig
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum BrilligBinaryOp {
-    Field { op: BinaryFieldOp },
-    Integer { op: BinaryIntOp, bit_size: u32 },
-    // Modulo operation requires more than one opcode
-    // Brillig.
-    Modulo { is_signed_integer: bool, bit_size: u32 },
+    Field(BinaryFieldOp),
+    Integer(BinaryIntOp),
+    // Modulo operation requires more than one brillig opcode
+    Modulo { is_signed_integer: bool },
 }
 
 #[cfg(test)]

@@ -641,10 +641,7 @@ impl<'block> BrilligBlock<'block> {
                     );
 
                     // Check if lte max
-                    let brillig_binary_op = BrilligBinaryOp::Integer {
-                        op: BinaryIntOp::LessThanEquals,
-                        bit_size: FieldElement::max_num_bits(),
-                    };
+                    let brillig_binary_op = BrilligBinaryOp::Integer(BinaryIntOp::LessThanEquals);
                     let condition =
                         SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
                     self.brillig_context.binary_instruction(
@@ -834,17 +831,11 @@ impl<'block> BrilligBlock<'block> {
             _ => unreachable!("ICE: array set on non-array"),
         };
 
-        let one = self.brillig_context.make_usize_constant(1_usize.into());
-        let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+        let condition = self.brillig_context.allocate_register();
 
-        self.brillig_context.binary_instruction(
-            SingleAddrVariable::new(reference_count, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
-            one,
-            condition,
-            BrilligBinaryOp::Field { op: BinaryFieldOp::Equals },
-        );
+        self.brillig_context.usize_op(reference_count, condition, BinaryIntOp::Equals, 1_usize);
 
-        self.brillig_context.branch_instruction(condition.address, |ctx, cond| {
+        self.brillig_context.branch_instruction(condition, |ctx, cond| {
             if cond {
                 // Reference count is 1, we can mutate the array directly
                 ctx.mov_instruction(destination_pointer, source_pointer);
@@ -886,8 +877,7 @@ impl<'block> BrilligBlock<'block> {
         );
 
         self.brillig_context.deallocate_register(source_size_as_register);
-        self.brillig_context.deallocate_register(one.address);
-        self.brillig_context.deallocate_register(condition.address);
+        self.brillig_context.deallocate_register(condition);
     }
 
     pub(crate) fn store_variable_in_array_with_ctx(
@@ -1224,8 +1214,9 @@ impl<'block> BrilligBlock<'block> {
         result: SingleAddrVariable,
         is_signed: bool,
     ) {
-        let (op, bit_size) = if let BrilligBinaryOp::Integer { op, bit_size } = binary_operation {
-            (op, bit_size)
+        let (op, bit_size) = if let BrilligBinaryOp::Integer(op) = binary_operation {
+            // Bit size is checked at compile time to be equal for left and right
+            (op, left.bit_size)
         } else {
             return;
         };
@@ -1239,7 +1230,7 @@ impl<'block> BrilligBlock<'block> {
                     left,
                     result,
                     condition,
-                    BrilligBinaryOp::Integer { op: BinaryIntOp::LessThanEquals, bit_size },
+                    BrilligBinaryOp::Integer(BinaryIntOp::LessThanEquals),
                 );
                 self.brillig_context.constrain_instruction(
                     condition,
@@ -1255,7 +1246,7 @@ impl<'block> BrilligBlock<'block> {
                     right,
                     left,
                     condition,
-                    BrilligBinaryOp::Integer { op: BinaryIntOp::LessThanEquals, bit_size },
+                    BrilligBinaryOp::Integer(BinaryIntOp::LessThanEquals),
                 );
                 self.brillig_context.constrain_instruction(
                     condition,
@@ -1273,7 +1264,7 @@ impl<'block> BrilligBlock<'block> {
                         zero,
                         right,
                         is_right_zero,
-                        BrilligBinaryOp::Integer { op: BinaryIntOp::Equals, bit_size },
+                        BrilligBinaryOp::Integer(BinaryIntOp::Equals),
                     );
                     self.brillig_context.if_not_instruction(is_right_zero.address, |ctx| {
                         let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
@@ -1283,13 +1274,13 @@ impl<'block> BrilligBlock<'block> {
                             result,
                             right,
                             division,
-                            BrilligBinaryOp::Integer { op: BinaryIntOp::UnsignedDiv, bit_size },
+                            BrilligBinaryOp::Integer(BinaryIntOp::UnsignedDiv),
                         );
                         ctx.binary_instruction(
                             division,
                             left,
                             condition,
-                            BrilligBinaryOp::Integer { op: BinaryIntOp::Equals, bit_size },
+                            BrilligBinaryOp::Integer(BinaryIntOp::Equals),
                         );
                         ctx.constrain_instruction(
                             condition,
@@ -1548,18 +1539,18 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
 
     fn binary_op_to_field_op(op: BinaryOp) -> BrilligBinaryOp {
         match op {
-            BinaryOp::Add => BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
-            BinaryOp::Sub => BrilligBinaryOp::Field { op: BinaryFieldOp::Sub },
-            BinaryOp::Mul => BrilligBinaryOp::Field { op: BinaryFieldOp::Mul },
-            BinaryOp::Div => BrilligBinaryOp::Field { op: BinaryFieldOp::Div },
-            BinaryOp::Eq => BrilligBinaryOp::Field { op: BinaryFieldOp::Equals },
+            BinaryOp::Add => BrilligBinaryOp::Field(BinaryFieldOp::Add),
+            BinaryOp::Sub => BrilligBinaryOp::Field(BinaryFieldOp::Sub),
+            BinaryOp::Mul => BrilligBinaryOp::Field(BinaryFieldOp::Mul),
+            BinaryOp::Div => BrilligBinaryOp::Field(BinaryFieldOp::Div),
+            BinaryOp::Eq => BrilligBinaryOp::Field(BinaryFieldOp::Equals),
             _ => unreachable!(
                 "Field type cannot be used with {op}. This should have been caught by the frontend"
             ),
         }
     }
 
-    fn binary_op_to_int_op(op: BinaryOp, bit_size: u32, is_signed: bool) -> BrilligBinaryOp {
+    fn binary_op_to_int_op(op: BinaryOp, is_signed: bool) -> BrilligBinaryOp {
         let operation = match op {
             BinaryOp::Add => BinaryIntOp::Add,
             BinaryOp::Sub => BinaryIntOp::Sub,
@@ -1571,9 +1562,7 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
                     BinaryIntOp::UnsignedDiv
                 }
             }
-            BinaryOp::Mod => {
-                return BrilligBinaryOp::Modulo { is_signed_integer: is_signed, bit_size }
-            }
+            BinaryOp::Mod => return BrilligBinaryOp::Modulo { is_signed_integer: is_signed },
             BinaryOp::Eq => BinaryIntOp::Equals,
             BinaryOp::Lt => BinaryIntOp::LessThan,
             BinaryOp::And => BinaryIntOp::And,
@@ -1583,14 +1572,12 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
             BinaryOp::Shr => BinaryIntOp::Shr,
         };
 
-        BrilligBinaryOp::Integer { op: operation, bit_size }
+        BrilligBinaryOp::Integer(operation)
     }
 
     // If bit size is available then it is a binary integer operation
     match bit_size_signedness {
-        Some((bit_size, is_signed)) => {
-            (binary_op_to_int_op(ssa_op, *bit_size, is_signed), is_signed)
-        }
+        Some((_, is_signed)) => (binary_op_to_int_op(ssa_op, is_signed), is_signed),
         None => (binary_op_to_field_op(ssa_op), false),
     }
 }
