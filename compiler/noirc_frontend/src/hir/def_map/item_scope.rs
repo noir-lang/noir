@@ -1,16 +1,11 @@
 use super::{namespace::PerNs, ModuleDefId, ModuleId};
 use crate::{
     node_interner::{FuncId, TraitId},
-    Ident,
+    Ident, ItemVisibility,
 };
 use std::collections::{hash_map::Entry, HashMap};
 
-type Scope = HashMap<Option<TraitId>, (ModuleDefId, Visibility, bool /*is_prelude*/)>;
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum Visibility {
-    Public,
-}
+type Scope = HashMap<Option<TraitId>, (ModuleDefId, ItemVisibility, bool /*is_prelude*/)>;
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct ItemScope {
@@ -55,12 +50,12 @@ impl ItemScope {
                         Err((old_ident.clone(), name))
                     }
                 } else {
-                    trait_hashmap.insert(trait_id, (mod_def, Visibility::Public, is_prelude));
+                    trait_hashmap.insert(trait_id, (mod_def, ItemVisibility::Public, is_prelude));
                     Ok(())
                 }
             } else {
                 let mut trait_hashmap = HashMap::new();
-                trait_hashmap.insert(trait_id, (mod_def, Visibility::Public, is_prelude));
+                trait_hashmap.insert(trait_id, (mod_def, ItemVisibility::Public, is_prelude));
                 map.insert(name, trait_hashmap);
                 Ok(())
             }
