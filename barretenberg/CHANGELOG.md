@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.27.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.26.6...barretenberg-v0.27.0) (2024-03-12)
+
+
+### Features
+
+* **avm:** Equivalence check between Main trace and Mem trace ([#5032](https://github.com/AztecProtocol/aztec-packages/issues/5032)) ([7f216eb](https://github.com/AztecProtocol/aztec-packages/commit/7f216eb064fc95791de1286c7695e89575e02b40)), closes [#4955](https://github.com/AztecProtocol/aztec-packages/issues/4955)
+* Initial integration avm prover ([#4878](https://github.com/AztecProtocol/aztec-packages/issues/4878)) ([2e2554e](https://github.com/AztecProtocol/aztec-packages/commit/2e2554e6a055ff7124e18d1566371d5d108c5d5d))
+* Update the core of SMT Circuit class ([#5096](https://github.com/AztecProtocol/aztec-packages/issues/5096)) ([1519d3b](https://github.com/AztecProtocol/aztec-packages/commit/1519d3b07664f471a43d3f6bbb3dbe2d387289fc))
+
+
+### Miscellaneous
+
+* **AVM:** Negative unit tests for inter table relations ([#5143](https://github.com/AztecProtocol/aztec-packages/issues/5143)) ([a74dccb](https://github.com/AztecProtocol/aztec-packages/commit/a74dccbdef0939b77978ddec3875b1afc2d0b530)), closes [#5033](https://github.com/AztecProtocol/aztec-packages/issues/5033)
+* Extract bb binary in bs fast ([#5128](https://github.com/AztecProtocol/aztec-packages/issues/5128)) ([9ca41ef](https://github.com/AztecProtocol/aztec-packages/commit/9ca41ef6951566622ab9e68924958dbb66b160df))
+* Join-split example Part 2 ([#5016](https://github.com/AztecProtocol/aztec-packages/issues/5016)) ([0718320](https://github.com/AztecProtocol/aztec-packages/commit/07183200b136ec39087c2b35e5799686319d561b))
+* Move alpine containers to ubuntu ([#5026](https://github.com/AztecProtocol/aztec-packages/issues/5026)) ([d483e67](https://github.com/AztecProtocol/aztec-packages/commit/d483e678e4b2558f74c3b79083cf2257d6eafe0c)), closes [#4708](https://github.com/AztecProtocol/aztec-packages/issues/4708)
+* Pin foundry ([#5151](https://github.com/AztecProtocol/aztec-packages/issues/5151)) ([69bd7dd](https://github.com/AztecProtocol/aztec-packages/commit/69bd7dd45af6b197b23c25dc883a1a5485955203))
+
 ## [0.26.6](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.26.5...barretenberg-v0.26.6) (2024-03-08)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.26.6...aztec-cli-v0.27.0) (2024-03-12)
+
+
+### Miscellaneous
+
+* Remove old contract deployment flow ([#4970](https://github.com/AztecProtocol/aztec-packages/issues/4970)) ([6d15947](https://github.com/AztecProtocol/aztec-packages/commit/6d1594736e96cd744ea691a239fcd3a46bdade60))
+
 ## [0.26.6](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.26.5...aztec-cli-v0.26.6) (2024-03-08)
 
 
