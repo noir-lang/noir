@@ -1040,9 +1040,9 @@ impl<'interner> TypeChecker<'interner> {
                 }
                 ret
             }
+            // ignoring env for subtype on purpose
             Type::Function(parameters, ret, _env) => {
-                // ignoring env for subtype on purpose
-                self.bind_function_type_impl(parameters.as_ref(), ret.as_ref(), args.as_ref(), span)
+                self.bind_function_type_impl(&parameters, &ret, &args, span)
             }
             Type::Error => Type::Error,
             found => {
