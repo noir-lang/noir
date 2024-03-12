@@ -1302,18 +1302,14 @@ impl<'block> BrilligBlock<'block> {
 
     /// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> BrilligVariable {
-        dbg!("convert_ssa_value id: {:?}", value_id);
         let value_id = dfg.resolve(value_id);
-        dbg!("convert_ssa_value id2: {:?}", value_id);
         let value = &dfg[value_id];
-        dbg!("convert_ssa_value value: {:?}", value);
 
         match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
             
-                dbg!("convert_ssa_value instruction: {:?}", value);
                 self.variables.get_allocation(self.function_context, value_id, dfg)
             }
             Value::NumericConstant { constant, typ } => {
@@ -1335,13 +1331,11 @@ impl<'block> BrilligBlock<'block> {
                 }
             }
             Value::Array { array, .. } => {
-                dbg!("convert_ssa_value array: {:?}", array);
                 if let Some(variable) = self.variables.get_constant(value_id, dfg) {
                     variable
                 } else {
                     let new_variable =
                         self.variables.allocate_constant(self.brillig_context, value_id, dfg);
-                    dbg!("convert_ssa_value new_variable: {:?}", new_variable);
 
                     // Initialize the variable
                     let pointer = match new_variable {
@@ -1365,14 +1359,12 @@ impl<'block> BrilligBlock<'block> {
                         ),
                     };
 
-                    dbg!("convert_ssa_value pointer: {:?}", pointer);
                     // Write the items
 
                     // Allocate a register for the iterator
                     let iterator_register =
                         self.brillig_context.make_usize_constant(0_usize.into());
 
-                    dbg!("convert_ssa_value iterator_register: {:?}", iterator_register);
                     for element_id in array.iter() {
                         let element_variable = self.convert_ssa_value(*element_id, dfg);
                         // Store the item in memory
@@ -1387,7 +1379,6 @@ impl<'block> BrilligBlock<'block> {
 
                     self.brillig_context.deallocate_register(iterator_register);
 
-                    dbg!("convert_ssa_value new_variable 2: {:?}", new_variable);
                     new_variable
                 }
             }
@@ -1515,18 +1506,23 @@ impl<'block> BrilligBlock<'block> {
         let array_variable = self.convert_ssa_value(array_id, dfg);
         match array_variable {
             BrilligVariable::BrilligArray(array) => {
-                dbg!("array: {:?}", array);
-                dbg!("array_id: {:?}", array_id);
-                dbg!("target_len: {:?}", target_len);
-                dbg!("target_variable: {:?}", target_variable);
-                dbg!("target_variable(convert): {:?}", self.convert_ssa_value(target_variable, dfg));
+                // dbg!("array: {:?}", array);
+                // dbg!("array_id: {:?}", array_id);
+                // dbg!("target_len: {:?}", target_len);
+                // dbg!("target_variable: {:?}", target_variable);
+                // dbg!("target_variable(convert): {:?}", self.convert_ssa_value(target_variable, dfg));
+                dbg!("array.size: {:?}", array.size);
 
                 let array_size_address = self.brillig_context.allocate_register();
                 self.brillig_context.usize_const(array_size_address, array.size.into());
 
-                let len_variable = self.convert_ssa_value(target_len, dfg);
-                let len_address = len_variable.extract_single_addr();
-                self.brillig_context.mov_instruction(len_address.address, array_size_address);
+                let len_variable = self.variables.define_single_addr_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    target_len,
+                    dfg,
+                );
+                self.brillig_context.mov_instruction(len_variable.address, array_size_address);
 
                 let result_variable = self.variables.define_variable(
                     self.function_context,
