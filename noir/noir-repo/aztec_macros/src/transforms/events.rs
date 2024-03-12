@@ -8,8 +8,8 @@ use noirc_frontend::{
         UnresolvedTypeData,
     },
     token::SecondaryAttribute,
-    ExpressionKind, FunctionDefinition, FunctionReturnType, FunctionVisibility, Literal,
-    NoirFunction, Visibility,
+    ExpressionKind, FunctionDefinition, FunctionReturnType, ItemVisibility, Literal, NoirFunction,
+    Visibility,
 };
 
 use crate::{
@@ -65,7 +65,7 @@ pub fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
         &return_type,
     );
 
-    selector_fn_def.visibility = FunctionVisibility::Public;
+    selector_fn_def.visibility = ItemVisibility::Public;
 
     // Seems to be necessary on contract modules
     selector_fn_def.return_visibility = Visibility::Public;

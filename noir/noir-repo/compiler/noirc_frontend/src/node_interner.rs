@@ -28,8 +28,8 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    BinaryOpKind, FunctionDefinition, FunctionVisibility, Generics, Shared, TypeAlias,
-    TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    BinaryOpKind, FunctionDefinition, Generics, ItemVisibility, Shared, TypeAlias, TypeBindings,
+    TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -236,7 +236,7 @@ pub struct FunctionModifiers {
     pub name: String,
 
     /// Whether the function is `pub` or not.
-    pub visibility: FunctionVisibility,
+    pub visibility: ItemVisibility,
 
     pub attributes: Attributes,
 
@@ -250,7 +250,7 @@ impl FunctionModifiers {
     pub fn new() -> Self {
         Self {
             name: String::new(),
-            visibility: FunctionVisibility::Public,
+            visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
         }
@@ -782,7 +782,7 @@ impl NodeInterner {
     ///
     /// The underlying function_visibilities map is populated during def collection,
     /// so this function can be called anytime afterward.
-    pub fn function_visibility(&self, func: FuncId) -> FunctionVisibility {
+    pub fn function_visibility(&self, func: FuncId) -> ItemVisibility {
         self.function_modifiers[&func].visibility
     }
 

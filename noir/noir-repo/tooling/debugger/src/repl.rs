@@ -337,11 +337,13 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     }
 
     pub fn show_vars(&self) {
-        let vars = self.context.get_variables();
-        for (var_name, value, var_type) in vars.iter() {
-            let printable_value =
-                PrintableValueDisplay::Plain((*value).clone(), (*var_type).clone());
-            println!("{var_name}:{var_type:?} = {}", printable_value);
+        for frame in self.context.get_variables() {
+            println!("{}({})", frame.function_name, frame.function_params.join(", "));
+            for (var_name, value, var_type) in frame.variables.iter() {
+                let printable_value =
+                    PrintableValueDisplay::Plain((*value).clone(), (*var_type).clone());
+                println!("  {var_name}:{var_type:?} = {}", printable_value);
+            }
         }
     }
 
@@ -530,7 +532,7 @@ pub fn run<B: BlackBoxFunctionSolver>(
         .add(
             "vars",
             command! {
-                "show variable values available at this point in execution",
+                "show variables for each function scope available at this point in execution",
                 () => || {
                     ref_context.borrow_mut().show_vars();
                     Ok(CommandStatus::Done)
