@@ -587,18 +587,20 @@ impl BrilligContext {
     }
 
     /// Stores the value of `constant` in the `result` register
-    pub(crate) fn const_instruction(
-        &mut self,
-        result: MemoryAddress,
-        constant: Value,
-        bit_size: u32,
-    ) {
-        self.debug_show.const_instruction(result, constant);
-        self.push_opcode(BrilligOpcode::Const { destination: result, value: constant, bit_size });
+    pub(crate) fn const_instruction(&mut self, result: SingleAddrVariable, constant: Value) {
+        self.debug_show.const_instruction(result.address, constant);
+        self.push_opcode(BrilligOpcode::Const {
+            destination: result.address,
+            value: constant,
+            bit_size: result.bit_size,
+        });
     }
 
     pub(crate) fn usize_const(&mut self, result: MemoryAddress, constant: Value) {
-        self.const_instruction(result, constant, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+        self.const_instruction(
+            SingleAddrVariable::new(result, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            constant,
+        );
     }
 
     /// Processes a not instruction.
@@ -800,9 +802,9 @@ impl BrilligContext {
 
     /// Returns a register which holds the value of a constant
     pub(crate) fn make_constant(&mut self, constant: Value, bit_size: u32) -> SingleAddrVariable {
-        let register = self.allocate_register();
-        self.const_instruction(register, constant, bit_size);
-        SingleAddrVariable::new(register, bit_size)
+        let var = SingleAddrVariable::new(self.allocate_register(), bit_size);
+        self.const_instruction(var, constant);
+        var
     }
 
     /// Returns a register which holds the value of an usize constant

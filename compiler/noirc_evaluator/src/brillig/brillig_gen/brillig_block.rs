@@ -25,7 +25,7 @@ use num_bigint::BigUint;
 
 use super::brillig_black_box::convert_black_box_call;
 use super::brillig_block_variables::BlockVariables;
-use super::brillig_fn::{get_bit_size_from_ssa_type, FunctionContext};
+use super::brillig_fn::FunctionContext;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
 pub(crate) struct BrilligBlock<'block> {
@@ -1308,7 +1308,7 @@ impl<'block> BrilligBlock<'block> {
                 // converted to registers so we fetch from the cache.
                 self.variables.get_allocation(self.function_context, value_id, dfg)
             }
-            Value::NumericConstant { constant, typ } => {
+            Value::NumericConstant { constant, .. } => {
                 // Constants might have been converted previously or not, so we get or create and
                 // (re)initialize the value inside.
                 if let Some(variable) = self.variables.get_constant(value_id, dfg) {
@@ -1318,11 +1318,7 @@ impl<'block> BrilligBlock<'block> {
                         self.variables.allocate_constant(self.brillig_context, value_id, dfg);
                     let register_index = new_variable.extract_single_addr();
 
-                    self.brillig_context.const_instruction(
-                        register_index.address,
-                        (*constant).into(),
-                        get_bit_size_from_ssa_type(typ),
-                    );
+                    self.brillig_context.const_instruction(register_index, (*constant).into());
                     new_variable
                 }
             }
@@ -1385,12 +1381,10 @@ impl<'block> BrilligBlock<'block> {
                 // value.
                 let new_variable =
                     self.variables.allocate_constant(self.brillig_context, value_id, dfg);
-                let register_index = new_variable.extract_single_addr();
 
                 self.brillig_context.const_instruction(
-                    register_index.address,
+                    new_variable.extract_single_addr(),
                     value_id.to_usize().into(),
-                    32,
                 );
                 new_variable
             }
