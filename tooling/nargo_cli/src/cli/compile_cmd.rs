@@ -94,14 +94,16 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     for res in rx {
         let debounced_events = res.map_err(|mut err| err.remove(0))?;
 
-        if debounced_events.iter().all(|event| {
-            !matches!(event.kind, EventKind::Modify(_))
-                || event
-                    .event
-                    .paths
-                    .iter()
-                    .all(|path| path.extension().map_or(false, |ext| ext != "nr"))
-        }) {
+        // We only want to trigger a rebuild if a noir source file has been modified.
+        let noir_files_modified = debounced_events.iter().any(|event| {
+            let mut event_paths = event.event.paths.iter();
+            let event_affects_noir_file =
+                event_paths.any(|path| path.extension().map_or(false, |ext| ext == "nr"));
+
+            matches!(event.kind, EventKind::Modify(_)) && event_affects_noir_file
+        });
+
+        if !noir_files_modified {
             continue;
         }
         write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
