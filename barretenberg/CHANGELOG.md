@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.27.2](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.27.1...barretenberg-v0.27.2) (2024-03-13)
+
+
+### Features
+
+* Multithreaded prover folding ([#5147](https://github.com/AztecProtocol/aztec-packages/issues/5147)) ([94922fc](https://github.com/AztecProtocol/aztec-packages/commit/94922fc24e728100b456ed5f0203974964fd9f83))
+
+
+### Bug Fixes
+
+* Intermittent invert 0 in Goblin ([#5174](https://github.com/AztecProtocol/aztec-packages/issues/5174)) ([3e68b49](https://github.com/AztecProtocol/aztec-packages/commit/3e68b49f717aa643eb616976f6cc7ed0ac07686d))
+
+
+### Miscellaneous
+
+* Interaction for a mock first circuit handled inside the `EccOpQueue` ([#4854](https://github.com/AztecProtocol/aztec-packages/issues/4854)) ([d9cbdc8](https://github.com/AztecProtocol/aztec-packages/commit/d9cbdc888d467ade8add5c3c03a1759dddbb398a))
+
 ## [0.27.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.27.0...barretenberg-v0.27.1) (2024-03-12)
 
 
