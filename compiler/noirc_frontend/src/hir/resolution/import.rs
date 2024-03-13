@@ -52,7 +52,7 @@ impl From<PathResolutionError> for CustomDiagnostic {
 
 pub fn resolve_import(
     crate_id: CrateId,
-    import_directive: ImportDirective,
+    import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> Result<ResolvedImport, (PathResolutionError, LocalModuleId)> {
     let def_map = &def_maps[&crate_id];
@@ -62,10 +62,10 @@ pub fn resolve_import(
 
     let module_scope = import_directive.module_id;
     let resolved_namespace =
-        resolve_path_to_ns(&import_directive, def_map, def_maps, allow_contracts)
+        resolve_path_to_ns(import_directive, def_map, def_maps, allow_contracts)
             .map_err(|error| (error, module_scope))?;
 
-    let name = resolve_path_name(&import_directive);
+    let name = resolve_path_name(import_directive);
     Ok(ResolvedImport {
         name,
         resolved_namespace,

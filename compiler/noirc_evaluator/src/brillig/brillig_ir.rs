@@ -27,12 +27,11 @@ use acvm::{
     FieldElement,
 };
 use debug_show::DebugShow;
-use num_bigint::BigUint;
 
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 64 bits. This means that we assume that
 /// memory has 2^64 memory slots.
-pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
 
 // Registers reserved in runtime for special purposes.
 pub(crate) enum ReservedRegisters {
@@ -213,13 +212,7 @@ impl BrilligContext {
         self.debug_show.array_get(array_ptr, index, result);
         // Computes array_ptr + index, ie array[index]
         let index_of_element_in_memory = self.allocate_register();
-        self.binary_instruction(
-            array_ptr,
-            index,
-            index_of_element_in_memory,
-            BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
-        );
-
+        self.memory_op(array_ptr, index, index_of_element_in_memory, BinaryIntOp::Add);
         self.load_instruction(result, index_of_element_in_memory);
         // Free up temporary register
         self.deallocate_register(index_of_element_in_memory);
@@ -239,7 +232,10 @@ impl BrilligContext {
             array_ptr,
             index,
             index_of_element_in_memory,
-            BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
+            BrilligBinaryOp::Integer {
+                op: BinaryIntOp::Add,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
         );
 
         self.store_instruction(index_of_element_in_memory, value);
@@ -562,6 +558,7 @@ impl BrilligContext {
         bit_size: u32,
     ) {
         self.debug_show.const_instruction(result, constant);
+
         self.push_opcode(BrilligOpcode::Const { destination: result, value: constant, bit_size });
     }
 
@@ -725,6 +722,8 @@ impl BrilligContext {
     /// Instead truncation instructions are emitted as to when a
     /// truncation should be done.
     /// For Brillig, all integer operations will overflow as its cheap.
+    /// We currently use cast to truncate: we cast to the required bit size
+    /// and back to the original bit size.
     pub(crate) fn truncate_instruction(
         &mut self,
         destination_of_truncated_value: SingleAddrVariable,
@@ -743,20 +742,12 @@ impl BrilligContext {
             value_to_truncate.bit_size
         );
 
-        let mask = BigUint::from(2_u32).pow(bit_size) - BigUint::from(1_u32);
-        let mask_constant = self.make_constant(
-            FieldElement::from_be_bytes_reduce(&mask.to_bytes_be()).into(),
-            value_to_truncate.bit_size,
-        );
-
-        self.binary_instruction(
-            value_to_truncate.address,
-            mask_constant,
-            destination_of_truncated_value.address,
-            BrilligBinaryOp::Integer { op: BinaryIntOp::And, bit_size: value_to_truncate.bit_size },
-        );
-
-        self.deallocate_register(mask_constant);
+        // We cast back and forth to ensure that the value is truncated.
+        let intermediate_register =
+            SingleAddrVariable { address: self.allocate_register(), bit_size };
+        self.cast_instruction(intermediate_register, value_to_truncate);
+        self.cast_instruction(destination_of_truncated_value, intermediate_register);
+        self.deallocate_register(intermediate_register.address);
     }
 
     /// Emits a stop instruction

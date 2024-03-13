@@ -7,10 +7,11 @@ use noirc_errors::Location;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
+    macros_api::MacroProcessor,
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
-    FunctionDefinition, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
+    FunctionDefinition, Ident, LetStatement, ModuleDeclaration, NoirFunction, NoirStruct,
+    NoirTrait, NoirTraitImpl, NoirTypeAlias, TraitImplItem, TraitItem, TypeImpl,
 };
 
 use super::{
@@ -41,16 +42,28 @@ pub fn collect_defs(
     module_id: LocalModuleId,
     crate_id: CrateId,
     context: &mut Context,
+    macro_processors: &[&dyn MacroProcessor],
 ) -> Vec<(CompilationError, FileId)> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
     let mut errors: Vec<(CompilationError, FileId)> = vec![];
 
     // First resolve the module declarations
     for decl in ast.module_decls {
-        errors.extend(collector.parse_module_declaration(context, &decl, crate_id));
+        errors.extend(collector.parse_module_declaration(
+            context,
+            &decl,
+            crate_id,
+            macro_processors,
+        ));
     }
 
-    errors.extend(collector.collect_submodules(context, crate_id, ast.submodules, file_id));
+    errors.extend(collector.collect_submodules(
+        context,
+        crate_id,
+        ast.submodules,
+        file_id,
+        macro_processors,
+    ));
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
     for import in ast.imports {
@@ -394,12 +407,10 @@ impl<'a> ModCollector<'a> {
 
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
-                            visibility: crate::FunctionVisibility::Public,
+                            visibility: crate::ItemVisibility::Public,
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
                             is_unconstrained: false,
-                            contract_function_type: None,
-                            is_internal: None,
                         };
 
                         let location = Location::new(name.span(), self.file_id);
@@ -494,6 +505,7 @@ impl<'a> ModCollector<'a> {
         crate_id: CrateId,
         submodules: Vec<SortedSubModule>,
         file_id: FileId,
+        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for submodule in submodules {
@@ -506,6 +518,7 @@ impl<'a> ModCollector<'a> {
                         child,
                         crate_id,
                         context,
+                        macro_processors,
                     ));
                 }
                 Err(error) => {
@@ -522,15 +535,16 @@ impl<'a> ModCollector<'a> {
     fn parse_module_declaration(
         &mut self,
         context: &mut Context,
-        mod_name: &Ident,
+        mod_decl: &ModuleDeclaration,
         crate_id: CrateId,
+        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let child_file_id =
-            match find_module(&context.file_manager, self.file_id, &mod_name.0.contents) {
+            match find_module(&context.file_manager, self.file_id, &mod_decl.ident.0.contents) {
                 Ok(child_file_id) => child_file_id,
                 Err(expected_path) => {
-                    let mod_name = mod_name.clone();
+                    let mod_name = mod_decl.ident.clone();
                     let err =
                         DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path };
                     errors.push((err.into(), self.file_id));
@@ -538,17 +552,17 @@ impl<'a> ModCollector<'a> {
                 }
             };
 
-        let location = Location { file: self.file_id, span: mod_name.span() };
+        let location = Location { file: self.file_id, span: mod_decl.ident.span() };
 
         if let Some(old_location) = context.visited_files.get(&child_file_id) {
             let error = DefCollectorErrorKind::ModuleAlreadyPartOfCrate {
-                mod_name: mod_name.clone(),
+                mod_name: mod_decl.ident.clone(),
                 span: location.span,
             };
             errors.push((error.into(), location.file));
 
             let error = DefCollectorErrorKind::ModuleOriginallyDefined {
-                mod_name: mod_name.clone(),
+                mod_name: mod_decl.ident.clone(),
                 span: old_location.span,
             };
             errors.push((error.into(), old_location.file));
@@ -559,14 +573,26 @@ impl<'a> ModCollector<'a> {
 
         // Parse the AST for the module we just found and then recursively look for it's defs
         let (ast, parsing_errors) = context.parsed_file_results(child_file_id);
-        let ast = ast.into_sorted();
+        let mut ast = ast.into_sorted();
+
+        for macro_processor in macro_processors {
+            match macro_processor.process_untyped_ast(ast.clone(), &crate_id, context) {
+                Ok(processed_ast) => {
+                    ast = processed_ast;
+                }
+                Err((error, file_id)) => {
+                    let def_error = DefCollectorErrorKind::MacroError(error);
+                    errors.push((def_error.into(), file_id));
+                }
+            }
+        }
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), child_file_id)).collect::<Vec<_>>(),
         );
 
         // Add module into def collector and get a ModuleId
-        match self.push_child_module(mod_name, child_file_id, true, false) {
+        match self.push_child_module(&mod_decl.ident, child_file_id, true, false) {
             Ok(child_mod_id) => {
                 errors.extend(collect_defs(
                     self.def_collector,
@@ -575,6 +601,7 @@ impl<'a> ModCollector<'a> {
                     child_mod_id,
                     crate_id,
                     context,
+                    macro_processors,
                 ));
             }
             Err(error) => {

@@ -12,7 +12,7 @@ mod tests {
         let nargo_bin =
             cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
 
-        let mut dbg_session = spawn_bash(Some(10000)).expect("Could not start bash session");
+        let mut dbg_session = spawn_bash(Some(15000)).expect("Could not start bash session");
 
         // Set backend to `/dev/null` to force an error if nargo tries to speak to a backend.
         dbg_session

@@ -76,7 +76,7 @@ impl<'interner> Monomorphizer<'interner> {
         let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
         let source_var_id = source_var_id.to_u128().into();
         // then update the ID used for tracking at runtime
-        let var_id = self.debug_type_tracker.insert_var(source_var_id, var_type);
+        let var_id = self.debug_type_tracker.insert_var(source_var_id, &var_type);
         let interned_var_id = self.intern_var_id(var_id, &call.location);
         arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id)?;
         Ok(())
