@@ -66,7 +66,7 @@ fn visibility_modifier() -> impl NoirParser<ItemVisibility> {
 
 /// function_modifiers: 'unconstrained'? (visibility)?
 ///
-/// returns (is_unconstrained, visibility, is_open) for whether each keyword was present
+/// returns (is_unconstrained, visibility) for whether each keyword was present
 fn function_modifiers() -> impl NoirParser<(bool, ItemVisibility)> {
     keyword(Keyword::Unconstrained)
         .or_not()
