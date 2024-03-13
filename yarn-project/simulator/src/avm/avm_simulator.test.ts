@@ -439,7 +439,7 @@ describe('AVM simulator', () => {
 
       it(`Should execute contract function that makes a nested static call which modifies storage`, async () => {
         const callBytecode = getAvmTestContractBytecode('avm_raw_nested_static_call_to_set_admin');
-        const nestedBytecode = getAvmTestContractBytecode('avm_setAdmin');
+        const nestedBytecode = getAvmTestContractBytecode('avm_setStorageSingle');
         const context = initContext();
         jest
           .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
@@ -468,7 +468,7 @@ describe('AVM simulator', () => {
 
       it(`Should execute contract function that makes a nested static call which modifies storage (old interface)`, async () => {
         const callBytecode = getAvmTestContractBytecode('avm_nested_static_call_to_set_admin');
-        const nestedBytecode = getAvmTestContractBytecode('avm_setAdmin');
+        const nestedBytecode = getAvmTestContractBytecode('avm_setStorageSingle');
         const context = initContext();
         jest
           .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
@@ -482,59 +482,135 @@ describe('AVM simulator', () => {
 
     describe('Storage accesses', () => {
       it('Should set a single value in storage', async () => {
-        // We are setting the owner
         const slot = 1n;
-        const sender = AztecAddress.fromField(new Fr(1));
         const address = AztecAddress.fromField(new Fr(420));
+        const value = new Fr(88);
+        const calldata = [value];
 
         const context = initContext({
-          env: initExecutionEnvironment({ sender, address, storageAddress: address }),
+          env: initExecutionEnvironment({ calldata, address, storageAddress: address }),
         });
-        const bytecode = getAvmTestContractBytecode('avm_setAdmin');
+        const bytecode = getAvmTestContractBytecode('avm_setStorageSingle');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
-        // Get contract function artifact
         expect(results.reverted).toBe(false);
 
-        // Contract 420 - Storage slot 1 should contain the value 1
+        // World state
         const worldState = context.persistableState.flush();
-
         const storageSlot = worldState.currentStorageValue.get(address.toBigInt())!;
         const adminSlotValue = storageSlot.get(slot);
-        expect(adminSlotValue).toEqual(sender.toField());
+        expect(adminSlotValue).toEqual(value);
 
         // Tracing
         const storageTrace = worldState.storageWrites.get(address.toBigInt())!;
         const slotTrace = storageTrace.get(slot);
-        expect(slotTrace).toEqual([sender.toField()]);
+        expect(slotTrace).toEqual([value]);
       });
 
-      it('Should read a value from storage', async () => {
-        // We are setting the owner
-        const sender = AztecAddress.fromField(new Fr(1));
+      it('Should read a single value in storage', async () => {
+        const slot = 1n;
+        const value = new Fr(12345);
         const address = AztecAddress.fromField(new Fr(420));
+        const storage = new Map([[slot, value]]);
 
         const context = initContext({
-          env: initExecutionEnvironment({ sender, address, storageAddress: address }),
+          env: initExecutionEnvironment({ storageAddress: address }),
         });
-        const bytecode = getAvmTestContractBytecode('avm_setAndRead');
+        jest
+          .spyOn(context.persistableState.hostStorage.publicStateDb, 'storageRead')
+          .mockImplementation((_address, slot) => Promise.resolve(storage.get(slot.toBigInt())!));
+        const bytecode = getAvmTestContractBytecode('avm_readStorageSingle');
+        const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+        // Get contract function artifact
+        expect(results.reverted).toBe(false);
+        expect(results.output).toEqual([value]);
+
+        // Tracing
+        const worldState = context.persistableState.flush();
+        const storageTrace = worldState.storageReads.get(address.toBigInt())!;
+        const slotTrace = storageTrace.get(slot);
+        expect(slotTrace).toEqual([value]);
+      });
+
+      it('Should set and read a value from storage', async () => {
+        const slot = 1n;
+        const value = new Fr(12345);
+        const address = AztecAddress.fromField(new Fr(420));
+        const calldata = [value];
+
+        const context = initContext({
+          env: initExecutionEnvironment({ calldata, address, storageAddress: address }),
+        });
+        const bytecode = getAvmTestContractBytecode('avm_setReadStorageSingle');
+        const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+        expect(results.reverted).toBe(false);
+        expect(results.output).toEqual([value]);
+
+        // Test read trace
+        const worldState = context.persistableState.flush();
+        const storageReadTrace = worldState.storageReads.get(address.toBigInt())!;
+        const slotReadTrace = storageReadTrace.get(slot);
+        expect(slotReadTrace).toEqual([value]);
+
+        // Test write trace
+        const storageWriteTrace = worldState.storageWrites.get(address.toBigInt())!;
+        const slotWriteTrace = storageWriteTrace.get(slot);
+        expect(slotWriteTrace).toEqual([value]);
+      });
+
+      it('Should set multiple values in storage', async () => {
+        const slot = 2n;
+        const sender = AztecAddress.fromField(new Fr(1));
+        const address = AztecAddress.fromField(new Fr(420));
+        const calldata = [new Fr(1), new Fr(2)];
+
+        const context = initContext({
+          env: initExecutionEnvironment({ sender, address, calldata, storageAddress: address }),
+        });
+        const bytecode = getAvmTestContractBytecode('avm_setStorageList');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
 
-        expect(results.output).toEqual([sender.toField()]);
-
         const worldState = context.persistableState.flush();
+        const storageSlot = worldState.currentStorageValue.get(address.toBigInt())!;
+        expect(storageSlot.get(slot)).toEqual(calldata[0]);
+        expect(storageSlot.get(slot + 1n)).toEqual(calldata[1]);
 
-        // Test read trace
-        const storageReadTrace = worldState.storageReads.get(address.toBigInt())!;
-        const slotReadTrace = storageReadTrace.get(1n);
-        expect(slotReadTrace).toEqual([sender.toField()]);
+        // Tracing
+        const storageTrace = worldState.storageWrites.get(address.toBigInt())!;
+        expect(storageTrace.get(slot)).toEqual([calldata[0]]);
+        expect(storageTrace.get(slot + 1n)).toEqual([calldata[1]]);
+      });
 
-        // Test write trace
-        const storageWriteTrace = worldState.storageWrites.get(address.toBigInt())!;
-        const slotWriteTrace = storageWriteTrace.get(1n);
-        expect(slotWriteTrace).toEqual([sender.toField()]);
+      it('Should read multiple values in storage', async () => {
+        const slot = 2n;
+        const address = AztecAddress.fromField(new Fr(420));
+        const values = [new Fr(1), new Fr(2)];
+        const storage = new Map([
+          [slot, values[0]],
+          [slot + 1n, values[1]],
+        ]);
+
+        const context = initContext({
+          env: initExecutionEnvironment({ address, storageAddress: address }),
+        });
+        jest
+          .spyOn(context.persistableState.hostStorage.publicStateDb, 'storageRead')
+          .mockImplementation((_address, slot) => Promise.resolve(storage.get(slot.toBigInt())!));
+        const bytecode = getAvmTestContractBytecode('avm_readStorageList');
+        const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+        expect(results.reverted).toBe(false);
+        expect(results.output).toEqual(values);
+
+        // Tracing
+        const worldState = context.persistableState.flush();
+        const storageTrace = worldState.storageReads.get(address.toBigInt())!;
+        expect(storageTrace.get(slot)).toEqual([values[0]]);
+        expect(storageTrace.get(slot + 1n)).toEqual([values[1]]);
       });
     });
   });
