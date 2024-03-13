@@ -52,6 +52,7 @@
         "csat",
         "curvegroup",
         "databus",
+        "debouncer",
         "deflater",
         "deflatten",
         "deflattened",
