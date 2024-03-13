@@ -30,8 +30,6 @@ template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_preamble_round(
  */
 template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_wire_commitments_round()
 {
-    auto& witness_commitments = instance->witness_commitments;
-
     // Commit to the first three wire polynomials of the instance
     // We only commit to the fourth wire polynomial after adding memory recordss
     witness_commitments.w_l = commitment_key->commit(instance->proving_key->w_l);
@@ -39,7 +37,6 @@ template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_wire_commitment
     witness_commitments.w_o = commitment_key->commit(instance->proving_key->w_o);
 
     auto wire_comms = witness_commitments.get_wires();
-    auto& commitment_labels = instance->commitment_labels;
     auto wire_labels = commitment_labels.get_wires();
     for (size_t idx = 0; idx < 3; ++idx) {
         transcript->send_to_verifier(domain_separator + wire_labels[idx], wire_comms[idx]);
@@ -72,16 +69,14 @@ template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_wire_commitment
  */
 template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_sorted_list_accumulator_round()
 {
-    auto& witness_commitments = instance->witness_commitments;
-    const auto& commitment_labels = instance->commitment_labels;
 
     auto eta = transcript->template get_challenge<FF>(domain_separator + "eta");
     instance->compute_sorted_accumulator_polynomials(eta);
 
     // Commit to the sorted witness-table accumulator and the finalized (i.e. with memory records) fourth wire
     // polynomial
-    witness_commitments.sorted_accum = commitment_key->commit(instance->prover_polynomials.sorted_accum);
-    witness_commitments.w_4 = commitment_key->commit(instance->prover_polynomials.w_4);
+    witness_commitments.sorted_accum = commitment_key->commit(instance->proving_key->sorted_accum);
+    witness_commitments.w_4 = commitment_key->commit(instance->proving_key->w_4);
 
     transcript->send_to_verifier(domain_separator + commitment_labels.sorted_accum, witness_commitments.sorted_accum);
     transcript->send_to_verifier(domain_separator + commitment_labels.w_4, witness_commitments.w_4);
@@ -93,16 +88,13 @@ template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_sorted_list_acc
  */
 template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_log_derivative_inverse_round()
 {
-    auto& witness_commitments = instance->witness_commitments;
-    const auto& commitment_labels = instance->commitment_labels;
-
     auto [beta, gamma] = transcript->template get_challenges<FF>(domain_separator + "beta", domain_separator + "gamma");
     instance->relation_parameters.beta = beta;
     instance->relation_parameters.gamma = gamma;
     if constexpr (IsGoblinFlavor<Flavor>) {
         // Compute and commit to the logderivative inverse used in DataBus
         instance->compute_logderivative_inverse(beta, gamma);
-        witness_commitments.lookup_inverses = commitment_key->commit(instance->prover_polynomials.lookup_inverses);
+        witness_commitments.lookup_inverses = commitment_key->commit(instance->proving_key->lookup_inverses);
         transcript->send_to_verifier(domain_separator + commitment_labels.lookup_inverses,
                                      witness_commitments.lookup_inverses);
     }
@@ -114,14 +106,12 @@ template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_log_derivative_
  */
 template <IsUltraFlavor Flavor> void OinkProver<Flavor>::execute_grand_product_computation_round()
 {
-    auto& witness_commitments = instance->witness_commitments;
-    const auto& commitment_labels = instance->commitment_labels;
 
     instance->compute_grand_product_polynomials(instance->relation_parameters.beta,
                                                 instance->relation_parameters.gamma);
 
-    witness_commitments.z_perm = commitment_key->commit(instance->prover_polynomials.z_perm);
-    witness_commitments.z_lookup = commitment_key->commit(instance->prover_polynomials.z_lookup);
+    witness_commitments.z_perm = commitment_key->commit(instance->proving_key->z_perm);
+    witness_commitments.z_lookup = commitment_key->commit(instance->proving_key->z_lookup);
 
     transcript->send_to_verifier(domain_separator + commitment_labels.z_perm, witness_commitments.z_perm);
     transcript->send_to_verifier(domain_separator + commitment_labels.z_lookup, witness_commitments.z_lookup);

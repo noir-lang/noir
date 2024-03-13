@@ -25,8 +25,6 @@ template <class Flavor> class ProverInstance_ {
     using FF = typename Flavor::FF;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Polynomial = typename Flavor::Polynomial;
-    using WitnessCommitments = typename Flavor::WitnessCommitments;
-    using CommitmentLabels = typename Flavor::CommitmentLabels;
     using RelationSeparator = typename Flavor::RelationSeparator;
 
     using Trace = ExecutionTrace_<Flavor>;
@@ -34,8 +32,6 @@ template <class Flavor> class ProverInstance_ {
   public:
     std::shared_ptr<ProvingKey> proving_key;
     ProverPolynomials prover_polynomials;
-    WitnessCommitments witness_commitments;
-    CommitmentLabels commitment_labels;
 
     std::array<Polynomial, 4> sorted_polynomials;
 
