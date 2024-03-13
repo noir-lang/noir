@@ -8,6 +8,7 @@ use std::{
     ops::Range,
 };
 
+pub use super::debug_vars::{DebugVars, StackFrame};
 use fm::{FileId, FileManager, PathString};
 
 /// A Debug Artifact stores, for a given program, the debug info for every function
@@ -86,7 +87,8 @@ impl DebugArtifact {
         let line_index = self.line_index(location.file, location_start)?;
         let line_span = self.line_range(location.file, line_index)?;
 
-        let line_length = line_span.end - (line_span.start + 1);
+        let line_length =
+            if line_span.end > line_span.start { line_span.end - (line_span.start + 1) } else { 0 };
         let start_in_line = location_start - line_span.start;
 
         // The location might continue beyond the line,
@@ -126,18 +128,18 @@ impl From<CompiledProgram> for DebugArtifact {
     }
 }
 
-impl From<&CompiledContract> for DebugArtifact {
-    fn from(compiled_artifact: &CompiledContract) -> Self {
+impl From<CompiledContract> for DebugArtifact {
+    fn from(compiled_artifact: CompiledContract) -> Self {
         let all_functions_debug: Vec<DebugInfo> = compiled_artifact
             .functions
-            .iter()
-            .map(|contract_function| contract_function.debug.clone())
+            .into_iter()
+            .map(|contract_function| contract_function.debug)
             .collect();
 
         DebugArtifact {
             debug_symbols: all_functions_debug,
-            file_map: compiled_artifact.file_map.clone(),
-            warnings: compiled_artifact.warnings.clone(),
+            file_map: compiled_artifact.file_map,
+            warnings: compiled_artifact.warnings,
         }
     }
 }
@@ -229,7 +231,12 @@ mod tests {
         let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
         opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
 
-        let debug_symbols = vec![DebugInfo::new(opcode_locations)];
+        let debug_symbols = vec![DebugInfo::new(
+            opcode_locations,
+            BTreeMap::default(),
+            BTreeMap::default(),
+            BTreeMap::default(),
+        )];
         let debug_artifact = DebugArtifact::new(debug_symbols, &fm);
 
         let location_in_line = debug_artifact.location_in_line(loc).expect("Expected a range");

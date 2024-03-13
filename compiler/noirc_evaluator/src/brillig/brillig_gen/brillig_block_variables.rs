@@ -1,10 +1,9 @@
-use acvm::brillig_vm::brillig::RegisterIndex;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
     brillig::brillig_ir::{
-        brillig_variable::{BrilligArray, BrilligVariable, BrilligVector},
-        BrilligContext,
+        brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
+        BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     },
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -19,6 +18,7 @@ use super::brillig_fn::FunctionContext;
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
     available_variables: HashSet<ValueId>,
+    block_parameters: HashSet<ValueId>,
     available_constants: HashMap<ValueId, BrilligVariable>,
 }
 
@@ -26,7 +26,8 @@ impl BlockVariables {
     /// Creates a BlockVariables instance. It uses the variables that are live in to the block and the global available variables (block parameters)
     pub(crate) fn new(live_in: HashSet<ValueId>, all_block_parameters: HashSet<ValueId>) -> Self {
         BlockVariables {
-            available_variables: live_in.into_iter().chain(all_block_parameters).collect(),
+            available_variables: live_in.into_iter().chain(all_block_parameters.clone()).collect(),
+            block_parameters: all_block_parameters,
             ..Default::default()
         }
     }
@@ -69,20 +70,35 @@ impl BlockVariables {
     }
 
     /// Defines a variable that fits in a single register and returns the allocated register.
-    pub(crate) fn define_register_variable(
+    pub(crate) fn define_single_addr_variable(
         &mut self,
         function_context: &mut FunctionContext,
         brillig_context: &mut BrilligContext,
         value: ValueId,
         dfg: &DataFlowGraph,
-    ) -> RegisterIndex {
+    ) -> SingleAddrVariable {
         let variable = self.define_variable(function_context, brillig_context, value, dfg);
-        variable.extract_register()
+        variable.extract_single_addr()
     }
 
     /// Removes a variable so it's not used anymore within this block.
-    pub(crate) fn remove_variable(&mut self, value_id: &ValueId) {
-        self.available_variables.remove(value_id);
+    pub(crate) fn remove_variable(
+        &mut self,
+        value_id: &ValueId,
+        function_context: &mut FunctionContext,
+        brillig_context: &mut BrilligContext,
+    ) {
+        assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
+        // Block parameters should not be deallocated
+        if !self.block_parameters.contains(value_id) {
+            let variable = function_context
+                .ssa_value_allocations
+                .get(value_id)
+                .expect("ICE: Variable allocation not found");
+            variable.extract_registers().iter().for_each(|register| {
+                brillig_context.deallocate_register(*register);
+            });
+        }
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
@@ -173,9 +189,22 @@ pub(crate) fn allocate_value(
     let typ = dfg.type_of_value(value_id);
 
     match typ {
-        Type::Numeric(_) | Type::Reference(_) => {
-            let register = brillig_context.allocate_register();
-            BrilligVariable::Simple(register)
+        Type::Numeric(numeric_type) => BrilligVariable::SingleAddr(SingleAddrVariable {
+            address: brillig_context.allocate_register(),
+            bit_size: numeric_type.bit_size(),
+        }),
+        Type::Reference(_) => BrilligVariable::SingleAddr(SingleAddrVariable {
+            address: brillig_context.allocate_register(),
+            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        }),
+        Type::Function => {
+            // NB. function references are converted to a constant when
+            // translating from SSA to Brillig (to allow for debugger
+            // instrumentation to work properly)
+            BrilligVariable::SingleAddr(SingleAddrVariable {
+                address: brillig_context.allocate_register(),
+                bit_size: 32,
+            })
         }
         Type::Array(item_typ, elem_count) => {
             let pointer_register = brillig_context.allocate_register();
@@ -198,9 +227,6 @@ pub(crate) fn allocate_value(
                 size: size_register,
                 rc: rc_register,
             })
-        }
-        Type::Function => {
-            unreachable!("ICE: Function values should have been removed from the SSA")
         }
     }
 }

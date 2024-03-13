@@ -1,21 +1,14 @@
+use super::fs::{create_named_dir, write_to_file};
 use super::NargoConfig;
-use super::{
-    compile_cmd::compile_bin_package,
-    fs::{create_named_dir, write_to_file},
-};
 use crate::backends::Backend;
 use crate::errors::CliError;
 
-use acvm::ExpressionWidth;
 use clap::Args;
-use fm::FileManager;
-use nargo::package::Package;
-use nargo::workspace::Workspace;
+use nargo::ops::{compile_program, report_errors};
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
-use noirc_frontend::hir::ParsedFiles;
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
@@ -52,16 +45,26 @@ pub(crate) fn run(
     let parsed_files = parse_all(&workspace_file_manager);
 
     let expression_width = backend.get_backend_info()?;
-    for package in &workspace {
-        let smart_contract_string = smart_contract_for_package(
+    let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
+    for package in binary_packages {
+        let compilation_result = compile_program(
             &workspace_file_manager,
             &parsed_files,
-            &workspace,
-            backend,
             package,
             &args.compile_options,
-            expression_width,
+            None,
+        );
+
+        let program = report_errors(
+            compilation_result,
+            &workspace_file_manager,
+            args.compile_options.deny_warnings,
+            args.compile_options.silence_warnings,
         )?;
+
+        let program = nargo::ops::transform_program(program, expression_width);
+
+        let smart_contract_string = backend.eth_contract(&program.circuit)?;
 
         let contract_dir = workspace.contracts_directory_path(package);
         create_named_dir(&contract_dir, "contract");
@@ -72,25 +75,4 @@ pub(crate) fn run(
     }
 
     Ok(())
-}
-
-fn smart_contract_for_package(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
-    workspace: &Workspace,
-    backend: &Backend,
-    package: &Package,
-    compile_options: &CompileOptions,
-    expression_width: ExpressionWidth,
-) -> Result<String, CliError> {
-    let program = compile_bin_package(
-        file_manager,
-        parsed_files,
-        workspace,
-        package,
-        compile_options,
-        expression_width,
-    )?;
-
-    Ok(backend.eth_contract(&program.circuit)?)
 }

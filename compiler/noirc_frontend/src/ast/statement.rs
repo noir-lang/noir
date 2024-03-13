@@ -241,6 +241,17 @@ pub trait Recoverable {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ModuleDeclaration {
+    pub ident: Ident,
+}
+
+impl std::fmt::Display for ModuleDeclaration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "mod {}", self.ident)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ImportStatement {
     pub path: Path,
     pub alias: Option<Ident>,
@@ -416,7 +427,7 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub Expression, pub Option<String>, pub ConstrainKind);
+pub struct ConstrainStatement(pub Expression, pub Option<Expression>, pub ConstrainKind);
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ConstrainKind {
@@ -428,18 +439,22 @@ pub enum ConstrainKind {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
     Identifier(Ident),
-    Mutable(Box<Pattern>, Span),
+    Mutable(Box<Pattern>, Span, /*is_synthesized*/ bool),
     Tuple(Vec<Pattern>, Span),
     Struct(Path, Vec<(Ident, Pattern)>, Span),
 }
 
 impl Pattern {
+    pub fn is_synthesized(&self) -> bool {
+        matches!(self, Pattern::Mutable(_, _, true))
+    }
+
     pub fn span(&self) -> Span {
         match self {
             Pattern::Identifier(ident) => ident.span(),
-            Pattern::Mutable(_, span) | Pattern::Tuple(_, span) | Pattern::Struct(_, _, span) => {
-                *span
-            }
+            Pattern::Mutable(_, span, _)
+            | Pattern::Tuple(_, span)
+            | Pattern::Struct(_, _, span) => *span,
         }
     }
     pub fn name_ident(&self) -> &Ident {
@@ -452,7 +467,7 @@ impl Pattern {
     pub(crate) fn into_ident(self) -> Ident {
         match self {
             Pattern::Identifier(ident) => ident,
-            Pattern::Mutable(pattern, _) => pattern.into_ident(),
+            Pattern::Mutable(pattern, _, _) => pattern.into_ident(),
             other => panic!("Pattern::into_ident called on {other} pattern with no identifier"),
         }
     }
@@ -688,7 +703,7 @@ impl Display for Pattern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Pattern::Identifier(name) => name.fmt(f),
-            Pattern::Mutable(name, _) => write!(f, "mut {name}"),
+            Pattern::Mutable(name, _, _) => write!(f, "mut {name}"),
             Pattern::Tuple(fields, _) => {
                 let fields = vecmap(fields, ToString::to_string);
                 write!(f, "({})", fields.join(", "))

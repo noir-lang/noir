@@ -1,6 +1,7 @@
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::Expression;
+use crate::IntegerBitSize;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
 
@@ -40,6 +41,8 @@ pub enum ParserErrorReason {
     NoFunctionAttributesAllowedOnStruct,
     #[error("Assert statements can only accept string literals")]
     AssertMessageNotString,
+    #[error("Integer bit size {0} isn't supported")]
+    InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
 }
@@ -143,6 +146,11 @@ impl From<ParserError> for Diagnostic {
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
                         "Use of deprecated keyword 'comptime'".into(),
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
+                        error.span,
+                    ),
+                    ParserErrorReason::InvalidBitSize(bit_size) => Diagnostic::simple_error(
+                        format!("Use of invalid bit size {}", bit_size),
+                        format!("Allowed bit sizes for integers are {}", IntegerBitSize::allowed_sizes().iter().map(|n| n.to_string()).collect::<Vec<_>>().join(", ")),
                         error.span,
                     ),
                     ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(

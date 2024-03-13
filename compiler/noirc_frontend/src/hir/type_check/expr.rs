@@ -5,8 +5,8 @@ use crate::{
     hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
         expr::{
-            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
-            HirMethodReference, HirPrefixExpression, ImplKind,
+            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirIdent, HirLiteral,
+            HirMethodCallExpression, HirMethodReference, HirPrefixExpression, ImplKind,
         },
         types::Type,
     },
@@ -36,6 +36,18 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
+    fn is_unconstrained_call(&self, expr: &ExprId) -> bool {
+        if let HirExpression::Ident(expr::HirIdent { id, .. }) = self.interner.expression(expr) {
+            if let Some(DefinitionKind::Function(func_id)) =
+                self.interner.try_definition(id).map(|def| &def.kind)
+            {
+                let modifiers = self.interner.function_modifiers(func_id);
+                return modifiers.is_unconstrained;
+            }
+        }
+        false
+    }
+
     /// Infers a type for a given expression, and return this type.
     /// As a side-effect, this function will also remember this type in the NodeInterner
     /// for the given expr_id key.
@@ -46,57 +58,14 @@ impl<'interner> TypeChecker<'interner> {
     /// function `foo` to refer to.
     pub(crate) fn check_expression(&mut self, expr_id: &ExprId) -> Type {
         let typ = match self.interner.expression(expr_id) {
-            HirExpression::Ident(ident) => {
-                // An identifiers type may be forall-quantified in the case of generic functions.
-                // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
-                // We must instantiate identifiers at every call site to replace this T with a new type
-                // variable to handle generic functions.
-                let t = self.interner.id_type_substitute_trait_as_type(ident.id);
-
-                // This instantiate's a trait's generics as well which need to be set
-                // when the constraint below is later solved for when the function is
-                // finished. How to link the two?
-                let (typ, bindings) = t.instantiate(self.interner);
-
-                // Push any trait constraints required by this definition to the context
-                // to be checked later when the type of this variable is further constrained.
-                if let Some(definition) = self.interner.try_definition(ident.id) {
-                    if let DefinitionKind::Function(function) = definition.kind {
-                        let function = self.interner.function_meta(&function);
-
-                        for mut constraint in function.trait_constraints.clone() {
-                            constraint.apply_bindings(&bindings);
-                            self.trait_constraints.push((constraint, *expr_id));
-                        }
-                    }
-                }
-
-                if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
-                    constraint.apply_bindings(&bindings);
-                    if assumed {
-                        let trait_impl = TraitImplKind::Assumed {
-                            object_type: constraint.typ,
-                            trait_generics: constraint.trait_generics,
-                        };
-                        self.interner.select_impl_for_expression(*expr_id, trait_impl);
-                    } else {
-                        // Currently only one impl can be selected per expr_id, so this
-                        // constraint needs to be pushed after any other constraints so
-                        // that monomorphization can resolve this trait method to the correct impl.
-                        self.trait_constraints.push((constraint, *expr_id));
-                    }
-                }
-
-                self.interner.store_instantiation_bindings(*expr_id, bindings);
-                typ
-            }
+            HirExpression::Ident(ident) => self.check_ident(ident, expr_id),
             HirExpression::Literal(literal) => {
                 match literal {
                     HirLiteral::Array(HirArrayLiteral::Standard(arr)) => {
                         let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
 
                         let first_elem_type = elem_types
-                            .get(0)
+                            .first()
                             .cloned()
                             .unwrap_or_else(|| self.interner.next_type_variable());
 
@@ -135,7 +104,7 @@ impl<'interner> TypeChecker<'interner> {
                         Type::Array(Box::new(length), Box::new(elem_type))
                     }
                     HirLiteral::Bool(_) => Type::Bool,
-                    HirLiteral::Integer(_, _) => Type::polymorphic_integer(self.interner),
+                    HirLiteral::Integer(_, _) => Type::polymorphic_integer_or_field(self.interner),
                     HirLiteral::Str(string) => {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
@@ -182,6 +151,14 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::Index(index_expr) => self.check_index_expression(expr_id, index_expr),
             HirExpression::Call(call_expr) => {
+                // Need to setup these flags here as `self` is borrowed mutably to type check the rest of the call expression
+                // These flags are later used to type check calls to unconstrained functions from constrained functions
+                let current_func = self.current_function;
+                let func_mod = current_func.map(|func| self.interner.function_modifiers(&func));
+                let is_current_func_constrained =
+                    func_mod.map_or(true, |func_mod| !func_mod.is_unconstrained);
+                let is_unconstrained_call = self.is_unconstrained_call(&call_expr.func);
+
                 self.check_if_deprecated(&call_expr.func);
 
                 let function = self.check_expression(&call_expr.func);
@@ -190,78 +167,72 @@ impl<'interner> TypeChecker<'interner> {
                     let typ = self.check_expression(arg);
                     (typ, *arg, self.interner.expr_span(arg))
                 });
+
+                // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
+                if is_current_func_constrained && is_unconstrained_call {
+                    for (typ, _, _) in args.iter() {
+                        if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
+                            self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained {
+                                span: self.interner.expr_span(expr_id),
+                            });
+                            return Type::Error;
+                        }
+                    }
+                }
+
                 let span = self.interner.expr_span(expr_id);
-                self.bind_function_type(function, args, span)
+                let return_type = self.bind_function_type(function, args, span);
+
+                // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
+                if is_current_func_constrained
+                    && is_unconstrained_call
+                    && return_type.contains_slice()
+                {
+                    self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained {
+                        span: self.interner.expr_span(expr_id),
+                    });
+                    return Type::Error;
+                }
+
+                return_type
             }
             HirExpression::MethodCall(mut method_call) => {
-                let object_type = self.check_expression(&method_call.object).follow_bindings();
+                let mut object_type = self.check_expression(&method_call.object).follow_bindings();
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_ref) => {
-                        let mut args = vec![(
-                            object_type.clone(),
-                            method_call.object,
-                            self.interner.expr_span(&method_call.object),
-                        )];
-
-                        for arg in &method_call.arguments {
-                            let typ = self.check_expression(arg);
-                            args.push((typ, *arg, self.interner.expr_span(arg)));
-                        }
-
                         // Desugar the method call into a normal, resolved function call
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
 
-                        let trait_id = match &method_ref {
-                            HirMethodReference::FuncId(func_id) => {
-                                // Automatically add `&mut` if the method expects a mutable reference and
-                                // the object is not already one.
-                                if *func_id != FuncId::dummy_id() {
-                                    let function_type =
-                                        self.interner.function_meta(func_id).typ.clone();
-                                    self.try_add_mutable_reference_to_object(
-                                        &mut method_call,
-                                        &function_type,
-                                        &mut args,
-                                    );
-                                }
+                        // Automatically add `&mut` if the method expects a mutable reference and
+                        // the object is not already one.
+                        if let HirMethodReference::FuncId(func_id) = &method_ref {
+                            if *func_id != FuncId::dummy_id() {
+                                let function_type =
+                                    self.interner.function_meta(func_id).typ.clone();
 
-                                let meta = self.interner.function_meta(func_id);
-                                meta.trait_impl.map(|impl_id| {
-                                    self.interner
-                                        .get_trait_implementation(impl_id)
-                                        .borrow()
-                                        .trait_id
-                                })
+                                self.try_add_mutable_reference_to_object(
+                                    &mut method_call,
+                                    &function_type,
+                                    &mut object_type,
+                                );
                             }
-                            HirMethodReference::TraitMethodId(method, _) => Some(method.trait_id),
-                        };
+                        }
 
-                        let (function_id, function_call) = method_call.into_function_call(
+                        // TODO: update object_type here?
+                        let function_call = method_call.into_function_call(
                             &method_ref,
-                            object_type.clone(),
+                            object_type,
                             location,
                             self.interner,
                         );
 
-                        let span = self.interner.expr_span(expr_id);
-                        let ret = self.check_method_call(&function_id, method_ref, args, span);
-
-                        if let Some(trait_id) = trait_id {
-                            // Assume no trait generics were specified
-                            // TODO: Fill in type variables
-                            self.verify_trait_constraint(
-                                &object_type,
-                                trait_id,
-                                &[],
-                                function_id,
-                                span,
-                            );
-                        }
-
                         self.interner.replace_expr(expr_id, function_call);
-                        ret
+
+                        // Type check the new call now that it has been changed from a method call
+                        // to a function call. This way we avoid duplicating code.
+                        self.check_expression(expr_id)
                     }
                     None => Type::Error,
                 }
@@ -313,8 +284,9 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Tuple(vecmap(&elements, |elem| self.check_expression(elem)))
             }
             HirExpression::Lambda(lambda) => {
-                let captured_vars =
-                    vecmap(lambda.captures, |capture| self.interner.id_type(capture.ident.id));
+                let captured_vars = vecmap(lambda.captures, |capture| {
+                    self.interner.definition_type(capture.ident.id)
+                });
 
                 let env_type: Type =
                     if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
@@ -337,7 +309,71 @@ impl<'interner> TypeChecker<'interner> {
             }
         };
 
-        self.interner.push_expr_type(expr_id, typ.clone());
+        self.interner.push_expr_type(*expr_id, typ.clone());
+        typ
+    }
+
+    /// Returns the type of the given identifier
+    fn check_ident(&mut self, ident: HirIdent, expr_id: &ExprId) -> Type {
+        let mut bindings = TypeBindings::new();
+
+        // Add type bindings from any constraints that were used.
+        // We need to do this first since otherwise instantiating the type below
+        // will replace each trait generic with a fresh type variable, rather than
+        // the type used in the trait constraint (if it exists). See #4088.
+        if let ImplKind::TraitMethod(_, constraint, _) = &ident.impl_kind {
+            let the_trait = self.interner.get_trait(constraint.trait_id);
+            assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
+
+            for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
+                // Avoid binding t = t
+                if !arg.occurs(param.id()) {
+                    bindings.insert(param.id(), (param.clone(), arg.clone()));
+                }
+            }
+        }
+
+        // An identifiers type may be forall-quantified in the case of generic functions.
+        // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
+        // We must instantiate identifiers at every call site to replace this T with a new type
+        // variable to handle generic functions.
+        let t = self.interner.id_type_substitute_trait_as_type(ident.id);
+
+        // This instantiates a trait's generics as well which need to be set
+        // when the constraint below is later solved for when the function is
+        // finished. How to link the two?
+        let (typ, bindings) = t.instantiate_with_bindings(bindings, self.interner);
+
+        // Push any trait constraints required by this definition to the context
+        // to be checked later when the type of this variable is further constrained.
+        if let Some(definition) = self.interner.try_definition(ident.id) {
+            if let DefinitionKind::Function(function) = definition.kind {
+                let function = self.interner.function_meta(&function);
+
+                for mut constraint in function.trait_constraints.clone() {
+                    constraint.apply_bindings(&bindings);
+                    self.trait_constraints.push((constraint, *expr_id));
+                }
+            }
+        }
+
+        if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
+            constraint.apply_bindings(&bindings);
+            if assumed {
+                let trait_impl = TraitImplKind::Assumed {
+                    object_type: constraint.typ,
+                    trait_generics: constraint.trait_generics,
+                };
+                self.interner.select_impl_for_expression(*expr_id, trait_impl);
+            } else {
+                // Currently only one impl can be selected per expr_id, so this
+                // constraint needs to be pushed after any other constraints so
+                // that monomorphization can resolve this trait method to the correct impl.
+                self.trait_constraints.push((constraint, *expr_id));
+            }
+        }
+
+        self.interner.store_instantiation_bindings(*expr_id, bindings);
         typ
     }
 
@@ -390,7 +426,7 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         method_call: &mut HirMethodCallExpression,
         function_type: &Type,
-        argument_types: &mut [(Type, ExprId, noirc_errors::Span)],
+        object_type: &mut Type,
     ) {
         let expected_object_type = match function_type {
             Type::Function(args, _, _) => args.first(),
@@ -402,7 +438,7 @@ impl<'interner> TypeChecker<'interner> {
         };
 
         if let Some(expected_object_type) = expected_object_type {
-            let actual_type = argument_types[0].0.follow_bindings();
+            let actual_type = object_type.follow_bindings();
 
             if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
                 if !matches!(actual_type, Type::MutableReference(_)) {
@@ -412,34 +448,33 @@ impl<'interner> TypeChecker<'interner> {
                     }
 
                     let new_type = Type::MutableReference(Box::new(actual_type));
-                    argument_types[0].0 = new_type.clone();
+                    *object_type = new_type.clone();
 
                     // First try to remove a dereference operator that may have been implicitly
                     // inserted by a field access expression `foo.bar` on a mutable reference `foo`.
-                    if self.try_remove_implicit_dereference(method_call.object).is_none() {
-                        // If that didn't work, then wrap the whole expression in an `&mut`
+                    let new_object = self.try_remove_implicit_dereference(method_call.object);
+
+                    // If that didn't work, then wrap the whole expression in an `&mut`
+                    method_call.object = new_object.unwrap_or_else(|| {
                         let location = self.interner.id_location(method_call.object);
 
-                        method_call.object =
+                        let new_object =
                             self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
                                 operator: UnaryOp::MutableReference,
                                 rhs: method_call.object,
                             }));
-                        self.interner.push_expr_type(&method_call.object, new_type);
-                        self.interner.push_expr_location(
-                            method_call.object,
-                            location.span,
-                            location.file,
-                        );
-                    }
+                        self.interner.push_expr_type(new_object, new_type);
+                        self.interner.push_expr_location(new_object, location.span, location.file);
+                        new_object
+                    });
                 }
             // Otherwise if the object type is a mutable reference and the method is not, insert as
             // many dereferences as needed.
             } else if matches!(actual_type, Type::MutableReference(_)) {
                 let (object, new_type) =
                     self.insert_auto_dereferences(method_call.object, actual_type);
+                *object_type = new_type;
                 method_call.object = object;
-                argument_types[0].0 = new_type;
             }
         }
     }
@@ -454,7 +489,7 @@ impl<'interner> TypeChecker<'interner> {
                 operator: UnaryOp::Dereference { implicitly_added: true },
                 rhs: object,
             }));
-            self.interner.push_expr_type(&object, element.as_ref().clone());
+            self.interner.push_expr_type(object, element.as_ref().clone());
             self.interner.push_expr_location(object, location.span, location.file);
 
             // Recursively dereference to allow for converting &mut &mut T to T
@@ -467,29 +502,22 @@ impl<'interner> TypeChecker<'interner> {
     /// Given a method object: `(*foo).bar` of a method call `(*foo).bar.baz()`, remove the
     /// implicitly added dereference operator if one is found.
     ///
-    /// Returns Some(()) if a dereference was removed and None otherwise.
-    fn try_remove_implicit_dereference(&mut self, object: ExprId) -> Option<()> {
+    /// Returns Some(new_expr_id) if a dereference was removed and None otherwise.
+    fn try_remove_implicit_dereference(&mut self, object: ExprId) -> Option<ExprId> {
         match self.interner.expression(&object) {
-            HirExpression::MemberAccess(access) => {
-                self.try_remove_implicit_dereference(access.lhs)?;
+            HirExpression::MemberAccess(mut access) => {
+                let new_lhs = self.try_remove_implicit_dereference(access.lhs)?;
+                access.lhs = new_lhs;
+                access.is_offset = true;
 
-                // Since we removed a dereference, instead of returning the field directly,
-                // we expect to be returning a reference to the field, so update the type accordingly.
-                let current_type = self.interner.id_type(object);
-                let reference_type = Type::MutableReference(Box::new(current_type));
-                self.interner.push_expr_type(&object, reference_type);
-                Some(())
+                // `object` will have a different type now, which will be filled in
+                // later when type checking the method call as a function call.
+                self.interner.replace_expr(&object, HirExpression::MemberAccess(access));
+                Some(object)
             }
             HirExpression::Prefix(prefix) => match prefix.operator {
-                UnaryOp::Dereference { implicitly_added: true } => {
-                    // Found a dereference we can remove. Now just replace it with its rhs to remove it.
-                    let rhs = self.interner.expression(&prefix.rhs);
-                    self.interner.replace_expr(&object, rhs);
-
-                    let rhs_type = self.interner.id_type(prefix.rhs);
-                    self.interner.push_expr_type(&object, rhs_type);
-                    Some(())
-                }
+                // Found a dereference we can remove. Now just replace it with its rhs to remove it.
+                UnaryOp::Dereference { implicitly_added: true } => Some(prefix.rhs),
                 _ => None,
             },
             _ => None,
@@ -504,13 +532,15 @@ impl<'interner> TypeChecker<'interner> {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
-        index_type.unify(&Type::polymorphic_integer(self.interner), &mut self.errors, || {
-            TypeCheckError::TypeMismatch {
+        index_type.unify(
+            &Type::polymorphic_integer_or_field(self.interner),
+            &mut self.errors,
+            || TypeCheckError::TypeMismatch {
                 expected_typ: "an integer".to_owned(),
                 expr_typ: index_type.to_string(),
                 expr_span: span,
-            }
-        });
+            },
+        );
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
@@ -541,6 +571,7 @@ impl<'interner> TypeChecker<'interner> {
             Type::Integer(..)
             | Type::FieldElement
             | Type::TypeVariable(_, TypeVariableKind::IntegerOrField)
+            | Type::TypeVariable(_, TypeVariableKind::Integer)
             | Type::Bool => (),
 
             Type::TypeVariable(_, _) => {
@@ -564,60 +595,6 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Error
             }
         }
-    }
-
-    // We need a special function to type check method calls since the method
-    // is not a Expression::Ident it must be manually instantiated here
-    fn check_method_call(
-        &mut self,
-        function_ident_id: &ExprId,
-        method_ref: HirMethodReference,
-        arguments: Vec<(Type, ExprId, Span)>,
-        span: Span,
-    ) -> Type {
-        let (fn_typ, param_len, generic_bindings) = match method_ref {
-            HirMethodReference::FuncId(func_id) => {
-                if func_id == FuncId::dummy_id() {
-                    return Type::Error;
-                }
-
-                let func_meta = self.interner.function_meta(&func_id);
-                let param_len = func_meta.parameters.len();
-                (func_meta.typ.clone(), param_len, TypeBindings::new())
-            }
-            HirMethodReference::TraitMethodId(method, generics) => {
-                let the_trait = self.interner.get_trait(method.trait_id);
-                let method = &the_trait.methods[method.method_index];
-
-                // These are any bindings from the trait's generics itself,
-                // rather than an impl or method's generics.
-                let generic_bindings = the_trait
-                    .generics
-                    .iter()
-                    .zip(generics)
-                    .map(|(var, arg)| (var.id(), (var.clone(), arg)))
-                    .collect();
-
-                (method.typ.clone(), method.arguments().len(), generic_bindings)
-            }
-        };
-
-        let arg_len = arguments.len();
-
-        if param_len != arg_len {
-            self.errors.push(TypeCheckError::ArityMisMatch {
-                expected: param_len as u16,
-                found: arg_len as u16,
-                span,
-            });
-        }
-
-        let (function_type, instantiation_bindings) =
-            fn_typ.instantiate_with_bindings(generic_bindings, self.interner);
-
-        self.interner.store_instantiation_bindings(*function_ident_id, instantiation_bindings);
-        self.interner.push_expr_type(function_ident_id, function_type.clone());
-        self.bind_function_type(function_type.clone(), arguments, span)
     }
 
     fn check_if_expr(&mut self, if_expr: &expr::HirIfExpression, expr_id: &ExprId) -> Type {
@@ -711,12 +688,15 @@ impl<'interner> TypeChecker<'interner> {
                 operator: crate::UnaryOp::Dereference { implicitly_added: true },
                 rhs: old_lhs,
             }));
-            this.interner.push_expr_type(&old_lhs, lhs_type);
-            this.interner.push_expr_type(access_lhs, element);
+            this.interner.push_expr_type(old_lhs, lhs_type);
+            this.interner.push_expr_type(*access_lhs, element);
 
             let old_location = this.interner.id_location(old_lhs);
             this.interner.push_expr_location(*access_lhs, span, old_location.file);
         };
+
+        // If this access is just a field offset, we want to avoid dereferencing
+        let dereference_lhs = (!access.is_offset).then_some(dereference_lhs);
 
         match self.check_field_access(&lhs_type, &access.rhs.0.contents, span, dereference_lhs) {
             Some((element_type, index)) => {
@@ -742,12 +722,16 @@ impl<'interner> TypeChecker<'interner> {
     /// expression. The second parameter of this function represents the lhs_type (which should
     /// always be a Type::MutableReference if `dereference_lhs` is called) and the third
     /// represents the element type.
+    ///
+    /// If `dereference_lhs` is None, this will assume we're taking the offset of a struct field
+    /// rather than dereferencing it. So the result of `foo.bar` with a `foo : &mut Foo` will
+    /// be a `&mut Bar` rather than just a `Bar`.
     pub(super) fn check_field_access(
         &mut self,
         lhs_type: &Type,
         field_name: &str,
         span: Span,
-        mut dereference_lhs: impl FnMut(&mut Self, Type, Type),
+        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
     ) -> Option<(Type, usize)> {
         let lhs_type = lhs_type.follow_bindings();
 
@@ -777,8 +761,19 @@ impl<'interner> TypeChecker<'interner> {
             // If the lhs is a mutable reference we automatically transform
             // lhs.field into (*lhs).field
             Type::MutableReference(element) => {
-                dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
-                return self.check_field_access(element, field_name, span, dereference_lhs);
+                if let Some(mut dereference_lhs) = dereference_lhs {
+                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
+                    return self.check_field_access(
+                        element,
+                        field_name,
+                        span,
+                        Some(dereference_lhs),
+                    );
+                } else {
+                    let (element, index) =
+                        self.check_field_access(element, field_name, span, dereference_lhs)?;
+                    return Some((Type::MutableReference(Box::new(element)), index));
+                }
             }
             _ => (),
         }
@@ -817,37 +812,17 @@ impl<'interner> TypeChecker<'interner> {
 
             // Matches on TypeVariable must be first to follow any type
             // bindings.
-            (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
-                if let TypeBinding::Bound(binding) = &*int.borrow() {
+            (TypeVariable(var, _), other) | (other, TypeVariable(var, _)) => {
+                if let TypeBinding::Bound(binding) = &*var.borrow() {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
 
-                if !op.kind.is_valid_for_field_type() && (other.is_bindable() || other.is_field()) {
-                    let other = other.follow_bindings();
-
-                    self.push_delayed_type_check(Box::new(move || {
-                        if other.is_field() || other.is_bindable() {
-                            Err(TypeCheckError::InvalidComparisonOnField { span })
-                        } else {
-                            Ok(())
-                        }
-                    }));
-                }
-
-                let mut bindings = TypeBindings::new();
-                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
-                    || other == &Type::Error
-                {
-                    Type::apply_type_bindings(bindings);
-                    Ok((Bool, false))
-                } else {
-                    Err(TypeCheckError::TypeMismatchWithSource {
-                        expected: lhs_type.clone(),
-                        actual: rhs_type.clone(),
-                        span,
-                        source: Source::Binary,
-                    })
-                }
+                self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+                Ok((Bool, false))
+            }
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.comparator_operand_type_rules(&alias, other, op, span)
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {
@@ -888,7 +863,13 @@ impl<'interner> TypeChecker<'interner> {
                     span: op.location.span,
                 });
 
-                self.comparator_operand_type_rules(x_type, y_type, op, span)
+                let (_, use_impl) = self.comparator_operand_type_rules(x_type, y_type, op, span)?;
+
+                // If the size is not constant, we must fall back to a user-provided impl for
+                // equality on slices.
+                let size = x_size.follow_bindings();
+                let use_impl = use_impl || size.evaluate_to_u64().is_none();
+                Ok((Bool, use_impl))
             }
 
             (String(x_size), String(y_size)) => {
@@ -1010,9 +991,9 @@ impl<'interner> TypeChecker<'interner> {
 
     fn bind_function_type_impl(
         &mut self,
-        fn_params: &Vec<Type>,
+        fn_params: &[Type],
         fn_ret: &Type,
-        callsite_args: &Vec<(Type, ExprId, Span)>,
+        callsite_args: &[(Type, ExprId, Span)],
         span: Span,
     ) -> Type {
         if fn_params.len() != callsite_args.len() {
@@ -1059,9 +1040,9 @@ impl<'interner> TypeChecker<'interner> {
                 }
                 ret
             }
+            // ignoring env for subtype on purpose
             Type::Function(parameters, ret, _env) => {
-                // ignoring env for subtype on purpose
-                self.bind_function_type_impl(parameters.as_ref(), ret.as_ref(), args.as_ref(), span)
+                self.bind_function_type_impl(&parameters, &ret, &args, span)
             }
             Type::Error => Type::Error,
             found => {
@@ -1069,6 +1050,38 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Error
             }
         }
+    }
+
+    fn bind_type_variables_for_infix(
+        &mut self,
+        lhs_type: &Type,
+        op: &HirBinaryOp,
+        rhs_type: &Type,
+        span: Span,
+    ) {
+        self.unify(lhs_type, rhs_type, || TypeCheckError::TypeMismatchWithSource {
+            expected: lhs_type.clone(),
+            actual: rhs_type.clone(),
+            source: Source::Binary,
+            span,
+        });
+
+        // In addition to unifying both types, we also have to bind either
+        // the lhs or rhs to an integer type variable. This ensures if both lhs
+        // and rhs are type variables, that they will have the correct integer
+        // type variable kind instead of TypeVariableKind::Normal.
+        let target = if op.kind.is_valid_for_field_type() {
+            Type::polymorphic_integer_or_field(self.interner)
+        } else {
+            Type::polymorphic_integer(self.interner)
+        };
+
+        self.unify(lhs_type, &target, || TypeCheckError::TypeMismatchWithSource {
+            expected: lhs_type.clone(),
+            actual: rhs_type.clone(),
+            source: Source::Binary,
+            span,
+        });
     }
 
     // Given a binary operator and another type. This method will produce the output type
@@ -1097,48 +1110,15 @@ impl<'interner> TypeChecker<'interner> {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
-                if (op.is_modulo() || op.is_bitwise()) && (other.is_bindable() || other.is_field())
-                {
-                    let other = other.follow_bindings();
-                    let kind = op.kind;
-                    // This will be an error if these types later resolve to a Field, or stay
-                    // polymorphic as the bit size will be unknown. Delay this error until the function
-                    // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
-                    self.push_delayed_type_check(Box::new(move || {
-                        if other.is_field() {
-                            if kind == BinaryOpKind::Modulo {
-                                Err(TypeCheckError::FieldModulo { span })
-                            } else {
-                                Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
-                            }
-                        } else if other.is_bindable() {
-                            Err(TypeCheckError::AmbiguousBitWidth { span })
-                        } else if kind.is_bit_shift() && other.is_signed() {
-                            Err(TypeCheckError::TypeCannotBeUsed {
-                                typ: other,
-                                place: "bit shift",
-                                span,
-                            })
-                        } else {
-                            Ok(())
-                        }
-                    }));
-                }
 
-                let mut bindings = TypeBindings::new();
-                if other.try_bind_to_polymorphic_int(int, &mut bindings).is_ok()
-                    || other == &Type::Error
-                {
-                    Type::apply_type_bindings(bindings);
-                    Ok((other.clone(), false))
-                } else {
-                    Err(TypeCheckError::TypeMismatchWithSource {
-                        expected: lhs_type.clone(),
-                        actual: rhs_type.clone(),
-                        source: Source::Binary,
-                        span,
-                    })
-                }
+                self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+
+                // Both types are unified so the choice of which to return is arbitrary
+                Ok((other.clone(), false))
+            }
+            (Alias(alias, args), other) | (other, Alias(alias, args)) => {
+                let alias = alias.borrow().get_type(args);
+                self.infix_operand_type_rules(&alias, op, other, span)
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {
@@ -1159,11 +1139,12 @@ impl<'interner> TypeChecker<'interner> {
             }
             // The result of two Fields is always a witness
             (FieldElement, FieldElement) => {
-                if op.is_bitwise() {
-                    return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
-                }
-                if op.is_modulo() {
-                    return Err(TypeCheckError::FieldModulo { span });
+                if !op.kind.is_valid_for_field_type() {
+                    if op.kind == BinaryOpKind::Modulo {
+                        return Err(TypeCheckError::FieldModulo { span });
+                    } else {
+                        return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
+                    }
                 }
                 Ok((FieldElement, false))
             }
@@ -1203,7 +1184,7 @@ impl<'interner> TypeChecker<'interner> {
                     self.errors
                         .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
                 }
-                let expected = Type::polymorphic_integer(self.interner);
+                let expected = Type::polymorphic_integer_or_field(self.interner);
                 rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),
                     span,

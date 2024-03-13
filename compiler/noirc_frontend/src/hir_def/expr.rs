@@ -94,19 +94,6 @@ impl HirBinaryOp {
         let location = Location::new(op.span(), file);
         HirBinaryOp { location, kind }
     }
-
-    pub fn is_bitwise(&self) -> bool {
-        use BinaryOpKind::*;
-        matches!(self.kind, And | Or | Xor | ShiftRight | ShiftLeft)
-    }
-
-    pub fn is_bit_shift(&self) -> bool {
-        self.kind.is_bit_shift()
-    }
-
-    pub fn is_modulo(&self) -> bool {
-        self.kind.is_modulo()
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -152,6 +139,12 @@ pub struct HirMemberAccess {
     // This field is not an IdentId since the rhs of a field
     // access has no corresponding definition
     pub rhs: Ident,
+
+    /// True if we should return an offset of the field rather than the field itself.
+    /// For most cases this is false, corresponding to `foo.bar` in source code.
+    /// This is true when calling methods or when we have an lvalue we want to preserve such
+    /// that if `foo : &mut Foo` has a field `bar : Bar`, we can return an `&mut Bar`.
+    pub is_offset: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -201,13 +194,14 @@ pub enum HirMethodReference {
 }
 
 impl HirMethodCallExpression {
+    /// Converts a method call into a function call
     pub fn into_function_call(
         mut self,
         method: &HirMethodReference,
         object_type: Type,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> (ExprId, HirExpression) {
+    ) -> HirExpression {
         let mut arguments = vec![self.object];
         arguments.append(&mut self.arguments);
 
@@ -225,9 +219,10 @@ impl HirMethodCallExpression {
                 (id, ImplKind::TraitMethod(*method_id, constraint, false))
             }
         };
-        let expr = HirExpression::Ident(HirIdent { location, id, impl_kind });
-        let func = interner.push_expr(expr);
-        (func, HirExpression::Call(HirCallExpression { func, arguments, location }))
+        let func = HirExpression::Ident(HirIdent { location, id, impl_kind });
+        let func = interner.push_expr(func);
+        interner.push_expr_location(func, location.span, location.file);
+        HirExpression::Call(HirCallExpression { func, arguments, location })
     }
 }
 

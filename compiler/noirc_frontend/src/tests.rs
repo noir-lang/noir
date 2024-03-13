@@ -52,10 +52,12 @@ mod test {
     ) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
         let root = std::path::Path::new("/");
         let fm = FileManager::new(root);
+
         let mut context = Context::new(fm, Default::default());
         context.def_interner.populate_dummy_operator_traits();
         let root_file_id = FileId::dummy();
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+
         let (program, parser_errors) = parse_program(src);
         let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
         remove_experimental_warnings(&mut errors);
@@ -79,7 +81,7 @@ mod test {
                 &mut context,
                 program.clone().into_sorted(),
                 root_file_id,
-                Vec::new(), // No macro processors
+                &[], // No macro processors
             ));
         }
         (program, context, errors)
@@ -533,15 +535,13 @@ mod test {
         assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
         for (err, _file_id) in errors {
             match &err {
-                CompilationError::DefinitionError(
-                    DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
-                        actual_num_parameters,
-                        expected_num_parameters,
-                        trait_name,
-                        method_name,
-                        ..
-                    },
-                ) => {
+                CompilationError::TypeError(TypeCheckError::MismatchTraitImplNumParameters {
+                    actual_num_parameters,
+                    expected_num_parameters,
+                    trait_name,
+                    method_name,
+                    ..
+                }) => {
                     assert_eq!(actual_num_parameters, &1_usize);
                     assert_eq!(expected_num_parameters, &2_usize);
                     assert_eq!(method_name, "default");
@@ -954,7 +954,7 @@ mod test {
     #[test]
     fn resolve_for_expr() {
         let src = r#"
-            fn main(x : Field) {
+            fn main(x : u64) {
                 for i in 1..20 {
                     let _z = x + i;
                 };
@@ -1126,9 +1126,9 @@ mod test {
     }
 
     fn check_rewrite(src: &str, expected: &str) {
-        let (_program, context, _errors) = get_program(src);
+        let (_program, mut context, _errors) = get_program(src);
         let main_func_id = context.def_interner.find_function("main").unwrap();
-        let program = monomorphize(main_func_id, &context.def_interner);
+        let program = monomorphize(main_func_id, &mut context.def_interner).unwrap();
         assert!(format!("{}", program) == expected);
     }
 
@@ -1161,5 +1161,56 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
 }
 "#;
         check_rewrite(src, expected_rewrite);
+    }
+
+    #[test]
+    fn deny_cyclic_structs() {
+        let src = r#"
+            struct Foo { bar: Bar }
+            struct Bar { foo: Foo }
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn deny_cyclic_globals() {
+        let src = r#"
+            global A = B;
+            global B = A;
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn deny_cyclic_type_aliases() {
+        let src = r#"
+            type A = B;
+            type B = A;
+            fn main() {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn ensure_nested_type_aliases_type_check() {
+        let src = r#"
+            type A = B;
+            type B = u8;
+            fn main() {
+                let _a: A = 0 as u16;
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
+
+    #[test]
+    fn type_aliases_in_entry_point() {
+        let src = r#"
+            type Foo = u8;
+            fn main(_x: Foo) {}
+        "#;
+        assert_eq!(get_program_errors(src).len(), 0);
     }
 }

@@ -47,6 +47,26 @@ pub fn fixed_base_scalar_mul(
     }
 }
 
+pub fn embedded_curve_add(
+    input1_x: FieldElement,
+    input1_y: FieldElement,
+    input2_x: FieldElement,
+    input2_y: FieldElement,
+) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+    let mut point1 = grumpkin::SWAffine::new(input1_x.into_repr(), input1_y.into_repr());
+    let point2 = grumpkin::SWAffine::new(input2_x.into_repr(), input2_y.into_repr());
+    let res = point1 + point2;
+    point1 = res.into();
+    if let Some((res_x, res_y)) = point1.xy() {
+        Ok((FieldElement::from_repr(*res_x), FieldElement::from_repr(*res_y)))
+    } else {
+        Err(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::EmbeddedCurveAdd,
+            "Point is not on curve".to_string(),
+        ))
+    }
+}
+
 #[cfg(test)]
 mod grumpkin_fixed_base_scalar_mul {
     use ark_ff::BigInteger;

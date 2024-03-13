@@ -12,9 +12,7 @@ import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
 Performs scalar multiplication over the embedded curve whose coordinates are defined by the
 configured noir field. For the BN254 scalar field, this is BabyJubJub or Grumpkin.
 
-```rust
-fn fixed_base_embedded_curve(_input : Field) -> [Field; 2]
-```
+#include_code fixed_base_embedded_curve noir_stdlib/src/scalar_mul.nr rust
 
 example
 

@@ -6,7 +6,7 @@ use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum PrintableType {
     Field,
@@ -33,6 +33,8 @@ pub enum PrintableType {
         length: u64,
     },
     Function {
+        arguments: Vec<PrintableType>,
+        return_type: Box<PrintableType>,
         env: Box<PrintableType>,
     },
     MutableReference {
@@ -50,6 +52,7 @@ pub enum PrintableValue {
     String(String),
     Vec(Vec<PrintableValue>),
     Struct(BTreeMap<String, PrintableValue>),
+    Other,
 }
 
 /// In order to display a `PrintableValue` we need a `PrintableType` to accurately
@@ -69,6 +72,9 @@ pub enum ForeignCallError {
 
     #[error("Failed calling external resolver. {0}")]
     ExternalResolverError(#[from] jsonrpc::Error),
+
+    #[error("Assert message resolved after an unsatisified constrain. {0}")]
+    ResolvedAssertMessage(String),
 }
 
 impl TryFrom<&[ForeignCallParam]> for PrintableValueDisplay {
@@ -172,8 +178,8 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
                 output.push_str("false");
             }
         }
-        (PrintableValue::Field(_), PrintableType::Function { .. }) => {
-            output.push_str("<<function>>");
+        (PrintableValue::Field(_), PrintableType::Function { arguments, return_type, .. }) => {
+            output.push_str(&format!("<<fn({:?}) -> {:?}>>", arguments, return_type,));
         }
         (_, PrintableType::MutableReference { .. }) => {
             output.push_str("<<mutable ref>>");
@@ -293,7 +299,7 @@ fn format_field_string(field: FieldElement) -> String {
 }
 
 /// Assumes that `field_iterator` contains enough [FieldElement] in order to decode the [PrintableType]
-fn decode_value(
+pub fn decode_value(
     field_iterator: &mut impl Iterator<Item = FieldElement>,
     typ: &PrintableType,
 ) -> PrintableValue {
@@ -346,7 +352,7 @@ fn decode_value(
 
             PrintableValue::Struct(struct_map)
         }
-        PrintableType::Function { env } => {
+        PrintableType::Function { env, .. } => {
             let field_element = field_iterator.next().unwrap();
             let func_ref = PrintableValue::Field(field_element);
             // we want to consume the fields from the environment, but for now they are not actually printed

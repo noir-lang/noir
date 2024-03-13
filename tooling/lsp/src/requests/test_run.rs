@@ -83,8 +83,8 @@ fn on_test_run_request_inner(
 
             let test_result = run_test(
                 &state.solver,
-                &context,
-                test_function,
+                &mut context,
+                &test_function,
                 false,
                 None,
                 &CompileOptions::default(),

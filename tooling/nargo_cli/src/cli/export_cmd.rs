@@ -1,4 +1,5 @@
 use nargo::errors::CompileError;
+use nargo::ops::report_errors;
 use noirc_errors::FileDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
@@ -24,7 +25,6 @@ use crate::errors::CliError;
 
 use super::check_cmd::check_crate_and_report_errors;
 
-use super::compile_cmd::report_errors;
 use super::fs::program::save_program_to_file;
 use super::NargoConfig;
 
@@ -102,7 +102,7 @@ fn compile_exported_functions(
         exported_functions,
         |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
             // TODO: We should to refactor how to deal with compilation errors to avoid this.
-            let program = compile_no_check(&context, compile_options, function_id, None, false)
+            let program = compile_no_check(&mut context, compile_options, function_id, None, false)
                 .map_err(|error| vec![FileDiagnostic::from(error)]);
 
             let program = report_errors(

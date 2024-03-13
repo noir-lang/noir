@@ -1,19 +1,28 @@
-use iter_extended::vecmap;
+use std::borrow::{Borrow, BorrowMut};
+use std::vec;
 
+use convert_case::{Case, Casing};
+use iter_extended::vecmap;
+use noirc_errors::{Location, Spanned};
+use noirc_frontend::hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl};
+use noirc_frontend::hir::def_map::{LocalModuleId, ModuleId};
+use noirc_frontend::macros_api::parse_program;
 use noirc_frontend::macros_api::FieldElement;
 use noirc_frontend::macros_api::{
     BlockExpression, CallExpression, CastExpression, Distinctness, Expression, ExpressionKind,
-    ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, FunctionVisibility,
-    HirContext, HirExpression, HirLiteral, HirStatement, Ident, ImportStatement, IndexExpression,
-    LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct,
-    Param, Path, PathKind, Pattern, PrefixExpression, SecondaryAttribute, Signedness, Span,
-    Statement, StatementKind, StructType, Type, TypeImpl, UnaryOp, UnresolvedType,
-    UnresolvedTypeData, Visibility,
+    ForLoopStatement, ForRange, FunctionDefinition, FunctionReturnType, HirContext, HirExpression,
+    HirLiteral, HirStatement, Ident, IndexExpression, LetStatement, Literal,
+    MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct, Param, Path, PathKind,
+    Pattern, PrefixExpression, SecondaryAttribute, Signedness, Span, Statement, StatementKind,
+    StructType, Type, TypeImpl, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use noirc_frontend::macros_api::{CrateId, FileId};
 use noirc_frontend::macros_api::{MacroError, MacroProcessor};
 use noirc_frontend::macros_api::{ModuleDefId, NodeInterner, SortedModule, StructId};
-
+use noirc_frontend::node_interner::{FuncId, TraitId, TraitImplId, TraitImplKind};
+use noirc_frontend::{
+    BinaryOpKind, ConstrainKind, ConstrainStatement, InfixExpression, ItemVisibility, Lambda,
+};
 pub struct AztecMacro;
 
 impl MacroProcessor for AztecMacro {
@@ -26,42 +35,63 @@ impl MacroProcessor for AztecMacro {
         transform(ast, crate_id, context)
     }
 
-    fn process_typed_ast(&self, crate_id: &CrateId, context: &mut HirContext) {
-        transform_hir(crate_id, context)
+    fn process_unresolved_traits_impls(
+        &self,
+        crate_id: &CrateId,
+        context: &mut HirContext,
+        unresolved_traits_impls: &[UnresolvedTraitImpl],
+        collected_functions: &mut Vec<UnresolvedFunctions>,
+    ) -> Result<(), (MacroError, FileId)> {
+        if has_aztec_dependency(crate_id, context) {
+            inject_compute_note_hash_and_nullifier(
+                crate_id,
+                context,
+                unresolved_traits_impls,
+                collected_functions,
+            )
+        } else {
+            Ok(())
+        }
+    }
+
+    fn process_typed_ast(
+        &self,
+        crate_id: &CrateId,
+        context: &mut HirContext,
+    ) -> Result<(), (MacroError, FileId)> {
+        transform_hir(crate_id, context).map_err(|(err, file_id)| (err.into(), file_id))
     }
 }
 
 const FUNCTION_TREE_HEIGHT: u32 = 5;
-const MAX_CONTRACT_FUNCTIONS: usize = 2_usize.pow(FUNCTION_TREE_HEIGHT);
+const MAX_CONTRACT_PRIVATE_FUNCTIONS: usize = 2_usize.pow(FUNCTION_TREE_HEIGHT);
 
 #[derive(Debug, Clone)]
 pub enum AztecMacroError {
-    AztecNotFound,
-    AztecComputeNoteHashAndNullifierNotFound { span: Span },
-    AztecContractHasTooManyFunctions { span: Span },
-    AztecContractConstructorMissing { span: Span },
+    AztecDepNotFound,
+    ContractHasTooManyPrivateFunctions { span: Span },
+    ContractConstructorMissing { span: Span },
     UnsupportedFunctionArgumentType { span: Span, typ: UnresolvedTypeData },
+    UnsupportedStorageType { span: Option<Span>, typ: UnresolvedTypeData },
+    CouldNotAssignStorageSlots { secondary_message: Option<String> },
+    EventError { span: Span, message: String },
+    UnsupportedAttributes { span: Span, secondary_message: Option<String> },
 }
 
 impl From<AztecMacroError> for MacroError {
     fn from(err: AztecMacroError) -> Self {
         match err {
-            AztecMacroError::AztecNotFound {} => MacroError {
-                primary_message: "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml. For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#aztec-dependency-not-found-please-add-aztec-as-a-dependency-in-your-nargotoml".to_owned(),
+            AztecMacroError::AztecDepNotFound {} => MacroError {
+                primary_message: "Aztec dependency not found. Please add aztec as a dependency in your Cargo.toml. For more information go to https://docs.aztec.network/developers/debugging/aztecnr-errors#aztec-dependency-not-found-please-add-aztec-as-a-dependency-in-your-nargotoml".to_owned(),
                 secondary_message: None,
                 span: None,
             },
-            AztecMacroError::AztecComputeNoteHashAndNullifierNotFound { span } => MacroError {
-                primary_message: "compute_note_hash_and_nullifier function not found. Define it in your contract. For more information go to https://docs.aztec.network/dev_docs/debugging/aztecnr-errors#compute_note_hash_and_nullifier-function-not-found-define-it-in-your-contract".to_owned(),
+            AztecMacroError::ContractHasTooManyPrivateFunctions { span } => MacroError {
+                primary_message: format!("Contract can only have a maximum of {} private functions", MAX_CONTRACT_PRIVATE_FUNCTIONS),
                 secondary_message: None,
                 span: Some(span),
             },
-            AztecMacroError::AztecContractHasTooManyFunctions { span } => MacroError {
-                primary_message: format!("Contract can only have a maximum of {} functions", MAX_CONTRACT_FUNCTIONS),
-                secondary_message: None,
-                span: Some(span),
-            },
-            AztecMacroError::AztecContractConstructorMissing { span } => MacroError {
+            AztecMacroError::ContractConstructorMissing { span } => MacroError {
                 primary_message: "Contract must have a constructor function".to_owned(),
                 secondary_message: None,
                 span: Some(span),
@@ -69,6 +99,26 @@ impl From<AztecMacroError> for MacroError {
             AztecMacroError::UnsupportedFunctionArgumentType { span, typ } => MacroError {
                 primary_message: format!("Provided parameter type `{typ:?}` is not supported in Aztec contract interface"),
                 secondary_message: None,
+                span: Some(span),
+            },
+            AztecMacroError::UnsupportedStorageType { span, typ } => MacroError {
+                primary_message: format!("Provided storage type `{typ:?}` is not directly supported in Aztec. Please provide a custom storage implementation"),
+                secondary_message: None,
+                span,
+            },
+            AztecMacroError::CouldNotAssignStorageSlots { secondary_message } => MacroError {
+                primary_message: "Could not assign storage slots, please provide a custom storage implementation".to_string(),
+                secondary_message,
+                span: None,
+            },
+            AztecMacroError::EventError { span, message } => MacroError {
+                primary_message: message,
+                secondary_message: None,
+                span: Some(span),
+            },
+            AztecMacroError::UnsupportedAttributes { span, secondary_message } => MacroError {
+                primary_message: "Unsupported attributes in contract function".to_string(),
+                secondary_message,
                 span: Some(span),
             },
         }
@@ -123,7 +173,7 @@ fn pattern(name: &str) -> Pattern {
 }
 
 fn mutable(name: &str) -> Pattern {
-    Pattern::Mutable(Box::new(pattern(name)), Span::default())
+    Pattern::Mutable(Box::new(pattern(name)), Span::default(), true)
 }
 
 fn mutable_assignment(name: &str, assigned_to: Expression) -> Statement {
@@ -156,7 +206,36 @@ fn member_access(lhs: &str, rhs: &str) -> Expression {
     })))
 }
 
+fn return_type(path: Path) -> FunctionReturnType {
+    let ty = make_type(UnresolvedTypeData::Named(path, vec![], true));
+    FunctionReturnType::Ty(ty)
+}
+
+fn lambda(parameters: Vec<(Pattern, UnresolvedType)>, body: Expression) -> Expression {
+    expression(ExpressionKind::Lambda(Box::new(Lambda {
+        parameters,
+        return_type: UnresolvedType {
+            typ: UnresolvedTypeData::Unspecified,
+            span: Some(Span::default()),
+        },
+        body,
+    })))
+}
+
+fn make_eq(lhs: Expression, rhs: Expression) -> Expression {
+    expression(ExpressionKind::Infix(Box::new(InfixExpression {
+        lhs,
+        rhs,
+        operator: Spanned::from(Span::default(), BinaryOpKind::Equal),
+    })))
+}
+
 macro_rules! chained_path {
+    ( $base:expr ) => {
+        {
+            ident_path($base)
+        }
+    };
     ( $base:expr $(, $tail:expr)* ) => {
         {
             let mut base_path = ident_path($base);
@@ -186,7 +265,7 @@ fn cast(lhs: Expression, ty: UnresolvedTypeData) -> Expression {
 }
 
 fn make_type(typ: UnresolvedTypeData) -> UnresolvedType {
-    UnresolvedType { typ, span: None }
+    UnresolvedType { typ, span: Some(Span::default()) }
 }
 
 fn index_array(array: Ident, index: &str) -> Expression {
@@ -201,10 +280,6 @@ fn index_array_variable(array: Expression, index: &str) -> Expression {
         collection: array,
         index: variable(index),
     })))
-}
-
-fn import(path: Path) -> ImportStatement {
-    ImportStatement { path, alias: None }
 }
 
 //
@@ -222,9 +297,10 @@ fn transform(
 
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        if transform_module(&mut submodule.contents, crate_id, context)? {
+        if transform_module(&mut submodule.contents, crate_id, context)
+            .map_err(|(err, file_id)| (err.into(), file_id))?
+        {
             check_for_aztec_dependency(crate_id, context)?;
-            include_relevant_imports(&mut submodule.contents);
         }
     }
     Ok(ast)
@@ -235,23 +311,12 @@ fn transform(
 //
 
 /// Completes the Hir with data gathered from type resolution
-fn transform_hir(crate_id: &CrateId, context: &mut HirContext) {
-    transform_events(crate_id, context);
-}
-
-/// Includes an import to the aztec library if it has not been included yet
-fn include_relevant_imports(ast: &mut SortedModule) {
-    // Create the aztec import path using the assumed chained_dep! macro
-    let aztec_import_path = import(chained_dep!("aztec"));
-
-    // Check if the aztec import already exists
-    let is_aztec_imported =
-        ast.imports.iter().any(|existing_import| existing_import.path == aztec_import_path.path);
-
-    // If aztec is not imported, add the import at the beginning
-    if !is_aztec_imported {
-        ast.imports.insert(0, aztec_import_path);
-    }
+fn transform_hir(
+    crate_id: &CrateId,
+    context: &mut HirContext,
+) -> Result<(), (AztecMacroError, FileId)> {
+    transform_events(crate_id, context)?;
+    assign_storage_slots(crate_id, context)
 }
 
 /// Creates an error alerting the user that they have not downloaded the Aztec-noir library
@@ -259,13 +324,15 @@ fn check_for_aztec_dependency(
     crate_id: &CrateId,
     context: &HirContext,
 ) -> Result<(), (MacroError, FileId)> {
-    let crate_graph = &context.crate_graph[crate_id];
-    let has_aztec_dependency = crate_graph.dependencies.iter().any(|dep| dep.as_name() == "aztec");
-    if has_aztec_dependency {
+    if has_aztec_dependency(crate_id, context) {
         Ok(())
     } else {
-        Err((AztecMacroError::AztecNotFound.into(), crate_graph.root_file_id))
+        Err((AztecMacroError::AztecDepNotFound.into(), context.crate_graph[crate_id].root_file_id))
     }
+}
+
+fn has_aztec_dependency(crate_id: &CrateId, context: &HirContext) -> bool {
+    context.crate_graph[crate_id].dependencies.iter().any(|dep| dep.as_name() == "aztec")
 }
 
 // Check to see if the user has defined a storage struct
@@ -273,27 +340,41 @@ fn check_for_storage_definition(module: &SortedModule) -> bool {
     module.types.iter().any(|r#struct| r#struct.name.0.contents == "Storage")
 }
 
-// Check if "compute_note_hash_and_nullifier(AztecAddress,Field,Field,[Field; N]) -> [Field; 4]" is defined
-fn check_for_compute_note_hash_and_nullifier_definition(module: &SortedModule) -> bool {
-    module.functions.iter().any(|func| {
-        func.def.name.0.contents == "compute_note_hash_and_nullifier"
-                && func.def.parameters.len() == 4
-                && match &func.def.parameters[0].typ.typ {
-                    UnresolvedTypeData::Named(path, _) => path.segments.last().unwrap().0.contents == "AztecAddress",
+// Check to see if the user has defined a storage struct
+fn check_for_storage_implementation(module: &SortedModule) -> bool {
+    module.impls.iter().any(|r#impl| match &r#impl.object_type.typ {
+        UnresolvedTypeData::Named(path, _, _) => {
+            path.segments.last().is_some_and(|segment| segment.0.contents == "Storage")
+        }
+        _ => false,
+    })
+}
+
+// Check if "compute_note_hash_and_nullifier(AztecAddress,Field,Field,Field,[Field; N]) -> [Field; 4]" is defined
+fn check_for_compute_note_hash_and_nullifier_definition(
+    functions_data: &[(LocalModuleId, FuncId, NoirFunction)],
+    module_id: LocalModuleId,
+) -> bool {
+    functions_data.iter().filter(|func_data| func_data.0 == module_id).any(|func_data| {
+        func_data.2.def.name.0.contents == "compute_note_hash_and_nullifier"
+                && func_data.2.def.parameters.len() == 5
+                && match &func_data.2.def.parameters[0].typ.typ {
+                    UnresolvedTypeData::Named(path, _, _) => path.segments.last().unwrap().0.contents == "AztecAddress",
                     _ => false,
                 }
-                && func.def.parameters[1].typ.typ == UnresolvedTypeData::FieldElement
-                && func.def.parameters[2].typ.typ == UnresolvedTypeData::FieldElement
-                // checks if the 4th parameter is an array and the Box<UnresolvedType> in
+                && func_data.2.def.parameters[1].typ.typ == UnresolvedTypeData::FieldElement
+                && func_data.2.def.parameters[2].typ.typ == UnresolvedTypeData::FieldElement
+                && func_data.2.def.parameters[3].typ.typ == UnresolvedTypeData::FieldElement
+                // checks if the 5th parameter is an array and the Box<UnresolvedType> in
                 // Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>) contains only fields
-                && match &func.def.parameters[3].typ.typ {
+                && match &func_data.2.def.parameters[4].typ.typ {
                     UnresolvedTypeData::Array(_, inner_type) => {
                         matches!(inner_type.typ, UnresolvedTypeData::FieldElement)
                     },
                     _ => false,
                 }
-                // We check the return type the same way as we did the 4th parameter
-                && match &func.def.return_type {
+                // We check the return type the same way as we did the 5th parameter
+                && match &func_data.2.def.return_type {
                     FunctionReturnType::Default(_) => false,
                     FunctionReturnType::Ty(unresolved_type) => {
                         match &unresolved_type.typ {
@@ -323,19 +404,17 @@ fn transform_module(
     module: &mut SortedModule,
     crate_id: &CrateId,
     context: &HirContext,
-) -> Result<bool, (MacroError, FileId)> {
+) -> Result<bool, (AztecMacroError, FileId)> {
     let mut has_transformed_module = false;
 
     // Check for a user defined storage struct
     let storage_defined = check_for_storage_definition(module);
+    let storage_implemented = check_for_storage_implementation(module);
 
-    if storage_defined && !check_for_compute_note_hash_and_nullifier_definition(module) {
-        let crate_graph = &context.crate_graph[crate_id];
-        return Err((
-            AztecMacroError::AztecComputeNoteHashAndNullifierNotFound { span: Span::default() }
-                .into(),
-            crate_graph.root_file_id,
-        ));
+    let crate_graph = &context.crate_graph[crate_id];
+
+    if storage_defined && !storage_implemented {
+        generate_storage_implementation(module).map_err(|err| (err, crate_graph.root_file_id))?;
     }
 
     for structure in module.types.iter() {
@@ -345,19 +424,57 @@ fn transform_module(
         }
     }
 
+    let has_initializer = module.functions.iter().any(|func| {
+        func.def
+            .attributes
+            .secondary
+            .iter()
+            .any(|attr| is_custom_attribute(attr, "aztec(initializer)"))
+    });
+
     for func in module.functions.iter_mut() {
+        let mut is_private = false;
+        let mut is_public = false;
+        let mut is_public_vm = false;
+        let mut is_initializer = false;
+        let mut is_internal = false;
+        let mut insert_init_check = has_initializer;
+
         for secondary_attribute in func.def.attributes.secondary.clone() {
-            let crate_graph = &context.crate_graph[crate_id];
             if is_custom_attribute(&secondary_attribute, "aztec(private)") {
-                transform_function("Private", func, storage_defined)
-                    .map_err(|err| (err.into(), crate_graph.root_file_id))?;
-                has_transformed_module = true;
+                is_private = true;
+            } else if is_custom_attribute(&secondary_attribute, "aztec(initializer)") {
+                is_initializer = true;
+                insert_init_check = false;
+            } else if is_custom_attribute(&secondary_attribute, "aztec(noinitcheck)") {
+                insert_init_check = false;
+            } else if is_custom_attribute(&secondary_attribute, "aztec(internal)") {
+                is_internal = true;
             } else if is_custom_attribute(&secondary_attribute, "aztec(public)") {
-                transform_function("Public", func, storage_defined)
-                    .map_err(|err| (err.into(), crate_graph.root_file_id))?;
-                has_transformed_module = true;
+                is_public = true;
+            } else if is_custom_attribute(&secondary_attribute, "aztec(public-vm)") {
+                is_public_vm = true;
             }
         }
+
+        // Apply transformations to the function based on collected attributes
+        if is_private || is_public {
+            transform_function(
+                if is_private { "Private" } else { "Public" },
+                func,
+                storage_defined,
+                is_initializer,
+                insert_init_check,
+                is_internal,
+            )
+            .map_err(|err| (err, crate_graph.root_file_id))?;
+            has_transformed_module = true;
+        } else if is_public_vm {
+            transform_vm_function(func, storage_defined)
+                .map_err(|err| (err, crate_graph.root_file_id))?;
+            has_transformed_module = true;
+        }
+
         // Add the storage struct to the beginning of the function if it is unconstrained in an aztec contract
         if storage_defined && func.def.is_unconstrained {
             transform_unconstrained(func);
@@ -368,10 +485,22 @@ fn transform_module(
     if has_transformed_module {
         // We only want to run these checks if the macro processor has found the module to be an Aztec contract.
 
-        if module.functions.len() > MAX_CONTRACT_FUNCTIONS {
+        let private_functions_count = module
+            .functions
+            .iter()
+            .filter(|func| {
+                func.def
+                    .attributes
+                    .secondary
+                    .iter()
+                    .any(|attr| is_custom_attribute(attr, "aztec(private)"))
+            })
+            .count();
+
+        if private_functions_count > MAX_CONTRACT_PRIVATE_FUNCTIONS {
             let crate_graph = &context.crate_graph[crate_id];
             return Err((
-                AztecMacroError::AztecContractHasTooManyFunctions { span: Span::default() }.into(),
+                AztecMacroError::ContractHasTooManyPrivateFunctions { span: Span::default() },
                 crate_graph.root_file_id,
             ));
         }
@@ -380,7 +509,7 @@ fn transform_module(
         if !constructor_defined {
             let crate_graph = &context.crate_graph[crate_id];
             return Err((
-                AztecMacroError::AztecContractConstructorMissing { span: Span::default() }.into(),
+                AztecMacroError::ContractConstructorMissing { span: Span::default() },
                 crate_graph.root_file_id,
             ));
         }
@@ -389,18 +518,164 @@ fn transform_module(
     Ok(has_transformed_module)
 }
 
+/// Auxiliary function to generate the storage constructor for a given field, using
+/// the Storage definition as a reference. Supports nesting.
+fn generate_storage_field_constructor(
+    (type_ident, unresolved_type): &(Ident, UnresolvedType),
+    slot: Expression,
+) -> Result<Expression, AztecMacroError> {
+    let typ = &unresolved_type.typ;
+    match typ {
+        UnresolvedTypeData::Named(path, generics, _) => {
+            let mut new_path = path.clone().to_owned();
+            new_path.segments.push(ident("new"));
+            match path.segments.last().unwrap().0.contents.as_str() {
+                "Map" => Ok(call(
+                    variable_path(new_path),
+                    vec![
+                        variable("context"),
+                        slot,
+                        lambda(
+                            vec![
+                                (
+                                    pattern("context"),
+                                    make_type(UnresolvedTypeData::Named(
+                                        chained_dep!("aztec", "context", "Context"),
+                                        vec![],
+                                        true,
+                                    )),
+                                ),
+                                (
+                                    Pattern::Identifier(ident("slot")),
+                                    make_type(UnresolvedTypeData::FieldElement),
+                                ),
+                            ],
+                            generate_storage_field_constructor(
+                                &(type_ident.clone(), generics.iter().last().unwrap().clone()),
+                                variable("slot"),
+                            )?,
+                        ),
+                    ],
+                )),
+                _ => Ok(call(variable_path(new_path), vec![variable("context"), slot])),
+            }
+        }
+        _ => Err(AztecMacroError::UnsupportedStorageType {
+            typ: typ.clone(),
+            span: Some(type_ident.span()),
+        }),
+    }
+}
+
+// Generates the Storage implementation block from the Storage struct definition if it does not exist
+/// From:
+///
+/// struct Storage {
+///     a_map: Map<Field, SomeStoragePrimitive<ASerializableType>>,
+///     a_nested_map: Map<Field, Map<Field, SomeStoragePrimitive<ASerializableType>>>,
+///     a_field: SomeStoragePrimitive<ASerializableType>,
+/// }
+///
+/// To:
+///
+/// impl Storage {
+///    fn init(context: Context) -> Self {
+///        Storage {
+///             a_map: Map::new(context, 0, |context, slot| {
+///                 SomeStoragePrimitive::new(context, slot)
+///             }),
+///             a_nested_map: Map::new(context, 0, |context, slot| {
+///                 Map::new(context, slot, |context, slot| {
+///                     SomeStoragePrimitive::new(context, slot)
+///                })
+///            }),
+///            a_field: SomeStoragePrimitive::new(context, 0),
+///         }
+///    }
+/// }
+///
+/// Storage slots are generated as 0 and will be populated using the information from the HIR
+/// at a later stage.
+fn generate_storage_implementation(module: &mut SortedModule) -> Result<(), AztecMacroError> {
+    let definition =
+        module.types.iter().find(|r#struct| r#struct.name.0.contents == "Storage").unwrap();
+
+    let slot_zero = expression(ExpressionKind::Literal(Literal::Integer(
+        FieldElement::from(i128::from(0)),
+        false,
+    )));
+
+    let field_constructors = definition
+        .fields
+        .iter()
+        .flat_map(|field| {
+            generate_storage_field_constructor(field, slot_zero.clone())
+                .map(|expression| (field.0.clone(), expression))
+        })
+        .collect();
+
+    let storage_constructor_statement = make_statement(StatementKind::Expression(expression(
+        ExpressionKind::constructor((chained_path!("Storage"), field_constructors)),
+    )));
+
+    let init = NoirFunction::normal(FunctionDefinition::normal(
+        &ident("init"),
+        &vec![],
+        &[(
+            ident("context"),
+            make_type(UnresolvedTypeData::Named(
+                chained_dep!("aztec", "context", "Context"),
+                vec![],
+                true,
+            )),
+        )],
+        &BlockExpression(vec![storage_constructor_statement]),
+        &[],
+        &return_type(chained_path!("Self")),
+    ));
+
+    let storage_impl = TypeImpl {
+        object_type: UnresolvedType {
+            typ: UnresolvedTypeData::Named(chained_path!("Storage"), vec![], true),
+            span: Some(Span::default()),
+        },
+        type_span: Span::default(),
+        generics: vec![],
+        methods: vec![(init, Span::default())],
+    };
+    module.impls.push(storage_impl);
+
+    Ok(())
+}
+
 /// If it does, it will insert the following things:
 /// - A new Input that is provided for a kernel app circuit, named: {Public/Private}ContextInputs
 /// - Hashes all of the function input variables
-///     - This instantiates a helper function  
+///     - This instantiates a helper function
 fn transform_function(
     ty: &str,
     func: &mut NoirFunction,
     storage_defined: bool,
+    is_initializer: bool,
+    insert_init_check: bool,
+    is_internal: bool,
 ) -> Result<(), AztecMacroError> {
     let context_name = format!("{}Context", ty);
     let inputs_name = format!("{}ContextInputs", ty);
     let return_type_name = format!("{}CircuitPublicInputs", ty);
+
+    // Add check that msg sender equals this address and flag function as internal
+    if is_internal {
+        let is_internal_check = create_internal_check(func.name());
+        func.def.body.0.insert(0, is_internal_check);
+        func.def.is_internal = true;
+    }
+
+    // Add initialization check
+    if insert_init_check {
+        let init_check = create_init_check();
+        func.def.body.0.insert(0, init_check);
+    }
 
     // Add access to the storage struct
     if storage_defined {
@@ -418,7 +693,17 @@ fn transform_function(
 
     // Abstract return types such that they get added to the kernel's return_values
     if let Some(return_values) = abstract_return_values(func) {
+        // In case we are pushing return values to the context, we remove the statement that originated it
+        // This avoids running duplicate code, since blocks like if/else can be value returning statements
+        func.def.body.0.pop();
+        // Add the new return statement
         func.def.body.0.push(return_values);
+    }
+
+    // Before returning mark the contract as initialized
+    if is_initializer {
+        let mark_initialized = create_mark_as_initialized(ty);
+        func.def.body.0.push(mark_initialized);
     }
 
     // Push the finish method call to the end of the function
@@ -437,6 +722,24 @@ fn transform_function(
         _ => (),
     }
 
+    Ok(())
+}
+
+/// Transform a function to work with AVM bytecode
+fn transform_vm_function(
+    func: &mut NoirFunction,
+    _storage_defined: bool,
+) -> Result<(), AztecMacroError> {
+    // Push Avm context creation to the beginning of the function
+    let create_context = create_avm_context()?;
+    func.def.body.0.insert(0, create_context);
+
+    // We want the function to be seen as a public function
+    func.def.is_open = true;
+
+    // NOTE: the line below is a temporary hack to trigger external transpilation tools
+    // It will be removed once the transpiler is integrated into the Noir compiler
+    func.def.name.0.contents = format!("avm_{}", func.def.name.0.contents);
     Ok(())
 }
 
@@ -470,20 +773,48 @@ fn collect_crate_structs(crate_id: &CrateId, context: &HirContext) -> Vec<Struct
         .collect()
 }
 
+fn collect_traits(context: &HirContext) -> Vec<TraitId> {
+    let crates = context.crates();
+    crates
+        .flat_map(|crate_id| context.def_map(&crate_id).map(|def_map| def_map.modules()))
+        .flatten()
+        .flat_map(|module| {
+            module.type_definitions().filter_map(|typ| {
+                if let ModuleDefId::TraitId(struct_id) = typ {
+                    Some(struct_id)
+                } else {
+                    None
+                }
+            })
+        })
+        .collect()
+}
+
 /// Substitutes the signature literal that was introduced in the selector method previously with the actual signature.
-fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
+fn transform_event(
+    struct_id: StructId,
+    interner: &mut NodeInterner,
+) -> Result<(), (AztecMacroError, FileId)> {
     let struct_type = interner.get_struct(struct_id);
     let selector_id = interner
-        .lookup_method(&Type::Struct(struct_type, vec![]), struct_id, "selector", false)
-        .expect("Selector method not found");
+        .lookup_method(&Type::Struct(struct_type.clone(), vec![]), struct_id, "selector", false)
+        .ok_or_else(|| {
+            let error = AztecMacroError::EventError {
+                span: struct_type.borrow().location.span,
+                message: "Selector method not found".to_owned(),
+            };
+            (error, struct_type.borrow().location.file)
+        })?;
     let selector_function = interner.function(&selector_id);
 
     let compute_selector_statement = interner.statement(
-        selector_function
-            .block(interner)
-            .statements()
-            .first()
-            .expect("Compute selector statement not found"),
+        selector_function.block(interner).statements().first().ok_or_else(|| {
+            let error = AztecMacroError::EventError {
+                span: struct_type.borrow().location.span,
+                message: "Compute selector statement not found".to_owned(),
+            };
+            (error, struct_type.borrow().location.file)
+        })?,
     );
 
     let compute_selector_expression = match compute_selector_statement {
@@ -493,22 +824,31 @@ fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
         },
         _ => None,
     }
-    .expect("Compute selector statement is not a call expression");
+    .ok_or_else(|| {
+        let error = AztecMacroError::EventError {
+            span: struct_type.borrow().location.span,
+            message: "Compute selector statement is not a call expression".to_owned(),
+        };
+        (error, struct_type.borrow().location.file)
+    })?;
 
-    let first_arg_id = compute_selector_expression
-        .arguments
-        .first()
-        .expect("Missing argument for compute selector");
+    let first_arg_id = compute_selector_expression.arguments.first().ok_or_else(|| {
+        let error = AztecMacroError::EventError {
+            span: struct_type.borrow().location.span,
+            message: "Compute selector statement is not a call expression".to_owned(),
+        };
+        (error, struct_type.borrow().location.file)
+    })?;
 
     match interner.expression(first_arg_id) {
         HirExpression::Literal(HirLiteral::Str(signature))
             if signature == SIGNATURE_PLACEHOLDER =>
         {
-            let selector_literal_id = first_arg_id;
+            let selector_literal_id = *first_arg_id;
 
             let structure = interner.get_struct(struct_id);
             let signature = event_signature(&structure.borrow());
-            interner.update_expression(*selector_literal_id, |expr| {
+            interner.update_expression(selector_literal_id, |expr| {
                 *expr = HirExpression::Literal(HirLiteral::Str(signature.clone()));
             });
 
@@ -517,18 +857,205 @@ fn transform_event(struct_id: StructId, interner: &mut NodeInterner) {
                 selector_literal_id,
                 Type::String(Box::new(Type::Constant(signature.len() as u64))),
             );
+            Ok(())
         }
-        _ => unreachable!("Signature placeholder literal does not match"),
+        _ => Err((
+            AztecMacroError::EventError {
+                span: struct_type.borrow().location.span,
+                message: "Signature placeholder literal does not match".to_owned(),
+            },
+            struct_type.borrow().location.file,
+        )),
     }
 }
 
-fn transform_events(crate_id: &CrateId, context: &mut HirContext) {
+fn transform_events(
+    crate_id: &CrateId,
+    context: &mut HirContext,
+) -> Result<(), (AztecMacroError, FileId)> {
     for struct_id in collect_crate_structs(crate_id, context) {
         let attributes = context.def_interner.struct_attributes(&struct_id);
         if attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
-            transform_event(struct_id, &mut context.def_interner);
+            transform_event(struct_id, &mut context.def_interner)?;
         }
     }
+    Ok(())
+}
+
+/// Obtains the serialized length of a type that implements the Serialize trait.
+fn get_serialized_length(
+    traits: &[TraitId],
+    typ: &Type,
+    interner: &NodeInterner,
+) -> Result<u64, AztecMacroError> {
+    let (struct_name, maybe_stored_in_state) = match typ {
+        Type::Struct(struct_type, generics) => {
+            Ok((struct_type.borrow().name.0.contents.clone(), generics.first()))
+        }
+        _ => Err(AztecMacroError::CouldNotAssignStorageSlots {
+            secondary_message: Some("State storage variable must be a struct".to_string()),
+        }),
+    }?;
+    let stored_in_state =
+        maybe_stored_in_state.ok_or(AztecMacroError::CouldNotAssignStorageSlots {
+            secondary_message: Some("State storage variable must be generic".to_string()),
+        })?;
+
+    let is_note = traits.iter().any(|&trait_id| {
+        let r#trait = interner.get_trait(trait_id);
+        r#trait.name.0.contents == "NoteInterface"
+            && !interner.lookup_all_trait_implementations(stored_in_state, trait_id).is_empty()
+    });
+
+    // Maps and (private) Notes always occupy a single slot. Someone could store a Note in PublicMutable for whatever reason though.
+    if struct_name == "Map" || (is_note && struct_name != "PublicMutable") {
+        return Ok(1);
+    }
+
+    let serialized_trait_impl_kind = traits
+        .iter()
+        .find_map(|&trait_id| {
+            let r#trait = interner.get_trait(trait_id);
+            if r#trait.borrow().name.0.contents == "Serialize"
+                && r#trait.borrow().generics.len() == 1
+            {
+                interner
+                    .lookup_all_trait_implementations(stored_in_state, trait_id)
+                    .into_iter()
+                    .next()
+            } else {
+                None
+            }
+        })
+        .ok_or(AztecMacroError::CouldNotAssignStorageSlots {
+            secondary_message: Some("Stored data must implement Serialize trait".to_string()),
+        })?;
+
+    let serialized_trait_impl_id = match serialized_trait_impl_kind {
+        TraitImplKind::Normal(trait_impl_id) => Ok(trait_impl_id),
+        _ => Err(AztecMacroError::CouldNotAssignStorageSlots { secondary_message: None }),
+    }?;
+
+    let serialized_trait_impl_shared = interner.get_trait_implementation(*serialized_trait_impl_id);
+    let serialized_trait_impl = serialized_trait_impl_shared.borrow();
+
+    match serialized_trait_impl.trait_generics.first().unwrap() {
+        Type::Constant(value) => Ok(*value),
+        _ => Err(AztecMacroError::CouldNotAssignStorageSlots { secondary_message: None }),
+    }
+}
+
+/// Assigns storage slots to the storage struct fields based on the serialized length of the types. This automatic assignment
+/// will only trigger if the assigned storage slot is invalid (0 as generated by generate_storage_implementation)
+fn assign_storage_slots(
+    crate_id: &CrateId,
+    context: &mut HirContext,
+) -> Result<(), (AztecMacroError, FileId)> {
+    let traits: Vec<_> = collect_traits(context);
+    for struct_id in collect_crate_structs(crate_id, context) {
+        let interner: &mut NodeInterner = context.def_interner.borrow_mut();
+        let r#struct = interner.get_struct(struct_id);
+        let file_id = r#struct.borrow().location.file;
+        if r#struct.borrow().name.0.contents == "Storage" && r#struct.borrow().id.krate().is_root()
+        {
+            let init_id = interner
+                .lookup_method(
+                    &Type::Struct(interner.get_struct(struct_id), vec![]),
+                    struct_id,
+                    "init",
+                    false,
+                )
+                .ok_or((
+                    AztecMacroError::CouldNotAssignStorageSlots {
+                        secondary_message: Some(
+                            "Storage struct must have an init function".to_string(),
+                        ),
+                    },
+                    file_id,
+                ))?;
+            let init_function = interner.function(&init_id).block(interner);
+            let init_function_statement_id = init_function.statements().first().ok_or((
+                AztecMacroError::CouldNotAssignStorageSlots {
+                    secondary_message: Some("Init storage statement not found".to_string()),
+                },
+                file_id,
+            ))?;
+            let storage_constructor_statement = interner.statement(init_function_statement_id);
+
+            let storage_constructor_expression = match storage_constructor_statement {
+                HirStatement::Expression(expression_id) => {
+                    match interner.expression(&expression_id) {
+                        HirExpression::Constructor(hir_constructor_expression) => {
+                            Ok(hir_constructor_expression)
+                        }
+                        _ => Err((AztecMacroError::CouldNotAssignStorageSlots {
+                            secondary_message: Some(
+                                "Storage constructor statement must be a constructor expression"
+                                    .to_string(),
+                            ),
+                        }, file_id))
+                    }
+                }
+                _ => Err((
+                    AztecMacroError::CouldNotAssignStorageSlots {
+                        secondary_message: Some(
+                            "Storage constructor statement must be an expression".to_string(),
+                        ),
+                    },
+                    file_id,
+                )),
+            }?;
+
+            let mut storage_slot: u64 = 1;
+            for (index, (_, expr_id)) in storage_constructor_expression.fields.iter().enumerate() {
+                let fields = r#struct.borrow().get_fields(&[]);
+                let (_, field_type) = fields.get(index).unwrap();
+                let new_call_expression = match interner.expression(expr_id) {
+                    HirExpression::Call(hir_call_expression) => Ok(hir_call_expression),
+                    _ => Err((
+                        AztecMacroError::CouldNotAssignStorageSlots {
+                            secondary_message: Some(
+                                "Storage field initialization expression is not a call expression"
+                                    .to_string(),
+                            ),
+                        },
+                        file_id,
+                    )),
+                }?;
+
+                let slot_arg_expression = interner.expression(&new_call_expression.arguments[1]);
+
+                let current_storage_slot = match slot_arg_expression {
+                    HirExpression::Literal(HirLiteral::Integer(slot, _)) => Ok(slot.to_u128()),
+                    _ => Err((
+                        AztecMacroError::CouldNotAssignStorageSlots {
+                            secondary_message: Some(
+                                "Storage slot argument expression must be a literal integer"
+                                    .to_string(),
+                            ),
+                        },
+                        file_id,
+                    )),
+                }?;
+
+                if current_storage_slot != 0 {
+                    continue;
+                }
+
+                let type_serialized_len = get_serialized_length(&traits, field_type, interner)
+                    .map_err(|err| (err, file_id))?;
+                interner.update_expression(new_call_expression.arguments[1], |expr| {
+                    *expr = HirExpression::Literal(HirLiteral::Integer(
+                        FieldElement::from(u128::from(storage_slot)),
+                        false,
+                    ));
+                });
+
+                storage_slot += type_serialized_len;
+            }
+        }
+    }
+    Ok(())
 }
 
 const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
@@ -548,10 +1075,11 @@ const SIGNATURE_PLACEHOLDER: &str = "SIGNATURE_PLACEHOLDER";
 /// The signature cannot be known at this point since types are not resolved yet, so we use a signature placeholder.
 /// It'll get resolved after by transforming the HIR.
 fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
-    let struct_type = make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![]));
+    let struct_type =
+        make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![], true));
 
     let selector_path =
-        chained_path!("aztec", "protocol_types", "abis", "function_selector", "FunctionSelector");
+        chained_dep!("aztec", "protocol_types", "abis", "function_selector", "FunctionSelector");
     let mut from_signature_path = selector_path.clone();
     from_signature_path.segments.push(ident("from_signature"));
 
@@ -562,7 +1090,7 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
 
     // Define `FunctionSelector` return type
     let return_type =
-        FunctionReturnType::Ty(make_type(UnresolvedTypeData::Named(selector_path, vec![])));
+        FunctionReturnType::Ty(make_type(UnresolvedTypeData::Named(selector_path, vec![], true)));
 
     let mut selector_fn_def = FunctionDefinition::normal(
         &ident("selector"),
@@ -573,7 +1101,7 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
         &return_type,
     );
 
-    selector_fn_def.visibility = FunctionVisibility::Public;
+    selector_fn_def.visibility = ItemVisibility::Public;
 
     // Seems to be necessary on contract modules
     selector_fn_def.return_visibility = Visibility::Public;
@@ -582,7 +1110,7 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
         object_type: struct_type,
         type_span: structure.span,
         generics: vec![],
-        methods: vec![NoirFunction::normal(selector_fn_def)],
+        methods: vec![(NoirFunction::normal(selector_fn_def), Span::default())],
     }
 }
 
@@ -604,11 +1132,60 @@ fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
 fn create_inputs(ty: &str) -> Param {
     let context_ident = ident("inputs");
     let context_pattern = Pattern::Identifier(context_ident);
-    let type_path = chained_path!("aztec", "abi", ty);
-    let context_type = make_type(UnresolvedTypeData::Named(type_path, vec![]));
+
+    let path_snippet = ty.to_case(Case::Snake); // e.g. private_context_inputs
+    let type_path = chained_dep!("aztec", "context", "inputs", &path_snippet, ty);
+
+    let context_type = make_type(UnresolvedTypeData::Named(type_path, vec![], true));
     let visibility = Visibility::Private;
 
     Param { pattern: context_pattern, typ: context_type, visibility, span: Span::default() }
+}
+
+/// Creates an initialization check to ensure that the contract has been initialized, meant to
+/// be injected as the first statement of any function after the context has been created.
+///
+/// ```noir
+/// assert_is_initialized(&mut context);
+/// ```
+fn create_init_check() -> Statement {
+    make_statement(StatementKind::Expression(call(
+        variable_path(chained_dep!("aztec", "initializer", "assert_is_initialized")),
+        vec![mutable_reference("context")],
+    )))
+}
+
+/// Creates a call to mark_as_initialized which emits the initialization nullifier, meant to
+/// be injected as the last statement before returning in a constructor.
+///
+/// ```noir
+/// mark_as_initialized(&mut context);
+/// ```
+fn create_mark_as_initialized(ty: &str) -> Statement {
+    let name = if ty == "Public" { "mark_as_initialized_public" } else { "mark_as_initialized" };
+    make_statement(StatementKind::Expression(call(
+        variable_path(chained_dep!("aztec", "initializer", name)),
+        vec![mutable_reference("context")],
+    )))
+}
+
+/// Creates a check for internal functions ensuring that the caller is self.
+///
+/// ```noir
+/// assert(context.msg_sender() == context.this_address(), "Function can only be called internally");
+/// ```
+fn create_internal_check(fname: &str) -> Statement {
+    make_statement(StatementKind::Constrain(ConstrainStatement(
+        make_eq(
+            method_call(variable("context"), "msg_sender", vec![]),
+            method_call(variable("context"), "this_address", vec![]),
+        ),
+        Some(expression(ExpressionKind::Literal(Literal::Str(format!(
+            "Function {} can only be called internally",
+            fname
+        ))))),
+        ConstrainKind::Assert,
+    )))
 }
 
 /// Creates the private context object to be accessed within the function, the parameters need to be extracted to be
@@ -643,8 +1220,8 @@ fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMac
     let let_hasher = mutable_assignment(
         "hasher", // Assigned to
         call(
-            variable_path(chained_path!("aztec", "abi", "Hasher", "new")), // Path
-            vec![],                                                        // args
+            variable_path(chained_dep!("aztec", "hasher", "Hasher", "new")), // Path
+            vec![],                                                          // args
         ),
     );
 
@@ -676,7 +1253,10 @@ fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMac
                         add_array_to_hasher(
                             &id,
                             &UnresolvedType {
-                                typ: UnresolvedTypeData::Integer(Signedness::Unsigned, 32),
+                                typ: UnresolvedTypeData::Integer(
+                                    Signedness::Unsigned,
+                                    noirc_frontend::IntegerBitSize::ThirtyTwo,
+                                ),
                                 span: None,
                             },
                         )
@@ -703,18 +1283,49 @@ fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMac
         vec![],             // args
     );
 
+    let path_snippet = ty.to_case(Case::Snake); // e.g. private_context
+
     // let mut context = {ty}::new(inputs, hash);
     let let_context = mutable_assignment(
         "context", // Assigned to
         call(
-            variable_path(chained_path!("aztec", "context", ty, "new")), // Path
-            vec![inputs_expression, hash_call],                          // args
+            variable_path(chained_dep!("aztec", "context", &path_snippet, ty, "new")), // Path
+            vec![inputs_expression, hash_call],                                        // args
         ),
     );
     injected_expressions.push(let_context);
 
     // Return all expressions that will be injected by the hasher
     Ok(injected_expressions)
+}
+
+/// Creates an mutable avm context
+///
+/// ```noir
+/// /// Before
+/// #[aztec(public-vm)]
+/// fn foo() -> Field {
+///   let mut context = aztec::context::AVMContext::new();
+///   let timestamp = context.timestamp();
+///   // ...
+/// }
+///
+/// /// After
+/// #[aztec(private)]
+/// fn foo() -> Field {
+///     let mut timestamp = context.timestamp();
+///     // ...
+/// }
+fn create_avm_context() -> Result<Statement, AztecMacroError> {
+    let let_context = mutable_assignment(
+        "context", // Assigned to
+        call(
+            variable_path(chained_dep!("aztec", "context", "AVMContext", "new")), // Path
+            vec![],                                                               // args
+        ),
+    );
+
+    Ok(let_context)
 }
 
 /// Abstract Return Type
@@ -726,7 +1337,7 @@ fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMac
 /// ```noir
 /// /// Before
 /// #[aztec(private)]
-/// fn foo() -> abi::PrivateCircuitPublicInputs {
+/// fn foo() -> protocol_types::abis::private_circuit_public_inputs::PrivateCircuitPublicInputs {
 ///   // ...
 ///   let my_return_value: Field = 10;
 ///   context.return_values.push(my_return_value);
@@ -745,13 +1356,11 @@ fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMac
 /// Any primitive type that can be cast will be casted to a field and pushed to the context.
 fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
     let current_return_type = func.return_type().typ;
-    let len = func.def.body.len();
-    let last_statement = &func.def.body.0[len - 1];
+    let last_statement = func.def.body.0.last()?;
 
     // TODO: (length, type) => We can limit the size of the array returned to be limited by kernel size
     // Doesn't need done until we have settled on a kernel size
     // TODO: support tuples here and in inputs -> convert into an issue
-
     // Check if the return type is an expression, if it is, we can handle it
     match last_statement {
         Statement { kind: StatementKind::Expression(expression), .. } => {
@@ -797,13 +1406,13 @@ fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
 fn abstract_storage(typ: &str, unconstrained: bool) -> Statement {
     let init_context_call = if unconstrained {
         call(
-            variable_path(chained_path!("aztec", "context", "Context", "none")), // Path
-            vec![],                                                              // args
+            variable_path(chained_dep!("aztec", "context", "Context", "none")), // Path
+            vec![],                                                             // args
         )
     } else {
         call(
-            variable_path(chained_path!("aztec", "context", "Context", typ)), // Path
-            vec![mutable_reference("context")],                               // args
+            variable_path(chained_dep!("aztec", "context", "Context", typ)), // Path
+            vec![mutable_reference("context")],                              // args
         )
     };
 
@@ -845,11 +1454,11 @@ fn make_return_push(push_value: Expression) -> Statement {
 /// Make Return push array
 ///
 /// Translates to:
-/// `context.return_values.push_array({push_value})`
-fn make_return_push_array(push_value: Expression) -> Statement {
+/// `context.return_values.extend_from_array({push_value})`
+fn make_return_extend_from_array(push_value: Expression) -> Statement {
     make_statement(StatementKind::Semi(method_call(
         context_return_values(),
-        "push_array",
+        "extend_from_array",
         vec![push_value],
     )))
 }
@@ -858,14 +1467,14 @@ fn make_return_push_array(push_value: Expression) -> Statement {
 ///
 /// Translates to:
 /// ```noir
-/// `context.return_values.push_array({push_value}.serialize())`
+/// `context.return_values.extend_from_array({push_value}.serialize())`
 fn make_struct_return_type(expression: Expression) -> Statement {
     let serialized_call = method_call(
         expression,  // variable
         "serialize", // method name
         vec![],      // args
     );
-    make_return_push_array(serialized_call)
+    make_return_extend_from_array(serialized_call)
 }
 
 /// Make array return type
@@ -902,8 +1511,8 @@ fn make_castable_return_type(expression: Expression) -> Statement {
 
 /// Create Return Type
 ///
-/// Public functions return abi::PublicCircuitPublicInputs while
-/// private functions return abi::PrivateCircuitPublicInputs
+/// Public functions return protocol_types::abis::public_circuit_public_inputs::PublicCircuitPublicInputs while
+/// private functions return protocol_types::abis::private_circuit_public_inputs::::PrivateCircuitPublicInputs
 ///
 /// This call constructs an ast token referencing the above types
 /// The name is set in the function above `transform`, hence the
@@ -913,7 +1522,7 @@ fn make_castable_return_type(expression: Expression) -> Statement {
 /// ```noir
 ///
 /// /// Before
-/// fn foo() -> abi::PrivateCircuitPublicInputs {
+/// fn foo() -> protocol_types::abis::private_circuit_public_inputs::PrivateCircuitPublicInputs {
 ///    // ...
 /// }
 ///
@@ -923,10 +1532,9 @@ fn make_castable_return_type(expression: Expression) -> Statement {
 ///  // ...
 /// }
 fn create_return_type(ty: &str) -> FunctionReturnType {
-    let return_path = chained_path!("aztec", "abi", ty);
-
-    let ty = make_type(UnresolvedTypeData::Named(return_path, vec![]));
-    FunctionReturnType::Ty(ty)
+    let path_snippet = ty.to_case(Case::Snake); // e.g. private_circuit_public_inputs or public_circuit_public_inputs
+    let return_path = chained_dep!("aztec", "protocol_types", "abis", &path_snippet, ty);
+    return_type(return_path)
 }
 
 /// Create Context Finish
@@ -937,7 +1545,7 @@ fn create_return_type(ty: &str) -> FunctionReturnType {
 /// The replaced code:
 /// ```noir
 /// /// Before
-/// fn foo() -> abi::PrivateCircuitPublicInputs {
+/// fn foo() -> protocol_types::abis::private_circuit_public_inputs::PrivateCircuitPublicInputs {
 ///   // ...
 ///  context.finish()
 /// }
@@ -1117,4 +1725,195 @@ fn signature_of_type(typ: &Type) -> String {
 fn event_signature(event: &StructType) -> String {
     let fields = vecmap(event.get_fields(&[]), |(_, typ)| signature_of_type(&typ));
     format!("{}({})", event.name.0.contents, fields.join(","))
+}
+
+fn inject_compute_note_hash_and_nullifier(
+    crate_id: &CrateId,
+    context: &mut HirContext,
+    unresolved_traits_impls: &[UnresolvedTraitImpl],
+    collected_functions: &mut [UnresolvedFunctions],
+) -> Result<(), (MacroError, FileId)> {
+    // We first fetch modules in this crate which correspond to contracts, along with their file id.
+    let contract_module_file_ids: Vec<(LocalModuleId, FileId)> = context
+        .def_map(crate_id)
+        .expect("ICE: Missing crate in def_map")
+        .modules()
+        .iter()
+        .filter(|(_, module)| module.is_contract)
+        .map(|(idx, module)| (LocalModuleId(idx), module.location.file))
+        .collect();
+
+    // If the current crate does not contain a contract module we simply skip it.
+    if contract_module_file_ids.is_empty() {
+        return Ok(());
+    } else if contract_module_file_ids.len() != 1 {
+        panic!("Found multiple contracts in the same crate");
+    }
+
+    let (module_id, file_id) = contract_module_file_ids[0];
+
+    // If compute_note_hash_and_nullifier is already defined by the user, we skip auto-generation in order to provide an
+    // escape hatch for this mechanism.
+    // TODO(#4647): improve this diagnosis and error messaging.
+    if collected_functions.iter().any(|coll_funcs_data| {
+        check_for_compute_note_hash_and_nullifier_definition(&coll_funcs_data.functions, module_id)
+    }) {
+        return Ok(());
+    }
+
+    // In order to implement compute_note_hash_and_nullifier, we need to know all of the different note types the
+    // contract might use. These are the types that implement the NoteInterface trait, which provides the
+    // get_note_type_id function.
+    let note_types = fetch_struct_trait_impls(context, unresolved_traits_impls, "NoteInterface");
+
+    // We can now generate a version of compute_note_hash_and_nullifier tailored for the contract in this crate.
+    let func = generate_compute_note_hash_and_nullifier(&note_types);
+
+    // And inject the newly created function into the contract.
+
+    // TODO(#4373): We don't have a reasonable location for the source code of this autogenerated function, so we simply
+    // pass an empty span. This function should not produce errors anyway so this should not matter.
+    let location = Location::new(Span::empty(0), file_id);
+
+    // These are the same things the ModCollector does when collecting functions: we push the function to the
+    // NodeInterner, declare it in the module (which checks for duplicate definitions), and finally add it to the list
+    // on collected but unresolved functions.
+
+    let func_id = context.def_interner.push_empty_fn();
+    context.def_interner.push_function(
+        func_id,
+        &func.def,
+        ModuleId { krate: *crate_id, local_id: module_id },
+        location,
+    );
+
+    context.def_map_mut(crate_id).unwrap()
+        .modules_mut()[module_id.0]
+        .declare_function(
+            func.name_ident().clone(), func_id
+        ).expect(
+            "Failed to declare the autogenerated compute_note_hash_and_nullifier function, likely due to a duplicate definition. See https://github.com/AztecProtocol/aztec-packages/issues/4647."
+        );
+
+    collected_functions
+        .iter_mut()
+        .find(|fns| fns.file_id == file_id)
+        .expect("ICE: no functions found in contract file")
+        .push_fn(module_id, func_id, func.clone());
+
+    Ok(())
+}
+
+// Fetches the name of all structs that implement trait_name, both in the current crate and all of its dependencies.
+fn fetch_struct_trait_impls(
+    context: &mut HirContext,
+    unresolved_traits_impls: &[UnresolvedTraitImpl],
+    trait_name: &str,
+) -> Vec<String> {
+    let mut struct_typenames: Vec<String> = Vec::new();
+
+    // These structs can be declared in either external crates or the current one. External crates that contain
+    // dependencies have already been processed and resolved, but are available here via the NodeInterner. Note that
+    // crates on which the current crate does not depend on may not have been processed, and will be ignored.
+    for trait_impl_id in 0..context.def_interner.next_trait_impl_id().0 {
+        let trait_impl = &context.def_interner.get_trait_implementation(TraitImplId(trait_impl_id));
+
+        if trait_impl.borrow().ident.0.contents == *trait_name {
+            if let Type::Struct(s, _) = &trait_impl.borrow().typ {
+                struct_typenames.push(s.borrow().name.0.contents.clone());
+            } else {
+                panic!("Found impl for {} on non-Struct", trait_name);
+            }
+        }
+    }
+
+    // This crate's traits and impls have not yet been resolved, so we look for impls in unresolved_trait_impls.
+    struct_typenames.extend(
+        unresolved_traits_impls
+            .iter()
+            .filter(|trait_impl| {
+                trait_impl
+                    .trait_path
+                    .segments
+                    .last()
+                    .expect("ICE: empty trait_impl path")
+                    .0
+                    .contents
+                    == *trait_name
+            })
+            .filter_map(|trait_impl| match &trait_impl.object_type.typ {
+                UnresolvedTypeData::Named(path, _, _) => {
+                    Some(path.segments.last().unwrap().0.contents.clone())
+                }
+                _ => None,
+            }),
+    );
+
+    struct_typenames
+}
+
+fn generate_compute_note_hash_and_nullifier(note_types: &Vec<String>) -> NoirFunction {
+    let function_source = generate_compute_note_hash_and_nullifier_source(note_types);
+
+    let (function_ast, errors) = parse_program(&function_source);
+    if !errors.is_empty() {
+        dbg!(errors.clone());
+    }
+    assert_eq!(errors.len(), 0, "Failed to parse Noir macro code. This is either a bug in the compiler or the Noir macro code");
+
+    let mut function_ast = function_ast.into_sorted();
+    function_ast.functions.remove(0)
+}
+
+fn generate_compute_note_hash_and_nullifier_source(note_types: &Vec<String>) -> String {
+    // TODO(#4649): The serialized_note parameter is a fixed-size array, but we don't know what length it should have.
+    // For now we hardcode it to 20, which is the same as MAX_NOTE_FIELDS_LENGTH.
+
+    if note_types.is_empty() {
+        // TODO(#4520): Even if the contract does not include any notes, other parts of the stack expect for this
+        // function to exist, so we include a dummy version. We likely should error out here instead.
+        "
+        unconstrained fn compute_note_hash_and_nullifier(
+            contract_address: AztecAddress,
+            nonce: Field,
+            storage_slot: Field,
+            note_type_id: Field,
+            serialized_note: [Field; 20]
+        ) -> pub [Field; 4] {
+            [0, 0, 0, 0]
+        }"
+        .to_string()
+    } else {
+        // For contracts that include notes we do a simple if-else chain comparing note_type_id with the different
+        // get_note_type_id of each of the note types.
+
+        let if_statements: Vec<String> = note_types.iter().map(|note_type| format!(
+            "if (note_type_id == {0}::get_note_type_id()) {{
+                dep::aztec::note::utils::compute_note_hash_and_nullifier({0}::deserialize_content, note_header, serialized_note)
+            }}"
+        , note_type)).collect();
+
+        // TODO(#4520): error out on the else instead of returning a zero array
+        let full_if_statement = if_statements.join(" else ")
+            + "
+            else {
+                [0, 0, 0, 0]
+            }";
+
+        format!(
+            "
+            unconstrained fn compute_note_hash_and_nullifier(
+                contract_address: AztecAddress,
+                nonce: Field,
+                storage_slot: Field,
+                note_type_id: Field,
+                serialized_note: [Field; 20]
+            ) -> pub [Field; 4] {{
+                let note_header = dep::aztec::prelude::NoteHeader::new(contract_address, nonce, storage_slot);
+
+                {}
+            }}",
+            full_if_statement
+        )
+    }
 }

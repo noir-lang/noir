@@ -20,6 +20,7 @@
 /// in both placement and content during the formatting process.
 mod config;
 pub mod errors;
+mod items;
 mod rewrite;
 mod utils;
 mod visitor;

@@ -4,9 +4,11 @@ use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
-use nargo::{artifacts::debug::DebugArtifact, ops::DefaultForeignCallExecutor, NargoError};
+use crate::foreign_calls::DefaultDebugForeignCallExecutor;
+use nargo::{artifacts::debug::DebugArtifact, NargoError};
 
 use easy_repl::{command, CommandStatus, Repl};
+use noirc_printable_type::PrintableValueDisplay;
 use std::cell::RefCell;
 
 use crate::source_code_printer::print_source_code_location;
@@ -27,21 +29,22 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
     ) -> Self {
+        let foreign_call_executor =
+            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
         let context = DebugContext::new(
             blackbox_solver,
             circuit,
             debug_artifact,
             initial_witness.clone(),
-            Box::new(DefaultForeignCallExecutor::new(true, None)),
+            foreign_call_executor,
         );
-        Self {
-            context,
-            blackbox_solver,
-            circuit,
-            debug_artifact,
-            initial_witness,
-            last_result: DebugCommandResult::Ok,
-        }
+        let last_result = if context.get_current_opcode_location().is_none() {
+            // handle circuit with no opcodes
+            DebugCommandResult::Done
+        } else {
+            DebugCommandResult::Ok
+        };
+        Self { context, blackbox_solver, circuit, debug_artifact, initial_witness, last_result }
     }
 
     pub fn show_current_vm_status(&self) {
@@ -53,7 +56,15 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             Some(location) => {
                 match location {
                     OpcodeLocation::Acir(ip) => {
-                        println!("At opcode {}: {}", ip, opcodes[ip])
+                        // Default Brillig display is too bloated for this context,
+                        // so we limit it to denoting it's the start of a Brillig
+                        // block. The user can still use the `opcodes` command to
+                        // take a look at the whole block.
+                        let opcode_summary = match opcodes[ip] {
+                            Opcode::Brillig(..) => "BRILLIG: ...".into(),
+                            _ => format!("{}", opcodes[ip]),
+                        };
+                        println!("At opcode {}: {}", ip, opcode_summary);
                     }
                     OpcodeLocation::Brillig { acir_index, brillig_index } => {
                         let Opcode::Brillig(ref brillig) = opcodes[acir_index] else {
@@ -65,9 +76,44 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
                         );
                     }
                 }
-
-                print_source_code_location(self.debug_artifact, &location);
+                let locations = self.context.get_source_location_for_opcode_location(&location);
+                print_source_code_location(self.debug_artifact, &locations);
             }
+        }
+    }
+
+    fn show_stack_frame(&self, index: usize, location: &OpcodeLocation) {
+        let opcodes = self.context.get_opcodes();
+        match location {
+            OpcodeLocation::Acir(instruction_pointer) => {
+                println!(
+                    "Frame #{index}, opcode {}: {}",
+                    instruction_pointer, opcodes[*instruction_pointer]
+                )
+            }
+            OpcodeLocation::Brillig { acir_index, brillig_index } => {
+                let Opcode::Brillig(ref brillig) = opcodes[*acir_index] else {
+                    unreachable!("Brillig location does not contain a Brillig block");
+                };
+                println!(
+                    "Frame #{index}, opcode {}.{}: {:?}",
+                    acir_index, brillig_index, brillig.bytecode[*brillig_index]
+                );
+            }
+        }
+        let locations = self.context.get_source_location_for_opcode_location(location);
+        print_source_code_location(self.debug_artifact, &locations);
+    }
+
+    pub fn show_current_call_stack(&self) {
+        let call_stack = self.context.get_call_stack();
+        if call_stack.is_empty() {
+            println!("Finished execution. Call stack empty.");
+            return;
+        }
+
+        for (i, frame_location) in call_stack.iter().enumerate() {
+            self.show_stack_frame(i, frame_location);
         }
     }
 
@@ -185,9 +231,23 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         }
     }
 
-    fn next(&mut self) {
+    fn next_into(&mut self) {
         if self.validate_in_progress() {
-            let result = self.context.next();
+            let result = self.context.next_into();
+            self.handle_debug_command_result(result);
+        }
+    }
+
+    fn next_over(&mut self) {
+        if self.validate_in_progress() {
+            let result = self.context.next_over();
+            self.handle_debug_command_result(result);
+        }
+    }
+
+    fn next_out(&mut self) {
+        if self.validate_in_progress() {
+            let result = self.context.next_out();
             self.handle_debug_command_result(result);
         }
     }
@@ -203,12 +263,14 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
     fn restart_session(&mut self) {
         let breakpoints: Vec<OpcodeLocation> =
             self.context.iterate_breakpoints().copied().collect();
+        let foreign_call_executor =
+            Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, self.debug_artifact));
         self.context = DebugContext::new(
             self.blackbox_solver,
             self.circuit,
             self.debug_artifact,
             self.initial_witness.clone(),
-            Box::new(DefaultForeignCallExecutor::new(true, None)),
+            foreign_call_executor,
         );
         for opcode_location in breakpoints {
             self.context.add_breakpoint(opcode_location);
@@ -243,37 +305,6 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
         println!("_{} = {value}", index);
     }
 
-    pub fn show_brillig_registers(&self) {
-        if !self.context.is_executing_brillig() {
-            println!("Not executing a Brillig block");
-            return;
-        }
-
-        let Some(registers) = self.context.get_brillig_registers() else {
-            // this can happen when just entering the Brillig block since ACVM
-            // would have not initialized the Brillig VM yet; in fact, the
-            // Brillig code may be skipped altogether
-            println!("Brillig VM registers not available");
-            return;
-        };
-
-        for (index, value) in registers.inner.iter().enumerate() {
-            println!("{index} = {}", value.to_field());
-        }
-    }
-
-    pub fn set_brillig_register(&mut self, index: usize, value: String) {
-        let Some(field_value) = FieldElement::try_from_str(&value) else {
-            println!("Invalid value: {value}");
-            return;
-        };
-        if !self.context.is_executing_brillig() {
-            println!("Not executing a Brillig block");
-            return;
-        }
-        self.context.set_brillig_register(index, field_value);
-    }
-
     pub fn show_brillig_memory(&self) {
         if !self.context.is_executing_brillig() {
             println!("Not executing a Brillig block");
@@ -303,6 +334,17 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             return;
         }
         self.context.write_brillig_memory(index, field_value);
+    }
+
+    pub fn show_vars(&self) {
+        for frame in self.context.get_variables() {
+            println!("{}({})", frame.function_name, frame.function_params.join(", "));
+            for (var_name, value, var_type) in frame.variables.iter() {
+                let printable_value =
+                    PrintableValueDisplay::Plain((*value).clone(), (*var_type).clone());
+                println!("  {var_name}:{var_type:?} = {}", printable_value);
+            }
+        }
     }
 
     fn is_solved(&self) -> bool {
@@ -352,10 +394,30 @@ pub fn run<B: BlackBoxFunctionSolver>(
             command! {
                 "step until a new source location is reached",
                 () => || {
-                    ref_context.borrow_mut().next();
+                    ref_context.borrow_mut().next_into();
                     Ok(CommandStatus::Done)
                 }
             },
+        )
+        .add(
+            "over",
+            command! {
+                "step until a new source location is reached without diving into function calls",
+                () => || {
+                    ref_context.borrow_mut().next_over();
+                    Ok(CommandStatus::Done)
+                }
+            }
+        )
+        .add(
+            "out",
+            command! {
+                "step until a new source location is reached and the current stack frame is finished",
+                () => || {
+                    ref_context.borrow_mut().next_out();
+                    Ok(CommandStatus::Done)
+                }
+            }
         )
         .add(
             "continue",
@@ -438,26 +500,6 @@ pub fn run<B: BlackBoxFunctionSolver>(
             },
         )
         .add(
-            "registers",
-            command! {
-                "show Brillig registers (valid when executing a Brillig block)",
-                () => || {
-                    ref_context.borrow().show_brillig_registers();
-                    Ok(CommandStatus::Done)
-                }
-            },
-        )
-        .add(
-            "regset",
-            command! {
-                "update a Brillig register with the given value",
-                (index: usize, value: String) => |index, value| {
-                    ref_context.borrow_mut().set_brillig_register(index, value);
-                    Ok(CommandStatus::Done)
-                }
-            },
-        )
-        .add(
             "memory",
             command! {
                 "show Brillig memory (valid when executing a Brillig block)",
@@ -473,6 +515,26 @@ pub fn run<B: BlackBoxFunctionSolver>(
                 "update a Brillig memory cell with the given value",
                 (index: usize, value: String) => |index, value| {
                     ref_context.borrow_mut().write_brillig_memory(index, value);
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "stacktrace",
+            command! {
+                "display the current stack trace",
+                () => || {
+                    ref_context.borrow().show_current_call_stack();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "vars",
+            command! {
+                "show variables for each function scope available at this point in execution",
+                () => || {
+                    ref_context.borrow_mut().show_vars();
                     Ok(CommandStatus::Done)
                 }
             },

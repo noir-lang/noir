@@ -345,6 +345,7 @@ fn toml_to_workspace(
                     root_dir: nargo_toml.root_dir,
                     selected_package_index: Some(0),
                     members: vec![member],
+                    is_assumed: false,
                 },
             }
         }
@@ -392,7 +393,12 @@ fn toml_to_workspace(
                 PackageSelection::All => (),
             }
 
-            Workspace { root_dir: nargo_toml.root_dir, members, selected_package_index }
+            Workspace {
+                root_dir: nargo_toml.root_dir,
+                members,
+                selected_package_index,
+                is_assumed: false,
+            }
         }
     };
 

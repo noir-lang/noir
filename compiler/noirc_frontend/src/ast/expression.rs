@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
 use crate::{
-    Distinctness, FunctionVisibility, Ident, Path, Pattern, Recoverable, Statement, StatementKind,
+    Distinctness, Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
@@ -236,7 +236,15 @@ impl BinaryOpKind {
     }
 
     pub fn is_valid_for_field_type(self) -> bool {
-        matches!(self, BinaryOpKind::Equal | BinaryOpKind::NotEqual)
+        matches!(
+            self,
+            BinaryOpKind::Add
+                | BinaryOpKind::Subtract
+                | BinaryOpKind::Multiply
+                | BinaryOpKind::Divide
+                | BinaryOpKind::Equal
+                | BinaryOpKind::NotEqual
+        )
     }
 
     pub fn as_string(self) -> &'static str {
@@ -279,14 +287,6 @@ impl BinaryOpKind {
             BinaryOpKind::ShiftRight => Token::ShiftRight,
             BinaryOpKind::Modulo => Token::Percent,
         }
-    }
-
-    pub fn is_bit_shift(&self) -> bool {
-        matches!(self, BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft)
-    }
-
-    pub fn is_modulo(&self) -> bool {
-        matches!(self, BinaryOpKind::Modulo)
     }
 }
 
@@ -378,7 +378,7 @@ pub struct FunctionDefinition {
     pub is_unconstrained: bool,
 
     /// Indicate if this function was defined with the 'pub' keyword
-    pub visibility: FunctionVisibility,
+    pub visibility: ItemVisibility,
 
     pub generics: UnresolvedGenerics,
     pub parameters: Vec<Param>,
@@ -677,7 +677,7 @@ impl FunctionDefinition {
             is_open: false,
             is_internal: false,
             is_unconstrained: false,
-            visibility: FunctionVisibility::Private,
+            visibility: ItemVisibility::Private,
             generics: generics.clone(),
             parameters: p,
             body: body.clone(),

@@ -31,7 +31,7 @@ pub struct LocalModuleId(pub Index);
 
 impl LocalModuleId {
     pub fn dummy_id() -> LocalModuleId {
-        LocalModuleId(Index::from_raw_parts(std::usize::MAX, std::u64::MAX))
+        LocalModuleId(Index::dummy())
     }
 }
 
@@ -73,7 +73,7 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        macro_processors: Vec<&dyn MacroProcessor>,
+        macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -90,7 +90,7 @@ impl CrateDefMap {
         let (ast, parsing_errors) = context.parsed_file_results(root_file_id);
         let mut ast = ast.into_sorted();
 
-        for macro_processor in &macro_processors {
+        for macro_processor in macro_processors {
             match macro_processor.process_untyped_ast(ast.clone(), &crate_id, context) {
                 Ok(processed_ast) => {
                     ast = processed_ast;
@@ -115,13 +115,7 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect(
-            def_map,
-            context,
-            ast,
-            root_file_id,
-            macro_processors.clone(),
-        ));
+        errors.extend(DefCollector::collect(def_map, context, ast, root_file_id, macro_processors));
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
@@ -135,6 +129,11 @@ impl CrateDefMap {
     pub fn modules(&self) -> &Arena<ModuleData> {
         &self.modules
     }
+
+    pub fn modules_mut(&mut self) -> &mut Arena<ModuleData> {
+        &mut self.modules
+    }
+
     pub fn krate(&self) -> CrateId {
         self.krate
     }

@@ -2,26 +2,17 @@ use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, Value};
 use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{
     blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, keccakf1600,
-    sha256, BlackBoxFunctionSolver, BlackBoxResolutionError,
+    sha256, sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 
-use crate::{Memory, Registers};
+use crate::Memory;
 
-fn read_heap_vector<'a>(
-    memory: &'a Memory,
-    registers: &Registers,
-    vector: &HeapVector,
-) -> &'a [Value] {
-    memory
-        .read_slice(registers.get(vector.pointer).to_usize(), registers.get(vector.size).to_usize())
+fn read_heap_vector<'a>(memory: &'a Memory, vector: &HeapVector) -> &'a [Value] {
+    memory.read_slice(memory.read_ref(vector.pointer), memory.read(vector.size).to_usize())
 }
 
-fn read_heap_array<'a>(
-    memory: &'a Memory,
-    registers: &Registers,
-    array: &HeapArray,
-) -> &'a [Value] {
-    memory.read_slice(registers.get(array.pointer).to_usize(), array.size)
+fn read_heap_array<'a>(memory: &'a Memory, array: &HeapArray) -> &'a [Value] {
+    memory.read_slice(memory.read_ref(array.pointer), array.size)
 }
 
 /// Extracts the last byte of every value
@@ -42,36 +33,35 @@ fn to_value_vec(input: &[u8]) -> Vec<Value> {
 pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
     op: &BlackBoxOp,
     solver: &Solver,
-    registers: &mut Registers,
     memory: &mut Memory,
 ) -> Result<(), BlackBoxResolutionError> {
     match op {
         BlackBoxOp::Sha256 { message, output } => {
-            let message = to_u8_vec(read_heap_vector(memory, registers, message));
+            let message = to_u8_vec(read_heap_vector(memory, message));
             let bytes = sha256(message.as_slice())?;
-            memory.write_slice(registers.get(output.pointer).to_usize(), &to_value_vec(&bytes));
+            memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
             Ok(())
         }
         BlackBoxOp::Blake2s { message, output } => {
-            let message = to_u8_vec(read_heap_vector(memory, registers, message));
+            let message = to_u8_vec(read_heap_vector(memory, message));
             let bytes = blake2s(message.as_slice())?;
-            memory.write_slice(registers.get(output.pointer).to_usize(), &to_value_vec(&bytes));
+            memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
             Ok(())
         }
         BlackBoxOp::Blake3 { message, output } => {
-            let message = to_u8_vec(read_heap_vector(memory, registers, message));
+            let message = to_u8_vec(read_heap_vector(memory, message));
             let bytes = blake3(message.as_slice())?;
-            memory.write_slice(registers.get(output.pointer).to_usize(), &to_value_vec(&bytes));
+            memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
             Ok(())
         }
         BlackBoxOp::Keccak256 { message, output } => {
-            let message = to_u8_vec(read_heap_vector(memory, registers, message));
+            let message = to_u8_vec(read_heap_vector(memory, message));
             let bytes = keccak256(message.as_slice())?;
-            memory.write_slice(registers.get(output.pointer).to_usize(), &to_value_vec(&bytes));
+            memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
             Ok(())
         }
         BlackBoxOp::Keccakf1600 { message, output } => {
-            let state_vec: Vec<u64> = read_heap_vector(memory, registers, message)
+            let state_vec: Vec<u64> = read_heap_vector(memory, message)
                 .iter()
                 .map(|value| value.to_field().try_to_u64().unwrap())
                 .collect();
@@ -81,7 +71,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
 
             let new_state: Vec<Value> =
                 new_state.into_iter().map(|x| Value::from(x as usize)).collect();
-            memory.write_slice(registers.get(output.pointer).to_usize(), &new_state);
+            memory.write_slice(memory.read_ref(output.pointer), &new_state);
             Ok(())
         }
         BlackBoxOp::EcdsaSecp256k1 {
@@ -89,42 +79,37 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
             public_key_x,
             public_key_y,
             signature,
-            result: result_register,
+            result: result_address,
         }
         | BlackBoxOp::EcdsaSecp256r1 {
             hashed_msg,
             public_key_x,
             public_key_y,
             signature,
-            result: result_register,
+            result: result_address,
         } => {
             let bb_func = black_box_function_from_op(op);
 
-            let public_key_x: [u8; 32] = to_u8_vec(read_heap_array(
-                memory,
-                registers,
-                public_key_x,
-            ))
-            .try_into()
-            .map_err(|_| {
-                BlackBoxResolutionError::Failed(bb_func, "Invalid public key x length".to_string())
-            })?;
-            let public_key_y: [u8; 32] = to_u8_vec(read_heap_array(
-                memory,
-                registers,
-                public_key_y,
-            ))
-            .try_into()
-            .map_err(|_| {
-                BlackBoxResolutionError::Failed(bb_func, "Invalid public key y length".to_string())
-            })?;
-            let signature: [u8; 64] = to_u8_vec(read_heap_array(memory, registers, signature))
-                .try_into()
-                .map_err(|_| {
+            let public_key_x: [u8; 32] =
+                to_u8_vec(read_heap_array(memory, public_key_x)).try_into().map_err(|_| {
+                    BlackBoxResolutionError::Failed(
+                        bb_func,
+                        "Invalid public key x length".to_string(),
+                    )
+                })?;
+            let public_key_y: [u8; 32] =
+                to_u8_vec(read_heap_array(memory, public_key_y)).try_into().map_err(|_| {
+                    BlackBoxResolutionError::Failed(
+                        bb_func,
+                        "Invalid public key y length".to_string(),
+                    )
+                })?;
+            let signature: [u8; 64] =
+                to_u8_vec(read_heap_array(memory, signature)).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(bb_func, "Invalid signature length".to_string())
                 })?;
 
-            let hashed_msg = to_u8_vec(read_heap_vector(memory, registers, hashed_msg));
+            let hashed_msg = to_u8_vec(read_heap_vector(memory, hashed_msg));
 
             let result = match op {
                 BlackBoxOp::EcdsaSecp256k1 { .. } => {
@@ -136,68 +121,109 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
                 _ => unreachable!("`BlackBoxOp` is guarded against being a non-ecdsa operation"),
             };
 
-            registers.set(*result_register, result.into());
+            memory.write(*result_address, result.into());
             Ok(())
         }
         BlackBoxOp::SchnorrVerify { public_key_x, public_key_y, message, signature, result } => {
-            let public_key_x = registers.get(*public_key_x).to_field();
-            let public_key_y = registers.get(*public_key_y).to_field();
-            let message: Vec<u8> = to_u8_vec(read_heap_vector(memory, registers, message));
-            let signature: Vec<u8> = to_u8_vec(read_heap_vector(memory, registers, signature));
+            let public_key_x = memory.read(*public_key_x).to_field();
+            let public_key_y = memory.read(*public_key_y).to_field();
+            let message: Vec<u8> = to_u8_vec(read_heap_vector(memory, message));
+            let signature: Vec<u8> = to_u8_vec(read_heap_vector(memory, signature));
             let verified =
                 solver.schnorr_verify(&public_key_x, &public_key_y, &signature, &message)?;
-            registers.set(*result, verified.into());
+            memory.write(*result, verified.into());
             Ok(())
         }
         BlackBoxOp::FixedBaseScalarMul { low, high, result } => {
-            let low = registers.get(*low).to_field();
-            let high = registers.get(*high).to_field();
+            let low = memory.read(*low).to_field();
+            let high = memory.read(*high).to_field();
             let (x, y) = solver.fixed_base_scalar_mul(&low, &high)?;
-            memory.write_slice(registers.get(result.pointer).to_usize(), &[x.into(), y.into()]);
+            memory.write_slice(memory.read_ref(result.pointer), &[x.into(), y.into()]);
             Ok(())
         }
         BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
-            let input1_x = registers.get(*input1_x).to_field();
-            let input1_y = registers.get(*input1_y).to_field();
-            let input2_x = registers.get(*input2_x).to_field();
-            let input2_y = registers.get(*input2_y).to_field();
+            let input1_x = memory.read(*input1_x).to_field();
+            let input1_y = memory.read(*input1_y).to_field();
+            let input2_x = memory.read(*input2_x).to_field();
+            let input2_y = memory.read(*input2_y).to_field();
             let (x, y) = solver.ec_add(&input1_x, &input1_y, &input2_x, &input2_y)?;
-            memory.write_slice(registers.get(result.pointer).to_usize(), &[x.into(), y.into()]);
-            Ok(())
-        }
-        BlackBoxOp::EmbeddedCurveDouble { input1_x, input1_y, result } => {
-            let input1_x = registers.get(*input1_x).to_field();
-            let input1_y = registers.get(*input1_y).to_field();
-            let (x, y) = solver.ec_double(&input1_x, &input1_y)?;
-            memory.write_slice(registers.get(result.pointer).to_usize(), &[x.into(), y.into()]);
+            memory.write_slice(memory.read_ref(result.pointer), &[x.into(), y.into()]);
             Ok(())
         }
         BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
             let inputs: Vec<FieldElement> =
-                read_heap_vector(memory, registers, inputs).iter().map(|x| x.to_field()).collect();
+                read_heap_vector(memory, inputs).iter().map(|x| x.to_field()).collect();
             let domain_separator: u32 =
-                registers.get(*domain_separator).to_u128().try_into().map_err(|_| {
+                memory.read(*domain_separator).to_u128().try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
                         BlackBoxFunc::PedersenCommitment,
                         "Invalid signature length".to_string(),
                     )
                 })?;
             let (x, y) = solver.pedersen_commitment(&inputs, domain_separator)?;
-            memory.write_slice(registers.get(output.pointer).to_usize(), &[x.into(), y.into()]);
+            memory.write_slice(memory.read_ref(output.pointer), &[x.into(), y.into()]);
             Ok(())
         }
         BlackBoxOp::PedersenHash { inputs, domain_separator, output } => {
             let inputs: Vec<FieldElement> =
-                read_heap_vector(memory, registers, inputs).iter().map(|x| x.to_field()).collect();
+                read_heap_vector(memory, inputs).iter().map(|x| x.to_field()).collect();
             let domain_separator: u32 =
-                registers.get(*domain_separator).to_u128().try_into().map_err(|_| {
+                memory.read(*domain_separator).to_u128().try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
                         BlackBoxFunc::PedersenCommitment,
                         "Invalid signature length".to_string(),
                     )
                 })?;
             let hash = solver.pedersen_hash(&inputs, domain_separator)?;
-            registers.set(*output, hash.into());
+            memory.write(*output, hash.into());
+            Ok(())
+        }
+        BlackBoxOp::BigIntAdd { .. } => todo!(),
+        BlackBoxOp::BigIntSub { .. } => todo!(),
+        BlackBoxOp::BigIntMul { .. } => todo!(),
+        BlackBoxOp::BigIntDiv { .. } => todo!(),
+        BlackBoxOp::BigIntFromLeBytes { .. } => todo!(),
+        BlackBoxOp::BigIntToLeBytes { .. } => todo!(),
+        BlackBoxOp::Poseidon2Permutation { message, output, len } => {
+            let input = read_heap_vector(memory, message);
+            let input: Vec<FieldElement> = input.iter().map(|x| x.to_field()).collect();
+            let len = memory.read(*len).to_u128() as u32;
+            let result = solver.poseidon2_permutation(&input, len)?;
+            let mut values = Vec::new();
+            for i in result {
+                values.push(Value::from(i));
+            }
+            memory.write_slice(memory.read_ref(output.pointer), &values);
+            Ok(())
+        }
+        BlackBoxOp::Sha256Compression { input, hash_values, output } => {
+            let mut message = [0; 16];
+            let inputs = read_heap_vector(memory, input);
+            if inputs.len() != 16 {
+                return Err(BlackBoxResolutionError::Failed(
+                    BlackBoxFunc::Sha256Compression,
+                    format!("Expected 16 inputs but encountered {}", &inputs.len()),
+                ));
+            }
+            for (i, input) in inputs.iter().enumerate() {
+                message[i] = input.to_u128() as u32;
+            }
+            let mut state = [0; 8];
+            let values = read_heap_vector(memory, hash_values);
+            if values.len() != 8 {
+                return Err(BlackBoxResolutionError::Failed(
+                    BlackBoxFunc::Sha256Compression,
+                    format!("Expected 8 values but encountered {}", &values.len()),
+                ));
+            }
+            for (i, value) in values.iter().enumerate() {
+                state[i] = value.to_u128() as u32;
+            }
+
+            sha256compression(&mut state, &message);
+            let state = state.map(|x| Value::from(x as u128));
+
+            memory.write_slice(memory.read_ref(output.pointer), &state);
             Ok(())
         }
     }
@@ -217,17 +243,24 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::PedersenHash { .. } => BlackBoxFunc::PedersenHash,
         BlackBoxOp::FixedBaseScalarMul { .. } => BlackBoxFunc::FixedBaseScalarMul,
         BlackBoxOp::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
-        BlackBoxOp::EmbeddedCurveDouble { .. } => BlackBoxFunc::EmbeddedCurveDouble,
+        BlackBoxOp::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,
+        BlackBoxOp::BigIntSub { .. } => BlackBoxFunc::BigIntSub,
+        BlackBoxOp::BigIntMul { .. } => BlackBoxFunc::BigIntMul,
+        BlackBoxOp::BigIntDiv { .. } => BlackBoxFunc::BigIntDiv,
+        BlackBoxOp::BigIntFromLeBytes { .. } => BlackBoxFunc::BigIntFromLeBytes,
+        BlackBoxOp::BigIntToLeBytes { .. } => BlackBoxFunc::BigIntToLeBytes,
+        BlackBoxOp::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
+        BlackBoxOp::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
     }
 }
 
 #[cfg(test)]
 mod test {
-    use acir::brillig::BlackBoxOp;
+    use acir::brillig::{BlackBoxOp, MemoryAddress};
 
     use crate::{
         black_box::{evaluate_black_box, to_u8_vec, to_value_vec},
-        DummyBlackBoxSolver, HeapArray, HeapVector, Memory, Registers, Value,
+        DummyBlackBoxSolver, HeapArray, HeapVector, Memory,
     };
 
     #[test]
@@ -235,27 +268,22 @@ mod test {
         let message: Vec<u8> = b"hello world".to_vec();
         let message_length = message.len();
 
-        let mut memory = Memory::from(vec![]);
-        let message_pointer = 0;
+        let mut memory = Memory::default();
+        let message_pointer = 3;
         let result_pointer = message_pointer + message_length;
-        memory.write_slice(message_pointer, to_value_vec(&message).as_slice());
-
-        let mut registers = Registers {
-            inner: vec![
-                Value::from(message_pointer),
-                Value::from(message_length),
-                Value::from(result_pointer),
-            ],
-        };
+        memory.write(MemoryAddress(0), message_pointer.into());
+        memory.write(MemoryAddress(1), message_length.into());
+        memory.write(MemoryAddress(2), result_pointer.into());
+        memory.write_slice(MemoryAddress(message_pointer), to_value_vec(&message).as_slice());
 
         let op = BlackBoxOp::Sha256 {
             message: HeapVector { pointer: 0.into(), size: 1.into() },
             output: HeapArray { pointer: 2.into(), size: 32 },
         };
 
-        evaluate_black_box(&op, &DummyBlackBoxSolver, &mut registers, &mut memory).unwrap();
+        evaluate_black_box(&op, &DummyBlackBoxSolver, &mut memory).unwrap();
 
-        let result = memory.read_slice(result_pointer, 32);
+        let result = memory.read_slice(MemoryAddress(result_pointer), 32);
 
         assert_eq!(
             to_u8_vec(result),

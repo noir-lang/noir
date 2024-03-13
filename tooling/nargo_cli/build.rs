@@ -6,8 +6,8 @@ use std::{env, fs};
 
 fn check_rustc_version() {
     assert!(
-        version().unwrap() >= Version::parse("1.71.1").unwrap(),
-        "The minimal supported rustc version is 1.71.1."
+        version().unwrap() >= Version::parse("1.73.0").unwrap(),
+        "The minimal supported rustc version is 1.73.0."
     );
 }
 
@@ -199,7 +199,7 @@ fn compile_success_empty_{test_name}() {{
     let output = cmd.output().expect("Failed to execute command");
 
     if !output.status.success() {{
-        panic!("`nargo info` failed with: {{}}", String::from_utf8(output.stderr).unwrap());
+        panic!("`nargo info` failed with: {{}}", String::from_utf8(output.stderr).unwrap_or_default());
     }}
 
     // `compile_success_empty` tests should be able to compile down to an empty circuit.
@@ -207,7 +207,7 @@ fn compile_success_empty_{test_name}() {{
         panic!("JSON was not well-formatted {{:?}}",output.stdout)
     }});
     let num_opcodes = &json["programs"][0]["acir_opcodes"];
-    assert_eq!(num_opcodes.as_u64().unwrap(), 0);
+    assert_eq!(num_opcodes.as_u64().expect("number of opcodes should fit in a u64"), 0);
 }}
             "#,
             test_dir = test_dir.display(),

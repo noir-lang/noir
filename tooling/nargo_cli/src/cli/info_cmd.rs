@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use acvm::ExpressionWidth;
+use acvm::acir::circuit::ExpressionWidth;
 use backend_interface::BackendError;
 use clap::Args;
 use iter_extended::vecmap;
 use nargo::{
     artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager,
-    package::Package, parse_all,
+    ops::report_errors, package::Package, parse_all,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
@@ -69,32 +69,40 @@ pub(crate) fn run(
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
-        .into_iter()
-        .filter(|package| !package.is_library())
-        .cloned()
-        .partition(|package| package.is_binary());
-
-    let expression_width = backend.get_backend_info_or_default();
-    let (compiled_programs, compiled_contracts) = compile_workspace(
+    let expression_width = args
+        .compile_options
+        .expression_width
+        .unwrap_or_else(|| backend.get_backend_info_or_default());
+    let compiled_workspace = compile_workspace(
         &workspace_file_manager,
         &parsed_files,
         &workspace,
-        &binary_packages,
-        &contract_packages,
-        expression_width,
         &args.compile_options,
+    );
+
+    let (compiled_programs, compiled_contracts) = report_errors(
+        compiled_workspace,
+        &workspace_file_manager,
+        args.compile_options.deny_warnings,
+        args.compile_options.silence_warnings,
     )?;
+
+    let compiled_programs = vecmap(compiled_programs, |program| {
+        nargo::ops::transform_program(program, expression_width)
+    });
+    let compiled_contracts = vecmap(compiled_contracts, |contract| {
+        nargo::ops::transform_contract(contract, expression_width)
+    });
 
     if args.profile_info {
         for compiled_program in &compiled_programs {
             let span_opcodes = compiled_program.debug.count_span_opcodes();
-            let debug_artifact: DebugArtifact = compiled_program.clone().into();
+            let debug_artifact = DebugArtifact::from(compiled_program.clone());
             print_span_opcodes(span_opcodes, &debug_artifact);
         }
 
         for compiled_contract in &compiled_contracts {
-            let debug_artifact: DebugArtifact = compiled_contract.clone().into();
+            let debug_artifact = DebugArtifact::from(compiled_contract.clone());
             let functions = &compiled_contract.functions;
             for contract_function in functions {
                 let span_opcodes = contract_function.debug.count_span_opcodes();
@@ -103,11 +111,12 @@ pub(crate) fn run(
         }
     }
 
+    let binary_packages =
+        workspace.into_iter().filter(|package| package.is_binary()).zip(compiled_programs);
     let program_info = binary_packages
-        .into_par_iter()
-        .zip(compiled_programs)
+        .par_bridge()
         .map(|(package, program)| {
-            count_opcodes_and_gates_in_program(backend, program, &package, expression_width)
+            count_opcodes_and_gates_in_program(backend, program, package, expression_width)
         })
         .collect::<Result<_, _>>()?;
 
