@@ -1,1 +1,4 @@
-barretenberg_module(protogalaxy_bench ultra_honk protogalaxy stdlib_primitives)
+barretenberg_module(
+    protogalaxy_bench
+    stdlib_honk_recursion
+)

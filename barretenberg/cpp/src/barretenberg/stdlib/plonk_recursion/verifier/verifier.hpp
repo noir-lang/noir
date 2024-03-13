@@ -6,13 +6,13 @@
 #include "barretenberg/plonk/proof_system/public_inputs/public_inputs.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/utils/kate_verification.hpp"
+#include "barretenberg/stdlib/plonk_recursion/aggregation_state/aggregation_state.hpp"
+#include "barretenberg/stdlib/plonk_recursion/transcript/transcript.hpp"
+#include "barretenberg/stdlib/plonk_recursion/verifier/program_settings.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp"
-#include "barretenberg/stdlib/recursion/transcript/transcript.hpp"
-#include "barretenberg/stdlib/recursion/verifier/program_settings.hpp"
 
 namespace bb::stdlib::recursion {
 

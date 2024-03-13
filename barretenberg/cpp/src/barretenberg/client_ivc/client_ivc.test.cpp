@@ -3,7 +3,6 @@
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
-#include "barretenberg/stdlib/recursion/honk/verifier/protogalaxy_recursive_verifier.hpp"
 
 #include <gtest/gtest.h>
 using namespace bb;
@@ -46,8 +45,8 @@ class ClientIVCTests : public ::testing::Test {
     static Builder create_mock_circuit(ClientIVC& ivc, size_t log2_num_gates = 15)
     {
         Builder circuit{ ivc.goblin.op_queue };
-        GoblinMockCircuits::construct_arithmetic_circuit(circuit, log2_num_gates);
-        GoblinMockCircuits::construct_goblin_ecc_op_circuit(circuit);
+        MockCircuits::construct_arithmetic_circuit(circuit, log2_num_gates);
+        MockCircuits::construct_goblin_ecc_op_circuit(circuit);
         return circuit;
     }
 

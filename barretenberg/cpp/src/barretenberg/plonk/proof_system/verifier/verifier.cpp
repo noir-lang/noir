@@ -7,6 +7,7 @@
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
+#include "barretenberg/stdlib/primitives/bigfield/constants.hpp"
 
 using namespace bb;
 
@@ -194,9 +195,9 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
                 const uint256_t l2 = inputs[idx2];
                 const uint256_t l3 = inputs[idx3];
 
-                const uint256_t limb = l0 + (l1 << NUM_LIMB_BITS_IN_FIELD_SIMULATION) +
-                                       (l2 << (NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2)) +
-                                       (l3 << (NUM_LIMB_BITS_IN_FIELD_SIMULATION * 3));
+                const uint256_t limb = l0 + (l1 << stdlib::NUM_LIMB_BITS_IN_FIELD_SIMULATION) +
+                                       (l2 << (stdlib::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2)) +
+                                       (l3 << (stdlib::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 3));
                 return bb::fq(limb);
             };
 

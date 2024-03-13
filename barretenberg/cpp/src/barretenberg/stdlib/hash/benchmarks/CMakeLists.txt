@@ -1,1 +1,0 @@
-barretenberg_module(hash_benchmarks stdlib_primitives crypto_sha256 stdlib_sha256 stdlib_blake3s)

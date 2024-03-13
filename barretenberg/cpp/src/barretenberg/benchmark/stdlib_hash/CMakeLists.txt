@@ -1,7 +1,9 @@
 barretenberg_module(
-    crypto_merkle_tree
+    hash_benchmarks
     stdlib_primitives
+    crypto_sha256
+    stdlib_sha256
     stdlib_blake3s
     stdlib_pedersen_hash
-    circuit_checker
+    plonk
 )

@@ -8,7 +8,7 @@ namespace bb::plonk {
 
 /**
  * @brief Hashes the evaluation domain to match the 'circuit' approach taken in
- * stdlib/recursion/verification_key/verification_key.hpp.
+ * stdlib/plonk_recursion/verification_key/verification_key.hpp.
  * @note: in that reference file, the circuit-equivalent of this function is a _method_ of the `evaluation_domain'
  * struct. But we cannot do that with the native `bb::evaluation_domain` type unfortunately, because it's
  * defined in polynomials/evaluation_domain.hpp, and `polynomial` is a bberg library which does not depend on `crypto`

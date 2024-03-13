@@ -3,10 +3,11 @@
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
+#include "barretenberg/stdlib/plonk_recursion/verifier/program_settings.hpp"
+#include "barretenberg/stdlib/plonk_recursion/verifier/verifier.hpp"
+#include "barretenberg/stdlib/primitives/bigfield/constants.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
-#include "barretenberg/stdlib/recursion/verifier/program_settings.hpp"
-#include "barretenberg/stdlib/recursion/verifier/verifier.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 using namespace bb::plonk;

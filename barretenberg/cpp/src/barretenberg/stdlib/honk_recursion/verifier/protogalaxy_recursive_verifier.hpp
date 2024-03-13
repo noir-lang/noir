@@ -4,8 +4,8 @@
 #include "barretenberg/flavor/ultra_recursive.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/protogalaxy/folding_result.hpp"
-#include "barretenberg/stdlib/recursion/honk/transcript/transcript.hpp"
-#include "barretenberg/stdlib/recursion/honk/verifier/recursive_instances.hpp"
+#include "barretenberg/stdlib/honk_recursion/transcript/transcript.hpp"
+#include "barretenberg/stdlib/honk_recursion/verifier/recursive_instances.hpp"
 
 namespace bb::stdlib::recursion::honk {
 template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {

@@ -10,8 +10,6 @@
 #include "../field/field.hpp"
 #include "./bigfield.hpp"
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
-#include "barretenberg/plonk/proof_system/prover/prover.hpp"
-#include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 

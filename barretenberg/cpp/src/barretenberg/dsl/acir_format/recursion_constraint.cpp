@@ -1,9 +1,9 @@
 #include "recursion_constraint.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/plonk/transcript/transcript_wrappers.hpp"
-#include "barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp"
-#include "barretenberg/stdlib/recursion/verifier/verifier.hpp"
-#include <cstddef>
+#include "barretenberg/stdlib/plonk_recursion/aggregation_state/aggregation_state.hpp"
+#include "barretenberg/stdlib/plonk_recursion/verifier/verifier.hpp"
+#include "barretenberg/stdlib/primitives/bigfield/constants.hpp"
 
 namespace acir_format {
 
@@ -12,8 +12,8 @@ using namespace bb::plonk;
 // `NUM_LIMB_BITS_IN_FIELD_SIMULATION` is the limb size when simulating a non-native field using the bigfield class
 // A aggregation object is two acir_format::g1_ct types where each coordinate in a point is a non-native field.
 // Each field is represented as four limbs. We split those limbs in half when serializing to/from buffer.
-static constexpr uint64_t TWO_LIMBS_BITS_IN_FIELD_SIMULATION = NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2;
-static constexpr uint64_t FOUR_LIMBS_BITS_IN_FIELD_SIMULATION = NUM_LIMB_BITS_IN_FIELD_SIMULATION * 4;
+static constexpr uint64_t TWO_LIMBS_BITS_IN_FIELD_SIMULATION = stdlib::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2;
+static constexpr uint64_t FOUR_LIMBS_BITS_IN_FIELD_SIMULATION = stdlib::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 4;
 
 void generate_dummy_proof() {}
 /**

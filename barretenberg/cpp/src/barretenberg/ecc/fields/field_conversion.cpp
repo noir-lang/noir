@@ -1,10 +1,10 @@
 
 #include "barretenberg/ecc/fields/field_conversion.hpp"
-#include "barretenberg/plonk/proof_system/constants.hpp"
+#include "barretenberg/stdlib/primitives/bigfield/constants.hpp"
 
 namespace bb::field_conversion {
 
-static constexpr uint64_t NUM_LIMB_BITS = plonk::NUM_LIMB_BITS_IN_FIELD_SIMULATION;
+static constexpr uint64_t NUM_LIMB_BITS = stdlib::NUM_LIMB_BITS_IN_FIELD_SIMULATION;
 static constexpr uint64_t TOTAL_BITS = 254;
 
 /**

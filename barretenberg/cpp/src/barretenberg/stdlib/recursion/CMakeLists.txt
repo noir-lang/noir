@@ -1,1 +1,0 @@
-barretenberg_module(stdlib_recursion ecc proof_system stdlib_primitives stdlib_pedersen_commitment stdlib_blake3s protogalaxy eccvm translator_vm stdlib_poseidon2 circuit_checker)

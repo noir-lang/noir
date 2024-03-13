@@ -1,1 +1,1 @@
-barretenberg_module(stdlib_primitives proof_system plonk circuit_checker)
+barretenberg_module(stdlib_primitives proof_system circuit_checker)

@@ -1,1 +1,1 @@
-barretenberg_module(vm honk sumcheck protogalaxy)
+barretenberg_module(vm honk sumcheck)

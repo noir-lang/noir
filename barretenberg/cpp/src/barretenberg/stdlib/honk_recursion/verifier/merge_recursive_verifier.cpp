@@ -1,4 +1,4 @@
-#include "barretenberg/stdlib/recursion/honk/verifier/merge_recursive_verifier.hpp"
+#include "barretenberg/stdlib/honk_recursion/verifier/merge_recursive_verifier.hpp"
 
 namespace bb::stdlib::recursion::goblin {
 

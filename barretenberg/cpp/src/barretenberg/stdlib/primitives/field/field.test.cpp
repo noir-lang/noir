@@ -4,7 +4,6 @@
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 #include <gtest/gtest.h>
 #include <utility>
@@ -70,7 +69,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         return cc;
     }
 
-    static void generate_test_plonk_circuit(Builder& builder, size_t num_gates)
+    static void build_test_circuit(Builder& builder, size_t num_gates)
     {
         field_ct a(public_witness_ct(&builder, bb::fr::random_element()));
         field_ct b(public_witness_ct(&builder, bb::fr::random_element()));
@@ -385,7 +384,7 @@ template <typename Builder> class stdlib_field : public testing::Test {
         size_t n = 16384;
         Builder builder;
 
-        generate_test_plonk_circuit(builder, n);
+        build_test_circuit(builder, n);
 
         bool result = CircuitChecker::check(builder);
         EXPECT_EQ(result, true);

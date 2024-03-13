@@ -1,1 +1,1 @@
-barretenberg_module(plonk proof_system transcript crypto_pedersen_commitment polynomials crypto_sha256 ecc crypto_blake3s srs flavor circuit_checker)
+barretenberg_module(plonk crypto_blake3s circuit_checker)

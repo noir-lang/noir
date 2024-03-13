@@ -1,1 +1,1 @@
-barretenberg_module(widgets_bench polynomials proof_system transcript stdlib_primitives)
+barretenberg_module(widgets_bench polynomials proof_system transcript stdlib_primitives plonk)

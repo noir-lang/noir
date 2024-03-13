@@ -1,1 +1,1 @@
-barretenberg_module(client_ivc_bench client_ivc stdlib_recursion stdlib_sha256 crypto_merkle_tree stdlib_primitives)
+barretenberg_module(client_ivc_bench client_ivc stdlib_honk_recursion stdlib_sha256 crypto_merkle_tree stdlib_primitives)

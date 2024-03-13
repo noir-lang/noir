@@ -1,5 +1,6 @@
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
+#include "barretenberg/stdlib/primitives/bigfield/constants.hpp"
 #include <gtest/gtest.h>
 
 using namespace bb;
@@ -67,7 +68,7 @@ TEST(GoblinUltraCircuitBuilder, BaseCase)
  */
 TEST(GoblinUltraCircuitBuilder, GoblinSimple)
 {
-    const size_t CHUNK_SIZE = plonk::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2;
+    const size_t CHUNK_SIZE = stdlib::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2;
 
     auto builder = GoblinUltraCircuitBuilder();
 

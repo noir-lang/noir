@@ -1,4 +1,4 @@
-#include "barretenberg/stdlib/recursion/honk/verifier/decider_recursive_verifier.hpp"
+#include "barretenberg/stdlib/honk_recursion/verifier/decider_recursive_verifier.hpp"
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/transcript/transcript.hpp"

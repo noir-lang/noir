@@ -6,6 +6,9 @@
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
+#include "barretenberg/stdlib/plonk_recursion/aggregation_state/aggregation_state.hpp"
+#include "barretenberg/stdlib/plonk_recursion/verification_key/verification_key.hpp"
+#include "barretenberg/stdlib/plonk_recursion/verifier/program_settings.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include "barretenberg/stdlib/primitives/biggroup/biggroup.hpp"
 #include "barretenberg/stdlib/primitives/bit_array/bit_array.hpp"
@@ -19,9 +22,6 @@
 #include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
-#include "barretenberg/stdlib/recursion/aggregation_state/aggregation_state.hpp"
-#include "barretenberg/stdlib/recursion/verification_key/verification_key.hpp"
-#include "barretenberg/stdlib/recursion/verifier/program_settings.hpp"
 
 namespace acir_format {
 

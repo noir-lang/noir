@@ -3,8 +3,9 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
+#include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "pedersen.hpp"
+
 #include <benchmark/benchmark.h>
 
 #define BARRETENBERG_SRS_PATH "../srs_db/ignition"

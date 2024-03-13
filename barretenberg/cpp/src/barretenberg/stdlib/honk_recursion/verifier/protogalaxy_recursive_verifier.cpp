@@ -1,7 +1,8 @@
 #include "protogalaxy_recursive_verifier.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/proof_system/library/grand_product_delta.hpp"
-#include "barretenberg/stdlib/recursion/honk/verifier/recursive_instances.hpp"
+#include "barretenberg/stdlib/honk_recursion/verifier/recursive_instances.hpp"
+
 namespace bb::stdlib::recursion::honk {
 
 template <class VerifierInstances>

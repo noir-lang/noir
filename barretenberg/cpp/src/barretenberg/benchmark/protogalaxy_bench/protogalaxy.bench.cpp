@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 
-#include "barretenberg/benchmark/ultra_bench/mock_proofs.hpp"
+#include "barretenberg/proof_system/circuit_builder/mock_circuits.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/protogalaxy/protogalaxy_prover.hpp"
 #include "barretenberg/sumcheck/instance/instances.hpp"
@@ -25,12 +25,7 @@ template <typename Flavor> void fold_one(State& state) noexcept
 
     const auto construct_instance = [&]() {
         Builder builder;
-        if constexpr (std::same_as<Flavor, GoblinUltraFlavor>) {
-            GoblinMockCircuits::construct_arithmetic_circuit(builder, log2_num_gates);
-        } else {
-            static_assert(std::same_as<Flavor, UltraFlavor>);
-            bb::mock_proofs::generate_basic_arithmetic_circuit(builder, log2_num_gates);
-        }
+        MockCircuits::construct_arithmetic_circuit(builder, log2_num_gates);
         return std::make_shared<ProverInstance>(builder);
     };
 

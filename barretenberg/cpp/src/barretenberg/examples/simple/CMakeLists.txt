@@ -1,3 +1,5 @@
-barretenberg_module(simple_example
+barretenberg_module(
+  simple_example
   stdlib_pedersen_commitment
+  plonk
 )

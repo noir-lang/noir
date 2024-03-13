@@ -10,6 +10,7 @@
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/stdlib/hash/blake3s/blake3s.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
+#include "barretenberg/stdlib/primitives/bigfield/constants.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
@@ -295,9 +296,9 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
                     const uint256_t l2 = builder.get_variable(inputs[idx2]);
                     const uint256_t l3 = builder.get_variable(inputs[idx3]);
 
-                    const uint256_t limb = l0 + (l1 << plonk::NUM_LIMB_BITS_IN_FIELD_SIMULATION) +
-                                           (l2 << (plonk::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2)) +
-                                           (l3 << (plonk::NUM_LIMB_BITS_IN_FIELD_SIMULATION * 3));
+                    const uint256_t limb = l0 + (l1 << NUM_LIMB_BITS_IN_FIELD_SIMULATION) +
+                                           (l2 << (NUM_LIMB_BITS_IN_FIELD_SIMULATION * 2)) +
+                                           (l3 << (NUM_LIMB_BITS_IN_FIELD_SIMULATION * 3));
                     return outer_scalar_field(limb);
                 };
 

@@ -1,27 +1,16 @@
 #pragma once
 #include <benchmark/benchmark.h>
-#include <cstddef>
 
 #include "barretenberg/crypto/merkle_tree/membership.hpp"
-#include "barretenberg/crypto/merkle_tree/memory_store.hpp"
-#include "barretenberg/crypto/merkle_tree/memory_tree.hpp"
-#include "barretenberg/crypto/merkle_tree/merkle_tree.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
-#include "barretenberg/proof_system/types/circuit_type.hpp"
 #include "barretenberg/stdlib/encryption/ecdsa/ecdsa.hpp"
 #include "barretenberg/stdlib/hash/keccak/keccak.hpp"
 #include "barretenberg/stdlib/hash/sha256/sha256.hpp"
-#include "barretenberg/stdlib/primitives/bool/bool.hpp"
-#include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
-#include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
-#include "barretenberg/stdlib/primitives/witness/witness.hpp"
-
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 
-namespace bb::mock_proofs {
+namespace bb::mock_circuits {
 
 /**
  * @brief Generate test circuit with basic arithmetic operations
@@ -97,4 +86,4 @@ void construct_proof_with_specified_num_iterations(
     }
 }
 
-} // namespace bb::mock_proofs
+} // namespace bb::mock_circuits

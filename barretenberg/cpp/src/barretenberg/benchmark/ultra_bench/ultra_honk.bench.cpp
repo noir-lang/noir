@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 
-#include "barretenberg/benchmark/ultra_bench/mock_proofs.hpp"
+#include "barretenberg/benchmark/ultra_bench/mock_circuits.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
 using namespace benchmark;
@@ -13,7 +13,7 @@ static void construct_proof_ultrahonk(State& state,
                                       void (*test_circuit_function)(UltraCircuitBuilder&, size_t)) noexcept
 {
     size_t num_iterations = 10; // 10x the circuit
-    bb::mock_proofs::construct_proof_with_specified_num_iterations<UltraProver>(
+    bb::mock_circuits::construct_proof_with_specified_num_iterations<UltraProver>(
         state, test_circuit_function, num_iterations);
 }
 
@@ -23,8 +23,8 @@ static void construct_proof_ultrahonk(State& state,
 static void construct_proof_ultrahonk_power_of_2(State& state) noexcept
 {
     auto log2_of_gates = static_cast<size_t>(state.range(0));
-    bb::mock_proofs::construct_proof_with_specified_num_iterations<UltraProver>(
-        state, &bb::mock_proofs::generate_basic_arithmetic_circuit<UltraCircuitBuilder>, log2_of_gates);
+    bb::mock_circuits::construct_proof_with_specified_num_iterations<UltraProver>(
+        state, &bb::mock_circuits::generate_basic_arithmetic_circuit<UltraCircuitBuilder>, log2_of_gates);
 }
 
 // Define benchmarks

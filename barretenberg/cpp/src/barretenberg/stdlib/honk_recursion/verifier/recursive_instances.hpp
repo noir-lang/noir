@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
-#include "barretenberg/stdlib/recursion/honk/verifier/recursive_verifier_instance.hpp"
+#include "barretenberg/stdlib/honk_recursion/verifier/recursive_verifier_instance.hpp"
 
 namespace bb::stdlib::recursion::honk {
 template <IsRecursiveFlavor Flavor_, size_t NUM_> struct RecursiveVerifierInstances_ {

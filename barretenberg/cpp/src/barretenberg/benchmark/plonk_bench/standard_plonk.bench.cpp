@@ -1,4 +1,4 @@
-#include "barretenberg/benchmark/ultra_bench/mock_proofs.hpp"
+#include "barretenberg/benchmark/ultra_bench/mock_circuits.hpp"
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 
@@ -13,8 +13,8 @@ using StandardPlonk = bb::plonk::StandardComposer;
 static void construct_proof_standard_power_of_2(State& state) noexcept
 {
     auto log2_of_gates = static_cast<size_t>(state.range(0));
-    bb::mock_proofs::construct_proof_with_specified_num_iterations<bb::plonk::StandardProver>(
-        state, &bb::mock_proofs::generate_basic_arithmetic_circuit<bb::StandardCircuitBuilder>, log2_of_gates);
+    bb::mock_circuits::construct_proof_with_specified_num_iterations<bb::plonk::StandardProver>(
+        state, &bb::mock_circuits::generate_basic_arithmetic_circuit<bb::StandardCircuitBuilder>, log2_of_gates);
 }
 
 BENCHMARK(construct_proof_standard_power_of_2)

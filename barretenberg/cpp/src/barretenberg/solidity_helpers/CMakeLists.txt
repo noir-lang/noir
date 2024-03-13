@@ -1,4 +1,4 @@
-barretenberg_module(stdlib_solidity_helpers plonk proof_system transcript crypto_pedersen_commitment polynomials crypto_sha256 ecc crypto_blake3s stdlib_primitives stdlib_pedersen_commitment stdlib_blake3s stdlib_blake2s stdlib_sha256 srs)
+barretenberg_module(stdlib_solidity_helpers stdlib_sha256 stdlib_blake3s stdlib_blake2s stdlib_pedersen_commitment plonk)
 
 if (NOT(FUZZING))
   add_executable(solidity_key_gen key_gen.cpp)

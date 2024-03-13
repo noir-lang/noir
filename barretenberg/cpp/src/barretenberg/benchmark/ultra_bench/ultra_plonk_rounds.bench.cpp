@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 
-#include "barretenberg/benchmark/ultra_bench/mock_proofs.hpp"
+#include "barretenberg/benchmark/ultra_bench/mock_circuits.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
 using namespace benchmark;
@@ -53,7 +53,7 @@ BB_PROFILE static void test_round(State& state, size_t index) noexcept
     for (auto _ : state) {
         state.PauseTiming();
         // TODO: https://github.com/AztecProtocol/barretenberg/issues/761 benchmark both sparse and dense circuits
-        auto prover = bb::mock_proofs::get_prover<plonk::UltraProver>(
+        auto prover = bb::mock_circuits::get_prover<plonk::UltraProver>(
             &bb::stdlib::generate_ecdsa_verification_test_circuit<UltraCircuitBuilder>, 10);
         test_round_inner(state, prover, index);
         // NOTE: google bench is very finnicky, must end in ResumeTiming() for correctness
