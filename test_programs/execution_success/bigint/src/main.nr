@@ -19,8 +19,8 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
 
 // docs:start:big_int_example
 fn big_int_example(x: u8, y: u8) {
-    let a = Secpk1Fq::from_le_bytes([x, y, 0, 45, 2]);
-    let b = Secpk1Fq::from_le_bytes([y, x, 9]);
+    let a = Secpk1Fq::from_le_bytes(&[x, y, 0, 45, 2]);
+    let b = Secpk1Fq::from_le_bytes(&[y, x, 9]);
     let c = (a + b) * b / a;
     let d = c.to_le_bytes();
     println(d[0]);
