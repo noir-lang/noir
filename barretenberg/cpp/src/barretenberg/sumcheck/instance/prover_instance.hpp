@@ -53,6 +53,9 @@ template <class Flavor> class ProverInstance_ {
         BB_OP_COUNT_TIME_NAME("ProverInstance(Circuit&)");
         circuit.add_gates_to_ensure_all_polys_are_non_zero();
         circuit.finalize_circuit();
+        if constexpr (IsGoblinFlavor<Flavor>) {
+            circuit.op_queue->append_nonzero_ops();
+        }
 
         dyadic_circuit_size = compute_dyadic_size(circuit);
 

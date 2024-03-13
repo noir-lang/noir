@@ -46,6 +46,19 @@ class ECCOpQueue {
 
     std::array<Point, 4> ultra_ops_commitments;
 
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/905): Can remove this with better handling of scalar
+    // mul against 0
+    void append_nonzero_ops()
+    {
+        // Add an element and scalar the accumulation of which leaves no Point-at-Infinity commitments
+        const auto x = uint256_t(0xd3c208c16d87cfd3, 0xd97816a916871ca8, 0x9b85045b68181585, 0x30644e72e131a02);
+        const auto y = uint256_t(0x3ce1cc9c7e645a83, 0x2edac647851e3ac5, 0xd0cbe61fced2bc53, 0x1a76dae6d3272396);
+        auto padding_element = Point(x, y);
+        auto padding_scalar = -Fr::one();
+        mul_accumulate(padding_element, padding_scalar);
+        eq();
+    }
+
     Point get_accumulator() { return accumulator; }
 
     /**
