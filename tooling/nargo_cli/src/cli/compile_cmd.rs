@@ -31,7 +31,7 @@ use rayon::prelude::*;
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CompileCommand {
-    /// The name of the package to compile.
+    /// The name of the package to compile
     #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
 
