@@ -384,6 +384,7 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
+        eprintln!("Incrementing RC of {}", value);
         self.update_array_reference_count(value, true);
     }
 
@@ -403,7 +404,9 @@ impl FunctionBuilder {
             Type::Function => (),
             Type::Reference(element) => {
                 if element.contains_an_array() {
+                    eprint!("{} is a reference containing an array", value);
                     let value = self.insert_load(value, element.as_ref().clone());
+                    eprintln!(", {} is its load", value);
                     self.increment_array_reference_count(value);
                 }
             }
@@ -415,6 +418,7 @@ impl FunctionBuilder {
                 } else {
                     Instruction::DecrementRc { value }
                 };
+                eprint!("{} is an array", value);
                 self.insert_instruction(instruction, None);
 
                 // This is a bit odd, but in brillig the inc_rc instruction operates on
