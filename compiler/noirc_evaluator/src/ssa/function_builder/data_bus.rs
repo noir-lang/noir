@@ -92,7 +92,7 @@ impl FunctionBuilder {
                     let index = self
                         .current_function
                         .dfg
-                        .make_constant(FieldElement::from(i as i128), Type::field());
+                        .make_constant(FieldElement::from(i as i128), Type::length_type());
                     let element = self.insert_array_get(value, index, typ[0].clone());
                     self.add_to_data_bus(element, databus);
                 }

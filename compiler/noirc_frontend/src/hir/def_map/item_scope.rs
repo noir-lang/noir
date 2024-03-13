@@ -19,10 +19,11 @@ impl ItemScope {
     pub fn add_definition(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         mod_def: ModuleDefId,
         trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
-        self.add_item_to_namespace(name, mod_def, trait_id, false)?;
+        self.add_item_to_namespace(name, visibility, mod_def, trait_id, false)?;
         self.defs.push(mod_def);
         Ok(())
     }
@@ -33,6 +34,7 @@ impl ItemScope {
     pub fn add_item_to_namespace(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         mod_def: ModuleDefId,
         trait_id: Option<TraitId>,
         is_prelude: bool,
@@ -41,6 +43,11 @@ impl ItemScope {
             if let Entry::Occupied(mut o) = map.entry(name.clone()) {
                 let trait_hashmap = o.get_mut();
                 if let Entry::Occupied(mut n) = trait_hashmap.entry(trait_id) {
+                    // Generally we want to reject having two of the same ident in the same namespace.
+                    // The exception to this is when we're explicitly importing something
+                    // which exists in the Noir stdlib prelude.
+                    //
+                    // In this case we ignore the prelude and favour the explicit import.
                     let is_prelude = std::mem::replace(&mut n.get_mut().2, is_prelude);
                     let old_ident = o.key();
 
@@ -50,12 +57,12 @@ impl ItemScope {
                         Err((old_ident.clone(), name))
                     }
                 } else {
-                    trait_hashmap.insert(trait_id, (mod_def, ItemVisibility::Public, is_prelude));
+                    trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
                     Ok(())
                 }
             } else {
                 let mut trait_hashmap = HashMap::new();
-                trait_hashmap.insert(trait_id, (mod_def, ItemVisibility::Public, is_prelude));
+                trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
                 map.insert(name, trait_hashmap);
                 Ok(())
             }
