@@ -155,6 +155,14 @@ export abstract class AbstractPhaseManager {
         [PublicKernelPhase.TEARDOWN]: [],
         [PublicKernelPhase.TAIL]: [],
       };
+    } else if (firstRevertibleCallIndex === -1) {
+      // there's no app logic, split the functions between setup (many) and teardown (just one function call)
+      return {
+        [PublicKernelPhase.SETUP]: publicCallsStack.slice(0, -1),
+        [PublicKernelPhase.APP_LOGIC]: [],
+        [PublicKernelPhase.TEARDOWN]: [publicCallsStack[publicCallsStack.length - 1]],
+        [PublicKernelPhase.TAIL]: [],
+      };
     } else {
       return {
         [PublicKernelPhase.SETUP]: publicCallsStack.slice(0, firstRevertibleCallIndex - 1),
