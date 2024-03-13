@@ -49,11 +49,22 @@ Ignores proving key construction.
 - libstdc++ >= 12
 - libomp (if multithreading is required. Multithreading can be disabled using the compiler flag `-DMULTITHREADING 0`)
 
+#### Ubuntu
+
 To install on Ubuntu, run:
 
 ```
 sudo apt-get install cmake clang clang-format ninja-build libstdc++-12-dev
 ```
+
+The default cmake version on 22.04 is 3.22.1, so it must be updated. You can get the latest version [here](https://cmake.org/download).
+
+#### MacOS
+
+When running MacOS Sonoma 14.2.1 the following steps are necessary:
+
+- update bash with `brew install bash`
+- update [cmake](https://cmake.org/download)
 
 ### Installing openMP (Linux)
 
@@ -260,16 +271,21 @@ cd barretenberg/cpp
 mv build build-native # your native build folders are mounted, but will not work! have to clear them
 cmake --preset gcc ;  cmake --build build
 ```
+
 This will allow you to rebuild as efficiently as if you were running native code, and not have to see a full compile cycle.
 
 ### Building docs
 
 If doxygen is installed on the system, you can use the **build_docs** target to build documentation, which can be configured in vscode CMake extension or using
+
 ```bash
 cmake --build . --target build_docs
 ```
+
 in the cpp/build directory. The documentation will be generated in cpp/docs/build folder. You can then run a python http server in the folder:
+
 ```bash
 python3 -m http.server <port>
 ```
+
 and tunnel the port through ssh.
