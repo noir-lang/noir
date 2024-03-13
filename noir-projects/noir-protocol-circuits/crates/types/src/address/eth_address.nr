@@ -35,9 +35,7 @@ impl Serialize<ETH_ADDRESS_LENGTH> for EthAddress {
 
 impl Deserialize<ETH_ADDRESS_LENGTH> for EthAddress {
     fn deserialize(fields: [Field; ETH_ADDRESS_LENGTH]) -> Self {
-        Self {
-            inner: fields[0]
-        }
+        EthAddress::from_field(fields[0])
     }
 }
 
@@ -47,6 +45,7 @@ impl EthAddress {
     }
 
     pub fn from_field(field: Field) -> Self {
+        field.assert_max_bit_size(160);
         Self { inner: field }
     }
 

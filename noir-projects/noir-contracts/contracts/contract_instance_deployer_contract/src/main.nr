@@ -24,7 +24,6 @@ contract ContractInstanceDeployer {
         universal_deploy: bool
     ) {
         // TODO(@spalladino): assert nullifier_exists silo(contract_class_id, ContractClassRegisterer)
-        // TODO(@spalladino): assert is_valid_eth_address(portal_contract_address)
 
         // TODO(#4434) Add deployer field to instance calculation
         // let deployer = if universal_deploy { Field::zero() } else { context.msg_sender() };
