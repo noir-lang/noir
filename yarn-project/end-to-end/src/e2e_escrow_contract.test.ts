@@ -4,7 +4,6 @@ import {
   BatchCall,
   CompleteAddress,
   DebugLogger,
-  EthAddress,
   ExtendedNote,
   Fr,
   GrumpkinPrivateKey,
@@ -59,13 +58,11 @@ describe('e2e_escrow_contract', () => {
     escrowPrivateKey = GrumpkinScalar.random();
     escrowPublicKey = generatePublicKey(escrowPrivateKey);
     const salt = Fr.random();
-    const deployInfo = getContractInstanceFromDeployParams(
-      EscrowContractArtifact,
-      [owner],
+    const deployInfo = getContractInstanceFromDeployParams(EscrowContractArtifact, {
+      constructorArgs: [owner],
       salt,
-      escrowPublicKey,
-      EthAddress.ZERO,
-    );
+      publicKey: escrowPublicKey,
+    });
     await pxe.registerAccount(escrowPrivateKey, computePartialAddress(deployInfo));
 
     escrowContract = await EscrowContract.deployWithPublicKey(escrowPublicKey, wallet, owner)

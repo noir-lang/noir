@@ -5,7 +5,7 @@ contract StatefulTest {
     use dep::aztec::{
         deploy::{deploy_contract as aztec_deploy_contract}, context::{PublicContext, Context},
         oracle::get_contract_instance::get_contract_instance,
-        initializer::{mark_as_initialized, assert_is_initialized}
+        initializer::assert_is_initialized,
     };
 
     struct Storage {

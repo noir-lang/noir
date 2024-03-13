@@ -69,6 +69,12 @@ export class MessageLoadOracleInputs<N extends number> {
   }
 }
 
+class OracleMethodNotAvailableError extends Error {
+  constructor(methodName: string) {
+    super(`Oracle method ${methodName} is not available.`);
+  }
+}
+
 /**
  * Oracle with typed parameters and typed return values.
  * Methods that require read and/or write will have to be implemented based on the context (public, private, or view)
@@ -80,58 +86,58 @@ export abstract class TypedOracle {
   }
 
   packArguments(_args: Fr[]): Promise<Fr> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('packArguments');
   }
 
   getNullifierKeyPair(_accountAddress: AztecAddress): Promise<KeyPair> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getNullifierKeyPair');
   }
 
   getPublicKeyAndPartialAddress(_address: AztecAddress): Promise<Fr[] | undefined> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getPublicKeyAndPartialAddress');
   }
 
   getContractInstance(_address: AztecAddress): Promise<ContractInstance> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getContractInstance');
   }
 
   getMembershipWitness(_blockNumber: number, _treeId: MerkleTreeId, _leafValue: Fr): Promise<Fr[] | undefined> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getMembershipWitness');
   }
 
   getSiblingPath(_blockNumber: number, _treeId: MerkleTreeId, _leafIndex: Fr): Promise<Fr[]> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getSiblingPath');
   }
 
   getNullifierMembershipWitness(_blockNumber: number, _nullifier: Fr): Promise<NullifierMembershipWitness | undefined> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getNullifierMembershipWitness');
   }
 
   getPublicDataTreeWitness(_blockNumber: number, _leafSlot: Fr): Promise<PublicDataWitness | undefined> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getPublicDataTreeWitness');
   }
 
   getLowNullifierMembershipWitness(
     _blockNumber: number,
     _nullifier: Fr,
   ): Promise<NullifierMembershipWitness | undefined> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getLowNullifierMembershipWitness');
   }
 
   getHeader(_blockNumber: number): Promise<Header | undefined> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getHeader');
   }
 
   getCompleteAddress(_address: AztecAddress): Promise<CompleteAddress> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getCompleteAddress');
   }
 
   getAuthWitness(_messageHash: Fr): Promise<Fr[] | undefined> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getAuthWitness');
   }
 
   popCapsule(): Promise<Fr[]> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('popCapsule');
   }
 
   getNotes(
@@ -146,35 +152,35 @@ export abstract class TypedOracle {
     _offset: number,
     _status: NoteStatus,
   ): Promise<NoteData[]> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getNotes');
   }
 
   notifyCreatedNote(_storageSlot: Fr, _noteTypeId: Fr, _note: Fr[], _innerNoteHash: Fr): void {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('notifyCreatedNote');
   }
 
   notifyNullifiedNote(_innerNullifier: Fr, _innerNoteHash: Fr): Promise<void> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('notifyNullifiedNote');
   }
 
   checkNullifierExists(_innerNullifier: Fr): Promise<boolean> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('checkNullifierExists');
   }
 
   getL1ToL2MembershipWitness(_entryKey: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getL1ToL2MembershipWitness');
   }
 
   getPortalContractAddress(_contractAddress: AztecAddress): Promise<EthAddress> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('getPortalContractAddress');
   }
 
   storageRead(_startStorageSlot: Fr, _numberOfElements: number): Promise<Fr[]> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('storageRead');
   }
 
   storageWrite(_startStorageSlot: Fr, _values: Fr[]): Promise<Fr[]> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('storageWrite');
   }
 
   emitEncryptedLog(
@@ -184,11 +190,11 @@ export abstract class TypedOracle {
     _publicKey: PublicKey,
     _log: Fr[],
   ): void {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('emitEncryptedLog');
   }
 
   emitUnencryptedLog(_log: UnencryptedL2Log): void {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('emitUnencryptedLog');
   }
 
   callPrivateFunction(
@@ -199,7 +205,7 @@ export abstract class TypedOracle {
     _isStaticCall: boolean,
     _isDelegateCall: boolean,
   ): Promise<PrivateCallStackItem> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('callPrivateFunction');
   }
 
   callPublicFunction(
@@ -209,7 +215,7 @@ export abstract class TypedOracle {
     _isStaticCall: boolean,
     _isDelegateCall: boolean,
   ): Promise<Fr[]> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('callPublicFunction');
   }
 
   enqueuePublicFunctionCall(
@@ -220,6 +226,6 @@ export abstract class TypedOracle {
     _isStaticCall: boolean,
     _isDelegateCall: boolean,
   ): Promise<PublicCallRequest> {
-    throw new Error('Not available.');
+    throw new OracleMethodNotAvailableError('enqueuePublicFunctionCall');
   }
 }

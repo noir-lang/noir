@@ -103,7 +103,7 @@ async function mintPublicFunds(pxe) {
   // docs:start:showLogs
   const blockNumber = await pxe.getBlockNumber();
   const logs = (await pxe.getUnencryptedLogs(blockNumber, 1)).logs;
-  const textLogs = logs.map(extendedLog => extendedLog.log.data.toString('ascii'));
+  const textLogs = logs.map(extendedLog => extendedLog.toHumanReadable().slice(0, 200));
   for (const log of textLogs) console.log(`Log emitted: ${log}`);
   // docs:end:showLogs
 }

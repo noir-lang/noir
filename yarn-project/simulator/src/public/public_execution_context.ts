@@ -4,6 +4,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { ContractInstance } from '@aztec/types/contracts';
 
 import { TypedOracle, toACVMWitness } from '../acvm/index.js';
 import { PackedArgsCache, SideEffectCounter } from '../common/index.js';
@@ -236,5 +237,18 @@ export class PublicExecutionContext extends TypedOracle {
       throw new Error(`Public execution oracle can only access nullifier membership witnesses for the current block`);
     }
     return await this.commitmentsDb.getNullifierMembershipWitnessAtLatestBlock(nullifier);
+  }
+
+  public async getContractInstance(address: AztecAddress): Promise<ContractInstance> {
+    // Note to AVM implementor: The wrapper of the oracle call get_contract_instance in aztec-nr
+    // automatically checks that the returned instance is correct, by hashing it together back
+    // into the address. However, in the AVM, we also need to prove the negative, otherwise a malicious
+    // sequencer could just lie about not having the instance available in its local db. We can do this
+    // by using the prove_contract_non_deployment_at method if the contract is not found in the db.
+    const instance = await this.contractsDb.getContractInstance(address);
+    if (!instance) {
+      throw new Error(`Contract instance at ${address} not found`);
+    }
+    return instance;
   }
 }

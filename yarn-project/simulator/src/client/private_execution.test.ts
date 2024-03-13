@@ -15,6 +15,7 @@ import {
   computeNullifierSecretKey,
   computeSiloedNullifierSecretKey,
   derivePublicKey,
+  getContractInstanceFromDeployParams,
   nonEmptySideEffects,
   sideEffectArrayToValueArray,
 } from '@aztec/circuits.js';
@@ -117,13 +118,7 @@ describe('Private Execution test suite', () => {
       authWitnesses: [],
     });
 
-    return acirSimulator.run(
-      txRequest,
-      artifact,
-      functionData.isConstructor ? AztecAddress.ZERO : contractAddress,
-      portalContractAddress,
-      msgSender,
-    );
+    return acirSimulator.run(txRequest, artifact, contractAddress, portalContractAddress, msgSender);
   };
 
   const insertLeaves = async (leaves: Fr[], name = 'noteHash') => {
@@ -298,8 +293,11 @@ describe('Private Execution test suite', () => {
     });
 
     it('should have a constructor with arguments that inserts notes', async () => {
+      const initArgs = [owner, 140];
+      const instance = getContractInstanceFromDeployParams(StatefulTestContractArtifact, { constructorArgs: initArgs });
+      oracle.getContractInstance.mockResolvedValue(instance);
       const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'constructor');
-      const topLevelResult = await runSimulator({ args: [owner, 140], artifact });
+      const topLevelResult = await runSimulator({ args: initArgs, artifact, contractAddress: instance.address });
       const result = topLevelResult.nestedExecutions[0];
 
       expect(result.newNotes).toHaveLength(1);

@@ -14,7 +14,7 @@ import {
   generatePublicKey,
   getContractInstanceFromDeployParams,
 } from '@aztec/aztec.js';
-import { EthAddress, computePartialAddress } from '@aztec/circuits.js';
+import { computePartialAddress } from '@aztec/circuits.js';
 import { InclusionProofsContract } from '@aztec/noir-contracts.js';
 import { ClaimContract } from '@aztec/noir-contracts.js/Claim';
 import { CrowdfundingContract, CrowdfundingContractArtifact } from '@aztec/noir-contracts.js/Crowdfunding';
@@ -108,13 +108,11 @@ describe('e2e_crowdfunding_and_claim', () => {
     const salt = Fr.random();
 
     const args = [donationToken.address, operatorWallet.getAddress(), deadline];
-    const deployInfo = getContractInstanceFromDeployParams(
-      CrowdfundingContractArtifact,
-      args,
+    const deployInfo = getContractInstanceFromDeployParams(CrowdfundingContractArtifact, {
+      constructorArgs: args,
       salt,
-      crowdfundingPublicKey,
-      EthAddress.ZERO,
-    );
+      publicKey: crowdfundingPublicKey,
+    });
     await pxe.registerAccount(crowdfundingPrivateKey, computePartialAddress(deployInfo));
 
     crowdfundingContract = await CrowdfundingContract.deployWithPublicKey(

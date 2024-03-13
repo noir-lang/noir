@@ -9,5 +9,6 @@ trait ContextInterface {
     fn chain_id(self) -> Field;
     fn version(self) -> Field;
     fn selector(self) -> FunctionSelector;
+    fn get_args_hash(self) -> Field;
     fn get_header(self) -> Header;
 }

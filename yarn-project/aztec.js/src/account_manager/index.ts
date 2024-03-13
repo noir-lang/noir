@@ -1,5 +1,5 @@
 import { CompleteAddress, GrumpkinPrivateKey, PXE } from '@aztec/circuit-types';
-import { EthAddress, PublicKey, getContractInstanceFromDeployParams } from '@aztec/circuits.js';
+import { PublicKey, getContractInstanceFromDeployParams } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 
@@ -77,14 +77,11 @@ export class AccountManager {
   public getInstance(): ContractInstanceWithAddress {
     if (!this.instance) {
       const encryptionPublicKey = generatePublicKey(this.encryptionPrivateKey);
-      const portalAddress = EthAddress.ZERO;
-      this.instance = getContractInstanceFromDeployParams(
-        this.accountContract.getContractArtifact(),
-        this.accountContract.getDeploymentArgs(),
-        this.salt,
-        encryptionPublicKey,
-        portalAddress,
-      );
+      this.instance = getContractInstanceFromDeployParams(this.accountContract.getContractArtifact(), {
+        constructorArgs: this.accountContract.getDeploymentArgs(),
+        salt: this.salt,
+        publicKey: encryptionPublicKey,
+      });
     }
     return this.instance;
   }

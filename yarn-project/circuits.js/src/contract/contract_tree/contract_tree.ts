@@ -20,7 +20,7 @@ export function hashVKStr(vk: string) {
  * Determine if the given function is a constructor.
  * This utility function checks if the 'name' property of the input object is "constructor".
  * Returns true if the function is a constructor, false otherwise.
- *
+ * TODO(palla/purge-old-contract-deploy): Remove me
  * @param Object - An object containing a 'name' property.
  * @returns Boolean indicating if the function is a constructor.
  */

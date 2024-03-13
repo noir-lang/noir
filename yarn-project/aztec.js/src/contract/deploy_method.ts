@@ -163,10 +163,13 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    */
   public getInstance(options: DeployOptions = {}): ContractInstanceWithAddress {
     if (!this.instance) {
-      const portalContract = options.portalContract ?? EthAddress.ZERO;
-      const contractAddressSalt = options.contractAddressSalt ?? Fr.random();
-      const deployParams = [this.artifact, this.args, contractAddressSalt, this.publicKey, portalContract] as const;
-      this.instance = getContractInstanceFromDeployParams(...deployParams);
+      this.instance = getContractInstanceFromDeployParams(this.artifact, {
+        constructorArgs: this.args,
+        salt: options.contractAddressSalt,
+        portalAddress: options.portalContract,
+        publicKey: this.publicKey,
+        constructorName: this.constructorArtifact.name,
+      });
     }
     return this.instance;
   }

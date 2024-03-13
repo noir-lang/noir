@@ -92,6 +92,10 @@ impl ContextInterface for PrivateContext {
         self.inputs.call_context.function_selector
     }
 
+    fn get_args_hash(self) -> Field {
+        self.args_hash
+    }
+
     // Returns the header of a block whose state is used during private execution (not the block the transaction is
     // included in).
     pub fn get_header(self) -> Header {

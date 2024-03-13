@@ -11,27 +11,32 @@ import {
   computeInitializationHash,
   computePublicKeysHash,
 } from './contract_address.js';
-import { isConstructor } from './contract_tree/contract_tree.js';
 
 /**
  * Generates a Contract Instance from the deployment params.
  * @param artifact - The account contract build artifact.
- * @param args - The args to the account contract constructor
- * @param contractAddressSalt - The salt to be used in the contract address derivation
- * @param publicKey - The account public key
- * @param portalContractAddress - The portal contract address
+ * @param opts - Options for the deployment.
  * @returns - The contract instance
  */
 export function getContractInstanceFromDeployParams(
   artifact: ContractArtifact,
-  args: any[] = [],
-  contractAddressSalt: Fr = Fr.random(),
-  publicKey: PublicKey = Point.ZERO,
-  portalContractAddress: EthAddress = EthAddress.ZERO,
+  opts: {
+    constructorName?: string;
+    constructorArgs?: any[];
+    salt?: Fr;
+    publicKey?: PublicKey;
+    portalAddress?: EthAddress;
+  },
 ): ContractInstanceWithAddress {
-  const constructorArtifact = artifact.functions.find(isConstructor);
+  const args = opts.constructorArgs ?? [];
+  const salt = opts.salt ?? Fr.random();
+  const publicKey = opts.publicKey ?? Point.ZERO;
+  const portalContractAddress = opts.portalAddress ?? EthAddress.ZERO;
+  const constructorName = opts.constructorName ?? 'constructor';
+
+  const constructorArtifact = artifact.functions.find(fn => fn.name === constructorName);
   if (!constructorArtifact) {
-    throw new Error('Cannot find constructor in the artifact.');
+    throw new Error(`Cannot find constructor with name ${constructorName} in the artifact.`);
   }
   if (!constructorArtifact.verificationKey) {
     throw new Error('Missing verification key for the constructor.');
@@ -47,7 +52,7 @@ export function getContractInstanceFromDeployParams(
     initializationHash,
     portalContractAddress,
     publicKeysHash,
-    salt: contractAddressSalt,
+    salt,
     version: 1,
   };
 

@@ -74,6 +74,10 @@ impl ContextInterface for PublicContext {
         self.inputs.call_context.function_selector
     }
 
+    fn get_args_hash(self) -> Field {
+        self.args_hash
+    }
+
     fn get_header(self) -> Header {
         self.historical_header
     }

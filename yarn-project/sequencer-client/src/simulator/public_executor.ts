@@ -79,6 +79,10 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
     return Promise.resolve();
   }
 
+  public async getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined> {
+    return this.instanceCache.get(address.toString()) ?? (await this.db.getContract(address));
+  }
+
   async getBytecode(address: AztecAddress, selector: FunctionSelector): Promise<Buffer | undefined> {
     const contract = await this.#getContract(address);
     return contract?.getPublicFunction(selector)?.bytecode;

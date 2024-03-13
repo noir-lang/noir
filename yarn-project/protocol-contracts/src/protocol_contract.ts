@@ -24,19 +24,18 @@ export interface ProtocolContract {
 export function getCanonicalProtocolContract(
   artifact: ContractArtifact,
   salt: Fr | number | bigint,
-  initArgs: any[] = [],
+  constructorArgs: any[] = [],
   publicKey: Point = Point.ZERO,
-  portalContractAddress = EthAddress.ZERO,
+  portalAddress = EthAddress.ZERO,
 ): ProtocolContract {
   // TODO(@spalladino): This computes the contract class from the artifact twice.
   const contractClass = getContractClassFromArtifact(artifact);
-  const instance = getContractInstanceFromDeployParams(
-    artifact,
-    initArgs,
-    new Fr(salt),
+  const instance = getContractInstanceFromDeployParams(artifact, {
+    constructorArgs,
+    salt: new Fr(salt),
     publicKey,
-    portalContractAddress,
-  );
+    portalAddress,
+  });
   return {
     instance,
     contractClass,

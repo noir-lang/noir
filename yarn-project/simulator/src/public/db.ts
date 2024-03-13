@@ -2,6 +2,7 @@ import { NullifierMembershipWitness } from '@aztec/circuit-types';
 import { EthAddress, FunctionSelector, L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
+import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { MessageLoadOracleInputs } from '../acvm/index.js';
 
@@ -65,6 +66,13 @@ export interface PublicContractsDB {
    * @returns The portal contract address or undefined if not found.
    */
   getPortalContractAddress(address: AztecAddress): Promise<EthAddress | undefined>;
+
+  /**
+   * Returns a publicly deployed contract instance.
+   * @param address - Address of the contract.
+   * @returns The contract instance or undefined if not found.
+   */
+  getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined>;
 }
 
 /** Database interface for providing access to commitment tree, l1 to l2 message tree, and nullifier tree. */
