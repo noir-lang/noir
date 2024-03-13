@@ -423,8 +423,6 @@ impl BrilligContext {
     }
 
     /// Push a register to the deallocation list, ready for reuse.
-    /// TODO(AD): currently, register deallocation is only done with immediate values.
-    /// TODO(AD): See https://github.com/noir-lang/noir/issues/1720
     pub(crate) fn deallocate_register(&mut self, register_index: MemoryAddress) {
         self.registers.deallocate_register(register_index);
     }
@@ -963,7 +961,6 @@ impl BrilligContext {
         self.binary_instruction(
             SingleAddrVariable::new_usize(lhs),
             SingleAddrVariable::new_usize(rhs),
-            // TODO add a function here to get the resulting bit size depending on the operation
             SingleAddrVariable::new(
                 destination,
                 BrilligContext::binary_result_bit_size(
