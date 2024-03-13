@@ -456,9 +456,7 @@ impl<'block> BrilligBlock<'block> {
                 Value::Intrinsic(Intrinsic::AsSlice) => {
                     let source_variable = self.convert_ssa_value(arguments[0], dfg);
                     let result_ids = dfg.instruction_results(instruction_id);
-
-                    // this needs to be initialized for convert_ssa_as_slice
-                    let _len_variable = self.variables.define_variable(
+                    let destination_len_variable = self.variables.define_single_addr_variable(
                         self.function_context,
                         self.brillig_context,
                         result_ids[0],
@@ -470,8 +468,11 @@ impl<'block> BrilligBlock<'block> {
                         result_ids[1],
                         dfg,
                     );
-
-                    self.convert_ssa_as_slice(source_variable, destination_variable);
+                    self.convert_ssa_as_slice(
+                        source_variable,
+                        destination_len_variable,
+                        destination_variable,
+                    );
                 }
                 Value::Intrinsic(
                     Intrinsic::SlicePushBack
@@ -1515,6 +1516,7 @@ impl<'block> BrilligBlock<'block> {
     fn convert_ssa_as_slice(
         &mut self,
         source_variable: BrilligVariable,
+        destination_len_variable: SingleAddrVariable,
         destination_variable: BrilligVariable,
     ) {
         let destination_pointer = match destination_variable {
@@ -1542,6 +1544,10 @@ impl<'block> BrilligBlock<'block> {
             }
             _ => unreachable!("ICE: as_slice on non-array"),
         };
+
+        // we need to explicitly set the destination_len_variable
+        self.brillig_context
+            .mov_instruction(destination_len_variable.address, source_size_as_register);
 
         let one = self.brillig_context.make_usize_constant(1_usize.into());
         let condition = self.brillig_context.allocate_register();
