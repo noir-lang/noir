@@ -121,8 +121,11 @@ impl<'a> FunctionContext<'a> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
+        let entry_block = self.increment_parameter_rcs();
         let return_value = self.codegen_expression(body)?;
         let results = return_value.into_value_list(self);
+        self.end_scope(entry_block, &results);
+
         self.builder.terminate_with_return(results);
         Ok(())
     }
@@ -595,10 +598,8 @@ impl<'a> FunctionContext<'a> {
             arguments.append(&mut values);
         }
 
-        // If an array is passed as an argument we increase its reference count
-        for argument in &arguments {
-            self.builder.increment_array_reference_count(*argument);
-        }
+        // Don't need to increment array reference counts when passed in as arguments
+        // since it is done within the function to each parameter already.
 
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
         Ok(self.insert_call(function, arguments, &call.return_type, call.location))
