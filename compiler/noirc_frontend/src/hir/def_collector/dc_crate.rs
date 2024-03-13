@@ -328,11 +328,6 @@ impl DefCollector {
         // Must resolve structs before we resolve globals.
         errors.extend(resolve_structs(context, def_collector.collected_types, crate_id));
 
-        // We must wait to resolve non-integer globals until after we resolve structs since struct
-        // globals will need to reference the struct type they're initialized to to ensure they are valid.
-        resolved_globals.extend(resolve_globals(context, other_globals, crate_id));
-        errors.extend(resolved_globals.errors);
-
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
         errors.extend(collect_trait_impls(
@@ -349,6 +344,11 @@ impl DefCollector {
         // These are resolved after trait impls so that struct methods are chosen
         // over trait methods if there are name conflicts.
         errors.extend(collect_impls(context, crate_id, &def_collector.collected_impls));
+
+        // We must wait to resolve non-integer globals until after we resolve structs since struct
+        // globals will need to reference the struct type they're initialized to to ensure they are valid.
+        resolved_globals.extend(resolve_globals(context, other_globals, crate_id));
+        errors.extend(resolved_globals.errors);
 
         // Resolve each function in the crate. This is now possible since imports have been resolved
         let mut functions = Vec::new();
