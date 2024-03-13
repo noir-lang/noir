@@ -4,6 +4,7 @@ src/wasi-sdk-*
 src/barretenberg/proof_system/proving_key/fixtures
 src/barretenberg/rollup/proofs/*/fixtures
 srs_db/*/*/transcript*
+srs_db/*/bn254_g*
 CMakeUserPresets.json
 .vscode/settings.json
 acir_tests

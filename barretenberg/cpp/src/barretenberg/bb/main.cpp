@@ -474,7 +474,6 @@ void acvm_info(const std::string& output_path)
  */
 void avm_prove(const std::filesystem::path& bytecode_path,
                const std::filesystem::path& calldata_path,
-               const std::string& crs_path,
                const std::filesystem::path& output_path)
 {
     // Get Bytecode
@@ -485,7 +484,8 @@ void avm_prove(const std::filesystem::path& bytecode_path,
     }
     std::vector<fr> const call_data = many_from_buffer<fr>(call_data_bytes);
 
-    srs::init_crs_factory(crs_path);
+    // Hardcoded circuit size for now
+    init_bn254_crs(256);
 
     // Prove execution and return vk
     auto const [verification_key, proof] = avm_trace::Execution::prove(avm_bytecode, call_data);
@@ -601,9 +601,8 @@ int main(int argc, char* argv[])
         } else if (command == "avm_prove") {
             std::filesystem::path avm_bytecode_path = get_option(args, "-b", "./target/avm_bytecode.bin");
             std::filesystem::path calldata_path = get_option(args, "-d", "./target/call_data.bin");
-            std::string crs_path = get_option(args, "-c", "../srs_db/ignition");
             std::filesystem::path output_path = get_option(args, "-o", "./proofs/avm_proof");
-            avm_prove(avm_bytecode_path, calldata_path, crs_path, output_path);
+            avm_prove(avm_bytecode_path, calldata_path, output_path);
         } else if (command == "avm_verify") {
             std::filesystem::path proof_path = get_option(args, "-p", "./proofs/avm_proof");
             return avm_verify(proof_path) ? 0 : 1;

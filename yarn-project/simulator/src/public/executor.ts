@@ -254,8 +254,6 @@ export class PublicExecutor {
    */
   public async getAvmProof(avmExecution: PublicExecution): Promise<Buffer[]> {
     // The paths for the barretenberg binary and the write path are hardcoded for now.
-    // We additionally need the path to a valid crs for proof generation.
-    // const bbPath = '../../barretenberg/cpp';
     const bbPath = path.resolve('../../barretenberg/cpp');
     const artifactsPath = path.resolve('target');
 
@@ -283,8 +281,6 @@ export class PublicExecutor {
       bytecodePath,
       '-d',
       calldataPath,
-      '-c',
-      path.join(bbPath, 'srs_db', 'ignition'),
       '-o',
       proofPath,
     ]);

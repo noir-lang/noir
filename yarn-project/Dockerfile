@@ -17,10 +17,6 @@ COPY --from=noir-projects /usr/src/noir-projects /usr/src/noir-projects
 COPY --from=noir /usr/src/noir/noir-repo/target/release/acvm /usr/src/noir/noir-repo/target/release/acvm
 COPY --from=barretenberg /usr/src/barretenberg/cpp/build/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
 
-COPY --from=barretenberg /usr/src/barretenberg/cpp/srs_db/ /usr/src/barretenberg/cpp/srs_db/
-WORKDIR /usr/src/barretenberg/cpp/srs_db
-RUN ./download_ignition.sh 0
-
 WORKDIR /usr/src/yarn-project
 COPY . .
 

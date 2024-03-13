@@ -14,10 +14,6 @@ COPY --from=contracts /usr/src/l1-contracts /usr/src/l1-contracts
 COPY --from=noir-projects /usr/src/noir-projects /usr/src/noir-projects
 COPY --from=barretenberg /usr/src/barretenberg/cpp/build/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
 
-COPY --from=barretenberg /usr/src/barretenberg/cpp/srs_db/ /usr/src/barretenberg/cpp/srs_db/
-WORKDIR /usr/src/barretenberg/cpp/srs_db
-RUN ./download_ignition.sh 0
-
 WORKDIR /usr/src/yarn-project
 COPY . .
 
