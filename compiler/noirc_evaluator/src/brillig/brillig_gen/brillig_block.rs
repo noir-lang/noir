@@ -285,7 +285,7 @@ impl<'block> BrilligBlock<'block> {
                 );
 
                 self.brillig_context.constrain_instruction(condition, assert_message);
-                self.brillig_context.deallocate_register(condition.address);
+                self.brillig_context.deallocate_single_addr(condition);
             }
             Instruction::Allocate => {
                 let result_value = dfg.instruction_results(instruction_id)[0];
@@ -545,7 +545,7 @@ impl<'block> BrilligBlock<'block> {
                         matches!(endianness, Endian::Big),
                     );
 
-                    self.brillig_context.deallocate_register(radix.address);
+                    self.brillig_context.deallocate_single_addr(radix);
                 }
                 _ => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
@@ -652,9 +652,9 @@ impl<'block> BrilligBlock<'block> {
                     );
 
                     self.brillig_context.constrain_instruction(condition, assert_message.clone());
-                    self.brillig_context.deallocate_register(condition.address);
-                    self.brillig_context.deallocate_register(left.address);
-                    self.brillig_context.deallocate_register(right.address);
+                    self.brillig_context.deallocate_single_addr(condition);
+                    self.brillig_context.deallocate_single_addr(left);
+                    self.brillig_context.deallocate_single_addr(right);
                 }
             }
             Instruction::IncrementRc { value } => {
@@ -768,9 +768,9 @@ impl<'block> BrilligBlock<'block> {
             .constrain_instruction(condition, Some("Array index out of bounds".to_owned()));
 
         if should_deallocate_size {
-            self.brillig_context.deallocate_register(size_as_register.address);
+            self.brillig_context.deallocate_single_addr(size_as_register);
         }
-        self.brillig_context.deallocate_register(condition.address);
+        self.brillig_context.deallocate_single_addr(condition);
     }
 
     pub(crate) fn retrieve_variable_from_array(
@@ -1095,7 +1095,7 @@ impl<'block> BrilligBlock<'block> {
                 self.update_slice_length(target_len.address, arguments[0], dfg, BinaryIntOp::Add);
 
                 self.slice_insert_operation(target_vector, source_vector, converted_index, &items);
-                self.brillig_context.deallocate_register(converted_index.address);
+                self.brillig_context.deallocate_single_addr(converted_index);
             }
             Value::Intrinsic(Intrinsic::SliceRemove) => {
                 let target_len = match self.variables.define_variable(
@@ -1148,7 +1148,7 @@ impl<'block> BrilligBlock<'block> {
                     &removed_items,
                 );
 
-                self.brillig_context.deallocate_register(converted_index.address);
+                self.brillig_context.deallocate_single_addr(converted_index);
             }
             _ => unreachable!("ICE: Slice operation not supported"),
         }
@@ -1236,7 +1236,7 @@ impl<'block> BrilligBlock<'block> {
                     condition,
                     Some("attempt to add with overflow".to_string()),
                 );
-                self.brillig_context.deallocate_register(condition.address);
+                self.brillig_context.deallocate_single_addr(condition);
             }
             (BinaryIntOp::Sub, false) => {
                 let condition =
@@ -1252,7 +1252,7 @@ impl<'block> BrilligBlock<'block> {
                     condition,
                     Some("attempt to subtract with overflow".to_string()),
                 );
-                self.brillig_context.deallocate_register(condition.address);
+                self.brillig_context.deallocate_single_addr(condition);
             }
             (BinaryIntOp::Mul, false) => {
                 // Multiplication overflow is only possible for bit sizes > 1
@@ -1286,11 +1286,11 @@ impl<'block> BrilligBlock<'block> {
                             condition,
                             Some("attempt to multiply with overflow".to_string()),
                         );
-                        ctx.deallocate_register(condition.address);
-                        ctx.deallocate_register(division.address);
+                        ctx.deallocate_single_addr(condition);
+                        ctx.deallocate_single_addr(division);
                     });
-                    self.brillig_context.deallocate_register(is_right_zero.address);
-                    self.brillig_context.deallocate_register(zero.address);
+                    self.brillig_context.deallocate_single_addr(is_right_zero);
+                    self.brillig_context.deallocate_single_addr(zero);
                 }
             }
             _ => {}
@@ -1316,9 +1316,9 @@ impl<'block> BrilligBlock<'block> {
                 } else {
                     let new_variable =
                         self.variables.allocate_constant(self.brillig_context, value_id, dfg);
-                    let register_index = new_variable.extract_single_addr();
 
-                    self.brillig_context.const_instruction(register_index, (*constant).into());
+                    self.brillig_context
+                        .const_instruction(new_variable.extract_single_addr(), (*constant).into());
                     new_variable
                 }
             }
@@ -1369,7 +1369,7 @@ impl<'block> BrilligBlock<'block> {
                         );
                     }
 
-                    self.brillig_context.deallocate_register(iterator_register.address);
+                    self.brillig_context.deallocate_single_addr(iterator_register);
 
                     new_variable
                 }

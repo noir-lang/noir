@@ -40,7 +40,7 @@ impl<'block> BrilligBlock<'block> {
                 BinaryIntOp::Add,
             );
             self.store_variable_in_array(target_vector.pointer, target_index, *variable);
-            self.brillig_context.deallocate_register(target_index.address);
+            self.brillig_context.deallocate_single_addr(target_index);
         }
     }
 
@@ -81,7 +81,7 @@ impl<'block> BrilligBlock<'block> {
         for (index, variable) in variables_to_insert.iter().enumerate() {
             let target_index = self.brillig_context.make_usize_constant(index.into());
             self.store_variable_in_array(target_vector.pointer, target_index, *variable);
-            self.brillig_context.deallocate_register(target_index.address);
+            self.brillig_context.deallocate_single_addr(target_index);
         }
 
         self.brillig_context.deallocate_register(destination_copy_pointer);
@@ -123,7 +123,7 @@ impl<'block> BrilligBlock<'block> {
         for (index, variable) in removed_items.iter().enumerate() {
             let target_index = self.brillig_context.make_usize_constant(index.into());
             self.retrieve_variable_from_array(source_vector.pointer, target_index, *variable);
-            self.brillig_context.deallocate_register(target_index.address);
+            self.brillig_context.deallocate_single_addr(target_index);
         }
 
         self.brillig_context.deallocate_register(source_copy_pointer);
@@ -162,7 +162,7 @@ impl<'block> BrilligBlock<'block> {
                 BinaryIntOp::Add,
             );
             self.retrieve_variable_from_array(source_vector.pointer, target_index, *variable);
-            self.brillig_context.deallocate_register(target_index.address);
+            self.brillig_context.deallocate_single_addr(target_index);
         }
     }
 
@@ -240,7 +240,7 @@ impl<'block> BrilligBlock<'block> {
                 BinaryIntOp::Add,
             );
             self.store_variable_in_array(target_vector.pointer, target_index, *variable);
-            self.brillig_context.deallocate_register(target_index.address);
+            self.brillig_context.deallocate_single_addr(target_index);
         }
 
         self.brillig_context.deallocate_register(source_pointer_at_index);
@@ -323,7 +323,7 @@ impl<'block> BrilligBlock<'block> {
                 BinaryIntOp::Add,
             );
             self.retrieve_variable_from_array(source_vector.pointer, target_index, *variable);
-            self.brillig_context.deallocate_register(target_index.address);
+            self.brillig_context.deallocate_single_addr(target_index);
         }
 
         self.brillig_context.deallocate_register(source_pointer_after_index);

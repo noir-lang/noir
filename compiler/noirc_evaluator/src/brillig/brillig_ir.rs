@@ -124,7 +124,7 @@ impl BrilligContext {
         // debug_show handled by allocate_array_instruction
         let size_register = self.make_usize_constant(size.into());
         self.allocate_array_instruction(pointer_register, size_register.address);
-        self.deallocate_register(size_register.address);
+        self.deallocate_single_addr(size_register);
     }
 
     /// Allocates an array of size contained in size_register and stores the
@@ -176,7 +176,7 @@ impl BrilligContext {
             ReservedRegisters::stack_pointer(),
             BinaryIntOp::Add,
         );
-        self.deallocate_register(size_register.address);
+        self.deallocate_single_addr(size_register);
     }
 
     pub(crate) fn allocate_single_addr_reference_instruction(
@@ -306,8 +306,8 @@ impl BrilligContext {
         self.enter_section(exit_loop_section);
 
         // Deallocate our temporary registers
-        self.deallocate_register(iterator_less_than_iterations.address);
-        self.deallocate_register(iterator_register.address);
+        self.deallocate_single_addr(iterator_less_than_iterations);
+        self.deallocate_single_addr(iterator_register);
     }
 
     /// This instruction will issue an if-then branch that will check if the condition is true
@@ -425,6 +425,11 @@ impl BrilligContext {
     /// Push a register to the deallocation list, ready for reuse.
     pub(crate) fn deallocate_register(&mut self, register_index: MemoryAddress) {
         self.registers.deallocate_register(register_index);
+    }
+
+    /// Deallocates the address where the single address variable is stored
+    pub(crate) fn deallocate_single_addr(&mut self, var: SingleAddrVariable) {
+        self.deallocate_register(var.address);
     }
 }
 
@@ -621,7 +626,7 @@ impl BrilligContext {
             rhs: input.address,
         };
         self.push_opcode(opcode);
-        self.deallocate_register(max.address);
+        self.deallocate_single_addr(max);
     }
 
     /// Processes a foreign call instruction.
@@ -786,7 +791,7 @@ impl BrilligContext {
             BrilligBinaryOp::Integer(BinaryIntOp::And),
         );
 
-        self.deallocate_register(mask_constant.address);
+        self.deallocate_single_addr(mask_constant);
     }
 
     /// Emits a stop instruction
@@ -947,7 +952,7 @@ impl BrilligContext {
         let const_register = self.make_usize_constant(Value::from(constant));
         self.memory_op(operand, const_register.address, destination, op);
         // Mark as no longer used for this purpose, frees for reuse
-        self.deallocate_register(const_register.address);
+        self.deallocate_single_addr(const_register);
     }
 
     /// Utility method to perform a binary instruction with a memory address
@@ -1077,9 +1082,9 @@ impl BrilligContext {
         });
 
         // Deallocate our temporary registers
-        self.deallocate_register(shifted_field.address);
-        self.deallocate_register(modulus_field.address);
-        self.deallocate_register(radix_as_field.address);
+        self.deallocate_single_addr(shifted_field);
+        self.deallocate_single_addr(modulus_field);
+        self.deallocate_single_addr(radix_as_field);
 
         if big_endian {
             self.reverse_vector_in_place_instruction(target_vector);

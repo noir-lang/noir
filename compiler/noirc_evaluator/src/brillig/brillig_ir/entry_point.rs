@@ -253,8 +253,8 @@ impl BrilligContext {
                         BrilligParameter::Slice(..) => unreachable!("ICE: Cannot deflatten slices"),
                     }
 
-                    self.deallocate_register(source_index.address);
-                    self.deallocate_register(target_index.address);
+                    self.deallocate_single_addr(source_index);
+                    self.deallocate_single_addr(target_index);
                 }
             }
 
@@ -327,7 +327,7 @@ impl BrilligContext {
                         returned_pointer,
                     );
 
-                    self.deallocate_register(pointer_to_return_data.address);
+                    self.deallocate_single_addr(pointer_to_return_data);
                     return_data_index += BrilligContext::flattened_size(return_param);
                 }
                 BrilligParameter::Slice(..) => {
@@ -436,8 +436,8 @@ impl BrilligContext {
                         BrilligParameter::Slice(..) => unreachable!("ICE: Cannot flatten slices"),
                     }
 
-                    self.deallocate_register(source_index.address);
-                    self.deallocate_register(target_index.address);
+                    self.deallocate_single_addr(source_index);
+                    self.deallocate_single_addr(target_index);
                 }
             }
 
@@ -449,7 +449,7 @@ impl BrilligContext {
                 flattened_array_pointer,
                 item_count,
             );
-            self.deallocate_register(item_count.address);
+            self.deallocate_single_addr(item_count);
         }
     }
 }
