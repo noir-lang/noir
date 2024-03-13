@@ -34,7 +34,7 @@ contract NewInbox is INewInbox {
   // Number of a tree which is ready to be consumed
   uint256 public toConsume = Constants.INITIAL_L2_BLOCK_NUM;
   // Number of a tree which is currently being filled
-  uint256 public inProgress = 2;
+  uint256 public inProgress = Constants.INITIAL_L2_BLOCK_NUM + 1;
 
   mapping(uint256 blockNumber => IFrontier tree) internal trees;
 

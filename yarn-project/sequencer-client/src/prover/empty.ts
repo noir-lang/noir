@@ -2,11 +2,14 @@
 import {
   AggregationObject,
   BaseOrMergeRollupPublicInputs,
+  BaseParityInputs,
   BaseRollupInputs,
   MergeRollupInputs,
+  ParityPublicInputs,
   Proof,
   PublicCircuitPublicInputs,
   PublicKernelCircuitPublicInputs,
+  RootParityInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
@@ -22,6 +25,26 @@ const EMPTY_PROOF_SIZE = 42;
  * Prover implementation that returns empty proofs and overrides aggregation objects.
  */
 export class EmptyRollupProver implements RollupProver {
+  /**
+   * Creates an empty proof for the given input.
+   * @param inputs - Inputs to the circuit.
+   * @param publicInputs - Public inputs of the circuit obtained via simulation, modified by this call.
+   */
+  async getBaseParityProof(inputs: BaseParityInputs, publicInputs: ParityPublicInputs): Promise<Proof> {
+    publicInputs.aggregationObject = AggregationObject.makeFake();
+    return new Proof(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
+  }
+
+  /**
+   * Creates an empty proof for the given input.
+   * @param inputs - Inputs to the circuit.
+   * @param publicInputs - Public inputs of the circuit obtained via simulation, modified by this call.
+   */
+  async getRootParityProof(inputs: RootParityInputs, publicInputs: ParityPublicInputs): Promise<Proof> {
+    publicInputs.aggregationObject = AggregationObject.makeFake();
+    return new Proof(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
+  }
+
   /**
    * Creates an empty proof for the given input.
    * @param _input - Input to the circuit.

@@ -36,6 +36,7 @@ import {
   makeBaseOrMergeRollupPublicInputs,
   makeNewSideEffect,
   makeNewSideEffectLinkedToNoteHash,
+  makeParityPublicInputs,
   makePrivateKernelTailCircuitPublicInputs,
   makeProof,
   makePublicCallRequest,
@@ -81,7 +82,8 @@ describe('sequencer/solo_block_builder', () => {
   let baseRollupOutputLeft: BaseOrMergeRollupPublicInputs;
   let baseRollupOutputRight: BaseOrMergeRollupPublicInputs;
   let rootRollupOutput: RootRollupPublicInputs;
-  let mockL1ToL2Messages: Fr[];
+  let newModelMockL1ToL2Messages: Fr[]; // TODO(#4492): Rename this when purging the old inbox
+  let mockL1ToL2Messages: Fr[]; // TODO(#4492): Nuke this when purging the old inbox
 
   let globalVariables: GlobalVariables;
 
@@ -104,6 +106,7 @@ describe('sequencer/solo_block_builder', () => {
     builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
 
     // Create mock l1 to L2 messages
+    newModelMockL1ToL2Messages = new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
     mockL1ToL2Messages = new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
 
     // Create mock outputs for simulator
@@ -113,8 +116,16 @@ describe('sequencer/solo_block_builder', () => {
     rootRollupOutput.header.globalVariables = globalVariables;
 
     // Set up mocks
+    prover.getBaseParityProof.mockResolvedValue(emptyProof);
+    prover.getRootParityProof.mockResolvedValue(emptyProof);
     prover.getBaseRollupProof.mockResolvedValue(emptyProof);
     prover.getRootRollupProof.mockResolvedValue(emptyProof);
+    simulator.baseParityCircuit
+      .mockResolvedValueOnce(makeParityPublicInputs(1))
+      .mockResolvedValue(makeParityPublicInputs(2))
+      .mockResolvedValue(makeParityPublicInputs(3))
+      .mockResolvedValueOnce(makeParityPublicInputs(4));
+    simulator.rootParityCircuit.mockResolvedValueOnce(makeParityPublicInputs(5));
     simulator.baseRollupCircuit
       .mockResolvedValueOnce(baseRollupOutputLeft)
       .mockResolvedValueOnce(baseRollupOutputRight);
@@ -274,7 +285,12 @@ describe('sequencer/solo_block_builder', () => {
       const txs = await buildMockSimulatorInputs();
 
       // Actually build a block!
-      const [l2Block, proof] = await builder.buildL2Block(globalVariables, txs, mockL1ToL2Messages);
+      const [l2Block, proof] = await builder.buildL2Block(
+        globalVariables,
+        txs,
+        newModelMockL1ToL2Messages,
+        mockL1ToL2Messages,
+      );
 
       expect(l2Block.number).toEqual(blockNumber);
       expect(proof).toEqual(emptyProof);
@@ -284,7 +300,9 @@ describe('sequencer/solo_block_builder', () => {
       // Assemble a fake transaction
       const txs = await buildMockSimulatorInputs();
       const l1ToL2Messages = new Array(100).fill(new Fr(0n));
-      await expect(builder.buildL2Block(globalVariables, txs, l1ToL2Messages)).rejects.toThrow();
+      await expect(
+        builder.buildL2Block(globalVariables, txs, newModelMockL1ToL2Messages, l1ToL2Messages),
+      ).rejects.toThrow();
     });
   });
 
@@ -359,7 +377,12 @@ describe('sequencer/solo_block_builder', () => {
           ...(await Promise.all(times(totalCount - bloatedCount, makeEmptyProcessedTx))),
         ];
 
-        const [l2Block] = await builder.buildL2Block(globalVariables, txs, mockL1ToL2Messages);
+        const [l2Block] = await builder.buildL2Block(
+          globalVariables,
+          txs,
+          newModelMockL1ToL2Messages,
+          mockL1ToL2Messages,
+        );
         expect(l2Block.number).toEqual(blockNumber);
 
         await updateExpectedTreesFromTxs(txs);
@@ -383,7 +406,12 @@ describe('sequencer/solo_block_builder', () => {
         makeEmptyProcessedTx(),
       ]);
 
-      const [l2Block] = await builder.buildL2Block(globalVariables, txs, mockL1ToL2Messages);
+      const [l2Block] = await builder.buildL2Block(
+        globalVariables,
+        txs,
+        newModelMockL1ToL2Messages,
+        mockL1ToL2Messages,
+      );
       expect(l2Block.number).toEqual(blockNumber);
     }, 30_000);
 
@@ -397,7 +425,7 @@ describe('sequencer/solo_block_builder', () => {
 
       const l1ToL2Messages = range(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, 1 + 0x400).map(fr);
 
-      const [l2Block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages);
+      const [l2Block] = await builder.buildL2Block(globalVariables, txs, newModelMockL1ToL2Messages, l1ToL2Messages);
       expect(l2Block.number).toEqual(blockNumber);
     }, 200_000);
 
@@ -433,7 +461,12 @@ describe('sequencer/solo_block_builder', () => {
         NULLIFIER_SUBTREE_HEIGHT,
       );
 
-      const [l2Block] = await builder.buildL2Block(globalVariables, txs, mockL1ToL2Messages);
+      const [l2Block] = await builder.buildL2Block(
+        globalVariables,
+        txs,
+        newModelMockL1ToL2Messages,
+        mockL1ToL2Messages,
+      );
 
       expect(l2Block.number).toEqual(blockNumber);
     }, 20000);

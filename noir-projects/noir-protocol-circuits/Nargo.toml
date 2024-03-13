@@ -1,6 +1,9 @@
 [workspace]
 members = [
     "crates/types",
+    "crates/parity-base",
+    "crates/parity-lib",
+    "crates/parity-root",
     "crates/private-kernel-lib",
     "crates/private-kernel-init",
     "crates/private-kernel-init-simulated",

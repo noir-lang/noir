@@ -202,6 +202,8 @@ export class Sequencer {
 
       await assertBlockHeight();
 
+      const newModelL1ToL2Messages = await this.l1ToL2MessageSource.getNewL1ToL2Messages(BigInt(newBlockNumber));
+
       // Get l1 to l2 messages from the contract
       this.log('Requesting L1 to L2 messages from contract');
       const l1ToL2Messages = await this.getPendingL1ToL2EntryKeys();
@@ -214,7 +216,7 @@ export class Sequencer {
 
       const emptyTx = processor.makeEmptyProcessedTx();
       const [rollupCircuitsDuration, block] = await elapsed(() =>
-        this.buildBlock(processedValidTxs, l1ToL2Messages, emptyTx, newGlobalVariables),
+        this.buildBlock(processedValidTxs, newModelL1ToL2Messages, l1ToL2Messages, emptyTx, newGlobalVariables),
       );
 
       this.log(`Assembled block ${block.number}`, {
@@ -312,6 +314,7 @@ export class Sequencer {
   /**
    * Pads the set of txs to a power of two and assembles a block by calling the block builder.
    * @param txs - Processed txs to include in the next block.
+   * @param newModelL1ToL2Messages - L1 to L2 messages emitted by the new inbox.
    * @param newL1ToL2Messages - L1 to L2 messages to be part of the block.
    * @param emptyTx - Empty tx to repeat at the end of the block to pad to a power of two.
    * @param globalVariables - Global variables to use in the block.
@@ -319,7 +322,8 @@ export class Sequencer {
    */
   protected async buildBlock(
     txs: ProcessedTx[],
-    newL1ToL2Messages: Fr[],
+    newModelL1ToL2Messages: Fr[], // TODO(#4492): Rename this when purging the old inbox
+    newL1ToL2Messages: Fr[], // TODO(#4492): Nuke this when purging the old inbox
     emptyTx: ProcessedTx,
     globalVariables: GlobalVariables,
   ) {
@@ -330,7 +334,12 @@ export class Sequencer {
     const allTxs = [...txs, ...times(emptyTxCount, () => emptyTx)];
     this.log(`Building block ${globalVariables.blockNumber}`);
 
-    const [block] = await this.blockBuilder.buildL2Block(globalVariables, allTxs, newL1ToL2Messages);
+    const [block] = await this.blockBuilder.buildL2Block(
+      globalVariables,
+      allTxs,
+      newModelL1ToL2Messages,
+      newL1ToL2Messages,
+    );
     return block;
   }
 

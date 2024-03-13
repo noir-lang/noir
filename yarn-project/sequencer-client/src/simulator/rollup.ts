@@ -1,21 +1,30 @@
 import { CircuitSimulationStats } from '@aztec/circuit-types/stats';
 import {
   BaseOrMergeRollupPublicInputs,
+  BaseParityInputs,
   BaseRollupInputs,
   MergeRollupInputs,
+  ParityPublicInputs,
+  RootParityInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
 import {
+  BaseParityArtifact,
   BaseRollupArtifact,
   MergeRollupArtifact,
+  RootParityArtifact,
   RootRollupArtifact,
+  convertBaseParityInputsToWitnessMap,
+  convertBaseParityOutputsFromWitnessMap,
   convertBaseRollupInputsToWitnessMap,
   convertBaseRollupOutputsFromWitnessMap,
   convertMergeRollupInputsToWitnessMap,
   convertMergeRollupOutputsFromWitnessMap,
+  convertRootParityInputsToWitnessMap,
+  convertRootParityOutputsFromWitnessMap,
   convertRootRollupInputsToWitnessMap,
   convertRootRollupOutputsFromWitnessMap,
 } from '@aztec/noir-protocol-circuits-types';
@@ -33,6 +42,36 @@ export class RealRollupCircuitSimulator implements RollupSimulator {
   private wasmSimulator: WASMSimulator = new WASMSimulator();
 
   constructor(private simulationProvider: SimulationProvider) {}
+
+  /**
+   * Simulates the base parity circuit from its inputs.
+   * @param inputs - Inputs to the circuit.
+   * @returns The public inputs of the parity circuit.
+   */
+  public async baseParityCircuit(inputs: BaseParityInputs): Promise<ParityPublicInputs> {
+    const witnessMap = convertBaseParityInputsToWitnessMap(inputs);
+
+    const witness = await this.simulationProvider.simulateCircuit(witnessMap, BaseParityArtifact);
+
+    const result = convertBaseParityOutputsFromWitnessMap(witness);
+
+    return Promise.resolve(result);
+  }
+
+  /**
+   * Simulates the root parity circuit from its inputs.
+   * @param inputs - Inputs to the circuit.
+   * @returns The public inputs of the parity circuit.
+   */
+  public async rootParityCircuit(inputs: RootParityInputs): Promise<ParityPublicInputs> {
+    const witnessMap = convertRootParityInputsToWitnessMap(inputs);
+
+    const witness = await this.simulationProvider.simulateCircuit(witnessMap, RootParityArtifact);
+
+    const result = convertRootParityOutputsFromWitnessMap(witness);
+
+    return Promise.resolve(result);
+  }
 
   /**
    * Simulates the base rollup circuit from its inputs.

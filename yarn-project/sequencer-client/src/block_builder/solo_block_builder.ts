@@ -4,6 +4,7 @@ import {
   ARCHIVE_HEIGHT,
   AppendOnlyTreeSnapshot,
   BaseOrMergeRollupPublicInputs,
+  BaseParityInputs,
   BaseRollupInputs,
   ConstantRollupData,
   GlobalVariables,
@@ -20,6 +21,7 @@ import {
   NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
   NULLIFIER_TREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  NUM_BASE_PARITY_PER_ROOT_PARITY,
   NullifierLeafPreimage,
   PUBLIC_DATA_SUBTREE_HEIGHT,
   PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
@@ -33,6 +35,8 @@ import {
   RollupKernelCircuitPublicInputs,
   RollupKernelData,
   RollupTypes,
+  RootParityInput,
+  RootParityInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
   StateDiffHints,
@@ -85,6 +89,7 @@ export class SoloBlockBuilder implements BlockBuilder {
    * Builds an L2 block with the given number containing the given txs, updating state trees.
    * @param globalVariables - Global variables to be used in the block.
    * @param txs - Processed transactions to include in the block.
+   * @param newModelL1ToL2Messages - L1 to L2 messages emitted by the new inbox.
    * @param newL1ToL2Messages - L1 to L2 messages to be part of the block.
    * @param timestamp - Timestamp of the block.
    * @returns The new L2 block and a correctness proof as returned by the root rollup circuit.
@@ -92,13 +97,19 @@ export class SoloBlockBuilder implements BlockBuilder {
   public async buildL2Block(
     globalVariables: GlobalVariables,
     txs: ProcessedTx[],
+    newModelL1ToL2Messages: Fr[], // TODO(#4492): Rename this when purging the old inbox
     newL1ToL2Messages: Fr[],
   ): Promise<[L2Block, Proof]> {
     // Check txs are good for processing by checking if all the tree snapshots in header are non-empty
     this.validateTxs(txs);
 
     // We fill the tx batch with empty txs, we process only one tx at a time for now
-    const [circuitsOutput, proof] = await this.runCircuits(globalVariables, txs, newL1ToL2Messages);
+    const [circuitsOutput, proof] = await this.runCircuits(
+      globalVariables,
+      txs,
+      newModelL1ToL2Messages,
+      newL1ToL2Messages,
+    );
 
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
     const txEffects: TxEffect[] = txs.map(tx => toTxEffect(tx));
@@ -149,7 +160,8 @@ export class SoloBlockBuilder implements BlockBuilder {
   protected async runCircuits(
     globalVariables: GlobalVariables,
     txs: ProcessedTx[],
-    newL1ToL2Messages: Fr[],
+    newModelL1ToL2Messages: Fr[], // TODO(#4492): Rename this when purging the old inbox
+    newL1ToL2Messages: Fr[], // TODO(#4492): Nuke this when purging the old inbox
   ): Promise<[RootRollupPublicInputs, Proof]> {
     // Check that the length of the array of txs is a power of two
     // See https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
@@ -157,71 +169,154 @@ export class SoloBlockBuilder implements BlockBuilder {
       throw new Error(`Length of txs for the block should be a power of two and at least two (got ${txs.length})`);
     }
 
+    // BASE PARITY CIRCUIT (run in parallel)
+    let baseParityInputs: BaseParityInputs[] = [];
+    let elapsedBaseParityOutputsPromise: Promise<[number, RootParityInput[]]>;
+    {
+      const newModelL1ToL2MessagesTuple = padArrayEnd(
+        newModelL1ToL2Messages,
+        Fr.ZERO,
+        NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+      );
+      baseParityInputs = Array.from({ length: NUM_BASE_PARITY_PER_ROOT_PARITY }, (_, i) =>
+        BaseParityInputs.fromSlice(newModelL1ToL2MessagesTuple, i),
+      );
+
+      const baseParityOutputs: Promise<RootParityInput>[] = [];
+      for (const inputs of baseParityInputs) {
+        baseParityOutputs.push(this.baseParityCircuit(inputs));
+      }
+      elapsedBaseParityOutputsPromise = elapsed(() => Promise.all(baseParityOutputs));
+    }
+
     // padArrayEnd throws if the array is already full. Otherwise it pads till we reach the required size
     const newL1ToL2MessagesTuple = padArrayEnd(newL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
 
-    // Perform all tree insertions and retrieve snapshots for all base rollups
+    // BASE ROLLUP CIRCUIT (run in parallel)
+    let elapsedBaseRollupOutputsPromise: Promise<[number, [BaseOrMergeRollupPublicInputs, Proof][]]>;
     const baseRollupInputs: BaseRollupInputs[] = [];
-    const treeSnapshots: Map<MerkleTreeId, AppendOnlyTreeSnapshot>[] = [];
-    for (const tx of txs) {
-      const input = await this.buildBaseRollupInput(tx, globalVariables);
-      baseRollupInputs.push(input);
-      const promises = [MerkleTreeId.NOTE_HASH_TREE, MerkleTreeId.NULLIFIER_TREE, MerkleTreeId.PUBLIC_DATA_TREE].map(
-        async (id: MerkleTreeId) => {
-          return { key: id, value: await this.getTreeSnapshot(id) };
-        },
-      );
-      const snapshots: Map<MerkleTreeId, AppendOnlyTreeSnapshot> = new Map(
-        (await Promise.all(promises)).map(obj => [obj.key, obj.value]),
-      );
-      treeSnapshots.push(snapshots);
-    }
-
-    // Run the base rollup circuits for the txs in parallel
-    const baseRollupOutputs: Promise<[BaseOrMergeRollupPublicInputs, Proof]>[] = [];
-    for (let i = 0; i < txs.length; i++) {
-      baseRollupOutputs.push(this.baseRollupCircuit(txs[i], baseRollupInputs[i], treeSnapshots[i]));
-    }
-
-    // Run merge rollups in layers until we have only two outputs
-    // All merge circuits for each layer are simulated in parallel
-    const [duration, mergeInputs] = await elapsed(() => Promise.all(baseRollupOutputs));
-    for (let i = 0; i < mergeInputs.length; i++) {
-      this.debug(`Simulated base rollup circuit`, {
-        eventName: 'circuit-simulation',
-        circuitName: 'base-rollup',
-        duration: duration / mergeInputs.length,
-        inputSize: baseRollupInputs[i].toBuffer().length,
-        outputSize: mergeInputs[i][0].toBuffer().length,
-      } satisfies CircuitSimulationStats);
-    }
-    let mergeRollupInputs: [BaseOrMergeRollupPublicInputs, Proof][] = mergeInputs;
-    while (mergeRollupInputs.length > 2) {
-      const mergeInputStructs: MergeRollupInputs[] = [];
-      for (const pair of chunk(mergeRollupInputs, 2)) {
-        const [r1, r2] = pair;
-        mergeInputStructs.push(this.createMergeRollupInputs(r1, r2));
+    {
+      // Perform all tree insertions and retrieve snapshots for all base rollups
+      const treeSnapshots: Map<MerkleTreeId, AppendOnlyTreeSnapshot>[] = [];
+      for (const tx of txs) {
+        const input = await this.buildBaseRollupInput(tx, globalVariables);
+        baseRollupInputs.push(input);
+        const promises = [MerkleTreeId.NOTE_HASH_TREE, MerkleTreeId.NULLIFIER_TREE, MerkleTreeId.PUBLIC_DATA_TREE].map(
+          async (id: MerkleTreeId) => {
+            return { key: id, value: await this.getTreeSnapshot(id) };
+          },
+        );
+        const snapshots: Map<MerkleTreeId, AppendOnlyTreeSnapshot> = new Map(
+          (await Promise.all(promises)).map(obj => [obj.key, obj.value]),
+        );
+        treeSnapshots.push(snapshots);
       }
 
-      const [duration, mergeOutputs] = await elapsed(() =>
-        Promise.all(mergeInputStructs.map(async input => await this.mergeRollupCircuit(input))),
-      );
+      // Run the base rollup circuits for the txs in parallel
+      const baseRollupOutputs: Promise<[BaseOrMergeRollupPublicInputs, Proof]>[] = [];
+      for (let i = 0; i < txs.length; i++) {
+        baseRollupOutputs.push(this.baseRollupCircuit(txs[i], baseRollupInputs[i], treeSnapshots[i]));
+      }
 
-      for (let i = 0; i < mergeOutputs.length; i++) {
-        this.debug(`Simulated merge rollup circuit`, {
+      elapsedBaseRollupOutputsPromise = elapsed(() => Promise.all(baseRollupOutputs));
+    }
+
+    // ROOT PARITY CIRCUIT
+    let elapsedRootParityOutputPromise: Promise<[number, RootParityInput]>;
+    let rootParityInputs: RootParityInputs;
+    {
+      // First we await the base parity outputs
+      const [duration, baseParityOutputs] = await elapsedBaseParityOutputsPromise;
+
+      // We emit stats for base parity circuits
+      for (let i = 0; i < baseParityOutputs.length; i++) {
+        this.debug(`Simulated base parity circuit`, {
           eventName: 'circuit-simulation',
-          circuitName: 'merge-rollup',
-          duration: duration / mergeOutputs.length,
-          inputSize: mergeInputStructs[i].toBuffer().length,
-          outputSize: mergeOutputs[i][0].toBuffer().length,
+          circuitName: 'base-parity',
+          duration: duration / baseParityOutputs.length,
+          inputSize: baseParityInputs[i].toBuffer().length,
+          outputSize: baseParityOutputs[i].toBuffer().length,
         } satisfies CircuitSimulationStats);
       }
-      mergeRollupInputs = mergeOutputs;
+
+      rootParityInputs = new RootParityInputs(
+        baseParityOutputs as Tuple<RootParityInput, typeof NUM_BASE_PARITY_PER_ROOT_PARITY>,
+      );
+      elapsedRootParityOutputPromise = elapsed(() => this.rootParityCircuit(rootParityInputs));
     }
 
-    // Run the root rollup with the last two merge rollups (or base, if no merge layers)
-    const [mergeOutputLeft, mergeOutputRight] = mergeRollupInputs;
-    return this.rootRollupCircuit(mergeOutputLeft, mergeOutputRight, newL1ToL2MessagesTuple);
+    // MERGE ROLLUP CIRCUIT (each layer run in parallel)
+    let mergeOutputLeft: [BaseOrMergeRollupPublicInputs, Proof];
+    let mergeOutputRight: [BaseOrMergeRollupPublicInputs, Proof];
+    {
+      // Run merge rollups in layers until we have only two outputs
+      const [duration, mergeInputs] = await elapsedBaseRollupOutputsPromise;
+
+      // We emit stats for base rollup circuits
+      for (let i = 0; i < mergeInputs.length; i++) {
+        this.debug(`Simulated base rollup circuit`, {
+          eventName: 'circuit-simulation',
+          circuitName: 'base-rollup',
+          duration: duration / mergeInputs.length,
+          inputSize: baseRollupInputs[i].toBuffer().length,
+          outputSize: mergeInputs[i][0].toBuffer().length,
+        } satisfies CircuitSimulationStats);
+      }
+
+      let mergeRollupInputs: [BaseOrMergeRollupPublicInputs, Proof][] = mergeInputs;
+      while (mergeRollupInputs.length > 2) {
+        const mergeInputStructs: MergeRollupInputs[] = [];
+        for (const pair of chunk(mergeRollupInputs, 2)) {
+          const [r1, r2] = pair;
+          mergeInputStructs.push(this.createMergeRollupInputs(r1, r2));
+        }
+
+        const [duration, mergeOutputs] = await elapsed(() =>
+          Promise.all(mergeInputStructs.map(async input => await this.mergeRollupCircuit(input))),
+        );
+
+        // We emit stats for merge rollup circuits
+        for (let i = 0; i < mergeOutputs.length; i++) {
+          this.debug(`Simulated merge rollup circuit`, {
+            eventName: 'circuit-simulation',
+            circuitName: 'merge-rollup',
+            duration: duration / mergeOutputs.length,
+            inputSize: mergeInputStructs[i].toBuffer().length,
+            outputSize: mergeOutputs[i][0].toBuffer().length,
+          } satisfies CircuitSimulationStats);
+        }
+        mergeRollupInputs = mergeOutputs;
+      }
+
+      // Run the root rollup with the last two merge rollups (or base, if no merge layers)
+      [mergeOutputLeft, mergeOutputRight] = mergeRollupInputs;
+    }
+
+    // Finally, we emit stats for root parity circuit
+    const [duration, rootParityOutput] = await elapsedRootParityOutputPromise;
+    this.debug(`Simulated root parity circuit`, {
+      eventName: 'circuit-simulation',
+      circuitName: 'root-parity',
+      duration: duration,
+      inputSize: rootParityInputs.toBuffer().length,
+      outputSize: rootParityOutput.toBuffer().length,
+    } satisfies CircuitSimulationStats);
+
+    return this.rootRollupCircuit(mergeOutputLeft, mergeOutputRight, rootParityOutput, newL1ToL2MessagesTuple);
+  }
+
+  protected async baseParityCircuit(inputs: BaseParityInputs): Promise<RootParityInput> {
+    this.debug(`Running base parity circuit`);
+    const parityPublicInputs = await this.simulator.baseParityCircuit(inputs);
+    const proof = await this.prover.getBaseParityProof(inputs, parityPublicInputs);
+    return new RootParityInput(proof, parityPublicInputs);
+  }
+
+  protected async rootParityCircuit(inputs: RootParityInputs): Promise<RootParityInput> {
+    this.debug(`Running root parity circuit`);
+    const parityPublicInputs = await this.simulator.rootParityCircuit(inputs);
+    const proof = await this.prover.getRootParityProof(inputs, parityPublicInputs);
+    return new RootParityInput(proof, parityPublicInputs);
   }
 
   protected async baseRollupCircuit(
@@ -269,10 +364,11 @@ export class SoloBlockBuilder implements BlockBuilder {
   protected async rootRollupCircuit(
     left: [BaseOrMergeRollupPublicInputs, Proof],
     right: [BaseOrMergeRollupPublicInputs, Proof],
+    l1ToL2Roots: RootParityInput,
     newL1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
   ): Promise<[RootRollupPublicInputs, Proof]> {
     this.debug(`Running root rollup circuit`);
-    const rootInput = await this.getRootRollupInput(...left, ...right, newL1ToL2Messages);
+    const rootInput = await this.getRootRollupInput(...left, ...right, l1ToL2Roots, newL1ToL2Messages);
 
     // Update the local trees to include the new l1 to l2 messages
     await this.db.appendLeaves(
@@ -365,6 +461,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     rollupProofLeft: Proof,
     rollupOutputRight: BaseOrMergeRollupPublicInputs,
     rollupProofRight: Proof,
+    l1ToL2Roots: RootParityInput,
     newL1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
   ) {
     const vk = this.getVerificationKey(rollupOutputLeft.rollupType);
@@ -406,6 +503,7 @@ export class SoloBlockBuilder implements BlockBuilder {
 
     return RootRollupInputs.from({
       previousRollupData,
+      l1ToL2Roots,
       newL1ToL2Messages,
       newL1ToL2MessageTreeRootSiblingPath,
       startL1ToL2MessageTreeSnapshot,

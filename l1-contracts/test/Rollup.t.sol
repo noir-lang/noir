@@ -184,6 +184,11 @@ contract RollupTest is DecoderBase {
       inbox.sendL2Message(
         DataStructures.L2Actor({actor: _recipient, version: 1}), deadline, _contents[i], bytes32(0)
       );
+
+      vm.prank(_sender);
+      newInbox.sendL2Message(
+        DataStructures.L2Actor({actor: _recipient, version: 1}), _contents[i], bytes32(0)
+      );
     }
   }
 }

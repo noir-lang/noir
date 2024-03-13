@@ -54,6 +54,8 @@ export type CircuitSimulationStats = {
   eventName: 'circuit-simulation';
   /** Name of the circuit. */
   circuitName:
+    | 'base-parity'
+    | 'root-parity'
     | 'base-rollup'
     | 'private-kernel-init'
     | 'private-kernel-ordering'

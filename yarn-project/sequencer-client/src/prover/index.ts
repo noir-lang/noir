@@ -1,18 +1,35 @@
 import {
   BaseOrMergeRollupPublicInputs,
+  BaseParityInputs,
   BaseRollupInputs,
   MergeRollupInputs,
+  ParityPublicInputs,
   Proof,
   PublicCircuitPublicInputs,
   PublicKernelCircuitPublicInputs,
+  RootParityInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
 
 /**
- * Generates proofs for the base, merge, and root rollup circuits.
+ * Generates proofs for parity and rollup circuits.
  */
 export interface RollupProver {
+  /**
+   * Creates a proof for the given input.
+   * @param input - Input to the circuit.
+   * @param publicInputs - Public inputs of the circuit obtained via simulation, modified by this call.
+   */
+  getBaseParityProof(inputs: BaseParityInputs, publicInputs: ParityPublicInputs): Promise<Proof>;
+
+  /**
+   * Creates a proof for the given input.
+   * @param input - Input to the circuit.
+   * @param publicInputs - Public inputs of the circuit obtained via simulation, modified by this call.
+   */
+  getRootParityProof(inputs: RootParityInputs, publicInputs: ParityPublicInputs): Promise<Proof>;
+
   /**
    * Creates a proof for the given input.
    * @param input - Input to the circuit.

@@ -10,6 +10,7 @@ import {
 } from '../../constants.gen.js';
 import { AggregationObject } from '../aggregation_object.js';
 import { Header } from '../header.js';
+import { RootParityInput } from '../parity/root_parity_input.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
 import { PreviousRollupData } from './previous_rollup_data.js';
 
@@ -24,6 +25,10 @@ export class RootRollupInputs {
      * from 2 merge or base rollup circuits.
      */
     public previousRollupData: [PreviousRollupData, PreviousRollupData],
+    /**
+     * The original and converted roots of the L1 to L2 messages subtrees.
+     */
+    public l1ToL2Roots: RootParityInput,
     /**
      * New L1 to L2 messages.
      */
@@ -57,6 +62,7 @@ export class RootRollupInputs {
   static getFields(fields: FieldsOf<RootRollupInputs>) {
     return [
       fields.previousRollupData,
+      fields.l1ToL2Roots,
       fields.newL1ToL2Messages,
       fields.newL1ToL2MessageTreeRootSiblingPath,
       fields.startL1ToL2MessageTreeSnapshot,

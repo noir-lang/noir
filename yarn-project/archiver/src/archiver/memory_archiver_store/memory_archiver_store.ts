@@ -348,7 +348,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @param blockNumber - L2 block number to get messages for.
    * @returns The L1 to L2 messages/leaves of the messages subtree (throws if not found).
    */
-  getNewL1ToL2Messages(blockNumber: bigint): Promise<Buffer[]> {
+  getNewL1ToL2Messages(blockNumber: bigint): Promise<Fr[]> {
     return Promise.resolve(this.newL1ToL2Messages.getMessages(blockNumber));
   }
 

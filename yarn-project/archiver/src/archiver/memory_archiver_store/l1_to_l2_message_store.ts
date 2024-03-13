@@ -12,7 +12,7 @@ export class NewL1ToL2MessageStore {
    * A map containing the entry key to the corresponding L1 to L2
    * messages (and the number of times the message has been seen).
    */
-  protected store: Map<string, Buffer> = new Map();
+  protected store: Map<string, Fr> = new Map();
 
   #l1ToL2MessagesSubtreeSize = 2 ** L1_TO_L2_MSG_SUBTREE_HEIGHT;
 
@@ -26,8 +26,8 @@ export class NewL1ToL2MessageStore {
     this.store.set(key, message.leaf);
   }
 
-  getMessages(blockNumber: bigint): Buffer[] {
-    const messages: Buffer[] = [];
+  getMessages(blockNumber: bigint): Fr[] {
+    const messages: Fr[] = [];
     let undefinedMessageFound = false;
     for (let messageIndex = 0; messageIndex < this.#l1ToL2MessagesSubtreeSize; messageIndex++) {
       // This is inefficient but probably fine for now.

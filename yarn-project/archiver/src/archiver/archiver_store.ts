@@ -146,7 +146,7 @@ export interface ArchiverDataStore {
    * @param blockNumber - L2 block number to get messages for.
    * @returns The L1 to L2 messages/leaves of the messages subtree (throws if not found).
    */
-  getNewL1ToL2Messages(blockNumber: bigint): Promise<Buffer[]>;
+  getNewL1ToL2Messages(blockNumber: bigint): Promise<Fr[]>;
 
   /**
    * Gets up to `limit` amount of logs starting from `from`.

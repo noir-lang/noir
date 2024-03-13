@@ -1,7 +1,9 @@
 import {
   BaseOrMergeRollupPublicInputs,
+  BaseParityInputs,
   BaseRollupInputs,
   MergeRollupInputs,
+  ParityPublicInputs,
   PrivateKernelInitCircuitPrivateInputs,
   PrivateKernelInnerCircuitPrivateInputs,
   PrivateKernelInnerCircuitPublicInputs,
@@ -10,6 +12,7 @@ import {
   PublicKernelCircuitPrivateInputs,
   PublicKernelCircuitPublicInputs,
   PublicKernelTailCircuitPrivateInputs,
+  RootParityInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
@@ -19,6 +22,8 @@ import { WasmBlackBoxFunctionSolver, createBlackBoxSolver, executeCircuitWithBla
 import { Abi, abiDecode, abiEncode } from '@noir-lang/noirc_abi';
 import { WitnessMap } from '@noir-lang/types';
 
+import BaseParityJson from './target/parity_base.json' assert { type: 'json' };
+import RootParityJson from './target/parity_root.json' assert { type: 'json' };
 import PrivateKernelInitJson from './target/private_kernel_init.json' assert { type: 'json' };
 import PrivateKernelInitSimulatedJson from './target/private_kernel_init_simulated.json' assert { type: 'json' };
 import PrivateKernelInnerJson from './target/private_kernel_inner.json' assert { type: 'json' };
@@ -34,8 +39,10 @@ import MergeRollupJson from './target/rollup_merge.json' assert { type: 'json' }
 import RootRollupJson from './target/rollup_root.json' assert { type: 'json' };
 import {
   mapBaseOrMergeRollupPublicInputsFromNoir,
+  mapBaseParityInputsToNoir,
   mapBaseRollupInputsToNoir,
   mapMergeRollupInputsToNoir,
+  mapParityPublicInputsFromNoir,
   mapPrivateKernelInitCircuitPrivateInputsToNoir,
   mapPrivateKernelInnerCircuitPrivateInputsToNoir,
   mapPrivateKernelInnerCircuitPublicInputsFromNoir,
@@ -44,9 +51,12 @@ import {
   mapPublicKernelCircuitPrivateInputsToNoir,
   mapPublicKernelCircuitPublicInputsFromNoir,
   mapPublicKernelTailCircuitPrivateInputsToNoir,
+  mapRootParityInputsToNoir,
   mapRootRollupInputsToNoir,
   mapRootRollupPublicInputsFromNoir,
 } from './type_conversion.js';
+import { ReturnType as BaseParityReturnType } from './types/parity_base_types.js';
+import { ReturnType as RootParityReturnType } from './types/parity_root_types.js';
 import { InputType as InitInputType, ReturnType as InitReturnType } from './types/private_kernel_init_types.js';
 import { InputType as InnerInputType, ReturnType as InnerReturnType } from './types/private_kernel_inner_types.js';
 import { InputType as TailInputType, ReturnType as TailReturnType } from './types/private_kernel_tail_types.js';
@@ -84,6 +94,10 @@ export const PublicKernelAppLogicArtifact = PublicKernelAppLogicSimulatedJson as
 export const PublicKernelTeardownArtifact = PublicKernelTeardownSimulatedJson as NoirCompiledCircuit;
 
 export const PublicKernelTailArtifact = PublicKernelTailSimulatedJson as NoirCompiledCircuit;
+
+export const BaseParityArtifact = BaseParityJson as NoirCompiledCircuit;
+
+export const RootParityArtifact = RootParityJson as NoirCompiledCircuit;
 
 export const BaseRollupArtifact = BaseRollupSimulatedJson as NoirCompiledCircuit;
 
@@ -151,7 +165,29 @@ export async function executeTail(
 }
 
 /**
- * Converts the inputs to the base rollup circuit into a witness map.
+ * Converts the inputs of the base parity circuit into a witness map.
+ * @param inputs - The base parity inputs.
+ * @returns The witness map
+ */
+export function convertBaseParityInputsToWitnessMap(inputs: BaseParityInputs): WitnessMap {
+  const mapped = mapBaseParityInputsToNoir(inputs);
+  const initialWitnessMap = abiEncode(BaseParityJson.abi as Abi, { inputs: mapped as any });
+  return initialWitnessMap;
+}
+
+/**
+ * Converts the inputs of the root parity circuit into a witness map.
+ * @param inputs - The root parity inputs.
+ * @returns The witness map
+ */
+export function convertRootParityInputsToWitnessMap(inputs: RootParityInputs): WitnessMap {
+  const mapped = mapRootParityInputsToNoir(inputs);
+  const initialWitnessMap = abiEncode(RootParityJson.abi as Abi, { inputs: mapped as any });
+  return initialWitnessMap;
+}
+
+/**
+ * Converts the inputs of the base rollup circuit into a witness map.
  * @param inputs - The base rollup inputs.
  * @returns The witness map
  */
@@ -162,7 +198,7 @@ export function convertBaseRollupInputsToWitnessMap(inputs: BaseRollupInputs): W
 }
 
 /**
- * Converts the inputs to the merge rollup circuit into a witness map.
+ * Converts the inputs of the merge rollup circuit into a witness map.
  * @param inputs - The merge rollup inputs.
  * @returns The witness map
  */
@@ -173,7 +209,7 @@ export function convertMergeRollupInputsToWitnessMap(inputs: MergeRollupInputs):
 }
 
 /**
- * Converts the inputs to the root rollup circuit into a witness map.
+ * Converts the inputs of the root rollup circuit into a witness map.
  * @param inputs - The root rollup inputs.
  * @returns The witness map
  */
@@ -183,7 +219,7 @@ export function convertRootRollupInputsToWitnessMap(inputs: RootRollupInputs): W
   return initialWitnessMap;
 }
 /**
- * Converts the inputs to the public setup circuit into a witness map
+ * Converts the inputs of the public setup circuit into a witness map
  * @param inputs - The public kernel inputs.
  * @returns The witness map
  */
@@ -194,7 +230,7 @@ export function convertPublicSetupRollupInputsToWitnessMap(inputs: PublicKernelC
 }
 
 /**
- * Converts the inputs to the public setup circuit into a witness map
+ * Converts the inputs of the public setup circuit into a witness map
  * @param inputs - The public kernel inputs.
  * @returns The witness map
  */
@@ -205,7 +241,7 @@ export function convertPublicInnerRollupInputsToWitnessMap(inputs: PublicKernelC
 }
 
 /**
- * Converts the inputs to the public teardown circuit into a witness map
+ * Converts the inputs of the public teardown circuit into a witness map
  * @param inputs - The public kernel inputs.
  * @returns The witness map
  */
@@ -216,7 +252,7 @@ export function convertPublicTeardownRollupInputsToWitnessMap(inputs: PublicKern
 }
 
 /**
- * Converts the inputs to the public tail circuit into a witness map
+ * Converts the inputs of the public tail circuit into a witness map
  * @param inputs - The public kernel inputs.
  * @returns The witness map
  */
@@ -227,7 +263,7 @@ export function convertPublicTailInputsToWitnessMap(inputs: PublicKernelTailCirc
 }
 
 /**
- * Converts the outputs to the base rollup circuit.
+ * Converts the outputs of the base rollup circuit from a witness map.
  * @param outputs - The base rollup outputs as a witness map.
  * @returns The public inputs.
  */
@@ -242,7 +278,7 @@ export function convertBaseRollupOutputsFromWitnessMap(outputs: WitnessMap): Bas
 }
 
 /**
- * Converts the outputs to the merge rollup circuit.
+ * Converts the outputs of the merge rollup circuit from a witness map.
  * @param outputs - The merge rollup outputs as a witness map.
  * @returns The public inputs.
  */
@@ -257,7 +293,7 @@ export function convertMergeRollupOutputsFromWitnessMap(outputs: WitnessMap): Ba
 }
 
 /**
- * Converts the outputs to the root rollup circuit.
+ * Converts the outputs of the root rollup circuit from a witness map.
  * @param outputs - The root rollup outputs as a witness map.
  * @returns The public inputs.
  */
@@ -272,7 +308,37 @@ export function convertRootRollupOutputsFromWitnessMap(outputs: WitnessMap): Roo
 }
 
 /**
- * Converts the outputs to the public setup circuit.
+ * Converts the outputs of the base parity circuit from a witness map.
+ * @param outputs - The base parity outputs as a witness map.
+ * @returns The public inputs.
+ */
+export function convertBaseParityOutputsFromWitnessMap(outputs: WitnessMap): ParityPublicInputs {
+  // Decode the witness map into two fields, the return values and the inputs
+  const decodedInputs: DecodedInputs = abiDecode(BaseParityJson.abi as Abi, outputs);
+
+  // Cast the inputs as the return type
+  const returnType = decodedInputs.return_value as BaseParityReturnType;
+
+  return mapParityPublicInputsFromNoir(returnType);
+}
+
+/**
+ * Converts the outputs of the root parity circuit from a witness map.
+ * @param outputs - The root parity outputs as a witness map.
+ * @returns The public inputs.
+ */
+export function convertRootParityOutputsFromWitnessMap(outputs: WitnessMap): ParityPublicInputs {
+  // Decode the witness map into two fields, the return values and the inputs
+  const decodedInputs: DecodedInputs = abiDecode(RootParityJson.abi as Abi, outputs);
+
+  // Cast the inputs as the return type
+  const returnType = decodedInputs.return_value as RootParityReturnType;
+
+  return mapParityPublicInputsFromNoir(returnType);
+}
+
+/**
+ * Converts the outputs of the public setup circuit from a witness map.
  * @param outputs - The public kernel outputs as a witness map.
  * @returns The public inputs.
  */
@@ -287,7 +353,7 @@ export function convertPublicSetupRollupOutputFromWitnessMap(outputs: WitnessMap
 }
 
 /**
- * Converts the outputs to the public inner circuit.
+ * Converts the outputs of the public inner circuit from a witness map.
  * @param outputs - The public kernel outputs as a witness map.
  * @returns The public inputs.
  */
@@ -302,7 +368,7 @@ export function convertPublicInnerRollupOutputFromWitnessMap(outputs: WitnessMap
 }
 
 /**
- * Converts the outputs to the public tail circuit.
+ * Converts the outputs of the public tail circuit from a witness map.
  * @param outputs - The public kernel outputs as a witness map.
  * @returns The public inputs.
  */
@@ -317,7 +383,7 @@ export function convertPublicTeardownRollupOutputFromWitnessMap(outputs: Witness
 }
 
 /**
- * Converts the outputs to the public tail circuit.
+ * Converts the outputs of the public tail circuit from a witness map.
  * @param outputs - The public kernel outputs as a witness map.
  * @returns The public inputs.
  */

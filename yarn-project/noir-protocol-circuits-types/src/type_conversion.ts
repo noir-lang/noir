@@ -4,6 +4,7 @@ import {
   AppendOnlyTreeSnapshot,
   AztecAddress,
   BaseOrMergeRollupPublicInputs,
+  BaseParityInputs,
   BaseRollupInputs,
   CallContext,
   CallRequest,
@@ -57,6 +58,7 @@ import {
   NullifierNonExistentReadRequestHints,
   NullifierReadRequestHints,
   PUBLIC_DATA_TREE_HEIGHT,
+  ParityPublicInputs,
   PartialStateReference,
   PendingReadHint,
   Point,
@@ -90,6 +92,8 @@ import {
   ReadRequestStatus,
   RollupKernelCircuitPublicInputs,
   RollupKernelData,
+  RootParityInput,
+  RootParityInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
   SettledReadHint,
@@ -102,6 +106,8 @@ import {
 } from '@aztec/circuits.js';
 import { Tuple, from2Fields, mapTuple, to2Fields } from '@aztec/foundation/serialize';
 
+import { BaseParityInputs as BaseParityInputsNoir } from './types/parity_base_types.js';
+import { RootParityInputs as RootParityInputsNoir } from './types/parity_root_types.js';
 import {
   CallContext as CallContextNoir,
   CallRequest as CallRequestNoir,
@@ -189,8 +195,10 @@ import {
   FixedLengthArray,
   GlobalVariables as GlobalVariablesNoir,
   Header as HeaderNoir,
+  ParityPublicInputs as ParityPublicInputsNoir,
   PartialStateReference as PartialStateReferenceNoir,
   PreviousRollupData as PreviousRollupDataNoir,
+  RootParityInput as RootParityInputNoir,
   RootRollupInputs as RootRollupInputsNoir,
   RootRollupPublicInputs as RootRollupPublicInputsNoir,
   StateReference as StateReferenceNoir,
@@ -1668,6 +1676,7 @@ export function mapAppendOnlyTreeSnapshotToNoir(snapshot: AppendOnlyTreeSnapshot
 export function mapRootRollupInputsToNoir(rootRollupInputs: RootRollupInputs): RootRollupInputsNoir {
   return {
     previous_rollup_data: mapTuple(rootRollupInputs.previousRollupData, mapPreviousRollupDataToNoir),
+    l1_to_l2_roots: mapRootParityInputToNoir(rootRollupInputs.l1ToL2Roots),
     new_l1_to_l2_messages: mapTuple(rootRollupInputs.newL1ToL2Messages, mapFieldToNoir),
     new_l1_to_l2_message_tree_root_sibling_path: mapTuple(
       rootRollupInputs.newL1ToL2MessageTreeRootSiblingPath,
@@ -1678,6 +1687,21 @@ export function mapRootRollupInputsToNoir(rootRollupInputs: RootRollupInputs): R
     ),
     start_archive_snapshot: mapAppendOnlyTreeSnapshotToNoir(rootRollupInputs.startArchiveSnapshot),
     new_archive_sibling_path: mapTuple(rootRollupInputs.newArchiveSiblingPath, mapFieldToNoir),
+  };
+}
+
+export function mapRootParityInputToNoir(rootParityInput: RootParityInput): RootParityInputNoir {
+  return {
+    proof: {},
+    public_inputs: mapParityPublicInputsToNoir(rootParityInput.publicInputs),
+  };
+}
+
+export function mapParityPublicInputsToNoir(parityPublicInputs: ParityPublicInputs): ParityPublicInputsNoir {
+  return {
+    aggregation_object: {},
+    sha_root: mapSha256HashToNoir(parityPublicInputs.shaRoot),
+    converted_root: mapFieldToNoir(parityPublicInputs.convertedRoot),
   };
 }
 
@@ -1694,6 +1718,19 @@ export function mapRootRollupPublicInputsFromNoir(
     mapAppendOnlyTreeSnapshotFromNoir(rootRollupPublicInputs.archive),
     mapHeaderFromNoir(rootRollupPublicInputs.header),
     mapTupleFromNoir(rootRollupPublicInputs.l1_to_l2_messages_hash, 2, mapFieldFromNoir),
+  );
+}
+
+/**
+ * Maps a parity public inputs from noir.
+ * @param parityPublicInputs - The noir parity public inputs.
+ * @returns The circuits.js parity public inputs.
+ */
+export function mapParityPublicInputsFromNoir(parityPublicInputs: ParityPublicInputsNoir): ParityPublicInputs {
+  return new ParityPublicInputs(
+    AggregationObject.makeFake(),
+    mapSha256HashFromNoir(parityPublicInputs.sha_root),
+    mapFieldFromNoir(parityPublicInputs.converted_root),
   );
 }
 
@@ -1910,6 +1947,28 @@ export function mapStateDiffHintsToNoir(hints: StateDiffHints): StateDiffHintsNo
     note_hash_subtree_sibling_path: mapTuple(hints.noteHashSubtreeSiblingPath, mapFieldToNoir),
     nullifier_subtree_sibling_path: mapTuple(hints.nullifierSubtreeSiblingPath, mapFieldToNoir),
     public_data_sibling_path: mapTuple(hints.publicDataSiblingPath, mapFieldToNoir),
+  };
+}
+
+/**
+ * Maps base parity inputs to noir.
+ * @param inputs - The circuits.js base parity inputs.
+ * @returns The noir base parity inputs.
+ */
+export function mapBaseParityInputsToNoir(inputs: BaseParityInputs): BaseParityInputsNoir {
+  return {
+    msgs: mapTuple(inputs.msgs, mapFieldToNoir),
+  };
+}
+
+/**
+ * Maps root parity inputs to noir.
+ * @param inputs - The circuits.js root parity inputs.
+ * @returns The noir root parity inputs.
+ */
+export function mapRootParityInputsToNoir(inputs: RootParityInputs): RootParityInputsNoir {
+  return {
+    children: mapTuple(inputs.children, mapRootParityInputToNoir),
   };
 }
 

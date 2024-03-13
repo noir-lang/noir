@@ -6,3 +6,4 @@ compiler_version = ">=0.18.0"
 
 [dependencies]
 types = { path = "../types" }
+parity_lib = { path = "../parity-lib" }

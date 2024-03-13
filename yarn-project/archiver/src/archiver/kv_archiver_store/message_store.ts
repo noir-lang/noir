@@ -73,7 +73,7 @@ export class MessageStore {
           throw new Error(`Message index ${message.index} out of subtree range`);
         }
         const key = `${message.blockNumber}-${message.index}`;
-        void this.#newMessages.setIfNotExists(key, message.leaf);
+        void this.#newMessages.setIfNotExists(key, message.leaf.toBuffer());
       }
 
       return true;
@@ -208,8 +208,8 @@ export class MessageStore {
     return entryKeys;
   }
 
-  getNewL1ToL2Messages(blockNumber: bigint): Buffer[] {
-    const messages: Buffer[] = [];
+  getNewL1ToL2Messages(blockNumber: bigint): Fr[] {
+    const messages: Fr[] = [];
     let undefinedMessageFound = false;
     for (let messageIndex = 0; messageIndex < this.#l1ToL2MessagesSubtreeSize; messageIndex++) {
       // This is inefficient but probably fine for now.
@@ -219,7 +219,7 @@ export class MessageStore {
         if (undefinedMessageFound) {
           throw new Error(`L1 to L2 message gap found in block ${blockNumber}`);
         }
-        messages.push(message);
+        messages.push(Fr.fromBuffer(message));
       } else {
         undefinedMessageFound = true;
         // We continue iterating over messages here to verify that there are no more messages after the undefined one.

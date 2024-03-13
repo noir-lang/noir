@@ -110,6 +110,7 @@ export type Bufferable =
   | boolean
   | Buffer
   | number
+  | bigint
   | string
   | {
       /**
@@ -149,6 +150,12 @@ export function serializeToBufferArray(...objs: Bufferable[]): Buffer[] {
       ret.push(obj);
     } else if (typeof obj === 'boolean') {
       ret.push(boolToBuffer(obj));
+    } else if (typeof obj === 'bigint') {
+      // Throw if bigint does not fit into 32 bytes
+      if (obj > BigInt('0xffffffffffffffffffffffffffffffff')) {
+        throw new Error(`BigInt ${obj} does not fit into 32 bytes`);
+      }
+      ret.push(serializeBigInt(obj));
     } else if (typeof obj === 'number') {
       // Note: barretenberg assumes everything is big-endian
       ret.push(numToUInt32BE(obj)); // TODO: Are we always passing numbers as UInt32?

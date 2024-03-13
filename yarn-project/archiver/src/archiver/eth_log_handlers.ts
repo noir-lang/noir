@@ -19,7 +19,7 @@ export function processLeafInsertedLogs(
   const leaves: NewInboxLeaf[] = [];
   for (const log of logs) {
     const { blockNumber, index, value } = log.args;
-    leaves.push(new NewInboxLeaf(blockNumber, index, Buffer.from(hexToBytes(value))));
+    leaves.push(new NewInboxLeaf(blockNumber, index, Fr.fromString(value)));
   }
   return leaves;
 }

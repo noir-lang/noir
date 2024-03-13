@@ -120,7 +120,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         });
       });
       it('returns the L1 block number that most recently added messages from new inbox', async () => {
-        await store.addNewL1ToL2Messages([new NewInboxLeaf(0n, 0n, Buffer.alloc(32))], 1n);
+        await store.addNewL1ToL2Messages([new NewInboxLeaf(0n, 0n, Fr.ZERO)], 1n);
         await expect(store.getL1BlockNumber()).resolves.toEqual({
           addedBlock: 0n,
           addedMessages: 0n,
@@ -228,7 +228,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       const l1ToL2MessageSubtreeSize = 2 ** L1_TO_L2_MSG_SUBTREE_HEIGHT;
 
       const generateBlockMessages = (blockNumber: bigint, numMessages: number) =>
-        Array.from({ length: numMessages }, (_, i) => new NewInboxLeaf(blockNumber, BigInt(i), randomBytes(32)));
+        Array.from({ length: numMessages }, (_, i) => new NewInboxLeaf(blockNumber, BigInt(i), Fr.random()));
 
       it('returns messages in correct order', async () => {
         const msgs = generateBlockMessages(l2BlockNumber, l1ToL2MessageSubtreeSize);
@@ -244,7 +244,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         const msgs = generateBlockMessages(l2BlockNumber, l1ToL2MessageSubtreeSize - 1);
         // We replace a message with index 4 with a message with index at the end of the tree
         // --> with that there will be a gap and it will be impossible to sequence the messages
-        msgs[4] = new NewInboxLeaf(l2BlockNumber, BigInt(l1ToL2MessageSubtreeSize - 1), randomBytes(32));
+        msgs[4] = new NewInboxLeaf(l2BlockNumber, BigInt(l1ToL2MessageSubtreeSize - 1), Fr.random());
 
         await store.addNewL1ToL2Messages(msgs, 100n);
         await expect(async () => {

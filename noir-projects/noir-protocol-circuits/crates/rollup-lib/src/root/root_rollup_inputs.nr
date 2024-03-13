@@ -2,7 +2,9 @@ use crate::{
     abis::{previous_rollup_data::PreviousRollupData, constant_rollup_data::ConstantRollupData},
     components, root::{compute_messages_hash, root_rollup_public_inputs::RootRollupPublicInputs}
 };
-use dep::types::{
+use dep::{
+    parity_lib::RootParityInput,
+    types::{
     abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, nullifier_leaf_preimage::NullifierLeafPreimage},
     constants::{
     NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, L1_TO_L2_MSG_SUBTREE_HEIGHT,
@@ -11,11 +13,14 @@ use dep::types::{
     header::Header, content_commitment::ContentCommitment,
     merkle_tree::{append_only_tree, calculate_subtree_root, calculate_empty_tree_root},
     state_reference::StateReference
+}
 };
 
 struct RootRollupInputs {
     // All below are shared between the base and merge rollups
     previous_rollup_data : [PreviousRollupData; 2],
+
+    l1_to_l2_roots: RootParityInput,
 
     // inputs required to process l1 to l2 messages
     new_l1_to_l2_messages : [Field; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP],
@@ -44,6 +49,7 @@ impl RootRollupInputs {
         let l1_to_l2_subtree_root = calculate_subtree_root(self.new_l1_to_l2_messages);
 
         // Insert subtree into the l1 to l2 data tree
+        // TODO(#4492): insert the root from l1_to_l2_roots here instead of the one from old inbox
         let empty_l1_to_l2_subtree_root = calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_HEIGHT);
         let new_l1_to_l2_message_tree_snapshot = append_only_tree::insert_subtree_to_snapshot_tree(
             self.start_l1_to_l2_message_tree_snapshot,
@@ -57,11 +63,10 @@ impl RootRollupInputs {
 
         let state = StateReference { l1_to_l2_message_tree: new_l1_to_l2_message_tree_snapshot, partial: right.end };
 
-        // TODO: in_hash: #4633 and out_hash: #4561
         let content_commitment = ContentCommitment {
             tx_tree_height: right.height_in_block_tree + 1,
             txs_effects_hash: components::compute_txs_effects_hash(self.previous_rollup_data),
-            in_hash: [0, 0],
+            in_hash: self.l1_to_l2_roots.public_inputs.sha_root,
             out_hash: components::compute_out_hash(self.previous_rollup_data)
         };
 

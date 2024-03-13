@@ -12,6 +12,7 @@ import {
   AggregationObject,
   AppendOnlyTreeSnapshot,
   BaseOrMergeRollupPublicInputs,
+  BaseParityInputs,
   BaseRollupInputs,
   CallContext,
   CallRequest,
@@ -71,13 +72,16 @@ import {
   NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
   NULLIFIER_TREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  NUM_BASE_PARITY_PER_ROOT_PARITY,
   NUM_FIELDS_PER_SHA256,
+  NUM_MSGS_PER_BASE_PARITY,
   NoteHashReadRequestMembershipWitness,
   NullifierKeyValidationRequest,
   NullifierKeyValidationRequestContext,
   NullifierLeafPreimage,
   PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
+  ParityPublicInputs,
   PartialStateReference,
   Point,
   PreviousRollupData,
@@ -108,6 +112,8 @@ import {
   ReadRequest,
   ReadRequestContext,
   RollupTypes,
+  RootParityInput,
+  RootParityInputs,
   RootRollupInputs,
   RootRollupPublicInputs,
   SideEffect,
@@ -1026,12 +1032,33 @@ export function makePreviousRollupData(
 export function makeRootRollupInputs(seed = 0, globalVariables?: GlobalVariables): RootRollupInputs {
   return new RootRollupInputs(
     [makePreviousRollupData(seed, globalVariables), makePreviousRollupData(seed + 0x1000, globalVariables)],
+    makeRootParityInput(seed + 0x2000),
     makeTuple(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, fr, 0x2100),
     makeTuple(L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH, fr, 0x2100),
     makeAppendOnlyTreeSnapshot(seed + 0x2200),
     makeAppendOnlyTreeSnapshot(seed + 0x2200),
     makeTuple(ARCHIVE_HEIGHT, fr, 0x2400),
   );
+}
+
+export function makeRootParityInput(seed = 0): RootParityInput {
+  return new RootParityInput(makeProof(seed), makeParityPublicInputs(seed + 0x100));
+}
+
+export function makeParityPublicInputs(seed = 0): ParityPublicInputs {
+  return new ParityPublicInputs(
+    makeAggregationObject(seed),
+    toBufferBE(BigInt(seed + 0x200), 32),
+    new Fr(BigInt(seed + 0x300)),
+  );
+}
+
+export function makeBaseParityInputs(seed = 0): BaseParityInputs {
+  return new BaseParityInputs(makeTuple(NUM_MSGS_PER_BASE_PARITY, fr, seed + 0x3000));
+}
+
+export function makeRootParityInputs(seed = 0): RootParityInputs {
+  return new RootParityInputs(makeTuple(NUM_BASE_PARITY_PER_ROOT_PARITY, makeRootParityInput, seed + 0x4000));
 }
 
 /**
