@@ -16,7 +16,7 @@ use crate::{
     },
     hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType},
     node_interner::{FuncId, NodeInterner, TraitId},
-    Generics, Path, Shared, TraitItem, Type, TypeVariable, TypeVariableKind,
+    Generics, ItemVisibility, Path, Shared, TraitItem, Type, TypeVariable, TypeVariableKind,
 };
 
 use super::{
@@ -301,7 +301,14 @@ fn collect_trait_impl(
                 // be accessed with the `TypeName::method` syntax. We'll check later whether the
                 // object types in each method overlap or not. If they do, we issue an error.
                 // If not, that is specialization which is allowed.
-                if module.declare_function(method.name_ident().clone(), *method_id).is_err() {
+                if module
+                    .declare_function(
+                        method.name_ident().clone(),
+                        ItemVisibility::Public,
+                        *method_id,
+                    )
+                    .is_err()
+                {
                     module.remove_function(method.name_ident());
                 }
             }

@@ -1,4 +1,3 @@
-
 struct MyStruct {
     inner: Field
 }

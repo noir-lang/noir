@@ -76,12 +76,12 @@ pub mod macros_api {
         ) -> Result<SortedModule, (MacroError, FileId)>;
 
         // TODO(#4653): generalize this function
-        fn process_unresolved_traits_impls(
+        fn process_collected_defs(
             &self,
             _crate_id: &CrateId,
             _context: &mut HirContext,
-            _unresolved_traits_impls: &[UnresolvedTraitImpl],
-            _collected_functions: &mut Vec<UnresolvedFunctions>,
+            _collected_trait_impls: &[UnresolvedTraitImpl],
+            _collected_functions: &mut [UnresolvedFunctions],
         ) -> Result<(), (MacroError, FileId)>;
 
         /// Function to manipulate the AST after type checking has been completed.

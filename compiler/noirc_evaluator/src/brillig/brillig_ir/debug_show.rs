@@ -1,7 +1,7 @@
 //! This module contains functions for producing a higher level view disassembler of Brillig.
 
 use super::BrilligBinaryOp;
-use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
+use crate::brillig::brillig_ir::ReservedRegisters;
 use acvm::acir::brillig::{
     BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, MemoryAddress, Value,
     ValueOrArray,
@@ -83,23 +83,11 @@ impl DebugToString for BinaryIntOp {
 impl DebugToString for BrilligBinaryOp {
     fn debug_to_string(&self) -> String {
         match self {
-            BrilligBinaryOp::Field { op } => op.debug_to_string(),
-            BrilligBinaryOp::Integer { op, bit_size } => {
-                // rationale: if there's >= 64 bits, we should not bother with this detail
-                if *bit_size >= BRILLIG_MEMORY_ADDRESSING_BIT_SIZE {
-                    op.debug_to_string()
-                } else {
-                    format!("i{}::{}", bit_size, op.debug_to_string())
-                }
-            }
-            BrilligBinaryOp::Modulo { is_signed_integer, bit_size } => {
+            BrilligBinaryOp::Field(op) => op.debug_to_string(),
+            BrilligBinaryOp::Integer(op) => op.debug_to_string(),
+            BrilligBinaryOp::Modulo { is_signed_integer } => {
                 let op = if *is_signed_integer { "%" } else { "%%" };
-                // rationale: if there's >= 64 bits, we should not bother with this detail
-                if *bit_size >= BRILLIG_MEMORY_ADDRESSING_BIT_SIZE {
-                    op.into()
-                } else {
-                    format!("{op}:{bit_size}")
-                }
+                op.into()
             }
         }
     }
