@@ -25,8 +25,9 @@ std::pair<Circuit<FF>, Circuit<FF>> unique_witness_ext(CircuitSchema& circuit_in
                                                        const std::vector<std::string>& equal_at_the_same_time,
                                                        const std::vector<std::string>& not_equal_at_the_same_time)
 {
-    Circuit<FF> c1(circuit_info, s, "circuit1");
-    Circuit<FF> c2(circuit_info, s, "circuit2");
+    // TODO(alex): set optimizations to be true once they are confirmed
+    Circuit<FF> c1(circuit_info, s, "circuit1", false);
+    Circuit<FF> c2(circuit_info, s, "circuit2", false);
 
     for (const auto& term : equal) {
         c1[term] == c2[term];
@@ -95,8 +96,9 @@ std::pair<Circuit<FF>, Circuit<FF>> unique_witness(CircuitSchema& circuit_info,
                                                    Solver* s,
                                                    const std::vector<std::string>& equal)
 {
-    Circuit<FF> c1(circuit_info, s, "circuit1");
-    Circuit<FF> c2(circuit_info, s, "circuit2");
+    // TODO(alex): set optimizations to be true once they are confirmed
+    Circuit<FF> c1(circuit_info, s, "circuit1", false);
+    Circuit<FF> c2(circuit_info, s, "circuit2", false);
 
     for (const auto& term : equal) {
         c1[term] == c2[term];
@@ -106,6 +108,9 @@ std::pair<Circuit<FF>, Circuit<FF>> unique_witness(CircuitSchema& circuit_info,
     for (const auto& node : c1.symbolic_vars) {
         uint32_t i = node.first;
         if (std::find(equal.begin(), equal.end(), std::string(c1.variable_names[i])) != equal.end()) {
+            continue;
+        }
+        if (c1.optimized[i]) {
             continue;
         }
         Bool tmp = Bool(c1[i]) != Bool(c2[i]);

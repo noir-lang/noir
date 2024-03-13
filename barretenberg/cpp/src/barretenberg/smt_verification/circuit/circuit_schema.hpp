@@ -16,10 +16,10 @@ namespace smt_circuit_schema {
  *
  * @param modulus Modulus of the field we are working with
  * @param public_inps Public inputs to the current circuit
- * @param vars_of_interes Map wires indicies to their given names
+ * @param vars_of_interest Map wires indices to their given names
  * @param variables List of wires values in the current circuit
  * @param selectors List of selectors in the current circuit
- * @param wires List of wires indicies for each selector
+ * @param wires List of wires indices for each selector
  * @param real_variable_index Encoded copy constraints
  */
 struct CircuitSchema {

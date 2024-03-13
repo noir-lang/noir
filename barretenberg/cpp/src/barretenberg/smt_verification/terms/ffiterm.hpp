@@ -20,6 +20,7 @@ class FFITerm {
 
     static bool isFiniteField() { return false; };
     static bool isInteger() { return true; };
+    static bool isBitVector() { return false; };
 
     FFITerm()
         : solver(nullptr)
