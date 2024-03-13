@@ -1219,7 +1219,7 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
     fn type_aliases_in_main() {
         let src = r#"
             type Outer<N> = [u8; N];
-            fn main(arg: Outer<1>) {}
+            fn main(_arg: Outer<1>) {}
         "#;
         assert_eq!(get_program_errors(src).len(), 0);
     }
