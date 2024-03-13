@@ -151,7 +151,9 @@ impl Context {
             let value = match &dfg[rc] {
                 Instruction::IncrementRc { value } => *value,
                 Instruction::DecrementRc { value } => *value,
-                other => unreachable!("Expected IncrementRc or DecrementRc instruction, found {other:?}"),
+                other => {
+                    unreachable!("Expected IncrementRc or DecrementRc instruction, found {other:?}")
+                }
             };
 
             // This could be more efficient if we have to remove multiple instructions in a single block
