@@ -353,8 +353,8 @@ impl UnresolvedTypeExpression {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-/// Represents whether the function can be called outside its module/crate
-pub enum FunctionVisibility {
+/// Represents whether the definition can be referenced outside its module/crate
+pub enum ItemVisibility {
     Public,
     Private,
     PublicCrate,

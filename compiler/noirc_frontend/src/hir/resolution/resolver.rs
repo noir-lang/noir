@@ -37,11 +37,11 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
-    FunctionReturnType, FunctionVisibility, Generics, LValue, NoirStruct, NoirTypeAlias, Param,
-    Path, PathKind, Pattern, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind,
-    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    ArrayLiteral, Distinctness, ForRange, FunctionDefinition, FunctionReturnType, Generics,
+    ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern, Shared,
+    StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -234,10 +234,8 @@ impl<'a> Resolver<'a> {
         let def = FunctionDefinition {
             name: name.clone(),
             attributes: Attributes::empty(),
-            is_open: false,
-            is_internal: false,
             is_unconstrained: false,
-            visibility: FunctionVisibility::Public, // Trait functions are always public
+            visibility: ItemVisibility::Public, // Trait functions are always public
             generics: generics.clone(),
             parameters: vecmap(parameters, |(name, typ)| Param {
                 visibility: Visibility::Private,
@@ -973,9 +971,6 @@ impl<'a> Resolver<'a> {
 
         self.interner.push_definition_type(name_ident.id, typ.clone());
 
-        self.handle_function_type(&func_id);
-        self.handle_is_function_internal(&func_id);
-
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
             .filter_map(|generic| self.find_generic(&generic.0.contents))
@@ -1023,31 +1018,11 @@ impl<'a> Resolver<'a> {
     /// True if the `distinct` keyword is allowed on a function's return type
     fn distinct_allowed(&self, func: &NoirFunction) -> bool {
         if self.in_contract {
-            // "open" and "unconstrained" functions are compiled to brillig and thus duplication of
+            // "unconstrained" functions are compiled to brillig and thus duplication of
             // witness indices in their abis is not a concern.
-            !func.def.is_unconstrained && !func.def.is_open
+            !func.def.is_unconstrained
         } else {
             func.name() == MAIN_FUNCTION
-        }
-    }
-
-    fn handle_function_type(&mut self, function: &FuncId) {
-        let function_type = self.interner.function_modifiers(function).contract_function_type;
-
-        if !self.in_contract && function_type == Some(ContractFunctionType::Open) {
-            let span = self.interner.function_ident(function).span();
-            self.errors.push(ResolverError::ContractFunctionTypeInNormalFunction { span });
-            self.interner.function_modifiers_mut(function).contract_function_type = None;
-        }
-    }
-
-    fn handle_is_function_internal(&mut self, function: &FuncId) {
-        if !self.in_contract {
-            if self.interner.function_modifiers(function).is_internal == Some(true) {
-                let span = self.interner.function_ident(function).span();
-                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction { span });
-            }
-            self.interner.function_modifiers_mut(function).is_internal = None;
         }
     }
 
@@ -1323,7 +1298,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         func: FuncId,
         span: Span,
-        visibility: FunctionVisibility,
+        visibility: ItemVisibility,
     ) {
         let function_module = self.interner.function_module(func);
         let current_module = self.path_resolver.module_id();
@@ -1333,8 +1308,8 @@ impl<'a> Resolver<'a> {
         let current_module = current_module.local_id;
         let name = self.interner.function_name(&func).to_string();
         match visibility {
-            FunctionVisibility::Public => (),
-            FunctionVisibility::Private => {
+            ItemVisibility::Public => (),
+            ItemVisibility::Private => {
                 if !same_crate
                     || !self.module_descendent_of_target(
                         krate,
@@ -1345,7 +1320,7 @@ impl<'a> Resolver<'a> {
                     self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
                 }
             }
-            FunctionVisibility::PublicCrate => {
+            ItemVisibility::PublicCrate => {
                 if !same_crate {
                     self.errors.push(ResolverError::NonCrateFunctionCalled { span, name });
                 }
@@ -1464,9 +1439,7 @@ impl<'a> Resolver<'a> {
                                     self.interner.add_function_dependency(current_item, id);
                                 }
 
-                                if self.interner.function_visibility(id)
-                                    != FunctionVisibility::Public
-                                {
+                                if self.interner.function_visibility(id) != ItemVisibility::Public {
                                     let span = hir_ident.location.span;
                                     self.check_can_reference_function(
                                         id,

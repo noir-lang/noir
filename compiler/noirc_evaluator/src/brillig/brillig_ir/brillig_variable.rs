@@ -5,10 +5,22 @@ use serde::{Deserialize, Serialize};
 
 use crate::ssa::ir::types::Type;
 
+use super::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct SingleAddrVariable {
     pub(crate) address: MemoryAddress,
     pub(crate) bit_size: u32,
+}
+
+impl SingleAddrVariable {
+    pub(crate) fn new(address: MemoryAddress, bit_size: u32) -> Self {
+        SingleAddrVariable { address, bit_size }
+    }
+
+    pub(crate) fn new_usize(address: MemoryAddress) -> Self {
+        SingleAddrVariable { address, bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE }
+    }
 }
 
 /// The representation of a noir array in the Brillig IR
