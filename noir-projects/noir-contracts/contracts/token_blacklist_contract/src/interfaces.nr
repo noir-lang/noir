@@ -11,14 +11,14 @@ impl SlowMap {
         Self { address }
     }
 
-    pub fn initialize(self: Self, context: PublicContext) {
-        context.call_public_function_no_args(
+    pub fn initialize(self: Self, context: &mut PublicContext) {
+        let _ = context.call_public_function_no_args(
             self.address,
             FunctionSelector::from_signature("initialize()")
         );
     }
 
-    pub fn read_at_pub(self: Self, context: PublicContext, index: Field) -> Field {
+    pub fn read_at_pub(self: Self, context: &mut PublicContext, index: Field) -> Field {
         let _return_values = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("read_at_pub(Field)"),
@@ -37,7 +37,7 @@ impl SlowMap {
     }
 
     pub fn update_at_private(self: Self, context: &mut PrivateContext, index: Field, new_value: Field) {
-        context.call_private_function(
+        let _ = context.call_private_function(
             self.address,
             FunctionSelector::from_signature("update_at_private(Field,Field)"),
             [index, new_value]

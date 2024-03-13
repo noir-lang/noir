@@ -201,7 +201,7 @@ export abstract class TypedOracle {
     _targetContractAddress: AztecAddress,
     _functionSelector: FunctionSelector,
     _argsHash: Fr,
-    _sideffectCounter: number,
+    _sideEffectCounter: number,
     _isStaticCall: boolean,
     _isDelegateCall: boolean,
   ): Promise<PrivateCallStackItem> {
@@ -212,6 +212,7 @@ export abstract class TypedOracle {
     _targetContractAddress: AztecAddress,
     _functionSelector: FunctionSelector,
     _argsHash: Fr,
+    _sideEffectCounter: number,
     _isStaticCall: boolean,
     _isDelegateCall: boolean,
   ): Promise<Fr[]> {
@@ -222,7 +223,7 @@ export abstract class TypedOracle {
     _targetContractAddress: AztecAddress,
     _functionSelector: FunctionSelector,
     _argsHash: Fr,
-    _sideffectCounter: number,
+    _sideEffectCounter: number,
     _isStaticCall: boolean,
     _isDelegateCall: boolean,
   ): Promise<PublicCallRequest> {

@@ -425,6 +425,8 @@ export function makePublicCircuitPublicInputs(
     tupleGenerator(MAX_NEW_NOTE_HASHES_PER_CALL, makeNewSideEffect, seed + 0x700),
     tupleGenerator(MAX_NEW_NULLIFIERS_PER_CALL, makeNewSideEffectLinkedToNoteHash, seed + 0x800),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x900),
+    fr(seed + 0xa00),
+    fr(seed + 0xa01),
     tupleGenerator(2, fr, seed + 0x901),
     fr(seed + 0x902),
     makeHeader(seed + 0xa00, undefined),
@@ -518,7 +520,7 @@ export function makePublicCallRequest(seed = 1): PublicCallRequest {
     functionSelector: makeSelector(seed + 3),
     isStaticCall: false,
     isDelegateCall: false,
-    startSideEffectCounter: 0,
+    sideEffectCounter: 0,
   });
   return new PublicCallRequest(
     makeAztecAddress(seed),
@@ -868,6 +870,7 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     privateCallStackHashes: makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x600),
     publicCallStackHashes: makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x700),
     newL2ToL1Msgs: makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x800),
+    startSideEffectCounter: fr(seed + 0x849),
     endSideEffectCounter: fr(seed + 0x850),
     encryptedLogsHash: makeTuple(NUM_FIELDS_PER_SHA256, fr, seed + 0x900),
     unencryptedLogsHash: makeTuple(NUM_FIELDS_PER_SHA256, fr, seed + 0xa00),

@@ -1,5 +1,6 @@
 import {
   AztecAddress,
+  BatchCall,
   DebugLogger,
   ExtendedNote,
   Fr,
@@ -8,6 +9,7 @@ import {
   PrivateFeePaymentMethod,
   PublicFeePaymentMethod,
   TxHash,
+  Wallet,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { ContractArtifact, decodeFunctionSignature } from '@aztec/foundation/abi';
@@ -38,7 +40,9 @@ const BRIDGED_FPC_GAS = 500n;
 jest.setTimeout(100_000);
 
 describe('e2e_fees', () => {
+  let aliceWallet: Wallet;
   let aliceAddress: AztecAddress;
+  let bobAddress: AztecAddress;
   let sequencerAddress: AztecAddress;
   let gasTokenContract: GasTokenContract;
   let bananaCoin: BananaCoin;
@@ -66,8 +70,10 @@ describe('e2e_fees', () => {
       feeRecipient: accounts.at(-1)!.address,
     });
 
-    aliceAddress = accounts.at(0)!.address;
-    sequencerAddress = accounts.at(-1)!.address;
+    aliceWallet = wallets[0];
+    aliceAddress = accounts[0].address;
+    bobAddress = accounts[1].address;
+    sequencerAddress = accounts[2].address;
 
     gasBridgeTestHarness = await GasPortalTestingHarnessFactory.create({
       pxeService: pxe,
@@ -186,93 +192,245 @@ describe('e2e_fees', () => {
     // Can't do presently because all logs are "revertible" so we lose notes that get broadcasted during unshielding.
   });
 
-  it('mint banana privately, pay privately with banana via FPC', async () => {
-    const PrivateMintedBananasAmount = 100n;
-    const AppLogicMintedBananasAmount = 1000n;
-    const FeeAmount = 1n;
-    const RefundAmount = 2n;
-    const MaxFee = FeeAmount + RefundAmount;
-    const { wallets } = e2eContext;
+  describe('private fees payments', () => {
+    let InitialAlicePrivateBananas: bigint;
+    let InitialAlicePublicBananas: bigint;
+    let InitialAliceGas: bigint;
 
-    const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await bananaPrivateBalances(
-      aliceAddress,
-      bananaFPC.address,
-    );
-    const [initialAlicePublicBananas, initialFPCPublicBananas] = await bananaPublicBalances(
-      aliceAddress,
-      bananaFPC.address,
-    );
-    const [initialAliceGas, initialFPCGas, initialSequencerGas] = await gasBalances(
-      aliceAddress,
-      bananaFPC.address,
-      sequencerAddress,
-    );
+    let InitialFPCPrivateBananas: bigint;
+    let InitialFPCPublicBananas: bigint;
+    let InitialFPCGas: bigint;
 
-    await mintPrivate(PrivateMintedBananasAmount, aliceAddress);
+    let InitialSequencerGas: bigint;
 
-    await expectMapping(
-      bananaPrivateBalances,
-      [aliceAddress, bananaFPC.address, sequencerAddress],
-      [initialAlicePrivateBananas + PrivateMintedBananasAmount, initialFPCPrivateBananas, 0n],
-    );
-    await expectMapping(
-      bananaPublicBalances,
-      [aliceAddress, bananaFPC.address, sequencerAddress],
-      [initialAlicePublicBananas, initialFPCPublicBananas, 0n],
-    );
+    let MaxFee: bigint;
+    let FeeAmount: bigint;
+    let RefundAmount: bigint;
+    let RefundSecret: Fr;
 
-    /**
-     * PRIVATE SETUP
-     * check authwit
-     * reduce alice BC.private by MaxFee
-     * enqueue public call to increase FPC BC.public by MaxFee
-     * enqueue public call for fpc.pay_fee
-     *
-     * PUBLIC SETUP
-     * increase FPC BC.public by MaxFee
-     *
-     * PUBLIC APP LOGIC
-     * increase alice BC.public by MintedBananasAmount
-     * increase BC total supply by MintedBananasAmount
-     *
-     * PUBLIC TEARDOWN
-     * call gas.pay_fee
-     *   decrease FPC AZT by FeeAmount
-     *   increase sequencer AZT by FeeAmount
-     * call banana.transfer_public
-     *   decrease FPC BC.public by RefundAmount
-     *   increase alice BC.public by RefundAmount
-     *
-     */
-    await bananaCoin.methods
-      .mint_public(aliceAddress, AppLogicMintedBananasAmount)
-      .send({
-        fee: {
-          maxFee: MaxFee,
-          paymentMethod: new PrivateFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
-        },
-      })
-      .wait();
+    beforeAll(async () => {
+      // fund Alice
+      await mintPrivate(100n, aliceAddress);
+    });
 
-    await expectMapping(
-      bananaPrivateBalances,
-      [aliceAddress, bananaFPC.address, sequencerAddress],
-      [initialAlicePrivateBananas + PrivateMintedBananasAmount - MaxFee, initialFPCPrivateBananas, 0n],
-    );
-    await expectMapping(
-      bananaPublicBalances,
-      [aliceAddress, bananaFPC.address, sequencerAddress],
+    beforeEach(async () => {
+      FeeAmount = 1n;
+      RefundAmount = 2n;
+      MaxFee = FeeAmount + RefundAmount;
+      RefundSecret = Fr.random();
+
       [
-        initialAlicePublicBananas + AppLogicMintedBananasAmount + RefundAmount,
-        initialFPCPublicBananas + MaxFee - RefundAmount,
-        0n,
-      ],
-    );
-    await expectMapping(
-      gasBalances,
-      [aliceAddress, bananaFPC.address, sequencerAddress],
-      [initialAliceGas, initialFPCGas - FeeAmount, initialSequencerGas + FeeAmount],
-    );
+        [InitialAlicePrivateBananas, InitialFPCPrivateBananas],
+        [InitialAlicePublicBananas, InitialFPCPublicBananas],
+        [InitialAliceGas, InitialFPCGas, InitialSequencerGas],
+      ] = await Promise.all([
+        bananaPrivateBalances(aliceAddress, bananaFPC.address, sequencerAddress),
+        bananaPublicBalances(aliceAddress, bananaFPC.address, sequencerAddress),
+        gasBalances(aliceAddress, bananaFPC.address, sequencerAddress),
+      ]);
+    });
+
+    it('pays fees for tx that creates notes in private', async () => {
+      /**
+       * PRIVATE SETUP
+       * check authwit
+       * reduce alice BC.private by MaxFee
+       * enqueue public call to increase FPC BC.public by MaxFee
+       * enqueue public call for fpc.pay_fee_with_shielded_rebate
+       *
+       * PRIVATE APP LOGIC
+       * increase alice BC.private by newlyMintedBananas
+       *
+       * PUBLIC SETUP
+       * increase FPC BC.public by MaxFee
+       *
+       * PUBLIC APP LOGIC
+       * BC increase total supply
+       *
+       * PUBLIC TEARDOWN
+       * call gas.pay_fee
+       *   decrease FPC AZT by FeeAmount
+       *   increase sequencer AZT by FeeAmount
+       * call banana.shield
+       *   decrease FPC BC.public by RefundAmount
+       *   create transparent note with RefundAmount
+       */
+      const newlyMintedBananas = 10n;
+      const tx = await bananaCoin.methods
+        .privately_mint_private_note(newlyMintedBananas)
+        .send({
+          fee: {
+            maxFee: MaxFee,
+            paymentMethod: new PrivateFeePaymentMethod(
+              bananaCoin.address,
+              bananaFPC.address,
+              aliceWallet,
+              RefundSecret,
+            ),
+          },
+        })
+        .wait();
+
+      await expectMapping(
+        bananaPrivateBalances,
+        [aliceAddress, bananaFPC.address, sequencerAddress],
+        [InitialAlicePrivateBananas - MaxFee + newlyMintedBananas, InitialFPCPrivateBananas, 0n],
+      );
+      await expectMapping(
+        bananaPublicBalances,
+        [aliceAddress, bananaFPC.address, sequencerAddress],
+        [InitialAlicePublicBananas, InitialFPCPublicBananas + MaxFee - RefundAmount, 0n],
+      );
+      await expectMapping(
+        gasBalances,
+        [aliceAddress, bananaFPC.address, sequencerAddress],
+        [InitialAliceGas, InitialFPCGas - FeeAmount, InitialSequencerGas + FeeAmount],
+      );
+
+      await expect(
+        // this rejects if note can't be added
+        addPendingShieldNoteToPXE(0, RefundAmount, computeMessageSecretHash(RefundSecret), tx.txHash),
+      ).resolves.toBeUndefined();
+    });
+
+    it('pays fees for tx that creates notes in public', async () => {
+      /**
+       * PRIVATE SETUP
+       * check authwit
+       * reduce alice BC.private by MaxFee
+       * enqueue public call to increase FPC BC.public by MaxFee
+       * enqueue public call for fpc.pay_fee_with_shielded_rebate
+       *
+       * PRIVATE APP LOGIC
+       * N/A
+       *
+       * PUBLIC SETUP
+       * increase FPC BC.public by MaxFee
+       *
+       * PUBLIC APP LOGIC
+       * BC decrease Alice public balance by shieldedBananas
+       * BC create transparent note of shieldedBananas
+       *
+       * PUBLIC TEARDOWN
+       * call gas.pay_fee
+       *   decrease FPC AZT by FeeAmount
+       *   increase sequencer AZT by FeeAmount
+       * call banana.shield
+       *   decrease FPC BC.public by RefundAmount
+       *   create transparent note with RefundAmount
+       */
+      const shieldedBananas = 1n;
+      const shieldSecret = Fr.random();
+      const shieldSecretHash = computeMessageSecretHash(shieldSecret);
+      const tx = await bananaCoin.methods
+        .shield(aliceAddress, shieldedBananas, shieldSecretHash, 0n)
+        .send({
+          fee: {
+            maxFee: MaxFee,
+            paymentMethod: new PrivateFeePaymentMethod(
+              bananaCoin.address,
+              bananaFPC.address,
+              aliceWallet,
+              RefundSecret,
+            ),
+          },
+        })
+        .wait();
+
+      await expectMapping(
+        bananaPrivateBalances,
+        [aliceAddress, bananaFPC.address, sequencerAddress],
+        [InitialAlicePrivateBananas - MaxFee, InitialFPCPrivateBananas, 0n],
+      );
+      await expectMapping(
+        bananaPublicBalances,
+        [aliceAddress, bananaFPC.address, sequencerAddress],
+        [InitialAlicePublicBananas - shieldedBananas, InitialFPCPublicBananas + MaxFee - RefundAmount, 0n],
+      );
+      await expectMapping(
+        gasBalances,
+        [aliceAddress, bananaFPC.address, sequencerAddress],
+        [InitialAliceGas, InitialFPCGas - FeeAmount, InitialSequencerGas + FeeAmount],
+      );
+
+      await expect(addPendingShieldNoteToPXE(0, shieldedBananas, shieldSecretHash, tx.txHash)).resolves.toBeUndefined();
+
+      await expect(
+        addPendingShieldNoteToPXE(0, RefundAmount, computeMessageSecretHash(RefundSecret), tx.txHash),
+      ).resolves.toBeUndefined();
+    });
+
+    it('pays fees for tx that creates notes in both private and public', async () => {
+      const privateTransfer = 1n;
+      const shieldedBananas = 1n;
+      const shieldSecret = Fr.random();
+      const shieldSecretHash = computeMessageSecretHash(shieldSecret);
+
+      /**
+       * PRIVATE SETUP
+       * check authwit
+       * reduce alice BC.private by MaxFee
+       * enqueue public call to increase FPC BC.public by MaxFee
+       * enqueue public call for fpc.pay_fee_with_shielded_rebate
+       *
+       * PRIVATE APP LOGIC
+       * reduce Alice's private balance by privateTransfer
+       * create note for Bob with privateTransfer amount of private BC
+       *
+       * PUBLIC SETUP
+       * increase FPC BC.public by MaxFee
+       *
+       * PUBLIC APP LOGIC
+       * BC decrease Alice public balance by shieldedBananas
+       * BC create transparent note of shieldedBananas
+       *
+       * PUBLIC TEARDOWN
+       * call gas.pay_fee
+       *   decrease FPC AZT by FeeAmount
+       *   increase sequencer AZT by FeeAmount
+       * call banana.shield
+       *   decrease FPC BC.public by RefundAmount
+       *   create transparent note with RefundAmount
+       */
+      const tx = await new BatchCall(aliceWallet, [
+        bananaCoin.methods.transfer(aliceAddress, bobAddress, privateTransfer, 0n).request(),
+        bananaCoin.methods.shield(aliceAddress, shieldedBananas, shieldSecretHash, 0n).request(),
+      ])
+        .send({
+          fee: {
+            maxFee: MaxFee,
+            paymentMethod: new PrivateFeePaymentMethod(
+              bananaCoin.address,
+              bananaFPC.address,
+              aliceWallet,
+              RefundSecret,
+            ),
+          },
+        })
+        .wait();
+
+      await expectMapping(
+        bananaPrivateBalances,
+        [aliceAddress, bobAddress, bananaFPC.address, sequencerAddress],
+        [InitialAlicePrivateBananas - MaxFee - privateTransfer, privateTransfer, InitialFPCPrivateBananas, 0n],
+      );
+      await expectMapping(
+        bananaPublicBalances,
+        [aliceAddress, bananaFPC.address, sequencerAddress],
+        [InitialAlicePublicBananas - shieldedBananas, InitialFPCPublicBananas + MaxFee - RefundAmount, 0n],
+      );
+      await expectMapping(
+        gasBalances,
+        [aliceAddress, bananaFPC.address, sequencerAddress],
+        [InitialAliceGas, InitialFPCGas - FeeAmount, InitialSequencerGas + FeeAmount],
+      );
+
+      await expect(addPendingShieldNoteToPXE(0, shieldedBananas, shieldSecretHash, tx.txHash)).resolves.toBeUndefined();
+
+      await expect(
+        addPendingShieldNoteToPXE(0, RefundAmount, computeMessageSecretHash(RefundSecret), tx.txHash),
+      ).resolves.toBeUndefined();
+    });
   });
 
   function logFunctionSignatures(artifact: ContractArtifact, logger: DebugLogger) {

@@ -41,7 +41,7 @@ export class CallContext {
     /**
      * The start side effect counter for this call context.
      */
-    public startSideEffectCounter: number,
+    public sideEffectCounter: number,
   ) {}
 
   /**
@@ -82,7 +82,7 @@ export class CallContext {
       fields.functionSelector,
       fields.isDelegateCall,
       fields.isStaticCall,
-      fields.startSideEffectCounter,
+      fields.sideEffectCounter,
     ] as const;
   }
 
@@ -143,7 +143,7 @@ export class CallContext {
       callContext.functionSelector.equals(this.functionSelector) &&
       callContext.isDelegateCall === this.isDelegateCall &&
       callContext.isStaticCall === this.isStaticCall &&
-      callContext.startSideEffectCounter === this.startSideEffectCounter
+      callContext.sideEffectCounter === this.sideEffectCounter
     );
   }
 }

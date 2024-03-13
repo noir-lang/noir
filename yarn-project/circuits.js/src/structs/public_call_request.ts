@@ -120,7 +120,7 @@ export class PublicCallRequest {
       item.hash(),
       this.parentCallContext.storageContractAddress,
       callerContext,
-      new Fr(this.callContext.startSideEffectCounter),
+      new Fr(this.callContext.sideEffectCounter),
       Fr.ZERO,
     );
   }

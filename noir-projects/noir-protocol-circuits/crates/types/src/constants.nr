@@ -163,18 +163,18 @@ global L2_TO_L1_MESSAGE_LENGTH: u64 = 2;
 global NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH = 4;
 global NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH = 5;
 global PARTIAL_STATE_REFERENCE_LENGTH: u64 = 6;
-global PRIVATE_CALL_STACK_ITEM_LENGTH: u64 = 214;
+global PRIVATE_CALL_STACK_ITEM_LENGTH: u64 = 215;
 // Change this ONLY if you have changed the PrivateCircuitPublicInputs structure.
 // In other words, if the structure/size of the public inputs of a function call changes then we should change this
 // constant as well PRIVATE_CALL_STACK_ITEM_LENGTH
-global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 209;
+global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 210;
 // Change this ONLY if you have changed the PublicCircuitPublicInputs structure.
-global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 200;
+global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 202;
 global STATE_REFERENCE_LENGTH: u64 = 8; // 2 for snap + 8 for partial
 global TX_CONTEXT_DATA_LENGTH: u64 = 4;
 global TX_REQUEST_LENGTH: u64 = 10;
 
-global ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH: Field = 13; // 2 + FUNCTION_DATA_LENGTH + CALL_CONTEXT_LENGTH 
+global ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH: Field = 13; // 2 + FUNCTION_DATA_LENGTH + CALL_CONTEXT_LENGTH
 global GET_NOTES_ORACLE_RETURN_LENGTH: u64 = 674;
 global NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP: Field = 2048;
 global NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP: Field = 2048;

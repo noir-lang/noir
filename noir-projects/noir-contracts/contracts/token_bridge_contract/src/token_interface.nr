@@ -11,7 +11,7 @@ impl Token {
         Self { address }
     }
 
-    pub fn mint_public(self: Self, context: PublicContext, to: AztecAddress, amount: Field) {
+    pub fn mint_public(self: Self, context: &mut PublicContext, to: AztecAddress, amount: Field) {
         let _return_values = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("mint_public((Field),Field)"),
@@ -22,7 +22,7 @@ impl Token {
     // docs:start:public_burn_interface
     pub fn burn_public(
         self: Self,
-        context: PublicContext,
+        context: &mut PublicContext,
         from: AztecAddress,
         amount: Field,
         nonce: Field
@@ -35,7 +35,7 @@ impl Token {
     }
     // docs:end:public_burn_interface
 
-    pub fn mint_private(self: Self, context: PublicContext, amount: Field, secret_hash: Field) {
+    pub fn mint_private(self: Self, context: &mut PublicContext, amount: Field, secret_hash: Field) {
         let _return_values = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("mint_private(Field,Field)"),

@@ -32,6 +32,8 @@ struct PrivateCircuitPublicInputs {
     private_call_stack_hashes: [Field; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
     public_call_stack_hashes: [Field; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
     new_l2_to_l1_msgs: [L2ToL1Message; MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
+
+    start_side_effect_counter : u32,
     end_side_effect_counter : u32,
 
     encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
@@ -65,6 +67,7 @@ impl Eq for PrivateCircuitPublicInputs {
         (self.private_call_stack_hashes == other.private_call_stack_hashes) &
         (self.public_call_stack_hashes == other.public_call_stack_hashes) &
         (self.new_l2_to_l1_msgs == other.new_l2_to_l1_msgs) &
+        (self.start_side_effect_counter == other.start_side_effect_counter) &
         (self.end_side_effect_counter == other.end_side_effect_counter) &
         (self.encrypted_logs_hash == other.encrypted_logs_hash) &
         (self.unencrypted_logs_hash == other.unencrypted_logs_hash) &
@@ -105,6 +108,7 @@ impl Serialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicInp
         for i in 0..MAX_NEW_L2_TO_L1_MSGS_PER_CALL {
             fields.extend_from_array(self.new_l2_to_l1_msgs[i].serialize());
         }
+        fields.push(self.start_side_effect_counter as Field);
         fields.push(self.end_side_effect_counter as Field);
         fields.extend_from_array(self.encrypted_logs_hash);
         fields.extend_from_array(self.unencrypted_logs_hash);
@@ -137,6 +141,7 @@ impl Deserialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicI
             private_call_stack_hashes: reader.read_array([0; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL]),
             public_call_stack_hashes: reader.read_array([0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL]),
             new_l2_to_l1_msgs: reader.read_struct_array(L2ToL1Message::deserialize, [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL]),
+            start_side_effect_counter: reader.read() as u32,
             end_side_effect_counter: reader.read() as u32,
             encrypted_logs_hash: reader.read_array([0; NUM_FIELDS_PER_SHA256]),
             unencrypted_logs_hash: reader.read_array([0; NUM_FIELDS_PER_SHA256]),
@@ -172,6 +177,6 @@ fn empty_hash() {
     let hash = inputs.hash();
 
     // Value from private_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x2745ec62624afeb19b86af3d440db1f8c3432e1d17a074c75cb8f44999fd3fae;
+    let test_data_empty_hash = 0x2b5ba01a6b73b68b4f44196e2dea49afd4076333e2dee8eddc9186e080f18201;
     assert_eq(hash, test_data_empty_hash);
 }

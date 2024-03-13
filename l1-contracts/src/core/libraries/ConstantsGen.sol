@@ -114,9 +114,9 @@ library Constants {
   uint256 internal constant NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH = 4;
   uint256 internal constant NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH = 5;
   uint256 internal constant PARTIAL_STATE_REFERENCE_LENGTH = 6;
-  uint256 internal constant PRIVATE_CALL_STACK_ITEM_LENGTH = 214;
-  uint256 internal constant PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH = 209;
-  uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH = 200;
+  uint256 internal constant PRIVATE_CALL_STACK_ITEM_LENGTH = 215;
+  uint256 internal constant PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH = 210;
+  uint256 internal constant PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH = 202;
   uint256 internal constant STATE_REFERENCE_LENGTH = 8;
   uint256 internal constant TX_CONTEXT_DATA_LENGTH = 4;
   uint256 internal constant TX_REQUEST_LENGTH = 10;

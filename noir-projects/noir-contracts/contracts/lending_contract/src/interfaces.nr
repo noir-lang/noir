@@ -14,7 +14,7 @@ impl PriceFeed {
         Self { address }
     }
 
-    pub fn get_price(self: Self, context: PublicContext) -> U128 {
+    pub fn get_price(self: Self, context: &mut PublicContext) -> U128 {
         let return_values = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("get_price(Field)"),
@@ -36,21 +36,21 @@ impl Token {
 
     pub fn transfer_public(
         self: Self,
-        context: PublicContext,
+        context: &mut PublicContext,
         from: AztecAddress,
         to: AztecAddress,
         amount: Field,
         nonce: Field
     ) {
-        context.call_public_function(
+        let _ = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("transfer_public((Field),(Field),Field,Field)"),
             [from.to_field(), to.to_field(), amount, nonce]
         );
     }
 
-    pub fn mint_public(self: Self, context: PublicContext, to: AztecAddress, amount: Field) {
-        context.call_public_function(
+    pub fn mint_public(self: Self, context: &mut PublicContext, to: AztecAddress, amount: Field) {
+        let _ = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("mint_public((Field),Field)"),
             [to.to_field(), amount]
@@ -59,12 +59,12 @@ impl Token {
 
     pub fn burn_public(
         self: Self,
-        context: PublicContext,
+        context: &mut PublicContext,
         from: AztecAddress,
         amount: Field,
         nonce: Field
     ) {
-        context.call_public_function(
+        let _ = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("burn_public((Field),Field,Field)"),
             [from.to_field(), amount, nonce]
@@ -111,7 +111,7 @@ impl Lending {
         Self { address }
     }
 
-    pub fn update_accumulator(self: Self, context: PublicContext) -> Asset {
+    pub fn update_accumulator(self: Self, context: &mut PublicContext) -> Asset {
         let return_values = context.call_public_function_no_args(
             self.address,
             FunctionSelector::from_signature("update_accumulator()")

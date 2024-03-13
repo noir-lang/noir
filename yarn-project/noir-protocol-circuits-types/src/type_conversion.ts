@@ -424,7 +424,7 @@ export function mapCallContextFromNoir(callContext: CallContextNoir): CallContex
     mapFunctionSelectorFromNoir(callContext.function_selector),
     callContext.is_delegate_call,
     callContext.is_static_call,
-    mapNumberFromNoir(callContext.start_side_effect_counter),
+    mapNumberFromNoir(callContext.side_effect_counter),
   );
 }
 
@@ -441,7 +441,7 @@ export function mapCallContextToNoir(callContext: CallContext): CallContextNoir 
     function_selector: mapFunctionSelectorToNoir(callContext.functionSelector),
     is_delegate_call: callContext.isDelegateCall,
     is_static_call: callContext.isStaticCall,
-    start_side_effect_counter: mapNumberToNoir(callContext.startSideEffectCounter),
+    side_effect_counter: mapNumberToNoir(callContext.sideEffectCounter),
   };
 }
 
@@ -538,7 +538,7 @@ export function mapSideEffectLinkedToNoir(
 /**
  * Maps a noir side effect to aSideEffect.
  * @param sideEffect - The noir side effect.
- * @returns The TS sideeffect.
+ * @returns The TS side effect.
  */
 export function mapSideEffectLinkedFromNoir(
   sideEffectLinked: SideEffectLinkedToNoteHashNoir,
@@ -690,6 +690,7 @@ export function mapPrivateCircuitPublicInputsToNoir(
     private_call_stack_hashes: mapTuple(privateCircuitPublicInputs.privateCallStackHashes, mapFieldToNoir),
     public_call_stack_hashes: mapTuple(privateCircuitPublicInputs.publicCallStackHashes, mapFieldToNoir),
     new_l2_to_l1_msgs: mapTuple(privateCircuitPublicInputs.newL2ToL1Msgs, mapL2ToL1MessageToNoir),
+    start_side_effect_counter: mapFieldToNoir(privateCircuitPublicInputs.startSideEffectCounter),
     end_side_effect_counter: mapFieldToNoir(privateCircuitPublicInputs.endSideEffectCounter),
     encrypted_logs_hash: mapTuple(privateCircuitPublicInputs.encryptedLogsHash, mapFieldToNoir),
     unencrypted_logs_hash: mapTuple(privateCircuitPublicInputs.unencryptedLogsHash, mapFieldToNoir),
@@ -1521,6 +1522,8 @@ export function mapPublicCircuitPublicInputsToNoir(
     new_note_hashes: mapTuple(publicInputs.newNoteHashes, mapSideEffectToNoir),
     new_nullifiers: mapTuple(publicInputs.newNullifiers, mapSideEffectLinkedToNoir),
     new_l2_to_l1_msgs: mapTuple(publicInputs.newL2ToL1Msgs, mapL2ToL1MessageToNoir),
+    start_side_effect_counter: mapFieldToNoir(publicInputs.startSideEffectCounter),
+    end_side_effect_counter: mapFieldToNoir(publicInputs.endSideEffectCounter),
     unencrypted_logs_hash: mapTuple(publicInputs.unencryptedLogsHash, mapFieldToNoir),
     unencrypted_log_preimages_length: mapFieldToNoir(publicInputs.unencryptedLogPreimagesLength),
     historical_header: mapHeaderToNoir(publicInputs.historicalHeader),

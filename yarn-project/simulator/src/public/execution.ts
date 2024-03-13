@@ -26,6 +26,10 @@ export interface PublicExecutionResult {
   newNoteHashes: SideEffect[];
   /** The new l2 to l1 messages generated in this call. */
   newL2ToL1Messages: L2ToL1Message[];
+  /** The side effect counter at the start of the function call. */
+  startSideEffectCounter: Fr;
+  /** The side effect counter after executing this function call */
+  endSideEffectCounter: Fr;
   /** The new nullifiers to be inserted into the nullifier tree. */
   newNullifiers: SideEffectLinkedToNoteHash[];
   /** The nullifier read requests emitted in this call. */

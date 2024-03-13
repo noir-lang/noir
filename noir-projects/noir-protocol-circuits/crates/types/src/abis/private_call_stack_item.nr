@@ -26,7 +26,7 @@ impl Eq for PrivateCallStackItem {
 
 impl Serialize<PRIVATE_CALL_STACK_ITEM_LENGTH> for PrivateCallStackItem {
     fn serialize(self) -> [Field; PRIVATE_CALL_STACK_ITEM_LENGTH] {
-        let mut fields: BoundedVec<Field, PRIVATE_CALL_STACK_ITEM_LENGTH> = BoundedVec::new(); 
+        let mut fields: BoundedVec<Field, PRIVATE_CALL_STACK_ITEM_LENGTH> = BoundedVec::new();
 
         fields.push(self.contract_address.to_field());
         fields.extend_from_array(self.function_data.serialize());
@@ -75,6 +75,6 @@ fn empty_hash() {
     let hash = item.hash();
 
     // Value from private_call_stack_item.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x1c3b67cab2bc3dc2106cfeddd8ea68b8d445849f20ed3b9286ad684542aae25d;
+    let test_data_empty_hash = 0x19196a5f02621a64ce289fb09fada7fd650a6874cb63e7d10c0d9a9bf5a366f5;
     assert_eq(hash, test_data_empty_hash);
 }

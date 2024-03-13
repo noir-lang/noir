@@ -114,7 +114,7 @@ export class PrivateCallStackItem {
       this.hash(),
       parentCallContext.storageContractAddress,
       callerContext,
-      new Fr(this.publicInputs.callContext.startSideEffectCounter),
+      new Fr(this.publicInputs.callContext.sideEffectCounter),
       this.publicInputs.endSideEffectCounter,
     );
   }

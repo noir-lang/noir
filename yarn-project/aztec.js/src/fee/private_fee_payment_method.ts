@@ -1,11 +1,12 @@
 import { FunctionCall } from '@aztec/circuit-types';
 import { FunctionData } from '@aztec/circuits.js';
+import { computeMessageSecretHash } from '@aztec/circuits.js/hash';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
+import { Wallet } from '../account/wallet.js';
 import { computeAuthWitMessageHash } from '../utils/authwit.js';
-import { AccountWalletWithPrivateKey } from '../wallet/account_wallet_with_private_key.js';
 import { FeePaymentMethod } from './fee_payment_method.js';
 
 /**
@@ -25,7 +26,13 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
     /**
      * An auth witness provider to authorize fee payments
      */
-    private wallet: AccountWalletWithPrivateKey,
+    private wallet: Wallet,
+
+    /**
+     * A secret to shield the rebate amount from the FPC.
+     * Use this to claim the shielded amount to private balance
+     */
+    private rebateSecret = Fr.random(),
   ) {}
 
   /**
@@ -52,7 +59,7 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
   async getFunctionCalls(maxFee: Fr): Promise<FunctionCall[]> {
     const nonce = Fr.random();
     const messageHash = computeAuthWitMessageHash(this.paymentContract, {
-      args: [this.wallet.getAddress(), this.paymentContract, maxFee, nonce],
+      args: [this.wallet.getCompleteAddress().address, this.paymentContract, maxFee, nonce],
       functionData: new FunctionData(
         FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)'),
         false,
@@ -63,16 +70,18 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
     });
     await this.wallet.createAuthWitness(messageHash);
 
+    const secretHashForRebate = computeMessageSecretHash(this.rebateSecret);
+
     return [
       {
         to: this.getPaymentContract(),
         functionData: new FunctionData(
-          FunctionSelector.fromSignature('fee_entrypoint_private(Field,(Field),Field)'),
+          FunctionSelector.fromSignature('fee_entrypoint_private(Field,(Field),Field,Field)'),
           false,
           true,
           false,
         ),
-        args: [maxFee, this.asset, nonce],
+        args: [maxFee, this.asset, secretHashForRebate, nonce],
       },
     ];
   }

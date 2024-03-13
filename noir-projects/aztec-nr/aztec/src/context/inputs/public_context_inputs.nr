@@ -9,5 +9,7 @@ struct PublicContextInputs {
     historical_header: Header,
 
     public_global_variables: PublicGlobalVariables,
+
+    start_side_effect_counter: u32,
 }
 // docs:end:public-context-inputs

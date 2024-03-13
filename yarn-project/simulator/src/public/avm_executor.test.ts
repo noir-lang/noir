@@ -23,7 +23,7 @@ describe('AVM WitGen and Proof Generation', () => {
     functionSelector: FunctionSelector.empty(),
     isDelegateCall: false,
     isStaticCall: false,
-    startSideEffectCounter: 0,
+    sideEffectCounter: 0,
   });
   const contractAddress = AztecAddress.random();
 

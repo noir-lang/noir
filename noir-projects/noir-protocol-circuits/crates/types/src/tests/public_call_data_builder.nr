@@ -42,7 +42,7 @@ impl PublicCallDataBuilder {
             function_selector: function_data.selector,
             is_delegate_call: false,
             is_static_call: false,
-            start_side_effect_counter: 0,  // needed?
+            side_effect_counter: 0,  // needed?
         };
 
         PublicCallDataBuilder {

@@ -34,7 +34,7 @@ import {
 import { CallRequest } from '../call_request.js';
 import { NullifierKeyValidationRequestContext } from '../nullifier_key_validation_request.js';
 import { ReadRequestContext } from '../read_request.js';
-import { SideEffect, SideEffectLinkedToNoteHash } from '../side_effects.js';
+import { SideEffect, SideEffectLinkedToNoteHash, sideEffectCmp } from '../side_effects.js';
 
 const log = createDebugOnlyLogger('aztec:combined_accumulated_data');
 
@@ -319,13 +319,13 @@ export class CombinedAccumulatedData {
     }
 
     const newNoteHashes = padArrayEnd(
-      [...nonRevertible.newNoteHashes, ...revertible.newNoteHashes].filter(x => !x.isEmpty()),
+      [...nonRevertible.newNoteHashes, ...revertible.newNoteHashes].filter(x => !x.isEmpty()).sort(sideEffectCmp),
       SideEffect.empty(),
       MAX_NEW_NOTE_HASHES_PER_TX,
     );
 
     const newNullifiers = padArrayEnd(
-      [...nonRevertible.newNullifiers, ...revertible.newNullifiers].filter(x => !x.isEmpty()),
+      [...nonRevertible.newNullifiers, ...revertible.newNullifiers].filter(x => !x.isEmpty()).sort(sideEffectCmp),
       SideEffectLinkedToNoteHash.empty(),
       MAX_NEW_NULLIFIERS_PER_TX,
     );

@@ -109,7 +109,7 @@ describe('ACIR public execution simulator', () => {
           functionSelector: FunctionSelector.empty(),
           isDelegateCall: false,
           isStaticCall: false,
-          startSideEffectCounter: 0,
+          sideEffectCounter: 0,
         });
 
         publicContracts.getBytecode.mockResolvedValue(Buffer.from(mintArtifact.bytecode, 'base64'));
@@ -182,7 +182,7 @@ describe('ACIR public execution simulator', () => {
           functionSelector: FunctionSelector.empty(),
           isDelegateCall: false,
           isStaticCall: false,
-          startSideEffectCounter: 0,
+          sideEffectCounter: 0,
         });
 
         recipientStorageSlot = computeSlotForMapping(new Fr(6n), recipient);
@@ -271,7 +271,7 @@ describe('ACIR public execution simulator', () => {
           functionSelector: FunctionSelector.empty(),
           isDelegateCall: false,
           isStaticCall: false,
-          startSideEffectCounter: 0,
+          sideEffectCounter: 0,
         });
 
         // eslint-disable-next-line require-await
@@ -350,7 +350,7 @@ describe('ACIR public execution simulator', () => {
         functionSelector: FunctionSelector.empty(),
         isDelegateCall: false,
         isStaticCall: false,
-        startSideEffectCounter: 0,
+        sideEffectCounter: 0,
       });
 
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(shieldArtifact.bytecode, 'base64'));
@@ -384,7 +384,7 @@ describe('ACIR public execution simulator', () => {
         functionSelector: FunctionSelector.empty(),
         isDelegateCall: false,
         isStaticCall: false,
-        startSideEffectCounter: 0,
+        sideEffectCounter: 0,
       });
 
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(createL2ToL1MessagePublicArtifact.bytecode, 'base64'));
@@ -414,7 +414,7 @@ describe('ACIR public execution simulator', () => {
         functionSelector: FunctionSelector.empty(),
         isDelegateCall: false,
         isStaticCall: false,
-        startSideEffectCounter: 0,
+        sideEffectCounter: 0,
       });
 
       publicContracts.getBytecode.mockResolvedValue(Buffer.from(createNullifierPublicArtifact.bytecode, 'base64'));
@@ -472,7 +472,7 @@ describe('ACIR public execution simulator', () => {
           functionSelector: FunctionSelector.empty(),
           isDelegateCall: false,
           isStaticCall: false,
-          startSideEffectCounter: 0,
+          sideEffectCounter: 0,
         });
 
       const computeGlobalVariables = () =>
@@ -671,7 +671,7 @@ describe('ACIR public execution simulator', () => {
         functionSelector: FunctionSelector.empty(),
         isDelegateCall: false,
         isStaticCall: false,
-        startSideEffectCounter: 0,
+        sideEffectCounter: 0,
       });
       assertGlobalVarsArtifact = TestContractArtifact.functions.find(f => f.name === 'assert_public_global_vars')!;
       functionData = FunctionData.fromAbi(assertGlobalVarsArtifact);
@@ -754,7 +754,7 @@ describe('ACIR public execution simulator', () => {
         functionSelector: FunctionSelector.empty(),
         isDelegateCall: false,
         isStaticCall: false,
-        startSideEffectCounter: 0,
+        sideEffectCounter: 0,
       });
       assertHeaderPublicArtifact = TestContractArtifact.functions.find(f => f.name === 'assert_header_public')!;
       functionData = FunctionData.fromAbi(assertHeaderPublicArtifact);

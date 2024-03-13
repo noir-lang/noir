@@ -289,9 +289,9 @@ describe('public_processor', () => {
         baseContractAddressSeed,
         baseContractAddressSeed,
       ].map(makePublicCallRequest);
-      callRequests[0].callContext.startSideEffectCounter = 2;
-      callRequests[1].callContext.startSideEffectCounter = 3;
-      callRequests[2].callContext.startSideEffectCounter = 4;
+      callRequests[0].callContext.sideEffectCounter = 2;
+      callRequests[1].callContext.sideEffectCounter = 3;
+      callRequests[2].callContext.sideEffectCounter = 4;
 
       const kernelOutput = makePrivateKernelTailCircuitPublicInputs(0x10);
       kernelOutput.end.unencryptedLogsHash = [Fr.ZERO, Fr.ZERO];
@@ -403,9 +403,9 @@ describe('public_processor', () => {
         baseContractAddressSeed,
         baseContractAddressSeed,
       ].map(makePublicCallRequest);
-      callRequests[0].callContext.startSideEffectCounter = 2;
-      callRequests[1].callContext.startSideEffectCounter = 3;
-      callRequests[2].callContext.startSideEffectCounter = 4;
+      callRequests[0].callContext.sideEffectCounter = 2;
+      callRequests[1].callContext.sideEffectCounter = 3;
+      callRequests[2].callContext.sideEffectCounter = 4;
 
       const kernelOutput = makePrivateKernelTailCircuitPublicInputs(0x10);
 
@@ -605,6 +605,8 @@ class PublicExecutionResultBuilder {
       newL2ToL1Messages: [],
       contractStorageReads: [],
       unencryptedLogs: new FunctionL2Logs([]),
+      startSideEffectCounter: Fr.ZERO,
+      endSideEffectCounter: Fr.ZERO,
       reverted: this._reverted,
       revertReason: this._revertReason,
     };

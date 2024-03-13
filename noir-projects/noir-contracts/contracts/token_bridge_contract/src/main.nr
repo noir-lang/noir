@@ -41,7 +41,7 @@ contract TokenBridge {
         context.consume_l1_to_l2_message(content_hash, secret, context.this_portal_address());
 
         // Mint tokens
-        Token::at(storage.token.read()).mint_public(context, to, amount);
+        Token::at(storage.token.read()).mint_public(&mut context, to, amount);
     }
     // docs:end:claim_public
 
@@ -60,7 +60,7 @@ contract TokenBridge {
         context.message_portal(context.this_portal_address(), content);
 
         // Burn tokens
-        Token::at(storage.token.read()).burn_public(context, context.msg_sender(), amount, nonce);
+        Token::at(storage.token.read()).burn_public(&mut context, context.msg_sender(), amount, nonce);
     }
     // docs:end:exit_to_l1_public
     // docs:start:claim_private
@@ -151,7 +151,7 @@ contract TokenBridge {
     #[aztec(public)]
     #[aztec(internal)]
     fn _call_mint_on_token(amount: Field, secret_hash: Field) {
-        Token::at(storage.token.read()).mint_private(context, amount, secret_hash);
+        Token::at(storage.token.read()).mint_private(&mut context, amount, secret_hash);
     }
     // docs:end:call_mint_on_token
 

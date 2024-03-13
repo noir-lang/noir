@@ -75,6 +75,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     protected readonly db: DBOracle,
     private readonly curve: Grumpkin,
     private node: AztecNode,
+    protected sideEffectCounter: number = 0,
     protected log = createDebugLogger('aztec:simulator:client_execution_context'),
   ) {
     super(contractAddress, authWitnesses, db, node, log);
@@ -102,6 +103,8 @@ export class ClientExecutionContext extends ViewDataOracle {
 
       this.txContext.chainId,
       this.txContext.version,
+
+      new Fr(this.sideEffectCounter),
 
       ...args,
     ];
@@ -366,6 +369,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       this.db,
       this.curve,
       this.node,
+      sideEffectCounter,
     );
 
     const childExecutionResult = await executePrivateFunction(

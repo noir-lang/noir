@@ -13,13 +13,13 @@ impl Token {
 
     pub fn transfer_public(
         self: Self,
-        context: PublicContext,
+        context: &mut PublicContext,
         from: AztecAddress,
         to: AztecAddress,
         amount: Field,
         nonce: Field
     ) {
-        context.call_public_function(
+        let _ = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("transfer_public((Field),(Field),Field,Field)"),
             [from.to_field(), to.to_field(), amount, nonce]
@@ -34,7 +34,7 @@ impl Token {
         amount: Field,
         nonce: Field
     ) {
-        context.call_private_function(
+        let _ = context.call_private_function(
             self.address,
             FunctionSelector::from_signature("unshield((Field),(Field),Field,Field)"),
             [from.to_field(), to.to_field(), amount, nonce]
@@ -51,7 +51,7 @@ impl TokenBridge {
         Self { address }
     }
 
-    pub fn token(self: Self, context: PublicContext) -> AztecAddress {
+    pub fn token(self: Self, context: &mut PublicContext) -> AztecAddress {
         let return_values = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("get_token()"),
@@ -62,13 +62,13 @@ impl TokenBridge {
 
     pub fn exit_to_l1_public(
         self: Self,
-        context: PublicContext,
+        context: &mut PublicContext,
         recipient: EthAddress,
         amount: Field,
         callerOnL1: EthAddress,
         nonce: Field
     ) {
-        context.call_public_function(
+        let _ = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("exit_to_l1_public((Field),Field,(Field),Field)"),
             [recipient.to_field(), amount, callerOnL1.to_field(), nonce]

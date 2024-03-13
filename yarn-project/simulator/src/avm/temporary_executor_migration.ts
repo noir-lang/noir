@@ -98,6 +98,9 @@ export function temporaryConvertAvmResults(
   const newNullifiers: SideEffectLinkedToNoteHash[] = [];
   const unencryptedLogs = FunctionL2Logs.empty();
   const newL2ToL1Messages = newWorldState.newL1Messages.map(() => L2ToL1Message.empty());
+  // TODO keep track of side effect counters
+  const startSideEffectCounter = Fr.ZERO;
+  const endSideEffectCounter = Fr.ZERO;
 
   return {
     execution,
@@ -105,6 +108,8 @@ export function temporaryConvertAvmResults(
     nullifierNonExistentReadRequests,
     newNoteHashes,
     newL2ToL1Messages,
+    startSideEffectCounter,
+    endSideEffectCounter,
     newNullifiers,
     contractStorageReads,
     contractStorageUpdateRequests,

@@ -85,6 +85,10 @@ export class AcirSimulator {
     const curve = new Grumpkin();
 
     const header = await this.db.getHeader();
+
+    // reserve the first side effect for the tx hash (inserted by the private kernel)
+    const startSideEffectCounter = 1;
+
     const callContext = new CallContext(
       msgSender,
       contractAddress,
@@ -92,9 +96,7 @@ export class AcirSimulator {
       FunctionSelector.fromNameAndParameters(entryPointArtifact.name, entryPointArtifact.parameters),
       false,
       false,
-      // TODO: when contract deployment is done in-app, we should only reserve one counter for the tx hash
-      // 2 counters are reserved for tx hash and contract deployment nullifier
-      1,
+      startSideEffectCounter,
     );
     const context = new ClientExecutionContext(
       contractAddress,
@@ -108,6 +110,7 @@ export class AcirSimulator {
       this.db,
       curve,
       this.node,
+      startSideEffectCounter,
     );
 
     try {

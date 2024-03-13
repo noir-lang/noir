@@ -288,7 +288,7 @@ impl TestPublicContextInterface {
 
     pub fn create_nullifier_public(
         self,
-        context: PublicContext,
+        context: &mut PublicContext,
         amount: Field,
         secret_hash: Field
     ) -> [Field; RETURN_VALUES_LENGTH] {
@@ -303,7 +303,11 @@ impl TestPublicContextInterface {
         )
     }
 
-    pub fn emit_unencrypted(self, context: PublicContext, value: Field) -> [Field; RETURN_VALUES_LENGTH] {
+    pub fn emit_unencrypted(
+        self,
+        context: &mut PublicContext,
+        value: Field
+    ) -> [Field; RETURN_VALUES_LENGTH] {
         let mut serialized_args = [0; 1];
         serialized_args[0] = value;
 
@@ -314,7 +318,7 @@ impl TestPublicContextInterface {
         )
     }
 
-    pub fn is_time_equal(self, context: PublicContext, time: Field) -> [Field; RETURN_VALUES_LENGTH] {
+    pub fn is_time_equal(self, context: &mut PublicContext, time: Field) -> [Field; RETURN_VALUES_LENGTH] {
         let mut serialized_args = [0; 1];
         serialized_args[0] = time;
 
@@ -327,7 +331,7 @@ impl TestPublicContextInterface {
 
     pub fn create_l2_to_l1_message_public(
         self,
-        context: PublicContext,
+        context: &mut PublicContext,
         amount: Field,
         secret_hash: Field
     ) -> [Field; RETURN_VALUES_LENGTH] {
@@ -344,7 +348,7 @@ impl TestPublicContextInterface {
 
     pub fn consume_mint_public_message(
         self,
-        context: PublicContext,
+        context: &mut PublicContext,
         to: ToConsumeMintPublicMessageStruct,
         amount: Field,
         canceller: CancellerConsumeMintPublicMessageStruct,

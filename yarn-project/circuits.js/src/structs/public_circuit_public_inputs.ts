@@ -84,6 +84,14 @@ export class PublicCircuitPublicInputs {
      */
     public newL2ToL1Msgs: Tuple<L2ToL1Message, typeof MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
     /**
+     * The side effect counter when this context was started.
+     */
+    public startSideEffectCounter: Fr,
+    /**
+     * The side effect counter when this context finished.
+     */
+    public endSideEffectCounter: Fr,
+    /**
      * Hash of the unencrypted logs emitted in this function call.
      * Note: Represented as an array of 2 fields in order to fit in all of the 256 bits of sha256 hash.
      */
@@ -134,6 +142,8 @@ export class PublicCircuitPublicInputs {
       makeTuple(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect.empty),
       makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message.empty),
+      Fr.ZERO,
+      Fr.ZERO,
       makeTuple(2, Fr.zero),
       Fr.ZERO,
       Header.empty(),
@@ -159,6 +169,8 @@ export class PublicCircuitPublicInputs {
       isSideEffectArrayEmpty(this.newNoteHashes) &&
       isSideEffectLinkedArrayEmpty(this.newNullifiers) &&
       isArrayEmpty(this.newL2ToL1Msgs, item => item.isEmpty()) &&
+      this.startSideEffectCounter.isZero() &&
+      this.endSideEffectCounter.isZero() &&
       isFrArrayEmpty(this.unencryptedLogsHash) &&
       this.unencryptedLogPreimagesLength.isZero() &&
       this.historicalHeader.isEmpty() &&
@@ -185,6 +197,8 @@ export class PublicCircuitPublicInputs {
       fields.newNoteHashes,
       fields.newNullifiers,
       fields.newL2ToL1Msgs,
+      fields.startSideEffectCounter,
+      fields.endSideEffectCounter,
       fields.unencryptedLogsHash,
       fields.unencryptedLogPreimagesLength,
       fields.historicalHeader,
@@ -230,6 +244,8 @@ export class PublicCircuitPublicInputs {
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
+      reader.readObject(Fr),
+      reader.readObject(Fr),
       reader.readArray(NUM_FIELDS_PER_SHA256, Fr),
       reader.readObject(Fr),
       reader.readObject(Header),
@@ -253,6 +269,8 @@ export class PublicCircuitPublicInputs {
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_CALL, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_CALL, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
+      reader.readField(),
+      reader.readField(),
       reader.readFieldArray(NUM_FIELDS_PER_SHA256),
       reader.readField(),
       Header.fromFields(reader),

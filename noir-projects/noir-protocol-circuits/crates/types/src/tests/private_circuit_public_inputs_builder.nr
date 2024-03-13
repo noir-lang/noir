@@ -67,7 +67,7 @@ impl PrivateCircuitPublicInputsBuilder {
             function_selector: function_data.selector,
             is_delegate_call: false,
             is_static_call: false,
-            start_side_effect_counter: 0
+            side_effect_counter: 0
         };
         public_inputs.call_context = call_context;
         public_inputs.args_hash = args_hash;
@@ -92,6 +92,7 @@ impl PrivateCircuitPublicInputsBuilder {
             private_call_stack_hashes: self.private_call_stack_hashes.storage,
             public_call_stack_hashes: self.public_call_stack_hashes.storage,
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
+            start_side_effect_counter: self.call_context.side_effect_counter,
             end_side_effect_counter: 10,
             encrypted_logs_hash: self.encrypted_logs_hash,
             unencrypted_logs_hash: self.unencrypted_logs_hash,

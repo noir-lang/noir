@@ -31,11 +31,11 @@ contract TokenBlacklist {
     // docs:end:interface
 
     struct Storage {
-        admin: PublicMutable<AztecAddress>, 
-        balances: BalancesMap<TokenNote>, 
+        admin: PublicMutable<AztecAddress>,
+        balances: BalancesMap<TokenNote>,
         total_supply: PublicMutable<U128>,
-        pending_shields: PrivateSet<TransparentNote>, 
-        public_balances: Map<AztecAddress, PublicMutable<U128>>, 
+        pending_shields: PrivateSet<TransparentNote>,
+        public_balances: Map<AztecAddress, PublicMutable<U128>>,
         slow_update: SharedImmutable<AztecAddress>,
     }
 
@@ -50,7 +50,7 @@ contract TokenBlacklist {
         storage.slow_update.initialize(slow_updates_contract);
         // docs:end:write_slow_update_public
         // docs:start:slowmap_initialize
-        SlowMap::at(slow_updates_contract).initialize(context);
+        SlowMap::at(slow_updates_contract).initialize(&mut context);
         // docs:end:slowmap_initialize
         // We cannot do the following atm
         // let roles = UserFlags { is_admin: true, is_minter: false, is_blacklisted: false }.get_value().to_field();
@@ -94,11 +94,11 @@ contract TokenBlacklist {
         let slow = SlowMap::at(storage.slow_update.read_public());
         // docs:end:get_public
         // docs:start:read_at_pub
-        let to_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(context, to.to_field())));
+        let to_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(&mut context, to.to_field())));
         // docs:end:read_at_pub
         assert(!to_roles.is_blacklisted, "Blacklisted: Recipient");
 
-        let caller_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(context, context.msg_sender().to_field())));
+        let caller_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(&mut context, context.msg_sender().to_field())));
         assert(caller_roles.is_minter, "caller is not minter");
 
         let amount = U128::from_integer(amount);
@@ -112,7 +112,7 @@ contract TokenBlacklist {
     #[aztec(public)]
     fn mint_private(amount: Field, secret_hash: Field) {
         let slow = SlowMap::at(storage.slow_update.read_public());
-        let caller_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(context, context.msg_sender().to_field())));
+        let caller_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(&mut context, context.msg_sender().to_field())));
         assert(caller_roles.is_minter, "caller is not minter");
 
         let pending_shields = storage.pending_shields;
@@ -126,7 +126,7 @@ contract TokenBlacklist {
     #[aztec(public)]
     fn shield(from: AztecAddress, amount: Field, secret_hash: Field, nonce: Field) {
         let slow = SlowMap::at(storage.slow_update.read_public());
-        let from_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(context, from.to_field())));
+        let from_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(&mut context, from.to_field())));
         assert(!from_roles.is_blacklisted, "Blacklisted: Sender");
 
         if (!from.eq(context.msg_sender())) {
@@ -149,9 +149,9 @@ contract TokenBlacklist {
     #[aztec(public)]
     fn transfer_public(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) {
         let slow = SlowMap::at(storage.slow_update.read_public());
-        let from_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(context, from.to_field())));
+        let from_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(&mut context, from.to_field())));
         assert(!from_roles.is_blacklisted, "Blacklisted: Sender");
-        let to_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(context, to.to_field())));
+        let to_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(&mut context, to.to_field())));
         assert(!to_roles.is_blacklisted, "Blacklisted: Recipient");
 
         if (!from.eq(context.msg_sender())) {
@@ -171,7 +171,7 @@ contract TokenBlacklist {
     #[aztec(public)]
     fn burn_public(from: AztecAddress, amount: Field, nonce: Field) {
         let slow = SlowMap::at(storage.slow_update.read_public());
-        let from_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(context, from.to_field())));
+        let from_roles = UserFlags::new(U128::from_integer(slow.read_at_pub(&mut context, from.to_field())));
         assert(!from_roles.is_blacklisted, "Blacklisted: Sender");
 
         if (!from.eq(context.msg_sender())) {
