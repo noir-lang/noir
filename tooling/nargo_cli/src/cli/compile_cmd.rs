@@ -103,12 +103,11 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
             matches!(event.kind, EventKind::Modify(_)) && event_affects_noir_file
         });
 
-        if !noir_files_modified {
-            continue;
+        if noir_files_modified {
+            write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
+            screen.flush().unwrap();
+            let _ = compile_workspace_full(workspace, compile_options);
         }
-        write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
-        screen.flush().unwrap();
-        let _ = compile_workspace_full(workspace, compile_options);
     }
 
     screen.flush().unwrap();
