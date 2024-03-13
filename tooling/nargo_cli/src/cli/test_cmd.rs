@@ -5,17 +5,18 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
-    insert_all_files_for_workspace_into_file_manager,
-    ops::{run_test, TestStatus},
-    package::Package,
-    parse_all, prepare_package,
+    insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
+    prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{
+    check_crate, file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
+};
 use noirc_frontend::{
     graph::CrateName,
     hir::{FunctionNameMatch, ParsedFiles},
 };
+use rayon::prelude::{IntoParallelIterator, ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{backends::Backend, cli::check_cmd::check_crate_and_report_errors, errors::CliError};
@@ -24,6 +25,7 @@ use super::NargoConfig;
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
+#[clap(visible_alias = "t")]
 pub(crate) struct TestCommand {
     /// If given, only tests with names containing this string will be run
     test_name: Option<String>,
@@ -82,15 +84,13 @@ pub(crate) fn run(
         None => FunctionNameMatch::Anything,
     };
 
-    let blackbox_solver = Bn254BlackBoxSolver::new();
-
     let test_reports: Vec<Vec<(String, TestStatus)>> = workspace
         .into_iter()
+        .par_bridge()
         .map(|package| {
-            run_tests(
+            run_tests::<Bn254BlackBoxSolver>(
                 &workspace_file_manager,
                 &parsed_files,
-                &blackbox_solver,
                 package,
                 pattern,
                 args.show_output,
@@ -116,24 +116,95 @@ pub(crate) fn run(
         };
     }
 
-    if test_report.iter().any(|(_, status)| matches!(status, TestStatus::Fail { .. })) {
+    if test_report.iter().any(|(_, status)| status.failed()) {
         Err(CliError::Generic(String::new()))
     } else {
         Ok(())
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn run_tests<S: BlackBoxFunctionSolver>(
+fn run_tests<S: BlackBoxFunctionSolver + Default>(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
-    blackbox_solver: &S,
     package: &Package,
     fn_name: FunctionNameMatch,
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
     compile_options: &CompileOptions,
 ) -> Result<Vec<(String, TestStatus)>, CliError> {
+    let test_functions =
+        get_tests_in_package(file_manager, parsed_files, package, fn_name, compile_options)?;
+
+    let count_all = test_functions.len();
+
+    let plural = if count_all == 1 { "" } else { "s" };
+    println!("[{}] Running {count_all} test function{plural}", package.name);
+
+    let test_report: Vec<(String, TestStatus)> = test_functions
+        .into_par_iter()
+        .map(|test_name| {
+            let status = run_test::<S>(
+                file_manager,
+                parsed_files,
+                package,
+                &test_name,
+                show_output,
+                foreign_call_resolver_url,
+                compile_options,
+            );
+
+            (test_name, status)
+        })
+        .collect();
+
+    display_test_report(file_manager, package, compile_options, &test_report)?;
+    Ok(test_report)
+}
+
+fn run_test<S: BlackBoxFunctionSolver + Default>(
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+    package: &Package,
+    fn_name: &str,
+    show_output: bool,
+    foreign_call_resolver_url: Option<&str>,
+    compile_options: &CompileOptions,
+) -> TestStatus {
+    // This is really hacky but we can't share `Context` or `S` across threads.
+    // We then need to construct a separate copy for each test.
+
+    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    check_crate(
+        &mut context,
+        crate_id,
+        compile_options.deny_warnings,
+        compile_options.disable_macros,
+    )
+    .expect("Any errors should have occurred when collecting test functions");
+
+    let test_functions = context
+        .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Exact(fn_name));
+    let (_, test_function) = test_functions.first().expect("Test function should exist");
+
+    let blackbox_solver = S::default();
+
+    nargo::ops::run_test(
+        &blackbox_solver,
+        &mut context,
+        test_function,
+        show_output,
+        foreign_call_resolver_url,
+        compile_options,
+    )
+}
+
+fn get_tests_in_package(
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+    package: &Package,
+    fn_name: FunctionNameMatch,
+    compile_options: &CompileOptions,
+) -> Result<Vec<String>, CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(
         &mut context,
@@ -143,29 +214,26 @@ fn run_tests<S: BlackBoxFunctionSolver>(
         compile_options.silence_warnings,
     )?;
 
-    let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, fn_name);
-    let count_all = test_functions.len();
+    Ok(context
+        .get_all_test_functions_in_crate_matching(&crate_id, fn_name)
+        .into_iter()
+        .map(|(test_name, _)| test_name)
+        .collect())
+}
 
-    let plural = if count_all == 1 { "" } else { "s" };
-    println!("[{}] Running {count_all} test function{plural}", package.name);
-
+fn display_test_report(
+    file_manager: &FileManager,
+    package: &Package,
+    compile_options: &CompileOptions,
+    test_report: &[(String, TestStatus)],
+) -> Result<(), CliError> {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
 
-    let mut test_report: Vec<(String, TestStatus)> = Vec::new();
-    for (test_name, test_function) in test_functions {
+    for (test_name, test_status) in test_report {
         write!(writer, "[{}] Testing {test_name}... ", package.name)
             .expect("Failed to write to stderr");
         writer.flush().expect("Failed to flush writer");
-
-        let test_status = run_test(
-            blackbox_solver,
-            &mut context,
-            test_function,
-            show_output,
-            foreign_call_resolver_url,
-            compile_options,
-        );
 
         match &test_status {
             TestStatus::Pass { .. } => {
@@ -181,7 +249,7 @@ fn run_tests<S: BlackBoxFunctionSolver>(
                 writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
-                        context.file_manager.as_file_map(),
+                        file_manager.as_file_map(),
                         &[diag.clone()],
                         compile_options.deny_warnings,
                         compile_options.silence_warnings,
@@ -190,23 +258,21 @@ fn run_tests<S: BlackBoxFunctionSolver>(
             }
             TestStatus::CompileError(err) => {
                 noirc_errors::reporter::report_all(
-                    context.file_manager.as_file_map(),
+                    file_manager.as_file_map(),
                     &[err.clone()],
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );
             }
         }
-
-        test_report.push((test_name, test_status));
-
         writer.reset().expect("Failed to reset writer");
     }
 
     write!(writer, "[{}] ", package.name).expect("Failed to write to stderr");
 
-    let count_failed =
-        test_report.iter().filter(|(_, status)| !matches!(status, TestStatus::Pass)).count();
+    let count_all = test_report.len();
+    let count_failed = test_report.iter().filter(|(_, status)| status.failed()).count();
+    let plural = if count_all == 1 { "" } else { "s" };
     if count_failed == 0 {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
         write!(writer, "{count_all} test{plural} passed").expect("Failed to write to stderr");
@@ -231,5 +297,5 @@ fn run_tests<S: BlackBoxFunctionSolver>(
         writer.reset().expect("Failed to reset writer");
     }
 
-    Ok(test_report)
+    Ok(())
 }

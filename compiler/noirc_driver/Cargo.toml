@@ -26,4 +26,3 @@ tracing.workspace = true
 thiserror.workspace = true
 
 aztec_macros = { path = "../../aztec_macros" }
-noirc_macros = { path = "../../noirc_macros" }

@@ -20,6 +20,7 @@ use crate::{backends::Backend, cli::execute_cmd::execute_program, errors::CliErr
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
+#[clap(visible_alias = "p")]
 pub(crate) struct ProveCommand {
     /// The name of the toml file which contains the inputs for the prover
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
