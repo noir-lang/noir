@@ -160,7 +160,13 @@ export class Field extends MemoryValue {
     return new Field(this.rep.mul(rhs.rep));
   }
 
+  // Euclidean division.
   public div(rhs: Field): Field {
+    return new Field(this.rep.ediv(rhs.rep));
+  }
+
+  // Field division.
+  public fdiv(rhs: Field): Field {
     return new Field(this.rep.div(rhs.rep));
   }
 

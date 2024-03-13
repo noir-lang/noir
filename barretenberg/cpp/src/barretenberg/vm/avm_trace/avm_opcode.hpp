@@ -22,6 +22,7 @@ enum class OpCode : uint8_t {
     SUB,
     MUL,
     DIV,
+    FDIV,
     // Compute - Comparators
     EQ,
     LT,

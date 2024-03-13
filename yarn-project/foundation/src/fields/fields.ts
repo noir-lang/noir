@@ -248,6 +248,15 @@ export class Fr extends BaseField {
     const bInv = modInverse(rhs.toBigInt());
     return this.mul(bInv);
   }
+
+  // Integer division.
+  ediv(rhs: Fr) {
+    if (rhs.isZero()) {
+      throw new Error('Division by zero');
+    }
+
+    return new Fr(this.toBigInt() / rhs.toBigInt());
+  }
 }
 
 /**

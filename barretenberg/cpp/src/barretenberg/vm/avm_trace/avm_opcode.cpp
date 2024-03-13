@@ -13,6 +13,7 @@ const std::unordered_map<OpCode, size_t> Bytecode::OPERANDS_NUM = {
     { OpCode::SUB, 3 },
     { OpCode::MUL, 3 },
     { OpCode::DIV, 3 },
+    { OpCode::FDIV, 3 },
     //// Compute - Comparators
     //{OpCode::EQ, },
     //{OpCode::LT, },
@@ -154,6 +155,7 @@ bool Bytecode::has_in_tag(OpCode const op_code)
     case OpCode::STATICCALL:
     case OpCode::RETURN:
     case OpCode::REVERT:
+    case OpCode::FDIV:
         return false;
     default:
         return true;

@@ -7,6 +7,7 @@ pub enum AvmOpcode {
     SUB,
     MUL,
     DIV,
+    FDIV,
     EQ,
     LT,
     LTE,
@@ -82,6 +83,7 @@ impl AvmOpcode {
             AvmOpcode::SUB => "SUB",
             AvmOpcode::MUL => "MUL",
             AvmOpcode::DIV => "DIV",
+            AvmOpcode::FDIV => "FDIV",
             // Compute - Comparators
             AvmOpcode::EQ => "EQ",
             AvmOpcode::LT => "LT",

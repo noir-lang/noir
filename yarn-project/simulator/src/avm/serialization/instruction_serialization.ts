@@ -12,6 +12,7 @@ export enum Opcode {
   SUB,
   MUL,
   DIV,
+  FDIV,
   EQ,
   LT,
   LTE,

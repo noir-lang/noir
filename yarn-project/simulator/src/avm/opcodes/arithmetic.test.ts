@@ -1,7 +1,7 @@
 import { AvmContext } from '../avm_context.js';
 import { Field, TypeTag } from '../avm_memory_types.js';
 import { initContext } from '../fixtures/index.js';
-import { Add, Div, Mul, Sub } from './arithmetic.js';
+import { Add, Div, FieldDiv, Mul, Sub } from './arithmetic.js';
 
 describe('Arithmetic Instructions', () => {
   let context: AvmContext;
@@ -198,6 +198,46 @@ describe('Arithmetic Instructions', () => {
       );
 
       expect(Div.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
+    it('Should perform integer division', async () => {
+      const a = new Field(100n);
+      const b = new Field(5n);
+
+      context.machineState.memory.set(0, a);
+      context.machineState.memory.set(1, b);
+
+      await new Div(
+        /*indirect=*/ 0,
+        /*inTag=*/ TypeTag.FIELD,
+        /*aOffset=*/ 0,
+        /*bOffset=*/ 1,
+        /*dstOffset=*/ 2,
+      ).execute(context);
+
+      const actual = context.machineState.memory.get(2);
+      expect(actual).toEqual(new Field(20));
+    });
+  });
+
+  describe('FDiv', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        FieldDiv.opcode, // opcode
+        0x01, // indirect
+        ...Buffer.from('12345678', 'hex'), // aOffset
+        ...Buffer.from('23456789', 'hex'), // bOffset
+        ...Buffer.from('3456789a', 'hex'), // dstOffset
+      ]);
+      const inst = new FieldDiv(
+        /*indirect=*/ 0x01,
+        /*aOffset=*/ 0x12345678,
+        /*bOffset=*/ 0x23456789,
+        /*dstOffset=*/ 0x3456789a,
+      );
+
+      expect(FieldDiv.deserialize(buf)).toEqual(inst);
       expect(inst.serialize()).toEqual(buf);
     });
 

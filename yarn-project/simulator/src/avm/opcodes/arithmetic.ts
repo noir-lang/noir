@@ -1,5 +1,7 @@
 import type { AvmContext } from '../avm_context.js';
-import { Opcode } from '../serialization/instruction_serialization.js';
+import { Field, TypeTag } from '../avm_memory_types.js';
+import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
+import { Instruction } from './instruction.js';
 import { ThreeOperandInstruction } from './instruction_impl.js';
 
 export class Add extends ThreeOperandInstruction {
@@ -74,6 +76,36 @@ export class Div extends ThreeOperandInstruction {
     const b = context.machineState.memory.get(this.bOffset);
 
     const dest = a.div(b);
+    context.machineState.memory.set(this.dstOffset, dest);
+
+    context.machineState.incrementPc();
+  }
+}
+
+export class FieldDiv extends Instruction {
+  static type: string = 'FDIV';
+  static readonly opcode = Opcode.FDIV;
+
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat: OperandType[] = [
+    OperandType.UINT8,
+    OperandType.UINT8,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+  ];
+
+  constructor(private indirect: number, private aOffset: number, private bOffset: number, private dstOffset: number) {
+    super();
+  }
+
+  async execute(context: AvmContext): Promise<void> {
+    context.machineState.memory.checkTags(TypeTag.FIELD, this.aOffset, this.bOffset);
+
+    const a = context.machineState.memory.getAs<Field>(this.aOffset);
+    const b = context.machineState.memory.getAs<Field>(this.bOffset);
+
+    const dest = a.fdiv(b);
     context.machineState.memory.set(this.dstOffset, dest);
 
     context.machineState.incrementPc();

@@ -249,7 +249,7 @@ TEST_F(AvmExecutionTests, simpleInternalCall)
                                "03"                             // U32
                                "0D3D2518"                       // val 222111000 = 0xD3D2518
                                "00000004"                       // dst_offset 4
-                               "25"                             // INTERNALCALL 37
+                               + to_hex(OpCode::INTERNALCALL) + // opcode INTERNALCALL
                                "00000004"                       // jmp_dest
                                + to_hex(OpCode::ADD) +          // opcode ADD
                                "00"                             // Indirect flag

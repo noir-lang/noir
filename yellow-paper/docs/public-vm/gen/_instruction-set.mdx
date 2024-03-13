@@ -36,244 +36,251 @@ Click on an instruction name to jump to its section.
 </tr>
 <tr>
 	<td style={{'text-align': 'center'}}>0x03</td>	<td style={{'text-align': 'center'}}><a id='isa-table-div'/><Markdown>[`DIV`](#isa-section-div)</Markdown></td>
-	<td><Markdown>Unsigned division (a / b)</Markdown></td>
+	<td><Markdown>Unsigned integer division (a / b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] / M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x04</td>	<td style={{'text-align': 'center'}}><a id='isa-table-eq'/><Markdown>[`EQ`](#isa-section-eq)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x04</td>	<td style={{'text-align': 'center'}}><a id='isa-table-fdiv'/><Markdown>[`FDIV`](#isa-section-fdiv)</Markdown></td>
+	<td><Markdown>Field division (a / b)</Markdown></td>
+	<td><CodeBlock language="jsx">{
+		`M[dstOffset] = M[aOffset] / M[bOffset]`
+	}</CodeBlock></td>
+</tr>
+<tr>
+	<td style={{'text-align': 'center'}}>0x05</td>	<td style={{'text-align': 'center'}}><a id='isa-table-eq'/><Markdown>[`EQ`](#isa-section-eq)</Markdown></td>
 	<td><Markdown>Equality check (a == b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] == M[bOffset] ? 1 : 0`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x05</td>	<td style={{'text-align': 'center'}}><a id='isa-table-lt'/><Markdown>[`LT`](#isa-section-lt)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x06</td>	<td style={{'text-align': 'center'}}><a id='isa-table-lt'/><Markdown>[`LT`](#isa-section-lt)</Markdown></td>
 	<td><Markdown>Less-than check (a &lt; b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] < M[bOffset] ? 1 : 0`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x06</td>	<td style={{'text-align': 'center'}}><a id='isa-table-lte'/><Markdown>[`LTE`](#isa-section-lte)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x07</td>	<td style={{'text-align': 'center'}}><a id='isa-table-lte'/><Markdown>[`LTE`](#isa-section-lte)</Markdown></td>
 	<td><Markdown>Less-than-or-equals check (a &lt;= b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] <= M[bOffset] ? 1 : 0`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x07</td>	<td style={{'text-align': 'center'}}><a id='isa-table-and'/><Markdown>[`AND`](#isa-section-and)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x08</td>	<td style={{'text-align': 'center'}}><a id='isa-table-and'/><Markdown>[`AND`](#isa-section-and)</Markdown></td>
 	<td><Markdown>Bitwise AND (a & b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] AND M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x08</td>	<td style={{'text-align': 'center'}}><a id='isa-table-or'/><Markdown>[`OR`](#isa-section-or)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x09</td>	<td style={{'text-align': 'center'}}><a id='isa-table-or'/><Markdown>[`OR`](#isa-section-or)</Markdown></td>
 	<td><Markdown>Bitwise OR (a | b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] OR M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x09</td>	<td style={{'text-align': 'center'}}><a id='isa-table-xor'/><Markdown>[`XOR`](#isa-section-xor)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-xor'/><Markdown>[`XOR`](#isa-section-xor)</Markdown></td>
 	<td><Markdown>Bitwise XOR (a ^ b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] XOR M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-not'/><Markdown>[`NOT`](#isa-section-not)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-not'/><Markdown>[`NOT`](#isa-section-not)</Markdown></td>
 	<td><Markdown>Bitwise NOT (inversion)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = NOT M[aOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-shl'/><Markdown>[`SHL`](#isa-section-shl)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-shl'/><Markdown>[`SHL`](#isa-section-shl)</Markdown></td>
 	<td><Markdown>Bitwise leftward shift (a &lt;&lt; b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] << M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-shr'/><Markdown>[`SHR`](#isa-section-shr)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-shr'/><Markdown>[`SHR`](#isa-section-shr)</Markdown></td>
 	<td><Markdown>Bitwise rightward shift (a &gt;&gt; b)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[aOffset] >> M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cast'/><Markdown>[`CAST`](#isa-section-cast)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cast'/><Markdown>[`CAST`](#isa-section-cast)</Markdown></td>
 	<td><Markdown>Type cast</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = cast<dstTag>(M[aOffset])`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-address'/><Markdown>[`ADDRESS`](#isa-section-address)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x0f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-address'/><Markdown>[`ADDRESS`](#isa-section-address)</Markdown></td>
 	<td><Markdown>Get the address of the currently executing l2 contract</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.address`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x0f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-storageaddress'/><Markdown>[`STORAGEADDRESS`](#isa-section-storageaddress)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x10</td>	<td style={{'text-align': 'center'}}><a id='isa-table-storageaddress'/><Markdown>[`STORAGEADDRESS`](#isa-section-storageaddress)</Markdown></td>
 	<td><Markdown>Get the _storage_ address of the currently executing context</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.storageAddress`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x10</td>	<td style={{'text-align': 'center'}}><a id='isa-table-origin'/><Markdown>[`ORIGIN`](#isa-section-origin)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x11</td>	<td style={{'text-align': 'center'}}><a id='isa-table-origin'/><Markdown>[`ORIGIN`](#isa-section-origin)</Markdown></td>
 	<td><Markdown>Get the transaction's origination address</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.origin`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x11</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sender'/><Markdown>[`SENDER`](#isa-section-sender)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x12</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sender'/><Markdown>[`SENDER`](#isa-section-sender)</Markdown></td>
 	<td><Markdown>Get the address of the sender (caller of the current context)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.sender`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x12</td>	<td style={{'text-align': 'center'}}><a id='isa-table-portal'/><Markdown>[`PORTAL`](#isa-section-portal)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x13</td>	<td style={{'text-align': 'center'}}><a id='isa-table-portal'/><Markdown>[`PORTAL`](#isa-section-portal)</Markdown></td>
 	<td><Markdown>Get the address of the l1 portal contract</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.portal`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x13</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl1gas'/><Markdown>[`FEEPERL1GAS`](#isa-section-feeperl1gas)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x14</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl1gas'/><Markdown>[`FEEPERL1GAS`](#isa-section-feeperl1gas)</Markdown></td>
 	<td><Markdown>Get the fee to be paid per "L1 gas" - constant for entire transaction</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.feePerL1Gas`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x14</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl2gas'/><Markdown>[`FEEPERL2GAS`](#isa-section-feeperl2gas)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x15</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperl2gas'/><Markdown>[`FEEPERL2GAS`](#isa-section-feeperl2gas)</Markdown></td>
 	<td><Markdown>Get the fee to be paid per "L2 gas" - constant for entire transaction</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.feePerL2Gas`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x15</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperdagas'/><Markdown>[`FEEPERDAGAS`](#isa-section-feeperdagas)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x16</td>	<td style={{'text-align': 'center'}}><a id='isa-table-feeperdagas'/><Markdown>[`FEEPERDAGAS`](#isa-section-feeperdagas)</Markdown></td>
 	<td><Markdown>Get the fee to be paid per "DA gas" - constant for entire transaction</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.feePerDaGas`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x16</td>	<td style={{'text-align': 'center'}}><a id='isa-table-contractcalldepth'/><Markdown>[`CONTRACTCALLDEPTH`](#isa-section-contractcalldepth)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x17</td>	<td style={{'text-align': 'center'}}><a id='isa-table-contractcalldepth'/><Markdown>[`CONTRACTCALLDEPTH`](#isa-section-contractcalldepth)</Markdown></td>
 	<td><Markdown>Get how many contract calls deep the current call context is</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.contractCallDepth`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x17</td>	<td style={{'text-align': 'center'}}><a id='isa-table-chainid'/><Markdown>[`CHAINID`](#isa-section-chainid)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x18</td>	<td style={{'text-align': 'center'}}><a id='isa-table-chainid'/><Markdown>[`CHAINID`](#isa-section-chainid)</Markdown></td>
 	<td><Markdown>Get this rollup's L1 chain ID</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.chainId`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x18</td>	<td style={{'text-align': 'center'}}><a id='isa-table-version'/><Markdown>[`VERSION`](#isa-section-version)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x19</td>	<td style={{'text-align': 'center'}}><a id='isa-table-version'/><Markdown>[`VERSION`](#isa-section-version)</Markdown></td>
 	<td><Markdown>Get this rollup's L2 version ID</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.version`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x19</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blocknumber'/><Markdown>[`BLOCKNUMBER`](#isa-section-blocknumber)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blocknumber'/><Markdown>[`BLOCKNUMBER`](#isa-section-blocknumber)</Markdown></td>
 	<td><Markdown>Get this L2 block's number</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.blocknumber`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-timestamp'/><Markdown>[`TIMESTAMP`](#isa-section-timestamp)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-timestamp'/><Markdown>[`TIMESTAMP`](#isa-section-timestamp)</Markdown></td>
 	<td><Markdown>Get this L2 block's timestamp</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.timestamp`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-coinbase'/><Markdown>[`COINBASE`](#isa-section-coinbase)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-coinbase'/><Markdown>[`COINBASE`](#isa-section-coinbase)</Markdown></td>
 	<td><Markdown>Get the block's beneficiary address</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.coinbase`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl1gaslimit'/><Markdown>[`BLOCKL1GASLIMIT`](#isa-section-blockl1gaslimit)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl1gaslimit'/><Markdown>[`BLOCKL1GASLIMIT`](#isa-section-blockl1gaslimit)</Markdown></td>
 	<td><Markdown>Total amount of "L1 gas" that a block can consume</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.l1GasLimit`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl2gaslimit'/><Markdown>[`BLOCKL2GASLIMIT`](#isa-section-blockl2gaslimit)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockl2gaslimit'/><Markdown>[`BLOCKL2GASLIMIT`](#isa-section-blockl2gaslimit)</Markdown></td>
 	<td><Markdown>Total amount of "L2 gas" that a block can consume</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.l2GasLimit`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockdagaslimit'/><Markdown>[`BLOCKDAGASLIMIT`](#isa-section-blockdagaslimit)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x1f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-blockdagaslimit'/><Markdown>[`BLOCKDAGASLIMIT`](#isa-section-blockdagaslimit)</Markdown></td>
 	<td><Markdown>Total amount of "DA gas" that a block can consume</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.environment.globals.daGasLimit`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x1f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-calldatacopy'/><Markdown>[`CALLDATACOPY`](#isa-section-calldatacopy)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x20</td>	<td style={{'text-align': 'center'}}><a id='isa-table-calldatacopy'/><Markdown>[`CALLDATACOPY`](#isa-section-calldatacopy)</Markdown></td>
 	<td><Markdown>Copy calldata into memory</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset:dstOffset+copySize] = context.environment.calldata[cdOffset:cdOffset+copySize]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x20</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l1gasleft'/><Markdown>[`L1GASLEFT`](#isa-section-l1gasleft)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x21</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l1gasleft'/><Markdown>[`L1GASLEFT`](#isa-section-l1gasleft)</Markdown></td>
 	<td><Markdown>Remaining "L1 gas" for this call (after this instruction)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.machineState.l1GasLeft`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x21</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l2gasleft'/><Markdown>[`L2GASLEFT`](#isa-section-l2gasleft)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x22</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l2gasleft'/><Markdown>[`L2GASLEFT`](#isa-section-l2gasleft)</Markdown></td>
 	<td><Markdown>Remaining "L2 gas" for this call (after this instruction)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.MachineState.l2GasLeft`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x22</td>	<td style={{'text-align': 'center'}}><a id='isa-table-dagasleft'/><Markdown>[`DAGASLEFT`](#isa-section-dagasleft)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x23</td>	<td style={{'text-align': 'center'}}><a id='isa-table-dagasleft'/><Markdown>[`DAGASLEFT`](#isa-section-dagasleft)</Markdown></td>
 	<td><Markdown>Remaining "DA gas" for this call (after this instruction)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = context.machineState.daGasLeft`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x23</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jump'/><Markdown>[`JUMP`](#isa-section-jump)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x24</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jump'/><Markdown>[`JUMP`](#isa-section-jump)</Markdown></td>
 	<td><Markdown>Jump to a location in the bytecode</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`context.machineState.pc = loc`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x24</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jumpi'/><Markdown>[`JUMPI`](#isa-section-jumpi)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x25</td>	<td style={{'text-align': 'center'}}><a id='isa-table-jumpi'/><Markdown>[`JUMPI`](#isa-section-jumpi)</Markdown></td>
 	<td><Markdown>Conditionally jump to a location in the bytecode</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`context.machineState.pc = M[condOffset] > 0 ? loc : context.machineState.pc`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x25</td>	<td style={{'text-align': 'center'}}><a id='isa-table-internalcall'/><Markdown>[`INTERNALCALL`](#isa-section-internalcall)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x26</td>	<td style={{'text-align': 'center'}}><a id='isa-table-internalcall'/><Markdown>[`INTERNALCALL`](#isa-section-internalcall)</Markdown></td>
 	<td><Markdown>Make an internal call. Push the current PC to the internal call stack and jump to the target location.</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.machineState.internalCallStack.push(context.machineState.pc)
@@ -281,49 +288,49 @@ context.machineState.pc = loc`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x26</td>	<td style={{'text-align': 'center'}}><a id='isa-table-internalreturn'/><Markdown>[`INTERNALRETURN`](#isa-section-internalreturn)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x27</td>	<td style={{'text-align': 'center'}}><a id='isa-table-internalreturn'/><Markdown>[`INTERNALRETURN`](#isa-section-internalreturn)</Markdown></td>
 	<td><Markdown>Return from an internal call. Pop from the internal call stack and jump to the popped location.</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`context.machineState.pc = context.machineState.internalCallStack.pop()`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x27</td>	<td style={{'text-align': 'center'}}><a id='isa-table-set'/><Markdown>[`SET`](#isa-section-set)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x28</td>	<td style={{'text-align': 'center'}}><a id='isa-table-set'/><Markdown>[`SET`](#isa-section-set)</Markdown></td>
 	<td><Markdown>Set a memory word from a constant in the bytecode</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = const`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x28</td>	<td style={{'text-align': 'center'}}><a id='isa-table-mov'/><Markdown>[`MOV`](#isa-section-mov)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x29</td>	<td style={{'text-align': 'center'}}><a id='isa-table-mov'/><Markdown>[`MOV`](#isa-section-mov)</Markdown></td>
 	<td><Markdown>Move a word from source memory location to destination</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[srcOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x29</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cmov'/><Markdown>[`CMOV`](#isa-section-cmov)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-cmov'/><Markdown>[`CMOV`](#isa-section-cmov)</Markdown></td>
 	<td><Markdown>Move a word (conditionally chosen) from one memory location to another (`d = cond &gt; 0 ? a : b`)</Markdown></td>
 	<td><CodeBlock language="jsx">{
 		`M[dstOffset] = M[condOffset] > 0 ? M[aOffset] : M[bOffset]`
 	}</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2a</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sload'/><Markdown>[`SLOAD`](#isa-section-sload)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sload'/><Markdown>[`SLOAD`](#isa-section-sload)</Markdown></td>
 	<td><Markdown>Load a word from this contract's persistent public storage. Zero is loaded for unwritten slots.</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`M[dstOffset] = S[M[slotOffset]]`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2b</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sstore'/><Markdown>[`SSTORE`](#isa-section-sstore)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sstore'/><Markdown>[`SSTORE`](#isa-section-sstore)</Markdown></td>
 	<td><Markdown>Write a word to this contract's persistent public storage</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`S[M[slotOffset]] = M[srcOffset]`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2c</td>	<td style={{'text-align': 'center'}}><a id='isa-table-notehashexists'/><Markdown>[`NOTEHASHEXISTS`](#isa-section-notehashexists)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-notehashexists'/><Markdown>[`NOTEHASHEXISTS`](#isa-section-notehashexists)</Markdown></td>
 	<td><Markdown>Check whether a note hash exists in the note hash tree (as of the start of the current block)</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.noteHashes.has({
@@ -334,7 +341,7 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2d</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>[`EMITNOTEHASH`](#isa-section-emitnotehash)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnotehash'/><Markdown>[`EMITNOTEHASH`](#isa-section-emitnotehash)</Markdown></td>
 	<td><Markdown>Emit a new note hash to be inserted into the note hash tree</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.worldState.noteHashes.append(
@@ -343,7 +350,7 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2e</td>	<td style={{'text-align': 'center'}}><a id='isa-table-nullifierexists'/><Markdown>[`NULLIFIEREXISTS`](#isa-section-nullifierexists)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x2f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-nullifierexists'/><Markdown>[`NULLIFIEREXISTS`](#isa-section-nullifierexists)</Markdown></td>
 	<td><Markdown>Check whether a nullifier exists in the nullifier tree (including nullifiers from earlier in the current transaction or from earlier in the current block)</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.nullifiers.has(
@@ -353,7 +360,7 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x2f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>[`EMITNULLIFIER`](#isa-section-emitnullifier)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x30</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitnullifier'/><Markdown>[`EMITNULLIFIER`](#isa-section-emitnullifier)</Markdown></td>
 	<td><Markdown>Emit a new nullifier to be inserted into the nullifier tree</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.worldState.nullifiers.append(
@@ -362,7 +369,7 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x30</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l1tol2msgexists'/><Markdown>[`L1TOL2MSGEXISTS`](#isa-section-l1tol2msgexists)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x31</td>	<td style={{'text-align': 'center'}}><a id='isa-table-l1tol2msgexists'/><Markdown>[`L1TOL2MSGEXISTS`](#isa-section-l1tol2msgexists)</Markdown></td>
 	<td><Markdown>Check if a message exists in the L1-to-L2 message tree</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.l1ToL2Messages.has({
@@ -372,7 +379,7 @@ M[existsOffset] = exists`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x31</td>	<td style={{'text-align': 'center'}}><a id='isa-table-headermember'/><Markdown>[`HEADERMEMBER`](#isa-section-headermember)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x32</td>	<td style={{'text-align': 'center'}}><a id='isa-table-headermember'/><Markdown>[`HEADERMEMBER`](#isa-section-headermember)</Markdown></td>
 	<td><Markdown>Check if a header exists in the [archive tree](../state/archive) and retrieve the specified member if so</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`exists = context.worldState.header.has({
@@ -385,7 +392,7 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x32</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitunencryptedlog'/><Markdown>[`EMITUNENCRYPTEDLOG`](#isa-section-emitunencryptedlog)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x33</td>	<td style={{'text-align': 'center'}}><a id='isa-table-emitunencryptedlog'/><Markdown>[`EMITUNENCRYPTEDLOG`](#isa-section-emitunencryptedlog)</Markdown></td>
 	<td><Markdown>Emit an unencrypted log</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.accruedSubstate.unencryptedLogs.append(
@@ -398,7 +405,7 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x33</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>[`SENDL2TOL1MSG`](#isa-section-sendl2tol1msg)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x34</td>	<td style={{'text-align': 'center'}}><a id='isa-table-sendl2tol1msg'/><Markdown>[`SENDL2TOL1MSG`](#isa-section-sendl2tol1msg)</Markdown></td>
 	<td><Markdown>Send an L2-to-L1 message</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.accruedSubstate.sentL2ToL1Messages.append(
@@ -411,7 +418,7 @@ if exists:
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x34</td>	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>[`CALL`](#isa-section-call)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x35</td>	<td style={{'text-align': 'center'}}><a id='isa-table-call'/><Markdown>[`CALL`](#isa-section-call)</Markdown></td>
 	<td><Markdown>Call into another contract</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
@@ -426,7 +433,7 @@ updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x35</td>	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>[`STATICCALL`](#isa-section-staticcall)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x36</td>	<td style={{'text-align': 'center'}}><a id='isa-table-staticcall'/><Markdown>[`STATICCALL`](#isa-section-staticcall)</Markdown></td>
 	<td><Markdown>Call into another contract, disallowing World State and Accrued Substate modifications</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
@@ -441,7 +448,7 @@ updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x36</td>	<td style={{'text-align': 'center'}}><a id='isa-table-delegatecall'/><Markdown>[`DELEGATECALL`](#isa-section-delegatecall)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x37</td>	<td style={{'text-align': 'center'}}><a id='isa-table-delegatecall'/><Markdown>[`DELEGATECALL`](#isa-section-delegatecall)</Markdown></td>
 	<td><Markdown>Call into another contract, but keep the caller's `sender` and `storageAddress`</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`// instr.args are { gasOffset, addrOffset, argsOffset, retOffset, retSize }
@@ -456,7 +463,7 @@ updateContextAfterNestedCall(context, instr.args, nestedContext)`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x37</td>	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>[`RETURN`](#isa-section-return)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x38</td>	<td style={{'text-align': 'center'}}><a id='isa-table-return'/><Markdown>[`RETURN`](#isa-section-return)</Markdown></td>
 	<td><Markdown>Halt execution within this context (without revert), optionally returning some data</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.contractCallResults.output = M[retOffset:retOffset+retSize]
@@ -464,7 +471,7 @@ halt`}
 	</CodeBlock></td>
 </tr>
 <tr>
-	<td style={{'text-align': 'center'}}>0x38</td>	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>[`REVERT`](#isa-section-revert)</Markdown></td>
+	<td style={{'text-align': 'center'}}>0x39</td>	<td style={{'text-align': 'center'}}><a id='isa-table-revert'/><Markdown>[`REVERT`](#isa-section-revert)</Markdown></td>
 	<td><Markdown>Halt execution within this context as `reverted`, optionally returning some data</Markdown></td>
 	<td><CodeBlock language="jsx">
 {`context.contractCallResults.output = M[retOffset:retOffset+retSize]
@@ -541,7 +548,7 @@ Multiplication (a * b)
 [![](./images/bit-formats/MUL.png)](./images/bit-formats/MUL.png)
 
 ### <a id='isa-section-div'/>`DIV`
-Unsigned division (a / b)
+Unsigned integer division (a / b)
 
 [See in table.](#isa-table-div)
 
@@ -555,18 +562,38 @@ Unsigned division (a / b)
 	- **bOffset**: memory offset of the operation's right input
 	- **dstOffset**: memory offset specifying where to store operation's result
 - **Expression**: `M[dstOffset] = M[aOffset] / M[bOffset]`
+- **Details**: If the input is a field, it will be interpreted as an integer
 - **Tag checks**: `T[aOffset] == T[bOffset] == inTag`
 - **Tag updates**: `T[dstOffset] = inTag`
 - **Bit-size**: 128
 
 [![](./images/bit-formats/DIV.png)](./images/bit-formats/DIV.png)
 
+### <a id='isa-section-fdiv'/>`FDIV`
+Field division (a / b)
+
+[See in table.](#isa-table-fdiv)
+
+- **Opcode**: 0x04
+- **Category**: Compute - Arithmetic
+- **Flags**: 
+	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
+- **Args**: 
+	- **aOffset**: memory offset of the operation's left input
+	- **bOffset**: memory offset of the operation's right input
+	- **dstOffset**: memory offset specifying where to store operation's result
+- **Expression**: `M[dstOffset] = M[aOffset] / M[bOffset]`
+- **Tag checks**: `T[aOffset] == T[bOffset] == field`
+- **Tag updates**: `T[dstOffset] = field`
+- **Bit-size**: 120
+
+
 ### <a id='isa-section-eq'/>`EQ`
 Equality check (a == b)
 
 [See in table.](#isa-table-eq)
 
-- **Opcode**: 0x04
+- **Opcode**: 0x05
 - **Category**: Compute - Comparators
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -587,7 +614,7 @@ Less-than check (a < b)
 
 [See in table.](#isa-table-lt)
 
-- **Opcode**: 0x05
+- **Opcode**: 0x06
 - **Category**: Compute - Comparators
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -608,7 +635,7 @@ Less-than-or-equals check (a <= b)
 
 [See in table.](#isa-table-lte)
 
-- **Opcode**: 0x06
+- **Opcode**: 0x07
 - **Category**: Compute - Comparators
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -629,7 +656,7 @@ Bitwise AND (a & b)
 
 [See in table.](#isa-table-and)
 
-- **Opcode**: 0x07
+- **Opcode**: 0x08
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -650,7 +677,7 @@ Bitwise OR (a | b)
 
 [See in table.](#isa-table-or)
 
-- **Opcode**: 0x08
+- **Opcode**: 0x09
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -671,7 +698,7 @@ Bitwise XOR (a ^ b)
 
 [See in table.](#isa-table-xor)
 
-- **Opcode**: 0x09
+- **Opcode**: 0x0a
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -692,7 +719,7 @@ Bitwise NOT (inversion)
 
 [See in table.](#isa-table-not)
 
-- **Opcode**: 0x0a
+- **Opcode**: 0x0b
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -712,7 +739,7 @@ Bitwise leftward shift (a << b)
 
 [See in table.](#isa-table-shl)
 
-- **Opcode**: 0x0b
+- **Opcode**: 0x0c
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -733,7 +760,7 @@ Bitwise rightward shift (a >> b)
 
 [See in table.](#isa-table-shr)
 
-- **Opcode**: 0x0c
+- **Opcode**: 0x0d
 - **Category**: Compute - Bitwise
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -754,7 +781,7 @@ Type cast
 
 [See in table.](#isa-table-cast)
 
-- **Opcode**: 0x0d
+- **Opcode**: 0x0e
 - **Category**: Type Conversions
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -774,7 +801,7 @@ Get the address of the currently executing l2 contract
 
 [See in table.](#isa-table-address)
 
-- **Opcode**: 0x0e
+- **Opcode**: 0x0f
 - **Category**: Execution Environment
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -791,7 +818,7 @@ Get the _storage_ address of the currently executing context
 
 [See in table.](#isa-table-storageaddress)
 
-- **Opcode**: 0x0f
+- **Opcode**: 0x10
 - **Category**: Execution Environment
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -809,7 +836,7 @@ Get the transaction's origination address
 
 [See in table.](#isa-table-origin)
 
-- **Opcode**: 0x10
+- **Opcode**: 0x11
 - **Category**: Execution Environment
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -826,7 +853,7 @@ Get the address of the sender (caller of the current context)
 
 [See in table.](#isa-table-sender)
 
-- **Opcode**: 0x11
+- **Opcode**: 0x12
 - **Category**: Execution Environment
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -843,7 +870,7 @@ Get the address of the l1 portal contract
 
 [See in table.](#isa-table-portal)
 
-- **Opcode**: 0x12
+- **Opcode**: 0x13
 - **Category**: Execution Environment
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -860,7 +887,7 @@ Get the fee to be paid per "L1 gas" - constant for entire transaction
 
 [See in table.](#isa-table-feeperl1gas)
 
-- **Opcode**: 0x13
+- **Opcode**: 0x14
 - **Category**: Execution Environment
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -877,7 +904,7 @@ Get the fee to be paid per "L2 gas" - constant for entire transaction
 
 [See in table.](#isa-table-feeperl2gas)
 
-- **Opcode**: 0x14
+- **Opcode**: 0x15
 - **Category**: Execution Environment
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -894,7 +921,7 @@ Get the fee to be paid per "DA gas" - constant for entire transaction
 
 [See in table.](#isa-table-feeperdagas)
 
-- **Opcode**: 0x15
+- **Opcode**: 0x16
 - **Category**: Execution Environment
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -911,7 +938,7 @@ Get how many contract calls deep the current call context is
 
 [See in table.](#isa-table-contractcalldepth)
 
-- **Opcode**: 0x16
+- **Opcode**: 0x17
 - **Category**: Execution Environment
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -929,7 +956,7 @@ Get this rollup's L1 chain ID
 
 [See in table.](#isa-table-chainid)
 
-- **Opcode**: 0x17
+- **Opcode**: 0x18
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -946,7 +973,7 @@ Get this rollup's L2 version ID
 
 [See in table.](#isa-table-version)
 
-- **Opcode**: 0x18
+- **Opcode**: 0x19
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -963,7 +990,7 @@ Get this L2 block's number
 
 [See in table.](#isa-table-blocknumber)
 
-- **Opcode**: 0x19
+- **Opcode**: 0x1a
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -980,7 +1007,7 @@ Get this L2 block's timestamp
 
 [See in table.](#isa-table-timestamp)
 
-- **Opcode**: 0x1a
+- **Opcode**: 0x1b
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -997,7 +1024,7 @@ Get the block's beneficiary address
 
 [See in table.](#isa-table-coinbase)
 
-- **Opcode**: 0x1b
+- **Opcode**: 0x1c
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1014,7 +1041,7 @@ Total amount of "L1 gas" that a block can consume
 
 [See in table.](#isa-table-blockl1gaslimit)
 
-- **Opcode**: 0x1c
+- **Opcode**: 0x1d
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1031,7 +1058,7 @@ Total amount of "L2 gas" that a block can consume
 
 [See in table.](#isa-table-blockl2gaslimit)
 
-- **Opcode**: 0x1d
+- **Opcode**: 0x1e
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1048,7 +1075,7 @@ Total amount of "DA gas" that a block can consume
 
 [See in table.](#isa-table-blockdagaslimit)
 
-- **Opcode**: 0x1e
+- **Opcode**: 0x1f
 - **Category**: Execution Environment - Globals
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1065,7 +1092,7 @@ Copy calldata into memory
 
 [See in table.](#isa-table-calldatacopy)
 
-- **Opcode**: 0x1f
+- **Opcode**: 0x20
 - **Category**: Execution Environment - Calldata
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1085,7 +1112,7 @@ Remaining "L1 gas" for this call (after this instruction)
 
 [See in table.](#isa-table-l1gasleft)
 
-- **Opcode**: 0x20
+- **Opcode**: 0x21
 - **Category**: Machine State - Gas
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1102,7 +1129,7 @@ Remaining "L2 gas" for this call (after this instruction)
 
 [See in table.](#isa-table-l2gasleft)
 
-- **Opcode**: 0x21
+- **Opcode**: 0x22
 - **Category**: Machine State - Gas
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1119,7 +1146,7 @@ Remaining "DA gas" for this call (after this instruction)
 
 [See in table.](#isa-table-dagasleft)
 
-- **Opcode**: 0x22
+- **Opcode**: 0x23
 - **Category**: Machine State - Gas
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1136,7 +1163,7 @@ Jump to a location in the bytecode
 
 [See in table.](#isa-table-jump)
 
-- **Opcode**: 0x23
+- **Opcode**: 0x24
 - **Category**: Machine State - Control Flow
 - **Args**: 
 	- **loc**: target location to jump to
@@ -1151,7 +1178,7 @@ Conditionally jump to a location in the bytecode
 
 [See in table.](#isa-table-jumpi)
 
-- **Opcode**: 0x24
+- **Opcode**: 0x25
 - **Category**: Machine State - Control Flow
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1169,7 +1196,7 @@ Make an internal call. Push the current PC to the internal call stack and jump t
 
 [See in table.](#isa-table-internalcall)
 
-- **Opcode**: 0x25
+- **Opcode**: 0x26
 - **Category**: Machine State - Control Flow
 - **Args**: 
 	- **loc**: target location to jump/call to
@@ -1187,7 +1214,7 @@ Return from an internal call. Pop from the internal call stack and jump to the p
 
 [See in table.](#isa-table-internalreturn)
 
-- **Opcode**: 0x26
+- **Opcode**: 0x27
 - **Category**: Machine State - Control Flow
 - **Expression**: `context.machineState.pc = context.machineState.internalCallStack.pop()`
 - **Bit-size**: 16
@@ -1199,7 +1226,7 @@ Set a memory word from a constant in the bytecode
 
 [See in table.](#isa-table-set)
 
-- **Opcode**: 0x27
+- **Opcode**: 0x28
 - **Category**: Machine State - Memory
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1219,7 +1246,7 @@ Move a word from source memory location to destination
 
 [See in table.](#isa-table-mov)
 
-- **Opcode**: 0x28
+- **Opcode**: 0x29
 - **Category**: Machine State - Memory
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1237,7 +1264,7 @@ Move a word (conditionally chosen) from one memory location to another (`d = con
 
 [See in table.](#isa-table-cmov)
 
-- **Opcode**: 0x29
+- **Opcode**: 0x2a
 - **Category**: Machine State - Memory
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1258,7 +1285,7 @@ Load a word from this contract's persistent public storage. Zero is loaded for u
 
 [See in table.](#isa-table-sload)
 
-- **Opcode**: 0x2a
+- **Opcode**: 0x2b
 - **Category**: World State - Public Storage
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1303,7 +1330,7 @@ Write a word to this contract's persistent public storage
 
 [See in table.](#isa-table-sstore)
 
-- **Opcode**: 0x2b
+- **Opcode**: 0x2c
 - **Category**: World State - Public Storage
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1343,7 +1370,7 @@ Check whether a note hash exists in the note hash tree (as of the start of the c
 
 [See in table.](#isa-table-notehashexists)
 
-- **Opcode**: 0x2c
+- **Opcode**: 0x2d
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1381,7 +1408,7 @@ Emit a new note hash to be inserted into the note hash tree
 
 [See in table.](#isa-table-emitnotehash)
 
-- **Opcode**: 0x2d
+- **Opcode**: 0x2e
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1413,7 +1440,7 @@ Check whether a nullifier exists in the nullifier tree (including nullifiers fro
 
 [See in table.](#isa-table-nullifierexists)
 
-- **Opcode**: 0x2e
+- **Opcode**: 0x2f
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1448,7 +1475,7 @@ Emit a new nullifier to be inserted into the nullifier tree
 
 [See in table.](#isa-table-emitnullifier)
 
-- **Opcode**: 0x2f
+- **Opcode**: 0x30
 - **Category**: World State - Notes & Nullifiers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1480,7 +1507,7 @@ Check if a message exists in the L1-to-L2 message tree
 
 [See in table.](#isa-table-l1tol2msgexists)
 
-- **Opcode**: 0x30
+- **Opcode**: 0x31
 - **Category**: World State - Messaging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1519,7 +1546,7 @@ Check if a header exists in the [archive tree](../state/archive) and retrieve th
 
 [See in table.](#isa-table-headermember)
 
-- **Opcode**: 0x31
+- **Opcode**: 0x32
 - **Category**: World State - Archive Tree & Headers
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1562,7 +1589,7 @@ Emit an unencrypted log
 
 [See in table.](#isa-table-emitunencryptedlog)
 
-- **Opcode**: 0x32
+- **Opcode**: 0x33
 - **Category**: Accrued Substate - Logging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1589,7 +1616,7 @@ Send an L2-to-L1 message
 
 [See in table.](#isa-table-sendl2tol1msg)
 
-- **Opcode**: 0x33
+- **Opcode**: 0x34
 - **Category**: Accrued Substate - Messaging
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1615,7 +1642,7 @@ Call into another contract
 
 [See in table.](#isa-table-call)
 
-- **Opcode**: 0x34
+- **Opcode**: 0x35
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1663,7 +1690,7 @@ Call into another contract, disallowing World State and Accrued Substate modific
 
 [See in table.](#isa-table-staticcall)
 
-- **Opcode**: 0x35
+- **Opcode**: 0x36
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1708,7 +1735,7 @@ Call into another contract, but keep the caller's `sender` and `storageAddress`
 
 [See in table.](#isa-table-delegatecall)
 
-- **Opcode**: 0x36
+- **Opcode**: 0x37
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1753,7 +1780,7 @@ Halt execution within this context (without revert), optionally returning some d
 
 [See in table.](#isa-table-return)
 
-- **Opcode**: 0x37
+- **Opcode**: 0x38
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
@@ -1775,7 +1802,7 @@ Halt execution within this context as `reverted`, optionally returning some data
 
 [See in table.](#isa-table-revert)
 
-- **Opcode**: 0x38
+- **Opcode**: 0x39
 - **Category**: Control Flow - Contract Calls
 - **Flags**: 
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
