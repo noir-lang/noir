@@ -1,4 +1,3 @@
-use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use crate::{
@@ -11,7 +10,7 @@ use crate::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId},
         post_order::PostOrder,
-        types::{NumericType, Type},
+        types::Type,
         value::ValueId,
     },
 };
@@ -116,11 +115,12 @@ impl FunctionContext {
 
 pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
     match typ {
-        Type::Numeric(num_type) => match num_type {
-            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => *bit_size,
-            NumericType::NativeField => FieldElement::max_num_bits(),
-        },
+        Type::Numeric(num_type) => num_type.bit_size(),
         Type::Reference(_) => BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-        _ => unreachable!("ICE bitwise not on a non numeric type"),
+        // NB. function references are converted to a constant when
+        // translating from SSA to Brillig (to allow for debugger
+        // instrumentation to work properly)
+        Type::Function => 32,
+        _ => unreachable!("ICE bit size not on a non numeric type"),
     }
 }

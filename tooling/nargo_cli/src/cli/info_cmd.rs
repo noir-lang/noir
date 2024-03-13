@@ -6,7 +6,7 @@ use clap::Args;
 use iter_extended::vecmap;
 use nargo::{
     artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager,
-    package::Package, parse_all,
+    ops::report_errors, package::Package, parse_all,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
@@ -30,6 +30,7 @@ use super::{compile_cmd::compile_workspace, NargoConfig};
 /// 1. The number of ACIR opcodes
 /// 2. Counts the final number gates in the circuit used by a backend
 #[derive(Debug, Clone, Args)]
+#[clap(visible_alias = "i")]
 pub(crate) struct InfoCommand {
     /// The name of the package to detail
     #[clap(long, conflicts_with = "workspace")]
@@ -73,11 +74,18 @@ pub(crate) fn run(
         .compile_options
         .expression_width
         .unwrap_or_else(|| backend.get_backend_info_or_default());
-    let (compiled_programs, compiled_contracts) = compile_workspace(
+    let compiled_workspace = compile_workspace(
         &workspace_file_manager,
         &parsed_files,
         &workspace,
         &args.compile_options,
+    );
+
+    let (compiled_programs, compiled_contracts) = report_errors(
+        compiled_workspace,
+        &workspace_file_manager,
+        args.compile_options.deny_warnings,
+        args.compile_options.silence_warnings,
     )?;
 
     let compiled_programs = vecmap(compiled_programs, |program| {
