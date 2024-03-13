@@ -100,7 +100,12 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
             let event_affects_noir_file =
                 event_paths.any(|path| path.extension().map_or(false, |ext| ext == "nr"));
 
-            matches!(event.kind, EventKind::Modify(_)) && event_affects_noir_file
+            let is_relevant_event_kind = matches!(
+                event.kind,
+                EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+            );
+
+            is_relevant_event_kind && event_affects_noir_file
         });
 
         if noir_files_modified {
