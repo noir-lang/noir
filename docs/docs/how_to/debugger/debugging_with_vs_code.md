@@ -36,7 +36,7 @@ Let's inspect the state of the program. For that, we open VS Code's _Debug pane_
 
 ![Debug pane icon](@site/static/img/debugger/2-icon.png)
 
-You will now see three categories of variables: Locals, Witness Map and Brillig Registers. 
+You will now see two categories of variables: Locals and Witness Map.
 
 ![Debug pane expanded](@site/static/img/debugger/3-debug-pane.png)
 
@@ -44,11 +44,9 @@ You will now see three categories of variables: Locals, Witness Map and Brillig 
 
 2. **Witness map**: these are initially populated from your project's `Prover.toml` file. In this example, they will be used to populate `x` and `result` at the beginning of the `main` function.
 
-3. **Brillig registers**: these show the current state of the BrilligVM registers. 
-
 Most of the time you will probably be focusing mostly on locals, as they represent the high level state of your program. 
 
-You might be interested in inspecting the witness map and Brillig registers in case you are trying to solve a really low level issue in the compiler or runtime itself, so these concern mostly advanced or niche users.
+You might be interested in inspecting the witness map in case you are trying to solve a really low level issue in the compiler or runtime itself, so this concerns mostly advanced or niche users.
 
 Let's step through the program, by using the debugger buttons or their corresponding keyboard shortcuts.
 

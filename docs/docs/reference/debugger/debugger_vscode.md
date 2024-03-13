@@ -46,7 +46,7 @@ Name of the prover input to use. Defaults to `Prover`, which looks for a file na
 
 _Boolean, optional._
 
-If true, generate ACIR opcodes instead of Brillig which will be closer to release binaries but less convenient for debugging. Defaults to `false`.
+If true, generate ACIR opcodes instead of unconstrained opcodes which will be closer to release binaries but less convenient for debugging. Defaults to `false`.
                 
 #### skipInstrumentation
 

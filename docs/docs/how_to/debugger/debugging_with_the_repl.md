@@ -68,17 +68,14 @@ Available commands:
   witness                          show witness map
   witness index:u32                display a single witness from the witness map
   witness index:u32 value:String   update a witness with the given value
-  memset index:usize value:String  update a Brillig memory cell with the given
+  memset index:usize value:String  update a memory cell with the given
                                    value
   continue                         continue execution until the end of the
                                    program
   vars                             show variable values available at this point
                                    in execution
   stacktrace                       display the current stack trace
-  memory                           show Brillig memory (valid when executing unconstrained code)
-  registers                        show Brillig registers (valid when executing unconstrained code)
-  regset index:usize value:String  update a Brillig register with the given
-                                   value
+  memory                           show memory (valid when executing unconstrained code)
   step                             step to the next ACIR opcode
 
 Other commands:
@@ -88,11 +85,11 @@ Other commands:
 
 ```
 
-Some commands operate only for unconstrained functions, such as `memory`, `memset`, `registers`, `regset`. If you try to use them while execution is paused at an ACIR opcode, the debugger will simply inform you that you are not executing unconstrained code:
+Some commands operate only for unconstrained functions, such as `memory` and `memset`. If you try to use them while execution is paused at an ACIR opcode, the debugger will simply inform you that you are not executing unconstrained code:
 
 ```
-> registers
-Brillig VM registers not available
+> memory
+Unconstrained VM memory not available
 > 
 ```
 

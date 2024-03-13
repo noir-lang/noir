@@ -60,17 +60,14 @@ Available commands:
   witness                          show witness map
   witness index:u32                display a single witness from the witness map
   witness index:u32 value:String   update a witness with the given value
-  memset index:usize value:String  update a Brillig memory cell with the given
+  memset index:usize value:String  update a memory cell with the given
                                    value
   continue                         continue execution until the end of the
                                    program
   vars                             show variable values available at this point
                                    in execution
   stacktrace                       display the current stack trace
-  memory                           show Brillig memory (valid when executing unconstrained code)
-  registers                        show Brillig registers (valid when executing unconstrained code)
-  regset index:usize value:String  update a Brillig register with the given
-                                   value
+  memory                           show memory (valid when executing unconstrained code)                                 value
   step                             step to the next ACIR opcode
 
 Other commands:
@@ -147,7 +144,7 @@ Running `out` here will resume execution until line 8.
 
 #### `step` (s)
 
-Skips to the next ACIR code. A compiled Noir program is a sequence of ACIR opcodes. However, a BRILLIG opcode denotes the start of an unconstrained code block, to be executed by the BrilligVM. For example (redacted for brevity):
+Skips to the next ACIR code. A compiled Noir program is a sequence of ACIR opcodes. However, an unconstrained VM opcode denotes the start of an unconstrained code block, to be executed by the unconstrained VM. For example (redacted for brevity):
 
 ```
 0  BLACKBOX::RANGE [(_0, num_bits: 32)] [ ]
@@ -162,7 +159,7 @@ Skips to the next ACIR code. A compiled Noir program is a sequence of ACIR opcod
 2    EXPR [ (1, _1) -2 ]
 ```
 
-The `->` here shows the debugger paused at an ACIR opcode: `BRILLIG`, at index 1, which denotes a unconstrained code block is about to start.
+The `->` here shows the debugger paused at an ACIR opcode: `BRILLIG`, at index 1, which denotes an unconstrained code block is about to start.
 
 Using the `step` command at this point would result in the debugger stopping at ACIR opcode 2, `EXPR`, skipping unconstrained computation steps.
 
@@ -170,7 +167,7 @@ Use [the `into` command](#into-i) instead if you want to follow unconstrained co
 
 #### `into` (i)
 
-Steps into the next opcode. A compiled Noir program is a sequence of ACIR opcodes. However, a BRILLIG opcode denotes the start of an unconstrained code block, to be executed by the BrilligVM. For example (redacted for brevity):
+Steps into the next opcode. A compiled Noir program is a sequence of ACIR opcodes. However, a BRILLIG opcode denotes the start of an unconstrained code block, to be executed by the unconstrained VM. For example (redacted for brevity):
 
 ```
 0  BLACKBOX::RANGE [(_0, num_bits: 32)] [ ]
@@ -309,45 +306,11 @@ _1 = 3
 ```
 
 
-### Brillig registers
-
-#### `registers`
-
-Show Brillig registers. For example:
-
-```
-> registers
-0 = 0
-1 = 0
-2 = 0
-```
-
-:::note
-This command is only functional while the debugger is executing a unconstrained code.
-:::
-
-#### `regset [Register index] [New value]`
-
-Update a Brillig register with the given value. For example: 
-
-```
-> registers
-0 = 0
-1 = 0
-2 = 0
-> regset 1 10
-> regis
-0 = 0
-1 = 10
-2 = 0
-> 
-```
-
-### Brillig memory
+### Unconstrained VM memory
 
 #### `memory`
 
-Show Brillig memory state. For example:
+Show unconstrained VM memory state. For example:
 
 ```
 > memory
@@ -369,7 +332,7 @@ At opcode 1.14: Const { destination: RegisterIndex(5), value: Value { inner: 1 }
 >
 ```
 
-In the example above: we start with clean Brillig memory, then step through a `Store` opcode which stores the value of register 3 (1) into the memory address stored in register 0 (0). Thus now `memory` shows memory address 0 contains value 1.
+In the example above: we start with clean memory, then step through a `Store` opcode which stores the value of register 3 (1) into the memory address stored in register 0 (0). Thus now `memory` shows memory address 0 contains value 1.
 
 :::note
 This command is only functional while the debugger is executing unconstrained code.
@@ -377,7 +340,7 @@ This command is only functional while the debugger is executing unconstrained co
 
 #### `memset [Memory address] [New value]`
 
-Update a Brillig memory cell with the given value. For example:
+Update a memory cell with the given value. For example:
 
 ```
 > memory

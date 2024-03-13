@@ -33,7 +33,7 @@ When inspecting variables, any variable of type `Function` or `MutableReference`
 
 ## Debugger instrumentation affects resulting ACIR
                       
-In order to make the state of local variables observable, the debugger compiles Noir circuits interleaving foreign calls that track any mutations to them. While this works (except in the cases described above) and doesn't introduce any behavior changes, it does as a side effect produce bigger bytecode. In particular, when running the command `opcodes` on the REPL debugger, you will notice Brillig blocks that look like this:
+In order to make the state of local variables observable, the debugger compiles Noir circuits interleaving foreign calls that track any mutations to them. While this works (except in the cases described above) and doesn't introduce any behavior changes, it does as a side effect produce bigger bytecode. In particular, when running the command `opcodes` on the REPL debugger, you will notice Unconstrained VM blocks that look like this:
 
 ```
 ...
