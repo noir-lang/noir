@@ -11,6 +11,10 @@ DEPLOY_OUTPUT=""
 
 if should_release; then
     # Deploy to production only on a release
+    if [ -z "$COMMIT_TAG" ]; then
+        echo "No commit tag, not deploying to npm."
+        exit 0
+    fi
     DEPLOY_OUTPUT=$(netlify deploy --site aztec-docs-dev --prod)
 elif [ "$1" != "master" ]; then
     # Deploy preview on PRs
