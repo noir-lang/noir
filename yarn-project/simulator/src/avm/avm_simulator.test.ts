@@ -59,6 +59,24 @@ describe('AVM simulator', () => {
       expect(results.output).toEqual([new Fr(3)]);
     });
 
+    it('Should execute contract function that performs U128 addition', async () => {
+      const calldata: Fr[] = [
+        // First U128
+        new Fr(1),
+        new Fr(2),
+        // Second U128
+        new Fr(3),
+        new Fr(4),
+      ];
+      const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+
+      const bytecode = getAvmTestContractBytecode('avm_addU128');
+      const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+      expect(results.reverted).toBe(false);
+      expect(results.output).toEqual([new Fr(4), new Fr(6)]);
+    });
+
     describe.each([
       ['avm_setOpcodeUint8', 8n],
       // ['avm_setOpcodeUint16', 60000n],

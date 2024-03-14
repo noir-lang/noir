@@ -41,7 +41,11 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                 avm_instrs.push(AvmInstruction {
                     opcode: avm_opcode,
                     indirect: Some(ALL_DIRECT),
-                    tag: Some(AvmTypeTag::FIELD),
+                    tag: if avm_opcode == AvmOpcode::FDIV {
+                        None
+                    } else {
+                        Some(AvmTypeTag::FIELD)
+                    },
                     operands: vec![
                         AvmOperand::U32 {
                             value: lhs.to_usize() as u32,
