@@ -29,6 +29,10 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 WORKDIR /usr/src/yarn-project
 RUN ./bootstrap.sh
 
+# Make COMMIT_TAG visible to build scripts
+ARG COMMIT_TAG=""
+ENV COMMIT_TAG=$COMMIT_TAG
+
 WORKDIR /usr/src/docs
 RUN yarn && yarn build
 

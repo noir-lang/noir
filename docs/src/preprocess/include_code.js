@@ -234,11 +234,14 @@ async function preprocessIncludeCode(markdownContent, filePath, rootDir) {
         filePath
       );
 
-      const relativeCodeFilePath = path.resolve(rootDir, codeFilePath);
-
-      let urlText = `${relativeCodeFilePath}#L${startLine}-L${endLine}`;
-      const tag = "master";
-      const url = `https://github.com/AztecProtocol/aztec-packages/blob/${tag}/${relativeCodeFilePath}#L${startLine}-L${endLine}`;
+      const relativeCodeFilePath = path
+        .resolve(rootDir, codeFilePath)
+        .replace(/^\//, "");
+      const urlText = `${relativeCodeFilePath}#L${startLine}-L${endLine}`;
+      const tag = process.env.COMMIT_TAG
+        ? `aztec-packages-${process.env.COMMIT_TAG}`
+        : "master";
+      const url = `https://github.com/AztecProtocol/aztec-packages/blob/${tag}/${urlText}`;
 
       const title = noTitle ? "" : `title="${identifier}"`;
       const lineNumbers = noLineNumbers ? "" : "showLineNumbers";
