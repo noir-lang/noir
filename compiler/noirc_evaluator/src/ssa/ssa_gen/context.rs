@@ -10,6 +10,7 @@ use noirc_frontend::{BinaryOpKind, Signedness};
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
+use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
@@ -1020,6 +1021,36 @@ impl<'a> FunctionContext<'a> {
                     "assign: Expected lhs and rhs values to match but found {lhs:?} and {rhs:?}"
                 )
             }
+        }
+    }
+
+    /// Increments the reference count of all parameters. Returns the entry block of the function.
+    ///
+    /// This is done on parameters rather than call arguments so that we can optimize out
+    /// paired inc/dec instructions within brillig functions more easily.
+    pub(crate) fn increment_parameter_rcs(&mut self) -> BasicBlockId {
+        let entry = self.builder.current_function.entry_block();
+        let parameters = self.builder.current_function.dfg.block_parameters(entry).to_vec();
+
+        for parameter in parameters {
+            self.builder.increment_array_reference_count(parameter);
+        }
+
+        entry
+    }
+
+    /// Ends a local scope of a function.
+    /// This will issue DecrementRc instructions for any arrays in the given starting scope
+    /// block's parameters. Arrays that are also used in terminator instructions for the scope are
+    /// ignored.
+    pub(crate) fn end_scope(&mut self, scope: BasicBlockId, terminator_args: &[ValueId]) {
+        let mut dropped_parameters =
+            self.builder.current_function.dfg.block_parameters(scope).to_vec();
+
+        dropped_parameters.retain(|parameter| !terminator_args.contains(parameter));
+
+        for parameter in dropped_parameters {
+            self.builder.decrement_array_reference_count(parameter);
         }
     }
 }
