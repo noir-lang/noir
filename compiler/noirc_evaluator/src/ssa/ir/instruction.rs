@@ -194,6 +194,13 @@ pub(crate) enum Instruction {
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// IncrementRc instructions are ignored.
     IncrementRc { value: ValueId },
+
+    /// An instruction to decrement the reference count of a value.
+    ///
+    /// This currently only has an effect in Brillig code where array sharing and copy on write is
+    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
+    /// DecrementRc instructions are ignored.
+    DecrementRc { value: ValueId },
 }
 
 impl Instruction {
@@ -214,6 +221,7 @@ impl Instruction {
             Instruction::Constrain(..)
             | Instruction::Store { .. }
             | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. }
             | Instruction::RangeCheck { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
             Instruction::Allocate { .. }
@@ -250,6 +258,7 @@ impl Instruction {
             | Load { .. }
             | Store { .. }
             | IncrementRc { .. }
+            | DecrementRc { .. }
             | RangeCheck { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
@@ -285,6 +294,7 @@ impl Instruction {
             | Store { .. }
             | EnableSideEffects { .. }
             | IncrementRc { .. }
+            | DecrementRc { .. }
             | RangeCheck { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
@@ -353,6 +363,7 @@ impl Instruction {
                 Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
             }
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
+            Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 Instruction::RangeCheck {
                     value: f(*value),
@@ -409,7 +420,9 @@ impl Instruction {
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
             }
-            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } => {
+            Instruction::IncrementRc { value }
+            | Instruction::DecrementRc { value }
+            | Instruction::RangeCheck { value, .. } => {
                 f(*value);
             }
         }
@@ -554,6 +567,7 @@ impl Instruction {
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
             Instruction::IncrementRc { .. } => None,
+            Instruction::DecrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
                 if let Some(numeric_constant) = dfg.get_numeric_constant(*value) {
                     if numeric_constant.num_bits() < *max_bit_size {
