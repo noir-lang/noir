@@ -43,7 +43,7 @@
     "mocha": "^10.2.0",
     "prettier": "3.0.3",
     "ts-node": "^10.9.1",
-    "typescript": "^5.0.4"
+    "typescript": "^5.4.2"
   },
   "packageManager": "yarn@3.6.4"
 }

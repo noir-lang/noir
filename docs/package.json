@@ -42,7 +42,7 @@
     "typedoc-plugin-frontmatter": "^0.0.2",
     "typedoc-plugin-markdown": "4.0.0-next.25",
     "typedoc-plugin-merge-modules": "^5.1.0",
-    "typescript": "~5.2.2"
+    "typescript": "^5.4.2"
   },
   "browserslist": {
     "production": [
