@@ -11,7 +11,7 @@ contract Benchmarking {
         context::Context, note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
         log::emit_unencrypted_log, state_vars::{Map, PublicMutable, PrivateSet},
         types::type_serialization::field_serialization::{FieldSerializationMethods, FIELD_SERIALIZED_LEN},
-        types::address::{AztecAddress}
+        types::address::AztecAddress
     };
 
     struct Storage {
