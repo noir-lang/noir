@@ -828,10 +828,6 @@ impl BrilligContext {
         right: SingleAddrVariable,
         signed: bool,
     ) {
-        // no debug_show, shown in binary instruction
-        let scratch_register_i = self.allocate_register();
-        let scratch_register_j = self.allocate_register();
-
         assert!(
             left.bit_size == right.bit_size,
             "Not equal bitsize: lhs {}, rhs {}",
@@ -839,38 +835,48 @@ impl BrilligContext {
             right.bit_size
         );
         let bit_size = left.bit_size;
+        let is_field = left.bit_size == FieldElement::max_num_bits();
+
+        let scratch_var_i = SingleAddrVariable::new(self.allocate_register(), bit_size);
+        let scratch_var_j = SingleAddrVariable::new(self.allocate_register(), bit_size);
+
         // i = left / right
-        self.push_opcode(BrilligOpcode::BinaryIntOp {
-            op: match signed {
+        self.binary_instruction(
+            left,
+            right,
+            scratch_var_i,
+            BrilligBinaryOp::Integer(match signed {
                 true => BinaryIntOp::SignedDiv,
                 false => BinaryIntOp::UnsignedDiv,
-            },
-            destination: scratch_register_i,
-            bit_size,
-            lhs: left.address,
-            rhs: right.address,
-        });
+            }),
+        );
 
         // j = i * right
-        self.push_opcode(BrilligOpcode::BinaryIntOp {
-            op: BinaryIntOp::Mul,
-            destination: scratch_register_j,
-            bit_size,
-            lhs: scratch_register_i,
-            rhs: right.address,
-        });
+        self.binary_instruction(
+            scratch_var_i,
+            right,
+            scratch_var_j,
+            if is_field {
+                BrilligBinaryOp::Field(BinaryFieldOp::Mul)
+            } else {
+                BrilligBinaryOp::Integer(BinaryIntOp::Mul)
+            },
+        );
 
         // result_register = left - j
-        self.push_opcode(BrilligOpcode::BinaryIntOp {
-            op: BinaryIntOp::Sub,
-            destination: result.address,
-            bit_size,
-            lhs: left.address,
-            rhs: scratch_register_j,
-        });
+        self.binary_instruction(
+            left,
+            scratch_var_j,
+            result,
+            if is_field {
+                BrilligBinaryOp::Field(BinaryFieldOp::Sub)
+            } else {
+                BrilligBinaryOp::Integer(BinaryIntOp::Sub)
+            },
+        );
         // Free scratch registers
-        self.deallocate_register(scratch_register_i);
-        self.deallocate_register(scratch_register_j);
+        self.deallocate_register(scratch_var_i.address);
+        self.deallocate_register(scratch_var_j.address);
     }
 
     /// Adds a unresolved external `Call` instruction to the bytecode.
