@@ -10,6 +10,7 @@ use super::{
     basic_block::BasicBlockId,
     function::Function,
     instruction::{ConstrainError, Instruction, InstructionId, TerminatorInstruction},
+    types::Type,
     value::ValueId,
 };
 
@@ -68,9 +69,13 @@ fn value(function: &Function, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::Array { array, .. } => {
+        Value::Array { array, typ } => {
             let elements = vecmap(array, |element| value(function, *element));
-            format!("[{}]", elements.join(", "))
+            match typ {
+                Type::Array(_, _) => format!("[{}]", elements.join(", ")),
+                Type::Slice(_) => format!("&[{}]", elements.join(", ")),
+                _ => unreachable!("ICE: Value::Array with non-array type: {:?}", typ),
+            }
         }
         Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
             id.to_string()

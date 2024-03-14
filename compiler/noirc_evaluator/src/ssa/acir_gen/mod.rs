@@ -1663,8 +1663,25 @@ impl Context {
                 self.acir_context.bit_decompose(endian, field, bit_size, result_type)
             }
             Intrinsic::ArrayLen => {
-                let len = match self.convert_value(arguments[0], dfg) {
-                    AcirValue::Var(_, _) => unreachable!("Non-array passed to array.len() method"),
+                let converted = self.convert_value(arguments[0], dfg);
+                let len = match converted {
+                    AcirValue::Var(acir_var, acir_type) => {
+                        if Type::Numeric(acir_type.to_numeric_type()) != Type::length_type() {
+                            unreachable!(
+                                "ICE: array has length of unexpected type: {:?}",
+                                acir_type
+                            );
+                        }
+
+                        if !self.acir_context.is_constant(&acir_var) {
+                            unreachable!("ICE: array has non-constant length: {:?}", acir_var);
+                        }
+
+                        self.acir_context
+                            .constant(acir_var)
+                            .try_to_usize()
+                            .expect("ICE: array with length > usize::MAX")
+                    }
                     AcirValue::Array(values) => values.len(),
                     AcirValue::DynamicArray(array) => array.len,
                 };
@@ -1698,8 +1715,9 @@ impl Context {
                 };
 
                 let value_types = self.convert_value(slice_contents, dfg).flat_numeric_types();
+                let result_len = value_types.len();
                 assert!(
-                    array_len == value_types.len(),
+                    array_len == result_len,
                     "AsSlice: unexpected length difference: {:?} != {:?}",
                     array_len,
                     value_types.len()
@@ -1707,10 +1725,11 @@ impl Context {
 
                 let result = AcirValue::DynamicArray(AcirDynamicArray {
                     block_id: result_block_id,
-                    len: value_types.len(),
+                    len: result_len,
                     value_types,
                     element_type_sizes,
                 });
+
                 Ok(vec![AcirValue::Var(slice_length, AcirType::field()), result])
             }
             Intrinsic::SlicePushBack => {

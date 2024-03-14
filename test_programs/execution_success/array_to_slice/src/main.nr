@@ -7,27 +7,34 @@ fn as_slice_push<T, N>(xs: [T; N]) -> [T] {
     slice
 }
 
-fn main(x: Field, y: pub Field) {
-    let xs: [Field; 0] = [];
-    let ys: [Field; 1] = [1];
-    let zs: [Field; 2] = [1, 2];
-    let ws: [Field; 3] = [1; 3];
-    let qs: [Field; 4] = [3, 2, 1, 0];
+fn main(x: Field, y: Field) {
+    let z = 3;
+    let w = 4;
 
-    let mut dynamic: [Field; 4] = [3, 2, 1, 0];
-    let dynamic_expected: [Field; 4] = [1000, 2, 1, 0];
-    dynamic[x] = 1000;
+    let mut dynamic_array = [0, 0];
+    dynamic_array[x] = z;
+    dynamic_array[y] = w;
 
-    assert(x != y);
-    assert(xs.as_slice() == as_slice_push(xs));
-    assert(ys.as_slice() == as_slice_push(ys));
-    assert(zs.as_slice() == as_slice_push(zs));
-    assert(ws.as_slice() == as_slice_push(ws));
-    assert(qs.as_slice() == as_slice_push(qs));
+    let literal_slice = &[z, w];
+    let convert_dynamic = dynamic_array.as_slice();
+    let convert_literal = [z, w].as_slice();
 
-    assert(dynamic.as_slice()[0] == dynamic_expected[0]);
-    assert(dynamic.as_slice()[1] == dynamic_expected[1]);
-    assert(dynamic.as_slice()[2] == dynamic_expected[2]);
-    assert(dynamic.as_slice()[3] == dynamic_expected[3]);
-    assert(dynamic.as_slice().len() == 4);
+    assert(literal_slice.len() == 2);
+    assert(convert_dynamic.len() == 2);
+    assert(convert_literal.len() == 2);
+
+    assert(literal_slice[x] == z);
+    assert(convert_dynamic[x] == z);
+    assert(convert_literal[x] == z);
+
+    assert(literal_slice[y] == w);
+    assert(convert_dynamic[y] == w);
+    assert(convert_literal[y] == w);
+
+    let hash_literal_slice = dep::std::hash::pedersen_hash(literal_slice);
+    let hash_convert_dynamic = dep::std::hash::pedersen_hash(convert_dynamic);
+    let hash_convert_literal = dep::std::hash::pedersen_hash(convert_literal);
+
+    assert(hash_literal_slice == hash_convert_dynamic);
+    assert(hash_literal_slice == hash_convert_literal);
 }

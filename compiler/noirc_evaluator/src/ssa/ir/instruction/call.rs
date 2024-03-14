@@ -87,8 +87,13 @@ pub(super) fn simplify_call(
         Intrinsic::AsSlice => {
             let slice = dfg.get_array_constant(arguments[0]);
             if let Some((slice, element_type)) = slice {
+                let new_element_type = match element_type {
+                    Type::Array(array_typ, _) => Type::Slice(array_typ),
+                    Type::Slice(slice_typ) => Type::Slice(slice_typ),
+                    _ => unreachable!("ICE: non-array passed to as_slice"),
+                };
                 let slice_length = dfg.make_constant(slice.len().into(), Type::length_type());
-                let new_slice = dfg.make_array(slice, element_type);
+                let new_slice = dfg.make_array(slice, new_element_type);
                 SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
             } else {
                 SimplifyResult::None

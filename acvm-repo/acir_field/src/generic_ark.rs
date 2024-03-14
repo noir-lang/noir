@@ -254,6 +254,11 @@ impl<F: PrimeField> FieldElement<F> {
         (self.num_bits() <= 64).then(|| self.to_u128() as u64)
     }
 
+    pub fn try_to_usize(&self) -> Option<usize> {
+        let usize_bits: u32 = std::mem::size_of::<usize>().try_into().ok()?;
+        (self.num_bits() <= usize_bits).then(|| self.to_u128() as usize)
+    }
+
     /// Computes the inverse or returns zero if the inverse does not exist
     /// Before using this FieldElement, please ensure that this behavior is necessary
     pub fn inverse(&self) -> FieldElement<F> {
