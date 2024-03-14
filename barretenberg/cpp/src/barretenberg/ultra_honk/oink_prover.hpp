@@ -1,4 +1,22 @@
 #pragma once
+// clang-format off
+/*                                            )\   /|
+*                                          .-/'-|_/ |
+*                       __            __,-' (   / \/          
+*                   .-'"  "'-..__,-'""          -o.`-._   
+*                  /                                   '/
+*          *--._ ./                                 _.-- 
+*                |                              _.-' 
+*                :                           .-/   
+*                 \                       )_ /
+*                  \                _)   / \(
+*                    `.   /-.___.---'(  /   \\
+*                     (  /   \\       \(     L\
+*                      \(     L\       \\
+*                       \\              \\
+*                        L\              L\
+*/
+// clang-format on
 #include <utility>
 
 #include "barretenberg/flavor/goblin_ultra.hpp"
