@@ -37,10 +37,10 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
-    FunctionReturnType, FunctionVisibility, Generics, LValue, NoirStruct, NoirTypeAlias, Param,
-    Path, PathKind, Pattern, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind,
-    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    ArrayLiteral, BinaryOpKind, Distinctness, ForRange, FunctionDefinition, FunctionReturnType,
+    Generics, ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
+    Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
@@ -234,10 +234,8 @@ impl<'a> Resolver<'a> {
         let def = FunctionDefinition {
             name: name.clone(),
             attributes: Attributes::empty(),
-            is_open: false,
-            is_internal: false,
             is_unconstrained: false,
-            visibility: FunctionVisibility::Public, // Trait functions are always public
+            visibility: ItemVisibility::Public, // Trait functions are always public
             generics: generics.clone(),
             parameters: vecmap(parameters, |(name, typ)| Param {
                 visibility: Visibility::Private,
@@ -973,9 +971,6 @@ impl<'a> Resolver<'a> {
 
         self.interner.push_definition_type(name_ident.id, typ.clone());
 
-        self.handle_function_type(&func_id);
-        self.handle_is_function_internal(&func_id);
-
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
             .filter_map(|generic| self.find_generic(&generic.0.contents))
@@ -1023,31 +1018,11 @@ impl<'a> Resolver<'a> {
     /// True if the `distinct` keyword is allowed on a function's return type
     fn distinct_allowed(&self, func: &NoirFunction) -> bool {
         if self.in_contract {
-            // "open" and "unconstrained" functions are compiled to brillig and thus duplication of
+            // "unconstrained" functions are compiled to brillig and thus duplication of
             // witness indices in their abis is not a concern.
-            !func.def.is_unconstrained && !func.def.is_open
+            !func.def.is_unconstrained
         } else {
             func.name() == MAIN_FUNCTION
-        }
-    }
-
-    fn handle_function_type(&mut self, function: &FuncId) {
-        let function_type = self.interner.function_modifiers(function).contract_function_type;
-
-        if !self.in_contract && function_type == Some(ContractFunctionType::Open) {
-            let span = self.interner.function_ident(function).span();
-            self.errors.push(ResolverError::ContractFunctionTypeInNormalFunction { span });
-            self.interner.function_modifiers_mut(function).contract_function_type = None;
-        }
-    }
-
-    fn handle_is_function_internal(&mut self, function: &FuncId) {
-        if !self.in_contract {
-            if self.interner.function_modifiers(function).is_internal == Some(true) {
-                let span = self.interner.function_ident(function).span();
-                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction { span });
-            }
-            self.interner.function_modifiers_mut(function).is_internal = None;
         }
     }
 
@@ -1320,7 +1295,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         func: FuncId,
         span: Span,
-        visibility: FunctionVisibility,
+        visibility: ItemVisibility,
     ) {
         let function_module = self.interner.function_module(func);
         let current_module = self.path_resolver.module_id();
@@ -1330,8 +1305,8 @@ impl<'a> Resolver<'a> {
         let current_module = current_module.local_id;
         let name = self.interner.function_name(&func).to_string();
         match visibility {
-            FunctionVisibility::Public => (),
-            FunctionVisibility::Private => {
+            ItemVisibility::Public => (),
+            ItemVisibility::Private => {
                 if !same_crate
                     || !self.module_descendent_of_target(
                         krate,
@@ -1342,7 +1317,7 @@ impl<'a> Resolver<'a> {
                     self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
                 }
             }
-            FunctionVisibility::PublicCrate => {
+            ItemVisibility::PublicCrate => {
                 if !same_crate {
                     self.errors.push(ResolverError::NonCrateFunctionCalled { span, name });
                 }
@@ -1451,9 +1426,7 @@ impl<'a> Resolver<'a> {
                                     self.interner.add_function_dependency(current_item, id);
                                 }
 
-                                if self.interner.function_visibility(id)
-                                    != FunctionVisibility::Public
-                                {
+                                if self.interner.function_visibility(id) != ItemVisibility::Public {
                                     let span = hir_ident.location.span;
                                     self.check_can_reference_function(
                                         id,
@@ -1970,9 +1943,64 @@ impl<'a> Resolver<'a> {
         rhs: ExprId,
         span: Span,
     ) -> Result<u128, Option<ResolverError>> {
+        // Arbitrary amount of recursive calls to try before giving up
+        let fuel = 100;
+        self.try_eval_array_length_id_with_fuel(rhs, span, fuel)
+    }
+
+    fn try_eval_array_length_id_with_fuel(
+        &self,
+        rhs: ExprId,
+        span: Span,
+        fuel: u32,
+    ) -> Result<u128, Option<ResolverError>> {
+        if fuel == 0 {
+            // If we reach here, it is likely from evaluating cyclic globals. We expect an error to
+            // be issued for them after name resolution so issue no error now.
+            return Err(None);
+        }
+
         match self.interner.expression(&rhs) {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
+            }
+            HirExpression::Ident(ident) => {
+                let definition = self.interner.definition(ident.id);
+                match definition.kind {
+                    DefinitionKind::Global(global_id) => {
+                        let let_statement = self.interner.get_global_let_statement(global_id);
+                        if let Some(let_statement) = let_statement {
+                            let expression = let_statement.expression;
+                            self.try_eval_array_length_id_with_fuel(expression, span, fuel - 1)
+                        } else {
+                            Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+                        }
+                    }
+                    _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
+                }
+            }
+            HirExpression::Infix(infix) => {
+                let lhs = self.try_eval_array_length_id_with_fuel(infix.lhs, span, fuel - 1)?;
+                let rhs = self.try_eval_array_length_id_with_fuel(infix.rhs, span, fuel - 1)?;
+
+                match infix.operator.kind {
+                    BinaryOpKind::Add => Ok(lhs + rhs),
+                    BinaryOpKind::Subtract => Ok(lhs - rhs),
+                    BinaryOpKind::Multiply => Ok(lhs * rhs),
+                    BinaryOpKind::Divide => Ok(lhs / rhs),
+                    BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
+                    BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
+                    BinaryOpKind::Less => Ok((lhs < rhs) as u128),
+                    BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
+                    BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
+                    BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
+                    BinaryOpKind::And => Ok(lhs & rhs),
+                    BinaryOpKind::Or => Ok(lhs | rhs),
+                    BinaryOpKind::Xor => Ok(lhs ^ rhs),
+                    BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
+                    BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
+                    BinaryOpKind::Modulo => Ok(lhs % rhs),
+                }
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }

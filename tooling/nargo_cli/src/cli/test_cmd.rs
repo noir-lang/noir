@@ -25,6 +25,7 @@ use super::NargoConfig;
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
+#[clap(visible_alias = "t")]
 pub(crate) struct TestCommand {
     /// If given, only tests with names containing this string will be run
     test_name: Option<String>,

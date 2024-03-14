@@ -1,6 +1,7 @@
 [package]
 name = "nargo_cli"
 description = "Noir's package manager"
+default-run = "nargo"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -49,6 +50,10 @@ color-eyre = "0.6.2"
 tokio = { version = "1.0", features = ["io-std"] }
 dap.workspace = true
 clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450d759532c88f0dba70891ceecdbc9ff8f25d2b", optional = true }
+
+notify = "6.1.1"
+notify-debouncer-full = "0.3.1"
+termion = "3.0.0"
 
 # Backends
 backend-interface = { path = "../backend_interface" }
