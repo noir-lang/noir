@@ -14,6 +14,6 @@ WORKDIR /usr/src/boxes
 COPY . .
 ENV AZTEC_NARGO=/usr/src/noir/noir-repo/target/release/nargo
 ENV AZTEC_CLI=/usr/src/yarn-project/cli/aztec-cli-dest
-RUN yarn && yarn build
+RUN yarn
 RUN npx -y playwright@1.42 install --with-deps
 ENTRYPOINT ["/bin/sh", "-c"]
