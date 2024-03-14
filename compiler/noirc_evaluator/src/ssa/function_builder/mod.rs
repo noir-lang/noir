@@ -384,20 +384,6 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, true);
-    }
-
-    /// Insert instructions to decrement the reference count of any array(s) stored
-    /// within the given value. If the given value is not an array and does not contain
-    /// any arrays, this does nothing.
-    pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, false);
-    }
-
-    /// Increment or decrement the given value's reference count if it is an array.
-    /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
-    /// are ignored outside of unconstrained code.
-    pub(crate) fn update_array_reference_count(&mut self, value: ValueId, increment: bool) {
         match self.type_of_value(value) {
             Type::Numeric(_) => (),
             Type::Function => (),
@@ -410,12 +396,7 @@ impl FunctionBuilder {
             typ @ Type::Array(..) | typ @ Type::Slice(..) => {
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
-                let instruction = if increment {
-                    Instruction::IncrementRc { value }
-                } else {
-                    Instruction::DecrementRc { value }
-                };
-                self.insert_instruction(instruction, None);
+                self.insert_instruction(Instruction::IncrementRc { value }, None);
 
                 // This is a bit odd, but in brillig the inc_rc instruction operates on
                 // a copy of the array's metadata, so we need to re-store a loaded array

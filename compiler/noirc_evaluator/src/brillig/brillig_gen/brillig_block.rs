@@ -227,7 +227,9 @@ impl<'block> BrilligBlock<'block> {
                         dfg,
                     );
                 }
-                Type::Function => todo!("ICE: Type::Function Param not supported"),
+                _ => {
+                    todo!("ICE: Param type not supported")
+                }
             }
         }
     }
@@ -659,21 +661,11 @@ impl<'block> BrilligBlock<'block> {
                 let rc_register = match self.convert_ssa_value(*value, dfg) {
                     BrilligVariable::BrilligArray(BrilligArray { rc, .. })
                     | BrilligVariable::BrilligVector(BrilligVector { rc, .. }) => rc,
-                    other => unreachable!("ICE: increment rc on non-array: {other:?}"),
+                    _ => unreachable!("ICE: increment rc on non-array"),
                 };
                 self.brillig_context.usize_op_in_place(rc_register, BinaryIntOp::Add, 1);
             }
-            Instruction::DecrementRc { value } => {
-                let rc_register = match self.convert_ssa_value(*value, dfg) {
-                    BrilligVariable::BrilligArray(BrilligArray { rc, .. })
-                    | BrilligVariable::BrilligVector(BrilligVector { rc, .. }) => rc,
-                    other => unreachable!("ICE: decrement rc on non-array: {other:?}"),
-                };
-                self.brillig_context.usize_op_in_place(rc_register, BinaryIntOp::Sub, 1);
-            }
-            Instruction::EnableSideEffects { .. } => {
-                todo!("enable_side_effects not supported by brillig")
-            }
+            _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
 
         let dead_variables = self

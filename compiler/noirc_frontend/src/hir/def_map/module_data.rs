@@ -4,7 +4,7 @@ use noirc_errors::Location;
 
 use crate::{
     node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId},
-    Ident, ItemVisibility,
+    Ident,
 };
 
 use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
@@ -48,24 +48,18 @@ impl ModuleData {
     fn declare(
         &mut self,
         name: Ident,
-        visibility: ItemVisibility,
         item_id: ModuleDefId,
         trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
-        self.scope.add_definition(name.clone(), visibility, item_id, trait_id)?;
+        self.scope.add_definition(name.clone(), item_id, trait_id)?;
 
         // definitions is a subset of self.scope so it is expected if self.scope.define_func_def
         // returns without error, so will self.definitions.define_func_def.
-        self.definitions.add_definition(name, visibility, item_id, trait_id)
+        self.definitions.add_definition(name, item_id, trait_id)
     }
 
-    pub fn declare_function(
-        &mut self,
-        name: Ident,
-        visibility: ItemVisibility,
-        id: FuncId,
-    ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, visibility, id.into(), None)
+    pub fn declare_function(&mut self, name: Ident, id: FuncId) -> Result<(), (Ident, Ident)> {
+        self.declare(name, id.into(), None)
     }
 
     pub fn declare_trait_function(
@@ -74,7 +68,7 @@ impl ModuleData {
         id: FuncId,
         trait_id: TraitId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), Some(trait_id))
+        self.declare(name, id.into(), Some(trait_id))
     }
 
     pub fn remove_function(&mut self, name: &Ident) {
@@ -83,11 +77,11 @@ impl ModuleData {
     }
 
     pub fn declare_global(&mut self, name: Ident, id: GlobalId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), None)
+        self.declare(name, id.into(), None)
     }
 
     pub fn declare_struct(&mut self, name: Ident, id: StructId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, ModuleDefId::TypeId(id), None)
+        self.declare(name, ModuleDefId::TypeId(id), None)
     }
 
     pub fn declare_type_alias(
@@ -95,11 +89,11 @@ impl ModuleData {
         name: Ident,
         id: TypeAliasId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), None)
+        self.declare(name, id.into(), None)
     }
 
     pub fn declare_trait(&mut self, name: Ident, id: TraitId) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, ModuleDefId::TraitId(id), None)
+        self.declare(name, ModuleDefId::TraitId(id), None)
     }
 
     pub fn declare_child_module(
@@ -107,7 +101,7 @@ impl ModuleData {
         name: Ident,
         child_id: ModuleId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, child_id.into(), None)
+        self.declare(name, child_id.into(), None)
     }
 
     pub fn find_func_with_name(&self, name: &Ident) -> Option<FuncId> {
@@ -120,7 +114,7 @@ impl ModuleData {
         id: ModuleDefId,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
-        self.scope.add_item_to_namespace(name, ItemVisibility::Public, id, None, is_prelude)
+        self.scope.add_item_to_namespace(name, id, None, is_prelude)
     }
 
     pub fn find_name(&self, name: &Ident) -> PerNs {

@@ -23,7 +23,6 @@ use crate::errors::CliError;
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
-#[clap(visible_alias = "e")]
 pub(crate) struct ExecuteCommand {
     /// Write the execution witness to named file
     witness_name: Option<String>,
