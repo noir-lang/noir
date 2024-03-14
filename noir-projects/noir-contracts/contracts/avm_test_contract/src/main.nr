@@ -21,9 +21,11 @@ contract AvmTest {
     use crate::Note;
 
     // Libs
+    use dep::aztec::prelude::Map;
     use dep::aztec::state_vars::PublicMutable;
     use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH};
     use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
+    use dep::aztec::protocol_types::{hash::pedersen_hash, traits::{ToField}};
     use dep::compressed_string::CompressedString;
 
     // avm lib
@@ -32,6 +34,7 @@ contract AvmTest {
     struct Storage {
         single: PublicMutable<Field>,
         list: PublicMutable<Note>,
+        map: Map<AztecAddress, PublicMutable<u32>>,
     }
 
     #[aztec(public-vm)]
@@ -59,6 +62,26 @@ contract AvmTest {
     fn readStorageList() -> pub [Field; 2] {
         let note: Note = storage.list.read();
         note.serialize()
+    }
+
+    #[aztec(public-vm)]
+    fn setStorageMap(to: AztecAddress, amount: u32) -> pub Field {
+        storage.map.at(to).write(amount);
+        // returns storage slot for key
+        pedersen_hash([storage.map.storage_slot, to.to_field()], 0)
+    }
+
+    #[aztec(public-vm)]
+    fn addStorageMap(to: AztecAddress, amount: u32) -> pub Field {
+        let new_balance = storage.map.at(to).read().add(amount);
+        storage.map.at(to).write(new_balance);
+        // returns storage slot for key
+        pedersen_hash([storage.map.storage_slot, to.to_field()], 0)
+    }
+
+    #[aztec(public-vm)]
+    fn readStorageMap(address: AztecAddress) -> pub u32 {
+        storage.map.at(address).read()
     }
 
     #[aztec(public-vm)]
