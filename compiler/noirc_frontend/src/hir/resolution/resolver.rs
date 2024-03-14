@@ -1943,13 +1943,45 @@ impl<'a> Resolver<'a> {
         rhs: ExprId,
         span: Span,
     ) -> Result<u128, Option<ResolverError>> {
+        // Arbitrary amount of recursive calls to try before giving up
+        let fuel = 100;
+        self.try_eval_array_length_id_with_fuel(rhs, span, fuel)
+    }
+
+    fn try_eval_array_length_id_with_fuel(
+        &self,
+        rhs: ExprId,
+        span: Span,
+        fuel: u32,
+    ) -> Result<u128, Option<ResolverError>> {
+        if fuel == 0 {
+            // If we reach here, it is likely from evaluating cyclic globals. We expect an error to
+            // be issued for them after name resolution so issue no error now.
+            return Err(None);
+        }
+
         match self.interner.expression(&rhs) {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
             }
+            HirExpression::Ident(ident) => {
+                let definition = self.interner.definition(ident.id);
+                match definition.kind {
+                    DefinitionKind::Global(global_id) => {
+                        let let_statement = self.interner.get_global_let_statement(global_id);
+                        if let Some(let_statement) = let_statement {
+                            let expression = let_statement.expression;
+                            self.try_eval_array_length_id_with_fuel(expression, span, fuel - 1)
+                        } else {
+                            Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+                        }
+                    }
+                    _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
+                }
+            }
             HirExpression::Infix(infix) => {
-                let lhs = self.try_eval_array_length_id(infix.lhs, span)?;
-                let rhs = self.try_eval_array_length_id(infix.rhs, span)?;
+                let lhs = self.try_eval_array_length_id_with_fuel(infix.lhs, span, fuel - 1)?;
+                let rhs = self.try_eval_array_length_id_with_fuel(infix.rhs, span, fuel - 1)?;
 
                 match infix.operator.kind {
                     BinaryOpKind::Add => Ok(lhs + rhs),

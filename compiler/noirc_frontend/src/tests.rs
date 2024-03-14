@@ -1217,7 +1217,8 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
     #[test]
     fn operators_in_global_used_in_type() {
         let src = r#"
-            global COUNT = 1 + 2;
+            global ONE = 1;
+            global COUNT = ONE + 2;
             fn main() {
                 let _array: [Field; COUNT] = [1, 2, 3];
             }
