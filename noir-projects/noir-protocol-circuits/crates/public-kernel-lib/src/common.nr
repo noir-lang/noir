@@ -35,6 +35,10 @@ pub fn validate_inputs(public_call: PublicCallData) {
     assert(public_call.bytecode_hash != 0, "Bytecode hash cannot be zero");
 }
 
+pub fn validate_public_call_non_revert(public_call: PublicCallData) {
+    assert(public_call.call_stack_item.public_inputs.reverted == false, "Public call cannot be reverted");
+}
+
 pub fn initialize_reverted_flag(
     previous_kernel: PublicKernelData,
     public_call: PublicCallData,

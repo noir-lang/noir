@@ -7,7 +7,6 @@ import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ContractsDataSourcePublicDB } from '../simulator/public_executor.js';
 import { AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
-import { FailedTx } from './processed_tx.js';
 
 /**
  * The phase manager responsible for performing the fee preparation phase.
@@ -39,27 +38,22 @@ export class AppLogicPhaseManager extends AbstractPhaseManager {
     this.log(`Processing tx ${tx.getTxHash()}`);
     await this.publicContractsDB.addNewContracts(tx);
     const [publicKernelOutput, publicKernelProof, newUnencryptedFunctionLogs, revertReason] =
-      await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput, previousPublicKernelProof);
+      await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput, previousPublicKernelProof).catch(
+        // if we throw for any reason other than simulation, we need to rollback and drop the TX
+        async err => {
+          await this.publicStateDB.rollbackToCommit();
+          throw err;
+        },
+      );
 
     if (revertReason) {
-      await this.rollback(tx, revertReason);
+      await this.publicContractsDB.removeNewContracts(tx);
+      await this.publicStateDB.rollbackToCheckpoint();
     } else {
       tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
-      await this.publicStateDB.commit();
+      await this.publicStateDB.checkpoint();
     }
 
     return { publicKernelOutput, publicKernelProof, revertReason };
-  }
-
-  async rollback(tx: Tx, err: unknown): Promise<FailedTx> {
-    this.log.warn(`Rolling back changes from ${tx.getTxHash()}`);
-    // remove contracts on failure
-    await this.publicContractsDB.removeNewContracts(tx);
-    // rollback any state updates from this failed transaction
-    await this.publicStateDB.rollback();
-    return {
-      tx,
-      error: err instanceof Error ? err : new Error('Unknown error'),
-    };
   }
 }

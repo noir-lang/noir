@@ -59,7 +59,6 @@ import { getVerificationKeys } from '../mocks/verification_keys.js';
 import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { HintsBuilder } from './hints_builder.js';
-import { FailedTx } from './processed_tx.js';
 import { lastSideEffectCounter } from './utils.js';
 
 export enum PublicKernelPhase {
@@ -115,7 +114,6 @@ export abstract class AbstractPhaseManager {
      */
     revertReason: SimulationError | undefined;
   }>;
-  abstract rollback(tx: Tx, err: unknown): Promise<FailedTx>;
 
   public static extractEnqueuedPublicCallsByPhase(
     publicInputs: PrivateKernelTailCircuitPublicInputs,
@@ -220,8 +218,18 @@ export abstract class AbstractPhaseManager {
 
         const result = isExecutionRequest ? await simulator(current, this.globalVariables) : current;
 
-        newUnencryptedFunctionLogs.push(result.unencryptedLogs);
         const functionSelector = result.execution.functionData.selector.toString();
+        if (result.reverted && !PhaseIsRevertible[this.phase]) {
+          this.log.debug(
+            `Simulation error on ${result.execution.contractAddress.toString()}:${functionSelector} with reason: ${
+              result.revertReason
+            }`,
+          );
+          throw result.revertReason;
+        }
+
+        newUnencryptedFunctionLogs.push(result.unencryptedLogs);
+
         this.log.debug(
           `Running public kernel circuit for ${result.execution.contractAddress.toString()}:${functionSelector}`,
         );
@@ -230,14 +238,23 @@ export abstract class AbstractPhaseManager {
 
         [kernelOutput, kernelProof] = await this.runKernelCircuit(kernelOutput, kernelProof, callData);
 
-        if (kernelOutput.reverted && this.phase === PublicKernelPhase.APP_LOGIC) {
+        // sanity check. Note we can't expect them to just be equal, because e.g.
+        // if the simulator reverts in app logic, it "resets" and result.reverted will be false when we run teardown,
+        // but the kernel carries the reverted flag forward. But if the simulator reverts, so should the kernel.
+        if (result.reverted && !kernelOutput.reverted) {
+          throw new Error(
+            `Public kernel circuit did not revert on ${result.execution.contractAddress.toString()}:${functionSelector}, but simulator did.`,
+          );
+        }
+
+        // We know the phase is revertible due to the above check.
+        // So safely return the revert reason and the kernel output (which has had its revertible side effects dropped)
+        if (result.reverted) {
           this.log.debug(
             `Reverting on ${result.execution.contractAddress.toString()}:${functionSelector} with reason: ${
               result.revertReason
             }`,
           );
-          // halt immediately if the public kernel circuit has reverted.
-          // return no logs, as they should not go on-chain.
           return [kernelOutput, kernelProof, [], result.revertReason];
         }
 

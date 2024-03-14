@@ -4,14 +4,17 @@ import {
   DebugLogger,
   ExtendedNote,
   Fr,
+  FunctionCall,
   FunctionSelector,
   Note,
   PrivateFeePaymentMethod,
   PublicFeePaymentMethod,
   TxHash,
   Wallet,
+  computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
+import { FunctionData } from '@aztec/circuits.js';
 import { ContractArtifact, decodeFunctionSignature } from '@aztec/foundation/abi';
 import {
   TokenContract as BananaCoin,
@@ -506,6 +509,114 @@ describe('e2e_fees', () => {
     });
   });
 
+  it('fails transaction that error in setup', async () => {
+    const OutrageousPublicAmountAliceDoesNotHave = 10000n;
+    // const PublicMintedAlicePublicBananas = 1000n;
+    const FeeAmount = 1n;
+    const RefundAmount = 2n;
+    const MaxFee = FeeAmount + RefundAmount;
+    const { wallets } = e2eContext;
+
+    // simulation throws an error when setup fails
+    await expect(
+      bananaCoin.methods
+        .transfer_public(aliceAddress, sequencerAddress, OutrageousPublicAmountAliceDoesNotHave, 0)
+        .send({
+          fee: {
+            maxFee: MaxFee,
+            paymentMethod: new BuggedSetupFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
+          },
+        })
+        .wait(),
+    ).rejects.toThrow(/Message not authorized by account 'is_valid == true'/);
+
+    // so does the sequencer
+    await expect(
+      bananaCoin.methods
+        .transfer_public(aliceAddress, sequencerAddress, OutrageousPublicAmountAliceDoesNotHave, 0)
+        .send({
+          skipPublicSimulation: true,
+          fee: {
+            maxFee: MaxFee,
+            paymentMethod: new BuggedSetupFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
+          },
+        })
+        .wait(),
+    ).rejects.toThrow(/Transaction [0-9a-f]{64} was dropped\. Reason: Tx dropped by P2P node\./);
+  });
+
+  it('fails transaction that error in teardown', async () => {
+    /**
+     * We trigger an error in teardown by having the FPC authorize a transfer of its entire balance to Alice
+     * as part of app logic. This will cause the FPC to not have enough funds to pay the refund back to Alice.
+     */
+
+    const PublicMintedAlicePublicBananas = 1000n;
+    const FeeAmount = 1n;
+    const RefundAmount = 2n;
+    const MaxFee = FeeAmount + RefundAmount;
+    const { wallets } = e2eContext;
+
+    const [initialAlicePrivateBananas, initialFPCPrivateBananas] = await bananaPrivateBalances(
+      aliceAddress,
+      bananaFPC.address,
+    );
+    const [initialAlicePublicBananas, initialFPCPublicBananas] = await bananaPublicBalances(
+      aliceAddress,
+      bananaFPC.address,
+    );
+    const [initialAliceGas, initialFPCGas, initialSequencerGas] = await gasBalances(
+      aliceAddress,
+      bananaFPC.address,
+      sequencerAddress,
+    );
+
+    await bananaCoin.methods.mint_public(aliceAddress, PublicMintedAlicePublicBananas).send().wait();
+
+    await expect(
+      bananaCoin.methods
+        .mint_public(aliceAddress, 1n) // random operation
+        .send({
+          fee: {
+            maxFee: MaxFee,
+            paymentMethod: new BuggedTeardownFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
+          },
+        })
+        .wait(),
+    ).rejects.toThrow(/invalid nonce/);
+
+    // node also drops
+    await expect(
+      bananaCoin.methods
+        .mint_public(aliceAddress, 1n) // random operation
+        .send({
+          skipPublicSimulation: true,
+          fee: {
+            maxFee: MaxFee,
+            paymentMethod: new BuggedTeardownFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
+          },
+        })
+        .wait(),
+    ).rejects.toThrow(/Transaction [0-9a-f]{64} was dropped\. Reason: Tx dropped by P2P node\./);
+
+    // nothing happened
+    await expectMapping(
+      bananaPrivateBalances,
+      [aliceAddress, bananaFPC.address, sequencerAddress],
+      [initialAlicePrivateBananas, initialFPCPrivateBananas, 0n],
+    );
+    await expectMapping(
+      bananaPublicBalances,
+      [aliceAddress, bananaFPC.address, sequencerAddress],
+      [initialAlicePublicBananas + PublicMintedAlicePublicBananas, initialFPCPublicBananas, 0n],
+    );
+    await expectMapping(
+      gasBalances,
+      [aliceAddress, bananaFPC.address, sequencerAddress],
+      [initialAliceGas, initialFPCGas, initialSequencerGas],
+    );
+  });
+
   function logFunctionSignatures(artifact: ContractArtifact, logger: DebugLogger) {
     artifact.functions.forEach(fn => {
       const sig = decodeFunctionSignature(fn.name, fn.parameters);
@@ -543,3 +654,81 @@ describe('e2e_fees', () => {
     await e2eContext.wallets[accountIndex].addNote(extendedNote);
   };
 });
+
+class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
+  getFunctionCalls(maxFee: Fr): Promise<FunctionCall[]> {
+    const nonce = Fr.random();
+    const messageHash = computeAuthWitMessageHash(this.paymentContract, {
+      args: [this.wallet.getAddress(), this.paymentContract, maxFee, nonce],
+      functionData: new FunctionData(
+        FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
+        false,
+        false,
+        false,
+      ),
+      to: this.asset,
+    });
+
+    const tooMuchFee = new Fr(maxFee.toBigInt() * 2n);
+
+    return Promise.resolve([
+      this.wallet.setPublicAuth(messageHash, true).request(),
+      {
+        to: this.getPaymentContract(),
+        functionData: new FunctionData(
+          FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
+          false,
+          true,
+          false,
+        ),
+        args: [tooMuchFee, this.asset, nonce],
+      },
+    ]);
+  }
+}
+
+class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
+  async getFunctionCalls(maxFee: Fr): Promise<FunctionCall[]> {
+    // authorize the FPC to take the max fee from Alice
+    const nonce = Fr.random();
+    const messageHash1 = computeAuthWitMessageHash(this.paymentContract, {
+      args: [this.wallet.getAddress(), this.paymentContract, maxFee, nonce],
+      functionData: new FunctionData(
+        FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
+        false,
+        false,
+        false,
+      ),
+      to: this.asset,
+    });
+
+    // authorize the FPC to take the maxFee
+    // do this first because we only get 2 feepayload calls
+    await this.wallet.setPublicAuth(messageHash1, true).send().wait();
+
+    return Promise.resolve([
+      // in this, we're actually paying the fee in setup
+      {
+        to: this.getPaymentContract(),
+        functionData: new FunctionData(
+          FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
+          false,
+          true,
+          false,
+        ),
+        args: [maxFee, this.asset, nonce],
+      },
+      // and trying to take a little extra in teardown, but specify a bad nonce
+      {
+        to: this.asset,
+        functionData: new FunctionData(
+          FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
+          false,
+          false,
+          false,
+        ),
+        args: [this.wallet.getAddress(), this.paymentContract, new Fr(1), Fr.random()],
+      },
+    ]);
+  }
+}

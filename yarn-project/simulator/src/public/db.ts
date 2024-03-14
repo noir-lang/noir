@@ -28,16 +28,25 @@ export interface PublicStateDB {
   storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<void>;
 
   /**
-   * Commit the pending changes to the DB.
-   * @returns Nothing.
+   * Mark the uncommitted changes in this TX as a checkpoint.
+   */
+  checkpoint(): Promise<void>;
+
+  /**
+   * Rollback to the last checkpoint.
+   */
+  rollbackToCheckpoint(): Promise<void>;
+
+  /**
+   * Commit the changes in this TX. Includes all changes since the last commit,
+   * even if they haven't been covered by a checkpoint.
    */
   commit(): Promise<void>;
 
   /**
-   * Rollback the pending changes.
-   * @returns Nothing.
+   * Rollback to the last commit.
    */
-  rollback(): Promise<void>;
+  rollbackToCommit(): Promise<void>;
 }
 
 /**

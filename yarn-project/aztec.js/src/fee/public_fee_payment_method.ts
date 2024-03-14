@@ -16,16 +16,16 @@ export class PublicFeePaymentMethod implements FeePaymentMethod {
     /**
      * The asset used to pay the fee.
      */
-    private asset: AztecAddress,
+    protected asset: AztecAddress,
     /**
      * Address which will hold the fee payment.
      */
-    private paymentContract: AztecAddress,
+    protected paymentContract: AztecAddress,
 
     /**
      * An auth witness provider to authorize fee payments
      */
-    private wallet: AccountWallet,
+    protected wallet: AccountWallet,
   ) {}
 
   /**

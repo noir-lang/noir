@@ -38,6 +38,8 @@ impl PublicKernelSetupCircuitPrivateInputs {
     fn public_kernel_setup(self) -> PublicKernelCircuitPublicInputs {
         // construct the circuit outputs
         let mut public_inputs: PublicKernelCircuitPublicInputsBuilder = unsafe::zeroed();
+        // since this phase is non-revertible, we must assert the public call did not revert
+        common::validate_public_call_non_revert(self.public_call);
         common::initialize_reverted_flag(self.previous_kernel, self.public_call, &mut public_inputs);
 
         // initialise the end state with our provided previous kernel state
@@ -522,5 +524,13 @@ mod tests {
         assert_eq(request_context.value, request_1.value);
         assert_eq(request_context.counter, request_1.counter);
         assert_eq(request_context.contract_address, storage_contract_address);
+    }
+
+    #[test(should_fail_with="Public call cannot be reverted")]
+    fn fails_if_public_call_reverted() {
+        let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
+        builder.public_call.public_inputs.reverted = true;
+
+        builder.failed();
     }
 }

@@ -130,8 +130,9 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
  * Implements the PublicStateDB using a world-state database.
  */
 export class WorldStatePublicDB implements PublicStateDB {
-  private commitedWriteCache: Map<bigint, Fr> = new Map();
-  private uncommitedWriteCache: Map<bigint, Fr> = new Map();
+  private committedWriteCache: Map<bigint, Fr> = new Map();
+  private checkpointedWriteCache: Map<bigint, Fr> = new Map();
+  private uncommittedWriteCache: Map<bigint, Fr> = new Map();
 
   constructor(private db: MerkleTreeOperations) {}
 
@@ -143,13 +144,17 @@ export class WorldStatePublicDB implements PublicStateDB {
    */
   public async storageRead(contract: AztecAddress, slot: Fr): Promise<Fr> {
     const leafSlot = computePublicDataTreeLeafSlot(contract, slot).value;
-    const uncommited = this.uncommitedWriteCache.get(leafSlot);
-    if (uncommited !== undefined) {
-      return uncommited;
+    const uncommitted = this.uncommittedWriteCache.get(leafSlot);
+    if (uncommitted !== undefined) {
+      return uncommitted;
     }
-    const commited = this.commitedWriteCache.get(leafSlot);
-    if (commited !== undefined) {
-      return commited;
+    const checkpointed = this.checkpointedWriteCache.get(leafSlot);
+    if (checkpointed !== undefined) {
+      return checkpointed;
+    }
+    const committed = this.committedWriteCache.get(leafSlot);
+    if (committed !== undefined) {
+      return committed;
     }
 
     const lowLeafResult = await this.db.getPreviousValueIndex(MerkleTreeId.PUBLIC_DATA_TREE, leafSlot);
@@ -173,7 +178,7 @@ export class WorldStatePublicDB implements PublicStateDB {
    */
   public storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<void> {
     const index = computePublicDataTreeLeafSlot(contract, slot).value;
-    this.uncommitedWriteCache.set(index, newValue);
+    this.uncommittedWriteCache.set(index, newValue);
     return Promise.resolve();
   }
 
@@ -182,18 +187,36 @@ export class WorldStatePublicDB implements PublicStateDB {
    * @returns Nothing.
    */
   commit(): Promise<void> {
-    for (const [k, v] of this.uncommitedWriteCache) {
-      this.commitedWriteCache.set(k, v);
+    for (const [k, v] of this.checkpointedWriteCache) {
+      this.committedWriteCache.set(k, v);
     }
-    return this.rollback();
+    // uncommitted writes take precedence over checkpointed writes
+    // since they are the most recent
+    for (const [k, v] of this.uncommittedWriteCache) {
+      this.committedWriteCache.set(k, v);
+    }
+    return this.rollbackToCommit();
   }
 
   /**
    * Rollback the pending changes.
    * @returns Nothing.
    */
-  rollback(): Promise<void> {
-    this.uncommitedWriteCache = new Map<bigint, Fr>();
+  async rollbackToCommit(): Promise<void> {
+    await this.rollbackToCheckpoint();
+    this.checkpointedWriteCache = new Map<bigint, Fr>();
+    return Promise.resolve();
+  }
+
+  checkpoint(): Promise<void> {
+    for (const [k, v] of this.uncommittedWriteCache) {
+      this.checkpointedWriteCache.set(k, v);
+    }
+    return this.rollbackToCheckpoint();
+  }
+
+  rollbackToCheckpoint(): Promise<void> {
+    this.uncommittedWriteCache = new Map<bigint, Fr>();
     return Promise.resolve();
   }
 }
