@@ -1,5 +1,5 @@
-use crate::hash::{ Hash, Hasher };
-use crate::cmp::{ Ordering, Ord, Eq };
+use crate::hash::{Hash, Hasher};
+use crate::cmp::{Ordering, Ord, Eq};
 use crate::default::Default;
 
 struct Option<T> {
