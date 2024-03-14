@@ -9,7 +9,8 @@ WORKDIR /usr/src/barretenberg/acir_tests
 # Build/install ts apps.
 COPY browser-test-app browser-test-app
 COPY headless-test headless-test
-RUN (cd browser-test-app && yarn && yarn build) && (cd headless-test && yarn && npx playwright install && npx playwright install-deps)
+RUN cd browser-test-app && yarn && yarn build
+RUN cd headless-test && yarn && npx playwright install && npx playwright install-deps
 COPY . .
 ENV VERBOSE=1
 # Run double_verify_proof through bb.js on node to check 512k support.
