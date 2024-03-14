@@ -154,7 +154,7 @@ fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Functio
         for block in function.reachable_blocks() {
             function.dfg[block]
                 .instructions_mut()
-                .retain(|instruction| !to_remove.contains(instruction))
+                .retain(|instruction| !to_remove.contains(instruction));
         }
     }
 }
