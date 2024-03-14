@@ -102,7 +102,7 @@ Add this below the imports. It declares the storage variables for our contract. 
 
 Now we’ve got a mechanism for storing our private state, we can start using it to ensure the privacy of balances.
 
-Let’s create a `constructor` method to run on deployment that assigns an initial supply of tokens to a specified owner. In the constructor we created in the first step, write this:
+Let’s create a constructor method to run on deployment that assigns an initial supply of tokens to a specified owner. This function is called `initialize`, but behaves like a constructor. It is the `#[aztec(initializer)]` decorator that specifies that this function behaves like a constructor. Write this:
 
 #include_code constructor /noir-projects/noir-contracts/contracts/counter_contract/src/main.nr rust
 
