@@ -309,6 +309,18 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
     }
 
+    /// Insert an instruction to increment an array's reference count. This only has an effect
+    /// in unconstrained code where arrays are reference counted and copy on write.
+    pub(crate) fn insert_inc_rc(&mut self, value: ValueId) {
+        self.insert_instruction(Instruction::IncrementRc { value }, None);
+    }
+
+    /// Insert an instruction to decrement an array's reference count. This only has an effect
+    /// in unconstrained code where arrays are reference counted and copy on write.
+    pub(crate) fn insert_dec_rc(&mut self, value: ValueId) {
+        self.insert_instruction(Instruction::DecrementRc { value }, None);
+    }
+
     /// Terminates the current block with the given terminator instruction
     fn terminate_block_with(&mut self, terminator: TerminatorInstruction) {
         self.current_function.dfg.set_block_terminator(self.current_block, terminator);
@@ -403,21 +415,22 @@ impl FunctionBuilder {
             Type::Function => (),
             Type::Reference(element) => {
                 if element.contains_an_array() {
-                    eprint!("{} is a reference containing an array", value);
                     let value = self.insert_load(value, element.as_ref().clone());
-                    eprintln!(", {} is its load", value);
-                    self.increment_array_reference_count(value);
+                    self.update_array_reference_count(value, increment);
                 }
             }
             typ @ Type::Array(..) | typ @ Type::Slice(..) => {
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
-                let instruction = if increment {
-                    Instruction::IncrementRc { value }
-                } else {
-                    Instruction::DecrementRc { value }
+                let update_rc = |this: &mut Self, value| {
+                    if increment {
+                        this.insert_inc_rc(value);
+                    } else {
+                        this.insert_dec_rc(value);
+                    }
                 };
-                self.insert_instruction(instruction, None);
+
+                update_rc(self, value);
 
                 // This is a bit odd, but in brillig the inc_rc instruction operates on
                 // a copy of the array's metadata, so we need to re-store a loaded array
@@ -428,8 +441,8 @@ impl FunctionBuilder {
                         // We can't re-use `value` in case the original address was stored
                         // to again in the meantime. So introduce another load.
                         let address = *address;
-                        let value = self.insert_load(address, typ);
-                        self.insert_instruction(Instruction::IncrementRc { value }, None);
+                        let new_load = self.insert_load(address, typ);
+                        update_rc(self, new_load);
                         self.insert_store(address, value);
                     }
                 }

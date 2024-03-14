@@ -158,3 +158,176 @@ fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Functio
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::rc::Rc;
+
+    use crate::ssa::{
+        function_builder::FunctionBuilder,
+        ir::{
+            basic_block::BasicBlockId, dfg::DataFlowGraph, function::RuntimeType,
+            instruction::Instruction, map::Id, types::Type,
+        },
+    };
+
+    fn count_inc_rcs(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
+        dfg[block]
+            .instructions()
+            .iter()
+            .filter(|instruction_id| {
+                matches!(dfg[**instruction_id], Instruction::IncrementRc { .. })
+            })
+            .count()
+    }
+
+    fn count_dec_rcs(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
+        dfg[block]
+            .instructions()
+            .iter()
+            .filter(|instruction_id| {
+                matches!(dfg[**instruction_id], Instruction::DecrementRc { .. })
+            })
+            .count()
+    }
+
+    #[test]
+    fn single_block_fn_return_array() {
+        // This is the output for the program with a function:
+        // unconstrained fn foo(x: [Field; 2]) -> [[Field; 2]; 1] {
+        //     [array]
+        // }
+        //
+        // fn foo {
+        //   b0(v0: [Field; 2]):
+        //     inc_rc v0
+        //     inc_rc v0
+        //     dec_rc v0
+        //     return [v0]
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("foo".into(), main_id, RuntimeType::Brillig);
+
+        let inner_array_type = Type::Array(Rc::new(vec![Type::field()]), 2);
+        let v0 = builder.add_parameter(inner_array_type.clone());
+
+        builder.insert_inc_rc(v0);
+        builder.insert_inc_rc(v0);
+        builder.insert_dec_rc(v0);
+
+        let outer_array_type = Type::Array(Rc::new(vec![inner_array_type]), 1);
+        let array = builder.array_constant(vec![v0].into(), outer_array_type);
+        builder.terminate_with_return(vec![array]);
+
+        let ssa = builder.finish().remove_paired_rc();
+        let main = ssa.main();
+        let entry = main.entry_block();
+
+        assert_eq!(count_inc_rcs(entry, &main.dfg), 1);
+        assert_eq!(count_dec_rcs(entry, &main.dfg), 0);
+    }
+
+    #[test]
+    fn single_block_mutation() {
+        // fn mutator(mut array: [Field; 2]) {
+        //     array[0] = 5;
+        // }
+        //
+        // fn mutator {
+        //   b0(v0: [Field; 2]):
+        //     v1 = allocate
+        //     store v0 at v1
+        //     inc_rc v0
+        //     v2 = load v1
+        //     v7 = array_set v2, index u64 0, value Field 5
+        //     store v7 at v1
+        //     dec_rc v0
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("mutator".into(), main_id, RuntimeType::Acir);
+
+        let array_type = Type::Array(Rc::new(vec![Type::field()]), 2);
+        let v0 = builder.add_parameter(array_type.clone());
+
+        let v1 = builder.insert_allocate(array_type.clone());
+        builder.insert_store(v1, v0);
+        builder.insert_inc_rc(v0);
+        let v2 = builder.insert_load(v1, array_type);
+
+        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let five = builder.field_constant(5u128);
+        let v7 = builder.insert_array_set(v2, zero, five);
+
+        builder.insert_store(v1, v7);
+        builder.insert_dec_rc(v0);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish().remove_paired_rc();
+        let main = ssa.main();
+        let entry = main.entry_block();
+
+        // No changes, the array is possibly mutated
+        assert_eq!(count_inc_rcs(entry, &main.dfg), 1);
+        assert_eq!(count_dec_rcs(entry, &main.dfg), 1);
+    }
+
+    // Similar to single_block_mutation but for a function which
+    // uses a mutable reference parameter.
+    #[test]
+    fn single_block_mutation_through_reference() {
+        // fn mutator2(array: &mut [Field; 2]) {
+        //     array[0] = 5;
+        // }
+        //
+        // fn mutator2 {
+        //   b0(v0: &mut [Field; 2]):
+        //     v1 = load v0
+        //     inc_rc v1
+        //     v2 = load v0
+        //     inc_rc v2
+        //     store v2 at v0
+        //     v3 = load v0
+        //     v8 = array_set v3, index u64 0, value Field 5
+        //     store v8 at v0
+        //     v9 = load v0
+        //     inc_rc v9
+        //     v10 = load v0
+        //     inc_rc v10
+        //     store v10 at v0
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("mutator2".into(), main_id, RuntimeType::Acir);
+
+        let array_type = Type::Array(Rc::new(vec![Type::field()]), 2);
+        let reference_type = Type::Reference(Rc::new(array_type.clone()));
+
+        let v0 = builder.add_parameter(reference_type);
+
+        // This inc_rc is from being used as a parameter
+        let v1 = builder.insert_load(v0, array_type.clone());
+        builder.insert_inc_rc(v1);
+
+        let v1 = builder.insert_allocate(array_type.clone());
+        builder.insert_store(v1, v0);
+        builder.insert_inc_rc(v0);
+        let v2 = builder.insert_load(v1, array_type);
+
+        let zero = builder.numeric_constant(0u128, Type::unsigned(64));
+        let five = builder.field_constant(5u128);
+        let v7 = builder.insert_array_set(v2, zero, five);
+
+        builder.insert_store(v1, v7);
+        builder.insert_dec_rc(v0);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish().remove_paired_rc();
+        let main = ssa.main();
+        let entry = main.entry_block();
+
+        // No changes, the array is possibly mutated
+        assert_eq!(count_inc_rcs(entry, &main.dfg), 1);
+        assert_eq!(count_dec_rcs(entry, &main.dfg), 1);
+    }
+}
