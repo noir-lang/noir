@@ -51,6 +51,7 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
   private getEntrypointAbi() {
     return {
       name: 'entrypoint',
+      isInitializer: false,
       functionType: 'secret',
       isInternal: false,
       parameters: [

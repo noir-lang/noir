@@ -33,8 +33,6 @@ contract SlowTree {
     }
     // docs:end:constants_and_storage
 
-    #[aztec(private)]
-    fn constructor() {}
     // docs:start:initialize
     #[aztec(public)]
     fn initialize() {

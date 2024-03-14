@@ -14,7 +14,8 @@ import {
 } from '@aztec/aztec.js';
 import { times } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
-import { TestContract, TestContractArtifact } from '@aztec/noir-contracts.js/Test';
+import { StatefulTestContractArtifact } from '@aztec/noir-contracts.js';
+import { TestContract } from '@aztec/noir-contracts.js/Test';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 import { setup } from './fixtures/utils.js';
@@ -28,7 +29,7 @@ describe('e2e_block_building', () => {
   let teardown: () => Promise<void>;
 
   describe('multi-txs block', () => {
-    const artifact = TestContractArtifact;
+    const artifact = StatefulTestContractArtifact;
 
     beforeAll(async () => {
       ({
@@ -49,7 +50,7 @@ describe('e2e_block_building', () => {
       const TX_COUNT = 8;
       await aztecNode.setConfig({ minTxsPerBlock: TX_COUNT });
       const deployer = new ContractDeployer(artifact, owner);
-      const methods = times(TX_COUNT, () => deployer.deploy());
+      const methods = times(TX_COUNT, i => deployer.deploy(owner.getCompleteAddress().address, i));
       for (let i = 0; i < TX_COUNT; i++) {
         await methods[i].create({
           contractAddressSalt: new Fr(BigInt(i + 1)),

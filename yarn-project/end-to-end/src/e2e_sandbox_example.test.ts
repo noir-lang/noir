@@ -196,7 +196,7 @@ describe('e2e_sandbox_example', () => {
         );
       return await Promise.all(
         accountManagers.map(async x => {
-          await x.waitDeploy({});
+          await x.waitSetup({});
           return x;
         }),
       );

@@ -13,9 +13,6 @@ contract Child {
         a_private_value: PrivateSet<ValueNote>,
     }
 
-    #[aztec(private)]
-    fn constructor() {}
-
     // Returns a sum of the input and the chain id and version of the contract in private circuit public input's return_values.
     #[aztec(private)]
     fn value(input: Field) -> Field {

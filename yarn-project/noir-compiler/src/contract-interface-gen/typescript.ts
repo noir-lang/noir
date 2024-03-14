@@ -2,6 +2,7 @@ import {
   ABIParameter,
   ContractArtifact,
   FunctionArtifact,
+  getDefaultInitializer,
   isAztecAddressStruct,
   isEthAddressStruct,
   isFunctionSelectorStruct,
@@ -71,7 +72,7 @@ function generateMethod(entry: FunctionArtifact) {
  * @returns A type-safe deploy method in ts.
  */
 function generateDeploy(input: ContractArtifact) {
-  const ctor = input.functions.find(f => f.name === 'constructor');
+  const ctor = getDefaultInitializer(input);
   const args = (ctor?.parameters ?? []).map(generateParameter).join(', ');
   const contractName = `${input.name}Contract`;
   const artifactName = `${contractName}Artifact`;

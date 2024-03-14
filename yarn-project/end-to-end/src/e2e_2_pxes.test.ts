@@ -258,7 +258,7 @@ describe('e2e_2_pxes', () => {
     const privateKey = GrumpkinScalar.random();
     const account = getUnsafeSchnorrAccount(pxeA, privateKey, Fr.random());
     const completeAddress = account.getCompleteAddress();
-    const wallet = await account.waitDeploy();
+    const wallet = await account.waitSetup();
 
     await expect(wallet.isAccountStateSynchronized(completeAddress.address)).resolves.toBe(true);
     const accountOnB = getUnsafeSchnorrAccount(pxeB, privateKey, account.salt);
@@ -318,7 +318,7 @@ describe('e2e_2_pxes', () => {
     const sharedPrivateKey = GrumpkinScalar.random();
     const sharedAccountOnA = getUnsafeSchnorrAccount(pxeA, sharedPrivateKey, Fr.random());
     const sharedAccountAddress = sharedAccountOnA.getCompleteAddress();
-    const sharedWalletOnA = await sharedAccountOnA.waitDeploy();
+    const sharedWalletOnA = await sharedAccountOnA.waitSetup();
     await expect(sharedWalletOnA.isAccountStateSynchronized(sharedAccountAddress.address)).resolves.toBe(true);
 
     const sharedAccountOnB = getUnsafeSchnorrAccount(pxeB, sharedPrivateKey, sharedAccountOnA.salt);

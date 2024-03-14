@@ -18,9 +18,6 @@ contract Benchmarking {
         balances: Map<AztecAddress, PublicMutable<Field>>,
     }
 
-    #[aztec(private)]
-    fn constructor() {}
-
     // Creates a new value note for the target owner. Use this method to seed an initial set of notes.
     #[aztec(private)]
     fn create_note(owner: AztecAddress, value: Field) {

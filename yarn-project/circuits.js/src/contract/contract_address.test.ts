@@ -36,6 +36,7 @@ describe('ContractAddress', () => {
   it('computeInitializationHash', () => {
     const mockInitFn: FunctionAbi = {
       functionType: FunctionType.SECRET,
+      isInitializer: false,
       isInternal: false,
       name: 'fun',
       parameters: [{ name: 'param1', type: { kind: 'boolean' }, visibility: ABIParameterVisibility.SECRET }],
@@ -44,6 +45,11 @@ describe('ContractAddress', () => {
     const mockArgs: any[] = [true];
     const result = computeInitializationHash(mockInitFn, mockArgs);
     expect(result).toMatchSnapshot();
+  });
+
+  it('computeInitializationHash empty', () => {
+    const result = computeInitializationHash(undefined, []);
+    expect(result).toEqual(Fr.ZERO);
   });
 
   it('computeContractAddressFromInstance', () => {

@@ -93,9 +93,6 @@ contract DocsExample {
         }
     }
 
-    #[aztec(private)]
-    fn constructor() {}
-
     #[aztec(public)]
     fn initialize_shared_immutable(points: u8) {
         let mut new_leader = Leader { account: context.msg_sender(), points };

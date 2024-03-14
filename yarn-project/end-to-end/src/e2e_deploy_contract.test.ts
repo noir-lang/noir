@@ -27,7 +27,7 @@ import {
 import { ContractClassIdPreimage, Point } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/hash';
 import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
-import { StatefulTestContract } from '@aztec/noir-contracts.js';
+import { CounterContract, StatefulTestContract } from '@aztec/noir-contracts.js';
 import { TestContract, TestContractArtifact } from '@aztec/noir-contracts.js/Test';
 import { TokenContract, TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 import { SequencerClient } from '@aztec/sequencer-client';
@@ -312,7 +312,7 @@ describe('e2e_deploy_contract', () => {
             salt,
             publicKey,
             portalAddress,
-            constructorName: opts.constructorName,
+            constructorArtifact: opts.constructorName,
           });
           const { address, contractClassId } = instance;
           logger(`Deploying contract instance at ${address.toString()} class id ${contractClassId.toString()}`);
@@ -462,8 +462,10 @@ describe('e2e_deploy_contract', () => {
 
     it('publicly deploys and initializes a contract', async () => {
       const owner = accounts[0];
+      logger.debug(`Deploying stateful test contract`);
       const contract = await StatefulTestContract.deploy(wallet, owner, 42).send().deployed();
       expect(await contract.methods.summed_values(owner).view()).toEqual(42n);
+      logger.debug(`Calling public method on stateful test contract at ${contract.address.toString()}`);
       await contract.methods.increment_public_value(owner, 84).send().wait();
       expect(await contract.methods.get_public_value(owner).view()).toEqual(84n);
     }, 60_000);
@@ -485,6 +487,30 @@ describe('e2e_deploy_contract', () => {
       await contract.methods.create_note(owner, 30).send().wait();
       expect(await contract.methods.summed_values(owner).view()).toEqual(30n);
     }, 60_000);
+
+    it('deploys a contract with a default initializer not named constructor', async () => {
+      logger.debug(`Deploying contract with a default initializer named initialize`);
+      const opts = { skipClassRegistration: true, skipPublicDeployment: true };
+      const contract = await CounterContract.deploy(wallet, 10, accounts[0]).send(opts).deployed();
+      logger.debug(`Calling a function to ensure the contract was properly initialized`);
+      await contract.methods.increment(accounts[0]).send().wait();
+      expect(await contract.methods.get_counter(accounts[0]).view()).toEqual(11n);
+    });
+
+    it('publicly deploys a contract with no constructor', async () => {
+      logger.debug(`Deploying contract with no constructor`);
+      const contract = await TestContract.deploy(wallet).send().deployed();
+      logger.debug(`Call a public function to check that it was publicly deployed`);
+      const receipt = await contract.methods.emit_unencrypted(42).send().wait();
+      const logs = await pxe.getUnencryptedLogs({ txHash: receipt.txHash });
+      expect(logs.logs[0].log.data.toString('hex').replace(/^0+/, '')).toEqual('2a');
+    });
+
+    it('refuses to deploy a contract with no constructor and no public deployment', async () => {
+      logger.debug(`Deploying contract with no constructor and skipping public deploy`);
+      const opts = { skipPublicDeployment: true, skipClassRegistration: true };
+      await expect(TestContract.deploy(wallet).simulate(opts)).rejects.toThrow(/no function calls needed/i);
+    });
 
     it.skip('publicly deploys and calls a public function in the same batched call', async () => {
       // TODO(@spalladino): Requires being able to read a nullifier on the same tx it was emitted.
@@ -517,7 +543,7 @@ async function registerContract<T extends ContractBase>(
   const { salt, publicKey, portalAddress, initArgs, constructorName } = opts;
   const instance = getContractInstanceFromDeployParams(contractArtifact.artifact, {
     constructorArgs: initArgs ?? [],
-    constructorName,
+    constructorArtifact: constructorName,
     salt,
     publicKey,
     portalAddress,

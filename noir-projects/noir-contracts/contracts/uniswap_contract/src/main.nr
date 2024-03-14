@@ -24,9 +24,6 @@ contract Uniswap {
         // gets incremented each time after use to prevent replay attacks
         nonce_for_burn_approval: PublicMutable<Field>,
     }
-
-    #[aztec(private)]
-    fn constructor() {}
     // docs:end:uniswap_setup
 
     // docs:start:swap_public

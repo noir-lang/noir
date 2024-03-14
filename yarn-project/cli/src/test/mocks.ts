@@ -5,6 +5,7 @@ export const mockContractArtifact: ContractArtifact = {
   functions: [
     {
       name: 'constructor',
+      isInitializer: true,
       functionType: FunctionType.SECRET,
       isInternal: false,
       parameters: [
@@ -22,6 +23,7 @@ export const mockContractArtifact: ContractArtifact = {
     },
     {
       name: 'mockFunction',
+      isInitializer: false,
       functionType: FunctionType.SECRET,
       isInternal: false,
       parameters: [

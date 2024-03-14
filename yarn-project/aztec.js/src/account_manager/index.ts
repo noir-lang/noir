@@ -26,7 +26,6 @@ export class AccountManager {
   private completeAddress?: CompleteAddress;
   private instance?: ContractInstanceWithAddress;
   private encryptionPublicKey?: PublicKey;
-  // TODO(@spalladino): Update to the new deploy method and kill the legacy one.
   private deployMethod?: DeployMethod;
 
   constructor(
@@ -124,8 +123,10 @@ export class AccountManager {
    */
   public async getDeployMethod() {
     if (!this.deployMethod) {
-      if (!this.salt) {
-        throw new Error(`Cannot deploy account contract without known salt.`);
+      if (!this.isDeployable()) {
+        throw new Error(
+          `Account contract ${this.accountContract.getContractArtifact().name} does not require deployment.`,
+        );
       }
       await this.#register();
       const encryptionPublicKey = this.getEncryptionPublicKey();
@@ -138,7 +139,7 @@ export class AccountManager {
         deployWallet,
         encryptionPublicKey,
       );
-      const args = this.accountContract.getDeploymentArgs();
+      const args = this.accountContract.getDeploymentArgs() ?? [];
       this.deployMethod = deployer.deploy(...args);
     }
     return this.deployMethod;
@@ -146,10 +147,8 @@ export class AccountManager {
 
   /**
    * Deploys the account contract that backs this account.
-   * Does not register the associated class nor publicly deploy the instance.
+   * Does not register the associated class nor publicly deploy the instance by default.
    * Uses the salt provided in the constructor or a randomly generated one.
-   * Note that if the Account is constructed with an explicit complete address
-   * it is assumed that the account contract has already been deployed and this method will throw.
    * Registers the account in the PXE Service before deploying the contract.
    * @returns A SentTx object that can be waited to get the associated Wallet.
    */
@@ -165,17 +164,22 @@ export class AccountManager {
   }
 
   /**
-   * Deploys the account contract that backs this account and awaits the tx to be mined.
-   * Uses the salt provided in the constructor or a randomly generated one.
-   * Note that if the Account is constructed with an explicit complete address
-   * it is assumed that the account contract has already been deployed and this method will throw.
-   * Registers the account in the PXE Service before deploying the contract.
+   * Deploys the account contract that backs this account if needed and awaits the tx to be mined.
+   * Uses the salt provided in the constructor or a randomly generated one. If no initialization
+   * is required it skips the transaction, and only registers the account in the PXE Service.
    * @param opts - Options to wait for the tx to be mined.
    * @returns A Wallet instance.
    */
-  public async waitDeploy(opts: WaitOpts = DefaultWaitOpts): Promise<AccountWalletWithPrivateKey> {
-    await this.deploy().then(tx => tx.wait(opts));
+  public async waitSetup(opts: WaitOpts = DefaultWaitOpts): Promise<AccountWalletWithPrivateKey> {
+    await (this.isDeployable() ? this.deploy().then(tx => tx.wait(opts)) : this.register());
     return this.getWallet();
+  }
+
+  /**
+   * Returns whether this account contract has a constructor and needs deployment.
+   */
+  public isDeployable() {
+    return this.accountContract.getDeploymentArgs() !== undefined;
   }
 
   async #register(): Promise<void> {

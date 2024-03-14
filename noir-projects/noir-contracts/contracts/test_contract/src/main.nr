@@ -38,12 +38,6 @@ contract Test {
         example_set: PrivateSet<FieldNote>,
     }
 
-    // TODO(@spalladino): Delete all empty constructors
-    #[aztec(private)]
-    // docs:start:empty-constructor
-    fn constructor() {}
-    // docs:end:empty-constructor
-
     #[aztec(private)]
     fn get_public_key(address: AztecAddress) -> [Field; 2] {
         let pub_key = get_public_key_oracle(address);

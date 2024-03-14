@@ -15,7 +15,8 @@ contract Counter {
     // docs:start:constructor
     #[aztec(private)]
     #[aztec(initializer)]
-    fn constructor(headstart: u64, owner: AztecAddress) {
+    // We can name our initializer anything we want as long as it's marked as aztec(initializer)
+    fn initialize(headstart: u64, owner: AztecAddress) {
         let counters = storage.counters;
         counters.at(owner).add(headstart, owner);
     }
@@ -23,7 +24,7 @@ contract Counter {
 
     // docs:start:increment
     #[aztec(private)]
-      fn increment(owner: AztecAddress) {
+    fn increment(owner: AztecAddress) {
         let counters = storage.counters;
         counters.at(owner).add(1, owner);
     }

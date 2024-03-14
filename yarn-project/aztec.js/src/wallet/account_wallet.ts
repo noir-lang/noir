@@ -63,6 +63,7 @@ export class AccountWallet extends BaseWallet {
   private getApprovePublicAuthwitAbi(): FunctionAbi {
     return {
       name: 'approve_public_authwit',
+      isInitializer: false,
       functionType: FunctionType.OPEN,
       isInternal: true,
       parameters: [
@@ -79,6 +80,7 @@ export class AccountWallet extends BaseWallet {
   private getCancelAuthwitAbi(): FunctionAbi {
     return {
       name: 'cancel_authwit',
+      isInitializer: false,
       functionType: FunctionType.SECRET,
       isInternal: true,
       parameters: [

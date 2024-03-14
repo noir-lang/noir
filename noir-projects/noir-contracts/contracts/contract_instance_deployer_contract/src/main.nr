@@ -12,9 +12,6 @@ contract ContractInstanceDeployer {
     use crate::events::{instance_deployed::ContractInstanceDeployed};
 
     #[aztec(private)]
-    fn constructor() {}
-
-    #[aztec(private)]
     fn deploy(
         salt: Field,
         contract_class_id: ContractClassId,

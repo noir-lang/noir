@@ -14,9 +14,6 @@ contract DelegatedOn {
     }
 
     #[aztec(private)]
-    fn constructor() {}
-
-    #[aztec(private)]
     fn private_set_value(new_value: Field, owner: AztecAddress) -> Field {
         let mut note = ValueNote::new(new_value, owner);
         storage.a_private_value.insert(&mut note, true);

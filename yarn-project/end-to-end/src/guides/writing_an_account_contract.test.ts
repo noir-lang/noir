@@ -26,9 +26,9 @@ class SchnorrHardcodedKeyAccountContract extends DefaultAccountContract {
     super(SchnorrHardcodedAccountContractArtifact);
   }
 
-  getDeploymentArgs(): any[] {
-    // This contract does not require any arguments in its constructor.
-    return [];
+  getDeploymentArgs(): undefined {
+    // This contract has no constructor
+    return undefined;
   }
 
   getAuthWitnessProvider(_address: CompleteAddress): AuthWitnessProvider {
@@ -58,7 +58,7 @@ describe('guides/writing_an_account_contract', () => {
     // docs:start:account-contract-deploy
     const encryptionPrivateKey = GrumpkinScalar.random();
     const account = new AccountManager(pxe, encryptionPrivateKey, new SchnorrHardcodedKeyAccountContract());
-    const wallet = await account.waitDeploy();
+    const wallet = await account.waitSetup();
     const address = wallet.getCompleteAddress().address;
     // docs:end:account-contract-deploy
     logger(`Deployed account contract at ${address}`);

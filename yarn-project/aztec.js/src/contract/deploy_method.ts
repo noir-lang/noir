@@ -5,7 +5,7 @@ import {
   getContractClassFromArtifact,
   getContractInstanceFromDeployParams,
 } from '@aztec/circuits.js';
-import { ContractArtifact, FunctionArtifact } from '@aztec/foundation/abi';
+import { ContractArtifact, FunctionArtifact, getDefaultInitializer } from '@aztec/foundation/abi';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -33,8 +33,10 @@ export type DeployOptions = {
   universalDeploy?: boolean;
   /** Skip contract class registration. */
   skipClassRegistration?: boolean;
-  /** Skip public deployment and only initialize the contract. */
+  /** Skip public deployment, instead just privately initialize the contract. */
   skipPublicDeployment?: boolean;
+  /** Skip contract initialization. */
+  skipInitialization?: boolean;
 } & SendMethodOptions;
 
 // TODO(@spalladino): Add unit tests for this class!
@@ -48,7 +50,10 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
   private instance?: ContractInstanceWithAddress = undefined;
 
   /** Constructor function to call. */
-  private constructorArtifact: FunctionArtifact;
+  private constructorArtifact: FunctionArtifact | undefined;
+
+  /** Cached call to request() */
+  private functionCalls: FunctionCall[] | undefined;
 
   private log = createDebugLogger('aztec:js:deploy_method');
 
@@ -58,14 +63,16 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     private artifact: ContractArtifact,
     private postDeployCtor: (address: AztecAddress, wallet: Wallet) => Promise<TContract>,
     private args: any[] = [],
-    constructorName: string = 'constructor',
+    constructorName?: string,
   ) {
     super(wallet);
-    const constructorArtifact = artifact.functions.find(f => f.name === constructorName);
-    if (!constructorArtifact) {
-      throw new Error('Cannot find constructor in the artifact.');
+    this.constructorArtifact = constructorName
+      ? artifact.functions.find(f => f.name === constructorName)
+      : getDefaultInitializer(artifact);
+
+    if (constructorName && !this.constructorArtifact) {
+      throw new Error(`Constructor method ${constructorName} not found in contract artifact`);
     }
-    this.constructorArtifact = constructorArtifact;
   }
 
   /**
@@ -79,6 +86,10 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    */
   public async create(options: DeployOptions = {}): Promise<TxExecutionRequest> {
     if (!this.txRequest) {
+      const calls = await this.request(options);
+      if (calls.length === 0) {
+        throw new Error(`No function calls needed to deploy contract ${this.artifact.name}`);
+      }
       this.txRequest = await this.wallet.createTxExecutionRequest(await this.request(options));
       // TODO: Should we add the contracts to the DB here, or once the tx has been sent or mined?
       await this.pxe.addContracts([{ artifact: this.artifact, instance: this.instance! }]);
@@ -95,9 +106,21 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    * it returns a promise for an array instead of a function call directly.
    */
   public async request(options: DeployOptions = {}): Promise<FunctionCall[]> {
-    const { address } = this.getInstance(options);
-    const constructorCall = new ContractFunctionInteraction(this.wallet, address, this.constructorArtifact, this.args);
-    return [...(await this.getDeploymentFunctionCalls(options)), constructorCall.request()];
+    if (!this.functionCalls) {
+      const { address } = this.getInstance(options);
+      const calls = await this.getDeploymentFunctionCalls(options);
+      if (this.constructorArtifact && !options.skipInitialization) {
+        const constructorCall = new ContractFunctionInteraction(
+          this.wallet,
+          address,
+          this.constructorArtifact,
+          this.args,
+        );
+        calls.push(constructorCall.request());
+      }
+      this.functionCalls = calls;
+    }
+    return this.functionCalls;
   }
 
   /**
@@ -168,7 +191,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
         salt: options.contractAddressSalt,
         portalAddress: options.portalContract,
         publicKey: this.publicKey,
-        constructorName: this.constructorArtifact.name,
+        constructorArtifact: this.constructorArtifact,
       });
     }
     return this.instance;

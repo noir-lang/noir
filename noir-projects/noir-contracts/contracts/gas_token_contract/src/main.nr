@@ -10,9 +10,6 @@ contract GasToken {
         balances: Map<AztecAddress, PublicMutable<U128>>,
     }
 
-    #[aztec(private)]
-    fn constructor() {}
-
     #[aztec(public)]
     fn claim_public(to: AztecAddress, amount: Field, canceller: EthAddress, secret: Field) {
         let content_hash = get_bridge_gas_msg_hash(to, amount, canceller);

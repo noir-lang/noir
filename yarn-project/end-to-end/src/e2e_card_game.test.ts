@@ -111,7 +111,7 @@ describe('e2e_card_game', () => {
       logger(`Deploying account contract ${i}/${toRegister.length}...`);
       const encryptionPrivateKey = toRegister[i];
       const account = getSchnorrAccount(pxe, encryptionPrivateKey, GrumpkinScalar.random());
-      const wallet = await account.waitDeploy({ interval: 0.1 });
+      const wallet = await account.waitSetup({ interval: 0.1 });
       wallets.push(wallet);
     }
     logger('Account contracts deployed');

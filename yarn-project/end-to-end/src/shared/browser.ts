@@ -120,7 +120,7 @@ export const browserTestSuite = (
           const pxe = createPXEClient(rpcUrl!);
           const privateKey = GrumpkinScalar.fromString(privateKeyString);
           const account = getUnsafeSchnorrAccount(pxe, privateKey);
-          await account.waitDeploy();
+          await account.waitSetup();
           const completeAddress = account.getCompleteAddress();
           const addressString = completeAddress.address.toString();
           console.log(`Created Account: ${addressString}`);
@@ -186,7 +186,7 @@ export const browserTestSuite = (
             getUnsafeSchnorrAccount,
           } = window.AztecJs;
           const pxe = createPXEClient(rpcUrl!);
-          const newReceiverAccount = await getUnsafeSchnorrAccount(pxe, AztecJs.GrumpkinScalar.random()).waitDeploy();
+          const newReceiverAccount = await getUnsafeSchnorrAccount(pxe, AztecJs.GrumpkinScalar.random()).waitSetup();
           const receiverAddress = newReceiverAccount.getCompleteAddress().address;
           const [wallet] = await getDeployedTestAccountsWallets(pxe);
           const contract = await Contract.at(AztecAddress.fromString(contractAddress), TokenContractArtifact, wallet);
@@ -232,7 +232,7 @@ export const browserTestSuite = (
               INITIAL_TEST_ENCRYPTION_KEYS[0],
               INITIAL_TEST_SIGNING_KEYS[0],
               INITIAL_TEST_ACCOUNT_SALTS[0],
-            ).waitDeploy();
+            ).waitSetup();
             knownAccounts.push(newAccount);
           }
           const owner = knownAccounts[0];

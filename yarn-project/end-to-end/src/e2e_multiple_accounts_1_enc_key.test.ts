@@ -40,7 +40,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
       logger(`Deploying account contract ${i}/3...`);
       const signingPrivateKey = GrumpkinScalar.random();
       const account = getSchnorrAccount(pxe, encryptionPrivateKey, signingPrivateKey);
-      const wallet = await account.waitDeploy({ interval: 0.1 });
+      const wallet = await account.waitSetup({ interval: 0.1 });
       const completeAddress = account.getCompleteAddress();
       wallets.push(wallet);
       accounts.push(completeAddress);

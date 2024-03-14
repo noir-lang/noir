@@ -18,9 +18,6 @@ contract PendingNoteHashes {
     // TODO(dbanks12): consolidate code into internal helper functions
     // (once Noir's support for this is more robust)
 
-    #[aztec(private)]
-    fn constructor() {}
-
     // Confirm can access pending note hashes by creating / inserting a note and then
     // getting / reading that note all in the same contract function
     // Realistic way to describe this test is "Mint note A, then burn note A in the same transaction"

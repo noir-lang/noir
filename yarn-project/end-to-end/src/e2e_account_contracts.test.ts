@@ -70,7 +70,7 @@ function itShouldBehaveLikeAnAccountContract(
 describe('e2e_account_contracts', () => {
   const walletSetup = async (pxe: PXE, encryptionPrivateKey: GrumpkinPrivateKey, accountContract: AccountContract) => {
     const account = new AccountManager(pxe, encryptionPrivateKey, accountContract);
-    return await account.deploy().then(tx => tx.getWallet());
+    return await account.waitSetup();
   };
 
   const walletAt = async (pxe: PXE, accountContract: AccountContract, address: CompleteAddress) => {

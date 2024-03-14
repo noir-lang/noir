@@ -10,9 +10,6 @@ contract PriceFeed {
         assets: Map<Field, PublicMutable<Asset>>,
     }
 
-    #[aztec(private)]
-    fn constructor() {}
-
     #[aztec(public)]
     fn set_price(asset_id: Field, price: Field) {
         let asset = storage.assets.at(asset_id);

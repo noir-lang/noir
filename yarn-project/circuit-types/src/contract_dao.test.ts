@@ -17,6 +17,7 @@ describe('ContractDao', () => {
       functions: [
         {
           name: 'bar',
+          isInitializer: false,
           functionType: FunctionType.SECRET,
           isInternal: false,
           parameters: [

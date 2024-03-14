@@ -10,7 +10,7 @@ import { getSchnorrAccount } from '../schnorr/index.js';
  * @returns - A wallet for a fresh account.
  */
 export function createAccount(pxe: PXE): Promise<AccountWalletWithPrivateKey> {
-  return getSchnorrAccount(pxe, GrumpkinScalar.random(), GrumpkinScalar.random()).waitDeploy();
+  return getSchnorrAccount(pxe, GrumpkinScalar.random(), GrumpkinScalar.random()).waitSetup();
 }
 
 /**

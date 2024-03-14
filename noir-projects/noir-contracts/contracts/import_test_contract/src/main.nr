@@ -11,11 +11,6 @@ contract ImportTest {
         ManyNotesADeepStructTestCodeGenStruct
     };
 
-    // TODO(@spalladino): Delete all empty constructors
-    #[aztec(private)]
-    fn constructor(
-    ) {}
-
     // Calls the testCodeGen on the Test contract at the target address
     // Used for testing calling a function with arguments of multiple types
     // See yarn-project/simulator/src/client/private_execution.ts

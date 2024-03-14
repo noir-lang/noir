@@ -29,9 +29,6 @@ contract AvmTest {
     // avm lib
     use dep::aztec::avm::hash::{keccak256, poseidon, sha256};
 
-    #[aztec(private)]
-    fn constructor() {}
-
     struct Storage {
         single: PublicMutable<Field>,
         list: PublicMutable<Note>,

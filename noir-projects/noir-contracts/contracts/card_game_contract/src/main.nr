@@ -19,9 +19,6 @@ contract CardGame {
     }
 
     #[aztec(private)]
-    fn constructor() {}
-
-    #[aztec(private)]
     fn buy_pack(seed: Field // The randomness used to generate the cards. Passed in for now.
     ) {
         let buyer = context.msg_sender();

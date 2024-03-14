@@ -18,7 +18,7 @@ const pxe = createPXEClient(PXE_URL);
 // docs:end:define_account_vars
 
 // docs:start:create_wallet
-const wallet = await getSchnorrAccount(pxe, encryptionPrivateKey, signingPrivateKey).waitDeploy();
+const wallet = await getSchnorrAccount(pxe, encryptionPrivateKey, signingPrivateKey).waitSetup();
 // docs:end:create_wallet
 
 // docs:start:deploy_contract

@@ -92,11 +92,14 @@ export function computePublicKeysHash(publicKey: PublicKey | undefined): Fr {
 
 /**
  * Computes the initialization hash for an instance given its constructor function and arguments.
- * @param initFn - Constructor function.
+ * @param initFn - Constructor function or empty if no initialization is expected.
  * @param args - Unencoded arguments, will be encoded as fields according to the constructor function abi.
- * @returns The hash.
+ * @returns The hash, or zero if no initialization function is provided.
  */
-export function computeInitializationHash(initFn: FunctionAbi, args: any[]): Fr {
+export function computeInitializationHash(initFn: FunctionAbi | undefined, args: any[]): Fr {
+  if (!initFn) {
+    return Fr.ZERO;
+  }
   const selector = FunctionSelector.fromNameAndParameters(initFn.name, initFn.parameters);
   const flatArgs = encodeArguments(initFn, args);
   return computeInitializationHashFromEncodedArgs(selector, flatArgs);

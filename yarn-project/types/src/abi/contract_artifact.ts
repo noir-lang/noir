@@ -8,6 +8,7 @@ import {
 } from '@aztec/foundation/abi';
 
 import {
+  AZTEC_INITIALIZER_ATTRIBUTE,
   AZTEC_INTERNAL_ATTRIBUTE,
   AZTEC_PRIVATE_ATTRIBUTE,
   AZTEC_PUBLIC_ATTRIBUTE,
@@ -45,9 +46,7 @@ export function loadContractArtifact(input: NoirCompiledContract): ContractArtif
   if (isContractArtifact(input)) {
     return input;
   }
-  const contractArtifact = generateContractArtifact(input);
-  validateContractArtifact(contractArtifact);
-  return contractArtifact;
+  return generateContractArtifact(input);
 }
 
 /**
@@ -128,6 +127,7 @@ function generateFunctionArtifact(fn: NoirCompiledContractFunction): FunctionArt
     name: fn.name,
     functionType,
     isInternal,
+    isInitializer: fn.custom_attributes.includes(AZTEC_INITIALIZER_ATTRIBUTE),
     parameters,
     returnTypes,
     bytecode: fn.bytecode,
@@ -163,15 +163,6 @@ function getFunctionType(fn: NoirCompiledContractFunction): FunctionType {
 function hasKernelFunctionInputs(params: ABIParameter[]): boolean {
   const firstParam = params[0];
   return firstParam?.type.kind === 'struct' && firstParam.type.path.includes('ContextInputs');
-}
-
-/** Validates contract artifact instance, throwing on error. */
-function validateContractArtifact(contract: ContractArtifact) {
-  const constructorArtifact = contract.functions.find(({ name }) => name === 'constructor');
-  if (constructorArtifact === undefined) {
-    throw new Error('Contract must have a constructor function');
-  }
-  return contract;
 }
 
 /**

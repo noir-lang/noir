@@ -2,9 +2,6 @@
 contract Parent {
     use dep::aztec::prelude::{AztecAddress, FunctionSelector};
 
-    #[aztec(private)]
-    fn constructor() {}
-
     // Private function to call another private function in the targetContract using the provided selector
     #[aztec(private)]
     fn entryPoint(targetContract: AztecAddress, targetSelector: FunctionSelector) -> Field {

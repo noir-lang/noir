@@ -2,10 +2,10 @@
 
 exports[`ClassRegisterer returns canonical protocol contract 1`] = `
 {
-  "address": AztecAddress<0x251ab40f36a148a5ac88fe3c2398ec1968d5676b0066299278610b870d738a9e>,
+  "address": AztecAddress<0x1ff58462bc433d2e277ca6371c796fcc2dbfae869edf87b60f7fdff335ae8baa>,
   "contractClass": {
-    "artifactHash": Fr<0x25407c4d1b24174951117458ded0d9d6daef3676f8a4f8c8c15ccc6f78658cbe>,
-    "id": Fr<0x0e47c799d78f73e39985a308a6418e89f9bd698655b4a63c18520cdbc439b8aa>,
+    "artifactHash": Fr<0x20d64bd232dd14c00fedcaf31d10ad879a63eee4183824d1cadf2dac49b1f9ce>,
+    "id": Fr<0x2ced3a9029e1a272aa799dd8d66c3fae1dffed2259cc96b578a4bcc997d6c7b1>,
     "packedBytecode": Buffer<0x00000000>,
     "privateFunctions": [
       {
@@ -20,24 +20,19 @@ exports[`ClassRegisterer returns canonical protocol contract 1`] = `
       },
       {
         "isInternal": false,
-        "selector": Selector<0x90fa17bb>,
-        "vkHash": Fr<0x0000000000000000000000000000000000000000000000000000000000000000>,
-      },
-      {
-        "isInternal": false,
         "selector": Selector<0x98bc6593>,
         "vkHash": Fr<0x0000000000000000000000000000000000000000000000000000000000000000>,
       },
     ],
-    "privateFunctionsRoot": Fr<0x07c6b6bc3cf31904d0e08d2ec1abdeed4fe8800aaeafad588531d2857c29916c>,
+    "privateFunctionsRoot": Fr<0x0930d0038f2076b5a41aec6905cda5f201f20b75f3f9703d2aabbaea86268ac5>,
     "publicBytecodeCommitment": Fr<0x1dae27cc7fe2af345f160253be3875d449a7e9ba6bd68747d87d4e7054b81115>,
     "publicFunctions": [],
     "version": 1,
   },
   "instance": {
-    "address": AztecAddress<0x251ab40f36a148a5ac88fe3c2398ec1968d5676b0066299278610b870d738a9e>,
-    "contractClassId": Fr<0x0e47c799d78f73e39985a308a6418e89f9bd698655b4a63c18520cdbc439b8aa>,
-    "initializationHash": Fr<0x0bf6e812f14bb029f7cb9c8da8367dd97c068e788d4f21007fd97014eba8cf9f>,
+    "address": AztecAddress<0x1ff58462bc433d2e277ca6371c796fcc2dbfae869edf87b60f7fdff335ae8baa>,
+    "contractClassId": Fr<0x2ced3a9029e1a272aa799dd8d66c3fae1dffed2259cc96b578a4bcc997d6c7b1>,
+    "initializationHash": Fr<0x0000000000000000000000000000000000000000000000000000000000000000>,
     "portalContractAddress": EthAddress<0x0000000000000000000000000000000000000000>,
     "publicKeysHash": Fr<0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed>,
     "salt": Fr<0x0000000000000000000000000000000000000000000000000000000000000001>,

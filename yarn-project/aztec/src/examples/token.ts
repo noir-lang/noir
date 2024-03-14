@@ -25,8 +25,8 @@ const TRANSFER_AMOUNT = 33n;
 async function main() {
   logger('Running token contract test on HTTP interface.');
 
-  aliceWallet = await getSingleKeyAccount(pxe, alicePrivateKey).waitDeploy();
-  bobWallet = await getSingleKeyAccount(pxe, bobPrivateKey).waitDeploy();
+  aliceWallet = await getSingleKeyAccount(pxe, alicePrivateKey).waitSetup();
+  bobWallet = await getSingleKeyAccount(pxe, bobPrivateKey).waitSetup();
   const alice = aliceWallet.getCompleteAddress();
   const bob = bobWallet.getCompleteAddress();
 

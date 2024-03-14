@@ -16,20 +16,9 @@ contract Claim {
       reward_token: SharedImmutable<AztecAddress>,
     }
 
-    #[aztec(private)]
-    fn constructor(target_contract: AztecAddress, reward_token: AztecAddress) {
-        let selector = FunctionSelector::from_signature("_initialize((Field),(Field))");
-        context.call_public_function(
-            context.this_address(),
-            selector,
-            [target_contract.to_field(), reward_token.to_field()]
-        );
-    }
-
     #[aztec(public)]
-    #[aztec(internal)]
-    #[aztec(noinitcheck)]
-    fn _initialize(target_contract: AztecAddress, reward_token: AztecAddress) {
+    #[aztec(initializer)]
+    fn constructor(target_contract: AztecAddress, reward_token: AztecAddress) {
         storage.target_contract.initialize(target_contract);
         storage.reward_token.initialize(reward_token);
     }

@@ -33,24 +33,13 @@ contract Crowdfunding {
         claim_notes: PrivateSet<ValueNote>,
     }
 
-    #[aztec(private)]
-    fn constructor(donation_token: AztecAddress, operator: AztecAddress, deadline: u64) {
-        let selector = FunctionSelector::from_signature("_initialize((Field),(Field),Field)");
-        context.call_public_function(
-            context.this_address(),
-            selector,
-            [donation_token.to_field(), operator.to_field(), deadline as Field]
-        );
-    }
-
     #[aztec(public)]
-    #[aztec(internal)]
-    #[aztec(noinitcheck)]
-    // TODO(#4990): Make deadline a u64 once the neccessary traits are implemented
-    fn _initialize(donation_token: AztecAddress, operator: AztecAddress, deadline: Field) {
+    #[aztec(initializer)]
+    fn constructor(donation_token: AztecAddress, operator: AztecAddress, deadline: u64) {
+        // TODO(#4990): Make deadline a u64 once the neccessary traits are implemented
         storage.donation_token.initialize(donation_token);
         storage.operator.initialize(operator);
-        storage.deadline.initialize(deadline);
+        storage.deadline.initialize(deadline as Field);
     }
 
     #[aztec(public)]

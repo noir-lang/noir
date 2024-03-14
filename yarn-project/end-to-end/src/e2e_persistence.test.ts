@@ -60,7 +60,7 @@ describe('Aztec persistence', () => {
     deployL1ContractsValues = initialContext.deployL1ContractsValues;
 
     ownerPrivateKey = Fq.random();
-    const ownerWallet = await getUnsafeSchnorrAccount(initialContext.pxe, ownerPrivateKey, Fr.ZERO).waitDeploy();
+    const ownerWallet = await getUnsafeSchnorrAccount(initialContext.pxe, ownerPrivateKey, Fr.ZERO).waitSetup();
     ownerAddress = ownerWallet.getCompleteAddress();
     ownerSalt = ownerWallet.salt;
 
@@ -149,7 +149,7 @@ describe('Aztec persistence', () => {
     });
 
     it('allows spending of private notes', async () => {
-      const otherWallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitDeploy();
+      const otherWallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitSetup();
 
       const initialOwnerBalance = await contract.methods.balance_of_private(ownerWallet.getAddress()).view();
 
@@ -197,7 +197,7 @@ describe('Aztec persistence', () => {
     it('pxe does not know of the deployed contract', async () => {
       await context.pxe.registerRecipient(ownerAddress);
 
-      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitDeploy();
+      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitSetup();
       await expect(TokenContract.at(contractAddress, wallet)).rejects.toThrow(/has not been registered/);
     });
 
@@ -210,7 +210,7 @@ describe('Aztec persistence', () => {
       ]);
       await context.pxe.registerRecipient(ownerAddress);
 
-      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitDeploy();
+      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitSetup();
       const contract = await TokenContract.at(contractAddress, wallet);
       await expect(contract.methods.balance_of_private(ownerAddress.address).view()).resolves.toEqual(0n);
     });
@@ -223,7 +223,7 @@ describe('Aztec persistence', () => {
         },
       ]);
 
-      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitDeploy();
+      const wallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitSetup();
       const contract = await TokenContract.at(contractAddress, wallet);
 
       await expect(contract.methods.total_supply().view()).resolves.toBeGreaterThan(0n);
