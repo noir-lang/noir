@@ -48,9 +48,9 @@ A contract instance at a given address can be either Initialized or not. An addr
 
 ### Uninitialized
 
-The instance has not yet been initialized, meaning its constructor has not been called. This is the default state for any given address. A user who knows the preimage of the address can still issue a private call into a function in the contract, as long as that function does not assert that the contract has been initialized by checking the Initialization Nullifier.
+The default state for any given address is to be uninitialized, meaning its constructor has not been called. A user who knows the preimage of the address can still issue a private call into a function in the contract, as long as that function does not assert that the contract has been initialized by checking the Initialization Nullifier.
 
-All public function calls to an Uninitialized address _must_ fail, since the Contract Class for it is not known to the network. If the Class is not known to the network, then an Aztec Node, whether it is the elected sequencer or a full node following the chain, may not be able to execute the bytecode for a public function call, which is undesirable. The failing of public function calls to Uninitialized addresses is enforced by having the Public Kernel Circuit check that the Deployment Nullifier for the instance has been emitted.
+All function calls to an Uninitialized contract that depend on the contract being initialized should fail, to prevent the contract from being used in an invalid state.
 
 This state allows using a contract privately before it has been initialized or deployed, which is used in [diversified and stealth accounts](../addresses-and-keys/diversified-and-stealth.md).
 
@@ -59,8 +59,6 @@ This state allows using a contract privately before it has been initialized or d
 An instance is Initialized when a constructor for the instance has been invoked, and the constructor has emitted the instance's Initialization Nullifier. All private functions that require the contract to be initialized by checking the existence of the Initialization Nullifier can now be called by any user who knows the address preimage.
 
 The Initialization Nullifier is defined as the contract address itself. Note that the nullifier later gets [siloed by the Private Kernel Circuit](../circuits/private-kernel-tail.md#siloing-values) before it gets broadcasted in a transaction.
-
-In this state, public functions must still fail, for the same reason as for Uninitialized instances. This state then allows using a contract privately before it has been publicly deployed, which is useful for working on private contracts between a small set of parties.
 
 :::warning
 It may be the case that it is not possible to read a nullifier in the same transaction that it was emitted due to protocol limitations. That would lead to a contract not being callable in the same transaction as it is initialized. To work around this, we can emit an Initialization Commitment along with the Initialization Nullifier, which _can_ be read in the same transaction as it is emitted. If needed, the Initialization Commitment is defined exactly as the Initialization Nullifier.
@@ -83,11 +81,13 @@ Removing constructors from the protocol itself simplifies the kernel circuit, an
 
 ## Public Deployment
 
-A Contract Instance is considered to be Publicly Deployed when it has been broadcasted to the network via a canonical `ContractInstanceDeployer` contract, which also emits a Deployment Nullifier associated to the deployed instance. A contract needs to be Publicly Deployed for any of its public functions to be called. Note that this last restriction makes Public Deployment a protocol-level concern, whereas Initialization is an application-level concern.
+A Contract Instance is considered to be Publicly Deployed when it has been broadcasted to the network via a canonical `ContractInstanceDeployer` contract, which also emits a Deployment Nullifier associated to the deployed instance. 
+
+All public function calls to an Undeployed address _must_ fail, since the Contract Class for it is not known to the network. If the Class is not known to the network, then an Aztec Node, whether it is the elected sequencer or a full node following the chain, may not be able to execute the bytecode for a public function call, which is undesirable. 
+
+The failing of public function calls to Undeployed addresses is enforced by having the Public Kernel Circuit check that the Deployment Nullifier for the instance has been emitted. Note that makes Public Deployment a protocol-level concern, whereas Initialization is purely an application-level concern. Also, note that this requires hardcoding the address of the `ContractInstanceDeployer` contract in a protocol circuit.
 
 The Deployment Nullifier is defined as the address of the contract being deployed. Note that it later gets [siloed](../circuits/private-kernel-tail.md#siloing-values) using the `ContractInstanceDeployer` address by the Kernel Circuit, so this nullifier is effectively the hash of the deployed contract address and the `ContractInstanceDeployer` address.
-
-Only in this state public function calls are valid. The Public Kernel Circuit validates that the Deployment Nullifier has been emitted by the `ContractInstanceDeployer` as part of its checks. Note that this requires hardcoding the address of an application-level contract in a protocol circuit.
 
 ### Canonical Contract Instance Deployer
 
@@ -124,7 +124,7 @@ function deploy (
 
 Upon seeing a `ContractInstanceDeployed` event from the canonical `ContractInstanceDeployer` contract, nodes are expected to store the address and preimage, so they can verify executed code during public code execution as described in the next section.
 
-The `ContractInstanceDeployer` contract provides two implementations of the `deploy` function: a private and a public one. Contracts with a private constructor are expected to use the former, and contracts with public constructors expected to use the latter. Contracts that have already been privately Initialized can use either.
+The `ContractInstanceDeployer` contract provides two implementations of the `deploy` function: a private and a public one.
 
 ### Genesis
 
