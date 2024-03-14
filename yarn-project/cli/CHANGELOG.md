@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.28.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.27.2...aztec-cli-v0.28.0) (2024-03-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* Support contracts with no constructor ([#5175](https://github.com/AztecProtocol/aztec-packages/issues/5175))
+
+### Features
+
+* Support contracts with no constructor ([#5175](https://github.com/AztecProtocol/aztec-packages/issues/5175)) ([df7fa32](https://github.com/AztecProtocol/aztec-packages/commit/df7fa32f34e790231e091c38a4a6e84be5407763))
+
 ## [0.27.2](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.27.1...aztec-cli-v0.27.2) (2024-03-13)
 
 
