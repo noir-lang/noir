@@ -25,21 +25,15 @@ struct Context {
     // All inc_rc instructions encountered without a corresponding dec_rc.
     // The type of the array being operated on is recorded.
     // If an array_set to that array type is encountered, that is also recorded.
-    inc_rcs: HashMap<Type, Vec<IncRc>>,
+    inc_rcs: HashMap<Type, InstructionId>,
+
+    dec_rcs: HashMap<Type, InstructionId>,
 
     // When a dec_rc is encountered, the most recent inc_rc (of a matching array type)
     // is popped off the inc_rc_stack. If the IncDec object was not possibly mutated,
     // then the inc_rc and dec_rc instructions are both pushed here to be removed
     // from the program later.
     inc_decs_to_remove: Vec<(InstructionId, InstructionId)>,
-}
-
-struct IncRc {
-    id: InstructionId,
-
-    // This is currently set to true whenever an array_set to the
-    // same array type is encountered before the closing dec_rc to this inc_rc.
-    possibly_mutated: bool,
 }
 
 fn remove_paired_rc(function: &mut Function) {

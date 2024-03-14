@@ -384,7 +384,6 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
-        eprintln!("Incrementing RC of {}", value);
         self.update_array_reference_count(value, true);
     }
 
@@ -418,7 +417,6 @@ impl FunctionBuilder {
                 } else {
                     Instruction::DecrementRc { value }
                 };
-                eprint!("{} is an array", value);
                 self.insert_instruction(instruction, None);
 
                 // This is a bit odd, but in brillig the inc_rc instruction operates on

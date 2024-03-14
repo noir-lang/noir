@@ -107,3 +107,20 @@ mod my_submodule {
         x
     }
 }
+
+struct Foo {
+  a: Field,
+}
+
+struct Bar {}
+
+impl Bar {
+    fn get_a() -> Field {
+        1
+    }
+}
+
+// Regression for #1440
+global foo = Foo {
+    a: Bar::get_a(),
+};
