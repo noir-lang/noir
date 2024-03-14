@@ -36,7 +36,7 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.7.3",
     "@typescript-eslint/parser": "^6.7.3",
-    "chai": "^4.3.7",
+    "chai": "^4.4.1",
     "cspell": "^8.3.2",
     "eslint": "^8.56.0",
     "eslint-plugin-prettier": "^5.0.0",

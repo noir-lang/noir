@@ -4382,7 +4382,7 @@ __metadata:
     "@web/dev-server-esbuild": ^0.3.6
     "@web/test-runner": ^0.18.1
     "@web/test-runner-playwright": ^0.10.0
-    chai: ^4.3.7
+    chai: ^4.4.1
     eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
     mocha: ^10.2.0
@@ -4400,7 +4400,7 @@ __metadata:
     "@noir-lang/types": "workspace:*"
     "@types/node": ^20.6.2
     "@types/prettier": ^3
-    chai: ^4.3.8
+    chai: ^4.4.1
     eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
     fflate: ^0.8.0
@@ -4421,7 +4421,7 @@ __metadata:
     "@types/mocha": ^10.0.1
     "@types/node": ^20.6.2
     "@types/prettier": ^3
-    chai: ^4.3.8
+    chai: ^4.4.1
     eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
     glob: ^10.3.10
@@ -4447,7 +4447,7 @@ __metadata:
     "@types/mocha": ^10.0.1
     "@types/node": ^20.6.2
     "@types/prettier": ^3
-    chai: ^4.3.8
+    chai: ^4.4.1
     eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
     mocha: ^10.2.0
@@ -4482,7 +4482,7 @@ __metadata:
     adm-zip: ^0.5.0
     assert: ^2.1.0
     browserify-fs: ^1.0.0
-    chai: ^4.3.10
+    chai: ^4.4.1
     copy-webpack-plugin: ^12.0.2
     eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
@@ -4527,7 +4527,7 @@ __metadata:
   dependencies:
     "@typescript-eslint/eslint-plugin": ^6.7.3
     "@typescript-eslint/parser": ^6.7.3
-    chai: ^4.3.7
+    chai: ^4.4.1
     cspell: ^8.3.2
     eslint: ^8.56.0
     eslint-plugin-prettier: ^5.0.0
@@ -8336,9 +8336,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chai@npm:^4.3.10, chai@npm:^4.3.7, chai@npm:^4.3.8":
-  version: 4.3.10
-  resolution: "chai@npm:4.3.10"
+"chai@npm:^4.4.1":
+  version: 4.4.1
+  resolution: "chai@npm:4.4.1"
   dependencies:
     assertion-error: ^1.1.0
     check-error: ^1.0.3
@@ -8347,7 +8347,7 @@ __metadata:
     loupe: ^2.3.6
     pathval: ^1.1.1
     type-detect: ^4.0.8
-  checksum: 536668c60a0d985a0fbd94418028e388d243a925d7c5e858c7443e334753511614a3b6a124bac9ca077dfc4c37acc367d62f8c294960f440749536dc181dfc6d
+  checksum: 9ab84f36eb8e0b280c56c6c21ca4da5933132cd8a0c89c384f1497f77953640db0bc151edd47f81748240a9fab57b78f7d925edfeedc8e8fc98016d71f40c36e
   languageName: node
   linkType: hard
 
