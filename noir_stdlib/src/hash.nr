@@ -123,49 +123,49 @@ where
 
 impl Hash for Field {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self]);
+        H::write(state, &[self]);
     }
 }
 
 impl Hash for u8 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self as Field]);
+        H::write(state, &[self as Field]);
     }
 }
 
 impl Hash for u32 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self as Field]);
+        H::write(state, &[self as Field]);
     }
 }
 
 impl Hash for u64 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self as Field]);
+        H::write(state, &[self as Field]);
     }
 }
 
 impl Hash for i8 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self as Field]);
+        H::write(state, &[self as Field]);
     }
 }
 
 impl Hash for i32 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self as Field]);
+        H::write(state, &[self as Field]);
     }
 }
 
 impl Hash for i64 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self as Field]);
+        H::write(state, &[self as Field]);
     }
 }
 
 impl Hash for bool {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self as Field]);
+        H::write(state, &[self as Field]);
     }
 }
 
@@ -175,11 +175,19 @@ impl Hash for () {
 
 impl Hash for U128 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        H::write(state, [self.lo as Field, self.hi as Field]);
+        H::write(state, &[self.lo as Field, self.hi as Field]);
     }
 }
 
 impl<T, N> Hash for [T; N] where T: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        for elem in self {
+            elem.hash(state);
+        }
+    }
+}
+
+impl<T> Hash for [T] where T: Hash {
     fn hash<H>(self, state: &mut H) where H: Hasher{
         for elem in self {
             elem.hash(state);
