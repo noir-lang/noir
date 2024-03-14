@@ -3,7 +3,7 @@ use super::{
     brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
     debug_show::DebugShow,
     registers::BrilligRegistersContext,
-    BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+    BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 use acvm::{
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
@@ -220,7 +220,7 @@ impl BrilligContext {
                                 nested_array_pointer,
                                 source_index.address,
                                 nested_array_pointer,
-                                acvm::brillig_vm::brillig::BinaryIntOp::Add,
+                                BrilligBinaryOp::Add,
                             );
                             let deflattened_nested_array_pointer = self.deflatten_array(
                                 nested_array_item_type,
@@ -414,7 +414,7 @@ impl BrilligContext {
                                 flattened_nested_array_pointer,
                                 target_index.address,
                                 flattened_nested_array_pointer,
-                                acvm::brillig_vm::brillig::BinaryIntOp::Add,
+                                BrilligBinaryOp::Add,
                             );
 
                             self.flatten_array(

@@ -16,7 +16,7 @@ use crate::ssa::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig::{BinaryFieldOp, BinaryIntOp, MemoryAddress, ValueOrArray};
+use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::brillig_vm::brillig::HeapVector;
 use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -385,7 +385,7 @@ impl<'block> BrilligBlock<'block> {
                                 self.brillig_context.mov_instruction(len_index, *size);
                                 self.brillig_context.usize_op_in_place(
                                     len_index,
-                                    BinaryIntOp::UnsignedDiv,
+                                    BrilligBinaryOp::UnsignedDiv,
                                     element_size,
                                 );
                             } else {
@@ -641,14 +641,13 @@ impl<'block> BrilligBlock<'block> {
                     );
 
                     // Check if lte max
-                    let brillig_binary_op = BrilligBinaryOp::Integer(BinaryIntOp::LessThanEquals);
                     let condition =
                         SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
                     self.brillig_context.binary_instruction(
                         left,
                         right,
                         condition,
-                        brillig_binary_op,
+                        BrilligBinaryOp::LessThanEquals,
                     );
 
                     self.brillig_context.constrain_instruction(condition, assert_message.clone());
@@ -663,7 +662,7 @@ impl<'block> BrilligBlock<'block> {
                     | BrilligVariable::BrilligVector(BrilligVector { rc, .. }) => rc,
                     _ => unreachable!("ICE: increment rc on non-array"),
                 };
-                self.brillig_context.usize_op_in_place(rc_register, BinaryIntOp::Add, 1);
+                self.brillig_context.usize_op_in_place(rc_register, BrilligBinaryOp::Add, 1);
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
@@ -761,7 +760,7 @@ impl<'block> BrilligBlock<'block> {
             index_register.address,
             size_as_register.address,
             condition.address,
-            BinaryIntOp::LessThan,
+            BrilligBinaryOp::LessThan,
         );
 
         self.brillig_context
@@ -838,7 +837,7 @@ impl<'block> BrilligBlock<'block> {
             reference_count,
             one.address,
             condition,
-            BinaryIntOp::Equals,
+            BrilligBinaryOp::Equals,
         );
         self.brillig_context.branch_instruction(condition, |ctx, cond| {
             if cond {
@@ -964,7 +963,12 @@ impl<'block> BrilligBlock<'block> {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                self.update_slice_length(target_len.address, arguments[0], dfg, BinaryIntOp::Add);
+                self.update_slice_length(
+                    target_len.address,
+                    arguments[0],
+                    dfg,
+                    BrilligBinaryOp::Add,
+                );
 
                 self.slice_push_back_operation(target_vector, source_vector, &item_values);
             }
@@ -990,7 +994,12 @@ impl<'block> BrilligBlock<'block> {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                self.update_slice_length(target_len.address, arguments[0], dfg, BinaryIntOp::Add);
+                self.update_slice_length(
+                    target_len.address,
+                    arguments[0],
+                    dfg,
+                    BrilligBinaryOp::Add,
+                );
 
                 self.slice_push_front_operation(target_vector, source_vector, &item_values);
             }
@@ -1023,7 +1032,12 @@ impl<'block> BrilligBlock<'block> {
                     )
                 });
 
-                self.update_slice_length(target_len.address, arguments[0], dfg, BinaryIntOp::Sub);
+                self.update_slice_length(
+                    target_len.address,
+                    arguments[0],
+                    dfg,
+                    BrilligBinaryOp::Sub,
+                );
 
                 self.slice_pop_back_operation(target_vector, source_vector, &pop_variables);
             }
@@ -1055,7 +1069,12 @@ impl<'block> BrilligBlock<'block> {
                 );
                 let target_vector = target_variable.extract_vector();
 
-                self.update_slice_length(target_len.address, arguments[0], dfg, BinaryIntOp::Sub);
+                self.update_slice_length(
+                    target_len.address,
+                    arguments[0],
+                    dfg,
+                    BrilligBinaryOp::Sub,
+                );
 
                 self.slice_pop_front_operation(target_vector, source_vector, &pop_variables);
             }
@@ -1090,14 +1109,19 @@ impl<'block> BrilligBlock<'block> {
                     converted_index.address,
                     user_index.address,
                     converted_index.address,
-                    BinaryIntOp::Mul,
+                    BrilligBinaryOp::Mul,
                 );
 
                 let items = vecmap(&arguments[3..element_size + 3], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                self.update_slice_length(target_len.address, arguments[0], dfg, BinaryIntOp::Add);
+                self.update_slice_length(
+                    target_len.address,
+                    arguments[0],
+                    dfg,
+                    BrilligBinaryOp::Add,
+                );
 
                 self.slice_insert_operation(target_vector, source_vector, converted_index, &items);
                 self.brillig_context.deallocate_single_addr(converted_index);
@@ -1132,7 +1156,7 @@ impl<'block> BrilligBlock<'block> {
                     converted_index.address,
                     user_index.address,
                     converted_index.address,
-                    BinaryIntOp::Mul,
+                    BrilligBinaryOp::Mul,
                 );
 
                 let removed_items = vecmap(&results[2..element_size + 2], |result| {
@@ -1144,7 +1168,12 @@ impl<'block> BrilligBlock<'block> {
                     )
                 });
 
-                self.update_slice_length(target_len.address, arguments[0], dfg, BinaryIntOp::Sub);
+                self.update_slice_length(
+                    target_len.address,
+                    arguments[0],
+                    dfg,
+                    BrilligBinaryOp::Sub,
+                );
 
                 self.slice_remove_operation(
                     target_vector,
@@ -1173,7 +1202,7 @@ impl<'block> BrilligBlock<'block> {
         target_len: MemoryAddress,
         source_value: ValueId,
         dfg: &DataFlowGraph,
-        binary_op: BinaryIntOp,
+        binary_op: BrilligBinaryOp,
     ) {
         let source_len_variable = self.convert_ssa_value(source_value, dfg);
         let source_len = source_len_variable.extract_single_addr();
@@ -1219,15 +1248,14 @@ impl<'block> BrilligBlock<'block> {
         result: SingleAddrVariable,
         is_signed: bool,
     ) {
-        let (op, bit_size) = if let BrilligBinaryOp::Integer(op) = binary_operation {
-            // Bit size is checked at compile time to be equal for left and right
-            (op, left.bit_size)
-        } else {
-            return;
-        };
+        let bit_size = left.bit_size;
 
-        match (op, is_signed) {
-            (BinaryIntOp::Add, false) => {
+        if bit_size == FieldElement::max_num_bits() {
+            return;
+        }
+
+        match (binary_operation, is_signed) {
+            (BrilligBinaryOp::Add, false) => {
                 let condition =
                     SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
                 // Check that lhs <= result
@@ -1235,7 +1263,7 @@ impl<'block> BrilligBlock<'block> {
                     left,
                     result,
                     condition,
-                    BrilligBinaryOp::Integer(BinaryIntOp::LessThanEquals),
+                    BrilligBinaryOp::LessThanEquals,
                 );
                 self.brillig_context.constrain_instruction(
                     condition,
@@ -1243,7 +1271,7 @@ impl<'block> BrilligBlock<'block> {
                 );
                 self.brillig_context.deallocate_single_addr(condition);
             }
-            (BinaryIntOp::Sub, false) => {
+            (BrilligBinaryOp::Sub, false) => {
                 let condition =
                     SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
                 // Check that rhs <= lhs
@@ -1251,7 +1279,7 @@ impl<'block> BrilligBlock<'block> {
                     right,
                     left,
                     condition,
-                    BrilligBinaryOp::Integer(BinaryIntOp::LessThanEquals),
+                    BrilligBinaryOp::LessThanEquals,
                 );
                 self.brillig_context.constrain_instruction(
                     condition,
@@ -1259,7 +1287,7 @@ impl<'block> BrilligBlock<'block> {
                 );
                 self.brillig_context.deallocate_single_addr(condition);
             }
-            (BinaryIntOp::Mul, false) => {
+            (BrilligBinaryOp::Mul, false) => {
                 // Multiplication overflow is only possible for bit sizes > 1
                 if bit_size > 1 {
                     let is_right_zero =
@@ -1269,7 +1297,7 @@ impl<'block> BrilligBlock<'block> {
                         zero,
                         right,
                         is_right_zero,
-                        BrilligBinaryOp::Integer(BinaryIntOp::Equals),
+                        BrilligBinaryOp::Equals,
                     );
                     self.brillig_context.if_not_instruction(is_right_zero.address, |ctx| {
                         let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
@@ -1279,14 +1307,9 @@ impl<'block> BrilligBlock<'block> {
                             result,
                             right,
                             division,
-                            BrilligBinaryOp::Integer(BinaryIntOp::UnsignedDiv),
+                            BrilligBinaryOp::UnsignedDiv,
                         );
-                        ctx.binary_instruction(
-                            division,
-                            left,
-                            condition,
-                            BrilligBinaryOp::Integer(BinaryIntOp::Equals),
-                        );
+                        ctx.binary_instruction(division, left, condition, BrilligBinaryOp::Equals);
                         ctx.constrain_instruction(
                             condition,
                             Some("attempt to multiply with overflow".to_string()),
@@ -1369,7 +1392,7 @@ impl<'block> BrilligBlock<'block> {
                         // Increment the iterator
                         self.brillig_context.usize_op_in_place(
                             iterator_register.address,
-                            BinaryIntOp::Add,
+                            BrilligBinaryOp::Add,
                             1,
                         );
                     }
@@ -1479,7 +1502,7 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.usize_op(
                     size,
                     result_register,
-                    BinaryIntOp::UnsignedDiv,
+                    BrilligBinaryOp::UnsignedDiv,
                     element_size,
                 );
             }
@@ -1517,66 +1540,41 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
     }
 }
 
-/// Convert an SSA binary operation into:
-/// - Brillig Binary Integer Op, if it is a integer type
-/// - Brillig Binary Field Op, if it is a field type
 pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
     ssa_op: BinaryOp,
     typ: &Type,
 ) -> (BrilligBinaryOp, bool) {
-    // First get the bit size and whether its a signed integer, if it is a numeric type
-    // if it is not,then we return None, indicating that
-    // it is a Field.
-    let bit_size_signedness = match typ {
+    let (is_field, is_signed) = match typ {
           Type::Numeric(numeric_type) => match numeric_type {
-              NumericType::Signed { bit_size } => Some((bit_size, true)),
-              NumericType::Unsigned { bit_size } => Some((bit_size, false)),
-              NumericType::NativeField => None,
+              NumericType::Signed { .. } => (false, true),
+              NumericType::Unsigned { .. } => (false, false),
+              NumericType::NativeField => (true, false),
           },
           _ => unreachable!("only numeric types are allowed in binary operations. References are handled separately"),
       };
 
-    fn binary_op_to_field_op(op: BinaryOp) -> BrilligBinaryOp {
-        match op {
-            BinaryOp::Add => BrilligBinaryOp::Field(BinaryFieldOp::Add),
-            BinaryOp::Sub => BrilligBinaryOp::Field(BinaryFieldOp::Sub),
-            BinaryOp::Mul => BrilligBinaryOp::Field(BinaryFieldOp::Mul),
-            BinaryOp::Div => BrilligBinaryOp::Field(BinaryFieldOp::Div),
-            BinaryOp::Eq => BrilligBinaryOp::Field(BinaryFieldOp::Equals),
-            _ => unreachable!(
-                "Field type cannot be used with {op}. This should have been caught by the frontend"
-            ),
-        }
-    }
-
-    fn binary_op_to_int_op(op: BinaryOp, is_signed: bool) -> BrilligBinaryOp {
-        let operation = match op {
-            BinaryOp::Add => BinaryIntOp::Add,
-            BinaryOp::Sub => BinaryIntOp::Sub,
-            BinaryOp::Mul => BinaryIntOp::Mul,
-            BinaryOp::Div => {
-                if is_signed {
-                    BinaryIntOp::SignedDiv
-                } else {
-                    BinaryIntOp::UnsignedDiv
-                }
+    let brillig_binary_op = match ssa_op {
+        BinaryOp::Add => BrilligBinaryOp::Add,
+        BinaryOp::Sub => BrilligBinaryOp::Sub,
+        BinaryOp::Mul => BrilligBinaryOp::Mul,
+        BinaryOp::Div => {
+            if is_field {
+                BrilligBinaryOp::FieldDiv
+            } else if is_signed {
+                BrilligBinaryOp::SignedDiv
+            } else {
+                BrilligBinaryOp::UnsignedDiv
             }
-            BinaryOp::Mod => return BrilligBinaryOp::Modulo { is_signed_integer: is_signed },
-            BinaryOp::Eq => BinaryIntOp::Equals,
-            BinaryOp::Lt => BinaryIntOp::LessThan,
-            BinaryOp::And => BinaryIntOp::And,
-            BinaryOp::Or => BinaryIntOp::Or,
-            BinaryOp::Xor => BinaryIntOp::Xor,
-            BinaryOp::Shl => BinaryIntOp::Shl,
-            BinaryOp::Shr => BinaryIntOp::Shr,
-        };
+        }
+        BinaryOp::Mod => BrilligBinaryOp::Modulo { is_signed_integer: is_signed },
+        BinaryOp::Eq => BrilligBinaryOp::Equals,
+        BinaryOp::Lt => BrilligBinaryOp::LessThan,
+        BinaryOp::And => BrilligBinaryOp::And,
+        BinaryOp::Or => BrilligBinaryOp::Or,
+        BinaryOp::Xor => BrilligBinaryOp::Xor,
+        BinaryOp::Shl => BrilligBinaryOp::Shl,
+        BinaryOp::Shr => BrilligBinaryOp::Shr,
+    };
 
-        BrilligBinaryOp::Integer(operation)
-    }
-
-    // If bit size is available then it is a binary integer operation
-    match bit_size_signedness {
-        Some((_, is_signed)) => (binary_op_to_int_op(ssa_op, is_signed), is_signed),
-        None => (binary_op_to_field_op(ssa_op), false),
-    }
+    (brillig_binary_op, is_signed)
 }

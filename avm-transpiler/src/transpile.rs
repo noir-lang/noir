@@ -37,6 +37,9 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                     BinaryFieldOp::Mul => AvmOpcode::MUL,
                     BinaryFieldOp::Div => AvmOpcode::FDIV,
                     BinaryFieldOp::Equals => AvmOpcode::EQ,
+                    BinaryFieldOp::LessThan => AvmOpcode::LT,
+                    BinaryFieldOp::LessThanEquals => AvmOpcode::LTE,
+                    BinaryFieldOp::IntegerDiv => AvmOpcode::DIV,
                 };
                 avm_instrs.push(AvmInstruction {
                     opcode: avm_opcode,

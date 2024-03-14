@@ -151,7 +151,7 @@ impl BrilligContext {
             ReservedRegisters::stack_pointer(),
             size_register,
             ReservedRegisters::stack_pointer(),
-            BinaryIntOp::Add,
+            BrilligBinaryOp::Add,
         );
     }
 
@@ -173,7 +173,7 @@ impl BrilligContext {
             ReservedRegisters::stack_pointer(),
             size_register.address,
             ReservedRegisters::stack_pointer(),
-            BinaryIntOp::Add,
+            BrilligBinaryOp::Add,
         );
         self.deallocate_single_addr(size_register);
     }
@@ -213,7 +213,7 @@ impl BrilligContext {
         self.debug_show.array_get(array_ptr, index.address, result);
         // Computes array_ptr + index, ie array[index]
         let index_of_element_in_memory = self.allocate_register();
-        self.memory_op(array_ptr, index.address, index_of_element_in_memory, BinaryIntOp::Add);
+        self.memory_op(array_ptr, index.address, index_of_element_in_memory, BrilligBinaryOp::Add);
         self.load_instruction(result, index_of_element_in_memory);
         // Free up temporary register
         self.deallocate_register(index_of_element_in_memory);
@@ -234,7 +234,7 @@ impl BrilligContext {
             SingleAddrVariable::new_usize(array_ptr),
             index,
             SingleAddrVariable::new_usize(index_of_element_in_memory),
-            BrilligBinaryOp::Integer(BinaryIntOp::Add),
+            BrilligBinaryOp::Add,
         );
 
         self.store_instruction(index_of_element_in_memory, value);
@@ -288,7 +288,7 @@ impl BrilligContext {
             iterator_register.address,
             iteration_count,
             iterator_less_than_iterations.address,
-            BinaryIntOp::LessThan,
+            BrilligBinaryOp::LessThan,
         );
 
         let (exit_loop_section, exit_loop_label) = self.reserve_next_section_label();
@@ -301,7 +301,7 @@ impl BrilligContext {
         on_iteration(self, iterator_register);
 
         // Increment the iterator register
-        self.usize_op_in_place(iterator_register.address, BinaryIntOp::Add, 1);
+        self.usize_op_in_place(iterator_register.address, BrilligBinaryOp::Add, 1);
 
         self.jump_instruction(loop_label);
 
@@ -531,10 +531,9 @@ impl BrilligContext {
 
     fn binary_result_bit_size(operation: BrilligBinaryOp, arguments_bit_size: u32) -> u32 {
         match operation {
-            BrilligBinaryOp::Field(BinaryFieldOp::Equals)
-            | BrilligBinaryOp::Integer(BinaryIntOp::Equals)
-            | BrilligBinaryOp::Integer(BinaryIntOp::LessThan)
-            | BrilligBinaryOp::Integer(BinaryIntOp::LessThanEquals) => 1,
+            BrilligBinaryOp::Equals
+            | BrilligBinaryOp::LessThan
+            | BrilligBinaryOp::LessThanEquals => 1,
             _ => arguments_bit_size,
         }
     }
@@ -556,6 +555,7 @@ impl BrilligContext {
             lhs.bit_size,
             rhs.bit_size
         );
+        let is_field_op = lhs.bit_size == FieldElement::max_num_bits();
         let expected_result_bit_size =
             BrilligContext::binary_result_bit_size(operation, lhs.bit_size);
         assert!(
@@ -566,29 +566,26 @@ impl BrilligContext {
             operation
         );
         self.debug_show.binary_instruction(lhs.address, rhs.address, result.address, operation);
-        match operation {
-            BrilligBinaryOp::Field(op) => {
-                let opcode = BrilligOpcode::BinaryFieldOp {
-                    op,
-                    destination: result.address,
-                    lhs: lhs.address,
-                    rhs: rhs.address,
-                };
-                self.push_opcode(opcode);
-            }
-            BrilligBinaryOp::Integer(op) => {
-                let opcode = BrilligOpcode::BinaryIntOp {
-                    op,
-                    destination: result.address,
-                    bit_size: lhs.bit_size,
-                    lhs: lhs.address,
-                    rhs: rhs.address,
-                };
-                self.push_opcode(opcode);
-            }
-            BrilligBinaryOp::Modulo { is_signed_integer } => {
-                self.modulo_instruction(result, lhs, rhs, is_signed_integer);
-            }
+
+        if let BrilligBinaryOp::Modulo { is_signed_integer } = operation {
+            self.modulo_instruction(result, lhs, rhs, is_signed_integer);
+        } else if is_field_op {
+            let opcode = BrilligOpcode::BinaryFieldOp {
+                op: operation.into(),
+                destination: result.address,
+                lhs: lhs.address,
+                rhs: rhs.address,
+            };
+            self.push_opcode(opcode);
+        } else {
+            let opcode = BrilligOpcode::BinaryIntOp {
+                op: operation.into(),
+                destination: result.address,
+                bit_size: lhs.bit_size,
+                lhs: lhs.address,
+                rhs: rhs.address,
+            };
+            self.push_opcode(opcode);
         }
     }
 
@@ -683,7 +680,7 @@ impl BrilligContext {
 
                 let rc_pointer = self.allocate_register();
                 self.mov_instruction(rc_pointer, variable_pointer);
-                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 1_usize);
+                self.usize_op_in_place(rc_pointer, BrilligBinaryOp::Add, 1_usize);
 
                 self.load_instruction(rc, rc_pointer);
                 self.deallocate_register(rc_pointer);
@@ -693,14 +690,14 @@ impl BrilligContext {
 
                 let size_pointer = self.allocate_register();
                 self.mov_instruction(size_pointer, variable_pointer);
-                self.usize_op_in_place(size_pointer, BinaryIntOp::Add, 1_usize);
+                self.usize_op_in_place(size_pointer, BrilligBinaryOp::Add, 1_usize);
 
                 self.load_instruction(size, size_pointer);
                 self.deallocate_register(size_pointer);
 
                 let rc_pointer = self.allocate_register();
                 self.mov_instruction(rc_pointer, variable_pointer);
-                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 2_usize);
+                self.usize_op_in_place(rc_pointer, BrilligBinaryOp::Add, 2_usize);
 
                 self.load_instruction(rc, rc_pointer);
                 self.deallocate_register(rc_pointer);
@@ -733,7 +730,7 @@ impl BrilligContext {
 
                 let rc_pointer: MemoryAddress = self.allocate_register();
                 self.mov_instruction(rc_pointer, variable_pointer);
-                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 1_usize);
+                self.usize_op_in_place(rc_pointer, BrilligBinaryOp::Add, 1_usize);
                 self.store_instruction(rc_pointer, rc);
                 self.deallocate_register(rc_pointer);
             }
@@ -742,12 +739,12 @@ impl BrilligContext {
 
                 let size_pointer = self.allocate_register();
                 self.mov_instruction(size_pointer, variable_pointer);
-                self.usize_op_in_place(size_pointer, BinaryIntOp::Add, 1_usize);
+                self.usize_op_in_place(size_pointer, BrilligBinaryOp::Add, 1_usize);
                 self.store_instruction(size_pointer, size);
 
                 let rc_pointer: MemoryAddress = self.allocate_register();
                 self.mov_instruction(rc_pointer, variable_pointer);
-                self.usize_op_in_place(rc_pointer, BinaryIntOp::Add, 2_usize);
+                self.usize_op_in_place(rc_pointer, BrilligBinaryOp::Add, 2_usize);
                 self.store_instruction(rc_pointer, rc);
 
                 self.deallocate_register(size_pointer);
@@ -828,10 +825,6 @@ impl BrilligContext {
         right: SingleAddrVariable,
         signed: bool,
     ) {
-        // no debug_show, shown in binary instruction
-        let scratch_register_i = self.allocate_register();
-        let scratch_register_j = self.allocate_register();
-
         assert!(
             left.bit_size == right.bit_size,
             "Not equal bitsize: lhs {}, rhs {}",
@@ -839,38 +832,29 @@ impl BrilligContext {
             right.bit_size
         );
         let bit_size = left.bit_size;
+
+        let scratch_var_i = SingleAddrVariable::new(self.allocate_register(), bit_size);
+        let scratch_var_j = SingleAddrVariable::new(self.allocate_register(), bit_size);
+
         // i = left / right
-        self.push_opcode(BrilligOpcode::BinaryIntOp {
-            op: match signed {
-                true => BinaryIntOp::SignedDiv,
-                false => BinaryIntOp::UnsignedDiv,
+        self.binary_instruction(
+            left,
+            right,
+            scratch_var_i,
+            match signed {
+                true => BrilligBinaryOp::SignedDiv,
+                false => BrilligBinaryOp::UnsignedDiv,
             },
-            destination: scratch_register_i,
-            bit_size,
-            lhs: left.address,
-            rhs: right.address,
-        });
+        );
 
         // j = i * right
-        self.push_opcode(BrilligOpcode::BinaryIntOp {
-            op: BinaryIntOp::Mul,
-            destination: scratch_register_j,
-            bit_size,
-            lhs: scratch_register_i,
-            rhs: right.address,
-        });
+        self.binary_instruction(scratch_var_i, right, scratch_var_j, BrilligBinaryOp::Mul);
 
         // result_register = left - j
-        self.push_opcode(BrilligOpcode::BinaryIntOp {
-            op: BinaryIntOp::Sub,
-            destination: result.address,
-            bit_size,
-            lhs: left.address,
-            rhs: scratch_register_j,
-        });
+        self.binary_instruction(left, scratch_var_j, result, BrilligBinaryOp::Sub);
         // Free scratch registers
-        self.deallocate_register(scratch_register_i);
-        self.deallocate_register(scratch_register_j);
+        self.deallocate_register(scratch_var_i.address);
+        self.deallocate_register(scratch_var_j.address);
     }
 
     /// Adds a unresolved external `Call` instruction to the bytecode.
@@ -903,7 +887,7 @@ impl BrilligContext {
         for register in used_registers.iter() {
             self.store_instruction(ReservedRegisters::stack_pointer(), *register);
             // Add one to our stack pointer
-            self.usize_op_in_place(ReservedRegisters::stack_pointer(), BinaryIntOp::Add, 1);
+            self.usize_op_in_place(ReservedRegisters::stack_pointer(), BrilligBinaryOp::Add, 1);
         }
 
         // Store the location of our registers in the previous stack pointer
@@ -924,7 +908,7 @@ impl BrilligContext {
 
         for register in used_registers.iter().rev() {
             // Subtract one from our stack pointer
-            self.usize_op_in_place(iterator_register, BinaryIntOp::Sub, 1);
+            self.usize_op_in_place(iterator_register, BrilligBinaryOp::Sub, 1);
             self.load_instruction(*register, iterator_register);
         }
     }
@@ -933,7 +917,7 @@ impl BrilligContext {
     pub(crate) fn usize_op_in_place(
         &mut self,
         destination: MemoryAddress,
-        op: BinaryIntOp,
+        op: BrilligBinaryOp,
         constant: usize,
     ) {
         self.usize_op(destination, destination, op, constant);
@@ -944,7 +928,7 @@ impl BrilligContext {
         &mut self,
         operand: MemoryAddress,
         destination: MemoryAddress,
-        op: BinaryIntOp,
+        op: BrilligBinaryOp,
         constant: usize,
     ) {
         let const_register = self.make_usize_constant(Value::from(constant));
@@ -959,19 +943,16 @@ impl BrilligContext {
         lhs: MemoryAddress,
         rhs: MemoryAddress,
         destination: MemoryAddress,
-        op: BinaryIntOp,
+        op: BrilligBinaryOp,
     ) {
         self.binary_instruction(
             SingleAddrVariable::new_usize(lhs),
             SingleAddrVariable::new_usize(rhs),
             SingleAddrVariable::new(
                 destination,
-                BrilligContext::binary_result_bit_size(
-                    BrilligBinaryOp::Integer(op),
-                    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-                ),
+                BrilligContext::binary_result_bit_size(op, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ),
-            BrilligBinaryOp::Integer(op),
+            op,
         );
     }
 
@@ -1075,7 +1056,7 @@ impl BrilligContext {
                 shifted_field,
                 radix_as_field,
                 shifted_field,
-                BrilligBinaryOp::Integer(BinaryIntOp::UnsignedDiv),
+                BrilligBinaryOp::UnsignedDiv,
             );
         });
 
@@ -1092,7 +1073,7 @@ impl BrilligContext {
     /// This instruction will reverse the order of the elements in a vector.
     pub(crate) fn reverse_vector_in_place_instruction(&mut self, vector: BrilligVector) {
         let iteration_count = self.allocate_register();
-        self.usize_op(vector.size, iteration_count, BinaryIntOp::UnsignedDiv, 2);
+        self.usize_op(vector.size, iteration_count, BrilligBinaryOp::UnsignedDiv, 2);
 
         let start_value_register = self.allocate_register();
         let index_at_end_of_array = self.allocate_register();
@@ -1104,12 +1085,12 @@ impl BrilligContext {
 
             // The index at the end of array is size - 1 - iterator
             ctx.mov_instruction(index_at_end_of_array, vector.size);
-            ctx.usize_op_in_place(index_at_end_of_array, BinaryIntOp::Sub, 1);
+            ctx.usize_op_in_place(index_at_end_of_array, BrilligBinaryOp::Sub, 1);
             ctx.memory_op(
                 index_at_end_of_array,
                 iterator_register.address,
                 index_at_end_of_array,
-                BinaryIntOp::Sub,
+                BrilligBinaryOp::Sub,
             );
 
             ctx.array_get(
@@ -1142,10 +1123,59 @@ impl BrilligContext {
 /// Type to encapsulate the binary operation types in Brillig
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum BrilligBinaryOp {
-    Field(BinaryFieldOp),
-    Integer(BinaryIntOp),
+    Add,
+    Sub,
+    Mul,
+    FieldDiv,
+    SignedDiv,
+    UnsignedDiv,
+    Equals,
+    LessThan,
+    LessThanEquals,
+    And,
+    Or,
+    Xor,
+    Shl,
+    Shr,
     // Modulo operation requires more than one brillig opcode
     Modulo { is_signed_integer: bool },
+}
+
+impl From<BrilligBinaryOp> for BinaryFieldOp {
+    fn from(operation: BrilligBinaryOp) -> BinaryFieldOp {
+        match operation {
+            BrilligBinaryOp::Add => BinaryFieldOp::Add,
+            BrilligBinaryOp::Sub => BinaryFieldOp::Sub,
+            BrilligBinaryOp::Mul => BinaryFieldOp::Mul,
+            BrilligBinaryOp::FieldDiv => BinaryFieldOp::Div,
+            BrilligBinaryOp::UnsignedDiv => BinaryFieldOp::IntegerDiv,
+            BrilligBinaryOp::Equals => BinaryFieldOp::Equals,
+            BrilligBinaryOp::LessThan => BinaryFieldOp::LessThan,
+            BrilligBinaryOp::LessThanEquals => BinaryFieldOp::LessThanEquals,
+            _ => panic!("Unsupported operation: {:?} on a field", operation),
+        }
+    }
+}
+
+impl From<BrilligBinaryOp> for BinaryIntOp {
+    fn from(operation: BrilligBinaryOp) -> BinaryIntOp {
+        match operation {
+            BrilligBinaryOp::Add => BinaryIntOp::Add,
+            BrilligBinaryOp::Sub => BinaryIntOp::Sub,
+            BrilligBinaryOp::Mul => BinaryIntOp::Mul,
+            BrilligBinaryOp::UnsignedDiv => BinaryIntOp::UnsignedDiv,
+            BrilligBinaryOp::SignedDiv => BinaryIntOp::SignedDiv,
+            BrilligBinaryOp::Equals => BinaryIntOp::Equals,
+            BrilligBinaryOp::LessThan => BinaryIntOp::LessThan,
+            BrilligBinaryOp::LessThanEquals => BinaryIntOp::LessThanEquals,
+            BrilligBinaryOp::And => BinaryIntOp::And,
+            BrilligBinaryOp::Or => BinaryIntOp::Or,
+            BrilligBinaryOp::Xor => BinaryIntOp::Xor,
+            BrilligBinaryOp::Shl => BinaryIntOp::Shl,
+            BrilligBinaryOp::Shr => BinaryIntOp::Shr,
+            _ => panic!("Unsupported operation: {:?} on an integer", operation),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1153,14 +1183,13 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapVector, MemoryAddress, Value,
-        ValueOrArray,
+        ForeignCallParam, ForeignCallResult, HeapVector, MemoryAddress, Value, ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
     use acvm::brillig_vm::{VMStatus, VM};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
-    use crate::brillig::brillig_ir::BrilligContext;
+    use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
 
     use super::artifact::{BrilligParameter, GeneratedBrillig};
     use super::{BrilligOpcode, ReservedRegisters};
@@ -1282,9 +1311,9 @@ pub(crate) mod tests {
             &[HeapValueType::Vector { value_types: vec![HeapValueType::Simple] }],
         );
         // push stack frame by r_returned_size
-        context.memory_op(r_stack, r_output_size, r_stack, BinaryIntOp::Add);
+        context.memory_op(r_stack, r_output_size, r_stack, BrilligBinaryOp::Add);
         // check r_input_size == r_output_size
-        context.memory_op(r_input_size, r_output_size, r_equality, BinaryIntOp::Equals);
+        context.memory_op(r_input_size, r_output_size, r_equality, BrilligBinaryOp::Equals);
         // We push a JumpIf and Trap opcode directly as the constrain instruction
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
