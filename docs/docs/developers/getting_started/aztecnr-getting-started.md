@@ -186,12 +186,24 @@ Use one of these `address`es as the `owner`. You can either copy it or export.
 To deploy the counter contract, [ensure the sandbox is running](../sandbox/references/sandbox-reference.md) and run this in the root of your Noir project:
 
 ```bash
-aztec-cli deploy contracts/counter/target/counter-Counter.json --args 100 0x2fd4503a9b855a852272945df53d7173297c1469cceda31048b85118364b09a3
+aztec-cli deploy contracts/counter/target/counter-Counter.json --args 100 0x0a0ab6320e2981cc543fedb9ad0f524c0a750397ca3372508d14af5b3c3c7cf0 --private-key 0x2153536ff6628eee01cf4024889ff977a18d9fa61d0e414422f7681cf085c281
 ```
 
 You can also test the functions by applying what you learned in the [quickstart](./quickstart.md).
 
 Congratulations, you have now written, compiled, and deployed your first Aztec.nr smart contract!
+
+Deploying your contract via the CLI will not register the deployed contract with the [PXE](../../learn/concepts/pxe/main.md). To do so, use `aztec-cli add-contract`.
+
+```bash
+aztec-cli add-contract --contract-artifact contracts/counter/target/counter-Counter.json --contract-address <contract-address>
+```
+
+:::note
+
+You can also deploy contracts using Aztec.js. See [the next page](./aztecjs-getting-started.md) for details.
+
+:::
 
 ## Install Noir LSP (recommended)
 
