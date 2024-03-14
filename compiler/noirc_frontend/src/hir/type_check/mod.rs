@@ -416,7 +416,7 @@ mod test {
         },
         parse_program, FunctionKind, Path,
     };
-    use crate::{BinaryOpKind, Distinctness, FunctionReturnType, Ident, Visibility};
+    use crate::{BinaryOpKind, Distinctness, FunctionReturnType, Visibility};
 
     #[test]
     fn basic_let() {
@@ -598,7 +598,7 @@ mod test {
             &self,
             _def_maps: &BTreeMap<CrateId, CrateDefMap>,
             path: Path,
-        ) -> Result<(ModuleDefId, Option<Ident>), PathResolutionError> {
+        ) -> Result<(ModuleDefId, Option<PathResolutionError>), PathResolutionError> {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
             self.0

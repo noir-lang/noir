@@ -56,7 +56,6 @@ use crate::hir_def::{
 };
 
 use super::errors::{PubPosition, ResolverError};
-use super::import::PathResolutionError;
 
 const SELF_TYPE_NAME: &str = "Self";
 
@@ -664,13 +663,13 @@ impl<'a> Resolver<'a> {
 
         // If we cannot find a local generic of the same name, try to look up a global
         match self.path_resolver.resolve(self.def_maps, path.clone()) {
-            Ok((ModuleDefId::GlobalId(id), private_ident)) => {
+            Ok((ModuleDefId::GlobalId(id), warning)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
 
-                if let Some(ident) = private_ident {
-                    self.push_err(PathResolutionError::Private(ident).into());
+                if let Some(warning) = warning {
+                    self.push_err(warning.into());
                 }
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
@@ -1847,13 +1846,13 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        let (mod_def_id, ident) = self
+        let (mod_def_id, warning) = self
             .path_resolver
             .resolve(self.def_maps, path)
             .map_err(ResolverError::PathResolutionError)?;
 
-        if let Some(ident) = ident {
-            self.push_err(PathResolutionError::Private(ident).into());
+        if let Some(warning) = warning {
+            self.push_err(warning.into());
         }
 
         Ok(mod_def_id)

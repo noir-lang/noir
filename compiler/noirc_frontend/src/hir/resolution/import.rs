@@ -15,7 +15,8 @@ pub struct ImportDirective {
     pub is_prelude: bool,
 }
 
-pub type PathResolution = Result<(ModuleId, PerNs, Option<Ident>), PathResolutionError>;
+pub type PathResolution =
+    Result<(ModuleId, PerNs, Option<PathResolutionError>), PathResolutionError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PathResolutionError {
@@ -69,7 +70,7 @@ pub fn resolve_import(
         allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
 
     let module_scope = import_directive.module_id;
-    let (resolved_module, resolved_namespace, mut first_private_ident) =
+    let (resolved_module, resolved_namespace, mut warning) =
         resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, allow_contracts)
             .map_err(|error| (error, module_scope))?;
 
@@ -81,19 +82,19 @@ pub fn resolve_import(
         .map(|(_, visibility, _)| visibility)
         .expect("Found empty namespace");
 
-    if first_private_ident.is_none()
-        && check_can_reference_function(
+    warning = warning.or_else(|| {
+        if can_reference_module_id(
             def_maps,
             crate_id,
             import_directive.module_id,
             resolved_module,
             visibility,
-            &name,
-        )
-        .is_err()
-    {
-        first_private_ident = Some(name.clone());
-    }
+        ) {
+            None
+        } else {
+            Some(PathResolutionError::Private(name.clone()))
+        }
+    });
 
     Ok((
         ResolvedImport {
@@ -102,7 +103,7 @@ pub fn resolve_import(
             module_scope,
             is_prelude: import_directive.is_prelude,
         },
-        first_private_ident.map(PathResolutionError::Private),
+        warning,
     ))
 }
 
@@ -199,7 +200,7 @@ fn resolve_name_in_module(
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
 
-    let mut first_private_ident: Option<Ident> = None;
+    let mut warning: Option<PathResolutionError> = None;
     for (last_segment, current_segment) in import_path.iter().zip(import_path.iter().skip(1)) {
         let (typ, visibility) = match current_ns.types {
             None => return Err(PathResolutionError::Unresolved(last_segment.clone())),
@@ -217,19 +218,19 @@ fn resolve_name_in_module(
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
 
-        if first_private_ident.is_none()
-            && check_can_reference_function(
+        warning = warning.or_else(|| {
+            if can_reference_module_id(
                 def_maps,
                 importing_crate,
                 starting_mod,
                 current_mod_id,
                 visibility,
-                last_segment,
-            )
-            .is_err()
-        {
-            first_private_ident = Some(last_segment.clone());
-        }
+            ) {
+                None
+            } else {
+                Some(PathResolutionError::Private(last_segment.clone()))
+            }
+        });
 
         current_mod = &def_maps[&current_mod_id.krate].modules[current_mod_id.local_id.0];
 
@@ -247,7 +248,7 @@ fn resolve_name_in_module(
         current_ns = found_ns;
     }
 
-    Ok((current_mod_id, current_ns, first_private_ident))
+    Ok((current_mod_id, current_ns, warning))
 }
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
@@ -295,52 +296,41 @@ fn resolve_external_dep(
 
 // Issue an error if the given private function is being called from a non-child module, or
 // if the given pub(crate) function is being called from another crate
-pub(crate) fn check_can_reference_function(
+pub(super) fn can_reference_module_id(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     importing_crate: CrateId,
     current_module: LocalModuleId,
     target_module: ModuleId,
     visibility: ItemVisibility,
-    ident: &Ident,
-) -> Result<(), PathResolutionError> {
+) -> bool {
     let same_crate = target_module.krate == importing_crate;
 
     match visibility {
-        ItemVisibility::Public => Ok(()),
-        ItemVisibility::Private
-            if !same_crate
-                || !module_descendent_of_target(
+        ItemVisibility::Public => true,
+        ItemVisibility::PublicCrate => same_crate,
+        ItemVisibility::PublicSuper => {
+            same_crate
+                && (module_descendent_of_target(
                     def_maps,
                     importing_crate,
                     target_module.local_id,
                     current_module,
-                ) =>
-        {
-            Err(PathResolutionError::Private(ident.clone()))
-        }
-
-        ItemVisibility::PublicSuper
-            if !same_crate
-                || (!module_descendent_of_target(
+                ) || module_parent_of_target(
                     def_maps,
                     importing_crate,
                     target_module.local_id,
                     current_module,
-                ) && !module_parent_of_target(
+                ))
+        }
+        ItemVisibility::Private => {
+            same_crate
+                && module_descendent_of_target(
                     def_maps,
                     importing_crate,
                     target_module.local_id,
                     current_module,
-                )) =>
-        {
-            Err(PathResolutionError::Private(ident.clone()))
+                )
         }
-
-        ItemVisibility::PublicCrate if !same_crate => {
-            Err(PathResolutionError::Private(ident.clone()))
-        }
-
-        _ => Ok(()),
     }
 }
 
