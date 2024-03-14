@@ -56,8 +56,11 @@ impl UnresolvedFunctions {
             for bound in &mut func.def.where_clause {
                 match resolve_trait_by_path(def_maps, module, bound.trait_bound.trait_path.clone())
                 {
-                    Ok(trait_id) => {
+                    Ok((trait_id, warning)) => {
                         bound.trait_bound.trait_id = Some(trait_id);
+                        if let Some(warning) = warning {
+                            errors.push(DefCollectorErrorKind::PathResolutionError(warning));
+                        }
                     }
                     Err(err) => {
                         errors.push(err);
@@ -280,7 +283,14 @@ impl DefCollector {
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in def_collector.collected_imports {
             match resolve_import(crate_id, &collected_import, &context.def_maps) {
-                Ok(resolved_import) => {
+                Ok((resolved_import, warning)) => {
+                    if let Some(warning) = warning {
+                        errors.push((
+                            DefCollectorErrorKind::PathResolutionError(warning).into(),
+                            root_file_id,
+                        ));
+                    }
+
                     // Populate module namespaces according to the imports used
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
@@ -409,11 +419,12 @@ fn inject_prelude(
         Path { segments: segments.clone(), kind: crate::PathKind::Dep, span: Span::default() };
 
     if !crate_id.is_stdlib() {
-        if let Ok(module_def) = path_resolver::resolve_path(
+        if let Ok((module_def, ident)) = path_resolver::resolve_path(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             path,
         ) {
+            assert!(ident.is_none(), "Tried to add private item to prelude");
             let module_id = module_def.as_module().expect("std::prelude should be a module");
             let prelude = context.module(module_id).scope().names();
 

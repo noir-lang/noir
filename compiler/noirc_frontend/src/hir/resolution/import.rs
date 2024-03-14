@@ -1,4 +1,5 @@
 use noirc_errors::{CustomDiagnostic, Span};
+use thiserror::Error;
 
 use crate::graph::CrateId;
 use std::collections::BTreeMap;
@@ -14,12 +15,15 @@ pub struct ImportDirective {
     pub is_prelude: bool,
 }
 
-pub type PathResolution = Result<(ModuleId, PerNs), PathResolutionError>;
+pub type PathResolution = Result<(ModuleId, PerNs, Option<Ident>), PathResolutionError>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PathResolutionError {
+    #[error("foo")]
     Unresolved(Ident),
+    #[error("bar")]
     ExternalContractUsed(Ident),
+    #[error("baz")]
     Private(Ident),
 }
 
@@ -47,7 +51,7 @@ impl From<PathResolutionError> for CustomDiagnostic {
                 "Contracts may only be referenced from within a contract".to_string(),
                 ident.span(),
             ),
-            PathResolutionError::Private(ident) => CustomDiagnostic::simple_error(
+            PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
                 format!("{ident} is private and not visible from the current module"),
                 format!("{ident} is private"),
                 ident.span(),
@@ -60,12 +64,12 @@ pub fn resolve_import(
     crate_id: CrateId,
     import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-) -> Result<ResolvedImport, (PathResolutionError, LocalModuleId)> {
+) -> Result<(ResolvedImport, Option<PathResolutionError>), (PathResolutionError, LocalModuleId)> {
     let allow_contracts =
         allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
 
     let module_scope = import_directive.module_id;
-    let (resolved_module, resolved_namespace) =
+    let (resolved_module, resolved_namespace, mut first_private_ident) =
         resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, allow_contracts)
             .map_err(|error| (error, module_scope))?;
 
@@ -77,22 +81,29 @@ pub fn resolve_import(
         .map(|(_, visibility, _)| visibility)
         .expect("Found empty namespace");
 
-    check_can_reference_function(
-        def_maps,
-        crate_id,
-        import_directive.module_id,
-        resolved_module,
-        visibility,
-        &name,
-    )
-    .map_err(|error| (error, module_scope))?;
+    if first_private_ident.is_none()
+        && check_can_reference_function(
+            def_maps,
+            crate_id,
+            import_directive.module_id,
+            resolved_module,
+            visibility,
+            &name,
+        )
+        .is_err()
+    {
+        first_private_ident = Some(name.clone());
+    }
 
-    Ok(ResolvedImport {
-        name,
-        resolved_namespace,
-        module_scope,
-        is_prelude: import_directive.is_prelude,
-    })
+    Ok((
+        ResolvedImport {
+            name,
+            resolved_namespace,
+            module_scope,
+            is_prelude: import_directive.is_prelude,
+        },
+        first_private_ident.map(PathResolutionError::Private),
+    ))
 }
 
 pub(super) fn allow_referencing_contracts(
@@ -179,7 +190,7 @@ fn resolve_name_in_module(
     // There is a possibility that the import path is empty
     // In that case, early return
     if import_path.is_empty() {
-        return Ok((current_mod_id, PerNs::types(current_mod_id.into())));
+        return Ok((current_mod_id, PerNs::types(current_mod_id.into()), None));
     }
 
     let first_segment = import_path.first().expect("ice: could not fetch first segment");
@@ -188,6 +199,7 @@ fn resolve_name_in_module(
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
 
+    let mut first_private_ident: Option<Ident> = None;
     for (last_segment, current_segment) in import_path.iter().zip(import_path.iter().skip(1)) {
         let (typ, visibility) = match current_ns.types {
             None => return Err(PathResolutionError::Unresolved(last_segment.clone())),
@@ -205,14 +217,19 @@ fn resolve_name_in_module(
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
 
-        check_can_reference_function(
-            def_maps,
-            importing_crate,
-            starting_mod,
-            current_mod_id,
-            visibility,
-            last_segment,
-        )?;
+        if first_private_ident.is_none()
+            && check_can_reference_function(
+                def_maps,
+                importing_crate,
+                starting_mod,
+                current_mod_id,
+                visibility,
+                last_segment,
+            )
+            .is_err()
+        {
+            first_private_ident = Some(last_segment.clone());
+        }
 
         current_mod = &def_maps[&current_mod_id.krate].modules[current_mod_id.local_id.0];
 
@@ -230,7 +247,7 @@ fn resolve_name_in_module(
         current_ns = found_ns;
     }
 
-    Ok((current_mod_id, current_ns))
+    Ok((current_mod_id, current_ns, first_private_ident))
 }
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {

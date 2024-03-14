@@ -2,7 +2,7 @@ use super::import::{
     allow_referencing_contracts, check_can_reference_function, resolve_path_to_ns, ImportDirective,
     PathResolutionError,
 };
-use crate::Path;
+use crate::{Ident, Path};
 use std::collections::BTreeMap;
 
 use crate::graph::CrateId;
@@ -14,7 +14,7 @@ pub trait PathResolver {
         &self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
-    ) -> Result<ModuleDefId, PathResolutionError>;
+    ) -> Result<(ModuleDefId, Option<Ident>), PathResolutionError>;
 
     fn local_module_id(&self) -> LocalModuleId;
 
@@ -37,7 +37,7 @@ impl PathResolver for StandardPathResolver {
         &self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
-    ) -> Result<ModuleDefId, PathResolutionError> {
+    ) -> Result<(ModuleDefId, Option<Ident>), PathResolutionError> {
         resolve_path(def_maps, self.module_id, path)
     }
 
@@ -56,7 +56,7 @@ pub fn resolve_path(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     module_id: ModuleId,
     path: Path,
-) -> Result<ModuleDefId, PathResolutionError> {
+) -> Result<(ModuleDefId, Option<Ident>), PathResolutionError> {
     // lets package up the path into an ImportDirective and resolve it using that
     let last_path_segment = path.last_segment();
     let import =
@@ -64,7 +64,7 @@ pub fn resolve_path(
     let allow_referencing_contracts =
         allow_referencing_contracts(def_maps, module_id.krate, module_id.local_id);
 
-    let (resolved_module, ns) = resolve_path_to_ns(
+    let (resolved_module, ns, mut first_private_ident) = resolve_path_to_ns(
         &import,
         module_id.krate,
         module_id.krate,
@@ -78,14 +78,19 @@ pub fn resolve_path(
         .map(|(id, visibility, _)| (id, visibility))
         .expect("Found empty namespace");
 
-    check_can_reference_function(
-        def_maps,
-        module_id.krate,
-        module_id.local_id,
-        resolved_module,
-        visibility,
-        &last_path_segment,
-    )?;
+    if first_private_ident.is_none()
+        && check_can_reference_function(
+            def_maps,
+            module_id.krate,
+            module_id.local_id,
+            resolved_module,
+            visibility,
+            &last_path_segment,
+        )
+        .is_err()
+    {
+        first_private_ident = Some(last_path_segment.clone());
+    }
 
-    Ok(id)
+    Ok((id, first_private_ident))
 }

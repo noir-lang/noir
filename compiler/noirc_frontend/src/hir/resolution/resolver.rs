@@ -56,6 +56,7 @@ use crate::hir_def::{
 };
 
 use super::errors::{PubPosition, ResolverError};
+use super::import::PathResolutionError;
 
 const SELF_TYPE_NAME: &str = "Self";
 
@@ -663,9 +664,13 @@ impl<'a> Resolver<'a> {
 
         // If we cannot find a local generic of the same name, try to look up a global
         match self.path_resolver.resolve(self.def_maps, path.clone()) {
-            Ok(ModuleDefId::GlobalId(id)) => {
+            Ok((ModuleDefId::GlobalId(id), private_ident)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
+                }
+
+                if let Some(ident) = private_ident {
+                    self.push_err(PathResolutionError::Private(ident).into());
                 }
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
@@ -1807,7 +1812,7 @@ impl<'a> Resolver<'a> {
                 }
 
                 if let Ok(ModuleDefId::TraitId(trait_id)) =
-                    self.path_resolver.resolve(self.def_maps, trait_bound.trait_path.clone())
+                    self.resolve_path(trait_bound.trait_path.clone())
                 {
                     let the_trait = self.interner.get_trait(trait_id);
                     if let Some(method) =
@@ -1842,7 +1847,16 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        self.path_resolver.resolve(self.def_maps, path).map_err(ResolverError::PathResolutionError)
+        let (mod_def_id, ident) = self
+            .path_resolver
+            .resolve(self.def_maps, path)
+            .map_err(ResolverError::PathResolutionError)?;
+
+        if let Some(ident) = ident {
+            self.push_err(PathResolutionError::Private(ident).into());
+        }
+
+        Ok(mod_def_id)
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
