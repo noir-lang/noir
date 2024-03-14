@@ -338,7 +338,7 @@ const sidebars = {
             "developers/contracts/writing_contracts/layout",
             "developers/contracts/writing_contracts/example_contract",
             {
-              label: "Functions and Constructors",
+              label: "Functions and Initializers",
               type: "category",
               link: {
                 type: "doc",
@@ -349,7 +349,7 @@ const sidebars = {
                 "developers/contracts/writing_contracts/functions/public_private_unconstrained",
                 "developers/contracts/writing_contracts/functions/visibility",
                 "developers/contracts/writing_contracts/functions/call_functions",
-                "developers/contracts/writing_contracts/functions/write_constructor",
+                "developers/contracts/writing_contracts/functions/initializers",
                 "developers/contracts/writing_contracts/functions/compute_note_hash_and_nullifier",
                 "developers/contracts/writing_contracts/functions/inner_workings",
               ],

@@ -29,7 +29,7 @@ Help shape and define:
 
 - It is a testing environment, it is insecure, unaudited and does not generate any proofs, its only for testing purposes;
 - Constructors can not call nor alter public state
-  - The constructor is executed exclusively in private domain, WITHOUT the ability to call public functions or alter public state. This means to set initial storage values, you need to follow a pattern similar to [proxies in Ethereum](https://blog.openzeppelin.com/proxy-patterns), where you `initialize` the contract with values after it have been deployed, see [constructor](../contracts/writing_contracts/functions/write_constructor.md).
+  - The constructor is executed exclusively in private domain, WITHOUT the ability to call public functions or alter public state. This means to set initial storage values, you need to follow a pattern similar to [proxies in Ethereum](https://blog.openzeppelin.com/proxy-patterns), where you `initialize` the contract with values after it have been deployed, see [initializer functions](../contracts/writing_contracts/functions/initializers.md).
   - Beware that what you think of as a `view` could alter state ATM! Notably the account could alter state or re-enter whenever the account contract's `is_valid` function is called.
 - `msg_sender` is currently leaking when doing private -> public calls
   - The `msg_sender` will always be set, if you call a public function from the private world, the `msg_sender` will be set to the private caller's address. See [function context](../contracts/writing_contracts/functions/context.md).
