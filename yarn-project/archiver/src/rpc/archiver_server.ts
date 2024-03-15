@@ -1,5 +1,4 @@
 import {
-  ContractData,
   ExtendedUnencryptedL2Log,
   L1ToL2Message,
   L2Block,
@@ -22,7 +21,6 @@ export function createArchiverRpcServer(archiverService: Archiver): JsonRpcServe
   return new JsonRpcServer(
     archiverService,
     {
-      ContractData,
       EthAddress,
       ExtendedUnencryptedL2Log,
       Fr,

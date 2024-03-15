@@ -1,9 +1,10 @@
-import { ContractDataSource, L1ToL2MessageSource, SimulationError, Tx } from '@aztec/circuit-types';
+import { L1ToL2MessageSource, SimulationError, Tx } from '@aztec/circuit-types';
 import { TxSequencerProcessingStats } from '@aztec/circuit-types/stats';
 import { GlobalVariables, Header } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import { PublicExecutor, PublicStateDB } from '@aztec/simulator';
+import { ContractDataSource } from '@aztec/types/contracts';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
 import { EmptyPublicProver } from '../prover/empty.js';

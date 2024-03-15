@@ -3,7 +3,6 @@ import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/c
 import { NodeInfo } from '@aztec/types/interfaces';
 
 import { AuthWitness } from '../auth_witness.js';
-import { ContractData } from '../contract_data.js';
 import { L2Block } from '../l2_block.js';
 import { GetUnencryptedLogsResponse, LogFilter } from '../logs/index.js';
 import { ExtendedNote } from '../notes/index.js';
@@ -208,14 +207,6 @@ export interface PXE {
    * @returns The result of the view function call, structured based on the function ABI.
    */
   viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress): Promise<any>;
-
-  /**
-   * Gets the portal contract address on L1 for the given contract.
-   *
-   * @param contractAddress - The contract's address.
-   * @returns The contract's portal address if found.
-   */
-  getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined>;
 
   /**
    * Gets unencrypted logs based on the provided filter.

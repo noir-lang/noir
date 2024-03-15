@@ -1,6 +1,4 @@
 import {
-  ContractData,
-  ContractDataSource,
   GetUnencryptedLogsResponse,
   L1ToL2Message,
   L1ToL2MessageSource,
@@ -25,7 +23,12 @@ import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { RollupAbi } from '@aztec/l1-artifacts';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
-import { ContractClassPublic, ContractInstanceWithAddress, PublicFunction } from '@aztec/types/contracts';
+import {
+  ContractClassPublic,
+  ContractDataSource,
+  ContractInstanceWithAddress,
+  PublicFunction,
+} from '@aztec/types/contracts';
 
 import { Chain, HttpTransport, PublicClient, createPublicClient, getAddress, getContract, http } from 'viem';
 
@@ -421,29 +424,6 @@ export class Archiver implements ArchiveSource {
 
   public getSettledTxReceipt(txHash: TxHash): Promise<TxReceipt | undefined> {
     return this.store.getSettledTxReceipt(txHash);
-  }
-
-  /**
-   * Lookup the contract data for this contract.
-   * Contains contract address & the ethereum portal address.
-   * @param contractAddress - The contract data address.
-   * @returns ContractData with the portal address (if we didn't throw an error).
-   */
-  public getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
-    return this.makeContractDataFor(contractAddress);
-  }
-
-  /**
-   * Temporary method for creating a fake contract data out of classes and instances registered in the node.
-   * Used as a fallback if the extended contract data is not found.
-   */
-  private async makeContractDataFor(address: AztecAddress): Promise<ContractData | undefined> {
-    const instance = await this.store.getContractInstance(address);
-    if (!instance) {
-      return undefined;
-    }
-
-    return new ContractData(address, instance.portalContractAddress);
   }
 
   /**

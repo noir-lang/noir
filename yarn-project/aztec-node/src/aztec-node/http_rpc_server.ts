@@ -1,6 +1,5 @@
 import {
   AztecNode,
-  ContractData,
   ExtendedUnencryptedL2Log,
   L1ToL2MessageAndIndex,
   L2Block,
@@ -31,7 +30,6 @@ export function createAztecNodeRpcServer(node: AztecNode) {
       AztecAddress,
       EthAddress,
       ExtendedUnencryptedL2Log,
-      ContractData,
       Fr,
       FunctionSelector,
       Header,

@@ -1,4 +1,3 @@
-export * from './contract_data.js';
 export * from './function_call.js';
 export * from './keys/index.js';
 export * from './notes/index.js';

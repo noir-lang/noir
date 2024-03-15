@@ -288,13 +288,13 @@ Contract deployed at 0x1ae8eea0dc265fb7f160dae62cc8912686d8a9ed78e821fbdd8bcedc5
 // docs:start:check-deploy
 % aztec-cli check-deploy --contract-address $CONTRACT_ADDRESS
 
-Contract found at 0x1ae8eea0dc265fb7f160dae62cc8912686d8a9ed78e821fbdd8bcedc54c06d0f
+Contract is publicly deployed at 0x1ae8eea0dc265fb7f160dae62cc8912686d8a9ed78e821fbdd8bcedc54c06d0f
 // docs:end:check-deploy
 `;
     command = docs.split('\n')[2].split('aztec-cli ')[1].replace('$CONTRACT_ADDRESS', contractAddress.toString());
     await run(command);
 
-    foundContractAddress = findInLogs(/Contract\sfound\sat\s(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
+    foundContractAddress = findInLogs(/Contract.+\sat\s(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
     expect(foundContractAddress).toEqual(contractAddress.toString());
 
     clearLogs();

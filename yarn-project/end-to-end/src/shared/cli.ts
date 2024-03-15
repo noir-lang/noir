@@ -143,13 +143,13 @@ export const cliTestSuite = (
         expect(loggedAddress).toBeDefined();
         contractAddress = AztecAddress.fromString(loggedAddress!);
 
-        const deployedContract = await pxe.getContractData(contractAddress);
-        expect(deployedContract?.contractAddress).toEqual(contractAddress);
+        const deployedContract = await pxe.getContractInstance(contractAddress);
+        expect(deployedContract?.address).toEqual(contractAddress);
 
         debug('Check contract can be found in returned address');
         await run(`check-deploy -ca ${loggedAddress}`);
-        const checkResult = findInLogs(/Contract\sfound\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
-        expect(checkResult).toEqual(deployedContract?.contractAddress.toString());
+        const checkResult = findInLogs(/Contract.+\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
+        expect(checkResult).toEqual(deployedContract?.address.toString());
 
         const secret = Fr.random();
         const secretHash = computeMessageSecretHash(secret);
@@ -171,11 +171,10 @@ export const cliTestSuite = (
           `send redeem_shield --args ${ownerAddress} ${INITIAL_BALANCE} ${secret} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()} --private-key ${privKey}`,
         );
 
-        // clear logs
         clearLogs();
         await run(`get-contract-data ${loggedAddress}`);
         const contractDataAddress = findInLogs(/^\s?Address:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
-        expect(contractDataAddress).toEqual(deployedContract?.contractAddress.toString());
+        expect(contractDataAddress).toEqual(deployedContract?.address.toString());
 
         debug("Check owner's balance");
         await run(

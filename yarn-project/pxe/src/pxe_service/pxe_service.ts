@@ -1,7 +1,6 @@
 import {
   AuthWitness,
   AztecNode,
-  ContractData,
   DeployedContract,
   ExtendedNote,
   FunctionCall,
@@ -235,7 +234,7 @@ export class PXEService implements PXE {
   }
 
   public async getPublicStorageAt(contract: AztecAddress, slot: Fr) {
-    if ((await this.getContractData(contract)) === undefined) {
+    if (!(await this.getContractInstance(contract))) {
       throw new Error(`Contract ${contract.toString()} is not deployed`);
     }
     return await this.node.getPublicStorageAt(contract, slot);
@@ -426,10 +425,6 @@ export class PXEService implements PXE {
 
   async getBlockNumber(): Promise<number> {
     return await this.node.getBlockNumber();
-  }
-
-  public async getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
-    return await this.node.getContractData(contractAddress);
   }
 
   /**

@@ -1,6 +1,7 @@
-import { ContractDataSource, L1ToL2MessageSource, L2BlockSource } from '@aztec/circuit-types';
+import { L1ToL2MessageSource, L2BlockSource } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { P2P } from '@aztec/p2p';
+import { ContractDataSource } from '@aztec/types/contracts';
 import { WorldStateSynchronizer } from '@aztec/world-state';
 
 import * as fs from 'fs/promises';

@@ -1,5 +1,4 @@
 import {
-  ContractDataSource,
   L1ToL2MessageSource,
   MerkleTreeId,
   NullifierMembershipWitness,
@@ -22,7 +21,7 @@ import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
 import { CommitmentsDB, MessageLoadOracleInputs, PublicContractsDB, PublicStateDB } from '@aztec/simulator';
-import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { ContractClassPublic, ContractDataSource, ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
 /**

@@ -1,4 +1,5 @@
 import {
+  AztecAddress,
   AztecNode,
   BatchCall,
   ContractDeployer,
@@ -10,7 +11,6 @@ import {
   TxReceipt,
   TxStatus,
   Wallet,
-  isContractDeployed,
 } from '@aztec/aztec.js';
 import { times } from '@aztec/foundation/collection';
 import { pedersenHash } from '@aztec/foundation/crypto';
@@ -73,7 +73,8 @@ describe('e2e_block_building', () => {
       expect(receipts.map(r => r.blockNumber)).toEqual(times(TX_COUNT, () => receipts[0].blockNumber));
 
       // Assert all contracts got deployed
-      const areDeployed = await Promise.all(receipts.map(r => isContractDeployed(pxe, r.contract.address)));
+      const isContractDeployed = async (address: AztecAddress) => !!(await pxe.getContractInstance(address));
+      const areDeployed = await Promise.all(receipts.map(r => isContractDeployed(r.contract.address)));
       expect(areDeployed).toEqual(times(TX_COUNT, () => true));
     }, 60_000);
 

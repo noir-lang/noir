@@ -1,6 +1,5 @@
 import {
   AuthWitness,
-  ContractData,
   DeployedContract,
   ExtendedNote,
   FunctionCall,
@@ -101,9 +100,6 @@ export abstract class BaseWallet implements Wallet {
   }
   viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress | undefined): Promise<any> {
     return this.pxe.viewTx(functionName, args, to, from);
-  }
-  getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
-    return this.pxe.getContractData(contractAddress);
   }
   getUnencryptedLogs(filter: LogFilter): Promise<GetUnencryptedLogsResponse> {
     return this.pxe.getUnencryptedLogs(filter);

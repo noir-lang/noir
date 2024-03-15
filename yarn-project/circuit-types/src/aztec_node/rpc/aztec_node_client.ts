@@ -5,7 +5,6 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createJsonRpcClient, defaultFetch } from '@aztec/foundation/json-rpc/client';
 
-import { ContractData } from '../../contract_data.js';
 import { AztecNode } from '../../interfaces/aztec-node.js';
 import { NullifierMembershipWitness } from '../../interfaces/nullifier_tree.js';
 import { L1ToL2MessageAndIndex } from '../../l1_to_l2_message.js';
@@ -28,7 +27,6 @@ export function createAztecNodeClient(url: string, fetch = defaultFetch): AztecN
       AztecAddress,
       EthAddress,
       ExtendedUnencryptedL2Log,
-      ContractData,
       Fr,
       EventSelector,
       FunctionSelector,

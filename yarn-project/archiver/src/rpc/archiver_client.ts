@@ -1,5 +1,4 @@
 import {
-  ContractData,
   ExtendedUnencryptedL2Log,
   L1ToL2Message,
   L2Block,
@@ -16,7 +15,6 @@ export const createArchiverClient = (url: string, fetch = makeFetch([1, 2, 3], t
   createJsonRpcClient<ArchiveSource>(
     url,
     {
-      ContractData,
       EthAddress,
       ExtendedUnencryptedL2Log,
       Fr,

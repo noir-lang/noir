@@ -11,7 +11,6 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
-import { ContractData } from '../contract_data.js';
 import { L1ToL2MessageAndIndex } from '../l1_to_l2_message.js';
 import { L2Block } from '../l2_block.js';
 import { GetUnencryptedLogsResponse, L2BlockL2Logs, LogFilter, LogType } from '../logs/index.js';
@@ -193,14 +192,6 @@ export interface AztecNode {
    * @returns The deployed contract addresses.
    */
   getL1ContractAddresses(): Promise<L1ContractAddresses>;
-
-  /**
-   * Lookup the contract data for this contract.
-   * Contains the ethereum portal address .
-   * @param contractAddress - The contract data address.
-   * @returns The contract's address & portal address.
-   */
-  getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined>;
 
   /**
    * Gets up to `limit` amount of logs starting from `from`.

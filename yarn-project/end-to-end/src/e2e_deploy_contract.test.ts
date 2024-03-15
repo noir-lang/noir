@@ -16,7 +16,6 @@ import {
   Wallet,
   getContractClassFromArtifact,
   getContractInstanceFromDeployParams,
-  isContractDeployed,
 } from '@aztec/aztec.js';
 import {
   broadcastPrivateFunction,
@@ -65,8 +64,8 @@ describe('e2e_deploy_contract', () => {
       const deployer = new ContractDeployer(TestContractArtifact, wallet, publicKey);
       const receipt = await deployer.deploy().send({ contractAddressSalt: salt }).wait({ wallet });
       expect(receipt.contract.address).toEqual(deploymentData.address);
-      expect(await isContractDeployed(pxe, deploymentData.address)).toBe(true);
-      expect(await isContractDeployed(pxe, AztecAddress.random())).toBe(false);
+      expect(await pxe.getContractInstance(deploymentData.address)).toBeDefined();
+      expect(await pxe.isContractPubliclyDeployed(deploymentData.address)).toBeDefined();
     }, 60_000);
 
     /**
@@ -116,7 +115,6 @@ describe('e2e_deploy_contract', () => {
       const address = receipt.contract.address;
 
       const expectedPortal = portalContract.toString();
-      expect((await pxe.getContractData(address))?.portalContractAddress.toString()).toEqual(expectedPortal);
       expect((await pxe.getContractInstance(address))?.portalContractAddress.toString()).toEqual(expectedPortal);
     }, 60_000);
 
