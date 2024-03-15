@@ -284,17 +284,13 @@ mod test {
         //   b0(v0: &mut [Field; 2]):
         //     v1 = load v0
         //     inc_rc v1
+        //     store v1 at v0
         //     v2 = load v0
-        //     inc_rc v2
-        //     store v2 at v0
-        //     v3 = load v0
-        //     v8 = array_set v3, index u64 0, value Field 5
+        //     v7 = array_set v2, index u64 0, value Field 5
+        //     store v7 at v0
+        //     v8 = load v0
+        //     dec_rc v8
         //     store v8 at v0
-        //     v9 = load v0
-        //     inc_rc v9
-        //     v10 = load v0
-        //     inc_rc v10
-        //     store v10 at v0
         //     return
         // }
         let main_id = Id::test_new(0);
@@ -305,21 +301,19 @@ mod test {
 
         let v0 = builder.add_parameter(reference_type);
 
-        // This inc_rc is from being used as a parameter
         let v1 = builder.insert_load(v0, array_type.clone());
         builder.insert_inc_rc(v1);
+        builder.insert_store(v0, v1);
 
-        let v1 = builder.insert_allocate(array_type.clone());
-        builder.insert_store(v1, v0);
-        builder.insert_inc_rc(v0);
-        let v2 = builder.insert_load(v1, array_type);
-
+        let v2 = builder.insert_load(v1, array_type.clone());
         let zero = builder.numeric_constant(0u128, Type::unsigned(64));
         let five = builder.field_constant(5u128);
         let v7 = builder.insert_array_set(v2, zero, five);
 
-        builder.insert_store(v1, v7);
-        builder.insert_dec_rc(v0);
+        builder.insert_store(v0, v7);
+        let v8 = builder.insert_load(v0, array_type);
+        builder.insert_dec_rc(v8);
+        builder.insert_store(v0, v8);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().remove_paired_rc();
