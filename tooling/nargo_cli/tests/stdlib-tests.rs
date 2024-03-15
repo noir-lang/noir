@@ -31,7 +31,8 @@ fn stdlib_noir_tests() {
         prepare_package(&file_manager, &parsed_files, &dummy_package);
 
     let result = check_crate(&mut context, dummy_crate_id, true, false);
-    report_errors(result, &context.file_manager, true, false).expect("Error encountered while compiling standard library");
+    report_errors(result, &context.file_manager, true, false)
+        .expect("Error encountered while compiling standard library");
 
     // We can now search within the stdlib for any test functions to compile.
 
