@@ -8,14 +8,8 @@ import { numToUInt8, numToUInt16BE, numToUInt32BE } from '@aztec/foundation/seri
 import { Buffer } from 'buffer';
 import chunk from 'lodash.chunk';
 
-import {
-  ARGS_HASH_CHUNK_COUNT,
-  ARGS_HASH_CHUNK_LENGTH,
-  FUNCTION_TREE_HEIGHT,
-  GeneratorIndex,
-} from '../constants.gen.js';
-import { MerkleTreeCalculator } from '../merkle/merkle_tree_calculator.js';
-import type { FunctionData, SideEffect, SideEffectLinkedToNoteHash } from '../structs/index.js';
+import { ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, GeneratorIndex } from '../constants.gen.js';
+import type { SideEffect, SideEffectLinkedToNoteHash } from '../structs/index.js';
 import { VerificationKey } from '../structs/verification_key.js';
 
 /**
@@ -58,55 +52,6 @@ export function hashVK(vkBuf: Buffer) {
   // write(preimage_data, eval_domain.root);  // fr::one()
 
   // return crypto::pedersen_hash::hash_buffer(preimage_data, hash_index);
-}
-
-let functionTreeRootCalculator: MerkleTreeCalculator | undefined;
-/**
- * The "zero leaf" of the function tree is the hash of 5 zero fields.
- * TODO: Why can we not just use a zero field as the zero leaf? Complicates things perhaps unnecessarily?
- */
-function getFunctionTreeRootCalculator() {
-  if (!functionTreeRootCalculator) {
-    const functionTreeZeroLeaf = pedersenHash(new Array(5).fill(Buffer.alloc(32))).toBuffer();
-    functionTreeRootCalculator = new MerkleTreeCalculator(FUNCTION_TREE_HEIGHT, functionTreeZeroLeaf);
-  }
-  return functionTreeRootCalculator;
-}
-
-/**
- * Computes a function tree from function leaves.
- * @param fnLeaves - The function leaves to be included in the contract function tree.
- * @returns All nodes of the tree.
- */
-export function computeFunctionTree(fnLeaves: Fr[]) {
-  const leaves = fnLeaves.map(fr => fr.toBuffer());
-  return getFunctionTreeRootCalculator()
-    .computeTree(leaves)
-    .nodes.map(b => Fr.fromBuffer(b));
-}
-
-/**
- * Computes a function tree root from function leaves.
- * @param fnLeaves - The function leaves to be included in the contract function tree.
- * @returns The function tree root.
- */
-export function computeFunctionTreeRoot(fnLeaves: Fr[]) {
-  const leaves = fnLeaves.map(fr => fr.toBuffer());
-  return Fr.fromBuffer(getFunctionTreeRootCalculator().computeTreeRoot(leaves));
-}
-
-/**
- * Computes a constructor hash.
- * @param functionData - Constructor's function data.
- * @param argsHash - Constructor's arguments hashed.
- * @param constructorVKHash - Hash of the constructor's verification key.
- * @returns The constructor hash.
- */
-export function hashConstructor(functionData: FunctionData, argsHash: Fr, constructorVKHash: Buffer): Fr {
-  return pedersenHash(
-    [functionData.hash().toBuffer(), argsHash.toBuffer(), constructorVKHash],
-    GeneratorIndex.CONSTRUCTOR,
-  );
 }
 
 /**

@@ -124,7 +124,7 @@ mod tests {
         address::{AztecAddress, EthAddress, compute_initialization_hash},
         constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, grumpkin_point::GrumpkinPoint,
         grumpkin_private_key::GrumpkinPrivateKey,
-        hash::{compute_constructor_hash, compute_logs_hash, stdlib_recursion_verification_key_compress_native_vk},
+        hash::{compute_logs_hash, stdlib_recursion_verification_key_compress_native_vk},
         messaging::l2_to_l1_message::L2ToL1Message,
         tests::private_call_data_builder::PrivateCallDataBuilder, transaction::tx_request::TxRequest,
         utils::arrays::array_length

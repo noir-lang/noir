@@ -4,7 +4,7 @@ use crate::{
     private_circuit_public_inputs::PrivateCircuitPublicInputs, read_request::ReadRequest,
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
-    address::{AztecAddress, compute_initialization_hash}, hash::{compute_constructor_hash, hash_args},
+    address::{AztecAddress, compute_initialization_hash}, hash::{hash_args},
     header::Header, messaging::l2_to_l1_message::L2ToL1Message, tests::fixtures
 };
 use crate::constants::{

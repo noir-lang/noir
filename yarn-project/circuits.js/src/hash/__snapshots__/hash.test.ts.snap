@@ -10,8 +10,6 @@ exports[`hash compute secret message hash 1`] = `Fr<0x0dc06f2167e2cd19adf738d1f3
 
 exports[`hash computes commitment nonce 1`] = `Fr<0x10ebab01bc813263ef92ed71b9c781ad3ef58019b66a8f71304d2f72d7defe4d>`;
 
-exports[`hash computes function tree root 1`] = `Fr<0x29ca48b7e335d43385addf19b70e9b05693a8f56cc09ef8cbbc374a40dadbf09>`;
-
 exports[`hash computes public data tree leaf slot 1`] = `Fr<0x14114ab3dbdd0a1ccc5c4fe68dd576f3c6cd79708770e06ab4086398cdd828f4>`;
 
 exports[`hash computes public data tree value 1`] = `Fr<0x0000000000000000000000000000000000000000000000000000000000000003>`;
@@ -23,8 +21,6 @@ exports[`hash computes siloed nullifier 1`] = `Fr<0x1743145fde103eaa88af576e0562
 exports[`hash computes unique commitment 1`] = `Fr<0x1cbdcecec4fe92f6638eb6a8dade96ca358ecba4954cf597c363199fae3d47e8>`;
 
 exports[`hash hashes VK 1`] = `Buffer<0x048110667f80b02f77b7d744976657cea9a7c5f1dd2340ea1c579a7ebfd54e55>`;
-
-exports[`hash hashes constructor info 1`] = `Fr<0x12e9b6121beff98b9d2d5cbd79989d49d3d3fd8734c786e9f24a06ef56001e2e>`;
 
 exports[`hash hashes empty function args 1`] = `Fr<0x0000000000000000000000000000000000000000000000000000000000000000>`;
 

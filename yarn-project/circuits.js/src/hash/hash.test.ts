@@ -1,19 +1,17 @@
 import { times } from '@aztec/foundation/collection';
 import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 
-import { AztecAddress, Fr, FunctionData, FunctionSelector, SideEffect, SideEffectLinkedToNoteHash } from '../index.js';
+import { AztecAddress, Fr, SideEffect, SideEffectLinkedToNoteHash } from '../index.js';
 import { makeAztecAddress, makeVerificationKey } from '../tests/factories.js';
 import {
   computeCommitmentNonce,
   computeCommitmentsHash,
-  computeFunctionTreeRoot,
   computeMessageSecretHash,
   computeNullifierHash,
   computePublicDataTreeLeafSlot,
   computePublicDataTreeValue,
   computeUniqueCommitment,
   computeVarArgsHash,
-  hashConstructor,
   hashVK,
   siloNoteHash,
   siloNullifier,
@@ -24,19 +22,6 @@ describe('hash', () => {
   it('hashes VK', () => {
     const vk = makeVerificationKey();
     const res = hashVK(vk.toBuffer());
-    expect(res).toMatchSnapshot();
-  });
-
-  it('computes function tree root', () => {
-    const res = computeFunctionTreeRoot([new Fr(0n), new Fr(0n), new Fr(0n), new Fr(0n)]);
-    expect(res).toMatchSnapshot();
-  });
-
-  it('hashes constructor info', () => {
-    const functionData = new FunctionData(FunctionSelector.empty(), false, true, true);
-    const argsHash = new Fr(42);
-    const vkHash = Buffer.alloc(32);
-    const res = hashConstructor(functionData, argsHash, vkHash);
     expect(res).toMatchSnapshot();
   });
 

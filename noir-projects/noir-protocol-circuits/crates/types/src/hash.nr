@@ -1,10 +1,8 @@
 use crate::address::{AztecAddress, EthAddress};
 use crate::mocked::VerificationKey;
 use crate::abis::function_selector::FunctionSelector;
-use crate::abis::function_leaf_preimage::FunctionLeafPreimage;
 use crate::abis::contract_class_function_leaf_preimage::ContractClassFunctionLeafPreimage;
 use crate::contract_class_id::ContractClassId;
-use crate::abis::function_data::FunctionData;
 use crate::abis::side_effect::{SideEffect};
 use crate::utils::uint256::U256;
 use crate::constants::{
@@ -62,30 +60,6 @@ pub fn hash_args<N>(args: [Field; N]) -> Field {
     }
 }
 
-// Calculate the function tree root from the sibling path and leaf preimage.
-//
-// TODO: The cpp code passes in components of the FunctionLeafPreimage and then 
-// builds it up. We should build it up and then pass the leaf preimage as a parameter.
-// We can then choose to have a general method that takes in anything hashable
-// and deduplicate the logic in `contract_tree_root_from_siblings`
-pub fn function_tree_root_from_siblings(
-    selector: FunctionSelector,
-    is_internal: bool,
-    is_private: bool,
-    vk_hash: Field,
-    acir_hash: Field,
-    function_leaf_index: Field,
-    function_leaf_sibling_path: [Field; FUNCTION_TREE_HEIGHT]
-) -> Field {
-    let function_leaf_preimage = FunctionLeafPreimage { selector, is_internal, is_private, vk_hash, acir_hash };
-
-    let function_leaf = function_leaf_preimage.hash();
-
-    let function_tree_root = root_from_sibling_path(function_leaf, function_leaf_index, function_leaf_sibling_path);
-
-    function_tree_root
-}
-
 pub fn private_functions_root_from_siblings(
     selector: FunctionSelector,
     vk_hash: Field,
@@ -129,11 +103,6 @@ pub fn stdlib_recursion_verification_key_compress_native_vk(_vk: VerificationKey
     0
 }
 
-// TODO CPP uses blake2s for this
-pub fn compute_new_contract_address_hash(new_contract_address: AztecAddress) -> Field {
-    dep::std::hash::pedersen_hash([new_contract_address.to_field()])
-}
-
 pub fn compute_l2_to_l1_hash(
     contract_address: AztecAddress,
     rollup_version_id: Field,
@@ -154,23 +123,6 @@ pub fn compute_l2_to_l1_hash(
     }
 
     sha256_to_field(bytes.storage)
-}
-
-pub fn compute_constructor_hash(
-    function_data: FunctionData,
-    args_hash: Field,
-    constructor_vk_hash: Field
-) -> Field {
-    let function_data_hash = function_data.hash();
-
-    pedersen_hash(
-        [
-        function_data_hash,
-        args_hash,
-        constructor_vk_hash
-    ],
-        GENERATOR_INDEX__CONSTRUCTOR
-    )
 }
 
 // Computes sha256 hash of 2 input hashes stored in 4 fields.

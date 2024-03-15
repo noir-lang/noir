@@ -4,7 +4,6 @@ mod contract_class_function_leaf_preimage;
 
 mod function_selector;
 mod function_data;
-mod function_leaf_preimage;
 
 mod global_variables;
 
