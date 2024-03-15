@@ -103,7 +103,7 @@ jobs:
             # Fix PR branch
             git fetch # see recent change
             git checkout $BRANCH || git checkout -b $BRANCH
-            git merge -Xours origin/$STAGING_BRANCH -m "$COMMIT_MESSAGE"
+            git merge -Xtheirs origin/$STAGING_BRANCH -m "$COMMIT_MESSAGE"
             git push origin $BRANCH
           }
           force_sync_staging
