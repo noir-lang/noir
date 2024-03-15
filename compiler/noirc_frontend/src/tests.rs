@@ -1226,6 +1226,34 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         assert_eq!(get_program_errors(src).len(), 0);
     }
 
+    #[test]
+    fn break_and_continue_in_constrained_fn() {
+        let src = r#"
+            fn main() {
+                for i in 0 .. 10 {
+                    if i == 2 {
+                        continue;
+                    }
+                    if i == 5 {
+                        break;
+                    }
+                }
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 2);
+    }
+
+    #[test]
+    fn break_and_continue_outside_loop() {
+        let src = r#"
+            unconstrained fn main() {
+                continue;
+                break;
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 2);
+    }
+
     // Regression for #4545
     #[test]
     fn type_aliases_in_main() {
