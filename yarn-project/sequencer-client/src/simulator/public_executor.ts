@@ -22,7 +22,6 @@ import {
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
-import { InstanceDeployerAddress } from '@aztec/protocol-contracts/instance-deployer';
 import { CommitmentsDB, MessageLoadOracleInputs, PublicContractsDB, PublicStateDB } from '@aztec/simulator';
 import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { MerkleTreeOperations } from '@aztec/world-state';
@@ -51,7 +50,7 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
       this.log(`Adding class ${e.contractClassId.toString()} to public execution contract cache`);
       this.classCache.set(e.contractClassId.toString(), e.toContractClassPublic());
     });
-    ContractInstanceDeployedEvent.fromLogs(logs, InstanceDeployerAddress).forEach(e => {
+    ContractInstanceDeployedEvent.fromLogs(logs).forEach(e => {
       this.log(
         `Adding instance ${e.address.toString()} with class ${e.contractClassId.toString()} to public execution contract cache`,
       );
@@ -73,9 +72,7 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
     ContractClassRegisteredEvent.fromLogs(logs, ClassRegistererAddress).forEach(e =>
       this.classCache.delete(e.contractClassId.toString()),
     );
-    ContractInstanceDeployedEvent.fromLogs(logs, InstanceDeployerAddress).forEach(e =>
-      this.instanceCache.delete(e.address.toString()),
-    );
+    ContractInstanceDeployedEvent.fromLogs(logs).forEach(e => this.instanceCache.delete(e.address.toString()));
     return Promise.resolve();
   }
 

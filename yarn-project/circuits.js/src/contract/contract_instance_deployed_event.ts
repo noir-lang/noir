@@ -5,7 +5,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 
-import { DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE } from '../constants.gen.js';
+import { DEPLOYER_CONTRACT_ADDRESS, DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE } from '../constants.gen.js';
 
 /** Event emitted from the ContractInstanceDeployer. */
 export class ContractInstanceDeployedEvent {
@@ -17,20 +17,17 @@ export class ContractInstanceDeployedEvent {
     public readonly initializationHash: Fr,
     public readonly portalContractAddress: EthAddress,
     public readonly publicKeysHash: Fr,
-    public readonly universalDeploy: boolean,
+    public readonly deployer: AztecAddress,
   ) {}
 
   static isContractInstanceDeployedEvent(log: Buffer) {
     return toBigIntBE(log.subarray(0, 32)) == DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE;
   }
 
-  // TODO(@spalladino) We should be loading the singleton address from protocol-contracts,
-  // but the protocol-contracts package depends on this one, and we cannot have circular dependencies,
-  // hence we require it as an argument for now.
-  static fromLogs(logs: { contractAddress: AztecAddress; data: Buffer }[], instanceDeployerAddress: AztecAddress) {
+  static fromLogs(logs: { contractAddress: AztecAddress; data: Buffer }[]) {
     return logs
       .filter(log => ContractInstanceDeployedEvent.isContractInstanceDeployedEvent(log.data))
-      .filter(log => log.contractAddress.equals(instanceDeployerAddress))
+      .filter(log => log.contractAddress.equals(AztecAddress.fromBigInt(DEPLOYER_CONTRACT_ADDRESS)))
       .map(log => ContractInstanceDeployedEvent.fromLogData(log.data));
   }
 
@@ -47,7 +44,7 @@ export class ContractInstanceDeployedEvent {
     const initializationHash = reader.readObject(Fr);
     const portalContractAddress = EthAddress.fromField(reader.readObject(Fr));
     const publicKeysHash = reader.readObject(Fr);
-    const universalDeploy = reader.readObject(Fr).toBool();
+    const deployer = reader.readObject(AztecAddress);
 
     return new ContractInstanceDeployedEvent(
       address,
@@ -57,7 +54,7 @@ export class ContractInstanceDeployedEvent {
       initializationHash,
       portalContractAddress,
       publicKeysHash,
-      universalDeploy,
+      deployer,
     );
   }
 
@@ -74,6 +71,7 @@ export class ContractInstanceDeployedEvent {
       portalContractAddress: this.portalContractAddress,
       publicKeysHash: this.publicKeysHash,
       salt: this.salt,
+      deployer: this.deployer,
     };
   }
 }

@@ -67,7 +67,8 @@ impl ContractInstance {
                 self.contract_class_id,
                 self.salt,
                 self.initialization_hash,
-                self.portal_contract_address
+                self.portal_contract_address,
+                self.deployer
             )
         )
     }

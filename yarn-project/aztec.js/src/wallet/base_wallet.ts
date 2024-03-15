@@ -36,6 +36,9 @@ export abstract class BaseWallet implements Wallet {
 
   abstract createAuthWitness(message: Fr): Promise<AuthWitness>;
 
+  getAddress() {
+    return this.getCompleteAddress().address;
+  }
   getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined> {
     return this.pxe.getContractInstance(address);
   }

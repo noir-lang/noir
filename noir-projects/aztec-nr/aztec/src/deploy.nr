@@ -6,12 +6,9 @@ use dep::protocol_types::{address::AztecAddress, abis::function_selector::Functi
 pub fn deploy_contract(context: &mut PrivateContext, target: AztecAddress) {
     let instance = get_contract_instance(target);
 
-    let mut universal_deploy = false;
-    if !instance.deployer.is_zero() {
-        assert(
-            instance.deployer == context.this_address(), "Deployer address does not match current address"
-        );
-        universal_deploy = true;
+    let universal_deploy = instance.deployer.is_zero();
+    if !universal_deploy {
+        assert(instance.deployer == context.this_address(), "Deployer address does not match current address");
     }
 
     // Adapted from noir-contracts/contracts/contract_instance_deployer_contract/src/interface/ContractInstanceDeployer.nr

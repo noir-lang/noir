@@ -224,6 +224,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .option('--salt <salt>', 'Optional deployment salt', parseFieldFromHexString)
     .option('-p, --public-key <public key>', 'Optional public key for this contract', parsePublicKey)
     .option('--portal-address <address>', 'Optional address to a portal contract on L1', parseEthereumAddress)
+    .option('--deployer-address <address>', 'Optional address of the contract deployer', parseAztecAddress)
     .addOption(pxeOption)
     .action(async options => {
       const { addContract } = await import('./cmds/add_contract.js');
@@ -235,6 +236,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
         options.salt ?? Fr.ZERO,
         options.publicKey,
         options.portalContract,
+        options.deployerAddress,
         debugLogger,
         log,
       );

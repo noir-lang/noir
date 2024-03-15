@@ -513,7 +513,7 @@ export async function deployPublicProtocolContracts(deployer: Wallet) {
 
   await new BatchCall(deployer, [
     (await registerContractClass(deployer, canonicalGasToken.artifact)).request(),
-    deployInstance(deployer, canonicalGasToken.instance, { universalDeploy: true }).request(),
+    deployInstance(deployer, canonicalGasToken.instance).request(),
   ])
     .send()
     .wait();

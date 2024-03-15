@@ -22,14 +22,18 @@ contract ContractInstanceDeployer {
     ) {
         // TODO(@spalladino): assert nullifier_exists silo(contract_class_id, ContractClassRegisterer)
 
-        // TODO(#4434) Add deployer field to instance calculation
-        // let deployer = if universal_deploy { Field::zero() } else { context.msg_sender() };
+        let deployer = if universal_deploy {
+            AztecAddress::zero()
+        } else {
+            context.msg_sender()
+        };
 
         let partial_address = PartialAddress::compute(
             contract_class_id,
             salt,
             initialization_hash,
-            portal_contract_address
+            portal_contract_address,
+            deployer
         );
 
         let address = AztecAddress::compute(public_keys_hash, partial_address);
@@ -45,7 +49,7 @@ contract ContractInstanceDeployer {
             portal_contract_address,
             initialization_hash,
             salt,
-            universal_deploy,
+            deployer,
             version: 1
         };
         let event_payload = event.serialize();

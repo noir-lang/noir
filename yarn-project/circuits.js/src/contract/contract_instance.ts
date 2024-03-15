@@ -1,4 +1,5 @@
 import { ContractArtifact, FunctionArtifact, getDefaultInitializer } from '@aztec/foundation/abi';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { ContractInstance, ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -26,6 +27,7 @@ export function getContractInstanceFromDeployParams(
     salt?: Fr;
     publicKey?: PublicKey;
     portalAddress?: EthAddress;
+    deployer?: AztecAddress;
   },
 ): ContractInstanceWithAddress {
   const args = opts.constructorArgs ?? [];
@@ -33,6 +35,7 @@ export function getContractInstanceFromDeployParams(
   const publicKey = opts.publicKey ?? Point.ZERO;
   const portalContractAddress = opts.portalAddress ?? EthAddress.ZERO;
   const constructorArtifact = getConstructorArtifact(artifact, opts.constructorArtifact);
+  const deployer = opts.deployer ?? AztecAddress.ZERO;
 
   const contractClass = getContractClassFromArtifact(artifact);
   const contractClassId = computeContractClassId(contractClass);
@@ -45,6 +48,7 @@ export function getContractInstanceFromDeployParams(
     portalContractAddress,
     publicKeysHash,
     salt,
+    deployer,
     version: 1,
   };
 

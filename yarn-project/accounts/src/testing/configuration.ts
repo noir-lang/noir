@@ -66,6 +66,7 @@ export async function deployInitialTestAccounts(pxe: PXE) {
         contractAddressSalt: x.account.salt,
         skipClassRegistration: true,
         skipPublicDeployment: true,
+        universalDeploy: true,
       });
       await deployMethod.simulate({});
       return deployMethod;

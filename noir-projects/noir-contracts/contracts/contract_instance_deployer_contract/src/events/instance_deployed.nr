@@ -13,7 +13,7 @@ struct ContractInstanceDeployed {
     initialization_hash: Field, 
     portal_contract_address: EthAddress, 
     public_keys_hash: PublicKeysHash, 
-    universal_deploy: bool,
+    deployer: AztecAddress,
 }
 
 global CONTRACT_INSTANCE_DEPLOYED_SERIALIZED_SIZE: Field = 9;
@@ -29,7 +29,7 @@ impl Serialize<CONTRACT_INSTANCE_DEPLOYED_SERIALIZED_SIZE> for ContractInstanceD
             self.initialization_hash,
             self.portal_contract_address.to_field(),
             self.public_keys_hash.to_field(),
-            self.universal_deploy as Field,
+            self.deployer.to_field(),
         ]
     }
 }

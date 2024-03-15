@@ -33,6 +33,7 @@ export async function createAccounts(pxe: PXE, numberOfAccounts = 1): Promise<Ac
         contractAddressSalt: account.salt,
         skipClassRegistration: true,
         skipPublicDeployment: true,
+        universalDeploy: true,
       }),
     );
     accounts.push(account);

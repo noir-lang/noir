@@ -1,5 +1,8 @@
 use crate::{
-    address::{eth_address::EthAddress, salted_initialization_hash::SaltedInitializationHash},
+    address::{
+    eth_address::EthAddress, salted_initialization_hash::SaltedInitializationHash,
+    aztec_address::AztecAddress
+},
     constants::GENERATOR_INDEX__PARTIAL_ADDRESS, contract_class_id::ContractClassId,
     hash::pedersen_hash, traits::ToField
 };
@@ -24,11 +27,12 @@ impl PartialAddress {
         contract_class_id: ContractClassId,
         salt: Field,
         initialization_hash: Field,
-        portal_contract_address: EthAddress
+        portal_contract_address: EthAddress,
+        deployer: AztecAddress
     ) -> Self {
         PartialAddress::compute_from_salted_initialization_hash(
             contract_class_id,
-            SaltedInitializationHash::compute(salt, initialization_hash, portal_contract_address)
+            SaltedInitializationHash::compute(salt, initialization_hash, portal_contract_address, deployer)
         )
     }
 

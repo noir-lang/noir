@@ -1,4 +1,5 @@
 import { AuthWitness, CompleteAddress, FunctionCall, TxExecutionRequest } from '@aztec/circuit-types';
+import { AztecAddress } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
 import { FeePaymentMethod } from '../fee/fee_payment_method.js';
@@ -39,9 +40,10 @@ export interface EntrypointInterface {
  * requests and authorize actions for its corresponding account.
  */
 export interface AccountInterface extends AuthWitnessProvider, EntrypointInterface {
-  /**
-   * Returns the complete address for this account.
-   */
+  /** Returns the complete address for this account. */
   getCompleteAddress(): CompleteAddress;
+
+  /** Returns the address for this account. */
+  getAddress(): AztecAddress;
 }
 // docs:end:account-interface

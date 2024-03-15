@@ -159,6 +159,7 @@ export class AccountManager {
       contractAddressSalt: this.salt,
       skipClassRegistration: true,
       skipPublicDeployment: true,
+      universalDeploy: true,
     });
     return new DeployAccountSentTx(wallet, sentTx.getTxHash());
   }

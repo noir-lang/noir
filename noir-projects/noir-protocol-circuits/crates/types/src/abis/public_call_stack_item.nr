@@ -69,7 +69,7 @@ mod tests {
         let call_stack_item = PublicCallStackItem { contract_address, public_inputs, is_execution_request: true, function_data };
 
         // Value from public_call_stack_item.test.ts "Computes a callstack item request hash" test
-        let test_data_call_stack_item_request_hash = 0xedd2f10c0cdf776ee2fff3c799bae6df5771f5013a2d5d7154601dffdcf869;
+        let test_data_call_stack_item_request_hash = 0x00edd2f10c0cdf776ee2fff3c799bae6df5771f5013a2d5d7154601dffdcf869;
         assert_eq(call_stack_item.hash(), test_data_call_stack_item_request_hash);
     }
 

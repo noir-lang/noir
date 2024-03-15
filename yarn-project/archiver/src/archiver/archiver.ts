@@ -27,13 +27,7 @@ import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { RollupAbi } from '@aztec/l1-artifacts';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
-import { InstanceDeployerAddress } from '@aztec/protocol-contracts/instance-deployer';
-import {
-  ContractClass,
-  ContractClassPublic,
-  ContractInstance,
-  ContractInstanceWithAddress,
-} from '@aztec/types/contracts';
+import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { Chain, HttpTransport, PublicClient, createPublicClient, getAddress, getContract, http } from 'viem';
 
@@ -372,32 +366,11 @@ export class Archiver implements ArchiveSource {
    * @param allLogs - All logs emitted in a bunch of blocks.
    */
   private async storeDeployedContractInstances(allLogs: UnencryptedL2Log[], blockNum: number) {
-    const contractInstances = ContractInstanceDeployedEvent.fromLogs(allLogs, InstanceDeployerAddress).map(e =>
-      e.toContractInstance(),
-    );
+    const contractInstances = ContractInstanceDeployedEvent.fromLogs(allLogs).map(e => e.toContractInstance());
     if (contractInstances.length > 0) {
       contractInstances.forEach(c => this.log(`Storing contract instance at ${c.address.toString()}`));
       await this.store.addContractInstances(contractInstances, blockNum);
     }
-  }
-
-  /**
-   * Stores extended contract data as classes and instances.
-   * Temporary solution until we source this data from the contract class registerer and instance deployer.
-   * @param contracts - The extended contract data to be stored.
-   * @param l2BlockNum - The L2 block number to which the contract data corresponds.
-   * TODO(palla/purge-old-contract-deploy): Delete this method
-   */
-  async storeContractDataAsClassesAndInstances(contracts: ExtendedContractData[], l2BlockNum: number) {
-    const classesAndInstances = contracts.map(extendedContractDataToContractClassAndInstance);
-    await this.store.addContractClasses(
-      classesAndInstances.map(([c, _]) => c),
-      l2BlockNum,
-    );
-    await this.store.addContractInstances(
-      classesAndInstances.map(([_, i]) => i),
-      l2BlockNum,
-    );
   }
 
   /**
@@ -586,40 +559,4 @@ export class Archiver implements ArchiveSource {
   getContractClassIds(): Promise<Fr[]> {
     return this.store.getContractClassIds();
   }
-}
-
-/**
- * Converts ExtendedContractData into contract classes and instances.
- * Note that the conversion is not correct, since there is some data missing from the broadcasted ExtendedContractData.
- * The archiver will trust the ids broadcasted instead of trying to recompute them.
- * Eventually this function and ExtendedContractData altogether will be removed.
- */
-function extendedContractDataToContractClassAndInstance(
-  data: ExtendedContractData,
-): [ContractClassPublic, ContractInstanceWithAddress] {
-  const contractClass: ContractClass = {
-    version: 1,
-    artifactHash: Fr.ZERO,
-    publicFunctions: data.publicFunctions.map(f => ({
-      selector: f.selector,
-      bytecode: f.bytecode,
-      isInternal: f.isInternal,
-    })),
-    privateFunctions: [],
-    packedBytecode: data.bytecode,
-  };
-  const contractClassId = data.contractClassId;
-  const contractInstance: ContractInstance = {
-    version: 1,
-    salt: data.saltedInitializationHash,
-    contractClassId,
-    initializationHash: data.saltedInitializationHash,
-    portalContractAddress: data.contractData.portalContractAddress,
-    publicKeysHash: data.publicKeyHash,
-  };
-  const address = data.contractData.contractAddress;
-  return [
-    { ...contractClass, id: contractClassId, privateFunctionsRoot: Fr.ZERO },
-    { ...contractInstance, address },
-  ];
 }

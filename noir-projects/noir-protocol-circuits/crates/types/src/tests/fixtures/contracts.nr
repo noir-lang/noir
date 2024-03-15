@@ -13,6 +13,7 @@ struct ContractData {
     public_keys_hash: PublicKeysHash,
     salted_initialization_hash: SaltedInitializationHash,
     partial_address: PartialAddress,
+    deployer: AztecAddress,
 }
 
 // taken from __snapshots__/noir_test_gen.test.ts.snap
@@ -26,7 +27,8 @@ global default_contract = ContractData {
   portal_contract_address: EthAddress { inner: 0x0000000000000000000000000000000000005ba0 },
   contract_class_id: ContractClassId { inner: 0x0ce2a998337b1e6da1ac1d802a8bb9e10b7d705d210e61efb9642855009814a6 },
   public_keys_hash: PublicKeysHash { inner: 0x000000000000000000000000000000000000000000000000000000000000b26e },
-  salted_initialization_hash: SaltedInitializationHash { inner: 0x2003637d02f08887d36dc2f27dd961f51f17e0a8a43dc0268dfcefcd96efc3a4 }
+  salted_initialization_hash: SaltedInitializationHash { inner: 0x2003637d02f08887d36dc2f27dd961f51f17e0a8a43dc0268dfcefcd96efc3a4 },
+  deployer: AztecAddress { inner: 0x0000000000000000000000000000000000000000000000000000000000000000 },
 };
 
 // taken from __snapshots__/noir_test_gen.test.ts.snap
@@ -40,5 +42,6 @@ global parent_contract = ContractData {
   portal_contract_address: EthAddress { inner: 0x0000000000000000000000000000000000000913 },
   contract_class_id: ContractClassId { inner: 0x1f1f963a350e2c883cc6730c19fc5d5b47a40694d805cbb0720fa76fe295df90 },
   public_keys_hash: PublicKeysHash { inner: 0x00000000000000000000000000000000000000000000000000000000000011c1 },
-  salted_initialization_hash: SaltedInitializationHash { inner: 0x275e153c147f9cb61a5e7b354e81484696d6a54ffc251dcf4ed8276ab24868d2 }
+  salted_initialization_hash: SaltedInitializationHash { inner: 0x275e153c147f9cb61a5e7b354e81484696d6a54ffc251dcf4ed8276ab24868d2 },
+  deployer: AztecAddress { inner: 0x0000000000000000000000000000000000000000000000000000000000000000 },
 };

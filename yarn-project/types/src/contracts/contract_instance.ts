@@ -19,6 +19,8 @@ export interface ContractInstance {
   portalContractAddress: EthAddress;
   /** Optional hash of the struct of public keys used for encryption and nullifying by this contract. */
   publicKeysHash: Fr;
+  /** Optional deployer address or zero if this was a universal deploy. */
+  deployer: AztecAddress;
 }
 
 export type ContractInstanceWithAddress = ContractInstance & { address: AztecAddress };
@@ -30,6 +32,7 @@ export class SerializableContractInstance {
   public readonly initializationHash: Fr;
   public readonly portalContractAddress: EthAddress;
   public readonly publicKeysHash: Fr;
+  public readonly deployer: AztecAddress;
 
   constructor(instance: ContractInstance) {
     if (instance.version !== VERSION) {
@@ -40,6 +43,7 @@ export class SerializableContractInstance {
     this.initializationHash = instance.initializationHash;
     this.portalContractAddress = instance.portalContractAddress;
     this.publicKeysHash = instance.publicKeysHash;
+    this.deployer = instance.deployer;
   }
 
   public toBuffer() {
@@ -50,6 +54,7 @@ export class SerializableContractInstance {
       this.initializationHash,
       this.portalContractAddress,
       this.publicKeysHash,
+      this.deployer,
     );
   }
 
@@ -67,6 +72,7 @@ export class SerializableContractInstance {
       initializationHash: reader.readObject(Fr),
       portalContractAddress: reader.readObject(EthAddress),
       publicKeysHash: reader.readObject(Fr),
+      deployer: reader.readObject(AztecAddress),
     });
   }
 
@@ -78,6 +84,7 @@ export class SerializableContractInstance {
       initializationHash: Fr.random(),
       portalContractAddress: EthAddress.random(),
       publicKeysHash: Fr.random(),
+      deployer: AztecAddress.random(),
     });
   }
 }

@@ -2,7 +2,7 @@
 
 exports[`ClassRegisterer returns canonical protocol contract 1`] = `
 {
-  "address": AztecAddress<0x1ff58462bc433d2e277ca6371c796fcc2dbfae869edf87b60f7fdff335ae8baa>,
+  "address": AztecAddress<0x2140db629d95644ef26140fa5ae87749ae28d373176af9a2e458052ced96c7b3>,
   "contractClass": {
     "artifactHash": Fr<0x20d64bd232dd14c00fedcaf31d10ad879a63eee4183824d1cadf2dac49b1f9ce>,
     "id": Fr<0x2ced3a9029e1a272aa799dd8d66c3fae1dffed2259cc96b578a4bcc997d6c7b1>,
@@ -30,8 +30,9 @@ exports[`ClassRegisterer returns canonical protocol contract 1`] = `
     "version": 1,
   },
   "instance": {
-    "address": AztecAddress<0x1ff58462bc433d2e277ca6371c796fcc2dbfae869edf87b60f7fdff335ae8baa>,
+    "address": AztecAddress<0x2140db629d95644ef26140fa5ae87749ae28d373176af9a2e458052ced96c7b3>,
     "contractClassId": Fr<0x2ced3a9029e1a272aa799dd8d66c3fae1dffed2259cc96b578a4bcc997d6c7b1>,
+    "deployer": AztecAddress<0x0000000000000000000000000000000000000000000000000000000000000000>,
     "initializationHash": Fr<0x0000000000000000000000000000000000000000000000000000000000000000>,
     "portalContractAddress": EthAddress<0x0000000000000000000000000000000000000000>,
     "publicKeysHash": Fr<0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed>,

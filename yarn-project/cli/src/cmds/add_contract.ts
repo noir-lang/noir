@@ -20,6 +20,7 @@ export async function addContract(
   salt: Fr,
   publicKey: Point | undefined,
   portalContract: EthAddress | undefined,
+  deployer: AztecAddress | undefined,
   debugLogger: DebugLogger,
   log: LogFn,
 ) {
@@ -32,6 +33,7 @@ export async function addContract(
     portalContractAddress: portalContract ?? EthAddress.ZERO,
     publicKeysHash: computePublicKeysHash(publicKey),
     address,
+    deployer: deployer ?? AztecAddress.ZERO,
   };
   const computed = computeContractAddressFromInstance(instance);
   if (!computed.equals(address)) {
