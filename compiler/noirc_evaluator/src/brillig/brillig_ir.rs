@@ -4,28 +4,30 @@
 //! `brillig_gen` is therefore the module which combines both
 //! ssa types and types in this module.
 //! A similar paradigm can be seen with the `acir_ir` module.
+//!
+//! The brillig ir provides instructions and codegens.
+//! The instructions are low level operations that are printed via debug_show.
+//! They should emit few opcodes. Codegens on the other hand orchestrate the
+//! low level instructions to emit the desired high level operation.
 pub(crate) mod artifact;
 pub(crate) mod brillig_variable;
 pub(crate) mod debug_show;
 pub(crate) mod registers;
 
+mod codegen_binary;
+mod codegen_calls;
+mod codegen_control_flow;
+mod codegen_intrinsic;
+mod codegen_memory;
+mod codegen_stack;
 mod entry_point;
+mod instructions;
 
+pub(crate) use instructions::BrilligBinaryOp;
+
+use self::{artifact::BrilligArtifact, registers::BrilligRegistersContext};
 use crate::ssa::ir::dfg::CallStack;
-
-use self::{
-    artifact::{BrilligArtifact, UnresolvedJumpLocation},
-    brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
-    registers::BrilligRegistersContext,
-};
-use acvm::{
-    acir::brillig::{
-        BinaryFieldOp, BinaryIntOp, BlackBoxOp, MemoryAddress, Opcode as BrilligOpcode, Value,
-        ValueOrArray,
-    },
-    brillig_vm::brillig::HeapValueType,
-    FieldElement,
-};
+use acvm::acir::brillig::{MemoryAddress, Opcode as BrilligOpcode};
 use debug_show::DebugShow;
 
 /// The Brillig VM does not apply a limit to the memory address space,
@@ -35,8 +37,8 @@ pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
 
 // Registers reserved in runtime for special purposes.
 pub(crate) enum ReservedRegisters {
-    /// This register stores the stack pointer. Allocations must be done after this pointer.
-    StackPointer = 0,
+    /// This register stores the free memory pointer. Allocations must be done after this pointer.
+    FreeMemoryPointer = 0,
     /// This register stores the previous stack pointer. The registers of the caller are stored here.
     PreviousStackPointer = 1,
 }
@@ -53,9 +55,9 @@ impl ReservedRegisters {
         Self::NUM_RESERVED_REGISTERS
     }
 
-    /// Returns the stack pointer register. This will get used to allocate memory in runtime.
-    pub(crate) fn stack_pointer() -> MemoryAddress {
-        MemoryAddress::from(ReservedRegisters::StackPointer as usize)
+    /// Returns the free memory pointer register. This will get used to allocate memory in runtime.
+    pub(crate) fn free_memory_pointer() -> MemoryAddress {
+        MemoryAddress::from(ReservedRegisters::FreeMemoryPointer as usize)
     }
 
     /// Returns the previous stack pointer register. This will be used to restore the registers after a fn call.
@@ -99,12 +101,8 @@ impl BrilligContext {
         }
     }
 
-    pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
-        self.registers = BrilligRegistersContext::from_preallocated_registers(allocated_registers);
-    }
-
     /// Adds a brillig instruction to the brillig byte code
-    pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
+    fn push_opcode(&mut self, opcode: BrilligOpcode) {
         self.obj.push_opcode(opcode);
     }
 
@@ -1335,14 +1333,14 @@ pub(crate) mod tests {
         //   assert(the_sequence.len() == 12);
         // }
         let mut context = BrilligContext::new(true);
-        let r_stack = ReservedRegisters::stack_pointer();
+        let r_stack = ReservedRegisters::free_memory_pointer();
         // Start stack pointer at 0
-        context.usize_const(r_stack, Value::from(ReservedRegisters::len() + 3));
+        context.usize_const_instruction(r_stack, Value::from(ReservedRegisters::len() + 3));
         let r_input_size = MemoryAddress::from(ReservedRegisters::len());
         let r_array_ptr = MemoryAddress::from(ReservedRegisters::len() + 1);
         let r_output_size = MemoryAddress::from(ReservedRegisters::len() + 2);
         let r_equality = MemoryAddress::from(ReservedRegisters::len() + 3);
-        context.usize_const(r_input_size, Value::from(12_usize));
+        context.usize_const_instruction(r_input_size, Value::from(12_usize));
         // copy our stack frame to r_array_ptr
         context.mov_instruction(r_array_ptr, r_stack);
         context.foreign_call_instruction(
