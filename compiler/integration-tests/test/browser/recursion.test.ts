@@ -113,10 +113,13 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
       main_proof,
       numPublicInputs,
     );
-    const { proofAsFields: proofAsFields2 } = await main_backend.generateRecursiveProofArtifacts(
-      main_proof2,
-      numPublicInputs,
-    );
+    const {
+      proofAsFields: proofAsFields2,
+      vkAsFields: vkAsFields2,
+      vkHash: vkHash2,
+    } = await main_backend.generateRecursiveProofArtifacts(main_proof2, numPublicInputs);
+    expect(vkAsFields).to.be.deep.eq(vkAsFields2, 'two separate vks for the same program.');
+    expect(vkHash).to.be.eq(vkHash2, 'two separate vk hashes for the same program.');
 
     const recursion_inputs: InputMap = {
       verification_key: vkAsFields,
