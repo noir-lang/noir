@@ -2,7 +2,7 @@ use dep::std;
 
 // This circuit aggregates two recursive proofs from `double_verify_proof_recursive`.
 // Recursive aggregation is a backend-specific process and it is expected for backends 
-// to attach any extra data they may need (e.g. aggregation objects). 
+// to attach any extra data they may need (e.g. aggregation objects) to their proofs. 
 // Whether the proof we are verifying itself contains a recursive proof is expected to be 
 // a circuit constant by the barretenberg. Barretenberg hides this circuit constant in the 
 // proof serialization. Thus, we must have separate circuits for verifying a normal proof and a recursive proof
