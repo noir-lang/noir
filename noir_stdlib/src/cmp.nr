@@ -30,7 +30,7 @@ impl<T, N> Eq for [T; N] where T: Eq {
 
 impl<T> Eq for [T] where T: Eq {
     fn eq(self, other: [T]) -> bool {
-        let mut result = true;
+        let mut result = self.len() == other.len();
         for i in 0 .. self.len() {
             result &= self[i].eq(other[i]);
         }
@@ -227,7 +227,7 @@ impl<T> Ord for [T] where T: Ord {
     // The first non-equal element of both arrays determines
     // the ordering for the whole array.
     fn cmp(self, other: [T]) -> Ordering {
-        let mut result = Ordering::equal();
+        let mut result = self.len().cmp(other.len());
         for i in 0 .. self.len() {
             if result == Ordering::equal() {
                 let result_i = self[i].cmp(other[i]);
