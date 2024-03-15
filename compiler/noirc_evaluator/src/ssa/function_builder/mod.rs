@@ -32,7 +32,7 @@ use super::{
 /// functions as needed, although it is limited to one function at a time.
 pub(crate) struct FunctionBuilder {
     pub(super) current_function: Function,
-    current_block: BasicBlockId,
+    current_block: Option<BasicBlockId>,
     finished_functions: Vec<Function>,
     call_stack: CallStack,
 }
@@ -49,11 +49,10 @@ impl FunctionBuilder {
     ) -> Self {
         let mut new_function = Function::new(function_name, function_id);
         new_function.set_runtime(runtime);
-        let current_block = new_function.entry_block();
 
         Self {
+            current_block: Some(new_function.entry_block()),
             current_function: new_function,
-            current_block,
             finished_functions: Vec::new(),
             call_stack: CallStack::new(),
         }
@@ -72,7 +71,7 @@ impl FunctionBuilder {
     ) {
         let mut new_function = Function::new(name, function_id);
         new_function.set_runtime(runtime_type);
-        self.current_block = new_function.entry_block();
+        self.current_block = Some(new_function.entry_block());
 
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         self.finished_functions.push(old_function);
@@ -153,9 +152,10 @@ impl FunctionBuilder {
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
+        let block = self.current_block();
         self.current_function.dfg.insert_instruction_and_results(
             instruction,
-            self.current_block,
+            block,
             ctrl_typevars,
             self.call_stack.clone(),
         )
@@ -165,12 +165,12 @@ impl FunctionBuilder {
     /// Expects the given block to be within the same function. If you want to insert
     /// instructions into a new function, call new_function instead.
     pub(crate) fn switch_to_block(&mut self, block: BasicBlockId) {
-        self.current_block = block;
+        self.current_block = Some(block);
     }
 
     /// Returns the block currently being inserted into
     pub(crate) fn current_block(&mut self) -> BasicBlockId {
-        self.current_block
+        self.current_block.expect("Tried to grab the current block after it was terminated")
     }
 
     /// Insert an allocate instruction at the end of the current block, allocating the
@@ -311,7 +311,10 @@ impl FunctionBuilder {
 
     /// Terminates the current block with the given terminator instruction
     fn terminate_block_with(&mut self, terminator: TerminatorInstruction) {
-        self.current_function.dfg.set_block_terminator(self.current_block, terminator);
+        if let Some(block) = self.current_block.take() {
+            self.current_function.dfg.set_block_terminator(block, terminator);
+        }
+        self.current_block = None;
     }
 
     /// Terminate the current block with a jmp instruction to jmp to the given
