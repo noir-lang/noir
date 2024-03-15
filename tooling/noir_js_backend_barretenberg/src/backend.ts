@@ -2,7 +2,8 @@ import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
 import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
-import { deflattenPublicInputs, flattenPublicInputsAsArray } from './public_inputs.js';
+import { deflattenPublicInputs } from './public_inputs.js';
+import { reconstructProofWithPublicInputs } from './verifier.js';
 import { type Barretenberg } from '@aztec/bb.js';
 
 // This is the number of bytes in a UltraPlonk proof
@@ -123,8 +124,13 @@ export class BarretenbergBackend implements Backend {
     const proof = reconstructProofWithPublicInputs(proofData);
     await this.instantiate();
     await this.api.acirInitVerificationKey(this.acirComposer);
-    // TODO: Change once `@aztec/bb.js` version is updated to use methods without isRecursive flag
     return await this.api.acirVerifyProof(this.acirComposer, proof);
+  }
+
+  async getVerificationKey(): Promise<Uint8Array> {
+    await this.instantiate();
+    await this.api.acirInitVerificationKey(this.acirComposer);
+    return await this.api.acirGetVerificationKey(this.acirComposer);
   }
 
   async destroy(): Promise<void> {
@@ -133,14 +139,4 @@ export class BarretenbergBackend implements Backend {
     }
     await this.api.destroy();
   }
-}
-
-function reconstructProofWithPublicInputs(proofData: ProofData): Uint8Array {
-  // Flatten publicInputs
-  const publicInputsConcatenated = flattenPublicInputsAsArray(proofData.publicInputs);
-
-  // Concatenate publicInputs and proof
-  const proofWithPublicInputs = Uint8Array.from([...publicInputsConcatenated, ...proofData.proof]);
-
-  return proofWithPublicInputs;
 }
