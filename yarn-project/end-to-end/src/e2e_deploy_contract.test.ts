@@ -115,10 +115,9 @@ describe('e2e_deploy_contract', () => {
       const receipt = await deployer.deploy().send({ portalContract }).wait();
       const address = receipt.contract.address;
 
-      expect((await pxe.getContractData(address))?.portalContractAddress.toString()).toEqual(portalContract.toString());
-      expect((await pxe.getExtendedContractData(address))?.contractData.portalContractAddress.toString()).toEqual(
-        portalContract.toString(),
-      );
+      const expectedPortal = portalContract.toString();
+      expect((await pxe.getContractData(address))?.portalContractAddress.toString()).toEqual(expectedPortal);
+      expect((await pxe.getContractInstance(address))?.portalContractAddress.toString()).toEqual(expectedPortal);
     }, 60_000);
 
     it('should not deploy a contract which failed the public part of the execution', async () => {
@@ -142,13 +141,12 @@ describe('e2e_deploy_contract', () => {
 
         const [goodTxReceipt, badTxReceipt] = await Promise.all([goodTx.getReceipt(), badTx.getReceipt()]);
 
+        // Both the good and bad transactions are included
         expect(goodTxReceipt.blockNumber).toEqual(expect.any(Number));
-        // the bad transaction is included
         expect(badTxReceipt.blockNumber).toEqual(expect.any(Number));
 
-        await expect(pxe.getContractData(badDeploy.getInstance().address)).resolves.toBeUndefined();
-        // but did not deploy
-        await expect(pxe.getExtendedContractData(badDeploy.getInstance().address)).resolves.toBeUndefined();
+        // But the bad tx did not deploy
+        await expect(pxe.isContractClassPubliclyRegistered(badDeploy.getInstance().address)).resolves.toBeFalsy();
       } finally {
         sequencer?.updateSequencerConfig({ minTxsPerBlock: 1 });
       }

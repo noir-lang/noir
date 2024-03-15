@@ -1,6 +1,5 @@
 import {
   Body,
-  ExtendedContractData,
   ExtendedUnencryptedL2Log,
   GetUnencryptedLogsResponse,
   L1ToL2Message,
@@ -54,16 +53,6 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * Note: Index in the "outer" array equals to (corresponding L2 block's number - INITIAL_L2_BLOCK_NUM).
    */
   private unencryptedLogsPerBlock: L2BlockL2Logs[] = [];
-
-  /**
-   * A sparse array containing all the extended contract data that have been fetched so far.
-   */
-  private extendedContractDataByBlock: (ExtendedContractData[] | undefined)[] = [];
-
-  /**
-   * A mapping of contract address to extended contract data.
-   */
-  private extendedContractData: Map<string, ExtendedContractData> = new Map();
 
   // TODO(#4492): Nuke the other message stores
   private newL1ToL2Messages = new NewL1ToL2MessageStore();
@@ -250,28 +239,6 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
-   * Store new extended contract data from an L2 block to the store's list.
-   * @param data - List of contracts' data to be added.
-   * @param blockNum - Number of the L2 block the contract data was deployed in.
-   * @returns True if the operation is successful (always in this implementation).
-   */
-  public addExtendedContractData(data: ExtendedContractData[], blockNum: number): Promise<boolean> {
-    // Add to the contracts mapping
-    for (const contractData of data) {
-      const key = contractData.contractData.contractAddress.toString();
-      this.extendedContractData.set(key, contractData);
-    }
-
-    // Add the index per block
-    if (this.extendedContractDataByBlock[blockNum]?.length) {
-      this.extendedContractDataByBlock[blockNum]?.push(...data);
-    } else {
-      this.extendedContractDataByBlock[blockNum] = [...data];
-    }
-    return Promise.resolve(true);
-  }
-
-  /**
    * Gets up to `limit` amount of L2 blocks starting from `from`.
    * @param from - Number of the first block to return (inclusive).
    * @param limit - The number of blocks to return.
@@ -454,17 +421,6 @@ export class MemoryArchiverStore implements ArchiverDataStore {
       logs,
       maxLogsHit: false,
     });
-  }
-
-  /**
-   * Get the extended contract data for this contract.
-   * TODO(palla/purge-old-contract-deploy): Delete me?
-   * @param contractAddress - The contract data address.
-   * @returns The extended contract data or undefined if not found.
-   */
-  getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined> {
-    const result = this.extendedContractData.get(contractAddress.toString());
-    return Promise.resolve(result);
   }
 
   /**

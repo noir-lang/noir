@@ -3,7 +3,7 @@ import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/c
 import { NodeInfo } from '@aztec/types/interfaces';
 
 import { AuthWitness } from '../auth_witness.js';
-import { ContractData, ExtendedContractData } from '../contract_data.js';
+import { ContractData } from '../contract_data.js';
 import { L2Block } from '../l2_block.js';
 import { GetUnencryptedLogsResponse, LogFilter } from '../logs/index.js';
 import { ExtendedNote } from '../notes/index.js';
@@ -210,15 +210,6 @@ export interface PXE {
   viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress): Promise<any>;
 
   /**
-   * Gets the extended contract data for this contract. Extended contract data includes the address,
-   * portal contract address on L1, public functions, partial address, and encryption public key.
-   *
-   * @param contractAddress - The contract's address.
-   * @returns The extended contract data if found.
-   */
-  getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined>;
-
-  /**
    * Gets the portal contract address on L1 for the given contract.
    *
    * @param contractAddress - The contract's address.
@@ -297,5 +288,12 @@ export interface PXE {
    * @param id - Identifier of the class.
    */
   isContractClassPubliclyRegistered(id: Fr): Promise<boolean>;
+
+  /**
+   * Queries the node to check whether the contract instance with the given address has been publicly deployed,
+   * regardless of whether this PXE knows about the contract or not.
+   * TODO(@spalladino): Same notes as above.
+   */
+  isContractPubliclyDeployed(address: AztecAddress): Promise<boolean>;
 }
 // docs:end:pxe-interface

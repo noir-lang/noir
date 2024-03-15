@@ -85,7 +85,6 @@ export {
   CompleteAddress,
   ContractData,
   DeployedContract,
-  ExtendedContractData,
   ExtendedNote,
   FunctionCall,
   GrumpkinPrivateKey,

@@ -1,6 +1,5 @@
 import {
   Body,
-  ExtendedContractData,
   GetUnencryptedLogsResponse,
   L1ToL2Message,
   L2Block,
@@ -23,7 +22,6 @@ import { BlockBodyStore } from './block_body_store.js';
 import { BlockStore } from './block_store.js';
 import { ContractClassStore } from './contract_class_store.js';
 import { ContractInstanceStore } from './contract_instance_store.js';
-import { ContractStore } from './contract_store.js';
 import { LogStore } from './log_store.js';
 import { MessageStore } from './message_store.js';
 
@@ -34,7 +32,6 @@ export class KVArchiverDataStore implements ArchiverDataStore {
   #blockStore: BlockStore;
   #blockBodyStore: BlockBodyStore;
   #logStore: LogStore;
-  #contractStore: ContractStore;
   #messageStore: MessageStore;
   #contractClassStore: ContractClassStore;
   #contractInstanceStore: ContractInstanceStore;
@@ -45,7 +42,6 @@ export class KVArchiverDataStore implements ArchiverDataStore {
     this.#blockBodyStore = new BlockBodyStore(db);
     this.#blockStore = new BlockStore(db, this.#blockBodyStore);
     this.#logStore = new LogStore(db, this.#blockStore, logsMaxPageSize);
-    this.#contractStore = new ContractStore(db, this.#blockStore);
     this.#messageStore = new MessageStore(db);
     this.#contractClassStore = new ContractClassStore(db);
     this.#contractInstanceStore = new ContractInstanceStore(db);
@@ -250,25 +246,6 @@ export class KVArchiverDataStore implements ArchiverDataStore {
     } catch (err) {
       return Promise.reject(err);
     }
-  }
-
-  /**
-   * Add new extended contract data from an L2 block to the store's list.
-   * @param data - List of contracts' data to be added.
-   * @param blockNum - Number of the L2 block the contract data was deployed in.
-   * @returns True if the operation is successful.
-   */
-  addExtendedContractData(data: ExtendedContractData[], blockNum: number): Promise<boolean> {
-    return this.#contractStore.addExtendedContractData(data, blockNum);
-  }
-
-  /**
-   * Get the extended contract data for this contract.
-   * @param contractAddress - The contract data address.
-   * @returns The extended contract data or undefined if not found.
-   */
-  getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined> {
-    return Promise.resolve(this.#contractStore.getExtendedContractData(contractAddress));
   }
 
   /**

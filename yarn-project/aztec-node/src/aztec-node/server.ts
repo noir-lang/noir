@@ -3,7 +3,6 @@ import {
   AztecNode,
   ContractData,
   ContractDataSource,
-  ExtendedContractData,
   GetUnencryptedLogsResponse,
   L1ToL2MessageAndIndex,
   L1ToL2MessageSource,
@@ -230,15 +229,6 @@ export class AztecNodeService implements AztecNode {
    */
   public getChainId(): Promise<number> {
     return Promise.resolve(this.chainId);
-  }
-
-  /**
-   * Get the extended contract data for this contract.
-   * @param contractAddress - The contract data address.
-   * @returns The extended contract data or undefined if not found.
-   */
-  async getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined> {
-    return await this.contractDataSource.getExtendedContractData(contractAddress);
   }
 
   /**

@@ -1,6 +1,5 @@
 import {
   Body,
-  ExtendedContractData,
   GetUnencryptedLogsResponse,
   L1ToL2Message,
   L2Block,
@@ -163,21 +162,6 @@ export interface ArchiverDataStore {
    * @returns The requested logs.
    */
   getUnencryptedLogs(filter: LogFilter): Promise<GetUnencryptedLogsResponse>;
-
-  /**
-   * Add new extended contract data from an L2 block to the store's list.
-   * @param data - List of contracts' data to be added.
-   * @param blockNum - Number of the L2 block the contract data was deployed in.
-   * @returns True if the operation is successful.
-   */
-  addExtendedContractData(data: ExtendedContractData[], blockNum: number): Promise<boolean>;
-
-  /**
-   * Get the extended contract data for this contract.
-   * @param contractAddress - The contract data address.
-   * @returns The extended contract data or undefined if not found.
-   */
-  getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined>;
 
   /**
    * Gets the number of the latest L2 block processed.

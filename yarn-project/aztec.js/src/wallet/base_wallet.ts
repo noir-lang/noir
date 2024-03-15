@@ -2,7 +2,6 @@ import {
   AuthWitness,
   ContractData,
   DeployedContract,
-  ExtendedContractData,
   ExtendedNote,
   FunctionCall,
   GetUnencryptedLogsResponse,
@@ -103,9 +102,6 @@ export abstract class BaseWallet implements Wallet {
   viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress | undefined): Promise<any> {
     return this.pxe.viewTx(functionName, args, to, from);
   }
-  getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined> {
-    return this.pxe.getExtendedContractData(contractAddress);
-  }
   getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
     return this.pxe.getContractData(contractAddress);
   }
@@ -132,5 +128,8 @@ export abstract class BaseWallet implements Wallet {
   }
   isContractClassPubliclyRegistered(id: Fr): Promise<boolean> {
     return this.pxe.isContractClassPubliclyRegistered(id);
+  }
+  isContractPubliclyDeployed(address: AztecAddress): Promise<boolean> {
+    return this.pxe.isContractPubliclyDeployed(address);
   }
 }

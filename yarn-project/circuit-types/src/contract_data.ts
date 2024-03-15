@@ -1,26 +1,13 @@
-import { FUNCTION_SELECTOR_NUM_BYTES, Fr, FunctionSelector, computeSaltedInitializationHash } from '@aztec/circuits.js';
+import { Fr, FunctionSelector } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { randomBytes } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import {
-  BufferReader,
-  numToInt32BE,
-  serializeArrayOfBufferableToVector,
-  serializeToBuffer,
-} from '@aztec/foundation/serialize';
-import { ContractClass, ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { ContractClassPublic, ContractInstanceWithAddress, PublicFunction } from '@aztec/types/contracts';
 
 /**
  * Used for retrieval of contract data (A3 address, portal contract address, bytecode).
  */
 export interface ContractDataSource {
-  /**
-   * Get the extended contract data for this contract.
-   * @param contractAddress - The contract data address.
-   * @returns The extended contract data or undefined if not found.
-   */
-  getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined>;
-
   /**
    * Lookup the L2 contract base info for this contract.
    * NOTE: This works for all Aztec contracts and will only return contractAddress / portalAddress.
@@ -35,7 +22,7 @@ export interface ContractDataSource {
    * @param selector - The function's selector.
    * @returns The function's data.
    */
-  getPublicFunction(address: AztecAddress, selector: FunctionSelector): Promise<EncodedContractFunction | undefined>;
+  getPublicFunction(address: AztecAddress, selector: FunctionSelector): Promise<PublicFunction | undefined>;
 
   /**
    * Gets the number of the latest L2 block processed by the implementation.
@@ -57,202 +44,6 @@ export interface ContractDataSource {
 
   /** Returns the list of all class ids known. */
   getContractClassIds(): Promise<Fr[]>;
-}
-
-/**
- * Represents encoded contract function.
- */
-export class EncodedContractFunction {
-  constructor(
-    /**
-     * The function selector.
-     */
-    public selector: FunctionSelector,
-    /**
-     * Whether the function is internal.
-     */
-    public isInternal: boolean,
-    /**
-     * The function bytecode.
-     */
-    public bytecode: Buffer,
-  ) {}
-
-  /**
-   * Serializes this instance into a buffer.
-   * @returns Encoded buffer.
-   */
-  toBuffer(): Buffer {
-    const bytecodeBuf = Buffer.concat([numToInt32BE(this.bytecode.length), this.bytecode]);
-    return serializeToBuffer(this.selector, this.isInternal, bytecodeBuf);
-  }
-
-  /**
-   * Deserializes a contract function object from an encoded buffer.
-   * @param buffer - The encoded buffer.
-   * @returns The deserialized contract function.
-   */
-  static fromBuffer(buffer: Buffer | BufferReader): EncodedContractFunction {
-    const reader = BufferReader.asReader(buffer);
-    const fnSelector = FunctionSelector.fromBuffer(reader.readBytes(FUNCTION_SELECTOR_NUM_BYTES));
-    const isInternal = reader.readBoolean();
-    return new EncodedContractFunction(fnSelector, isInternal, reader.readBuffer());
-  }
-
-  /**
-   * Serializes this instance into a string.
-   * @returns Encoded string.
-   */
-  toString(): string {
-    return this.toBuffer().toString('hex');
-  }
-
-  /**
-   * Deserializes a contract function object from an encoded string.
-   * @param data - The encoded string.
-   * @returns The deserialized contract function.
-   */
-  static fromString(data: string): EncodedContractFunction {
-    return EncodedContractFunction.fromBuffer(Buffer.from(data, 'hex'));
-  }
-
-  /**
-   * Creates a random contract function.
-   * @returns A random contract function.
-   */
-  static random(): EncodedContractFunction {
-    return new EncodedContractFunction(FunctionSelector.fromBuffer(randomBytes(4)), false, randomBytes(64));
-  }
-}
-
-/**
- * A contract data blob, containing L1 and L2 addresses, public functions' bytecode, partial address and public key.
- * TODO(palla/purge-old-contract-deploy): Delete this class?
- */
-export class ExtendedContractData {
-  /** The contract's encoded ACIR code. This should become Brillig code once implemented. */
-  public bytecode: Buffer;
-
-  constructor(
-    /** The base contract data: aztec & portal addresses. */
-    public contractData: ContractData,
-    /** Artifacts of public functions. */
-    public readonly publicFunctions: EncodedContractFunction[],
-    /** Contract class id */
-    public readonly contractClassId: Fr,
-    /** Salted init hash. */
-    public readonly saltedInitializationHash: Fr,
-    /** Public key hash of the contract. */
-    public readonly publicKeyHash: Fr,
-  ) {
-    this.bytecode = serializeArrayOfBufferableToVector(publicFunctions.map(fn => fn.toBuffer()));
-  }
-
-  /**
-   * Gets the public function data or undefined.
-   * @param selector - The function selector of the function to fetch.
-   * @returns The public function data (if found).
-   */
-  public getPublicFunction(selector: FunctionSelector): EncodedContractFunction | undefined {
-    return this.publicFunctions.find(fn => fn.selector.equals(selector));
-  }
-
-  /**
-   * Serializes this instance into a buffer, using 20 bytes for the eth address.
-   * @returns Encoded buffer.
-   */
-  public toBuffer(): Buffer {
-    const contractDataBuf = this.contractData.toBuffer();
-    return serializeToBuffer(
-      contractDataBuf,
-      this.bytecode,
-      this.contractClassId,
-      this.saltedInitializationHash,
-      this.publicKeyHash,
-    );
-  }
-
-  /**
-   * Serializes this instance into a string.
-   * @returns Encoded string.
-   */
-  public toString(): string {
-    return this.toBuffer().toString('hex');
-  }
-
-  /** True if this represents an empty instance. */
-  public isEmpty(): boolean {
-    return ExtendedContractData.isEmpty(this);
-  }
-
-  /** True if the passed instance is empty . */
-  public static isEmpty(obj: ExtendedContractData): boolean {
-    return (
-      obj.contractData.isEmpty() &&
-      obj.publicFunctions.length === 0 &&
-      obj.contractClassId.isZero() &&
-      obj.publicKeyHash.isZero() &&
-      obj.saltedInitializationHash.isZero()
-    );
-  }
-
-  /**
-   * Deserializes a contract data object from an encoded buffer, using 20 bytes for the eth address.
-   * @param buffer - Byte array resulting from calling toBuffer.
-   * @returns Deserialized instance.
-   */
-  static fromBuffer(buffer: Buffer | BufferReader) {
-    const reader = BufferReader.asReader(buffer);
-    const contractData = reader.readObject(ContractData);
-    const publicFns = reader.readVector(EncodedContractFunction);
-    const contractClassId = reader.readObject(Fr);
-    const saltedInitializationHash = reader.readObject(Fr);
-    const publicKeyHash = reader.readObject(Fr);
-    return new ExtendedContractData(contractData, publicFns, contractClassId, saltedInitializationHash, publicKeyHash);
-  }
-
-  /**
-   * Deserializes a contract data object from an encoded string, using 20 bytes for the eth address.
-   * @param str - String resulting from calling toString.
-   * @returns Deserialized instance.
-   */
-  static fromString(str: string) {
-    return ExtendedContractData.fromBuffer(Buffer.from(str, 'hex'));
-  }
-
-  /**
-   * Generate ContractData with random addresses.
-   * @param contractData - Optional contract data to use.
-   * @returns A random ExtendedContractData object.
-   */
-  static random(contractData?: ContractData): ExtendedContractData {
-    return new ExtendedContractData(
-      contractData ?? ContractData.random(),
-      [EncodedContractFunction.random(), EncodedContractFunction.random()],
-      Fr.random(),
-      Fr.random(),
-      Fr.random(),
-    );
-  }
-
-  /** Generates empty extended contract data. */
-  static empty(): ExtendedContractData {
-    return new ExtendedContractData(ContractData.empty(), [], Fr.ZERO, Fr.ZERO, Fr.ZERO);
-  }
-
-  /** Temporary method for creating extended contract data out of classes and instances */
-  static fromClassAndInstance(
-    contractClass: Pick<ContractClass, 'publicFunctions'>,
-    instance: ContractInstanceWithAddress,
-  ) {
-    return new ExtendedContractData(
-      new ContractData(instance.address, instance.portalContractAddress),
-      contractClass.publicFunctions.map(f => new EncodedContractFunction(f.selector, f.isInternal, f.bytecode)),
-      instance.contractClassId,
-      computeSaltedInitializationHash(instance),
-      instance.publicKeysHash,
-    );
-  }
 }
 
 /**

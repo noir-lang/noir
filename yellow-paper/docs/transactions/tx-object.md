@@ -30,7 +30,6 @@ The fields of a transaction object are the following:
 | encryptedLogs | Buffer[][] | Encrypted logs emitted per function in this transaction. Position `i` contains the encrypted logs emitted by the `i`-th function execution. |
 | unencryptedLogs | Buffer[][] | Equivalent to the above but for unencrypted logs. |
 | enqueuedPublicFunctionCalls | PublicCallRequest[] | List of public function calls to run during public execution. |
-| newContracts | ExtendedContractData[] | List of new contracts to be deployed as part of this transaction. |
 
 ### Private kernel public inputs final
 

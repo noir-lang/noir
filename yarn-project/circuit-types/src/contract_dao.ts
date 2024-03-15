@@ -5,13 +5,10 @@ import {
   EventAbi,
   FunctionDebugMetadata,
   FunctionSelector,
-  FunctionType,
   getFunctionDebugMetadata,
 } from '@aztec/foundation/abi';
 import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serialize';
 import { ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
-
-import { EncodedContractFunction } from './contract_data.js';
 
 /**
  * A contract Data Access Object (DAO).
@@ -78,22 +75,4 @@ export class ContractDao implements ContractArtifact {
     const contractArtifact = JSON.parse(reader.readString());
     return new ContractDao(contractArtifact, instance);
   }
-}
-
-/**
- * Return public functions from the newly deployed contract to be injected into the tx object.
- * @param newContract - The new contract
- * @returns List of EncodedContractFunction.
- */
-export function getNewContractPublicFunctions(newContract: ContractDao) {
-  return newContract.functions
-    .filter(c => c.functionType === FunctionType.OPEN)
-    .map(
-      fn =>
-        new EncodedContractFunction(
-          FunctionSelector.fromNameAndParameters(fn.name, fn.parameters),
-          fn.isInternal ?? false,
-          Buffer.from(fn.bytecode, 'base64'),
-        ),
-    );
 }

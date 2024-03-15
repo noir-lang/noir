@@ -1,6 +1,5 @@
 import {
   ContractDataSource,
-  ExtendedContractData,
   L1ToL2MessageSource,
   MerkleTreeId,
   NullifierMembershipWitness,
@@ -31,7 +30,6 @@ import { MerkleTreeOperations } from '@aztec/world-state';
  * Progressively records contracts in transaction as they are processed in a block.
  */
 export class ContractsDataSourcePublicDB implements PublicContractsDB {
-  private cache = new Map<string, ExtendedContractData>();
   private instanceCache = new Map<string, ContractInstanceWithAddress>();
   private classCache = new Map<string, ContractClassPublic>();
 
@@ -80,41 +78,25 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
     return this.instanceCache.get(address.toString()) ?? (await this.db.getContract(address));
   }
 
+  public async getContractClass(contractClassId: Fr): Promise<ContractClassPublic | undefined> {
+    return this.classCache.get(contractClassId.toString()) ?? (await this.db.getContractClass(contractClassId));
+  }
+
   async getBytecode(address: AztecAddress, selector: FunctionSelector): Promise<Buffer | undefined> {
-    const contract = await this.#getContract(address);
-    return contract?.getPublicFunction(selector)?.bytecode;
+    const instance = await this.getContractInstance(address);
+    if (!instance) {
+      throw new Error(`Contract ${address.toString()} not found`);
+    }
+    const contractClass = await this.getContractClass(instance.contractClassId);
+    if (!contractClass) {
+      throw new Error(`Contract class ${instance.contractClassId.toString()} for ${address.toString()} not found`);
+    }
+    return contractClass.publicFunctions.find(f => f.selector.equals(selector))?.bytecode;
   }
 
   async getPortalContractAddress(address: AztecAddress): Promise<EthAddress | undefined> {
-    const contract = await this.#getContract(address);
-    return contract?.contractData.portalContractAddress;
-  }
-
-  async #getContract(address: AztecAddress): Promise<ExtendedContractData | undefined> {
-    return (
-      this.cache.get(address.toString()) ??
-      (await this.#makeExtendedContractDataFor(address)) ??
-      (await this.db.getExtendedContractData(address))
-    );
-  }
-
-  async #makeExtendedContractDataFor(address: AztecAddress): Promise<ExtendedContractData | undefined> {
-    const instance = this.instanceCache.get(address.toString());
-    if (!instance) {
-      return undefined;
-    }
-
-    const contractClass =
-      this.classCache.get(instance.contractClassId.toString()) ??
-      (await this.db.getContractClass(instance.contractClassId));
-    if (!contractClass) {
-      this.log.warn(
-        `Contract class ${instance.contractClassId.toString()} for address ${address.toString()} not found`,
-      );
-      return undefined;
-    }
-
-    return ExtendedContractData.fromClassAndInstance(contractClass, instance);
+    const contract = await this.getContractInstance(address);
+    return contract?.portalContractAddress;
   }
 }
 

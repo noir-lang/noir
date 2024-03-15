@@ -1,8 +1,6 @@
 import {
   ContractData,
   ContractDataSource,
-  EncodedContractFunction,
-  ExtendedContractData,
   GetUnencryptedLogsResponse,
   L1ToL2Message,
   L1ToL2MessageSource,
@@ -27,7 +25,7 @@ import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { RollupAbi } from '@aztec/l1-artifacts';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
-import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { ContractClassPublic, ContractInstanceWithAddress, PublicFunction } from '@aztec/types/contracts';
 
 import { Chain, HttpTransport, PublicClient, createPublicClient, getAddress, getContract, http } from 'viem';
 
@@ -426,37 +424,6 @@ export class Archiver implements ArchiveSource {
   }
 
   /**
-   * Get the extended contract data for this contract.
-   * @param contractAddress - The contract data address.
-   * @returns The extended contract data or undefined if not found.
-   */
-  public async getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined> {
-    return (
-      (await this.store.getExtendedContractData(contractAddress)) ?? this.makeExtendedContractDataFor(contractAddress)
-    );
-  }
-
-  /**
-   * Temporary method for creating a fake extended contract data out of classes and instances registered in the node.
-   * Used as a fallback if the extended contract data is not found.
-   * TODO(palla/purge-old-contract-deploy): Use proper classes
-   */
-  private async makeExtendedContractDataFor(address: AztecAddress): Promise<ExtendedContractData | undefined> {
-    const instance = await this.store.getContractInstance(address);
-    if (!instance) {
-      return undefined;
-    }
-
-    const contractClass = await this.store.getContractClass(instance.contractClassId);
-    if (!contractClass) {
-      this.log.warn(`Class ${instance.contractClassId.toString()} for address ${address.toString()} not found`);
-      return undefined;
-    }
-
-    return ExtendedContractData.fromClassAndInstance(contractClass, instance);
-  }
-
-  /**
    * Lookup the contract data for this contract.
    * Contains contract address & the ethereum portal address.
    * @param contractAddress - The contract data address.
@@ -481,16 +448,23 @@ export class Archiver implements ArchiveSource {
 
   /**
    * Gets the public function data for a contract.
-   * @param contractAddress - The contract address containing the function to fetch.
+   * @param address - The contract address containing the function to fetch.
    * @param selector - The function selector of the function to fetch.
    * @returns The public function data (if found).
    */
   public async getPublicFunction(
-    contractAddress: AztecAddress,
+    address: AztecAddress,
     selector: FunctionSelector,
-  ): Promise<EncodedContractFunction | undefined> {
-    const contractData = await this.getExtendedContractData(contractAddress);
-    return contractData?.getPublicFunction(selector);
+  ): Promise<PublicFunction | undefined> {
+    const instance = await this.getContract(address);
+    if (!instance) {
+      throw new Error(`Contract ${address.toString()} not found`);
+    }
+    const contractClass = await this.getContractClass(instance.contractClassId);
+    if (!contractClass) {
+      throw new Error(`Contract class ${instance.contractClassId.toString()} for ${address.toString()} not found`);
+    }
+    return contractClass.publicFunctions.find(f => f.selector.equals(selector));
   }
 
   /**

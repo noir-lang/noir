@@ -174,7 +174,7 @@ export const cliTestSuite = (
         // clear logs
         clearLogs();
         await run(`get-contract-data ${loggedAddress}`);
-        const contractDataAddress = findInLogs(/Address:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
+        const contractDataAddress = findInLogs(/^\s?Address:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
         expect(contractDataAddress).toEqual(deployedContract?.contractAddress.toString());
 
         debug("Check owner's balance");

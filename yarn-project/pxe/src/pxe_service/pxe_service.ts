@@ -4,7 +4,6 @@ import {
   ContractDao,
   ContractData,
   DeployedContract,
-  ExtendedContractData,
   ExtendedNote,
   FunctionCall,
   GetUnencryptedLogsResponse,
@@ -440,10 +439,6 @@ export class PXEService implements PXE {
     return await this.node.getBlockNumber();
   }
 
-  public async getExtendedContractData(contractAddress: AztecAddress): Promise<ExtendedContractData | undefined> {
-    return await this.node.getExtendedContractData(contractAddress);
-  }
-
   public async getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
     return await this.node.getContractData(contractAddress);
   }
@@ -745,5 +740,9 @@ export class PXEService implements PXE {
 
   public async isContractClassPubliclyRegistered(id: Fr): Promise<boolean> {
     return !!(await this.node.getContractClass(id));
+  }
+
+  public async isContractPubliclyDeployed(address: AztecAddress): Promise<boolean> {
+    return !!(await this.node.getContract(address));
   }
 }
