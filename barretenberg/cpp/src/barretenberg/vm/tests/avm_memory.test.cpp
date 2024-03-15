@@ -41,7 +41,6 @@ TEST_F(AvmMemoryTests, mismatchedTagAddOperation)
 
     EXPECT_TRUE(row != trace.end());
 
-    // All intermediate registers should be set to zero.
     EXPECT_EQ(row->avm_main_ia, FF(98));
     EXPECT_EQ(row->avm_main_ib, FF(12));
     EXPECT_EQ(row->avm_main_ic, FF(0));

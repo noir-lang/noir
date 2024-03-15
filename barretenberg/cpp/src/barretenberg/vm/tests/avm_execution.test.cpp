@@ -455,6 +455,54 @@ TEST_F(AvmExecutionTests, jumpAndCalldatacopy)
     gen_proof_and_validate(bytecode, std::move(trace), std::vector<FF>{ 13, 156 });
 }
 
+// Positive test with MOV.
+TEST_F(AvmExecutionTests, movOpcode)
+{
+    std::string bytecode_hex = to_hex(OpCode::SET) +      // opcode SET
+                               "00"                       // Indirect flag
+                               "01"                       // U8
+                               "13"                       // val 19
+                               "000000AB"                 // dst_offset 171
+                               + to_hex(OpCode::MOV) +    // opcode MOV
+                               "00"                       // Indirect flag
+                               "000000AB"                 // src_offset 171
+                               "00000021"                 // dst_offset 33
+                               + to_hex(OpCode::RETURN) + // opcode RETURN
+                               "00"                       // Indirect flag
+                               "00000000"                 // ret offset 0
+                               "00000000";                // ret size 0
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    ASSERT_THAT(instructions, SizeIs(3));
+
+    // SET
+    EXPECT_THAT(instructions.at(0),
+                AllOf(Field(&Instruction::op_code, OpCode::SET),
+                      Field(&Instruction::operands,
+                            ElementsAre(VariantWith<uint8_t>(0),
+                                        VariantWith<AvmMemoryTag>(AvmMemoryTag::U8),
+                                        VariantWith<uint8_t>(19),
+                                        VariantWith<uint32_t>(171)))));
+
+    // MOV
+    EXPECT_THAT(
+        instructions.at(1),
+        AllOf(Field(&Instruction::op_code, OpCode::MOV),
+              Field(&Instruction::operands,
+                    ElementsAre(VariantWith<uint8_t>(0), VariantWith<uint32_t>(171), VariantWith<uint32_t>(33)))));
+
+    auto trace = Execution::gen_trace(instructions);
+
+    // Find the first row enabling the MOV selector
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_mov == 1; });
+    EXPECT_EQ(row->avm_main_ia, 19);
+    EXPECT_EQ(row->avm_main_ic, 19);
+
+    gen_proof_and_validate(bytecode, std::move(trace), {});
+}
+
 // Negative test detecting an invalid opcode byte.
 TEST_F(AvmExecutionTests, invalidOpcode)
 {

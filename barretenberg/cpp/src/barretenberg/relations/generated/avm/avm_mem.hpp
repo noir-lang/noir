@@ -7,31 +7,29 @@
 namespace bb::Avm_vm {
 
 template <typename FF> struct Avm_memRow {
-    FF avm_mem_m_tag_shift{};
-    FF avm_mem_m_val_shift{};
     FF avm_mem_m_op_a{};
-    FF avm_mem_m_addr{};
-    FF avm_mem_m_lastAccess{};
-    FF avm_mem_m_tag{};
-    FF avm_mem_m_rw_shift{};
-    FF avm_mem_m_in_tag{};
-    FF avm_mem_m_last{};
     FF avm_mem_m_tag_err{};
-    FF avm_mem_m_addr_shift{};
+    FF avm_mem_m_last{};
+    FF avm_mem_m_addr{};
     FF avm_mem_m_val{};
-    FF avm_mem_m_one_min_inv{};
-    FF avm_mem_m_op_b{};
+    FF avm_mem_m_in_tag{};
+    FF avm_mem_m_tag_shift{};
     FF avm_mem_m_sub_clk{};
-    FF avm_mem_m_op_c{};
+    FF avm_mem_m_addr_shift{};
+    FF avm_mem_m_sel_mov{};
     FF avm_mem_m_rw{};
+    FF avm_mem_m_op_b{};
+    FF avm_mem_m_val_shift{};
+    FF avm_mem_m_tag{};
+    FF avm_mem_m_op_c{};
+    FF avm_mem_m_rw_shift{};
+    FF avm_mem_m_one_min_inv{};
+    FF avm_mem_m_lastAccess{};
 };
 
 inline std::string get_relation_label_avm_mem(int index)
 {
     switch (index) {
-    case 13:
-        return "MEM_IN_TAG_CONSISTENCY_1";
-
     case 10:
         return "MEM_READ_WRITE_VAL_CONSISTENCY";
 
@@ -41,11 +39,17 @@ inline std::string get_relation_label_avm_mem(int index)
     case 9:
         return "MEM_LAST_ACCESS_DELIMITER";
 
+    case 13:
+        return "MEM_IN_TAG_CONSISTENCY_1";
+
     case 12:
         return "MEM_ZERO_INIT";
 
     case 14:
         return "MEM_IN_TAG_CONSISTENCY_2";
+
+    case 15:
+        return "MOV_SAME_TAG";
     }
     return std::to_string(index);
 }
@@ -54,8 +58,8 @@ template <typename FF_> class avm_memImpl {
   public:
     using FF = FF_;
 
-    static constexpr std::array<size_t, 15> SUBRELATION_PARTIAL_LENGTHS{
-        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 3, 3,
+    static constexpr std::array<size_t, 16> SUBRELATION_PARTIAL_LENGTHS{
+        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 3, 3, 3,
     };
 
     template <typename ContainerOverSubrelations, typename AllEntities>
@@ -187,6 +191,14 @@ template <typename FF_> class avm_memImpl {
             auto tmp = ((-avm_mem_m_tag_err + FF(1)) * avm_mem_m_one_min_inv);
             tmp *= scaling_factor;
             std::get<14>(evals) += tmp;
+        }
+        // Contribution 15
+        {
+            Avm_DECLARE_VIEWS(15);
+
+            auto tmp = (avm_mem_m_sel_mov * avm_mem_m_tag_err);
+            tmp *= scaling_factor;
+            std::get<15>(evals) += tmp;
         }
     }
 };

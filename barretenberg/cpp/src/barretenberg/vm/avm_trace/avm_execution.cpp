@@ -178,6 +178,9 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
             trace_builder.set(val, dst_offset, in_tag);
             break;
         }
+        case OpCode::MOV:
+            trace_builder.op_mov(std::get<uint32_t>(inst.operands.at(1)), std::get<uint32_t>(inst.operands.at(2)));
+            break;
             // Control Flow - Contract Calls
         case OpCode::RETURN:
             // Skip indirect at index 0

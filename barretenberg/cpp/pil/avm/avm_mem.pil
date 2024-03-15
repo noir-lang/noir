@@ -20,6 +20,10 @@ namespace avm_mem(256);
     pol commit m_op_b;
     pol commit m_op_c;
 
+    // Selector for MOV opcode (copied from main trace for loading operation on intermediated register ia)
+    // Boolean constraint is performed in main trace.
+    pol commit m_sel_mov;
+
     // Error columns
     pol commit m_tag_err; // Boolean (1 if m_in_tag != m_tag is detected)
 
@@ -112,3 +116,14 @@ namespace avm_mem(256);
     // Correctness of two above checks MEM_IN_TAG_CONSISTENCY_1/2:
     // m_in_tag == m_tag ==> m_tag_err == 0 (first relation)
     // m_tag_err == 0 ==> m_one_min_inv == 0 by second relation. First relation ==> m_in_tag - m_tag == 0
+
+    //====== MOV Opcode in_tag Constraint =====================================
+    // The following constraint ensures that the m_in_tag is set to m_tag for
+    // the load operation pertaining to Ia.
+    // The permutation check #[PERM_MAIN_MEM_A] guarantees that the m_in_tag
+    // value load operation for Ia is copied back in the main trace. Then,
+    // #[PERM_MAIN_MEM_C] copies back m_in_tag for store operation from Ic.
+    // Finally, the following constraint guarantees that m_tag is correct for
+    // the output.
+    #[MOV_SAME_TAG]
+    m_sel_mov * m_tag_err = 0; // Equivalent to m_sel_mov * (m_in_tag - m_tag) = 0

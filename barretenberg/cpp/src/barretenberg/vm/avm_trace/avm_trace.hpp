@@ -49,6 +49,9 @@ class AvmTraceBuilder {
     // Set a constant from bytecode with direct memory access.
     void set(uint128_t val, uint32_t dst_offset, AvmMemoryTag in_tag);
 
+    // Move (copy) the value and tag of a memory cell to another one.
+    void op_mov(uint32_t src_offset, uint32_t dst_offset);
+
     // Jump to a given program counter.
     void jump(uint32_t jmp_dest);
 
@@ -78,7 +81,7 @@ class AvmTraceBuilder {
     AvmMemTraceBuilder mem_trace_builder;
     AvmAluTraceBuilder alu_trace_builder;
 
-    void finalise_mem_trace_lookup_counts(std::map<uint32_t, uint32_t> const& tag_err_lookup_counts);
+    void finalise_mem_trace_lookup_counts();
 
     uint32_t pc = 0;
     uint32_t internal_return_ptr = CALLSTACK_OFFSET;

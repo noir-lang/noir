@@ -66,6 +66,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
     commitments.avm_mem_m_op_a = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_op_a);
     commitments.avm_mem_m_op_b = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_op_b);
     commitments.avm_mem_m_op_c = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_op_c);
+    commitments.avm_mem_m_sel_mov =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_sel_mov);
     commitments.avm_mem_m_tag_err =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_tag_err);
     commitments.avm_mem_m_one_min_inv =
@@ -139,6 +141,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_jump);
     commitments.avm_main_sel_halt =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_halt);
+    commitments.avm_main_sel_mov =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_mov);
     commitments.avm_main_sel_op_add =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_add);
     commitments.avm_main_sel_op_sub =
@@ -188,8 +192,12 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_mem_c);
     commitments.incl_main_tag_err =
         transcript->template receive_from_prover<Commitment>(commitment_labels.incl_main_tag_err);
+    commitments.incl_mem_tag_err =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.incl_mem_tag_err);
     commitments.incl_main_tag_err_counts =
         transcript->template receive_from_prover<Commitment>(commitment_labels.incl_main_tag_err_counts);
+    commitments.incl_mem_tag_err_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.incl_mem_tag_err_counts);
 
     // Execute Sumcheck Verifier
     const size_t log_circuit_size = numeric::get_msb(circuit_size);

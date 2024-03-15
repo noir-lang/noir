@@ -21,6 +21,9 @@ namespace avm_main(256);
     
     // Halt program execution
     pol commit sel_halt;
+
+    //===== MEMORY OPCODES ==========================================================
+    pol commit sel_mov;
     
     //===== TABLE SUBOP-TR ========================================================
     // Boolean selectors for (sub-)operations. Only one operation is activated at
@@ -93,6 +96,9 @@ namespace avm_main(256);
     sel_internal_return * (1 - sel_internal_return) = 0;
     sel_jump * (1 - sel_jump) = 0;
     sel_halt * (1 - sel_halt) = 0;
+
+    // Might be removed if derived from opcode based on a lookup of constants
+    sel_mov * ( 1 - sel_mov) = 0;
 
     op_err * (1 - op_err) = 0;
     tag_err * (1 - tag_err) = 0; // Potential optimization (boolean constraint derivation from equivalence check to avm_mem)?
@@ -188,10 +194,16 @@ namespace avm_main(256);
 
     // TODO: we want to set an initial number for the reserved memory of the jump pointer
 
-    // Inter-table Constraints
+    //====== MEMORY OPCODES CONSTRAINTS =========================================
+    #[MOV_SAME_VALUE]
+    sel_mov * (ia - ic) = 0; // Ensure that the correct value is moved/copied.
 
+    //====== Inter-table Constraints ============================================
     #[INCL_MAIN_TAG_ERR]
     avm_mem.m_tag_err {avm_mem.m_clk} in tag_err {clk};
+
+    #[INCL_MEM_TAG_ERR]
+    tag_err {clk} in avm_mem.m_tag_err {avm_mem.m_clk};
 
     // Predicate to activate the copy of intermediate registers to ALU table. If tag_err == 1,
     // the operation is not copied to the ALU table.
@@ -208,9 +220,9 @@ namespace avm_main(256);
                      avm_alu.alu_op_not, avm_alu.alu_in_tag};
 
     #[PERM_MAIN_MEM_A]
-    mem_op_a {clk, mem_idx_a, ia, rwa, in_tag}
+    mem_op_a {clk, mem_idx_a, ia, rwa, in_tag, sel_mov}
     is
-    avm_mem.m_op_a {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw, avm_mem.m_in_tag};
+    avm_mem.m_op_a {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw, avm_mem.m_in_tag, avm_mem.m_sel_mov};
 
     #[PERM_MAIN_MEM_B]
     mem_op_b {clk, mem_idx_b, ib, rwb, in_tag}

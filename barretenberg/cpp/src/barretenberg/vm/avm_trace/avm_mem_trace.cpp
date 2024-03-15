@@ -86,7 +86,14 @@ void AvmMemTraceBuilder::load_mismatch_tag_in_mem_trace(uint32_t const m_clk,
 {
     FF one_min_inv = FF(1) - (FF(static_cast<uint32_t>(m_in_tag)) - FF(static_cast<uint32_t>(m_tag))).invert();
 
-    // Lookup counter hint, used for #[equiv_tag_err] lookup (joined on clk)
+    // Relevant for inclusion (lookup) check #[INCL_MEM_TAG_ERR]. We need to
+    // flag the first memory entry per clk key. The number of memory entries
+    // with m_tag_err enabled can be higher than one for a given clk value.
+    // The repetition of the same clk in the lookup table side (right hand
+    // side, here, memory table) should be accounted for ONLY ONCE.
+    bool tag_err_count_relevant = !m_tag_err_lookup_counts.contains(m_clk);
+
+    // Lookup counter hint, used for #[INCL_MAIN_TAG_ERR] lookup (joined on clk)
     m_tag_err_lookup_counts[m_clk]++;
 
     mem_trace.emplace_back(MemoryTraceEntry{ .m_clk = m_clk,
@@ -96,7 +103,8 @@ void AvmMemTraceBuilder::load_mismatch_tag_in_mem_trace(uint32_t const m_clk,
                                              .m_tag = m_tag,
                                              .m_in_tag = m_in_tag,
                                              .m_tag_err = true,
-                                             .m_one_min_inv = one_min_inv });
+                                             .m_one_min_inv = one_min_inv,
+                                             .m_tag_err_count_relevant = tag_err_count_relevant });
 }
 
 /**
@@ -166,6 +174,37 @@ void AvmMemTraceBuilder::store_in_mem_trace(
     }
 
     insert_in_mem_trace(clk, sub_clk, addr, val, m_in_tag, true);
+}
+
+/**
+ * @brief Handle a read memory operation specific to MOV opcode. Load the corresponding
+ *        value to the intermediate register ia. A memory trace entry for the load
+ *        operation is added. It is permissive in the sense that we do not enforce tag
+ *        matching with against any instruction tag. In addition, the specific selector
+ *        for MOV opcode is enabled.
+ *
+ * @param clk Main clock
+ * @param addr Memory address of the source offset
+ *
+ * @return Result of the read operation containing the value and the tag of the memory cell
+ *         at the supplied address.
+ */
+std::pair<FF, AvmMemoryTag> AvmMemTraceBuilder::read_and_load_mov_opcode(uint32_t const clk, uint32_t const addr)
+{
+    FF const& val = memory.at(addr);
+    AvmMemoryTag m_tag = memory_tag.at(addr);
+
+    mem_trace.emplace_back(MemoryTraceEntry{
+        .m_clk = clk,
+        .m_sub_clk = SUB_CLK_LOAD_A,
+        .m_addr = addr,
+        .m_val = val,
+        .m_tag = m_tag,
+        .m_in_tag = m_tag,
+        .m_sel_mov = true,
+    });
+
+    return std::make_pair(val, m_tag);
 }
 
 /**
