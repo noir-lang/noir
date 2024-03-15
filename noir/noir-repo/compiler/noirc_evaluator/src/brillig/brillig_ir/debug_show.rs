@@ -23,8 +23,8 @@ default_to_string_impl! { str usize u32 }
 
 impl DebugToString for MemoryAddress {
     fn debug_to_string(&self) -> String {
-        if *self == ReservedRegisters::stack_pointer() {
-            "Stack".into()
+        if *self == ReservedRegisters::free_memory_pointer() {
+            "FreeMem".into()
         } else if *self == ReservedRegisters::previous_stack_pointer() {
             "PrevStack".into()
         } else {
@@ -120,17 +120,6 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  ASSERT {} != 0", condition);
     }
 
-    /// Processes a return instruction.
-    pub(crate) fn return_instruction(&self, return_registers: &[MemoryAddress]) {
-        let registers_string = return_registers
-            .iter()
-            .map(MemoryAddress::debug_to_string)
-            .collect::<Vec<String>>()
-            .join(", ");
-
-        debug_println!(self.enable_debug_trace, "  // return {};", registers_string);
-    }
-
     /// Emits a `mov` instruction.
     pub(crate) fn mov_instruction(&self, destination: MemoryAddress, source: MemoryAddress) {
         debug_println!(self.enable_debug_trace, "  MOV {}, {}", destination, source);
@@ -217,64 +206,17 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  STOP");
     }
 
-    /// Debug function for allocate_array_instruction
-    pub(crate) fn allocate_array_instruction(
+    /// Emits a external stop instruction (returns data)
+    pub(crate) fn external_stop_instruction(
         &self,
-        pointer_register: MemoryAddress,
-        size_register: MemoryAddress,
+        return_data_offset: usize,
+        return_data_size: usize,
     ) {
         debug_println!(
             self.enable_debug_trace,
-            "  ALLOCATE_ARRAY {} SIZE {}",
-            pointer_register,
-            size_register
-        );
-    }
-
-    /// Debug function for allocate_instruction
-    pub(crate) fn allocate_instruction(&self, pointer_register: MemoryAddress) {
-        debug_println!(self.enable_debug_trace, "  ALLOCATE {} ", pointer_register);
-    }
-
-    /// Debug function for array_get
-    pub(crate) fn array_get(
-        &self,
-        array_ptr: MemoryAddress,
-        index: MemoryAddress,
-        result: MemoryAddress,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  ARRAY_GET {}[{}] -> {}",
-            array_ptr,
-            index,
-            result
-        );
-    }
-
-    /// Debug function for array_set
-    pub(crate) fn array_set(
-        &self,
-        array_ptr: MemoryAddress,
-        index: MemoryAddress,
-        value: MemoryAddress,
-    ) {
-        debug_println!(self.enable_debug_trace, "  ARRAY_SET {}[{}] = {}", array_ptr, index, value);
-    }
-
-    /// Debug function for copy_array_instruction
-    pub(crate) fn copy_array_instruction(
-        &self,
-        source: MemoryAddress,
-        destination: MemoryAddress,
-        num_elements_register: MemoryAddress,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  COPY_ARRAY {} -> {} ({} ELEMENTS)",
-            source,
-            destination,
-            num_elements_register
+            "  EXT_STOP {}..{}",
+            return_data_offset,
+            return_data_offset + return_data_size
         );
     }
 
@@ -302,22 +244,6 @@ impl DebugShow {
             "  JUMP_IF {} TO {}",
             condition,
             target_label.to_string()
-        );
-    }
-
-    /// Debug function for cast_instruction
-    pub(crate) fn truncate_instruction(
-        &self,
-        destination: MemoryAddress,
-        source: MemoryAddress,
-        target_bit_size: u32,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  TRUNCATE {} FROM {} TO {} BITS",
-            destination,
-            source,
-            target_bit_size
         );
     }
 
@@ -505,5 +431,21 @@ impl DebugShow {
     /// Debug function for cast_instruction
     pub(crate) fn add_external_call_instruction(&self, func_label: String) {
         debug_println!(self.enable_debug_trace, "  CALL {}", func_label);
+    }
+
+    /// Debug function for calldata_copy
+    pub(crate) fn calldata_copy_instruction(
+        &self,
+        destination: MemoryAddress,
+        calldata_size: usize,
+        offset: usize,
+    ) {
+        debug_println!(
+            self.enable_debug_trace,
+            "  CALLDATA_COPY {} {}..{}",
+            destination,
+            offset,
+            offset + calldata_size
+        );
     }
 }
