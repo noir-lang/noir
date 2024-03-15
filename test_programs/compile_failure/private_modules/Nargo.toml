@@ -1,6 +1,0 @@
-[package]
-name = "private_modules"
-type = "bin"
-authors = [""]
-
-[dependencies]
