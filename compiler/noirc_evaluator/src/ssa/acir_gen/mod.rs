@@ -1253,7 +1253,7 @@ impl Context {
             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
         })?;
         let array: im::Vector<AcirValue> = init_values.into();
-        self.initialize_array(destination, array_len, Some(AcirValue::Array(array.clone())))?;
+        self.initialize_array(destination, array_len, Some(AcirValue::Array(array)))?;
         Ok(())
     }
 
