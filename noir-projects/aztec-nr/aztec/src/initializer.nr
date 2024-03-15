@@ -32,11 +32,12 @@ pub fn compute_unsiloed_contract_initialization_nullifier<TContext>(context: TCo
     context.this_address().to_field()
 }
 
-pub fn assert_initialization_args_match_address_preimage<TContext>(context: TContext) where TContext: ContextInterface {
+pub fn assert_initialization_matches_address_preimage<TContext>(context: TContext) where TContext: ContextInterface {
     let address = context.this_address(); 
     let instance = get_contract_instance(address);
     let expected_init = compute_initialization_hash(context.selector(), context.get_args_hash());
     assert(instance.initialization_hash == expected_init, "Initialization hash does not match");
+    assert((instance.deployer.is_zero()) | (instance.deployer == context.msg_sender()), "Initializer address is not the contract deployer");
 }
 
 pub fn compute_initialization_hash(init_selector: FunctionSelector, init_args_hash: Field) -> Field {

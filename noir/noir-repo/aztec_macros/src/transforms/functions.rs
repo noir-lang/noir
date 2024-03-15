@@ -48,10 +48,9 @@ pub fn transform_function(
         func.def.body.0.insert(0, init_check);
     }
 
-    // Add assertion for initialization arguments
+    // Add assertion for initialization arguments and sender
     if is_initializer {
-        let assert_init_args = create_assert_init_args();
-        func.def.body.0.insert(0, assert_init_args);
+        func.def.body.0.insert(0, create_assert_initializer());
     }
 
     // Add access to the storage struct
@@ -211,18 +210,19 @@ fn create_internal_check(fname: &str) -> Statement {
     )))
 }
 
-/// Creates a call to assert_initialization_args_match_address_preimage to ensure
-/// the initialization arguments used in the init call match the address preimage.
+/// Creates a call to assert_initialization_matches_address_preimage to be inserted
+/// in the initializer. Checks that the args and sender to the initializer match the
+/// commitments from the address preimage.
 ///
 /// ```noir
-/// assert_initialization_args_match_address_preimage(context);
+/// assert_initialization_matches_address_preimage(context);
 /// ```
-fn create_assert_init_args() -> Statement {
+fn create_assert_initializer() -> Statement {
     make_statement(StatementKind::Expression(call(
         variable_path(chained_dep!(
             "aztec",
             "initializer",
-            "assert_initialization_args_match_address_preimage"
+            "assert_initialization_matches_address_preimage"
         )),
         vec![variable("context")],
     )))

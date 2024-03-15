@@ -257,6 +257,14 @@ describe('e2e_deploy_contract', () => {
         /Initialization hash does not match/,
       );
     });
+
+    it('refuses to initialize an instance from a different deployer', async () => {
+      const owner = await registerRandomAccount(pxe);
+      const contract = await registerContract(wallet, StatefulTestContract, { initArgs: [owner, 42], deployer: owner });
+      await expect(contract.methods.constructor(owner, 42).simulate()).rejects.toThrow(
+        /Initializer address is not the contract deployer/i,
+      );
+    });
   });
 
   describe('registering a contract class', () => {
@@ -472,9 +480,6 @@ describe('e2e_deploy_contract', () => {
         });
         expect(() => deployInstance(wallet, instance)).toThrow(/does not match/i);
       });
-
-      // TODO(@spalladino): Implement me!
-      it('refuses to initialize an instance from a different deployer', async () => {});
     });
   });
 
