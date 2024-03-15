@@ -246,6 +246,7 @@ impl DefCollector {
             crate_root,
             crate_id,
             context,
+            macro_processors,
         ));
 
         let submodules = vecmap(def_collector.def_map.modules().iter(), |(index, _)| index);
@@ -255,7 +256,7 @@ impl DefCollector {
         // TODO(#4653): generalize this function
         for macro_processor in macro_processors {
             macro_processor
-                .process_unresolved_traits_impls(
+                .process_collected_defs(
                     &crate_id,
                     context,
                     &def_collector.collected_traits_impls,
