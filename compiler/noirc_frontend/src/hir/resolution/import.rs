@@ -183,7 +183,7 @@ fn resolve_name_in_module(
     allow_contracts: bool,
 ) -> PathResolution {
     let def_map = &def_maps[&krate];
-    let mut current_mod_id = ModuleId { krate: def_map.krate, local_id: starting_mod };
+    let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
     let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
 
     // There is a possibility that the import path is empty
