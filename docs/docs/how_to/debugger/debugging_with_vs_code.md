@@ -17,12 +17,9 @@ This guide will show you how to use VS Code with the vscode-noir extension to de
 
 #### Pre-requisites
 
-- Noir > x
-- Nargo > x
-- vscode-noir > x
+- Nargo
+- vscode-noir
 - A Noir project with a `Nargo.toml`, `Prover.toml` and at least one Noir (`.nr`) containing an entry point function (typically `main`).
-
-Once you have installed Nargo and vscode-noir, you should have everything you need to debug your project. 
 
 ## Running the debugger
 

@@ -16,12 +16,6 @@ sidebar_position: 1
 
 In order to use the REPL debugger, first you need to install recent enough versions of Nargo and vscode-noir. 
 
-The first versions of each that ship with support for the Noir Debugger are:
-
-- Nargo: > x
-- Noir: > y
-- vscode-noir: > z
-
 ## Debugging a simple circuit
 
 Let's debug a simple circuit:
