@@ -1,4 +1,4 @@
-use crate::cmp::{Ord};
+use crate::cmp::Ord;
 
 // TODO: Once we fully move to the new SSA pass this module can be removed and replaced
 // by the methods in the `slice` module
