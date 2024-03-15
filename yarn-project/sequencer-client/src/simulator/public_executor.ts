@@ -85,11 +85,6 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
     return contract?.getPublicFunction(selector)?.bytecode;
   }
 
-  async getIsInternal(address: AztecAddress, selector: FunctionSelector): Promise<boolean | undefined> {
-    const contract = await this.#getContract(address);
-    return contract?.getPublicFunction(selector)?.isInternal;
-  }
-
   async getPortalContractAddress(address: AztecAddress): Promise<EthAddress | undefined> {
     const contract = await this.#getContract(address);
     return contract?.contractData.portalContractAddress;

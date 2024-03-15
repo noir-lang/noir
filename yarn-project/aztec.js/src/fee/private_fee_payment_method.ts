@@ -60,12 +60,7 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
     const nonce = Fr.random();
     const messageHash = computeAuthWitMessageHash(this.paymentContract, {
       args: [this.wallet.getCompleteAddress().address, this.paymentContract, maxFee, nonce],
-      functionData: new FunctionData(
-        FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)'),
-        false,
-        true,
-        false,
-      ),
+      functionData: new FunctionData(FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)'), true),
       to: this.asset,
     });
     await this.wallet.createAuthWitness(messageHash);
@@ -77,9 +72,7 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
         to: this.getPaymentContract(),
         functionData: new FunctionData(
           FunctionSelector.fromSignature('fee_entrypoint_private(Field,(Field),Field,Field)'),
-          false,
           true,
-          false,
         ),
         args: [maxFee, this.asset, secretHashForRebate, nonce],
       },

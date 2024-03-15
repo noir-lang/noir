@@ -1,7 +1,7 @@
 use dep::std;
 use dep::types::{
     abis::{
-    call_request::CallRequest, accumulated_data::CombinedAccumulatedData, function_data::FunctionData,
+    call_request::CallRequest, accumulated_data::CombinedAccumulatedData,
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputsBuilder,
     membership_witness::NoteHashReadRequestMembershipWitness,
     private_circuit_public_inputs::PrivateCircuitPublicInputs,
@@ -352,13 +352,6 @@ pub fn validate_call_against_request(private_call: PrivateCallData, request: Cal
     );
 
     let call_context = call_stack_item.public_inputs.call_context;
-
-    // Ensures that if the function is internal, only the contract itself can call it.
-    if call_stack_item.function_data.is_internal {
-        assert(
-            call_context.msg_sender.eq(call_context.storage_contract_address), "call is internal but msg_sender is not self"
-        );
-    }
 
     if call_context.is_delegate_call {
         let caller_context = request.caller_context;

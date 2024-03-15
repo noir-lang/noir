@@ -80,10 +80,10 @@ mod tests {
             origin: AztecAddress::from_field(1),
             args_hash: 3,
             tx_context: TxContext { is_fee_payment_tx: false, is_rebate_payment_tx: false, chain_id: 0, version: 0 },
-            function_data: FunctionData { selector: FunctionSelector::from_u32(2), is_internal: false, is_private: true, is_constructor: true }
+            function_data: FunctionData { selector: FunctionSelector::from_u32(2), is_private: true }
         };
         // Value from tx_request.test.ts "compute hash" test
-        let test_data_tx_request_hash = 0x0ab4eaebf540be2999b50051b3c272b5bf7be23d59233b6d453272a42c3c08e5;
+        let test_data_tx_request_hash = 0x20af6f595c396494f1177fa196d17e98d55a2416b28c262b76e78a36d6c01daa;
         assert(tx_request.hash() == test_data_tx_request_hash);
     }
 }

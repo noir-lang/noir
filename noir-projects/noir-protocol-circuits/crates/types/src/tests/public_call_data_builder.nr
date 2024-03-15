@@ -65,15 +65,6 @@ impl PublicCallDataBuilder {
         *self
     }
 
-    pub fn is_internal_call(&mut self) -> Self {
-        self.function_data.is_internal = true;
-        self.public_inputs.call_context.msg_sender = self.contract_address;
-        let contract_function = fixtures::contract_functions::default_internal_public_function;
-        self.function_data = contract_function.data;
-        self.bytecode_hash = contract_function.acir_hash;
-        *self
-    }
-
     pub fn append_public_call_requests_for_regular_calls(&mut self, num_requests: u64) {
         self.append_public_call_requests(num_requests, false);
     }

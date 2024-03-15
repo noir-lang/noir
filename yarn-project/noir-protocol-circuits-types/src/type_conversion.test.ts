@@ -47,7 +47,7 @@ describe('Noir<>Circuits.js type conversion test suite', () => {
       expect(mapFunctionSelectorFromNoir(mapFunctionSelectorToNoir(functionSelector))).toEqual(functionSelector);
     });
 
-    const functionData = new FunctionData(functionSelector, false, true, false);
+    const functionData = new FunctionData(functionSelector, true);
 
     it('should map function data', () => {
       expect(mapFunctionDataFromNoir(mapFunctionDataToNoir(functionData))).toEqual(functionData);

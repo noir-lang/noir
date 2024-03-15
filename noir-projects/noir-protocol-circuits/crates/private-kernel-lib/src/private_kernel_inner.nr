@@ -101,12 +101,6 @@ mod tests {
             *self
         }
 
-        pub fn is_internal_call(&mut self) -> Self {
-            let _ = self.private_call.is_internal_call();
-            self.previous_kernel.contract_address = self.private_call.contract_address;
-            *self
-        }
-
         pub fn execute(&mut self) -> PrivateKernelInnerCircuitPublicInputs {
             let private_call = self.private_call.finish();
             // Update the previous_kernel's private_call_stack with the current call_stack_item.
@@ -265,24 +259,6 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new().is_delegate_call();
 
         builder.private_call.contract_address = builder.private_call.public_inputs.call_context.storage_contract_address;
-
-        builder.failed();
-    }
-
-    #[test]
-    fn internal_call_succeeds() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new().is_internal_call();
-        builder.succeeded();
-    }
-
-    #[test(should_fail_with = "call is internal but msg_sender is not self")]
-    fn private_function_incorrect_is_internal() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new().is_internal_call();
-
-        // Tweak the (storage) contract_address to be different to msg_sender.
-        let msg_sender = builder.private_call.public_inputs.call_context.msg_sender.to_field();
-        builder.private_call.contract_address = AztecAddress::from_field(msg_sender + 1);
-        builder.private_call.public_inputs.call_context.storage_contract_address = AztecAddress::from_field(msg_sender + 1);
 
         builder.failed();
     }

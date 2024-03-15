@@ -81,16 +81,6 @@ impl PrivateCallDataBuilder {
         *self
     }
 
-    pub fn is_internal_call(&mut self) -> Self {
-        self.function_data.is_internal = true;
-        self.public_inputs.call_context.msg_sender = self.contract_address;
-        let contract_function = fixtures::contract_functions::default_internal_private_function;
-        self.function_data = contract_function.data;
-        self.function_leaf_membership_witness = contract_function.membership_witness;
-        self.acir_hash = contract_function.acir_hash;
-        *self
-    }
-
     pub fn build_tx_request(self) -> TxRequest {
         let tx_context = build_tx_context();
         TxRequest {

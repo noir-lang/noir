@@ -382,9 +382,6 @@ export class PXEService implements PXE {
     if (!txRequest.functionData.isPrivate) {
       throw new Error(`Public entrypoints are not allowed`);
     }
-    if (txRequest.functionData.isInternal === undefined) {
-      throw new Error(`Unspecified internal are not allowed`);
-    }
 
     // all simulations must be serialized w.r.t. the synchronizer
     return await this.jobQueue.put(async () => {

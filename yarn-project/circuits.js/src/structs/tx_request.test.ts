@@ -33,7 +33,7 @@ describe('TxRequest', () => {
   it('compute hash', () => {
     const txRequest = TxRequest.from({
       origin: AztecAddress.fromBigInt(1n),
-      functionData: new FunctionData(FunctionSelector.fromField(new Fr(2n)), false, true, true),
+      functionData: new FunctionData(FunctionSelector.fromField(new Fr(2n)), true),
       argsHash: new Fr(3),
       txContext: new TxContext(false, false, Fr.ZERO, Fr.ZERO),
     });

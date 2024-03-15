@@ -461,12 +461,6 @@ pub fn validate_call_against_request(public_call: PublicCallData, request: CallR
 
     let call_context = call_stack_item.public_inputs.call_context;
 
-    if (call_stack_item.function_data.is_internal) {
-        assert(
-            call_stack_item.contract_address.eq(call_context.msg_sender), "msg_sender must be self for internal calls"
-        );
-    }
-
     if call_context.is_delegate_call {
         let caller_context = request.caller_context;
         assert(!caller_context.is_empty(), "caller context cannot be empty for delegate calls");

@@ -663,8 +663,6 @@ class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
       functionData: new FunctionData(
         FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
         false,
-        false,
-        false,
       ),
       to: this.asset,
     });
@@ -677,9 +675,7 @@ class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
         to: this.getPaymentContract(),
         functionData: new FunctionData(
           FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
-          false,
           true,
-          false,
         ),
         args: [tooMuchFee, this.asset, nonce],
       },
@@ -696,8 +692,6 @@ class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
       functionData: new FunctionData(
         FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
         false,
-        false,
-        false,
       ),
       to: this.asset,
     });
@@ -712,9 +706,7 @@ class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
         to: this.getPaymentContract(),
         functionData: new FunctionData(
           FunctionSelector.fromSignature('fee_entrypoint_public(Field,(Field),Field)'),
-          false,
           true,
-          false,
         ),
         args: [maxFee, this.asset, nonce],
       },
@@ -723,8 +715,6 @@ class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
         to: this.asset,
         functionData: new FunctionData(
           FunctionSelector.fromSignature('transfer_public((Field),(Field),Field,Field)'),
-          false,
-          false,
           false,
         ),
         args: [this.wallet.getAddress(), this.paymentContract, new Fr(1), Fr.random()],

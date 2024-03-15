@@ -171,7 +171,7 @@ describe('ACIR public execution simulator', () => {
 
       beforeEach(() => {
         transferArtifact = TokenContractArtifact.functions.find(f => f.name === 'transfer_public')!;
-        functionData = new FunctionData(FunctionSelector.empty(), false, false, false);
+        functionData = new FunctionData(FunctionSelector.empty(), false);
         sender = AztecAddress.random();
         args = encodeArguments(transferArtifact, [sender, recipient, 140n, 0n]);
 
@@ -245,81 +245,65 @@ describe('ACIR public execution simulator', () => {
   });
 
   describe('Parent/Child contracts', () => {
-    it.each([false, true, undefined])(
-      'calls the public entry point in the parent',
-      async isInternal => {
-        const parentContractAddress = AztecAddress.random();
-        const parentEntryPointFn = ParentContractArtifact.functions.find(f => f.name === 'pubEntryPoint')!;
-        const parentEntryPointFnSelector = FunctionSelector.fromNameAndParameters(
-          parentEntryPointFn.name,
-          parentEntryPointFn.parameters,
-        );
+    it('calls the public entry point in the parent', async () => {
+      const parentContractAddress = AztecAddress.random();
+      const parentEntryPointFn = ParentContractArtifact.functions.find(f => f.name === 'pubEntryPoint')!;
+      const parentEntryPointFnSelector = FunctionSelector.fromNameAndParameters(
+        parentEntryPointFn.name,
+        parentEntryPointFn.parameters,
+      );
 
-        const childContractAddress = AztecAddress.random();
-        const childValueFn = ChildContractArtifact.functions.find(f => f.name === 'pubGetValue')!;
-        const childValueFnSelector = FunctionSelector.fromNameAndParameters(childValueFn.name, childValueFn.parameters);
+      const childContractAddress = AztecAddress.random();
+      const childValueFn = ChildContractArtifact.functions.find(f => f.name === 'pubGetValue')!;
+      const childValueFnSelector = FunctionSelector.fromNameAndParameters(childValueFn.name, childValueFn.parameters);
 
-        const initialValue = 3n;
+      const initialValue = 3n;
 
-        const functionData = new FunctionData(parentEntryPointFnSelector, isInternal ?? false, false, false);
-        const args = encodeArguments(parentEntryPointFn, [childContractAddress, childValueFnSelector, initialValue]);
+      const functionData = new FunctionData(parentEntryPointFnSelector, false);
+      const args = encodeArguments(parentEntryPointFn, [childContractAddress, childValueFnSelector, initialValue]);
 
-        const callContext = CallContext.from({
-          msgSender: AztecAddress.random(),
-          storageContractAddress: parentContractAddress,
-          portalContractAddress: EthAddress.random(),
-          functionSelector: FunctionSelector.empty(),
-          isDelegateCall: false,
-          isStaticCall: false,
-          sideEffectCounter: 0,
-        });
+      const callContext = CallContext.from({
+        msgSender: AztecAddress.random(),
+        storageContractAddress: parentContractAddress,
+        portalContractAddress: EthAddress.random(),
+        functionSelector: FunctionSelector.empty(),
+        isDelegateCall: false,
+        isStaticCall: false,
+        sideEffectCounter: 0,
+      });
 
-        // eslint-disable-next-line require-await
-        publicContracts.getBytecode.mockImplementation(async (addr: AztecAddress, selector: FunctionSelector) => {
-          if (addr.equals(parentContractAddress) && selector.equals(parentEntryPointFnSelector)) {
-            return Buffer.from(parentEntryPointFn.bytecode, 'base64');
-          } else if (addr.equals(childContractAddress) && selector.equals(childValueFnSelector)) {
-            return Buffer.from(childValueFn.bytecode, 'base64');
-          } else {
-            return undefined;
-          }
-        });
-
-        publicContracts.getIsInternal.mockImplementation(() => {
-          return Promise.resolve(isInternal);
-        });
-
-        const execution: PublicExecution = { contractAddress: parentContractAddress, functionData, args, callContext };
-        const globalVariables = new GlobalVariables(
-          new Fr(69),
-          new Fr(420),
-          new Fr(1),
-          new Fr(7),
-          EthAddress.fromField(new Fr(8)),
-          AztecAddress.fromField(new Fr(9)),
-        );
-
-        if (isInternal === undefined) {
-          const { reverted, revertReason } = await executor.simulate(execution, globalVariables);
-
-          expect(reverted).toBe(true);
-          expect(revertReason?.message).toMatch('Method not found -');
+      // eslint-disable-next-line require-await
+      publicContracts.getBytecode.mockImplementation(async (addr: AztecAddress, selector: FunctionSelector) => {
+        if (addr.equals(parentContractAddress) && selector.equals(parentEntryPointFnSelector)) {
+          return Buffer.from(parentEntryPointFn.bytecode, 'base64');
+        } else if (addr.equals(childContractAddress) && selector.equals(childValueFnSelector)) {
+          return Buffer.from(childValueFn.bytecode, 'base64');
         } else {
-          const result = await executor.simulate(execution, globalVariables);
-
-          expect(result.returnValues[0]).toEqual(
-            new Fr(
-              initialValue +
-                globalVariables.chainId.value +
-                globalVariables.version.value +
-                globalVariables.blockNumber.value +
-                globalVariables.timestamp.value,
-            ),
-          );
+          return undefined;
         }
-      },
-      20_000,
-    );
+      });
+
+      const execution: PublicExecution = { contractAddress: parentContractAddress, functionData, args, callContext };
+      const globalVariables = new GlobalVariables(
+        new Fr(69),
+        new Fr(420),
+        new Fr(1),
+        new Fr(7),
+        EthAddress.fromField(new Fr(8)),
+        AztecAddress.fromField(new Fr(9)),
+      );
+
+      const result = await executor.simulate(execution, globalVariables);
+      expect(result.returnValues[0]).toEqual(
+        new Fr(
+          initialValue +
+            globalVariables.chainId.toBigInt() +
+            globalVariables.version.toBigInt() +
+            globalVariables.blockNumber.toBigInt() +
+            globalVariables.timestamp.toBigInt(),
+        ),
+      );
+    }, 20_000);
   });
 
   describe('Public -> Private / Cross Chain messaging', () => {
@@ -331,7 +315,7 @@ describe('ACIR public execution simulator', () => {
     beforeEach(async () => {
       contractAddress = AztecAddress.random();
       await mockInitializationNullifierCallback(contractAddress);
-      functionData = new FunctionData(FunctionSelector.empty(), false, false, false);
+      functionData = new FunctionData(FunctionSelector.empty(), false);
       amount = new Fr(1);
       params = [amount, new Fr(1)];
     });

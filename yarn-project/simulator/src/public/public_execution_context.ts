@@ -177,17 +177,13 @@ export class PublicExecutionContext extends TypedOracle {
     this.log(`Public function call: addr=${targetContractAddress} selector=${functionSelector} args=${args.join(',')}`);
 
     const portalAddress = (await this.contractsDb.getPortalContractAddress(targetContractAddress)) ?? EthAddress.ZERO;
-    const isInternal = await this.contractsDb.getIsInternal(targetContractAddress, functionSelector);
-    if (isInternal === undefined) {
-      throw new Error(`ERR: Method not found - ${targetContractAddress.toString()}:${functionSelector.toString()}`);
-    }
 
     const acir = await this.contractsDb.getBytecode(targetContractAddress, functionSelector);
     if (!acir) {
       throw new Error(`Bytecode not found for ${targetContractAddress}:${functionSelector}`);
     }
 
-    const functionData = new FunctionData(functionSelector, isInternal, false, false);
+    const functionData = new FunctionData(functionSelector, false);
 
     const callContext = CallContext.from({
       msgSender: isDelegateCall ? this.execution.callContext.msgSender : this.execution.contractAddress,

@@ -800,7 +800,6 @@ describe('Private Execution test suite', () => {
 
       // Alter function data to match the manipulated oracle
       const functionData = FunctionData.fromAbi(childContractArtifact);
-      functionData.isInternal = isInternal;
 
       const publicCallRequest = PublicCallRequest.from({
         contractAddress: childAddress,

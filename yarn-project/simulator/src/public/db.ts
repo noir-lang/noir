@@ -62,14 +62,6 @@ export interface PublicContractsDB {
   getBytecode(address: AztecAddress, selector: FunctionSelector): Promise<Buffer | undefined>;
 
   /**
-   * Returns whether a function is internal or not.
-   * @param address - The contract address that owns this function.
-   * @param selector - The selector for the function.
-   * @returns The `isInternal` flag found, undefined if not found.
-   */
-  getIsInternal(address: AztecAddress, selector: FunctionSelector): Promise<boolean | undefined>;
-
-  /**
    * Returns the portal contract address for an L2 address.
    * @param address - The L2 contract address.
    * @returns The portal contract address or undefined if not found.

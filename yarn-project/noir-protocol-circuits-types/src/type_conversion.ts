@@ -385,9 +385,7 @@ export function mapFunctionSelectorFromNoir(functionSelector: FunctionSelectorNo
 export function mapFunctionDataToNoir(functionData: FunctionData): FunctionDataNoir {
   return {
     selector: mapFunctionSelectorToNoir(functionData.selector),
-    is_internal: functionData.isInternal,
     is_private: functionData.isPrivate,
-    is_constructor: functionData.isConstructor,
   };
 }
 
@@ -397,12 +395,7 @@ export function mapFunctionDataToNoir(functionData: FunctionData): FunctionDataN
  * @returns The function data.
  */
 export function mapFunctionDataFromNoir(functionData: FunctionDataNoir): FunctionData {
-  return new FunctionData(
-    mapFunctionSelectorFromNoir(functionData.selector),
-    functionData.is_internal,
-    functionData.is_private,
-    functionData.is_constructor,
-  );
+  return new FunctionData(mapFunctionSelectorFromNoir(functionData.selector), functionData.is_private);
 }
 
 /**
