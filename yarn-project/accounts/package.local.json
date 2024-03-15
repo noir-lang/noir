@@ -1,7 +1,8 @@
 {
   "scripts": {
     "build": "yarn clean && yarn generate && tsc -b",
-    "generate": "./scripts/copy-contracts.sh",
+    "generate": "yarn generate:noir-contracts",
+    "generate:noir-contracts": "./scripts/copy-contracts.sh",
     "build:dev": "tsc -b --watch",
     "build:ts": "tsc -b",
     "clean": "rm -rf ./dest .tsbuildinfo ./src/artifacts"

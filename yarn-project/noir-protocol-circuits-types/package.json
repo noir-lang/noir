@@ -12,7 +12,8 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "NODE_OPTIONS='--max-old-space-size=8096' run -T eslint --fix ./src && run -T prettier -w ./src",
     "formatting:fix:types": "NODE_OPTIONS='--max-old-space-size=8096' run -T eslint --fix ./src/types && run -T prettier -w ./src/types",
-    "generate": "mkdir -p ./src/target && cp ../../noir-projects/noir-protocol-circuits/target/* ./src/target && node --no-warnings --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && run -T prettier -w ./src/types",
+    "generate": "yarn generate:noir-circuits",
+    "generate:noir-circuits": "mkdir -p ./src/target && cp ../../noir-projects/noir-protocol-circuits/target/* ./src/target && node --no-warnings --loader ts-node/esm src/scripts/generate_ts_from_abi.ts && run -T prettier -w ./src/types",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },
   "jest": {

@@ -13,7 +13,7 @@
     "test": "FORCE_COLOR=true yarn workspaces foreach --exclude @aztec/aztec3-packages --exclude @aztec/end-to-end -p -v run test",
     "build": "FORCE_COLOR=true yarn workspaces foreach --parallel --topological-dev --verbose --exclude @aztec/aztec3-packages --exclude @aztec/docs run build",
     "build:fast": "yarn generate && tsc -b",
-    "build:dev": "tsc -b tsconfig.json --watch",
+    "build:dev": "./watch.sh",
     "generate": "FORCE_COLOR=true yarn workspaces foreach --parallel --topological-dev --verbose run generate",
     "clean": "yarn workspaces foreach -p -v run clean"
   },
@@ -49,8 +49,7 @@
     "sequencer-client",
     "scripts",
     "types",
-    "world-state",
-    "yarn-project-base"
+    "world-state"
   ],
   "prettier": "@aztec/foundation/prettier",
   "devDependencies": {

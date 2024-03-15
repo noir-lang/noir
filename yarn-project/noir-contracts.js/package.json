@@ -14,7 +14,8 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "generate": "./scripts/generate-types.sh && run -T prettier -w ./src"
+    "generate": "yarn generate:noir-contracts",
+    "generate:noir-contracts": "./scripts/generate-types.sh && run -T prettier -w ./src --loglevel warn"
   },
   "inherits": [
     "../package.common.json",

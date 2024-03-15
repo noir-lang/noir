@@ -8,6 +8,8 @@ node_modules
 tsconfig.tsbuildinfo
 .eslintcache
 simulator/target
+.debounce-*
+.tsc.pid
 
 .yarn/*
 !.yarn/patches

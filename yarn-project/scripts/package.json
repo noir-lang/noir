@@ -18,10 +18,16 @@
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "start:dev": "tsc-watch -p tsconfig.json --onSuccess 'yarn start'",
     "start": "node ./dest/index.js",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
+    "generate:noir-circuits": "echo Noop",
+    "generate:noir-contracts": "echo Noop",
+    "generate:l1-contracts": "echo Noop",
+    "generate:why-these-noops": "echo These noops are here because `yarn workspaces foreach` runs the specified command in the packages that contain it only if two or more packages define it, otherwise it's run everywhere. So we just define these noops as commands to ensure they behave as they should when running watch.sh.",
+    "generate:why-these-comments": "echo JSON does not support comments, so we just define these commands for documentation sake."
   },
   "inherits": [
-    "../package.common.json"
+    "../package.common.json",
+    "./package.local.json"
   ],
   "dependencies": {
     "@aztec/circuit-types": "workspace:^",
