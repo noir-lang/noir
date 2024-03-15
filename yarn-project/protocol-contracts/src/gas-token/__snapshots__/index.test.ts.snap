@@ -2,10 +2,10 @@
 
 exports[`GasToken returns canonical protocol contract 1`] = `
 {
-  "address": AztecAddress<0x0fbb005a23dac52e3c328b63834c2402ad4fb90e143cf73750af50f2a1e03646>,
+  "address": AztecAddress<0x2ced754038b131e7afe3f95263c4bf406403817dea3f2bbc45af5125a23df041>,
   "instance": {
-    "address": AztecAddress<0x0fbb005a23dac52e3c328b63834c2402ad4fb90e143cf73750af50f2a1e03646>,
-    "contractClassId": Fr<0x210658dedea30a0f6a675e0ad7e58d34b6c092c5248f81515391fbe3e1f38398>,
+    "address": AztecAddress<0x2ced754038b131e7afe3f95263c4bf406403817dea3f2bbc45af5125a23df041>,
+    "contractClassId": Fr<0x022f4fb4c9521c04fb71f2d1c221cf3f9a4fe7116f57e615cc8e878a91bf7de6>,
     "deployer": AztecAddress<0x0000000000000000000000000000000000000000000000000000000000000000>,
     "initializationHash": Fr<0x0000000000000000000000000000000000000000000000000000000000000000>,
     "portalContractAddress": EthAddress<0x0000000000000000000000000000000000000000>,
@@ -19,10 +19,10 @@ exports[`GasToken returns canonical protocol contract 1`] = `
 exports[`GasToken returns canonical protocol contract 2`] = `
 {
   "artifactHash": Fr<0x18af4bb0ca6fe07d0ae6da493b2c7b1af038ee904721dbba9b6e571e6d495726>,
-  "id": Fr<0x210658dedea30a0f6a675e0ad7e58d34b6c092c5248f81515391fbe3e1f38398>,
+  "id": Fr<0x022f4fb4c9521c04fb71f2d1c221cf3f9a4fe7116f57e615cc8e878a91bf7de6>,
   "privateFunctions": [],
   "privateFunctionsRoot": Fr<0x15d28cad4c0736decea8997cb324cf0a0e0602f4d74472cd977bce2c8dd9923f>,
-  "publicBytecodeCommitment": Fr<0x01b2b2b29caee37af01f47a994f4182d3f456891d7f27b6f7eed0693934a05c5>,
+  "publicBytecodeCommitment": Fr<0x1626349ecd0025fad0d794b6c15423d679a77ef4319ac99cf98eec07b027c844>,
   "version": 1,
 }
 `;
