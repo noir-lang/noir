@@ -12,7 +12,7 @@ fn main(
     // This is the proof without user-specified public inputs attached.
     //
     // This means: the size of this does not change with the number of public inputs unless
-    // they have been attached by the backend. 
+    // they have been attached by the backend.
     proof: [Field; 109],
     public_inputs: pub [Field; 1],
     // This is currently not public. It is fine given that the vk is a part of the circuit definition.
