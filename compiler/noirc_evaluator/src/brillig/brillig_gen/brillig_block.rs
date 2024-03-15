@@ -453,6 +453,29 @@ impl<'block> BrilligBlock<'block> {
                         self.convert_ssa_array_len(arguments[0], result_variable.address, dfg);
                     }
                 }
+                Value::Intrinsic(Intrinsic::AsSlice) => {
+                    let source_variable = self.convert_ssa_value(arguments[0], dfg);
+                    let result_ids = dfg.instruction_results(instruction_id);
+                    let destination_len_variable = self.variables.define_single_addr_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        result_ids[0],
+                        dfg,
+                    );
+                    let destination_variable = self.variables.define_variable(
+                        self.function_context,
+                        self.brillig_context,
+                        result_ids[1],
+                        dfg,
+                    );
+                    let source_size_as_register =
+                        self.convert_ssa_array_set(source_variable, destination_variable, None);
+
+                    // we need to explicitly set the destination_len_variable
+                    self.brillig_context
+                        .mov_instruction(destination_len_variable.address, source_size_as_register);
+                    self.brillig_context.deallocate_register(source_size_as_register);
+                }
                 Value::Intrinsic(
                     Intrinsic::SlicePushBack
                     | Intrinsic::SlicePopBack
@@ -612,13 +635,12 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 self.validate_array_index(source_variable, index_register);
-
-                self.convert_ssa_array_set(
+                let source_size_as_register = self.convert_ssa_array_set(
                     source_variable,
                     destination_variable,
-                    index_register.address,
-                    value_variable,
+                    Some((index_register.address, value_variable)),
                 );
+                self.brillig_context.deallocate_register(source_size_as_register);
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let value = self.convert_ssa_single_addr_value(*value, dfg);
@@ -806,23 +828,25 @@ impl<'block> BrilligBlock<'block> {
 
     /// Array set operation in SSA returns a new array or slice that is a copy of the parameter array or slice
     /// With a specific value changed.
+    ///
+    /// Returns `source_size_as_register`, which is expected to be deallocated with:
+    /// `self.brillig_context.deallocate_register(source_size_as_register)`
     fn convert_ssa_array_set(
         &mut self,
         source_variable: BrilligVariable,
         destination_variable: BrilligVariable,
-        index_register: MemoryAddress,
-        value_variable: BrilligVariable,
-    ) {
+        opt_index_and_value: Option<(MemoryAddress, BrilligVariable)>,
+    ) -> MemoryAddress {
         let destination_pointer = match destination_variable {
             BrilligVariable::BrilligArray(BrilligArray { pointer, .. }) => pointer,
             BrilligVariable::BrilligVector(BrilligVector { pointer, .. }) => pointer,
-            _ => unreachable!("ICE: array set returns non-array"),
+            _ => unreachable!("ICE: array_set SSA returns non-array"),
         };
 
         let reference_count = match source_variable {
             BrilligVariable::BrilligArray(BrilligArray { rc, .. })
             | BrilligVariable::BrilligVector(BrilligVector { rc, .. }) => rc,
-            _ => unreachable!("ICE: array set on non-array"),
+            _ => unreachable!("ICE: array_set SSA on non-array"),
         };
 
         let (source_pointer, source_size_as_register) = match source_variable {
@@ -836,7 +860,7 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.mov_instruction(source_size_register, size);
                 (pointer, source_size_register)
             }
-            _ => unreachable!("ICE: array set on non-array"),
+            _ => unreachable!("ICE: array_set SSA on non-array"),
         };
 
         // Here we want to compare the reference count against 1.
@@ -879,18 +903,20 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.mov_instruction(target_size, source_size_as_register);
                 self.brillig_context.usize_const(target_rc, 1_usize.into());
             }
-            _ => unreachable!("ICE: array set on non-array"),
+            _ => unreachable!("ICE: array_set SSA on non-array"),
         }
 
-        // Then set the value in the newly created array
-        self.store_variable_in_array(
-            destination_pointer,
-            SingleAddrVariable::new_usize(index_register),
-            value_variable,
-        );
+        if let Some((index_register, value_variable)) = opt_index_and_value {
+            // Then set the value in the newly created array
+            self.store_variable_in_array(
+                destination_pointer,
+                SingleAddrVariable::new_usize(index_register),
+                value_variable,
+            );
+        }
 
-        self.brillig_context.deallocate_register(source_size_as_register);
         self.brillig_context.deallocate_register(condition);
+        source_size_as_register
     }
 
     pub(crate) fn store_variable_in_array_with_ctx(
@@ -1319,6 +1345,7 @@ impl<'block> BrilligBlock<'block> {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
+
                 self.variables.get_allocation(self.function_context, value_id, dfg)
             }
             Value::NumericConstant { constant, .. } => {
