@@ -55,7 +55,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {
 
     let mut y = 0;
     if a == 0 {
-        let digest = std::hash::sha256(x.as_slice());
+        let digest = std::hash::sha256_array(x);
         y = digest[0];
     } else {
         y = 5;

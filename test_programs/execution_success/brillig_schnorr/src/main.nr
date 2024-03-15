@@ -20,6 +20,6 @@ unconstrained fn main(
     let valid_signature = std::schnorr::verify_signature(pub_key_x, pub_key_y, signature, message_field_bytes);
     assert(valid_signature);
     // Check that passing an array as the message is valid
-    let valid_signature = std::schnorr::verify_signature(pub_key_x, pub_key_y, signature, message.as_slice());
+    let valid_signature = std::schnorr::verify_signature_array(pub_key_x, pub_key_y, signature, message);
     assert(valid_signature);
 }

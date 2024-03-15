@@ -12,15 +12,33 @@ pub fn sha256(input: [u8]) -> [u8; 32]
 // docs:end:sha256
 {}
 
+#[foreign(sha256)]
+// docs:start:sha256
+pub fn sha256_array<N>(input: [u8; N]) -> [u8; 32]
+// docs:end:sha256
+{}
+
 #[foreign(blake2s)]
 // docs:start:blake2s
 pub fn blake2s(input: [u8]) -> [u8; 32]
 // docs:end:blake2s
 {}
 
+#[foreign(blake2s)]
+// docs:start:blake2s
+pub fn blake2s_array<N>(input: [u8; N]) -> [u8; 32]
+// docs:end:blake2s
+{}
+
 #[foreign(blake3)]
 // docs:start:blake3
 pub fn blake3(input: [u8]) -> [u8; 32]
+// docs:end:blake3
+{}
+
+#[foreign(blake3)]
+// docs:start:blake3
+pub fn blake3_array<N>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake3
 {}
 
@@ -36,11 +54,25 @@ pub fn pedersen_commitment(input: [Field]) -> PedersenPoint
     pedersen_commitment_with_separator(input, 0)
 }
 
+pub fn pedersen_commitment_array<N>(input: [Field; N]) -> PedersenPoint
+// docs:end:pedersen_commitment
+{
+    pedersen_commitment_with_separator_array(input, 0)
+}
+
 #[foreign(pedersen_commitment)]
 pub fn __pedersen_commitment_with_separator(input: [Field], separator: u32) -> [Field; 2] {}
 
+#[foreign(pedersen_commitment)]
+pub fn __pedersen_commitment_with_separator_array<N>(input: [Field; N], separator: u32) -> [Field; 2] {}
+
 pub fn pedersen_commitment_with_separator(input: [Field], separator: u32) -> PedersenPoint {
     let values = __pedersen_commitment_with_separator(input, separator);
+    PedersenPoint { x: values[0], y: values[1] }
+}
+
+pub fn pedersen_commitment_with_separator_array<N>(input: [Field; N], separator: u32) -> PedersenPoint {
+    let values = __pedersen_commitment_with_separator_array(input, separator);
     PedersenPoint { x: values[0], y: values[1] }
 }
 
@@ -51,8 +83,18 @@ pub fn pedersen_hash(input: [Field]) -> Field
     pedersen_hash_with_separator(input, 0)
 }
 
+// docs:start:pedersen_hash
+pub fn pedersen_hash_array<N>(input: [Field; N]) -> Field
+// docs:end:pedersen_hash
+{
+    pedersen_hash_with_separator_array(input, 0)
+}
+
 #[foreign(pedersen_hash)]
 pub fn pedersen_hash_with_separator(input: [Field], separator: u32) -> Field {}
+
+#[foreign(pedersen_hash)]
+pub fn pedersen_hash_with_separator_array<N>(input: [Field; N], separator: u32) -> Field {}
 
 pub fn hash_to_field(inputs: [Field]) -> Field {
     let mut inputs_as_bytes = &[];
@@ -71,6 +113,12 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
 #[foreign(keccak256)]
 // docs:start:keccak256
 pub fn keccak256(input: [u8], message_size: u32) -> [u8; 32]
+// docs:end:keccak256
+{}
+
+#[foreign(keccak256)]
+// docs:start:keccak256
+pub fn keccak256_array<N>(input: [u8; N], message_size: u32) -> [u8; 32]
 // docs:end:keccak256
 {}
 

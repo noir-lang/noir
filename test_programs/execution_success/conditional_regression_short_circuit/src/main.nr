@@ -26,9 +26,9 @@ fn bar(x: Field) {
 }
 
 fn call_intrinsic(x: [u8; 5], result: [u8; 32]) {
-    let mut digest = std::hash::sha256(x.as_slice());
+    let mut digest = std::hash::sha256_array(x);
     digest[0] = 5 as u8;
-    digest = std::hash::sha256(x.as_slice());
+    digest = std::hash::sha256_array(x);
     assert(digest == result);
 }
 

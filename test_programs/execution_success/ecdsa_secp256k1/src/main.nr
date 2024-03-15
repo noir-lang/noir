@@ -8,9 +8,9 @@ fn main(
     signature: [u8; 64]
 ) {
     // Hash the message, since secp256k1 expects a hashed_message
-    let expected = std::hash::sha256(message.as_slice());
+    let expected = std::hash::sha256_array(message);
     assert(hashed_message == expected);
 
-    let valid_signature = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message.as_slice());
+    let valid_signature = std::ecdsa_secp256k1::verify_signature_array(pub_key_x, pub_key_y, signature, hashed_message);
     assert(valid_signature);
 }
