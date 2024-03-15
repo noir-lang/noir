@@ -63,7 +63,7 @@ A side-effect of this also means that if multiple users are "sharing" their note
 ## State Categories
 
 <!--
-Missing the L2->L1 messages (the new tree idea), which also form part of the state of the Aztec protocol. 
+Missing the L2->L1 messages (the new tree idea), which also form part of the state of the Aztec protocol.
 Lasse: No. It is not state.
 
 The verification keys of the core protocol circuits are technically (constant) state of the Aztec protocol.
@@ -83,9 +83,6 @@ To recall, the global state in Aztec is represented by a set of Merkle trees: th
 
 <!-- NOTE: If you're editing this diagram, there will be other diagrams (e.g. in the rollup-circuits / circuits sections) that will need to be updated too. There are also class definitions in other sections which will need to be updated. -->
 
-
-<!-- TODO(@spalladino): `contract_tree` in `PartialStateReference` and `ContractData` below -->
-
 ```mermaid
 classDiagram
 direction TB
@@ -93,7 +90,6 @@ direction TB
 class PartialStateReference {
     note_hash_tree: Snapshot
     nullifier_tree: Snapshot
-    contract_tree: Snapshot
     public_data_tree: Snapshot
 }
 
@@ -140,21 +136,13 @@ class PublicDataWrite {
     value: Fr
 }
 
-class ContractData {
-    leaf: Fr
-    address: Address
-    portal: EthAddress
-}
-
 class TxEffect {
     note_hashes: List~Fr~
     nullifiers: List~Fr~
     l2_to_l1_msgs: List~Fr~
-    contracts: List~ContractData~
     public_writes: List~PublicDataWrite~
     logs: Logs
 }
-TxEffect *-- "m" ContractData: contracts
 TxEffect *-- "m" PublicDataWrite: public_writes
 TxEffect *-- Logs : logs
 
