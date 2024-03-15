@@ -19,6 +19,7 @@ contract NewOutbox is INewOutbox {
   using Hash for DataStructures.L2ToL1Msg;
 
   struct RootData {
+    // This is the outhash specified by header.globalvariables.outHash of any given block.
     bytes32 root;
     uint256 height;
     mapping(uint256 => bool) nullified;
