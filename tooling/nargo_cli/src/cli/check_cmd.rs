@@ -24,7 +24,6 @@ use super::NargoConfig;
 
 /// Checks the constraint system for errors
 #[derive(Debug, Clone, Args)]
-#[clap(visible_alias = "c")]
 pub(crate) struct CheckCommand {
     /// The name of the package to check
     #[clap(long, conflicts_with = "workspace")]

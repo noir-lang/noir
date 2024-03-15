@@ -503,7 +503,7 @@ impl Context {
             Instruction::Load { .. } => {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
-            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
+            Instruction::IncrementRc { .. } => {
                 // Do nothing. Only Brillig needs to worry about reference counted arrays
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {

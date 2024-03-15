@@ -1,5 +1,6 @@
-use acvm::brillig_vm::brillig::{
-    HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray,
+use acvm::{
+    brillig_vm::brillig::{HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray},
+    FieldElement,
 };
 use serde::{Deserialize, Serialize};
 
@@ -20,6 +21,10 @@ impl SingleAddrVariable {
 
     pub(crate) fn new_usize(address: MemoryAddress) -> Self {
         SingleAddrVariable { address, bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE }
+    }
+
+    pub(crate) fn new_field(address: MemoryAddress) -> Self {
+        SingleAddrVariable { address, bit_size: FieldElement::max_num_bits() }
     }
 }
 
