@@ -36,10 +36,10 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                     BinaryFieldOp::Sub => AvmOpcode::SUB,
                     BinaryFieldOp::Mul => AvmOpcode::MUL,
                     BinaryFieldOp::Div => AvmOpcode::FDIV,
+                    BinaryFieldOp::IntegerDiv => AvmOpcode::DIV,
                     BinaryFieldOp::Equals => AvmOpcode::EQ,
                     BinaryFieldOp::LessThan => AvmOpcode::LT,
                     BinaryFieldOp::LessThanEquals => AvmOpcode::LTE,
-                    BinaryFieldOp::IntegerDiv => AvmOpcode::DIV,
                 };
                 avm_instrs.push(AvmInstruction {
                     opcode: avm_opcode,
@@ -73,30 +73,20 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                 lhs,
                 rhs,
             } => {
-                let is_integral = is_integral_bit_size(*bit_size);
+                assert!(is_integral_bit_size(*bit_size), "BinaryIntOp bit size should be integral: {:?}", brillig_instr);
                 let avm_opcode = match op {
-                    BinaryIntOp::Add if is_integral => AvmOpcode::ADD,
-                    BinaryIntOp::Sub if is_integral => AvmOpcode::SUB,
-                    BinaryIntOp::Mul if is_integral => AvmOpcode::MUL,
-                    BinaryIntOp::UnsignedDiv if is_integral => AvmOpcode::DIV,
-                    BinaryIntOp::UnsignedDiv if is_field_bit_size(*bit_size) => AvmOpcode::FDIV,
-                    BinaryIntOp::Equals if is_integral => AvmOpcode::EQ,
-                    BinaryIntOp::LessThan if is_integral => AvmOpcode::LT,
-                    BinaryIntOp::LessThanEquals if is_integral => AvmOpcode::LTE,
-                    BinaryIntOp::And if is_integral => AvmOpcode::AND,
-                    BinaryIntOp::Or if is_integral => AvmOpcode::OR,
-                    BinaryIntOp::Xor if is_integral => AvmOpcode::XOR,
-                    BinaryIntOp::Shl if is_integral => AvmOpcode::SHL,
-                    BinaryIntOp::Shr if is_integral => AvmOpcode::SHR,
-                    // https://github.com/noir-lang/noir/issues/4543
-                    // Using Field for now, until the bug is fixed.
-                    BinaryIntOp::Mul if is_field_bit_size(*bit_size) => AvmOpcode::MUL,
-                    BinaryIntOp::Sub if is_field_bit_size(*bit_size) => AvmOpcode::SUB,
-                    // https://github.com/noir-lang/noir/issues/4544
-                    // These are implemented on our side, but Brillig does not have LT(E) in BinaryFieldOp
-                    // So they use BinaryIntOp.
-                    BinaryIntOp::LessThan if is_field_bit_size(*bit_size) => AvmOpcode::LT,
-                    BinaryIntOp::LessThanEquals if is_field_bit_size(*bit_size) => AvmOpcode::LTE,
+                    BinaryIntOp::Add => AvmOpcode::ADD,
+                    BinaryIntOp::Sub => AvmOpcode::SUB,
+                    BinaryIntOp::Mul => AvmOpcode::MUL,
+                    BinaryIntOp::UnsignedDiv => AvmOpcode::DIV,
+                    BinaryIntOp::Equals => AvmOpcode::EQ,
+                    BinaryIntOp::LessThan => AvmOpcode::LT,
+                    BinaryIntOp::LessThanEquals => AvmOpcode::LTE,
+                    BinaryIntOp::And => AvmOpcode::AND,
+                    BinaryIntOp::Or => AvmOpcode::OR,
+                    BinaryIntOp::Xor => AvmOpcode::XOR,
+                    BinaryIntOp::Shl => AvmOpcode::SHL,
+                    BinaryIntOp::Shr => AvmOpcode::SHR,
                     _ => panic!(
                         "Transpiler doesn't know how to process {:?}", brillig_instr
                     ),
@@ -104,11 +94,7 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                 avm_instrs.push(AvmInstruction {
                     opcode: avm_opcode,
                     indirect: Some(ALL_DIRECT),
-                    tag: if is_integral {
-                        Some(tag_from_bit_size(*bit_size))
-                    } else {
-                        None
-                    },
+                    tag: Some(tag_from_bit_size(*bit_size)),
                     operands: vec![
                         AvmOperand::U32 {
                             value: lhs.to_usize() as u32,
@@ -811,14 +797,10 @@ fn handle_const(
     if !matches!(tag, AvmTypeTag::FIELD) {
         avm_instrs.push(generate_set_instruction(tag, dest, value.to_u128()));
     } else {
-        // Handling fields is a bit more complex since we cannot fit a field in a single instruction.
-        // We need to split the field into 128-bit chunks and set them individually.
+        // We can't fit a field in an instruction. This should've been handled in Brillig.
         let field = value.to_field();
         if !field.fits_in_u128() {
-            // If the field doesn't fit in 128 bits, we need scratch space. That's not trivial.
-            // Will this ever happen? ACIR supports up to 126 bit fields.
-            // However, it might be needed _inside_ the unconstrained function.
-            panic!("SET: Field value doesn't fit in 128 bits, that's not supported yet!");
+            panic!("SET: Field value doesn't fit in 128 bits, that's not supported!");
         }
         avm_instrs.extend([
             generate_set_instruction(AvmTypeTag::UINT128, dest, field.to_u128()),
@@ -1032,10 +1014,6 @@ fn map_brillig_pcs_to_avm_pcs(initial_offset: usize, brillig: &Brillig) -> Vec<u
         pc_map[i + 1] = pc_map[i] + num_avm_instrs_for_this_brillig_instr;
     }
     pc_map
-}
-
-fn is_field_bit_size(bit_size: u32) -> bool {
-    bit_size == 254
 }
 
 fn is_integral_bit_size(bit_size: u32) -> bool {
