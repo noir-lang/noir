@@ -1,4 +1,3 @@
-import { ContractDao } from '@aztec/circuit-types';
 import {
   FUNCTION_TREE_HEIGHT,
   MembershipWitness,
@@ -7,7 +6,7 @@ import {
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
 import { MerkleTree } from '@aztec/circuits.js/merkle';
-import { FunctionSelector } from '@aztec/foundation/abi';
+import { ContractArtifact, FunctionSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { assertLength } from '@aztec/foundation/serialize';
 import { ContractClassWithId } from '@aztec/types/contracts';
@@ -20,15 +19,11 @@ import { ContractClassWithId } from '@aztec/types/contracts';
  */
 export class PrivateFunctionsTree {
   private tree?: MerkleTree;
-  private contractClass?: ContractClassWithId;
+  private contractClass: ContractClassWithId;
 
-  constructor(
-    /**
-     * The contract data object containing the artifact and contract address.
-     * TODO(@spalladino) Replace with contract class sourced from db.
-     */
-    public readonly contract: ContractDao,
-  ) {}
+  constructor(private readonly artifact: ContractArtifact) {
+    this.contractClass = getContractClassFromArtifact(artifact);
+  }
 
   /**
    * Retrieve the artifact of a given function.
@@ -39,12 +34,10 @@ export class PrivateFunctionsTree {
    * @returns The artifact object containing relevant information about the targeted function.
    */
   public getFunctionArtifact(selector: FunctionSelector) {
-    const artifact = this.contract.functions.find(f => f.selector.equals(selector));
+    const artifact = this.artifact.functions.find(f => selector.equals(f.name, f.parameters));
     if (!artifact) {
       throw new Error(
-        `Unknown function. Selector ${selector.toString()} not found in the artifact of contract ${this.contract.instance.address.toString()}. Expected one of: ${this.contract.functions
-          .map(f => `${f.name} (${f.selector.toString()})`)
-          .join(', ')}`,
+        `Unknown function. Selector ${selector.toString()} not found in the artifact with class ${this.getContractClassId().toString()}.`,
       );
     }
     return artifact;
@@ -75,10 +68,12 @@ export class PrivateFunctionsTree {
 
   /** Returns the contract class object. */
   public getContractClass() {
-    if (!this.contractClass) {
-      this.contractClass = getContractClassFromArtifact(this.contract);
-    }
     return this.contractClass;
+  }
+
+  /** Returns the contract artifact. */
+  public getArtifact() {
+    return this.artifact;
   }
 
   /**

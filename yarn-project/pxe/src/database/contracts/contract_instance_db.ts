@@ -15,4 +15,7 @@ export interface ContractInstanceDatabase {
    * @param address - Address of the contract.
    */
   getContractInstance(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined>;
+
+  /** Returns the addresses all contract instances registered in the DB. */
+  getContractsAddresses(): Promise<AztecAddress[]>;
 }

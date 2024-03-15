@@ -21,13 +21,20 @@ export class FunctionSelector extends Selector {
    * Checks if this function selector is equal to another.
    * @returns True if the function selectors are equal.
    */
+  equals(fn: { name: string; parameters: ABIParameter[] }): boolean;
   equals(otherName: string, otherParams: ABIParameter[]): boolean;
   equals(other: FunctionSelector): boolean;
-  equals(other: FunctionSelector | string, otherParams?: ABIParameter[]): boolean {
+  equals(
+    other: FunctionSelector | string | { name: string; parameters: ABIParameter[] },
+    otherParams?: ABIParameter[],
+  ): boolean {
     if (typeof other === 'string') {
       return this.equals(FunctionSelector.fromNameAndParameters(other, otherParams!));
+    } else if (typeof other === 'object' && 'name' in other) {
+      return this.equals(FunctionSelector.fromNameAndParameters(other.name, other.parameters));
+    } else {
+      return this.value === other.value;
     }
-    return this.value === other.value;
   }
 
   /**

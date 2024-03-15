@@ -1,7 +1,9 @@
-import { ContractDatabase, NoteFilter } from '@aztec/circuit-types';
+import { NoteFilter } from '@aztec/circuit-types';
 import { CompleteAddress, Header, PublicKey } from '@aztec/circuits.js';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
+import { ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { ContractArtifactDatabase } from './contracts/contract_artifact_db.js';
 import { ContractInstanceDatabase } from './contracts/contract_instance_db.js';
@@ -12,7 +14,9 @@ import { NoteDao } from './note_dao.js';
  * A database interface that provides methods for retrieving, adding, and removing transactional data related to Aztec
  * addresses, storage slots, and nullifiers.
  */
-export interface PxeDatabase extends ContractDatabase, ContractArtifactDatabase, ContractInstanceDatabase {
+export interface PxeDatabase extends ContractArtifactDatabase, ContractInstanceDatabase {
+  getContract(address: AztecAddress): Promise<(ContractInstanceWithAddress & ContractArtifact) | undefined>;
+
   /**
    * Add a auth witness to the database.
    * @param messageHash - The message hash.

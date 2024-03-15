@@ -16,7 +16,7 @@ import {
   Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { FunctionArtifactWithDebugMetadata } from '@aztec/foundation/abi';
+import { FunctionArtifactWithDebugMetadata, getFunctionArtifactWithDebugMetadata } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { DBOracle, KeyPair, MessageLoadOracleInputs } from '@aztec/simulator';
 import { ContractInstance } from '@aztec/types/contracts';
@@ -111,16 +111,9 @@ export class SimulatorOracle implements DBOracle {
     contractAddress: AztecAddress,
     functionName: string,
   ): Promise<FunctionArtifactWithDebugMetadata | undefined> {
-    const artifact = await this.contractDataOracle.getFunctionArtifactByName(contractAddress, functionName);
-    if (!artifact) {
-      return;
-    }
-
-    const debug = await this.contractDataOracle.getFunctionDebugMetadata(contractAddress, artifact.selector);
-    return {
-      ...artifact,
-      debug,
-    };
+    const instance = await this.contractDataOracle.getContractInstance(contractAddress);
+    const artifact = await this.contractDataOracle.getContractArtifact(instance.contractClassId);
+    return artifact && getFunctionArtifactWithDebugMetadata(artifact, functionName);
   }
 
   async getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress> {
