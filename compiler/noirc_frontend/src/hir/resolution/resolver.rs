@@ -37,11 +37,11 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, Distinctness, ForRange, FunctionDefinition, FunctionReturnType, Generics,
-    ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern, Shared,
-    StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-    Visibility, ERROR_IDENT,
+    ArrayLiteral, BinaryOpKind, Distinctness, ForRange, FunctionDefinition, FunctionReturnType,
+    Generics, ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
+    Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -1943,9 +1943,64 @@ impl<'a> Resolver<'a> {
         rhs: ExprId,
         span: Span,
     ) -> Result<u128, Option<ResolverError>> {
+        // Arbitrary amount of recursive calls to try before giving up
+        let fuel = 100;
+        self.try_eval_array_length_id_with_fuel(rhs, span, fuel)
+    }
+
+    fn try_eval_array_length_id_with_fuel(
+        &self,
+        rhs: ExprId,
+        span: Span,
+        fuel: u32,
+    ) -> Result<u128, Option<ResolverError>> {
+        if fuel == 0 {
+            // If we reach here, it is likely from evaluating cyclic globals. We expect an error to
+            // be issued for them after name resolution so issue no error now.
+            return Err(None);
+        }
+
         match self.interner.expression(&rhs) {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
+            }
+            HirExpression::Ident(ident) => {
+                let definition = self.interner.definition(ident.id);
+                match definition.kind {
+                    DefinitionKind::Global(global_id) => {
+                        let let_statement = self.interner.get_global_let_statement(global_id);
+                        if let Some(let_statement) = let_statement {
+                            let expression = let_statement.expression;
+                            self.try_eval_array_length_id_with_fuel(expression, span, fuel - 1)
+                        } else {
+                            Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+                        }
+                    }
+                    _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
+                }
+            }
+            HirExpression::Infix(infix) => {
+                let lhs = self.try_eval_array_length_id_with_fuel(infix.lhs, span, fuel - 1)?;
+                let rhs = self.try_eval_array_length_id_with_fuel(infix.rhs, span, fuel - 1)?;
+
+                match infix.operator.kind {
+                    BinaryOpKind::Add => Ok(lhs + rhs),
+                    BinaryOpKind::Subtract => Ok(lhs - rhs),
+                    BinaryOpKind::Multiply => Ok(lhs * rhs),
+                    BinaryOpKind::Divide => Ok(lhs / rhs),
+                    BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
+                    BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
+                    BinaryOpKind::Less => Ok((lhs < rhs) as u128),
+                    BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
+                    BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
+                    BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
+                    BinaryOpKind::And => Ok(lhs & rhs),
+                    BinaryOpKind::Or => Ok(lhs | rhs),
+                    BinaryOpKind::Xor => Ok(lhs ^ rhs),
+                    BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
+                    BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
+                    BinaryOpKind::Modulo => Ok(lhs % rhs),
+                }
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
