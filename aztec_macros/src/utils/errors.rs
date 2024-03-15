@@ -7,7 +7,6 @@ use super::constants::MAX_CONTRACT_PRIVATE_FUNCTIONS;
 pub enum AztecMacroError {
     AztecDepNotFound,
     ContractHasTooManyPrivateFunctions { span: Span },
-    ContractConstructorMissing { span: Span },
     UnsupportedFunctionArgumentType { span: Span, typ: UnresolvedTypeData },
     UnsupportedStorageType { span: Option<Span>, typ: UnresolvedTypeData },
     CouldNotAssignStorageSlots { secondary_message: Option<String> },
@@ -26,11 +25,6 @@ impl From<AztecMacroError> for MacroError {
             },
             AztecMacroError::ContractHasTooManyPrivateFunctions { span } => MacroError {
                 primary_message: format!("Contract can only have a maximum of {} private functions", MAX_CONTRACT_PRIVATE_FUNCTIONS),
-                secondary_message: None,
-                span: Some(span),
-            },
-            AztecMacroError::ContractConstructorMissing { span } => MacroError {
-                primary_message: "Contract must have a constructor function".to_owned(),
                 secondary_message: None,
                 span: Some(span),
             },
