@@ -31,6 +31,10 @@ inline void* protected_aligned_alloc(size_t alignment, size_t size)
 {
     size += (size % alignment);
     void* t = nullptr;
+    // pad size to alignment
+    if (size % alignment != 0) {
+        size += alignment - (size % alignment);
+    }
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     t = aligned_alloc(alignment, size);
     if (t == nullptr) {

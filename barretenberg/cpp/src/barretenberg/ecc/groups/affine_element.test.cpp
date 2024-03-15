@@ -98,6 +98,44 @@ template <typename G1> class TestAffineElement : public testing::Test {
         affine_element R(0, P.y);
         ASSERT_FALSE(P == R);
     }
+    // Regression test to ensure that the point at infinity is not equal to its coordinate-wise reduction, which may lie
+    // on the curve, depending on the y-coordinate.
+    static void test_infinity_ordering_regression()
+    {
+        affine_element P(0, 1);
+        affine_element Q(0, 1);
+
+        P.self_set_infinity();
+        EXPECT_NE(P < Q, Q < P);
+    }
+
+    /**
+     * @brief Check that msgpack encoding is consistent with decoding
+     *
+     */
+    static void test_msgpack_roundtrip()
+    {
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/908) point at inifinty isn't handled
+        auto [actual, expected] = msgpack_roundtrip(affine_element{ 1, 1 });
+        EXPECT_EQ(actual, expected);
+    }
+
+    /**
+     * @brief A regression test to make sure the -1 case is covered
+     *
+     */
+    static void test_batch_endomorphism_by_minus_one()
+    {
+        constexpr size_t num_points = 2;
+        std::vector<affine_element> affine_points(num_points, affine_element::one());
+
+        std::vector<affine_element> result =
+            element::batch_mul_with_endomorphism(affine_points, -affine_element::Fr::one());
+
+        for (size_t i = 0; i < num_points; i++) {
+            EXPECT_EQ(affine_points[i], -result[i]);
+        }
+    }
 };
 
 using TestTypes = testing::Types<bb::g1, grumpkin::g1, secp256k1::g1, secp256r1::g1>;
@@ -128,21 +166,14 @@ TYPED_TEST(TestAffineElement, PointCompressionUnsafe)
     }
 }
 
-// Regression test to ensure that the point at infinity is not equal to its coordinate-wise reduction, which may lie
-// on the curve, depending on the y-coordinate.
-TEST(AffineElement, InfinityOrderingRegression)
+TYPED_TEST(TestAffineElement, InfinityOrderingRegression)
 {
-    secp256k1::g1::affine_element P(0, 1);
-    secp256k1::g1::affine_element Q(0, 1);
-
-    P.self_set_infinity();
-    EXPECT_NE(P < Q, Q < P);
+    TestFixture::test_infinity_ordering_regression();
 }
 
-TEST(AffineElement, Msgpack)
+TYPED_TEST(TestAffineElement, Msgpack)
 {
-    auto [actual, expected] = msgpack_roundtrip(secp256k1::g1::affine_element{ 1, 1 });
-    EXPECT_EQ(actual, expected);
+    TestFixture::test_msgpack_roundtrip();
 }
 
 namespace bb::group_elements {
@@ -165,7 +196,7 @@ class TestElementPrivate {
 } // namespace bb::group_elements
 
 // Our endomorphism-specialized multiplication should match our generic multiplication
-TEST(AffineElement, MulWithEndomorphismMatchesMulWithoutEndomorphism)
+TYPED_TEST(TestAffineElement, MulWithEndomorphismMatchesMulWithoutEndomorphism)
 {
     for (int i = 0; i < 100; i++) {
         auto x1 = bb::group_elements::element(grumpkin::g1::affine_element::random_element());
@@ -176,6 +207,7 @@ TEST(AffineElement, MulWithEndomorphismMatchesMulWithoutEndomorphism)
     }
 }
 
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/909): These tests are not typed for no reason
 // Multiplication of a point at infinity by a scalar should be a point at infinity
 TEST(AffineElement, InfinityMulByScalarIsInfinity)
 {
@@ -213,4 +245,13 @@ TEST(AffineElement, InfinityBatchMulByScalarIsInfinity)
         grumpkin::g1::element::batch_mul_with_endomorphism(affine_points, grumpkin::fr::random_element());
 
     EXPECT_THAT(result, Each(Property(&grumpkin::g1::affine_element::is_point_at_infinity, Eq(true))));
+}
+
+TYPED_TEST(TestAffineElement, BatchEndomoprhismByMinusOne)
+{
+    if constexpr (TypeParam::USE_ENDOMORPHISM) {
+        TestFixture::test_batch_endomorphism_by_minus_one();
+    } else {
+        GTEST_SKIP();
+    }
 }

@@ -10,6 +10,7 @@
 #include <vector>
 
 namespace bb {
+// clang-format off
 
 /**
  * @brief IPA (inner product argument) commitment scheme class.
@@ -26,8 +27,9 @@ namespace bb {
  *The opening and verification procedures expect that there already exists a commitment to \f$f(x)\f$ which is the
  *scalar product \f$[f(x)]=\langle\vec{f},\vec{G}\rangle\f$, where \f$\vec{f}=(f_0, f_1,..., f_{d-1})\f$​
  *
- * The opening procedure documentation can be found in the description of \link IPA::compute_opening_proof
- compute_opening_proof \endlink. The verification procedure documentation is in \link IPA::verify verify \endlink
+ * The opening procedure documentation can be found in the description of \link IPA::compute_opening_proof_internal
+ compute_opening_proof_internal \endlink. The verification procedure documentation is in \link IPA::verify_internal
+ verify_internal \endlink
  *
  * @tparam Curve
  *
@@ -70,6 +72,7 @@ namespace bb {
  documentation </a>
  */
 template <typename Curve> class IPA {
+    // clang-fromat on
     using Fr = typename Curve::ScalarField;
     using GroupElement = typename Curve::Element;
     using Commitment = typename Curve::AffineElement;
@@ -77,10 +80,20 @@ template <typename Curve> class IPA {
     using VK = VerifierCommitmentKey<Curve>;
     using Polynomial = bb::Polynomial<Fr>;
 
-  public:
+// These allow access to internal functions so that we can never use a mock transcript unless it's fuzzing or testing of IPA specifically
+#ifdef IPA_TEST
+    FRIEND_TEST(IPATest, ChallengesAreZero);
+    FRIEND_TEST(IPATest, AIsZeroAfterOneRound);
+#endif
+#ifdef IPA_FUZZ_TEST
+    friend class ProxyCaller;
+#endif
+    // clang-format off
+
     /**
-     * @brief Compute an inner product argument proof for opening a single polynomial at a single evaluation point
+     * @brief Compute an inner product argument proof for opening a single polynomial at a single evaluation point.
      *
+     * @tparam Transcript Transcript type. Useful for testing
      * @param ck The commitment key containing srs and pippenger_runtime_state for computing MSM
      * @param opening_pair (challenge, evaluation)
      * @param polynomial The witness polynomial whose opening proof needs to be computed
@@ -92,7 +105,7 @@ template <typename Curve> class IPA {
      *as follows:
      *
      *1. Send the degree of \f$f(x)\f$ plus one, equal to \f$d\f$ to the verifier
-     *2. Receive the generator challenge \f$u\f$ from the verifier
+     *2. Receive the generator challenge \f$u\f$ from the verifier. If it is zero, abort
      *3. Compute the auxiliary generator \f$U=u\cdot G\f$, where \f$G\f$ is a generator of \f$E(\mathbb{F}_p)\f$​
      *4. Set \f$\vec{G}_{k}=\vec{G}\f$, \f$\vec{a}_{k}=\vec{p}\f$
      *5. Compute the vector \f$\vec{b}_{k}=(1,\beta,\beta^2,...,\beta^{d-1})\f$
@@ -104,19 +117,20 @@ template <typename Curve> class IPA {
      *\f$R_{i-1}=\langle\vec{a}_{i\_high},\vec{G}_{i\_low}\rangle+\langle\vec{a}_{i\_high},\vec{b}_{i\_low}\rangle\cdot
      U\f$
      *   3. Send \f$L_{i-1}\f$ and \f$R_{i-1}\f$ to the verifier
-     *   4. Receive round challenge \f$u_{i-1}\f$ from the verifier​
+     *   4. Receive round challenge \f$u_{i-1}\f$ from the verifier​, if it is zero, abort
      *   5. Compute \f$\vec{G}_{i-1}=\vec{G}_{i\_low}+u_{i-1}^{-1}\cdot \vec{G}_{i\_high}\f$
      *   6. Compute \f$\vec{a}_{i-1}=\vec{a}_{i\_low}+u_{i-1}\cdot \vec{a}_{i\_high}\f$
      *   7. Compute \f$\vec{b}_{i-1}=\vec{b}_{i\_low}+u_{i-1}^{-1}\cdot \vec{b}_{i\_high}\f$​
      *
      *7. Send the final \f$\vec{a}_{0} = (a_0)\f$ to the verifier
      */
-    static void compute_opening_proof(const std::shared_ptr<CK>& ck,
-                                      const OpeningPair<Curve>& opening_pair,
-                                      const Polynomial& polynomial,
-                                      const std::shared_ptr<NativeTranscript>& transcript)
+    template <typename Transcript>
+    static void compute_opening_proof_internal(const std::shared_ptr<CK>& ck,
+                                               const OpeningPair<Curve>& opening_pair,
+                                               const Polynomial& polynomial,
+                                               const std::shared_ptr<Transcript>& transcript)
     {
-        ASSERT(opening_pair.challenge != 0 && "The challenge point should not be zero");
+        // clang-format on
         auto poly_length = static_cast<size_t>(polynomial.size());
 
         // Step 1.
@@ -126,6 +140,10 @@ template <typename Curve> class IPA {
         // Step 2.
         // Receive challenge for the auxiliary generator
         const Fr generator_challenge = transcript->template get_challenge<Fr>("IPA:generator_challenge");
+
+        if (generator_challenge.is_zero()) {
+            throw_or_abort("The generator challenge can't be zero");
+        }
 
         // Step 3.
         // Compute auxiliary generator U
@@ -246,7 +264,11 @@ template <typename Curve> class IPA {
 
             // Step 6.d
             // Receive the challenge from the verifier
-            const Fr round_challenge = transcript->get_challenge<Fr>("IPA:round_challenge_" + index);
+            const Fr round_challenge = transcript->template get_challenge<Fr>("IPA:round_challenge_" + index);
+
+            if (round_challenge.is_zero()) {
+                throw_or_abort("IPA round challenge is zero");
+            }
             const Fr round_challenge_inv = round_challenge.invert();
 
             // Step 6.e
@@ -285,6 +307,7 @@ template <typename Curve> class IPA {
     /**
      * @brief Verify the correctness of a Proof
      *
+     * @tparam Transcript Allows to specify a transcript class. Useful for testing
      * @param vk Verification_key containing srs and pippenger_runtime_state to be used for MSM
      * @param opening_claim Contains the commitment C and opening pair \f$(\beta, f(\beta))\f$
      * @param transcript Transcript with elements from the prover and generated challenges
@@ -294,9 +317,10 @@ template <typename Curve> class IPA {
      * @details The procedure runs as follows:
      *
      *1. Receive \f$d\f$ (polynomial degree plus one) from the prover
-     *2. Receive the generator challenge \f$u\f$ and computes \f$U=u\cdot G\f$
+     *2. Receive the generator challenge \f$u\f$, abort if it's zero, otherwise compute \f$U=u\cdot G\f$
      *3. Compute  \f$C'=C+f(\beta)\cdot U\f$
-     *4. Receive \f$L_j, R_j\f$ and compute challenges \f$u_j\f$ for \f$j \in {k-1,..,0}\f$
+     *4. Receive \f$L_j, R_j\f$ and compute challenges \f$u_j\f$ for \f$j \in {k-1,..,0}\f$, abort immediately on
+     receiving a \f$u_j=0\f$
      *5. Compute \f$C_0 = C' + \sum_{j=0}^{k-1}(u_j^{-1}L_j + u_jR_j)\f$
      *6. Compute \f$b_0=g(\beta)=\prod_{i=0}^{k-1}(1+u_{i}^{-1}x^{2^{i}})\f$
      *7. Compute vector \f$\vec{s}=(1,u_{0}^{-1},u_{1}^{-1},u_{0}^{-1}u_{1}^{-1},...,\prod_{i=0}^{k-1}u_{i}^{-1})\f$
@@ -307,18 +331,24 @@ template <typename Curve> class IPA {
      *
      *
      */
-    static bool verify(const std::shared_ptr<VK>& vk,
-                       const OpeningClaim<Curve>& opening_claim,
-                       const std::shared_ptr<NativeTranscript>& transcript)
+    template <typename Transcript>
+    static bool verify_internal(const std::shared_ptr<VK>& vk,
+                                const OpeningClaim<Curve>& opening_claim,
+                                const std::shared_ptr<Transcript>& transcript)
     {
         // Step 1.
         // Receive polynomial_degree + 1 = d from the prover
         auto poly_length = static_cast<uint32_t>(transcript->template receive_from_prover<typename Curve::BaseField>(
-            "IPA:poly_degree_plus_1")); // note this is base field because this is a uint32_t, which should map to a
-                                        // bb::fr, not a grumpkin::fr, which is a BaseField element for Grumpkin
+            "IPA:poly_degree_plus_1")); // note this is base field because this is a uint32_t, which should map
+                                        // to a bb::fr, not a grumpkin::fr, which is a BaseField element for
+                                        // Grumpkin
         // Step 2.
         // Receive generator challenge u and compute auxiliary generator
         const Fr generator_challenge = transcript->template get_challenge<Fr>("IPA:generator_challenge");
+
+        if (generator_challenge.is_zero()) {
+            throw_or_abort("The generator challenge can't be zero");
+        }
         auto aux_generator = Commitment::one() * generator_challenge;
 
         auto log_poly_degree = static_cast<size_t>(numeric::get_msb(poly_length));
@@ -340,6 +370,9 @@ template <typename Curve> class IPA {
             auto element_L = transcript->template receive_from_prover<Commitment>("IPA:L_" + index);
             auto element_R = transcript->template receive_from_prover<Commitment>("IPA:R_" + index);
             round_challenges[i] = transcript->template get_challenge<Fr>("IPA:round_challenge_" + index);
+            if (round_challenges[i].is_zero()) {
+                throw_or_abort("Round challenges can't be zero");
+            }
             round_challenges_inv[i] = round_challenges[i].invert();
 
             msm_elements[2 * i] = element_L;
@@ -369,8 +402,8 @@ template <typename Curve> class IPA {
         // Construct vector s
         std::vector<Fr> s_vec(poly_length);
 
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/857): This code is not efficient as its O(nlogn).
-        // This can be optimized to be linear by computing a tree of products. Its very readable, so we're
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/857): This code is not efficient as its
+        // O(nlogn). This can be optimized to be linear by computing a tree of products. Its very readable, so we're
         // leaving it unoptimized for now.
         run_loop_in_parallel_if_effective(
             poly_length,
@@ -429,6 +462,44 @@ template <typename Curve> class IPA {
         // Step 11.
         // Check if C_right == C₀
         return (C_zero.normalize() == right_hand_side.normalize());
+    }
+
+  public:
+    /**
+     * @brief Compute an inner product argument proof for opening a single polynomial at a single evaluation point.
+     *
+     * @param ck The commitment key containing srs and pippenger_runtime_state for computing MSM
+     * @param opening_pair (challenge, evaluation)
+     * @param polynomial The witness polynomial whose opening proof needs to be computed
+     * @param transcript Prover transcript
+     *
+     * @remark Detailed documentation can be found in \link IPA::compute_opening_proof_internal
+     * compute_opening_proof_internal \endlink.
+     */
+    static void compute_opening_proof(const std::shared_ptr<CK>& ck,
+                                      const OpeningPair<Curve>& opening_pair,
+                                      const Polynomial& polynomial,
+                                      const std::shared_ptr<NativeTranscript>& transcript)
+    {
+        compute_opening_proof_internal(ck, opening_pair, polynomial, transcript);
+    }
+
+    /**
+     * @brief Verify the correctness of a Proof
+     *
+     * @param vk Verification_key containing srs and pippenger_runtime_state to be used for MSM
+     * @param opening_claim Contains the commitment C and opening pair \f$(\beta, f(\beta))\f$
+     * @param transcript Transcript with elements from the prover and generated challenges
+     *
+     * @return true/false depending on if the proof verifies
+     *
+     *@remark The verification procedure documentation is in \link IPA::verify_internal verify_internal \endlink
+     */
+    static bool verify(const std::shared_ptr<VK>& vk,
+                       const OpeningClaim<Curve>& opening_claim,
+                       const std::shared_ptr<NativeTranscript>& transcript)
+    {
+        return verify_internal(vk, opening_claim, transcript);
     }
 };
 

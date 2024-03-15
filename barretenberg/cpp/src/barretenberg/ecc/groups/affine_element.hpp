@@ -160,7 +160,9 @@ template <typename Fq_, typename Fr_, typename Params> class alignas(64) affine_
     }
     Fq x;
     Fq y;
+
     // for serialization: update with new fields
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/908) point at inifinty isn't handled
     MSGPACK_FIELDS(x, y);
 };
 } // namespace bb::group_elements

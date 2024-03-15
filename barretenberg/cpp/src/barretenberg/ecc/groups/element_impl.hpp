@@ -901,6 +901,32 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
             /*finite_field_additions_per_iteration=*/7,
             /*finite_field_multiplications_per_iteration=*/6);
     };
+
+    // We compute the resulting point through WNAF by evaluating (the (\sum_i (16ⁱ⋅
+    // (a_i ∈ {-15,-13,-11,-9,-7,-5,-3,-1,1,3,5,7,9,11,13,15}))) - skew), where skew is 0 or 1. The result of the sum is
+    // always odd and skew is used to reconstruct an even scalar. This means that to construct scalar p-1, where p is
+    // the order of the scalar field, we first compute p through the sums and then subtract -1. Howver, since we are
+    // computing p⋅Point, we get a point at infinity, which is an edgecase, and we don't want to handle edgecases in the
+    // hot loop since the slow the computation down. So it's better to just handle it here.
+    if (scalar == -Fr::one()) {
+
+        std::vector<affine_element> results(num_points);
+        run_loop_in_parallel_if_effective(
+            num_points,
+            [&results, &points](size_t start, size_t end) {
+                for (size_t i = start; i < end; ++i) {
+                    results[i] = -points[i];
+                }
+            },
+            /*finite_field_additions_per_iteration=*/0,
+            /*finite_field_multiplications_per_iteration=*/0,
+            /*finite_field_inversions_per_iteration=*/0,
+            /*group_element_additions_per_iteration=*/0,
+            /*group_element_doublings_per_iteration=*/0,
+            /*scalar_multiplications_per_iteration=*/0,
+            /*sequential_copy_ops_per_iteration=*/1);
+        return results;
+    }
     // Compute wnaf for scalar
     const Fr converted_scalar = scalar.from_montgomery_form();
 

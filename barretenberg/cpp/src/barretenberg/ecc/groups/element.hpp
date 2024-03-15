@@ -128,6 +128,7 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
     //     return { x, y, Fq::one() };
     // }
     // for serialization: update with new fields
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/908) point at inifinty isn't handled
     MSGPACK_FIELDS(x, y, z);
 
     static void conditional_negate_affine(const affine_element<Fq, Fr, Params>& in,

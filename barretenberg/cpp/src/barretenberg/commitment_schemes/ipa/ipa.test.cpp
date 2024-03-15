@@ -1,6 +1,6 @@
-#include "ipa.hpp"
 #include "../gemini/gemini.hpp"
 #include "../shplonk/shplonk.hpp"
+#include "./mock_transcript.hpp"
 #include "barretenberg/commitment_schemes/commitment_key.test.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
@@ -8,6 +8,7 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include <gtest/gtest.h>
+#include <utility>
 
 using namespace bb;
 
@@ -23,6 +24,9 @@ class IPATest : public CommitmentTest<Curve> {
     using Polynomial = bb::Polynomial<Fr>;
 };
 } // namespace
+
+#define IPA_TEST
+#include "ipa.hpp"
 
 TEST_F(IPATest, CommitOnManyZeroCoeffPolyWorks)
 {
@@ -43,6 +47,149 @@ TEST_F(IPATest, CommitOnManyZeroCoeffPolyWorks)
     }
     EXPECT_EQ(expected.normalize(), commitment.normalize());
 }
+
+// This test checks that we can correctly open a zero polynomial. Since we often have point at infinity troubles, it
+// detects those.
+TEST_F(IPATest, OpenZeroPolynomial)
+{
+    using IPA = IPA<Curve>;
+    constexpr size_t n = 4;
+    Polynomial poly(n);
+    // Commit to a zero polynomial
+    GroupElement commitment = this->commit(poly);
+    EXPECT_TRUE(commitment.is_point_at_infinity());
+
+    auto [x, eval] = this->random_eval(poly);
+    EXPECT_EQ(eval, Fr::zero());
+    const OpeningPair<Curve> opening_pair = { x, eval };
+    const OpeningClaim<Curve> opening_claim{ opening_pair, commitment };
+
+    // initialize empty prover transcript
+    auto prover_transcript = std::make_shared<NativeTranscript>();
+    IPA::compute_opening_proof(this->ck(), opening_pair, poly, prover_transcript);
+
+    // initialize verifier transcript from proof data
+    auto verifier_transcript = std::make_shared<NativeTranscript>(prover_transcript->proof_data);
+
+    auto result = IPA::verify(this->vk(), opening_claim, verifier_transcript);
+    EXPECT_TRUE(result);
+}
+
+// This test makes sure that even if the whole vector \vec{b} generated from the x, at which we open the polynomial, is
+// zero, IPA behaves
+TEST_F(IPATest, OpenAtZero)
+{
+    using IPA = IPA<Curve>;
+    // generate a random polynomial, degree needs to be a power of two
+    size_t n = 128;
+    auto poly = this->random_polynomial(n);
+    Fr x = Fr::zero();
+    auto eval = poly.evaluate(x);
+    auto commitment = this->commit(poly);
+    const OpeningPair<Curve> opening_pair = { x, eval };
+    const OpeningClaim<Curve> opening_claim{ opening_pair, commitment };
+
+    // initialize empty prover transcript
+    auto prover_transcript = std::make_shared<NativeTranscript>();
+    IPA::compute_opening_proof(this->ck(), opening_pair, poly, prover_transcript);
+
+    // initialize verifier transcript from proof data
+    auto verifier_transcript = std::make_shared<NativeTranscript>(prover_transcript->proof_data);
+
+    auto result = IPA::verify(this->vk(), opening_claim, verifier_transcript);
+    EXPECT_TRUE(result);
+}
+
+namespace bb {
+#if !defined(__wasm__)
+// This test ensures that IPA throws or aborts when a challenge is zero, since it breaks the logic of the argument
+TEST_F(IPATest, ChallengesAreZero)
+{
+    using IPA = IPA<Curve>;
+    // generate a random polynomial, degree needs to be a power of two
+    size_t n = 128;
+    auto poly = this->random_polynomial(n);
+    auto [x, eval] = this->random_eval(poly);
+    auto commitment = this->commit(poly);
+    const OpeningPair<Curve> opening_pair = { x, eval };
+    const OpeningClaim<Curve> opening_claim{ opening_pair, commitment };
+
+    // initialize an empty mock transcript
+    auto transcript = std::make_shared<MockTranscript>();
+    const size_t num_challenges = numeric::get_msb(n) + 1;
+    std::vector<uint256_t> random_vector(num_challenges);
+
+    // Generate a random element vector with challenges
+    for (size_t i = 0; i < num_challenges; i++) {
+        random_vector[i] = Fr::random_element();
+    }
+
+    // Compute opening proofs several times, where each time a different challenge is equal to zero. Should cause
+    // exceptions
+    for (size_t i = 0; i < num_challenges; i++) {
+        auto new_random_vector = random_vector;
+        new_random_vector[i] = Fr::zero();
+        transcript->initialize(new_random_vector);
+        EXPECT_ANY_THROW(IPA::compute_opening_proof_internal(this->ck(), opening_pair, poly, transcript));
+    }
+    // Fill out a vector of affine elements that the verifier receives from the prover with generators (we don't care
+    // about them right now)
+    std::vector<Curve::AffineElement> lrs(num_challenges * 2);
+    for (size_t i = 0; i < num_challenges * 2; i++) {
+        lrs[i] = Curve::AffineElement::one();
+    }
+    // Verify proofs several times, where each time a different challenge is equal to zero. Should cause
+    // exceptions
+    for (size_t i = 0; i < num_challenges; i++) {
+        auto new_random_vector = random_vector;
+        new_random_vector[i] = Fr::zero();
+        transcript->initialize(new_random_vector, lrs, { uint256_t(n) });
+        EXPECT_ANY_THROW(IPA::verify_internal(this->vk(), opening_claim, transcript));
+    }
+}
+
+// This test checks that if the vector \vec{a_new} becomes zero after one round, it doesn't break IPA.
+TEST_F(IPATest, AIsZeroAfterOneRound)
+{
+    using IPA = IPA<Curve>;
+    // generate a random polynomial, degree needs to be a power of two
+    size_t n = 4;
+    auto poly = Polynomial(n);
+    for (size_t i = 0; i < n / 2; i++) {
+        poly[i] = Fr::random_element();
+        poly[i + (n / 2)] = poly[i];
+    }
+    auto [x, eval] = this->random_eval(poly);
+    auto commitment = this->commit(poly);
+    const OpeningPair<Curve> opening_pair = { x, eval };
+    const OpeningClaim<Curve> opening_claim{ opening_pair, commitment };
+
+    // initialize an empty mock transcript
+    auto transcript = std::make_shared<MockTranscript>();
+    const size_t num_challenges = numeric::get_msb(n) + 1;
+    std::vector<uint256_t> random_vector(num_challenges);
+
+    // Generate a random element vector with challenges
+    for (size_t i = 0; i < num_challenges; i++) {
+        random_vector[i] = Fr::random_element();
+    }
+    // Substitute the first folding challenge with -1
+    random_vector[1] = -Fr::one();
+
+    // Put the challenges in the transcript
+    transcript->initialize(random_vector);
+
+    // Compute opening proof
+    IPA::compute_opening_proof_internal(this->ck(), opening_pair, poly, transcript);
+
+    // Reset indices
+    transcript->reset_indices();
+
+    // Verify
+    EXPECT_TRUE(IPA::verify_internal(this->vk(), opening_claim, transcript));
+}
+#endif
+} // namespace bb
 
 TEST_F(IPATest, Commit)
 {
