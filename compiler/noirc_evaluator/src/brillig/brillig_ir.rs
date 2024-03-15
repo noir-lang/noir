@@ -593,11 +593,53 @@ impl BrilligContext {
     pub(crate) fn const_instruction(&mut self, result: SingleAddrVariable, constant: Value) {
         self.debug_show.const_instruction(result.address, constant);
 
-        self.push_opcode(BrilligOpcode::Const {
-            destination: result.address,
-            value: constant,
-            bit_size: result.bit_size,
-        });
+        if result.bit_size > 128 && !constant.to_field().fits_in_u128() {
+            let high = Value::from(FieldElement::from_be_bytes_reduce(
+                constant
+                    .to_field()
+                    .to_be_bytes()
+                    .get(0..16)
+                    .expect("FieldElement::to_be_bytes() too short!"),
+            ));
+            let low = Value::from(constant.to_u128());
+            let high_register = SingleAddrVariable::new(self.allocate_register(), 254);
+            let low_register = SingleAddrVariable::new(self.allocate_register(), 254);
+            let intermediate_register = SingleAddrVariable::new(self.allocate_register(), 254);
+            self.const_instruction(high_register, high);
+            self.const_instruction(low_register, low);
+            // I want to multiply high by 2^128, but I can't get that big constant in.
+            // So I'll multiply by 2^64 twice.
+            self.const_instruction(intermediate_register, Value::from(1_u128 << 64));
+            self.binary_instruction(
+                high_register,
+                intermediate_register,
+                high_register,
+                BrilligBinaryOp::Mul,
+            );
+            self.binary_instruction(
+                high_register,
+                intermediate_register,
+                high_register,
+                BrilligBinaryOp::Mul,
+            );
+            // Now we can add.
+            self.binary_instruction(
+                high_register,
+                low_register,
+                intermediate_register,
+                BrilligBinaryOp::Add,
+            );
+            self.cast_instruction(result, intermediate_register);
+            self.deallocate_single_addr(high_register);
+            self.deallocate_single_addr(low_register);
+            self.deallocate_single_addr(intermediate_register);
+        } else {
+            self.push_opcode(BrilligOpcode::Const {
+                destination: result.address,
+                value: constant,
+                bit_size: result.bit_size,
+            });
+        }
     }
 
     pub(crate) fn usize_const(&mut self, result: MemoryAddress, constant: Value) {
