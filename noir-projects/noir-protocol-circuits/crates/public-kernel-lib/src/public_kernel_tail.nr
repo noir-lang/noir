@@ -42,11 +42,7 @@ impl PublicKernelTailCircuitPrivateInputs {
         let end_non_revertible = self.previous_kernel.public_inputs.end_non_revertible;
         let end = self.previous_kernel.public_inputs.end;
 
-        // Total number should not exceed MAX_NULLIFIER_READ_REQUESTS_PER_TX.
-        let requests = array_merge(
-            end_non_revertible.nullifier_read_requests,
-            end.nullifier_read_requests
-        );
+        let requests = self.previous_kernel.public_inputs.validation_requests.nullifier_read_requests;
 
         let pending_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX] = array_concat(end_non_revertible.new_nullifiers, end.new_nullifiers);
 
@@ -74,7 +70,7 @@ impl PublicKernelTailCircuitPrivateInputs {
 
         // The values of the read requests here need to be siloed.
         // Notice that it's not the case for regular read requests, which can be run between two kernel iterations, and will to be verified against unsiloed pending values.
-        let mut read_requests = end_non_revertible.nullifier_non_existent_read_requests;
+        let mut read_requests = self.previous_kernel.public_inputs.validation_requests.nullifier_non_existent_read_requests;
         for i in 0..read_requests.len() {
             let read_request = read_requests[i];
             if !is_empty(read_request) {
@@ -216,9 +212,9 @@ mod tests {
             self.nullifier_read_request_hints_builder.read_request_statuses[read_request_index] = ReadRequestStatus { state: ReadRequestState.PENDING, hint_index };
         }
 
-        pub fn add_nullifier_pending_read_non_revertible(&mut self, nullifier_index_offset_one: u64) {
+        pub fn add_non_revertible_nullifier_pending_read(&mut self, nullifier_index_offset_one: u64) {
             let nullifier_index = nullifier_index_offset_one + 1; // + 1 is for the first nullifier
-            let read_request_index = self.previous_kernel.add_read_request_for_pending_nullifier_non_revertible(nullifier_index);
+            let read_request_index = self.previous_kernel.add_read_request_for_pending_non_revertible_nullifier(nullifier_index);
             let hint_index = self.nullifier_read_request_hints_builder.pending_read_hints.len();
             let hint = PendingReadHint { read_request_index, pending_value_index: nullifier_index };
             self.nullifier_read_request_hints_builder.pending_read_hints.push(hint);
@@ -287,7 +283,7 @@ mod tests {
         let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
 
         builder.append_nullifiers_non_revertible(3);
-        builder.add_nullifier_pending_read_non_revertible(1);
+        builder.add_non_revertible_nullifier_pending_read(1);
         builder.succeeded();
     }
 
@@ -311,9 +307,9 @@ mod tests {
         builder.append_nullifiers(3);
         builder.add_nullifier_pending_read(1);
         let nullifier_being_read = builder.previous_kernel.end.new_nullifiers.get(1);
-        let mut read_request = builder.previous_kernel.end.nullifier_read_requests.pop();
+        let mut read_request = builder.previous_kernel.validation_requests.nullifier_read_requests.pop();
         read_request.counter = nullifier_being_read.counter - 1;
-        builder.previous_kernel.end.nullifier_read_requests.push(read_request);
+        builder.previous_kernel.validation_requests.nullifier_read_requests.push(read_request);
 
         builder.failed();
     }

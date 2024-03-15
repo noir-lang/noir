@@ -690,8 +690,8 @@ export class SoloBlockBuilder implements BlockBuilder {
     const newPublicDataReadsPreimages: Tuple<PublicDataTreeLeafPreimage, typeof MAX_PUBLIC_DATA_READS_PER_TX> =
       makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, () => PublicDataTreeLeafPreimage.empty());
 
-    for (const i in tx.data.combinedData.publicDataReads) {
-      const leafSlot = tx.data.combinedData.publicDataReads[i].leafSlot.value;
+    for (const i in tx.data.validationRequests.publicDataReads) {
+      const leafSlot = tx.data.validationRequests.publicDataReads[i].leafSlot.value;
       const lowLeafResult = await this.db.getPreviousValueIndex(MerkleTreeId.PUBLIC_DATA_TREE, leafSlot);
       if (!lowLeafResult) {
         throw new Error(`Public data tree should have one initial leaf`);

@@ -13,7 +13,6 @@ import {
   buildNullifierNonExistentReadRequestHints,
   buildNullifierReadRequestHints,
   concatAccumulatedData,
-  mergeAccumulatedData,
 } from '@aztec/circuits.js';
 import { Tuple } from '@aztec/foundation/serialize';
 import { MerkleTreeOperations } from '@aztec/world-state';
@@ -22,18 +21,13 @@ export class HintsBuilder {
   constructor(private db: MerkleTreeOperations) {}
 
   getNullifierReadRequestHints(
-    nullifierReadRequestsNonRevertible: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
-    nullifierReadRequestsRevertible: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
+    nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
     nullifiersNonRevertible: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX>,
     nullifiersRevertible: Tuple<SideEffectLinkedToNoteHash, typeof MAX_REVERTIBLE_NULLIFIERS_PER_TX>,
   ) {
     return buildNullifierReadRequestHints(
       this,
-      mergeAccumulatedData(
-        MAX_NULLIFIER_READ_REQUESTS_PER_TX,
-        nullifierReadRequestsNonRevertible,
-        nullifierReadRequestsRevertible,
-      ),
+      nullifierReadRequests,
       concatAccumulatedData(MAX_NEW_NULLIFIERS_PER_TX, nullifiersNonRevertible, nullifiersRevertible),
     );
   }

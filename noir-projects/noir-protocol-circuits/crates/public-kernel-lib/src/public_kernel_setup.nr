@@ -55,6 +55,8 @@ impl PublicKernelSetupCircuitPrivateInputs {
         let call_request = public_inputs.end_non_revertible.public_call_stack.pop();
         common::validate_call_against_request(self.public_call, call_request);
 
+        common::update_validation_requests(self.public_call, &mut public_inputs);
+
         common::update_public_end_non_revertible_values(self.public_call, &mut public_inputs);
 
         common::accumulate_unencrypted_logs(
@@ -512,7 +514,7 @@ mod tests {
 
         let public_inputs = builder.execute();
 
-        let end_requests = public_inputs.end_non_revertible.nullifier_non_existent_read_requests;
+        let end_requests = public_inputs.validation_requests.nullifier_non_existent_read_requests;
         assert_eq(array_length(end_requests), 2);
 
         let request_context = end_requests[0];

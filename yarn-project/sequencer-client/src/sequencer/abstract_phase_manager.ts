@@ -11,14 +11,13 @@ import {
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NOTE_HASHES_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
-  MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
   MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
   MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_CALL,
+  MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
-  MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
   MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MembershipWitness,
   PrivateKernelTailCircuitPublicInputs,
@@ -291,15 +290,14 @@ export abstract class AbstractPhaseManager {
     const previousKernel = this.getPreviousKernelData(previousOutput, previousProof);
 
     if (this.phase === PublicKernelPhase.TAIL) {
-      const { endNonRevertibleData, end } = previousOutput;
+      const { validationRequests, endNonRevertibleData, end } = previousOutput;
       const nullifierReadRequestHints = await this.hintsBuilder.getNullifierReadRequestHints(
-        endNonRevertibleData.nullifierReadRequests,
-        end.nullifierReadRequests,
+        validationRequests.nullifierReadRequests,
         endNonRevertibleData.newNullifiers,
         end.newNullifiers,
       );
       const nullifierNonExistentReadRequestHints = await this.hintsBuilder.getNullifierNonExistentReadRequestHints(
-        endNonRevertibleData.nullifierNonExistentReadRequests,
+        validationRequests.nullifierNonExistentReadRequests,
         endNonRevertibleData.newNullifiers,
         end.newNullifiers,
       );
@@ -479,9 +477,8 @@ function patchPublicStorageActionOrdering(
   execResult: PublicExecutionResult,
   phase: PublicKernelPhase,
 ) {
-  const { publicDataReads, publicDataUpdateRequests } = PhaseIsRevertible[phase]
-    ? publicInputs.end
-    : publicInputs.endNonRevertibleData;
+  const { publicDataUpdateRequests } = PhaseIsRevertible[phase] ? publicInputs.end : publicInputs.endNonRevertibleData;
+  const { publicDataReads } = publicInputs.validationRequests;
 
   // Convert ContractStorage* objects to PublicData* objects and sort them in execution order.
   // Note, this only pulls simulated reads/writes from the current phase,
@@ -518,14 +515,14 @@ function patchPublicStorageActionOrdering(
 
   const numReadsInKernel = arrayNonEmptyLength(publicDataReads, f => f.isEmpty());
   const numReadsBeforeThisEnqueuedCall = numReadsInKernel - simPublicDataReads.length;
-  publicInputs[effectSet].publicDataReads = padArrayEnd(
+  publicInputs.validationRequests.publicDataReads = padArrayEnd(
     [
       // do not mess with items from previous top/enqueued calls in kernel output
-      ...publicInputs[effectSet].publicDataReads.slice(0, numReadsBeforeThisEnqueuedCall),
+      ...publicInputs.validationRequests.publicDataReads.slice(0, numReadsBeforeThisEnqueuedCall),
       ...simPublicDataReads,
     ],
     PublicDataRead.empty(),
-    PhaseIsRevertible[phase] ? MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX : MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
+    MAX_PUBLIC_DATA_READS_PER_TX,
   );
 
   const numUpdatesInKernel = arrayNonEmptyLength(publicDataUpdateRequests, f => f.isEmpty());

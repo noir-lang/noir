@@ -20,6 +20,7 @@ mod public_data_read;
 mod public_data_update_request;
 
 mod accumulated_data;
+mod validation_requests;
 
 mod private_kernel;
 mod kernel_circuit_public_inputs;

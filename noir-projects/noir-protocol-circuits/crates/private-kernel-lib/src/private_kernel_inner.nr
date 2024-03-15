@@ -583,7 +583,7 @@ mod tests {
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 0);
+        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 0);
     }
 
     #[test]
@@ -595,7 +595,7 @@ mod tests {
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 0);
+        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 0);
     }
 
     #[test]
@@ -607,7 +607,7 @@ mod tests {
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 0);
+        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 0);
     }
 
     #[test]
@@ -619,7 +619,7 @@ mod tests {
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 0);
+        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 0);
     }
 
     #[test]
@@ -631,7 +631,7 @@ mod tests {
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 1);
+        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 1);
     }
 
     #[test]
@@ -645,7 +645,7 @@ mod tests {
         let public_inputs = builder.execute();
 
         // non-transient read requests are NOT forwarded
-        assert_eq(array_length(public_inputs.end.note_hash_read_requests), 1);
+        assert_eq(array_length(public_inputs.validation_requests.note_hash_read_requests), 1);
     }
 
     #[test]
@@ -658,7 +658,7 @@ mod tests {
 
         // non-transient read requests are NOT forwarded
         assert_eq(
-            array_length(public_inputs.end.note_hash_read_requests), MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
+            array_length(public_inputs.validation_requests.note_hash_read_requests), MAX_NOTE_HASH_READ_REQUESTS_PER_CALL
         );
     }
 

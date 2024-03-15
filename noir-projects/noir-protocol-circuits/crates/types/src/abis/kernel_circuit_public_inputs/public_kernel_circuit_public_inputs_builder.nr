@@ -1,13 +1,15 @@
 use crate::abis::{
     accumulated_data::{AccumulatedNonRevertibleDataBuilder, AccumulatedRevertibleDataBuilder},
     combined_constant_data::CombinedConstantData,
-    kernel_circuit_public_inputs::public_kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs
+    kernel_circuit_public_inputs::public_kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs,
+    validation_requests::ValidationRequestsBuilder
 };
 
 use crate::mocked::AggregationObject;
 
 struct PublicKernelCircuitPublicInputsBuilder {
     aggregation_object: AggregationObject,
+    validation_requests: ValidationRequestsBuilder,
     end_non_revertible: AccumulatedNonRevertibleDataBuilder,
     end: AccumulatedRevertibleDataBuilder,
     constants: CombinedConstantData,
@@ -20,6 +22,7 @@ impl PublicKernelCircuitPublicInputsBuilder {
         let end = self.end.to_public();
         PublicKernelCircuitPublicInputs {
             aggregation_object: self.aggregation_object,
+            validation_requests: self.validation_requests.finish(),
             end_non_revertible,
             end,
             constants: self.constants,

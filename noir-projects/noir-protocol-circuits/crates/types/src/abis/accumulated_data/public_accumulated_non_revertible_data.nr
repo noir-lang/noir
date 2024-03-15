@@ -1,15 +1,13 @@
 use crate::{
     abis::{
-    call_request::CallRequest, public_data_read::PublicDataRead,
-    public_data_update_request::PublicDataUpdateRequest, read_request::ReadRequestContext,
+    call_request::CallRequest, public_data_update_request::PublicDataUpdateRequest,
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 }
 };
 use crate::constants::{
     MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
-    MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
-    MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
-    MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX
+    MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+    MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 };
 
 use dep::std::unsafe;
@@ -21,10 +19,7 @@ struct PublicAccumulatedNonRevertibleData {
     new_note_hashes: [SideEffect; MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX],
     new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX],
     public_call_stack: [CallRequest; MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX],
-    nullifier_read_requests: [ReadRequestContext; MAX_NULLIFIER_READ_REQUESTS_PER_TX],
-    nullifier_non_existent_read_requests: [ReadRequestContext; MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX],
     public_data_update_requests: [PublicDataUpdateRequest; MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    public_data_reads: [PublicDataRead; MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX],
 }
 
 impl PublicAccumulatedNonRevertibleData {

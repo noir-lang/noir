@@ -34,6 +34,8 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
         // validate the inputs unique to having a previous public kernel
         self.validate_inputs();
 
+        common::update_validation_requests(self.public_call, &mut public_inputs);
+
         if public_inputs.reverted == false {
             // Pops the item from the call stack and validates it against the current execution.
             let call_request = public_inputs.end.public_call_stack.pop();
@@ -224,7 +226,7 @@ mod tests {
 
         // Setup 2 data reads on the previous kernel.
         builder.previous_kernel.append_public_data_read_requests(2);
-        let previous = builder.previous_kernel.end.public_data_reads.storage;
+        let previous = builder.previous_kernel.validation_requests.public_data_reads.storage;
         // Setup 2 data reads on the current public inputs.
         builder.public_call.append_public_data_read_requests(2);
         let current = builder.get_current_public_data_reads();
@@ -232,7 +234,7 @@ mod tests {
         let public_inputs = builder.execute();
 
         assert_eq_public_data_reads(
-            public_inputs.end.public_data_reads,
+            public_inputs.validation_requests.public_data_reads,
             public_data_read_requests
         );
     }
@@ -417,7 +419,10 @@ mod tests {
             public_inputs.end.public_data_update_requests,
             update_requests
         );
-        assert_eq_public_data_reads(public_inputs.end.public_data_reads, read_requests);
+        assert_eq_public_data_reads(
+            public_inputs.validation_requests.public_data_reads,
+            read_requests
+        );
     }
 
     #[test]
@@ -432,7 +437,7 @@ mod tests {
 
         let public_inputs = builder.execute();
 
-        let end_requests = public_inputs.end_non_revertible.nullifier_non_existent_read_requests;
+        let end_requests = public_inputs.validation_requests.nullifier_non_existent_read_requests;
         assert_eq(array_length(end_requests), 2);
 
         let request_context = end_requests[0];

@@ -2,6 +2,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { AggregationObject } from '../aggregation_object.js';
+import { ValidationRequests } from '../validation_requests.js';
 import { CombinedAccumulatedData } from './combined_accumulated_data.js';
 import { CombinedConstantData } from './combined_constant_data.js';
 
@@ -18,6 +19,10 @@ export class PrivateKernelInnerCircuitPublicInputs {
      * The side effect counter that non-revertible side effects are all beneath.
      */
     public minRevertibleSideEffectCounter: Fr,
+    /**
+     * Validation requests accumulated from public functions.
+     */
+    public validationRequests: ValidationRequests,
     /**
      * Data accumulated from both public and private circuits.
      */
@@ -36,6 +41,7 @@ export class PrivateKernelInnerCircuitPublicInputs {
     return serializeToBuffer(
       this.aggregationObject,
       this.minRevertibleSideEffectCounter,
+      this.validationRequests,
       this.end,
       this.constants,
       this.isPrivate,
@@ -52,6 +58,7 @@ export class PrivateKernelInnerCircuitPublicInputs {
     return new PrivateKernelInnerCircuitPublicInputs(
       reader.readObject(AggregationObject),
       reader.readObject(Fr),
+      reader.readObject(ValidationRequests),
       reader.readObject(CombinedAccumulatedData),
       reader.readObject(CombinedConstantData),
       reader.readBoolean(),
@@ -62,6 +69,7 @@ export class PrivateKernelInnerCircuitPublicInputs {
     return new PrivateKernelInnerCircuitPublicInputs(
       AggregationObject.makeFake(),
       Fr.zero(),
+      ValidationRequests.empty(),
       CombinedAccumulatedData.empty(),
       CombinedConstantData.empty(),
       true,

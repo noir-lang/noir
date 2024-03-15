@@ -29,6 +29,7 @@ import {
   PublicAccumulatedRevertibleData,
   PublicCallRequest,
   PublicKernelCircuitPublicInputs,
+  ValidationRequests,
   makeEmptyProof,
 } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
@@ -123,6 +124,7 @@ describe('public_processor', () => {
         hash,
         data: new PublicKernelCircuitPublicInputs(
           tx.data.aggregationObject,
+          ValidationRequests.empty(),
           PublicAccumulatedNonRevertibleData.fromPrivateAccumulatedNonRevertibleData(tx.data.endNonRevertibleData),
           PublicAccumulatedRevertibleData.fromPrivateAccumulatedRevertibleData(tx.data.end),
           tx.data.constants,

@@ -1,8 +1,8 @@
 use crate::mocked::{Proof, VerificationKey};
 use crate::constants::VK_TREE_HEIGHT;
 use crate::abis::kernel_circuit_public_inputs::{
-    PrivateKernelInnerCircuitPublicInputs, PrivateKernelTailCircuitPublicInputs,
-    PublicKernelCircuitPublicInputs, RollupKernelCircuitPublicInputs
+    PrivateKernelInnerCircuitPublicInputs, PublicKernelCircuitPublicInputs,
+    RollupKernelCircuitPublicInputs
 };
 
 struct PrivateKernelInnerData {
@@ -23,14 +23,6 @@ struct PrivateKernelInnerData {
 
     // TODO(Mike): left a note saying : this index and path are meant to be those of a leaf within the tree of _kernel circuit_ vks; not the tree
     // of functions within the contract tree.
-    vk_index : u32,
-    vk_path : [Field; VK_TREE_HEIGHT],
-}
-
-struct PrivateKernelTailData {
-    public_inputs : PrivateKernelTailCircuitPublicInputs,
-    proof : Proof,
-    vk : VerificationKey,
     vk_index : u32,
     vk_path : [Field; VK_TREE_HEIGHT],
 }

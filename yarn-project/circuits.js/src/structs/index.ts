@@ -41,6 +41,8 @@ export * from './proof.js';
 export * from './public_call_request.js';
 export * from './public_call_stack_item.js';
 export * from './public_circuit_public_inputs.js';
+export * from './public_data_read_request.js';
+export * from './public_data_update_request.js';
 export * from './read_request.js';
 export * from './note_hash_read_request_membership_witness.js';
 export * from './read_request_hints.js';
@@ -57,6 +59,7 @@ export * from './side_effects.js';
 export * from './state_reference.js';
 export * from './tx_context.js';
 export * from './tx_request.js';
+export * from './validation_requests.js';
 export * from './verification_key.js';
 
 export { FunctionSelector } from '@aztec/foundation/abi';

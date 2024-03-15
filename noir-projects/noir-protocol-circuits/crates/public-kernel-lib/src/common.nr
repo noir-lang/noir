@@ -1,20 +1,20 @@
 use dep::types::{
     abis::{
     call_request::CallRequest, public_call_stack_item::PublicCallStackItem,
-    kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder,
-    kernel_data::{PrivateKernelTailData, PublicKernelData}, public_call_data::PublicCallData,
-    public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
-    read_request::ReadRequestContext, side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder, kernel_data::PublicKernelData,
+    public_call_data::PublicCallData, public_data_read::PublicDataRead,
+    public_data_update_request::PublicDataUpdateRequest, read_request::ReadRequestContext,
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
     address::AztecAddress,
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     constants::{
     MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    MAX_PUBLIC_DATA_READS_PER_CALL, NUM_FIELDS_PER_SHA256, MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX,
+    MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_CALL, NUM_FIELDS_PER_SHA256,
     MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX
+    MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 },
     hash::{silo_note_hash, silo_nullifier, compute_l2_to_l1_hash, accumulate_sha256},
     utils::{arrays::{array_length, array_to_bounded_vec}}, traits::{is_empty, is_empty_array}
@@ -61,8 +61,6 @@ pub fn initialize_emitted_end_values(
         circuit_outputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
         circuit_outputs.end.new_l2_to_l1_msgs = array_to_bounded_vec(start.new_l2_to_l1_msgs);
         circuit_outputs.end.public_data_update_requests = array_to_bounded_vec(start.public_data_update_requests);
-        // TODO - should be propagated only in initialize_end_values() and clear them in the tail circuit.
-        circuit_outputs.end.public_data_reads = array_to_bounded_vec(start.public_data_reads);
         circuit_outputs.end.unencrypted_logs_hash = start.unencrypted_logs_hash;
         circuit_outputs.end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
         circuit_outputs.end.encrypted_logs_hash = start.encrypted_logs_hash;
@@ -73,7 +71,10 @@ pub fn initialize_emitted_end_values(
     circuit_outputs.end_non_revertible.new_note_hashes = array_to_bounded_vec(start_non_revertible.new_note_hashes);
     circuit_outputs.end_non_revertible.new_nullifiers = array_to_bounded_vec(start_non_revertible.new_nullifiers);
     circuit_outputs.end_non_revertible.public_data_update_requests = array_to_bounded_vec(start_non_revertible.public_data_update_requests);
-    circuit_outputs.end_non_revertible.public_data_reads = array_to_bounded_vec(start_non_revertible.public_data_reads);
+
+    // TODO - should be propagated only in initialize_end_values() and clear them in the tail circuit.
+    let start = previous_kernel.public_inputs.validation_requests;
+    circuit_outputs.validation_requests.public_data_reads = array_to_bounded_vec(start.public_data_reads);
 }
 
 // Initialises the circuit outputs with the end state of the previous iteration. 
@@ -88,13 +89,14 @@ pub fn initialize_end_values(
         let start = previous_kernel.public_inputs.end;
         // circuit_outputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack); // This is enforced in the private tail to always be empty.
         circuit_outputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
-        circuit_outputs.end.nullifier_read_requests = array_to_bounded_vec(start.nullifier_read_requests);
     }
 
     let start_non_revertible = previous_kernel.public_inputs.end_non_revertible;
     circuit_outputs.end_non_revertible.public_call_stack = array_to_bounded_vec(start_non_revertible.public_call_stack);
-    circuit_outputs.end_non_revertible.nullifier_read_requests = array_to_bounded_vec(start_non_revertible.nullifier_read_requests);
-    circuit_outputs.end_non_revertible.nullifier_non_existent_read_requests = array_to_bounded_vec(start_non_revertible.nullifier_non_existent_read_requests);
+
+    let start = previous_kernel.public_inputs.validation_requests;
+    circuit_outputs.validation_requests.nullifier_read_requests = array_to_bounded_vec(start.nullifier_read_requests);
+    circuit_outputs.validation_requests.nullifier_non_existent_read_requests = array_to_bounded_vec(start.nullifier_non_existent_read_requests);
 }
 
 fn perform_static_call_checks(public_call: PublicCallData) {
@@ -151,6 +153,12 @@ fn validate_call_requests<N>(
     }
 }
 
+pub fn update_validation_requests(public_call: PublicCallData, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
+    propagate_nullifier_read_requests(public_call, circuit_outputs);
+    propagate_nullifier_non_existent_read_requests(public_call, circuit_outputs);
+    propagate_valid_public_data_reads(public_call, circuit_outputs);
+}
+
 pub fn update_public_end_non_revertible_values(
     public_call: PublicCallData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
@@ -166,12 +174,9 @@ pub fn update_public_end_non_revertible_values(
     validate_call_requests(public_call_requests, hashes, public_call);
     circuit_outputs.end_non_revertible.public_call_stack.extend_from_bounded_vec(public_call_requests);
 
-    propagate_nullifier_read_requests_non_revertible(public_call, circuit_outputs);
-    propagate_nullifier_non_existent_read_requests_non_revertible(public_call, circuit_outputs);
     propagate_new_nullifiers_non_revertible(public_call, circuit_outputs);
     propagate_new_note_hashes_non_revertible(public_call, circuit_outputs);
     propagate_valid_non_revertible_public_data_update_requests(public_call, circuit_outputs);
-    propagate_valid_non_revertible_public_data_reads(public_call, circuit_outputs);
     // TODO(fees) propagate the following to non-revertible
     // propagate_new_l2_to_l1_messages(public_call, circuit_outputs);
 }
@@ -188,20 +193,15 @@ pub fn update_public_end_values(public_call: PublicCallData, circuit_outputs: &m
     validate_call_requests(public_call_requests, hashes, public_call);
     circuit_outputs.end.public_call_stack.extend_from_bounded_vec(public_call_requests);
 
-    propagate_nullifier_read_requests_revertible(public_call, circuit_outputs);
-    propagate_nullifier_non_existent_read_requests_non_revertible(public_call, circuit_outputs); // TODO - Requests are not revertible and should be propagated to "validation_requests".
-
     propagate_new_nullifiers(public_call, circuit_outputs);
     propagate_new_note_hashes(public_call, circuit_outputs);
 
     propagate_new_l2_to_l1_messages(public_call, circuit_outputs);
 
     propagate_valid_public_data_update_requests(public_call, circuit_outputs);
-
-    propagate_valid_public_data_reads(public_call, circuit_outputs);
 }
 
-fn propagate_nullifier_read_requests_non_revertible<T>(
+fn propagate_nullifier_read_requests<T>(
     public_call: PublicCallData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
@@ -212,28 +212,12 @@ fn propagate_nullifier_read_requests_non_revertible<T>(
     for i in 0..MAX_NULLIFIER_READ_REQUESTS_PER_CALL {
         let request = nullifier_read_requests[i];
         if !is_empty(request) {
-            circuit_outputs.end_non_revertible.nullifier_read_requests.push(request.to_context(storage_contract_address));
+            circuit_outputs.validation_requests.nullifier_read_requests.push(request.to_context(storage_contract_address));
         }
     }
 }
 
-fn propagate_nullifier_read_requests_revertible<T>(
-    public_call: PublicCallData,
-    circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
-) {
-    let public_call_public_inputs = public_call.call_stack_item.public_inputs;
-    let nullifier_read_requests = public_call_public_inputs.nullifier_read_requests;
-    let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
-
-    for i in 0..MAX_NULLIFIER_READ_REQUESTS_PER_CALL {
-        let request = nullifier_read_requests[i];
-        if !is_empty(request) {
-            circuit_outputs.end.nullifier_read_requests.push(request.to_context(storage_contract_address));
-        }
-    }
-}
-
-fn propagate_nullifier_non_existent_read_requests_non_revertible<T>(
+fn propagate_nullifier_non_existent_read_requests<T>(
     public_call: PublicCallData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
@@ -244,7 +228,7 @@ fn propagate_nullifier_non_existent_read_requests_non_revertible<T>(
     for i in 0..MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL {
         let request = nullifier_non_existent_read_requests[i];
         if !is_empty(request) {
-            circuit_outputs.end_non_revertible.nullifier_non_existent_read_requests.push(request.to_context(storage_contract_address));
+            circuit_outputs.validation_requests.nullifier_non_existent_read_requests.push(request.to_context(storage_contract_address));
         }
     }
 }
@@ -301,10 +285,9 @@ fn propagate_valid_public_data_reads(public_call: PublicCallData, circuit_output
     let contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
     let read_requests = public_call.call_stack_item.public_inputs.contract_storage_reads;
 
-    // TODO(fees) should we have a MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_CALL
-    let mut public_data_reads : BoundedVec<PublicDataRead, MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX> = BoundedVec::new();
+    let mut public_data_reads : BoundedVec<PublicDataRead, MAX_PUBLIC_DATA_READS_PER_CALL> = BoundedVec::new();
 
-    for i in 0..MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX {
+    for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
         let read_request: StorageRead = read_requests[i];
         if !read_request.is_empty() {
             let public_data_read = PublicDataRead {
@@ -314,30 +297,7 @@ fn propagate_valid_public_data_reads(public_call: PublicCallData, circuit_output
             public_data_reads.push(public_data_read);
         }
     }
-    circuit_outputs.end.public_data_reads.extend_from_bounded_vec(public_data_reads);
-}
-
-fn propagate_valid_non_revertible_public_data_reads(
-    public_call: PublicCallData,
-    circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
-) {
-    let contract_address = public_call.call_stack_item.contract_address;
-    let read_requests = public_call.call_stack_item.public_inputs.contract_storage_reads;
-
-    // TODO(fees) should we have a MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_CALL
-    let mut public_data_reads : BoundedVec<PublicDataRead, MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX> = BoundedVec::new();
-
-    for i in 0..MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX {
-        let read_request: StorageRead = read_requests[i];
-        if !read_request.is_empty() {
-            let public_data_read = PublicDataRead {
-                leaf_slot: compute_public_data_tree_index(contract_address, read_request.storage_slot),
-                value: compute_public_data_tree_value(read_request.current_value)
-            };
-            public_data_reads.push(public_data_read);
-        }
-    }
-    circuit_outputs.end_non_revertible.public_data_reads.extend_from_bounded_vec(public_data_reads);
+    circuit_outputs.validation_requests.public_data_reads.extend_from_bounded_vec(public_data_reads);
 }
 
 fn propagate_new_note_hashes_non_revertible(

@@ -41,8 +41,6 @@ library Constants {
   uint256 internal constant MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX = 16;
   uint256 internal constant MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX = 16;
   uint256 internal constant MAX_PUBLIC_DATA_READS_PER_TX = 32;
-  uint256 internal constant MAX_NON_REVERTIBLE_PUBLIC_DATA_READS_PER_TX = 16;
-  uint256 internal constant MAX_REVERTIBLE_PUBLIC_DATA_READS_PER_TX = 16;
   uint256 internal constant MAX_NEW_L2_TO_L1_MSGS_PER_TX = 2;
   uint256 internal constant MAX_NOTE_HASH_READ_REQUESTS_PER_TX = 128;
   uint256 internal constant MAX_NULLIFIER_READ_REQUESTS_PER_TX = 8;

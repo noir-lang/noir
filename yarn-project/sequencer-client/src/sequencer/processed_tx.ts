@@ -11,6 +11,7 @@ import {
   PublicKernelCircuitPublicInputs,
   SideEffect,
   SideEffectLinkedToNoteHash,
+  ValidationRequests,
   makeEmptyProof,
 } from '@aztec/circuits.js';
 import { Tuple, fromFieldsTuple } from '@aztec/foundation/serialize';
@@ -109,6 +110,7 @@ export function getPreviousOutputAndProof(
   } else {
     const publicKernelPublicInput = new PublicKernelCircuitPublicInputs(
       tx.data.aggregationObject,
+      ValidationRequests.empty(),
       PublicAccumulatedNonRevertibleData.fromPrivateAccumulatedNonRevertibleData(tx.data.endNonRevertibleData),
       PublicAccumulatedRevertibleData.fromPrivateAccumulatedRevertibleData(tx.data.end),
       tx.data.constants,
