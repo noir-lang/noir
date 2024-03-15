@@ -20,11 +20,11 @@ pub type PathResolution =
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PathResolutionError {
-    #[error("foo")]
+    #[error("Could not resolve '{0}' in path")]
     Unresolved(Ident),
-    #[error("bar")]
+    #[error("Contract variable '{0}' referenced from outside the contract")]
     ExternalContractUsed(Ident),
-    #[error("baz")]
+    #[error("{0} is private and not visible from the current module")]
     Private(Ident),
 }
 
@@ -41,19 +41,19 @@ pub struct ResolvedImport {
 
 impl From<PathResolutionError> for CustomDiagnostic {
     fn from(error: PathResolutionError) -> Self {
-        match error {
+        match &error {
             PathResolutionError::Unresolved(ident) => CustomDiagnostic::simple_error(
-                format!("Could not resolve '{ident}' in path"),
+                error.to_string(),
                 String::new(),
                 ident.span(),
             ),
             PathResolutionError::ExternalContractUsed(ident) => CustomDiagnostic::simple_error(
-                format!("Contract variable '{ident}' referenced from outside the contract"),
+                error.to_string(),
                 "Contracts may only be referenced from within a contract".to_string(),
                 ident.span(),
             ),
             PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
-                format!("{ident} is private and not visible from the current module"),
+                error.to_string(),
                 format!("{ident} is private"),
                 ident.span(),
             ),
