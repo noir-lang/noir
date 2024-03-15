@@ -53,7 +53,7 @@ class ToyProver {
 
     std::shared_ptr<PCSCommitmentKey> commitment_key;
 
-    using ZeroMorph = ZeroMorphProver_<Curve>;
+    using ZeroMorph = ZeroMorphProver_<PCS>;
 
   private:
     HonkProof proof;

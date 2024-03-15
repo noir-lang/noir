@@ -18,7 +18,7 @@ template <IsUltraFlavor Flavor> class DeciderProver_ {
     using Polynomial = typename Flavor::Polynomial;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
-    using Curve = typename Flavor::Curve;
+    using PCS = typename Flavor::PCS;
     using Instance = ProverInstance_<Flavor>;
     using Transcript = typename Flavor::Transcript;
     using RelationSeparator = typename Flavor::RelationSeparator;
@@ -47,7 +47,7 @@ template <IsUltraFlavor Flavor> class DeciderProver_ {
 
     std::shared_ptr<CommitmentKey> commitment_key;
 
-    using ZeroMorph = ZeroMorphProver_<Curve>;
+    using ZeroMorph = ZeroMorphProver_<PCS>;
 
   private:
     HonkProof proof;

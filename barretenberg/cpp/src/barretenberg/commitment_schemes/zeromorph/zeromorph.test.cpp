@@ -1,19 +1,21 @@
 #include "zeromorph.hpp"
 #include "../commitment_key.test.hpp"
+#include "barretenberg/commitment_schemes/kzg/kzg.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 #include <gtest/gtest.h>
 
 namespace bb {
 
-template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
+template <class PCS> class ZeroMorphTest : public CommitmentTest<typename PCS::Curve> {
   public:
+    using Curve = typename PCS::Curve;
     using Fr = typename Curve::ScalarField;
     using Polynomial = bb::Polynomial<Fr>;
     using Commitment = typename Curve::AffineElement;
     using GroupElement = typename Curve::Element;
-    using ZeroMorphProver = ZeroMorphProver_<Curve>;
-    using ZeroMorphVerifier = ZeroMorphVerifier_<Curve>;
+    using ZeroMorphProver = ZeroMorphProver_<PCS>;
+    using ZeroMorphVerifier = ZeroMorphVerifier_<PCS>;
 
     // Evaluate Phi_k(x) = \sum_{i=0}^k x^i using the direct inefficent formula
     Fr Phi(Fr challenge, size_t subscript)
@@ -105,14 +107,15 @@ template <class Curve> class ZeroMorphTest : public CommitmentTest<Curve> {
     }
 };
 
-template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentTest<Curve> {
+template <class PCS> class ZeroMorphWithConcatenationTest : public CommitmentTest<typename PCS::Curve> {
   public:
+    using Curve = typename PCS::Curve;
     using Fr = typename Curve::ScalarField;
     using Polynomial = bb::Polynomial<Fr>;
     using Commitment = typename Curve::AffineElement;
     using GroupElement = typename Curve::Element;
-    using ZeroMorphProver = ZeroMorphProver_<Curve>;
-    using ZeroMorphVerifier = ZeroMorphVerifier_<Curve>;
+    using ZeroMorphProver = ZeroMorphProver_<PCS>;
+    using ZeroMorphVerifier = ZeroMorphVerifier_<PCS>;
 
     // Evaluate Phi_k(x) = \sum_{i=0}^k x^i using the direct inefficent formula
     Fr Phi(Fr challenge, size_t subscript)
@@ -260,9 +263,9 @@ template <class Curve> class ZeroMorphWithConcatenationTest : public CommitmentT
     }
 };
 
-using CurveTypes = ::testing::Types<curve::BN254>;
-TYPED_TEST_SUITE(ZeroMorphTest, CurveTypes);
-TYPED_TEST_SUITE(ZeroMorphWithConcatenationTest, CurveTypes);
+using PCSTypes = ::testing::Types<KZG<curve::BN254>>;
+TYPED_TEST_SUITE(ZeroMorphTest, PCSTypes);
+TYPED_TEST_SUITE(ZeroMorphWithConcatenationTest, PCSTypes);
 
 /**
  * @brief Test method for computing q_k given multilinear f
@@ -276,7 +279,8 @@ TYPED_TEST(ZeroMorphTest, QuotientConstruction)
 {
     // Define some useful type aliases
     using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
-    using Fr = typename TypeParam::ScalarField;
+    using Curve = typename TypeParam::Curve;
+    using Fr = typename Curve::ScalarField;
     using Polynomial = bb::Polynomial<Fr>;
 
     // Define size parameters
@@ -323,7 +327,8 @@ TYPED_TEST(ZeroMorphTest, BatchedLiftedDegreeQuotient)
 {
     // Define some useful type aliases
     using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
-    using Fr = typename TypeParam::ScalarField;
+    using Curve = typename TypeParam::Curve;
+    using Fr = typename Curve::ScalarField;
     using Polynomial = bb::Polynomial<Fr>;
 
     const size_t N = 8;
@@ -367,7 +372,8 @@ TYPED_TEST(ZeroMorphTest, PartiallyEvaluatedQuotientZeta)
 {
     // Define some useful type aliases
     using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
-    using Fr = typename TypeParam::ScalarField;
+    using Curve = typename TypeParam::Curve;
+    using Fr = typename Curve::ScalarField;
     using Polynomial = bb::Polynomial<Fr>;
 
     const size_t N = 8;
@@ -409,7 +415,8 @@ TYPED_TEST(ZeroMorphTest, PartiallyEvaluatedQuotientZeta)
  */
 TYPED_TEST(ZeroMorphTest, PhiEvaluation)
 {
-    using Fr = typename TypeParam::ScalarField;
+    using Curve = typename TypeParam::Curve;
+    using Fr = typename Curve::ScalarField;
     const size_t N = 8;
     size_t n = numeric::get_msb(N);
 
@@ -449,7 +456,8 @@ TYPED_TEST(ZeroMorphTest, PartiallyEvaluatedQuotientZ)
 {
     // Define some useful type aliases
     using ZeroMorphProver = ZeroMorphProver_<TypeParam>;
-    using Fr = typename TypeParam::ScalarField;
+    using Curve = typename TypeParam::Curve;
+    using Fr = typename Curve::ScalarField;
     using Polynomial = bb::Polynomial<Fr>;
 
     const size_t N = 8;

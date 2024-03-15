@@ -11,13 +11,16 @@
 
 namespace bb {
 
-template <typename Curve> class KZG {
+template <typename Curve_> class KZG {
+  public:
+    using Curve = Curve_;
     using CK = CommitmentKey<Curve>;
     using VK = VerifierCommitmentKey<Curve>;
     using Fr = typename Curve::ScalarField;
     using Commitment = typename Curve::AffineElement;
     using GroupElement = typename Curve::Element;
     using Polynomial = bb::Polynomial<Fr>;
+    using VerifierAccumulator = std::array<GroupElement, 2>;
 
     /**
      * @brief Computes the KZG commitment to an opening proof polynomial at a single evaluation point
@@ -27,7 +30,6 @@ template <typename Curve> class KZG {
      * @param polynomial The witness whose opening proof needs to be computed
      * @param prover_transcript Prover transcript
      */
-  public:
     static void compute_opening_proof(std::shared_ptr<CK> ck,
                                       const OpeningPair<Curve>& opening_pair,
                                       const Polynomial& polynomial,
@@ -75,13 +77,16 @@ template <typename Curve> class KZG {
      *      - P₀ = C − v⋅[1]₁ + r⋅[W(x)]₁
      *      - P₁ = [W(x)]₁
      */
-    static std::array<GroupElement, 2> compute_pairing_points(const OpeningClaim<Curve>& claim,
-                                                              const auto& verifier_transcript)
+    static VerifierAccumulator reduce_verify(const OpeningClaim<Curve>& claim, const auto& verifier_transcript)
     {
         auto quotient_commitment = verifier_transcript->template receive_from_prover<Commitment>("KZG:W");
 
+        // Note: The pairing check can be expressed naturally as
+        // e(C - v * [1]_1, [1]_2) = e([W]_1, [X - r]_2) where C =[p(X)]_1. This can be rearranged (e.g. see the plonk
+        // paper) as e(C + r*[W]_1 - v*[1]_1, [1]_2) * e(-[W]_1, [X]_2) = 1, or e(P_0, [1]_2) * e(P_1, [X]_2) = 1
         GroupElement P_0;
         if constexpr (Curve::is_stdlib_type) {
+            // Express operation as a batch_mul in order to use Goblinization if available
             auto builder = quotient_commitment.get_context();
             auto one = Fr(builder, 1);
             std::vector<GroupElement> commitments = { claim.commitment,

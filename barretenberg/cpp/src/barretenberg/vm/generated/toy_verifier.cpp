@@ -32,8 +32,8 @@ bool ToyVerifier::verify_proof(const HonkProof& proof)
     using Flavor = ToyFlavor;
     using FF = Flavor::FF;
     using Commitment = Flavor::Commitment;
-    // using Curve = Flavor::Curve;
-    // using ZeroMorph = ZeroMorphVerifier_<Curve>;
+    // using PCS = Flavor::PCS;
+    // using ZeroMorph = ZeroMorphVerifier_<PCS>;
     using VerifierCommitments = Flavor::VerifierCommitments;
     using CommitmentLabels = Flavor::CommitmentLabels;
 

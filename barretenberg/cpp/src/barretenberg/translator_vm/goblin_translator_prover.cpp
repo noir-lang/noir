@@ -155,7 +155,7 @@ void GoblinTranslatorProver::execute_relation_check_rounds()
  * */
 void GoblinTranslatorProver::execute_zeromorph_rounds()
 {
-    using ZeroMorph = ZeroMorphProver_<Curve>;
+    using ZeroMorph = ZeroMorphProver_<PCS>;
     ZeroMorph::prove(prover_polynomials.get_unshifted(),
                      prover_polynomials.get_to_be_shifted(),
                      sumcheck_output.claimed_evaluations.get_unshifted(),

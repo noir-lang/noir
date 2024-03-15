@@ -19,7 +19,7 @@ class GoblinTranslatorProver {
     using Polynomial = typename Flavor::Polynomial;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
-    using Curve = typename Flavor::Curve;
+    using PCS = typename Flavor::PCS;
     using Transcript = typename Flavor::Transcript;
 
   public:

@@ -21,8 +21,8 @@ template <typename Flavor>
 std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::verify_proof(const HonkProof& proof)
 {
     using Sumcheck = ::bb::SumcheckVerifier<Flavor>;
-    using Curve = typename Flavor::Curve;
-    using ZeroMorph = ::bb::ZeroMorphVerifier_<Curve>;
+    using PCS = typename Flavor::PCS;
+    using ZeroMorph = ::bb::ZeroMorphVerifier_<PCS>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using RelationParams = ::bb::RelationParameters<FF>;

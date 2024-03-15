@@ -34,6 +34,7 @@ template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
   public:
     using CircuitBuilder = BuilderType; // Determines arithmetization of circuit instantiated with this flavor
     using Curve = stdlib::bn254<CircuitBuilder>;
+    using PCS = KZG<Curve>;
     using GroupElement = typename Curve::Element;
     using FF = typename Curve::ScalarField;
     using Commitment = typename Curve::Element;

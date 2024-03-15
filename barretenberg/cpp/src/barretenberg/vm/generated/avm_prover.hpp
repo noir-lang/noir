@@ -20,7 +20,6 @@ class AvmProver {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
     using CommitmentLabels = Flavor::CommitmentLabels;
-    using Curve = Flavor::Curve;
     using Transcript = Flavor::Transcript;
 
   public:
@@ -53,7 +52,7 @@ class AvmProver {
 
     std::shared_ptr<PCSCommitmentKey> commitment_key;
 
-    using ZeroMorph = ZeroMorphProver_<Curve>;
+    using ZeroMorph = ZeroMorphProver_<PCS>;
 
   private:
     HonkProof proof;

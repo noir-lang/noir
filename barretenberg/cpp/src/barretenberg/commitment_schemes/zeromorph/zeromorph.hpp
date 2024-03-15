@@ -29,9 +29,10 @@ template <class FF> inline std::vector<FF> powers_of_challenge(const FF challeng
 /**
  * @brief Prover for ZeroMorph multilinear PCS
  *
- * @tparam Curve
+ * @tparam PCS - The univariate PCS used inside ZeroMorph as a building block
  */
-template <typename Curve> class ZeroMorphProver_ {
+template <typename PCS> class ZeroMorphProver_ {
+    using Curve = typename PCS::Curve;
     using FF = typename Curve::ScalarField;
     using Commitment = typename Curve::AffineElement;
     using Polynomial = bb::Polynomial<FF>;
@@ -263,10 +264,14 @@ template <typename Curve> class ZeroMorphProver_ {
     }
 
     /**
-     * @brief Compute combined evaluation and degree-check quotient polynomial pi
-     * @details Compute univariate quotient pi, where
+     * @brief Compute combined evaluation and degree-check polynomial pi
+     * @details Compute univariate polynomial pi, where
      *
-     *  pi = (q_\zeta + z*q_Z) X^{N_{max}-(N-1)}, with q_\zeta = \zeta_x/(X-x), q_Z = Z_x/(X-x)
+     *  pi = (\zeta_c + z*Z_x) X^{N_{max}-(N-1)}
+     *
+     * The proof that pi(x) = 0 for some verifier challenge x will then be computed as part of the univariate PCS
+     * opening. If this is instantiated with KZG, the PCS is going to compute the quotient
+     * q_pi = (q_\zeta + z*q_Z)X^{N_{max}-(N-1)}, with q_\zeta = \zeta_x/(X-x), q_Z = Z_x/(X-x),
      *
      * @param Z_x
      * @param zeta_x
@@ -275,35 +280,30 @@ template <typename Curve> class ZeroMorphProver_ {
      * @param N_max
      * @return Polynomial
      */
-    static Polynomial compute_batched_evaluation_and_degree_check_quotient(Polynomial& zeta_x,
-                                                                           Polynomial& Z_x,
-                                                                           FF x_challenge,
-                                                                           FF z_challenge)
+    static Polynomial compute_batched_evaluation_and_degree_check_polynomial(Polynomial& zeta_x,
+                                                                             Polynomial& Z_x,
+                                                                             FF z_challenge)
     {
         // We cannot commit to polynomials with size > N_max
         size_t N = zeta_x.size();
         ASSERT(N <= N_max);
 
-        // Compute q_{\zeta} and q_Z in place
-        zeta_x.factor_roots(x_challenge);
-        Z_x.factor_roots(x_challenge);
+        // Compute batched polynomial zeta_x + Z_x
+        auto batched_polynomial = zeta_x;
+        batched_polynomial.add_scaled(Z_x, z_challenge);
 
-        // Compute batched quotient q_{\zeta} + z*q_Z
-        auto batched_quotient = zeta_x;
-        batched_quotient.add_scaled(Z_x, z_challenge);
+        // TODO(#742): To complete the degree check, we need to do an opening proof for x_challenge with a univariate
+        // PCS for the degree-lifted polynomial (\zeta_c + z*Z_x)*X^{N_max - N - 1}. If this PCS is KZG, verification
+        // then requires a pairing check similar to the standard KZG check but with [1]_2 replaced by [X^{N_max - N
+        // -1}]_2. Two issues: A) we do not have an SRS with these G2 elements (so need to generate a fake setup until
+        // we can do the real thing), and B) its not clear to me how to update our pairing algorithms to do this type of
+        // pairing. For now, simply construct pi without the shift and do a standard KZG pairing check if the PCS is
+        // KZG. When we're ready, all we have to do to make this fully legit is commit to the shift here and update the
+        // pairing check accordingly. Note: When this is implemented properly, it doesnt make sense to store the
+        // (massive) shifted polynomial of size N_max. Ideally would only store the unshifted version and just compute
+        // the shifted commitment directly via a new method.
 
-        // TODO(#742): To complete the degree check, we need to commit to (q_{\zeta} + z*q_Z)*X^{N_max - N - 1}.
-        // Verification then requires a pairing check similar to the standard KZG check but with [1]_2 replaced by
-        // [X^{N_max - N -1}]_2. Two issues: A) we do not have an SRS with these G2 elements (so need to generate a fake
-        // setup until we can do the real thing), and B) its not clear to me how to update our pairing algorithms to do
-        // this type of pairing. For now, simply construct q_{\zeta} + z*q_Z without the shift and do a standard KZG
-        // pairing check. When we're ready, all we have to do to make this fully legit is commit to the shift here and
-        // update the pairing check accordingly. Note: When this is implemented properly, it doesnt make sense to store
-        // the (massive) shifted polynomial of size N_max. Ideally would only store the unshifted version and just
-        // compute the shifted commitment directly via a new method.
-        auto batched_shifted_quotient = batched_quotient;
-
-        return batched_shifted_quotient;
+        return batched_polynomial;
     }
 
     /**
@@ -424,12 +424,11 @@ template <typename Curve> class ZeroMorphProver_ {
                                                                              concatenation_groups_batched);
 
         // Compute batched degree-check and ZM-identity quotient polynomial pi
-        auto pi_polynomial =
-            compute_batched_evaluation_and_degree_check_quotient(zeta_x, Z_x, x_challenge, z_challenge);
+        auto pi_polynomial = compute_batched_evaluation_and_degree_check_polynomial(zeta_x, Z_x, z_challenge);
 
-        // Compute and send proof commitment pi
-        auto pi_commitment = commitment_key->commit(pi_polynomial);
-        transcript->send_to_verifier("ZM:PI", pi_commitment);
+        // Compute opening proof for x_challenge using the underlying univariate PCS
+        PCS::compute_opening_proof(
+            commitment_key, { .challenge = x_challenge, .evaluation = FF(0) }, pi_polynomial, transcript);
     }
 };
 
@@ -438,9 +437,11 @@ template <typename Curve> class ZeroMorphProver_ {
  *
  * @tparam Curve
  */
-template <typename Curve> class ZeroMorphVerifier_ {
+template <typename PCS> class ZeroMorphVerifier_ {
+    using Curve = typename PCS::Curve;
     using FF = typename Curve::ScalarField;
     using Commitment = typename Curve::AffineElement;
+    using VerifierAccumulator = PCS::VerifierAccumulator;
 
   public:
     /**
@@ -634,15 +635,14 @@ template <typename Curve> class ZeroMorphVerifier_ {
      * @param transcript
      * @return std::array<Commitment, 2> Inputs to the final pairing check
      */
-    static std::array<Commitment, 2> verify(
-        RefSpan<Commitment> unshifted_commitments,
-        RefSpan<Commitment> to_be_shifted_commitments,
-        RefSpan<FF> unshifted_evaluations,
-        RefSpan<FF> shifted_evaluations,
-        std::span<FF> multivariate_challenge,
-        auto& transcript,
-        const std::vector<RefVector<Commitment>>& concatenation_group_commitments = {},
-        RefSpan<FF> concatenated_evaluations = {})
+    static VerifierAccumulator verify(RefSpan<Commitment> unshifted_commitments,
+                                      RefSpan<Commitment> to_be_shifted_commitments,
+                                      RefSpan<FF> unshifted_evaluations,
+                                      RefSpan<FF> shifted_evaluations,
+                                      std::span<FF> multivariate_challenge,
+                                      auto& transcript,
+                                      const std::vector<RefVector<Commitment>>& concatenation_group_commitments = {},
+                                      RefSpan<FF> concatenated_evaluations = {})
     {
         size_t log_N = multivariate_challenge.size();
         FF rho = transcript->template get_challenge<FF>("rho");
@@ -696,7 +696,7 @@ template <typename Curve> class ZeroMorphVerifier_ {
         Commitment C_zeta_Z;
         if constexpr (Curve::is_stdlib_type) {
             // Express operation as a batch_mul in order to use Goblinization if available
-            auto builder = rho.get_context();
+            auto builder = z_challenge.get_context();
             std::vector<FF> scalars = { FF(builder, 1), z_challenge };
             std::vector<Commitment> points = { C_zeta_x, C_Z_x };
             C_zeta_Z = Commitment::batch_mul(points, scalars);
@@ -704,28 +704,8 @@ template <typename Curve> class ZeroMorphVerifier_ {
             C_zeta_Z = C_zeta_x + C_Z_x * z_challenge;
         }
 
-        // Receive proof commitment \pi
-        auto C_pi = transcript->template receive_from_prover<Commitment>("ZM:PI");
-
-        // Construct inputs and perform pairing check to verify claimed evaluation
-        // Note: The pairing check (without the degree check component X^{N_max-N-1}) can be expressed naturally as
-        // e(C_{\zeta,Z}, [1]_2) = e(pi, [X - x]_2). This can be rearranged (e.g. see the plonk paper) as
-        // e(C_{\zeta,Z} - x*pi, [1]_2) * e(-pi, [X]_2) = 1, or
-        // e(P_0, [1]_2) * e(P_1, [X]_2) = 1
-        Commitment P0;
-        if constexpr (Curve::is_stdlib_type) {
-            // Express operation as a batch_mul in order to use Goblinization if available
-            auto builder = rho.get_context();
-            std::vector<FF> scalars = { FF(builder, 1), x_challenge };
-            std::vector<Commitment> points = { C_zeta_Z, C_pi };
-            P0 = Commitment::batch_mul(points, scalars);
-        } else {
-            P0 = C_zeta_Z + C_pi * x_challenge;
-        }
-
-        auto P1 = -C_pi;
-
-        return { P0, P1 };
+        return PCS::reduce_verify(
+            { .opening_pair = { .challenge = x_challenge, .evaluation = FF(0) }, .commitment = C_zeta_Z }, transcript);
     }
 };
 

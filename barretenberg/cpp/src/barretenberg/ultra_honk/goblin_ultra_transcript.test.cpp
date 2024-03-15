@@ -107,8 +107,7 @@ class GoblinUltraTranscriptTests : public ::testing::Test {
         manifest_expected.add_challenge(round, "ZM:x", "ZM:z");
 
         round++;
-        // TODO(Mara): Make testing more flavor agnostic so we can test this with all flavors
-        manifest_expected.add_entry(round, "ZM:PI", frs_per_G);
+        manifest_expected.add_entry(round, "KZG:W", frs_per_G);
         manifest_expected.add_challenge(round); // no challenge
 
         return manifest_expected;

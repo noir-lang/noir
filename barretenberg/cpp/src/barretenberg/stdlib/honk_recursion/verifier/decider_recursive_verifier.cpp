@@ -14,8 +14,8 @@ template <typename Flavor>
 std::array<typename Flavor::GroupElement, 2> DeciderRecursiveVerifier_<Flavor>::verify_proof(const HonkProof& proof)
 {
     using Sumcheck = ::bb::SumcheckVerifier<Flavor>;
-    using Curve = typename Flavor::Curve;
-    using ZeroMorph = ::bb::ZeroMorphVerifier_<Curve>;
+    using PCS = typename Flavor::PCS;
+    using ZeroMorph = ::bb::ZeroMorphVerifier_<PCS>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using Transcript = typename Flavor::Transcript;
 

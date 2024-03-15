@@ -43,8 +43,8 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
 {
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
-    using Curve = typename Flavor::Curve;
-    using ZeroMorph = ZeroMorphVerifier_<Curve>;
+    using PCS = typename Flavor::PCS;
+    using ZeroMorph = ZeroMorphVerifier_<PCS>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
 
