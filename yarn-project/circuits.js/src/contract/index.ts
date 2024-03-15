@@ -5,6 +5,5 @@ export * from './contract_class_id.js';
 export * from './contract_class_registered_event.js';
 export * from './contract_instance.js';
 export * from './contract_instance_deployed_event.js';
-export * from './contract_tree/index.js';
 export * from './private_function.js';
 export * from './public_bytecode.js';

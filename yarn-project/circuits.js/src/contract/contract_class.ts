@@ -52,6 +52,6 @@ export function getContractClassFromArtifact(
  * Returns zero for consistency with Noir.
  */
 function getVerificationKeyHash(_verificationKeyInBase64: string) {
-  // return Fr.fromBuffer(hashVKStr(verificationKeyInBase64));
+  // return Fr.fromBuffer(hashVK(Buffer.from(verificationKeyInBase64, 'hex')));
   return Fr.ZERO;
 }
