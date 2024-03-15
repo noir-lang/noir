@@ -1,0 +1,11 @@
+VERSION 0.8
+
+build:
+    ARG TARGETARCH
+    FROM DOCKERFILE .
+    SAVE IMAGE --push aztecprotocol/cache:foundry-nightly-de33b6af53005037b463318d2628b5cfcaf39916-$TARGETARCH
+
+get:
+    ARG TARGETARCH
+    # If this is failing, we need to run earthly --push +build
+    FROM aztecprotocol/cache:foundry-nightly-de33b6af53005037b463318d2628b5cfcaf39916-$TARGETARCH

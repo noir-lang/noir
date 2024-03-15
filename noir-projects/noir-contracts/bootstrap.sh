@@ -16,10 +16,12 @@ if [ -n "$CMD" ]; then
 fi
 
 echo "Compiling contracts..."
-../../noir/noir-repo/target/release/nargo compile --silence-warnings
+NARGO=${NARGO:-../../noir/noir-repo/target/release/nargo}
+$NARGO compile --silence-warnings
 
 echo "Transpiling avm contracts..."
 for contract_json in target/avm_test_*.json; do
   echo Transpiling $contract_json...
-  ../../avm-transpiler/target/release/avm-transpiler $contract_json $contract_json
+  TRANSPILER=${TRANSPILER:-../../avm-transpiler/target/release/avm-transpiler}
+  $TRANSPILER $contract_json $contract_json
 done

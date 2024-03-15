@@ -10,7 +10,7 @@ cd $(dirname $0)/..
 
 # Configure and build.
 cmake --preset wasm-threads
-cmake --build --preset wasm-threads --target $BENCHMARK 
+cmake --build --preset wasm-threads --target $BENCHMARK
 
 cd build-wasm-threads
 # Consistency with _wasm.sh targets / shorter $COMMAND.

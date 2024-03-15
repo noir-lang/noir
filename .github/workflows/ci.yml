@@ -1,0 +1,46 @@
+name: Run CI with Earthly
+on:
+  push:
+    branches:
+      - master
+  pull_request: {}
+  workflow_dispatch: {}
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    # run ci for both x86_64 and arm64
+    strategy: {matrix: {environment: [x86, arm]}}
+    # cancel if reran on same PR if exists, otherwise if on same commit
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.environment }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: recursive
+
+      - name: Setup
+        run: |
+          mkdir -p ~/.ssh
+          echo DOCKER_HOST=ssh://build-instance-${{ matrix.environment }}.aztecprotocol.com >> $GITHUB_ENV
+          echo ${{ secrets.DOCKERHUB_PASSWORD}} | docker login -u aztecprotocolci --password-stdin
+          echo ${{ secrets.BUILD_INSTANCE_SSH_KEY }} | base64 -d > ~/.ssh/build_instance_key
+          chmod 600 ~/.ssh/build_instance_key
+          cat > ~/.ssh/config <<EOF
+          IdentityFile ~/.ssh/build_instance_key
+          StrictHostKeyChecking no
+          User ubuntu
+          EOF
+
+      # Turn on if updating our custom built WASM-enabled clang (wasi-sdk), foundry or other base images
+      #- name: Ensure Base Images
+      #  run: |
+          # scripts/earthly --push ./foundry/+build
+          # Uncomment the following line if needed for the arm environment
+          # scripts/earthly --push ./barretenberg/cpp/+build-wasi-sdk
+
+      - name: CI
+        run: scripts/earthly +build-ci-small

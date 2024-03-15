@@ -1,0 +1,24 @@
+VERSION 0.8
+FROM ubuntu:lunar
+
+# Install nargo
+COPY ../noir/+nargo/nargo /usr/bin/nargo
+# Install transpiler
+COPY ../avm-transpiler/+build/avm-transpiler /usr/bin/avm-transpiler
+
+WORKDIR /build
+# Copy source.
+COPY --dir aztec-nr noir-contracts noir-protocol-circuits .
+
+build:
+  RUN cd noir-contracts && NARGO=nargo TRANSPILER=avm-transpiler ./bootstrap.sh
+  RUN cd noir-protocol-circuits && NARGO=nargo ./bootstrap.sh
+  SAVE ARTIFACT aztec-nr
+  SAVE ARTIFACT noir-contracts
+  SAVE ARTIFACT noir-protocol-circuits
+
+test:
+  FROM +build
+  RUN cd noir-protocol-circuits && nargo test --silence-warnings
+  RUN cd aztec-nr && nargo test --silence-warnings
+  RUN cd noir-contracts && nargo test --silence-warnings

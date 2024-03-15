@@ -11,8 +11,8 @@ BUILD_OP_COUNT_TRACK_DIR=build\-op\-count-track
 cd $(dirname $0)/..
 
 # Measure the benchmarks with ops counting
-cmake --preset op-count-track
-cmake --build --preset op-count-track --target $TARGET
+cmake --preset op-count
+cmake --build --preset op-count --target $TARGET
 # This can be run multithreaded
 cd $BUILD_OP_COUNT_TRACK_DIR
 ./bin/$TARGET --benchmark_filter=$FILTER\

@@ -1,0 +1,19 @@
+VERSION 0.8
+FROM ubuntu:lunar
+
+RUN apt-get update && apt-get install -y curl
+
+build:
+    WORKDIR /build
+    COPY ./*.sh .
+    RUN ./download_ignition.sh 3
+    RUN ./download_grumpkin.sh
+    # export srs-db for runners
+    SAVE ARTIFACT ignition ignition
+    SAVE ARTIFACT ignition grumpkin
+
+build-local:
+    # copy files locally
+    FROM +download
+    SAVE ARTIFACT ignition AS LOCAL ignition
+    SAVE ARTIFACT grumpkin AS LOCAL grumpkin

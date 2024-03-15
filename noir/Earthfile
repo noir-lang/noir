@@ -1,0 +1,111 @@
+VERSION 0.8
+
+
+nargo:
+    FROM rust:bullseye
+    RUN apt update && apt install -y libc++1
+    WORKDIR /build
+    # Relevant source (TODO finer-grained 'tooling')
+    COPY --keep-ts --dir \
+      noir-repo/acvm-repo \
+      noir-repo/aztec_macros \
+      noir-repo/compiler \
+      noir-repo/noir_stdlib \
+      noir-repo/tooling \
+      noir-repo/test_programs \
+      noir-repo/Cargo.lock \
+      noir-repo/Cargo.toml \
+      noir-repo
+
+    # TODO(AD) is this OK as a content hash?
+    ENV COMMIT_HASH=$(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}')
+    COPY --keep-ts ./scripts/bootstrap_native.sh ./scripts/bootstrap_native.sh
+    RUN ./scripts/bootstrap_native.sh
+    SAVE ARTIFACT /build/noir-repo/target/release/nargo nargo
+    SAVE ARTIFACT /build/noir-repo/target/release/acvm acvm
+
+packages:
+    FROM node:20
+    RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+    RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
+    RUN apt update && apt install -y jq libc++1
+    WORKDIR /build
+
+    # Relevant source (TODO finer-grained)
+    COPY --keep-ts --dir \
+      noir-repo/acvm-repo \
+      noir-repo/aztec_macros \
+      noir-repo/compiler \
+      noir-repo/docs \
+      noir-repo/noir_stdlib \
+      noir-repo/scripts \
+      noir-repo/test_programs \
+      noir-repo/tooling \
+      noir-repo/Cargo.lock \
+      noir-repo/.yarnrc.yml \
+      noir-repo/.yarn \
+      noir-repo/yarn.lock \
+      noir-repo/package.json \
+      noir-repo/LICENSE* \
+      noir-repo/*.toml \
+      noir-repo/*.json \
+      noir-repo/*.js \
+      noir-repo/.github \
+      noir-repo/.envrc \
+      noir-repo
+
+    COPY --keep-ts noir-repo/.github/scripts noir-repo/.github/scripts
+    COPY --keep-ts ./scripts/bootstrap_packages.sh ./scripts/bootstrap_packages.sh
+    # TODO(AD) is this OK as a content hash?
+    ENV COMMIT_HASH=$(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}')
+    RUN PATH="/root/.cargo/bin:$PATH" ./scripts/bootstrap_packages.sh
+    SAVE ARTIFACT packages
+
+run:
+    # When running the container, mount the users home directory to same location.
+    FROM ubuntu:lunar
+    # Install Tini as nargo doesn't handle signals properly.
+    # Install git as nargo needs it to clone.
+    RUN apt-get update && apt-get install -y git tini && rm -rf /var/lib/apt/lists/* && apt-get clean
+    COPY +build/. /build
+    ENTRYPOINT ["/usr/bin/tini", "--", "/build/nargo"]
+
+build:
+  BUILD +nargo
+  BUILD +packages
+
+# TOOD
+# test-packages
+# FROM aztecprotocol/noir AS noir
+
+# FROM node:20 AS builder
+# COPY --from=noir /usr/src/noir/noir-repo/target/release /usr/src/noir/noir-repo/target/release
+# ENV PATH=${PATH}:/usr/src/noir/noir-repo/target/release
+# RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+# RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
+# ENV PATH=/root/.cargo/bin:${PATH}
+# RUN apt update && apt install -y jq libc++1
+# ARG COMMIT_HASH
+# ENV COMMIT_HASH=${COMMIT_HASH}
+
+# WORKDIR /usr/src/noir
+# COPY . .
+# RUN ./scripts/test_js_packages.sh
+
+# # Don't waste time pushing a huge container back to ECR as nothing needs the output.
+# FROM scratch
+# COPY --from=builder /usr/src/noir/README.md /usr/src/noir/README.md
+
+# TODO 
+# test: 
+# FROM rust:bullseye
+# ARG COMMIT_HASH
+# ENV COMMIT_HASH=${COMMIT_HASH}
+# RUN apt update && apt install -y libc++1
+# WORKDIR /usr/src/noir
+# COPY . .
+# RUN ./scripts/test_native.sh
+
+# # Don't waste time pushing a huge container back to ECR as nothing needs the output.
+# FROM scratch
+# COPY --from=0 /usr/src/noir/README.md /usr/src/noir/README.md

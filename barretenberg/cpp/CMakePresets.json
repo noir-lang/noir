@@ -206,11 +206,11 @@
       }
     },
     {
-      "name": "op-count-track",
+      "name": "op-count",
       "displayName": "Release build with operation counts",
       "description": "Build with op counting",
       "inherits": "clang16",
-      "binaryDir": "build-op-count-track",
+      "binaryDir": "build-op-count",
       "environment": {
         "CXXFLAGS": "-DBB_USE_OP_COUNT -DBB_USE_OP_COUNT_TRACK_ONLY"
       }
@@ -256,7 +256,7 @@
       "generator": "Ninja",
       "toolchainFile": "cmake/toolchains/wasm32-wasi.cmake",
       "environment": {
-        "WASI_SDK_PREFIX": "${sourceDir}/src/wasi-sdk-20.0",
+        "WASI_SDK_PREFIX": "${sourceDir}/src/wasi-sdk",
         "CC": "$env{WASI_SDK_PREFIX}/bin/clang",
         "CXX": "$env{WASI_SDK_PREFIX}/bin/clang++",
         "AR": "$env{WASI_SDK_PREFIX}/bin/llvm-ar",
@@ -289,7 +289,6 @@
       "inherits": "wasm",
       "binaryDir": "build-wasm-threads",
       "environment": {
-        "WASI_SDK_PREFIX": "${sourceDir}/src/wasi-sdk-20.0+threads",
         "CMAKE_BUILD_TYPE": "Release"
       },
       "cacheVariables": {
@@ -355,9 +354,9 @@
       "configurePreset": "op-count-time"
     },
     {
-      "name": "op-count-track",
+      "name": "op-count",
       "inherits": "default",
-      "configurePreset": "op-count-track"
+      "configurePreset": "op-count"
     },
     {
       "name": "clang16-dbg",

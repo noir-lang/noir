@@ -21,6 +21,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         message(STATUS "Compiling with memory checks.")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
     endif()
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 18)
+        # We target clang18 and need this, eventually warning should be fixed or this will be unconditional.
+        add_compile_options(-Wno-vla-cxx-extension)
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -95,7 +99,7 @@ include(GNUInstallDirs)
 # libbarretenberg + env = a wasi "command" that expects a full wasi runtime (e.g. wasmtime), e.g. test binaries.
 message(STATUS "Compiling all-in-one barretenberg archive")
 
-set(BARRETENBERG_TARGET_OBJECTS 
+set(BARRETENBERG_TARGET_OBJECTS
     $<TARGET_OBJECTS:commitment_schemes_objects>
     $<TARGET_OBJECTS:common_objects>
     $<TARGET_OBJECTS:crypto_aes128_objects>

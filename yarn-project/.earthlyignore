@@ -1,4 +1,11 @@
-# To be maintained along with .earthlyinore
+# Must include the .gitignore for all child projects as this is used by Earthly
+# Note due to how we use Eartlhy each .gitignore MUST accompany any earthfile that might actually copy these artifacts
+**/Earthfile
+**/Readme.md
+**/Dockerfile*
+**/docker-compose*.yml
+
+# .gitignore contents:
 **/dest
 **/node_modules
 **/.cache
@@ -9,8 +16,6 @@
 **/tsconfig.tsbuildinfo
 **/.eslintcache
 **/target
-**/.debounce-*
-**/.tsc.pid
 accounts/src/artifacts
 aztec-faucet/data*
 aztec-node/data*
@@ -41,6 +46,7 @@ scripts/tmp
 noir-contracts.js/src
 noir-contracts.js/artifacts/
 noir-contracts.js/codegenCache.json
+
 
 .yarn/*
 !.yarn/patches

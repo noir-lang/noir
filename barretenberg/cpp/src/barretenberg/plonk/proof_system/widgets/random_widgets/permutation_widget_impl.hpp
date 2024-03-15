@@ -66,7 +66,7 @@ void ProverPermutationWidget<program_width, idpolys, num_roots_cut_out_of_vanish
     // 'z_perm'. Elements 2,...,n of z_perm are constructed in place in accumulators[0]. (The first
     // element of z_perm is one, i.e. z_perm[0] == 1). The remaining accumulators are used only as scratch
     // space.
-    size_t num_accumulators = (program_width == 1) ? 3 : program_width * 2;
+    constexpr size_t num_accumulators = (program_width == 1) ? 3 : program_width * 2;
     std::shared_ptr<void> accumulators_ptrs[num_accumulators];
     fr* accumulators[num_accumulators];
     // Allocate the required number of length n scratch space arrays

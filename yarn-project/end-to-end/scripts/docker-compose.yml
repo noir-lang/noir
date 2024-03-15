@@ -5,10 +5,12 @@ services:
     entrypoint: >
       sh -c '
       if [ -n "$FORK_BLOCK_NUMBER" ] && [ -n "$FORK_URL" ]; then
-        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --fork-url "$FORK_URL" --fork-block-number "$FORK_BLOCK_NUMBER"
+        { anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --fork-url "$FORK_URL" --fork-block-number "$FORK_BLOCK_NUMBER" ; echo $$? > .status ; } | grep -v eth_getLogs
       else
-        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337
-      fi'
+        { anvil -p 8545 --host 0.0.0.0 --chain-id 31337 ; echo $$? > .status ; } | grep -v eth_getLogs
+      fi
+      # final status
+      grep -q '^0$$' .status'
     ports:
       - '8545:8545'
 
@@ -40,6 +42,7 @@ services:
       PXE_URL: http://sandbox:8080
     command: ${TEST:-./src/e2e_deploy_contract.test.ts}
     volumes:
+      # TODO(AD) currently earthly uses /build instead of /usr/src
       - ../log:/usr/src/yarn-project/end-to-end/log:rw
     depends_on:
       - sandbox

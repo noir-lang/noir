@@ -1,0 +1,55 @@
+
+#!/usr/bin/env bash
+[ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
+
+# Aztec build/test/bench tool
+# Thin wrapper for earthly that helps with building targets. 
+# Adds autodownloading earthly and timing code.
+# Usage:
+# Go to folder, e.g. docs, use az to build
+# To run a target in the Earthfile, use 'az +<target-name>'.
+# Spports all commands 'earthly' can take.
+
+set -euo pipefail
+
+export FORCE_COLOR=1
+add_timestamps() {
+  gray=$(tput setaf 8)
+  normal=$(tput sgr0)
+  while IFS= read -r line; do printf "${gray}%(%H:%M:%S)T${normal} " ; echo "$line" ; done
+} 
+report_time() {
+  end_time=$(date +%s)
+  duration=$((end_time - start_time))
+  gray=$(tput setaf 8)
+  normal=$(tput sgr0)
+  local hours=$((duration / 3600))
+  local minutes=$(( (duration % 3600) / 60 ))
+  local seconds=$((duration % 60))
+
+  printf "${gray}"
+  if (( hours > 0 )); then
+      printf "%d hours, %d minutes, and %d seconds" $hours $minutes $seconds
+  elif (( minutes > 0 )); then
+      printf "%d minutes and %d seconds" $minutes $seconds
+  else
+      printf "%d seconds" $seconds
+  fi
+  printf "${normal}\n"
+}
+# on finish
+trap report_time EXIT
+start_time=$(date +%s)
+
+INTERACTIVE=${INTERACTIVE:-false}
+for arg in "$@"; do
+    if [ "$arg" = "-i" ] || [ "$arg" = "--interactive" ]; then
+        INTERACTIVE=true
+        break
+    fi
+done
+if [ $INTERACTIVE = true ] ; then
+  $(dirname $0)/earthly $@
+else
+  $(dirname $0)/earthly $@ 2>&1 | add_timestamps >&2
+fi

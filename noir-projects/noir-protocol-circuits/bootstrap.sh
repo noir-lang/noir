@@ -16,4 +16,5 @@ if [ -n "$CMD" ]; then
 fi
 
 echo "Compiling protocol circuits..."
-../../noir/noir-repo/target/release/nargo compile --silence-warnings
+NARGO=${NARGO:-../../noir/noir-repo/target/release/nargo}
+$NARGO compile --silence-warnings

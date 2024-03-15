@@ -1120,38 +1120,36 @@ bb::polynomial_arithmetic::LagrangeEvaluations<Fr> get_lagrange_evaluations(
 // L_i(z) = L_1(ʓ.ω^{1-i}) = ------------------
 //                           n.(ʓ.ω^{1-i)} - 1)
 //
-template <typename Fr>
-    requires SupportsFFT<Fr>
-Fr compute_barycentric_evaluation(const Fr* coeffs,
+fr compute_barycentric_evaluation(const fr* coeffs,
                                   const size_t num_coeffs,
-                                  const Fr& z,
-                                  const EvaluationDomain<Fr>& domain)
+                                  const fr& z,
+                                  const EvaluationDomain<fr>& domain)
 {
-    Fr* denominators = static_cast<Fr*>(aligned_alloc(64, sizeof(Fr) * num_coeffs));
+    fr* denominators = static_cast<fr*>(aligned_alloc(64, sizeof(fr) * num_coeffs));
 
-    Fr numerator = z;
+    fr numerator = z;
     for (size_t i = 0; i < domain.log2_size; ++i) {
         numerator.self_sqr();
     }
-    numerator -= Fr::one();
+    numerator -= fr::one();
     numerator *= domain.domain_inverse; // (ʓ^n - 1) / n
 
-    denominators[0] = z - Fr::one();
-    Fr work_root = domain.root_inverse; // ω^{-1}
+    denominators[0] = z - fr::one();
+    fr work_root = domain.root_inverse; // ω^{-1}
     for (size_t i = 1; i < num_coeffs; ++i) {
         denominators[i] =
             work_root * z; // denominators[i] will correspond to L_[i+1] (since our 'commented maths' notation indexes
                            // L_i from 1). So ʓ.ω^{-i} = ʓ.ω^{1-(i+1)} is correct for L_{i+1}.
-        denominators[i] -= Fr::one(); // ʓ.ω^{-i} - 1
+        denominators[i] -= fr::one(); // ʓ.ω^{-i} - 1
         work_root *= domain.root_inverse;
     }
 
-    Fr::batch_invert(denominators, num_coeffs);
+    fr::batch_invert(denominators, num_coeffs);
 
-    Fr result = Fr::zero();
+    fr result = fr::zero();
 
     for (size_t i = 0; i < num_coeffs; ++i) {
-        Fr temp = coeffs[i] * denominators[i]; // f_i * 1/(ʓ.ω^{-i} - 1)
+        fr temp = coeffs[i] * denominators[i]; // f_i * 1/(ʓ.ω^{-i} - 1)
         result = result + temp;
     }
 
@@ -1401,7 +1399,6 @@ template void divide_by_pseudo_vanishing_polynomial<fr>(std::vector<fr*>,
                                                         const size_t);
 template fr compute_kate_opening_coefficients<fr>(const fr*, fr*, const fr&, const size_t);
 template LagrangeEvaluations<fr> get_lagrange_evaluations<fr>(const fr&, const EvaluationDomain<fr>&, const size_t);
-template fr compute_barycentric_evaluation<fr>(const fr*, const size_t, const fr&, const EvaluationDomain<fr>&);
 template void compress_fft<fr>(const fr*, fr*, const size_t, const size_t);
 template fr evaluate_from_fft<fr>(const fr*, const EvaluationDomain<fr>&, const fr&, const EvaluationDomain<fr>&);
 template fr compute_sum<fr>(const fr*, const size_t);

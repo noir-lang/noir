@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-PREFIX = Path("build-op-count-track")
+PREFIX = Path("build-op-count")
 OPS_BENCH = Path("field_op_costs.json")
 GOBLIN_BENCH_JSON = Path("goblin_bench.json")
 BENCHMARK = "GoblinBench/GoblinFull/1"

@@ -1,0 +1,151 @@
+
+VERSION 0.8
+
+get-aztec:
+    FROM ubuntu:lunar
+    # for use_aztec_image to work, need to run earthly +build first or have image copied
+    ARG use_aztec_image=false
+    IF [ "$use_aztec_image" != false ]
+      FROM aztecprotocol/cache:aztec
+    ELSE
+      FROM ../+aztec
+    END
+
+get-end-to-end:
+    FROM ubuntu:lunar
+  # for use_end_to_end_image to work, need to run earthly +build first or have image copied
+    ARG use_end_to_end_image=false
+    IF [ $use_end_to_end_image != false ]
+      FROM aztecprotocol/cache:end-to-end
+    ELSE
+      FROM ../+end-to-end-minimal
+    END
+
+E2E_TEST:
+    FUNCTION
+    ARG test
+    ARG compose_file=./scripts/docker-compose.yml
+    LOCALLY
+    ENV TEST=$test
+    WITH DOCKER \
+      --load aztecprotocol/aztec:latest=+get-aztec \
+      --load aztecprotocol/end-to-end:latest=+get-end-to-end \
+      --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+get
+        # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
+        RUN docker compose -f $compose_file up --exit-code-from=sandbox --force-recreate
+    END
+
+# we could use a parameterized target, but these just print cleaner in earthly log
+
+e2e-block-building:
+  DO +E2E_TEST --test=e2e_block_building.test.ts
+
+e2e-nested-contract:
+  DO +E2E_TEST --test=e2e_nested_contract.test.ts
+
+e2e-static-calls:
+  DO +E2E_TEST --test=e2e_static_calls.test.ts
+
+e2e-delegate-calls:
+  DO +E2E_TEST --test=e2e_delegate_calls.test.ts
+
+e2e-non-contract-account:
+  DO +E2E_TEST --test=e2e_non_contract_account.test.ts
+
+e2e-cross-chain-messaging:
+  DO +E2E_TEST --test=e2e_cross_chain_messaging.test.ts
+
+e2e-crowdfunding-and-claim:
+  DO +E2E_TEST --test=e2e_crowdfunding_and_claim.test.ts
+
+e2e-public-cross-chain-messaging:
+  DO +E2E_TEST --test=e2e_public_cross_chain_messaging.test.ts
+
+e2e-public-to-private-messaging:
+  DO +E2E_TEST --test=e2e_public_to_private_messaging.test.ts
+
+e2e-account-contracts:
+  DO +E2E_TEST --test=e2e_account_contracts.test.ts
+
+e2e-escrow-contract:
+  DO +E2E_TEST --test=e2e_escrow_contract.test.ts
+
+e2e-inclusion-proofs-contract:
+  DO +E2E_TEST --test=e2e_inclusion_proofs_contract.test.ts
+
+e2e-pending-note-hashes-contract:
+  DO +E2E_TEST --test=e2e_pending_note_hashes_contract.test.ts
+
+e2e-ordering:
+  DO +E2E_TEST --test=e2e_ordering.test.ts
+
+uniswap-trade-on-l1-from-l2:
+  DO +E2E_TEST --test=uniswap_trade_on_l1_from_l2.test.ts
+
+integration-archiver-l1-to-l2:
+  DO +E2E_TEST --test=integration_archiver_l1_to_l2.test.ts
+
+integration-l1-publisher:
+  DO +E2E_TEST --test=integration_l1_publisher.test.ts
+
+e2e-cli:
+  DO +E2E_TEST --test=e2e_cli.test.ts
+
+e2e-persistence:
+  DO +E2E_TEST --test=e2e_persistence.test.ts --compose_file=./scripts/docker-compose-no-sandbox.yml
+
+e2e-browser:
+  DO +E2E_TEST --test=e2e_aztec_js_browser.test.ts
+
+e2e-card-game:
+  DO +E2E_TEST --test=e2e_card_game.test.ts
+
+e2e-avm-simulator:
+  ENV AVM_ENABLED=1
+  DO +E2E_TEST --test=e2e_avm_simulator.test.ts
+
+e2e-fees:
+  DO +E2E_TEST --test=e2e_fees.test.ts
+
+e2e-dapp-subscription:
+  DO +E2E_TEST --test=e2e_dapp_subscription.test.ts
+
+pxe:
+  DO +E2E_TEST --test=pxe_sandbox.test.ts
+
+cli-docs-sandbox:
+  DO +E2E_TEST --test=cli_docs_sandbox.test.ts
+
+e2e-docs-examples:
+  ENV AVM_ENABLED=1
+  DO +E2E_TEST --test=docs_examples_test.ts
+
+test-all:
+  BUILD +e2e-state-vars
+  BUILD +e2e-block-building
+  BUILD +e2e-nested-contract
+  BUILD +e2e-static-calls
+  BUILD +e2e-delegate-calls
+  BUILD +e2e-non-contract-account
+  BUILD +e2e-cross-chain-messaging
+  BUILD +e2e-crowdfunding-and-claim
+  BUILD +e2e-public-cross-chain-messaging
+  BUILD +e2e-public-to-private-messaging
+  BUILD +e2e-account-contracts
+  BUILD +e2e-escrow-contract
+  BUILD +e2e-inclusion-proofs-contract
+  BUILD +e2e-pending-note-hashes-contract
+  BUILD +e2e-ordering
+  BUILD +uniswap-trade-on-l1-from-l2
+  BUILD +integration-archiver-l1-to-l2
+  BUILD +integration-l1-publisher
+  BUILD +e2e-cli
+  BUILD +e2e-persistence
+  BUILD +e2e-browser
+  BUILD +e2e-card-game
+  BUILD +e2e-avm-simulator
+  BUILD +e2e-fees
+  BUILD +e2e-dapp-subscription
+  BUILD +pxe
+  BUILD +cli-docs-sandbox
+  BUILD +e2e-docs-examples

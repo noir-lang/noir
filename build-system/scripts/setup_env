@@ -132,6 +132,7 @@ if [ -n "$COMMIT_HASH" ]; then
   mkdir -p ~/.ssh
   echo ${BUILD_INSTANCE_KEY:-} | base64 -d > ~/.ssh/build_instance_key
   chmod 600 ~/.ssh/build_instance_key
+  cp $BUILD_SYSTEM_PATH/remote/ssh_config ~/.ssh/config
 
   if [[ "$COMMIT_MESSAGE" == *"[ci debug]"* ]]; then
     echo export BUILD_SYSTEM_DEBUG=1 >> $BASH_ENV

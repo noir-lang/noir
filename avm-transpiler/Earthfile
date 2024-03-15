@@ -1,0 +1,23 @@
+VERSION 0.8
+IMPORT ../noir AS noir
+# we rely on noir source, which this image has
+FROM noir+nargo
+
+# move noir contents to /build/noir
+RUN mv /build /noir && mkdir /build && mv /noir /build
+# work in avm-transpiler
+WORKDIR /build/avm-transpiler
+
+RUN apt-get update && apt-get install -y git
+
+COPY --keep-ts --dir scripts src Cargo.lock Cargo.toml rust-toolchain.toml .
+
+build:
+    RUN ./scripts/bootstrap_native.sh
+    SAVE ARTIFACT target/release/avm-transpiler avm-transpiler
+
+run: 
+    #TODO needed?
+    FROM ubuntu:focal
+    COPY +build/avm-transpiler /build/avm-transpiler
+    ENTRYPOINT ["sh", "-c"]
