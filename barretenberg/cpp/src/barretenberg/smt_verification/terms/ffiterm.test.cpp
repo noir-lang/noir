@@ -26,8 +26,8 @@ TEST(FFITerm, addition)
     x == a;
     ASSERT_TRUE(s.check());
 
-    std::string yvals = s.s.getValue(y.term).getIntegerValue();
-    std::string bvals = s.s.getValue(bval.term).getIntegerValue();
+    std::string yvals = s.getValue(y.term).getIntegerValue();
+    std::string bvals = s.getValue(bval.term).getIntegerValue();
     ASSERT_EQ(bvals, yvals);
 }
 
@@ -47,8 +47,8 @@ TEST(FFITerm, subtraction)
     x == a;
     ASSERT_TRUE(s.check());
 
-    std::string yvals = s.s.getValue(y.term).getIntegerValue();
-    std::string bvals = s.s.getValue(bval.term).getIntegerValue();
+    std::string yvals = s.getValue(y.term).getIntegerValue();
+    std::string bvals = s.getValue(bval.term).getIntegerValue();
     ASSERT_EQ(bvals, yvals);
 }
 
@@ -68,8 +68,8 @@ TEST(FFITerm, multiplication)
     x == a;
     ASSERT_TRUE(s.check());
 
-    std::string yvals = s.s.getValue(y.term).getIntegerValue();
-    std::string bvals = s.s.getValue(bval.term).getIntegerValue();
+    std::string yvals = s.getValue(y.term).getIntegerValue();
+    std::string bvals = s.getValue(bval.term).getIntegerValue();
     ASSERT_EQ(bvals, yvals);
 }
 
@@ -89,7 +89,7 @@ TEST(FFITerm, division)
     x == a;
     ASSERT_TRUE(s.check());
 
-    std::string yvals = s.s.getValue(y.term).getIntegerValue();
-    std::string bvals = s.s.getValue(bval.term).getIntegerValue();
+    std::string yvals = s.getValue(y.term).getIntegerValue();
+    std::string bvals = s.getValue(bval.term).getIntegerValue();
     ASSERT_EQ(bvals, yvals);
 }

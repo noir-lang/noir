@@ -37,8 +37,9 @@ const SolverConfiguration default_solver_config = { true, 0, 0, false, "" };
  */
 class Solver {
   public:
-    cvc5::Solver s;
-    cvc5::Sort fp;
+    cvc5::TermManager term_manager;
+    cvc5::Solver solver;
+    cvc5::Sort ff_sort;
     std::string modulus; // modulus in base 10
     bool res = false;
     cvc5::Result cvc_result;
@@ -47,24 +48,25 @@ class Solver {
     explicit Solver(const std::string& modulus,
                     const SolverConfiguration& config = default_solver_config,
                     uint32_t base = 16)
+        : solver(term_manager)
     {
-        this->fp = s.mkFiniteFieldSort(modulus, base);
-        this->modulus = fp.getFiniteFieldSize();
+        this->ff_sort = term_manager.mkFiniteFieldSort(modulus, base);
+        this->modulus = ff_sort.getFiniteFieldSize();
         if (config.produce_models) {
-            s.setOption("produce-models", "true");
+            solver.setOption("produce-models", "true");
         }
         if (config.timeout > 0) {
-            s.setOption("tlimit-per", std::to_string(config.timeout));
+            solver.setOption("tlimit-per", std::to_string(config.timeout));
         }
         if (config.debug >= 1) {
-            s.setOption("verbosity", "5");
+            solver.setOption("verbosity", "5");
         }
         if (config.debug >= 2) {
-            s.setOption("output", "learned-lits");
-            s.setOption("output", "subs");
-            s.setOption("output", "post-asserts");
-            s.setOption("output", "trusted-proof-steps");
-            s.setOption("output", "deep-restart");
+            solver.setOption("output", "learned-lits");
+            solver.setOption("output", "subs");
+            solver.setOption("output", "post-asserts");
+            solver.setOption("output", "trusted-proof-steps");
+            solver.setOption("output", "deep-restart");
         }
 
         // Can be useful when split-gb is used as ff-solver.
@@ -72,7 +74,7 @@ class Solver {
         // and without them it will probably perform less efficient
         // TODO(alex): test this `probably` after finishing the pr sequence
         if (config.ff_disjunctive_bit) {
-            s.setOption("ff-disjunctive-bit", "true");
+            solver.setOption("ff-disjunctive-bit", "true");
         }
         // split-gb is an updated version of gb ff-solver
         // It basically SPLITS the polynomials in the system into subsets
@@ -80,16 +82,20 @@ class Solver {
         // According to the benchmarks, the new decision process in split-gb
         // brings a significant boost in solver performance
         if (!config.ff_solver.empty()) {
-            s.setOption("ff-solver", config.ff_solver);
+            solver.setOption("ff-solver", config.ff_solver);
         }
 
-        s.setOption("output", "incomplete");
+        solver.setOption("output", "incomplete");
     }
 
     Solver(const Solver& other) = delete;
     Solver(Solver&& other) = delete;
     Solver& operator=(const Solver& other) = delete;
     Solver& operator=(Solver&& other) = delete;
+
+    void assertFormula(const cvc5::Term& term) const { this->solver.assertFormula(term); }
+
+    cvc5::Term getValue(const cvc5::Term& term) const { return this->solver.getValue(term); }
 
     bool check();
 

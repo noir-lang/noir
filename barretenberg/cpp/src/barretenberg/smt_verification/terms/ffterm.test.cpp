@@ -26,8 +26,8 @@ TEST(FFTerm, addition)
     x == a;
     ASSERT_TRUE(s.check());
 
-    std::string yvals = s.s.getValue(y.term).getFiniteFieldValue();
-    std::string bvals = s.s.getValue(bval.term).getFiniteFieldValue();
+    std::string yvals = s.getValue(y.term).getFiniteFieldValue();
+    std::string bvals = s.getValue(bval.term).getFiniteFieldValue();
     ASSERT_EQ(bvals, yvals);
 }
 
@@ -47,8 +47,8 @@ TEST(FFTerm, subtraction)
     x == a;
     ASSERT_TRUE(s.check());
 
-    std::string yvals = s.s.getValue(y.term).getFiniteFieldValue();
-    std::string bvals = s.s.getValue(bval.term).getFiniteFieldValue();
+    std::string yvals = s.getValue(y.term).getFiniteFieldValue();
+    std::string bvals = s.getValue(bval.term).getFiniteFieldValue();
     ASSERT_EQ(bvals, yvals);
 }
 
@@ -68,8 +68,8 @@ TEST(FFTerm, multiplication)
     x == a;
     ASSERT_TRUE(s.check());
 
-    std::string yvals = s.s.getValue(y.term).getFiniteFieldValue();
-    std::string bvals = s.s.getValue(bval.term).getFiniteFieldValue();
+    std::string yvals = s.getValue(y.term).getFiniteFieldValue();
+    std::string bvals = s.getValue(bval.term).getFiniteFieldValue();
     ASSERT_EQ(bvals, yvals);
 }
 
@@ -89,7 +89,7 @@ TEST(FFTerm, division)
     x == a;
     ASSERT_TRUE(s.check());
 
-    std::string yvals = s.s.getValue(y.term).getFiniteFieldValue();
-    std::string bvals = s.s.getValue(bval.term).getFiniteFieldValue();
+    std::string yvals = s.getValue(y.term).getFiniteFieldValue();
+    std::string bvals = s.getValue(bval.term).getFiniteFieldValue();
     ASSERT_EQ(bvals, yvals);
 }

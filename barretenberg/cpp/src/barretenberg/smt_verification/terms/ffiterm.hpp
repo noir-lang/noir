@@ -30,7 +30,7 @@ class FFITerm {
     FFITerm(cvc5::Term& term, Solver* s)
         : solver(s)
         , term(term)
-        , modulus(s->s.mkInteger(s->modulus))
+        , modulus(s->term_manager.mkInteger(s->modulus))
     {}
 
     explicit FFITerm(const std::string& t, Solver* slv, bool isconst = false, uint32_t base = 16);
@@ -91,8 +91,8 @@ class FFITerm {
     {
         Solver* slv = children[0].solver;
         std::vector<cvc5::Term> terms(children.begin(), children.end());
-        cvc5::Term res = slv->s.mkTerm(cvc5::Kind::ADD, terms);
-        res = slv->s.mkTerm(cvc5::Kind::INTS_MODULUS, { res, children[0].modulus });
+        cvc5::Term res = slv->term_manager.mkTerm(cvc5::Kind::ADD, terms);
+        res = slv->term_manager.mkTerm(cvc5::Kind::INTS_MODULUS, { res, children[0].modulus });
         return { res, slv };
     }
 
@@ -100,8 +100,8 @@ class FFITerm {
     {
         Solver* slv = children[0].solver;
         std::vector<cvc5::Term> terms(children.begin(), children.end());
-        cvc5::Term res = slv->s.mkTerm(cvc5::Kind::MULT, terms);
-        res = slv->s.mkTerm(cvc5::Kind::INTS_MODULUS, { res, children[0].modulus });
+        cvc5::Term res = slv->term_manager.mkTerm(cvc5::Kind::MULT, terms);
+        res = slv->term_manager.mkTerm(cvc5::Kind::INTS_MODULUS, { res, children[0].modulus });
         return { res, slv };
     }
 

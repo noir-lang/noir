@@ -51,7 +51,7 @@ TEST(Solver, FFITerm_use_case)
     info("+");
     info(vvars["y"]);
     info("=");
-    info(s.s.getValue(FFITerm(a, &s).term));
+    info(s.getValue(FFITerm(a, &s).term));
 }
 
 TEST(Solver, human_readable_constraints_FFTerm)

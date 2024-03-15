@@ -1,14 +1,26 @@
-barretenberg_module(smt_verification common proof_system stdlib_primitives stdlib_sha256 cvc5 circuit_checker)
+include(ExternalProject)
 
-set(CVC5_INCLUDE $ENV{HOME}/cvc5/tmp-lib/include)
-set(CVC5_LIB $ENV{HOME}/cvc5/tmp-lib/lib)
+# External project: Download cvc5 from GitHub
+set(CVC5_PREFIX "${CMAKE_BINARY_DIR}/_deps/cvc5")
+set(CVC5_BUILD "${CVC5_PREFIX}/src/cvc5-build")
 
-target_include_directories(smt_verification              PUBLIC ${CVC5_INCLUDE})
-target_include_directories(smt_verification_objects      PUBLIC ${CVC5_INCLUDE})
-target_include_directories(smt_verification_tests        PUBLIC ${CVC5_INCLUDE})
-target_include_directories(smt_verification_test_objects PUBLIC ${CVC5_INCLUDE})
+ExternalProject_Add(
+    cvc5-download
+    PREFIX ${CVC5_PREFIX}
+    GIT_REPOSITORY "https://github.com/cvc5/cvc5.git"
+    GIT_TAG main
+    BUILD_IN_SOURCE YES
+    CONFIGURE_COMMAND ${SHELL} ./configure.sh production --auto-download --cocoa --cryptominisat --kissat -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ --prefix=${CVC5_BUILD}
+    BUILD_COMMAND make -C build
+    INSTALL_COMMAND make -C build install
+    UPDATE_COMMAND ""     # No update step
+)
 
-target_link_directories(smt_verification                 PUBLIC ${CVC5_LIB})
-target_link_directories(smt_verification_objects         PUBLIC ${CVC5_LIB})
-target_link_directories(smt_verification_tests           PUBLIC ${CVC5_LIB})
-target_link_directories(smt_verification_test_objects    PUBLIC ${CVC5_LIB})
+set(CVC5_INCLUDE "${CVC5_BUILD}/include")
+set(CVC5_LIB "${CVC5_BUILD}/lib/libcvc5.so")
+
+include_directories(${CVC5_INCLUDE})
+add_library(cvc5 SHARED IMPORTED)
+set_target_properties(cvc5 PROPERTIES IMPORTED_LOCATION ${CVC5_LIB})
+
+barretenberg_module(smt_verification common proof_system stdlib_primitives stdlib_sha256 circuit_checker cvc5)

@@ -468,7 +468,7 @@ template <typename FF> size_t Circuit<FF>::prepare_gates(size_t cursor)
     // Handles the case when we have univariate polynomial as constraint
     // by simply finding the roots via quadratic formula(or linear)
     // There're 7 possibilities of that, which are present below
-    bool univariate_flag = true;
+    bool univariate_flag = false;
     univariate_flag |= (w_l == w_r) && (w_r == w_o);
     univariate_flag |= (w_l == w_r) && (q_3 == 0);
     univariate_flag |= (w_l == w_o) && (q_2 == 0) && (q_m == 0);

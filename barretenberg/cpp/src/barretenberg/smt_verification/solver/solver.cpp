@@ -10,7 +10,7 @@ namespace smt_solver {
  * */
 bool Solver::check()
 {
-    cvc5::Result result = this->s.checkSat();
+    cvc5::Result result = this->solver.checkSat();
     this->checked = true;
     this->cvc_result = result;
 
@@ -41,7 +41,7 @@ std::unordered_map<std::string, std::string> Solver::model(std::unordered_map<st
     }
     std::unordered_map<std::string, std::string> resulting_model;
     for (auto& term : terms) {
-        cvc5::Term val = this->s.getValue(term.second);
+        cvc5::Term val = this->solver.getValue(term.second);
         std::string str_val;
         if (val.isIntegerValue()) {
             str_val = val.getIntegerValue();
@@ -76,7 +76,7 @@ std::unordered_map<std::string, std::string> Solver::model(std::vector<cvc5::Ter
     }
     std::unordered_map<std::string, std::string> resulting_model;
     for (auto& term : terms) {
-        cvc5::Term val = this->s.getValue(term);
+        cvc5::Term val = this->solver.getValue(term);
         std::string str_val;
         if (val.isIntegerValue()) {
             str_val = val.getIntegerValue();
@@ -199,7 +199,7 @@ std::string stringify_term(const cvc5::Term& term, bool parenthesis)
  * */
 void Solver::print_assertions() const
 {
-    for (auto& t : this->s.getAssertions()) {
+    for (auto& t : this->solver.getAssertions()) {
         info(stringify_term(t));
     }
 }
