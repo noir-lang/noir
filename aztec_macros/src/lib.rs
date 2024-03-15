@@ -179,15 +179,6 @@ fn transform_module(
                 crate_graph.root_file_id,
             ));
         }
-
-        let constructor_defined = module.functions.iter().any(|func| func.name() == "constructor");
-        if !constructor_defined {
-            let crate_graph = &context.crate_graph[crate_id];
-            return Err((
-                AztecMacroError::ContractConstructorMissing { span: Span::default() },
-                crate_graph.root_file_id,
-            ));
-        }
     }
 
     Ok(has_transformed_module)
