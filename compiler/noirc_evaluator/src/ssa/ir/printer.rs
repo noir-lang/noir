@@ -188,9 +188,6 @@ fn display_instruction_inner(
         Instruction::IncrementRc { value } => {
             writeln!(f, "inc_rc {}", show(*value))
         }
-        Instruction::DecrementRc { value } => {
-            writeln!(f, "dec_rc {}", show(*value))
-        }
         Instruction::RangeCheck { value, max_bit_size, .. } => {
             writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
         }
