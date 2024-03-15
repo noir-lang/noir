@@ -39,6 +39,11 @@ pub(super) struct FunctionContext<'a> {
 
     pub(super) builder: FunctionBuilder,
     shared_context: &'a SharedContext,
+
+    /// Contains any loops we're currently in the middle of translating.
+    /// These are ordered such that an inner loop is at the end of the vector and
+    /// outer loops are at the beginning. When a loop is finished, it is popped.
+    loops: Vec<Loop>,
 }
 
 /// Shared context for all functions during ssa codegen. This is the only
@@ -72,6 +77,13 @@ pub(super) struct SharedContext {
     pub(super) program: Program,
 }
 
+#[derive(Copy, Clone)]
+pub(super) struct Loop {
+    pub(super) loop_entry: BasicBlockId,
+    pub(super) loop_index: ValueId,
+    pub(super) loop_end: BasicBlockId,
+}
+
 /// The queue of functions remaining to compile
 type FunctionQueue = Vec<(ast::FuncId, IrFunctionId)>;
 
@@ -97,7 +109,8 @@ impl<'a> FunctionContext<'a> {
             .1;
 
         let builder = FunctionBuilder::new(function_name, function_id, runtime);
-        let mut this = Self { definitions: HashMap::default(), builder, shared_context };
+        let definitions = HashMap::default();
+        let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
         this.add_parameters_to_scope(parameters);
         this
     }
@@ -1052,6 +1065,24 @@ impl<'a> FunctionContext<'a> {
         for parameter in dropped_parameters {
             self.builder.decrement_array_reference_count(parameter);
         }
+    }
+
+    pub(crate) fn enter_loop(
+        &mut self,
+        loop_entry: BasicBlockId,
+        loop_index: ValueId,
+        loop_end: BasicBlockId,
+    ) {
+        self.loops.push(Loop { loop_entry, loop_index, loop_end });
+    }
+
+    pub(crate) fn exit_loop(&mut self) {
+        self.loops.pop();
+    }
+
+    pub(crate) fn current_loop(&self) -> Loop {
+        // The frontend should ensure break/continue are never used outside a loop
+        *self.loops.last().expect("current_loop: not in a loop!")
     }
 }
 

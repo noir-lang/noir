@@ -1214,6 +1214,8 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
+            StatementKind::Break => HirStatement::Break,
+            StatementKind::Continue => HirStatement::Continue,
             StatementKind::Error => HirStatement::Error,
         }
     }

@@ -46,7 +46,6 @@ use crate::{
 };
 
 use chumsky::prelude::*;
-use chumsky::text::keyword;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
@@ -435,11 +434,11 @@ fn fresh_statement() -> impl NoirParser<StatementKind> {
 }
 
 fn break_statement() -> impl NoirParser<StatementKind> {
-    keyword(Keyword::Break)
+    keyword(Keyword::Break).to(StatementKind::Break)
 }
 
 fn continue_statement() -> impl NoirParser<StatementKind> {
-    keyword(Keyword::Continue)
+    keyword(Keyword::Continue).to(StatementKind::Continue)
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
