@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.28.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.28.0...aztec-packages-v0.28.1) (2024-03-14)
+
+
+### Bug Fixes
+
+* Docs links URL missing a letter ([#5223](https://github.com/AztecProtocol/aztec-packages/issues/5223)) ([c015a3f](https://github.com/AztecProtocol/aztec-packages/commit/c015a3fc09ab495baa88b19ad2250b894834069a))
+* **docs:** Update other constructor refs in docs to use initializer ([#5227](https://github.com/AztecProtocol/aztec-packages/issues/5227)) ([f68ff28](https://github.com/AztecProtocol/aztec-packages/commit/f68ff289084f047d9a50f7d82ec2ff8c5c839a7d))
+
+
+### Miscellaneous
+
+* **docs:** Add note on new initializer ([#5224](https://github.com/AztecProtocol/aztec-packages/issues/5224)) ([79c6e99](https://github.com/AztecProtocol/aztec-packages/commit/79c6e9970fce2f8a297961ecd4daf02026a4b89b))
+
 ## [0.28.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.27.2...aztec-packages-v0.28.0) (2024-03-14)
 
 
