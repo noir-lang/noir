@@ -79,11 +79,10 @@ describe('AVM simulator', () => {
 
     describe.each([
       ['avm_setOpcodeUint8', 8n],
-      // ['avm_setOpcodeUint16', 60000n],
       ['avm_setOpcodeUint32', 1n << 30n],
       ['avm_setOpcodeUint64', 1n << 60n],
-      // ['avm_setOpcodeUint128', 1n << 120n],
-      ['avm_setOpcodeSmallField', 200n],
+      ['avm_setOpcodeSmallField', 0x001234567890abcdef1234567890abcdefn],
+      ['avm_setOpcodeBigField', 0x991234567890abcdef1234567890abcdefn],
     ])('Should execute contract SET functions', (name: string, res: bigint) => {
       it(`Should execute contract function '${name}'`, async () => {
         const context = initContext();

@@ -19,6 +19,9 @@ impl Deserialize<2> for Note {
 
 contract AvmTest {
     use crate::Note;
+    
+    global big_field_128_bits: Field = 0x001234567890abcdef1234567890abcdef;
+    global big_field_136_bits: Field = 0x991234567890abcdef1234567890abcdef;
 
     // Libs
     use dep::aztec::prelude::Map;
@@ -94,12 +97,6 @@ contract AvmTest {
         8 as u8
     }
 
-    // Bit size 16 in Noir is deprecated.
-    // #[aztec(public-vm)]
-    // fn setOpcodeUint16() -> pub u16 {
-    //     60000 as u16
-    // }
-
     #[aztec(public-vm)]
     fn setOpcodeUint32() -> pub u32 {
         1 << 30 as u32
@@ -110,18 +107,14 @@ contract AvmTest {
         1 << 60 as u64
     }
 
-    // Can't return this since it doesn't fit in a Noir field.
-    // #[aztec(public-vm)]
-    // fn setOpcodeUint128() -> pub u128 {
-    //     1 << 120 as u128
-    // }
-
-    // Field should fit in 128 bits
-    // ACIR only supports fields of up to 126 bits!
-    // Same with internal fields for unconstrained functions, apprently.
     #[aztec(public-vm)]
     fn setOpcodeSmallField() -> pub Field {
-        200 as Field
+        big_field_128_bits
+    }
+
+    #[aztec(public-vm)]
+    fn setOpcodeBigField() -> pub Field {
+        big_field_136_bits
     }
 
     #[aztec(public-vm)]
