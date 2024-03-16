@@ -194,6 +194,17 @@ impl<'interner> TypeChecker<'interner> {
                     return Type::Error;
                 }
 
+                // Check that we are not passing a reference from an unconstrained runtime to a constrained runtime
+                if is_current_func_constrained
+                    && is_unconstrained_call
+                    && matches!(&return_type.follow_bindings(), Type::MutableReference(_))
+                {
+                    self.errors.push(TypeCheckError::UnconstrainedReferenceToConstrained {
+                        span: self.interner.expr_span(expr_id),
+                    });
+                    return Type::Error;
+                }
+
                 return_type
             }
             HirExpression::MethodCall(mut method_call) => {
