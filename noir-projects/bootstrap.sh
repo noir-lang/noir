@@ -22,7 +22,9 @@ g="\033[32m"  # Green
 b="\033[34m"  # Blue
 r="\033[0m"   # Reset
 
-((cd "./noir-contracts" && ./bootstrap.sh) > >(awk -v g="$g" -v r="$r" '$0=g"contracts: "r $0')) &
-((cd "./noir-protocol-circuits" && ./bootstrap.sh) > >(awk -v b="$b" -v r="$r" '$0=b"protocol-circuits: "r $0')) &
+((cd "./noir-contracts" && ./bootstrap.sh) > >(awk -W interactive -v g="$g" -v r="$r" '$0=g"contracts: "r $0')) &
+((cd "./noir-protocol-circuits" && ./bootstrap.sh) > >(awk -W interactive -v b="$b" -v r="$r" '$0=b"protocol-circuits: "r $0')) &
 
-wait
+for job in $(jobs -p); do
+  wait $job || exit 1
+done

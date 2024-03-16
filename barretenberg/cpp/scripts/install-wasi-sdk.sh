@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eu
 
-if [[ -d ./src/wasi-sdk-20.0 && -d ./src/wasi-sdk-20.0+threads ]]; then
+if [[ -d ./src/wasi-sdk ]]; then
   echo "WASI already installed. Skipping."
   exit 0
 fi

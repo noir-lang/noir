@@ -24,6 +24,7 @@ end-to-end/data
 end-to-end/src/web/main.js
 end-to-end/src/web/main.js.LICENSE.txt
 entry-points/src/artifacts
+l1-artifacts/generated
 l1-contracts/generated
 noir-compiler/target/
 noir-compiler/proofs/
@@ -36,6 +37,7 @@ noir-compiler/Verifier.toml
 noir-compiler/src/target
 noir-compiler/src/crs
 noir-compiler/src/types
+noir-protocol-circuits-types/src/types/
 protocol-contracts/src/artifacts
 scripts/tmp
 noir-contracts.js/src
