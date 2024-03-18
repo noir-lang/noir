@@ -2120,345 +2120,253 @@ abstract contract BaseUltraVerifier {
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE Q1
-            {
-                let x := mload(Q1_X_LOC)
-                let y := mload(Q1_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE Q1
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(Q1_X_LOC))
+            mstore(0x20, mload(Q1_Y_LOC))
             mstore(0x40, mload(C_V7_LOC))
             // accumulator_2 = v7.[Q1]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE Q2
-            {
-                let x := mload(Q2_X_LOC)
-                let y := mload(Q2_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE Q2
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(Q2_X_LOC))
+            mstore(0x20, mload(Q2_Y_LOC))
             mstore(0x40, mload(C_V8_LOC))
             // accumulator_2 = v8.[Q2]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE Q3
-            {
-                let x := mload(Q3_X_LOC)
-                let y := mload(Q3_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE Q3
+            
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(Q3_X_LOC))
+            mstore(0x20, mload(Q3_Y_LOC))
             mstore(0x40, mload(C_V9_LOC))
             // accumulator_2 = v9.[Q3]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE Q4
-            {
-                let x := mload(Q4_X_LOC)
-                let y := mload(Q4_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE Q4
+            
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(Q4_X_LOC))
+            mstore(0x20, mload(Q4_Y_LOC))
             mstore(0x40, mload(C_V10_LOC))
             // accumulator_2 = v10.[Q4]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE QM
-            {
-                let x := mload(QM_X_LOC)
-                let y := mload(QM_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE QM
+            
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(QM_X_LOC))
+            mstore(0x20, mload(QM_Y_LOC))
             mstore(0x40, mload(C_V11_LOC))
             // accumulator_2 = v11.[Q;]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE QC
-            {
-                let x := mload(QC_X_LOC)
-                let y := mload(QC_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE QC
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(QC_X_LOC))
+            mstore(0x20, mload(QC_Y_LOC))
             mstore(0x40, mload(C_V12_LOC))
             // accumulator_2 = v12.[QC]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE QARITH
-            {
-                let x := mload(QARITH_X_LOC)
-                let y := mload(QARITH_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE QARITH
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(QARITH_X_LOC))
+            mstore(0x20, mload(QARITH_Y_LOC))
             mstore(0x40, mload(C_V13_LOC))
             // accumulator_2 = v13.[QARITH]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE QSORT
-            {
-                let x := mload(QSORT_X_LOC)
-                let y := mload(QSORT_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE QSORT
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(QSORT_X_LOC))
+            mstore(0x20, mload(QSORT_Y_LOC))
             mstore(0x40, mload(C_V14_LOC))
             // accumulator_2 = v14.[QSORT]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE QELLIPTIC
-            {
-                let x := mload(QELLIPTIC_X_LOC)
-                let y := mload(QELLIPTIC_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE QELLIPTIC
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(QELLIPTIC_X_LOC))
+            mstore(0x20, mload(QELLIPTIC_Y_LOC))
             mstore(0x40, mload(C_V15_LOC))
             // accumulator_2 = v15.[QELLIPTIC]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE QAUX
-            {
-                let x := mload(QAUX_X_LOC)
-                let y := mload(QAUX_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE QAUX
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(QAUX_X_LOC))
+            mstore(0x20, mload(QAUX_Y_LOC))
             mstore(0x40, mload(C_V16_LOC))
             // accumulator_2 = v15.[Q_AUX]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE SIGMA1
-            {
-                let x := mload(SIGMA1_X_LOC)
-                let y := mload(SIGMA1_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE SIGMA1
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(SIGMA1_X_LOC))
+            mstore(0x20, mload(SIGMA1_Y_LOC))
             mstore(0x40, mload(C_V17_LOC))
             // accumulator_2 = v17.[sigma1]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE SIGMA2
-            {
-                let x := mload(SIGMA2_X_LOC)
-                let y := mload(SIGMA2_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE SIGMA2
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(SIGMA2_X_LOC))
+            mstore(0x20, mload(SIGMA2_Y_LOC))
             mstore(0x40, mload(C_V18_LOC))
             // accumulator_2 = v18.[sigma2]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE SIGMA3
-            {
-                let x := mload(SIGMA3_X_LOC)
-                let y := mload(SIGMA3_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE SIGMA3
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(SIGMA3_X_LOC))
+            mstore(0x20, mload(SIGMA3_Y_LOC))
             mstore(0x40, mload(C_V19_LOC))
             // accumulator_2 = v19.[sigma3]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE SIGMA4
-            {
-                let x := mload(SIGMA4_X_LOC)
-                let y := mload(SIGMA4_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE SIGMA4
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(SIGMA4_X_LOC))
+            mstore(0x20, mload(SIGMA4_Y_LOC))
             mstore(0x40, mload(C_V20_LOC))
             // accumulator_2 = v20.[sigma4]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE TABLE1
-            {
-                let x := mload(TABLE1_X_LOC)
-                let y := mload(TABLE1_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE TABLE1
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(TABLE1_X_LOC))
+            mstore(0x20, mload(TABLE1_Y_LOC))
             mstore(0x40, mulmod(addmod(mload(C_U_LOC), 0x1, p), mload(C_V21_LOC), p))
             // accumulator_2 = u.[table1]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE TABLE2
-            {
-                let x := mload(TABLE2_X_LOC)
-                let y := mload(TABLE2_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE TABLE2
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(TABLE2_X_LOC))
+            mstore(0x20, mload(TABLE2_Y_LOC))
             mstore(0x40, mulmod(addmod(mload(C_U_LOC), 0x1, p), mload(C_V22_LOC), p))
             // accumulator_2 = u.[table2]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE TABLE3
-            {
-                let x := mload(TABLE3_X_LOC)
-                let y := mload(TABLE3_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE TABLE3
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(TABLE3_X_LOC))
+            mstore(0x20, mload(TABLE3_Y_LOC))
             mstore(0x40, mulmod(addmod(mload(C_U_LOC), 0x1, p), mload(C_V23_LOC), p))
             // accumulator_2 = u.[table3]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE TABLE4
-            {
-                let x := mload(TABLE4_X_LOC)
-                let y := mload(TABLE4_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE TABLE4
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(TABLE4_X_LOC))
+            mstore(0x20, mload(TABLE4_Y_LOC))
             mstore(0x40, mulmod(addmod(mload(C_U_LOC), 0x1, p), mload(C_V24_LOC), p))
             // accumulator_2 = u.[table4]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE TABLE_TYPE
-            {
-                let x := mload(TABLE_TYPE_X_LOC)
-                let y := mload(TABLE_TYPE_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE TABLE_TYPE
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(TABLE_TYPE_X_LOC))
+            mstore(0x20, mload(TABLE_TYPE_Y_LOC))
             mstore(0x40, mload(C_V25_LOC))
             // accumulator_2 = v25.[TableType]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE ID1
-            {
-                let x := mload(ID1_X_LOC)
-                let y := mload(ID1_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE ID1
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(ID1_X_LOC))
+            mstore(0x20, mload(ID1_Y_LOC))
             mstore(0x40, mload(C_V26_LOC))
             // accumulator_2 = v26.[ID1]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE ID2
-            {
-                let x := mload(ID2_X_LOC)
-                let y := mload(ID2_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE ID2
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(ID2_X_LOC))
+            mstore(0x20, mload(ID2_Y_LOC))
             mstore(0x40, mload(C_V27_LOC))
             // accumulator_2 = v27.[ID2]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE ID3
-            {
-                let x := mload(ID3_X_LOC)
-                let y := mload(ID3_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE ID3
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(ID3_X_LOC))
+            mstore(0x20, mload(ID3_Y_LOC))
             mstore(0x40, mload(C_V28_LOC))
             // accumulator_2 = v28.[ID3]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
             // accumulator = accumulator + accumulator_2
             success := and(success, staticcall(gas(), 6, ACCUMULATOR_X_LOC, 0x80, ACCUMULATOR_X_LOC, 0x40))
 
-            // VALIDATE ID4
-            {
-                let x := mload(ID4_X_LOC)
-                let y := mload(ID4_Y_LOC)
-                let xx := mulmod(x, x, q)
-                // Verification key fields verified to be on curve at contract deployment
-                mstore(0x00, x)
-                mstore(0x20, y)
-            }
+            // ACCUMULATE ID4
+
+            // Verification key fields verified to be on curve at contract deployment
+            mstore(0x00, mload(ID4_X_LOC))
+            mstore(0x20, mload(ID4_Y_LOC))
             mstore(0x40, mload(C_V29_LOC))
             // accumulator_2 = v29.[ID4]
             success := and(success, staticcall(gas(), 7, 0x00, 0x60, ACCUMULATOR2_X_LOC, 0x40))
