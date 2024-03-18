@@ -61,10 +61,6 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                         },
                     ],
                 });
-                // Brillig currently expects comparison instructions to return an u1 (for us, an u8).
-                if avm_opcode == AvmOpcode::EQ {
-                    avm_instrs.push(generate_cast_instruction(destination.to_usize() as u32, destination.to_usize() as u32, AvmTypeTag::UINT8));
-                }
             }
             BrilligOpcode::BinaryIntOp {
                 destination,
@@ -107,10 +103,6 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                         },
                     ],
                 });
-                // Brillig currently expects comparison instructions to return an u1 (for us, an u8).
-                if avm_opcode == AvmOpcode::EQ || avm_opcode == AvmOpcode::LT || avm_opcode == AvmOpcode::LTE {
-                    avm_instrs.push(generate_cast_instruction(destination.to_usize() as u32, destination.to_usize() as u32, AvmTypeTag::UINT8));
-                }
             }
             BrilligOpcode::CalldataCopy { destination_address, size, offset } => {
                 avm_instrs.push(AvmInstruction {
@@ -998,15 +990,6 @@ fn map_brillig_pcs_to_avm_pcs(initial_offset: usize, brillig: &Brillig) -> Vec<u
     for i in 0..brillig.bytecode.len() - 1 {
         let num_avm_instrs_for_this_brillig_instr = match &brillig.bytecode[i] {
             BrilligOpcode::Const { bit_size: 254, .. } => 2,
-            // Brillig currently expects comparison instructions to return an u1 (for us, an u8).
-            BrilligOpcode::BinaryIntOp {
-                op: BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals,
-                ..
-            } => 2,
-            BrilligOpcode::BinaryFieldOp {
-                op: BinaryFieldOp::Equals,
-                ..
-            } => 2,
             _ => 1,
         };
         // next Brillig pc will map to an AVM pc offset by the

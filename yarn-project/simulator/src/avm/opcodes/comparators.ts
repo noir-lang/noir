@@ -1,5 +1,5 @@
 import type { AvmContext } from '../avm_context.js';
-import { TaggedMemory } from '../avm_memory_types.js';
+import { Uint8 } from '../avm_memory_types.js';
 import { Opcode } from '../serialization/instruction_serialization.js';
 import { ThreeOperandInstruction } from './instruction_impl.js';
 
@@ -17,7 +17,7 @@ export class Eq extends ThreeOperandInstruction {
     const a = context.machineState.memory.get(this.aOffset);
     const b = context.machineState.memory.get(this.bOffset);
 
-    const dest = TaggedMemory.buildFromTagOrDie(a.equals(b) ? 1n : 0n, this.inTag);
+    const dest = new Uint8(a.equals(b) ? 1 : 0);
     context.machineState.memory.set(this.dstOffset, dest);
 
     context.machineState.incrementPc();
@@ -38,7 +38,7 @@ export class Lt extends ThreeOperandInstruction {
     const a = context.machineState.memory.get(this.aOffset);
     const b = context.machineState.memory.get(this.bOffset);
 
-    const dest = TaggedMemory.buildFromTagOrDie(a.lt(b) ? 1n : 0n, this.inTag);
+    const dest = new Uint8(a.lt(b) ? 1 : 0);
     context.machineState.memory.set(this.dstOffset, dest);
 
     context.machineState.incrementPc();
@@ -59,7 +59,7 @@ export class Lte extends ThreeOperandInstruction {
     const a = context.machineState.memory.get(this.aOffset);
     const b = context.machineState.memory.get(this.bOffset);
 
-    const dest = TaggedMemory.buildFromTagOrDie(a.lt(b) || a.equals(b) ? 1n : 0n, this.inTag);
+    const dest = new Uint8(a.lt(b) || a.equals(b) ? 1 : 0);
     context.machineState.memory.set(this.dstOffset, dest);
 
     context.machineState.incrementPc();

@@ -140,7 +140,7 @@ const INSTRUCTION_SET_RAW = [
         "Summary": "Equality check (a == b)",
         "Details": "",
         "Tag checks": "`T[aOffset] == T[bOffset] == inTag`",
-        "Tag updates": "`T[dstOffset] = inTag`",
+        "Tag updates": "`T[dstOffset] = u8`",
     },
     {
         "id": "lt",
@@ -159,7 +159,7 @@ const INSTRUCTION_SET_RAW = [
         "Summary": "Less-than check (a < b)",
         "Details": "",
         "Tag checks": "`T[aOffset] == T[bOffset] == inTag`",
-        "Tag updates": "`T[dstOffset] = inTag`",
+        "Tag updates": "`T[dstOffset] = u8`",
     },
     {
         "id": "lte",
@@ -178,7 +178,7 @@ const INSTRUCTION_SET_RAW = [
         "Summary": "Less-than-or-equals check (a <= b)",
         "Details": "",
         "Tag checks": "`T[aOffset] == T[bOffset] == inTag`",
-        "Tag updates": "`T[dstOffset] = inTag`",
+        "Tag updates": "`T[dstOffset] = u8`",
     },
     {
         "id": "and",
