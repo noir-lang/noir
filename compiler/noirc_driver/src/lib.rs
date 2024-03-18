@@ -18,6 +18,7 @@ use noirc_frontend::hir::Context;
 use noirc_frontend::macros_api::MacroProcessor;
 use noirc_frontend::monomorphization::{monomorphize, monomorphize_debug, MonomorphizationError};
 use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::token::SecondaryAttribute;
 use std::path::Path;
 use thiserror::Error;
 use tracing::info;
@@ -30,7 +31,7 @@ mod stdlib;
 
 use debug::filter_relevant_files;
 
-pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
+pub use contract::{CompiledContract, ContractFunction};
 pub use debug::DebugFile;
 pub use program::CompiledProgram;
 
@@ -237,14 +238,8 @@ pub fn check_crate(
     deny_warnings: bool,
     disable_macros: bool,
 ) -> CompilationResult<()> {
-    let macros: Vec<&dyn MacroProcessor> = if disable_macros {
-        vec![&noirc_macros::AssertMessageMacro as &dyn MacroProcessor]
-    } else {
-        vec![
-            &aztec_macros::AztecMacro as &dyn MacroProcessor,
-            &noirc_macros::AssertMessageMacro as &dyn MacroProcessor,
-        ]
-    };
+    let macros: &[&dyn MacroProcessor] =
+        if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, macros);
@@ -404,19 +399,24 @@ fn compile_contract_inner(
         };
         warnings.extend(function.warnings);
         let modifiers = context.def_interner.function_modifiers(&function_id);
-        let func_type = modifiers
-            .contract_function_type
-            .expect("Expected contract function to have a contract visibility");
 
-        let function_type = ContractFunctionType::new(func_type, modifiers.is_unconstrained);
+        let custom_attributes = modifiers
+            .attributes
+            .secondary
+            .iter()
+            .filter_map(
+                |attr| if let SecondaryAttribute::Custom(tag) = attr { Some(tag) } else { None },
+            )
+            .cloned()
+            .collect();
 
         functions.push(ContractFunction {
             name,
-            function_type,
-            is_internal: modifiers.is_internal.unwrap_or(false),
+            custom_attributes,
             abi: function.abi,
             bytecode: function.circuit,
             debug: function.debug,
+            is_unconstrained: modifiers.is_unconstrained,
         });
     }
 

@@ -28,8 +28,8 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
-    ContractFunctionType, FunctionKind, IntegerBitSize, Signedness, Type, TypeBinding,
-    TypeBindings, TypeVariable, TypeVariableKind, UnaryOp, Visibility,
+    FunctionKind, IntegerBitSize, Signedness, Type, TypeBinding, TypeBindings, TypeVariable,
+    TypeVariableKind, UnaryOp, Visibility,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -165,7 +165,8 @@ pub fn monomorphize_debug(
     let FuncMeta { return_distinctness, return_visibility, kind, .. } =
         monomorphizer.interner.function_meta(&main);
 
-    let (debug_variables, debug_types) = monomorphizer.debug_type_tracker.extract_vars_and_types();
+    let (debug_variables, debug_functions, debug_types) =
+        monomorphizer.debug_type_tracker.extract_vars_and_types();
     let program = Program::new(
         functions,
         function_sig,
@@ -174,6 +175,7 @@ pub fn monomorphize_debug(
         *return_visibility,
         *kind == FunctionKind::Recursive,
         debug_variables,
+        debug_functions,
         debug_types,
     );
     Ok(program)
@@ -310,8 +312,7 @@ impl<'interner> Monomorphizer<'interner> {
             Type::TraitAsType(..) => &body_return_type,
             _ => meta.return_type(),
         });
-        let unconstrained = modifiers.is_unconstrained
-            || matches!(modifiers.contract_function_type, Some(ContractFunctionType::Open));
+        let unconstrained = modifiers.is_unconstrained;
 
         let parameters = self.parameters(&meta.parameters);
         let body = self.expr(body_expr_id)?;
@@ -1689,23 +1690,15 @@ impl<'interner> Monomorphizer<'interner> {
 }
 
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
-    match typ {
+    match typ.follow_bindings() {
         HirType::Tuple(fields) => fields.clone(),
-        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
-            TypeBinding::Bound(binding) => unwrap_tuple_type(binding),
-            TypeBinding::Unbound(_) => unreachable!(),
-        },
         other => unreachable!("unwrap_tuple_type: expected tuple, found {:?}", other),
     }
 }
 
 fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
-    match typ {
-        HirType::Struct(def, args) => def.borrow().get_fields(args),
-        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
-            TypeBinding::Bound(binding) => unwrap_struct_type(binding),
-            TypeBinding::Unbound(_) => unreachable!(),
-        },
+    match typ.follow_bindings() {
+        HirType::Struct(def, args) => def.borrow().get_fields(&args),
         other => unreachable!("unwrap_struct_type: expected struct, found {:?}", other),
     }
 }

@@ -1,9 +1,10 @@
+use std::io::Write;
 use std::path::Path;
+use std::time::Duration;
 
 use fm::FileManager;
 use nargo::artifacts::program::ProgramArtifact;
-use nargo::errors::CompileError;
-use nargo::ops::{compile_contract, compile_program};
+use nargo::ops::{collect_errors, compile_contract, compile_program, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
@@ -16,6 +17,8 @@ use noirc_frontend::graph::CrateName;
 
 use clap::Args;
 use noirc_frontend::hir::ParsedFiles;
+use notify::{EventKind, RecursiveMode, Watcher};
+use notify_debouncer_full::new_debouncer;
 
 use crate::backends::Backend;
 use crate::errors::CliError;
@@ -32,17 +35,21 @@ pub(crate) struct CompileCommand {
     #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
 
-    /// Compile all packages in the workspace
+    /// Compile all packages in the workspace.
     #[clap(long, conflicts_with = "package")]
     workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    /// Watch workspace and recompile on changes.
+    #[clap(long, hide = true)]
+    watch: bool,
 }
 
 pub(crate) fn run(
     backend: &Backend,
-    args: CompileCommand,
+    mut args: CompileCommand,
     config: NargoConfig,
 ) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
@@ -55,21 +62,82 @@ pub(crate) fn run(
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
     )?;
-    let circuit_dir = workspace.target_directory_path();
 
+    if args.compile_options.expression_width.is_none() {
+        args.compile_options.expression_width = Some(backend.get_backend_info_or_default());
+    };
+
+    if args.watch {
+        watch_workspace(&workspace, &args.compile_options)
+            .map_err(|err| CliError::Generic(err.to_string()))?;
+    } else {
+        compile_workspace_full(&workspace, &args.compile_options)?;
+    }
+
+    Ok(())
+}
+
+fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> notify::Result<()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    // No specific tickrate, max debounce time 1 seconds
+    let mut debouncer = new_debouncer(Duration::from_secs(1), None, tx)?;
+
+    // Add a path to be watched. All files and directories at that path and
+    // below will be monitored for changes.
+    debouncer.watcher().watch(&workspace.root_dir, RecursiveMode::Recursive)?;
+
+    let mut screen = std::io::stdout();
+    write!(screen, "{}", termion::cursor::Save).unwrap();
+    screen.flush().unwrap();
+    let _ = compile_workspace_full(workspace, compile_options);
+    for res in rx {
+        let debounced_events = res.map_err(|mut err| err.remove(0))?;
+
+        // We only want to trigger a rebuild if a noir source file has been modified.
+        let noir_files_modified = debounced_events.iter().any(|event| {
+            let mut event_paths = event.event.paths.iter();
+            let event_affects_noir_file =
+                event_paths.any(|path| path.extension().map_or(false, |ext| ext == "nr"));
+
+            let is_relevant_event_kind = matches!(
+                event.kind,
+                EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+            );
+
+            is_relevant_event_kind && event_affects_noir_file
+        });
+
+        if noir_files_modified {
+            write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
+            screen.flush().unwrap();
+            let _ = compile_workspace_full(workspace, compile_options);
+        }
+    }
+
+    screen.flush().unwrap();
+
+    Ok(())
+}
+
+fn compile_workspace_full(
+    workspace: &Workspace,
+    compile_options: &CompileOptions,
+) -> Result<(), CliError> {
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
-    let expression_width = args
-        .compile_options
-        .expression_width
-        .unwrap_or_else(|| backend.get_backend_info_or_default());
-    let (compiled_program, compiled_contracts) = compile_workspace(
+    let expression_width =
+        compile_options.expression_width.expect("expression width should have been set");
+    let compiled_workspace =
+        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
+
+    let (compiled_programs, compiled_contracts) = report_errors(
+        compiled_workspace,
         &workspace_file_manager,
-        &parsed_files,
-        &workspace,
-        &args.compile_options,
+        compile_options.deny_warnings,
+        compile_options.silence_warnings,
     )?;
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
@@ -79,11 +147,12 @@ pub(crate) fn run(
         .partition(|package| package.is_binary());
 
     // Save build artifacts to disk.
-    let only_acir = args.compile_options.only_acir;
-    for (package, program) in binary_packages.into_iter().zip(compiled_program) {
+    let only_acir = compile_options.only_acir;
+    for (package, program) in binary_packages.into_iter().zip(compiled_programs) {
         let program = nargo::ops::transform_program(program, expression_width);
         save_program(program.clone(), &package, &workspace.target_directory_path(), only_acir);
     }
+    let circuit_dir = workspace.target_directory_path();
     for (package, contract) in contract_packages.into_iter().zip(compiled_contracts) {
         let contract = nargo::ops::transform_contract(contract, expression_width);
         save_contract(contract, &package, &circuit_dir);
@@ -97,7 +166,7 @@ pub(super) fn compile_workspace(
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
     compile_options: &CompileOptions,
-) -> Result<(Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
+) -> CompilationResult<(Vec<CompiledProgram>, Vec<CompiledContract>)> {
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
         .filter(|package| !package.is_library())
@@ -123,31 +192,20 @@ pub(super) fn compile_workspace(
         .map(|package| compile_contract(file_manager, parsed_files, package, compile_options))
         .collect();
 
-    // Report any warnings/errors which were encountered during compilation.
-    let compiled_programs: Vec<CompiledProgram> = program_results
-        .into_iter()
-        .map(|compilation_result| {
-            report_errors(
-                compilation_result,
-                file_manager,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            )
-        })
-        .collect::<Result<_, _>>()?;
-    let compiled_contracts: Vec<CompiledContract> = contract_results
-        .into_iter()
-        .map(|compilation_result| {
-            report_errors(
-                compilation_result,
-                file_manager,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            )
-        })
-        .collect::<Result<_, _>>()?;
+    // Collate any warnings/errors which were encountered during compilation.
+    let compiled_programs = collect_errors(program_results);
+    let compiled_contracts = collect_errors(contract_results);
 
-    Ok((compiled_programs, compiled_contracts))
+    match (compiled_programs, compiled_contracts) {
+        (Ok((programs, program_warnings)), Ok((contracts, contract_warnings))) => {
+            let warnings = [program_warnings, contract_warnings].concat();
+            Ok(((programs, contracts), warnings))
+        }
+        (Err(program_errors), Err(contract_errors)) => {
+            Err([program_errors, contract_errors].concat())
+        }
+        (Err(errors), _) | (_, Err(errors)) => Err(errors),
+    }
 }
 
 pub(super) fn save_program(
@@ -171,31 +229,4 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
         &format!("{}-{}", package.name, contract_name),
         circuit_dir,
     );
-}
-
-/// Helper function for reporting any errors in a `CompilationResult<T>`
-/// structure that is commonly used as a return result in this file.
-pub(crate) fn report_errors<T>(
-    result: CompilationResult<T>,
-    file_manager: &FileManager,
-    deny_warnings: bool,
-    silence_warnings: bool,
-) -> Result<T, CompileError> {
-    let (t, warnings) = result.map_err(|errors| {
-        noirc_errors::reporter::report_all(
-            file_manager.as_file_map(),
-            &errors,
-            deny_warnings,
-            silence_warnings,
-        )
-    })?;
-
-    noirc_errors::reporter::report_all(
-        file_manager.as_file_map(),
-        &warnings,
-        deny_warnings,
-        silence_warnings,
-    );
-
-    Ok(t)
 }

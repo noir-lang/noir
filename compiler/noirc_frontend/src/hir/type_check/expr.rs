@@ -326,7 +326,10 @@ impl<'interner> TypeChecker<'interner> {
             assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
 
             for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
-                bindings.insert(param.id(), (param.clone(), arg.clone()));
+                // Avoid binding t = t
+                if !arg.occurs(param.id()) {
+                    bindings.insert(param.id(), (param.clone(), arg.clone()));
+                }
             }
         }
 
@@ -860,7 +863,13 @@ impl<'interner> TypeChecker<'interner> {
                     span: op.location.span,
                 });
 
-                self.comparator_operand_type_rules(x_type, y_type, op, span)
+                let (_, use_impl) = self.comparator_operand_type_rules(x_type, y_type, op, span)?;
+
+                // If the size is not constant, we must fall back to a user-provided impl for
+                // equality on slices.
+                let size = x_size.follow_bindings();
+                let use_impl = use_impl || size.evaluate_to_u64().is_none();
+                Ok((Bool, use_impl))
             }
 
             (String(x_size), String(y_size)) => {
@@ -1031,9 +1040,9 @@ impl<'interner> TypeChecker<'interner> {
                 }
                 ret
             }
+            // ignoring env for subtype on purpose
             Type::Function(parameters, ret, _env) => {
-                // ignoring env for subtype on purpose
-                self.bind_function_type_impl(parameters.as_ref(), ret.as_ref(), args.as_ref(), span)
+                self.bind_function_type_impl(&parameters, &ret, &args, span)
             }
             Type::Error => Type::Error,
             found => {

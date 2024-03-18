@@ -8,9 +8,7 @@ use crate::{
     graph::CrateId,
     hir::{
         def_collector::{
-            dc_crate::{
-                check_methods_signatures, CompilationError, UnresolvedTrait, UnresolvedTraitImpl,
-            },
+            dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTraitImpl},
             errors::{DefCollectorErrorKind, DuplicateType},
         },
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
@@ -18,7 +16,7 @@ use crate::{
     },
     hir_def::traits::{TraitConstant, TraitFunction, TraitImpl, TraitType},
     node_interner::{FuncId, NodeInterner, TraitId},
-    Generics, Path, Shared, TraitItem, Type, TypeVariable, TypeVariableKind,
+    Generics, ItemVisibility, Path, Shared, TraitItem, Type, TypeVariable, TypeVariableKind,
 };
 
 use super::{
@@ -131,6 +129,7 @@ fn resolve_trait_methods(
             let func_id = unresolved_trait.method_ids[&name.0.contents];
             let (_, func_meta) = resolver.resolve_trait_function(
                 name,
+                generics,
                 parameters,
                 return_type,
                 where_clause,
@@ -302,7 +301,14 @@ fn collect_trait_impl(
                 // be accessed with the `TypeName::method` syntax. We'll check later whether the
                 // object types in each method overlap or not. If they do, we issue an error.
                 // If not, that is specialization which is allowed.
-                if module.declare_function(method.name_ident().clone(), *method_id).is_err() {
+                if module
+                    .declare_function(
+                        method.name_ident().clone(),
+                        ItemVisibility::Public,
+                        *method_id,
+                    )
+                    .is_err()
+                {
                     module.remove_function(method.name_ident());
                 }
             }
@@ -365,6 +371,7 @@ pub(crate) fn resolve_trait_by_path(
         Err(_) => Err(DefCollectorErrorKind::TraitNotFound { trait_path: path }),
     }
 }
+
 pub(crate) fn resolve_trait_impls(
     context: &mut Context,
     traits: Vec<UnresolvedTraitImpl>,
@@ -424,17 +431,6 @@ pub(crate) fn resolve_trait_impls(
         new_resolver.set_self_type(Some(self_type.clone()));
 
         if let Some(trait_id) = maybe_trait_id {
-            check_methods_signatures(
-                &mut new_resolver,
-                &impl_methods,
-                trait_id,
-                trait_impl.trait_path.span(),
-                trait_impl.trait_generics,
-                trait_impl.generics.len(),
-                trait_impl.file_id,
-                errors,
-            );
-
             let where_clause = trait_impl
                 .where_clause
                 .into_iter()

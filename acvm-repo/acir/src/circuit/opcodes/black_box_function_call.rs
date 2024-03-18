@@ -217,8 +217,10 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
             | BlackBoxFuncCall::PedersenHash { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. }
-            | BlackBoxFuncCall::Sha256Compression { inputs, .. } => inputs.to_vec(),
+            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
+            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
+                inputs.iter().chain(hash_values).copied().collect()
+            }
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
             }
