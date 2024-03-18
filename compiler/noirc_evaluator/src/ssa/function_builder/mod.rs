@@ -32,7 +32,7 @@ use super::{
 /// functions as needed, although it is limited to one function at a time.
 pub(crate) struct FunctionBuilder {
     pub(super) current_function: Function,
-    current_block: Option<BasicBlockId>,
+    current_block: BasicBlockId,
     finished_functions: Vec<Function>,
     call_stack: CallStack,
 }
@@ -51,7 +51,7 @@ impl FunctionBuilder {
         new_function.set_runtime(runtime);
 
         Self {
-            current_block: Some(new_function.entry_block()),
+            current_block: new_function.entry_block(),
             current_function: new_function,
             finished_functions: Vec::new(),
             call_stack: CallStack::new(),
@@ -71,7 +71,7 @@ impl FunctionBuilder {
     ) {
         let mut new_function = Function::new(name, function_id);
         new_function.set_runtime(runtime_type);
-        self.current_block = Some(new_function.entry_block());
+        self.current_block = new_function.entry_block();
 
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         self.finished_functions.push(old_function);
@@ -165,12 +165,12 @@ impl FunctionBuilder {
     /// Expects the given block to be within the same function. If you want to insert
     /// instructions into a new function, call new_function instead.
     pub(crate) fn switch_to_block(&mut self, block: BasicBlockId) {
-        self.current_block = Some(block);
+        self.current_block = block;
     }
 
     /// Returns the block currently being inserted into
     pub(crate) fn current_block(&mut self) -> BasicBlockId {
-        self.current_block.expect("Tried to grab the current block after it was terminated")
+        self.current_block
     }
 
     /// Insert an allocate instruction at the end of the current block, allocating the
@@ -310,11 +310,11 @@ impl FunctionBuilder {
     }
 
     /// Terminates the current block with the given terminator instruction
+    /// if the current block does not already have a terminator instruction.
     fn terminate_block_with(&mut self, terminator: TerminatorInstruction) {
-        if let Some(block) = self.current_block.take() {
-            self.current_function.dfg.set_block_terminator(block, terminator);
+        if self.current_function.dfg[self.current_block].terminator().is_none() {
+            self.current_function.dfg.set_block_terminator(self.current_block, terminator);
         }
-        self.current_block = None;
     }
 
     /// Terminate the current block with a jmp instruction to jmp to the given
