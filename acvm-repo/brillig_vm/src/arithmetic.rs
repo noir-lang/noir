@@ -15,7 +15,16 @@ pub(crate) fn evaluate_binary_field_op(
         BinaryFieldOp::Sub => a - b,
         BinaryFieldOp::Mul => a * b,
         BinaryFieldOp::Div => a / b,
+        BinaryFieldOp::IntegerDiv => {
+            let a_big = BigUint::from_bytes_be(&a.to_be_bytes());
+            let b_big = BigUint::from_bytes_be(&b.to_be_bytes());
+
+            let result = a_big / b_big;
+            FieldElement::from_be_bytes_reduce(&result.to_bytes_be())
+        }
         BinaryFieldOp::Equals => (a == b).into(),
+        BinaryFieldOp::LessThan => (a < b).into(),
+        BinaryFieldOp::LessThanEquals => (a <= b).into(),
     }
 }
 

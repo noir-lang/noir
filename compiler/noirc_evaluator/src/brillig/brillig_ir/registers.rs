@@ -2,7 +2,7 @@ use acvm::acir::brillig::MemoryAddress;
 
 use crate::brillig::brillig_ir::entry_point::MAX_STACK_SIZE;
 
-use super::ReservedRegisters;
+use super::{brillig_variable::SingleAddrVariable, BrilligContext, ReservedRegisters};
 
 /// Every brillig stack frame/call context has its own view of register space.
 /// This is maintained by copying these registers to the stack during calls and reading them back.
@@ -79,5 +79,31 @@ impl BrilligRegistersContext {
     pub(crate) fn deallocate_register(&mut self, register_index: MemoryAddress) {
         assert!(!self.deallocated_registers.contains(&register_index));
         self.deallocated_registers.push(register_index);
+    }
+}
+
+impl BrilligContext {
+    /// Returns the i'th register after the reserved ones
+    pub(crate) fn register(&self, i: usize) -> MemoryAddress {
+        MemoryAddress::from(ReservedRegisters::NUM_RESERVED_REGISTERS + i)
+    }
+
+    /// Allocates an unused register.
+    pub(crate) fn allocate_register(&mut self) -> MemoryAddress {
+        self.registers.allocate_register()
+    }
+
+    pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
+        self.registers = BrilligRegistersContext::from_preallocated_registers(allocated_registers);
+    }
+
+    /// Push a register to the deallocation list, ready for reuse.
+    pub(crate) fn deallocate_register(&mut self, register_index: MemoryAddress) {
+        self.registers.deallocate_register(register_index);
+    }
+
+    /// Deallocates the address where the single address variable is stored
+    pub(crate) fn deallocate_single_addr(&mut self, var: SingleAddrVariable) {
+        self.deallocate_register(var.address);
     }
 }

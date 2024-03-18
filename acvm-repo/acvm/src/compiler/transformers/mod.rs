@@ -145,6 +145,7 @@ pub(super) fn transform_internal(
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
             }
+            Opcode::Call { .. } => todo!("Handle Call opcodes in the ACVM"),
         }
     }
 
