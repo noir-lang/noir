@@ -232,7 +232,7 @@ Sets a breakpoint on the specified opcode index. To get a list of the program op
 2    EXPR [ (1, _1) -2 ]
 ```
 
-In this example, issuing a `break 1.2` commmand adds break on opcode 1.2, as denoted by the `*` character:
+In this example, issuing a `break 1.2` command adds break on opcode 1.2, as denoted by the `*` character:
 
 ```
 0  BLACKBOX::RANGE [(_0, num_bits: 32)] [ ]
