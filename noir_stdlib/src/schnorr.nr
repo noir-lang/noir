@@ -10,12 +10,12 @@ pub fn verify_signature(
 {}
 
 #[foreign(schnorr_verify)]
-// docs:start:schnorr_verify
+// docs:start:schnorr_verify_array
 pub fn verify_signature_array<N>(
     public_key_x: Field,
     public_key_y: Field,
     signature: [u8; 64],
     message: [u8; N]
 ) -> bool
-// docs:end:schnorr_verify
+// docs:end:schnorr_verify_array
 {}

@@ -15,7 +15,7 @@ A slice is a dynamically-sized view into a sequence of elements. They can be res
 use dep::std::slice;
 
 fn main() -> pub Field {
-    let mut slice: [Field] = [0; 2];
+    let mut slice: [Field] = &[0; 2];
 
     let mut new_slice = slice.push_back(6);
     new_slice.len()
@@ -42,7 +42,7 @@ example:
 
 ```rust
 fn main() -> pub Field {
-    let mut slice: [Field] = [0; 2];
+    let mut slice: [Field] = &[0; 2];
 
     let mut new_slice = slice.push_back(6);
     new_slice.len()
@@ -62,7 +62,7 @@ fn push_front(_self: Self, _elem: T) -> Self
 Example:
 
 ```rust
-let mut new_slice: [Field] = [];
+let mut new_slice: [Field] = &[];
 new_slice = new_slice.push_front(20);
 assert(new_slice[0] == 20); // returns true
 ```
@@ -112,7 +112,7 @@ fn append(mut self, other: Self) -> Self
 Example:
 
 ```rust
-let append = [1, 2].append([3, 4, 5]);
+let append = &[1, 2].append(&[3, 4, 5]);
 ```
 
 ### insert

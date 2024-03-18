@@ -201,7 +201,7 @@ const foreignCallHandler = (name, inputs) => crypto.randomBytes(16) // etc
 await noir.generateFinalProof(inputs, foreignCallHandler)
 ```
 
-As one can see, in NoirJS, the [`foreignCallHandler`](../reference/NoirJS/noir_js/type-aliases/ForeignCallHandler.md) function simply means "a callback function that returns a value of type [`ForeignCallOutput`](../reference/NoirJS/noir_js/type-aliases/ForeignCallOutput.md). It doesn't have to be an RPC call like in the case for Nargo.
+As one can see, in NoirJS, the `foreignCallHandler` function simply means "a callback function that returns a value of type `ForeignCallOutput`. It doesn't have to be an RPC call like in the case for Nargo.
 
 :::tip
 

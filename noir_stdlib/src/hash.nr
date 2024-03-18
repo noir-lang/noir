@@ -13,9 +13,9 @@ pub fn sha256(input: [u8]) -> [u8; 32]
 {}
 
 #[foreign(sha256)]
-// docs:start:sha256
+// docs:start:sha256_array
 pub fn sha256_array<N>(input: [u8; N]) -> [u8; 32]
-// docs:end:sha256
+// docs:end:sha256_array
 {}
 
 #[foreign(blake2s)]
@@ -25,9 +25,9 @@ pub fn blake2s(input: [u8]) -> [u8; 32]
 {}
 
 #[foreign(blake2s)]
-// docs:start:blake2s
+// docs:start:blake2s_array
 pub fn blake2s_array<N>(input: [u8; N]) -> [u8; 32]
-// docs:end:blake2s
+// docs:end:blake2s_array
 {}
 
 #[foreign(blake3)]
@@ -37,9 +37,9 @@ pub fn blake3(input: [u8]) -> [u8; 32]
 {}
 
 #[foreign(blake3)]
-// docs:start:blake3
+// docs:start:blake3_array
 pub fn blake3_array<N>(input: [u8; N]) -> [u8; 32]
-// docs:end:blake3
+// docs:end:blake3_array
 {}
 
 // docs:start:pedersen_commitment
@@ -55,7 +55,6 @@ pub fn pedersen_commitment(input: [Field]) -> PedersenPoint
 }
 
 pub fn pedersen_commitment_array<N>(input: [Field; N]) -> PedersenPoint
-// docs:end:pedersen_commitment
 {
     pedersen_commitment_with_separator_array(input, 0)
 }
@@ -83,9 +82,9 @@ pub fn pedersen_hash(input: [Field]) -> Field
     pedersen_hash_with_separator(input, 0)
 }
 
-// docs:start:pedersen_hash
+// docs:start:pedersen_hash_array
 pub fn pedersen_hash_array<N>(input: [Field; N]) -> Field
-// docs:end:pedersen_hash
+// docs:end:pedersen_hash_array
 {
     pedersen_hash_with_separator_array(input, 0)
 }
@@ -117,9 +116,9 @@ pub fn keccak256(input: [u8], message_size: u32) -> [u8; 32]
 {}
 
 #[foreign(keccak256)]
-// docs:start:keccak256
+// docs:start:keccak256_array
 pub fn keccak256_array<N>(input: [u8; N], message_size: u32) -> [u8; 32]
-// docs:end:keccak256
+// docs:end:keccak256_array
 {}
 
 #[foreign(poseidon2_permutation)]

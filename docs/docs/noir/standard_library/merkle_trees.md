@@ -44,7 +44,7 @@ fn main(index: Field, priv_key: Field, secret: Field, note_hash_path: [Field; 3]
     let pubkey_y = pubkey[1];
     let note_commitment = std::hash::pedersen([pubkey_x, pubkey_y, secret]);
 
-    let root = std::merkle::compute_merkle_root(note_commitment[0], index, note_hash_path);
+    let root = std::merkle::compute_merkle_root(note_commitment[0], index, note_hash_path.as_slice());
     println(root);
 }
 ```
