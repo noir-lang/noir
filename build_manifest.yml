@@ -36,6 +36,7 @@ noir-packages-tests:
   rebuildPatterns: .rebuild_patterns_packages
   dependencies:
     - noir
+    - noir-packages
 
 # Builds the brillig to avm transpiler.
 avm-transpiler:

@@ -1,6 +1,9 @@
 FROM aztecprotocol/noir AS noir
+FROM --platform=linux/amd64 aztecprotocol/noir-packages as noir-packages
 
 FROM node:20 AS builder
+COPY --from=noir-packages /usr/src/noir/packages /usr/src/noir/packages
+
 COPY --from=noir /usr/src/noir/noir-repo/target/release /usr/src/noir/noir-repo/target/release
 ENV PATH=${PATH}:/usr/src/noir/noir-repo/target/release
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
