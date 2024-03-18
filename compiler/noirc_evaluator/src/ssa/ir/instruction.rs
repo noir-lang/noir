@@ -37,6 +37,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Intrinsic {
     ArrayLen,
+    AsSlice,
     AssertConstant,
     SlicePushBack,
     SlicePushFront,
@@ -57,6 +58,7 @@ impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::AsSlice => write!(f, "as_slice"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
@@ -89,6 +91,7 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             Intrinsic::ArrayLen
+            | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
             | Intrinsic::SlicePopBack
@@ -109,6 +112,7 @@ impl Intrinsic {
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),
+            "as_slice" => Some(Intrinsic::AsSlice),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),

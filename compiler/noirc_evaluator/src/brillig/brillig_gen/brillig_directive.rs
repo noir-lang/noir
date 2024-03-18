@@ -65,7 +65,7 @@ pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
             },
             //q = a/b is set into register (2)
             BrilligOpcode::BinaryIntOp {
-                op: BinaryIntOp::UnsignedDiv,
+                op: BinaryIntOp::Div,
                 lhs: MemoryAddress::from(0),
                 rhs: MemoryAddress::from(1),
                 destination: MemoryAddress::from(2),
