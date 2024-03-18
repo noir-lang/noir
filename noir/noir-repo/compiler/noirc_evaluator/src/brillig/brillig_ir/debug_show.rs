@@ -53,8 +53,7 @@ impl DebugToString for BrilligBinaryOp {
             BrilligBinaryOp::Mul => "*".into(),
             BrilligBinaryOp::Equals => "==".into(),
             BrilligBinaryOp::FieldDiv => "f/".into(),
-            BrilligBinaryOp::SignedDiv => "/".into(),
-            BrilligBinaryOp::UnsignedDiv => "//".into(),
+            BrilligBinaryOp::UnsignedDiv => "/".into(),
             BrilligBinaryOp::LessThan => "<".into(),
             BrilligBinaryOp::LessThanEquals => "<=".into(),
             BrilligBinaryOp::And => "&&".into(),
@@ -62,10 +61,7 @@ impl DebugToString for BrilligBinaryOp {
             BrilligBinaryOp::Xor => "^".into(),
             BrilligBinaryOp::Shl => "<<".into(),
             BrilligBinaryOp::Shr => ">>".into(),
-            BrilligBinaryOp::Modulo { is_signed_integer } => {
-                let op = if *is_signed_integer { "%" } else { "%%" };
-                op.into()
-            }
+            BrilligBinaryOp::Modulo => "%".into(),
         }
     }
 }

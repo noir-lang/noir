@@ -64,7 +64,7 @@ impl BrilligContext {
                 shifted_field,
                 radix_as_field,
                 modulus_field,
-                BrilligBinaryOp::Modulo { is_signed_integer: false },
+                BrilligBinaryOp::Modulo,
             );
             // Write it
             ctx.codegen_array_set(target_vector.pointer, iterator_register, modulus_field.address);

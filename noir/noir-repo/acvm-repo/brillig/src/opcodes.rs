@@ -198,8 +198,7 @@ pub enum BinaryIntOp {
     Add,
     Sub,
     Mul,
-    SignedDiv,
-    UnsignedDiv,
+    Div,
     /// (==) equal
     Equals,
     /// (<) Field less than

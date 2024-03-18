@@ -1,6 +1,6 @@
 use acir::brillig::{BinaryFieldOp, BinaryIntOp};
 use acir::FieldElement;
-use num_bigint::{BigInt, BigUint};
+use num_bigint::BigUint;
 use num_traits::{One, ToPrimitive, Zero};
 
 /// Evaluate a binary operation on two FieldElements and return the result as a FieldElement.
@@ -42,22 +42,12 @@ pub(crate) fn evaluate_binary_bigint_op(
         BinaryIntOp::Sub => (bit_modulo + a - b) % bit_modulo,
         BinaryIntOp::Mul => (a * b) % bit_modulo,
         // Perform unsigned division using the modulo operation on a and b.
-        BinaryIntOp::UnsignedDiv => {
+        BinaryIntOp::Div => {
             let b_mod = b % bit_modulo;
             if b_mod.is_zero() {
                 BigUint::zero()
             } else {
                 (a % bit_modulo) / b_mod
-            }
-        }
-        // Perform signed division by first converting a and b to signed integers and then back to unsigned after the operation.
-        BinaryIntOp::SignedDiv => {
-            let b_signed = to_big_signed(b, bit_size);
-            if b_signed.is_zero() {
-                BigUint::zero()
-            } else {
-                let signed_div = to_big_signed(a, bit_size) / b_signed;
-                to_big_unsigned(signed_div, bit_size)
             }
         }
         // Perform a == operation, returning 0 or 1
@@ -103,23 +93,6 @@ pub(crate) fn evaluate_binary_bigint_op(
     Ok(result)
 }
 
-fn to_big_signed(a: BigUint, bit_size: u32) -> BigInt {
-    let pow_2 = BigUint::from(2_u32).pow(bit_size - 1);
-    if a < pow_2 {
-        BigInt::from(a)
-    } else {
-        BigInt::from(a) - 2 * BigInt::from(pow_2)
-    }
-}
-
-fn to_big_unsigned(a: BigInt, bit_size: u32) -> BigUint {
-    if a >= BigInt::zero() {
-        BigUint::from_bytes_le(&a.to_bytes_le().1)
-    } else {
-        BigUint::from(2_u32).pow(bit_size) - BigUint::from_bytes_le(&a.to_bytes_le().1)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,24 +110,6 @@ mod tests {
         let result_value = evaluate_binary_bigint_op(op, lhs_big, rhs_big, bit_size).unwrap();
         // Convert back to u128
         result_value.to_u128().unwrap()
-    }
-
-    fn to_signed(a: u128, bit_size: u32) -> i128 {
-        assert!(bit_size < 128);
-        let pow_2 = 2_u128.pow(bit_size - 1);
-        if a < pow_2 {
-            a as i128
-        } else {
-            (a.wrapping_sub(2 * pow_2)) as i128
-        }
-    }
-
-    fn to_unsigned(a: i128, bit_size: u32) -> u128 {
-        if a >= 0 {
-            a as u128
-        } else {
-            (a + 2_i128.pow(bit_size)) as u128
-        }
     }
 
     fn to_negative(a: u128, bit_size: u32) -> u128 {
@@ -233,26 +188,6 @@ mod tests {
         let test_ops =
             vec![TestParams { a: 5, b: 3, result: 1 }, TestParams { a: 5, b: 10, result: 0 }];
 
-        evaluate_int_ops(test_ops, BinaryIntOp::UnsignedDiv, bit_size);
-    }
-
-    #[test]
-    fn to_signed_roundtrip() {
-        let bit_size = 32;
-        let minus_one = 2_u128.pow(bit_size) - 1;
-        assert_eq!(to_unsigned(to_signed(minus_one, bit_size), bit_size), minus_one);
-    }
-
-    #[test]
-    fn signed_div_test() {
-        let bit_size = 32;
-
-        let test_ops = vec![
-            TestParams { a: 5, b: to_negative(10, bit_size), result: 0 },
-            TestParams { a: 5, b: to_negative(1, bit_size), result: to_negative(5, bit_size) },
-            TestParams { a: to_negative(5, bit_size), b: to_negative(1, bit_size), result: 5 },
-        ];
-
-        evaluate_int_ops(test_ops, BinaryIntOp::SignedDiv, bit_size);
+        evaluate_int_ops(test_ops, BinaryIntOp::Div, bit_size);
     }
 }

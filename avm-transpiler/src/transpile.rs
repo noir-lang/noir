@@ -74,7 +74,7 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
                     BinaryIntOp::Add => AvmOpcode::ADD,
                     BinaryIntOp::Sub => AvmOpcode::SUB,
                     BinaryIntOp::Mul => AvmOpcode::MUL,
-                    BinaryIntOp::UnsignedDiv => AvmOpcode::DIV,
+                    BinaryIntOp::Div => AvmOpcode::DIV,
                     BinaryIntOp::Equals => AvmOpcode::EQ,
                     BinaryIntOp::LessThan => AvmOpcode::LT,
                     BinaryIntOp::LessThanEquals => AvmOpcode::LTE,

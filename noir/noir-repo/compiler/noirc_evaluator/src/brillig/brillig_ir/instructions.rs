@@ -92,8 +92,8 @@ impl BrilligContext {
             operation
         );
 
-        if let BrilligBinaryOp::Modulo { is_signed_integer } = operation {
-            self.modulo(result, lhs, rhs, is_signed_integer);
+        if let BrilligBinaryOp::Modulo = operation {
+            self.modulo(result, lhs, rhs);
         } else if is_field_op {
             self.push_opcode(BrilligOpcode::BinaryFieldOp {
                 op: operation.into(),
@@ -126,7 +126,6 @@ impl BrilligContext {
         result: SingleAddrVariable,
         left: SingleAddrVariable,
         right: SingleAddrVariable,
-        signed: bool,
     ) {
         assert!(
             left.bit_size == right.bit_size,
@@ -140,15 +139,7 @@ impl BrilligContext {
         let scratch_var_j = SingleAddrVariable::new(self.allocate_register(), bit_size);
 
         // i = left / right
-        self.binary(
-            left,
-            right,
-            scratch_var_i,
-            match signed {
-                true => BrilligBinaryOp::SignedDiv,
-                false => BrilligBinaryOp::UnsignedDiv,
-            },
-        );
+        self.binary(left, right, scratch_var_i, BrilligBinaryOp::UnsignedDiv);
 
         // j = i * right
         self.binary(scratch_var_i, right, scratch_var_j, BrilligBinaryOp::Mul);
@@ -156,8 +147,8 @@ impl BrilligContext {
         // result_register = left - j
         self.binary(left, scratch_var_j, result, BrilligBinaryOp::Sub);
         // Free scratch registers
-        self.deallocate_register(scratch_var_i.address);
-        self.deallocate_register(scratch_var_j.address);
+        self.deallocate_single_addr(scratch_var_i);
+        self.deallocate_single_addr(scratch_var_j);
     }
 
     fn binary_result_bit_size(operation: BrilligBinaryOp, arguments_bit_size: u32) -> u32 {
@@ -481,7 +472,6 @@ pub(crate) enum BrilligBinaryOp {
     Sub,
     Mul,
     FieldDiv,
-    SignedDiv,
     UnsignedDiv,
     Equals,
     LessThan,
@@ -492,7 +482,7 @@ pub(crate) enum BrilligBinaryOp {
     Shl,
     Shr,
     // Modulo operation requires more than one brillig opcode
-    Modulo { is_signed_integer: bool },
+    Modulo,
 }
 
 impl From<BrilligBinaryOp> for BinaryFieldOp {
@@ -517,8 +507,7 @@ impl From<BrilligBinaryOp> for BinaryIntOp {
             BrilligBinaryOp::Add => BinaryIntOp::Add,
             BrilligBinaryOp::Sub => BinaryIntOp::Sub,
             BrilligBinaryOp::Mul => BinaryIntOp::Mul,
-            BrilligBinaryOp::UnsignedDiv => BinaryIntOp::UnsignedDiv,
-            BrilligBinaryOp::SignedDiv => BinaryIntOp::SignedDiv,
+            BrilligBinaryOp::UnsignedDiv => BinaryIntOp::Div,
             BrilligBinaryOp::Equals => BinaryIntOp::Equals,
             BrilligBinaryOp::LessThan => BinaryIntOp::LessThan,
             BrilligBinaryOp::LessThanEquals => BinaryIntOp::LessThanEquals,
