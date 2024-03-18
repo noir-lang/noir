@@ -40,7 +40,8 @@ template <typename CycleGroup> struct ScalarMul {
     typename CycleGroup::affine_element base_point;
     std::array<int, NUM_WNAF_SLICES> wnaf_slices;
     bool wnaf_skew;
-    std::array<typename CycleGroup::affine_element, POINT_TABLE_SIZE> precomputed_table;
+    // size bumped by 1 to record base_point.dbl()
+    std::array<typename CycleGroup::affine_element, POINT_TABLE_SIZE + 1> precomputed_table;
 };
 
 template <typename CycleGroup> using MSM = std::vector<ScalarMul<CycleGroup>>;

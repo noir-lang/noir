@@ -46,18 +46,7 @@ template <typename Flavor> class ECCVMCircuitBuilder {
 
     [[nodiscard]] uint32_t get_number_of_muls() const
     {
-        uint32_t num_muls = 0;
-        for (auto& op : op_queue->raw_ops) {
-            if (op.mul) {
-                if (op.z1 != 0) {
-                    num_muls++;
-                }
-                if (op.z2 != 0) {
-                    num_muls++;
-                }
-            }
-        }
-        return num_muls;
+        return op_queue->cached_num_muls + op_queue->cached_active_msm_count;
     }
 
     std::vector<MSM> get_msms() const
@@ -68,7 +57,8 @@ template <typename Flavor> class ECCVMCircuitBuilder {
          */
         const auto compute_precomputed_table = [](const AffineElement& base_point) {
             const auto d2 = Element(base_point).dbl();
-            std::array<AffineElement, POINT_TABLE_SIZE> table;
+            std::array<Element, POINT_TABLE_SIZE + 1> table;
+            table[POINT_TABLE_SIZE] = d2; // need this for later
             table[POINT_TABLE_SIZE / 2] = base_point;
             for (size_t i = 1; i < POINT_TABLE_SIZE / 2; ++i) {
                 table[i + POINT_TABLE_SIZE / 2] = Element(table[i + POINT_TABLE_SIZE / 2 - 1]) + d2;
@@ -76,7 +66,13 @@ template <typename Flavor> class ECCVMCircuitBuilder {
             for (size_t i = 0; i < POINT_TABLE_SIZE / 2; ++i) {
                 table[i] = -table[POINT_TABLE_SIZE - 1 - i];
             }
-            return table;
+
+            Element::batch_normalize(&table[0], POINT_TABLE_SIZE + 1);
+            std::array<AffineElement, POINT_TABLE_SIZE + 1> result;
+            for (size_t i = 0; i < POINT_TABLE_SIZE + 1; ++i) {
+                result[i] = AffineElement(table[i].x, table[i].y);
+            }
+            return result;
         };
         const auto compute_wnaf_slices = [](uint256_t scalar) {
             std::array<int, NUM_WNAF_SLICES> output;
@@ -116,9 +112,83 @@ template <typename Flavor> class ECCVMCircuitBuilder {
 
             return output;
         };
-        std::vector<MSM> msms;
-        std::vector<ScalarMul> active_msm;
 
+        // a vector of MSMs = a vector of a vector of scalar muls
+        // each mul
+        size_t msm_count = 0;
+        size_t active_mul_count = 0;
+        std::vector<size_t> msm_opqueue_index;
+        std::vector<std::pair<size_t, size_t>> msm_mul_index;
+        std::vector<size_t> msm_sizes;
+
+        // std::vector<std::vector<size_t>> msm_indices;
+        // std::vector<size_t> active_msm_indices;
+        for (size_t i = 0; i < op_queue->raw_ops.size(); ++i) {
+            const auto& op = op_queue->raw_ops[i];
+            if (op.mul) {
+                if (op.z1 != 0 || op.z2 != 0) {
+                    msm_opqueue_index.push_back(i);
+                    msm_mul_index.emplace_back(msm_count, active_mul_count);
+                }
+                if (op.z1 != 0) {
+                    active_mul_count++;
+                }
+                if (op.z2 != 0) {
+                    active_mul_count++;
+                }
+            } else if (active_mul_count > 0) {
+                msm_sizes.push_back(active_mul_count);
+                msm_count++;
+                active_mul_count = 0;
+            }
+        }
+        // if last op is a mul we have not correctly computed the total number of msms
+        if (op_queue->raw_ops.back().mul) {
+            msm_sizes.push_back(active_mul_count);
+            msm_count++;
+        }
+        std::vector<MSM> msms_test(msm_count);
+        for (size_t i = 0; i < msm_count; ++i) {
+            auto& msm = msms_test[i];
+            msm.resize(msm_sizes[i]);
+        }
+
+        run_loop_in_parallel(msm_opqueue_index.size(), [&](size_t start, size_t end) {
+            for (size_t i = start; i < end; i++) {
+                //  for (size_t i = 0; i < msm_opqueue_index.size(); ++i) {
+                const size_t opqueue_index = msm_opqueue_index[i];
+                const auto& op = op_queue->raw_ops[opqueue_index];
+                auto [msm_index, mul_index] = msm_mul_index[i];
+                if (op.z1 != 0) {
+                    ASSERT(msms_test.size() > msm_index);
+                    ASSERT(msms_test[msm_index].size() > mul_index);
+                    msms_test[msm_index][mul_index] = (ScalarMul{
+                        .pc = 0,
+                        .scalar = op.z1,
+                        .base_point = op.base_point,
+                        .wnaf_slices = compute_wnaf_slices(op.z1),
+                        .wnaf_skew = (op.z1 & 1) == 0,
+                        .precomputed_table = compute_precomputed_table(op.base_point),
+                    });
+                    mul_index++;
+                }
+                if (op.z2 != 0) {
+                    ASSERT(msms_test.size() > msm_index);
+                    ASSERT(msms_test[msm_index].size() > mul_index);
+                    auto endo_point = AffineElement{ op.base_point.x * FF::cube_root_of_unity(), -op.base_point.y };
+                    msms_test[msm_index][mul_index] = (ScalarMul{
+                        .pc = 0,
+                        .scalar = op.z2,
+                        .base_point = endo_point,
+                        .wnaf_slices = compute_wnaf_slices(op.z2),
+                        .wnaf_skew = (op.z2 & 1) == 0,
+                        .precomputed_table = compute_precomputed_table(endo_point),
+                    });
+                }
+            }
+        });
+
+        // update pc. easier to do this serially but in theory could be optimised out
         // We start pc at `num_muls` and decrement for each mul processed.
         // This gives us two desired properties:
         // 1: the value of pc at the 1st row = number of muls (easy to check)
@@ -127,40 +197,15 @@ template <typename Flavor> class ECCVMCircuitBuilder {
         // sumcheck relations that involve pc (if we did the other way around, starting at 1 and ending at num_muls,
         // we create a discontinuity in pc values between the last transcript row and the following empty row)
         uint32_t pc = num_muls;
-
-        const auto process_mul = [&active_msm, &pc, &compute_wnaf_slices, &compute_precomputed_table](
-                                     const auto& scalar, const auto& base_point) {
-            if (scalar != 0) {
-                active_msm.push_back(ScalarMul{
-                    .pc = pc,
-                    .scalar = scalar,
-                    .base_point = base_point,
-                    .wnaf_slices = compute_wnaf_slices(scalar),
-                    .wnaf_skew = (scalar & 1) == 0,
-                    .precomputed_table = compute_precomputed_table(base_point),
-                });
+        for (auto& msm : msms_test) {
+            for (auto& mul : msm) {
+                mul.pc = pc;
                 pc--;
             }
-        };
-
-        for (auto& op : op_queue->raw_ops) {
-            if (op.mul) {
-                process_mul(op.z1, op.base_point);
-                process_mul(op.z2, AffineElement{ op.base_point.x * FF::cube_root_of_unity(), -op.base_point.y });
-
-            } else {
-                if (!active_msm.empty()) {
-                    msms.push_back(active_msm);
-                    active_msm = {};
-                }
-            }
-        }
-        if (!active_msm.empty()) {
-            msms.push_back(active_msm);
         }
 
         ASSERT(pc == 0);
-        return msms;
+        return msms_test;
     }
 
     static std::vector<ScalarMul> get_flattened_scalar_muls(const std::vector<MSM>& msms)
@@ -262,8 +307,8 @@ template <typename Flavor> class ECCVMCircuitBuilder {
             ECCVMTranscriptBuilder<Flavor>::compute_transcript_state(op_queue->raw_ops, get_number_of_muls());
         const auto precompute_table_state =
             ECCVMPrecomputedTablesBuilder<Flavor>::compute_precompute_state(flattened_muls);
-        const auto msm_state =
-            ECCVMMSMMBuilder<Flavor>::compute_msm_state(msms, point_table_read_counts, get_number_of_muls());
+        const auto msm_state = ECCVMMSMMBuilder<Flavor>::compute_msm_state(
+            msms, point_table_read_counts, get_number_of_muls(), op_queue->get_num_msm_rows());
 
         const size_t msm_size = msm_state.size();
         const size_t transcript_size = transcript_state.size();
@@ -293,28 +338,30 @@ template <typename Flavor> class ECCVMCircuitBuilder {
             polys.lookup_read_counts_0[i + 1] = point_table_read_counts[0][i];
             polys.lookup_read_counts_1[i + 1] = point_table_read_counts[1][i];
         }
-        for (size_t i = 0; i < transcript_state.size(); ++i) {
-            polys.transcript_accumulator_empty[i] = transcript_state[i].accumulator_empty;
-            polys.transcript_add[i] = transcript_state[i].q_add;
-            polys.transcript_mul[i] = transcript_state[i].q_mul;
-            polys.transcript_eq[i] = transcript_state[i].q_eq;
-            polys.transcript_reset_accumulator[i] = transcript_state[i].q_reset_accumulator;
-            polys.transcript_msm_transition[i] = transcript_state[i].msm_transition;
-            polys.transcript_pc[i] = transcript_state[i].pc;
-            polys.transcript_msm_count[i] = transcript_state[i].msm_count;
-            polys.transcript_Px[i] = transcript_state[i].base_x;
-            polys.transcript_Py[i] = transcript_state[i].base_y;
-            polys.transcript_z1[i] = transcript_state[i].z1;
-            polys.transcript_z2[i] = transcript_state[i].z2;
-            polys.transcript_z1zero[i] = transcript_state[i].z1_zero;
-            polys.transcript_z2zero[i] = transcript_state[i].z2_zero;
-            polys.transcript_op[i] = transcript_state[i].opcode;
-            polys.transcript_accumulator_x[i] = transcript_state[i].accumulator_x;
-            polys.transcript_accumulator_y[i] = transcript_state[i].accumulator_y;
-            polys.transcript_msm_x[i] = transcript_state[i].msm_output_x;
-            polys.transcript_msm_y[i] = transcript_state[i].msm_output_y;
-            polys.transcript_collision_check[i] = transcript_state[i].collision_check;
-        }
+        run_loop_in_parallel(transcript_state.size(), [&](size_t start, size_t end) {
+            for (size_t i = start; i < end; i++) {
+                polys.transcript_accumulator_empty[i] = transcript_state[i].accumulator_empty;
+                polys.transcript_add[i] = transcript_state[i].q_add;
+                polys.transcript_mul[i] = transcript_state[i].q_mul;
+                polys.transcript_eq[i] = transcript_state[i].q_eq;
+                polys.transcript_reset_accumulator[i] = transcript_state[i].q_reset_accumulator;
+                polys.transcript_msm_transition[i] = transcript_state[i].msm_transition;
+                polys.transcript_pc[i] = transcript_state[i].pc;
+                polys.transcript_msm_count[i] = transcript_state[i].msm_count;
+                polys.transcript_Px[i] = transcript_state[i].base_x;
+                polys.transcript_Py[i] = transcript_state[i].base_y;
+                polys.transcript_z1[i] = transcript_state[i].z1;
+                polys.transcript_z2[i] = transcript_state[i].z2;
+                polys.transcript_z1zero[i] = transcript_state[i].z1_zero;
+                polys.transcript_z2zero[i] = transcript_state[i].z2_zero;
+                polys.transcript_op[i] = transcript_state[i].opcode;
+                polys.transcript_accumulator_x[i] = transcript_state[i].accumulator_x;
+                polys.transcript_accumulator_y[i] = transcript_state[i].accumulator_y;
+                polys.transcript_msm_x[i] = transcript_state[i].msm_output_x;
+                polys.transcript_msm_y[i] = transcript_state[i].msm_output_y;
+                polys.transcript_collision_check[i] = transcript_state[i].collision_check;
+            }
+        });
 
         // TODO(@zac-williamson) if final opcode resets accumulator, all subsequent "is_accumulator_empty" row values
         // must be 1. Ideally we find a way to tweak this so that empty rows that do nothing have column values that are
@@ -324,97 +371,101 @@ template <typename Flavor> class ECCVMCircuitBuilder {
                 polys.transcript_accumulator_empty[i] = 1;
             }
         }
-        for (size_t i = 0; i < precompute_table_state.size(); ++i) {
-            // first row is always an empty row (to accommodate shifted polynomials which must have 0 as 1st
-            // coefficient). All other rows in the precompute_table_state represent active wnaf gates (i.e.
-            // precompute_select = 1)
-            polys.precompute_select[i] = (i != 0) ? 1 : 0;
-            polys.precompute_pc[i] = precompute_table_state[i].pc;
-            polys.precompute_point_transition[i] = static_cast<uint64_t>(precompute_table_state[i].point_transition);
-            polys.precompute_round[i] = precompute_table_state[i].round;
-            polys.precompute_scalar_sum[i] = precompute_table_state[i].scalar_sum;
+        run_loop_in_parallel(precompute_table_state.size(), [&](size_t start, size_t end) {
+            for (size_t i = start; i < end; i++) {
+                // first row is always an empty row (to accommodate shifted polynomials which must have 0 as 1st
+                // coefficient). All other rows in the precompute_table_state represent active wnaf gates (i.e.
+                // precompute_select = 1)
+                polys.precompute_select[i] = (i != 0) ? 1 : 0;
+                polys.precompute_pc[i] = precompute_table_state[i].pc;
+                polys.precompute_point_transition[i] =
+                    static_cast<uint64_t>(precompute_table_state[i].point_transition);
+                polys.precompute_round[i] = precompute_table_state[i].round;
+                polys.precompute_scalar_sum[i] = precompute_table_state[i].scalar_sum;
 
-            polys.precompute_s1hi[i] = precompute_table_state[i].s1;
-            polys.precompute_s1lo[i] = precompute_table_state[i].s2;
-            polys.precompute_s2hi[i] = precompute_table_state[i].s3;
-            polys.precompute_s2lo[i] = precompute_table_state[i].s4;
-            polys.precompute_s3hi[i] = precompute_table_state[i].s5;
-            polys.precompute_s3lo[i] = precompute_table_state[i].s6;
-            polys.precompute_s4hi[i] = precompute_table_state[i].s7;
-            polys.precompute_s4lo[i] = precompute_table_state[i].s8;
-            // If skew is active (i.e. we need to subtract a base point from the msm result),
-            // write `7` into rows.precompute_skew. `7`, in binary representation, equals `-1` when converted into WNAF
-            // form
-            polys.precompute_skew[i] = precompute_table_state[i].skew ? 7 : 0;
+                polys.precompute_s1hi[i] = precompute_table_state[i].s1;
+                polys.precompute_s1lo[i] = precompute_table_state[i].s2;
+                polys.precompute_s2hi[i] = precompute_table_state[i].s3;
+                polys.precompute_s2lo[i] = precompute_table_state[i].s4;
+                polys.precompute_s3hi[i] = precompute_table_state[i].s5;
+                polys.precompute_s3lo[i] = precompute_table_state[i].s6;
+                polys.precompute_s4hi[i] = precompute_table_state[i].s7;
+                polys.precompute_s4lo[i] = precompute_table_state[i].s8;
+                // If skew is active (i.e. we need to subtract a base point from the msm result),
+                // write `7` into rows.precompute_skew. `7`, in binary representation, equals `-1` when converted into
+                // WNAF form
+                polys.precompute_skew[i] = precompute_table_state[i].skew ? 7 : 0;
 
-            polys.precompute_dx[i] = precompute_table_state[i].precompute_double.x;
-            polys.precompute_dy[i] = precompute_table_state[i].precompute_double.y;
-            polys.precompute_tx[i] = precompute_table_state[i].precompute_accumulator.x;
-            polys.precompute_ty[i] = precompute_table_state[i].precompute_accumulator.y;
-        }
+                polys.precompute_dx[i] = precompute_table_state[i].precompute_double.x;
+                polys.precompute_dy[i] = precompute_table_state[i].precompute_double.y;
+                polys.precompute_tx[i] = precompute_table_state[i].precompute_accumulator.x;
+                polys.precompute_ty[i] = precompute_table_state[i].precompute_accumulator.y;
+            }
+        });
 
-        for (size_t i = 0; i < msm_state.size(); ++i) {
-            polys.msm_transition[i] = static_cast<int>(msm_state[i].msm_transition);
-            polys.msm_add[i] = static_cast<int>(msm_state[i].q_add);
-            polys.msm_double[i] = static_cast<int>(msm_state[i].q_double);
-            polys.msm_skew[i] = static_cast<int>(msm_state[i].q_skew);
-            polys.msm_accumulator_x[i] = msm_state[i].accumulator_x;
-            polys.msm_accumulator_y[i] = msm_state[i].accumulator_y;
-            polys.msm_pc[i] = msm_state[i].pc;
-            polys.msm_size_of_msm[i] = msm_state[i].msm_size;
-            polys.msm_count[i] = msm_state[i].msm_count;
-            polys.msm_round[i] = msm_state[i].msm_round;
-            polys.msm_add1[i] = static_cast<int>(msm_state[i].add_state[0].add);
-            polys.msm_add2[i] = static_cast<int>(msm_state[i].add_state[1].add);
-            polys.msm_add3[i] = static_cast<int>(msm_state[i].add_state[2].add);
-            polys.msm_add4[i] = static_cast<int>(msm_state[i].add_state[3].add);
-            polys.msm_x1[i] = msm_state[i].add_state[0].point.x;
-            polys.msm_y1[i] = msm_state[i].add_state[0].point.y;
-            polys.msm_x2[i] = msm_state[i].add_state[1].point.x;
-            polys.msm_y2[i] = msm_state[i].add_state[1].point.y;
-            polys.msm_x3[i] = msm_state[i].add_state[2].point.x;
-            polys.msm_y3[i] = msm_state[i].add_state[2].point.y;
-            polys.msm_x4[i] = msm_state[i].add_state[3].point.x;
-            polys.msm_y4[i] = msm_state[i].add_state[3].point.y;
-            polys.msm_collision_x1[i] = msm_state[i].add_state[0].collision_inverse;
-            polys.msm_collision_x2[i] = msm_state[i].add_state[1].collision_inverse;
-            polys.msm_collision_x3[i] = msm_state[i].add_state[2].collision_inverse;
-            polys.msm_collision_x4[i] = msm_state[i].add_state[3].collision_inverse;
-            polys.msm_lambda1[i] = msm_state[i].add_state[0].lambda;
-            polys.msm_lambda2[i] = msm_state[i].add_state[1].lambda;
-            polys.msm_lambda3[i] = msm_state[i].add_state[2].lambda;
-            polys.msm_lambda4[i] = msm_state[i].add_state[3].lambda;
-            polys.msm_slice1[i] = msm_state[i].add_state[0].slice;
-            polys.msm_slice2[i] = msm_state[i].add_state[1].slice;
-            polys.msm_slice3[i] = msm_state[i].add_state[2].slice;
-            polys.msm_slice4[i] = msm_state[i].add_state[3].slice;
-        }
-
-        polys.transcript_mul_shift = Polynomial(polys.transcript_mul.shifted());
-        polys.transcript_msm_count_shift = Polynomial(polys.transcript_msm_count.shifted());
-        polys.transcript_accumulator_x_shift = Polynomial(polys.transcript_accumulator_x.shifted());
-        polys.transcript_accumulator_y_shift = Polynomial(polys.transcript_accumulator_y.shifted());
-        polys.precompute_scalar_sum_shift = Polynomial(polys.precompute_scalar_sum.shifted());
-        polys.precompute_s1hi_shift = Polynomial(polys.precompute_s1hi.shifted());
-        polys.precompute_dx_shift = Polynomial(polys.precompute_dx.shifted());
-        polys.precompute_dy_shift = Polynomial(polys.precompute_dy.shifted());
-        polys.precompute_tx_shift = Polynomial(polys.precompute_tx.shifted());
-        polys.precompute_ty_shift = Polynomial(polys.precompute_ty.shifted());
-        polys.msm_transition_shift = Polynomial(polys.msm_transition.shifted());
-        polys.msm_add_shift = Polynomial(polys.msm_add.shifted());
-        polys.msm_double_shift = Polynomial(polys.msm_double.shifted());
-        polys.msm_skew_shift = Polynomial(polys.msm_skew.shifted());
-        polys.msm_accumulator_x_shift = Polynomial(polys.msm_accumulator_x.shifted());
-        polys.msm_accumulator_y_shift = Polynomial(polys.msm_accumulator_y.shifted());
-        polys.msm_count_shift = Polynomial(polys.msm_count.shifted());
-        polys.msm_round_shift = Polynomial(polys.msm_round.shifted());
-        polys.msm_add1_shift = Polynomial(polys.msm_add1.shifted());
-        polys.msm_pc_shift = Polynomial(polys.msm_pc.shifted());
-        polys.precompute_pc_shift = Polynomial(polys.precompute_pc.shifted());
-        polys.transcript_pc_shift = Polynomial(polys.transcript_pc.shifted());
-        polys.precompute_round_shift = Polynomial(polys.precompute_round.shifted());
-        polys.transcript_accumulator_empty_shift = Polynomial(polys.transcript_accumulator_empty.shifted());
-        polys.precompute_select_shift = Polynomial(polys.precompute_select.shifted());
+        run_loop_in_parallel(msm_state.size(), [&](size_t start, size_t end) {
+            for (size_t i = start; i < end; i++) {
+                polys.msm_transition[i] = static_cast<int>(msm_state[i].msm_transition);
+                polys.msm_add[i] = static_cast<int>(msm_state[i].q_add);
+                polys.msm_double[i] = static_cast<int>(msm_state[i].q_double);
+                polys.msm_skew[i] = static_cast<int>(msm_state[i].q_skew);
+                polys.msm_accumulator_x[i] = msm_state[i].accumulator_x;
+                polys.msm_accumulator_y[i] = msm_state[i].accumulator_y;
+                polys.msm_pc[i] = msm_state[i].pc;
+                polys.msm_size_of_msm[i] = msm_state[i].msm_size;
+                polys.msm_count[i] = msm_state[i].msm_count;
+                polys.msm_round[i] = msm_state[i].msm_round;
+                polys.msm_add1[i] = static_cast<int>(msm_state[i].add_state[0].add);
+                polys.msm_add2[i] = static_cast<int>(msm_state[i].add_state[1].add);
+                polys.msm_add3[i] = static_cast<int>(msm_state[i].add_state[2].add);
+                polys.msm_add4[i] = static_cast<int>(msm_state[i].add_state[3].add);
+                polys.msm_x1[i] = msm_state[i].add_state[0].point.x;
+                polys.msm_y1[i] = msm_state[i].add_state[0].point.y;
+                polys.msm_x2[i] = msm_state[i].add_state[1].point.x;
+                polys.msm_y2[i] = msm_state[i].add_state[1].point.y;
+                polys.msm_x3[i] = msm_state[i].add_state[2].point.x;
+                polys.msm_y3[i] = msm_state[i].add_state[2].point.y;
+                polys.msm_x4[i] = msm_state[i].add_state[3].point.x;
+                polys.msm_y4[i] = msm_state[i].add_state[3].point.y;
+                polys.msm_collision_x1[i] = msm_state[i].add_state[0].collision_inverse;
+                polys.msm_collision_x2[i] = msm_state[i].add_state[1].collision_inverse;
+                polys.msm_collision_x3[i] = msm_state[i].add_state[2].collision_inverse;
+                polys.msm_collision_x4[i] = msm_state[i].add_state[3].collision_inverse;
+                polys.msm_lambda1[i] = msm_state[i].add_state[0].lambda;
+                polys.msm_lambda2[i] = msm_state[i].add_state[1].lambda;
+                polys.msm_lambda3[i] = msm_state[i].add_state[2].lambda;
+                polys.msm_lambda4[i] = msm_state[i].add_state[3].lambda;
+                polys.msm_slice1[i] = msm_state[i].add_state[0].slice;
+                polys.msm_slice2[i] = msm_state[i].add_state[1].slice;
+                polys.msm_slice3[i] = msm_state[i].add_state[2].slice;
+                polys.msm_slice4[i] = msm_state[i].add_state[3].slice;
+            }
+        });
+        polys.transcript_mul_shift = polys.transcript_mul.shifted();
+        polys.transcript_msm_count_shift = polys.transcript_msm_count.shifted();
+        polys.transcript_accumulator_x_shift = polys.transcript_accumulator_x.shifted();
+        polys.transcript_accumulator_y_shift = polys.transcript_accumulator_y.shifted();
+        polys.precompute_scalar_sum_shift = polys.precompute_scalar_sum.shifted();
+        polys.precompute_s1hi_shift = polys.precompute_s1hi.shifted();
+        polys.precompute_dx_shift = polys.precompute_dx.shifted();
+        polys.precompute_dy_shift = polys.precompute_dy.shifted();
+        polys.precompute_tx_shift = polys.precompute_tx.shifted();
+        polys.precompute_ty_shift = polys.precompute_ty.shifted();
+        polys.msm_transition_shift = polys.msm_transition.shifted();
+        polys.msm_add_shift = polys.msm_add.shifted();
+        polys.msm_double_shift = polys.msm_double.shifted();
+        polys.msm_skew_shift = polys.msm_skew.shifted();
+        polys.msm_accumulator_x_shift = polys.msm_accumulator_x.shifted();
+        polys.msm_accumulator_y_shift = polys.msm_accumulator_y.shifted();
+        polys.msm_count_shift = polys.msm_count.shifted();
+        polys.msm_round_shift = polys.msm_round.shifted();
+        polys.msm_add1_shift = polys.msm_add1.shifted();
+        polys.msm_pc_shift = polys.msm_pc.shifted();
+        polys.precompute_pc_shift = polys.precompute_pc.shifted();
+        polys.transcript_pc_shift = polys.transcript_pc.shifted();
+        polys.precompute_round_shift = polys.precompute_round.shifted();
+        polys.transcript_accumulator_empty_shift = polys.transcript_accumulator_empty.shifted();
+        polys.precompute_select_shift = polys.precompute_select.shifted();
         return polys;
     }
 
@@ -497,25 +548,8 @@ template <typename Flavor> class ECCVMCircuitBuilder {
 
     [[nodiscard]] size_t get_num_gates() const
     {
-        // TODO(@zac-williamson) once we have a stable base to work off of, optimize this method!
         // (issue #2218)
-        const auto msms = get_msms();
-        const auto flattened_muls = get_flattened_scalar_muls(msms);
-
-        std::array<std::vector<size_t>, 2> point_table_read_counts;
-        const auto transcript_state =
-            ECCVMTranscriptBuilder<Flavor>::compute_transcript_state(op_queue->raw_ops, get_number_of_muls());
-        const auto precompute_table_state =
-            ECCVMPrecomputedTablesBuilder<Flavor>::compute_precompute_state(flattened_muls);
-        const auto msm_state =
-            ECCVMMSMMBuilder<Flavor>::compute_msm_state(msms, point_table_read_counts, get_number_of_muls());
-
-        const size_t msm_size = msm_state.size();
-        const size_t transcript_size = transcript_state.size();
-        const size_t precompute_table_size = precompute_table_state.size();
-
-        const size_t num_rows = std::max(precompute_table_size, std::max(msm_size, transcript_size));
-        return num_rows;
+        return op_queue->get_num_rows();
     }
 
     [[nodiscard]] size_t get_circuit_subgroup_size(const size_t num_rows) const

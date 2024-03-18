@@ -36,75 +36,76 @@ template <typename Flavor> class ECCVMPrecomputedTablesBuilder {
     static std::vector<PrecomputeState> compute_precompute_state(
         const std::vector<bb::eccvm::ScalarMul<CycleGroup>>& ecc_muls)
     {
-        std::vector<PrecomputeState> precompute_state;
+        static constexpr size_t num_rows_per_scalar = NUM_WNAF_SLICES / WNAF_SLICES_PER_ROW;
+        const size_t num_precompute_rows = num_rows_per_scalar * ecc_muls.size() + 1;
+        std::vector<PrecomputeState> precompute_state(num_precompute_rows);
 
         // start with empty row (shiftable polynomials must have 0 as first coefficient)
-        precompute_state.push_back(PrecomputeState{});
-        static constexpr size_t num_rows_per_scalar = NUM_WNAF_SLICES / WNAF_SLICES_PER_ROW;
+        precompute_state[0] = PrecomputeState{};
 
         // current impl doesn't work if not 4
         static_assert(WNAF_SLICES_PER_ROW == 4);
 
-        for (const auto& entry : ecc_muls) {
-            const auto& slices = entry.wnaf_slices;
-            uint256_t scalar_sum = 0;
+        run_loop_in_parallel(ecc_muls.size(), [&](size_t start, size_t end) {
+            for (size_t j = start; j < end; j++) {
+                const auto& entry = ecc_muls[j];
+                const auto& slices = entry.wnaf_slices;
+                uint256_t scalar_sum = 0;
 
-            const Element point = entry.base_point;
-            const Element d2 = point.dbl();
+                for (size_t i = 0; i < num_rows_per_scalar; ++i) {
+                    PrecomputeState row;
+                    const int slice0 = slices[i * WNAF_SLICES_PER_ROW];
+                    const int slice1 = slices[i * WNAF_SLICES_PER_ROW + 1];
+                    const int slice2 = slices[i * WNAF_SLICES_PER_ROW + 2];
+                    const int slice3 = slices[i * WNAF_SLICES_PER_ROW + 3];
 
-            for (size_t i = 0; i < num_rows_per_scalar; ++i) {
-                PrecomputeState row;
-                const int slice0 = slices[i * WNAF_SLICES_PER_ROW];
-                const int slice1 = slices[i * WNAF_SLICES_PER_ROW + 1];
-                const int slice2 = slices[i * WNAF_SLICES_PER_ROW + 2];
-                const int slice3 = slices[i * WNAF_SLICES_PER_ROW + 3];
+                    const int slice0base2 = (slice0 + 15) / 2;
+                    const int slice1base2 = (slice1 + 15) / 2;
+                    const int slice2base2 = (slice2 + 15) / 2;
+                    const int slice3base2 = (slice3 + 15) / 2;
 
-                const int slice0base2 = (slice0 + 15) / 2;
-                const int slice1base2 = (slice1 + 15) / 2;
-                const int slice2base2 = (slice2 + 15) / 2;
-                const int slice3base2 = (slice3 + 15) / 2;
+                    // convert into 2-bit chunks
+                    row.s1 = slice0base2 >> 2;
+                    row.s2 = slice0base2 & 3;
+                    row.s3 = slice1base2 >> 2;
+                    row.s4 = slice1base2 & 3;
+                    row.s5 = slice2base2 >> 2;
+                    row.s6 = slice2base2 & 3;
+                    row.s7 = slice3base2 >> 2;
+                    row.s8 = slice3base2 & 3;
+                    bool last_row = (i == num_rows_per_scalar - 1);
 
-                // convert into 2-bit chunks
-                row.s1 = slice0base2 >> 2;
-                row.s2 = slice0base2 & 3;
-                row.s3 = slice1base2 >> 2;
-                row.s4 = slice1base2 & 3;
-                row.s5 = slice2base2 >> 2;
-                row.s6 = slice2base2 & 3;
-                row.s7 = slice3base2 >> 2;
-                row.s8 = slice3base2 & 3;
-                bool last_row = (i == num_rows_per_scalar - 1);
+                    row.skew = last_row ? entry.wnaf_skew : false;
 
-                row.skew = last_row ? entry.wnaf_skew : false;
+                    row.scalar_sum = scalar_sum;
 
-                row.scalar_sum = scalar_sum;
+                    // N.B. we apply a constraint that requires slice1 to be positive for the 1st row of each scalar
+                    // sum. This ensures we do not have WNAF representations of negative values
+                    const int row_chunk = slice3 + slice2 * (1 << 4) + slice1 * (1 << 8) + slice0 * (1 << 12);
 
-                // N.B. we apply a constraint that requires slice1 to be positive for the 1st row of each scalar sum.
-                //      This ensures we do not have WNAF representations of negative values
-                const int row_chunk = slice3 + slice2 * (1 << 4) + slice1 * (1 << 8) + slice0 * (1 << 12);
+                    bool chunk_negative = row_chunk < 0;
 
-                bool chunk_negative = row_chunk < 0;
+                    scalar_sum = scalar_sum << (WNAF_SLICE_BITS * WNAF_SLICES_PER_ROW);
+                    if (chunk_negative) {
+                        scalar_sum -= static_cast<uint64_t>(-row_chunk);
+                    } else {
+                        scalar_sum += static_cast<uint64_t>(row_chunk);
+                    }
+                    row.round = static_cast<uint32_t>(i);
+                    row.point_transition = last_row;
+                    row.pc = entry.pc;
 
-                scalar_sum = scalar_sum << (WNAF_SLICE_BITS * WNAF_SLICES_PER_ROW);
-                if (chunk_negative) {
-                    scalar_sum -= static_cast<uint64_t>(-row_chunk);
-                } else {
-                    scalar_sum += static_cast<uint64_t>(row_chunk);
+                    if (last_row) {
+                        ASSERT(scalar_sum - entry.wnaf_skew == entry.scalar);
+                    }
+
+                    row.precompute_double = entry.precomputed_table[bb::eccvm::POINT_TABLE_SIZE];
+                    // fill accumulator in reverse order i.e. first row = 15[P], then 13[P], ..., 1[P]
+                    row.precompute_accumulator = entry.precomputed_table[bb::eccvm::POINT_TABLE_SIZE - 1 - i];
+                    precompute_state[j * num_rows_per_scalar + i + 1] = (row);
                 }
-                row.round = static_cast<uint32_t>(i);
-                row.point_transition = last_row;
-                row.pc = entry.pc;
-
-                if (last_row) {
-                    ASSERT(scalar_sum - entry.wnaf_skew == entry.scalar);
-                }
-
-                row.precompute_double = d2;
-                // fill accumulator in reverse order i.e. first row = 15[P], then 13[P], ..., 1[P]
-                row.precompute_accumulator = entry.precomputed_table[bb::eccvm::POINT_TABLE_SIZE - 1 - i];
-                precompute_state.emplace_back(row);
             }
-        }
+        });
         return precompute_state;
     }
 };

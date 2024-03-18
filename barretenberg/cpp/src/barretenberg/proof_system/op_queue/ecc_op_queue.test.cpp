@@ -52,16 +52,18 @@ TEST(ECCOpQueueTest, PrependAndSwapTests)
     ECCOpQueue op_queue_a;
     op_queue_a.add_accumulate(P1 + P1);
     op_queue_a.mul_accumulate(P2, z + z);
-
+    op_queue_a.reset();
     // Add different operations to b
     ECCOpQueue op_queue_b;
     op_queue_b.mul_accumulate(P2, z);
     op_queue_b.add_accumulate(P1);
+    op_queue_b.reset();
 
     // Add same operations as to a
     ECCOpQueue op_queue_c;
     op_queue_c.add_accumulate(P1 + P1);
     op_queue_c.mul_accumulate(P2, z + z);
+    op_queue_c.reset();
 
     // Swap b with a
     std::swap(op_queue_b, op_queue_a);
@@ -77,6 +79,7 @@ TEST(ECCOpQueueTest, PrependAndSwapTests)
     // Append same operations as now in a to c
     op_queue_c.mul_accumulate(P2, z);
     op_queue_c.add_accumulate(P1);
+    op_queue_c.reset();
 
     // Check a==c
     for (size_t i = 0; i < op_queue_c.raw_ops.size(); i++) {

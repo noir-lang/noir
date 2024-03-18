@@ -96,6 +96,7 @@ TYPED_TEST(ECCVMComposerTests, EqFails)
                                                            .z1 = 0,
                                                            .z2 = 0,
                                                            .mul_scalar_full = 0 });
+    builder.op_queue->num_transcript_rows++;
     auto composer = ECCVMComposer_<Flavor>();
     auto prover = composer.create_prover(builder);
 

@@ -60,7 +60,10 @@ template <typename Flavor> class ECCVMTranscriptBuilder {
     static std::vector<TranscriptState> compute_transcript_state(
         const std::vector<bb::eccvm::VMOperation<CycleGroup>>& vm_operations, const uint32_t total_number_of_muls)
     {
-        std::vector<TranscriptState> transcript_state;
+        const size_t num_transcript_entries = vm_operations.size() + 2;
+
+        std::vector<TranscriptState> transcript_state(num_transcript_entries);
+        std::vector<FF> inverse_trace(num_transcript_entries - 2);
         VMState state{
             .pc = total_number_of_muls,
             .count = 0,
@@ -69,11 +72,10 @@ template <typename Flavor> class ECCVMTranscriptBuilder {
             .is_accumulator_empty = true,
         };
         VMState updated_state;
-
         // add an empty row. 1st row all zeroes because of our shiftable polynomials
-        transcript_state.emplace_back(TranscriptState{});
+        transcript_state[0] = (TranscriptState{});
         for (size_t i = 0; i < vm_operations.size(); ++i) {
-            TranscriptState row;
+            TranscriptState& row = transcript_state[i + 1];
             const bb::eccvm::VMOperation<CycleGroup>& entry = vm_operations[i];
 
             const bool is_mul = entry.mul;
@@ -158,11 +160,13 @@ template <typename Flavor> class ECCVMTranscriptBuilder {
                 ASSERT((row.msm_output_x != row.accumulator_x) &&
                        "eccvm: attempting msm. Result point x-coordinate matches accumulator x-coordinate.");
                 state.msm_accumulator = CycleGroup::affine_point_at_infinity;
-                row.collision_check = (row.msm_output_x - row.accumulator_x).invert();
+                inverse_trace[i] = (row.msm_output_x - row.accumulator_x);
             } else if (entry.add && !row.accumulator_empty) {
                 ASSERT((row.base_x != row.accumulator_x) &&
                        "eccvm: attempting to add points with matching x-coordinates");
-                row.collision_check = (row.base_x - row.accumulator_x).invert();
+                inverse_trace[i] = (row.base_x - row.accumulator_x);
+            } else {
+                inverse_trace[i] = (0);
             }
 
             state = updated_state;
@@ -170,16 +174,18 @@ template <typename Flavor> class ECCVMTranscriptBuilder {
             if (entry.mul && next_not_msm) {
                 state.msm_accumulator = CycleGroup::affine_point_at_infinity;
             }
-            transcript_state.emplace_back(row);
         }
 
-        TranscriptState final_row;
+        FF::batch_invert(&inverse_trace[0], inverse_trace.size());
+        for (size_t i = 0; i < inverse_trace.size(); ++i) {
+            transcript_state[i + 1].collision_check = inverse_trace[i];
+        }
+        TranscriptState& final_row = transcript_state.back();
         final_row.pc = updated_state.pc;
         final_row.accumulator_x = (updated_state.accumulator.is_point_at_infinity()) ? 0 : updated_state.accumulator.x;
         final_row.accumulator_y = (updated_state.accumulator.is_point_at_infinity()) ? 0 : updated_state.accumulator.y;
         final_row.accumulator_empty = updated_state.is_accumulator_empty;
 
-        transcript_state.push_back(final_row);
         return transcript_state;
     }
 };
