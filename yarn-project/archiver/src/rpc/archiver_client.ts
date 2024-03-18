@@ -1,6 +1,5 @@
 import {
   ExtendedUnencryptedL2Log,
-  L1ToL2Message,
   L2Block,
   L2BlockL2Logs,
   NullifierMembershipWitness,
@@ -18,7 +17,6 @@ export const createArchiverClient = (url: string, fetch = makeFetch([1, 2, 3], t
       EthAddress,
       ExtendedUnencryptedL2Log,
       Fr,
-      L1ToL2Message,
       L2Block,
       L2BlockL2Logs,
     },

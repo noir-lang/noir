@@ -33,8 +33,6 @@ The Uniswap portal must first withdraw the input tokens, then check that the swa
 
 - The address on L2 which must receive the output tokens (remember this is public flow)
 - The secret hash for consume the L1 to L2 message. Since this is the public flow the preimage doesn’t need to be a secret
-- The deadline to consume the l1 to l2 message (this is so funds aren’t stuck in the processing state forever and the message can be cancelled. Else the swapped tokens would be stuck forever)
-- The address that can cancel the message (and receive the swapped tokens)
 
 6. We include these params in the L2 → L1 `swap_public message content` too. Under the hood, the protocol adds the sender (the Uniswap l2 contract) and the recipient (the Uniswap portal contract on L1).
 

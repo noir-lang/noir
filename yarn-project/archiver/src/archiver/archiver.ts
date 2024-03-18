@@ -1,6 +1,5 @@
 import {
   GetUnencryptedLogsResponse,
-  L1ToL2Message,
   L1ToL2MessageSource,
   L2Block,
   L2BlockL2Logs,
@@ -21,7 +20,6 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
-import { RollupAbi } from '@aztec/l1-artifacts';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
 import {
   ContractClassPublic,
@@ -30,16 +28,14 @@ import {
   PublicFunction,
 } from '@aztec/types/contracts';
 
-import { Chain, HttpTransport, PublicClient, createPublicClient, getAddress, getContract, http } from 'viem';
+import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
 
 import { ArchiverDataStore } from './archiver_store.js';
 import { ArchiverConfig } from './config.js';
 import {
   retrieveBlockBodiesFromAvailabilityOracle,
   retrieveBlockMetadataFromRollup,
-  retrieveNewCancelledL1ToL2Messages,
-  retrieveNewL1ToL2Messages,
-  retrieveNewPendingL1ToL2Messages,
+  retrieveL1ToL2Messages,
 } from './data_retrieval.js';
 
 /**
@@ -68,7 +64,6 @@ export class Archiver implements ArchiveSource {
    * @param publicClient - A client for interacting with the Ethereum node.
    * @param rollupAddress - Ethereum address of the rollup contract.
    * @param inboxAddress - Ethereum address of the inbox contract.
-   * @param newInboxAddress - Ethereum address of the new inbox contract.
    * @param registryAddress - Ethereum address of the registry contract.
    * @param pollingIntervalMs - The interval for polling for L1 logs (in milliseconds).
    * @param store - An archiver data store for storage & retrieval of blocks, encrypted logs & contract data.
@@ -79,7 +74,6 @@ export class Archiver implements ArchiveSource {
     private readonly rollupAddress: EthAddress,
     private readonly availabilityOracleAddress: EthAddress,
     private readonly inboxAddress: EthAddress,
-    private readonly newInboxAddress: EthAddress,
     private readonly registryAddress: EthAddress,
     private readonly store: ArchiverDataStore,
     private readonly pollingIntervalMs = 10_000,
@@ -105,23 +99,11 @@ export class Archiver implements ArchiveSource {
       pollingInterval: config.viemPollingIntervalMS,
     });
 
-    // TODO(#4492): Nuke this once the old inbox is purged
-    let newInboxAddress!: EthAddress;
-    {
-      const rollup = getContract({
-        address: getAddress(config.l1Contracts.rollupAddress.toString()),
-        abi: RollupAbi,
-        client: publicClient,
-      });
-      newInboxAddress = EthAddress.fromString(await rollup.read.NEW_INBOX());
-    }
-
     const archiver = new Archiver(
       publicClient,
       config.l1Contracts.rollupAddress,
       config.l1Contracts.availabilityOracleAddress,
       config.l1Contracts.inboxAddress,
-      newInboxAddress,
       config.l1Contracts.registryAddress,
       archiverStore,
       config.archiverPollingIntervalMS,
@@ -165,15 +147,10 @@ export class Archiver implements ArchiveSource {
      *
      * This code does not handle reorgs.
      */
-    const lastL1Blocks = await this.store.getL1BlockNumber();
+    const lastL1Blocks = await this.store.getSynchedL1BlockNumbers();
     const currentL1BlockNumber = await this.publicClient.getBlockNumber();
 
-    if (
-      currentL1BlockNumber <= lastL1Blocks.addedBlock &&
-      currentL1BlockNumber <= lastL1Blocks.newMessages &&
-      currentL1BlockNumber <= lastL1Blocks.addedMessages &&
-      currentL1BlockNumber <= lastL1Blocks.cancelledMessages
-    ) {
+    if (currentL1BlockNumber <= lastL1Blocks.blocks && currentL1BlockNumber <= lastL1Blocks.messages) {
       // chain hasn't moved forward
       // or it's been rolled back
       return;
@@ -200,72 +177,39 @@ export class Archiver implements ArchiveSource {
 
     // ********** Events that are processed per L1 block **********
 
-    // TODO(#4492): Nuke the following when purging the old inbox
-    // Process l1ToL2Messages, these are consumed as time passes, not each block
-    const retrievedPendingL1ToL2Messages = await retrieveNewPendingL1ToL2Messages(
-      this.publicClient,
-      this.inboxAddress,
-      blockUntilSynced,
-      lastL1Blocks.addedMessages + 1n,
-      currentL1BlockNumber,
-    );
-    const retrievedCancelledL1ToL2Messages = await retrieveNewCancelledL1ToL2Messages(
-      this.publicClient,
-      this.inboxAddress,
-      blockUntilSynced,
-      lastL1Blocks.cancelledMessages + 1n,
-      currentL1BlockNumber,
-    );
-
-    // group pending messages and cancelled messages by their L1 block number
-    const messagesByBlock = new Map<bigint, [L1ToL2Message[], Fr[]]>();
-    for (const [message, blockNumber] of retrievedPendingL1ToL2Messages.retrievedData) {
-      const messages = messagesByBlock.get(blockNumber) || [[], []];
-      messages[0].push(message);
-      messagesByBlock.set(blockNumber, messages);
-    }
-
-    for (const [entryKey, blockNumber] of retrievedCancelledL1ToL2Messages.retrievedData) {
-      const messages = messagesByBlock.get(blockNumber) || [[], []];
-      messages[1].push(entryKey);
-      messagesByBlock.set(blockNumber, messages);
-    }
-
-    // process messages from each L1 block in sequence
-    const l1BlocksWithMessages = Array.from(messagesByBlock.keys()).sort((a, b) => (a < b ? -1 : a === b ? 0 : 1));
-    for (const l1Block of l1BlocksWithMessages) {
-      const [newMessages, cancelledMessages] = messagesByBlock.get(l1Block)!;
-      this.log(
-        `Adding ${newMessages.length} new messages and ${cancelledMessages.length} cancelled messages in L1 block ${l1Block}`,
-      );
-      await this.store.addPendingL1ToL2Messages(newMessages, l1Block);
-      await this.store.cancelPendingL1ToL2EntryKeys(cancelledMessages, l1Block);
-    }
-
     // ********** Events that are processed per L2 block **********
 
-    const retrievedNewL1ToL2Messages = await retrieveNewL1ToL2Messages(
+    const retrievedL1ToL2Messages = await retrieveL1ToL2Messages(
       this.publicClient,
-      this.newInboxAddress,
+      this.inboxAddress,
       blockUntilSynced,
-      lastL1Blocks.newMessages + 1n,
+      lastL1Blocks.messages + 1n,
       currentL1BlockNumber,
     );
-    await this.store.addNewL1ToL2Messages(
-      retrievedNewL1ToL2Messages.retrievedData,
+
+    if (retrievedL1ToL2Messages.retrievedData.length !== 0) {
+      this.log(
+        `Retrieved ${retrievedL1ToL2Messages.retrievedData.length} new L1 -> L2 messages between L1 blocks ${
+          lastL1Blocks.messages + 1n
+        } and ${currentL1BlockNumber}.`,
+      );
+    }
+
+    await this.store.addL1ToL2Messages(
+      retrievedL1ToL2Messages.retrievedData,
       // -1n because the function expects the last block in which the message was emitted and not the one after next
-      // TODO(#4492): Check whether this could be cleaned up - `nextEthBlockNumber` value doesn't seem to be used much
-      retrievedNewL1ToL2Messages.nextEthBlockNumber - 1n,
+      // TODO(#5264): Check whether this could be cleaned up - `nextEthBlockNumber` value doesn't seem to be used much
+      retrievedL1ToL2Messages.nextEthBlockNumber - 1n,
     );
 
     // Read all data from chain and then write to our stores at the end
-    const nextExpectedL2BlockNum = BigInt((await this.store.getBlockNumber()) + 1);
+    const nextExpectedL2BlockNum = BigInt((await this.store.getSynchedL2BlockNumber()) + 1);
 
     const retrievedBlockBodies = await retrieveBlockBodiesFromAvailabilityOracle(
       this.publicClient,
       this.availabilityOracleAddress,
       blockUntilSynced,
-      lastL1Blocks.addedBlock + 1n,
+      lastL1Blocks.blocks + 1n,
       currentL1BlockNumber,
     );
 
@@ -277,7 +221,7 @@ export class Archiver implements ArchiveSource {
       this.publicClient,
       this.rollupAddress,
       blockUntilSynced,
-      lastL1Blocks.addedBlock + 1n,
+      lastL1Blocks.blocks + 1n,
       currentL1BlockNumber,
       nextExpectedL2BlockNum,
     );
@@ -304,7 +248,7 @@ export class Archiver implements ArchiveSource {
     } else {
       this.log(
         `Retrieved ${retrievedBlocks.retrievedData.length} new L2 blocks between L1 blocks ${
-          lastL1Blocks.addedBlock + 1n
+          lastL1Blocks.blocks + 1n
         } and ${currentL1BlockNumber}.`,
       );
     }
@@ -314,8 +258,6 @@ export class Archiver implements ArchiveSource {
     retrievedBlocks.retrievedData.forEach((block: L2Block) => {
       blockNumberToBodyHash[block.number] = block.header.contentCommitment.txsEffectsHash;
     });
-
-    this.log(`Retrieved ${retrievedBlocks.retrievedData.length} block(s) from chain`);
 
     await Promise.all(
       retrievedBlocks.retrievedData.map(block => {
@@ -337,13 +279,6 @@ export class Archiver implements ArchiveSource {
         await this.storeDeployedContractInstances(blockLogs, block.number);
       }),
     );
-
-    // from retrieved L2Blocks, confirm L1 to L2 messages that have been published
-    // from each l2block fetch all entryKeys in a flattened array:
-    this.log(`Confirming l1 to l2 messages in store`);
-    for (const block of retrievedBlocks.retrievedData) {
-      await this.store.confirmL1ToL2EntryKeys(block.body.l1ToL2Messages);
-    }
 
     await this.store.addBlocks(retrievedBlocks.retrievedData);
   }
@@ -412,7 +347,7 @@ export class Archiver implements ArchiveSource {
   public async getBlock(number: number): Promise<L2Block | undefined> {
     // If the number provided is -ve, then return the latest block.
     if (number < 0) {
-      number = await this.store.getBlockNumber();
+      number = await this.store.getSynchedL2BlockNumber();
     }
     const blocks = await this.store.getBlocks(number, 1);
     return blocks.length === 0 ? undefined : blocks[0];
@@ -472,7 +407,7 @@ export class Archiver implements ArchiveSource {
    * @returns The number of the latest L2 block processed by the block source implementation.
    */
   public getBlockNumber(): Promise<number> {
-    return this.store.getBlockNumber();
+    return this.store.getSynchedL2BlockNumber();
   }
 
   public getContractClass(id: Fr): Promise<ContractClassPublic | undefined> {
@@ -484,30 +419,21 @@ export class Archiver implements ArchiveSource {
   }
 
   /**
-   * Gets up to `limit` amount of pending L1 to L2 messages.
-   * @param limit - The number of messages to return.
-   * @returns The requested L1 to L2 messages' keys.
-   */
-  getPendingL1ToL2EntryKeys(limit: number): Promise<Fr[]> {
-    return this.store.getPendingL1ToL2EntryKeys(limit);
-  }
-
-  /**
-   * Gets the confirmed/consumed L1 to L2 message associated with the given entry key
-   * @param entryKey - The entry key.
-   * @returns The L1 to L2 message (throws if not found).
-   */
-  getConfirmedL1ToL2Message(entryKey: Fr): Promise<L1ToL2Message> {
-    return this.store.getConfirmedL1ToL2Message(entryKey);
-  }
-
-  /**
-   * Gets new L1 to L2 message (to be) included in a given block.
+   * Gets L1 to L2 message (to be) included in a given block.
    * @param blockNumber - L2 block number to get messages for.
    * @returns The L1 to L2 messages/leaves of the messages subtree (throws if not found).
    */
-  getNewL1ToL2Messages(blockNumber: bigint): Promise<Fr[]> {
-    return this.store.getNewL1ToL2Messages(blockNumber);
+  getL1ToL2Messages(blockNumber: bigint): Promise<Fr[]> {
+    return this.store.getL1ToL2Messages(blockNumber);
+  }
+
+  /**
+   * Gets the L1 to L2 message index in the L1 to L2 message tree.
+   * @param l1ToL2Message - The L1 to L2 message.
+   * @returns The index of the L1 to L2 message in the L1 to L2 message tree.
+   */
+  getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint> {
+    return this.store.getL1ToL2MessageIndex(l1ToL2Message);
   }
 
   getContractClassIds(): Promise<Fr[]> {

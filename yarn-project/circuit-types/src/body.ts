@@ -104,11 +104,11 @@ export class Body {
     numUnencryptedLogsPerCall = 1,
     numL1ToL2MessagesPerCall = 2,
   ) {
-    const newL1ToL2Messages = makeTuple(numL1ToL2MessagesPerCall, Fr.random);
+    const l1ToL2Messages = makeTuple(numL1ToL2MessagesPerCall, Fr.random);
     const txEffects = [...new Array(txsPerBlock)].map(_ =>
       TxEffect.random(numPrivateCallsPerTx, numPublicCallsPerTx, numEncryptedLogsPerCall, numUnencryptedLogsPerCall),
     );
 
-    return new Body(padArrayEnd(newL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP), txEffects);
+    return new Body(padArrayEnd(l1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP), txEffects);
   }
 }

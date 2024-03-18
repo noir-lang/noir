@@ -81,7 +81,7 @@ library TxsDecoder {
 
     {
       // L1 to L2 messages
-      // TODO(#4492): update this when implementing the new message model
+      // TODO(#5073): update this
       uint256 count = read4(_body, offset);
       offset += 0x4 + count * 0x20;
 

@@ -48,7 +48,7 @@ import {
 
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
-import { getFunctionSelector } from 'viem';
+import { toFunctionSelector } from 'viem';
 
 import { KeyPair, MessageLoadOracleInputs } from '../acvm/index.js';
 import { buildL1ToL2Message } from '../test/utils.js';
@@ -525,7 +525,6 @@ describe('Private Execution test suite', () => {
 
     describe('L1 to L2', () => {
       const artifact = getFunctionArtifact(TestContractArtifact, 'consume_mint_private_message');
-      const canceller = EthAddress.random();
       let bridgedAmount = 100n;
 
       const secretHashForRedeemingNotes = new Fr(2n);
@@ -548,19 +547,14 @@ describe('Private Execution test suite', () => {
 
       const computePreimage = () =>
         buildL1ToL2Message(
-          getFunctionSelector('mint_private(bytes32,uint256,address)').substring(2),
-          [secretHashForRedeemingNotes, new Fr(bridgedAmount), canceller.toField()],
+          toFunctionSelector('mint_private(bytes32,uint256)').substring(2),
+          [secretHashForRedeemingNotes, new Fr(bridgedAmount)],
           crossChainMsgRecipient ?? contractAddress,
           secretForL1ToL2MessageConsumption,
         );
 
       const computeArgs = () =>
-        encodeArguments(artifact, [
-          secretHashForRedeemingNotes,
-          bridgedAmount,
-          canceller.toField(),
-          secretForL1ToL2MessageConsumption,
-        ]);
+        encodeArguments(artifact, [secretHashForRedeemingNotes, bridgedAmount, secretForL1ToL2MessageConsumption]);
 
       const mockOracles = async (updateHeader = true) => {
         const tree = await insertLeaves([preimage.hash()], 'l1ToL2Messages');

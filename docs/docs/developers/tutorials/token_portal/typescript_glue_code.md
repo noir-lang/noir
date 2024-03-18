@@ -10,14 +10,9 @@ We need some helper files that can keep our code clean. Inside your `src/test` d
 
 ```bash
 cd fixtures
-touch utils.ts
 cd .. && mkdir shared && cd shared
 touch cross_chain_test_harness.ts
 ```
-
-In `utils.ts`, we need a delay function. Put this:
-
-#include_code delay yarn-project/end-to-end/src/fixtures/utils.ts typescript
 
 In `cross_chain_test_harness.ts`, add:
 
@@ -47,7 +42,6 @@ import { TokenContract } from '@aztec/noir-contracts.js/Token';
 import { TokenBridgeContract } from '@aztec/noir-contracts.js/TokenBridge';
 
 import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';
-import { delay } from './fixtures/utils.js';
 import { mnemonicToAccount } from 'viem/accounts';
 import { createPublicClient, createWalletClient, http } from 'viem';
 import { foundry } from 'viem/chains';

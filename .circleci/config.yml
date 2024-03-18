@@ -892,16 +892,6 @@ jobs:
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
-  integration-archiver-l1-to-l2:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=integration_archiver_l1_to_l2.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
   integration-l1-publisher:
     steps:
       - *checkout
@@ -1421,7 +1411,6 @@ workflows:
       - e2e-private-voting: *e2e_test
       - uniswap-trade-on-l1-from-l2: *e2e_test
       - integration-l1-publisher: *e2e_test
-      - integration-archiver-l1-to-l2: *e2e_test
       - e2e-persistence: *e2e_test
       - e2e-browser: *e2e_test
       - e2e-card-game: *e2e_test
@@ -1486,7 +1475,6 @@ workflows:
             - e2e-private-voting
             - uniswap-trade-on-l1-from-l2
             - integration-l1-publisher
-            - integration-archiver-l1-to-l2
             - e2e-persistence
             - e2e-browser
             - e2e-card-game

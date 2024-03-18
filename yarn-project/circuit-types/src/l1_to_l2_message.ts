@@ -1,5 +1,6 @@
+// TODO(#5264) Separate classes here to individual files, rename InboxLeaf to something less ugly and check usage of L1ToL2Message.
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { randomInt, sha256 } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -14,22 +15,14 @@ export interface L1ToL2MessageSource {
    * @param blockNumber - L2 block number to get messages for.
    * @returns The L1 to L2 messages/leaves of the messages subtree (throws if not found).
    */
-  getNewL1ToL2Messages(blockNumber: bigint): Promise<Fr[]>;
+  getL1ToL2Messages(blockNumber: bigint): Promise<Fr[]>;
 
   /**
-   * Gets up to `limit` amount of pending L1 to L2 messages, sorted by fee
-   * @param limit - The maximum number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
-   * @returns The requested L1 to L2 messages' keys.
+   * Gets the L1 to L2 message index in the L1 to L2 message tree.
+   * @param l1ToL2Message - The L1 to L2 message.
+   * @returns The index of the L1 to L2 message in the L1 to L2 message tree.
    */
-  getPendingL1ToL2EntryKeys(limit?: number): Promise<Fr[]>;
-
-  /**
-   * Gets the confirmed L1 to L2 message with the given entry key.
-   * i.e. message that has already been consumed by the sequencer and published in an L2 Block
-   * @param entryKey - The entry key.
-   * @returns The confirmed L1 to L2 message (throws if not found)
-   */
-  getConfirmedL1ToL2Message(entryKey: Fr): Promise<L1ToL2Message>;
+  getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint>;
 
   /**
    * Gets the number of the latest L2 block processed by the implementation.
@@ -38,7 +31,7 @@ export interface L1ToL2MessageSource {
   getBlockNumber(): Promise<number>;
 }
 
-export class NewInboxLeaf {
+export class InboxLeaf {
   constructor(
     /** L2 block number in which the message will be included. */
     public readonly blockNumber: bigint,
@@ -52,51 +45,17 @@ export class NewInboxLeaf {
     return serializeToBuffer([this.blockNumber, this.index, this.leaf]);
   }
 
-  fromBuffer(buffer: Buffer | BufferReader): NewInboxLeaf {
+  fromBuffer(buffer: Buffer | BufferReader): InboxLeaf {
     const reader = BufferReader.asReader(buffer);
     const blockNumber = toBigIntBE(reader.readBytes(32));
     const index = toBigIntBE(reader.readBytes(32));
     const leaf = reader.readObject(Fr);
-    return new NewInboxLeaf(blockNumber, index, leaf);
-  }
-}
-
-/**
- * L1AndL2Message and Index (in the merkle tree) as one type
- * TODO(#4492): Nuke the following when purging the old inbox
- */
-export class L1ToL2MessageAndIndex {
-  constructor(
-    /** the index in the L1 to L2 Message tree. */
-    public readonly index: bigint,
-    /** The message. */
-    public readonly message: L1ToL2Message,
-  ) {}
-
-  toBuffer(): Buffer {
-    return Buffer.concat([toBufferBE(this.index, 32), this.message.toBuffer()]);
-  }
-
-  toString(): string {
-    return this.toBuffer().toString('hex');
-  }
-
-  static fromString(data: string): L1ToL2MessageAndIndex {
-    const buffer = Buffer.from(data, 'hex');
-    return L1ToL2MessageAndIndex.fromBuffer(buffer);
-  }
-
-  static fromBuffer(buffer: Buffer | BufferReader) {
-    const reader = BufferReader.asReader(buffer);
-    const index = toBigIntBE(reader.readBytes(32));
-    const message = L1ToL2Message.fromBuffer(reader);
-    return new L1ToL2MessageAndIndex(index, message);
+    return new InboxLeaf(blockNumber, index, leaf);
   }
 }
 
 /**
  * The format of an L1 to L2 Message.
- * TODO(#4492): Nuke the following when purging the old inbox
  */
 export class L1ToL2Message {
   constructor(
@@ -117,14 +76,6 @@ export class L1ToL2Message {
      */
     public readonly secretHash: Fr,
     /**
-     * The deadline for the message.
-     */
-    public readonly deadline: number,
-    /**
-     * The fee for the message.
-     */
-    public readonly fee: number,
-    /**
      * The entry key for the message - optional.
      */
     public readonly entryKey?: Fr,
@@ -135,18 +86,11 @@ export class L1ToL2Message {
    * @returns The message as an array of fields (in order).
    */
   toFields(): Fr[] {
-    return [
-      ...this.sender.toFields(),
-      ...this.recipient.toFields(),
-      this.content,
-      this.secretHash,
-      new Fr(BigInt(this.deadline)),
-      new Fr(BigInt(this.fee)),
-    ];
+    return [...this.sender.toFields(), ...this.recipient.toFields(), this.content, this.secretHash];
   }
 
   toBuffer(): Buffer {
-    return serializeToBuffer(this.sender, this.recipient, this.content, this.secretHash, this.deadline, this.fee);
+    return serializeToBuffer(this.sender, this.recipient, this.content, this.secretHash);
   }
 
   hash(): Fr {
@@ -159,9 +103,7 @@ export class L1ToL2Message {
     const recipient = reader.readObject(L2Actor);
     const content = Fr.fromBuffer(reader);
     const secretHash = Fr.fromBuffer(reader);
-    const deadline = reader.readNumber();
-    const fee = reader.readNumber();
-    return new L1ToL2Message(sender, recipient, content, secretHash, deadline, fee);
+    return new L1ToL2Message(sender, recipient, content, secretHash);
   }
 
   toString(): string {
@@ -174,25 +116,16 @@ export class L1ToL2Message {
   }
 
   static empty(): L1ToL2Message {
-    return new L1ToL2Message(L1Actor.empty(), L2Actor.empty(), Fr.ZERO, Fr.ZERO, 0, 0);
+    return new L1ToL2Message(L1Actor.empty(), L2Actor.empty(), Fr.ZERO, Fr.ZERO);
   }
 
   static random(entryKey?: Fr): L1ToL2Message {
-    return new L1ToL2Message(
-      L1Actor.random(),
-      L2Actor.random(),
-      Fr.random(),
-      Fr.random(),
-      randomInt(1000),
-      randomInt(1000),
-      entryKey,
-    );
+    return new L1ToL2Message(L1Actor.random(), L2Actor.random(), Fr.random(), Fr.random(), entryKey);
   }
 }
 
 /**
  * The sender of an L1 to L2 message.
- * TODO(#4492): Move to separate file when purging the old inbox
  */
 export class L1Actor {
   constructor(
@@ -232,7 +165,6 @@ export class L1Actor {
 
 /**
  * The recipient of an L2 message.
- * TODO(#4492): Move to separate file when purging the old inbox
  */
 export class L2Actor {
   constructor(

@@ -27,7 +27,7 @@ import { fr, makeNewSideEffect, makeNewSideEffectLinkedToNoteHash, makeProof } f
 import { createEthereumChain } from '@aztec/ethereum';
 import { makeTuple, range } from '@aztec/foundation/array';
 import { openTmpStore } from '@aztec/kv-store/utils';
-import { AvailabilityOracleAbi, InboxAbi, NewInboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
+import { AvailabilityOracleAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import {
   EmptyRollupProver,
   L1Publisher,
@@ -80,7 +80,6 @@ describe('L1Publisher integration', () => {
 
   let rollup: GetContractReturnType<typeof RollupAbi, PublicClient<HttpTransport, Chain>>;
   let inbox: GetContractReturnType<typeof InboxAbi, WalletClient<HttpTransport, Chain>>;
-  let newInbox: GetContractReturnType<typeof NewInboxAbi, WalletClient<HttpTransport, Chain>>;
   let outbox: GetContractReturnType<typeof OutboxAbi, PublicClient<HttpTransport, Chain>>;
 
   let publisher: L1Publisher;
@@ -124,12 +123,7 @@ describe('L1Publisher integration', () => {
       abi: InboxAbi,
       client: walletClient,
     });
-    const newInboxAddress = await rollup.read.NEW_INBOX();
-    newInbox = getContract({
-      address: newInboxAddress,
-      abi: NewInboxAbi,
-      client: walletClient,
-    });
+
     outbox = getContract({
       address: outboxAddress,
       abi: OutboxAbi,
@@ -196,46 +190,32 @@ describe('L1Publisher integration', () => {
   const sendToL2 = async (content: Fr, recipientAddress: AztecAddress) => {
     // @todo @LHerskind version hardcoded here (update to bigint or field)
     const recipient = new L2Actor(recipientAddress, 1);
-    // Note: using max deadline
-    const deadline = 2 ** 32 - 1;
     // getting the 32 byte hex string representation of the content
     const contentString = content.toString();
     // Using the 0 value for the secretHash.
     const emptySecretHash = Fr.ZERO.toString();
 
-    await newInbox.write.sendL2Message(
+    const txHash = await inbox.write.sendL2Message(
       [{ actor: recipient.recipient.toString(), version: BigInt(recipient.version) }, contentString, emptySecretHash],
       {} as any,
     );
 
-    // TODO(#4492): Nuke this when purging the old inbox
-    await inbox.write.sendL2Message(
-      [
-        { actor: recipient.recipient.toString(), version: BigInt(recipient.version) },
-        deadline,
-        contentString,
-        emptySecretHash,
-      ],
-      {} as any,
-    );
+    const txReceipt = await publicClient.waitForTransactionReceipt({
+      hash: txHash,
+    });
 
-    const entry = await inbox.read.computeEntryKey([
-      {
-        sender: {
-          actor: deployerAccount.address,
-          chainId: BigInt(publicClient.chain.id),
-        },
-        recipient: {
-          actor: recipientAddress.toString(),
-          version: 1n,
-        },
-        content: contentString,
-        secretHash: emptySecretHash,
-        deadline,
-        fee: 0n,
-      },
-    ]);
-    return Fr.fromString(entry);
+    // Exactly 1 event should be emitted in the transaction
+    expect(txReceipt.logs.length).toBe(1);
+
+    // We decode the event log before checking it
+    const txLog = txReceipt.logs[0];
+    const topics = decodeEventLog({
+      abi: InboxAbi,
+      data: txLog.data,
+      topics: txLog.topics,
+    });
+
+    return Fr.fromString(topics.args.value);
   };
 
   /**
@@ -245,7 +225,6 @@ describe('L1Publisher integration', () => {
   const writeJson = (
     fileName: string,
     block: L2Block,
-    l1ToL2Messages: Fr[],
     l1ToL2Content: Fr[],
     recipientAddress: AztecAddress,
     deployerAddress: `0x${string}`,
@@ -263,7 +242,6 @@ describe('L1Publisher integration', () => {
         sender: deployerAddress,
       },
       messages: {
-        l1ToL2Messages: l1ToL2Messages.map(m => `0x${m.toBuffer().toString('hex').padStart(64, '0')}`),
         l2ToL1Messages: block.body.txEffects
           .flatMap(txEffect => txEffect.l2ToL1Msgs)
           .map(m => `0x${m.toBuffer().toString('hex').padStart(64, '0')}`),
@@ -318,7 +296,6 @@ describe('L1Publisher integration', () => {
           },
         },
         header: `0x${block.header.toBuffer().toString('hex')}`,
-        l1ToL2MessagesHash: `0x${block.getL1ToL2MessagesHash().toString('hex').padStart(64, '0')}`,
         publicInputsHash: `0x${block.getPublicInputsHash().toBuffer().toString('hex').padStart(64, '0')}`,
       },
     };
@@ -360,36 +337,17 @@ describe('L1Publisher integration', () => {
       '0x1647b194c649f5dd01d7c832f89b0f496043c9150797923ea89e93d5ac619a93',
     );
 
-    let newModelL1ToL2Messages: Fr[] = [];
+    let currentL1ToL2Messages: Fr[] = [];
+    let nextL1ToL2Messages: Fr[] = [];
+
+    // We store which tree is about to be consumed so that we can later check the value advanced
+    let toConsume = await inbox.read.toConsume();
 
     for (let i = 0; i < numberOfConsecutiveBlocks; i++) {
       const l1ToL2Content = range(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, 128 * i + 1 + 0x400).map(fr);
-      const l1ToL2Messages: Fr[] = [];
 
       for (let j = 0; j < l1ToL2Content.length; j++) {
-        l1ToL2Messages.push(await sendToL2(l1ToL2Content[j], recipientAddress));
-      }
-
-      // check logs
-      const inboxLogs = await publicClient.getLogs({
-        address: inboxAddress,
-        event: getAbiItem({
-          abi: InboxAbi,
-          name: 'MessageAdded',
-        }),
-        fromBlock: blockNumber + 1n,
-      });
-      expect(inboxLogs).toHaveLength(l1ToL2Messages.length * (i + 1));
-      for (let j = 0; j < NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP; j++) {
-        const event = inboxLogs[j + i * NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP].args;
-        expect(event.content).toEqual(l1ToL2Content[j].toString());
-        expect(event.deadline).toEqual(2 ** 32 - 1);
-        expect(event.entryKey).toEqual(l1ToL2Messages[j].toString());
-        expect(event.fee).toEqual(0n);
-        expect(event.recipient).toEqual(recipientAddress.toString());
-        expect(event.recipientVersion).toEqual(1n);
-        expect(event.senderChainId).toEqual(BigInt(publicClient.chain.id));
-        expect(event.sender).toEqual(deployerAccount.address);
+        nextL1ToL2Messages.push(await sendToL2(l1ToL2Content[j], recipientAddress));
       }
 
       // Ensure that each transaction has unique (non-intersecting nullifier values)
@@ -409,16 +367,8 @@ describe('L1Publisher integration', () => {
         coinbase,
         feeRecipient,
       );
-      const [block] = await builder.buildL2Block(globalVariables, txs, newModelL1ToL2Messages, l1ToL2Messages);
+      const [block] = await builder.buildL2Block(globalVariables, txs, currentL1ToL2Messages);
       prevHeader = block.header;
-
-      // check that values are in the inbox
-      for (let j = 0; j < l1ToL2Messages.length; j++) {
-        if (l1ToL2Messages[j].isZero()) {
-          continue;
-        }
-        expect(await inbox.read.contains([l1ToL2Messages[j].toString()])).toBeTruthy();
-      }
 
       const newL2ToL1MsgsArray = block.body.txEffects.flatMap(txEffect => txEffect.l2ToL1Msgs);
 
@@ -427,7 +377,7 @@ describe('L1Publisher integration', () => {
         expect(await outbox.read.contains([newL2ToL1MsgsArray[j].toString()])).toBeFalsy();
       }
 
-      writeJson(`mixed_block_${i}`, block, l1ToL2Messages, l1ToL2Content, recipientAddress, deployerAccount.address);
+      writeJson(`mixed_block_${i}`, block, l1ToL2Content, recipientAddress, deployerAccount.address);
 
       await publisher.processL2Block(block);
 
@@ -458,21 +408,20 @@ describe('L1Publisher integration', () => {
       });
       expect(ethTx.input).toEqual(expectedData);
 
-      // check that values have been consumed from the inbox
-      for (let j = 0; j < l1ToL2Messages.length; j++) {
-        if (l1ToL2Messages[j].isZero()) {
-          continue;
-        }
-        expect(await inbox.read.contains([l1ToL2Messages[j].toString()])).toBeFalsy();
-      }
+      // Check a tree have been consumed from the inbox
+      const newToConsume = await inbox.read.toConsume();
+      expect(newToConsume).toEqual(toConsume + 1n);
+      toConsume = newToConsume;
 
       // check that values are inserted into the outbox
       for (let j = 0; j < newL2ToL1MsgsArray.length; j++) {
         expect(await outbox.read.contains([newL2ToL1MsgsArray[j].toString()])).toBeTruthy();
       }
 
-      // There is a 1 block lag in the new model
-      newModelL1ToL2Messages = l1ToL2Messages;
+      // There is a 1 block lag between before messages get consumed from the inbox
+      currentL1ToL2Messages = nextL1ToL2Messages;
+      // We wipe the messages from previous iteration
+      nextL1ToL2Messages = [];
     }
   }, 360_000);
 
@@ -494,10 +443,10 @@ describe('L1Publisher integration', () => {
         coinbase,
         feeRecipient,
       );
-      const [block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages, l1ToL2Messages);
+      const [block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages);
       prevHeader = block.header;
 
-      writeJson(`empty_block_${i}`, block, l1ToL2Messages, [], AztecAddress.ZERO, deployerAccount.address);
+      writeJson(`empty_block_${i}`, block, [], AztecAddress.ZERO, deployerAccount.address);
 
       await publisher.processL2Block(block);
 

@@ -2,14 +2,13 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
-import {NewInbox} from "../../src/core/messagebridge/NewInbox.sol";
+import {Inbox} from "../../src/core/messagebridge/Inbox.sol";
 
 // Libraries
 import {Constants} from "../../src/core/libraries/ConstantsGen.sol";
 
-// TODO: rename to InboxHarness once all the pieces of the new message model are in place.
-contract NewInboxHarness is NewInbox {
-  constructor(address _rollup, uint256 _height) NewInbox(_rollup, _height) {}
+contract InboxHarness is Inbox {
+  constructor(address _rollup, uint256 _height) Inbox(_rollup, _height) {}
 
   function getSize() external view returns (uint256) {
     return SIZE;

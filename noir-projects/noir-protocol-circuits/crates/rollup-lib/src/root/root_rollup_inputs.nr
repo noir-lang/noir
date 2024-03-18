@@ -44,18 +44,13 @@ impl RootRollupInputs {
         components::assert_equal_constants(left, right);
         components::assert_prev_rollups_follow_on_from_each_other(left, right);
 
-        // Check correct l1 to l2 tree given
-        // Compute subtree inserting l1 to l2 messages
-        let l1_to_l2_subtree_root = calculate_subtree_root(self.new_l1_to_l2_messages);
-
         // Insert subtree into the l1 to l2 data tree
-        // TODO(#4492): insert the root from l1_to_l2_roots here instead of the one from old inbox
         let empty_l1_to_l2_subtree_root = calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_HEIGHT);
         let new_l1_to_l2_message_tree_snapshot = append_only_tree::insert_subtree_to_snapshot_tree(
             self.start_l1_to_l2_message_tree_snapshot,
             self.new_l1_to_l2_message_tree_root_sibling_path,
             empty_l1_to_l2_subtree_root,
-            l1_to_l2_subtree_root,
+            self.l1_to_l2_roots.public_inputs.converted_root,
             // TODO(Kev): For now we can add a test that this fits inside of 
             // a u8.
             L1_TO_L2_MSG_SUBTREE_HEIGHT as u8
@@ -93,7 +88,7 @@ impl RootRollupInputs {
             aggregation_object,
             archive,
             header,
-            // TODO(#4492): update this when implementing the new message model
+            // TODO(#5264): update this when implementing the new message model
             l1_to_l2_messages_hash: compute_messages_hash(self.new_l1_to_l2_messages)
         }
     }

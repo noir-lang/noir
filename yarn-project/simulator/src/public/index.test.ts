@@ -27,7 +27,7 @@ import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 import { type MemDown, default as memdown } from 'memdown';
-import { getFunctionSelector } from 'viem';
+import { toFunctionSelector } from 'viem';
 
 import { MessageLoadOracleInputs } from '../index.js';
 import { buildL1ToL2Message } from '../test/utils.js';
@@ -416,7 +416,6 @@ describe('ACIR public execution simulator', () => {
     describe('L1 to L2 messages', () => {
       const mintPublicArtifact = TestContractArtifact.functions.find(f => f.name === 'consume_mint_public_message')!;
 
-      const canceller = EthAddress.random();
       const tokenRecipient = AztecAddress.random();
       let bridgedAmount = 20n;
       let secret = new Fr(1);
@@ -440,13 +439,13 @@ describe('ACIR public execution simulator', () => {
 
       const computePreImage = () =>
         buildL1ToL2Message(
-          getFunctionSelector('mint_public(bytes32,uint256,address)').substring(2),
-          [tokenRecipient.toField(), new Fr(bridgedAmount), canceller.toField()],
+          toFunctionSelector('mint_public(bytes32,uint256)').substring(2),
+          [tokenRecipient.toField(), new Fr(bridgedAmount)],
           crossChainMsgRecipient ?? contractAddress,
           secret,
         );
 
-      const computeArgs = () => encodeArguments(mintPublicArtifact, [tokenRecipient, bridgedAmount, canceller, secret]);
+      const computeArgs = () => encodeArguments(mintPublicArtifact, [tokenRecipient, bridgedAmount, secret]);
 
       const computeCallContext = () =>
         CallContext.from({

@@ -89,32 +89,28 @@ export class SoloBlockBuilder implements BlockBuilder {
    * Builds an L2 block with the given number containing the given txs, updating state trees.
    * @param globalVariables - Global variables to be used in the block.
    * @param txs - Processed transactions to include in the block.
-   * @param newModelL1ToL2Messages - L1 to L2 messages emitted by the new inbox.
-   * @param newL1ToL2Messages - L1 to L2 messages to be part of the block.
+   * @param l1ToL2Messages - L1 to L2 messages to be part of the block.
    * @param timestamp - Timestamp of the block.
    * @returns The new L2 block and a correctness proof as returned by the root rollup circuit.
    */
   public async buildL2Block(
     globalVariables: GlobalVariables,
     txs: ProcessedTx[],
-    newModelL1ToL2Messages: Fr[], // TODO(#4492): Rename this when purging the old inbox
-    newL1ToL2Messages: Fr[],
+    l1ToL2Messages: Fr[],
   ): Promise<[L2Block, Proof]> {
     // Check txs are good for processing by checking if all the tree snapshots in header are non-empty
     this.validateTxs(txs);
 
+    // We pad the messages as the circuits expect that.
+    const l1ToL2MessagesPadded = padArrayEnd(l1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
+
     // We fill the tx batch with empty txs, we process only one tx at a time for now
-    const [circuitsOutput, proof] = await this.runCircuits(
-      globalVariables,
-      txs,
-      newModelL1ToL2Messages,
-      newL1ToL2Messages,
-    );
+    const [circuitsOutput, proof] = await this.runCircuits(globalVariables, txs, l1ToL2MessagesPadded);
 
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
     const txEffects: TxEffect[] = txs.map(tx => toTxEffect(tx));
 
-    const blockBody = new Body(padArrayEnd(newL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP), txEffects);
+    const blockBody = new Body(l1ToL2MessagesPadded, txEffects);
 
     const l2Block = L2Block.fromFields({
       archive: circuitsOutput.archive,
@@ -160,8 +156,7 @@ export class SoloBlockBuilder implements BlockBuilder {
   protected async runCircuits(
     globalVariables: GlobalVariables,
     txs: ProcessedTx[],
-    newModelL1ToL2Messages: Fr[], // TODO(#4492): Rename this when purging the old inbox
-    newL1ToL2Messages: Fr[], // TODO(#4492): Nuke this when purging the old inbox
+    l1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
   ): Promise<[RootRollupPublicInputs, Proof]> {
     // Check that the length of the array of txs is a power of two
     // See https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
@@ -170,16 +165,13 @@ export class SoloBlockBuilder implements BlockBuilder {
     }
 
     // BASE PARITY CIRCUIT (run in parallel)
+    // Note: In the future we will want to cache the results of empty base and root parity circuits so that we don't
+    // have to run them. (It will most likely be quite common that some base parity circuits will be "empty")
     let baseParityInputs: BaseParityInputs[] = [];
     let elapsedBaseParityOutputsPromise: Promise<[number, RootParityInput[]]>;
     {
-      const newModelL1ToL2MessagesTuple = padArrayEnd(
-        newModelL1ToL2Messages,
-        Fr.ZERO,
-        NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-      );
       baseParityInputs = Array.from({ length: NUM_BASE_PARITY_PER_ROOT_PARITY }, (_, i) =>
-        BaseParityInputs.fromSlice(newModelL1ToL2MessagesTuple, i),
+        BaseParityInputs.fromSlice(l1ToL2Messages, i),
       );
 
       const baseParityOutputs: Promise<RootParityInput>[] = [];
@@ -188,9 +180,6 @@ export class SoloBlockBuilder implements BlockBuilder {
       }
       elapsedBaseParityOutputsPromise = elapsed(() => Promise.all(baseParityOutputs));
     }
-
-    // padArrayEnd throws if the array is already full. Otherwise it pads till we reach the required size
-    const newL1ToL2MessagesTuple = padArrayEnd(newL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
 
     // BASE ROLLUP CIRCUIT (run in parallel)
     let elapsedBaseRollupOutputsPromise: Promise<[number, [BaseOrMergeRollupPublicInputs, Proof][]]>;
@@ -302,7 +291,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       outputSize: rootParityOutput.toBuffer().length,
     } satisfies CircuitSimulationStats);
 
-    return this.rootRollupCircuit(mergeOutputLeft, mergeOutputRight, rootParityOutput, newL1ToL2MessagesTuple);
+    return this.rootRollupCircuit(mergeOutputLeft, mergeOutputRight, rootParityOutput, l1ToL2Messages);
   }
 
   protected async baseParityCircuit(inputs: BaseParityInputs): Promise<RootParityInput> {
@@ -365,15 +354,15 @@ export class SoloBlockBuilder implements BlockBuilder {
     left: [BaseOrMergeRollupPublicInputs, Proof],
     right: [BaseOrMergeRollupPublicInputs, Proof],
     l1ToL2Roots: RootParityInput,
-    newL1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
+    l1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
   ): Promise<[RootRollupPublicInputs, Proof]> {
     this.debug(`Running root rollup circuit`);
-    const rootInput = await this.getRootRollupInput(...left, ...right, l1ToL2Roots, newL1ToL2Messages);
+    const rootInput = await this.getRootRollupInput(...left, ...right, l1ToL2Roots, l1ToL2Messages);
 
-    // Update the local trees to include the new l1 to l2 messages
+    // Update the local trees to include the l1 to l2 messages
     await this.db.appendLeaves(
       MerkleTreeId.L1_TO_L2_MESSAGE_TREE,
-      newL1ToL2Messages.map(m => m.toBuffer()),
+      l1ToL2Messages.map(m => m.toBuffer()),
     );
 
     // Simulate and get proof for the root circuit

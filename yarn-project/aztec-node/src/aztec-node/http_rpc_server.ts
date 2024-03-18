@@ -1,7 +1,6 @@
 import {
   AztecNode,
   ExtendedUnencryptedL2Log,
-  L1ToL2MessageAndIndex,
   L2Block,
   L2BlockL2Logs,
   LogId,
@@ -38,7 +37,6 @@ export function createAztecNodeRpcServer(node: AztecNode) {
       LogId,
       TxHash,
       SiblingPath,
-      L1ToL2MessageAndIndex,
     },
     { Tx, TxReceipt, L2BlockL2Logs, NullifierMembershipWitness },
     // disable methods not part of the AztecNode interface

@@ -29,7 +29,6 @@ contract DecoderBase is Test {
   }
 
   struct Messages {
-    bytes32[] l1ToL2Messages;
     bytes32[] l2ToL1Messages;
   }
 
@@ -38,7 +37,6 @@ contract DecoderBase is Test {
     bytes body;
     DecodedHeader decodedHeader;
     bytes header;
-    bytes32 l1ToL2MessagesHash;
     bytes32 publicInputsHash;
     bytes32 txsEffectsHash;
   }

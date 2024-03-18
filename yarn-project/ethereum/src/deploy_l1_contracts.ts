@@ -114,15 +114,6 @@ export const deployL1Contracts = async (
   );
   logger(`Deployed Registry at ${registryAddress}`);
 
-  const inboxAddress = await deployL1Contract(
-    walletClient,
-    publicClient,
-    contractsToDeploy.inbox.contractAbi,
-    contractsToDeploy.inbox.contractBytecode,
-    [getAddress(registryAddress.toString())],
-  );
-  logger(`Deployed Inbox at ${inboxAddress}`);
-
   const outboxAddress = await deployL1Contract(
     walletClient,
     publicClient,
@@ -148,6 +139,17 @@ export const deployL1Contracts = async (
     [getAddress(registryAddress.toString()), getAddress(availabilityOracleAddress.toString())],
   );
   logger(`Deployed Rollup at ${rollupAddress}`);
+
+  // Inbox is immutable and is deployed from Rollup's constructor so we just fetch it from the contract.
+  let inboxAddress!: EthAddress;
+  {
+    const rollup = getContract({
+      address: getAddress(rollupAddress.toString()),
+      abi: contractsToDeploy.rollup.contractAbi,
+      client: publicClient,
+    });
+    inboxAddress = EthAddress.fromString((await rollup.read.INBOX([])) as any);
+  }
 
   // We need to call a function on the registry to set the various contract addresses.
   const registryContract = getContract({

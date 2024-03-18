@@ -11,23 +11,7 @@ pragma solidity >=0.8.18;
  */
 library Errors {
   // Inbox
-  error Inbox__DeadlineBeforeNow(); // 0xbf94a5dc
-  error Inbox__NotPastDeadline(); //0x3218ad9e
-  error Inbox__PastDeadline(); // 0x1eb114ea
-  error Inbox__InvalidVersion(uint256 entry, uint256 rollup); // 0x60be5dca
-  error Inbox__FeeTooHigh(); // 0x6f478f42
-  error Inbox__FailedToWithdrawFees(); // 0xbc66d464
   error Inbox__Unauthorized(); // 0xe5336a6b
-  error Inbox__NothingToConsume(bytes32 entryKey); // 0xdd7e995e
-  error Inbox__IncompatibleEntryArguments(
-    bytes32 entryKey,
-    uint64 storedFee,
-    uint64 feePassed,
-    uint32 storedVersion,
-    uint32 versionPassed,
-    uint32 storedDeadline,
-    uint32 deadlinePassed
-  ); // 0xd483d8f2
   error Inbox__ActorTooLarge(bytes32 actor); // 0xa776a06e
   error Inbox__ContentTooLarge(bytes32 content); // 0x47452014
   error Inbox__SecretHashTooLarge(bytes32 secretHash); // 0xecde7e2c

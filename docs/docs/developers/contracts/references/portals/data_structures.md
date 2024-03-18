@@ -14,10 +14,8 @@ An entry for the messageboxes multi-sets.
 
 | Name           | Type    | Description |
 | -------------- | ------- | ----------- |
-| `fee`          | `uint64` | The fee provided to the sequencer for including the message in the inbox. 0 if Outbox (as it is not applicable). |
 | `count`        | `uint32` | The occurrence of the entry in the dataset |
 | `version`      | `uint32` | The version of the entry |
-| `deadline`     | `uint32` | The consumption deadline of the message. |
 
 
 ## `L1Actor`
@@ -55,8 +53,6 @@ A message that is sent from L1 to L2.
 | `recipient`        | `L2Actor` | The actor on L2 that is to receive the message. |
 | `content`        | `field (~254 bits)` | The field element containing the content to be sent to L2. |
 | `secretHash`        | `field (~254 bits)` | The hash of a secret pre-image that must be known to consume the message on L2. Use the [`computeMessageSecretHash`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec.js/src/utils/secrets.ts) to compute it from a secret. |
-| `deadline`        | `uint32` | The message consumption-deadline time in seconds. |
-| `fee`        | `uint64` | The fee that the sequencer will be paid for the inclusion of the message. |
 
 ## `L2ToL1Message`
 

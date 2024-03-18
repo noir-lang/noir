@@ -55,16 +55,12 @@ library DataStructures {
    * @param recipient - The recipient of the message
    * @param content - The content of the message (application specific) padded to bytes32 or hashed if larger.
    * @param secretHash - The secret hash of the message (make it possible to hide when a specific message is consumed on L2).
-   * @param deadline - The deadline to consume a message. Only after it, can a message be cancelled.
-   * @param fee - The fee provided to sequencer for including the entry
    */
   struct L1ToL2Msg {
     L1Actor sender;
     L2Actor recipient;
     bytes32 content;
     bytes32 secretHash;
-    uint32 deadline;
-    uint64 fee;
   }
   // docs:end:l1_to_l2_msg
 

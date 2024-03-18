@@ -128,8 +128,6 @@ struct L1ToL2Msg {
 	L2Actor: recipient,
 	bytes32: content,
 	bytes32: secretHash,
-	uint32 deadline,
-	uint64 fee,
 }
 
 struct L2ToL1Msg {
@@ -146,7 +144,7 @@ The `bytes32` elements for `content` and `secretHash` hold values that must fit 
 :::info
 The nullifier computation should include the index of the message in the message tree to ensure that it is possible to send duplicate messages (e.g., 2 x deposit of 500 dai to the same account).
 
-To make it possible to hide when a specific message is consumed, the `L1ToL2Msg` is extended with a `secretHash` field, where the `secretPreimage` is used as part of the nullifier computation. This way, it is not possible for someone just seeing the `L1ToL2Msg` on L1 to know when it is consumed on L2. Also, we include the `deadline` and `fee` values to have a fee-market for message inclusion and to ensure that messages are not stuck in the pending set forever.
+To make it possible to hide when a specific message is consumed, the `L1ToL2Msg` is extended with a `secretHash` field, where the `secretPreimage` is used as part of the nullifier computation. This way, it is not possible for someone just seeing the `L1ToL2Msg` on L1 to know when it is consumed on L2.
 :::
 
 ## Combined Architecture

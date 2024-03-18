@@ -11,7 +11,6 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
-import { L1ToL2MessageAndIndex } from '../l1_to_l2_message.js';
 import { L2Block } from '../l2_block.js';
 import { GetUnencryptedLogsResponse, L2BlockL2Logs, LogFilter, LogType } from '../logs/index.js';
 import { MerkleTreeId } from '../merkle_tree_id.js';
@@ -23,7 +22,7 @@ import { NullifierMembershipWitness } from './nullifier_tree.js';
 import { PublicDataWitness } from './public_data_tree.js';
 
 /** Helper type for a specific L2 block number or the latest block number */
-type BlockNumber = number | 'latest';
+export type BlockNumber = number | 'latest';
 
 /**
  * The aztec node.
@@ -62,23 +61,16 @@ export interface AztecNode {
   ): Promise<SiblingPath<typeof NOTE_HASH_TREE_HEIGHT>>;
 
   /**
-   * Gets a confirmed/consumed L1 to L2 message for the given entry key (throws if not found).
-   * and its index in the merkle tree
-   * @param entryKey - The entry key.
-   * @returns The map containing the message and index.
-   */
-  getL1ToL2MessageAndIndex(entryKey: Fr): Promise<L1ToL2MessageAndIndex>;
-
-  /**
-   * Returns a sibling path for a leaf in the committed l1 to l2 data tree.
+   * Returns the index and a sibling path for a leaf in the committed l1 to l2 data tree.
    * @param blockNumber - The block number at which to get the data.
-   * @param leafIndex - Index of the leaf in the tree.
-   * @returns The sibling path.
+   * @param l1ToL2Message - The l1ToL2Message to get the index / sibling path for.
+   * @throws If the message is not found.
+   * @returns A tuple of the index and the sibling path of the message.
    */
-  getL1ToL2MessageSiblingPath(
+  getL1ToL2MessageIndexAndSiblingPath(
     blockNumber: BlockNumber,
-    leafIndex: bigint,
-  ): Promise<SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>>;
+    l1ToL2Message: Fr,
+  ): Promise<[bigint, SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>]>;
 
   /**
    * Returns the index of a l2ToL1Message in a ephemeral l2 to l1 data tree as well as its sibling path.
@@ -90,7 +82,7 @@ export interface AztecNode {
    * @returns A tuple of the index and the sibling path of the L2ToL1Message.
    */
   getL2ToL1MessageIndexAndSiblingPath(
-    blockNumber: number | 'latest',
+    blockNumber: BlockNumber,
     l2ToL1Message: Fr,
   ): Promise<[number, SiblingPath<number>]>;
 

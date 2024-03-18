@@ -1,19 +1,15 @@
-import { Body, L1ToL2Message, NewInboxLeaf } from '@aztec/circuit-types';
-import { AppendOnlyTreeSnapshot, Fr, Header } from '@aztec/circuits.js';
+import { Body, InboxLeaf } from '@aztec/circuit-types';
+import { AppendOnlyTreeSnapshot, Header } from '@aztec/circuits.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
 
 import { PublicClient } from 'viem';
 
 import {
-  getL1ToL2MessageCancelledLogs,
   getL2BlockProcessedLogs,
   getLeafInsertedLogs,
-  getPendingL1ToL2MessageLogs,
   getTxsPublishedLogs,
-  processCancelledL1ToL2MessagesLogs,
   processL2BlockProcessedLogs,
   processLeafInsertedLogs,
-  processPendingL1ToL2MessageAddedLogs,
   processTxsPublishedLogs,
 } from './eth_log_handlers.js';
 
@@ -116,112 +112,34 @@ export async function retrieveBlockBodiesFromAvailabilityOracle(
 }
 
 /**
- * Fetch new pending L1 to L2 messages.
+ * Fetch L1 to L2 messages.
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param inboxAddress - The address of the inbox contract to fetch messages from.
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
  * @param searchStartBlock - The block number to use for starting the search.
  * @param searchEndBlock - The highest block number that we should search up to.
- * @returns An array of L1ToL2Message and next eth block to search from.
+ * @returns An array of InboxLeaf and next eth block to search from.
  */
-export async function retrieveNewPendingL1ToL2Messages(
+export async function retrieveL1ToL2Messages(
   publicClient: PublicClient,
   inboxAddress: EthAddress,
   blockUntilSynced: boolean,
   searchStartBlock: bigint,
   searchEndBlock: bigint,
-): Promise<DataRetrieval<[L1ToL2Message, bigint]>> {
-  const retrievedNewL1ToL2Messages: [L1ToL2Message, bigint][] = [];
+): Promise<DataRetrieval<InboxLeaf>> {
+  const retrievedL1ToL2Messages: InboxLeaf[] = [];
   do {
     if (searchStartBlock > searchEndBlock) {
       break;
     }
-    const newL1ToL2MessageLogs = await getPendingL1ToL2MessageLogs(
-      publicClient,
-      inboxAddress,
-      searchStartBlock,
-      searchEndBlock,
-    );
-    if (newL1ToL2MessageLogs.length === 0) {
-      break;
-    }
-    const newL1ToL2Messages = processPendingL1ToL2MessageAddedLogs(newL1ToL2MessageLogs);
-    retrievedNewL1ToL2Messages.push(...newL1ToL2Messages);
-    // handles the case when there are no new messages:
-    searchStartBlock = (newL1ToL2MessageLogs.findLast(msgLog => !!msgLog)?.blockNumber || searchStartBlock) + 1n;
-  } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
-  return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedNewL1ToL2Messages };
-}
-
-/**
- * Fetch new L1 to L2 messages.
- * @param publicClient - The viem public client to use for transaction retrieval.
- * @param newInboxAddress - The address of the inbox contract to fetch messages from.
- * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
- * @param searchStartBlock - The block number to use for starting the search.
- * @param searchEndBlock - The highest block number that we should search up to.
- * @returns An array of NewInboxLeaf and next eth block to search from.
- */
-export async function retrieveNewL1ToL2Messages(
-  publicClient: PublicClient,
-  newInboxAddress: EthAddress,
-  blockUntilSynced: boolean,
-  searchStartBlock: bigint,
-  searchEndBlock: bigint,
-): Promise<DataRetrieval<NewInboxLeaf>> {
-  const retrievedNewL1ToL2Messages: NewInboxLeaf[] = [];
-  do {
-    if (searchStartBlock > searchEndBlock) {
-      break;
-    }
-    const leafInsertedLogs = await getLeafInsertedLogs(publicClient, newInboxAddress, searchStartBlock, searchEndBlock);
+    const leafInsertedLogs = await getLeafInsertedLogs(publicClient, inboxAddress, searchStartBlock, searchEndBlock);
     if (leafInsertedLogs.length === 0) {
       break;
     }
-    const newL1ToL2Messages = processLeafInsertedLogs(leafInsertedLogs);
-    retrievedNewL1ToL2Messages.push(...newL1ToL2Messages);
+    const l1ToL2Messages = processLeafInsertedLogs(leafInsertedLogs);
+    retrievedL1ToL2Messages.push(...l1ToL2Messages);
     // handles the case when there are no new messages:
     searchStartBlock = (leafInsertedLogs.findLast(msgLog => !!msgLog)?.blockNumber || searchStartBlock) + 1n;
   } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
-  return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedNewL1ToL2Messages };
-}
-
-/**
- * Fetch newly cancelled L1 to L2 messages.
- * @param publicClient - The viem public client to use for transaction retrieval.
- * @param inboxAddress - The address of the inbox contract to fetch messages from.
- * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
- * @param searchStartBlock - The block number to use for starting the search.
- * @param searchEndBlock - The highest block number that we should search up to.
- * @returns An array of entry keys that were cancelled and next eth block to search from.
- * TODO(#4492): Nuke the following when purging the old inbox
- */
-export async function retrieveNewCancelledL1ToL2Messages(
-  publicClient: PublicClient,
-  inboxAddress: EthAddress,
-  blockUntilSynced: boolean,
-  searchStartBlock: bigint,
-  searchEndBlock: bigint,
-): Promise<DataRetrieval<[Fr, bigint]>> {
-  const retrievedNewCancelledL1ToL2Messages: [Fr, bigint][] = [];
-  do {
-    if (searchStartBlock > searchEndBlock) {
-      break;
-    }
-    const newL1ToL2MessageCancelledLogs = await getL1ToL2MessageCancelledLogs(
-      publicClient,
-      inboxAddress,
-      searchStartBlock,
-      searchEndBlock,
-    );
-    if (newL1ToL2MessageCancelledLogs.length === 0) {
-      break;
-    }
-    const newCancelledL1ToL2Messages = processCancelledL1ToL2MessagesLogs(newL1ToL2MessageCancelledLogs);
-    retrievedNewCancelledL1ToL2Messages.push(...newCancelledL1ToL2Messages);
-    // handles the case when there are no new messages:
-    searchStartBlock =
-      (newL1ToL2MessageCancelledLogs.findLast(msgLog => !!msgLog)?.blockNumber || searchStartBlock) + 1n;
-  } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
-  return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedNewCancelledL1ToL2Messages };
+  return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedL1ToL2Messages };
 }

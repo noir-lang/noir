@@ -1,98 +1,33 @@
-import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/circuit-types';
+import { InboxLeaf } from '@aztec/circuit-types';
+import { INITIAL_L2_BLOCK_NUM, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
-import { L1ToL2MessageStore, PendingL1ToL2MessageStore } from './l1_to_l2_message_store.js';
+import { L1ToL2MessageStore } from './l1_to_l2_message_store.js';
 
 describe('l1_to_l2_message_store', () => {
   let store: L1ToL2MessageStore;
-  let entryKey: Fr;
-  let msg: L1ToL2Message;
 
   beforeEach(() => {
     // already adds a message to the store
     store = new L1ToL2MessageStore();
-    entryKey = Fr.random();
-    msg = L1ToL2Message.random();
   });
 
-  it('addMessage adds a message', () => {
-    store.addMessage(entryKey, msg);
-    expect(store.getMessage(entryKey)).toEqual(msg);
-  });
-
-  it('addMessage increments the count if the message is already in the store', () => {
-    store.addMessage(entryKey, msg);
-    store.addMessage(entryKey, msg);
-    expect(store.getMessageAndCount(entryKey)).toEqual({ message: msg, count: 2 });
-  });
-});
-
-describe('pending_l1_to_l2_message_store', () => {
-  let store: PendingL1ToL2MessageStore;
-  let entryKey: Fr;
-  let msg: L1ToL2Message;
-
-  beforeEach(() => {
-    // already adds a message to the store
-    store = new PendingL1ToL2MessageStore();
-    entryKey = Fr.random();
-    msg = L1ToL2Message.random();
-  });
-
-  it('removeMessage removes the message if the count is 1', () => {
-    store.addMessage(entryKey, msg);
-    store.removeMessage(entryKey);
-    expect(store.getMessage(entryKey)).toBeUndefined();
-  });
-
-  it("handles case when removing a message that doesn't exist", () => {
-    expect(() => store.removeMessage(new Fr(0))).not.toThrow();
-    const one = new Fr(1);
-    expect(() => store.removeMessage(one)).toThrow(`Message with key ${one.value} not found in store`);
-  });
-
-  it('removeMessage decrements the count if the message is already in the store', () => {
-    store.addMessage(entryKey, msg);
-    store.addMessage(entryKey, msg);
-    store.addMessage(entryKey, msg);
-    store.removeMessage(entryKey);
-    expect(store.getMessageAndCount(entryKey)).toEqual({ message: msg, count: 2 });
-  });
-
-  it('get messages for an empty store', () => {
-    expect(store.getEntryKeys(10)).toEqual([]);
-  });
-
-  it('getEntryKeys returns an empty array if limit is 0', () => {
-    store.addMessage(entryKey, msg);
-    expect(store.getEntryKeys(0)).toEqual([]);
-  });
-
-  it('get messages for a non-empty store when limit > number of messages in store', () => {
-    const entryKeys = [1, 2, 3, 4, 5].map(x => new Fr(x));
-    entryKeys.forEach(entryKey => {
-      store.addMessage(entryKey, L1ToL2Message.random());
+  it('adds a message and correctly returns its index', () => {
+    const blockNumber = 236n;
+    const msgs = Array.from({ length: 10 }, (_, i) => {
+      return new InboxLeaf(blockNumber, BigInt(i), Fr.random());
     });
-    expect(store.getEntryKeys(10).length).toEqual(5);
-  });
+    for (const m of msgs) {
+      store.addMessage(m);
+    }
 
-  it('get messages returns messages sorted by fees and also includes multiple of the same message', () => {
-    const entryKeys = [1, 2, 3, 3, 3, 4].map(x => new Fr(x));
-    entryKeys.forEach(entryKey => {
-      // set msg.fee to entryKey to test the sort.
-      const msg = new L1ToL2Message(
-        L1Actor.random(),
-        L2Actor.random(),
-        Fr.random(),
-        Fr.random(),
-        100,
-        Number(entryKey.value),
-        entryKey,
-      );
-      store.addMessage(entryKey, msg);
-    });
-    const expectedMessageFees = [4n, 3n, 3n, 3n]; // the top 4.
-    const receivedMessageFees = store.getEntryKeys(4).map(key => key.value);
-    expect(receivedMessageFees).toEqual(expectedMessageFees);
+    const retrievedMsgs = store.getMessages(blockNumber);
+    expect(retrievedMsgs.length).toEqual(10);
+
+    const msg = msgs[4];
+    const index = store.getMessageIndex(msg.leaf);
+    expect(index).toEqual(
+      (blockNumber - BigInt(INITIAL_L2_BLOCK_NUM)) * BigInt(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP) + msg.index,
+    );
   });
 });

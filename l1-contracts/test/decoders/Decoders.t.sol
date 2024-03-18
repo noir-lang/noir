@@ -154,24 +154,9 @@ contract DecodersTest is DecoderBase {
 
     // Messages
     {
-      (
-        bytes32 msgsInHash,
-        bytes32 msgsL2ToL1MsgsHash,
-        bytes32[] memory msgsL1ToL2Msgs,
-        bytes32[] memory msgsL2ToL1Msgs
-      ) = messagesHelper.decode(data.block.body);
-
-      assertEq(msgsInHash, data.block.l1ToL2MessagesHash, "Invalid l1ToL2MsgsHash msgs");
+      (,,, bytes32[] memory msgsL2ToL1Msgs) = messagesHelper.decode(data.block.body);
 
       // assertEq(msgsL2ToL1MsgsHash, b.l2ToL1MessagesHash, "Invalid l2ToL1MsgsHash");
-
-      // L1 -> L2 messages
-      assertEq(
-        msgsL1ToL2Msgs.length, data.messages.l1ToL2Messages.length, "Invalid l1ToL2Msgs length"
-      );
-      for (uint256 i = 0; i < msgsL1ToL2Msgs.length; i++) {
-        assertEq(msgsL1ToL2Msgs[i], data.messages.l1ToL2Messages[i], "Invalid l1ToL2Msgs messages");
-      }
 
       // L2 -> L1 messages
       assertEq(

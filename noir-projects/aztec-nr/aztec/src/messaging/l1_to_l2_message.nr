@@ -4,8 +4,6 @@ use dep::protocol_types::{
     hash::{pedersen_hash, sha256_to_field}
 };
 
-// TODO(#4833) remove `deadline` and `fee` from the message
-// currently hardcoded to max_value and 0 respectively.
 struct L1ToL2Message {
     sender: EthAddress,
     chain_id: Field,
@@ -14,8 +12,6 @@ struct L1ToL2Message {
     content: Field,
     secret: Field,
     secret_hash: Field,
-    deadline: u32,
-    fee: u64,
     tree_index: Field
 }
 
@@ -37,8 +33,6 @@ impl L1ToL2Message {
             content,
             secret,
             secret_hash,
-            deadline: 4294967295,
-            fee: 0,
             tree_index: 0
         }
     }
@@ -56,22 +50,18 @@ impl L1ToL2Message {
             content: fields[4],
             secret,
             secret_hash: fields[5],
-            deadline: fields[6] as u32,
-            fee: fields[7] as u64,
             tree_index
         }
     }
 
     fn hash(self: Self) -> Field {
-        let mut hash_bytes: [u8; 256] = [0; 256];
+        let mut hash_bytes = [0 as u8; 192];
         let sender_bytes = self.sender.to_field().to_be_bytes(32);
         let chain_id_bytes = self.chain_id.to_be_bytes(32);
         let recipient_bytes = self.recipient.to_field().to_be_bytes(32);
         let version_bytes = self.version.to_be_bytes(32);
         let content_bytes = self.content.to_be_bytes(32);
         let secret_hash_bytes = self.secret_hash.to_be_bytes(32);
-        let deadline_bytes = (self.deadline as Field).to_be_bytes(32);
-        let fee_bytes = (self.fee as Field).to_be_bytes(32);
 
         for i in 0..32 {
             hash_bytes[i] = sender_bytes[i];
@@ -80,8 +70,6 @@ impl L1ToL2Message {
             hash_bytes[i + 96] = version_bytes[i];
             hash_bytes[i + 128] = content_bytes[i];
             hash_bytes[i + 160] = secret_hash_bytes[i];
-            hash_bytes[i + 192] = deadline_bytes[i];
-            hash_bytes[i + 224] = fee_bytes[i];
         }
 
         let message_hash = sha256_to_field(hash_bytes);

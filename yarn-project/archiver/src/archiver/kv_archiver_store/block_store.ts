@@ -155,7 +155,7 @@ export class BlockStore {
    * Gets the number of the latest L2 block processed.
    * @returns The number of the latest L2 block processed.
    */
-  getBlockNumber(): number {
+  getSynchedL2BlockNumber(): number {
     const [lastBlockNumber] = this.#blocks.keys({ reverse: true, limit: 1 });
     return typeof lastBlockNumber === 'number' ? lastBlockNumber : INITIAL_L2_BLOCK_NUM - 1;
   }
@@ -164,7 +164,7 @@ export class BlockStore {
    * Gets the most recent L1 block processed.
    * @returns The L1 block that published the latest L2 block
    */
-  getL1BlockNumber(): bigint {
+  getSynchedL1BlockNumber(): bigint {
     const [lastBlock] = this.#blocks.values({ reverse: true, limit: 1 });
     if (!lastBlock) {
       return 0n;

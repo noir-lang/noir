@@ -129,9 +129,7 @@ export class SimulatorOracle implements DBOracle {
    *          index of the message in the l1ToL2MessageTree
    */
   async getL1ToL2MembershipWitness(entryKey: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
-    const messageAndIndex = await this.aztecNode.getL1ToL2MessageAndIndex(entryKey);
-    const index = messageAndIndex.index;
-    const siblingPath = await this.aztecNode.getL1ToL2MessageSiblingPath('latest', index);
+    const [index, siblingPath] = await this.aztecNode.getL1ToL2MessageIndexAndSiblingPath('latest', entryKey);
     return new MessageLoadOracleInputs(index, siblingPath);
   }
 

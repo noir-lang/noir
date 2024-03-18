@@ -8,7 +8,6 @@ import {
   Wallet,
   computeMessageSecretHash,
   deployL1Contract,
-  sleep,
 } from '@aztec/aztec.js';
 import { GasPortalAbi, GasPortalBytecode, OutboxAbi, PortalERC20Abi, PortalERC20Bytecode } from '@aztec/l1-artifacts';
 import { GasTokenContract } from '@aztec/noir-contracts.js';
@@ -219,16 +218,8 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
     await this.underlyingERC20.write.approve([this.tokenPortalAddress.toString(), bridgeAmount], {} as any);
 
     // Deposit tokens to the TokenPortal
-    const deadline = 2 ** 32 - 1; // max uint32
-
     this.logger('Sending messages to L1 portal to be consumed publicly');
-    const args = [
-      l2Address.toString(),
-      bridgeAmount,
-      this.ethAccount.toString(),
-      deadline,
-      secretHash.toString(),
-    ] as const;
+    const args = [l2Address.toString(), bridgeAmount, secretHash.toString()] as const;
     const { result: entryKeyHex } = await this.tokenPortal.simulate.depositToAztecPublic(args, {
       account: this.ethAccount.toString(),
     } as any);
@@ -266,7 +257,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
   async consumeMessageOnAztecAndMintPublicly(bridgeAmount: bigint, owner: AztecAddress, secret: Fr) {
     this.logger('Consuming messages on L2 Publicly');
     // Call the mint tokens function on the Aztec.nr contract
-    const tx = this.l2Token.methods.claim_public(owner, bridgeAmount, this.ethAccount, secret).send();
+    const tx = this.l2Token.methods.claim_public(owner, bridgeAmount, secret).send();
     const receipt = await tx.wait();
     expect(receipt.status).toBe(TxStatus.MINED);
   }
@@ -290,10 +281,8 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
     await this.sendTokensToPortalPublic(bridgeAmount, owner, secretHash);
     expect(await this.getL1BalanceOf(this.ethAccount)).toBe(l1TokenBalance - bridgeAmount);
 
-    // Wait for the archiver to process the message
-    await sleep(2500);
-
-    // Perform an unrelated transaction on L2 to progress the rollup. Here we mint public tokens.
+    // Perform an unrelated transactions on L2 to progress the rollup by 2 blocks.
+    await this.l2Token.methods.check_balance(0).send().wait();
     await this.l2Token.methods.check_balance(0).send().wait();
 
     // 3. Consume L1-> L2 message and mint public tokens on L2

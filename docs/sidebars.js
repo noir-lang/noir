@@ -262,7 +262,6 @@ const sidebars = {
             "developers/tutorials/token_portal/setup",
             "developers/tutorials/token_portal/depositing_to_aztec",
             "developers/tutorials/token_portal/minting_on_aztec",
-            "developers/tutorials/token_portal/cancelling_deposits",
             "developers/tutorials/token_portal/withdrawing_to_l1",
             "developers/tutorials/token_portal/typescript_glue_code",
           ],

@@ -202,12 +202,10 @@ export class Sequencer {
 
       await assertBlockHeight();
 
-      const newModelL1ToL2Messages = await this.l1ToL2MessageSource.getNewL1ToL2Messages(BigInt(newBlockNumber));
-
       // Get l1 to l2 messages from the contract
       this.log('Requesting L1 to L2 messages from contract');
-      const l1ToL2Messages = await this.getPendingL1ToL2EntryKeys();
-      this.log('Successfully retrieved L1 to L2 messages from contract');
+      const l1ToL2Messages = await this.l1ToL2MessageSource.getL1ToL2Messages(BigInt(newBlockNumber));
+      this.log(`Retrieved ${l1ToL2Messages.length} L1 to L2 messages for block ${newBlockNumber}`);
 
       // Build the new block by running the rollup circuits
       this.log(`Assembling block with txs ${processedValidTxs.map(tx => tx.hash).join(', ')}`);
@@ -216,7 +214,7 @@ export class Sequencer {
 
       const emptyTx = processor.makeEmptyProcessedTx();
       const [rollupCircuitsDuration, block] = await elapsed(() =>
-        this.buildBlock(processedValidTxs, newModelL1ToL2Messages, l1ToL2Messages, emptyTx, newGlobalVariables),
+        this.buildBlock(processedValidTxs, l1ToL2Messages, emptyTx, newGlobalVariables),
       );
 
       this.log(`Assembled block ${block.number}`, {
@@ -314,16 +312,14 @@ export class Sequencer {
   /**
    * Pads the set of txs to a power of two and assembles a block by calling the block builder.
    * @param txs - Processed txs to include in the next block.
-   * @param newModelL1ToL2Messages - L1 to L2 messages emitted by the new inbox.
-   * @param newL1ToL2Messages - L1 to L2 messages to be part of the block.
+   * @param l1ToL2Messages - L1 to L2 messages to be part of the block.
    * @param emptyTx - Empty tx to repeat at the end of the block to pad to a power of two.
    * @param globalVariables - Global variables to use in the block.
    * @returns The new block.
    */
   protected async buildBlock(
     txs: ProcessedTx[],
-    newModelL1ToL2Messages: Fr[], // TODO(#4492): Rename this when purging the old inbox
-    newL1ToL2Messages: Fr[], // TODO(#4492): Nuke this when purging the old inbox
+    l1ToL2Messages: Fr[],
     emptyTx: ProcessedTx,
     globalVariables: GlobalVariables,
   ) {
@@ -332,24 +328,10 @@ export class Sequencer {
     const emptyTxCount = txsTargetSize - txs.length;
 
     const allTxs = [...txs, ...times(emptyTxCount, () => emptyTx)];
-    this.log(`Building block ${globalVariables.blockNumber}`);
+    this.log(`Building block ${globalVariables.blockNumber.toBigInt()}`);
 
-    const [block] = await this.blockBuilder.buildL2Block(
-      globalVariables,
-      allTxs,
-      newModelL1ToL2Messages,
-      newL1ToL2Messages,
-    );
+    const [block] = await this.blockBuilder.buildL2Block(globalVariables, allTxs, l1ToL2Messages);
     return block;
-  }
-
-  /**
-   * Calls the archiver to pull upto `NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP` entry keys
-   * (archiver returns the top messages sorted by fees)
-   * @returns An array of L1 to L2 messages' entryKeys
-   */
-  protected async getPendingL1ToL2EntryKeys(): Promise<Fr[]> {
-    return await this.l1ToL2MessageSource.getPendingL1ToL2EntryKeys();
   }
 
   /**

@@ -1,13 +1,4 @@
-import {
-  L1ToL2Message,
-  L2Block,
-  L2BlockContext,
-  LogId,
-  LogType,
-  NewInboxLeaf,
-  TxHash,
-  UnencryptedL2Log,
-} from '@aztec/circuit-types';
+import { InboxLeaf, L2Block, L2BlockContext, LogId, LogType, TxHash, UnencryptedL2Log } from '@aztec/circuit-types';
 import '@aztec/circuit-types/jest';
 import { AztecAddress, Fr, INITIAL_L2_BLOCK_NUM, L1_TO_L2_MSG_SUBTREE_HEIGHT } from '@aztec/circuits.js';
 import { makeContractClassPublic } from '@aztec/circuits.js/testing';
@@ -79,64 +70,38 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       });
     });
 
-    describe('getBlockNumber', () => {
+    describe('getSyncedL2BlockNumber', () => {
       it('returns the block number before INITIAL_L2_BLOCK_NUM if no blocks have been added', async () => {
-        await expect(store.getBlockNumber()).resolves.toEqual(INITIAL_L2_BLOCK_NUM - 1);
+        await expect(store.getSynchedL2BlockNumber()).resolves.toEqual(INITIAL_L2_BLOCK_NUM - 1);
       });
 
       it("returns the most recently added block's number", async () => {
         await store.addBlocks(blocks);
-        await expect(store.getBlockNumber()).resolves.toEqual(blocks.at(-1)!.number);
+        await expect(store.getSynchedL2BlockNumber()).resolves.toEqual(blocks.at(-1)!.number);
       });
     });
 
-    describe('getL1BlockNumber', () => {
+    describe('getSynchedL1BlockNumbers', () => {
       it('returns 0n if no blocks have been added', async () => {
-        await expect(store.getL1BlockNumber()).resolves.toEqual({
-          addedBlock: 0n,
-          addedMessages: 0n,
-          cancelledMessages: 0n,
-          newMessages: 0n,
+        await expect(store.getSynchedL1BlockNumbers()).resolves.toEqual({
+          blocks: 0n,
+          messages: 0n,
         });
       });
 
       it('returns the L1 block number in which the most recent L2 block was published', async () => {
         await store.addBlocks(blocks);
-        await expect(store.getL1BlockNumber()).resolves.toEqual({
-          addedBlock: blocks.at(-1)!.getL1BlockNumber(),
-          addedMessages: 0n,
-          cancelledMessages: 0n,
-          newMessages: 0n,
+        await expect(store.getSynchedL1BlockNumbers()).resolves.toEqual({
+          blocks: blocks.at(-1)!.getL1BlockNumber(),
+          messages: 0n,
         });
       });
 
-      it('returns the L1 block number that most recently added pending messages', async () => {
-        await store.addPendingL1ToL2Messages([L1ToL2Message.random(Fr.random())], 1n);
-        await expect(store.getL1BlockNumber()).resolves.toEqual({
-          addedBlock: 0n,
-          addedMessages: 1n,
-          cancelledMessages: 0n,
-          newMessages: 0n,
-        });
-      });
-      it('returns the L1 block number that most recently added messages from new inbox', async () => {
-        await store.addNewL1ToL2Messages([new NewInboxLeaf(0n, 0n, Fr.ZERO)], 1n);
-        await expect(store.getL1BlockNumber()).resolves.toEqual({
-          addedBlock: 0n,
-          addedMessages: 0n,
-          cancelledMessages: 0n,
-          newMessages: 1n,
-        });
-      });
-      it('returns the L1 block number that most recently cancelled pending messages', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message], 1n);
-        await store.cancelPendingL1ToL2EntryKeys([message.entryKey!], 2n);
-        await expect(store.getL1BlockNumber()).resolves.toEqual({
-          addedBlock: 0n,
-          addedMessages: 1n,
-          cancelledMessages: 2n,
-          newMessages: 0n,
+      it('returns the L1 block number that most recently added messages from inbox', async () => {
+        await store.addL1ToL2Messages([new InboxLeaf(0n, 0n, Fr.ZERO)], 1n);
+        await expect(store.getSynchedL1BlockNumbers()).resolves.toEqual({
+          blocks: 0n,
+          messages: 1n,
         });
       });
     });
@@ -194,47 +159,18 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       });
     });
 
-    describe('addPendingL1ToL2Messages', () => {
-      it('stores pending L1 to L2 messages', async () => {
-        await expect(store.addPendingL1ToL2Messages([L1ToL2Message.random(Fr.random())], 1n)).resolves.toEqual(true);
-      });
-
-      it('allows duplicate pending messages in different positions in the same block', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await expect(store.addPendingL1ToL2Messages([message, message], 1n)).resolves.toEqual(true);
-
-        await expect(store.getPendingL1ToL2EntryKeys(2)).resolves.toEqual([message.entryKey!, message.entryKey!]);
-      });
-
-      it('allows duplicate pending messages in different blocks', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await expect(store.addPendingL1ToL2Messages([message], 1n)).resolves.toEqual(true);
-        await expect(store.addPendingL1ToL2Messages([message], 2n)).resolves.toEqual(true);
-
-        await expect(store.getPendingL1ToL2EntryKeys(2)).resolves.toEqual([message.entryKey!, message.entryKey!]);
-      });
-
-      it('is idempotent', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await expect(store.addPendingL1ToL2Messages([message], 1n)).resolves.toEqual(true);
-        await expect(store.addPendingL1ToL2Messages([message], 1n)).resolves.toEqual(false);
-        await expect(store.getPendingL1ToL2EntryKeys(2)).resolves.toEqual([message.entryKey!]);
-      });
-    });
-
-    // TODO(#4492): Drop the "New" below once the old inbox is purged
-    describe('New L1 to L2 Messages', () => {
+    describe('L1 to L2 Messages', () => {
       const l2BlockNumber = 13n;
       const l1ToL2MessageSubtreeSize = 2 ** L1_TO_L2_MSG_SUBTREE_HEIGHT;
 
       const generateBlockMessages = (blockNumber: bigint, numMessages: number) =>
-        Array.from({ length: numMessages }, (_, i) => new NewInboxLeaf(blockNumber, BigInt(i), Fr.random()));
+        Array.from({ length: numMessages }, (_, i) => new InboxLeaf(blockNumber, BigInt(i), Fr.random()));
 
       it('returns messages in correct order', async () => {
         const msgs = generateBlockMessages(l2BlockNumber, l1ToL2MessageSubtreeSize);
         const shuffledMessages = msgs.slice().sort(() => randomInt(1) - 0.5);
-        await store.addNewL1ToL2Messages(shuffledMessages, 100n);
-        const retrievedMessages = await store.getNewL1ToL2Messages(l2BlockNumber);
+        await store.addL1ToL2Messages(shuffledMessages, 100n);
+        const retrievedMessages = await store.getL1ToL2Messages(l2BlockNumber);
 
         const expectedLeavesOrder = msgs.map(msg => msg.leaf);
         expect(expectedLeavesOrder).toEqual(retrievedMessages);
@@ -244,11 +180,11 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         const msgs = generateBlockMessages(l2BlockNumber, l1ToL2MessageSubtreeSize - 1);
         // We replace a message with index 4 with a message with index at the end of the tree
         // --> with that there will be a gap and it will be impossible to sequence the messages
-        msgs[4] = new NewInboxLeaf(l2BlockNumber, BigInt(l1ToL2MessageSubtreeSize - 1), Fr.random());
+        msgs[4] = new InboxLeaf(l2BlockNumber, BigInt(l1ToL2MessageSubtreeSize - 1), Fr.random());
 
-        await store.addNewL1ToL2Messages(msgs, 100n);
+        await store.addL1ToL2Messages(msgs, 100n);
         await expect(async () => {
-          await store.getNewL1ToL2Messages(l2BlockNumber);
+          await store.getL1ToL2Messages(l2BlockNumber);
         }).rejects.toThrow(`L1 to L2 message gap found in block ${l2BlockNumber}`);
       });
 
@@ -256,127 +192,8 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         const msgs = generateBlockMessages(l2BlockNumber, l1ToL2MessageSubtreeSize + 1);
 
         await expect(async () => {
-          await store.addNewL1ToL2Messages(msgs, 100n);
+          await store.addL1ToL2Messages(msgs, 100n);
         }).rejects.toThrow(`Message index ${l1ToL2MessageSubtreeSize} out of subtree range`);
-      });
-    });
-
-    describe('getPendingL1ToL2EntryKeys', () => {
-      it('returns previously stored pending L1 to L2 messages', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message], 1n);
-        await expect(store.getPendingL1ToL2EntryKeys(1)).resolves.toEqual([message.entryKey!]);
-      });
-
-      // TODO(@spalladino): Fix and re-enable
-      it.skip('returns messages ordered by fee', async () => {
-        const messages = Array.from({ length: 3 }, () => L1ToL2Message.random(Fr.random()));
-        // add a duplicate message
-        messages.push(messages[0]);
-
-        await store.addPendingL1ToL2Messages(messages, 1n);
-
-        messages.sort((a, b) => b.fee - a.fee);
-        await expect(store.getPendingL1ToL2EntryKeys(messages.length)).resolves.toEqual(
-          messages.map(message => message.entryKey!),
-        );
-      });
-
-      it('returns an empty array if no messages are found', async () => {
-        await expect(store.getPendingL1ToL2EntryKeys(1)).resolves.toEqual([]);
-      });
-    });
-
-    describe('confirmL1ToL2EntryKeys', () => {
-      it('updates a message from pending to confirmed', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message], 1n);
-        await expect(store.confirmL1ToL2EntryKeys([message.entryKey!])).resolves.toEqual(true);
-      });
-
-      it('once confirmed, a message is no longer pending', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message], 1n);
-        await store.confirmL1ToL2EntryKeys([message.entryKey!]);
-        await expect(store.getPendingL1ToL2EntryKeys(1)).resolves.toEqual([]);
-      });
-
-      it('once confirmed a message can also be pending if added again', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message], 1n);
-        await store.confirmL1ToL2EntryKeys([message.entryKey!]);
-        await store.addPendingL1ToL2Messages([message], 2n);
-        await expect(store.getPendingL1ToL2EntryKeys(2)).resolves.toEqual([message.entryKey!]);
-      });
-
-      it('once confirmed a message can remain pending if more of it were pending', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message, message], 1n);
-        await store.confirmL1ToL2EntryKeys([message.entryKey!]);
-        await expect(store.getPendingL1ToL2EntryKeys(1)).resolves.toEqual([message.entryKey!]);
-      });
-    });
-
-    describe('cancelL1ToL2Messages', () => {
-      it('cancels a pending message', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message], 1n);
-        await store.cancelPendingL1ToL2EntryKeys([message.entryKey!], 1n);
-        await expect(store.getPendingL1ToL2EntryKeys(1)).resolves.toEqual([]);
-      });
-
-      it('cancels only one of the pending messages if duplicates exist', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message, message], 1n);
-        await store.cancelPendingL1ToL2EntryKeys([message.entryKey!], 1n);
-        await expect(store.getPendingL1ToL2EntryKeys(2)).resolves.toEqual([message.entryKey]);
-      });
-
-      it('once canceled a message can also be pending if added again', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message], 1n);
-
-        await store.cancelPendingL1ToL2EntryKeys([message.entryKey!], 1n);
-        await expect(store.getPendingL1ToL2EntryKeys(1)).resolves.toEqual([]);
-
-        await store.addPendingL1ToL2Messages([message], 2n);
-        await expect(store.getPendingL1ToL2EntryKeys(1)).resolves.toEqual([message.entryKey!]);
-      });
-
-      it('allows adding and cancelling in the same block', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message], 1n);
-        await store.cancelPendingL1ToL2EntryKeys([message.entryKey!], 1n);
-        await expect(store.getPendingL1ToL2EntryKeys(1)).resolves.toEqual([]);
-      });
-
-      it('allows duplicates cancellations in different positions in the same block', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message, message], 1n);
-
-        await store.cancelPendingL1ToL2EntryKeys([message.entryKey!, message.entryKey!], 1n);
-
-        await expect(store.getPendingL1ToL2EntryKeys(2)).resolves.toEqual([]);
-      });
-
-      it('allows duplicates cancellations in different blocks', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message, message], 1n);
-
-        await store.cancelPendingL1ToL2EntryKeys([message.entryKey!], 2n);
-        await store.cancelPendingL1ToL2EntryKeys([message.entryKey!], 3n);
-
-        await expect(store.getPendingL1ToL2EntryKeys(2)).resolves.toEqual([]);
-      });
-
-      it('is idempotent', async () => {
-        const message = L1ToL2Message.random(Fr.random());
-        await store.addPendingL1ToL2Messages([message, message], 1n);
-
-        await store.cancelPendingL1ToL2EntryKeys([message.entryKey!], 2n);
-        await store.cancelPendingL1ToL2EntryKeys([message.entryKey!], 2n);
-
-        await expect(store.getPendingL1ToL2EntryKeys(2)).resolves.toEqual([message.entryKey!]);
       });
     });
 

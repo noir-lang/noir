@@ -36,18 +36,18 @@ contract RegistryTest is Test {
 
   function testUpgrade() public {
     address newRollup = address(0xbeef1);
-    address newInbox = address(0xbeef2);
+    address inbox = address(0xbeef2);
     address newOutbox = address(0xbeef3);
-    uint256 newVersion = registry.upgrade(newRollup, newInbox, newOutbox);
+    uint256 newVersion = registry.upgrade(newRollup, inbox, newOutbox);
 
     assertEq(registry.numberOfVersions(), 2, "should have 2 versions");
     DataStructures.RegistrySnapshot memory snapshot = registry.getCurrentSnapshot();
     assertEq(snapshot.rollup, newRollup, "should have newRollup");
-    assertEq(snapshot.inbox, newInbox, "should have newInbox");
+    assertEq(snapshot.inbox, inbox, "should have inbox");
     assertEq(snapshot.outbox, newOutbox, "should have newOutbox");
 
     assertEq(address(registry.getRollup()), newRollup);
-    assertEq(address(registry.getInbox()), newInbox);
+    assertEq(address(registry.getInbox()), inbox);
     assertEq(address(registry.getOutbox()), newOutbox);
     assertEq(
       registry.getVersionFor(newRollup), newVersion, "should have version newVersion for newRollup"

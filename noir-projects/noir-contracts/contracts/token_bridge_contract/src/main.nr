@@ -34,8 +34,8 @@ contract TokenBridge {
     // docs:start:claim_public
     // Consumes a L1->L2 message and calls the token contract to mint the appropriate amount publicly
     #[aztec(public)]
-    fn claim_public(to: AztecAddress, amount: Field, canceller: EthAddress, secret: Field) {
-        let content_hash = get_mint_public_content_hash(to, amount, canceller);
+    fn claim_public(to: AztecAddress, amount: Field, secret: Field) {
+        let content_hash = get_mint_public_content_hash(to, amount);
 
         // Consume message and emit nullifier
         context.consume_l1_to_l2_message(content_hash, secret, context.this_portal_address());
@@ -70,11 +70,10 @@ contract TokenBridge {
     fn claim_private(
         secret_hash_for_redeeming_minted_notes: Field, // secret hash used to redeem minted notes at a later time. This enables anyone to call this function and mint tokens to a user on their behalf
         amount: Field,
-        canceller: EthAddress,
         secret_for_L1_to_L2_message_consumption: Field // secret used to consume the L1 to L2 message
     ) {
         // Consume L1 to L2 message and emit nullifier
-        let content_hash = get_mint_private_content_hash(secret_hash_for_redeeming_minted_notes, amount, canceller);
+        let content_hash = get_mint_private_content_hash(secret_hash_for_redeeming_minted_notes, amount);
         context.consume_l1_to_l2_message(
             content_hash,
             secret_for_L1_to_L2_message_consumption,

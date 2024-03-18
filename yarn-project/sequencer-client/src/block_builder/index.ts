@@ -13,14 +13,8 @@ export interface BlockBuilder {
    * Note that the number of txs need to be a power of two.
    * @param globalVariables - Global variables to include in the block.
    * @param txs - Processed txs to include.
-   * @param newModelL1ToL2Messages - L1 to L2 messages emitted by the new inbox.
-   * @param newL1ToL2Messages - L1 to L2 messages to be part of the block.
+   * @param l1ToL2Messages - L1 to L2 messages to be part of the block.
    * @returns The new L2 block along with its proof from the root circuit.
    */
-  buildL2Block(
-    globalVariables: GlobalVariables,
-    txs: ProcessedTx[],
-    newModelL1ToL2Messages: Fr[], // TODO(#4492): Rename this when purging the old inbox
-    newL1ToL2Messages: Fr[], // TODO(#4492): Nuke this when purging the old inbox
-  ): Promise<[L2Block, Proof]>;
+  buildL2Block(globalVariables: GlobalVariables, txs: ProcessedTx[], l1ToL2Messages: Fr[]): Promise<[L2Block, Proof]>;
 }

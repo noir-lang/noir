@@ -2,26 +2,25 @@ import {
   Body,
   ExtendedUnencryptedL2Log,
   GetUnencryptedLogsResponse,
-  L1ToL2Message,
+  InboxLeaf,
   L2Block,
   L2BlockContext,
   L2BlockL2Logs,
   LogFilter,
   LogId,
   LogType,
-  NewInboxLeaf,
   TxEffect,
   TxHash,
   TxReceipt,
   TxStatus,
   UnencryptedL2Log,
 } from '@aztec/circuit-types';
-import { Fr, INITIAL_L2_BLOCK_NUM, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
+import { Fr, INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
-import { ArchiverDataStore } from '../archiver_store.js';
-import { L1ToL2MessageStore, NewL1ToL2MessageStore, PendingL1ToL2MessageStore } from './l1_to_l2_message_store.js';
+import { ArchiverDataStore, ArchiverL1SynchPoint } from '../archiver_store.js';
+import { L1ToL2MessageStore } from './l1_to_l2_message_store.js';
 
 /**
  * Simple, in-memory implementation of an archiver data store.
@@ -54,27 +53,16 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    */
   private unencryptedLogsPerBlock: L2BlockL2Logs[] = [];
 
-  // TODO(#4492): Nuke the other message stores
-  private newL1ToL2Messages = new NewL1ToL2MessageStore();
-
   /**
-   * Contains all the confirmed L1 to L2 messages (i.e. messages that were consumed in an L2 block)
-   * It is a map of entryKey to the corresponding L1 to L2 message and the number of times it has appeared
+   * Contains all L1 to L2 messages.
    */
-  private confirmedL1ToL2Messages: L1ToL2MessageStore = new L1ToL2MessageStore();
-
-  /**
-   * Contains all the pending L1 to L2 messages (accounts for duplication of messages)
-   */
-  private pendingL1ToL2Messages: PendingL1ToL2MessageStore = new PendingL1ToL2MessageStore();
+  private l1ToL2Messages = new L1ToL2MessageStore();
 
   private contractClasses: Map<string, ContractClassPublic> = new Map();
 
   private contractInstances: Map<string, ContractInstanceWithAddress> = new Map();
 
   private lastL1BlockNewMessages: bigint = 0n;
-  private lastL1BlockAddedMessages: bigint = 0n;
-  private lastL1BlockCancelledMessages: bigint = 0n;
 
   constructor(
     /** The max number of logs that can be obtained in 1 "getUnencryptedLogs" call. */
@@ -167,75 +155,30 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
-   * Append new L1 to L2 messages to the store.
+   * Append L1 to L2 messages to the store.
    * @param messages - The L1 to L2 messages to be added to the store.
    * @param lastMessageL1BlockNumber - The L1 block number in which the last message was emitted.
    * @returns True if the operation is successful.
    */
-  public addNewL1ToL2Messages(messages: NewInboxLeaf[], lastMessageL1BlockNumber: bigint): Promise<boolean> {
+  public addL1ToL2Messages(messages: InboxLeaf[], lastMessageL1BlockNumber: bigint): Promise<boolean> {
     if (lastMessageL1BlockNumber <= this.lastL1BlockNewMessages) {
       return Promise.resolve(false);
     }
 
     this.lastL1BlockNewMessages = lastMessageL1BlockNumber;
     for (const message of messages) {
-      this.newL1ToL2Messages.addMessage(message);
+      this.l1ToL2Messages.addMessage(message);
     }
     return Promise.resolve(true);
   }
 
   /**
-   * Append new pending L1 to L2 messages to the store.
-   * @param messages - The L1 to L2 messages to be added to the store.
-   * @param l1BlockNumber - The L1 block number for which to add the messages.
-   * @returns True if the operation is successful (always in this implementation).
+   * Gets the L1 to L2 message index in the L1 to L2 message tree.
+   * @param l1ToL2Message - The L1 to L2 message.
+   * @returns The index of the L1 to L2 message in the L1 to L2 message tree.
    */
-  public addPendingL1ToL2Messages(messages: L1ToL2Message[], l1BlockNumber: bigint): Promise<boolean> {
-    if (l1BlockNumber <= this.lastL1BlockAddedMessages) {
-      return Promise.resolve(false);
-    }
-
-    this.lastL1BlockAddedMessages = l1BlockNumber;
-    for (const message of messages) {
-      this.pendingL1ToL2Messages.addMessage(message.entryKey!, message);
-    }
-    return Promise.resolve(true);
-  }
-
-  /**
-   * Remove pending L1 to L2 messages from the store (if they were cancelled).
-   * @param messages - The entry keys to be removed from the store.
-   * @param l1BlockNumber - The L1 block number for which to remove the messages.
-   * @returns True if the operation is successful (always in this implementation).
-   */
-  public cancelPendingL1ToL2EntryKeys(messages: Fr[], l1BlockNumber: bigint): Promise<boolean> {
-    if (l1BlockNumber <= this.lastL1BlockCancelledMessages) {
-      return Promise.resolve(false);
-    }
-
-    this.lastL1BlockCancelledMessages = l1BlockNumber;
-    messages.forEach(entryKey => {
-      this.pendingL1ToL2Messages.removeMessage(entryKey);
-    });
-    return Promise.resolve(true);
-  }
-
-  /**
-   * Messages that have been published in an L2 block are confirmed.
-   * Add them to the confirmed store, also remove them from the pending store.
-   * @param entryKeys - The entry keys to be removed from the store.
-   * @returns True if the operation is successful (always in this implementation).
-   */
-  public confirmL1ToL2EntryKeys(entryKeys: Fr[]): Promise<boolean> {
-    entryKeys.forEach(entryKey => {
-      if (entryKey.equals(Fr.ZERO)) {
-        return;
-      }
-
-      this.confirmedL1ToL2Messages.addMessage(entryKey, this.pendingL1ToL2Messages.getMessage(entryKey)!);
-      this.pendingL1ToL2Messages.removeMessage(entryKey);
-    });
-    return Promise.resolve(true);
+  public getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint> {
+    return Promise.resolve(this.l1ToL2Messages.getMessageIndex(l1ToL2Message));
   }
 
   /**
@@ -289,34 +232,12 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
-   * Gets up to `limit` amount of pending L1 to L2 messages, sorted by fee
-   * @param limit - The number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
-   * @returns The requested L1 to L2 entry keys.
-   */
-  public getPendingL1ToL2EntryKeys(limit: number = NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP): Promise<Fr[]> {
-    return Promise.resolve(this.pendingL1ToL2Messages.getEntryKeys(limit));
-  }
-
-  /**
-   * Gets the confirmed L1 to L2 message corresponding to the given entry key.
-   * @param entryKey - The entry key to look up.
-   * @returns The requested L1 to L2 message or throws if not found.
-   */
-  public getConfirmedL1ToL2Message(entryKey: Fr): Promise<L1ToL2Message> {
-    const message = this.confirmedL1ToL2Messages.getMessage(entryKey);
-    if (!message) {
-      throw new Error(`L1 to L2 Message with key ${entryKey.toString()} not found in the confirmed messages store`);
-    }
-    return Promise.resolve(message);
-  }
-
-  /**
-   * Gets new L1 to L2 message (to be) included in a given block.
+   * Gets L1 to L2 message (to be) included in a given block.
    * @param blockNumber - L2 block number to get messages for.
    * @returns The L1 to L2 messages/leaves of the messages subtree (throws if not found).
    */
-  getNewL1ToL2Messages(blockNumber: bigint): Promise<Fr[]> {
-    return Promise.resolve(this.newL1ToL2Messages.getMessages(blockNumber));
+  getL1ToL2Messages(blockNumber: bigint): Promise<Fr[]> {
+    return Promise.resolve(this.l1ToL2Messages.getMessages(blockNumber));
   }
 
   /**
@@ -427,24 +348,20 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * Gets the number of the latest L2 block processed.
    * @returns The number of the latest L2 block processed.
    */
-  public getBlockNumber(): Promise<number> {
+  public getSynchedL2BlockNumber(): Promise<number> {
     if (this.l2BlockContexts.length === 0) {
       return Promise.resolve(INITIAL_L2_BLOCK_NUM - 1);
     }
     return Promise.resolve(this.l2BlockContexts[this.l2BlockContexts.length - 1].block.number);
   }
 
-  public getL1BlockNumber() {
-    const addedBlock = this.l2BlockContexts[this.l2BlockContexts.length - 1]?.block?.getL1BlockNumber() ?? 0n;
-    const newMessages = this.lastL1BlockNewMessages;
-    const addedMessages = this.lastL1BlockAddedMessages;
-    const cancelledMessages = this.lastL1BlockCancelledMessages;
+  public getSynchedL1BlockNumbers(): Promise<ArchiverL1SynchPoint> {
+    const blocks = this.l2BlockContexts[this.l2BlockContexts.length - 1]?.block?.getL1BlockNumber() ?? 0n;
+    const messages = this.lastL1BlockNewMessages;
 
     return Promise.resolve({
-      addedBlock,
-      newMessages,
-      addedMessages,
-      cancelledMessages,
+      blocks,
+      messages,
     });
   }
 }

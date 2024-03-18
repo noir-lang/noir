@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 // Rollup Processor
 import {Rollup} from "../../src/core/Rollup.sol";
 import {AvailabilityOracle} from "../../src/core/availability_oracle/AvailabilityOracle.sol";
-import {Inbox} from "../../src/core/messagebridge/Inbox.sol";
 import {Registry} from "../../src/core/messagebridge/Registry.sol";
 import {Outbox} from "../../src/core/messagebridge/Outbox.sol";
 import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
@@ -25,7 +24,6 @@ contract UniswapPortalTest is Test {
   IERC20 public constant DAI = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
   IERC20 public constant WETH9 = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
-  Inbox internal inbox;
   Outbox internal outbox;
   Rollup internal rollup;
   bytes32 internal l2TokenAddress = bytes32(uint256(0x1));
@@ -39,7 +37,6 @@ contract UniswapPortalTest is Test {
   bytes32 internal secretHash = bytes32(0);
   uint24 internal uniswapFeePool = 3000; // 0.3% fee
   uint256 internal amountOutMinimum = 0;
-  uint32 internal deadlineForL1ToL2Message; // set after fork is activated
   bytes32 internal aztecRecipient = bytes32(uint256(0x3));
   bytes32 internal secretHashForRedeemingMintedNotes = bytes32(uint256(0x4));
 
@@ -47,13 +44,11 @@ contract UniswapPortalTest is Test {
     // fork mainnet
     uint256 forkId = vm.createFork(vm.rpcUrl("mainnet_fork"));
     vm.selectFork(forkId);
-    deadlineForL1ToL2Message = uint32(block.timestamp + 1 days);
 
     Registry registry = new Registry();
-    inbox = new Inbox(address(registry));
     outbox = new Outbox(address(registry));
     rollup = new Rollup(registry, new AvailabilityOracle());
-    registry.upgrade(address(rollup), address(inbox), address(outbox));
+    registry.upgrade(address(rollup), address(rollup.INBOX()), address(outbox));
 
     daiTokenPortal = new TokenPortal();
     daiTokenPortal.initialize(address(registry), address(DAI), l2TokenAddress);
@@ -105,7 +100,7 @@ contract UniswapPortalTest is Test {
       recipient: DataStructures.L1Actor(address(uniswapPortal), block.chainid),
       content: Hash.sha256ToField(
         abi.encodeWithSignature(
-          "swap_public(address,uint256,uint24,address,uint256,bytes32,bytes32,uint32,address,address)",
+          "swap_public(address,uint256,uint24,address,uint256,bytes32,bytes32,address)",
           address(daiTokenPortal),
           amount,
           uniswapFeePool,
@@ -113,8 +108,6 @@ contract UniswapPortalTest is Test {
           amountOutMinimum,
           _aztecRecipient,
           secretHash,
-          deadlineForL1ToL2Message,
-          address(this),
           _caller
         )
         )
@@ -137,7 +130,7 @@ contract UniswapPortalTest is Test {
       recipient: DataStructures.L1Actor(address(uniswapPortal), block.chainid),
       content: Hash.sha256ToField(
         abi.encodeWithSignature(
-          "swap_private(address,uint256,uint24,address,uint256,bytes32,bytes32,uint32,address,address)",
+          "swap_private(address,uint256,uint24,address,uint256,bytes32,bytes32,address)",
           address(daiTokenPortal),
           amount,
           uniswapFeePool,
@@ -145,8 +138,6 @@ contract UniswapPortalTest is Test {
           amountOutMinimum,
           _secretHashForRedeemingMintedNotes,
           secretHash,
-          deadlineForL1ToL2Message,
-          address(this),
           _caller
         )
         )
@@ -181,8 +172,6 @@ contract UniswapPortalTest is Test {
       amountOutMinimum,
       aztecRecipient,
       secretHash,
-      deadlineForL1ToL2Message,
-      address(this),
       true
     );
   }
@@ -208,8 +197,6 @@ contract UniswapPortalTest is Test {
       amountOutMinimum,
       aztecRecipient,
       secretHash,
-      deadlineForL1ToL2Message,
-      address(this),
       true
     );
   }
@@ -234,8 +221,6 @@ contract UniswapPortalTest is Test {
       amountOutMinimum,
       newAztecRecipient, // change recipient of swapped token to some other address
       secretHash,
-      deadlineForL1ToL2Message,
-      address(this),
       true
     );
   }
@@ -254,8 +239,6 @@ contract UniswapPortalTest is Test {
       amountOutMinimum,
       aztecRecipient,
       secretHash,
-      deadlineForL1ToL2Message,
-      address(this),
       true
     );
 
@@ -263,8 +246,6 @@ contract UniswapPortalTest is Test {
     assertEq(DAI.balanceOf(address(daiTokenPortal)), 0);
     // there should be some weth in the weth portal
     assertGt(WETH9.balanceOf(address(wethTokenPortal)), 0);
-    // there should be a message in the inbox:
-    assertEq(inbox.get(l1ToL2EntryKey).count, 1);
     // there should be no message in the outbox:
     assertFalse(outbox.contains(daiWithdrawEntryKey));
     assertFalse(outbox.contains(swapEntryKey));
@@ -287,8 +268,6 @@ contract UniswapPortalTest is Test {
       amountOutMinimum,
       aztecRecipient,
       secretHash,
-      deadlineForL1ToL2Message,
-      address(this),
       false
     );
     // check that swap happened:
@@ -296,8 +275,6 @@ contract UniswapPortalTest is Test {
     assertEq(DAI.balanceOf(address(daiTokenPortal)), 0);
     // there should be some weth in the weth portal
     assertGt(WETH9.balanceOf(address(wethTokenPortal)), 0);
-    // there should be a message in the inbox:
-    assertEq(inbox.get(l1ToL2EntryKey).count, 1);
     // there should be no message in the outbox:
     assertFalse(outbox.contains(daiWithdrawEntryKey));
     assertFalse(outbox.contains(swapEntryKey));
@@ -323,8 +300,6 @@ contract UniswapPortalTest is Test {
       amountOutMinimum,
       aztecRecipient,
       secretHash,
-      deadlineForL1ToL2Message,
-      address(this),
       true
     );
 
@@ -340,56 +315,9 @@ contract UniswapPortalTest is Test {
       amountOutMinimum,
       aztecRecipient,
       secretHash,
-      deadlineForL1ToL2Message,
-      address(this),
       false
     );
     vm.stopPrank();
-  }
-
-  // after the portal does the swap, it adds a L1 to L2 message to the inbox.
-  // to mint `outputToken` to the `aztecRecipient` on L2. This test checks that
-  // if the sequencer doesn't consume the L1->L2 message, then `canceller` can
-  // cancel the message and retrieve the funds (instead of them being stuck on the portal)
-  function testMessageToInboxIsCancellable() public {
-    bytes32 daiWithdrawEntryKey =
-      _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
-    bytes32 swapEntryKey = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
-    _addMessagesToOutbox(daiWithdrawEntryKey, swapEntryKey);
-
-    bytes32 l1ToL2EntryKey = uniswapPortal.swapPublic{value: 1 ether}(
-      address(daiTokenPortal),
-      amount,
-      uniswapFeePool,
-      address(wethTokenPortal),
-      amountOutMinimum,
-      aztecRecipient,
-      secretHash,
-      deadlineForL1ToL2Message,
-      address(this), // this address should be able to cancel
-      true
-    );
-
-    uint256 wethAmountOut = WETH9.balanceOf(address(wethTokenPortal));
-    // cancel L1 to L2Message - first move ahead of deadline
-    vm.warp(deadlineForL1ToL2Message + 1 days);
-    // check event was emitted
-    vm.expectEmit(true, false, false, false);
-    // expected event:
-    emit L1ToL2MessageCancelled(l1ToL2EntryKey);
-    // perform op
-    // TODO(2167) - Update UniswapPortal properly with new portal standard.
-    bytes32 entryKey = wethTokenPortal.cancelL1ToAztecMessagePublic(
-      aztecRecipient, wethAmountOut, deadlineForL1ToL2Message, secretHash, 1 ether
-    );
-    assertEq(entryKey, l1ToL2EntryKey, "returned entry key and calculated entryKey should match");
-    assertFalse(inbox.contains(entryKey), "entry still in inbox");
-    assertEq(
-      WETH9.balanceOf(address(this)),
-      wethAmountOut,
-      "assets should be transferred back to this contract"
-    );
-    assertEq(WETH9.balanceOf(address(wethTokenPortal)), 0, "portal should have no assets");
   }
 
   function testRevertIfSwapMessageWasForDifferentPublicOrPrivateFlow() public {
@@ -414,8 +342,6 @@ contract UniswapPortalTest is Test {
       amountOutMinimum,
       secretHashForRedeemingMintedNotes,
       secretHash,
-      deadlineForL1ToL2Message,
-      address(this),
       true
     );
   }
