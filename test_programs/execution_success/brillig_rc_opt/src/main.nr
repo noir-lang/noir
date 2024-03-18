@@ -1,4 +1,3 @@
-
 unconstrained fn main() {
     let mut array = [1, 2, 3];
 
