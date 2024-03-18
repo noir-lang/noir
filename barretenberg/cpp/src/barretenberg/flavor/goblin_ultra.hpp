@@ -489,6 +489,7 @@ class GoblinUltraFlavor {
     /**
      * @brief Derived class that defines proof structure for GoblinUltra proofs, as well as supporting functions.
      * Note: Made generic for use in GoblinUltraRecursive.
+     * TODO(https://github.com/AztecProtocol/barretenberg/issues/877): Remove this Commitment template parameter
      */
     template <typename Commitment> class Transcript_ : public NativeTranscript {
       public:

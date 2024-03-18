@@ -210,7 +210,8 @@ template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public tes
         auto native_folding_manifest = native_folding_verifier.transcript->get_manifest();
 
         for (size_t i = 0; i < recursive_folding_manifest.size(); ++i) {
-            EXPECT_EQ(recursive_folding_manifest[i], native_folding_manifest[i]);
+            EXPECT_EQ(recursive_folding_manifest[i], native_folding_manifest[i])
+                << "Recursive Verifier/Verifier manifest discrepency in round " << i;
         }
 
         // Check for a failure flag in the recursive verifier circuit
@@ -276,7 +277,8 @@ template <typename RecursiveFlavor> class ProtoGalaxyRecursiveTests : public tes
         auto native_folding_manifest = native_folding_verifier.transcript->get_manifest();
 
         for (size_t i = 0; i < recursive_folding_manifest.size(); ++i) {
-            EXPECT_EQ(recursive_folding_manifest[i], native_folding_manifest[i]);
+            EXPECT_EQ(recursive_folding_manifest[i], native_folding_manifest[i])
+                << "Recursive Verifier/Verifier manifest discrepency in round " << i;
         }
 
         DeciderProver decider_prover(folding_proof.accumulator);
