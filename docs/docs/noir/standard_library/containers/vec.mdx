@@ -49,8 +49,8 @@ pub fn from_slice(slice: [T]) -> Self
 Example:
 
 ```rust
-let arr: [Field] = &[1, 2, 3];
-let vector_from_slice = Vec::from_slice(arr);
+let slice: [Field] = &[1, 2, 3];
+let vector_from_slice = Vec::from_slice(slice);
 assert(vector_from_slice.len() == 3);
 ```
 

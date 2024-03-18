@@ -54,10 +54,12 @@ pub fn pedersen_commitment(input: [Field]) -> PedersenPoint
     pedersen_commitment_with_separator(input, 0)
 }
 
+// docs:start:pedersen_commitment_array
 pub fn pedersen_commitment_array<N>(input: [Field; N]) -> PedersenPoint
 {
     pedersen_commitment_with_separator_array(input, 0)
 }
+// docs:end:pedersen_commitment_array
 
 #[foreign(pedersen_commitment)]
 pub fn __pedersen_commitment_with_separator(input: [Field], separator: u32) -> [Field; 2] {}
