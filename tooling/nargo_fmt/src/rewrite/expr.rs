@@ -1,5 +1,6 @@
 use noirc_frontend::{token::Token, ArrayLiteral, Expression, ExpressionKind, Literal, UnaryOp};
 
+// expr::{format_brackets},
 use crate::visitor::{
     expr::{format_brackets, format_parens, NewlineMode},
     ExpressionType, FmtVisitor, Indent, Shape,
@@ -65,26 +66,8 @@ pub(crate) fn rewrite(
 
             format!("{callee}{args}")
         }
-        ExpressionKind::MethodCall(method_call_expr) => {
-            let args_span = visitor.span_before(
-                method_call_expr.method_name.span().end()..span.end(),
-                Token::LeftParen,
-            );
-
-            let object = rewrite_sub_expr(visitor, shape, method_call_expr.object);
-            let method = method_call_expr.method_name.to_string();
-            let args = format_parens(
-                visitor.config.fn_call_width.into(),
-                visitor.fork(),
-                shape,
-                false,
-                method_call_expr.arguments,
-                args_span,
-                true,
-                NewlineMode::IfContainsNewLineAndWidth,
-            );
-
-            format!("{object}.{method}{args}")
+        ExpressionKind::MethodCall(_) => {
+            super::method_chain(visitor, Expression { kind, span }, expr_type, shape)
         }
         ExpressionKind::MemberAccess(member_access_expr) => {
             let lhs_str = rewrite_sub_expr(visitor, shape, member_access_expr.lhs);
