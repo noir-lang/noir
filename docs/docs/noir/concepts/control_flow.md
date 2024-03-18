@@ -52,14 +52,26 @@ a loop may have. `break` and `continue` can be used like so:
 
 ```rust
 for i in 0 .. 10 {
+    println("Iteration start")
+
     if i == 2 {
         continue;
     }
+
     if i == 5 {
         break;
     }
+
     println(i);
 }
+println("Loop end")
 ```
+
+When used, `break` will end the current loop early and jump to the statement after the for loop. In the example
+above, the `break` will stop the loop and jump to the `println("Loop end")`.
+
+`continue` will stop the current iteration of the loop, and jump to the start of the next iteration. In the example
+above, `continue` will jump to `println("Iteration start")` when used. Note that the loop continues as normal after this.
+The iteration variable `i` is still increased by one as normal when `continue` is used.
 
 `break` and `continue` cannot currently be used to jump out of more than a single loop at a time.
