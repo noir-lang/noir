@@ -81,9 +81,9 @@ Removing constructors from the protocol itself simplifies the kernel circuit, an
 
 ## Public Deployment
 
-A Contract Instance is considered to be Publicly Deployed when it has been broadcasted to the network via a canonical `ContractInstanceDeployer` contract, which also emits a Deployment Nullifier associated to the deployed instance. 
+A Contract Instance is considered to be Publicly Deployed when it has been broadcasted to the network via a canonical `ContractInstanceDeployer` contract, which also emits a Deployment Nullifier associated to the deployed instance.
 
-All public function calls to an Undeployed address _must_ fail, since the Contract Class for it is not known to the network. If the Class is not known to the network, then an Aztec Node, whether it is the elected sequencer or a full node following the chain, may not be able to execute the bytecode for a public function call, which is undesirable. 
+All public function calls to an Undeployed address _must_ fail, since the Contract Class for it is not known to the network. If the Class is not known to the network, then an Aztec Node, whether it is the elected sequencer or a full node following the chain, may not be able to execute the bytecode for a public function call, which is undesirable.
 
 The failing of public function calls to Undeployed addresses is enforced by having the Public Kernel Circuit check that the Deployment Nullifier for the instance has been emitted. Note that makes Public Deployment a protocol-level concern, whereas Initialization is purely an application-level concern. Also, note that this requires hardcoding the address of the `ContractInstanceDeployer` contract in a protocol circuit.
 
@@ -141,7 +141,9 @@ The Kernel Circuit, both private and public, is responsible for verifying that t
 
 Specific to private functions:
 
-- The hash of the `verification_key` matches the `vk_hash` defined in the corresponding [Private Function](./classes.md#private-function) for the Contract Class.
+- The hash of the `verification_key` matches the `vk_hash` defined in the corresponding [Private Function](./classes.md#private-function) for the Contract Class. Note that the `verification_key` must include an identifier of the proving system used to compute it.
+
+<!-- TODO: Define a format for encoding the proving system into the verification key or the vk_hash preimage. -->
 
 Specific to public functions:
 
