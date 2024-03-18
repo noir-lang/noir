@@ -34,6 +34,10 @@ pub(crate) struct CheckCommand {
     #[clap(long, conflicts_with = "package")]
     workspace: bool,
 
+    /// Force overwrite of existing files
+    #[clap(long = "override")]
+    allow_override: bool, 
+    
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -58,8 +62,11 @@ pub(crate) fn run(
     let parsed_files = parse_all(&workspace_file_manager);
 
     for package in &workspace {
-        check_package(&workspace_file_manager, &parsed_files, package, &args.compile_options)?;
-        println!("[{}] Constraint system successfully built!", package.name);
+
+        let any_file_written = check_package(&workspace_file_manager, &parsed_files, package, &args.compile_options, args.allow_override)?;
+        if any_file_written {
+            println!("[{}] Constraint system successfully built!", package.name);
+        }
     }
     Ok(())
 }
@@ -69,7 +76,8 @@ fn check_package(
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
-) -> Result<(), CompileError> {
+    allow_override: bool,
+) -> Result<bool, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(
         &mut context,
@@ -81,27 +89,37 @@ fn check_package(
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
-        Ok(())
+        Ok(false)
     } else {
         // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
         if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
             let path_to_prover_input = package.prover_input_path();
             let path_to_verifier_input = package.verifier_input_path();
+            
+            // Before writing the file, check if it exists and whether override is set
+            let should_write_prover = !path_to_prover_input.exists() || allow_override;
+            let should_write_verifier = !path_to_verifier_input.exists() || allow_override;
 
-            // If they are not available, then create them and populate them based on the ABI
-            if !path_to_prover_input.exists() {
+            if should_write_prover {
                 let prover_toml = create_input_toml_template(parameters.clone(), None);
                 write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
+            } else {
+                eprintln!("Warning: Prover.toml already exists. Use --override to force overwrite.");
             }
-            if !path_to_verifier_input.exists() {
+
+            if should_write_verifier {
                 let public_inputs =
                     parameters.into_iter().filter(|param| param.is_public()).collect();
 
                 let verifier_toml = create_input_toml_template(public_inputs, return_type);
                 write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
+            } else {
+                eprintln!("Warning: Verifier.toml already exists. Use --override to force overwrite.");
             }
 
-            Ok(())
+            let any_file_written = should_write_prover || should_write_verifier;
+
+            Ok(any_file_written)
         } else {
             Err(CompileError::MissingMainFunction(package.name.clone()))
         }
