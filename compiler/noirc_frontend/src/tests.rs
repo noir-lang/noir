@@ -778,6 +778,8 @@ mod test {
                 HirStatement::Semi(semi_expr) => semi_expr,
                 HirStatement::For(for_loop) => for_loop.block,
                 HirStatement::Error => panic!("Invalid HirStatement!"),
+                HirStatement::Break => panic!("Unexpected break"),
+                HirStatement::Continue => panic!("Unexpected continue"),
             };
             let expr = interner.expression(&expr_id);
 
