@@ -168,7 +168,7 @@ describe('Bn254 arithmetic', () => {
       const a = new Fr(10);
       const b = Fr.ZERO;
 
-      expect(() => a.div(b)).toThrowError();
+      expect(() => a.div(b)).toThrow();
     });
   });
 

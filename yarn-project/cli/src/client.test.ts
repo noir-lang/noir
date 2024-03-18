@@ -20,16 +20,12 @@ describe('client', () => {
 
     it('reports mismatch on older pxe version', async () => {
       pxe.getNodeInfo.mockResolvedValue({ nodeVersion: '0.1.0-alpha47' } as NodeInfo);
-      await expect(checkServerVersion(pxe, '0.1.0-alpha48')).rejects.toThrowError(
-        /is older than the expected by this CLI/,
-      );
+      await expect(checkServerVersion(pxe, '0.1.0-alpha48')).rejects.toThrow(/is older than the expected by this CLI/);
     });
 
     it('reports mismatch on newer pxe version', async () => {
       pxe.getNodeInfo.mockResolvedValue({ nodeVersion: '0.1.0-alpha48' } as NodeInfo);
-      await expect(checkServerVersion(pxe, '0.1.0-alpha47')).rejects.toThrowError(
-        /is newer than the expected by this CLI/,
-      );
+      await expect(checkServerVersion(pxe, '0.1.0-alpha47')).rejects.toThrow(/is newer than the expected by this CLI/);
     });
   });
 });

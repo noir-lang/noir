@@ -128,7 +128,7 @@ describe('e2e_slow_tree', () => {
       `Tries to "read" tree[${zeroProof.index}] from the tree, but is rejected as value is not ${zeroProof.value}`,
     );
     await wallet.addCapsule(getMembershipCapsule({ ...zeroProof, value: new Fr(0) }));
-    await expect(contract.methods.read_at(key).simulate()).rejects.toThrowError(
+    await expect(contract.methods.read_at(key).simulate()).rejects.toThrow(
       /Assertion failed: Root does not match expected/,
     );
 

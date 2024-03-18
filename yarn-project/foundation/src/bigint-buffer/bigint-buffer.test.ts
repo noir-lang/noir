@@ -36,12 +36,12 @@ describe('bigint-buffer', () => {
 
     it('should throw an error for an invalid hex string', () => {
       const invalidHexString = '0x12345G';
-      expect(() => fromHex(invalidHexString)).toThrowError('Invalid hex string: 0x12345G');
+      expect(() => fromHex(invalidHexString)).toThrow('Invalid hex string: 0x12345G');
     });
 
     it('should throw an error for an odd-length hex string', () => {
       const oddLengthHexString = '0x1234567';
-      expect(() => fromHex(oddLengthHexString)).toThrowError('Invalid hex string: 0x1234567');
+      expect(() => fromHex(oddLengthHexString)).toThrow('Invalid hex string: 0x1234567');
     });
 
     it('should handle an empty hex string', () => {

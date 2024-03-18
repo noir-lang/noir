@@ -7,12 +7,12 @@ describe('abiChecker', () => {
     abi = {
       name: 'TEST_ABI',
     };
-    expect(() => abiChecker(abi)).toThrowError('artifact has no functions');
+    expect(() => abiChecker(abi)).toThrow('artifact has no functions');
     abi = {
       name: 'TEST_ABI',
       functions: [],
     };
-    expect(() => abiChecker(abi)).toThrowError('artifact has no functions');
+    expect(() => abiChecker(abi)).toThrow('artifact has no functions');
   });
 
   it('should error if ABI has no names', () => {
@@ -20,7 +20,7 @@ describe('abiChecker', () => {
       name: 'TEST_ABI',
       functions: [{ bytecode: '0af', parameters: [{ type: { kind: 'test' } }] }],
     };
-    expect(() => abiChecker(abi)).toThrowError('ABI function has no name');
+    expect(() => abiChecker(abi)).toThrow('ABI function has no name');
   });
 
   it('should error if ABI function has unrecognized type', () => {
@@ -34,7 +34,7 @@ describe('abiChecker', () => {
         },
       ],
     };
-    expect(() => abiChecker(abi)).toThrowError('ABI function parameter has an unrecognized type');
+    expect(() => abiChecker(abi)).toThrow('ABI function parameter has an unrecognized type');
   });
 
   it('should error if integer is incorrectly formed', () => {
@@ -48,7 +48,7 @@ describe('abiChecker', () => {
         },
       ],
     };
-    expect(() => abiChecker(abi)).toThrowError('Unrecognized attribute on type integer');
+    expect(() => abiChecker(abi)).toThrow('Unrecognized attribute on type integer');
   });
 
   it('should error if string is incorrectly formed', () => {
@@ -62,7 +62,7 @@ describe('abiChecker', () => {
         },
       ],
     };
-    expect(() => abiChecker(abi)).toThrowError('Unrecognized attribute on type string');
+    expect(() => abiChecker(abi)).toThrow('Unrecognized attribute on type string');
   });
 
   it('should error if struct is incorrectly formed', () => {
@@ -82,7 +82,7 @@ describe('abiChecker', () => {
         },
       ],
     };
-    expect(() => abiChecker(abi)).toThrowError('Unrecognized attribute on type struct');
+    expect(() => abiChecker(abi)).toThrow('Unrecognized attribute on type struct');
   });
 
   it('should error if array is incorrectly formed', () => {
@@ -112,7 +112,7 @@ describe('abiChecker', () => {
         },
       ],
     };
-    expect(() => abiChecker(abi)).toThrowError('ABI function parameter has an incorrectly formed array');
+    expect(() => abiChecker(abi)).toThrow('ABI function parameter has an incorrectly formed array');
   });
 
   it('valid matrix should pass checker', () => {

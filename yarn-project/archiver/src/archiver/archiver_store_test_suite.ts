@@ -62,7 +62,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       });
 
       it('throws an error if limit is invalid', async () => {
-        await expect(store.getBlocks(1, 0)).rejects.toThrowError('Invalid limit: 0');
+        await expect(store.getBlocks(1, 0)).rejects.toThrow('Invalid limit: 0');
       });
 
       it('resets `from` to the first block if it is out of range', async () => {

@@ -1,5 +1,5 @@
 // Test suite for testing proper ordering of side effects
-import { Fr, FunctionSelector, PXE, TxStatus, Wallet, toBigIntBE } from '@aztec/aztec.js';
+import { Fr, FunctionSelector, PXE, Wallet, toBigIntBE } from '@aztec/aztec.js';
 import { ChildContract } from '@aztec/noir-contracts.js/Child';
 import { ParentContract } from '@aztec/noir-contracts.js/Parent';
 
@@ -100,9 +100,7 @@ describe('e2e_ordering', () => {
         async method => {
           const expectedOrder = expectedOrders[method];
 
-          const tx = child.methods[method]().send();
-          const receipt = await tx.wait();
-          expect(receipt.status).toBe(TxStatus.MINED);
+          await child.methods[method]().send().wait();
 
           const value = await pxe.getPublicStorageAt(child.address, new Fr(1));
           expect(value.value).toBe(expectedOrder[1]); // final state should match last value set
@@ -119,9 +117,7 @@ describe('e2e_ordering', () => {
       it.each(['setValueTwiceWithNestedLast'] as const)('orders unencrypted logs in %s', async method => {
         const expectedOrder = expectedOrders[method];
 
-        const tx = child.methods[method]().send();
-        const receipt = await tx.wait();
-        expect(receipt.status).toBe(TxStatus.MINED);
+        await child.methods[method]().send().wait();
 
         // Logs are emitted in the expected order
         await expectLogsFromLastBlockToBe(expectedOrder);

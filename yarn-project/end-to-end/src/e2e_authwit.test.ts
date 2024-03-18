@@ -43,7 +43,7 @@ describe('e2e_authwit_tests', () => {
           const c = await SchnorrAccountContract.at(wallets[0].getAddress(), wallets[0]);
           const txCancelledAuthwit = c.withWallet(wallets[1]).methods.spend_private_authwit(innerHash).send();
           // The transaction should be dropped because of a cancelled authwit (duplicate nullifier)
-          await expect(txCancelledAuthwit.wait()).rejects.toThrowError('Transaction ');
+          await expect(txCancelledAuthwit.wait()).rejects.toThrow('Transaction ');
         });
       });
     });
@@ -73,7 +73,7 @@ describe('e2e_authwit_tests', () => {
           const c = await SchnorrAccountContract.at(wallets[0].getAddress(), wallets[0]);
           const txCancelledAuthwit = c.withWallet(wallets[1]).methods.spend_public_authwit(innerHash).send();
           // The transaction should be dropped because of a cancelled authwit (duplicate nullifier)
-          await expect(txCancelledAuthwit.wait()).rejects.toThrowError('Transaction ');
+          await expect(txCancelledAuthwit.wait()).rejects.toThrow('Transaction ');
         });
       });
     });

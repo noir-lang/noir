@@ -181,7 +181,7 @@ describe('e2e_public_cross_chain_messaging', () => {
         .withWallet(user1Wallet)
         .methods.exit_to_l1_public(ethAccount, withdrawAmount, EthAddress.ZERO, nonce)
         .simulate(),
-    ).rejects.toThrowError('Assertion failed: Message not authorized by account');
+    ).rejects.toThrow('Assertion failed: Message not authorized by account');
   }, 60_000);
 
   it("can't claim funds privately which were intended for public deposit from the token portal", async () => {
@@ -212,9 +212,7 @@ describe('e2e_public_cross_chain_messaging', () => {
 
     await expect(
       l2Bridge.withWallet(user2Wallet).methods.claim_private(secretHash, bridgeAmount, secret).simulate(),
-    ).rejects.toThrowError(
-      `L1 to L2 message index not found in the store for message ${wrongMessage.hash().toString()}`,
-    );
+    ).rejects.toThrow(`L1 to L2 message index not found in the store for message ${wrongMessage.hash().toString()}`);
   }, 60_000);
 
   // Note: We register one portal address when deploying contract but that address is no-longer the only address

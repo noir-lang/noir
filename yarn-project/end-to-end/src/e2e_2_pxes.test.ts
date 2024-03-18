@@ -9,7 +9,6 @@ import {
   GrumpkinScalar,
   Note,
   PXE,
-  TxStatus,
   Wallet,
   computeMessageSecretHash,
   retryUntil,
@@ -106,7 +105,6 @@ describe('e2e_2_pxes', () => {
     const secretHash = computeMessageSecretHash(secret);
 
     const receipt = await contract.methods.mint_private(balance, secretHash).send().wait();
-    expect(receipt.status).toEqual(TxStatus.MINED);
 
     const storageSlot = new Fr(5);
     const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
@@ -115,9 +113,7 @@ describe('e2e_2_pxes', () => {
     const extendedNote = new ExtendedNote(note, recipient, contract.address, storageSlot, noteTypeId, receipt.txHash);
     await pxe.addNote(extendedNote);
 
-    expect((await contract.methods.redeem_shield(recipient, balance, secret).send().wait()).status).toEqual(
-      TxStatus.MINED,
-    );
+    await contract.methods.redeem_shield(recipient, balance, secret).send().wait();
   };
 
   it('transfers funds from user A to B via PXE A followed by transfer from B to A via PXE B', async () => {
@@ -148,11 +144,7 @@ describe('e2e_2_pxes', () => {
 
     // Transfer funds from A to B via PXE A
     const contractWithWalletA = await TokenContract.at(tokenAddress, walletA);
-    const receiptAToB = await contractWithWalletA.methods
-      .transfer(userA.address, userB.address, transferAmount1, 0)
-      .send()
-      .wait();
-    expect(receiptAToB.status).toBe(TxStatus.MINED);
+    await contractWithWalletA.methods.transfer(userA.address, userB.address, transferAmount1, 0).send().wait();
 
     // Check balances and logs are as expected
     await expectTokenBalance(walletA, tokenAddress, userA.address, initialBalance - transferAmount1);
@@ -292,11 +284,7 @@ describe('e2e_2_pxes', () => {
 
     // Transfer funds from A to B via PXE A
     const contractWithWalletA = await TokenContract.at(tokenAddress, walletA);
-    const receiptAToB = await contractWithWalletA.methods
-      .transfer(userA.address, userB.address, transferAmount1, 0)
-      .send()
-      .wait();
-    expect(receiptAToB.status).toBe(TxStatus.MINED);
+    await contractWithWalletA.methods.transfer(userA.address, userB.address, transferAmount1, 0).send().wait();
 
     // now add the contract and check balances
     await pxeB.addContracts([
@@ -333,19 +321,17 @@ describe('e2e_2_pxes', () => {
 
     // Transfer funds from A to Shared Wallet via PXE A
     const contractWithWalletA = await TokenContract.at(tokenAddress, walletA);
-    const receiptAToShared = await contractWithWalletA.methods
+    await contractWithWalletA.methods
       .transfer(userA.address, sharedAccountAddress.address, transferAmount1, 0)
       .send()
       .wait();
-    expect(receiptAToShared.status).toBe(TxStatus.MINED);
 
     // Now send funds from Shared Wallet to B via PXE A
     const contractWithSharedWalletA = await TokenContract.at(tokenAddress, sharedWalletOnA);
-    const receiptSharedToB = await contractWithSharedWalletA.methods
+    await contractWithSharedWalletA.methods
       .transfer(sharedAccountAddress.address, userB.address, transferAmount2, 0)
       .send()
       .wait();
-    expect(receiptSharedToB.status).toBe(TxStatus.MINED);
 
     // check balances from PXE-A's perspective
     await expectTokenBalance(walletA, tokenAddress, userA.address, initialBalance - transferAmount1);

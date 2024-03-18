@@ -60,6 +60,6 @@ describe('PXEService', () => {
     node.getTxEffect.mockResolvedValue(settledTx);
 
     const pxe = new PXEService(keyStore, node, db, config);
-    await expect(pxe.sendTx(duplicateTx)).rejects.toThrowError(/A settled tx with equal hash/);
+    await expect(pxe.sendTx(duplicateTx)).rejects.toThrow(/A settled tx with equal hash/);
   });
 });

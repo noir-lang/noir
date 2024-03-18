@@ -11,7 +11,6 @@ import {
   Note,
   PXE,
   PublicKey,
-  TxStatus,
   computeMessageSecretHash,
   generatePublicKey,
 } from '@aztec/aztec.js';
@@ -70,7 +69,6 @@ describe('e2e_escrow_contract', () => {
     const secretHash = computeMessageSecretHash(secret);
 
     const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
-    expect(receipt.status).toEqual(TxStatus.MINED);
 
     const note = new Note([new Fr(mintAmount), secretHash]);
 
@@ -84,9 +82,7 @@ describe('e2e_escrow_contract', () => {
     );
     await pxe.addNote(extendedNote);
 
-    expect(
-      (await token.methods.redeem_shield(escrowContract.address, mintAmount, secret).send().wait()).status,
-    ).toEqual(TxStatus.MINED);
+    await token.methods.redeem_shield(escrowContract.address, mintAmount, secret).send().wait();
 
     logger(`Token contract deployed at ${token.address}`);
   }, 100_000);
@@ -115,7 +111,7 @@ describe('e2e_escrow_contract', () => {
   it('refuses to withdraw funds as a non-owner', async () => {
     await expect(
       escrowContract.withWallet(recipientWallet).methods.withdraw(token.address, 30, recipient).simulate(),
-    ).rejects.toThrowError();
+    ).rejects.toThrow();
   }, 60_000);
 
   it('moves funds using multiple keys on the same tx (#1010)', async () => {
@@ -125,7 +121,6 @@ describe('e2e_escrow_contract', () => {
     const secretHash = computeMessageSecretHash(secret);
 
     const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
-    expect(receipt.status).toEqual(TxStatus.MINED);
 
     const note = new Note([new Fr(mintAmount), secretHash]);
     const extendedNote = new ExtendedNote(
@@ -138,7 +133,7 @@ describe('e2e_escrow_contract', () => {
     );
     await pxe.addNote(extendedNote);
 
-    expect((await token.methods.redeem_shield(owner, mintAmount, secret).send().wait()).status).toEqual(TxStatus.MINED);
+    await token.methods.redeem_shield(owner, mintAmount, secret).send().wait();
 
     await expectBalance(owner, 50n);
 

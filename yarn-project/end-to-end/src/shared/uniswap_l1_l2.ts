@@ -6,7 +6,6 @@ import {
   EthAddress,
   Fr,
   PXE,
-  TxStatus,
   computeAuthWitMessageHash,
 } from '@aztec/aztec.js';
 import { deployL1Contract } from '@aztec/ethereum';
@@ -218,7 +217,7 @@ export const uniswapL1L2TestSuite = (
         daiCrossChainHarness.generateClaimSecret();
       const [secretForRedeemingDai, secretHashForRedeemingDai] = daiCrossChainHarness.generateClaimSecret();
 
-      const withdrawReceipt = await uniswapL2Contract.methods
+      await uniswapL2Contract.methods
         .swap_private(
           wethCrossChainHarness.l2Token.address,
           wethCrossChainHarness.l2Bridge.address,
@@ -233,7 +232,6 @@ export const uniswapL1L2TestSuite = (
         )
         .send()
         .wait();
-      expect(withdrawReceipt.status).toBe(TxStatus.MINED);
       // ensure that user's funds were burnt
       await wethCrossChainHarness.expectPrivateBalanceOnL2(ownerAddress, wethL2BalanceBeforeSwap - wethAmountToBridge);
       // ensure that uniswap contract didn't eat the funds.
@@ -378,8 +376,7 @@ export const uniswapL1L2TestSuite = (
       await ownerWallet.setPublicAuth(swapMessageHash, true).send().wait();
 
       // 4.2 Call swap_public from user2 on behalf of owner
-      const withdrawReceipt = await action.send().wait();
-      expect(withdrawReceipt.status).toBe(TxStatus.MINED);
+      await action.send().wait();
 
       // check weth balance of owner on L2 (we first bridged `wethAmountToBridge` into L2 and now withdrew it!)
       await wethCrossChainHarness.expectPublicBalanceOnL2(ownerAddress, wethL2BalanceBeforeSwap - wethAmountToBridge);
@@ -478,7 +475,7 @@ export const uniswapL1L2TestSuite = (
             ownerEthAddress,
           )
           .simulate(),
-      ).rejects.toThrowError(`Unknown auth witness for message hash ${expectedMessageHash.toString()}`);
+      ).rejects.toThrow(`Unknown auth witness for message hash ${expectedMessageHash.toString()}`);
     });
 
     it("can't swap if user passes a token different to what the bridge tracks", async () => {
@@ -516,7 +513,7 @@ export const uniswapL1L2TestSuite = (
             ownerEthAddress,
           )
           .simulate(),
-      ).rejects.toThrowError('Assertion failed: input_asset address is not the same as seen in the bridge contract');
+      ).rejects.toThrow('Assertion failed: input_asset address is not the same as seen in the bridge contract');
     });
 
     // edge cases for public flow:
@@ -538,7 +535,7 @@ export const uniswapL1L2TestSuite = (
       // No approval to call `swap` but should work even without it:
       const [_, secretHashForDepositingSwappedDai] = daiCrossChainHarness.generateClaimSecret();
 
-      const withdrawReceipt = await uniswapL2Contract.methods
+      await uniswapL2Contract.methods
         .swap_public(
           ownerAddress,
           wethCrossChainHarness.l2Bridge.address,
@@ -554,7 +551,6 @@ export const uniswapL1L2TestSuite = (
         )
         .send()
         .wait();
-      expect(withdrawReceipt.status).toBe(TxStatus.MINED);
       // check weth balance of owner on L2 (we first bridged `wethAmountToBridge` into L2 and now withdrew it!)
       await wethCrossChainHarness.expectPublicBalanceOnL2(ownerAddress, 0n);
     });
@@ -618,7 +614,7 @@ export const uniswapL1L2TestSuite = (
             Fr.ZERO,
           )
           .simulate(),
-      ).rejects.toThrowError(`Assertion failed: Message not authorized by account 'is_valid == true'`);
+      ).rejects.toThrow(`Assertion failed: Message not authorized by account 'is_valid == true'`);
     });
 
     // tests when trying to mix private and public flows:
@@ -646,7 +642,7 @@ export const uniswapL1L2TestSuite = (
       logger('Withdrawing weth to L1 and sending message to swap to dai');
       const secretHashForDepositingSwappedDai = Fr.random();
 
-      const withdrawReceipt = await uniswapL2Contract.methods
+      await uniswapL2Contract.methods
         .swap_private(
           wethCrossChainHarness.l2Token.address,
           wethCrossChainHarness.l2Bridge.address,
@@ -661,7 +657,6 @@ export const uniswapL1L2TestSuite = (
         )
         .send()
         .wait();
-      expect(withdrawReceipt.status).toBe(TxStatus.MINED);
       // ensure that user's funds were burnt
       await wethCrossChainHarness.expectPrivateBalanceOnL2(ownerAddress, wethL2BalanceBeforeSwap - wethAmountToBridge);
 
@@ -681,7 +676,7 @@ export const uniswapL1L2TestSuite = (
         uniswapPortal.simulate.swapPublic(swapArgs, {
           account: ownerEthAddress.toString(),
         } as any),
-      ).rejects.toThrowError('The contract function "swapPublic" reverted.');
+      ).rejects.toThrow('The contract function "swapPublic" reverted.');
     });
 
     it("can't call swap_private on L1 if called swap_public on L2", async () => {
@@ -700,7 +695,7 @@ export const uniswapL1L2TestSuite = (
 
       // Call swap_public on L2
       const secretHashForDepositingSwappedDai = Fr.random();
-      const withdrawReceipt = await uniswapL2Contract.methods
+      await uniswapL2Contract.methods
         .swap_public(
           ownerAddress,
           wethCrossChainHarness.l2Bridge.address,
@@ -716,7 +711,6 @@ export const uniswapL1L2TestSuite = (
         )
         .send()
         .wait();
-      expect(withdrawReceipt.status).toBe(TxStatus.MINED);
       // check weth balance of owner on L2 (we first bridged `wethAmountToBridge` into L2 and now withdrew it!)
       await wethCrossChainHarness.expectPublicBalanceOnL2(ownerAddress, 0n);
 
@@ -737,7 +731,7 @@ export const uniswapL1L2TestSuite = (
         uniswapPortal.simulate.swapPrivate(swapArgs, {
           account: ownerEthAddress.toString(),
         } as any),
-      ).rejects.toThrowError('The contract function "swapPrivate" reverted.');
+      ).rejects.toThrow('The contract function "swapPrivate" reverted.');
     });
   });
 };

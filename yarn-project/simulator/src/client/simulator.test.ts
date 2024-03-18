@@ -76,7 +76,7 @@ describe('Simulator', () => {
       const note = createNote();
       await expect(
         simulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, noteTypeId, note),
-      ).rejects.toThrowError(/Mandatory implementation of "compute_note_hash_and_nullifier" missing/);
+      ).rejects.toThrow(/Mandatory implementation of "compute_note_hash_and_nullifier" missing/);
     });
 
     it('throw if "compute_note_hash_and_nullifier" has the wrong number of parameters', async () => {
@@ -90,7 +90,7 @@ describe('Simulator', () => {
 
       await expect(
         simulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, noteTypeId, note),
-      ).rejects.toThrowError(
+      ).rejects.toThrow(
         new RegExp(
           `Expected 5 parameters in mandatory implementation of "compute_note_hash_and_nullifier", but found 4 in noir contract ${contractAddress}.`,
         ),
@@ -122,7 +122,7 @@ describe('Simulator', () => {
 
       await expect(
         simulator.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, noteTypeId, note),
-      ).rejects.toThrowError(
+      ).rejects.toThrow(
         new RegExp(`"compute_note_hash_and_nullifier" can only handle a maximum of ${wrongPreimageLength} fields`),
       );
     });

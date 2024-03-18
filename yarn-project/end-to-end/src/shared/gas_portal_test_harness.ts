@@ -4,7 +4,6 @@ import {
   EthAddress,
   Fr,
   PXE,
-  TxStatus,
   Wallet,
   computeMessageSecretHash,
   deployL1Contract,
@@ -257,9 +256,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
   async consumeMessageOnAztecAndMintPublicly(bridgeAmount: bigint, owner: AztecAddress, secret: Fr) {
     this.logger('Consuming messages on L2 Publicly');
     // Call the mint tokens function on the Aztec.nr contract
-    const tx = this.l2Token.methods.claim_public(owner, bridgeAmount, secret).send();
-    const receipt = await tx.wait();
-    expect(receipt.status).toBe(TxStatus.MINED);
+    await this.l2Token.methods.claim_public(owner, bridgeAmount, secret).send().wait();
   }
 
   async getL2PublicBalanceOf(owner: AztecAddress) {

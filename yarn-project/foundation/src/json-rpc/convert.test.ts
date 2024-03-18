@@ -67,11 +67,11 @@ it('converts a plain object', () => {
 
 it('refuses to convert to json an unknown class', () => {
   const cc = new ClassConverter();
-  expect(() => convertToJsonObj(cc, { content: new ToStringClassA('a', 'b') })).toThrowError(/not registered/);
+  expect(() => convertToJsonObj(cc, { content: new ToStringClassA('a', 'b') })).toThrow(/not registered/);
 });
 
 it('refuses to convert from json an unknown class', () => {
   const cc = new ClassConverter({ ToStringClass: ToStringClassA });
   const serialized = convertToJsonObj(cc, { content: new ToStringClassA('a', 'b') });
-  expect(() => convertFromJsonObj(new ClassConverter(), serialized)).toThrowError(/not registered/);
+  expect(() => convertFromJsonObj(new ClassConverter(), serialized)).toThrow(/not registered/);
 });

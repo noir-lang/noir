@@ -7,7 +7,6 @@ import {
   L1Actor,
   L1ToL2Message,
   L2Actor,
-  TxStatus,
   computeAuthWitMessageHash,
 } from '@aztec/aztec.js';
 import { sha256 } from '@aztec/foundation/crypto';
@@ -168,12 +167,11 @@ describe('e2e_cross_chain_messaging', () => {
     ).rejects.toThrow(`L1 to L2 message index not found in the store for message ${wrongMessage.hash().toString()}`);
 
     // send the right one -
-    const consumptionTx = l2Bridge
+    const consumptionReceipt = await l2Bridge
       .withWallet(user2Wallet)
       .methods.claim_private(secretHashForRedeemingMintedNotes, bridgeAmount, secretForL2MessageConsumption)
-      .send();
-    const consumptionReceipt = await consumptionTx.wait();
-    expect(consumptionReceipt.status).toBe(TxStatus.MINED);
+      .send()
+      .wait();
 
     // Now user1 can claim the notes that user2 minted on their behalf.
     await crossChainTestHarness.addPendingShieldNoteToPXE(

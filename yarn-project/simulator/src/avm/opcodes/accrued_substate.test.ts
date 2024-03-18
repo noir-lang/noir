@@ -252,7 +252,7 @@ describe('Accrued Substate', () => {
       context.machineState.memory.set(0, value);
 
       await new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(context);
-      await expect(new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(context)).rejects.toThrowError(
+      await expect(new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(context)).rejects.toThrow(
         new InstructionExecutionError(
           `Attempted to emit duplicate nullifier ${value.toFr()} (storage address: ${
             context.environment.storageAddress
@@ -272,7 +272,7 @@ describe('Accrued Substate', () => {
       context = initContext({ persistableState: new AvmPersistableStateManager(hostStorage) });
 
       context.machineState.memory.set(0, value);
-      await expect(new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(context)).rejects.toThrowError(
+      await expect(new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(context)).rejects.toThrow(
         new InstructionExecutionError(
           `Attempted to emit duplicate nullifier ${value.toFr()} (storage address: ${
             context.environment.storageAddress

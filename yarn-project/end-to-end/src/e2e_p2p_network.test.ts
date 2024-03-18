@@ -60,12 +60,7 @@ describe('e2e_p2p_network', () => {
     }
 
     // now ensure that all txs were successfully mined
-    for (const context of contexts) {
-      for (const tx of context.txs) {
-        const receipt = await tx.wait();
-        expect(receipt.status).toBe(TxStatus.MINED);
-      }
-    }
+    await Promise.all(contexts.flatMap(context => context.txs.map(tx => tx.wait())));
 
     // shutdown all nodes.
     for (const context of contexts) {

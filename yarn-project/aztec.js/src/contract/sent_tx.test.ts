@@ -34,7 +34,7 @@ describe('SentTx', () => {
 
     it('fails if an account is not synced', async () => {
       pxe.getSyncStatus.mockResolvedValue({ blocks: 25, notes: { '0x1': 19, '0x2': 20 } });
-      await expect(sentTx.wait({ timeout: 1, interval: 0.4 })).rejects.toThrowError(/timeout/i);
+      await expect(sentTx.wait({ timeout: 1, interval: 0.4 })).rejects.toThrow(/timeout/i);
     });
 
     it('does not wait for notes sync', async () => {
@@ -46,7 +46,7 @@ describe('SentTx', () => {
     it('throws if tx is dropped', async () => {
       pxe.getTxReceipt.mockResolvedValue({ ...txReceipt, status: TxStatus.DROPPED } as TxReceipt);
       pxe.getSyncStatus.mockResolvedValue({ blocks: 19, notes: { '0x1': 19, '0x2': 19 } });
-      await expect(sentTx.wait({ timeout: 1, interval: 0.4 })).rejects.toThrowError(/dropped/);
+      await expect(sentTx.wait({ timeout: 1, interval: 0.4 })).rejects.toThrow(/dropped/);
     });
   });
 });

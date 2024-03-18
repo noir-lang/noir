@@ -37,7 +37,7 @@ describe('e2e_state_vars', () => {
     it('initializing SharedImmutable the second time should fail', async () => {
       // Jest executes the tests sequentially and the first call to initialize_shared_immutable was executed
       // in the previous test, so the call bellow should fail.
-      await expect(contract.methods.initialize_shared_immutable(1).send().wait()).rejects.toThrowError(
+      await expect(contract.methods.initialize_shared_immutable(1).send().wait()).rejects.toThrow(
         "Assertion failed: SharedImmutable already initialized 'fields_read[0] == 0'",
       );
     }, 100_000);
@@ -57,7 +57,7 @@ describe('e2e_state_vars', () => {
     it('initializing PublicImmutable the second time should fail', async () => {
       // Jest executes the tests sequentially and the first call to initialize_public_immutable was executed
       // in the previous test, so the call bellow should fail.
-      await expect(contract.methods.initialize_public_immutable(1).send().wait()).rejects.toThrowError(
+      await expect(contract.methods.initialize_public_immutable(1).send().wait()).rejects.toThrow(
         "Assertion failed: PublicImmutable already initialized 'fields_read[0] == 0'",
       );
     }, 100_000);
@@ -66,7 +66,7 @@ describe('e2e_state_vars', () => {
   describe('PrivateMutable', () => {
     it('fail to read uninitialized PrivateMutable', async () => {
       expect(await contract.methods.is_legendary_initialized().view()).toEqual(false);
-      await expect(contract.methods.get_legendary_card().view()).rejects.toThrowError();
+      await expect(contract.methods.get_legendary_card().view()).rejects.toThrow();
     });
 
     it('initialize PrivateMutable', async () => {
@@ -81,7 +81,7 @@ describe('e2e_state_vars', () => {
 
     it('fail to reinitialize', async () => {
       expect(await contract.methods.is_legendary_initialized().view()).toEqual(true);
-      await expect(contract.methods.initialize_private(RANDOMNESS, POINTS).send().wait()).rejects.toThrowError();
+      await expect(contract.methods.initialize_private(RANDOMNESS, POINTS).send().wait()).rejects.toThrow();
       expect(await contract.methods.is_legendary_initialized().view()).toEqual(true);
     });
 
@@ -150,7 +150,7 @@ describe('e2e_state_vars', () => {
   describe('PrivateImmutable', () => {
     it('fail to read uninitialized PrivateImmutable', async () => {
       expect(await contract.methods.is_priv_imm_initialized().view()).toEqual(false);
-      await expect(contract.methods.view_imm_card().view()).rejects.toThrowError();
+      await expect(contract.methods.view_imm_card().view()).rejects.toThrow();
     });
 
     it('initialize PrivateImmutable', async () => {
@@ -168,9 +168,7 @@ describe('e2e_state_vars', () => {
 
     it('fail to reinitialize', async () => {
       expect(await contract.methods.is_priv_imm_initialized().view()).toEqual(true);
-      await expect(
-        contract.methods.initialize_private_immutable(RANDOMNESS, POINTS).send().wait(),
-      ).rejects.toThrowError();
+      await expect(contract.methods.initialize_private_immutable(RANDOMNESS, POINTS).send().wait()).rejects.toThrow();
       expect(await contract.methods.is_priv_imm_initialized().view()).toEqual(true);
     });
 

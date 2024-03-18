@@ -9,7 +9,6 @@ import {
   GrumpkinScalar,
   Note,
   PXE,
-  TxStatus,
   Wallet,
   computeMessageSecretHash,
   generatePublicKey,
@@ -63,7 +62,6 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const secretHash = computeMessageSecretHash(secret);
 
     const receipt = await token.methods.mint_private(initialBalance, secretHash).send().wait();
-    expect(receipt.status).toEqual(TxStatus.MINED);
 
     const storageSlot = new Fr(5);
     const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
@@ -79,9 +77,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     );
     await pxe.addNote(extendedNote);
 
-    expect((await token.methods.redeem_shield(accounts[0], initialBalance, secret).send().wait()).status).toEqual(
-      TxStatus.MINED,
-    );
+    await token.methods.redeem_shield(accounts[0], initialBalance, secret).send().wait();
   }, 100_000);
 
   afterEach(() => teardown());
@@ -110,8 +106,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
 
     const contractWithWallet = await TokenContract.at(tokenAddress, wallets[senderIndex]);
 
-    const receipt = await contractWithWallet.methods.transfer(sender, receiver, transferAmount, 0).send().wait();
-    expect(receipt.status).toBe(TxStatus.MINED);
+    await contractWithWallet.methods.transfer(sender, receiver, transferAmount, 0).send().wait();
 
     for (let i = 0; i < expectedBalances.length; i++) {
       await expectBalance(i, expectedBalances[i]);
