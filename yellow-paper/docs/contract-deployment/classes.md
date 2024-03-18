@@ -76,7 +76,7 @@ unconstrained_functions_artifact_tree_root = merkleize(unconstrained_functions_a
 
 artifact_hash = sha256(
   private_functions_artifact_tree_root,
-  unconstrained_functions_artifact_tree_root, 
+  unconstrained_functions_artifact_tree_root,
   artifact_metadata_hash,
 )
 ```
@@ -130,13 +130,13 @@ function register(
   private_functions_root: Field,
   public_bytecode_commitment: Point,
   packed_public_bytecode: Field[],
-) 
+)
   version = 1
 
   assert is_valid_packed_public_bytecode(packed_public_bytecode)
   computed_bytecode_commitment = calculate_commitment(packed_public_bytecode)
   assert public_bytecode_commitment == computed_bytecode_commitment
-  
+
   contract_class_id = pedersen([version, artifact_hash, private_functions_root, computed_bytecode_commitment], GENERATOR__CLASS_IDENTIFIER)
 
   emit_nullifier contract_class_id
@@ -157,43 +157,7 @@ The `ContractClassRegisterer` will need to exist from the genesis of the Aztec N
 
 The `ContractClassRegisterer` has an additional private `broadcast` functions that can be used for broadcasting on-chain the bytecode, both ACIR and Brillig, for private functions and unconstrained in the contract. Any user can freely call this function. Given that ACIR and Brillig [do not have a circuit-friendly commitment](../bytecode/index.md), it is left up to nodes to perform this check.
 
-Broadcasted contract artifacts that do not match with their corresponding `artifact_hash`, or that reference a `contract_class_id` that has not been broadcasted, can be safely discarded.
-
-```
-function broadcast_all_private_functions(
-  contract_class_id: Field,
-  artifact_metadata_hash: Field,
-  unconstrained_functions_artifact_tree_root: Field,
-  functions: { selector: Field, metadata_hash: Field, vk_hash: Field, bytecode: Field[] }[],
-)
-  emit_unencrypted_event ClassPrivateFunctionsBroadcasted(
-    contract_class_id,
-    artifact_metadata_hash,
-    unconstrained_functions_artifact_tree_root,
-    functions,
-  )
-```
-
-```
-function broadcast_all_unconstrained_functions(
-  contract_class_id: Field,
-  artifact_metadata_hash: Field,
-  private_functions_artifact_tree_root: Field,
-  functions:{ selector: Field, metadata_hash: Field, bytecode: Field[] }[],
-)
-  emit_unencrypted_event ClassUnconstrainedFunctionsBroadcasted(
-    contract_class_id,
-    artifact_metadata_hash,
-    unconstrained_functions_artifact_tree_root,
-    functions,
-  )
-```
-
-<!-- TODO: What representation of bytecode can we use here? -->
-
-The broadcast functions are split between private and unconstrained to allow for private bytecode to be broadcasted, which is valuable for composability purposes, without having to also include unconstrained functions, which could be costly to do due to data broadcasting costs. Additionally, note that each broadcast function must include enough information to reconstruct the `artifact_hash` from the Contract Class, so nodes can verify it against the one previously registered.
-
-The `ContractClassRegisterer` contract also allows broadcasting individual functions, in case not every function needs to be put on-chain. This requires providing a Merkle membership proof for the function within its tree, that nodes can validate.
+Broadcasted function artifacts that do not match with their corresponding `artifact_hash`, or that reference a `contract_class_id` that has not been broadcasted, can be safely discarded.
 
 ```
 function broadcast_private_function(
@@ -230,6 +194,10 @@ function broadcast_unconstrained_function(
     function,
   )
 ```
+
+<!-- TODO: What representation of bytecode can we use here? -->
+
+The broadcast functions are split between private and unconstrained to allow for private bytecode to be broadcasted, which is valuable for composability purposes, without having to also include unconstrained functions, which could be costly to do due to data broadcasting costs. Additionally, note that each broadcast function must include enough information to reconstruct the `artifact_hash` from the Contract Class, so nodes can verify it against the one previously registered.
 
 A node that captures a `ClassPrivateFunctionBroadcasted` should perform the following validation steps before storing the private function information in its database:
 
