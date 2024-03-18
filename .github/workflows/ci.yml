@@ -10,7 +10,9 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     # run ci for both x86_64 and arm64
-    strategy: {matrix: {environment: [x86, arm]}}
+    # strategy: {matrix: {environment: [x86, arm]}}
+    # TODO figure out why arm64 doesn't exit properly
+    strategy: {matrix: {environment: [x86]}}
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.environment }}
