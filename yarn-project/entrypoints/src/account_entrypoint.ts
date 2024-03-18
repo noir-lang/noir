@@ -25,8 +25,8 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
     const abi = this.getEntrypointAbi();
     const entrypointPackedArgs = PackedArguments.fromArgs(encodeArguments(abi, [appPayload, feePayload]));
 
-    const appAuthWitness = await this.auth.createAuthWitness(hashPayload(appPayload, GeneratorIndex.SIGNATURE_PAYLOAD));
-    const feeAuthWitness = await this.auth.createAuthWitness(hashPayload(feePayload, GeneratorIndex.FEE_PAYLOAD));
+    const appAuthWitness = await this.auth.createAuthWit(hashPayload(appPayload, GeneratorIndex.SIGNATURE_PAYLOAD));
+    const feeAuthWitness = await this.auth.createAuthWit(hashPayload(feePayload, GeneratorIndex.FEE_PAYLOAD));
 
     const txRequest = TxExecutionRequest.from({
       argsHash: entrypointPackedArgs.hash,

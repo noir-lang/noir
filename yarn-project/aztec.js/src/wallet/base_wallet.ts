@@ -21,6 +21,7 @@ import { NodeInfo } from '@aztec/types/interfaces';
 
 import { FeeOptions } from '../account/interface.js';
 import { Wallet } from '../account/wallet.js';
+import { ContractFunctionInteraction } from '../contract/contract_function_interaction.js';
 
 /**
  * A base class for Wallet implementations
@@ -32,7 +33,17 @@ export abstract class BaseWallet implements Wallet {
 
   abstract createTxExecutionRequest(execs: FunctionCall[], fee?: FeeOptions): Promise<TxExecutionRequest>;
 
-  abstract createAuthWitness(message: Fr): Promise<AuthWitness>;
+  abstract createAuthWit(
+    messageHashOrIntent:
+      | Fr
+      | Buffer
+      | {
+          /** The caller to approve  */
+          caller: AztecAddress;
+          /** The action to approve */
+          action: ContractFunctionInteraction | FunctionCall;
+        },
+  ): Promise<AuthWitness>;
 
   getAddress() {
     return this.getCompleteAddress().address;

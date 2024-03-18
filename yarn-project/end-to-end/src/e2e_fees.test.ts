@@ -670,7 +670,7 @@ class BuggedSetupFeePaymentMethod extends PublicFeePaymentMethod {
     const tooMuchFee = new Fr(maxFee.toBigInt() * 2n);
 
     return Promise.resolve([
-      this.wallet.setPublicAuth(messageHash, true).request(),
+      this.wallet.setPublicAuthWit(messageHash, true).request(),
       {
         to: this.getPaymentContract(),
         functionData: new FunctionData(
@@ -698,7 +698,7 @@ class BuggedTeardownFeePaymentMethod extends PublicFeePaymentMethod {
 
     // authorize the FPC to take the maxFee
     // do this first because we only get 2 feepayload calls
-    await this.wallet.setPublicAuth(messageHash1, true).send().wait();
+    await this.wallet.setPublicAuthWit(messageHash1, true).send().wait();
 
     return Promise.resolve([
       // in this, we're actually paying the fee in setup

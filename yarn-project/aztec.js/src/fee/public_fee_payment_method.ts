@@ -61,7 +61,7 @@ export class PublicFeePaymentMethod implements FeePaymentMethod {
     });
 
     return Promise.resolve([
-      this.wallet.setPublicAuth(messageHash, true).request(),
+      this.wallet.setPublicAuthWit(messageHash, true).request(),
       {
         to: this.getPaymentContract(),
         functionData: new FunctionData(

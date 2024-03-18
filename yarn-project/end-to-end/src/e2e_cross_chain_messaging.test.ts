@@ -100,12 +100,10 @@ describe('e2e_cross_chain_messaging', () => {
     // 4. Give approval to bridge to burn owner's funds:
     const withdrawAmount = 9n;
     const nonce = Fr.random();
-    const burnMessageHash = computeAuthWitMessageHash(
-      l2Bridge.address,
-      l2Token.methods.burn(ownerAddress, withdrawAmount, nonce).request(),
-    );
-    const witness = await user1Wallet.createAuthWitness(burnMessageHash);
-    await user1Wallet.addAuthWitness(witness);
+    await user1Wallet.createAuthWit({
+      caller: l2Bridge.address,
+      action: l2Token.methods.burn(ownerAddress, withdrawAmount, nonce),
+    });
     // docs:end:authwit_to_another_sc
 
     // 5. Withdraw owner's funds from L2 to L1

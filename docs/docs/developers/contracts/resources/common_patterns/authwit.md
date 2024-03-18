@@ -88,15 +88,11 @@ For our purposes here (not building a wallet), the most important part of the li
 
 ### General utilities
 
-The primary general utility is the `compute_authwit_message_hash` function which computes the action hash from its components. This is useful for when you need to generate a hash that is not for the current call, such as when you want to update a public approval state value that is later used for [authentication in public](#updating-approval-state-in-noir). You can view the implementation of this function [here](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/aztec-nr/authwit/src/auth.nr).
+The primary general utility is the `compute_call_authwit_hash` function which computes the action hash from its components. This is useful for when you need to generate a hash that is not for the current call, such as when you want to update a public approval state value that is later used for [authentication in public](#updating-approval-state-in-noir). You can view the implementation of this function [here](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/aztec-nr/authwit/src/auth.nr).
 
 #### TypeScript utilities
 
 To make it convenient to compute the message hashes in TypeScript, the `aztec.js` package includes a `computeAuthWitMessageHash` function that you can use. Implementation [here](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/aztec.js/src/utils/authwit.ts).
-
-As you can see above, this function takes a `caller` and a `request`. The `request` can be easily prepared similarly to how we are making contract calls from TypeScript.
-
-#include_code authwit_computeAuthWitMessageHash /yarn-project/end-to-end/src/e2e_token_contract.test.ts typescript
 
 ### Utilities for private calls
 

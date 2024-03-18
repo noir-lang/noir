@@ -31,7 +31,7 @@ export class SignerlessWallet extends BaseWallet {
     throw new Error('Method not implemented.');
   }
 
-  createAuthWitness(_message: Fr): Promise<AuthWitness> {
+  createAuthWit(_message: Fr): Promise<AuthWitness> {
     throw new Error('Method not implemented.');
   }
 }

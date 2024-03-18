@@ -336,9 +336,8 @@ describe('e2e_token_contract', () => {
         const action = asset
           .withWallet(wallets[1])
           .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce);
-        const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
 
-        await wallets[0].setPublicAuth(messageHash, true).send().wait();
+        await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
         // docs:end:authwit_public_transfer_example
 
         // Perform the transfer
@@ -395,10 +394,9 @@ describe('e2e_token_contract', () => {
           const action = asset
             .withWallet(wallets[1])
             .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce);
-          const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
 
           // We need to compute the message we want to sign and add it to the wallet as approved
-          await wallets[0].setPublicAuth(messageHash, true).send().wait();
+          await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
 
           // Perform the transfer
           await expect(action.simulate()).rejects.toThrow(U128_UNDERFLOW_ERROR);
@@ -418,9 +416,8 @@ describe('e2e_token_contract', () => {
           const action = asset
             .withWallet(wallets[1])
             .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce);
-          const messageHash = computeAuthWitMessageHash(accounts[0].address, action.request());
 
-          await wallets[0].setPublicAuth(messageHash, true).send().wait();
+          await wallets[0].setPublicAuthWit({ caller: accounts[0].address, action }, true).send().wait();
 
           // Perform the transfer
           await expect(action.simulate()).rejects.toThrow('Assertion failed: Message not authorized by account');
@@ -440,8 +437,7 @@ describe('e2e_token_contract', () => {
           const action = asset
             .withWallet(wallets[1])
             .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce);
-          const messageHash = computeAuthWitMessageHash(accounts[0].address, action.request());
-          await wallets[0].setPublicAuth(messageHash, true).send().wait();
+          await wallets[0].setPublicAuthWit({ caller: accounts[0].address, action }, true).send().wait();
 
           // Perform the transfer
           await expect(action.simulate()).rejects.toThrow('Assertion failed: Message not authorized by account');
@@ -459,9 +455,53 @@ describe('e2e_token_contract', () => {
           const action = asset
             .withWallet(wallets[1])
             .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce);
+
+          await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
+
+          await wallets[0].cancelAuthWit({ caller: accounts[1].address, action }).send().wait();
+
+          // Check that the authwit is no longer valid. Need to try to send since nullifiers are handled by sequencer.
+          const txCancelledAuthwit = asset
+            .withWallet(wallets[1])
+            .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
+            .send();
+          await expect(txCancelledAuthwit.wait()).rejects.toThrowError('Transaction ');
+        });
+
+        it('transfer on behalf of other, cancelled authwit, flow 2', async () => {
+          const balance0 = await asset.methods.balance_of_public(accounts[0].address).view();
+          const amount = balance0 / 2n;
+          expect(amount).toBeGreaterThan(0n);
+          const nonce = Fr.random();
+
+          const action = asset
+            .withWallet(wallets[1])
+            .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce);
+
+          await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
+
+          await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, false).send().wait();
+
+          // Check that the authwit is no longer valid. Need to try to send since nullifiers are handled by sequencer.
+          const txCancelledAuthwit = asset
+            .withWallet(wallets[1])
+            .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce)
+            .send();
+          await expect(txCancelledAuthwit.wait()).rejects.toThrowError('Transaction ');
+        });
+
+        it('transfer on behalf of other, cancelled authwit, flow 3', async () => {
+          const balance0 = await asset.methods.balance_of_public(accounts[0].address).view();
+          const amount = balance0 / 2n;
+          expect(amount).toBeGreaterThan(0n);
+          const nonce = Fr.random();
+
+          const action = asset
+            .withWallet(wallets[1])
+            .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce);
           const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
 
-          await wallets[0].setPublicAuth(messageHash, true).send().wait();
+          await wallets[0].setPublicAuthWit(messageHash, true).send().wait();
 
           await wallets[0].cancelAuthWit(messageHash).send().wait();
 
@@ -524,10 +564,8 @@ describe('e2e_token_contract', () => {
         const action = asset
           .withWallet(wallets[1])
           .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
-        const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
-        // docs:end:authwit_computeAuthWitMessageHash
 
-        const witness = await wallets[0].createAuthWitness(messageHash);
+        const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
         await wallets[1].addAuthWitness(witness);
         // docs:end:authwit_transfer_example
 
@@ -573,12 +611,11 @@ describe('e2e_token_contract', () => {
           const action = asset
             .withWallet(wallets[1])
             .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
-          const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
 
           // Both wallets are connected to same node and PXE so we could just insert directly using
           // await wallet.signAndAddAuthWitness(messageHash, );
           // But doing it in two actions to show the flow.
-          const witness = await wallets[0].createAuthWitness(messageHash);
+          const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
           await wallets[1].addAuthWitness(witness);
 
           // Perform the transfer
@@ -621,10 +658,9 @@ describe('e2e_token_contract', () => {
           const action = asset
             .withWallet(wallets[2])
             .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
-          const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
           const expectedMessageHash = computeAuthWitMessageHash(accounts[2].address, action.request());
 
-          const witness = await wallets[0].createAuthWitness(messageHash);
+          const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
           await wallets[2].addAuthWitness(witness);
 
           await expect(action.simulate()).rejects.toThrow(
@@ -643,12 +679,35 @@ describe('e2e_token_contract', () => {
           const action = asset
             .withWallet(wallets[1])
             .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
-          const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
 
-          const witness = await wallets[0].createAuthWitness(messageHash);
+          const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
           await wallets[1].addAuthWitness(witness);
 
-          await wallets[0].cancelAuthWit(messageHash).send().wait();
+          await wallets[0].cancelAuthWit(witness.requestHash).send().wait();
+
+          // Perform the transfer, should fail because nullifier already emitted
+          const txCancelledAuthwit = asset
+            .withWallet(wallets[1])
+            .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce)
+            .send();
+          await expect(txCancelledAuthwit.wait()).rejects.toThrowError('Transaction ');
+        });
+
+        it('transfer on behalf of other, cancelled authwit, flow 2', async () => {
+          const balance0 = await asset.methods.balance_of_private(accounts[0].address).view();
+          const amount = balance0 / 2n;
+          const nonce = Fr.random();
+          expect(amount).toBeGreaterThan(0n);
+
+          // We need to compute the message we want to sign and add it to the wallet as approved
+          const action = asset
+            .withWallet(wallets[1])
+            .methods.transfer(accounts[0].address, accounts[1].address, amount, nonce);
+
+          const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
+          await wallets[1].addAuthWitness(witness);
+
+          await wallets[0].cancelAuthWit({ caller: accounts[1].address, action }).send().wait();
 
           // Perform the transfer, should fail because nullifier already emitted
           const txCancelledAuthwit = asset
@@ -707,8 +766,7 @@ describe('e2e_token_contract', () => {
 
       // We need to compute the message we want to sign and add it to the wallet as approved
       const action = asset.withWallet(wallets[1]).methods.shield(accounts[0].address, amount, secretHash, nonce);
-      const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
-      await wallets[0].setPublicAuth(messageHash, true).send().wait();
+      await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
 
       const receipt = await action.send().wait();
 
@@ -758,8 +816,7 @@ describe('e2e_token_contract', () => {
 
         // We need to compute the message we want to sign and add it to the wallet as approved
         const action = asset.withWallet(wallets[1]).methods.shield(accounts[0].address, amount, secretHash, nonce);
-        const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
-        await wallets[0].setPublicAuth(messageHash, true).send().wait();
+        await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
 
         await expect(action.simulate()).rejects.toThrow(U128_UNDERFLOW_ERROR);
       });
@@ -772,8 +829,7 @@ describe('e2e_token_contract', () => {
 
         // We need to compute the message we want to sign and add it to the wallet as approved
         const action = asset.withWallet(wallets[2]).methods.shield(accounts[0].address, amount, secretHash, nonce);
-        const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
-        await wallets[0].setPublicAuth(messageHash, true).send().wait();
+        await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
 
         await expect(action.simulate()).rejects.toThrow('Assertion failed: Message not authorized by account');
       });
@@ -812,12 +868,10 @@ describe('e2e_token_contract', () => {
       const action = asset
         .withWallet(wallets[1])
         .methods.unshield(accounts[0].address, accounts[1].address, amount, nonce);
-      const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
 
-      // Both wallets are connected to same node and PXE so we could just insert directly using
-      // await wallet.signAndAddAuthWitness(messageHash, );
+      // Both wallets are connected to same node and PXE so we could just insert directly
       // But doing it in two actions to show the flow.
-      const witness = await wallets[0].createAuthWitness(messageHash);
+      const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
       await wallets[1].addAuthWitness(witness);
 
       await action.send().wait();
@@ -862,12 +916,10 @@ describe('e2e_token_contract', () => {
         const action = asset
           .withWallet(wallets[1])
           .methods.unshield(accounts[0].address, accounts[1].address, amount, nonce);
-        const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
 
-        // Both wallets are connected to same node and PXE so we could just insert directly using
-        // await wallet.signAndAddAuthWitness(messageHash, );
+        // Both wallets are connected to same node and PXE so we could just insert directly
         // But doing it in two actions to show the flow.
-        const witness = await wallets[0].createAuthWitness(messageHash);
+        const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
         await wallets[1].addAuthWitness(witness);
 
         await expect(action.simulate()).rejects.toThrow('Assertion failed: Balance too low');
@@ -883,13 +935,11 @@ describe('e2e_token_contract', () => {
         const action = asset
           .withWallet(wallets[2])
           .methods.unshield(accounts[0].address, accounts[1].address, amount, nonce);
-        const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
         const expectedMessageHash = computeAuthWitMessageHash(accounts[2].address, action.request());
 
-        // Both wallets are connected to same node and PXE so we could just insert directly using
-        // await wallet.signAndAddAuthWitness(messageHash, );
+        // Both wallets are connected to same node and PXE so we could just insert directly
         // But doing it in two actions to show the flow.
-        const witness = await wallets[0].createAuthWitness(messageHash);
+        const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
         await wallets[2].addAuthWitness(witness);
 
         await expect(action.simulate()).rejects.toThrow(
@@ -918,8 +968,7 @@ describe('e2e_token_contract', () => {
 
         // We need to compute the message we want to sign and add it to the wallet as approved
         const action = asset.withWallet(wallets[1]).methods.burn_public(accounts[0].address, amount, nonce);
-        const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
-        await wallets[0].setPublicAuth(messageHash, true).send().wait();
+        await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
 
         await action.send().wait();
 
@@ -967,8 +1016,7 @@ describe('e2e_token_contract', () => {
 
           // We need to compute the message we want to sign and add it to the wallet as approved
           const action = asset.withWallet(wallets[1]).methods.burn_public(accounts[0].address, amount, nonce);
-          const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
-          await wallets[0].setPublicAuth(messageHash, true).send().wait();
+          await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
 
           await expect(action.simulate()).rejects.toThrow(U128_UNDERFLOW_ERROR);
         });
@@ -981,8 +1029,7 @@ describe('e2e_token_contract', () => {
 
           // We need to compute the message we want to sign and add it to the wallet as approved
           const action = asset.withWallet(wallets[1]).methods.burn_public(accounts[0].address, amount, nonce);
-          const messageHash = computeAuthWitMessageHash(accounts[0].address, action.request());
-          await wallets[0].setPublicAuth(messageHash, true).send().wait();
+          await wallets[0].setPublicAuthWit({ caller: accounts[0].address, action }, true).send().wait();
 
           await expect(
             asset.withWallet(wallets[1]).methods.burn_public(accounts[0].address, amount, nonce).simulate(),
@@ -1008,12 +1055,10 @@ describe('e2e_token_contract', () => {
 
         // We need to compute the message we want to sign and add it to the wallet as approved
         const action = asset.withWallet(wallets[1]).methods.burn(accounts[0].address, amount, nonce);
-        const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
 
-        // Both wallets are connected to same node and PXE so we could just insert directly using
-        // await wallet.signAndAddAuthWitness(messageHash, );
+        // Both wallets are connected to same node and PXE so we could just insert directly
         // But doing it in two actions to show the flow.
-        const witness = await wallets[0].createAuthWitness(messageHash);
+        const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
         await wallets[1].addAuthWitness(witness);
 
         await asset.withWallet(wallets[1]).methods.burn(accounts[0].address, amount, nonce).send().wait();
@@ -1051,12 +1096,10 @@ describe('e2e_token_contract', () => {
 
           // We need to compute the message we want to sign and add it to the wallet as approved
           const action = asset.withWallet(wallets[1]).methods.burn(accounts[0].address, amount, nonce);
-          const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
 
-          // Both wallets are connected to same node and PXE so we could just insert directly using
-          // await wallet.signAndAddAuthWitness(messageHash, );
+          // Both wallets are connected to same node and PXE so we could just insert directly
           // But doing it in two actions to show the flow.
-          const witness = await wallets[0].createAuthWitness(messageHash);
+          const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
           await wallets[1].addAuthWitness(witness);
 
           await expect(action.simulate()).rejects.toThrow('Assertion failed: Balance too low');
@@ -1085,10 +1128,9 @@ describe('e2e_token_contract', () => {
 
           // We need to compute the message we want to sign and add it to the wallet as approved
           const action = asset.withWallet(wallets[2]).methods.burn(accounts[0].address, amount, nonce);
-          const messageHash = computeAuthWitMessageHash(accounts[1].address, action.request());
           const expectedMessageHash = computeAuthWitMessageHash(accounts[2].address, action.request());
 
-          const witness = await wallets[0].createAuthWitness(messageHash);
+          const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
           await wallets[2].addAuthWitness(witness);
 
           await expect(action.simulate()).rejects.toThrow(

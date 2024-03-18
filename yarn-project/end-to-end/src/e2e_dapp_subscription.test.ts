@@ -6,7 +6,6 @@ import {
   PrivateFeePaymentMethod,
   PublicFeePaymentMethod,
   SentTx,
-  computeAuthWitMessageHash,
 } from '@aztec/aztec.js';
 import { DefaultDappEntrypoint } from '@aztec/entrypoints/dapp';
 import {
@@ -238,8 +237,7 @@ describe('e2e_dapp_subscription', () => {
   ) {
     const nonce = Fr.random();
     const action = bananaCoin.methods.transfer(aliceAddress, bobAddress, SUBSCRIPTION_AMOUNT, nonce);
-    const messageHash = computeAuthWitMessageHash(subscriptionContract.address, action.request());
-    await aliceWallet.createAuthWitness(messageHash);
+    await aliceWallet.createAuthWit({ caller: subscriptionContract.address, action });
 
     return subscriptionContract
       .withWallet(aliceWallet)

@@ -12,16 +12,16 @@ import { pedersenHash } from '@aztec/foundation/crypto';
  * `bob` then signs the message hash and gives it to `alice` who can then perform the
  * action.
  * @param caller - The caller approved to make the call
- * @param request - The request to be made (function call)
+ * @param action - The request to be made (function call)
  * @returns The message hash for the witness
  */
-export const computeAuthWitMessageHash = (caller: AztecAddress, request: FunctionCall) => {
+export const computeAuthWitMessageHash = (caller: AztecAddress, action: FunctionCall) => {
   return computeOuterAuthWitHash(
-    request.to.toField(),
+    action.to.toField(),
     computeInnerAuthWitHash([
       caller.toField(),
-      request.functionData.selector.toField(),
-      PackedArguments.fromArgs(request.args).hash,
+      action.functionData.selector.toField(),
+      PackedArguments.fromArgs(action.args).hash,
     ]),
   );
 };

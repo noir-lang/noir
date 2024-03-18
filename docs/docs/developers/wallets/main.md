@@ -44,7 +44,7 @@ There are no proofs generated as of the Sandbox release. This will be included i
 
 Account contracts in Aztec expose an interface for other contracts to validate [whether an action is authorized by the account or not](../../learn/concepts/accounts/main.md#authorizing-actions). For example, an application contract may want to transfer tokens on behalf of a user, in which case the token contract will check with the account contract whether the application is authorized to do so. These actions may be carried out in private or in public functions, and in transactions originated by the user or by someone else.
 
-Wallets should manage these authorizations, prompting the user when they are requested by an application. Authorizations in private executions come in the form of _auth witnesses_, which are usually signatures over an identifier for an action. Applications can request the wallet to produce an auth witness via the `createAuthWitness` call. In public functions, authorizations are pre-stored in the account contract storage, which is handled by a call to an internal function in the account contract implementation.
+Wallets should manage these authorizations, prompting the user when they are requested by an application. Authorizations in private executions come in the form of _auth witnesses_, which are usually signatures over an identifier for an action. Applications can request the wallet to produce an auth witness via the `createAuthWit` call. In public functions, authorizations are pre-stored in the account contract storage, which is handled by a call to an internal function in the account contract implementation.
 
 ## Key management
 

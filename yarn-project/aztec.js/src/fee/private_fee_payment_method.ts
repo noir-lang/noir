@@ -63,7 +63,7 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
       functionData: new FunctionData(FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)'), true),
       to: this.asset,
     });
-    await this.wallet.createAuthWitness(messageHash);
+    await this.wallet.createAuthWit(messageHash);
 
     const secretHashForRebate = computeMessageSecretHash(this.rebateSecret);
 

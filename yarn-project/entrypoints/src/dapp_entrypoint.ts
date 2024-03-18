@@ -34,7 +34,7 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
     const innerHash = computeInnerAuthWitHash([Fr.ZERO, functionData.selector.toField(), entrypointPackedArgs.hash]);
     const outerHash = computeOuterAuthWitHash(this.dappEntrypointAddress, innerHash);
 
-    const authWitness = await this.userAuthWitnessProvider.createAuthWitness(outerHash);
+    const authWitness = await this.userAuthWitnessProvider.createAuthWit(outerHash);
 
     const txRequest = TxExecutionRequest.from({
       argsHash: entrypointPackedArgs.hash,
