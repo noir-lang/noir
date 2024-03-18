@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.29.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.28.1...aztec-cli-v0.29.0) (2024-03-18)
+
+
+### Features
+
+* Use deployer in address computation ([#5201](https://github.com/AztecProtocol/aztec-packages/issues/5201)) ([258ff4a](https://github.com/AztecProtocol/aztec-packages/commit/258ff4a00208be8695e2e59aecc14d6a92eaac1c))
+
+
+### Miscellaneous
+
+* Delete ContractData ([#5258](https://github.com/AztecProtocol/aztec-packages/issues/5258)) ([e516f9b](https://github.com/AztecProtocol/aztec-packages/commit/e516f9b94d1fbdc126a9d0d7d79c571d61914980))
+* Delete ExtendedContractData struct ([#5248](https://github.com/AztecProtocol/aztec-packages/issues/5248)) ([8ae0c13](https://github.com/AztecProtocol/aztec-packages/commit/8ae0c13ceaf8a1f3db09d0e61f0a3781c8926ca6))
+* Removing redundant receipts check ([#5271](https://github.com/AztecProtocol/aztec-packages/issues/5271)) ([5ab07fb](https://github.com/AztecProtocol/aztec-packages/commit/5ab07fb8b395b6edbda6167845c7ea864e9395a3))
+
 ## [0.28.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.28.0...aztec-cli-v0.28.1) (2024-03-14)
 
 
