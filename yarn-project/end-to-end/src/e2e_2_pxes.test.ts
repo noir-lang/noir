@@ -130,12 +130,10 @@ describe('e2e_2_pxes', () => {
     await pxeB.registerRecipient(userA);
 
     // Add token to PXE B (PXE A already has it because it was deployed through it)
-    await pxeB.addContracts([
-      {
-        artifact: TokenContract.artifact,
-        instance: tokenInstance,
-      },
-    ]);
+    await pxeB.registerContract({
+      artifact: TokenContract.artifact,
+      instance: tokenInstance,
+    });
 
     // Check initial balances and logs are as expected
     await expectTokenBalance(walletA, tokenAddress, userA.address, initialBalance);
@@ -188,12 +186,10 @@ describe('e2e_2_pxes', () => {
     await awaitServerSynchronized(pxeA);
 
     // Add Child to PXE B
-    await pxeB.addContracts([
-      {
-        artifact: ChildContract.artifact,
-        instance: childCompleteAddress,
-      },
-    ]);
+    await pxeB.registerContract({
+      artifact: ChildContract.artifact,
+      instance: childCompleteAddress,
+    });
 
     const newValueToSet = new Fr(256n);
 
@@ -222,12 +218,10 @@ describe('e2e_2_pxes', () => {
     await pxeB.registerRecipient(userA);
 
     // Add token to PXE B (PXE A already has it because it was deployed through it)
-    await pxeB.addContracts([
-      {
-        artifact: TokenContract.artifact,
-        instance: tokenInstance,
-      },
-    ]);
+    await pxeB.registerContract({
+      artifact: TokenContract.artifact,
+      instance: tokenInstance,
+    });
 
     // Mint tokens to user B
     await mintTokens(contractWithWalletA, userB.address, userBBalance, pxeA);
@@ -287,12 +281,10 @@ describe('e2e_2_pxes', () => {
     await contractWithWalletA.methods.transfer(userA.address, userB.address, transferAmount1, 0).send().wait();
 
     // now add the contract and check balances
-    await pxeB.addContracts([
-      {
-        artifact: TokenContract.artifact,
-        instance: tokenInstance,
-      },
-    ]);
+    await pxeB.registerContract({
+      artifact: TokenContract.artifact,
+      instance: tokenInstance,
+    });
     await expectTokenBalance(walletA, tokenAddress, userA.address, initialBalance - transferAmount1);
     await expectTokenBalance(walletB, tokenAddress, userB.address, transferAmount1);
   });
@@ -347,12 +339,10 @@ describe('e2e_2_pxes', () => {
     // PXE-B had previously deferred the notes from A -> Shared, and Shared -> B
     // PXE-B adds the contract
     // PXE-B reprocesses the deferred notes, and sees the nullifier for A -> Shared
-    await pxeB.addContracts([
-      {
-        artifact: TokenContract.artifact,
-        instance: tokenInstance,
-      },
-    ]);
+    await pxeB.registerContract({
+      artifact: TokenContract.artifact,
+      instance: tokenInstance,
+    });
     await expectTokenBalance(walletB, tokenAddress, userB.address, transferAmount2);
     await expect(sharedWalletOnB.isAccountStateSynchronized(sharedAccountAddress.address)).resolves.toBe(true);
     await expectTokenBalance(

@@ -1,6 +1,6 @@
 import {
   AuthWitness,
-  DeployedContract,
+  ContractWithArtifact,
   ExtendedNote,
   FunctionCall,
   GetUnencryptedLogsResponse,
@@ -16,6 +16,7 @@ import {
   TxReceipt,
 } from '@aztec/circuit-types';
 import { AztecAddress, CompleteAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
+import { ContractArtifact } from '@aztec/foundation/abi';
 import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { NodeInfo } from '@aztec/types/interfaces';
 
@@ -75,8 +76,11 @@ export abstract class BaseWallet implements Wallet {
   getRecipient(address: AztecAddress): Promise<CompleteAddress | undefined> {
     return this.pxe.getRecipient(address);
   }
-  addContracts(contracts: DeployedContract[]): Promise<void> {
-    return this.pxe.addContracts(contracts);
+  registerContract(contract: ContractWithArtifact): Promise<void> {
+    return this.pxe.registerContract(contract);
+  }
+  registerContractClass(artifact: ContractArtifact): Promise<void> {
+    return this.pxe.registerContractClass(artifact);
   }
   getContracts(): Promise<AztecAddress[]> {
     return this.pxe.getContracts();

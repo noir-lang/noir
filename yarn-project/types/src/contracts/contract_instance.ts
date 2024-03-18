@@ -2,6 +2,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, numToUInt8, serializeToBuffer } from '@aztec/foundation/serialize';
+import { FieldsOf } from '@aztec/foundation/types';
 
 const VERSION = 1 as const;
 
@@ -76,7 +77,7 @@ export class SerializableContractInstance {
     });
   }
 
-  static random() {
+  static random(opts: Partial<FieldsOf<ContractInstance>> = {}) {
     return new SerializableContractInstance({
       version: VERSION,
       salt: Fr.random(),
@@ -85,6 +86,7 @@ export class SerializableContractInstance {
       portalContractAddress: EthAddress.random(),
       publicKeysHash: Fr.random(),
       deployer: AztecAddress.random(),
+      ...opts,
     });
   }
 }

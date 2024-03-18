@@ -104,12 +104,10 @@ export class AccountManager {
    */
   public async register(opts: WaitOpts = DefaultWaitOpts): Promise<AccountWalletWithPrivateKey> {
     await this.#register();
-    await this.pxe.addContracts([
-      {
-        artifact: this.accountContract.getContractArtifact(),
-        instance: this.getInstance(),
-      },
-    ]);
+    await this.pxe.registerContract({
+      artifact: this.accountContract.getContractArtifact(),
+      instance: this.getInstance(),
+    });
 
     await waitForAccountSynch(this.pxe, this.getCompleteAddress(), opts);
     return this.getWallet();

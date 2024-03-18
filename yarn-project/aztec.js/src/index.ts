@@ -82,7 +82,7 @@ export {
   AztecNode,
   Body,
   CompleteAddress,
-  DeployedContract,
+  ContractWithArtifact,
   ExtendedNote,
   FunctionCall,
   GrumpkinPrivateKey,

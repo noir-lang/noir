@@ -1,7 +1,7 @@
 import {
   AuthWitness,
   AztecNode,
-  DeployedContract,
+  ContractWithArtifact,
   ExtendedNote,
   FunctionCall,
   GetUnencryptedLogsResponse,
@@ -37,12 +37,13 @@ import {
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
 import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/hash';
-import { DecodedReturn, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
+import { ContractArtifact, DecodedReturn, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
+import { required } from '@aztec/foundation/validation';
 import {
   AcirSimulator,
   ExecutionResult,
@@ -215,18 +216,29 @@ export class PXEService implements PXE {
     return Promise.resolve(recipient);
   }
 
-  public async addContracts(contracts: DeployedContract[]) {
-    for (const contract of contracts) {
-      const { instance, artifact } = contract;
-      const artifactHash = computeArtifactHash(artifact);
-      const contractClassId = computeContractClassId(getContractClassFromArtifact({ ...artifact, artifactHash }));
-      await this.db.addContractArtifact(contractClassId, artifact);
-      await this.db.addContractInstance(instance);
-      const hasPortal = instance.portalContractAddress && !instance.portalContractAddress.isZero();
-      const portalInfo = hasPortal ? ` with portal ${instance.portalContractAddress.toChecksumString()}` : '';
-      this.log.info(`Added contract ${artifact.name} at ${instance.address.toString()}${portalInfo}`);
-      await this.synchronizer.reprocessDeferredNotesForContract(instance.address);
-    }
+  public async registerContractClass(artifact: ContractArtifact): Promise<void> {
+    const contractClassId = computeContractClassId(getContractClassFromArtifact(artifact));
+    await this.db.addContractArtifact(contractClassId, artifact);
+    this.log.info(`Added contract class ${artifact.name} with id ${contractClassId}`);
+  }
+
+  public async registerContract(contract: ContractWithArtifact) {
+    const instance = contract.instance;
+    const artifact =
+      'artifact' in contract
+        ? contract.artifact
+        : required(
+            await this.db.getContractArtifact(contract.contractClassId),
+            `Unknown artifact for class id ${contract.contractClassId} when registering ${instance.address}`,
+          );
+    const artifactHash = computeArtifactHash(artifact);
+    const contractClassId = computeContractClassId(getContractClassFromArtifact({ ...artifact, artifactHash }));
+    await this.db.addContractArtifact(contractClassId, artifact);
+    await this.db.addContractInstance(instance);
+    const hasPortal = instance.portalContractAddress && !instance.portalContractAddress.isZero();
+    const portalInfo = hasPortal ? ` with portal ${instance.portalContractAddress.toChecksumString()}` : '';
+    this.log.info(`Added contract ${artifact.name} at ${instance.address.toString()}${portalInfo}`);
+    await this.synchronizer.reprocessDeferredNotesForContract(instance.address);
   }
 
   public getContracts(): Promise<AztecAddress[]> {

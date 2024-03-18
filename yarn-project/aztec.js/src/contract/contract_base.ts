@@ -1,4 +1,3 @@
-import { DeployedContract } from '@aztec/circuit-types';
 import { computePartialAddress } from '@aztec/circuits.js';
 import { ContractArtifact, FunctionArtifact, FunctionSelector } from '@aztec/foundation/abi';
 import { ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -20,7 +19,7 @@ export type ContractMethod = ((...args: any[]) => ContractFunctionInteraction) &
 /**
  * Abstract implementation of a contract extended by the Contract class and generated contract types.
  */
-export class ContractBase implements DeployedContract {
+export class ContractBase {
   /**
    * An object containing contract methods mapped to their respective names.
    */

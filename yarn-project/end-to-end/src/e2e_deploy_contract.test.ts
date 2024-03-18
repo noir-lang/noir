@@ -454,7 +454,7 @@ describe('e2e_deploy_contract', () => {
 
     testDeployingAnInstance('from a contract', async instance => {
       // Register the instance to be deployed in the pxe
-      await wallet.addContracts([{ artifact, instance }]);
+      await wallet.registerContract({ artifact, instance });
       // Set up the contract that calls the deployer (which happens to be the TestContract) and call it
       const deployer = await TestContract.deploy(wallet).send().deployed();
       await deployer.methods.deploy_contract(instance.address).send().wait();
@@ -594,6 +594,6 @@ async function registerContract<T extends ContractBase>(
     portalAddress,
     deployer,
   });
-  await wallet.addContracts([{ artifact: contractArtifact.artifact, instance }]);
+  await wallet.registerContract({ artifact: contractArtifact.artifact, instance });
   return contractArtifact.at(instance.address, wallet);
 }

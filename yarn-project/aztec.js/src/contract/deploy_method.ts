@@ -92,7 +92,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
       }
       this.txRequest = await this.wallet.createTxExecutionRequest(await this.request(options));
       // TODO: Should we add the contracts to the DB here, or once the tx has been sent or mined?
-      await this.pxe.addContracts([{ artifact: this.artifact, instance: this.instance! }]);
+      await this.pxe.registerContract({ artifact: this.artifact, instance: this.instance! });
     }
     return this.txRequest;
   }

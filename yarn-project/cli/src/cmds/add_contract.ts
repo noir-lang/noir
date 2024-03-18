@@ -42,6 +42,6 @@ export async function addContract(
 
   const client = await createCompatibleClient(rpcUrl, debugLogger);
 
-  await client.addContracts([{ artifact, instance }]);
+  await client.registerContract({ artifact, instance });
   log(`\nContract added to PXE at ${address.toString()} with class ${instance.contractClassId.toString()}\n`);
 }
