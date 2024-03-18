@@ -165,14 +165,16 @@ export class Return extends Instruction {
   }
 
   async execute(context: AvmContext): Promise<void> {
-    const output = context.machineState.memory.getSlice(this.returnOffset, this.copySize).map(word => word.toFr());
+    const [returnOffset] = Addressing.fromWire(this.indirect).resolve([this.returnOffset], context.machineState.memory);
+
+    const output = context.machineState.memory.getSlice(returnOffset, this.copySize).map(word => word.toFr());
 
     context.machineState.return(output);
   }
 }
 
 export class Revert extends Instruction {
-  static type: string = 'RETURN';
+  static type: string = 'REVERT';
   static readonly opcode: Opcode = Opcode.REVERT;
   // Informs (de)serialization. See Instruction.deserialize.
   static readonly wireFormat: OperandType[] = [
@@ -187,9 +189,9 @@ export class Revert extends Instruction {
   }
 
   async execute(context: AvmContext): Promise<void> {
-    const output = context.machineState.memory
-      .getSlice(this.returnOffset, this.returnOffset + this.retSize)
-      .map(word => word.toFr());
+    const [returnOffset] = Addressing.fromWire(this.indirect).resolve([this.returnOffset], context.machineState.memory);
+
+    const output = context.machineState.memory.getSlice(returnOffset, this.retSize).map(word => word.toFr());
 
     context.machineState.revert(output);
   }

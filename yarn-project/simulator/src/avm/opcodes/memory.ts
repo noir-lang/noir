@@ -183,11 +183,13 @@ export class CalldataCopy extends Instruction {
   }
 
   async execute(context: AvmContext): Promise<void> {
+    const [dstOffset] = Addressing.fromWire(this.indirect).resolve([this.dstOffset], context.machineState.memory);
+
     const transformedData = context.environment.calldata
       .slice(this.cdOffset, this.cdOffset + this.copySize)
       .map(f => new Field(f));
 
-    context.machineState.memory.setSlice(this.dstOffset, transformedData);
+    context.machineState.memory.setSlice(dstOffset, transformedData);
 
     context.machineState.incrementPc();
   }

@@ -194,7 +194,7 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
             BrilligOpcode::Stop { return_data_offset, return_data_size } => {
                 avm_instrs.push(AvmInstruction {
                     opcode: AvmOpcode::RETURN,
-                    indirect: Some(ZEROTH_OPERAND_INDIRECT),
+                    indirect: Some(ALL_DIRECT),
                     operands: vec![
                         AvmOperand::U32 { value: *return_data_offset as u32 },
                         AvmOperand::U32 { value: *return_data_size as u32 },
