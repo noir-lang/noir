@@ -1,35 +1,48 @@
-import { DebugLogger, Fr, Wallet } from '@aztec/aztec.js';
+import { AztecAddress, Wallet } from '@aztec/aztec.js';
 import { AvmTestContract } from '@aztec/noir-contracts.js';
+
+import { jest } from '@jest/globals';
 
 import { setup } from './fixtures/utils.js';
 
 process.env.AVM_ENABLED = 'absofrigginlutely';
+const TIMEOUT = 100_000;
 
 describe('e2e_nested_contract', () => {
+  jest.setTimeout(TIMEOUT);
+
   let wallet: Wallet;
-  let logger: DebugLogger;
+  let avmContact: AvmTestContract;
   let teardown: () => Promise<void>;
 
-  beforeEach(async () => {
-    ({ teardown, wallet, logger } = await setup());
+  beforeAll(async () => {
+    ({ teardown, wallet } = await setup());
   }, 100_000);
 
-  afterEach(() => teardown());
+  afterAll(() => teardown());
 
-  describe('Call succeeds through AVM', () => {
-    let avmContact: AvmTestContract;
+  beforeEach(async () => {
+    avmContact = await AvmTestContract.deploy(wallet).send().deployed();
+  }, 50_000);
 
-    beforeEach(async () => {
-      avmContact = await AvmTestContract.deploy(wallet).send().deployed();
-    }, 50_000);
+  describe('Storage', () => {
+    it('Modifies storage (Field)', async () => {
+      await avmContact.methods.set_storage_single(20n).send().wait();
+      expect(await avmContact.methods.view_storage_single().view()).toEqual(20n);
+    });
 
-    it('Calls an avm contract', async () => {
-      const a = new Fr(1);
-      const b = new Fr(2);
+    it('Modifies storage (Map)', async () => {
+      const address = AztecAddress.fromBigInt(9090n);
+      await avmContact.methods.set_storage_map(address, 100).send().wait();
+      await avmContact.methods.add_storage_map(address, 100).send().wait();
+      expect(await avmContact.methods.view_storage_map(address).view()).toEqual(200n);
+    });
+  });
 
-      logger('Calling avm_addArgsReturn...');
-      await avmContact.methods.avm_addArgsReturn(a, b).send().wait();
-      logger('Success');
+  describe('Nullifiers', () => {
+    it('Emit and check', async () => {
+      await avmContact.methods.emit_nullifier_and_check(123456).send().wait();
+      // TODO: check NOT reverted
     });
   });
 });

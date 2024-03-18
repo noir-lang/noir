@@ -29,6 +29,14 @@ fn main() {
         warn!("Contract already transpiled. Skipping.");
         return;
     }
+
+    // Backup the original file
+    std::fs::copy(
+        Path::new(in_contract_artifact_path),
+        Path::new(&(in_contract_artifact_path.clone() + ".bak")),
+    )
+    .expect("Unable to backup file");
+
     // Parse json into contract object
     let contract: CompiledAcirContract =
         serde_json::from_str(&contract_json).expect("Unable to parse json");

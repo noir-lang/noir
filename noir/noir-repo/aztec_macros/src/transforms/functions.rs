@@ -119,9 +119,6 @@ pub fn transform_vm_function(
     // We want the function to be seen as a public function
     func.def.is_unconstrained = true;
 
-    // NOTE: the line below is a temporary hack to trigger external transpilation tools
-    // It will be removed once the transpiler is integrated into the Noir compiler
-    func.def.name.0.contents = format!("avm_{}", func.def.name.0.contents);
     Ok(())
 }
 

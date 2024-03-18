@@ -2,6 +2,7 @@ FROM aztecprotocol/noir as noir
 FROM aztecprotocol/avm-transpiler as transpiler
 
 FROM ubuntu:lunar AS builder
+RUN apt-get update && apt-get install -y parallel
 # Copy in nargo
 COPY --from=noir /usr/src/noir/noir-repo/target/release/nargo /usr/src/noir/noir-repo/target/release/nargo
 ENV PATH="/usr/src/noir/noir-repo/target/release:${PATH}"

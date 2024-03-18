@@ -20,15 +20,6 @@ import {
 import { Add, CalldataCopy, Return } from './opcodes/index.js';
 import { encodeToBytecode } from './serialization/bytecode_serialization.js';
 
-function getAvmTestContractBytecode(functionName: string): Buffer {
-  const artifact = AvmTestContractArtifact.functions.find(f => f.name === functionName)!;
-  assert(
-    !!artifact?.bytecode,
-    `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
-  );
-  return Buffer.from(artifact.bytecode, 'base64');
-}
-
 describe('AVM simulator', () => {
   it('Should execute bytecode that performs basic addition', async () => {
     const calldata: Fr[] = [new Fr(1), new Fr(2)];
@@ -52,7 +43,7 @@ describe('AVM simulator', () => {
       const calldata: Fr[] = [new Fr(1), new Fr(2)];
       const context = initContext({ env: initExecutionEnvironment({ calldata }) });
 
-      const bytecode = getAvmTestContractBytecode('avm_addArgsReturn');
+      const bytecode = getAvmTestContractBytecode('add_args_return');
       const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
       expect(results.reverted).toBe(false);
@@ -70,7 +61,7 @@ describe('AVM simulator', () => {
       ];
       const context = initContext({ env: initExecutionEnvironment({ calldata }) });
 
-      const bytecode = getAvmTestContractBytecode('avm_addU128');
+      const bytecode = getAvmTestContractBytecode('add_u128');
       const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
       expect(results.reverted).toBe(false);
@@ -78,11 +69,11 @@ describe('AVM simulator', () => {
     });
 
     describe.each([
-      ['avm_setOpcodeUint8', 8n],
-      ['avm_setOpcodeUint32', 1n << 30n],
-      ['avm_setOpcodeUint64', 1n << 60n],
-      ['avm_setOpcodeSmallField', 0x001234567890abcdef1234567890abcdefn],
-      ['avm_setOpcodeBigField', 0x991234567890abcdef1234567890abcdefn],
+      ['set_opcode_u8', 8n],
+      ['set_opcode_u32', 1n << 30n],
+      ['set_opcode_u64', 1n << 60n],
+      ['set_opcode_small_field', 0x001234567890abcdef1234567890abcdefn],
+      ['set_opcode_big_field', 0x991234567890abcdef1234567890abcdefn],
     ])('Should execute contract SET functions', (name: string, res: bigint) => {
       it(`Should execute contract function '${name}'`, async () => {
         const context = initContext();
@@ -95,8 +86,8 @@ describe('AVM simulator', () => {
     });
 
     describe.each([
-      ['avm_sha256_hash', sha256],
-      ['avm_keccak_hash', keccak],
+      ['sha256_hash', sha256],
+      ['keccak_hash', keccak],
     ])('Hashes with 2 fields returned in noir contracts', (name: string, hashFunction: (data: Buffer) => Buffer) => {
       it(`Should execute contract function that performs ${name} hash`, async () => {
         const calldata = [new Fr(1), new Fr(2), new Fr(3)];
@@ -112,8 +103,8 @@ describe('AVM simulator', () => {
     });
 
     describe.each([
-      ['avm_poseidon_hash', poseidonHash],
-      ['avm_pedersen_hash', pedersenHash],
+      ['poseidon_hash', poseidonHash],
+      ['pedersen_hash', pedersenHash],
     ])('Hashes with field returned in noir contracts', (name: string, hashFunction: (data: Buffer[]) => Fr) => {
       it(`Should execute contract function that performs ${name} hash`, async () => {
         const calldata = [new Fr(1), new Fr(2), new Fr(3)];
@@ -150,62 +141,62 @@ describe('AVM simulator', () => {
 
       it('address', async () => {
         const address = AztecAddress.fromField(new Fr(1));
-        await testEnvGetter('address', address, 'avm_getAddress');
+        await testEnvGetter('address', address, 'get_address');
       });
 
       it('storageAddress', async () => {
         const storageAddress = AztecAddress.fromField(new Fr(1));
-        await testEnvGetter('storageAddress', storageAddress, 'avm_getStorageAddress');
+        await testEnvGetter('storageAddress', storageAddress, 'get_storage_address');
       });
 
       it('sender', async () => {
         const sender = AztecAddress.fromField(new Fr(1));
-        await testEnvGetter('sender', sender, 'avm_getSender');
+        await testEnvGetter('sender', sender, 'get_sender');
       });
 
       it('origin', async () => {
         const origin = AztecAddress.fromField(new Fr(1));
-        await testEnvGetter('origin', origin, 'avm_getOrigin');
+        await testEnvGetter('origin', origin, 'get_origin');
       });
 
       it('portal', async () => {
         const portal = EthAddress.fromField(new Fr(1));
-        await testEnvGetter('portal', portal, 'avm_getPortal');
+        await testEnvGetter('portal', portal, 'get_portal');
       });
 
       it('getFeePerL1Gas', async () => {
         const fee = new Fr(1);
-        await testEnvGetter('feePerL1Gas', fee, 'avm_getFeePerL1Gas');
+        await testEnvGetter('feePerL1Gas', fee, 'get_fee_per_l1_gas');
       });
 
       it('getFeePerL2Gas', async () => {
         const fee = new Fr(1);
-        await testEnvGetter('feePerL2Gas', fee, 'avm_getFeePerL2Gas');
+        await testEnvGetter('feePerL2Gas', fee, 'get_fee_per_l2_gas');
       });
 
       it('getFeePerDaGas', async () => {
         const fee = new Fr(1);
-        await testEnvGetter('feePerDaGas', fee, 'avm_getFeePerDaGas');
+        await testEnvGetter('feePerDaGas', fee, 'get_fee_per_da_gas');
       });
 
       it('chainId', async () => {
         const chainId = new Fr(1);
-        await testEnvGetter('chainId', chainId, 'avm_getChainId', /*globalVar=*/ true);
+        await testEnvGetter('chainId', chainId, 'get_chain_id', /*globalVar=*/ true);
       });
 
       it('version', async () => {
         const version = new Fr(1);
-        await testEnvGetter('version', version, 'avm_getVersion', /*globalVar=*/ true);
+        await testEnvGetter('version', version, 'get_version', /*globalVar=*/ true);
       });
 
       it('blockNumber', async () => {
         const blockNumber = new Fr(1);
-        await testEnvGetter('blockNumber', blockNumber, 'avm_getBlockNumber', /*globalVar=*/ true);
+        await testEnvGetter('blockNumber', blockNumber, 'get_block_number', /*globalVar=*/ true);
       });
 
       it('timestamp', async () => {
         const timestamp = new Fr(1);
-        await testEnvGetter('timestamp', timestamp, 'avm_getTimestamp', /*globalVar=*/ true);
+        await testEnvGetter('timestamp', timestamp, 'get_timestamp', /*globalVar=*/ true);
       });
     });
 
@@ -216,7 +207,7 @@ describe('AVM simulator', () => {
         const calldata = [noteHash, leafIndex];
 
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-        const bytecode = getAvmTestContractBytecode('avm_note_hash_exists');
+        const bytecode = getAvmTestContractBytecode('note_hash_exists');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -237,7 +228,7 @@ describe('AVM simulator', () => {
         jest
           .spyOn(context.persistableState.hostStorage.commitmentsDb, 'getCommitmentIndex')
           .mockReturnValue(Promise.resolve(BigInt(7)));
-        const bytecode = getAvmTestContractBytecode('avm_note_hash_exists');
+        const bytecode = getAvmTestContractBytecode('note_hash_exists');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -250,7 +241,7 @@ describe('AVM simulator', () => {
 
       it(`Should execute contract function to emit unencrypted logs (should be traced)`, async () => {
         const context = initContext();
-        const bytecode = getAvmTestContractBytecode('avm_emit_unencrypted_log');
+        const bytecode = getAvmTestContractBytecode('emit_unencrypted_log');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -280,7 +271,7 @@ describe('AVM simulator', () => {
         const calldata = [utxo];
 
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-        const bytecode = getAvmTestContractBytecode('avm_new_note_hash');
+        const bytecode = getAvmTestContractBytecode('new_note_hash');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -293,7 +284,7 @@ describe('AVM simulator', () => {
         const calldata = [utxo];
 
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-        const bytecode = getAvmTestContractBytecode('avm_new_nullifier');
+        const bytecode = getAvmTestContractBytecode('new_nullifier');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -306,7 +297,7 @@ describe('AVM simulator', () => {
         const calldata = [utxo];
 
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-        const bytecode = getAvmTestContractBytecode('avm_nullifier_exists');
+        const bytecode = getAvmTestContractBytecode('nullifier_exists');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -327,7 +318,7 @@ describe('AVM simulator', () => {
         jest
           .spyOn(context.persistableState.hostStorage.commitmentsDb, 'getNullifierIndex')
           .mockReturnValue(Promise.resolve(BigInt(42)));
-        const bytecode = getAvmTestContractBytecode('avm_nullifier_exists');
+        const bytecode = getAvmTestContractBytecode('nullifier_exists');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -344,7 +335,7 @@ describe('AVM simulator', () => {
         const calldata = [utxo];
 
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-        const bytecode = getAvmTestContractBytecode('avm_emit_nullifier_and_check');
+        const bytecode = getAvmTestContractBytecode('emit_nullifier_and_check');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -360,7 +351,7 @@ describe('AVM simulator', () => {
         const calldata = [utxo];
 
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-        const bytecode = getAvmTestContractBytecode('avm_nullifier_collision');
+        const bytecode = getAvmTestContractBytecode('nullifier_collision');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(true);
@@ -376,7 +367,7 @@ describe('AVM simulator', () => {
         const calldata = [msgHash, leafIndex];
 
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-        const bytecode = getAvmTestContractBytecode('avm_l1_to_l2_msg_exists');
+        const bytecode = getAvmTestContractBytecode('l1_to_l2_msg_exists');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -396,7 +387,7 @@ describe('AVM simulator', () => {
         jest
           .spyOn(context.persistableState.hostStorage.commitmentsDb, 'getL1ToL2MembershipWitness')
           .mockResolvedValue(initL1ToL2MessageOracleInput(leafIndex.toBigInt()));
-        const bytecode = getAvmTestContractBytecode('avm_l1_to_l2_msg_exists');
+        const bytecode = getAvmTestContractBytecode('l1_to_l2_msg_exists');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -411,8 +402,8 @@ describe('AVM simulator', () => {
     describe('Test nested external calls from noir contract', () => {
       it(`Should execute contract function that makes a nested call`, async () => {
         const calldata: Fr[] = [new Fr(1), new Fr(2)];
-        const callBytecode = getAvmTestContractBytecode('avm_raw_nested_call_to_add');
-        const addBytecode = getAvmTestContractBytecode('avm_addArgsReturn');
+        const callBytecode = getAvmTestContractBytecode('raw_nested_call_to_add');
+        const addBytecode = getAvmTestContractBytecode('add_args_return');
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
         jest
           .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
@@ -426,8 +417,8 @@ describe('AVM simulator', () => {
 
       it(`Should execute contract function that makes a nested call through the old interface`, async () => {
         const calldata: Fr[] = [new Fr(1), new Fr(2)];
-        const callBytecode = getAvmTestContractBytecode('avm_nested_call_to_add');
-        const addBytecode = getAvmTestContractBytecode('avm_addArgsReturn');
+        const callBytecode = getAvmTestContractBytecode('nested_call_to_add');
+        const addBytecode = getAvmTestContractBytecode('add_args_return');
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
         jest
           .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
@@ -441,8 +432,8 @@ describe('AVM simulator', () => {
 
       it(`Should execute contract function that makes a nested static call`, async () => {
         const calldata: Fr[] = [new Fr(1), new Fr(2)];
-        const callBytecode = getAvmTestContractBytecode('avm_raw_nested_static_call_to_add');
-        const addBytecode = getAvmTestContractBytecode('avm_addArgsReturn');
+        const callBytecode = getAvmTestContractBytecode('raw_nested_static_call_to_add');
+        const addBytecode = getAvmTestContractBytecode('add_args_return');
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
         jest
           .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
@@ -455,8 +446,8 @@ describe('AVM simulator', () => {
       });
 
       it(`Should execute contract function that makes a nested static call which modifies storage`, async () => {
-        const callBytecode = getAvmTestContractBytecode('avm_raw_nested_static_call_to_set_admin');
-        const nestedBytecode = getAvmTestContractBytecode('avm_setStorageSingle');
+        const callBytecode = getAvmTestContractBytecode('raw_nested_static_call_to_set_storage');
+        const nestedBytecode = getAvmTestContractBytecode('set_storage_single');
         const context = initContext();
         jest
           .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
@@ -470,8 +461,8 @@ describe('AVM simulator', () => {
 
       it(`Should execute contract function that makes a nested static call (old interface)`, async () => {
         const calldata: Fr[] = [new Fr(1), new Fr(2)];
-        const callBytecode = getAvmTestContractBytecode('avm_nested_static_call_to_add');
-        const addBytecode = getAvmTestContractBytecode('avm_addArgsReturn');
+        const callBytecode = getAvmTestContractBytecode('nested_static_call_to_add');
+        const addBytecode = getAvmTestContractBytecode('add_args_return');
         const context = initContext({ env: initExecutionEnvironment({ calldata }) });
         jest
           .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
@@ -484,8 +475,8 @@ describe('AVM simulator', () => {
       });
 
       it(`Should execute contract function that makes a nested static call which modifies storage (old interface)`, async () => {
-        const callBytecode = getAvmTestContractBytecode('avm_nested_static_call_to_set_admin');
-        const nestedBytecode = getAvmTestContractBytecode('avm_setStorageSingle');
+        const callBytecode = getAvmTestContractBytecode('nested_static_call_to_set_storage');
+        const nestedBytecode = getAvmTestContractBytecode('set_storage_single');
         const context = initContext();
         jest
           .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
@@ -507,7 +498,7 @@ describe('AVM simulator', () => {
         const context = initContext({
           env: initExecutionEnvironment({ calldata, address, storageAddress: address }),
         });
-        const bytecode = getAvmTestContractBytecode('avm_setStorageSingle');
+        const bytecode = getAvmTestContractBytecode('set_storage_single');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -536,7 +527,7 @@ describe('AVM simulator', () => {
         jest
           .spyOn(context.persistableState.hostStorage.publicStateDb, 'storageRead')
           .mockImplementation((_address, slot) => Promise.resolve(storage.get(slot.toBigInt())!));
-        const bytecode = getAvmTestContractBytecode('avm_readStorageSingle');
+        const bytecode = getAvmTestContractBytecode('read_storage_single');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         // Get contract function artifact
@@ -559,7 +550,7 @@ describe('AVM simulator', () => {
         const context = initContext({
           env: initExecutionEnvironment({ calldata, address, storageAddress: address }),
         });
-        const bytecode = getAvmTestContractBytecode('avm_setReadStorageSingle');
+        const bytecode = getAvmTestContractBytecode('set_read_storage_single');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -586,7 +577,7 @@ describe('AVM simulator', () => {
         const context = initContext({
           env: initExecutionEnvironment({ sender, address, calldata, storageAddress: address }),
         });
-        const bytecode = getAvmTestContractBytecode('avm_setStorageList');
+        const bytecode = getAvmTestContractBytecode('set_storage_list');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -617,7 +608,7 @@ describe('AVM simulator', () => {
         jest
           .spyOn(context.persistableState.hostStorage.publicStateDb, 'storageRead')
           .mockImplementation((_address, slot) => Promise.resolve(storage.get(slot.toBigInt())!));
-        const bytecode = getAvmTestContractBytecode('avm_readStorageList');
+        const bytecode = getAvmTestContractBytecode('read_storage_list');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -638,7 +629,7 @@ describe('AVM simulator', () => {
         const context = initContext({
           env: initExecutionEnvironment({ address, calldata, storageAddress: address }),
         });
-        const bytecode = getAvmTestContractBytecode('avm_setStorageMap');
+        const bytecode = getAvmTestContractBytecode('set_storage_map');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -662,7 +653,7 @@ describe('AVM simulator', () => {
         const context = initContext({
           env: initExecutionEnvironment({ address, calldata, storageAddress: address }),
         });
-        const bytecode = getAvmTestContractBytecode('avm_addStorageMap');
+        const bytecode = getAvmTestContractBytecode('add_storage_map');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         expect(results.reverted).toBe(false);
@@ -691,7 +682,7 @@ describe('AVM simulator', () => {
         jest
           .spyOn(context.persistableState.hostStorage.publicStateDb, 'storageRead')
           .mockReturnValue(Promise.resolve(value));
-        const bytecode = getAvmTestContractBytecode('avm_readStorageMap');
+        const bytecode = getAvmTestContractBytecode('read_storage_map');
         const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
         // Get contract function artifact
@@ -706,3 +697,12 @@ describe('AVM simulator', () => {
     });
   });
 });
+
+function getAvmTestContractBytecode(functionName: string): Buffer {
+  const artifact = AvmTestContractArtifact.functions.find(f => f.name === functionName)!;
+  assert(
+    !!artifact?.bytecode,
+    `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
+  );
+  return Buffer.from(artifact.bytecode, 'base64');
+}

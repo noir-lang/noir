@@ -77,14 +77,11 @@ impl From<CompiledAcirContract> for TranspiledContract {
     fn from(contract: CompiledAcirContract) -> Self {
         let mut functions = Vec::new();
 
-        // Note, in aztec_macros/lib.rs, avm_ prefix is pushed to function names with the #[aztec(public-vm)] tag
-        let re = Regex::new(r"avm_.*$").unwrap();
         for function in contract.functions {
             // TODO(4269): once functions are tagged for transpilation to AVM, check tag
             if function
                 .custom_attributes
                 .contains(&"aztec(public-vm)".to_string())
-                && re.is_match(function.name.as_str())
             {
                 info!(
                     "Transpiling AVM function {} on contract {}",
