@@ -96,4 +96,4 @@ Generally we want to use brillig whenever there's something that's easy to verif
 
 ## Break and Continue
 
-In addition to loops over runtime bounds, `break` and `continue` are also available in unconstrained code. See [break and continue](../concepts/control-flow/#break-and-continue)
+In addition to loops over runtime bounds, `break` and `continue` are also available in unconstrained code. See [break and continue](../concepts/control_flow/#break-and-continue)
