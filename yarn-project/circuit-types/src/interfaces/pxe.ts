@@ -11,7 +11,6 @@ import { NoteFilter } from '../notes/note_filter.js';
 import { Tx, TxHash, TxReceipt } from '../tx/index.js';
 import { TxEffect } from '../tx_effect.js';
 import { TxExecutionRequest } from '../tx_execution_request.js';
-import { ContractWithArtifact } from './contract-with-artifact.js';
 import { SyncStatus } from './sync-status.js';
 
 // docs:start:pxe-interface
@@ -112,9 +111,9 @@ export interface PXE {
    * deploying a contract. Dapps that wish to interact with contracts already deployed should register
    * these contracts in their users' PXE Service through this method.
    *
-   * @param contract - An object containing contract artifact and instance.
+   * @param contract - A contract instance to register, with an optional artifact which can be omitted if the contract class has already been registered.
    */
-  registerContract(contract: ContractWithArtifact): Promise<void>;
+  registerContract(contract: { instance: ContractInstanceWithAddress; artifact?: ContractArtifact }): Promise<void>;
 
   /**
    * Retrieves the addresses of contracts added to this PXE Service.

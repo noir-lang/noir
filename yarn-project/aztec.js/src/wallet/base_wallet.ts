@@ -1,6 +1,5 @@
 import {
   AuthWitness,
-  ContractWithArtifact,
   ExtendedNote,
   FunctionCall,
   GetUnencryptedLogsResponse,
@@ -76,7 +75,10 @@ export abstract class BaseWallet implements Wallet {
   getRecipient(address: AztecAddress): Promise<CompleteAddress | undefined> {
     return this.pxe.getRecipient(address);
   }
-  registerContract(contract: ContractWithArtifact): Promise<void> {
+  registerContract(contract: {
+    /** Instance */ instance: ContractInstanceWithAddress;
+    /** Associated artifact */ artifact?: ContractArtifact;
+  }): Promise<void> {
     return this.pxe.registerContract(contract);
   }
   registerContractClass(artifact: ContractArtifact): Promise<void> {

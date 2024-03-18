@@ -1,7 +1,6 @@
 import {
   AuthWitness,
   AztecNode,
-  ContractWithArtifact,
   ExtendedNote,
   FunctionCall,
   GetUnencryptedLogsResponse,
@@ -32,7 +31,6 @@ import {
   PartialAddress,
   PrivateKernelTailCircuitPublicInputs,
   PublicCallRequest,
-  computeArtifactHash,
   computeContractClassId,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
@@ -43,7 +41,6 @@ import { Fr } from '@aztec/foundation/fields';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
-import { required } from '@aztec/foundation/validation';
 import {
   AcirSimulator,
   ExecutionResult,
@@ -222,22 +219,31 @@ export class PXEService implements PXE {
     this.log.info(`Added contract class ${artifact.name} with id ${contractClassId}`);
   }
 
-  public async registerContract(contract: ContractWithArtifact) {
-    const instance = contract.instance;
-    const artifact =
-      'artifact' in contract
-        ? contract.artifact
-        : required(
-            await this.db.getContractArtifact(contract.contractClassId),
-            `Unknown artifact for class id ${contract.contractClassId} when registering ${instance.address}`,
-          );
-    const artifactHash = computeArtifactHash(artifact);
-    const contractClassId = computeContractClassId(getContractClassFromArtifact({ ...artifact, artifactHash }));
-    await this.db.addContractArtifact(contractClassId, artifact);
+  public async registerContract(contract: { instance: ContractInstanceWithAddress; artifact?: ContractArtifact }) {
+    const { instance } = contract;
+    let { artifact } = contract;
+
+    if (artifact) {
+      // If the user provides an artifact, validate it against the expected class id and register it
+      const contractClassId = computeContractClassId(getContractClassFromArtifact(artifact));
+      if (!contractClassId.equals(instance.contractClassId)) {
+        throw new Error(
+          `Artifact does not match expected class id (computed ${contractClassId} but instance refers to ${instance.contractClassId})`,
+        );
+      }
+      await this.db.addContractArtifact(contractClassId, artifact);
+    } else {
+      // Otherwise, make sure there is an artifact already registered for that class id
+      artifact = await this.db.getContractArtifact(instance.contractClassId);
+      if (!artifact) {
+        throw new Error(
+          `Missing contract artifact for class id ${instance.contractClassId} for contract ${instance.address}`,
+        );
+      }
+    }
+
+    this.log.info(`Added contract ${artifact.name} at ${instance.address.toString()}`);
     await this.db.addContractInstance(instance);
-    const hasPortal = instance.portalContractAddress && !instance.portalContractAddress.isZero();
-    const portalInfo = hasPortal ? ` with portal ${instance.portalContractAddress.toChecksumString()}` : '';
-    this.log.info(`Added contract ${artifact.name} at ${instance.address.toString()}${portalInfo}`);
     await this.synchronizer.reprocessDeferredNotesForContract(instance.address);
   }
 

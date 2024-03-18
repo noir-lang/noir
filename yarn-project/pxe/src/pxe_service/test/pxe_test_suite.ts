@@ -1,5 +1,4 @@
 import {
-  ContractWithArtifact,
   PXE,
   TxExecutionRequest,
   randomContractArtifact,
@@ -90,7 +89,7 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
     });
 
     it('successfully adds a contract', async () => {
-      const contracts: ContractWithArtifact[] = [randomDeployedContract(), randomDeployedContract()];
+      const contracts = [randomDeployedContract(), randomDeployedContract()];
       for (const contract of contracts) {
         await pxe.registerContract(contract);
       }
@@ -109,15 +108,19 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
       await pxe.registerContractClass(artifact);
       expect(await pxe.getContractClass(contractClassId)).toEqual(contractClass);
 
-      await pxe.registerContract({ contractClassId, instance });
+      await pxe.registerContract({ instance });
       expect(await pxe.getContractInstance(instance.address)).toEqual(instance);
     });
 
     it('refuses to register a contract with a class that has not been registered', async () => {
       const instance = randomContractInstanceWithAddress();
-      await expect(pxe.registerContract({ contractClassId: Fr.random(), instance })).rejects.toThrow(
-        /Unknown artifact/i,
-      );
+      await expect(pxe.registerContract({ instance })).rejects.toThrow(/Missing contract artifact/i);
+    });
+
+    it('refuses to register a contract with an artifact with mismatching class id', async () => {
+      const artifact = randomContractArtifact();
+      const instance = randomContractInstanceWithAddress();
+      await expect(pxe.registerContract({ instance, artifact })).rejects.toThrow(/Artifact does not match/i);
     });
 
     it('throws when simulating a tx targeting public entrypoint', async () => {

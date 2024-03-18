@@ -4,6 +4,8 @@ import {
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   Proof,
+  computeContractClassId,
+  getContractClassFromArtifact,
 } from '@aztec/circuits.js';
 import { ContractArtifact } from '@aztec/foundation/abi';
 import { makeTuple } from '@aztec/foundation/array';
@@ -13,7 +15,6 @@ import { Fr } from '@aztec/foundation/fields';
 import { Tuple } from '@aztec/foundation/serialize';
 import { ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
 
-import { ContractWithArtifact } from './interfaces/index.js';
 import { FunctionL2Logs, Note, TxL2Logs } from './logs/index.js';
 import { makePrivateKernelTailCircuitPublicInputs, makePublicCallRequest } from './mocks_to_purge.js';
 import { ExtendedNote } from './notes/index.js';
@@ -62,10 +63,11 @@ export const randomContractArtifact = (): ContractArtifact => ({
 export const randomContractInstanceWithAddress = (opts: { contractClassId?: Fr } = {}): ContractInstanceWithAddress =>
   SerializableContractInstance.random(opts).withAddress(AztecAddress.random());
 
-export const randomDeployedContract = (): ContractWithArtifact => ({
-  artifact: randomContractArtifact(),
-  instance: randomContractInstanceWithAddress(),
-});
+export const randomDeployedContract = () => {
+  const artifact = randomContractArtifact();
+  const contractClassId = computeContractClassId(getContractClassFromArtifact(artifact));
+  return { artifact, instance: randomContractInstanceWithAddress({ contractClassId }) };
+};
 
 export const randomExtendedNote = ({
   note = Note.random(),
