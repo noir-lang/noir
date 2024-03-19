@@ -17,9 +17,9 @@ fn main(
     // Is there ever a situation where someone would want 
     // to ensure that a signature was invalid?
     // Check that passing a slice as the message is valid
-    let valid_signature = std::schnorr::verify_signature(pub_key_x, pub_key_y, signature, message_field_bytes);
+    let valid_signature = std::schnorr::verify_signature_slice(pub_key_x, pub_key_y, signature, message_field_bytes);
     assert(valid_signature);
     // Check that passing an array as the message is valid
-    let valid_signature = std::schnorr::verify_signature_array(pub_key_x, pub_key_y, signature, message);
+    let valid_signature = std::schnorr::verify_signature(pub_key_x, pub_key_y, signature, message);
     assert(valid_signature);
 }

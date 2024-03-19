@@ -8,38 +8,38 @@ use crate::uint128::U128;
 
 #[foreign(sha256)]
 // docs:start:sha256
-pub fn sha256(input: [u8]) -> [u8; 32]
+pub fn sha256<N>(input: [u8; N]) -> [u8; 32]
 // docs:end:sha256
 {}
 
 #[foreign(sha256)]
-// docs:start:sha256_array
-pub fn sha256_array<N>(input: [u8; N]) -> [u8; 32]
-// docs:end:sha256_array
+// docs:start:sha256_slice
+pub fn sha256_slice(input: [u8]) -> [u8; 32]
+// docs:end:sha256_slice
 {}
 
 #[foreign(blake2s)]
 // docs:start:blake2s
-pub fn blake2s(input: [u8]) -> [u8; 32]
+pub fn blake2s<N>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake2s
 {}
 
 #[foreign(blake2s)]
-// docs:start:blake2s_array
-pub fn blake2s_array<N>(input: [u8; N]) -> [u8; 32]
-// docs:end:blake2s_array
+// docs:start:blake2s_slice
+pub fn blake2s_slice(input: [u8]) -> [u8; 32]
+// docs:end:blake2s_slice
 {}
 
 #[foreign(blake3)]
 // docs:start:blake3
-pub fn blake3(input: [u8]) -> [u8; 32]
+pub fn blake3<N>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake3
 {}
 
 #[foreign(blake3)]
-// docs:start:blake3_array
-pub fn blake3_array<N>(input: [u8; N]) -> [u8; 32]
-// docs:end:blake3_array
+// docs:start:blake3_slice
+pub fn blake3_slice(input: [u8]) -> [u8; 32]
+// docs:end:blake3_slice
 {}
 
 // docs:start:pedersen_commitment
@@ -48,53 +48,54 @@ struct PedersenPoint {
    y : Field,
 }
 
-pub fn pedersen_commitment(input: [Field]) -> PedersenPoint
+pub fn pedersen_commitment<N>(input: [Field; N]) -> PedersenPoint {
 // docs:end:pedersen_commitment
-{
     pedersen_commitment_with_separator(input, 0)
 }
 
-// docs:start:pedersen_commitment_array
-pub fn pedersen_commitment_array<N>(input: [Field; N]) -> PedersenPoint {
-    pedersen_commitment_with_separator_array(input, 0)
+// docs:start:pedersen_commitment_slice
+pub fn pedersen_commitment_slice(input: [Field]) -> PedersenPoint
+{
+    pedersen_commitment_with_separator_slice(input, 0)
 }
-// docs:end:pedersen_commitment_array
+// docs:end:pedersen_commitment_slice
+
 
 #[foreign(pedersen_commitment)]
-pub fn __pedersen_commitment_with_separator(input: [Field], separator: u32) -> [Field; 2] {}
+pub fn __pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> [Field; 2] {}
 
 #[foreign(pedersen_commitment)]
-pub fn __pedersen_commitment_with_separator_array<N>(input: [Field; N], separator: u32) -> [Field; 2] {}
+pub fn __pedersen_commitment_with_separator_slice(input: [Field], separator: u32) -> [Field; 2] {}
 
-pub fn pedersen_commitment_with_separator(input: [Field], separator: u32) -> PedersenPoint {
+pub fn pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> PedersenPoint {
     let values = __pedersen_commitment_with_separator(input, separator);
     PedersenPoint { x: values[0], y: values[1] }
 }
 
-pub fn pedersen_commitment_with_separator_array<N>(input: [Field; N], separator: u32) -> PedersenPoint {
-    let values = __pedersen_commitment_with_separator_array(input, separator);
+pub fn pedersen_commitment_with_separator_slice(input: [Field], separator: u32) -> PedersenPoint {
+    let values = __pedersen_commitment_with_separator_slice(input, separator);
     PedersenPoint { x: values[0], y: values[1] }
 }
 
 // docs:start:pedersen_hash
-pub fn pedersen_hash(input: [Field]) -> Field
+pub fn pedersen_hash<N>(input: [Field; N]) -> Field
 // docs:end:pedersen_hash
 {
     pedersen_hash_with_separator(input, 0)
 }
 
-// docs:start:pedersen_hash_array
-pub fn pedersen_hash_array<N>(input: [Field; N]) -> Field
-// docs:end:pedersen_hash_array
+// docs:start:pedersen_hash_slice
+pub fn pedersen_hash_slice(input: [Field]) -> Field
+// docs:end:pedersen_hash_slice
 {
-    pedersen_hash_with_separator_array(input, 0)
+    pedersen_hash_with_separator_slice(input, 0)
 }
 
 #[foreign(pedersen_hash)]
-pub fn pedersen_hash_with_separator(input: [Field], separator: u32) -> Field {}
+pub fn pedersen_hash_with_separator<N>(input: [Field; N], separator: u32) -> Field {}
 
 #[foreign(pedersen_hash)]
-pub fn pedersen_hash_with_separator_array<N>(input: [Field; N], separator: u32) -> Field {}
+pub fn pedersen_hash_with_separator_slice(input: [Field], separator: u32) -> Field {}
 
 pub fn hash_to_field(inputs: [Field]) -> Field {
     let mut inputs_as_bytes = &[];
@@ -106,20 +107,20 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
         }
     }
 
-    let hashed_input = blake2s(inputs_as_bytes);
+    let hashed_input = blake2s_slice(inputs_as_bytes);
     crate::field::bytes32_to_field(hashed_input)
 }
 
 #[foreign(keccak256)]
 // docs:start:keccak256
-pub fn keccak256(input: [u8], message_size: u32) -> [u8; 32]
+pub fn keccak256<N>(input: [u8; N], message_size: u32) -> [u8; 32]
 // docs:end:keccak256
 {}
 
 #[foreign(keccak256)]
-// docs:start:keccak256_array
-pub fn keccak256_array<N>(input: [u8; N], message_size: u32) -> [u8; 32]
-// docs:end:keccak256_array
+// docs:start:keccak256_slice
+pub fn keccak256_slice(input: [u8], message_size: u32) -> [u8; 32]
+// docs:end:keccak256_slice
 {}
 
 #[foreign(poseidon2_permutation)]

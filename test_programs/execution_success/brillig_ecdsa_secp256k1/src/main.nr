@@ -12,5 +12,5 @@ unconstrained fn ecdsa(
     pub_key_y: [u8; 32],
     signature: [u8; 64]
 ) -> bool {
-    std::ecdsa_secp256k1::verify_signature_array(pub_key_x, pub_key_y, signature, hashed_message)
+    std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message)
 }

@@ -21,5 +21,5 @@ fn main(x: Field, result: [u8; 32]) {
 }
 
 unconstrained fn keccak256<N>(data: [u8; N], msg_len: u32) -> [u8; 32] {
-    std::hash::keccak256_array(data, msg_len)
+    std::hash::keccak256(data, msg_len)
 }

@@ -10,7 +10,7 @@ import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
 ## schnorr::verify_signature
 
 Verifier for Schnorr signatures over the embedded curve (for BN254 it is Grumpkin).
-See schnorr::verify_signature_array for a version that works directly on arrays.
+See schnorr::verify_signature_slice for a version that works directly on slices.
 
 #include_code schnorr_verify noir_stdlib/src/schnorr.nr rust
 
@@ -36,11 +36,11 @@ const signature = Array.from(
 
 <BlackBoxInfo />
 
-## schnorr::verify_signature_array
+## schnorr::verify_signature_slice
 
 Verifier for Schnorr signatures over the embedded curve (for BN254 it is Grumpkin)
-where the message is an array. 
+where the message is a slice. 
 
-#include_code schnorr_verify_array noir_stdlib/src/schnorr.nr rust
+#include_code schnorr_verify_slice noir_stdlib/src/schnorr.nr rust
 
 <BlackBoxInfo />

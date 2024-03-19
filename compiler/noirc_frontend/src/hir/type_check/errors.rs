@@ -235,8 +235,7 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::OverflowingAssignment { span, .. }
             | TypeCheckError::FieldModulo { span }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span }
-            | TypeCheckError::NonConstantSliceLength { span } => {
+            | TypeCheckError::NonConstantSliceLength { span }
             | TypeCheckError::UnconstrainedReferenceToConstrained { span }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
