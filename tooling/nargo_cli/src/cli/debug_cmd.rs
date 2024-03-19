@@ -235,7 +235,7 @@ pub(crate) fn debug_program(
 
     noir_debugger::debug_circuit(
         &blackbox_solver,
-        &compiled_program.circuit,
+        &compiled_program.program.functions[0],
         debug_artifact,
         initial_witness,
     )

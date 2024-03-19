@@ -12,7 +12,6 @@ mod die;
 pub(crate) mod flatten_cfg;
 mod inlining;
 mod mem2reg;
-mod rc;
 mod remove_bit_shifts;
 mod simplify_cfg;
 mod unrolling;
