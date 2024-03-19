@@ -30,7 +30,7 @@ By incorporating this attribute directly in the circuit's definition, tooling li
 
 ```rust
 #[foreign(recursive_aggregation)]
-pub fn verify_proof<N>(verification_key: [Field], proof: [Field], public_inputs: [Field], key_hash: Field) {}
+pub fn verify_proof(verification_key: [Field], proof: [Field], public_inputs: [Field], key_hash: Field) {}
 ```
 
 :::info
