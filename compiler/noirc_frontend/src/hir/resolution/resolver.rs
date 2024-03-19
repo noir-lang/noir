@@ -481,12 +481,12 @@ impl<'a> Resolver<'a> {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                let size = if size.is_none() {
-                    Type::NotConstant
-                } else {
-                    self.resolve_array_size(size, new_variables)
-                };
+                let size = self.resolve_array_size(Some(size), new_variables);
                 Type::Array(Box::new(size), elem)
+            }
+            Slice(elem) => {
+                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr),
             Integer(sign, bits) => Type::Integer(sign, bits),
@@ -1084,7 +1084,6 @@ impl<'a> Resolver<'a> {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
-            | Type::NotConstant
             | Type::TraitAsType(..)
             | Type::Code
             | Type::Forall(_, _) => (),
@@ -1093,6 +1092,10 @@ impl<'a> Resolver<'a> {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
+                Self::find_numeric_generics_in_type(element_type, found);
+            }
+
+            Type::Slice(element_type) => {
                 Self::find_numeric_generics_in_type(element_type, found);
             }
 
@@ -1403,27 +1406,37 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    fn resolve_array_literal(&mut self, array_literal: ArrayLiteral) -> HirArrayLiteral {
+        match array_literal {
+            ArrayLiteral::Standard(elements) => {
+                let elements = vecmap(elements, |elem| self.resolve_expression(elem));
+                HirArrayLiteral::Standard(elements)
+            }
+            ArrayLiteral::Repeated { repeated_element, length } => {
+                let span = length.span;
+                let length =
+                    UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(|error| {
+                        self.errors.push(ResolverError::ParserError(Box::new(error)));
+                        UnresolvedTypeExpression::Constant(0, span)
+                    });
+
+                let length = self.convert_expression_type(length);
+                let repeated_element = self.resolve_expression(*repeated_element);
+
+                HirArrayLiteral::Repeated { repeated_element, length }
+            }
+        }
+    }
+
     pub fn resolve_expression(&mut self, expr: Expression) -> ExprId {
         let hir_expr = match expr.kind {
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),
-                Literal::Array(ArrayLiteral::Standard(elements)) => {
-                    let elements = vecmap(elements, |elem| self.resolve_expression(elem));
-                    HirLiteral::Array(HirArrayLiteral::Standard(elements))
+                Literal::Array(array_literal) => {
+                    HirLiteral::Array(self.resolve_array_literal(array_literal))
                 }
-                Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
-                    let span = length.span;
-                    let length = UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(
-                        |error| {
-                            self.errors.push(ResolverError::ParserError(Box::new(error)));
-                            UnresolvedTypeExpression::Constant(0, span)
-                        },
-                    );
-
-                    let length = self.convert_expression_type(length);
-                    let repeated_element = self.resolve_expression(*repeated_element);
-
-                    HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length })
+                Literal::Slice(array_literal) => {
+                    HirLiteral::Slice(self.resolve_array_literal(array_literal))
                 }
                 Literal::Integer(integer, sign) => HirLiteral::Integer(integer, sign),
                 Literal::Str(str) => HirLiteral::Str(str),

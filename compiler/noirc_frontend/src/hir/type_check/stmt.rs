@@ -256,6 +256,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 let typ = match lvalue_type.follow_bindings() {
                     Type::Array(_, elem_type) => *elem_type,
+                    Type::Slice(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     other => {
                         // TODO: Need a better span here

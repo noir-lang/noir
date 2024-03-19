@@ -18,6 +18,7 @@ This function currently supports the following types:
 - Bool
 - Uint
 - Array
+- Slice
 - String
 - Tuple
 - Function
