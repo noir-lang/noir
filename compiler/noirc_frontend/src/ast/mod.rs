@@ -83,7 +83,7 @@ impl core::fmt::Display for IntegerBitSize {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeData {
     FieldElement,
-    Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
+    Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [Field; 4] = Array(4, Field)
     Slice(Box<UnresolvedType>),
     Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
