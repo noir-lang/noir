@@ -9,12 +9,15 @@ class AvmMemTraceBuilder {
 
   public:
     static const size_t MEM_SIZE = 1024;
-    static const uint32_t SUB_CLK_LOAD_A = 0;
-    static const uint32_t SUB_CLK_LOAD_B = 1;
-    static const uint32_t SUB_CLK_LOAD_C = 2;
-    static const uint32_t SUB_CLK_STORE_A = 3;
-    static const uint32_t SUB_CLK_STORE_B = 4;
-    static const uint32_t SUB_CLK_STORE_C = 5;
+    static const uint32_t SUB_CLK_IND_LOAD_A = 0;
+    static const uint32_t SUB_CLK_IND_LOAD_B = 1;
+    static const uint32_t SUB_CLK_IND_LOAD_C = 2;
+    static const uint32_t SUB_CLK_LOAD_A = 3;
+    static const uint32_t SUB_CLK_LOAD_B = 4;
+    static const uint32_t SUB_CLK_LOAD_C = 5;
+    static const uint32_t SUB_CLK_STORE_A = 6;
+    static const uint32_t SUB_CLK_STORE_B = 7;
+    static const uint32_t SUB_CLK_STORE_C = 8;
 
     // Keeps track of the number of times a mem tag err should appear in the trace
     // clk -> count
@@ -75,6 +78,7 @@ class AvmMemTraceBuilder {
 
     std::pair<FF, AvmMemoryTag> read_and_load_mov_opcode(uint32_t clk, uint32_t addr);
     MemRead read_and_load_from_memory(uint32_t clk, IntermRegister interm_reg, uint32_t addr, AvmMemoryTag m_in_tag);
+    MemRead indirect_read_and_load_from_memory(uint32_t clk, IndirectRegister ind_reg, uint32_t addr);
     void write_into_memory(
         uint32_t clk, IntermRegister interm_reg, uint32_t addr, FF const& val, AvmMemoryTag m_in_tag);
 
@@ -93,8 +97,7 @@ class AvmMemTraceBuilder {
                                         AvmMemoryTag m_in_tag,
                                         AvmMemoryTag m_tag);
 
-    bool load_in_mem_trace(
-        uint32_t clk, IntermRegister interm_reg, uint32_t addr, FF const& val, AvmMemoryTag m_in_tag);
+    bool load_from_mem_trace(uint32_t clk, uint32_t sub_clk, uint32_t addr, FF const& val, AvmMemoryTag m_in_tag);
     void store_in_mem_trace(
         uint32_t clk, IntermRegister interm_reg, uint32_t addr, FF const& val, AvmMemoryTag m_in_tag);
 };

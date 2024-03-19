@@ -9,6 +9,8 @@
 #include <vector>
 
 #include "avm_trace.hpp"
+#include "barretenberg/vm/avm_trace/avm_common.hpp"
+#include "barretenberg/vm/avm_trace/avm_mem_trace.hpp"
 
 namespace bb::avm_trace {
 
@@ -365,32 +367,58 @@ void AvmTraceBuilder::set(uint128_t val, uint32_t dst_offset, AvmMemoryTag in_ta
  * @brief Copy value and tag from a memory cell at position src_offset to the
  *        memory cell at position dst_offset
  *
+ * @param indirect A byte encoding information about indirect/direct memory access.
  * @param src_offset Offset of source memory cell
  * @param dst_offset Offset of destination memory cell
  */
-void AvmTraceBuilder::op_mov(uint32_t const src_offset, uint32_t const dst_offset)
+void AvmTraceBuilder::op_mov(uint8_t indirect, uint32_t src_offset, uint32_t dst_offset)
 {
     auto const clk = static_cast<uint32_t>(main_trace.size());
+    bool tag_match = true;
+    uint32_t direct_src_offset = src_offset;
+    uint32_t direct_dst_offset = dst_offset;
+
+    bool indirect_src_flag = static_cast<bool>(indirect & 0x01);
+    bool indirect_dst_flag = static_cast<bool>((indirect & 0x02) >> 1);
+
+    if (indirect_src_flag) {
+        auto read_ind_a =
+            mem_trace_builder.indirect_read_and_load_from_memory(clk, IndirectRegister::IND_A, src_offset);
+        tag_match = read_ind_a.tag_match;
+        direct_src_offset = uint32_t(read_ind_a.val);
+    }
+
+    if (indirect_dst_flag) {
+        auto read_ind_c =
+            mem_trace_builder.indirect_read_and_load_from_memory(clk, IndirectRegister::IND_C, dst_offset);
+        tag_match = tag_match && read_ind_c.tag_match;
+        direct_dst_offset = uint32_t(read_ind_c.val);
+    }
 
     // Reading from memory and loading into ia without tag check.
-    auto const [val, tag] = mem_trace_builder.read_and_load_mov_opcode(clk, src_offset);
+    auto const [val, tag] = mem_trace_builder.read_and_load_mov_opcode(clk, direct_src_offset);
 
-    // Write into memory value c from intermediate register ic.
-    mem_trace_builder.write_into_memory(clk, IntermRegister::IC, dst_offset, val, tag);
+    // Write into memory from intermediate register ic.
+    mem_trace_builder.write_into_memory(clk, IntermRegister::IC, direct_dst_offset, val, tag);
 
     main_trace.push_back(Row{
         .avm_main_clk = clk,
-        .avm_main_pc = FF(pc++),
-        .avm_main_internal_return_ptr = FF(internal_return_ptr),
-        .avm_main_sel_mov = FF(1),
-        .avm_main_in_tag = FF(static_cast<uint32_t>(tag)),
+        .avm_main_pc = pc++,
+        .avm_main_internal_return_ptr = internal_return_ptr,
+        .avm_main_sel_mov = 1,
+        .avm_main_in_tag = static_cast<uint32_t>(tag),
+        .avm_main_tag_err = static_cast<uint32_t>(!tag_match),
         .avm_main_ia = val,
         .avm_main_ic = val,
-        .avm_main_mem_op_a = FF(1),
-        .avm_main_mem_op_c = FF(1),
-        .avm_main_rwc = FF(1),
-        .avm_main_mem_idx_a = FF(src_offset),
-        .avm_main_mem_idx_c = FF(dst_offset),
+        .avm_main_mem_op_a = 1,
+        .avm_main_mem_op_c = 1,
+        .avm_main_rwc = 1,
+        .avm_main_ind_a = indirect_src_flag ? src_offset : 0,
+        .avm_main_ind_c = indirect_dst_flag ? dst_offset : 0,
+        .avm_main_ind_op_a = static_cast<uint32_t>(indirect_src_flag),
+        .avm_main_ind_op_c = static_cast<uint32_t>(indirect_dst_flag),
+        .avm_main_mem_idx_a = direct_src_offset,
+        .avm_main_mem_idx_c = direct_dst_offset,
     });
 }
 
@@ -787,15 +815,30 @@ std::vector<Row> AvmTraceBuilder::finalize()
 
         dest.incl_mem_tag_err_counts = FF(static_cast<uint32_t>(src.m_tag_err_count_relevant));
 
-        if (src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_LOAD_A ||
-            src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_STORE_A) {
-            dest.avm_mem_m_op_a = FF(1);
-        } else if (src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_LOAD_B ||
-                   src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_STORE_B) {
-            dest.avm_mem_m_op_b = FF(1);
-        } else if (src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_LOAD_C ||
-                   src.m_sub_clk == AvmMemTraceBuilder::SUB_CLK_STORE_C) {
-            dest.avm_mem_m_op_c = FF(1);
+        switch (src.m_sub_clk) {
+        case AvmMemTraceBuilder::SUB_CLK_LOAD_A:
+        case AvmMemTraceBuilder::SUB_CLK_STORE_A:
+            dest.avm_mem_m_op_a = 1;
+            break;
+        case AvmMemTraceBuilder::SUB_CLK_LOAD_B:
+        case AvmMemTraceBuilder::SUB_CLK_STORE_B:
+            dest.avm_mem_m_op_b = 1;
+            break;
+        case AvmMemTraceBuilder::SUB_CLK_LOAD_C:
+        case AvmMemTraceBuilder::SUB_CLK_STORE_C:
+            dest.avm_mem_m_op_c = 1;
+            break;
+        case AvmMemTraceBuilder::SUB_CLK_IND_LOAD_A:
+            dest.avm_mem_m_ind_op_a = 1;
+            break;
+        case AvmMemTraceBuilder::SUB_CLK_IND_LOAD_B:
+            dest.avm_mem_m_ind_op_b = 1;
+            break;
+        case AvmMemTraceBuilder::SUB_CLK_IND_LOAD_C:
+            dest.avm_mem_m_ind_op_c = 1;
+            break;
+        default:
+            break;
         }
 
         if (i + 1 < mem_trace_size) {

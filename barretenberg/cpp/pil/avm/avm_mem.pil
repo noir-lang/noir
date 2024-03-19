@@ -20,6 +20,11 @@ namespace avm_mem(256);
     pol commit m_op_b;
     pol commit m_op_c;
 
+    // Indicator of the indirect register pertaining to the memory operation (foreign key to avm_main.ind_op_XXX)
+    pol commit m_ind_op_a;
+    pol commit m_ind_op_b;
+    pol commit m_ind_op_c;
+
     // Selector for MOV opcode (copied from main trace for loading operation on intermediated register ia)
     // Boolean constraint is performed in main trace.
     pol commit m_sel_mov;
@@ -38,16 +43,21 @@ namespace avm_mem(256);
     m_op_a * (1 - m_op_a) = 0;
     m_op_b * (1 - m_op_b) = 0;
     m_op_c * (1 - m_op_c) = 0;
+    m_ind_op_a * (1 - m_ind_op_a) = 0;
+    m_ind_op_b * (1 - m_ind_op_b) = 0;
+    m_ind_op_c * (1 - m_ind_op_c) = 0;
 
     // TODO: m_addr is u32 and 0 <= m_tag <= 6
     //       (m_in_tag will be constrained through inclusion check to main trace)
 
-    // sub_clk derivation
-    m_sub_clk = 3 * m_rw + m_op_b + 2 * m_op_c;
-
     // Maximum one memory operation enabled per row
-    pol M_OP_SUM = m_op_a + m_op_b + m_op_c;
-    M_OP_SUM * (M_OP_SUM - 1) = 0;
+    pol MEM_SEL = m_op_a + m_op_b + m_op_c + m_ind_op_a + m_ind_op_b + m_ind_op_c;
+    MEM_SEL * (MEM_SEL - 1) = 0;
+
+    // sub_clk derivation
+    pol IND_OP = m_ind_op_a + m_ind_op_b + m_ind_op_c;
+    m_sub_clk = MEM_SEL * (m_ind_op_b + m_op_b + 2 * (m_ind_op_c + m_op_c) + 3 * (1 - IND_OP + m_rw));
+    // We need the MEM_SEL factor as the right factor is not zero when all columns are zero.
 
     // Remark: m_lastAccess == 1 on first row and therefore any relation with the
     //         multiplicative term (1 - m_lastAccess) implicitly includes (1 - avm_main.first)
@@ -116,6 +126,17 @@ namespace avm_mem(256);
     // Correctness of two above checks MEM_IN_TAG_CONSISTENCY_1/2:
     // m_in_tag == m_tag ==> m_tag_err == 0 (first relation)
     // m_tag_err == 0 ==> m_one_min_inv == 0 by second relation. First relation ==> m_in_tag - m_tag == 0
+
+    //====== Indirect Memory Constraints =====================================
+    // Enforce m_in_tag == 3, i.e., in_tag must be U32
+    m_ind_op_a * (m_in_tag - 3) = 0;
+    m_ind_op_b * (m_in_tag - 3) = 0;
+    m_ind_op_c * (m_in_tag - 3) = 0;
+
+    // Indirect operation is always a load
+    m_ind_op_a * m_rw = 0;
+    m_ind_op_b * m_rw = 0;
+    m_ind_op_c * m_rw = 0;
 
     //====== MOV Opcode in_tag Constraint =====================================
     // The following constraint ensures that the m_in_tag is set to m_tag for

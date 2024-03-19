@@ -20,6 +20,9 @@
 #include "barretenberg/relations/generated/avm/perm_main_mem_a.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_b.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_c.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_mem_ind_a.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_mem_ind_b.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_mem_ind_c.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace bb {
@@ -41,19 +44,22 @@ class AvmFlavor {
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 85;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 97;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 101;
+    static constexpr size_t NUM_ALL_ENTITIES = 113;
 
-    using Relations = std::tuple<Avm_vm::avm_alu<FF>,
+    using Relations = std::tuple<Avm_vm::avm_main<FF>,
                                  Avm_vm::avm_mem<FF>,
-                                 Avm_vm::avm_main<FF>,
+                                 Avm_vm::avm_alu<FF>,
                                  perm_main_alu_relation<FF>,
                                  perm_main_mem_a_relation<FF>,
                                  perm_main_mem_b_relation<FF>,
-                                 perm_main_mem_c_relation<FF>>;
+                                 perm_main_mem_c_relation<FF>,
+                                 perm_main_mem_ind_a_relation<FF>,
+                                 perm_main_mem_ind_b_relation<FF>,
+                                 perm_main_mem_ind_c_relation<FF>>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
@@ -99,6 +105,9 @@ class AvmFlavor {
                               avm_mem_m_op_a,
                               avm_mem_m_op_b,
                               avm_mem_m_op_c,
+                              avm_mem_m_ind_op_a,
+                              avm_mem_m_ind_op_b,
+                              avm_mem_m_ind_op_c,
                               avm_mem_m_sel_mov,
                               avm_mem_m_tag_err,
                               avm_mem_m_one_min_inv,
@@ -160,6 +169,12 @@ class AvmFlavor {
                               avm_main_rwa,
                               avm_main_rwb,
                               avm_main_rwc,
+                              avm_main_ind_a,
+                              avm_main_ind_b,
+                              avm_main_ind_c,
+                              avm_main_ind_op_a,
+                              avm_main_ind_op_b,
+                              avm_main_ind_op_c,
                               avm_main_mem_idx_a,
                               avm_main_mem_idx_b,
                               avm_main_mem_idx_c,
@@ -168,6 +183,9 @@ class AvmFlavor {
                               perm_main_mem_a,
                               perm_main_mem_b,
                               perm_main_mem_c,
+                              perm_main_mem_ind_a,
+                              perm_main_mem_ind_b,
+                              perm_main_mem_ind_c,
                               incl_main_tag_err,
                               incl_mem_tag_err,
                               incl_main_tag_err_counts,
@@ -187,6 +205,9 @@ class AvmFlavor {
                      avm_mem_m_op_a,
                      avm_mem_m_op_b,
                      avm_mem_m_op_c,
+                     avm_mem_m_ind_op_a,
+                     avm_mem_m_ind_op_b,
+                     avm_mem_m_ind_op_c,
                      avm_mem_m_sel_mov,
                      avm_mem_m_tag_err,
                      avm_mem_m_one_min_inv,
@@ -248,6 +269,12 @@ class AvmFlavor {
                      avm_main_rwa,
                      avm_main_rwb,
                      avm_main_rwc,
+                     avm_main_ind_a,
+                     avm_main_ind_b,
+                     avm_main_ind_c,
+                     avm_main_ind_op_a,
+                     avm_main_ind_op_b,
+                     avm_main_ind_op_c,
                      avm_main_mem_idx_a,
                      avm_main_mem_idx_b,
                      avm_main_mem_idx_c,
@@ -256,6 +283,9 @@ class AvmFlavor {
                      perm_main_mem_a,
                      perm_main_mem_b,
                      perm_main_mem_c,
+                     perm_main_mem_ind_a,
+                     perm_main_mem_ind_b,
+                     perm_main_mem_ind_c,
                      incl_main_tag_err,
                      incl_mem_tag_err,
                      incl_main_tag_err_counts,
@@ -281,6 +311,9 @@ class AvmFlavor {
                               avm_mem_m_op_a,
                               avm_mem_m_op_b,
                               avm_mem_m_op_c,
+                              avm_mem_m_ind_op_a,
+                              avm_mem_m_ind_op_b,
+                              avm_mem_m_ind_op_c,
                               avm_mem_m_sel_mov,
                               avm_mem_m_tag_err,
                               avm_mem_m_one_min_inv,
@@ -342,6 +375,12 @@ class AvmFlavor {
                               avm_main_rwa,
                               avm_main_rwb,
                               avm_main_rwc,
+                              avm_main_ind_a,
+                              avm_main_ind_b,
+                              avm_main_ind_c,
+                              avm_main_ind_op_a,
+                              avm_main_ind_op_b,
+                              avm_main_ind_op_c,
                               avm_main_mem_idx_a,
                               avm_main_mem_idx_b,
                               avm_main_mem_idx_c,
@@ -350,24 +389,27 @@ class AvmFlavor {
                               perm_main_mem_a,
                               perm_main_mem_b,
                               perm_main_mem_c,
+                              perm_main_mem_ind_a,
+                              perm_main_mem_ind_b,
+                              perm_main_mem_ind_c,
                               incl_main_tag_err,
                               incl_mem_tag_err,
                               incl_main_tag_err_counts,
                               incl_mem_tag_err_counts,
-                              avm_alu_alu_u16_r5_shift,
-                              avm_alu_alu_u16_r6_shift,
-                              avm_alu_alu_u16_r3_shift,
-                              avm_alu_alu_u16_r7_shift,
-                              avm_alu_alu_u16_r0_shift,
-                              avm_alu_alu_u16_r2_shift,
-                              avm_alu_alu_u16_r1_shift,
-                              avm_alu_alu_u16_r4_shift,
-                              avm_mem_m_tag_shift,
+                              avm_main_internal_return_ptr_shift,
+                              avm_main_pc_shift,
                               avm_mem_m_addr_shift,
                               avm_mem_m_val_shift,
+                              avm_mem_m_tag_shift,
                               avm_mem_m_rw_shift,
-                              avm_main_internal_return_ptr_shift,
-                              avm_main_pc_shift)
+                              avm_alu_alu_u16_r7_shift,
+                              avm_alu_alu_u16_r1_shift,
+                              avm_alu_alu_u16_r5_shift,
+                              avm_alu_alu_u16_r6_shift,
+                              avm_alu_alu_u16_r0_shift,
+                              avm_alu_alu_u16_r4_shift,
+                              avm_alu_alu_u16_r2_shift,
+                              avm_alu_alu_u16_r3_shift)
 
         RefVector<DataType> get_wires()
         {
@@ -385,6 +427,9 @@ class AvmFlavor {
                      avm_mem_m_op_a,
                      avm_mem_m_op_b,
                      avm_mem_m_op_c,
+                     avm_mem_m_ind_op_a,
+                     avm_mem_m_ind_op_b,
+                     avm_mem_m_ind_op_c,
                      avm_mem_m_sel_mov,
                      avm_mem_m_tag_err,
                      avm_mem_m_one_min_inv,
@@ -446,6 +491,12 @@ class AvmFlavor {
                      avm_main_rwa,
                      avm_main_rwb,
                      avm_main_rwc,
+                     avm_main_ind_a,
+                     avm_main_ind_b,
+                     avm_main_ind_c,
+                     avm_main_ind_op_a,
+                     avm_main_ind_op_b,
+                     avm_main_ind_op_c,
                      avm_main_mem_idx_a,
                      avm_main_mem_idx_b,
                      avm_main_mem_idx_c,
@@ -454,24 +505,27 @@ class AvmFlavor {
                      perm_main_mem_a,
                      perm_main_mem_b,
                      perm_main_mem_c,
+                     perm_main_mem_ind_a,
+                     perm_main_mem_ind_b,
+                     perm_main_mem_ind_c,
                      incl_main_tag_err,
                      incl_mem_tag_err,
                      incl_main_tag_err_counts,
                      incl_mem_tag_err_counts,
-                     avm_alu_alu_u16_r5_shift,
-                     avm_alu_alu_u16_r6_shift,
-                     avm_alu_alu_u16_r3_shift,
-                     avm_alu_alu_u16_r7_shift,
-                     avm_alu_alu_u16_r0_shift,
-                     avm_alu_alu_u16_r2_shift,
-                     avm_alu_alu_u16_r1_shift,
-                     avm_alu_alu_u16_r4_shift,
-                     avm_mem_m_tag_shift,
+                     avm_main_internal_return_ptr_shift,
+                     avm_main_pc_shift,
                      avm_mem_m_addr_shift,
                      avm_mem_m_val_shift,
+                     avm_mem_m_tag_shift,
                      avm_mem_m_rw_shift,
-                     avm_main_internal_return_ptr_shift,
-                     avm_main_pc_shift };
+                     avm_alu_alu_u16_r7_shift,
+                     avm_alu_alu_u16_r1_shift,
+                     avm_alu_alu_u16_r5_shift,
+                     avm_alu_alu_u16_r6_shift,
+                     avm_alu_alu_u16_r0_shift,
+                     avm_alu_alu_u16_r4_shift,
+                     avm_alu_alu_u16_r2_shift,
+                     avm_alu_alu_u16_r3_shift };
         };
         RefVector<DataType> get_unshifted()
         {
@@ -489,6 +543,9 @@ class AvmFlavor {
                      avm_mem_m_op_a,
                      avm_mem_m_op_b,
                      avm_mem_m_op_c,
+                     avm_mem_m_ind_op_a,
+                     avm_mem_m_ind_op_b,
+                     avm_mem_m_ind_op_c,
                      avm_mem_m_sel_mov,
                      avm_mem_m_tag_err,
                      avm_mem_m_one_min_inv,
@@ -550,6 +607,12 @@ class AvmFlavor {
                      avm_main_rwa,
                      avm_main_rwb,
                      avm_main_rwc,
+                     avm_main_ind_a,
+                     avm_main_ind_b,
+                     avm_main_ind_c,
+                     avm_main_ind_op_a,
+                     avm_main_ind_op_b,
+                     avm_main_ind_op_c,
                      avm_main_mem_idx_a,
                      avm_main_mem_idx_b,
                      avm_main_mem_idx_c,
@@ -558,6 +621,9 @@ class AvmFlavor {
                      perm_main_mem_a,
                      perm_main_mem_b,
                      perm_main_mem_c,
+                     perm_main_mem_ind_a,
+                     perm_main_mem_ind_b,
+                     perm_main_mem_ind_c,
                      incl_main_tag_err,
                      incl_mem_tag_err,
                      incl_main_tag_err_counts,
@@ -565,37 +631,37 @@ class AvmFlavor {
         };
         RefVector<DataType> get_to_be_shifted()
         {
-            return { avm_alu_alu_u16_r5,
-                     avm_alu_alu_u16_r6,
-                     avm_alu_alu_u16_r3,
-                     avm_alu_alu_u16_r7,
-                     avm_alu_alu_u16_r0,
-                     avm_alu_alu_u16_r2,
-                     avm_alu_alu_u16_r1,
-                     avm_alu_alu_u16_r4,
-                     avm_mem_m_tag,
+            return { avm_main_internal_return_ptr,
+                     avm_main_pc,
                      avm_mem_m_addr,
                      avm_mem_m_val,
+                     avm_mem_m_tag,
                      avm_mem_m_rw,
-                     avm_main_internal_return_ptr,
-                     avm_main_pc };
+                     avm_alu_alu_u16_r7,
+                     avm_alu_alu_u16_r1,
+                     avm_alu_alu_u16_r5,
+                     avm_alu_alu_u16_r6,
+                     avm_alu_alu_u16_r0,
+                     avm_alu_alu_u16_r4,
+                     avm_alu_alu_u16_r2,
+                     avm_alu_alu_u16_r3 };
         };
         RefVector<DataType> get_shifted()
         {
-            return { avm_alu_alu_u16_r5_shift,
-                     avm_alu_alu_u16_r6_shift,
-                     avm_alu_alu_u16_r3_shift,
-                     avm_alu_alu_u16_r7_shift,
-                     avm_alu_alu_u16_r0_shift,
-                     avm_alu_alu_u16_r2_shift,
-                     avm_alu_alu_u16_r1_shift,
-                     avm_alu_alu_u16_r4_shift,
-                     avm_mem_m_tag_shift,
+            return { avm_main_internal_return_ptr_shift,
+                     avm_main_pc_shift,
                      avm_mem_m_addr_shift,
                      avm_mem_m_val_shift,
+                     avm_mem_m_tag_shift,
                      avm_mem_m_rw_shift,
-                     avm_main_internal_return_ptr_shift,
-                     avm_main_pc_shift };
+                     avm_alu_alu_u16_r7_shift,
+                     avm_alu_alu_u16_r1_shift,
+                     avm_alu_alu_u16_r5_shift,
+                     avm_alu_alu_u16_r6_shift,
+                     avm_alu_alu_u16_r0_shift,
+                     avm_alu_alu_u16_r4_shift,
+                     avm_alu_alu_u16_r2_shift,
+                     avm_alu_alu_u16_r3_shift };
         };
     };
 
@@ -608,20 +674,20 @@ class AvmFlavor {
 
         RefVector<DataType> get_to_be_shifted()
         {
-            return { avm_alu_alu_u16_r5,
-                     avm_alu_alu_u16_r6,
-                     avm_alu_alu_u16_r3,
-                     avm_alu_alu_u16_r7,
-                     avm_alu_alu_u16_r0,
-                     avm_alu_alu_u16_r2,
-                     avm_alu_alu_u16_r1,
-                     avm_alu_alu_u16_r4,
-                     avm_mem_m_tag,
+            return { avm_main_internal_return_ptr,
+                     avm_main_pc,
                      avm_mem_m_addr,
                      avm_mem_m_val,
+                     avm_mem_m_tag,
                      avm_mem_m_rw,
-                     avm_main_internal_return_ptr,
-                     avm_main_pc };
+                     avm_alu_alu_u16_r7,
+                     avm_alu_alu_u16_r1,
+                     avm_alu_alu_u16_r5,
+                     avm_alu_alu_u16_r6,
+                     avm_alu_alu_u16_r0,
+                     avm_alu_alu_u16_r4,
+                     avm_alu_alu_u16_r2,
+                     avm_alu_alu_u16_r3 };
         };
 
         // The plookup wires that store plookup read data.
@@ -712,6 +778,9 @@ class AvmFlavor {
             Base::avm_mem_m_op_a = "AVM_MEM_M_OP_A";
             Base::avm_mem_m_op_b = "AVM_MEM_M_OP_B";
             Base::avm_mem_m_op_c = "AVM_MEM_M_OP_C";
+            Base::avm_mem_m_ind_op_a = "AVM_MEM_M_IND_OP_A";
+            Base::avm_mem_m_ind_op_b = "AVM_MEM_M_IND_OP_B";
+            Base::avm_mem_m_ind_op_c = "AVM_MEM_M_IND_OP_C";
             Base::avm_mem_m_sel_mov = "AVM_MEM_M_SEL_MOV";
             Base::avm_mem_m_tag_err = "AVM_MEM_M_TAG_ERR";
             Base::avm_mem_m_one_min_inv = "AVM_MEM_M_ONE_MIN_INV";
@@ -773,6 +842,12 @@ class AvmFlavor {
             Base::avm_main_rwa = "AVM_MAIN_RWA";
             Base::avm_main_rwb = "AVM_MAIN_RWB";
             Base::avm_main_rwc = "AVM_MAIN_RWC";
+            Base::avm_main_ind_a = "AVM_MAIN_IND_A";
+            Base::avm_main_ind_b = "AVM_MAIN_IND_B";
+            Base::avm_main_ind_c = "AVM_MAIN_IND_C";
+            Base::avm_main_ind_op_a = "AVM_MAIN_IND_OP_A";
+            Base::avm_main_ind_op_b = "AVM_MAIN_IND_OP_B";
+            Base::avm_main_ind_op_c = "AVM_MAIN_IND_OP_C";
             Base::avm_main_mem_idx_a = "AVM_MAIN_MEM_IDX_A";
             Base::avm_main_mem_idx_b = "AVM_MAIN_MEM_IDX_B";
             Base::avm_main_mem_idx_c = "AVM_MAIN_MEM_IDX_C";
@@ -781,6 +856,9 @@ class AvmFlavor {
             Base::perm_main_mem_a = "PERM_MAIN_MEM_A";
             Base::perm_main_mem_b = "PERM_MAIN_MEM_B";
             Base::perm_main_mem_c = "PERM_MAIN_MEM_C";
+            Base::perm_main_mem_ind_a = "PERM_MAIN_MEM_IND_A";
+            Base::perm_main_mem_ind_b = "PERM_MAIN_MEM_IND_B";
+            Base::perm_main_mem_ind_c = "PERM_MAIN_MEM_IND_C";
             Base::incl_main_tag_err = "INCL_MAIN_TAG_ERR";
             Base::incl_mem_tag_err = "INCL_MEM_TAG_ERR";
             Base::incl_main_tag_err_counts = "INCL_MAIN_TAG_ERR_COUNTS";
@@ -816,6 +894,9 @@ class AvmFlavor {
         Commitment avm_mem_m_op_a;
         Commitment avm_mem_m_op_b;
         Commitment avm_mem_m_op_c;
+        Commitment avm_mem_m_ind_op_a;
+        Commitment avm_mem_m_ind_op_b;
+        Commitment avm_mem_m_ind_op_c;
         Commitment avm_mem_m_sel_mov;
         Commitment avm_mem_m_tag_err;
         Commitment avm_mem_m_one_min_inv;
@@ -877,6 +958,12 @@ class AvmFlavor {
         Commitment avm_main_rwa;
         Commitment avm_main_rwb;
         Commitment avm_main_rwc;
+        Commitment avm_main_ind_a;
+        Commitment avm_main_ind_b;
+        Commitment avm_main_ind_c;
+        Commitment avm_main_ind_op_a;
+        Commitment avm_main_ind_op_b;
+        Commitment avm_main_ind_op_c;
         Commitment avm_main_mem_idx_a;
         Commitment avm_main_mem_idx_b;
         Commitment avm_main_mem_idx_c;
@@ -885,6 +972,9 @@ class AvmFlavor {
         Commitment perm_main_mem_a;
         Commitment perm_main_mem_b;
         Commitment perm_main_mem_c;
+        Commitment perm_main_mem_ind_a;
+        Commitment perm_main_mem_ind_b;
+        Commitment perm_main_mem_ind_c;
         Commitment incl_main_tag_err;
         Commitment incl_mem_tag_err;
         Commitment incl_main_tag_err_counts;
@@ -920,6 +1010,9 @@ class AvmFlavor {
             avm_mem_m_op_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_m_op_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_m_op_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_mem_m_ind_op_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_mem_m_ind_op_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_mem_m_ind_op_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_m_sel_mov = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_m_tag_err = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_m_one_min_inv = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -981,6 +1074,12 @@ class AvmFlavor {
             avm_main_rwa = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_rwb = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_rwc = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_ind_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_ind_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_ind_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_ind_op_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_ind_op_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_ind_op_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_idx_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_idx_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_idx_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -989,6 +1088,9 @@ class AvmFlavor {
             perm_main_mem_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_mem_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_mem_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            perm_main_mem_ind_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            perm_main_mem_ind_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            perm_main_mem_ind_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             incl_main_tag_err = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             incl_mem_tag_err = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             incl_main_tag_err_counts = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -1028,6 +1130,9 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_mem_m_op_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_m_op_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_m_op_c, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_mem_m_ind_op_a, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_mem_m_ind_op_b, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_mem_m_ind_op_c, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_m_sel_mov, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_m_tag_err, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_m_one_min_inv, Transcript::proof_data);
@@ -1089,6 +1194,12 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_main_rwa, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_rwb, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_rwc, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_ind_a, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_ind_b, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_ind_c, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_ind_op_a, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_ind_op_b, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_ind_op_c, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_idx_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_idx_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_idx_c, Transcript::proof_data);
@@ -1097,6 +1208,9 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(perm_main_mem_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_mem_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_mem_c, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(perm_main_mem_ind_a, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(perm_main_mem_ind_b, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(perm_main_mem_ind_c, Transcript::proof_data);
             serialize_to_buffer<Commitment>(incl_main_tag_err, Transcript::proof_data);
             serialize_to_buffer<Commitment>(incl_mem_tag_err, Transcript::proof_data);
             serialize_to_buffer<Commitment>(incl_main_tag_err_counts, Transcript::proof_data);

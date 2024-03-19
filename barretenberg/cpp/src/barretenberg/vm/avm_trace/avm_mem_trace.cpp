@@ -1,5 +1,7 @@
 #include "avm_mem_trace.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
+#include "barretenberg/vm/avm_trace/avm_trace.hpp"
+#include <cstdint>
 
 namespace bb::avm_trace {
 
@@ -108,11 +110,10 @@ void AvmMemTraceBuilder::load_mismatch_tag_in_mem_trace(uint32_t const m_clk,
 }
 
 /**
- * @brief Add a memory trace entry corresponding to a memory load into the intermediate
- *        passed register.
+ * @brief Add a memory trace entry corresponding to a memory load.
  *
  * @param clk The main clock
- * @param interm_reg The intermediate register
+ * @param sub_clk The sub-clock pertaining to the memory operation
  * @param addr The memory address
  * @param val The value to be loaded
  * @param m_in_tag The memory tag of the instruction
@@ -120,22 +121,9 @@ void AvmMemTraceBuilder::load_mismatch_tag_in_mem_trace(uint32_t const m_clk,
  * @return A boolean indicating that memory tag matches (resp. does not match) the
  *         instruction tag. Set to false in case of a mismatch.
  */
-bool AvmMemTraceBuilder::load_in_mem_trace(
-    uint32_t clk, IntermRegister interm_reg, uint32_t addr, FF const& val, AvmMemoryTag m_in_tag)
+bool AvmMemTraceBuilder::load_from_mem_trace(
+    uint32_t clk, uint32_t sub_clk, uint32_t addr, FF const& val, AvmMemoryTag m_in_tag)
 {
-    uint32_t sub_clk = 0;
-    switch (interm_reg) {
-    case IntermRegister::IA:
-        sub_clk = SUB_CLK_LOAD_A;
-        break;
-    case IntermRegister::IB:
-        sub_clk = SUB_CLK_LOAD_B;
-        break;
-    case IntermRegister::IC:
-        sub_clk = SUB_CLK_LOAD_C;
-        break;
-    }
-
     auto m_tag = memory_tag.at(addr);
     if (m_tag == AvmMemoryTag::U0 || m_tag == m_in_tag) {
         insert_in_mem_trace(clk, sub_clk, addr, val, m_in_tag, false);
@@ -225,8 +213,47 @@ AvmMemTraceBuilder::MemRead AvmMemTraceBuilder::read_and_load_from_memory(uint32
                                                                           uint32_t const addr,
                                                                           AvmMemoryTag const m_in_tag)
 {
+    uint32_t sub_clk = 0;
+    switch (interm_reg) {
+    case IntermRegister::IA:
+        sub_clk = SUB_CLK_LOAD_A;
+        break;
+    case IntermRegister::IB:
+        sub_clk = SUB_CLK_LOAD_B;
+        break;
+    case IntermRegister::IC:
+        sub_clk = SUB_CLK_LOAD_C;
+        break;
+    }
+
     FF val = memory.at(addr);
-    bool tagMatch = load_in_mem_trace(clk, interm_reg, addr, val, m_in_tag);
+    bool tagMatch = load_from_mem_trace(clk, sub_clk, addr, val, m_in_tag);
+
+    return MemRead{
+        .tag_match = tagMatch,
+        .val = val,
+    };
+}
+
+AvmMemTraceBuilder::MemRead AvmMemTraceBuilder::indirect_read_and_load_from_memory(uint32_t clk,
+                                                                                   IndirectRegister ind_reg,
+                                                                                   uint32_t addr)
+{
+    uint32_t sub_clk = 0;
+    switch (ind_reg) {
+    case IndirectRegister::IND_A:
+        sub_clk = SUB_CLK_IND_LOAD_A;
+        break;
+    case IndirectRegister::IND_B:
+        sub_clk = SUB_CLK_IND_LOAD_B;
+        break;
+    case IndirectRegister::IND_C:
+        sub_clk = SUB_CLK_IND_LOAD_C;
+        break;
+    }
+
+    FF val = memory.at(addr);
+    bool tagMatch = load_from_mem_trace(clk, sub_clk, addr, val, AvmMemoryTag::U32);
 
     return MemRead{
         .tag_match = tagMatch,
