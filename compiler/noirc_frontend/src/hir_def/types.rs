@@ -153,6 +153,7 @@ impl Type {
         match self {
             Type::Slice(elem) => elem.as_ref().contains_slice(),
             Type::Array(_, elem) => elem.as_ref().contains_slice(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
             _ => false,
         }
     }
