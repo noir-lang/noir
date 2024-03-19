@@ -1,7 +1,7 @@
 unconstrained fn main() {
     let mut count = 0;
 
-    for i in 0 .. 10 {
+    for i in 0..10 {
         if i == 2 {
             continue;
         }
