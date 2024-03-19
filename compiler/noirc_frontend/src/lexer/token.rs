@@ -757,7 +757,6 @@ impl Keyword {
             "str" => Keyword::String,
             "struct" => Keyword::Struct,
             "super" => Keyword::Super,
-
             "trait" => Keyword::Trait,
             "type" => Keyword::Type,
             "unchecked" => Keyword::Unchecked,
