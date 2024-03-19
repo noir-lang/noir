@@ -45,14 +45,14 @@ jobs:
           token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
       - name: Push to aztec-nr repo
         run: |
-          SUBREPO_PATH=aztec-nr
+          SUBREPO_PATH=noir-projects/aztec-nr
           git config --global user.name AztecBot
           git config --global user.email tech@aztecprotocol.com
 
           monorepo_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
           # list all aztec-packages tags, take the "highest" version
           monorepo_tag="$(git tag --list aztec-packages-v* | sort --version-sort | tail -1)"
-          monorepo_protocol_circuits_path="noir-packages/noir-protocol-circuits"
+          monorepo_protocol_circuits_path="noir-projects/noir-protocol-circuits"
 
           # take all Nargo.toml files that reference noir-protocol-circuits
           nargo_files="$(find $SUBREPO_PATH -name 'Nargo.toml' | xargs grep --files-with-matches 'noir-protocol-circuits')"
