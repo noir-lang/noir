@@ -6,6 +6,8 @@ export const l1ContractsNames = [
   'registryAddress',
   'inboxAddress',
   'outboxAddress',
+  'gasTokenAddress',
+  'gasPortalAddress',
 ] as const;
 
 /**

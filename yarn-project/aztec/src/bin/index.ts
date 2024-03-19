@@ -20,7 +20,7 @@ const debugLogger = createDebugLogger('aztec:cli');
 const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../package.json');
 const cliVersion: string = JSON.parse(readFileSync(packageJsonPath).toString()).version;
 
-const { TEST_ACCOUNTS = 'true', PORT = '8080' } = process.env;
+const { TEST_ACCOUNTS = 'true', PORT = '8080', ENABLE_GAS = '' } = process.env;
 
 /** CLI & full node main entrypoint */
 async function main() {
@@ -32,7 +32,9 @@ async function main() {
     // If no CLI arguments were provided, run aztec full node for sandbox usage.
     userLog(`${splash}\n${github}\n\n`);
     userLog(`Setting up Aztec Sandbox v${cliVersion}, please stand by...`);
-    const { aztecNodeConfig, node, pxe, stop } = await createSandbox();
+    const { aztecNodeConfig, node, pxe, stop } = await createSandbox({
+      enableGas: ['true', '1'].includes(ENABLE_GAS),
+    });
     installSignalHandlers(userLog, [stop]);
 
     // Deploy test accounts by default

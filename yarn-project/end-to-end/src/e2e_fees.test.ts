@@ -59,7 +59,6 @@ describe('e2e_fees', () => {
   let bananaPrivateBalances: BalancesFn;
 
   beforeAll(async () => {
-    process.env.PXE_URL = '';
     e2eContext = await setup(3);
 
     const { accounts, logger, aztecNode, pxe, deployL1ContractsValues, wallets } = e2eContext;

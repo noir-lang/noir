@@ -1,16 +1,7 @@
-import {
-  AztecAddress,
-  DebugLogger,
-  EthAddress,
-  Fr,
-  PXE,
-  Wallet,
-  computeMessageSecretHash,
-  deployL1Contract,
-} from '@aztec/aztec.js';
-import { GasPortalAbi, GasPortalBytecode, OutboxAbi, PortalERC20Abi, PortalERC20Bytecode } from '@aztec/l1-artifacts';
+import { AztecAddress, DebugLogger, EthAddress, Fr, PXE, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
+import { GasPortalAbi, OutboxAbi, PortalERC20Abi } from '@aztec/l1-artifacts';
 import { GasTokenContract } from '@aztec/noir-contracts.js';
-import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
+import { getCanonicalGasToken, getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
 
@@ -19,79 +10,12 @@ export interface IGasBridgingTestHarness {
   l2Token: GasTokenContract;
 }
 
-/**
- * Deploy L1 token and portal, initialize portal, deploy a non native l2 token contract, its L2 bridge contract and attach is to the portal.
- * @param wallet - the wallet instance
- * @param walletClient - A viem WalletClient.
- * @param publicClient - A viem PublicClient.
- * @param rollupRegistryAddress - address of rollup registry to pass to initialize the token portal
- * @param owner - owner of the L2 contract
- * @param underlyingERC20Address - address of the underlying ERC20 contract to use (if none supplied, it deploys one)
- * @returns l2 contract instance, bridge contract instance, token portal instance, token portal address and the underlying ERC20 instance
- */
-export async function deployAndInitializeTokenAndBridgeContracts(
-  wallet: Wallet,
-  walletClient: WalletClient<HttpTransport, Chain, Account>,
-  publicClient: PublicClient<HttpTransport, Chain>,
-  rollupRegistryAddress: EthAddress,
-  owner: AztecAddress,
-  underlyingERC20Address?: EthAddress,
-): Promise<{
-  gasL2: GasTokenContract;
-  /**
-   * The token portal contract address.
-   */
-  gasPortalAddress: EthAddress;
-  /**
-   * The token portal contract instance
-   */
-  gasPortal: any;
-  /**
-   * The underlying ERC20 contract instance.
-   */
-  gasL1: any;
-}> {
-  if (!underlyingERC20Address) {
-    underlyingERC20Address = await deployL1Contract(walletClient, publicClient, PortalERC20Abi, PortalERC20Bytecode);
-  }
-  const gasL1 = getContract({
-    address: underlyingERC20Address.toString(),
-    abi: PortalERC20Abi,
-    client: walletClient,
-  });
-
-  // deploy the gas portal
-  const gasPortalAddress = await deployL1Contract(walletClient, publicClient, GasPortalAbi, GasPortalBytecode);
-  const gasPortal = getContract({
-    address: gasPortalAddress.toString(),
-    abi: GasPortalAbi,
-    client: walletClient,
-  });
-
-  // deploy l2 token
-  const gasL2 = await GasTokenContract.deploy(wallet)
-    .send({
-      portalContract: gasPortalAddress,
-      contractAddressSalt: getCanonicalGasToken().instance.salt,
-    })
-    .deployed();
-
-  // initialize portal
-  await gasPortal.write.initialize(
-    [rollupRegistryAddress.toString(), underlyingERC20Address.toString(), gasL2.address.toString()],
-    {} as any,
-  );
-
-  return { gasL2, gasPortalAddress, gasPortal, gasL1 };
-}
-
 export interface GasPortalTestingHarnessFactoryConfig {
   pxeService: PXE;
   publicClient: PublicClient<HttpTransport, Chain>;
   walletClient: WalletClient<HttpTransport, Chain, Account>;
   wallet: Wallet;
   logger: DebugLogger;
-  underlyingERC20Address?: EthAddress;
   mockL1?: boolean;
 }
 export class GasPortalTestingHarnessFactory {
@@ -102,18 +26,24 @@ export class GasPortalTestingHarnessFactory {
 
     const gasL2 = await GasTokenContract.deploy(wallet)
       .send({
-        contractAddressSalt: getCanonicalGasToken().instance.salt,
+        contractAddressSalt: getCanonicalGasToken(EthAddress.ZERO).instance.salt,
       })
       .deployed();
     return Promise.resolve(new MockGasBridgingTestHarness(gasL2));
   }
 
   private async createReal() {
-    const { pxeService, publicClient, walletClient, wallet, logger, underlyingERC20Address } = this.config;
+    const { pxeService, publicClient, walletClient, wallet, logger } = this.config;
 
     const ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
-    const owner = wallet.getCompleteAddress();
     const l1ContractAddresses = (await pxeService.getNodeInfo()).l1ContractAddresses;
+
+    const gasTokenAddress = l1ContractAddresses.gasTokenAddress;
+    const gasPortalAddress = l1ContractAddresses.gasPortalAddress;
+
+    if (gasTokenAddress.isZero() || gasPortalAddress.isZero()) {
+      throw new Error('Gas portal not deployed on L1');
+    }
 
     const outbox = getContract({
       address: l1ContractAddresses.outboxAddress.toString(),
@@ -121,17 +51,19 @@ export class GasPortalTestingHarnessFactory {
       client: walletClient,
     });
 
-    // Deploy and initialize all required contracts
-    logger('Deploying and initializing token, portal and its bridge...');
-    const { gasPortalAddress, gasL1, gasL2, gasPortal } = await deployAndInitializeTokenAndBridgeContracts(
-      wallet,
-      walletClient,
-      publicClient,
-      l1ContractAddresses.registryAddress,
-      owner.address,
-      underlyingERC20Address,
-    );
-    logger('Deployed and initialized token, portal and its bridge.');
+    const gasL1 = getContract({
+      address: gasTokenAddress.toString(),
+      abi: PortalERC20Abi,
+      client: walletClient,
+    });
+
+    const gasPortal = getContract({
+      address: gasPortalAddress.toString(),
+      abi: GasPortalAbi,
+      client: walletClient,
+    });
+
+    const gasL2 = await GasTokenContract.at(getCanonicalGasTokenAddress(gasPortalAddress), wallet);
 
     return new GasBridgingTestHarness(
       pxeService,

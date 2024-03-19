@@ -4,7 +4,14 @@ import { type L1ContractArtifactsForDeployment } from '@aztec/aztec.js/ethereum'
 import { type PXE } from '@aztec/aztec.js/interfaces/pxe';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { NoirPackageConfig } from '@aztec/foundation/noir';
-import { AvailabilityOracleAbi, AvailabilityOracleBytecode } from '@aztec/l1-artifacts';
+import {
+  AvailabilityOracleAbi,
+  AvailabilityOracleBytecode,
+  GasPortalAbi,
+  GasPortalBytecode,
+  PortalERC20Abi,
+  PortalERC20Bytecode,
+} from '@aztec/l1-artifacts';
 
 import TOML from '@iarna/toml';
 import { CommanderError, InvalidArgumentError } from 'commander';
@@ -84,6 +91,14 @@ export async function deployAztecContracts(
     rollup: {
       contractAbi: RollupAbi,
       contractBytecode: RollupBytecode,
+    },
+    gasToken: {
+      contractAbi: PortalERC20Abi,
+      contractBytecode: PortalERC20Bytecode,
+    },
+    gasPortal: {
+      contractAbi: GasPortalAbi,
+      contractBytecode: GasPortalBytecode,
     },
   };
   return await deployL1Contracts(chain.rpcUrl, account, chain.chainInfo, debugLogger, l1Artifacts);

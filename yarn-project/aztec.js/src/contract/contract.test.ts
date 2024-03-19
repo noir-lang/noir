@@ -27,6 +27,8 @@ describe('Contract Class', () => {
     registryAddress: EthAddress.random(),
     inboxAddress: EthAddress.random(),
     outboxAddress: EthAddress.random(),
+    gasTokenAddress: EthAddress.random(),
+    gasPortalAddress: EthAddress.random(),
   };
   const mockNodeInfo: NodeInfo = {
     nodeVersion: 'vx.x.x',

@@ -71,9 +71,9 @@ setup_env: &setup_env
     command: ./build-system/scripts/setup_env "$CIRCLE_SHA1" "$CIRCLE_TAG" "$CIRCLE_JOB" "$CIRCLE_REPOSITORY_URL" "$CIRCLE_BRANCH" "$CIRCLE_PULL_REQUEST"
 
 defaults_e2e_test: &defaults_e2e_test
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+  docker:
+    - image: aztecprotocol/alpine-build-image
+  resource_class: small
 
 jobs:
   # Dynamically filter our code, quickly figuring out which jobs we can skip.
@@ -868,7 +868,6 @@ jobs:
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
-  
   e2e-outbox:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -958,7 +957,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_fees.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_fees.test.ts ENABLE_GAS=1
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
@@ -968,7 +967,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_dapp_subscription.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_dapp_subscription.test.ts ENABLE_GAS=1
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
@@ -1221,7 +1220,7 @@ defaults: &defaults
     - slack/notify:
         event: fail
         branch_pattern: "master"
-      
+
 bb_acir_tests: &bb_acir_tests
   requires:
     - barretenberg-x86_64-linux-clang-assert

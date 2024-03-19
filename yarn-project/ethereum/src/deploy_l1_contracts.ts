@@ -76,6 +76,14 @@ export interface L1ContractArtifactsForDeployment {
    * Rollup contract artifacts
    */
   rollup: ContractArtifacts;
+  /**
+   * The token to pay for gas. This will be bridged to L2 via the gasPortal below
+   */
+  gasToken: ContractArtifacts;
+  /**
+   * Gas portal contract artifacts. Optional for now as gas is not strictly enforced
+   */
+  gasPortal: ContractArtifacts;
 }
 
 /**
@@ -162,12 +170,34 @@ export const deployL1Contracts = async (
     { account },
   );
 
+  // this contract remains uninitialized because at this point we don't know the address of the gas token on L2
+  const gasTokenAddress = await deployL1Contract(
+    walletClient,
+    publicClient,
+    contractsToDeploy.gasToken.contractAbi,
+    contractsToDeploy.gasToken.contractBytecode,
+  );
+
+  logger(`Deployed Gas Token at ${gasTokenAddress}`);
+
+  // this contract remains uninitialized because at this point we don't know the address of the gas token on L2
+  const gasPortalAddress = await deployL1Contract(
+    walletClient,
+    publicClient,
+    contractsToDeploy.gasPortal.contractAbi,
+    contractsToDeploy.gasPortal.contractBytecode,
+  );
+
+  logger(`Deployed Gas Portal at ${gasPortalAddress}`);
+
   const l1Contracts: L1ContractAddresses = {
     availabilityOracleAddress,
     rollupAddress,
     registryAddress,
     inboxAddress,
     outboxAddress,
+    gasTokenAddress,
+    gasPortalAddress,
   };
 
   return {

@@ -105,9 +105,11 @@ e2e-avm-simulator:
   DO +E2E_TEST --test=e2e_avm_simulator.test.ts
 
 e2e-fees:
+  ENV ENABLE_GAS=1
   DO +E2E_TEST --test=e2e_fees.test.ts
 
 e2e-dapp-subscription:
+  ENV ENABLE_GAS=1
   DO +E2E_TEST --test=e2e_dapp_subscription.test.ts
 
 pxe:
