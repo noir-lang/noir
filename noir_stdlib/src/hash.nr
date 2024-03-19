@@ -236,6 +236,7 @@ impl<T, N> Hash for [T; N] where T: Hash {
 
 impl<T> Hash for [T] where T: Hash {
     fn hash<H>(self, state: &mut H) where H: Hasher{
+        self.len().hash(state);
         for elem in self {
             elem.hash(state);
         }

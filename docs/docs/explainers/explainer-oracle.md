@@ -52,6 +52,6 @@ If you don't constrain the return of your oracle, you could be clearly opening a
 
 On CLI, Nargo resolves oracles by making JSON RPC calls, which means it would require an RPC node to be running.
 
-In JavaScript, NoirJS accepts and resolves arbitrary call handlers (that is, not limited to JSON) as long as they matches the expected types the developer defines.
+In JavaScript, NoirJS accepts and resolves arbitrary call handlers (that is, not limited to JSON) as long as they matches the expected types the developer defines. Refer to [Foreign Call Handler](../reference/NoirJS/noir_js/type-aliases/ForeignCallHandler.md) to learn more about NoirJS's call handling.
 
 If you want to build using oracles, follow through to the [oracle guide](../how_to/how-to-oracles.md) for a simple example on how to do that.
