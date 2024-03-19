@@ -311,6 +311,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
+            HirExpression::Quote(_) => Type::Code,
         };
 
         self.interner.push_expr_type(*expr_id, typ.clone());
