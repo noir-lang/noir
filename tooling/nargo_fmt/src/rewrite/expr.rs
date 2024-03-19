@@ -67,6 +67,8 @@ pub(crate) fn rewrite(
             format!("{callee}{args}")
         }
         ExpressionKind::MethodCall(_) => {
+            // TODO: cleanup
+            // , expr_type
             super::method_chain(visitor.fork(), Expression { kind, span }, expr_type, shape)
         }
         ExpressionKind::MemberAccess(member_access_expr) => {

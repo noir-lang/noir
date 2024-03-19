@@ -6,19 +6,20 @@ use noirc_frontend::{token::Token, Expression, ExpressionKind, MethodCallExpress
 
 //     ExpressionType, FmtVisitor, Indent, Shape,
 // expr::{format_brackets, format_parens, NewlineMode},
-use crate::visitor::{
-    expr::{format_parens, NewlineMode},
-    ExpressionType, FmtVisitor, Shape,
-};
 use crate::{
     items::Item,
     utils::FindToken,
+    rewrite::{expr, sub_expr},
+    visitor::{
+        expr::{format_parens, NewlineMode},
+        ExpressionType, FmtVisitor, Shape,
+    },
 };
 
 pub(crate) fn rewrite(
     mut visitor: FmtVisitor,
     expr: Expression,
-    _expr_type: ExpressionType,
+    expr_type: ExpressionType,
     shape: Shape,
 ) -> String {
     match expr.kind {
@@ -37,35 +38,44 @@ pub(crate) fn rewrite(
 
             // If this is a trivial chain, return early.
             if chain.children.is_empty() {
-                let args_span = visitor.span_before(
-                    method_call_expr.method_name.span().end()..expr.span.end(),
-                    Token::LeftParen,
-                );
-                dbg!("args_span: {:?}", args_span);
-
-                // TODO: remove clone
-                let object = super::sub_expr(&visitor, shape, method_call_expr.object.clone());
-                let method = method_call_expr.method_name.to_string();
-
-                // TODO: remove clone?
-                let args = format_parens(
-                    visitor.config.fn_call_width.into(),
-                    visitor.fork(),
-                    shape,
-                    false,
-                    method_call_expr.arguments.clone(),
-                    args_span,
-                    true,
-                    NewlineMode::IfContainsNewLineAndWidth,
-                );
-
-                return format!("{object}.{method}{args}");
+                return rewrite_single_method_call(&visitor, method_call_expr, expr.span, shape)
             }
 
-            chain.rewrite(visitor, shape, expr.span)
+            chain.rewrite(visitor, expr_type, shape, expr.span)
         }
         _ => unreachable!("method_chain::rewrite called on non-MethodCall ExpressionKind: {:?}", expr.kind)
     }
+}
+
+fn rewrite_single_method_call(
+    visitor: &FmtVisitor,
+    method_call_expr: &Box<MethodCallExpression>,
+    span: Span,
+    shape: Shape,
+) -> String {
+    let args_span = visitor.span_before(
+        method_call_expr.method_name.span().end()..span.end(),
+        Token::LeftParen,
+    );
+    dbg!("args_span: {:?}", args_span);
+
+    // TODO: remove clone
+    let object = super::sub_expr(&visitor, shape, method_call_expr.object.clone());
+    let method = method_call_expr.method_name.to_string();
+
+    // TODO: remove clone?
+    let args = format_parens(
+        visitor.config.fn_call_width.into(),
+        visitor.fork(),
+        shape,
+        false,
+        method_call_expr.arguments.clone(),
+        args_span,
+        true,
+        NewlineMode::IfContainsNewLineAndWidth,
+    );
+
+    return format!("{object}.{method}{args}");
 }
 
 /// Information about an expression in a chain.
@@ -75,7 +85,7 @@ struct SubExpr {
     is_method_call_receiver: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ChainItem {
     kind: ChainItemKind,
     span: Span,
@@ -101,7 +111,7 @@ impl ChainItem {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum ChainItemKind {
     Parent {
         expr: Expression,
@@ -173,10 +183,43 @@ struct Chain {
 
 impl Chain {
 
-    fn rewrite(self, mut visitor: FmtVisitor, shape: Shape, span: Span) -> String {
+    fn rewrite(self, mut visitor: FmtVisitor, expr_type: ExpressionType, shape: Shape, span: Span) -> String {
+        // let array: Vec<Expression> = std::iter::once(self.parent).chain(self.children.into_iter()).map(ChainItem::to_expr).collect();
+        // format!("TODO: {:?}", array);
 
-        let array: Vec<Expression> = std::iter::once(self.parent).chain(self.children.into_iter()).map(ChainItem::to_expr).collect();
-        format!("TODO: {:?}", array)
+
+        // // if self.children.is_empty() {
+        // //     dbg!("CHILDREN []");
+        // //     let mut result = expr(&visitor.fork(), self.parent.clone().to_expr(), expr_type, shape);
+        // //
+        // //     return rewrite_single_method_call(&visitor, self.parent.to_expr(), span, shape)
+        // // } else {
+        //     let mut result = sub_expr(&visitor.fork(), shape, self.parent.clone().to_expr());
+        // dbg!("CHILDREN: {:?}", self.children.len());
+        //
+        // // let head_str = visitor.slice(self.parent.span.start()..self.children[0].span.start());
+        // dbg!("result: {:?}", result.clone());
+        // dbg!();
+        // dbg!("result: {}", result.clone());
+        // dbg!();
+        //
+        // return result
+
+        let mut formatter = Box::new(ChainFormatter::new(self));
+
+        formatter.format_root(&self.parent, shape);
+        if let Some(result) = formatter.pure_root() {
+            return result;
+        }
+
+        // Decide how to layout the rest of the chain.
+        let child_shape = formatter.child_shape(shape);
+
+        formatter.format_children(child_shape);
+        formatter.format_last_child(shape, child_shape);
+
+        formatter.join_rewrites(child_shape);
+        result
     }
 
     fn from_ast(expr: Expression) -> Chain {
@@ -330,6 +373,10 @@ impl Chain {
     }
 }
 
+
+
+
+
 /// Whether a method call's receiver needs parenthesis, like
 /// ```rust,ignore
 /// || .. .method();
@@ -345,5 +392,13 @@ fn should_add_parens(expr: &Expression) -> bool {
         _ => false,
     }
 }
+
+
+
+
+
+
+
+
 
 
