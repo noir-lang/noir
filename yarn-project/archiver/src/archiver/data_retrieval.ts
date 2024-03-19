@@ -35,7 +35,7 @@ export type DataRetrieval<T> = {
  * @param searchStartBlock - The block number to use for starting the search.
  * @param searchEndBlock - The highest block number that we should search up to.
  * @param expectedNextL2BlockNum - The next L2 block number that we expect to find.
- * @returns An array of tuples representing block metadata including the header, archive tree snapshot, and associated l1 block number; as well as the next eth block to search from.
+ * @returns An array of tuples representing block metadata including the header, archive tree snapshot; as well as the next eth block to search from.
  */
 export async function retrieveBlockMetadataFromRollup(
   publicClient: PublicClient,
@@ -44,8 +44,8 @@ export async function retrieveBlockMetadataFromRollup(
   searchStartBlock: bigint,
   searchEndBlock: bigint,
   expectedNextL2BlockNum: bigint,
-): Promise<DataRetrieval<[Header, AppendOnlyTreeSnapshot, bigint]>> {
-  const retrievedBlockMetadata: [Header, AppendOnlyTreeSnapshot, bigint][] = [];
+): Promise<DataRetrieval<[Header, AppendOnlyTreeSnapshot]>> {
+  const retrievedBlockMetadata: [Header, AppendOnlyTreeSnapshot][] = [];
   do {
     if (searchStartBlock > searchEndBlock) {
       break;

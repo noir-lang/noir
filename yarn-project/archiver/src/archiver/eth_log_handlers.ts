@@ -28,14 +28,14 @@ export function processLeafInsertedLogs(
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param expectedL2BlockNumber - The next expected L2 block number.
  * @param logs - L2BlockProcessed logs.
- * @returns - An array of tuples representing block metadata including the header, archive tree snapshot, and associated l1 block number.
+ * @returns - An array of tuples representing block metadata including the header, archive tree snapshot.
  */
 export async function processL2BlockProcessedLogs(
   publicClient: PublicClient,
   expectedL2BlockNumber: bigint,
   logs: Log<bigint, number, false, undefined, true, typeof RollupAbi, 'L2BlockProcessed'>[],
-): Promise<[Header, AppendOnlyTreeSnapshot, bigint][]> {
-  const retrievedBlockMetadata: [Header, AppendOnlyTreeSnapshot, bigint][] = [];
+): Promise<[Header, AppendOnlyTreeSnapshot][]> {
+  const retrievedBlockMetadata: [Header, AppendOnlyTreeSnapshot][] = [];
   for (const log of logs) {
     const blockNum = log.args.blockNumber;
     if (blockNum !== expectedL2BlockNumber) {
@@ -48,7 +48,7 @@ export async function processL2BlockProcessedLogs(
       log.args.blockNumber,
     );
 
-    retrievedBlockMetadata.push([header, archive, log.blockNumber!]);
+    retrievedBlockMetadata.push([header, archive]);
     expectedL2BlockNumber++;
   }
 

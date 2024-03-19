@@ -63,6 +63,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
 
   private contractInstances: Map<string, ContractInstanceWithAddress> = new Map();
 
+  private lastL1BlockNewBlocks: bigint = 0n;
   private lastL1BlockNewMessages: bigint = 0n;
 
   constructor(
@@ -98,12 +99,13 @@ export class MemoryArchiverStore implements ArchiverDataStore {
 
   /**
    * Append new blocks to the store's list.
-   * @param blocks - The L2 blocks to be added to the store.
-   * @returns True if the operation is successful (always in this implementation).
+   * @param blocks - The L2 blocks to be added to the store and the last processed L1 block.
+   * @returns True if the operation is successful.
    */
-  public addBlocks(blocks: L2Block[]): Promise<boolean> {
-    this.l2BlockContexts.push(...blocks.map(block => new L2BlockContext(block)));
-    this.txEffects.push(...blocks.flatMap(b => b.getTxs()));
+  public addBlocks(blocks: DataRetrieval<L2Block>): Promise<boolean> {
+    this.lastL1BlockNewBlocks = blocks.lastProcessedL1BlockNumber;
+    this.l2BlockContexts.push(...blocks.retrievedData.map(block => new L2BlockContext(block)));
+    this.txEffects.push(...blocks.retrievedData.flatMap(b => b.getTxs()));
     return Promise.resolve(true);
   }
 
@@ -356,12 +358,9 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   public getSynchedL1BlockNumbers(): Promise<ArchiverL1SynchPoint> {
-    const blocks = this.l2BlockContexts[this.l2BlockContexts.length - 1]?.block?.getL1BlockNumber() ?? 0n;
-    const messages = this.lastL1BlockNewMessages;
-
     return Promise.resolve({
-      blocks,
-      messages,
+      blocks: this.lastL1BlockNewBlocks,
+      messages: this.lastL1BlockNewMessages,
     });
   }
 }

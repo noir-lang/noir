@@ -17,13 +17,18 @@ describe('MemoryArchiverStore', () => {
     it('does not return more than "maxLogs" logs', async () => {
       const maxLogs = 5;
       archiverStore = new MemoryArchiverStore(maxLogs);
-      const blocks = Array(10)
-        .fill(0)
-        .map((_, index: number) => L2Block.random(index + 1, 4, 2, 3, 2, 2));
+      const blocks = {
+        lastProcessedL1BlockNumber: 3n,
+        retrievedData: Array(10)
+          .fill(0)
+          .map((_, index: number) => L2Block.random(index + 1, 4, 2, 3, 2, 2)),
+      };
 
       await archiverStore.addBlocks(blocks);
       await Promise.all(
-        blocks.map(block => archiverStore.addLogs(block.body.encryptedLogs, block.body.unencryptedLogs, block.number)),
+        blocks.retrievedData.map(block =>
+          archiverStore.addLogs(block.body.encryptedLogs, block.body.unencryptedLogs, block.number),
+        ),
       );
 
       const response = await archiverStore.getUnencryptedLogs({});
