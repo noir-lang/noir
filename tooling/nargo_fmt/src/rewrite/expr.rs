@@ -67,7 +67,7 @@ pub(crate) fn rewrite(
             format!("{callee}{args}")
         }
         ExpressionKind::MethodCall(_) => {
-            super::method_chain(visitor, Expression { kind, span }, expr_type, shape)
+            super::method_chain(visitor.fork(), Expression { kind, span }, expr_type, shape)
         }
         ExpressionKind::MemberAccess(member_access_expr) => {
             let lhs_str = rewrite_sub_expr(visitor, shape, member_access_expr.lhs);

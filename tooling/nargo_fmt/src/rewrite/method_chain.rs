@@ -10,9 +10,13 @@ use crate::visitor::{
     expr::{format_parens, NewlineMode},
     ExpressionType, FmtVisitor, Shape,
 };
+use crate::{
+    items::Item,
+    utils::FindToken,
+};
 
 pub(crate) fn rewrite(
-    visitor: &FmtVisitor,
+    mut visitor: FmtVisitor,
     expr: Expression,
     _expr_type: ExpressionType,
     shape: Shape,
@@ -20,36 +24,45 @@ pub(crate) fn rewrite(
     match expr.kind {
         ExpressionKind::MethodCall(ref method_call_expr) => {
 
-            let args_span = visitor.span_before(
-                method_call_expr.method_name.span().end()..expr.span.end(),
-                Token::LeftParen,
-            );
+            // // TODO: remove before PR
+            // let debug_str: String = Chain::make_subexpr_list(expr.clone()).into_iter().map(|x| format!("{:?}\n\n", x)).collect();
+            // println!("make_subexpr_list:\n{}", debug_str);
+            // println!();
+            // println!();
+            // println!();
 
-            // TODO: remove clone?
-            let object = super::sub_expr(visitor, shape, method_call_expr.object.clone());
-            let method = method_call_expr.method_name.to_string();
+            // TODO remove clone
+            let chain = Chain::from_ast(expr.clone());
+            // println!("Chain:\n{:?}", chain);
 
-            // TODO: remove clone?
-            let args = format_parens(
-                visitor.config.fn_call_width.into(),
-                visitor.fork(),
-                shape,
-                false,
-                method_call_expr.arguments.clone(),
-                args_span,
-                true,
-                NewlineMode::IfContainsNewLineAndWidth,
-            );
+            // If this is a trivial chain, return early.
+            if chain.children.is_empty() {
+                let args_span = visitor.span_before(
+                    method_call_expr.method_name.span().end()..expr.span.end(),
+                    Token::LeftParen,
+                );
+                dbg!("args_span: {:?}", args_span);
 
-            // TODO: remove before PR
-            let debug_str: String = Chain::make_subexpr_list(expr).into_iter().map(|x| format!("{:?}\n\n", x)).collect();
-            println!("make_subexpr_list:\n{}", debug_str);
-            println!();
-            println!();
-            println!();
-            println!("Chain:\n{:?}", Chain::from_ast(expr));
+                // TODO: remove clone
+                let object = super::sub_expr(&visitor, shape, method_call_expr.object.clone());
+                let method = method_call_expr.method_name.to_string();
 
-            format!("{object}.{method}{args}")
+                // TODO: remove clone?
+                let args = format_parens(
+                    visitor.config.fn_call_width.into(),
+                    visitor.fork(),
+                    shape,
+                    false,
+                    method_call_expr.arguments.clone(),
+                    args_span,
+                    true,
+                    NewlineMode::IfContainsNewLineAndWidth,
+                );
+
+                return format!("{object}.{method}{args}");
+            }
+
+            chain.rewrite(visitor, shape, expr.span)
         }
         _ => unreachable!("method_chain::rewrite called on non-MethodCall ExpressionKind: {:?}", expr.kind)
     }
@@ -74,6 +87,17 @@ impl ChainItem {
             ChainItemKind::from_ast(&expr.expr, expr.is_method_call_receiver);
         ChainItem { kind, span }
     }
+
+    fn to_expr(self) -> Expression {
+        match self.kind {
+            ChainItemKind::Parent { expr, .. } => expr,
+            ChainItemKind::MethodCall(method_call_expr) => {
+                let kind = ExpressionKind::MethodCall(method_call_expr);
+                Expression { kind, span: self.span }
+            } 
+        }
+    }
+
 }
 
 
@@ -83,13 +107,13 @@ enum ChainItemKind {
         expr: Expression,
         parens: bool,
     },
-    MethodCall(MethodCallExpression),
+    MethodCall(Box<MethodCallExpression>)
     // MethodCall(
     //     ast::PathSegment,
     //     Vec<ast::GenericArg>,
     //     ThinVec<ptr::P<ast::Expr>>,
     // ),
-    Comment(Span),
+    // Comment(Span),
 }
 
 impl ChainItemKind {
@@ -97,7 +121,7 @@ impl ChainItemKind {
         expr: &Expression,
         is_method_call_receiver: bool,
     ) -> (ChainItemKind, Span) {
-        let kind = match expr.kind {
+        let (kind, span) = match &expr.kind {
             ExpressionKind::MethodCall(call) => {
                 // TODO: needed for comments??
                 //
@@ -120,7 +144,7 @@ impl ChainItemKind {
                 // };
                 // let span = mk_sp(call.receiver.span.hi(), expr.span.hi());
                 // let kind = ChainItemKind::MethodCall(call.seg.clone(), types, call.args.clone());
-                let kind = ChainItemKind::MethodCall(call);
+                let kind = ChainItemKind::MethodCall(call.clone());
                 let span = expr.span;
                 (kind, span)
             }
@@ -136,9 +160,8 @@ impl ChainItemKind {
         };
 
         // TODO: remove comments from the span.
-        let start = expr.span.start();
         // let start = context.snippet_provider.span_before(span, ".");
-        (kind, Span::new(start, span.end()))
+        (kind, span)
     }
 }
 
@@ -149,6 +172,13 @@ struct Chain {
 }
 
 impl Chain {
+
+    fn rewrite(self, mut visitor: FmtVisitor, shape: Shape, span: Span) -> String {
+
+        let array: Vec<Expression> = std::iter::once(self.parent).chain(self.children.into_iter()).map(ChainItem::to_expr).collect();
+        format!("TODO: {:?}", array)
+    }
+
     fn from_ast(expr: Expression) -> Chain {
         let subexpr_list = Self::make_subexpr_list(expr);
 
@@ -208,7 +238,7 @@ impl Chain {
 
         let parent = rev_children.pop().unwrap();
         let mut children = vec![];
-        let mut prev_span_end = parent.span.end();
+        // let mut prev_span_end = parent.span.end();
         let mut iter = rev_children.into_iter().rev().peekable();
 
         // // TODO needed?
@@ -249,7 +279,7 @@ impl Chain {
             //     }
             // }
 
-            prev_span_end = chain_item.span.end();
+            // prev_span_end = chain_item.span.end();
             children.push(chain_item);
 
             // // TODO needed?
