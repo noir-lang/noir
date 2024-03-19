@@ -36,8 +36,8 @@ pub(crate) struct CheckCommand {
 
     /// Force overwrite of existing files
     #[clap(long = "override")]
-    allow_override: bool, 
-    
+    allow_override: bool,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -62,8 +62,13 @@ pub(crate) fn run(
     let parsed_files = parse_all(&workspace_file_manager);
 
     for package in &workspace {
-
-        let any_file_written = check_package(&workspace_file_manager, &parsed_files, package, &args.compile_options, args.allow_override)?;
+        let any_file_written = check_package(
+            &workspace_file_manager,
+            &parsed_files,
+            package,
+            &args.compile_options,
+            args.allow_override,
+        )?;
         if any_file_written {
             println!("[{}] Constraint system successfully built!", package.name);
         }
@@ -95,7 +100,7 @@ fn check_package(
         if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
             let path_to_prover_input = package.prover_input_path();
             let path_to_verifier_input = package.verifier_input_path();
-            
+
             // Before writing the file, check if it exists and whether override is set
             let should_write_prover = !path_to_prover_input.exists() || allow_override;
             let should_write_verifier = !path_to_verifier_input.exists() || allow_override;
@@ -104,7 +109,9 @@ fn check_package(
                 let prover_toml = create_input_toml_template(parameters.clone(), None);
                 write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
             } else {
-                eprintln!("Warning: Prover.toml already exists. Use --override to force overwrite.");
+                eprintln!(
+                    "Warning: Prover.toml already exists. Use --override to force overwrite."
+                );
             }
 
             if should_write_verifier {
@@ -114,7 +121,9 @@ fn check_package(
                 let verifier_toml = create_input_toml_template(public_inputs, return_type);
                 write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
             } else {
-                eprintln!("Warning: Verifier.toml already exists. Use --override to force overwrite.");
+                eprintln!(
+                    "Warning: Verifier.toml already exists. Use --override to force overwrite."
+                );
             }
 
             let any_file_written = should_write_prover || should_write_verifier;
