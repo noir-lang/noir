@@ -3,7 +3,7 @@ use log::info;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use acvm::acir::circuit::Circuit;
+use acvm::acir::circuit::Program;
 
 use crate::transpile::brillig_to_avm;
 use crate::utils::extract_brillig_from_acir;
@@ -55,10 +55,10 @@ pub struct AcirContractFunction {
     pub custom_attributes: Vec<String>,
     pub abi: serde_json::Value,
     #[serde(
-        serialize_with = "Circuit::serialize_circuit_base64",
-        deserialize_with = "Circuit::deserialize_circuit_base64"
+        serialize_with = "Program::serialize_program_base64",
+        deserialize_with = "Program::deserialize_program_base64"
     )]
-    pub bytecode: Circuit,
+    pub bytecode: Program,
     pub debug_symbols: serde_json::Value,
 }
 
@@ -88,8 +88,8 @@ impl From<CompiledAcirContract> for TranspiledContract {
                     function.name, contract.name
                 );
                 // Extract Brillig Opcodes from acir
-                let acir_circuit = function.bytecode.clone();
-                let brillig = extract_brillig_from_acir(&acir_circuit.opcodes);
+                let acir_program = function.bytecode;
+                let brillig = extract_brillig_from_acir(&acir_program.functions[0].opcodes);
 
                 // Transpile to AVM
                 let avm_bytecode = brillig_to_avm(brillig);

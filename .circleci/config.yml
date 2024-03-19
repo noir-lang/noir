@@ -92,103 +92,6 @@ jobs:
       - continuation/continue:
           configuration_path: .circleci/generated_config.yml
 
-  # Noir
-  noir-x86_64:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build noir 32
-          aztec_manifest_key: noir
-
-  noir-arm64:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build noir 32 arm64
-          aztec_manifest_key: noir
-
-  noir-ecr-manifest:
-    machine:
-      image: default
-    resource_class: medium
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Create ECR manifest"
-          command: create_ecr_manifest noir x86_64,arm64
-          aztec_manifest_key: noir
-
-  noir-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build noir-tests 32
-          aztec_manifest_key: noir-tests
-
-  noir-packages:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build noir-packages 32
-          aztec_manifest_key: noir-packages
-
-  noir-packages-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build noir-packages-tests 32
-          aztec_manifest_key: noir-packages-tests
-
-  noir-compile-acir-tests:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build noir-compile-acir-tests 32
-          aztec_manifest_key: noir-compile-acir-tests
-
-  avm-transpiler:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build"
-          command: cond_spot_run_build avm-transpiler 32
-          aztec_manifest_key: avm-transpiler
-
   # Barretenberg
   barretenberg-wasm-linux-clang:
     docker:
@@ -356,30 +259,6 @@ jobs:
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 3 stdlib_plonk_recursion_tests --gtest_filter=-*turbo*
           aztec_manifest_key: barretenberg-x86_64-linux-clang-assert
 
-  barretenberg-acir-tests-bb:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: cond_spot_run_build barretenberg-acir-tests-bb 32
-          aztec_manifest_key: barretenberg-acir-tests-bb
-
-  barretenberg-acir-tests-bb-sol:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Build and test"
-          command: cond_spot_run_build barretenberg-acir-tests-bb-sol 32
-          aztec_manifest_key: barretenberg-acir-tests-bb-sol
-
   bb-js:
     machine:
       image: default
@@ -403,6 +282,127 @@ jobs:
           name: "Build and test"
           command: cond_spot_run_test bb.js 32 ./scripts/run_tests
           aztec_manifest_key: bb.js
+  
+  # Noir
+  noir-x86_64:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build noir 32
+          aztec_manifest_key: noir
+
+  noir-arm64:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build noir 32 arm64
+          aztec_manifest_key: noir
+
+  noir-ecr-manifest:
+    machine:
+      image: default
+    resource_class: medium
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Create ECR manifest"
+          command: create_ecr_manifest noir x86_64,arm64
+          aztec_manifest_key: noir
+
+  noir-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build noir-tests 32
+          aztec_manifest_key: noir-tests
+
+  noir-packages:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build noir-packages 32
+          aztec_manifest_key: noir-packages
+
+  noir-packages-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build noir-packages-tests 32
+          aztec_manifest_key: noir-packages-tests
+
+  noir-compile-acir-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build noir-compile-acir-tests 32
+          aztec_manifest_key: noir-compile-acir-tests
+
+  avm-transpiler:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build avm-transpiler 32
+          aztec_manifest_key: avm-transpiler
+
+  barretenberg-acir-tests-bb:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: cond_spot_run_build barretenberg-acir-tests-bb 32
+          aztec_manifest_key: barretenberg-acir-tests-bb
+
+  barretenberg-acir-tests-bb-sol:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: cond_spot_run_build barretenberg-acir-tests-bb-sol 32
+          aztec_manifest_key: barretenberg-acir-tests-bb-sol
 
   bb-js-acir-tests:
     docker:
@@ -1272,10 +1272,14 @@ workflows:
             - noir-arm64
           <<: *defaults
       - noir-tests: *defaults
-      - noir-packages: *defaults
+      - noir-packages:
+          requires:
+            - bb-js
+          <<: *defaults
       - noir-packages-tests:
           requires:
             - noir-ecr-manifest
+            - noir-packages
           <<: *defaults
       - noir-compile-acir-tests:
           requires:
@@ -1305,6 +1309,7 @@ workflows:
       - barretenberg-acir-tests-bb-sol:
           requires:
             - barretenberg-x86_64-linux-clang-sol
+            - noir-compile-acir-tests
           <<: *bb_acir_tests
       - barretenberg-docs: *defaults
       - bb-js:

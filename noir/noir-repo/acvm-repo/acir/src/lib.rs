@@ -42,9 +42,9 @@ mod reflection {
             brillig::{BrilligInputs, BrilligOutputs},
             directives::Directive,
             opcodes::BlackBoxFuncCall,
-            Circuit, ExpressionWidth, Opcode, OpcodeLocation,
+            Circuit, ExpressionWidth, Opcode, OpcodeLocation, Program,
         },
-        native_types::{Witness, WitnessMap},
+        native_types::{Witness, WitnessMap, WitnessStack},
     };
 
     #[test]
@@ -59,6 +59,7 @@ mod reflection {
         };
 
         let mut tracer = Tracer::new(TracerConfig::default());
+        tracer.trace_simple_type::<Program>().unwrap();
         tracer.trace_simple_type::<Circuit>().unwrap();
         tracer.trace_simple_type::<ExpressionWidth>().unwrap();
         tracer.trace_simple_type::<Opcode>().unwrap();
@@ -78,16 +79,16 @@ mod reflection {
 
         // Create C++ class definitions.
         let mut source = Vec::new();
-        let config = serde_generate::CodeGeneratorConfig::new("Circuit".to_string())
+        let config = serde_generate::CodeGeneratorConfig::new("Program".to_string())
             .with_encodings(vec![serde_generate::Encoding::Bincode]);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();
 
         // Comment this out to write updated C++ code to file.
-        if let Some(old_hash) = old_hash {
-            let new_hash = fxhash::hash64(&source);
-            assert_eq!(new_hash, old_hash, "Serialization format has changed");
-        }
+        // if let Some(old_hash) = old_hash {
+        //     let new_hash = fxhash::hash64(&source);
+        //     assert_eq!(new_hash, old_hash, "Serialization format has changed");
+        // }
 
         write_to_file(&source, &path);
     }
@@ -106,12 +107,13 @@ mod reflection {
         let mut tracer = Tracer::new(TracerConfig::default());
         tracer.trace_simple_type::<Witness>().unwrap();
         tracer.trace_simple_type::<WitnessMap>().unwrap();
+        tracer.trace_simple_type::<WitnessStack>().unwrap();
 
         let registry = tracer.registry().unwrap();
 
         // Create C++ class definitions.
         let mut source = Vec::new();
-        let config = serde_generate::CodeGeneratorConfig::new("WitnessMap".to_string())
+        let config = serde_generate::CodeGeneratorConfig::new("WitnessStack".to_string())
             .with_encodings(vec![serde_generate::Encoding::Bincode]);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();

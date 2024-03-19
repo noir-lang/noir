@@ -158,6 +158,7 @@
   "C_Cpp.default.includePath": ["barretenberg/cpp/src"],
   "rust-analyzer.linkedProjects": [
     "noir/noir-repo/Cargo.toml",
+    "noir/noir-repo/acvm-repo/acvm_js/Cargo.toml",
     "avm-transpiler/Cargo.toml"
   ]
 }

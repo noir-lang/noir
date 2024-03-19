@@ -1,4 +1,10 @@
+FROM --platform=linux/amd64 aztecprotocol/bb.js as bb.js
+
 FROM node:20 AS builder
+
+# Copy in portalled packages.
+COPY --from=bb.js /usr/src/barretenberg/ts /usr/src/barretenberg/ts
+
 ENV PATH=${PATH}:/usr/src/noir/noir-repo/target/release
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc

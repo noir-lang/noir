@@ -1,6 +1,5 @@
 VERSION 0.8
 
-
 nargo:
     FROM rust:bullseye
     RUN apt update && apt install -y libc++1
@@ -26,6 +25,11 @@ nargo:
 
 packages:
     FROM node:20
+
+    # `noir-repo` is nested inside of `noir` so we copy `bb.js` as such to account 
+    # for the extra nested folder specified in portalled package paths
+    COPY ../barretenberg/ts/+build/build /build/../barretenberg/ts
+
     RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
     RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
     RUN apt update && apt install -y jq libc++1
@@ -56,6 +60,7 @@ packages:
 
     COPY --keep-ts noir-repo/.github/scripts noir-repo/.github/scripts
     COPY --keep-ts ./scripts/bootstrap_packages.sh ./scripts/bootstrap_packages.sh
+
     # TODO(AD) is this OK as a content hash?
     ENV COMMIT_HASH=$(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}')
     RUN PATH="/root/.cargo/bin:$PATH" ./scripts/bootstrap_packages.sh
