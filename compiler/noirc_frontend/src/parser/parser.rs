@@ -421,6 +421,8 @@ where
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
             for_loop(expr_no_constructors, statement),
+            break_statement(),
+            continue_statement(),
             return_statement(expr_parser.clone()),
             expr_parser.map(StatementKind::Expression),
         ))
@@ -429,6 +431,14 @@ where
 
 fn fresh_statement() -> impl NoirParser<StatementKind> {
     statement(expression(), expression_no_constructors(expression()))
+}
+
+fn break_statement() -> impl NoirParser<StatementKind> {
+    keyword(Keyword::Break).to(StatementKind::Break)
+}
+
+fn continue_statement() -> impl NoirParser<StatementKind> {
+    keyword(Keyword::Continue).to(StatementKind::Continue)
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a

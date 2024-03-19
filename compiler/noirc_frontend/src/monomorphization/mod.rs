@@ -610,6 +610,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Semi(expr) => {
                 self.expr(expr).map(|expr| ast::Expression::Semi(Box::new(expr)))
             }
+            HirStatement::Break => Ok(ast::Expression::Break),
+            HirStatement::Continue => Ok(ast::Expression::Continue),
             HirStatement::Error => unreachable!(),
         }
     }

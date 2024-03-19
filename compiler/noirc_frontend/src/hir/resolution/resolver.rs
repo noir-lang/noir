@@ -39,7 +39,7 @@ use crate::{
 use crate::{
     ArrayLiteral, BinaryOpKind, Distinctness, ForRange, FunctionDefinition, FunctionReturnType,
     Generics, ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
-    Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp,
+    Shared, Statement, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp,
     UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
@@ -115,6 +115,13 @@ pub struct Resolver<'a> {
     /// that are captured. We do this in order to create the hidden environment
     /// parameter for the lambda function.
     lambda_stack: Vec<LambdaContext>,
+
+    /// True if we're currently resolving an unconstrained function
+    in_unconstrained_fn: bool,
+
+    /// How many loops we're currently within.
+    /// This increases by 1 at the start of a loop, and decreases by 1 when it ends.
+    nested_loops: u32,
 }
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -155,6 +162,8 @@ impl<'a> Resolver<'a> {
             current_item: None,
             file,
             in_contract,
+            in_unconstrained_fn: false,
+            nested_loops: 0,
         }
     }
 
@@ -416,6 +425,11 @@ impl<'a> Resolver<'a> {
 
     fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
         let func_meta = self.extract_meta(&func, id);
+
+        if func.def.is_unconstrained {
+            self.in_unconstrained_fn = true;
+        }
+
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 HirFunction::empty()
@@ -1151,7 +1165,7 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    pub fn resolve_stmt(&mut self, stmt: StatementKind) -> HirStatement {
+    pub fn resolve_stmt(&mut self, stmt: StatementKind, span: Span) -> HirStatement {
         match stmt {
             StatementKind::Let(let_stmt) => {
                 let expression = self.resolve_expression(let_stmt.expression);
@@ -1191,6 +1205,8 @@ impl<'a> Resolver<'a> {
                         let end_range = self.resolve_expression(end_range);
                         let (identifier, block) = (for_loop.identifier, for_loop.block);
 
+                        self.nested_loops += 1;
+
                         // TODO: For loop variables are currently mutable by default since we haven't
                         //       yet implemented syntax for them to be optionally mutable.
                         let (identifier, block) = self.in_new_scope(|this| {
@@ -1203,6 +1219,8 @@ impl<'a> Resolver<'a> {
                             (decl, this.resolve_expression(block))
                         });
 
+                        self.nested_loops -= 1;
+
                         HirStatement::For(HirForStatement {
                             start_range,
                             end_range,
@@ -1213,9 +1231,17 @@ impl<'a> Resolver<'a> {
                     range @ ForRange::Array(_) => {
                         let for_stmt =
                             range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
-                        self.resolve_stmt(for_stmt)
+                        self.resolve_stmt(for_stmt, for_loop.span)
                     }
                 }
+            }
+            StatementKind::Break => {
+                self.check_break_continue(true, span);
+                HirStatement::Break
+            }
+            StatementKind::Continue => {
+                self.check_break_continue(false, span);
+                HirStatement::Continue
             }
             StatementKind::Error => HirStatement::Error,
         }
@@ -1263,8 +1289,8 @@ impl<'a> Resolver<'a> {
         Some(self.resolve_expression(assert_msg_call_expr))
     }
 
-    pub fn intern_stmt(&mut self, stmt: StatementKind) -> StmtId {
-        let hir_stmt = self.resolve_stmt(stmt);
+    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
+        let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
         self.interner.push_stmt(hir_stmt)
     }
 
@@ -1922,7 +1948,7 @@ impl<'a> Resolver<'a> {
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         let statements =
-            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt.kind)));
+            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
         HirExpression::Block(HirBlockExpression(statements))
     }
 
@@ -2048,6 +2074,15 @@ impl<'a> Resolver<'a> {
             }
         }
         HirLiteral::FmtStr(str, fmt_str_idents)
+    }
+
+    fn check_break_continue(&mut self, is_break: bool, span: Span) {
+        if !self.in_unconstrained_fn {
+            self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
+        }
+        if self.nested_loops == 0 {
+            self.push_err(ResolverError::JumpOutsideLoop { is_break, span });
+        }
     }
 }
 

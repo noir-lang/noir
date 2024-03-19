@@ -95,6 +95,8 @@ impl super::FmtVisitor<'_> {
                     self.push_rewrite(self.slice(span).to_string(), span);
                 }
                 StatementKind::Error => unreachable!(),
+                StatementKind::Break => self.push_rewrite("break;".into(), span),
+                StatementKind::Continue => self.push_rewrite("continue;".into(), span),
             }
 
             self.last_position = span.end();

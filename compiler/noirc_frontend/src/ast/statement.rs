@@ -35,6 +35,8 @@ pub enum StatementKind {
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
+    Break,
+    Continue,
     // This is an expression with a trailing semi-colon
     Semi(Expression),
     // This statement is the result of a recovered parse error.
@@ -59,6 +61,8 @@ impl Statement {
             | StatementKind::Constrain(_)
             | StatementKind::Assign(_)
             | StatementKind::Semi(_)
+            | StatementKind::Break
+            | StatementKind::Continue
             | StatementKind::Error => {
                 // To match rust, statements always require a semicolon, even at the end of a block
                 if semi.is_none() {
@@ -637,6 +641,8 @@ impl Display for StatementKind {
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
+            StatementKind::Break => write!(f, "break"),
+            StatementKind::Continue => write!(f, "continue"),
             StatementKind::Semi(semi) => write!(f, "{semi};"),
             StatementKind::Error => write!(f, "Error"),
         }
