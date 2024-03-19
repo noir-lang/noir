@@ -82,5 +82,5 @@ TEST_F(PermutationHelperTests, ComputeHonkStyleSigmaLagrangePolynomialsFromMappi
 TEST_F(PermutationHelperTests, ComputeStandardAuxPolynomials)
 {
     // TODO(#425) Flesh out these tests
-    compute_first_and_last_lagrange_polynomials<Flavor>(proving_key);
+    compute_first_and_last_lagrange_polynomials<FF>(1024);
 }

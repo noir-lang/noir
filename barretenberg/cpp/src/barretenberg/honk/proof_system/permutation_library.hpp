@@ -1,6 +1,7 @@
 #pragma once
 #include "barretenberg/common/ref_vector.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/relations/relation_parameters.hpp"
 #include <typeinfo>
 
 namespace bb {
@@ -351,88 +352,6 @@ void compute_goblin_translator_range_constraint_ordered_polynomials(StorageHandl
                    extra_denominator_uint.cend(),
                    proving_key->ordered_range_constraints_4.begin(),
                    [](uint32_t in) { return FF(in); });
-}
-
-/**
- * @brief Compute the extra numerator for Goblin range constraint argument
- *
- * @details Goblin proves that several polynomials contain only values in a certain range through 2 relations:
- * 1) A grand product which ignores positions of elements (GoblinTranslatorPermutationRelation)
- * 2) A relation enforcing a certain ordering on the elements of the given polynomial
- * (GoblinTranslatorGenPermSortRelation)
- *
- * We take the values from 4 polynomials, and spread them into 5 polynomials + add all the steps from MAX_VALUE to 0. We
- * order these polynomials and use them in the denominator of the grand product, at the same time checking that they go
- * from MAX_VALUE to 0. To counteract the added steps we also generate an extra range constraint numerator, which
- * contains 5 MAX_VALUE, 5 (MAX_VALUE-STEP),... values
- *
- * @param key Proving key where we will save the polynomials
- * @param dyadic_circuit_size The full size of the circuit
- */
-template <typename Flavor>
-inline void compute_extra_range_constraint_numerator(auto proving_key, size_t dyadic_circuit_size)
-{
-
-    // Get the full goblin circuits size (this is the length of concatenated range constraint polynomials)
-    auto full_circuit_size = dyadic_circuit_size;
-    auto sort_step = Flavor::SORT_STEP;
-    auto num_concatenated_wires = Flavor::NUM_CONCATENATED_WIRES;
-
-    auto& extra_range_constraint_numerator = proving_key->ordered_extra_range_constraints_numerator;
-
-    uint32_t MAX_VALUE = (1 << Flavor::MICRO_LIMB_BITS) - 1;
-
-    // Calculate how many elements there are in the sequence MAX_VALUE, MAX_VALUE - 3,...,0
-    size_t sorted_elements_count = (MAX_VALUE / sort_step) + 1 + (MAX_VALUE % sort_step == 0 ? 0 : 1);
-
-    // Check that we can fit every element in the polynomial
-    ASSERT((num_concatenated_wires + 1) * sorted_elements_count < full_circuit_size);
-
-    std::vector<size_t> sorted_elements(sorted_elements_count);
-
-    // Calculate the sequence in integers
-    sorted_elements[0] = MAX_VALUE;
-    for (size_t i = 1; i < sorted_elements_count; i++) {
-        sorted_elements[i] = (sorted_elements_count - 1 - i) * sort_step;
-    }
-
-    // TODO(#756): can be parallelized further. This will use at most 5 threads
-    auto fill_with_shift = [&](size_t shift) {
-        for (size_t i = 0; i < sorted_elements_count; i++) {
-            extra_range_constraint_numerator[shift + i * (num_concatenated_wires + 1)] = sorted_elements[i];
-        }
-    };
-    // Fill polynomials with a sequence, where each element is repeated num_concatenated_wires+1 times
-    parallel_for(num_concatenated_wires + 1, fill_with_shift);
-}
-
-/**
- * @brief Compute odd and even largrange polynomials (up to mini_circuit length) and put them in the polynomial cache
- *
- * @param key Proving key where we will save the polynomials
- * @param mini_circuit_dyadic_size The size of the part of the circuit where the computation of translated value happens
- */
-template <typename Flavor>
-inline void compute_lagrange_polynomials_for_goblin_translator(auto proving_key, size_t mini_circuit_dyadic_size)
-
-{
-    const size_t n = proving_key->circuit_size;
-    typename Flavor::Polynomial lagrange_polynomial_odd_in_minicircuit(n);
-    typename Flavor::Polynomial lagrange_polynomial_even_in_minicircut(n);
-    typename Flavor::Polynomial lagrange_polynomial_second(n);
-    typename Flavor::Polynomial lagrange_polynomial_second_to_last_in_minicircuit(n);
-
-    for (size_t i = 1; i < mini_circuit_dyadic_size - 1; i += 2) {
-        lagrange_polynomial_odd_in_minicircuit[i] = 1;
-        lagrange_polynomial_even_in_minicircut[i + 1] = 1;
-    }
-    proving_key->lagrange_odd_in_minicircuit = lagrange_polynomial_odd_in_minicircuit.share();
-
-    proving_key->lagrange_even_in_minicircuit = lagrange_polynomial_even_in_minicircut.share();
-    lagrange_polynomial_second[1] = 1;
-    lagrange_polynomial_second_to_last_in_minicircuit[mini_circuit_dyadic_size - 2] = 1;
-    proving_key->lagrange_second_to_last_in_minicircuit = lagrange_polynomial_second_to_last_in_minicircuit.share();
-    proving_key->lagrange_second = lagrange_polynomial_second.share();
 }
 
 } // namespace bb

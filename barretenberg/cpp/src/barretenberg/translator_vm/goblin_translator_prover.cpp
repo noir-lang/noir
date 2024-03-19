@@ -2,6 +2,7 @@
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
+#include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/proof_system/library/grand_product_library.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
@@ -15,16 +16,6 @@ namespace bb {
  *
  * @tparam settings Settings class.
  * */
-
-/**
- * Create GoblinTranslatorProver from proving key, witness and manifest.
- *
- * @param input_key Proving key.
- * @param input_manifest Input manifest
- *
- * @tparam settings Settings class.
- * */
-
 GoblinTranslatorProver::GoblinTranslatorProver(const std::shared_ptr<typename Flavor::ProvingKey>& input_key,
                                                const std::shared_ptr<CommitmentKey>& commitment_key,
                                                const std::shared_ptr<Transcript>& transcript)
@@ -47,6 +38,179 @@ GoblinTranslatorProver::GoblinTranslatorProver(const std::shared_ptr<typename Fl
     prover_polynomials.concatenated_range_constraints_2 = key->concatenated_range_constraints_2;
     prover_polynomials.concatenated_range_constraints_3 = key->concatenated_range_constraints_3;
 }
+
+GoblinTranslatorProver::GoblinTranslatorProver(CircuitBuilder& circuit_builder,
+                                               const std::shared_ptr<Transcript>& transcript)
+    : dyadic_circuit_size(Flavor::compute_dyadic_circuit_size(circuit_builder))
+    , mini_circuit_dyadic_size(Flavor::compute_mini_circuit_dyadic_size(circuit_builder))
+
+{
+    BB_OP_COUNT_TIME();
+
+    // Compute total number of gates, dyadic circuit size, etc.
+    key = std::make_shared<ProvingKey>(circuit_builder);
+    dyadic_circuit_size = key->circuit_size;
+    compute_witness(circuit_builder);
+    compute_commitment_key(key->circuit_size);
+
+    *this = GoblinTranslatorProver(key, commitment_key, transcript);
+}
+
+/**
+ * @brief Construct the witness polynomials from the witness vectors in the circuit constructor.
+ *
+ * @details In goblin translator wires come as is, since they have to reflect the structure of polynomials in the first
+ * 4 wires, which we've commited to
+ *
+ * @tparam Flavor provides the circuit constructor type and the number of wires.
+ * @param circuit_builder
+ * @param dyadic_circuit_size Power of 2 circuit size
+ * @todo TODO(https://github.com/AztecProtocol/barretenberg/issues/783) Optimize memory operations.
+ * @return std::vector<Polynomial>
+ * */
+std::vector<GoblinTranslatorProver::Polynomial> construct_wire_polynomials(
+    const GoblinTranslatorProver::CircuitBuilder& circuit_builder, const size_t dyadic_circuit_size)
+{
+    const size_t num_gates = circuit_builder.num_gates;
+
+    std::vector<GoblinTranslatorProver::Polynomial> wire_polynomials;
+    // Populate the wire polynomials with values from conventional wires
+    for (size_t wire_idx = 0; wire_idx < GoblinTranslatorFlavor::NUM_WIRES; ++wire_idx) {
+        // Expect all values to be set to 0 initially
+        GoblinTranslatorProver::Polynomial w_lagrange(dyadic_circuit_size);
+
+        // Insert conventional gate wire values into the wire polynomial
+        for (size_t i = 0; i < num_gates; ++i) {
+            auto& wire = circuit_builder.wires[wire_idx];
+            w_lagrange[i] = circuit_builder.get_variable(wire[i]);
+        }
+
+        wire_polynomials.push_back(std::move(w_lagrange));
+    }
+    return wire_polynomials;
+}
+
+/**
+ * @brief Compute witness polynomials
+ *
+ */
+void GoblinTranslatorProver::compute_witness(CircuitBuilder& circuit_builder)
+{
+    if (computed_witness) {
+        return;
+    }
+
+    // Construct the conventional wire polynomials
+    auto wire_polynomials = construct_wire_polynomials(circuit_builder, dyadic_circuit_size);
+
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/907)
+    // In order:
+    //   wire_polynomials
+    //    = WireEntities::get_wires - concatenated
+    //    = WireNonShiftedEntities + WireToBeShiftedEntities - concatenated
+    key->op = wire_polynomials[0];
+    key->x_lo_y_hi = wire_polynomials[1];
+    key->x_hi_z_1 = wire_polynomials[2];
+    key->y_lo_z_2 = wire_polynomials[3];
+    key->p_x_low_limbs = wire_polynomials[4];
+    key->p_x_low_limbs_range_constraint_0 = wire_polynomials[5];
+    key->p_x_low_limbs_range_constraint_1 = wire_polynomials[6];
+    key->p_x_low_limbs_range_constraint_2 = wire_polynomials[7];
+    key->p_x_low_limbs_range_constraint_3 = wire_polynomials[8];
+    key->p_x_low_limbs_range_constraint_4 = wire_polynomials[9];
+    key->p_x_low_limbs_range_constraint_tail = wire_polynomials[10];
+    key->p_x_high_limbs = wire_polynomials[11];
+    key->p_x_high_limbs_range_constraint_0 = wire_polynomials[12];
+    key->p_x_high_limbs_range_constraint_1 = wire_polynomials[13];
+    key->p_x_high_limbs_range_constraint_2 = wire_polynomials[14];
+    key->p_x_high_limbs_range_constraint_3 = wire_polynomials[15];
+    key->p_x_high_limbs_range_constraint_4 = wire_polynomials[16];
+    key->p_x_high_limbs_range_constraint_tail = wire_polynomials[17];
+    key->p_y_low_limbs = wire_polynomials[18];
+    key->p_y_low_limbs_range_constraint_0 = wire_polynomials[19];
+    key->p_y_low_limbs_range_constraint_1 = wire_polynomials[20];
+    key->p_y_low_limbs_range_constraint_2 = wire_polynomials[21];
+    key->p_y_low_limbs_range_constraint_3 = wire_polynomials[22];
+    key->p_y_low_limbs_range_constraint_4 = wire_polynomials[23];
+    key->p_y_low_limbs_range_constraint_tail = wire_polynomials[24];
+    key->p_y_high_limbs = wire_polynomials[25];
+    key->p_y_high_limbs_range_constraint_0 = wire_polynomials[26];
+    key->p_y_high_limbs_range_constraint_1 = wire_polynomials[27];
+    key->p_y_high_limbs_range_constraint_2 = wire_polynomials[28];
+    key->p_y_high_limbs_range_constraint_3 = wire_polynomials[29];
+    key->p_y_high_limbs_range_constraint_4 = wire_polynomials[30];
+    key->p_y_high_limbs_range_constraint_tail = wire_polynomials[31];
+    key->z_low_limbs = wire_polynomials[32];
+    key->z_low_limbs_range_constraint_0 = wire_polynomials[33];
+    key->z_low_limbs_range_constraint_1 = wire_polynomials[34];
+    key->z_low_limbs_range_constraint_2 = wire_polynomials[35];
+    key->z_low_limbs_range_constraint_3 = wire_polynomials[36];
+    key->z_low_limbs_range_constraint_4 = wire_polynomials[37];
+    key->z_low_limbs_range_constraint_tail = wire_polynomials[38];
+    key->z_high_limbs = wire_polynomials[39];
+    key->z_high_limbs_range_constraint_0 = wire_polynomials[40];
+    key->z_high_limbs_range_constraint_1 = wire_polynomials[41];
+    key->z_high_limbs_range_constraint_2 = wire_polynomials[42];
+    key->z_high_limbs_range_constraint_3 = wire_polynomials[43];
+    key->z_high_limbs_range_constraint_4 = wire_polynomials[44];
+    key->z_high_limbs_range_constraint_tail = wire_polynomials[45];
+    key->accumulators_binary_limbs_0 = wire_polynomials[46];
+    key->accumulators_binary_limbs_1 = wire_polynomials[47];
+    key->accumulators_binary_limbs_2 = wire_polynomials[48];
+    key->accumulators_binary_limbs_3 = wire_polynomials[49];
+    key->accumulator_low_limbs_range_constraint_0 = wire_polynomials[50];
+    key->accumulator_low_limbs_range_constraint_1 = wire_polynomials[51];
+    key->accumulator_low_limbs_range_constraint_2 = wire_polynomials[52];
+    key->accumulator_low_limbs_range_constraint_3 = wire_polynomials[53];
+    key->accumulator_low_limbs_range_constraint_4 = wire_polynomials[54];
+    key->accumulator_low_limbs_range_constraint_tail = wire_polynomials[55];
+    key->accumulator_high_limbs_range_constraint_0 = wire_polynomials[56];
+    key->accumulator_high_limbs_range_constraint_1 = wire_polynomials[57];
+    key->accumulator_high_limbs_range_constraint_2 = wire_polynomials[58];
+    key->accumulator_high_limbs_range_constraint_3 = wire_polynomials[59];
+    key->accumulator_high_limbs_range_constraint_4 = wire_polynomials[60];
+    key->accumulator_high_limbs_range_constraint_tail = wire_polynomials[61];
+    key->quotient_low_binary_limbs = wire_polynomials[62];
+    key->quotient_high_binary_limbs = wire_polynomials[63];
+    key->quotient_low_limbs_range_constraint_0 = wire_polynomials[64];
+    key->quotient_low_limbs_range_constraint_1 = wire_polynomials[65];
+    key->quotient_low_limbs_range_constraint_2 = wire_polynomials[66];
+    key->quotient_low_limbs_range_constraint_3 = wire_polynomials[67];
+    key->quotient_low_limbs_range_constraint_4 = wire_polynomials[68];
+    key->quotient_low_limbs_range_constraint_tail = wire_polynomials[69];
+    key->quotient_high_limbs_range_constraint_0 = wire_polynomials[70];
+    key->quotient_high_limbs_range_constraint_1 = wire_polynomials[71];
+    key->quotient_high_limbs_range_constraint_2 = wire_polynomials[72];
+    key->quotient_high_limbs_range_constraint_3 = wire_polynomials[73];
+    key->quotient_high_limbs_range_constraint_4 = wire_polynomials[74];
+    key->quotient_high_limbs_range_constraint_tail = wire_polynomials[75];
+    key->relation_wide_limbs = wire_polynomials[76];
+    key->relation_wide_limbs_range_constraint_0 = wire_polynomials[77];
+    key->relation_wide_limbs_range_constraint_1 = wire_polynomials[78];
+    key->relation_wide_limbs_range_constraint_2 = wire_polynomials[79];
+    key->relation_wide_limbs_range_constraint_3 = wire_polynomials[80];
+
+    // We construct concatenated versions of range constraint polynomials, where several polynomials are concatenated
+    // into one. These polynomials are not commited to.
+    bb::compute_concatenated_polynomials<Flavor>(key.get());
+
+    // We also contruct ordered polynomials, which have the same values as concatenated ones + enough values to bridge
+    // the range from 0 to maximum range defined by the range constraint.
+    bb::compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(key.get(), mini_circuit_dyadic_size);
+
+    computed_witness = true;
+}
+
+std::shared_ptr<GoblinTranslatorProver::CommitmentKey> GoblinTranslatorProver::compute_commitment_key(
+    size_t circuit_size)
+{
+    if (commitment_key) {
+        return commitment_key;
+    }
+
+    commitment_key = std::make_shared<CommitmentKey>(circuit_size);
+    return commitment_key;
+};
 
 /**
  * @brief Add circuit size and values used in the relations to the transcript

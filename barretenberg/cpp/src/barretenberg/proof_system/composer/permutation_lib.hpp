@@ -349,19 +349,16 @@ void compute_monomial_and_coset_fft_polynomials_from_lagrange(std::string label,
 
 /**
  * @brief Compute Lagrange Polynomials L_0 and L_{n-1} and put them in the polynomial cache
- *
- * @param key Proving key where we will save the polynomials
  */
-template <typename Flavor> inline void compute_first_and_last_lagrange_polynomials(const auto& proving_key)
+template <typename FF>
+inline std::tuple<Polynomial<FF>, Polynomial<FF>> compute_first_and_last_lagrange_polynomials(const size_t circuit_size)
 {
-    const size_t n = proving_key->circuit_size;
-    typename Flavor::Polynomial lagrange_polynomial_0(n);
-    typename Flavor::Polynomial lagrange_polynomial_n_min_1(n);
+    Polynomial<FF> lagrange_polynomial_0(circuit_size);
+    Polynomial<FF> lagrange_polynomial_n_min_1(circuit_size);
     lagrange_polynomial_0[0] = 1;
-    proving_key->lagrange_first = lagrange_polynomial_0.share();
 
-    lagrange_polynomial_n_min_1[n - 1] = 1;
-    proving_key->lagrange_last = lagrange_polynomial_n_min_1.share();
+    lagrange_polynomial_n_min_1[circuit_size - 1] = 1;
+    return std::make_tuple(lagrange_polynomial_0.share(), lagrange_polynomial_n_min_1.share());
 }
 
 /**

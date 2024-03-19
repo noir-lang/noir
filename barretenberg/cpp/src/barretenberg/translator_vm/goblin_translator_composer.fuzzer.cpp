@@ -1,6 +1,6 @@
-#include "barretenberg/translator_vm/goblin_translator_composer.hpp"
 #include "barretenberg/proof_system/circuit_builder/goblin_translator.fuzzer.hpp"
 #include "barretenberg/translator_vm/goblin_translator_prover.hpp"
+#include "barretenberg/translator_vm/goblin_translator_verifier.hpp"
 extern "C" void LLVMFuzzerInitialize(int*, char***)
 {
     srs::init_crs_factory("../srs_db/ignition");
@@ -32,14 +32,13 @@ extern "C" int LLVMFuzzerTestOneInput(const unsigned char* data, size_t size)
     bool checked = circuit_builder.check_circuit();
 
     // Construct proof
-    auto composer = bb::GoblinTranslatorComposer();
-    auto prover = composer.create_prover(circuit_builder, prover_transcript);
+    GoblinTranslatorProver prover(circuit_builder, prover_transcript);
     auto proof = prover.construct_proof();
 
     // Verify proof
     auto verifier_transcript = std::make_shared<bb::GoblinTranslatorFlavor::Transcript>(prover_transcript->proof_data);
     verifier_transcript->template receive_from_prover<Fq>("init");
-    auto verifier = composer.create_verifier(circuit_builder, verifier_transcript);
+    GoblinTranslatorVerifier verifier(prover.key, verifier_transcript);
     bool verified = verifier.verify_proof(proof);
     (void)checked;
     (void)verified;

@@ -465,7 +465,7 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorPermutationRelationCorrectness)
     compute_goblin_translator_range_constraint_ordered_polynomials<Flavor>(&prover_polynomials, mini_circuit_size);
 
     // Compute the fixed numerator (part of verification key)
-    compute_extra_range_constraint_numerator<Flavor>(&prover_polynomials, full_circuit_size);
+    prover_polynomials.compute_extra_range_constraint_numerator();
 
     // Compute concatenated polynomials (4 polynomials produced from other constraint polynomials by concatenation)
     compute_concatenated_polynomials<Flavor>(&prover_polynomials);

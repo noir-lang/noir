@@ -65,7 +65,11 @@ template <class Flavor> class ProverInstance_ {
             construct_databus_polynomials(circuit);
         }
 
-        compute_first_and_last_lagrange_polynomials<Flavor>(proving_key.get());
+        // First and last lagrange polynomials (in the full circuit size)
+        const auto [lagrange_first, lagrange_last] =
+            compute_first_and_last_lagrange_polynomials<FF>(dyadic_circuit_size);
+        proving_key->lagrange_first = lagrange_first;
+        proving_key->lagrange_last = lagrange_last;
 
         construct_table_polynomials(circuit, dyadic_circuit_size);
 
