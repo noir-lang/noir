@@ -2,7 +2,7 @@ use dep::std::slice;
 use dep::std;
 
 fn main(x: Field, y: pub Field) {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     assert(slice[0] == 0);
     assert(slice[0] != 1);
     slice[0] = x;
@@ -13,7 +13,7 @@ fn main(x: Field, y: pub Field) {
     assert(slice_plus_10[2] != 8);
     assert(slice_plus_10.len() == 3);
 
-    let mut new_slice = [];
+    let mut new_slice = &[];
     for i in 0..5 {
         new_slice = new_slice.push_back(i);
     }
@@ -41,7 +41,7 @@ fn main(x: Field, y: pub Field) {
     assert(remove_slice[3] == 3);
     assert(remove_slice.len() == 4);
 
-    let append = [1, 2].append([3, 4, 5]);
+    let append = &[1, 2].append(&[3, 4, 5]);
     assert(append.len() == 5);
     assert(append[0] == 1);
     assert(append[4] == 5);
@@ -55,9 +55,10 @@ fn main(x: Field, y: pub Field) {
     regression_slice_call_result(x, y);
     regression_4506();
 }
+
 // Ensure that slices of struct/tuple values work.
 fn regression_2083() {
-    let y = [(1, 2)];
+    let y = &[(1, 2)];
     let y = y.push_back((3, 4)); // [(1, 2), (3, 4)]
     let y = y.push_back((5, 6)); // [(1, 2), (3, 4), (5, 6)]
     assert(y[2].1 == 6);
@@ -86,6 +87,7 @@ fn regression_2083() {
     assert(x.0 == 5);
     assert(x.1 == 6);
 }
+
 // The parameters to this function must come from witness values (inputs to main)
 fn regression_merge_slices(x: Field, y: Field) {
     merge_slices_if(x, y);
@@ -146,18 +148,20 @@ fn merge_slices_else(x: Field) {
     assert(slice[2] == 5);
     assert(slice.len() == 3);
 }
+
 // Test returning a merged slice without a mutation
 fn merge_slices_return(x: Field, y: Field) -> [Field] {
-    let slice = [0; 2];
+    let slice = &[0; 2];
     if x != y {
         if x != 20 { slice.push_back(y) } else { slice }
     } else {
         slice
     }
 }
+
 // Test mutating a slice inside of an if statement
 fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -166,9 +170,10 @@ fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
     }
     slice
 }
+
 // Test mutating a slice inside of a loop in an if statement
 fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         for i in 0..5 {
             slice = slice.push_back(i as Field);
@@ -180,7 +185,7 @@ fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -199,7 +204,7 @@ fn merge_slices_mutate_two_ifs(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_slices_mutate_between_ifs(x: Field, y: Field) -> [Field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -225,7 +230,7 @@ fn merge_slices_mutate_between_ifs(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_slices_push_then_pop(x: Field, y: Field) {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -249,7 +254,7 @@ fn merge_slices_push_then_pop(x: Field, y: Field) {
 }
 
 fn merge_slices_push_then_insert(x: Field, y: Field) -> [Field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -272,7 +277,7 @@ fn merge_slices_push_then_insert(x: Field, y: Field) -> [Field] {
 }
 
 fn merge_slices_remove_between_ifs(x: Field, y: Field) -> [Field] {
-    let mut slice = [0; 2];
+    let mut slice = &[0; 2];
     if x != y {
         slice = slice.push_back(y);
         slice = slice.push_back(x);
@@ -298,8 +303,8 @@ fn merge_slices_remove_between_ifs(x: Field, y: Field) -> [Field] {
 // Previously, we'd get a type error when trying to assign an array of a different size to
 // an existing array variable. Now, we infer the variable must be a slice.
 fn regression_2370() {
-    let mut slice = [];
-    slice = [1, 2, 3];
+    let mut slice = &[];
+    slice = &[1, 2, 3];
 }
 
 fn regression_4418(x: Field) {
@@ -327,6 +332,6 @@ fn regression_slice_call_result(x: Field, y: Field) {
 }
 
 fn regression_4506() {
-    let slice: [Field] = [1, 2, 3];
+    let slice: [Field] = &[1, 2, 3];
     assert(slice == slice);
 }

@@ -72,7 +72,7 @@ let element = array[0][0];
 ```
 However, multidimensional slices are not supported. For example, the following code will error at compile time:
 ```rust
-let slice : [[Field]] = [];
+let slice : [[Field]] = &[];
 ```
 
 ## Types

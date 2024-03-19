@@ -89,6 +89,7 @@ pub struct For {
 #[derive(Debug, Clone, Hash)]
 pub enum Literal {
     Array(ArrayLiteral),
+    Slice(ArrayLiteral),
     Integer(FieldElement, Type, Location),
     Bool(bool),
     Str(String),
