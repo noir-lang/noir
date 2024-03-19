@@ -313,7 +313,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization_
     UltraCircuitBuilder_(const size_t size_hint = 0)
         : CircuitBuilderBase<FF>(size_hint)
     {
-        blocks.main.reserve(size_hint);
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/870): reserve space in blocks here somehow?
         this->zero_idx = put_constant_variable(FF::zero());
         this->tau.insert({ DUMMY_TAG, DUMMY_TAG }); // TODO(luke): explain this
     };
@@ -338,7 +338,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization_
                          bool recursive = false)
         : CircuitBuilderBase<FF>(size_hint)
     {
-        blocks.main.reserve(size_hint);
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/870): reserve space in blocks here somehow?
 
         for (size_t idx = 0; idx < varnum; ++idx) {
             // Zeros are added for variables whose existence is known but whose values are not yet known. The values may
@@ -408,9 +408,11 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization_
 #if NDEBUG
         // do nothing
 #else
-        size_t nominal_size = blocks.main.selectors[0].size();
-        for (size_t idx = 1; idx < blocks.main.selectors.size(); ++idx) {
-            ASSERT(blocks.main.selectors[idx].size() == nominal_size);
+        for (auto& block : blocks.get()) {
+            size_t nominal_size = block.selectors[0].size();
+            for (size_t idx = 1; idx < block.selectors.size(); ++idx) {
+                ASSERT(block.selectors[idx].size() == nominal_size);
+            }
         }
 #endif // NDEBUG
     }

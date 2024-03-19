@@ -59,30 +59,84 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
 template <typename Arithmetization>
 void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_non_zero()
 {
-    // First add a gate to simultaneously ensure first entries of all wires is zero and to add a non
-    // zero value to all selectors aside from q_c and q_lookup
-    blocks.main.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
-    blocks.main.q_m().emplace_back(1);
-    blocks.main.q_1().emplace_back(1);
-    blocks.main.q_2().emplace_back(1);
-    blocks.main.q_3().emplace_back(1);
-    blocks.main.q_c().emplace_back(0);
-    blocks.main.q_sort().emplace_back(1);
-
-    blocks.main.q_arith().emplace_back(1);
-    blocks.main.q_4().emplace_back(1);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(1);
-    blocks.main.q_aux().emplace_back(1);
+    // q_m, q_1, q_2, q_3, q_4
+    blocks.arithmetic.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+    blocks.arithmetic.q_m().emplace_back(1);
+    blocks.arithmetic.q_1().emplace_back(1);
+    blocks.arithmetic.q_2().emplace_back(1);
+    blocks.arithmetic.q_3().emplace_back(1);
+    blocks.arithmetic.q_4().emplace_back(1);
+    blocks.arithmetic.q_c().emplace_back(0);
+    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_arith().emplace_back(0);
+    blocks.arithmetic.q_lookup_type().emplace_back(0);
+    blocks.arithmetic.q_elliptic().emplace_back(0);
+    blocks.arithmetic.q_aux().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
+        blocks.arithmetic.pad_additional();
     }
     check_selector_length_consistency();
     ++this->num_gates;
 
-    // Some relations depend on wire shifts so we add another gate with
-    // wires set to 0 to ensure corresponding constraints are satisfied
-    create_poly_gate({ this->zero_idx, this->zero_idx, this->zero_idx, 0, 0, 0, 0, 0 });
+    // q_sort
+    blocks.delta_range.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+    blocks.delta_range.q_m().emplace_back(0);
+    blocks.delta_range.q_1().emplace_back(0);
+    blocks.delta_range.q_2().emplace_back(0);
+    blocks.delta_range.q_3().emplace_back(0);
+    blocks.delta_range.q_4().emplace_back(0);
+    blocks.delta_range.q_c().emplace_back(0);
+    blocks.delta_range.q_sort().emplace_back(1);
+    blocks.delta_range.q_arith().emplace_back(0);
+    blocks.delta_range.q_lookup_type().emplace_back(0);
+    blocks.delta_range.q_elliptic().emplace_back(0);
+    blocks.delta_range.q_aux().emplace_back(0);
+    if constexpr (HasAdditionalSelectors<Arithmetization>) {
+        blocks.delta_range.pad_additional();
+    }
+    check_selector_length_consistency();
+    ++this->num_gates;
+    create_dummy_gate(blocks.delta_range, this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+
+    // q_elliptic
+    blocks.elliptic.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+    blocks.elliptic.q_m().emplace_back(0);
+    blocks.elliptic.q_1().emplace_back(0);
+    blocks.elliptic.q_2().emplace_back(0);
+    blocks.elliptic.q_3().emplace_back(0);
+    blocks.elliptic.q_4().emplace_back(0);
+    blocks.elliptic.q_c().emplace_back(0);
+    blocks.elliptic.q_sort().emplace_back(0);
+    blocks.elliptic.q_arith().emplace_back(0);
+    blocks.elliptic.q_lookup_type().emplace_back(0);
+    blocks.elliptic.q_elliptic().emplace_back(1);
+    blocks.elliptic.q_aux().emplace_back(0);
+    if constexpr (HasAdditionalSelectors<Arithmetization>) {
+        blocks.elliptic.pad_additional();
+    }
+    check_selector_length_consistency();
+    ++this->num_gates;
+    create_dummy_gate(blocks.elliptic, this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+
+    // q_aux
+    blocks.aux.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+    blocks.aux.q_m().emplace_back(0);
+    blocks.aux.q_1().emplace_back(0);
+    blocks.aux.q_2().emplace_back(0);
+    blocks.aux.q_3().emplace_back(0);
+    blocks.aux.q_4().emplace_back(0);
+    blocks.aux.q_c().emplace_back(0);
+    blocks.aux.q_sort().emplace_back(0);
+    blocks.aux.q_arith().emplace_back(0);
+    blocks.aux.q_lookup_type().emplace_back(0);
+    blocks.aux.q_elliptic().emplace_back(0);
+    blocks.aux.q_aux().emplace_back(1);
+    if constexpr (HasAdditionalSelectors<Arithmetization>) {
+        blocks.aux.pad_additional();
+    }
+    check_selector_length_consistency();
+    ++this->num_gates;
+    create_dummy_gate(blocks.aux, this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
 
     // Add nonzero values in w_4 and q_c (q_4*w_4 + q_c --> 1*1 - 1 = 0)
     this->one_idx = put_constant_variable(FF::one());
@@ -122,20 +176,20 @@ void UltraCircuitBuilder_<Arithmetization>::create_add_gate(const add_triple_<FF
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
-    blocks.main.populate_wires(in.a, in.b, in.c, this->zero_idx);
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(in.a_scaling);
-    blocks.main.q_2().emplace_back(in.b_scaling);
-    blocks.main.q_3().emplace_back(in.c_scaling);
-    blocks.main.q_c().emplace_back(in.const_scaling);
-    blocks.main.q_arith().emplace_back(1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_sort().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
-    blocks.main.q_aux().emplace_back(0);
+    blocks.arithmetic.populate_wires(in.a, in.b, in.c, this->zero_idx);
+    blocks.arithmetic.q_m().emplace_back(0);
+    blocks.arithmetic.q_1().emplace_back(in.a_scaling);
+    blocks.arithmetic.q_2().emplace_back(in.b_scaling);
+    blocks.arithmetic.q_3().emplace_back(in.c_scaling);
+    blocks.arithmetic.q_c().emplace_back(in.const_scaling);
+    blocks.arithmetic.q_arith().emplace_back(1);
+    blocks.arithmetic.q_4().emplace_back(0);
+    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_lookup_type().emplace_back(0);
+    blocks.arithmetic.q_elliptic().emplace_back(0);
+    blocks.arithmetic.q_aux().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
+        blocks.arithmetic.pad_additional();
     }
     check_selector_length_consistency();
     ++this->num_gates;
@@ -154,20 +208,20 @@ void UltraCircuitBuilder_<Arithmetization>::create_big_add_gate(const add_quad_<
                                                                 const bool include_next_gate_w_4)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
-    blocks.main.populate_wires(in.a, in.b, in.c, in.d);
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(in.a_scaling);
-    blocks.main.q_2().emplace_back(in.b_scaling);
-    blocks.main.q_3().emplace_back(in.c_scaling);
-    blocks.main.q_c().emplace_back(in.const_scaling);
-    blocks.main.q_arith().emplace_back(include_next_gate_w_4 ? 2 : 1);
-    blocks.main.q_4().emplace_back(in.d_scaling);
-    blocks.main.q_sort().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
-    blocks.main.q_aux().emplace_back(0);
+    blocks.arithmetic.populate_wires(in.a, in.b, in.c, in.d);
+    blocks.arithmetic.q_m().emplace_back(0);
+    blocks.arithmetic.q_1().emplace_back(in.a_scaling);
+    blocks.arithmetic.q_2().emplace_back(in.b_scaling);
+    blocks.arithmetic.q_3().emplace_back(in.c_scaling);
+    blocks.arithmetic.q_c().emplace_back(in.const_scaling);
+    blocks.arithmetic.q_arith().emplace_back(include_next_gate_w_4 ? 2 : 1);
+    blocks.arithmetic.q_4().emplace_back(in.d_scaling);
+    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_lookup_type().emplace_back(0);
+    blocks.arithmetic.q_elliptic().emplace_back(0);
+    blocks.arithmetic.q_aux().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
+        blocks.arithmetic.pad_additional();
     }
     check_selector_length_consistency();
     ++this->num_gates;
@@ -248,20 +302,20 @@ void UltraCircuitBuilder_<Arithmetization>::create_big_mul_gate(const mul_quad_<
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
-    blocks.main.populate_wires(in.a, in.b, in.c, in.d);
-    blocks.main.q_m().emplace_back(in.mul_scaling);
-    blocks.main.q_1().emplace_back(in.a_scaling);
-    blocks.main.q_2().emplace_back(in.b_scaling);
-    blocks.main.q_3().emplace_back(in.c_scaling);
-    blocks.main.q_c().emplace_back(in.const_scaling);
-    blocks.main.q_arith().emplace_back(1);
-    blocks.main.q_4().emplace_back(in.d_scaling);
-    blocks.main.q_sort().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
-    blocks.main.q_aux().emplace_back(0);
+    blocks.arithmetic.populate_wires(in.a, in.b, in.c, in.d);
+    blocks.arithmetic.q_m().emplace_back(in.mul_scaling);
+    blocks.arithmetic.q_1().emplace_back(in.a_scaling);
+    blocks.arithmetic.q_2().emplace_back(in.b_scaling);
+    blocks.arithmetic.q_3().emplace_back(in.c_scaling);
+    blocks.arithmetic.q_c().emplace_back(in.const_scaling);
+    blocks.arithmetic.q_arith().emplace_back(1);
+    blocks.arithmetic.q_4().emplace_back(in.d_scaling);
+    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_lookup_type().emplace_back(0);
+    blocks.arithmetic.q_elliptic().emplace_back(0);
+    blocks.arithmetic.q_aux().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
+        blocks.arithmetic.pad_additional();
     }
     check_selector_length_consistency();
     ++this->num_gates;
@@ -274,20 +328,20 @@ void UltraCircuitBuilder_<Arithmetization>::create_balanced_add_gate(const add_q
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
-    blocks.main.populate_wires(in.a, in.b, in.c, in.d);
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(in.a_scaling);
-    blocks.main.q_2().emplace_back(in.b_scaling);
-    blocks.main.q_3().emplace_back(in.c_scaling);
-    blocks.main.q_c().emplace_back(in.const_scaling);
-    blocks.main.q_arith().emplace_back(1);
-    blocks.main.q_4().emplace_back(in.d_scaling);
-    blocks.main.q_sort().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
-    blocks.main.q_aux().emplace_back(0);
+    blocks.arithmetic.populate_wires(in.a, in.b, in.c, in.d);
+    blocks.arithmetic.q_m().emplace_back(0);
+    blocks.arithmetic.q_1().emplace_back(in.a_scaling);
+    blocks.arithmetic.q_2().emplace_back(in.b_scaling);
+    blocks.arithmetic.q_3().emplace_back(in.c_scaling);
+    blocks.arithmetic.q_c().emplace_back(in.const_scaling);
+    blocks.arithmetic.q_arith().emplace_back(1);
+    blocks.arithmetic.q_4().emplace_back(in.d_scaling);
+    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_lookup_type().emplace_back(0);
+    blocks.arithmetic.q_elliptic().emplace_back(0);
+    blocks.arithmetic.q_aux().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
+        blocks.arithmetic.pad_additional();
     }
     check_selector_length_consistency();
     ++this->num_gates;
@@ -316,20 +370,20 @@ void UltraCircuitBuilder_<Arithmetization>::create_mul_gate(const mul_triple_<FF
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
-    blocks.main.populate_wires(in.a, in.b, in.c, this->zero_idx);
-    blocks.main.q_m().emplace_back(in.mul_scaling);
-    blocks.main.q_1().emplace_back(0);
-    blocks.main.q_2().emplace_back(0);
-    blocks.main.q_3().emplace_back(in.c_scaling);
-    blocks.main.q_c().emplace_back(in.const_scaling);
-    blocks.main.q_arith().emplace_back(1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_sort().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
-    blocks.main.q_aux().emplace_back(0);
+    blocks.arithmetic.populate_wires(in.a, in.b, in.c, this->zero_idx);
+    blocks.arithmetic.q_m().emplace_back(in.mul_scaling);
+    blocks.arithmetic.q_1().emplace_back(0);
+    blocks.arithmetic.q_2().emplace_back(0);
+    blocks.arithmetic.q_3().emplace_back(in.c_scaling);
+    blocks.arithmetic.q_c().emplace_back(in.const_scaling);
+    blocks.arithmetic.q_arith().emplace_back(1);
+    blocks.arithmetic.q_4().emplace_back(0);
+    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_lookup_type().emplace_back(0);
+    blocks.arithmetic.q_elliptic().emplace_back(0);
+    blocks.arithmetic.q_aux().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
+        blocks.arithmetic.pad_additional();
     }
     check_selector_length_consistency();
     ++this->num_gates;
@@ -344,21 +398,21 @@ void UltraCircuitBuilder_<Arithmetization>::create_bool_gate(const uint32_t vari
 {
     this->assert_valid_variables({ variable_index });
 
-    blocks.main.populate_wires(variable_index, variable_index, this->zero_idx, this->zero_idx);
-    blocks.main.q_m().emplace_back(1);
-    blocks.main.q_1().emplace_back(-1);
-    blocks.main.q_2().emplace_back(0);
-    blocks.main.q_3().emplace_back(0);
-    blocks.main.q_c().emplace_back(0);
-    blocks.main.q_sort().emplace_back(0);
+    blocks.arithmetic.populate_wires(variable_index, variable_index, this->zero_idx, this->zero_idx);
+    blocks.arithmetic.q_m().emplace_back(1);
+    blocks.arithmetic.q_1().emplace_back(-1);
+    blocks.arithmetic.q_2().emplace_back(0);
+    blocks.arithmetic.q_3().emplace_back(0);
+    blocks.arithmetic.q_c().emplace_back(0);
+    blocks.arithmetic.q_sort().emplace_back(0);
 
-    blocks.main.q_arith().emplace_back(1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
-    blocks.main.q_aux().emplace_back(0);
+    blocks.arithmetic.q_arith().emplace_back(1);
+    blocks.arithmetic.q_4().emplace_back(0);
+    blocks.arithmetic.q_lookup_type().emplace_back(0);
+    blocks.arithmetic.q_elliptic().emplace_back(0);
+    blocks.arithmetic.q_aux().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
+        blocks.arithmetic.pad_additional();
     }
     check_selector_length_consistency();
     ++this->num_gates;
@@ -375,21 +429,21 @@ void UltraCircuitBuilder_<Arithmetization>::create_poly_gate(const poly_triple_<
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
-    blocks.main.populate_wires(in.a, in.b, in.c, this->zero_idx);
-    blocks.main.q_m().emplace_back(in.q_m);
-    blocks.main.q_1().emplace_back(in.q_l);
-    blocks.main.q_2().emplace_back(in.q_r);
-    blocks.main.q_3().emplace_back(in.q_o);
-    blocks.main.q_c().emplace_back(in.q_c);
-    blocks.main.q_sort().emplace_back(0);
+    blocks.arithmetic.populate_wires(in.a, in.b, in.c, this->zero_idx);
+    blocks.arithmetic.q_m().emplace_back(in.q_m);
+    blocks.arithmetic.q_1().emplace_back(in.q_l);
+    blocks.arithmetic.q_2().emplace_back(in.q_r);
+    blocks.arithmetic.q_3().emplace_back(in.q_o);
+    blocks.arithmetic.q_c().emplace_back(in.q_c);
+    blocks.arithmetic.q_sort().emplace_back(0);
 
-    blocks.main.q_arith().emplace_back(1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
-    blocks.main.q_aux().emplace_back(0);
+    blocks.arithmetic.q_arith().emplace_back(1);
+    blocks.arithmetic.q_4().emplace_back(0);
+    blocks.arithmetic.q_lookup_type().emplace_back(0);
+    blocks.arithmetic.q_elliptic().emplace_back(0);
+    blocks.arithmetic.q_aux().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
+        blocks.arithmetic.pad_additional();
     }
     check_selector_length_consistency();
     ++this->num_gates;
@@ -416,55 +470,44 @@ void UltraCircuitBuilder_<Arithmetization>::create_ecc_add_gate(const ecc_add_ga
 
     this->assert_valid_variables({ in.x1, in.x2, in.x3, in.y1, in.y2, in.y3 });
 
-    bool can_fuse_into_previous_gate = true;
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (blocks.main.w_r()[this->num_gates - 1] == in.x1);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (blocks.main.w_o()[this->num_gates - 1] == in.y1);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (blocks.main.q_3()[this->num_gates - 1] == 0);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (blocks.main.q_4()[this->num_gates - 1] == 0);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (blocks.main.q_1()[this->num_gates - 1] == 0);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (blocks.main.q_arith()[this->num_gates - 1] == 0);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (blocks.main.q_m()[this->num_gates - 1] == 0);
+    auto& block = blocks.elliptic;
+
+    bool previous_elliptic_gate_exists = block.size() > 0;
+    bool can_fuse_into_previous_gate = previous_elliptic_gate_exists;
+    if (can_fuse_into_previous_gate) {
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.w_r()[block.size() - 1] == in.x1);
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.w_o()[block.size() - 1] == in.y1);
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.q_3()[block.size() - 1] == 0);
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.q_4()[block.size() - 1] == 0);
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.q_1()[block.size() - 1] == 0);
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.q_arith()[block.size() - 1] == 0);
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.q_m()[block.size() - 1] == 0);
+    }
 
     if (can_fuse_into_previous_gate) {
-        blocks.main.q_1()[this->num_gates - 1] = in.sign_coefficient;
-        blocks.main.q_elliptic()[this->num_gates - 1] = 1;
+        block.q_1()[block.size() - 1] = in.sign_coefficient;
+        block.q_elliptic()[block.size() - 1] = 1;
     } else {
-        blocks.main.populate_wires(this->zero_idx, in.x1, in.y1, this->zero_idx);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_1().emplace_back(in.sign_coefficient);
+        block.populate_wires(this->zero_idx, in.x1, in.y1, this->zero_idx);
+        block.q_3().emplace_back(0);
+        block.q_4().emplace_back(0);
+        block.q_1().emplace_back(in.sign_coefficient);
 
-        blocks.main.q_arith().emplace_back(0);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_m().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_sort().emplace_back(0);
-        blocks.main.q_lookup_type().emplace_back(0);
-        blocks.main.q_elliptic().emplace_back(1);
-        blocks.main.q_aux().emplace_back(0);
+        block.q_arith().emplace_back(0);
+        block.q_2().emplace_back(0);
+        block.q_m().emplace_back(0);
+        block.q_c().emplace_back(0);
+        block.q_sort().emplace_back(0);
+        block.q_lookup_type().emplace_back(0);
+        block.q_elliptic().emplace_back(1);
+        block.q_aux().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         ++this->num_gates;
     }
-    blocks.main.populate_wires(in.x2, in.x3, in.y3, in.y2);
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(0);
-    blocks.main.q_2().emplace_back(0);
-    blocks.main.q_3().emplace_back(0);
-    blocks.main.q_c().emplace_back(0);
-    blocks.main.q_arith().emplace_back(0);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_sort().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
-    blocks.main.q_aux().emplace_back(0);
-    if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
-    }
-    check_selector_length_consistency();
-    ++this->num_gates;
+    create_dummy_gate(block, in.x2, in.x3, in.y3, in.y2);
 }
 
 /**
@@ -475,6 +518,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_ecc_add_gate(const ecc_add_ga
 template <typename Arithmetization>
 void UltraCircuitBuilder_<Arithmetization>::create_ecc_dbl_gate(const ecc_dbl_gate_<FF>& in)
 {
+    auto& block = blocks.elliptic;
+
     /**
      * gate structure:
      * | 1  | 2  | 3  | 4  |
@@ -483,54 +528,39 @@ void UltraCircuitBuilder_<Arithmetization>::create_ecc_dbl_gate(const ecc_dbl_ga
      * we can chain an ecc_add_gate + an ecc_dbl_gate if x3 y3 of previous add_gate equals x1 y1 of current gate
      * can also chain double gates together
      **/
-    bool can_fuse_into_previous_gate = true;
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (blocks.main.w_r()[this->num_gates - 1] == in.x1);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (blocks.main.w_o()[this->num_gates - 1] == in.y1);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (blocks.main.q_arith()[this->num_gates - 1] == 0);
-    can_fuse_into_previous_gate =
-        can_fuse_into_previous_gate && (blocks.main.q_lookup_type()[this->num_gates - 1] == 0);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (blocks.main.q_aux()[this->num_gates - 1] == 0);
+    bool previous_elliptic_gate_exists = block.size() > 0;
+    bool can_fuse_into_previous_gate = previous_elliptic_gate_exists;
+    if (can_fuse_into_previous_gate) {
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.w_r()[block.size() - 1] == in.x1);
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.w_o()[block.size() - 1] == in.y1);
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.q_arith()[block.size() - 1] == 0);
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.q_lookup_type()[block.size() - 1] == 0);
+        can_fuse_into_previous_gate = can_fuse_into_previous_gate && (block.q_aux()[block.size() - 1] == 0);
+    }
 
     if (can_fuse_into_previous_gate) {
-        blocks.main.q_elliptic()[this->num_gates - 1] = 1;
-        blocks.main.q_m()[this->num_gates - 1] = 1;
+        block.q_elliptic()[block.size() - 1] = 1;
+        block.q_m()[block.size() - 1] = 1;
     } else {
-        blocks.main.populate_wires(this->zero_idx, in.x1, in.y1, this->zero_idx);
-        blocks.main.q_elliptic().emplace_back(1);
-        blocks.main.q_m().emplace_back(1);
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_sort().emplace_back(0);
-        blocks.main.q_lookup_type().emplace_back(0);
-        blocks.main.q_aux().emplace_back(0);
+        block.populate_wires(this->zero_idx, in.x1, in.y1, this->zero_idx);
+        block.q_elliptic().emplace_back(1);
+        block.q_m().emplace_back(1);
+        block.q_1().emplace_back(0);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(0);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(0);
+        block.q_4().emplace_back(0);
+        block.q_sort().emplace_back(0);
+        block.q_lookup_type().emplace_back(0);
+        block.q_aux().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         ++this->num_gates;
     }
-
-    blocks.main.populate_wires(this->zero_idx, in.x3, in.y3, this->zero_idx);
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(0);
-    blocks.main.q_2().emplace_back(0);
-    blocks.main.q_3().emplace_back(0);
-    blocks.main.q_c().emplace_back(0);
-    blocks.main.q_arith().emplace_back(0);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_sort().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
-    blocks.main.q_aux().emplace_back(0);
-    if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
-    }
-    check_selector_length_consistency();
-    ++this->num_gates;
+    create_dummy_gate(block, this->zero_idx, in.x3, in.y3, this->zero_idx);
 }
 
 /**
@@ -544,20 +574,20 @@ void UltraCircuitBuilder_<Arithmetization>::fix_witness(const uint32_t witness_i
 {
     this->assert_valid_variables({ witness_index });
 
-    blocks.main.populate_wires(witness_index, this->zero_idx, this->zero_idx, this->zero_idx);
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(1);
-    blocks.main.q_2().emplace_back(0);
-    blocks.main.q_3().emplace_back(0);
-    blocks.main.q_c().emplace_back(-witness_value);
-    blocks.main.q_arith().emplace_back(1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_sort().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
-    blocks.main.q_aux().emplace_back(0);
+    blocks.arithmetic.populate_wires(witness_index, this->zero_idx, this->zero_idx, this->zero_idx);
+    blocks.arithmetic.q_m().emplace_back(0);
+    blocks.arithmetic.q_1().emplace_back(1);
+    blocks.arithmetic.q_2().emplace_back(0);
+    blocks.arithmetic.q_3().emplace_back(0);
+    blocks.arithmetic.q_c().emplace_back(-witness_value);
+    blocks.arithmetic.q_arith().emplace_back(1);
+    blocks.arithmetic.q_4().emplace_back(0);
+    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_lookup_type().emplace_back(0);
+    blocks.arithmetic.q_elliptic().emplace_back(0);
+    blocks.arithmetic.q_aux().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
+        blocks.arithmetic.pad_additional();
     }
     check_selector_length_consistency();
     ++this->num_gates;
@@ -619,20 +649,20 @@ plookup::ReadData<uint32_t> UltraCircuitBuilder_<Arithmetization>::create_gates_
         read_data[plookup::ColumnIdx::C3].push_back(third_idx);
         this->assert_valid_variables({ first_idx, second_idx, third_idx });
 
-        blocks.main.q_lookup_type().emplace_back(FF(1));
-        blocks.main.q_3().emplace_back(FF(table.table_index));
-        blocks.main.populate_wires(first_idx, second_idx, third_idx, this->zero_idx);
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_1_step_sizes[i + 1]));
-        blocks.main.q_m().emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_2_step_sizes[i + 1]));
-        blocks.main.q_c().emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_3_step_sizes[i + 1]));
-        blocks.main.q_arith().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_sort().emplace_back(0);
-        blocks.main.q_elliptic().emplace_back(0);
-        blocks.main.q_aux().emplace_back(0);
+        blocks.lookup.q_lookup_type().emplace_back(FF(1));
+        blocks.lookup.q_3().emplace_back(FF(table.table_index));
+        blocks.lookup.populate_wires(first_idx, second_idx, third_idx, this->zero_idx);
+        blocks.lookup.q_1().emplace_back(0);
+        blocks.lookup.q_2().emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_1_step_sizes[i + 1]));
+        blocks.lookup.q_m().emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_2_step_sizes[i + 1]));
+        blocks.lookup.q_c().emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_3_step_sizes[i + 1]));
+        blocks.lookup.q_arith().emplace_back(0);
+        blocks.lookup.q_4().emplace_back(0);
+        blocks.lookup.q_sort().emplace_back(0);
+        blocks.lookup.q_elliptic().emplace_back(0);
+        blocks.lookup.q_aux().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            blocks.lookup.pad_additional();
         }
         check_selector_length_consistency();
         ++this->num_gates;
@@ -926,29 +956,29 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint(const std::ve
     this->assert_valid_variables(variable_index);
 
     for (size_t i = 0; i < variable_index.size(); i += gate_width) {
-        blocks.main.populate_wires(
+        blocks.delta_range.populate_wires(
             variable_index[i], variable_index[i + 1], variable_index[i + 2], variable_index[i + 3]);
 
         ++this->num_gates;
-        blocks.main.q_m().emplace_back(0);
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_sort().emplace_back(1);
-        blocks.main.q_elliptic().emplace_back(0);
-        blocks.main.q_lookup_type().emplace_back(0);
-        blocks.main.q_aux().emplace_back(0);
+        blocks.delta_range.q_m().emplace_back(0);
+        blocks.delta_range.q_1().emplace_back(0);
+        blocks.delta_range.q_2().emplace_back(0);
+        blocks.delta_range.q_3().emplace_back(0);
+        blocks.delta_range.q_c().emplace_back(0);
+        blocks.delta_range.q_arith().emplace_back(0);
+        blocks.delta_range.q_4().emplace_back(0);
+        blocks.delta_range.q_sort().emplace_back(1);
+        blocks.delta_range.q_elliptic().emplace_back(0);
+        blocks.delta_range.q_lookup_type().emplace_back(0);
+        blocks.delta_range.q_aux().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            blocks.delta_range.pad_additional();
         }
         check_selector_length_consistency();
     }
     // dummy gate needed because of sort widget's check of next row
     create_dummy_gate(
-        blocks.main, variable_index[variable_index.size() - 1], this->zero_idx, this->zero_idx, this->zero_idx);
+        blocks.delta_range, variable_index[variable_index.size() - 1], this->zero_idx, this->zero_idx, this->zero_idx);
 }
 
 /**
@@ -957,7 +987,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint(const std::ve
  * dummy gate itself does not have to satisfy any constraints (all selectors are zero).
  *
  * @tparam Arithmetization
- * @param variable_index
+ * @param block Execution trace block into which the dummy gate is to be placed
  */
 template <typename Arithmetization>
 void UltraCircuitBuilder_<Arithmetization>::create_dummy_gate(
@@ -997,7 +1027,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_dummy_constraints(const std::
     this->assert_valid_variables(padded_list);
 
     for (size_t i = 0; i < padded_list.size(); i += gate_width) {
-        create_dummy_gate(blocks.main, padded_list[i], padded_list[i + 1], padded_list[i + 2], padded_list[i + 3]);
+        create_dummy_gate(
+            blocks.arithmetic, padded_list[i], padded_list[i + 1], padded_list[i + 2], padded_list[i + 3]);
     }
 }
 
@@ -1011,67 +1042,52 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
     ASSERT(variable_index.size() % gate_width == 0 && variable_index.size() > gate_width);
     this->assert_valid_variables(variable_index);
 
+    auto& block = blocks.delta_range;
+
     // Add an arithmetic gate to ensure the first input is equal to the start value of the range being checked
-    blocks.main.populate_wires(variable_index[0], this->zero_idx, this->zero_idx, this->zero_idx);
-    ++this->num_gates;
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(1);
-    blocks.main.q_2().emplace_back(0);
-    blocks.main.q_3().emplace_back(0);
-    blocks.main.q_c().emplace_back(-start);
-    blocks.main.q_arith().emplace_back(1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_sort().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_aux().emplace_back(0);
-    if constexpr (HasAdditionalSelectors<Arithmetization>) {
-        blocks.main.pad_additional();
-    }
-    check_selector_length_consistency();
+    create_add_gate({ variable_index[0], this->zero_idx, this->zero_idx, 1, 0, 0, -start });
 
     // enforce range check for all but the final row
     for (size_t i = 0; i < variable_index.size() - gate_width; i += gate_width) {
 
-        blocks.main.populate_wires(
-            variable_index[i], variable_index[i + 1], variable_index[i + 2], variable_index[i + 3]);
+        block.populate_wires(variable_index[i], variable_index[i + 1], variable_index[i + 2], variable_index[i + 3]);
         ++this->num_gates;
-        blocks.main.q_m().emplace_back(0);
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_sort().emplace_back(1);
-        blocks.main.q_elliptic().emplace_back(0);
-        blocks.main.q_lookup_type().emplace_back(0);
-        blocks.main.q_aux().emplace_back(0);
+        block.q_m().emplace_back(0);
+        block.q_1().emplace_back(0);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(0);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(0);
+        block.q_4().emplace_back(0);
+        block.q_sort().emplace_back(1);
+        block.q_elliptic().emplace_back(0);
+        block.q_lookup_type().emplace_back(0);
+        block.q_aux().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
     }
     // enforce range checks of last row and ending at end
     if (variable_index.size() > gate_width) {
-        blocks.main.populate_wires(variable_index[variable_index.size() - 4],
-                                   variable_index[variable_index.size() - 3],
-                                   variable_index[variable_index.size() - 2],
-                                   variable_index[variable_index.size() - 1]);
+        block.populate_wires(variable_index[variable_index.size() - 4],
+                             variable_index[variable_index.size() - 3],
+                             variable_index[variable_index.size() - 2],
+                             variable_index[variable_index.size() - 1]);
         ++this->num_gates;
-        blocks.main.q_m().emplace_back(0);
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_sort().emplace_back(1);
-        blocks.main.q_elliptic().emplace_back(0);
-        blocks.main.q_lookup_type().emplace_back(0);
-        blocks.main.q_aux().emplace_back(0);
+        block.q_m().emplace_back(0);
+        block.q_1().emplace_back(0);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(0);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(0);
+        block.q_4().emplace_back(0);
+        block.q_sort().emplace_back(1);
+        block.q_elliptic().emplace_back(0);
+        block.q_lookup_type().emplace_back(0);
+        block.q_aux().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
     }
@@ -1081,17 +1097,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/879): This was formerly a single arithmetic gate. A
     // dummy gate has been added to allow the previous gate to access the required wire data via shifts, allowing the
     // arithmetic gate to occur out of sequence.
-    create_dummy_gate(
-        blocks.main, variable_index[variable_index.size() - 1], this->zero_idx, this->zero_idx, this->zero_idx);
-    create_big_add_gate({ variable_index[variable_index.size() - 1],
-                          this->zero_idx,
-                          this->zero_idx,
-                          this->zero_idx,
-                          1,
-                          0,
-                          0,
-                          0,
-                          -end });
+    create_dummy_gate(block, variable_index[variable_index.size() - 1], this->zero_idx, this->zero_idx, this->zero_idx);
+    create_add_gate({ variable_index[variable_index.size() - 1], this->zero_idx, this->zero_idx, 1, 0, 0, -end });
 }
 
 // range constraint a value by decomposing it into limbs whose size should be the default range constraint size
@@ -1194,77 +1201,78 @@ std::vector<uint32_t> UltraCircuitBuilder_<Arithmetization>::decompose_into_defa
 template <typename Arithmetization>
 void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECTORS type)
 {
-    blocks.main.q_aux().emplace_back(type == AUX_SELECTORS::NONE ? 0 : 1);
-    blocks.main.q_sort().emplace_back(0);
-    blocks.main.q_lookup_type().emplace_back(0);
-    blocks.main.q_elliptic().emplace_back(0);
+    auto& block = blocks.aux;
+    block.q_aux().emplace_back(type == AUX_SELECTORS::NONE ? 0 : 1);
+    block.q_sort().emplace_back(0);
+    block.q_lookup_type().emplace_back(0);
+    block.q_elliptic().emplace_back(0);
     switch (type) {
     case AUX_SELECTORS::LIMB_ACCUMULATE_1: {
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(1);
-        blocks.main.q_4().emplace_back(1);
-        blocks.main.q_m().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
+        block.q_1().emplace_back(0);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(1);
+        block.q_4().emplace_back(1);
+        block.q_m().emplace_back(0);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
     }
     case AUX_SELECTORS::LIMB_ACCUMULATE_2: {
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(1);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_m().emplace_back(1);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
+        block.q_1().emplace_back(0);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(1);
+        block.q_4().emplace_back(0);
+        block.q_m().emplace_back(1);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
     }
     case AUX_SELECTORS::NON_NATIVE_FIELD_1: {
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back(1);
-        blocks.main.q_3().emplace_back(1);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_m().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
+        block.q_1().emplace_back(0);
+        block.q_2().emplace_back(1);
+        block.q_3().emplace_back(1);
+        block.q_4().emplace_back(0);
+        block.q_m().emplace_back(0);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
     }
     case AUX_SELECTORS::NON_NATIVE_FIELD_2: {
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back(1);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_4().emplace_back(1);
-        blocks.main.q_m().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
+        block.q_1().emplace_back(0);
+        block.q_2().emplace_back(1);
+        block.q_3().emplace_back(0);
+        block.q_4().emplace_back(1);
+        block.q_m().emplace_back(0);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
     }
     case AUX_SELECTORS::NON_NATIVE_FIELD_3: {
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back(1);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_m().emplace_back(1);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
+        block.q_1().emplace_back(0);
+        block.q_2().emplace_back(1);
+        block.q_3().emplace_back(0);
+        block.q_4().emplace_back(0);
+        block.q_m().emplace_back(1);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
@@ -1274,15 +1282,15 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         // Apply sorted memory read checks with the following additional check:
         // 1. Assert that if index field across two gates does not change, the value field does not change.
         // Used for ROM reads and RAM reads across write/read boundaries
-        blocks.main.q_1().emplace_back(1);
-        blocks.main.q_2().emplace_back(1);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_m().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
+        block.q_1().emplace_back(1);
+        block.q_2().emplace_back(1);
+        block.q_3().emplace_back(0);
+        block.q_4().emplace_back(0);
+        block.q_m().emplace_back(0);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
@@ -1293,15 +1301,15 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         // 2. Validate record computation (r = read_write_flag + index * \eta + \timestamp * \eta^2 + value * \eta^3)
         // 3. If adjacent index values across 2 gates does not change, and the next gate's read_write_flag is set to
         // 'read', validate adjacent values do not change Used for ROM reads and RAM reads across read/write boundaries
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_m().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(1);
+        block.q_1().emplace_back(0);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(0);
+        block.q_4().emplace_back(0);
+        block.q_m().emplace_back(0);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(1);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
@@ -1309,15 +1317,15 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
     case AUX_SELECTORS::RAM_TIMESTAMP_CHECK: {
         // For two adjacent RAM entries that share the same index, validate the timestamp value is monotonically
         // increasing
-        blocks.main.q_1().emplace_back(1);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_4().emplace_back(1);
-        blocks.main.q_m().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
+        block.q_1().emplace_back(1);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(0);
+        block.q_4().emplace_back(1);
+        block.q_m().emplace_back(0);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
@@ -1326,15 +1334,15 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         // Memory read gate for reading memory cells.
         // Validates record witness computation (r = read_write_flag + index * \eta + timestamp * \eta^2 + value *
         // \eta^3)
-        blocks.main.q_1().emplace_back(1);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_m().emplace_back(1); // validate record witness is correctly computed
-        blocks.main.q_c().emplace_back(0); // read/write flag stored in q_c
-        blocks.main.q_arith().emplace_back(0);
+        block.q_1().emplace_back(1);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(0);
+        block.q_4().emplace_back(0);
+        block.q_m().emplace_back(1); // validate record witness is correctly computed
+        block.q_c().emplace_back(0); // read/write flag stored in q_c
+        block.q_arith().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
@@ -1343,15 +1351,15 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         // Memory read gate for reading memory cells.
         // Validates record witness computation (r = read_write_flag + index * \eta + timestamp * \eta^2 + value *
         // \eta^3)
-        blocks.main.q_1().emplace_back(1);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_m().emplace_back(1); // validate record witness is correctly computed
-        blocks.main.q_c().emplace_back(0); // read/write flag stored in q_c
-        blocks.main.q_arith().emplace_back(0);
+        block.q_1().emplace_back(1);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(0);
+        block.q_4().emplace_back(0);
+        block.q_m().emplace_back(1); // validate record witness is correctly computed
+        block.q_c().emplace_back(0); // read/write flag stored in q_c
+        block.q_arith().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
@@ -1360,29 +1368,29 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
         // Memory read gate for writing memory cells.
         // Validates record witness computation (r = read_write_flag + index * \eta + timestamp * \eta^2 + value *
         // \eta^3)
-        blocks.main.q_1().emplace_back(1);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_m().emplace_back(1); // validate record witness is correctly computed
-        blocks.main.q_c().emplace_back(1); // read/write flag stored in q_c
-        blocks.main.q_arith().emplace_back(0);
+        block.q_1().emplace_back(1);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(0);
+        block.q_4().emplace_back(0);
+        block.q_m().emplace_back(1); // validate record witness is correctly computed
+        block.q_c().emplace_back(1); // read/write flag stored in q_c
+        block.q_arith().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
     }
     default: {
-        blocks.main.q_1().emplace_back(0);
-        blocks.main.q_2().emplace_back(0);
-        blocks.main.q_3().emplace_back(0);
-        blocks.main.q_4().emplace_back(0);
-        blocks.main.q_m().emplace_back(0);
-        blocks.main.q_c().emplace_back(0);
-        blocks.main.q_arith().emplace_back(0);
+        block.q_1().emplace_back(0);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(0);
+        block.q_4().emplace_back(0);
+        block.q_m().emplace_back(0);
+        block.q_c().emplace_back(0);
+        block.q_arith().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
         check_selector_length_consistency();
         break;
@@ -1450,9 +1458,9 @@ void UltraCircuitBuilder_<Arithmetization>::range_constrain_two_limbs(const uint
     const std::array<uint32_t, 5> lo_sublimbs = get_sublimbs(lo_idx, lo_masks);
     const std::array<uint32_t, 5> hi_sublimbs = get_sublimbs(hi_idx, hi_masks);
 
-    blocks.main.populate_wires(lo_sublimbs[0], lo_sublimbs[1], lo_sublimbs[2], lo_idx);
-    blocks.main.populate_wires(lo_sublimbs[3], lo_sublimbs[4], hi_sublimbs[0], hi_sublimbs[1]);
-    blocks.main.populate_wires(hi_sublimbs[2], hi_sublimbs[3], hi_sublimbs[4], hi_idx);
+    blocks.aux.populate_wires(lo_sublimbs[0], lo_sublimbs[1], lo_sublimbs[2], lo_idx);
+    blocks.aux.populate_wires(lo_sublimbs[3], lo_sublimbs[4], hi_sublimbs[0], hi_sublimbs[1]);
+    blocks.aux.populate_wires(hi_sublimbs[2], hi_sublimbs[3], hi_sublimbs[4], hi_idx);
 
     apply_aux_selectors(AUX_SELECTORS::LIMB_ACCUMULATE_1);
     apply_aux_selectors(AUX_SELECTORS::LIMB_ACCUMULATE_2);
@@ -1479,7 +1487,6 @@ void UltraCircuitBuilder_<Arithmetization>::range_constrain_two_limbs(const uint
  * @param num_limb_bits The range we want to constrain the original limb to
  * @return std::array<uint32_t, 2> The indices of new limbs.
  */
-
 template <typename Arithmetization>
 std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::decompose_non_native_field_double_width_limb(
     const uint32_t limb_idx, const size_t num_limb_bits)
@@ -1518,7 +1525,6 @@ std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::decompose_non_nat
  *
  * N.B.: This method does NOT evaluate the prime field component of non-native field multiplications.
  **/
-
 template <typename Arithmetization>
 std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::evaluate_non_native_field_multiplication(
     const non_native_field_witnesses<FF>& input, const bool range_constrain_quotient_and_remainder)
@@ -1584,6 +1590,8 @@ std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
         //  **/
         create_big_add_gate(
             { input.r[1], input.r[2], input.r[3], input.r[4], LIMB_SHIFT, LIMB_SHIFT_2, LIMB_SHIFT_3, -1, 0 }, true);
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/879): dummy necessary for preceeding big add gate
+        create_dummy_gate(blocks.arithmetic, this->zero_idx, this->zero_idx, this->zero_idx, input.r[0]);
         range_constrain_two_limbs(input.r[0], input.r[1]);
         range_constrain_two_limbs(input.r[2], input.r[3]);
 
@@ -1595,36 +1603,63 @@ std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
         //  **/
         create_big_add_gate(
             { input.q[1], input.q[2], input.q[3], input.q[4], LIMB_SHIFT, LIMB_SHIFT_2, LIMB_SHIFT_3, -1, 0 }, true);
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/879): dummy necessary for preceeding big add gate
+        create_dummy_gate(blocks.arithmetic, this->zero_idx, this->zero_idx, this->zero_idx, input.q[0]);
         range_constrain_two_limbs(input.q[0], input.q[1]);
         range_constrain_two_limbs(input.q[2], input.q[3]);
     }
 
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/913): Remove this arithmetic gate from the aux block
+    // and replace with the big_add + dummy below.
+    this->assert_valid_variables({ input.q[0], input.q[1], input.r[1], lo_1_idx });
+    blocks.aux.populate_wires(input.q[0], input.q[1], input.r[1], lo_1_idx);
+    blocks.aux.q_m().emplace_back(0);
+    blocks.aux.q_1().emplace_back(input.neg_modulus[0] + input.neg_modulus[1] * LIMB_SHIFT);
+    blocks.aux.q_2().emplace_back(input.neg_modulus[0] * LIMB_SHIFT);
+    blocks.aux.q_3().emplace_back(-LIMB_SHIFT);
+    blocks.aux.q_c().emplace_back(0);
+    blocks.aux.q_arith().emplace_back(2);
+    blocks.aux.q_4().emplace_back(-LIMB_SHIFT.sqr());
+    blocks.aux.q_sort().emplace_back(0);
+    blocks.aux.q_lookup_type().emplace_back(0);
+    blocks.aux.q_elliptic().emplace_back(0);
+    blocks.aux.q_aux().emplace_back(0);
+    if constexpr (HasAdditionalSelectors<Arithmetization>) {
+        blocks.aux.pad_additional();
+    }
+    check_selector_length_consistency();
+    ++this->num_gates;
+
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/879): Originally this was a single arithmetic gate.
+    // With trace sorting, we must add a dummy gate since the add gate would otherwise try to read into an aux gate that
+    // has been sorted out of sequence. (Note: temporarily disabled in favor of manual arith gate in aux block above).
     // product gate 1
     // (lo_0 + q_0(p_0 + p_1*2^b) + q_1(p_0*2^b) - (r_1)2^b)2^-2b - lo_1 = 0
-    create_big_add_gate({ input.q[0],
-                          input.q[1],
-                          input.r[1],
-                          lo_1_idx,
-                          input.neg_modulus[0] + input.neg_modulus[1] * LIMB_SHIFT,
-                          input.neg_modulus[0] * LIMB_SHIFT,
-                          -LIMB_SHIFT,
-                          -LIMB_SHIFT.sqr(),
-                          0 },
-                        true);
+    // create_big_add_gate({ input.q[0],
+    //                       input.q[1],
+    //                       input.r[1],
+    //                       lo_1_idx,
+    //                       input.neg_modulus[0] + input.neg_modulus[1] * LIMB_SHIFT,
+    //                       input.neg_modulus[0] * LIMB_SHIFT,
+    //                       -LIMB_SHIFT,
+    //                       -LIMB_SHIFT.sqr(),
+    //                       0 },
+    //                     true);
+    // create_dummy_gate(blocks.arithmetic, this->zero_idx, this->zero_idx, this->zero_idx, lo_0_idx);
 
-    blocks.main.populate_wires(input.a[1], input.b[1], input.r[0], lo_0_idx);
+    blocks.aux.populate_wires(input.a[1], input.b[1], input.r[0], lo_0_idx);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_1);
     ++this->num_gates;
 
-    blocks.main.populate_wires(input.a[0], input.b[0], input.a[3], input.b[3]);
+    blocks.aux.populate_wires(input.a[0], input.b[0], input.a[3], input.b[3]);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_2);
     ++this->num_gates;
 
-    blocks.main.populate_wires(input.a[2], input.b[2], input.r[3], hi_0_idx);
+    blocks.aux.populate_wires(input.a[2], input.b[2], input.r[3], hi_0_idx);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_3);
     ++this->num_gates;
 
-    blocks.main.populate_wires(input.a[1], input.b[1], input.r[2], hi_1_idx);
+    blocks.aux.populate_wires(input.a[1], input.b[1], input.r[2], hi_1_idx);
     apply_aux_selectors(AUX_SELECTORS::NONE);
     ++this->num_gates;
 
@@ -1688,30 +1723,19 @@ void UltraCircuitBuilder_<Arithmetization>::process_non_native_field_multiplicat
     // iterate over the cached items and create constraints
     for (const auto& input : cached_partial_non_native_field_multiplications) {
 
-        blocks.main.w_l().emplace_back(input.a[1]);
-        blocks.main.w_r().emplace_back(input.b[1]);
-        blocks.main.w_o().emplace_back(this->zero_idx);
-        blocks.main.w_4().emplace_back(input.lo_0);
-
+        blocks.aux.populate_wires(input.a[1], input.b[1], this->zero_idx, static_cast<uint32_t>(input.lo_0));
         apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_1);
         ++this->num_gates;
 
-        blocks.main.populate_wires(input.a[0], input.b[0], input.a[3], input.b[3]);
+        blocks.aux.populate_wires(input.a[0], input.b[0], input.a[3], input.b[3]);
         apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_2);
         ++this->num_gates;
 
-        blocks.main.w_l().emplace_back(input.a[2]);
-        blocks.main.w_r().emplace_back(input.b[2]);
-        blocks.main.w_o().emplace_back(this->zero_idx);
-        blocks.main.w_4().emplace_back(input.hi_0);
-
+        blocks.aux.populate_wires(input.a[2], input.b[2], this->zero_idx, static_cast<uint32_t>(input.hi_0));
         apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_3);
         ++this->num_gates;
-        blocks.main.w_l().emplace_back(input.a[1]);
-        blocks.main.w_r().emplace_back(input.b[1]);
-        blocks.main.w_o().emplace_back(this->zero_idx);
-        blocks.main.w_4().emplace_back(input.hi_1);
 
+        blocks.aux.populate_wires(input.a[1], input.b[1], this->zero_idx, static_cast<uint32_t>(input.hi_1));
         apply_aux_selectors(AUX_SELECTORS::NONE);
         ++this->num_gates;
     }
@@ -1838,52 +1862,54 @@ std::array<uint32_t, 5> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
     // | x.p | x.1 | y.1 | z.0 | (a.1  + b.1 - c.1 = 0)
     // | x.2 | y.2 | z.2 | z.1 | (a.2  + b.2 - c.2 = 0)
     // | x.3 | y.3 | z.3 | --- | (a.3  + b.3 - c.3 = 0)
-    blocks.main.populate_wires(y_p, x_0, y_0, x_p);
-    blocks.main.populate_wires(z_p, x_1, y_1, z_0);
-    blocks.main.populate_wires(x_2, y_2, z_2, z_1);
-    blocks.main.populate_wires(x_3, y_3, z_3, this->zero_idx);
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/896): descrepency between above comment and the actual
+    // implementation below.
+    auto& block = blocks.arithmetic;
+    block.populate_wires(y_p, x_0, y_0, x_p);
+    block.populate_wires(z_p, x_1, y_1, z_0);
+    block.populate_wires(x_2, y_2, z_2, z_1);
+    block.populate_wires(x_3, y_3, z_3, this->zero_idx);
 
-    blocks.main.q_m().emplace_back(addconstp);
-    blocks.main.q_1().emplace_back(0);
-    blocks.main.q_2().emplace_back(
-        -x_mulconst0 * 2); // scale constants by 2. If q_arith = 3 then w_4_omega value (z0) gets scaled by 2x
-    blocks.main.q_3().emplace_back(-y_mulconst0 *
-                                   2); // z_0 - (x_0 * -xmulconst0) - (y_0 * ymulconst0) = 0 => z_0 = x_0 + y_0
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_c().emplace_back(-addconst0 * 2);
-    blocks.main.q_arith().emplace_back(3);
+    block.q_m().emplace_back(addconstp);
+    block.q_1().emplace_back(0);
+    block.q_2().emplace_back(-x_mulconst0 *
+                             2); // scale constants by 2. If q_arith = 3 then w_4_omega value (z0) gets scaled by 2x
+    block.q_3().emplace_back(-y_mulconst0 * 2); // z_0 - (x_0 * -xmulconst0) - (y_0 * ymulconst0) = 0 => z_0 = x_0 + y_0
+    block.q_4().emplace_back(0);
+    block.q_c().emplace_back(-addconst0 * 2);
+    block.q_arith().emplace_back(3);
 
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(0);
-    blocks.main.q_2().emplace_back(-x_mulconst1);
-    blocks.main.q_3().emplace_back(-y_mulconst1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_c().emplace_back(-addconst1);
-    blocks.main.q_arith().emplace_back(2);
+    block.q_m().emplace_back(0);
+    block.q_1().emplace_back(0);
+    block.q_2().emplace_back(-x_mulconst1);
+    block.q_3().emplace_back(-y_mulconst1);
+    block.q_4().emplace_back(0);
+    block.q_c().emplace_back(-addconst1);
+    block.q_arith().emplace_back(2);
 
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(-x_mulconst2);
-    blocks.main.q_2().emplace_back(-y_mulconst2);
-    blocks.main.q_3().emplace_back(1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_c().emplace_back(-addconst2);
-    blocks.main.q_arith().emplace_back(1);
+    block.q_m().emplace_back(0);
+    block.q_1().emplace_back(-x_mulconst2);
+    block.q_2().emplace_back(-y_mulconst2);
+    block.q_3().emplace_back(1);
+    block.q_4().emplace_back(0);
+    block.q_c().emplace_back(-addconst2);
+    block.q_arith().emplace_back(1);
 
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(-x_mulconst3);
-    blocks.main.q_2().emplace_back(-y_mulconst3);
-    blocks.main.q_3().emplace_back(1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_c().emplace_back(-addconst3);
-    blocks.main.q_arith().emplace_back(1);
+    block.q_m().emplace_back(0);
+    block.q_1().emplace_back(-x_mulconst3);
+    block.q_2().emplace_back(-y_mulconst3);
+    block.q_3().emplace_back(1);
+    block.q_4().emplace_back(0);
+    block.q_c().emplace_back(-addconst3);
+    block.q_arith().emplace_back(1);
 
     for (size_t i = 0; i < 4; ++i) {
-        blocks.main.q_sort().emplace_back(0);
-        blocks.main.q_lookup_type().emplace_back(0);
-        blocks.main.q_elliptic().emplace_back(0);
-        blocks.main.q_aux().emplace_back(0);
+        block.q_sort().emplace_back(0);
+        block.q_lookup_type().emplace_back(0);
+        block.q_elliptic().emplace_back(0);
+        block.q_aux().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
     }
     check_selector_length_consistency();
@@ -1959,51 +1985,51 @@ std::array<uint32_t, 5> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
     // | x.p | x.1 | y.1 | z.0 | (a.1 - b.1 - c.1 = 0)
     // | x.2 | y.2 | z.2 | z.1 | (a.2 - b.2 - c.2 = 0)
     // | x.3 | y.3 | z.3 | --- | (a.3 - b.3 - c.3 = 0)
-    blocks.main.populate_wires(y_p, x_0, y_0, z_p);
-    blocks.main.populate_wires(x_p, x_1, y_1, z_0);
-    blocks.main.populate_wires(x_2, y_2, z_2, z_1);
-    blocks.main.populate_wires(x_3, y_3, z_3, this->zero_idx);
+    auto& block = blocks.arithmetic;
+    block.populate_wires(y_p, x_0, y_0, z_p);
+    block.populate_wires(x_p, x_1, y_1, z_0);
+    block.populate_wires(x_2, y_2, z_2, z_1);
+    block.populate_wires(x_3, y_3, z_3, this->zero_idx);
 
-    blocks.main.q_m().emplace_back(-addconstp);
-    blocks.main.q_1().emplace_back(0);
-    blocks.main.q_2().emplace_back(-x_mulconst0 * 2);
-    blocks.main.q_3().emplace_back(y_mulconst0 *
-                                   2); // z_0 + (x_0 * -xmulconst0) + (y_0 * ymulconst0) = 0 => z_0 = x_0 - y_0
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_c().emplace_back(-addconst0 * 2);
-    blocks.main.q_arith().emplace_back(3);
+    block.q_m().emplace_back(-addconstp);
+    block.q_1().emplace_back(0);
+    block.q_2().emplace_back(-x_mulconst0 * 2);
+    block.q_3().emplace_back(y_mulconst0 * 2); // z_0 + (x_0 * -xmulconst0) + (y_0 * ymulconst0) = 0 => z_0 = x_0 - y_0
+    block.q_4().emplace_back(0);
+    block.q_c().emplace_back(-addconst0 * 2);
+    block.q_arith().emplace_back(3);
 
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(0);
-    blocks.main.q_2().emplace_back(-x_mulconst1);
-    blocks.main.q_3().emplace_back(y_mulconst1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_c().emplace_back(-addconst1);
-    blocks.main.q_arith().emplace_back(2);
+    block.q_m().emplace_back(0);
+    block.q_1().emplace_back(0);
+    block.q_2().emplace_back(-x_mulconst1);
+    block.q_3().emplace_back(y_mulconst1);
+    block.q_4().emplace_back(0);
+    block.q_c().emplace_back(-addconst1);
+    block.q_arith().emplace_back(2);
 
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(-x_mulconst2);
-    blocks.main.q_2().emplace_back(y_mulconst2);
-    blocks.main.q_3().emplace_back(1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_c().emplace_back(-addconst2);
-    blocks.main.q_arith().emplace_back(1);
+    block.q_m().emplace_back(0);
+    block.q_1().emplace_back(-x_mulconst2);
+    block.q_2().emplace_back(y_mulconst2);
+    block.q_3().emplace_back(1);
+    block.q_4().emplace_back(0);
+    block.q_c().emplace_back(-addconst2);
+    block.q_arith().emplace_back(1);
 
-    blocks.main.q_m().emplace_back(0);
-    blocks.main.q_1().emplace_back(-x_mulconst3);
-    blocks.main.q_2().emplace_back(y_mulconst3);
-    blocks.main.q_3().emplace_back(1);
-    blocks.main.q_4().emplace_back(0);
-    blocks.main.q_c().emplace_back(-addconst3);
-    blocks.main.q_arith().emplace_back(1);
+    block.q_m().emplace_back(0);
+    block.q_1().emplace_back(-x_mulconst3);
+    block.q_2().emplace_back(y_mulconst3);
+    block.q_3().emplace_back(1);
+    block.q_4().emplace_back(0);
+    block.q_c().emplace_back(-addconst3);
+    block.q_arith().emplace_back(1);
 
     for (size_t i = 0; i < 4; ++i) {
-        blocks.main.q_sort().emplace_back(0);
-        blocks.main.q_lookup_type().emplace_back(0);
-        blocks.main.q_elliptic().emplace_back(0);
-        blocks.main.q_aux().emplace_back(0);
+        block.q_sort().emplace_back(0);
+        block.q_lookup_type().emplace_back(0);
+        block.q_elliptic().emplace_back(0);
+        block.q_aux().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
-            blocks.main.pad_additional();
+            block.pad_additional();
         }
     }
     check_selector_length_consistency();
@@ -2026,11 +2052,11 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
     // Record wire value can't yet be computed
     record.record_witness = this->add_variable(0);
     apply_aux_selectors(AUX_SELECTORS::ROM_READ);
-    blocks.main.populate_wires(
+    blocks.aux.populate_wires(
         record.index_witness, record.value_column1_witness, record.value_column2_witness, record.record_witness);
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): set gate index based on block containing ram/rom
-    record.gate_index = this->blocks.main.size() - 1;
+    // Note: record the index into the block that contains the RAM/ROM gates
+    record.gate_index = this->blocks.aux.size() - 1;
     ++this->num_gates;
 }
 
@@ -2046,25 +2072,23 @@ void UltraCircuitBuilder_<Arithmetization>::create_sorted_ROM_gate(RomRecord& re
 {
     record.record_witness = this->add_variable(0);
     apply_aux_selectors(AUX_SELECTORS::ROM_CONSISTENCY_CHECK);
-    blocks.main.populate_wires(
+    blocks.aux.populate_wires(
         record.index_witness, record.value_column1_witness, record.value_column2_witness, record.record_witness);
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): set gate index based on block containing ram/rom
-    record.gate_index = this->blocks.main.size() - 1;
+    // Note: record the index into the block that contains the RAM/ROM gates
+    record.gate_index = this->blocks.aux.size() - 1;
     ++this->num_gates;
 }
 
 /**
  * @brief Create a new read-only memory region
  *
- * @details Creates a transcript object, where the inside memory state array is filled with "uninitialized memory"
- and
- * and empty memory record array. Puts this object into the vector of ROM arrays.
+ * @details Creates a transcript object, where the inside memory state array is filled with "uninitialized memory" and
+ * empty memory record array. Puts this object into the vector of ROM arrays.
  *
  * @param array_size The size of region in elements
  * @return size_t The index of the element
  */
-
 template <typename Arithmetization>
 size_t UltraCircuitBuilder_<Arithmetization>::create_ROM_array(const size_t array_size)
 {
@@ -2092,11 +2116,11 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
     record.record_witness = this->add_variable(0);
     apply_aux_selectors(record.access_type == RamRecord::AccessType::READ ? AUX_SELECTORS::RAM_READ
                                                                           : AUX_SELECTORS::RAM_WRITE);
-    blocks.main.populate_wires(
+    blocks.aux.populate_wires(
         record.index_witness, record.timestamp_witness, record.value_witness, record.record_witness);
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): set gate index based on block containing ram/rom
-    record.gate_index = this->blocks.main.size() - 1;
+    // Note: record the index into the block that contains the RAM/ROM gates
+    record.gate_index = this->blocks.aux.size() - 1;
     ++this->num_gates;
 }
 
@@ -2113,11 +2137,11 @@ void UltraCircuitBuilder_<Arithmetization>::create_sorted_RAM_gate(RamRecord& re
 {
     record.record_witness = this->add_variable(0);
     apply_aux_selectors(AUX_SELECTORS::RAM_CONSISTENCY_CHECK);
-    blocks.main.populate_wires(
+    blocks.aux.populate_wires(
         record.index_witness, record.timestamp_witness, record.value_witness, record.record_witness);
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): set gate index based on block containing ram/rom
-    record.gate_index = this->blocks.main.size() - 1;
+    // Note: record the index into the block that contains the RAM/ROM gates
+    record.gate_index = this->blocks.aux.size() - 1;
     ++this->num_gates;
 }
 
@@ -2131,8 +2155,8 @@ template <typename Arithmetization>
 void UltraCircuitBuilder_<Arithmetization>::create_final_sorted_RAM_gate(RamRecord& record, const size_t ram_array_size)
 {
     record.record_witness = this->add_variable(0);
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/867): set gate index based on block containing ram/rom
-    record.gate_index = this->blocks.main.size(); // no -1 since we havent added the gate yet
+    // Note: record the index into the block that contains the RAM/ROM gates
+    record.gate_index = this->blocks.aux.size(); // no -1 since we havent added the gate yet
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/879): This method used to add a single arithmetic gate
     // with two purposes: (1) to provide wire values to the previous RAM gate via shifts, and (2) to perform a
@@ -2142,7 +2166,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_final_sorted_RAM_gate(RamReco
 
     // Create a final gate with all selectors zero; wire values are accessed by the previous RAM gate via shifted wires
     create_dummy_gate(
-        blocks.main, record.index_witness, record.timestamp_witness, record.value_witness, record.record_witness);
+        blocks.aux, record.index_witness, record.timestamp_witness, record.value_witness, record.record_witness);
 
     // Create an add gate ensuring the final index is consistent with the size of the RAM array
     create_big_add_gate({
@@ -2492,7 +2516,7 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/879): This was formerly a single arithmetic gate. A
     // dummy gate has been added to allow the previous gate to access the required wire data via shifts, allowing the
     // arithmetic gate to occur out of sequence.
-    create_dummy_gate(blocks.main, max_index, this->zero_idx, this->zero_idx, this->zero_idx);
+    create_dummy_gate(blocks.aux, max_index, this->zero_idx, this->zero_idx, this->zero_idx);
     create_big_add_gate(
         {
             max_index,
@@ -2624,7 +2648,7 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
         uint32_t timestamp_delta_witness = this->add_variable(timestamp_delta);
 
         apply_aux_selectors(AUX_SELECTORS::RAM_TIMESTAMP_CHECK);
-        blocks.main.populate_wires(
+        blocks.aux.populate_wires(
             current.index_witness, current.timestamp_witness, timestamp_delta_witness, this->zero_idx);
 
         ++this->num_gates;
@@ -2637,7 +2661,7 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
     // add the index/timestamp values of the last sorted record in an empty add gate.
     // (the previous gate will access the wires on this gate and requires them to be those of the last record)
     const auto& last = sorted_ram_records[ram_array.records.size() - 1];
-    create_dummy_gate(blocks.main, last.index_witness, last.timestamp_witness, this->zero_idx, this->zero_idx);
+    create_dummy_gate(blocks.aux, last.index_witness, last.timestamp_witness, this->zero_idx, this->zero_idx);
 
     // Step 3: validate difference in timestamps is monotonically increasing. i.e. is <= maximum timestamp
     const size_t max_timestamp = ram_array.access_count - 1;

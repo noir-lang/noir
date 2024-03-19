@@ -62,7 +62,7 @@ class GoblinMockCircuits {
     {
         // Determine number of times to execute the below operations that constitute the mock circuit logic. Note that
         // the circuit size does not scale linearly with number of iterations due to e.g. amortization of lookup costs
-        const size_t NUM_ITERATIONS_LARGE = 13; // results in circuit size 2^19 (521327 gates)
+        const size_t NUM_ITERATIONS_LARGE = 12; // results in circuit size 2^19 (502238 gates)
         const size_t NUM_ITERATIONS_MEDIUM = 3; // results in circuit size 2^17 (124843 gates)
         const size_t NUM_ITERATIONS = large ? NUM_ITERATIONS_LARGE : NUM_ITERATIONS_MEDIUM;
 

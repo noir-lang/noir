@@ -64,8 +64,28 @@ class CircuitChecker {
     }
 
   private:
-    struct TagCheckData;
-    struct MemoryCheckData;
+    struct TagCheckData;           // Container for data pertaining to generalized permutation tag check
+    struct MemoryCheckData;        // Container for data pertaining to RAM/RAM record check
+    using Key = std::array<FF, 4>; // Key type for lookup table hash table
+    struct HashFunction;           // Custom hash function for lookup table hash table
+    using LookupHashTable = std::unordered_set<Key, HashFunction>;
+
+    /**
+     * @brief Checks that the provided witness satisfies all gates contained in a single execution trace block
+     *
+     * @tparam Builder
+     * @param builder
+     * @param block
+     * @param tag_data
+     * @param memory_data
+     * @param lookup_hash_table
+     */
+    template <typename Builder>
+    static bool check_block(Builder& builder,
+                            auto& block,
+                            TagCheckData& tag_data,
+                            MemoryCheckData& memory_data,
+                            LookupHashTable& lookup_hash_table);
 
     /**
      * @brief Check that a given relation is satisfied for the provided inputs corresponding to a single row
@@ -151,8 +171,7 @@ class CircuitChecker {
         }
     };
 
-    // Define a hash table for efficiently checking if lookups are present in the set of tables used by the circuit
-    using Key = std::array<FF, 4>; // key value is the four wire inputs for a lookup gates
+    // Hash for lookups hash table for efficiently checking if lookups are present in set of tables used by circuit
     struct HashFunction {
         const FF mult_const = FF(uint256_t(0x1337, 0x1336, 0x1335, 0x1334));
         const FF mc_sqr = mult_const.sqr();
@@ -164,6 +183,5 @@ class CircuitChecker {
             return static_cast<size_t>(result.reduce_once().data[0]);
         }
     };
-    using LookupHashTable = std::unordered_set<Key, HashFunction>;
 };
 } // namespace bb

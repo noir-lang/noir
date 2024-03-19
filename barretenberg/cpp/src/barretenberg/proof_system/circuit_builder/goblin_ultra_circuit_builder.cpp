@@ -41,45 +41,51 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/821): automate updating of read counts
     calldata_read_counts[raw_read_idx]++;
 
-    // mock gates that use poseidon selectors, with all zeros as input
-    this->blocks.main.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
-    this->blocks.main.q_m().emplace_back(0);
-    this->blocks.main.q_1().emplace_back(0);
-    this->blocks.main.q_2().emplace_back(0);
-    this->blocks.main.q_3().emplace_back(0);
-    this->blocks.main.q_c().emplace_back(0);
-    this->blocks.main.q_arith().emplace_back(0);
-    this->blocks.main.q_4().emplace_back(0);
-    this->blocks.main.q_sort().emplace_back(0);
-    this->blocks.main.q_lookup_type().emplace_back(0);
-    this->blocks.main.q_elliptic().emplace_back(0);
-    this->blocks.main.q_aux().emplace_back(0);
-    this->blocks.main.q_busread().emplace_back(0);
-    this->blocks.main.q_poseidon2_external().emplace_back(1);
-    this->blocks.main.q_poseidon2_internal().emplace_back(1);
+    // mock a poseidon external gate, with all zeros as input
+    this->blocks.poseidon_external.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+    this->blocks.poseidon_external.q_m().emplace_back(0);
+    this->blocks.poseidon_external.q_1().emplace_back(0);
+    this->blocks.poseidon_external.q_2().emplace_back(0);
+    this->blocks.poseidon_external.q_3().emplace_back(0);
+    this->blocks.poseidon_external.q_c().emplace_back(0);
+    this->blocks.poseidon_external.q_arith().emplace_back(0);
+    this->blocks.poseidon_external.q_4().emplace_back(0);
+    this->blocks.poseidon_external.q_sort().emplace_back(0);
+    this->blocks.poseidon_external.q_lookup_type().emplace_back(0);
+    this->blocks.poseidon_external.q_elliptic().emplace_back(0);
+    this->blocks.poseidon_external.q_aux().emplace_back(0);
+    this->blocks.poseidon_external.q_busread().emplace_back(0);
+    this->blocks.poseidon_external.q_poseidon2_external().emplace_back(1);
+    this->blocks.poseidon_external.q_poseidon2_internal().emplace_back(0);
     this->check_selector_length_consistency();
-
     ++this->num_gates;
 
-    // second gate that stores the output of all zeros of the poseidon gates
-    this->blocks.main.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
-    this->blocks.main.q_m().emplace_back(0);
-    this->blocks.main.q_1().emplace_back(0);
-    this->blocks.main.q_2().emplace_back(0);
-    this->blocks.main.q_3().emplace_back(0);
-    this->blocks.main.q_c().emplace_back(0);
-    this->blocks.main.q_arith().emplace_back(0);
-    this->blocks.main.q_4().emplace_back(0);
-    this->blocks.main.q_sort().emplace_back(0);
-    this->blocks.main.q_lookup_type().emplace_back(0);
-    this->blocks.main.q_elliptic().emplace_back(0);
-    this->blocks.main.q_aux().emplace_back(0);
-    this->blocks.main.q_busread().emplace_back(0);
-    this->blocks.main.q_poseidon2_external().emplace_back(0);
-    this->blocks.main.q_poseidon2_internal().emplace_back(0);
-    this->check_selector_length_consistency();
+    // dummy gate to be read into by previous poseidon external gate via shifts
+    this->create_dummy_gate(
+        this->blocks.poseidon_external, this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
 
+    // mock a poseidon internal gate, with all zeros as input
+    this->blocks.poseidon_internal.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+    this->blocks.poseidon_internal.q_m().emplace_back(0);
+    this->blocks.poseidon_internal.q_1().emplace_back(0);
+    this->blocks.poseidon_internal.q_2().emplace_back(0);
+    this->blocks.poseidon_internal.q_3().emplace_back(0);
+    this->blocks.poseidon_internal.q_c().emplace_back(0);
+    this->blocks.poseidon_internal.q_arith().emplace_back(0);
+    this->blocks.poseidon_internal.q_4().emplace_back(0);
+    this->blocks.poseidon_internal.q_sort().emplace_back(0);
+    this->blocks.poseidon_internal.q_lookup_type().emplace_back(0);
+    this->blocks.poseidon_internal.q_elliptic().emplace_back(0);
+    this->blocks.poseidon_internal.q_aux().emplace_back(0);
+    this->blocks.poseidon_internal.q_busread().emplace_back(0);
+    this->blocks.poseidon_internal.q_poseidon2_external().emplace_back(0);
+    this->blocks.poseidon_internal.q_poseidon2_internal().emplace_back(1);
+    this->check_selector_length_consistency();
     ++this->num_gates;
+
+    // dummy gate to be read into by previous poseidon internal gate via shifts
+    this->create_dummy_gate(
+        this->blocks.poseidon_internal, this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
 }
 
 /**
@@ -223,23 +229,24 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::set_goblin_ecc_op_co
 template <typename FF>
 void GoblinUltraCircuitBuilder_<FF>::create_calldata_lookup_gate(const databus_lookup_gate_<FF>& in)
 {
-    this->blocks.main.populate_wires(in.value, in.index, this->zero_idx, this->zero_idx);
-    this->blocks.main.q_busread().emplace_back(1);
+    auto& block = this->blocks.busread;
+    block.populate_wires(in.value, in.index, this->zero_idx, this->zero_idx);
+    block.q_busread().emplace_back(1);
 
     // populate all other components with zero
-    this->blocks.main.q_m().emplace_back(0);
-    this->blocks.main.q_1().emplace_back(0);
-    this->blocks.main.q_2().emplace_back(0);
-    this->blocks.main.q_3().emplace_back(0);
-    this->blocks.main.q_c().emplace_back(0);
-    this->blocks.main.q_sort().emplace_back(0);
-    this->blocks.main.q_arith().emplace_back(0);
-    this->blocks.main.q_4().emplace_back(0);
-    this->blocks.main.q_lookup_type().emplace_back(0);
-    this->blocks.main.q_elliptic().emplace_back(0);
-    this->blocks.main.q_aux().emplace_back(0);
-    this->blocks.main.q_poseidon2_external().emplace_back(0);
-    this->blocks.main.q_poseidon2_internal().emplace_back(0);
+    block.q_m().emplace_back(0);
+    block.q_1().emplace_back(0);
+    block.q_2().emplace_back(0);
+    block.q_3().emplace_back(0);
+    block.q_c().emplace_back(0);
+    block.q_sort().emplace_back(0);
+    block.q_arith().emplace_back(0);
+    block.q_4().emplace_back(0);
+    block.q_lookup_type().emplace_back(0);
+    block.q_elliptic().emplace_back(0);
+    block.q_aux().emplace_back(0);
+    block.q_poseidon2_external().emplace_back(0);
+    block.q_poseidon2_internal().emplace_back(0);
     this->check_selector_length_consistency();
 
     ++this->num_gates;
@@ -251,21 +258,22 @@ void GoblinUltraCircuitBuilder_<FF>::create_calldata_lookup_gate(const databus_l
 template <typename FF>
 void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in)
 {
-    this->blocks.main.populate_wires(in.a, in.b, in.c, in.d);
-    this->blocks.main.q_m().emplace_back(0);
-    this->blocks.main.q_1().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
-    this->blocks.main.q_2().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][1]);
-    this->blocks.main.q_3().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][2]);
-    this->blocks.main.q_c().emplace_back(0);
-    this->blocks.main.q_arith().emplace_back(0);
-    this->blocks.main.q_4().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][3]);
-    this->blocks.main.q_sort().emplace_back(0);
-    this->blocks.main.q_lookup_type().emplace_back(0);
-    this->blocks.main.q_elliptic().emplace_back(0);
-    this->blocks.main.q_aux().emplace_back(0);
-    this->blocks.main.q_busread().emplace_back(0);
-    this->blocks.main.q_poseidon2_external().emplace_back(1);
-    this->blocks.main.q_poseidon2_internal().emplace_back(0);
+    auto& block = this->blocks.poseidon_external;
+    block.populate_wires(in.a, in.b, in.c, in.d);
+    block.q_m().emplace_back(0);
+    block.q_1().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
+    block.q_2().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][1]);
+    block.q_3().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][2]);
+    block.q_c().emplace_back(0);
+    block.q_arith().emplace_back(0);
+    block.q_4().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][3]);
+    block.q_sort().emplace_back(0);
+    block.q_lookup_type().emplace_back(0);
+    block.q_elliptic().emplace_back(0);
+    block.q_aux().emplace_back(0);
+    block.q_busread().emplace_back(0);
+    block.q_poseidon2_external().emplace_back(1);
+    block.q_poseidon2_internal().emplace_back(0);
     this->check_selector_length_consistency();
     ++this->num_gates;
 }
@@ -276,21 +284,22 @@ void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_external_gate(const poseid
 template <typename FF>
 void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in)
 {
-    this->blocks.main.populate_wires(in.a, in.b, in.c, in.d);
-    this->blocks.main.q_m().emplace_back(0);
-    this->blocks.main.q_1().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
-    this->blocks.main.q_2().emplace_back(0);
-    this->blocks.main.q_3().emplace_back(0);
-    this->blocks.main.q_c().emplace_back(0);
-    this->blocks.main.q_arith().emplace_back(0);
-    this->blocks.main.q_4().emplace_back(0);
-    this->blocks.main.q_sort().emplace_back(0);
-    this->blocks.main.q_lookup_type().emplace_back(0);
-    this->blocks.main.q_elliptic().emplace_back(0);
-    this->blocks.main.q_aux().emplace_back(0);
-    this->blocks.main.q_busread().emplace_back(0);
-    this->blocks.main.q_poseidon2_external().emplace_back(0);
-    this->blocks.main.q_poseidon2_internal().emplace_back(1);
+    auto& block = this->blocks.poseidon_internal;
+    block.populate_wires(in.a, in.b, in.c, in.d);
+    block.q_m().emplace_back(0);
+    block.q_1().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
+    block.q_2().emplace_back(0);
+    block.q_3().emplace_back(0);
+    block.q_c().emplace_back(0);
+    block.q_arith().emplace_back(0);
+    block.q_4().emplace_back(0);
+    block.q_sort().emplace_back(0);
+    block.q_lookup_type().emplace_back(0);
+    block.q_elliptic().emplace_back(0);
+    block.q_aux().emplace_back(0);
+    block.q_busread().emplace_back(0);
+    block.q_poseidon2_external().emplace_back(0);
+    block.q_poseidon2_internal().emplace_back(1);
     this->check_selector_length_consistency();
     ++this->num_gates;
 }
