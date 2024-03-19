@@ -393,16 +393,12 @@ fn import_visibility() -> impl NoirParser<ItemVisibility> {
 
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {
     import_visibility().then_ignore(keyword(Keyword::Mod)).then(ident()).map(
-        |(visibility, ident)| {
-            TopLevelStatement::Module(ModuleDeclaration {
-                ident,
-                // A module's contents are visible to the parent module unless they themselves are marked private.
-                visibility: if visibility == ItemVisibility::Private {
-                    ItemVisibility::PublicSuper
-                } else {
-                    visibility
-                },
-            })
+        |(mut visibility, ident)| {
+            // A module's contents are visible to the parent module unless they themselves are marked private.
+            if visibility == ItemVisibility::Private {
+                visibility = ItemVisibility::PublicSuper;
+            }
+            TopLevelStatement::Module(ModuleDeclaration { ident, visibility })
         },
     )
 }
