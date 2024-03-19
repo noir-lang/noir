@@ -8,7 +8,7 @@
     "build": "yarn preprocess && yarn version::stables && docusaurus build",
     "version::stables": "ts-node ./scripts/setStable.ts",
     "serve": "serve build",
-    "version": "yarn preprocess && docusaurus docs:version"
+    "version": "yarn preprocess && docusaurus build && docusaurus docs:version"
   },
   "dependencies": {
     "@docusaurus/core": "^3.0.1",

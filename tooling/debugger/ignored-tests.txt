@@ -6,6 +6,7 @@ brillig_to_bytes_integration
 debug_logs
 double_verify_nested_proof
 double_verify_proof
+double_verify_proof_recursive
 modulus
 references
 scalar_mul

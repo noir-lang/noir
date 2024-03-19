@@ -32,19 +32,16 @@ export interface EventAbi {
   fields: ABIVariable[];
 }
 
-/** The Noir function types. */
-export type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
-
 /**
  * The compilation result of an Noir function.
  */
 export interface NoirFunctionEntry {
   /** The name of the function. */
   name: string;
-  /** The type of the function. */
-  function_type: NoirFunctionType;
-  /** Whether the function is internal. */
-  is_internal: boolean;
+  /** Whether the function is unconstrained. */
+  is_unconstrained: boolean;
+  /** The custom attributes applied to the function. */
+  custom_attributes: string[];
   /** The ABI of the function. */
   abi: Abi;
   /** The bytecode of the function in base64. */

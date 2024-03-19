@@ -30,4 +30,4 @@ sidebar_position: 0
 ---
 " > $NARGO_REFERENCE
 
-cargo run -F codegen-docs -- info >> $NARGO_REFERENCE
+cargo run --bin nargo -F codegen-docs -- info >> $NARGO_REFERENCE

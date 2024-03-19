@@ -28,8 +28,8 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    BinaryOpKind, ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared,
-    TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    BinaryOpKind, FunctionDefinition, Generics, ItemVisibility, Shared, TypeAlias, TypeBindings,
+    TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -236,20 +236,11 @@ pub struct FunctionModifiers {
     pub name: String,
 
     /// Whether the function is `pub` or not.
-    pub visibility: FunctionVisibility,
+    pub visibility: ItemVisibility,
 
     pub attributes: Attributes,
 
     pub is_unconstrained: bool,
-
-    /// This function's type in its contract.
-    /// If this function is not in a contract, this is always 'Secret'.
-    pub contract_function_type: Option<ContractFunctionType>,
-
-    /// This function's contract visibility.
-    /// If this function is internal can only be called by itself.
-    /// Will be None if not in contract.
-    pub is_internal: Option<bool>,
 }
 
 impl FunctionModifiers {
@@ -259,11 +250,9 @@ impl FunctionModifiers {
     pub fn new() -> Self {
         Self {
             name: String::new(),
-            visibility: FunctionVisibility::Public,
+            visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
-            is_internal: None,
-            contract_function_type: None,
         }
     }
 }
@@ -759,17 +748,11 @@ impl NodeInterner {
         module: ModuleId,
         location: Location,
     ) -> DefinitionId {
-        use ContractFunctionType::*;
-
-        // We're filling in contract_function_type and is_internal now, but these will be verified
-        // later during name resolution.
         let modifiers = FunctionModifiers {
             name: function.name.0.contents.clone(),
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
-            contract_function_type: Some(if function.is_open { Open } else { Secret }),
-            is_internal: Some(function.is_internal),
         };
         self.push_function_definition(id, modifiers, module, location)
     }
@@ -799,7 +782,7 @@ impl NodeInterner {
     ///
     /// The underlying function_visibilities map is populated during def collection,
     /// so this function can be called anytime afterward.
-    pub fn function_visibility(&self, func: FuncId) -> FunctionVisibility {
+    pub fn function_visibility(&self, func: FuncId) -> ItemVisibility {
         self.function_modifiers[&func].visibility
     }
 

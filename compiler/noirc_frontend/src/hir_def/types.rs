@@ -127,11 +127,7 @@ impl Type {
                 let fields = struct_type.get_fields(args);
                 fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
-            Type::Alias(def, _) => {
-                // It is safe to access `typ` without instantiating generics here since generics
-                // cannot change the number of fields in `typ`.
-                def.borrow().typ.field_count()
-            }
+            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(),
             Type::Tuple(fields) => {
                 fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
             }

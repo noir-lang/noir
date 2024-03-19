@@ -3,7 +3,7 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::{
     brillig::brillig_ir::{
         brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
-        BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        BrilligContext,
     },
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-use super::brillig_fn::FunctionContext;
+use super::brillig_fn::{get_bit_size_from_ssa_type, FunctionContext};
 
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
@@ -189,21 +189,10 @@ pub(crate) fn allocate_value(
     let typ = dfg.type_of_value(value_id);
 
     match typ {
-        Type::Numeric(numeric_type) => BrilligVariable::SingleAddr(SingleAddrVariable {
-            address: brillig_context.allocate_register(),
-            bit_size: numeric_type.bit_size(),
-        }),
-        Type::Reference(_) => BrilligVariable::SingleAddr(SingleAddrVariable {
-            address: brillig_context.allocate_register(),
-            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-        }),
-        Type::Function => {
-            // NB. function references are converted to a constant when
-            // translating from SSA to Brillig (to allow for debugger
-            // instrumentation to work properly)
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
             BrilligVariable::SingleAddr(SingleAddrVariable {
                 address: brillig_context.allocate_register(),
-                bit_size: 32,
+                bit_size: get_bit_size_from_ssa_type(&typ),
             })
         }
         Type::Array(item_typ, elem_count) => {

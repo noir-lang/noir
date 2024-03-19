@@ -48,6 +48,7 @@ pub(crate) fn optimize_into_acir(
     let ssa_gen_span_guard = ssa_gen_span.enter();
     let ssa = SsaBuilder::new(program, print_ssa_passes, force_brillig_output)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
+        .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
@@ -59,10 +60,7 @@ pub(crate) fn optimize_into_acir(
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
-        .run_pass(
-            Ssa::fold_constants_using_constraints,
-            "After Constant Folding With Constraint Info:",
-        )
+        .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
         .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
         .finish();
 

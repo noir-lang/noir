@@ -102,7 +102,14 @@ impl UseTree {
 
         let mut iter = self.path.iter().peekable();
         while let Some(segment) = iter.next() {
-            let segment_str = segment.rewrite(visitor, shape);
+            let mut segment_str = segment.rewrite(visitor, shape);
+            if segment_str.contains('{')
+                && !segment_str.contains(',')
+                && !segment_str.contains("::")
+            {
+                let empty = "";
+                segment_str = segment_str.replace(['{', '}'], empty);
+            }
             result.push_str(&segment_str);
 
             if iter.peek().is_some() {

@@ -17,6 +17,7 @@ use noirc_frontend::graph::CrateName;
 
 /// Given a proof and a program, verify whether the proof is valid
 #[derive(Debug, Clone, Args)]
+#[clap(visible_alias = "v")]
 pub(crate) struct VerifyCommand {
     /// The name of the toml file which contains the inputs for the verifier
     #[clap(long, short, default_value = VERIFIER_INPUT_FILE)]

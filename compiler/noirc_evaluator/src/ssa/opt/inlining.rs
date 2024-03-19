@@ -487,6 +487,13 @@ impl<'function> PerFunctionContext<'function> {
             }
             TerminatorInstruction::Return { return_values, call_stack } => {
                 let return_values = vecmap(return_values, |value| self.translate_value(*value));
+
+                // Note that `translate_block` would take us back to the point at which the
+                // inlining of this source block began. Since additional blocks may have been
+                // inlined since, we are interested in the block representing the current program
+                // point, obtained via `current_block`.
+                let block_id = self.context.builder.current_block();
+
                 if self.inlining_entry {
                     let mut new_call_stack = self.context.call_stack.clone();
                     new_call_stack.append(call_stack.clone());
@@ -495,11 +502,7 @@ impl<'function> PerFunctionContext<'function> {
                         .set_call_stack(new_call_stack)
                         .terminate_with_return(return_values.clone());
                 }
-                // Note that `translate_block` would take us back to the point at which the
-                // inlining of this source block began. Since additional blocks may have been
-                // inlined since, we are interested in the block representing the current program
-                // point, obtained via `current_block`.
-                let block_id = self.context.builder.current_block();
+
                 Some((block_id, return_values))
             }
         }

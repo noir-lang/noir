@@ -1,15 +1,16 @@
-use super::{item_scope::Visibility, ModuleDefId};
+use super::ModuleDefId;
+use crate::ItemVisibility;
 
 // This works exactly the same as in r-a, just simplified
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct PerNs {
-    pub types: Option<(ModuleDefId, Visibility, bool)>,
-    pub values: Option<(ModuleDefId, Visibility, bool)>,
+    pub types: Option<(ModuleDefId, ItemVisibility, bool)>,
+    pub values: Option<(ModuleDefId, ItemVisibility, bool)>,
 }
 
 impl PerNs {
     pub fn types(t: ModuleDefId) -> PerNs {
-        PerNs { types: Some((t, Visibility::Public, false)), values: None }
+        PerNs { types: Some((t, ItemVisibility::Public, false)), values: None }
     }
 
     pub fn take_types(self) -> Option<ModuleDefId> {
@@ -24,7 +25,7 @@ impl PerNs {
         self.types.map(|it| it.0).into_iter().chain(self.values.map(|it| it.0))
     }
 
-    pub fn iter_items(self) -> impl Iterator<Item = (ModuleDefId, Visibility, bool)> {
+    pub fn iter_items(self) -> impl Iterator<Item = (ModuleDefId, ItemVisibility, bool)> {
         self.types.into_iter().chain(self.values)
     }
 

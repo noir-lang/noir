@@ -4,6 +4,7 @@ mod poseidon2;
 mod pedersen;
 
 use crate::default::Default;
+use crate::uint128::U128;
 
 #[foreign(sha256)]
 // docs:start:sha256
@@ -120,10 +121,102 @@ where
     }    
 }
 
-// TODO: add implementations for the remainder of primitive types.
-impl Hash for Field{
+impl Hash for Field {
     fn hash<H>(self, state: &mut H) where H: Hasher{
-        let input: [Field] = [self];
-        H::write(state, input);
+        H::write(state, [self]);
+    }
+}
+
+impl Hash for u8 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for u32 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for u64 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for i8 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for i32 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for i64 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for bool {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self as Field]);
+    }
+}
+
+impl Hash for () {
+    fn hash<H>(_self: Self, _state: &mut H) where H: Hasher {}
+}
+
+impl Hash for U128 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, [self.lo as Field, self.hi as Field]);
+    }
+}
+
+impl<T, N> Hash for [T; N] where T: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        for elem in self {
+            elem.hash(state);
+        }
+    }
+}
+
+impl<A, B> Hash for (A, B) where A: Hash, B: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        self.0.hash(state);
+        self.1.hash(state);
+    }
+}
+
+impl<A, B, C> Hash for (A, B, C) where A: Hash, B: Hash, C: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+    }
+}
+
+impl<A, B, C, D> Hash for (A, B, C, D) where A: Hash, B: Hash, C: Hash, D: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+        self.3.hash(state);
+    }
+}
+
+impl<A, B, C, D, E> Hash for (A, B, C, D, E) where A: Hash, B: Hash, C: Hash, D: Hash, E: Hash {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        self.0.hash(state);
+        self.1.hash(state);
+        self.2.hash(state);
+        self.3.hash(state);
+        self.4.hash(state);
     }
 }

@@ -167,7 +167,7 @@ pub(crate) fn convert_black_box_call(
             ) = (function_arguments, function_results)
             {
                 let message_hash = convert_array_or_vector(brillig_context, message, bb_func);
-                let signature = brillig_context.array_to_vector(signature);
+                let signature = brillig_context.array_to_vector_instruction(signature);
                 brillig_context.black_box_op_instruction(BlackBoxOp::SchnorrVerify {
                     public_key_x: public_key_x.address,
                     public_key_y: public_key_y.address,
@@ -368,7 +368,7 @@ fn convert_array_or_vector(
     bb_func: &BlackBoxFunc,
 ) -> BrilligVector {
     match array_or_vector {
-        BrilligVariable::BrilligArray(array) => brillig_context.array_to_vector(array),
+        BrilligVariable::BrilligArray(array) => brillig_context.array_to_vector_instruction(array),
         BrilligVariable::BrilligVector(vector) => *vector,
         _ => unreachable!(
             "ICE: {} expected an array or a vector, but got {:?}",

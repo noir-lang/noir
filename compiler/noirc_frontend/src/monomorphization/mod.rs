@@ -28,8 +28,8 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
     token::FunctionAttribute,
-    ContractFunctionType, FunctionKind, IntegerBitSize, Signedness, Type, TypeBinding,
-    TypeBindings, TypeVariable, TypeVariableKind, UnaryOp, Visibility,
+    FunctionKind, IntegerBitSize, Signedness, Type, TypeBinding, TypeBindings, TypeVariable,
+    TypeVariableKind, UnaryOp, Visibility,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -312,8 +312,7 @@ impl<'interner> Monomorphizer<'interner> {
             Type::TraitAsType(..) => &body_return_type,
             _ => meta.return_type(),
         });
-        let unconstrained = modifiers.is_unconstrained
-            || matches!(modifiers.contract_function_type, Some(ContractFunctionType::Open));
+        let unconstrained = modifiers.is_unconstrained;
 
         let parameters = self.parameters(&meta.parameters);
         let body = self.expr(body_expr_id)?;
@@ -595,6 +594,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Semi(expr) => {
                 self.expr(expr).map(|expr| ast::Expression::Semi(Box::new(expr)))
             }
+            HirStatement::Break => Ok(ast::Expression::Break),
+            HirStatement::Continue => Ok(ast::Expression::Continue),
             HirStatement::Error => unreachable!(),
         }
     }

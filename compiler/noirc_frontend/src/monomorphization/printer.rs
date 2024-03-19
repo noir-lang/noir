@@ -73,6 +73,8 @@ impl AstPrinter {
                 self.print_expr(expr, f)?;
                 write!(f, ";")
             }
+            Expression::Break => write!(f, "break"),
+            Expression::Continue => write!(f, "continue"),
         }
     }
 

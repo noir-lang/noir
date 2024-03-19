@@ -1,0 +1,5 @@
+[package]
+name = "should_fail_with_mismatch"
+type = "bin"
+authors = [""]
+[dependencies]

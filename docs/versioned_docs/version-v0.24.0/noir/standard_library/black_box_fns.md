@@ -12,18 +12,18 @@ The ACVM spec defines a set of blackbox functions which backends will be expecte
 
 Here is a list of the current black box functions:
 
-- [SHA256](./cryptographic_primitives/hashes#sha256)
-- [Schnorr signature verification](./cryptographic_primitives/schnorr)
-- [Blake2s](./cryptographic_primitives/hashes#blake2s)
-- [Blake3](./cryptographic_primitives/hashes#blake3)
-- [Pedersen Hash](./cryptographic_primitives/hashes#pedersen_hash)
-- [Pedersen Commitment](./cryptographic_primitives/hashes#pedersen_commitment)
-- [ECDSA signature verification](./cryptographic_primitives/ecdsa_sig_verification)
-- [Fixed base scalar multiplication](./cryptographic_primitives/scalar)
+- [SHA256](./cryptographic_primitives/hashes.mdx#sha256)
+- [Schnorr signature verification](./cryptographic_primitives/schnorr.mdx)
+- [Blake2s](./cryptographic_primitives/hashes.mdx#blake2s)
+- [Blake3](./cryptographic_primitives/hashes.mdx#blake3)
+- [Pedersen Hash](./cryptographic_primitives/hashes.mdx#pedersen_hash)
+- [Pedersen Commitment](./cryptographic_primitives/hashes.mdx#pedersen_commitment)
+- [ECDSA signature verification](./cryptographic_primitives/ecdsa_sig_verification.mdx)
+- [Fixed base scalar multiplication](./cryptographic_primitives/scalar.mdx)
 - AND
 - XOR
 - RANGE
-- [Keccak256](./cryptographic_primitives/hashes#keccak256)
+- [Keccak256](./cryptographic_primitives/hashes.mdx#keccak256)
 - [Recursive proof verification](./recursion)
 
 Most black box functions are included as part of the Noir standard library, however `AND`, `XOR` and `RANGE` are used as part of the Noir language syntax. For instance, using the bitwise operator `&` will invoke the `AND` black box function.

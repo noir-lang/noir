@@ -30,6 +30,7 @@ use super::{compile_cmd::compile_workspace, NargoConfig};
 /// 1. The number of ACIR opcodes
 /// 2. Counts the final number gates in the circuit used by a backend
 #[derive(Debug, Clone, Args)]
+#[clap(visible_alias = "i")]
 pub(crate) struct InfoCommand {
     /// The name of the package to detail
     #[clap(long, conflicts_with = "workspace")]

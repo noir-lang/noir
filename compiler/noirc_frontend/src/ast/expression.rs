@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use crate::token::{Attributes, Token};
 use crate::{
-    Distinctness, FunctionVisibility, Ident, Path, Pattern, Recoverable, Statement, StatementKind,
+    Distinctness, Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use acvm::FieldElement;
@@ -369,16 +369,11 @@ pub struct FunctionDefinition {
     // and `secondary` attributes (ones that do not change the function kind)
     pub attributes: Attributes,
 
-    /// True if this function was defined with the 'open' keyword
-    pub is_open: bool,
-
-    pub is_internal: bool,
-
     /// True if this function was defined with the 'unconstrained' keyword
     pub is_unconstrained: bool,
 
     /// Indicate if this function was defined with the 'pub' keyword
-    pub visibility: FunctionVisibility,
+    pub visibility: ItemVisibility,
 
     pub generics: UnresolvedGenerics,
     pub parameters: Vec<Param>,
@@ -404,18 +399,6 @@ pub enum FunctionReturnType {
     Default(Span),
     /// Everything else.
     Ty(UnresolvedType),
-}
-
-/// Describes the types of smart contract functions that are allowed.
-/// - All Noir programs in the non-contract context can be seen as `Secret`.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ContractFunctionType {
-    /// This function will be executed in a private
-    /// context.
-    Secret,
-    /// This function will be executed in a public
-    /// context.
-    Open,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -674,10 +657,8 @@ impl FunctionDefinition {
         FunctionDefinition {
             name: name.clone(),
             attributes: Attributes::empty(),
-            is_open: false,
-            is_internal: false,
             is_unconstrained: false,
-            visibility: FunctionVisibility::Private,
+            visibility: ItemVisibility::Private,
             generics: generics.clone(),
             parameters: p,
             body: body.clone(),
