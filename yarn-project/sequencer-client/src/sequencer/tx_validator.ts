@@ -1,11 +1,20 @@
 import { Tx } from '@aztec/circuit-types';
-import { Fr, GlobalVariables } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr, GlobalVariables } from '@aztec/circuits.js';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { Logger, createDebugLogger } from '@aztec/foundation/log';
+import { getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
+import { AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
 import { ProcessedTx } from './processed_tx.js';
 
+/** A source of what nullifiers have been committed to the state trees */
 export interface NullifierSource {
   getNullifierIndex: (nullifier: Fr) => Promise<bigint | undefined>;
+}
+
+/** Provides a view into public contract state */
+export interface PublicStateSource {
+  storageRead: (contractAddress: AztecAddress, slot: Fr) => Promise<Fr>;
 }
 
 // prefer symbols over booleans so it's clear what the intention is
@@ -16,18 +25,27 @@ const INVALID_TX = Symbol('invalid_tx');
 
 type TxValidationStatus = typeof VALID_TX | typeof INVALID_TX;
 
+// the storage slot associated with "storage.balances"
+const GAS_TOKEN_BALANCES_SLOT = new Fr(1);
+
 export class TxValidator {
   #log: Logger;
   #globalVariables: GlobalVariables;
   #nullifierSource: NullifierSource;
+  #publicStateSource: PublicStateSource;
+  #gasPortalAddress: EthAddress;
 
   constructor(
     nullifierSource: NullifierSource,
+    publicStateSource: PublicStateSource,
+    gasPortalAddress: EthAddress,
     globalVariables: GlobalVariables,
     log = createDebugLogger('aztec:sequencer:tx_validator'),
   ) {
     this.#nullifierSource = nullifierSource;
     this.#globalVariables = globalVariables;
+    this.#publicStateSource = publicStateSource;
+    this.#gasPortalAddress = gasPortalAddress;
 
     this.#log = log;
   }
@@ -49,6 +67,12 @@ export class TxValidator {
       }
 
       if ((await this.#validateNullifiers(tx, thisBlockNullifiers)) === INVALID_TX) {
+        invalidTxs.push(tx);
+        continue;
+      }
+
+      // skip already processed transactions
+      if (tx instanceof Tx && (await this.#validateFee(tx)) === INVALID_TX) {
         invalidTxs.push(tx);
         continue;
       }
@@ -89,18 +113,20 @@ export class TxValidator {
    * @returns Whether this is a problematic double spend that the L1 contract would reject.
    */
   async #validateNullifiers(tx: Tx | ProcessedTx, thisBlockNullifiers: Set<bigint>): Promise<TxValidationStatus> {
-    const newNullifiers = TxValidator.#extractNullifiers(tx);
+    const newNullifiers = [...tx.data.endNonRevertibleData.newNullifiers, ...tx.data.end.newNullifiers]
+      .filter(x => !x.isEmpty())
+      .map(x => x.value.toBigInt());
 
-    // Ditch this tx if it has a repeated nullifiers
+    // Ditch this tx if it has repeated nullifiers
     const uniqueNullifiers = new Set(newNullifiers);
     if (uniqueNullifiers.size !== newNullifiers.length) {
-      this.#log.warn(`Rejecting tx for emitting duplicate nullifiers, tx hash ${Tx.getHash(tx)}`);
+      this.#log.warn(`Rejecting tx ${Tx.getHash(tx)} for emitting duplicate nullifiers`);
       return INVALID_TX;
     }
 
     for (const nullifier of newNullifiers) {
       if (thisBlockNullifiers.has(nullifier)) {
-        this.#log.warn(`Rejecting tx for repeating a in the same block, tx hash ${Tx.getHash(tx)}`);
+        this.#log.warn(`Rejecting tx ${Tx.getHash(tx)} for repeating a nullifier in the same block`);
         return INVALID_TX;
       }
 
@@ -113,16 +139,51 @@ export class TxValidator {
 
     const hasDuplicates = nullifierIndexes.some(index => index !== undefined);
     if (hasDuplicates) {
-      this.#log.warn(`Rejecting tx for repeating nullifiers from the past, tx hash ${Tx.getHash(tx)}`);
+      this.#log.warn(`Rejecting tx ${Tx.getHash(tx)} for repeating nullifiers present in state trees`);
       return INVALID_TX;
     }
 
     return VALID_TX;
   }
 
-  static #extractNullifiers(tx: Tx | ProcessedTx): bigint[] {
-    return [...tx.data.endNonRevertibleData.newNullifiers, ...tx.data.end.newNullifiers]
-      .filter(x => !x.isEmpty())
-      .map(x => x.value.toBigInt());
+  async #validateFee(tx: Tx): Promise<TxValidationStatus> {
+    if (!tx.data.needsTeardown) {
+      // TODO check if fees are mandatory and reject this tx
+      this.#log.debug(`Tx ${Tx.getHash(tx)} doesn't pay for gas`);
+      return VALID_TX;
+    }
+
+    const {
+      // TODO what if there's more than one function call?
+      // if we're to enshrine that teardown = 1 function call, then we should turn this into a single function call
+      [PublicKernelPhase.TEARDOWN]: [teardownFn],
+    } = AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(tx.data, tx.enqueuedPublicFunctionCalls);
+
+    if (!teardownFn) {
+      this.#log.warn(
+        `Rejecting tx ${Tx.getHash(tx)} because it should pay for gas but has no enqueued teardown function call`,
+      );
+      return INVALID_TX;
+    }
+
+    // TODO(#1204) if a generator index is used for the derived storage slot of a map, update it here as well
+    const slot = pedersenHash([GAS_TOKEN_BALANCES_SLOT.toBuffer(), teardownFn.callContext.msgSender.toBuffer()]);
+    const gasBalance = await this.#publicStateSource.storageRead(
+      getCanonicalGasTokenAddress(this.#gasPortalAddress),
+      slot,
+    );
+
+    // TODO(#5004) calculate fee needed based on tx limits and gas prices
+    const gasAmountNeeded = new Fr(1);
+    if (gasBalance.lt(gasAmountNeeded)) {
+      this.#log.warn(
+        `Rejecting tx ${Tx.getHash(
+          tx,
+        )} because it should pay for gas but has insufficient balance ${gasBalance.toShortString()} < ${gasAmountNeeded.toShortString()}`,
+      );
+      return INVALID_TX;
+    }
+
+    return VALID_TX;
   }
 }

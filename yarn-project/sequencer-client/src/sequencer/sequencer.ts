@@ -12,6 +12,7 @@ import { WorldStateStatus, WorldStateSynchronizer } from '@aztec/world-state';
 import { BlockBuilder } from '../block_builder/index.js';
 import { GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
 import { L1Publisher } from '../publisher/l1-publisher.js';
+import { WorldStatePublicDB } from '../simulator/public_executor.js';
 import { ceilPowerOfTwo } from '../utils.js';
 import { SequencerConfig } from './config.js';
 import { ProcessedTx } from './processed_tx.js';
@@ -48,6 +49,7 @@ export class Sequencer {
     private l1ToL2MessageSource: L1ToL2MessageSource,
     private publicProcessorFactory: PublicProcessorFactory,
     config: SequencerConfig = {},
+    private gasPortalAddress = EthAddress.ZERO,
     private log = createDebugLogger('aztec:sequencer'),
   ) {
     this.updateConfig(config);
@@ -179,6 +181,8 @@ export class Sequencer {
             return trees.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
           },
         },
+        new WorldStatePublicDB(trees),
+        this.gasPortalAddress,
         newGlobalVariables,
       );
 

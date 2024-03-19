@@ -506,6 +506,34 @@ describe('e2e_fees', () => {
         addPendingShieldNoteToPXE(0, RefundAmount, computeMessageSecretHash(RefundSecret), tx.txHash),
       ).resolves.toBeUndefined();
     });
+
+    it("rejects txs that don't have enough balance to cover gas costs", async () => {
+      // deploy a copy of bananaFPC but don't fund it!
+      const bankruptFPC = await FPCContract.deploy(aliceWallet, bananaCoin.address, gasTokenContract.address)
+        .send()
+        .deployed();
+
+      await expectMapping(gasBalances, [bankruptFPC.address], [0n]);
+
+      await expect(
+        bananaCoin.methods
+          .privately_mint_private_note(10)
+          .send({
+            // we need to skip public simulation otherwise the PXE refuses to accept the TX
+            skipPublicSimulation: true,
+            fee: {
+              maxFee: MaxFee,
+              paymentMethod: new PrivateFeePaymentMethod(
+                bananaCoin.address,
+                bankruptFPC.address,
+                aliceWallet,
+                RefundSecret,
+              ),
+            },
+          })
+          .wait(),
+      ).rejects.toThrow('Tx dropped by P2P node.');
+    });
   });
 
   it('fails transaction that error in setup', async () => {
