@@ -49,17 +49,15 @@ struct PedersenPoint {
 }
 
 pub fn pedersen_commitment<N>(input: [Field; N]) -> PedersenPoint {
-// docs:end:pedersen_commitment
+    // docs:end:pedersen_commitment
     pedersen_commitment_with_separator(input, 0)
 }
 
 // docs:start:pedersen_commitment_slice
-pub fn pedersen_commitment_slice(input: [Field]) -> PedersenPoint
-{
+pub fn pedersen_commitment_slice(input: [Field]) -> PedersenPoint {
     pedersen_commitment_with_separator_slice(input, 0)
 }
 // docs:end:pedersen_commitment_slice
-
 
 #[foreign(pedersen_commitment)]
 pub fn __pedersen_commitment_with_separator<N>(input: [Field; N], separator: u32) -> [Field; 2] {}
