@@ -176,7 +176,6 @@ export class Tx {
    * @returns - The hash.
    */
   static getHash(tx: Tx | HasHash): TxHash {
-    const hasHash = (tx: Tx | HasHash): tx is HasHash => (tx as HasHash).hash !== undefined;
     return hasHash(tx) ? tx.hash : tx.getTxHash();
   }
 
@@ -186,7 +185,7 @@ export class Tx {
    * @returns The corresponding array of hashes.
    */
   static getHashes(txs: (Tx | HasHash)[]): TxHash[] {
-    return txs.map(tx => Tx.getHash(tx));
+    return txs.map(Tx.getHash);
   }
 
   /**
@@ -208,3 +207,7 @@ export class Tx {
 
 /** Utility type for an entity that has a hash property for a txhash */
 type HasHash = { /** The tx hash */ hash: TxHash };
+
+function hasHash(tx: Tx | HasHash): tx is HasHash {
+  return (tx as HasHash).hash !== undefined;
+}

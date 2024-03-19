@@ -16,6 +16,7 @@ import { ceilPowerOfTwo } from '../utils.js';
 import { SequencerConfig } from './config.js';
 import { ProcessedTx } from './processed_tx.js';
 import { PublicProcessorFactory } from './public_processor.js';
+import { TxValidator } from './tx_validator.js';
 
 /**
  * Sequencer client
@@ -171,8 +172,18 @@ export class Sequencer {
       );
 
       // Filter out invalid txs
+      const trees = this.worldState.getLatest();
+      const txValidator = new TxValidator(
+        {
+          getNullifierIndex(nullifier: Fr): Promise<bigint | undefined> {
+            return trees.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
+          },
+        },
+        newGlobalVariables,
+      );
+
       // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
-      const validTxs = await this.takeValidTxs(pendingTxs, newGlobalVariables);
+      const validTxs = await this.takeValidTxs(pendingTxs, txValidator);
       if (validTxs.length < this.minTxsPerBLock) {
         return;
       }
@@ -193,7 +204,7 @@ export class Sequencer {
       // public functions emitting nullifiers would pass earlier check but fail here.
       // Note that we're checking all nullifiers generated in the private execution twice,
       // we could store the ones already checked and skip them here as an optimization.
-      const processedValidTxs = await this.takeValidTxs(processedTxs, newGlobalVariables);
+      const processedValidTxs = await this.takeValidTxs(processedTxs, txValidator);
 
       if (processedValidTxs.length === 0) {
         this.log('No txs processed correctly to build block. Exiting');
@@ -251,47 +262,14 @@ export class Sequencer {
     }
   }
 
-  protected async takeValidTxs<T extends Tx | ProcessedTx>(txs: T[], globalVariables: GlobalVariables): Promise<T[]> {
-    const validTxs: T[] = [];
-    const txsToDelete = [];
-    const thisBlockNullifiers: Set<bigint> = new Set();
-
-    // Process txs until we get to maxTxsPerBlock, rejecting double spends in the process
-    for (const tx of txs) {
-      if (tx.data.constants.txContext.chainId.value !== globalVariables.chainId.value) {
-        this.log(
-          `Deleting tx for incorrect chain ${tx.data.constants.txContext.chainId.toString()}, tx hash ${Tx.getHash(
-            tx,
-          )}`,
-        );
-        txsToDelete.push(tx);
-        continue;
-      }
-      if (await this.isTxDoubleSpend(tx)) {
-        this.log(`Deleting double spend tx ${Tx.getHash(tx)}`);
-        txsToDelete.push(tx);
-        continue;
-      } else if (this.isTxDoubleSpendSameBlock(tx, thisBlockNullifiers)) {
-        // We don't drop these txs from the p2p pool immediately since they become valid
-        // again if the current block fails to be published for some reason.
-        this.log(`Skipping tx with double-spend for this same block ${Tx.getHash(tx)}`);
-        continue;
-      }
-
-      tx.data.end.newNullifiers.forEach(n => thisBlockNullifiers.add(n.value.toBigInt()));
-      tx.data.endNonRevertibleData.newNullifiers.forEach(n => thisBlockNullifiers.add(n.value.toBigInt()));
-      validTxs.push(tx);
-      if (validTxs.length >= this.maxTxsPerBlock) {
-        break;
-      }
+  protected async takeValidTxs<T extends Tx | ProcessedTx>(txs: T[], validator: TxValidator): Promise<T[]> {
+    const [valid, invalid] = await validator.validateTxs(txs);
+    if (invalid.length > 0) {
+      this.log(`Dropping invalid txs from the p2p pool ${Tx.getHashes(invalid).join(', ')}`);
+      await this.p2pClient.deleteTxs(Tx.getHashes(invalid));
     }
 
-    // Make sure we remove these from the tx pool so we do not consider it again
-    if (txsToDelete.length > 0) {
-      await this.p2pClient.deleteTxs(Tx.getHashes([...txsToDelete]));
-    }
-
-    return validTxs;
+    return valid.slice(0, this.maxTxsPerBlock);
   }
 
   /**
@@ -332,56 +310,6 @@ export class Sequencer {
 
     const [block] = await this.blockBuilder.buildL2Block(globalVariables, allTxs, l1ToL2Messages);
     return block;
-  }
-
-  /**
-   * Returns true if one of the tx nullifiers exist on the block being built.
-   * @param tx - The tx to test.
-   * @param thisBlockNullifiers - The nullifiers added so far.
-   */
-  protected isTxDoubleSpendSameBlock(tx: Tx | ProcessedTx, thisBlockNullifiers: Set<bigint>): boolean {
-    // We only consider non-empty nullifiers
-    const newNullifiers = [
-      ...tx.data.endNonRevertibleData.newNullifiers.filter(n => !n.isEmpty()),
-      ...tx.data.end.newNullifiers.filter(n => !n.isEmpty()),
-    ];
-
-    for (const nullifier of newNullifiers) {
-      if (thisBlockNullifiers.has(nullifier.value.toBigInt())) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Returns true if one of the transaction nullifiers exist.
-   * Nullifiers prevent double spends in a private context.
-   * @param tx - The transaction.
-   * @returns Whether this is a problematic double spend that the L1 contract would reject.
-   */
-  protected async isTxDoubleSpend(tx: Tx | ProcessedTx): Promise<boolean> {
-    // We only consider non-empty nullifiers
-    const newNullifiers = [
-      ...tx.data.endNonRevertibleData.newNullifiers.filter(n => !n.isEmpty()),
-      ...tx.data.end.newNullifiers.filter(n => !n.isEmpty()),
-    ];
-
-    // Ditch this tx if it has a repeated nullifiers
-    const uniqNullifiers = new Set(newNullifiers.map(n => n.value.toBigInt()));
-    if (uniqNullifiers.size !== newNullifiers.length) {
-      return true;
-    }
-
-    for (const nullifier of newNullifiers) {
-      // TODO(AD): this is an exhaustive search currently
-      const db = this.worldState.getLatest();
-      const indexInDb = await db.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
-      if (indexInDb !== undefined) {
-        return true;
-      }
-    }
-    return false;
   }
 
   get coinbase(): EthAddress {

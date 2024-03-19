@@ -9,6 +9,7 @@ import {
   PXE,
   SentTx,
   TxReceipt,
+  TxStatus,
   Wallet,
 } from '@aztec/aztec.js';
 import { times } from '@aztec/foundation/collection';
@@ -110,8 +111,7 @@ describe('e2e_block_building', () => {
     }, 60_000);
   });
 
-  // Regressions for https://github.com/AztecProtocol/aztec-packages/issues/2502
-  describe('double-spends on the same block', () => {
+  describe('double-spends', () => {
     let contract: TestContract;
     let teardown: () => Promise<void>;
 
@@ -123,48 +123,66 @@ describe('e2e_block_building', () => {
 
     afterAll(() => teardown());
 
-    it('drops tx with private nullifier already emitted on the same block', async () => {
-      const nullifier = Fr.random();
-      const calls = times(2, () => contract.methods.emit_nullifier(nullifier));
-      for (const call of calls) {
-        await call.simulate();
-      }
-      const [tx1, tx2] = calls.map(call => call.send());
-      await expectXorTx(tx1, tx2);
-    }, 30_000);
+    // Regressions for https://github.com/AztecProtocol/aztec-packages/issues/2502
+    describe('in the same block', () => {
+      it('drops tx with private nullifier already emitted on the same block', async () => {
+        const nullifier = Fr.random();
+        const calls = times(2, () => contract.methods.emit_nullifier(nullifier));
+        for (const call of calls) {
+          await call.simulate();
+        }
+        const [tx1, tx2] = calls.map(call => call.send());
+        await expectXorTx(tx1, tx2);
+      }, 30_000);
 
-    it('drops tx with public nullifier already emitted on the same block', async () => {
-      const secret = Fr.random();
-      const calls = times(2, () => contract.methods.create_nullifier_public(140n, secret));
-      for (const call of calls) {
-        await call.simulate();
-      }
-      const [tx1, tx2] = calls.map(call => call.send());
-      await expectXorTx(tx1, tx2);
-    }, 30_000);
+      it('drops tx with public nullifier already emitted on the same block', async () => {
+        const secret = Fr.random();
+        const calls = times(2, () => contract.methods.create_nullifier_public(140n, secret));
+        for (const call of calls) {
+          await call.simulate();
+        }
+        const [tx1, tx2] = calls.map(call => call.send());
+        await expectXorTx(tx1, tx2);
+      }, 30_000);
 
-    it('drops tx with two equal nullifiers', async () => {
-      const nullifier = Fr.random();
-      const calls = times(2, () => contract.methods.emit_nullifier(nullifier).request());
-      await expect(new BatchCall(owner, calls).send().wait()).rejects.toThrow(/dropped/);
-    }, 30_000);
+      it('drops tx with two equal nullifiers', async () => {
+        const nullifier = Fr.random();
+        const calls = times(2, () => contract.methods.emit_nullifier(nullifier).request());
+        await expect(new BatchCall(owner, calls).send().wait()).rejects.toThrow(/dropped/);
+      }, 30_000);
 
-    it('drops tx with private nullifier already emitted from public on the same block', async () => {
-      const secret = Fr.random();
-      // See yarn-project/simulator/src/public/index.test.ts 'Should be able to create a nullifier from the public context'
-      const emittedPublicNullifier = pedersenHash([new Fr(140), secret].map(a => a.toBuffer()));
+      it('drops tx with private nullifier already emitted from public on the same block', async () => {
+        const secret = Fr.random();
+        // See yarn-project/simulator/src/public/index.test.ts 'Should be able to create a nullifier from the public context'
+        const emittedPublicNullifier = pedersenHash([new Fr(140), secret].map(a => a.toBuffer()));
 
-      const calls = [
-        contract.methods.create_nullifier_public(140n, secret),
-        contract.methods.emit_nullifier(emittedPublicNullifier),
-      ];
+        const calls = [
+          contract.methods.create_nullifier_public(140n, secret),
+          contract.methods.emit_nullifier(emittedPublicNullifier),
+        ];
 
-      for (const call of calls) {
-        await call.simulate();
-      }
-      const [tx1, tx2] = calls.map(call => call.send());
-      await expectXorTx(tx1, tx2);
-    }, 30_000);
+        for (const call of calls) {
+          await call.simulate();
+        }
+        const [tx1, tx2] = calls.map(call => call.send());
+        await expectXorTx(tx1, tx2);
+      }, 30_000);
+    });
+
+    describe('across blocks', () => {
+      it('drops a tx that tries to spend a nullifier already emitted on a previous block', async () => {
+        const secret = Fr.random();
+        const emittedPublicNullifier = pedersenHash([new Fr(140), secret].map(a => a.toBuffer()));
+
+        await expect(contract.methods.create_nullifier_public(140n, secret).send().wait()).resolves.toEqual(
+          expect.objectContaining({
+            status: TxStatus.MINED,
+          }),
+        );
+
+        await expect(contract.methods.emit_nullifier(emittedPublicNullifier).send().wait()).rejects.toThrow(/dropped/);
+      });
+    });
   });
 });
 
