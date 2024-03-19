@@ -370,7 +370,7 @@ fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
         .map(|r#type| r#type.unwrap_or_else(UnresolvedType::unspecified))
 }
 
-/// import_visibility: 'pub(crate)'? 'pub'? ''
+/// import_visibility: 'pub(crate)' | 'pub' | %empty
 fn import_visibility() -> impl NoirParser<ItemVisibility> {
     let is_pub_crate = (keyword(Keyword::Pub)
         .then_ignore(just(Token::LeftParen))
