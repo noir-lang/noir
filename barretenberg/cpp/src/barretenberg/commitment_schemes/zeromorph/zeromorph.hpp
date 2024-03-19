@@ -704,8 +704,16 @@ template <typename PCS> class ZeroMorphVerifier_ {
             C_zeta_Z = C_zeta_x + C_Z_x * z_challenge;
         }
 
+        // Define the evaluation (always zero by construction in this case) for the PCS opening
+        FF evaluation{ 0 };
+        if constexpr (Curve::is_stdlib_type) { // add builder if in circuit context
+            auto builder = z_challenge.get_context();
+            evaluation = FF(builder, 0);
+        }
+
         return PCS::reduce_verify(
-            { .opening_pair = { .challenge = x_challenge, .evaluation = FF(0) }, .commitment = C_zeta_Z }, transcript);
+            { .opening_pair = { .challenge = x_challenge, .evaluation = evaluation }, .commitment = C_zeta_Z },
+            transcript);
     }
 };
 

@@ -247,7 +247,7 @@ jobs:
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 proof_system_tests
           aztec_manifest_key: barretenberg-x86_64-linux-clang-assert
 
-  barretenberg-stdlib-recursion-ultra-tests:
+  barretenberg-stdlib-plonk-recursion-ultra-tests:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -257,6 +257,18 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 3 stdlib_plonk_recursion_tests --gtest_filter=-*turbo*
+          aztec_manifest_key: barretenberg-x86_64-linux-clang-assert
+
+  barretenberg-stdlib-honk-recursion-ultra-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 3 stdlib_honk_recursion_tests
           aztec_manifest_key: barretenberg-x86_64-linux-clang-assert
 
   bb-js:
@@ -1304,7 +1316,8 @@ workflows:
       - barretenberg-dsl-tests: *bb_test
       - barretenberg-tests: *bb_test
       - barretenberg-stdlib-tests: *bb_test
-      - barretenberg-stdlib-recursion-ultra-tests: *bb_test
+      - barretenberg-stdlib-plonk-recursion-ultra-tests: *bb_test
+      - barretenberg-stdlib-honk-recursion-ultra-tests: *bb_test
       - barretenberg-acir-tests-bb: *bb_acir_tests
       - barretenberg-acir-tests-bb-sol:
           requires:
@@ -1443,7 +1456,8 @@ workflows:
             - barretenberg-dsl-tests
             - barretenberg-tests
             - barretenberg-stdlib-tests
-            - barretenberg-stdlib-recursion-ultra-tests
+            - barretenberg-stdlib-plonk-recursion-ultra-tests
+            - barretenberg-stdlib-honk-recursion-ultra-tests
             - barretenberg-acir-tests-bb
             - barretenberg-acir-tests-bb-sol
             - barretenberg-docs
