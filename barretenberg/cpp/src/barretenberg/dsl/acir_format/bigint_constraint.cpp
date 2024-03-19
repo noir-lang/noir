@@ -2,6 +2,7 @@
 #include "barretenberg/common/assert.hpp"
 #include "barretenberg/dsl/types.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/numeric/uintx/uintx.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/bigfield.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -34,14 +35,16 @@ ModulusId modulus_param_to_id(ModulusParam param)
         secp256r1::FrParams::modulus_2 == param.modulus_2 && secp256r1::FrParams::modulus_3 == param.modulus_3) {
         return ModulusId::SECP256R1_FR;
     }
-
     return ModulusId::UNKNOWN;
 }
 
 template void create_bigint_operations_constraint<UltraCircuitBuilder>(const BigIntOperation& input,
-                                                                       DSLBigInts<UltraCircuitBuilder>& dsl_bigint);
+                                                                       DSLBigInts<UltraCircuitBuilder>& dsl_bigint,
+                                                                       bool has_valid_witness_assignments);
 template void create_bigint_operations_constraint<GoblinUltraCircuitBuilder>(
-    const BigIntOperation& input, DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigint);
+    const BigIntOperation& input,
+    DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigint,
+    bool has_valid_witness_assignments);
 template void create_bigint_addition_constraint<UltraCircuitBuilder>(const BigIntOperation& input,
                                                                      DSLBigInts<UltraCircuitBuilder>& dsl_bigint);
 template void create_bigint_addition_constraint<GoblinUltraCircuitBuilder>(
@@ -55,9 +58,11 @@ template void create_bigint_mul_constraint<UltraCircuitBuilder>(const BigIntOper
 template void create_bigint_mul_constraint<GoblinUltraCircuitBuilder>(
     const BigIntOperation& input, DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigint);
 template void create_bigint_div_constraint<UltraCircuitBuilder>(const BigIntOperation& input,
-                                                                DSLBigInts<UltraCircuitBuilder>& dsl_bigint);
-template void create_bigint_div_constraint<GoblinUltraCircuitBuilder>(
-    const BigIntOperation& input, DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigint);
+                                                                DSLBigInts<UltraCircuitBuilder>& dsl_bigint,
+                                                                bool has_valid_witness_assignments);
+template void create_bigint_div_constraint<GoblinUltraCircuitBuilder>(const BigIntOperation& input,
+                                                                      DSLBigInts<GoblinUltraCircuitBuilder>& dsl_bigint,
+                                                                      bool has_valid_witness_assignments);
 
 template <typename Builder>
 void create_bigint_addition_constraint(const BigIntOperation& input, DSLBigInts<Builder>& dsl_bigint)
@@ -198,8 +203,18 @@ void create_bigint_mul_constraint(const BigIntOperation& input, DSLBigInts<Build
 }
 
 template <typename Builder>
-void create_bigint_div_constraint(const BigIntOperation& input, DSLBigInts<Builder>& dsl_bigint)
+void create_bigint_div_constraint(const BigIntOperation& input,
+                                  DSLBigInts<Builder>& dsl_bigint,
+                                  bool has_valid_witness_assignments)
 {
+    if (!has_valid_witness_assignments) {
+        // Asserts catch the case where the divisor is zero, so we need to provide a different value (1) to avoid the
+        // assert
+        std::array<uint32_t, 5> limbs_idx;
+        dsl_bigint.get_witness_idx_of_limbs(input.rhs, limbs_idx);
+        dsl_bigint.set_value(1, limbs_idx);
+    }
+
     switch (dsl_bigint.get_modulus_id(input.lhs)) {
     case ModulusId::BN254_FR: {
         auto lhs = dsl_bigint.bn254_fr(input.lhs);
@@ -244,7 +259,9 @@ void create_bigint_div_constraint(const BigIntOperation& input, DSLBigInts<Build
 }
 
 template <typename Builder>
-void create_bigint_operations_constraint(const BigIntOperation& input, DSLBigInts<Builder>& dsl_bigint)
+void create_bigint_operations_constraint(const BigIntOperation& input,
+                                         DSLBigInts<Builder>& dsl_bigint,
+                                         bool has_valid_witness_assignments)
 {
     switch (input.opcode) {
     case BigIntOperationType::Add: {
@@ -260,7 +277,7 @@ void create_bigint_operations_constraint(const BigIntOperation& input, DSLBigInt
         break;
     }
     case BigIntOperationType::Div: {
-        create_bigint_div_constraint<Builder>(input, dsl_bigint);
+        create_bigint_div_constraint<Builder>(input, dsl_bigint, has_valid_witness_assignments);
         break;
     }
     default: {

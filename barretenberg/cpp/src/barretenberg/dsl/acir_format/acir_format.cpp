@@ -100,11 +100,12 @@ void build_constraints(Builder& builder, AcirFormat const& constraint_system, bo
 
     // Add big_int constraints
     DSLBigInts<Builder> dsl_bigints;
+    dsl_bigints.set_builder(&builder);
     for (const auto& constraint : constraint_system.bigint_from_le_bytes_constraints) {
         create_bigint_from_le_bytes_constraint(builder, constraint, dsl_bigints);
     }
     for (const auto& constraint : constraint_system.bigint_operations) {
-        create_bigint_operations_constraint<Builder>(constraint, dsl_bigints);
+        create_bigint_operations_constraint<Builder>(constraint, dsl_bigints, has_valid_witness_assignments);
     }
     for (const auto& constraint : constraint_system.bigint_to_le_bytes_constraints) {
         create_bigint_to_le_bytes_constraint(builder, constraint, dsl_bigints);

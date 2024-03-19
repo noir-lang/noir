@@ -1,6 +1,8 @@
 #pragma once
 #include "barretenberg/dsl/types.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
+
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -77,8 +79,12 @@ template <typename Builder> class DSLBigInts {
     std::map<uint32_t, big_secp256r1_fq> m_secp256r1_fq;
     std::map<uint32_t, big_secp256r1_fr> m_secp256r1_fr;
 
+    Builder* builder;
+
   public:
     DSLBigInts() = default;
+
+    void set_builder(Builder* ctx) { builder = ctx; }
 
     ModulusId get_modulus_id(uint32_t bigint_id)
     {
@@ -104,6 +110,62 @@ template <typename Builder> class DSLBigInts {
         return ModulusId::UNKNOWN;
     }
 
+    /// Set value of the witnesses representing the bigfield element
+    /// so that the bigfield value is the input value.
+    /// The input value is decomposed into the binary basis for the binary limbs
+    /// The input array must be:
+    /// the 4 witness index of the binary limbs, and the index of the prime limb
+    void set_value(uint256_t value, const std::array<uint32_t, 5> limbs_idx)
+    {
+        uint256_t limb_modulus = uint256_t(1) << big_bn254_fq::NUM_LIMB_BITS;
+        builder->variables[limbs_idx[4]] = value;
+        for (uint32_t i = 0; i < 4; i++) {
+            uint256_t limb = value % limb_modulus;
+            value = (value - limb) / limb_modulus;
+            builder->variables[limbs_idx[i]] = limb;
+        }
+    }
+
+    /// Utility function that retrieve the witness indexes of a bigfield element
+    /// for use in set_value()
+    void get_witness_idx_of_limbs(uint32_t bigint_id, std::array<uint32_t, 5>& limbs_idx)
+    {
+        if (m_bn254_fr.contains(bigint_id)) {
+            for (uint32_t i = 0; i < 4; i++) {
+                limbs_idx[i] = m_bn254_fr[bigint_id].binary_basis_limbs[i].element.witness_index;
+            }
+            limbs_idx[4] = m_bn254_fr[bigint_id].prime_basis_limb.witness_index;
+        } else if (m_bn254_fq.contains(bigint_id)) {
+            for (uint32_t i = 0; i < 4; i++) {
+                limbs_idx[i] = m_bn254_fq[bigint_id].binary_basis_limbs[i].element.witness_index;
+            }
+            limbs_idx[4] = m_bn254_fq[bigint_id].prime_basis_limb.witness_index;
+        } else if (m_secp256k1_fq.contains(bigint_id)) {
+            auto big_field = m_secp256k1_fq[bigint_id];
+            for (uint32_t i = 0; i < 4; i++) {
+                limbs_idx[i] = big_field.binary_basis_limbs[i].element.witness_index;
+            }
+            limbs_idx[4] = big_field.prime_basis_limb.witness_index;
+        } else if (m_secp256k1_fr.contains(bigint_id)) {
+            auto big_field = m_secp256k1_fr[bigint_id];
+            for (uint32_t i = 0; i < 4; i++) {
+                limbs_idx[i] = big_field.binary_basis_limbs[i].element.witness_index;
+            }
+            limbs_idx[4] = big_field.prime_basis_limb.witness_index;
+        } else if (m_secp256r1_fr.contains(bigint_id)) {
+            auto big_field = m_secp256r1_fr[bigint_id];
+            for (uint32_t i = 0; i < 4; i++) {
+                limbs_idx[i] = big_field.binary_basis_limbs[i].element.witness_index;
+            }
+            limbs_idx[4] = big_field.prime_basis_limb.witness_index;
+        } else if (m_secp256r1_fq.contains(bigint_id)) {
+            auto big_field = m_secp256r1_fq[bigint_id];
+            for (uint32_t i = 0; i < 4; i++) {
+                limbs_idx[i] = big_field.binary_basis_limbs[i].element.witness_index;
+            }
+            limbs_idx[4] = big_field.prime_basis_limb.witness_index;
+        }
+    }
     big_bn254_fr bn254_fr(uint32_t bigint_id)
     {
         if (this->m_bn254_fr.contains(bigint_id)) {
@@ -192,7 +254,7 @@ void create_bigint_to_le_bytes_constraint(Builder& builder,
                                           DSLBigInts<Builder>& dsl_bigints);
 
 template <typename Builder>
-void create_bigint_operations_constraint(const BigIntOperation& input, DSLBigInts<Builder>& dsl_bigints);
+void create_bigint_operations_constraint(const BigIntOperation& input, DSLBigInts<Builder>& dsl_bigints, bool);
 template <typename Builder>
 void create_bigint_addition_constraint(const BigIntOperation& input, DSLBigInts<Builder>& dsl_bigints);
 template <typename Builder>
@@ -200,6 +262,6 @@ void create_bigint_sub_constraint(const BigIntOperation& input, DSLBigInts<Build
 template <typename Builder>
 void create_bigint_mul_constraint(const BigIntOperation& input, DSLBigInts<Builder>& dsl_bigints);
 template <typename Builder>
-void create_bigint_div_constraint(const BigIntOperation& input, DSLBigInts<Builder>& dsl_bigints);
+void create_bigint_div_constraint(const BigIntOperation& input, DSLBigInts<Builder>& dsl_bigints, bool);
 
 } // namespace acir_format
