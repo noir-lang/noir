@@ -8,27 +8,12 @@ global FIELD_NOTE_LEN: Field = 1;
 // A note which stores a field and is expected to be passed around using the `addNote` function.
 // WARNING: This Note is not private as it does not contain randomness and hence it can be easy to perform serialized_note
 // attack on it.
+#[aztec(note)]
 struct FieldNote {
     value: Field,
-    header: NoteHeader,
 }
 
 impl NoteInterface<FIELD_NOTE_LEN> for FieldNote {
-    fn serialize_content(self) -> [Field; FIELD_NOTE_LEN]{
-        [self.value]
-    }
-
-    fn deserialize_content(serialized_note: [Field; FIELD_NOTE_LEN]) -> Self {
-        FieldNote {
-            value: serialized_note[0],
-            header: NoteHeader::empty(),
-        }
-    }
-
-    fn compute_note_content_hash(self) -> Field {
-        // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash(self.serialize_content(), 0)
-    }
 
     fn compute_nullifier(self, _context: &mut PrivateContext) -> Field {
         // This note is expected to be shared between users and for this reason can't be nullified using a secret.
@@ -40,24 +25,10 @@ impl NoteInterface<FIELD_NOTE_LEN> for FieldNote {
         0
     }
 
-    fn set_header(&mut self, header: NoteHeader) {
-        self.header = header;
-    }
-
-    fn get_header(self) -> NoteHeader {
-        self.header
-    }
-
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
         assert(
             false, "FieldNote does not support broadcast. Add it to PXE directly using the `.addNote` function."
         );
-    }
-
-    fn get_note_type_id() -> Field {
-        // TODO(#4519): autogenerate
-        // python -c "print(int(''.join(str(ord(c)) for c in 'FieldNote')))"
-        7010510110810078111116101
     }
 }
 

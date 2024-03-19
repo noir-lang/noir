@@ -1,7 +1,10 @@
 use dep::aztec::prelude::{AztecAddress, FunctionSelector, PrivateContext, NoteHeader, NoteGetterOptions, NoteViewerOptions};
 
 use dep::aztec::{
-    protocol_types::constants::{MAX_NOTES_PER_PAGE, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL},
+    protocol_types::{
+    traits::{ToField, Serialize, FromField},
+    constants::{MAX_NOTES_PER_PAGE, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL}
+},
     context::{PublicContext, Context}, note::note_getter::view_notes, state_vars::PrivateSet
 };
 use dep::std;
@@ -14,19 +17,23 @@ struct Card {
     points: u32,
 }
 
-impl Card {
-    pub fn from_field(field: Field) -> Card {
+impl FromField for Card {
+ fn from_field(field: Field) -> Card {
         let value_bytes = field.to_le_bytes(32);
         let strength = (value_bytes[0] as u32) + (value_bytes[1] as u32) * 256;
         let points = (value_bytes[2] as u32) + (value_bytes[3] as u32) * 256;
         Card { strength, points }
     }
+}
 
-    pub fn to_field(self) -> Field {
-        self.strength as Field + (self.points as Field) * 65536
+impl ToField for Card {
+ fn to_field(self) -> Field {
+        self.strength as Field + (self.points as Field)*65536
     }
+}
 
-    pub fn serialize(self) -> [Field; 2] {
+impl Serialize<2> for Card {
+    fn serialize(self) -> [Field; 2] {
         [self.strength as Field, self.points as Field]
     }
 }

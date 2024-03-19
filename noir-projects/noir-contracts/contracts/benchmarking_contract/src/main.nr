@@ -2,7 +2,6 @@
 // We should try to change this contract as little as possible, since any modification
 // would alter the metrics we're capturing in the benchmarks, and we want to keep the
 // subject being tested as unmodified as possible so we can detect metric changes that
-// arise from code changes.
 
 contract Benchmarking {
     use dep::aztec::prelude::{

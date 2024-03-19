@@ -318,6 +318,7 @@ dependencies = [
  "iter-extended",
  "noirc_errors",
  "noirc_frontend",
+ "regex",
 ]
 
 [[package]]

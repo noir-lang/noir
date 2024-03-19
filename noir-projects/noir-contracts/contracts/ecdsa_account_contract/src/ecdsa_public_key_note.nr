@@ -13,15 +13,15 @@ global ECDSA_PUBLIC_KEY_NOTE_LEN: Field = 5;
 
 // Stores an ECDSA public key composed of two 32-byte elements
 // TODO: Do we need to include a nonce, in case we want to read/nullify/recreate with the same pubkey value?
+#[aztec(note)]
 struct EcdsaPublicKeyNote {
     x: [u8; 32],
     y: [u8; 32],
     owner: AztecAddress, // We store the owner address only to get the secret key to compute the nullifier
-    header: NoteHeader,
 }
 
 impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
-    // serialize the note as 5 fields where:
+    // Cannot use the automatic serialization since x and y don't fit. Serialize the note as 5 fields where:
     // [0] = x[0..31] (upper bound excluded)
     // [1] = x[31]
     // [2] = y[0..31]
@@ -46,6 +46,7 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
         [x, last_x, y, last_y, self.owner.to_field()]
     }
 
+    // Cannot use the automatic deserialization for the aforementioned reasons
     fn deserialize_content(serialized_note: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> EcdsaPublicKeyNote {
         let mut x: [u8; 32] = [0; 32];
         let mut y: [u8; 32] = [0; 32];
@@ -63,11 +64,6 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
         y[31] = serialized_note[3].to_be_bytes(32)[31];
 
         EcdsaPublicKeyNote { x, y, owner: AztecAddress::from_field(serialized_note[4]), header: NoteHeader::empty() }
-    }
-
-    fn compute_note_content_hash(note: EcdsaPublicKeyNote) -> Field {
-        // TODO(#1205) Should use a non-zero generator index.
-        pedersen_hash(note.serialize_content(), 0)
     }
 
    fn compute_nullifier(self, context: &mut PrivateContext) -> Field {
@@ -92,14 +88,6 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
         ],0)
     }
 
-    fn set_header(&mut self, header: NoteHeader) {
-        self.header = header;
-    }
-
-    fn get_header(self) -> NoteHeader {
-        self.header
-    }
-
     // Broadcasts the note as an encrypted log on L1.
     fn broadcast(self, context: &mut PrivateContext, slot: Field) {
         let encryption_pub_key = get_public_key(self.owner);
@@ -111,12 +99,6 @@ impl NoteInterface<ECDSA_PUBLIC_KEY_NOTE_LEN> for EcdsaPublicKeyNote {
             encryption_pub_key,
             self.serialize_content(),
         );
-    }
-
-    fn get_note_type_id() -> Field {
-        // TODO(#4519): autogenerate
-        // python -c "print(int(''.join(str(ord(c)) for c in 'EcdsaPublicKeyNote')))"
-        6999100115978011798108105997510112178111116101
     }
 }
 

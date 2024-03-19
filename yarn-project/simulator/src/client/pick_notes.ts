@@ -1,14 +1,20 @@
 import { Comparator, Note } from '@aztec/circuit-types';
 import { Fr } from '@aztec/foundation/fields';
 
+export interface PropertySelector {
+  index: number;
+  offset: number;
+  length: number;
+}
+
 /**
  * Configuration for selecting values.
  */
 export interface Select {
   /**
-   * Index of the field to select and match.
+   * Selector of the field to select and match.
    */
-  index: number;
+  selector: PropertySelector;
   /**
    * Required value of the field.
    */
@@ -33,9 +39,9 @@ export enum SortOrder {
  */
 export interface Sort {
   /**
-   * Index of the field to sort.
+   * Selector of the field to sort.
    */
-  index: number;
+  selector: PropertySelector;
   /**
    * Order to sort the field.
    */
@@ -78,16 +84,23 @@ interface ContainsNote {
   note: Note;
 }
 
+const selectPropertyFromSerializedNote = (noteData: Fr[], selector: PropertySelector): Fr => {
+  const noteValueBuffer = noteData[selector.index].toBuffer();
+  const noteValue = noteValueBuffer.subarray(selector.offset, selector.offset + selector.length);
+  return Fr.fromBuffer(noteValue);
+};
+
 const selectNotes = <T extends ContainsNote>(noteDatas: T[], selects: Select[]): T[] =>
   noteDatas.filter(noteData =>
-    selects.every(({ index, value, comparator }) => {
+    selects.every(({ selector, value, comparator }) => {
+      const noteValueFr = selectPropertyFromSerializedNote(noteData.note.items, selector);
       const comparatorSelector = {
-        [Comparator.EQ]: () => noteData.note.items[index].equals(value),
-        [Comparator.NEQ]: () => !noteData.note.items[index].equals(value),
-        [Comparator.LT]: () => noteData.note.items[index].lt(value),
-        [Comparator.LTE]: () => noteData.note.items[index].lt(value) || noteData.note.items[index].equals(value),
-        [Comparator.GT]: () => !noteData.note.items[index].lt(value) && !noteData.note.items[index].equals(value),
-        [Comparator.GTE]: () => !noteData.note.items[index].lt(value),
+        [Comparator.EQ]: () => noteValueFr.equals(value),
+        [Comparator.NEQ]: () => !noteValueFr.equals(value),
+        [Comparator.LT]: () => noteValueFr.lt(value),
+        [Comparator.LTE]: () => noteValueFr.lt(value) || noteValueFr.equals(value),
+        [Comparator.GT]: () => !noteValueFr.lt(value) && !noteValueFr.equals(value),
+        [Comparator.GTE]: () => !noteValueFr.lt(value),
       };
 
       return comparatorSelector[comparator]();
@@ -99,15 +112,18 @@ const sortNotes = (a: Fr[], b: Fr[], sorts: Sort[], level = 0): number => {
     return 0;
   }
 
-  const { index, order } = sorts[level];
+  const { selector, order } = sorts[level];
   if (order === 0) {
     return 0;
   }
 
+  const aValue = selectPropertyFromSerializedNote(a, selector);
+  const bValue = selectPropertyFromSerializedNote(b, selector);
+
   const dir = order === 1 ? [-1, 1] : [1, -1];
-  return a[index].value === b[index].value
+  return aValue.toBigInt() === bValue.toBigInt()
     ? sortNotes(a, b, sorts, level + 1)
-    : a[index].value > b[index].value
+    : aValue.toBigInt() > bValue.toBigInt()
     ? dir[0]
     : dir[1];
 };

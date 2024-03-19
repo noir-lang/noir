@@ -91,7 +91,8 @@ impl CrateDefMap {
         let mut ast = ast.into_sorted();
 
         for macro_processor in macro_processors {
-            match macro_processor.process_untyped_ast(ast.clone(), &crate_id, context) {
+            match macro_processor.process_untyped_ast(ast.clone(), &crate_id, root_file_id, context)
+            {
                 Ok(processed_ast) => {
                     ast = processed_ast;
                 }

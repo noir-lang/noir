@@ -45,9 +45,35 @@ impl ToField for Field {
     }
 }
 
+impl ToField for bool { fn to_field(self) -> Field { self as Field } }
+impl ToField for u1 { fn to_field(self) -> Field { self as Field } }
+impl ToField for u8 { fn to_field(self) -> Field { self as Field } }
+impl ToField for u32 { fn to_field(self) -> Field { self as Field } }
+impl ToField for u64 { fn to_field(self) -> Field { self as Field } }
 impl ToField for U128 {
     fn to_field(self) -> Field {
         self.to_integer()
+    }
+}
+
+trait FromField {
+    fn from_field(value: Field) -> Self;
+}
+
+impl FromField for Field {
+    fn from_field(value: Field) -> Self {
+        value
+    }
+}
+
+impl FromField for bool { fn from_field(value: Field) -> Self { value as bool } }
+impl FromField for u1 { fn from_field(value: Field) -> Self { value as u1 } }
+impl FromField for u8 { fn from_field(value: Field) -> Self { value as u8 } }
+impl FromField for u32 { fn from_field(value: Field) -> Self { value as u32 } }
+impl FromField for u64 { fn from_field(value: Field) -> Self { value as u64 } }
+impl FromField for U128 {
+    fn from_field(value: Field) -> Self {
+        U128::from_integer(value)
     }
 }
 

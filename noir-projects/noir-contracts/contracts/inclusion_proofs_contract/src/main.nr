@@ -58,7 +58,11 @@ contract InclusionProofs {
         // docs:start:get_note_from_pxe
         // 1) Get the note from PXE.
         let private_values = storage.private_values.at(owner);
-        let mut options = NoteGetterOptions::new().select(1, owner.to_field(), Option::none()).set_limit(1);
+        let mut options = NoteGetterOptions::new().select(
+            ValueNote::properties().owner,
+            owner.to_field(),
+            Option::none()
+        ).set_limit(1);
         if (nullified) {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
@@ -104,7 +108,11 @@ contract InclusionProofs {
     ) {
         // 2) Get the note from PXE
         let private_values = storage.private_values.at(owner);
-        let mut options = NoteGetterOptions::new().select(1, owner.to_field(), Option::none()).set_limit(1);
+        let mut options = NoteGetterOptions::new().select(
+            ValueNote::properties().owner,
+            owner.to_field(),
+            Option::none()
+        ).set_limit(1);
         if (fail_case) {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
@@ -130,7 +138,11 @@ contract InclusionProofs {
     ) {
         // 1) Get the note from PXE.
         let private_values = storage.private_values.at(owner);
-        let mut options = NoteGetterOptions::new().select(1, owner.to_field(), Option::none()).set_limit(1);
+        let mut options = NoteGetterOptions::new().select(
+            ValueNote::properties().owner,
+            owner.to_field(),
+            Option::none()
+        ).set_limit(1);
         if (nullified) {
             options = options.set_status(NoteStatus.ACTIVE_OR_NULLIFIED);
         }
@@ -151,7 +163,11 @@ contract InclusionProofs {
     #[aztec(private)]
     fn nullify_note(owner: AztecAddress) {
         let private_values = storage.private_values.at(owner);
-        let options = NoteGetterOptions::new().select(1, owner.to_field(), Option::none()).set_limit(1);
+        let options = NoteGetterOptions::new().select(
+            ValueNote::properties().owner,
+            owner.to_field(),
+            Option::none()
+        ).set_limit(1);
         let notes = private_values.get_notes(options);
         let note = notes[0].unwrap();
 

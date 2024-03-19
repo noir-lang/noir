@@ -18,14 +18,14 @@ contract TokenBlacklist {
     use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress};
     use dep::aztec::{
         note::{note_getter_options::NoteGetterOptions, note_header::NoteHeader},
-        hash::{compute_secret_hash}, state_vars::{Map, PublicMutable, PrivateSet, SharedImmutable}
+        hash::compute_secret_hash, state_vars::{Map, PublicMutable, PrivateSet, SharedImmutable}
     };
 
     use dep::field_note::field_note::FieldNote;
 
     use dep::authwit::{auth::{assert_current_call_valid_authwit, assert_current_call_valid_authwit_public}};
 
-    use crate::types::{transparent_note::TransparentNote, token_note::TokenNote, balances_map::{BalancesMap}, roles::UserFlags};
+    use crate::types::{transparent_note::TransparentNote, token_note::TokenNote, balances_map::BalancesMap, roles::UserFlags};
     // docs:start:interface
     use crate::interfaces::SlowMap;
     // docs:end:interface
@@ -200,7 +200,11 @@ contract TokenBlacklist {
         let secret_hash = compute_secret_hash(secret);
         // Get 1 note (set_limit(1)) which has amount stored in field with index 0 (select(0, amount)) and secret_hash
         // stored in field with index 1 (select(1, secret_hash)).
-        let options = NoteGetterOptions::new().select(0, amount, Option::none()).select(1, secret_hash, Option::none()).set_limit(1);
+        let options = NoteGetterOptions::new().select(TransparentNote::properties().amount, amount, Option::none()).select(
+            TransparentNote::properties().secret_hash,
+            secret_hash,
+            Option::none()
+        ).set_limit(1);
         let notes = pending_shields.get_notes(options);
         let note = notes[0].unwrap_unchecked();
         // Remove the note from the pending shields set

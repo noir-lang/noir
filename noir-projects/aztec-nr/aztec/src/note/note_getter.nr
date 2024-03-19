@@ -6,11 +6,29 @@ use dep::protocol_types::{
 };
 use crate::context::PrivateContext;
 use crate::note::{
-    note_getter_options::{NoteGetterOptions, Select, Sort, SortOrder, Comparator, NoteStatus},
+    note_getter_options::{NoteGetterOptions, Select, Sort, SortOrder, Comparator, NoteStatus, PropertySelector},
     note_interface::NoteInterface, note_viewer_options::NoteViewerOptions,
     utils::compute_note_hash_for_consumption
 };
 use crate::oracle;
+
+fn extract_property_value_from_selector<N>(serialized_note: [Field; N], selector: PropertySelector) -> Field {
+    // Selectors use PropertySelectors in order to locate note properties inside the serialized note. 
+    // This allows easier packing and custom (de)serialization schemas. A note property is located
+    // inside the serialized note using the index inside the array, a byte offset and a length.
+    let value = serialized_note[selector.index].to_be_bytes(32);
+    let offset = selector.offset;
+    let length = selector.length;
+    let mut value_field = 0 as Field;
+    let mut acc: Field = 1;
+    for i in 0..32 {
+        if i < length {
+            value_field += value[31 + offset - i] as Field * acc;
+            acc = acc * 256;
+        }
+    }
+    value_field
+}
 
 fn check_note_header<Note, N>(context: PrivateContext, storage_slot: Field, note: Note) where Note: NoteInterface<N> {
     let header = note.get_header();
@@ -19,13 +37,14 @@ fn check_note_header<Note, N>(context: PrivateContext, storage_slot: Field, note
     assert(header.storage_slot == storage_slot);
 }
 
-fn check_note_fields<N>(fields: [Field; N], selects: BoundedVec<Option<Select>, N>) {
+fn check_note_fields<N>(serialized_note: [Field; N], selects: BoundedVec<Option<Select>, N>) {
     for i in 0..selects.len {
         let select = selects.get_unchecked(i).unwrap_unchecked();
+        let value_field = extract_property_value_from_selector(serialized_note, select.property_selector);
 
         // Values are computed ahead of time because circuits evaluate all branches
-        let isEqual = fields[select.field_index] == select.value;
-        let isLt = fields[select.field_index].lt(select.value);
+        let isEqual = value_field == select.value.to_field();
+        let isLt = value_field.lt(select.value.to_field());
 
         if (select.comparator == Comparator.EQ) {
             assert(isEqual, "Mismatch return note field.");
@@ -50,8 +69,10 @@ fn check_notes_order<N>(
 ) {
     for i in 0..sorts.len {
         let sort = sorts.get_unchecked(i).unwrap_unchecked();
-        let eq = fields_0[sort.field_index] == fields_1[sort.field_index];
-        let lt = fields_0[sort.field_index].lt(fields_1[sort.field_index]);
+        let field_0 = extract_property_value_from_selector(fields_0, sort.property_selector);
+        let field_1 = extract_property_value_from_selector(fields_1, sort.property_selector);
+        let eq = field_0 == field_1;
+        let lt = field_0.lt(field_1);
         if sort.order == SortOrder.ASC {
             assert(eq | lt, "Return notes not sorted in ascending order.");
         } else if !eq {
@@ -120,6 +141,10 @@ unconstrained fn get_note_internal<Note, N>(storage_slot: Field) -> Note where N
         [],
         [],
         [],
+        [],
+        [],
+        [],
+        [],
         1, // limit
         0, // offset
         NoteStatus.ACTIVE,
@@ -133,17 +158,21 @@ unconstrained fn get_notes_internal<Note, N, FILTER_ARGS>(
     storage_slot: Field,
     options: NoteGetterOptions<Note, N, FILTER_ARGS>
 ) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N> {
-    let (num_selects, select_by, select_values, select_comparators, sort_by, sort_order) = flatten_options(options.selects, options.sorts);
+    let (num_selects, select_by_indexes, select_by_offsets, select_by_lengths, select_values, select_comparators, sort_by_indexes, sort_by_offsets, sort_by_lengths, sort_order) = flatten_options(options.selects, options.sorts);
     let placeholder_opt_notes = [Option::none(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL];
     let placeholder_fields = [0; GET_NOTES_ORACLE_RETURN_LENGTH];
     let placeholder_note_length = [0; N];
     let opt_notes = oracle::notes::get_notes(
         storage_slot,
         num_selects,
-        select_by,
+        select_by_indexes,
+        select_by_offsets,
+        select_by_lengths,
         select_values,
         select_comparators,
-        sort_by,
+        sort_by_indexes,
+        sort_by_offsets,
+        sort_by_lengths,
         sort_order,
         options.limit,
         options.offset,
@@ -162,17 +191,21 @@ unconstrained pub fn view_notes<Note, N>(
     storage_slot: Field,
     options: NoteViewerOptions<Note, N>
 ) -> [Option<Note>; MAX_NOTES_PER_PAGE] where Note: NoteInterface<N> {
-    let (num_selects, select_by, select_values, select_comparators, sort_by, sort_order) = flatten_options(options.selects, options.sorts);
+    let (num_selects, select_by_indexes, select_by_offsets, select_by_lengths, select_values, select_comparators, sort_by_indexes, sort_by_offsets, sort_by_lengths, sort_order) = flatten_options(options.selects, options.sorts);
     let placeholder_opt_notes = [Option::none(); MAX_NOTES_PER_PAGE];
     let placeholder_fields = [0; VIEW_NOTE_ORACLE_RETURN_LENGTH];
     let placeholder_note_length = [0; N];
     oracle::notes::get_notes(
         storage_slot,
         num_selects,
-        select_by,
+        select_by_indexes,
+        select_by_offsets,
+        select_by_lengths,
         select_values,
         select_comparators,
-        sort_by,
+        sort_by_indexes,
+        sort_by_offsets,
+        sort_by_lengths,
         sort_order,
         options.limit,
         options.offset,
@@ -186,31 +219,41 @@ unconstrained pub fn view_notes<Note, N>(
 unconstrained fn flatten_options<Note, N>(
     selects: BoundedVec<Option<Select>, N>,
     sorts: BoundedVec<Option<Sort>, N>
-) -> (u8, [u8; N], [Field; N], [u8; N], [u8; N], [u8; N]) {
+) -> (u8, [u8; N], [u8; N], [u8; N], [Field; N], [u8; N], [u8; N], [u8; N], [u8; N], [u8; N]) {
     let mut num_selects = 0;
-    let mut select_by = [0; N];
+    let mut select_by_indexes = [0; N];
+    let mut select_by_offsets = [0; N];
+    let mut select_by_lengths = [0; N];
     let mut select_values = [0; N];
     let mut select_comparators = [0; N];
 
     for i in 0..selects.len {
         let select = selects.get(i);
         if select.is_some() {
-            select_by[num_selects] = select.unwrap_unchecked().field_index;
+            select_by_indexes[num_selects] = select.unwrap_unchecked().property_selector.index;
+            select_by_offsets[num_selects] = select.unwrap_unchecked().property_selector.offset;
+            select_by_lengths[num_selects] = select.unwrap_unchecked().property_selector.length;
             select_values[num_selects] = select.unwrap_unchecked().value;
             select_comparators[num_selects] = select.unwrap_unchecked().comparator;
             num_selects += 1;
         };
     }
 
-    let mut sort_by = [0; N];
+    let mut sort_by_indexes = [0; N];
+    let mut sort_by_offsets = [0; N];
+    let mut sort_by_lengths = [0; N];
     let mut sort_order = [0; N];
     for i in 0..sorts.len {
         let sort = sorts.get(i);
         if sort.is_some() {
-            sort_by[i] = sort.unwrap_unchecked().field_index;
+            sort_by_indexes[i] = sort.unwrap_unchecked().property_selector.index;
+            sort_by_offsets[i] = sort.unwrap_unchecked().property_selector.offset;
+            sort_by_lengths[i] = sort.unwrap_unchecked().property_selector.length;
             sort_order[i] = sort.unwrap_unchecked().order;
         };
     }
 
-    (num_selects, select_by, select_values, select_comparators, sort_by, sort_order)
+    (
+        num_selects, select_by_indexes, select_by_offsets, select_by_lengths, select_values, select_comparators, sort_by_indexes, sort_by_offsets, sort_by_lengths, sort_order
+    )
 }
