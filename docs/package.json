@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "preprocess": "./scripts/codegen_nargo_reference.sh && yarn node ./scripts/preprocess/index.js",
+    "preprocess": "yarn workspace @noir-lang/acvm_js build && ./scripts/codegen_nargo_reference.sh && yarn node ./scripts/preprocess/index.js",
     "start": "yarn preprocess && docusaurus start",
     "build": "yarn preprocess && yarn version::stables && docusaurus build",
     "version::stables": "ts-node ./scripts/setStable.ts",
