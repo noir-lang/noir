@@ -1,5 +1,51 @@
 # Changelog
 
+## [0.30.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.29.0...aztec-packages-v0.30.0) (2024-03-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **acir:** Program and witness stack structure ([#5149](https://github.com/AztecProtocol/aztec-packages/issues/5149))
+* automatic NoteInterface and NoteGetterOptions auto select ([#4508](https://github.com/AztecProtocol/aztec-packages/issues/4508))
+
+### Features
+
+* **acir:** Program and witness stack structure ([#5149](https://github.com/AztecProtocol/aztec-packages/issues/5149)) ([ccc5016](https://github.com/AztecProtocol/aztec-packages/commit/ccc5016eaeedbfb3f6be6763979e30e12485188b))
+* Allow registering contract classes in PXE ([#5291](https://github.com/AztecProtocol/aztec-packages/issues/5291)) ([b811207](https://github.com/AztecProtocol/aztec-packages/commit/b811207bad691f519b31a6391967b9215a9e17d3)), closes [#4055](https://github.com/AztecProtocol/aztec-packages/issues/4055)
+* Automatic NoteInterface and NoteGetterOptions auto select ([#4508](https://github.com/AztecProtocol/aztec-packages/issues/4508)) ([b2df979](https://github.com/AztecProtocol/aztec-packages/commit/b2df97907cb63446e9336e87f40f9dbd7a710845))
+* ECCVM witness generation optimisation ([#5211](https://github.com/AztecProtocol/aztec-packages/issues/5211)) ([85ac726](https://github.com/AztecProtocol/aztec-packages/commit/85ac72604e443ae2d50edfd9ef74b745d4d5d169))
+* Ensure claimer is owner of the note in claim contract ([#5135](https://github.com/AztecProtocol/aztec-packages/issues/5135)) ([a80519d](https://github.com/AztecProtocol/aztec-packages/commit/a80519d3514785cba74c64dc0f044f75b60adf40))
+* Sequencer checks fee balance ([#5267](https://github.com/AztecProtocol/aztec-packages/issues/5267)) ([09b2b7c](https://github.com/AztecProtocol/aztec-packages/commit/09b2b7c19e023f541c44f79f78f7ee0f40f0c0ae))
+* Verify registered artifact matches instance class id ([#5297](https://github.com/AztecProtocol/aztec-packages/issues/5297)) ([dd56a0e](https://github.com/AztecProtocol/aztec-packages/commit/dd56a0e7cc2fb09262f071c9f8c74d6e117b190e))
+
+
+### Bug Fixes
+
+* **bb:** Cvc5 linking ([#5302](https://github.com/AztecProtocol/aztec-packages/issues/5302)) ([5e9cf41](https://github.com/AztecProtocol/aztec-packages/commit/5e9cf418e14eee8b5a694d792c034a5745e2d25b))
+* Don't run earthly arm for now ([#5289](https://github.com/AztecProtocol/aztec-packages/issues/5289)) ([e65e210](https://github.com/AztecProtocol/aztec-packages/commit/e65e2101c0ade6c1916135c0989cf8f95e0d3160))
+* Set denominator to 1 during verification of dsl/big-field division ([#5188](https://github.com/AztecProtocol/aztec-packages/issues/5188)) ([253d002](https://github.com/AztecProtocol/aztec-packages/commit/253d0022aa051fe1ac6a53a88f67d084cfa98516))
+* Update aztec-nr sync job ([#5299](https://github.com/AztecProtocol/aztec-packages/issues/5299)) ([ce22020](https://github.com/AztecProtocol/aztec-packages/commit/ce22020725966cf15341a9769fbe4a5280b8d706))
+
+
+### Miscellaneous
+
+* Add gas portal to l1 contract addresses ([#5265](https://github.com/AztecProtocol/aztec-packages/issues/5265)) ([640c89a](https://github.com/AztecProtocol/aztec-packages/commit/640c89a04d7b780795d40e239be3b3db73a16923)), closes [#5022](https://github.com/AztecProtocol/aztec-packages/issues/5022)
+* Add note to pack arguments ([#5304](https://github.com/AztecProtocol/aztec-packages/issues/5304)) ([832de86](https://github.com/AztecProtocol/aztec-packages/commit/832de8638aa8eb111b9299e798f66aaf81eaf490))
+* **avm-simulator:** Be explicit about wrapping arithmetic ([#5287](https://github.com/AztecProtocol/aztec-packages/issues/5287)) ([1b2cf58](https://github.com/AztecProtocol/aztec-packages/commit/1b2cf58a85bb4a29a47b3fdf0cdc19deea3f9a9c))
+* **docs:** Update migration notes ([#5311](https://github.com/AztecProtocol/aztec-packages/issues/5311)) ([b47abcf](https://github.com/AztecProtocol/aztec-packages/commit/b47abcf8311561c83c49d431a66c7bd725ff95f9))
+* Extract tx validation to separate class ([#5266](https://github.com/AztecProtocol/aztec-packages/issues/5266)) ([ba9bc4c](https://github.com/AztecProtocol/aztec-packages/commit/ba9bc4cddea559a3de7da174dc5d79406239f835))
+* Fix yml for gate diff workflow ([#5293](https://github.com/AztecProtocol/aztec-packages/issues/5293)) ([edb8c67](https://github.com/AztecProtocol/aztec-packages/commit/edb8c6790c2ab9ab4439283fdb86d3ab8ba94ae4))
+* L1 l2 messages cleanup ([#5270](https://github.com/AztecProtocol/aztec-packages/issues/5270)) ([30908eb](https://github.com/AztecProtocol/aztec-packages/commit/30908eb01c7de9d508eeb6404ba73316b19fab79)), closes [#5264](https://github.com/AztecProtocol/aztec-packages/issues/5264)
+* Removing L1 block number from L2 block ([#5285](https://github.com/AztecProtocol/aztec-packages/issues/5285)) ([57596d7](https://github.com/AztecProtocol/aztec-packages/commit/57596d7897508958f5ec7dbc2dcd38a4839c02f6)), closes [#5274](https://github.com/AztecProtocol/aztec-packages/issues/5274)
+* Replace relative paths to noir-protocol-circuits ([0962814](https://github.com/AztecProtocol/aztec-packages/commit/0962814ec4a4c623ed1aef4126bc379c8112358e))
+* Share verifier rounds ([#4849](https://github.com/AztecProtocol/aztec-packages/issues/4849)) ([1139308](https://github.com/AztecProtocol/aztec-packages/commit/1139308d6d90ade1868278915901f86b08daedda))
+
+
+### Documentation
+
+* Remove broadcast-all methods from class registerer ([#5298](https://github.com/AztecProtocol/aztec-packages/issues/5298)) ([21ccb4b](https://github.com/AztecProtocol/aztec-packages/commit/21ccb4b3b3aa2e76bd9d849e1b7d59790ae33815)), closes [#4462](https://github.com/AztecProtocol/aztec-packages/issues/4462)
+* Verification key includes proving system identifier ([#5295](https://github.com/AztecProtocol/aztec-packages/issues/5295)) ([6e218d4](https://github.com/AztecProtocol/aztec-packages/commit/6e218d41a3bd80852f541603043491c6c04e301c))
+
 ## [0.29.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.28.1...aztec-packages-v0.29.0) (2024-03-18)
 
 

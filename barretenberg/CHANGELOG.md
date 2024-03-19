@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.30.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.29.0...barretenberg-v0.30.0) (2024-03-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **acir:** Program and witness stack structure ([#5149](https://github.com/AztecProtocol/aztec-packages/issues/5149))
+
+### Features
+
+* **acir:** Program and witness stack structure ([#5149](https://github.com/AztecProtocol/aztec-packages/issues/5149)) ([ccc5016](https://github.com/AztecProtocol/aztec-packages/commit/ccc5016eaeedbfb3f6be6763979e30e12485188b))
+* ECCVM witness generation optimisation ([#5211](https://github.com/AztecProtocol/aztec-packages/issues/5211)) ([85ac726](https://github.com/AztecProtocol/aztec-packages/commit/85ac72604e443ae2d50edfd9ef74b745d4d5d169))
+
+
+### Bug Fixes
+
+* **bb:** Cvc5 linking ([#5302](https://github.com/AztecProtocol/aztec-packages/issues/5302)) ([5e9cf41](https://github.com/AztecProtocol/aztec-packages/commit/5e9cf418e14eee8b5a694d792c034a5745e2d25b))
+* Set denominator to 1 during verification of dsl/big-field division ([#5188](https://github.com/AztecProtocol/aztec-packages/issues/5188)) ([253d002](https://github.com/AztecProtocol/aztec-packages/commit/253d0022aa051fe1ac6a53a88f67d084cfa98516))
+
+
+### Miscellaneous
+
+* Share verifier rounds ([#4849](https://github.com/AztecProtocol/aztec-packages/issues/4849)) ([1139308](https://github.com/AztecProtocol/aztec-packages/commit/1139308d6d90ade1868278915901f86b08daedda))
+
 ## [0.29.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.28.1...barretenberg-v0.29.0) (2024-03-18)
 
 

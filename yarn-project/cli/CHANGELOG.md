@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.30.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.29.0...aztec-cli-v0.30.0) (2024-03-19)
+
+
+### Features
+
+* Allow registering contract classes in PXE ([#5291](https://github.com/AztecProtocol/aztec-packages/issues/5291)) ([b811207](https://github.com/AztecProtocol/aztec-packages/commit/b811207bad691f519b31a6391967b9215a9e17d3)), closes [#4055](https://github.com/AztecProtocol/aztec-packages/issues/4055)
+
+
+### Miscellaneous
+
+* Add gas portal to l1 contract addresses ([#5265](https://github.com/AztecProtocol/aztec-packages/issues/5265)) ([640c89a](https://github.com/AztecProtocol/aztec-packages/commit/640c89a04d7b780795d40e239be3b3db73a16923)), closes [#5022](https://github.com/AztecProtocol/aztec-packages/issues/5022)
+
 ## [0.29.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.28.1...aztec-cli-v0.29.0) (2024-03-18)
 
 
