@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use acir::circuit::Circuit;
+use acir::circuit::Program;
 use acir::native_types::WitnessMap;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
@@ -66,10 +66,10 @@ pub(crate) fn execute_program_from_witness(
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<WitnessMap, CliError> {
     let blackbox_solver = Bn254BlackBoxSolver::new();
-    let circuit: Circuit = Circuit::deserialize_circuit(bytecode)
+    let program: Program = Program::deserialize_program(bytecode)
         .map_err(|_| CliError::CircuitDeserializationError())?;
     execute_circuit(
-        &circuit,
+        &program.functions[0],
         inputs_map.clone(),
         &blackbox_solver,
         &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),

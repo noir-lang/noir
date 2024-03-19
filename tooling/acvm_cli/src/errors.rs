@@ -32,7 +32,7 @@ pub(crate) enum CliError {
     FilesystemError(#[from] FilesystemError),
 
     /// Error related to circuit deserialization
-    #[error("Error: failed to deserialize circuit")]
+    #[error("Error: failed to deserialize circuit in ACVM CLI")]
     CircuitDeserializationError(),
 
     /// Error related to circuit execution
