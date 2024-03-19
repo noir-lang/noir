@@ -48,6 +48,11 @@ pub fn transform_function(
         func.def.body.0.insert(0, init_check);
     }
 
+    // Add assertion for initialization arguments and sender
+    if is_initializer {
+        func.def.body.0.insert(0, create_assert_initializer());
+    }
+
     // Add access to the storage struct
     if storage_defined {
         let storage_def = abstract_storage(&ty.to_lowercase(), false);
@@ -114,9 +119,6 @@ pub fn transform_vm_function(
     // We want the function to be seen as a public function
     func.def.is_unconstrained = true;
 
-    // NOTE: the line below is a temporary hack to trigger external transpilation tools
-    // It will be removed once the transpiler is integrated into the Noir compiler
-    func.def.name.0.contents = format!("avm_{}", func.def.name.0.contents);
     Ok(())
 }
 
@@ -202,6 +204,24 @@ fn create_internal_check(fname: &str) -> Statement {
             fname
         ))))),
         ConstrainKind::Assert,
+    )))
+}
+
+/// Creates a call to assert_initialization_matches_address_preimage to be inserted
+/// in the initializer. Checks that the args and sender to the initializer match the
+/// commitments from the address preimage.
+///
+/// ```noir
+/// assert_initialization_matches_address_preimage(context);
+/// ```
+fn create_assert_initializer() -> Statement {
+    make_statement(StatementKind::Expression(call(
+        variable_path(chained_dep!(
+            "aztec",
+            "initializer",
+            "assert_initialization_matches_address_preimage"
+        )),
+        vec![variable("context")],
     )))
 }
 

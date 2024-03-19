@@ -778,6 +778,8 @@ mod test {
                 HirStatement::Semi(semi_expr) => semi_expr,
                 HirStatement::For(for_loop) => for_loop.block,
                 HirStatement::Error => panic!("Invalid HirStatement!"),
+                HirStatement::Break => panic!("Unexpected break"),
+                HirStatement::Continue => panic!("Unexpected continue"),
             };
             let expr = interner.expression(&expr_id);
 
@@ -1212,6 +1214,46 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
             fn main(_x: Foo) {}
         "#;
         assert_eq!(get_program_errors(src).len(), 0);
+    }
+
+    #[test]
+    fn operators_in_global_used_in_type() {
+        let src = r#"
+            global ONE = 1;
+            global COUNT = ONE + 2;
+            fn main() {
+                let _array: [Field; COUNT] = [1, 2, 3];
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 0);
+    }
+
+    #[test]
+    fn break_and_continue_in_constrained_fn() {
+        let src = r#"
+            fn main() {
+                for i in 0 .. 10 {
+                    if i == 2 {
+                        continue;
+                    }
+                    if i == 5 {
+                        break;
+                    }
+                }
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 2);
+    }
+
+    #[test]
+    fn break_and_continue_outside_loop() {
+        let src = r#"
+            unconstrained fn main() {
+                continue;
+                break;
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 2);
     }
 
     // Regression for #4545

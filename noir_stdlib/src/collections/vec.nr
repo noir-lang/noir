@@ -5,7 +5,7 @@ struct Vec<T> {
 // A separate type is technically not needed but helps differentiate which operations are mutable.
 impl<T> Vec<T> {
     pub fn new() -> Self {
-        Self { slice: [] }
+        Self { slice: &[] }
     }
 
     // Create a Vec containing each element from the given slice.

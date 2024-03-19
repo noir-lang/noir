@@ -122,8 +122,14 @@ pub enum TypeCheckError {
         "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime"
     )]
     ConstrainedReferenceToUnconstrained { span: Span },
+    #[error(
+        "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
+    )]
+    UnconstrainedReferenceToConstrained { span: Span },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { span: Span },
+    #[error("Slices must have constant length")]
+    NonConstantSliceLength { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
     InvalidTypeForEntryPoint { span: Span },
     #[error("Mismatched number of parameters in trait implementation")]
@@ -229,6 +235,8 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::OverflowingAssignment { span, .. }
             | TypeCheckError::FieldModulo { span }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
+            | TypeCheckError::NonConstantSliceLength { span }
+            | TypeCheckError::UnconstrainedReferenceToConstrained { span }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
