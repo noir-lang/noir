@@ -8,6 +8,8 @@ import {
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecKVStore, AztecMap, AztecSingleton } from '@aztec/kv-store';
 
+import { DataRetrieval } from '../data_retrieval.js';
+
 /**
  * LMDB implementation of the ArchiverDataStore interface.
  */
@@ -36,20 +38,19 @@ export class MessageStore {
 
   /**
    * Append L1 to L2 messages to the store.
-   * @param messages - The L1 to L2 messages to be added to the store.
-   * @param lastMessageL1BlockNumber - The L1 block number in which the last message was emitted.
+   * @param messages - The L1 to L2 messages to be added to the store and the last processed L1 block.
    * @returns True if the operation is successful.
    */
-  addL1ToL2Messages(messages: InboxLeaf[], lastMessageL1BlockNumber: bigint): Promise<boolean> {
+  addL1ToL2Messages(messages: DataRetrieval<InboxLeaf>): Promise<boolean> {
     return this.db.transaction(() => {
       const lastL1BlockNumber = this.#lastL1BlockMessages.get() ?? 0n;
-      if (lastL1BlockNumber >= lastMessageL1BlockNumber) {
+      if (lastL1BlockNumber >= messages.lastProcessedL1BlockNumber) {
         return false;
       }
 
-      void this.#lastL1BlockMessages.set(lastMessageL1BlockNumber);
+      void this.#lastL1BlockMessages.set(messages.lastProcessedL1BlockNumber);
 
-      for (const message of messages) {
+      for (const message of messages.retrievedData) {
         if (message.index >= this.#l1ToL2MessagesSubtreeSize) {
           throw new Error(`Message index ${message.index} out of subtree range`);
         }
@@ -69,13 +70,10 @@ export class MessageStore {
   /**
    * Gets the L1 to L2 message index in the L1 to L2 message tree.
    * @param l1ToL2Message - The L1 to L2 message.
-   * @returns The index of the L1 to L2 message in the L1 to L2 message tree.
+   * @returns The index of the L1 to L2 message in the L1 to L2 message tree (undefined if not found).
    */
-  public getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint> {
+  public getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint | undefined> {
     const index = this.#l1ToL2MessageIndices.get(l1ToL2Message.toString());
-    if (index === undefined) {
-      throw new Error(`L1 to L2 message index not found in the store for message ${l1ToL2Message.toString()}`);
-    }
     return Promise.resolve(index);
   }
 

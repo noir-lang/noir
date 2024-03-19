@@ -52,9 +52,9 @@ export class L1ToL2MessageStore {
   /**
    * Gets the L1 to L2 message index in the L1 to L2 message tree.
    * @param l1ToL2Message - The L1 to L2 message.
-   * @returns The index of the L1 to L2 message in the L1 to L2 message tree.
+   * @returns The index of the L1 to L2 message in the L1 to L2 message tree (undefined if not found).
    */
-  getMessageIndex(l1ToL2Message: Fr): bigint {
+  getMessageIndex(l1ToL2Message: Fr): bigint | undefined {
     for (const [key, message] of this.store.entries()) {
       if (message.equals(l1ToL2Message)) {
         const [blockNumber, messageIndex] = key.split('-');
@@ -64,6 +64,6 @@ export class L1ToL2MessageStore {
         return indexInTheWholeTree;
       }
     }
-    throw new Error(`L1 to L2 message index not found in the store for message ${l1ToL2Message.toString()}`);
+    return undefined;
   }
 }

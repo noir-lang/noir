@@ -162,7 +162,7 @@ describe('e2e_cross_chain_messaging', () => {
         .withWallet(user2Wallet)
         .methods.claim_private(secretHashForL2MessageConsumption, bridgeAmount, secretForL2MessageConsumption)
         .simulate(),
-    ).rejects.toThrow(`L1 to L2 message index not found in the store for message ${wrongMessage.hash().toString()}`);
+    ).rejects.toThrow(`No L1 to L2 message found for entry key ${wrongMessage.hash().toString()}`);
 
     // send the right one -
     const consumptionReceipt = await l2Bridge

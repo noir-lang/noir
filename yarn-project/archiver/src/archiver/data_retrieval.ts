@@ -16,11 +16,11 @@ import {
 /**
  * Data retrieved from logs
  */
-type DataRetrieval<T> = {
+export type DataRetrieval<T> = {
   /**
-   * The next block number.
+   * Blocknumber of the last L1 block from which we obtained data.
    */
-  nextEthBlockNumber: bigint;
+  lastProcessedL1BlockNumber: bigint;
   /**
    * The data returned.
    */
@@ -69,7 +69,7 @@ export async function retrieveBlockMetadataFromRollup(
     searchStartBlock = l2BlockProcessedLogs[l2BlockProcessedLogs.length - 1].blockNumber! + 1n;
     expectedNextL2BlockNum += BigInt(newBlockMetadata.length);
   } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
-  return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedBlockMetadata };
+  return { lastProcessedL1BlockNumber: searchStartBlock - 1n, retrievedData: retrievedBlockMetadata };
 }
 
 /**
@@ -108,7 +108,7 @@ export async function retrieveBlockBodiesFromAvailabilityOracle(
     retrievedBlockBodies.push(...newBlockBodies);
     searchStartBlock = l2TxsPublishedLogs[l2TxsPublishedLogs.length - 1].blockNumber! + 1n;
   } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
-  return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedBlockBodies };
+  return { lastProcessedL1BlockNumber: searchStartBlock - 1n, retrievedData: retrievedBlockBodies };
 }
 
 /**
@@ -141,5 +141,5 @@ export async function retrieveL1ToL2Messages(
     // handles the case when there are no new messages:
     searchStartBlock = (leafInsertedLogs.findLast(msgLog => !!msgLog)?.blockNumber || searchStartBlock) + 1n;
   } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
-  return { nextEthBlockNumber: searchStartBlock, retrievedData: retrievedL1ToL2Messages };
+  return { lastProcessedL1BlockNumber: searchStartBlock - 1n, retrievedData: retrievedL1ToL2Messages };
 }

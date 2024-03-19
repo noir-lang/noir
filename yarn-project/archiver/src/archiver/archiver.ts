@@ -195,12 +195,7 @@ export class Archiver implements ArchiveSource {
       );
     }
 
-    await this.store.addL1ToL2Messages(
-      retrievedL1ToL2Messages.retrievedData,
-      // -1n because the function expects the last block in which the message was emitted and not the one after next
-      // TODO(#5264): Check whether this could be cleaned up - `nextEthBlockNumber` value doesn't seem to be used much
-      retrievedL1ToL2Messages.nextEthBlockNumber - 1n,
-    );
+    await this.store.addL1ToL2Messages(retrievedL1ToL2Messages);
 
     // Read all data from chain and then write to our stores at the end
     const nextExpectedL2BlockNum = BigInt((await this.store.getSynchedL2BlockNumber()) + 1);
@@ -430,9 +425,9 @@ export class Archiver implements ArchiveSource {
   /**
    * Gets the L1 to L2 message index in the L1 to L2 message tree.
    * @param l1ToL2Message - The L1 to L2 message.
-   * @returns The index of the L1 to L2 message in the L1 to L2 message tree.
+   * @returns The index of the L1 to L2 message in the L1 to L2 message tree (undefined if not found).
    */
-  getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint> {
+  getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint | undefined> {
     return this.store.getL1ToL2MessageIndex(l1ToL2Message);
   }
 

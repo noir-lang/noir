@@ -231,7 +231,7 @@ contract UniswapPortalTest is Test {
     bytes32 swapEntryKey = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
     _addMessagesToOutbox(daiWithdrawEntryKey, swapEntryKey);
 
-    bytes32 l1ToL2EntryKey = uniswapPortal.swapPublic(
+    uniswapPortal.swapPublic(
       address(daiTokenPortal),
       amount,
       uniswapFeePool,
@@ -260,7 +260,7 @@ contract UniswapPortalTest is Test {
     _addMessagesToOutbox(daiWithdrawEntryKey, swapEntryKey);
 
     vm.prank(_caller);
-    bytes32 l1ToL2EntryKey = uniswapPortal.swapPublic(
+    uniswapPortal.swapPublic(
       address(daiTokenPortal),
       amount,
       uniswapFeePool,

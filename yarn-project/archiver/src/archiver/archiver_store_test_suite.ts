@@ -98,7 +98,10 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       });
 
       it('returns the L1 block number that most recently added messages from inbox', async () => {
-        await store.addL1ToL2Messages([new InboxLeaf(0n, 0n, Fr.ZERO)], 1n);
+        await store.addL1ToL2Messages({
+          lastProcessedL1BlockNumber: 1n,
+          retrievedData: [new InboxLeaf(0n, 0n, Fr.ZERO)],
+        });
         await expect(store.getSynchedL1BlockNumbers()).resolves.toEqual({
           blocks: 0n,
           messages: 1n,
@@ -169,7 +172,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       it('returns messages in correct order', async () => {
         const msgs = generateBlockMessages(l2BlockNumber, l1ToL2MessageSubtreeSize);
         const shuffledMessages = msgs.slice().sort(() => randomInt(1) - 0.5);
-        await store.addL1ToL2Messages(shuffledMessages, 100n);
+        await store.addL1ToL2Messages({ lastProcessedL1BlockNumber: 100n, retrievedData: shuffledMessages });
         const retrievedMessages = await store.getL1ToL2Messages(l2BlockNumber);
 
         const expectedLeavesOrder = msgs.map(msg => msg.leaf);
@@ -182,7 +185,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         // --> with that there will be a gap and it will be impossible to sequence the messages
         msgs[4] = new InboxLeaf(l2BlockNumber, BigInt(l1ToL2MessageSubtreeSize - 1), Fr.random());
 
-        await store.addL1ToL2Messages(msgs, 100n);
+        await store.addL1ToL2Messages({ lastProcessedL1BlockNumber: 100n, retrievedData: msgs });
         await expect(async () => {
           await store.getL1ToL2Messages(l2BlockNumber);
         }).rejects.toThrow(`L1 to L2 message gap found in block ${l2BlockNumber}`);
@@ -192,7 +195,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         const msgs = generateBlockMessages(l2BlockNumber, l1ToL2MessageSubtreeSize + 1);
 
         await expect(async () => {
-          await store.addL1ToL2Messages(msgs, 100n);
+          await store.addL1ToL2Messages({ lastProcessedL1BlockNumber: 100n, retrievedData: msgs });
         }).rejects.toThrow(`Message index ${l1ToL2MessageSubtreeSize} out of subtree range`);
       });
     });

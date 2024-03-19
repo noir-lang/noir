@@ -7,7 +7,7 @@ import {DataStructures} from "../../libraries/DataStructures.sol";
 /**
  * @title Inbox
  * @author Aztec Labs
- * @notice Lives on L1 and is used to pass messages into the rollup, e.g., L1 -> L2 messages.
+ * @notice Lives on L1 and is used to pass messages into the rollup from L1.
  */
 interface IInbox {
   event LeafInserted(uint256 indexed blockNumber, uint256 index, bytes32 value);

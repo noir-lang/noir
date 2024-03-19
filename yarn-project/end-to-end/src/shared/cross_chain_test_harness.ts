@@ -12,8 +12,8 @@ import {
   Wallet,
   computeMessageSecretHash,
   deployL1Contract,
+  retryUntil,
   sha256,
-  sleep,
 } from '@aztec/aztec.js';
 import {
   InboxAbi,
@@ -435,25 +435,11 @@ export class CrossChainTestHarness {
    * it's included it becomes available for consumption in the next block because the l1 to l2 message tree.
    */
   async makeMessageConsumable(msgLeaf: Fr) {
-    const messageBlock = Number(await this.inbox.read.inProgress());
-    await this.mintTokensPublicOnL2(0n);
-    await this.mintTokensPublicOnL2(0n);
+    // We poll isL1ToL2MessageSynced endpoint until the message is available
+    await retryUntil(async () => await this.aztecNode.isL1ToL2MessageSynced(msgLeaf), 'message sync', 10);
 
-    // We poll getL1ToL2MessageIndexAndSiblingPath endpoint until the message is available (it's most likely already
-    // available given that we waited for 2 blocks).
-    let i = 0;
-    while (i < 5) {
-      try {
-        // The function throws if message is not found
-        await this.aztecNode.getL1ToL2MessageIndexAndSiblingPath(messageBlock, msgLeaf);
-      } catch (e) {
-        i++;
-        await sleep(1000);
-        continue;
-      }
-      return;
-    }
-    throw new Error('Message not available after 5 seconds');
+    await this.mintTokensPublicOnL2(0n);
+    await this.mintTokensPublicOnL2(0n);
   }
 }
 // docs:end:cross_chain_test_harness

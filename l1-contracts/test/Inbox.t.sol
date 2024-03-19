@@ -4,6 +4,7 @@ pragma solidity >=0.8.18;
 
 import {Test} from "forge-std/Test.sol";
 
+import {IInbox} from "../src/core/interfaces/messagebridge/IInbox.sol";
 import {InboxHarness} from "./harnesses/InboxHarness.sol";
 import {Constants} from "../src/core/libraries/ConstantsGen.sol";
 import {Errors} from "../src/core/libraries/Errors.sol";
@@ -18,8 +19,6 @@ contract InboxTest is Test {
   InboxHarness internal inbox;
   uint256 internal version = 0;
   bytes32 internal emptyTreeRoot;
-
-  event LeafInserted(uint256 indexed blockNumber, uint256 index, bytes32 value);
 
   function setUp() public {
     address rollup = address(this);
@@ -82,7 +81,7 @@ contract InboxTest is Test {
     bytes32 leaf = message.sha256ToField();
     vm.expectEmit(true, true, true, true);
     // event we expect
-    emit LeafInserted(FIRST_REAL_TREE_NUM, 0, leaf);
+    emit IInbox.LeafInserted(FIRST_REAL_TREE_NUM, 0, leaf);
     // event we will get
     bytes32 insertedLeaf =
       inbox.sendL2Message(message.recipient, message.content, message.secretHash);

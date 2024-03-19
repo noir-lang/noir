@@ -25,7 +25,6 @@ contract TokenPortalTest is Test {
 
   uint256 internal constant FIRST_REAL_TREE_NUM = Constants.INITIAL_L2_BLOCK_NUM + 1;
 
-  event LeafInserted(uint256 indexed blockNumber, uint256 index, bytes32 value);
   event MessageConsumed(bytes32 indexed entryKey, address indexed recipient);
 
   Registry internal registry;
@@ -69,7 +68,7 @@ contract TokenPortalTest is Test {
     vm.deal(address(this), 100 ether);
   }
 
-  function _createExpectedMintPrivateL1ToL2Message(address _canceller)
+  function _createExpectedMintPrivateL1ToL2Message()
     internal
     view
     returns (DataStructures.L1ToL2Msg memory)
@@ -105,15 +104,14 @@ contract TokenPortalTest is Test {
     portalERC20.approve(address(tokenPortal), mintAmount);
 
     // Check for the expected message
-    DataStructures.L1ToL2Msg memory expectedMessage =
-      _createExpectedMintPrivateL1ToL2Message(address(this));
+    DataStructures.L1ToL2Msg memory expectedMessage = _createExpectedMintPrivateL1ToL2Message();
 
     bytes32 expectedLeaf = expectedMessage.sha256ToField();
 
     // Check the event was emitted
     vm.expectEmit(true, true, true, true);
     // event we expect
-    emit LeafInserted(FIRST_REAL_TREE_NUM, 0, expectedLeaf);
+    emit IInbox.LeafInserted(FIRST_REAL_TREE_NUM, 0, expectedLeaf);
     // event we will get
 
     // Perform op
@@ -138,7 +136,7 @@ contract TokenPortalTest is Test {
     // Check the event was emitted
     vm.expectEmit(true, true, true, true);
     // event we expect
-    emit LeafInserted(FIRST_REAL_TREE_NUM, 0, expectedLeaf);
+    emit IInbox.LeafInserted(FIRST_REAL_TREE_NUM, 0, expectedLeaf);
 
     // Perform op
     bytes32 leaf = tokenPortal.depositToAztecPublic(to, amount, secretHashForL2MessageConsumption);

@@ -18,11 +18,9 @@ import { SiblingPath } from '../sibling_path/index.js';
 import { Tx, TxHash, TxReceipt } from '../tx/index.js';
 import { TxEffect } from '../tx_effect.js';
 import { SequencerConfig } from './configs.js';
+import { L2BlockNumber } from './l2_block_number.js';
 import { NullifierMembershipWitness } from './nullifier_tree.js';
 import { PublicDataWitness } from './public_data_tree.js';
-
-/** Helper type for a specific L2 block number or the latest block number */
-export type BlockNumber = number | 'latest';
 
 /**
  * The aztec node.
@@ -36,7 +34,7 @@ export interface AztecNode {
    * @param leafValue - The value to search for
    * @returns The index of the given leaf in the given tree or undefined if not found.
    */
-  findLeafIndex(blockNumber: BlockNumber, treeId: MerkleTreeId, leafValue: Fr): Promise<bigint | undefined>;
+  findLeafIndex(blockNumber: L2BlockNumber, treeId: MerkleTreeId, leafValue: Fr): Promise<bigint | undefined>;
 
   /**
    * Returns a sibling path for the given index in the nullifier tree.
@@ -45,7 +43,7 @@ export interface AztecNode {
    * @returns The sibling path for the leaf index.
    */
   getNullifierSiblingPath(
-    blockNumber: BlockNumber,
+    blockNumber: L2BlockNumber,
     leafIndex: bigint,
   ): Promise<SiblingPath<typeof NULLIFIER_TREE_HEIGHT>>;
 
@@ -56,7 +54,7 @@ export interface AztecNode {
    * @returns The sibling path for the leaf index.
    */
   getNoteHashSiblingPath(
-    blockNumber: BlockNumber,
+    blockNumber: L2BlockNumber,
     leafIndex: bigint,
   ): Promise<SiblingPath<typeof NOTE_HASH_TREE_HEIGHT>>;
 
@@ -64,13 +62,19 @@ export interface AztecNode {
    * Returns the index and a sibling path for a leaf in the committed l1 to l2 data tree.
    * @param blockNumber - The block number at which to get the data.
    * @param l1ToL2Message - The l1ToL2Message to get the index / sibling path for.
-   * @throws If the message is not found.
-   * @returns A tuple of the index and the sibling path of the message.
+   * @returns A tuple of the index and the sibling path of the message  (undefined if not found).
    */
-  getL1ToL2MessageIndexAndSiblingPath(
-    blockNumber: BlockNumber,
+  getL1ToL2MessageMembershipWitness(
+    blockNumber: L2BlockNumber,
     l1ToL2Message: Fr,
-  ): Promise<[bigint, SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>]>;
+  ): Promise<[bigint, SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>] | undefined>;
+
+  /**
+   * Returns whether an L1 to L2 message is synced by archiver and if it's ready to be included in a block.
+   * @param l1ToL2Message - The L1 to L2 message to check.
+   * @returns Whether the message is synced and ready to be included in a block.
+   */
+  isL1ToL2MessageSynced(l1ToL2Message: Fr): Promise<boolean>;
 
   /**
    * Returns the index of a l2ToL1Message in a ephemeral l2 to l1 data tree as well as its sibling path.
@@ -82,7 +86,7 @@ export interface AztecNode {
    * @returns A tuple of the index and the sibling path of the L2ToL1Message.
    */
   getL2ToL1MessageIndexAndSiblingPath(
-    blockNumber: BlockNumber,
+    blockNumber: L2BlockNumber,
     l2ToL1Message: Fr,
   ): Promise<[number, SiblingPath<number>]>;
 
@@ -92,7 +96,7 @@ export interface AztecNode {
    * @param leafIndex - Index of the leaf in the tree.
    * @returns The sibling path.
    */
-  getArchiveSiblingPath(blockNumber: BlockNumber, leafIndex: bigint): Promise<SiblingPath<typeof ARCHIVE_HEIGHT>>;
+  getArchiveSiblingPath(blockNumber: L2BlockNumber, leafIndex: bigint): Promise<SiblingPath<typeof ARCHIVE_HEIGHT>>;
 
   /**
    * Returns a sibling path for a leaf in the committed public data tree.
@@ -101,7 +105,7 @@ export interface AztecNode {
    * @returns The sibling path.
    */
   getPublicDataSiblingPath(
-    blockNumber: BlockNumber,
+    blockNumber: L2BlockNumber,
     leafIndex: bigint,
   ): Promise<SiblingPath<typeof PUBLIC_DATA_TREE_HEIGHT>>;
 
@@ -112,7 +116,7 @@ export interface AztecNode {
    * @returns The nullifier membership witness (if found).
    */
   getNullifierMembershipWitness(
-    blockNumber: BlockNumber,
+    blockNumber: L2BlockNumber,
     nullifier: Fr,
   ): Promise<NullifierMembershipWitness | undefined>;
 
@@ -126,7 +130,7 @@ export interface AztecNode {
    * we are trying to prove non-inclusion for.
    */
   getLowNullifierMembershipWitness(
-    blockNumber: BlockNumber,
+    blockNumber: L2BlockNumber,
     nullifier: Fr,
   ): Promise<NullifierMembershipWitness | undefined>;
 
@@ -139,7 +143,7 @@ export interface AztecNode {
    * "in range" slot, means that the slot doesn't exist and the value is 0. If the low leaf preimage corresponds to the exact slot, the current value
    * is contained in the leaf preimage.
    */
-  getPublicDataTreeWitness(blockNumber: BlockNumber, leafSlot: Fr): Promise<PublicDataWitness | undefined>;
+  getPublicDataTreeWitness(blockNumber: L2BlockNumber, leafSlot: Fr): Promise<PublicDataWitness | undefined>;
 
   /**
    * Get a block specified by its number.

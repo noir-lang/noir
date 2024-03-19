@@ -20,6 +20,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { ArchiverDataStore, ArchiverL1SynchPoint } from '../archiver_store.js';
+import { DataRetrieval } from '../data_retrieval.js';
 import { L1ToL2MessageStore } from './l1_to_l2_message_store.js';
 
 /**
@@ -156,17 +157,16 @@ export class MemoryArchiverStore implements ArchiverDataStore {
 
   /**
    * Append L1 to L2 messages to the store.
-   * @param messages - The L1 to L2 messages to be added to the store.
-   * @param lastMessageL1BlockNumber - The L1 block number in which the last message was emitted.
+   * @param messages - The L1 to L2 messages to be added to the store and the last processed L1 block.
    * @returns True if the operation is successful.
    */
-  public addL1ToL2Messages(messages: InboxLeaf[], lastMessageL1BlockNumber: bigint): Promise<boolean> {
-    if (lastMessageL1BlockNumber <= this.lastL1BlockNewMessages) {
+  public addL1ToL2Messages(messages: DataRetrieval<InboxLeaf>): Promise<boolean> {
+    if (messages.lastProcessedL1BlockNumber <= this.lastL1BlockNewMessages) {
       return Promise.resolve(false);
     }
 
-    this.lastL1BlockNewMessages = lastMessageL1BlockNumber;
-    for (const message of messages) {
+    this.lastL1BlockNewMessages = messages.lastProcessedL1BlockNumber;
+    for (const message of messages.retrievedData) {
       this.l1ToL2Messages.addMessage(message);
     }
     return Promise.resolve(true);
@@ -175,9 +175,9 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   /**
    * Gets the L1 to L2 message index in the L1 to L2 message tree.
    * @param l1ToL2Message - The L1 to L2 message.
-   * @returns The index of the L1 to L2 message in the L1 to L2 message tree.
+   * @returns The index of the L1 to L2 message in the L1 to L2 message tree (undefined if not found).
    */
-  public getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint> {
+  public getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint | undefined> {
     return Promise.resolve(this.l1ToL2Messages.getMessageIndex(l1ToL2Message));
   }
 

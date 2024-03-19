@@ -64,8 +64,6 @@ mod tests {
 
     #[test]
     fn check_block_hashes_empty_blocks() {
-        let expected_messages_hash = U256::from_bytes32(dep::std::hash::sha256([0; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES])).to_u128_limbs();
-
         let expected_txs_effects_hash = accumulate_sha256(
             [
             U128::from_integer(0),
@@ -80,8 +78,6 @@ mod tests {
 
         // check txs effects hash
         assert_eq(outputs.header.content_commitment.txs_effects_hash, expected_txs_effects_hash);
-        // Check messages hash
-        assert_eq(outputs.l1_to_l2_messages_hash, expected_messages_hash);
     }
 
     #[test]

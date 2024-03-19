@@ -137,7 +137,6 @@ contract RollupTest is DecoderBase {
 
     assertEq(inbox.toConsume(), toConsume + 1, "Message subtree not consumed");
 
-    (, bytes32[] memory inboxWrites) = vm.accesses(address(inbox));
     (, bytes32[] memory outboxWrites) = vm.accesses(address(outbox));
 
     {

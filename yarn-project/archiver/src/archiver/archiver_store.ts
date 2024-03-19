@@ -14,6 +14,8 @@ import { Fr } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
+import { DataRetrieval } from './data_retrieval.js';
+
 /**
  * Represents the latest L1 block processed by the archiver for various objects in L2.
  */
@@ -88,11 +90,10 @@ export interface ArchiverDataStore {
 
   /**
    * Append L1 to L2 messages to the store.
-   * @param messages - The L1 to L2 messages to be added to the store.
-   * @param lastMessageL1BlockNumber - The L1 block number in which the last message was emitted.
+   * @param messages - The L1 to L2 messages to be added to the store and the last processed L1 block.
    * @returns True if the operation is successful.
    */
-  addL1ToL2Messages(messages: InboxLeaf[], lastMessageL1BlockNumber: bigint): Promise<boolean>;
+  addL1ToL2Messages(messages: DataRetrieval<InboxLeaf>): Promise<boolean>;
 
   /**
    * Gets L1 to L2 message (to be) included in a given block.
@@ -104,9 +105,9 @@ export interface ArchiverDataStore {
   /**
    * Gets the L1 to L2 message index in the L1 to L2 message tree.
    * @param l1ToL2Message - The L1 to L2 message.
-   * @returns The index of the L1 to L2 message in the L1 to L2 message tree.
+   * @returns The index of the L1 to L2 message in the L1 to L2 message tree (undefined if not found).
    */
-  getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint>;
+  getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint | undefined>;
 
   /**
    * Gets up to `limit` amount of logs starting from `from`.

@@ -17,6 +17,7 @@ import { AztecKVStore } from '@aztec/kv-store';
 import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { ArchiverDataStore, ArchiverL1SynchPoint } from '../archiver_store.js';
+import { DataRetrieval } from '../data_retrieval.js';
 import { BlockBodyStore } from './block_body_store.js';
 import { BlockStore } from './block_store.js';
 import { ContractClassStore } from './contract_class_store.js';
@@ -145,20 +146,19 @@ export class KVArchiverDataStore implements ArchiverDataStore {
 
   /**
    * Append L1 to L2 messages to the store.
-   * @param messages - The L1 to L2 messages to be added to the store.
-   * @param lastMessageL1BlockNumber - The L1 block number in which the last message was emitted.
+   * @param messages - The L1 to L2 messages to be added to the store and the last processed L1 block.
    * @returns True if the operation is successful.
    */
-  addL1ToL2Messages(messages: InboxLeaf[], lastMessageL1BlockNumber: bigint): Promise<boolean> {
-    return Promise.resolve(this.#messageStore.addL1ToL2Messages(messages, lastMessageL1BlockNumber));
+  addL1ToL2Messages(messages: DataRetrieval<InboxLeaf>): Promise<boolean> {
+    return Promise.resolve(this.#messageStore.addL1ToL2Messages(messages));
   }
 
   /**
    * Gets the L1 to L2 message index in the L1 to L2 message tree.
    * @param l1ToL2Message - The L1 to L2 message.
-   * @returns The index of the L1 to L2 message in the L1 to L2 message tree.
+   * @returns The index of the L1 to L2 message in the L1 to L2 message tree (undefined if not found).
    */
-  public getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint> {
+  public getL1ToL2MessageIndex(l1ToL2Message: Fr): Promise<bigint | undefined> {
     return Promise.resolve(this.#messageStore.getL1ToL2MessageIndex(l1ToL2Message));
   }
 
