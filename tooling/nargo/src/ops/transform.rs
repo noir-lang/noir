@@ -9,8 +9,10 @@ pub fn transform_program(
     mut compiled_program: CompiledProgram,
     expression_width: ExpressionWidth,
 ) -> CompiledProgram {
-    let (optimized_circuit, location_map) =
-        acvm::compiler::compile(compiled_program.program.functions[0].clone(), expression_width);
+    let (optimized_circuit, location_map) = acvm::compiler::compile(
+        std::mem::take(&mut compiled_program.program.functions[0]),
+        expression_width,
+    );
 
     compiled_program.program.functions[0] = optimized_circuit;
     compiled_program.debug.update_acir(location_map);
