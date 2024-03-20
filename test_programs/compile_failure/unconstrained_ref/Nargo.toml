@@ -1,0 +1,7 @@
+[package]
+name = "unconstrained_ref"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.25.0"
+
+[dependencies]
