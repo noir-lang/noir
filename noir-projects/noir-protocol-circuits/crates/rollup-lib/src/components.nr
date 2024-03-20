@@ -156,7 +156,8 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
 
     let mut offset = 0;
 
-    txs_effects_hash_input[offset] = revert_code;
+    // upcast to Field to have the same size for the purposes of the hash
+    txs_effects_hash_input[offset] = revert_code as Field;
     offset += 1;
 
     for j in 0..MAX_NEW_NOTE_HASHES_PER_TX {

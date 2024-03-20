@@ -15,7 +15,7 @@ use crate::constants::{
 };
 
 struct AccumulatedNonRevertibleDataBuilder {
-    revert_code: Field,
+    revert_code: u8,
 
     new_note_hashes: BoundedVec<SideEffect, MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX>,
     new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX>,

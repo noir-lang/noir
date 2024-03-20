@@ -106,7 +106,7 @@ export class TxEffect {
     const unencryptedLogsHashKernel0 = this.unencryptedLogs.hash();
 
     const inputValue = Buffer.concat([
-      this.revertCode.toBuffer(),
+      this.revertCode.toHashPreimage(),
       noteHashesBuffer,
       nullifiersBuffer,
       newL2ToL1MsgsBuffer,

@@ -32,7 +32,7 @@ struct PublicCircuitPublicInputsBuilder {
     unencrypted_log_preimages_length: Field,
     historical_header: Header,
     prover_address: AztecAddress,
-    revert_code: Field,
+    revert_code: u8,
 }
 
 impl PublicCircuitPublicInputsBuilder {

@@ -24,19 +24,19 @@ import {Hash} from "../Hash.sol";
  *  | 0x4                                                                                                                       | a * 0x20   | newL1ToL2Msgs
  *  | 0x4 + a * 0x20 = tx0Start                                                                                                 | 0x4        | len(numTxs) (denoted t)
  *  |                                                                                                                           |            | TxEffect 0 {
- *  | tx0Start                                                                                                                  | 0x20       |   revertCode
- *  | tx0Start + 0x20                                                                                                           | 0x1        |   len(newNoteHashes) (denoted b)
- *  | tx0Start + 0x20 + 0x1                                                                                                     | b * 0x20   |   newNoteHashes
- *  | tx0Start + 0x20 + 0x1 + b * 0x20                                                                                          | 0x1        |   len(newNullifiers) (denoted c)
- *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1                                                                                    | c * 0x20   |   newNullifiers
- *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20                                                                         | 0x1        |   len(newL2ToL1Msgs) (denoted d)
- *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                                                   | d * 0x20   |   newL2ToL1Msgs
- *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                                        | 0x1        |   len(newPublicDataWrites) (denoted e)
- *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                                                 | e * 0x40   |   newPublicDataWrites
- *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                                      | 0x04       |   byteLen(newEncryptedLogs) (denoted f)
- *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4                                | f          |   newEncryptedLogs
- *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f                            | 0x04       |   byteLen(newUnencryptedLogs) (denoted g)
- *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4                      | g          |   newUnencryptedLogs
+ *  | tx0Start                                                                                                                  | 0x1        |   revertCode
+ *  | tx0Start + 0x1                                                                                                            | 0x1        |   len(newNoteHashes) (denoted b)
+ *  | tx0Start + 0x1 + 0x1                                                                                                      | b * 0x20   |   newNoteHashes
+ *  | tx0Start + 0x1 + 0x1 + b * 0x20                                                                                           | 0x1        |   len(newNullifiers) (denoted c)
+ *  | tx0Start + 0x1 + 0x1 + b * 0x20 + 0x1                                                                                     | c * 0x20   |   newNullifiers
+ *  | tx0Start + 0x1 + 0x1 + b * 0x20 + 0x1 + c * 0x20                                                                          | 0x1        |   len(newL2ToL1Msgs) (denoted d)
+ *  | tx0Start + 0x1 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                                                    | d * 0x20   |   newL2ToL1Msgs
+ *  | tx0Start + 0x1 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                                         | 0x1        |   len(newPublicDataWrites) (denoted e)
+ *  | tx0Start + 0x1 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                                                  | e * 0x40   |   newPublicDataWrites
+ *  | tx0Start + 0x1 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                                       | 0x04       |   byteLen(newEncryptedLogs) (denoted f)
+ *  | tx0Start + 0x1 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4                                 | f          |   newEncryptedLogs
+ *  | tx0Start + 0x1 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f                             | 0x04       |   byteLen(newUnencryptedLogs) (denoted g)
+ *  | tx0Start + 0x1 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4                       | g          |   newUnencryptedLogs
  *  |                                                                                                                           |            | },
  *  |                                                                                                                           |            | TxEffect 1 {
  *  |                                                                                                                           |            |   ...
@@ -115,7 +115,7 @@ library TxsDecoder {
 
         // Revert Code
         offsets.revertCode = offset;
-        offset += 0x20;
+        offset += 0x1;
 
         // Note hashes
         uint256 count = read1(_body, offset);
@@ -154,27 +154,28 @@ library TxsDecoder {
 
         // Insertions are split into multiple `bytes.concat` to work around stack too deep.
         vars.baseLeaf = bytes.concat(
-          bytes32(slice(_body, offsets.revertCode, 0x20)),
+          // pad the revert code to 32 bytes to match the hash preimage
+          sliceAndPadLeft(_body, offsets.revertCode, 0x1, 0x20),
           bytes.concat(
-            sliceAndPad(
+            sliceAndPadRight(
               _body,
               offsets.noteHash,
               counts.noteHash * 0x20,
               Constants.NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP
             ),
-            sliceAndPad(
+            sliceAndPadRight(
               _body,
               offsets.nullifier,
               counts.nullifier * 0x20,
               Constants.NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP
             ),
-            sliceAndPad(
+            sliceAndPadRight(
               _body,
               offsets.l2ToL1Msgs,
               counts.l2ToL1Msgs * 0x20,
               Constants.L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP
             ),
-            sliceAndPad(
+            sliceAndPadRight(
               _body,
               offsets.publicData,
               counts.publicData * 0x40,
@@ -305,11 +306,29 @@ library TxsDecoder {
    * @param _targetLength - The length of the padded array
    * @return The slice
    */
-  function sliceAndPad(bytes calldata _data, uint256 _start, uint256 _length, uint256 _targetLength)
-    internal
-    pure
-    returns (bytes memory)
-  {
+  function sliceAndPadLeft(
+    bytes calldata _data,
+    uint256 _start,
+    uint256 _length,
+    uint256 _targetLength
+  ) internal pure returns (bytes memory) {
+    return bytes.concat(new bytes(_targetLength - _length), _data[_start:_start + _length]);
+  }
+
+  /**
+   * @notice Wrapper around the slicing and padding to avoid some stack too deep
+   * @param _data - The data to slice
+   * @param _start - The start of the slice
+   * @param _length - The length of the slice
+   * @param _targetLength - The length of the padded array
+   * @return The slice
+   */
+  function sliceAndPadRight(
+    bytes calldata _data,
+    uint256 _start,
+    uint256 _length,
+    uint256 _targetLength
+  ) internal pure returns (bytes memory) {
     return bytes.concat(_data[_start:_start + _length], new bytes(_targetLength - _length));
   }
 

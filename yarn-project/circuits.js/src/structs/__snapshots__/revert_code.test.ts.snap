@@ -41,6 +41,15 @@ exports[`revert_code should serialize properly 1`] = `
 `;
 
 exports[`revert_code should serialize properly 2`] = `
+{
+  "data": [
+    0,
+  ],
+  "type": "Buffer",
+}
+`;
+
+exports[`revert_code should serialize properly 3`] = `
 Fr {
   "asBigInt": 0n,
   "asBuffer": {
@@ -83,7 +92,7 @@ Fr {
 }
 `;
 
-exports[`revert_code should serialize properly 3`] = `
+exports[`revert_code should serialize properly 4`] = `
 {
   "data": [
     0,
@@ -123,7 +132,16 @@ exports[`revert_code should serialize properly 3`] = `
 }
 `;
 
-exports[`revert_code should serialize properly 4`] = `
+exports[`revert_code should serialize properly 5`] = `
+{
+  "data": [
+    1,
+  ],
+  "type": "Buffer",
+}
+`;
+
+exports[`revert_code should serialize properly 6`] = `
 Fr {
   "asBigInt": 1n,
   "asBuffer": {
