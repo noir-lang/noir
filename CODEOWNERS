@@ -3,3 +3,6 @@
 
 # Notify the AVM team of any changes to public oracle.
 /yarn-project/simulator/src/public/public_execution_context.ts @Maddiaa0 @fcarreiro
+
+# Notify the AVM team of changes to generated PIL code
+barretenberg/cpp/src/barretenberg/**/generated/* @Maddiaa0 @jeanmon @IlyasRidhuan
