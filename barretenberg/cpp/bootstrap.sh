@@ -77,9 +77,9 @@ b="\033[34m"  # Blue
 p="\033[35m"  # Purple
 r="\033[0m"   # Reset
 
-(build_native > >(awk -W interactive -v g="$g" -v r="$r" '$0=g"native: "r $0')) &
-(build_wasm > >(awk -W interactive -v b="$b" -v r="$r" '$0=b"wasm: "r $0')) &
-(build_wasm_threads > >(awk -W interactive -v p="$p" -v r="$r" '$0=p"wasm_threads: "r $0')) &
+(build_native > >(awk -v g="$g" -v r="$r" '{print g "native: " r $0}')) &
+(build_wasm > >(awk -v b="$b" -v r="$r" '{print b "wasm: " r $0}')) &
+(build_wasm_threads > >(awk -v p="$p" -v r="$r" '{print p "wasm_threads: "r $0}')) &
 
 for job in $(jobs -p); do
   wait $job || exit 1

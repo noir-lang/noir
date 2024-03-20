@@ -3,7 +3,7 @@
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 
 # Aztec build/test/bench tool
-# Thin wrapper for earthly that helps with building targets. 
+# Thin wrapper for earthly that helps with building targets.
 # Adds autodownloading earthly and timing code.
 # Usage:
 # Go to folder, e.g. docs, use az to build
@@ -18,7 +18,7 @@ EARTHLY=$(dirname $0)/.earthly/earthly
 EARTHLY_CONFIG=$(dirname $0)/earthly-config.yml
 
 if ! [ -f "$EARTHLY" ] ; then
-  wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O "$EARTHLY";
+  wget -q https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O "$EARTHLY";
   chmod +x "$EARTHLY"
 fi
 

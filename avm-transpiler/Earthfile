@@ -10,7 +10,7 @@ WORKDIR /build/avm-transpiler
 
 RUN apt-get update && apt-get install -y git
 
-COPY --keep-ts --dir scripts src Cargo.lock Cargo.toml rust-toolchain.toml .
+COPY --dir scripts src Cargo.lock Cargo.toml rust-toolchain.toml .
 
 build:
     RUN ./scripts/bootstrap_native.sh

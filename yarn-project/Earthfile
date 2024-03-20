@@ -12,7 +12,7 @@ COPY ../l1-contracts/+build/out /build/l1-contracts/out
 
 WORKDIR /build/yarn-project
 # copy source
-COPY --keep-ts --dir * *.json .yarn .yarnrc.yml .
+COPY --dir * *.json .yarn .yarnrc.yml .
 
 # We install a symlink to yarn-project's node_modules at a location that all portalled packages can find as they
 # walk up the tree as part of module resolution. The supposedly idiomatic way of supporting module resolution

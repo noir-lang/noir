@@ -25,8 +25,9 @@ E2E_TEST:
     FUNCTION
     ARG test
     ARG compose_file=./scripts/docker-compose.yml
-    LOCALLY
+    FROM earthly/dind:alpine-3.19-docker-25.0.2-r0
     ENV TEST=$test
+    COPY $compose_file $compose_file
     WITH DOCKER \
       --load aztecprotocol/aztec:latest=+get-aztec \
       --load aztecprotocol/end-to-end:latest=+get-end-to-end \
@@ -34,7 +35,6 @@ E2E_TEST:
         # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
         RUN docker compose -f $compose_file up --exit-code-from=sandbox --force-recreate
     END
-
 # we could use a parameterized target, but these just print cleaner in earthly log
 
 e2e-block-building:

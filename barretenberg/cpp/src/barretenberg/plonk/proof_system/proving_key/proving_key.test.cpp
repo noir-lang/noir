@@ -17,6 +17,7 @@ using namespace bb::plonk;
 // Test proving key serialization/deserialization to/from buffer
 TEST(proving_key, proving_key_from_serialized_key)
 {
+    bb::srs::init_crs_factory("../srs_db/ignition");
     auto builder = StandardCircuitBuilder();
     auto composer = StandardComposer();
     fr a = fr::one();
@@ -25,7 +26,7 @@ TEST(proving_key, proving_key_from_serialized_key)
     plonk::proving_key& p_key = *composer.compute_proving_key(builder);
     auto pk_buf = to_buffer(p_key);
     auto pk_data = from_buffer<plonk::proving_key_data>(pk_buf);
-    auto crs = std::make_unique<bb::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
+    auto crs = bb::srs::get_bn254_crs_factory();
     auto proving_key =
         std::make_shared<plonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
 
@@ -54,6 +55,7 @@ TEST(proving_key, proving_key_from_serialized_key)
 // Test proving key serialization/deserialization to/from buffer using UltraPlonkComposer
 TEST(proving_key, proving_key_from_serialized_key_ultra)
 {
+    bb::srs::init_crs_factory("../srs_db/ignition");
     auto builder = UltraCircuitBuilder();
     auto composer = UltraComposer();
     fr a = fr::one();
@@ -62,7 +64,7 @@ TEST(proving_key, proving_key_from_serialized_key_ultra)
     plonk::proving_key& p_key = *composer.compute_proving_key(builder);
     auto pk_buf = to_buffer(p_key);
     auto pk_data = from_buffer<plonk::proving_key_data>(pk_buf);
-    auto crs = std::make_unique<bb::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
+    auto crs = bb::srs::get_bn254_crs_factory();
     auto proving_key =
         std::make_shared<plonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
 

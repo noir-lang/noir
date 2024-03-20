@@ -5,11 +5,11 @@ WORKDIR /build
 
 # minimum files to download yarn packages
 # keep timestamps for incremental builds
-COPY --keep-ts --dir .yarn package.json yarn.lock .yarnrc.yml .
+COPY --dir .yarn package.json yarn.lock .yarnrc.yml .
 RUN yarn --immutable
 
 # other source files
-COPY --keep-ts --dir src *.json *.js *.cjs .
+COPY --dir src *.json *.js *.cjs .
 
 # copy over wasm build from cpp folder
 COPY ../cpp/+preset-wasm/bin/barretenberg.wasm src/barretenberg_wasm/barretenberg-threads.wasm
@@ -23,7 +23,7 @@ esm:
     SAVE ARTIFACT /build
 
 cjs:
-    COPY --keep-ts scripts/cjs_postprocess.sh scripts/
+    COPY scripts/cjs_postprocess.sh scripts/
     RUN yarn build:cjs
     SAVE ARTIFACT /build
 

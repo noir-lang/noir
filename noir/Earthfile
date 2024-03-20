@@ -5,7 +5,7 @@ nargo:
     RUN apt update && apt install -y libc++1
     WORKDIR /build
     # Relevant source (TODO finer-grained 'tooling')
-    COPY --keep-ts --dir \
+    COPY --dir \
       noir-repo/acvm-repo \
       noir-repo/aztec_macros \
       noir-repo/compiler \
@@ -18,10 +18,11 @@ nargo:
 
     # TODO(AD) is this OK as a content hash?
     ENV COMMIT_HASH=$(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}')
-    COPY --keep-ts ./scripts/bootstrap_native.sh ./scripts/bootstrap_native.sh
+    COPY ./scripts/bootstrap_native.sh ./scripts/bootstrap_native.sh
     RUN ./scripts/bootstrap_native.sh
     SAVE ARTIFACT /build/noir-repo/target/release/nargo nargo
     SAVE ARTIFACT /build/noir-repo/target/release/acvm acvm
+    SAVE IMAGE aztecprotocol/nargo
 
 packages:
     FROM node:20
@@ -36,7 +37,7 @@ packages:
     WORKDIR /build
 
     # Relevant source (TODO finer-grained)
-    COPY --keep-ts --dir \
+    COPY --dir \
       noir-repo/acvm-repo \
       noir-repo/aztec_macros \
       noir-repo/compiler \
@@ -58,13 +59,14 @@ packages:
       noir-repo/.envrc \
       noir-repo
 
-    COPY --keep-ts noir-repo/.github/scripts noir-repo/.github/scripts
-    COPY --keep-ts ./scripts/bootstrap_packages.sh ./scripts/bootstrap_packages.sh
+    COPY noir-repo/.github/scripts noir-repo/.github/scripts
+    COPY ./scripts/bootstrap_packages.sh ./scripts/bootstrap_packages.sh
 
     # TODO(AD) is this OK as a content hash?
     ENV COMMIT_HASH=$(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}')
     RUN PATH="/root/.cargo/bin:$PATH" ./scripts/bootstrap_packages.sh
     SAVE ARTIFACT packages
+    SAVE IMAGE --cache-hint
 
 run:
     # When running the container, mount the users home directory to same location.

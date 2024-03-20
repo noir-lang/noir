@@ -15,7 +15,7 @@ RUN foundryup
 RUN npm install --global yarn solhint
 
 WORKDIR /build
-COPY --keep-ts --dir lib scripts src terraform test *.json *.toml *.sh .
+COPY --dir lib scripts src terraform test *.json *.toml *.sh .
 
 build:
     RUN git init && git add . && yarn lint && yarn slither && yarn slither-has-diff

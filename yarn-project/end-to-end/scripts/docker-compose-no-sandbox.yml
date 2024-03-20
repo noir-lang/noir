@@ -5,9 +5,9 @@ services:
     entrypoint: >
       sh -c '
       if [ -n "$FORK_BLOCK_NUMBER" ] && [ -n "$FORK_URL" ]; then
-        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337 --fork-url "$FORK_URL" --fork-block-number "$FORK_BLOCK_NUMBER"
+        exec anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337 --fork-url "$FORK_URL" --fork-block-number "$FORK_BLOCK_NUMBER"
       else
-        exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337
+        exec anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337
       fi'
     ports:
       - '8545:8545'

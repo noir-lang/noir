@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /build
 
 SAVE IMAGE --push aztecprotocol/cache:bb-ubuntu-lunar
+SAVE IMAGE --cache-hint
 
 build-wasi-sdk-image:
     WORKDIR /
@@ -58,6 +59,11 @@ source:
     # cmake source
     COPY --keep-ts --dir cmake CMakeLists.txt CMakePresets.json .
 
+preset-release-assert-all:
+    FROM +source
+    RUN cmake --preset clang16 -DCMAKE_BUILD_TYPE=RelWithAssert && cmake --build --preset clang16
+    SAVE ARTIFACT bin
+
 preset-release:
     FROM +source
     DO +RUN_CMAKE --configure="--preset clang16" --build="--target bb"
@@ -76,6 +82,7 @@ preset-wasm:
     DO +RUN_CMAKE --configure="--preset wasm-threads" --build="--target barretenberg.wasm"
     RUN ./src/wasi-sdk/bin/llvm-strip ./bin/barretenberg.wasm
     SAVE ARTIFACT bin
+    SAVE IMAGE --cache-hint
 
 preset-gcc:
     FROM +source
@@ -103,6 +110,7 @@ preset-op-count-time:
     SAVE ARTIFACT bin
 
 test-clang-format:
+    FROM +source
     COPY .clang-format .
     COPY format.sh .
     RUN ./format.sh check
@@ -118,6 +126,13 @@ bench-client-ivc:
 
 build: # default target
     BUILD +preset-release
+    BUILD +preset-wasm
+
+test:
+    BUILD +test-clang-format
+    FROM +preset-release-assert-all
+    COPY --dir ./srs_db/+build/. srs_db
+    RUN cd build && GTEST_COLOR=1 ctest -j$(nproc) --output-on-failure
 
 # Functions
 RUN_CMAKE:

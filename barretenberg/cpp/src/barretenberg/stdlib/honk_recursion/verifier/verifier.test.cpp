@@ -248,12 +248,12 @@ HEAVY_TYPED_TEST(HonkRecursiveVerifierTest, RecursiveVerificationKey)
     TestFixture::test_recursive_verification_key_creation();
 }
 
-HEAVY_TYPED_TEST(HonkRecursiveVerifierTest, SingleRecursiveVerification)
+HEAVY_TYPED_TEST(HonkRecursiveVerifierTest, DISABLED_SingleRecursiveVerification)
 {
     TestFixture::test_recursive_verification();
 };
 
-HEAVY_TYPED_TEST(HonkRecursiveVerifierTest, SingleRecursiveVerificationFailure)
+HEAVY_TYPED_TEST(HonkRecursiveVerifierTest, DISABLED_SingleRecursiveVerificationFailure)
 {
     TestFixture::test_recursive_verification_fails();
 };

@@ -1,21 +1,63 @@
-name: Run CI with Earthly
+name: Earthly CI
 on:
   push:
-    branches:
-      - master
+    branches: [master]
   pull_request: {}
   workflow_dispatch: {}
 
 jobs:
-  ci:
+  e2e:
     runs-on: ubuntu-latest
-    # run ci for both x86_64 and arm64
-    # strategy: {matrix: {environment: [x86, arm]}}
-    # TODO figure out why arm64 doesn't exit properly
-    strategy: {matrix: {environment: [x86]}}
+    env:
+      EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
+    # TODO currently names are coupled to platform
+    strategy: { matrix: { environment: [x86, arm], test: [e2e-escrow-contract, e2e-account-contracts] } }
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.environment }}
+      group: ${{ matrix.test }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.environment }}
+      cancel-in-progress: true
+    steps:
+      - uses: earthly/actions-setup@v1
+        with:
+          version: v0.8.5
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: recursive
+
+      - name: Setup
+        working-directory: ./scripts
+        run: ./setup_env.sh ${{ matrix.environment }} ${{ secrets.DOCKERHUB_PASSWORD }} ${{ secrets.BUILD_INSTANCE_SSH_KEY }}
+
+      - name: Test
+        working-directory: ./yarn-project/end-to-end
+        run: |
+          # TODO put in script
+          if [ "${{ matrix.environment }}" == "arm" ]; then
+            PLATFORM=linux/arm64
+          elif [ "${{ matrix.environment }}" == "x86" ]; then
+            PLATFORM=linux/amd64
+          fi
+          earthly sat --org aztec launch --size 4xlarge --platform $PLATFORM build-${{github.actor}}-${{ matrix.environment }} || true
+          if [ ${{ github.ref_name }} = master ] ; then
+            # update the remote cache
+            export EARTHLY_PUSH=true
+          fi
+          # TODO need to use more SAVE IMAGE --cache-hint and explicit BUILD statements for remote-cache to work well but then it should read artifacts from master done by all runners
+          earthly -P --no-output --org aztec --remote-cache=aztecprotocol/cache:${{matrix.test}} --sat build-${{github.actor}}-${{ matrix.environment }} +${{ matrix.test }}
+
+  bb-native-tests:
+    runs-on: ubuntu-latest
+    env:
+      EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
+    # run for both x86_64 and arm64
+    # TODO currently names are coupled to platform
+    strategy: { matrix: { environment: [x86, arm] } }
+    # cancel if reran on same PR if exists, otherwise if on same commit
+    concurrency:
+      group: bb-native-tests-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.environment }}
       cancel-in-progress: true
     steps:
       - name: Checkout
@@ -25,24 +67,22 @@ jobs:
           submodules: recursive
 
       - name: Setup
-        run: |
-          mkdir -p ~/.ssh
-          echo DOCKER_HOST=ssh://build-instance-${{ matrix.environment }}.aztecprotocol.com >> $GITHUB_ENV
-          echo ${{ secrets.DOCKERHUB_PASSWORD}} | docker login -u aztecprotocolci --password-stdin
-          echo ${{ secrets.BUILD_INSTANCE_SSH_KEY }} | base64 -d > ~/.ssh/build_instance_key
-          chmod 600 ~/.ssh/build_instance_key
-          cat > ~/.ssh/config <<EOF
-          IdentityFile ~/.ssh/build_instance_key
-          StrictHostKeyChecking no
-          User ubuntu
-          EOF
+        working-directory: ./scripts
+        run: ./setup_env.sh ${{ matrix.environment }} ${{ secrets.DOCKERHUB_PASSWORD }} ${{ secrets.BUILD_INSTANCE_SSH_KEY }}
 
-      # Turn on if updating our custom built WASM-enabled clang (wasi-sdk), foundry or other base images
-      #- name: Ensure Base Images
-      #  run: |
-          # scripts/earthly --push ./foundry/+build
-          # Uncomment the following line if needed for the arm environment
-          # scripts/earthly --push ./barretenberg/cpp/+build-wasi-sdk
-
-      - name: CI
-        run: scripts/earthly +build-ci-small
+      - name: Build and test
+        working-directory: ./barretenberg/cpp
+        run:  |
+          # TODO put in script
+          if [ "${{ matrix.environment }}" == "arm" ]; then
+            PLATFORM=linux/arm64
+          elif [ "${{ matrix.environment }}" == "x86" ]; then
+            PLATFORM=linux/amd64
+          fi
+          earthly sat --org aztec launch --size 4xlarge --platform $PLATFORM build-${{github.actor}}-${{ matrix.environment }} || true
+          if [ ${{ github.ref_name }} = master ] ; then
+            # update the remote cache
+            export EARTHLY_PUSH=true
+          fi
+          # TODO need to use more SAVE IMAGE --cache-hint and explicit BUILD statements for remote-cache to work well but then it should read artifacts from master done by all runners
+          earthly -P --no-output --org aztec --remote-cache=aztecprotocol/cache:bb-native-tests --sat build-${{github.actor}}-${{ matrix.environment }} +test

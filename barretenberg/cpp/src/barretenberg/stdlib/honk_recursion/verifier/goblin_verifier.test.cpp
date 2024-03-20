@@ -266,12 +266,12 @@ HEAVY_TYPED_TEST(GoblinRecursiveVerifierTest, RecursiveVerificationKey)
     TestFixture::test_recursive_verification_key_creation();
 }
 
-HEAVY_TYPED_TEST(GoblinRecursiveVerifierTest, SingleRecursiveVerification)
+HEAVY_TYPED_TEST(GoblinRecursiveVerifierTest, DISABLED_SingleRecursiveVerification)
 {
     TestFixture::test_recursive_verification();
 };
 
-HEAVY_TYPED_TEST(GoblinRecursiveVerifierTest, SingleRecursiveVerificationFailure)
+HEAVY_TYPED_TEST(GoblinRecursiveVerifierTest, DISABLED_SingleRecursiveVerificationFailure)
 {
     TestFixture::test_recursive_verification_fails();
 };

@@ -10,7 +10,7 @@ build:
     RUN ./download_grumpkin.sh
     # export srs-db for runners
     SAVE ARTIFACT ignition ignition
-    SAVE ARTIFACT ignition grumpkin
+    SAVE ARTIFACT grumpkin grumpkin
 
 build-local:
     # copy files locally
