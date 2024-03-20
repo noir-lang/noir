@@ -27,6 +27,7 @@ pub enum ExpressionKind {
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
+    Quote(BlockExpression),
     Error,
 }
 
@@ -495,6 +496,7 @@ impl Display for ExpressionKind {
             }
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
+            Quote(block) => write!(f, "quote {block}"),
             Error => write!(f, "Error"),
         }
     }
