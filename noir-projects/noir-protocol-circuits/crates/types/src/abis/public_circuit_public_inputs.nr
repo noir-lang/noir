@@ -48,7 +48,7 @@ struct PublicCircuitPublicInputs{
 
     prover_address: AztecAddress,
 
-    reverted: bool,
+    reverted: Field,
 }
 
 impl Eq for PublicCircuitPublicInputs {
@@ -121,7 +121,7 @@ impl Deserialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInp
             unencrypted_log_preimages_length: reader.read(),
             historical_header: reader.read_struct(Header::deserialize),
             prover_address: reader.read_struct(AztecAddress::deserialize),
-            reverted: reader.read() as bool,
+            reverted: reader.read()
         };
 
         reader.finish();

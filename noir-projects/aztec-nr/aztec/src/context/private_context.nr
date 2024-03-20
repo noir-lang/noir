@@ -465,7 +465,7 @@ impl PrivateContext {
                 unencrypted_log_preimages_length: 0,
                 historical_header: Header::empty(),
                 prover_address: AztecAddress::zero(),
-                reverted: false
+                reverted: 0
             },
             is_execution_request: true
         };

@@ -15,6 +15,8 @@ use crate::constants::{
 };
 
 struct AccumulatedNonRevertibleDataBuilder {
+    reverted: Field,
+
     new_note_hashes: BoundedVec<SideEffect, MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX>,
     new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX>,
     public_call_stack: BoundedVec<CallRequest, MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
@@ -25,6 +27,7 @@ struct AccumulatedNonRevertibleDataBuilder {
 impl AccumulatedNonRevertibleDataBuilder {
     pub fn to_private(self) -> PrivateAccumulatedNonRevertibleData {
         PrivateAccumulatedNonRevertibleData {
+            reverted: self.reverted,
             new_note_hashes: self.new_note_hashes.storage,
             new_nullifiers: self.new_nullifiers.storage,
             public_call_stack: self.public_call_stack.storage
@@ -32,6 +35,7 @@ impl AccumulatedNonRevertibleDataBuilder {
     }
     pub fn to_public(self) -> PublicAccumulatedNonRevertibleData {
         PublicAccumulatedNonRevertibleData {
+            reverted: self.reverted,
             new_note_hashes: self.new_note_hashes.storage,
             new_nullifiers: self.new_nullifiers.storage,
             public_call_stack: self.public_call_stack.storage,

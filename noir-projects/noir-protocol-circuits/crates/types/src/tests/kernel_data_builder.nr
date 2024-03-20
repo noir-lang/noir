@@ -298,8 +298,7 @@ impl PreviousKernelDataBuilder {
             constants: CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context },
             needs_setup: end_non_revertible.needs_setup(),
             needs_app_logic: end.needs_app_logic(),
-            needs_teardown: end_non_revertible.needs_teardown(),
-            reverted: self.reverted
+            needs_teardown: end_non_revertible.needs_teardown()
         };
 
         PublicKernelData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }

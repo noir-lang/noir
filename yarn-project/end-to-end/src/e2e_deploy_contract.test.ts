@@ -13,6 +13,7 @@ import {
   Fr,
   PXE,
   SignerlessWallet,
+  TxStatus,
   Wallet,
   getContractClassFromArtifact,
   getContractInstanceFromDeployParams,
@@ -378,9 +379,12 @@ describe('e2e_deploy_contract', () => {
 
           it('refuses to call a public function with init check if the instance is not initialized', async () => {
             const whom = AztecAddress.random();
-            await contract.methods.increment_public_value(whom, 10).send({ skipPublicSimulation: true }).wait();
+            const receipt = await contract.methods
+              .increment_public_value(whom, 10)
+              .send({ skipPublicSimulation: true })
+              .wait();
+            expect(receipt.status).toEqual(TxStatus.REVERTED);
 
-            // TODO(#4972) check for reverted flag
             // Meanwhile we check we didn't increment the value
             expect(await contract.methods.get_public_value(whom).view()).toEqual(0n);
           }, 30_000);

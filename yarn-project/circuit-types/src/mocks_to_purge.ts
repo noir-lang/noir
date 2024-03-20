@@ -25,6 +25,7 @@ import {
   PrivateAccumulatedRevertibleData,
   PrivateKernelTailCircuitPublicInputs,
   PublicCallRequest,
+  RevertCode,
   SideEffect,
   SideEffectLinkedToNoteHash,
   TxContext,
@@ -82,6 +83,7 @@ export function makeAccumulatedNonRevertibleData(seed = 1, full = false): Privat
   const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
 
   return new PrivateAccumulatedNonRevertibleData(
+    RevertCode.OK,
     tupleGenerator(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, sideEffectFromNumber, seed + 0x101),
     tupleGenerator(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, sideEffectLinkedFromNumber, seed + 0x201),
     tupleGenerator(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x501),

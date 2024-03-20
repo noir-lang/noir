@@ -13,7 +13,6 @@ struct PublicKernelCircuitPublicInputsBuilder {
     end_non_revertible: AccumulatedNonRevertibleDataBuilder,
     end: AccumulatedRevertibleDataBuilder,
     constants: CombinedConstantData,
-    reverted: bool,
 }
 
 impl PublicKernelCircuitPublicInputsBuilder {
@@ -28,8 +27,7 @@ impl PublicKernelCircuitPublicInputsBuilder {
             constants: self.constants,
             needs_setup: end_non_revertible.needs_setup(),
             needs_app_logic: end.needs_app_logic(),
-            needs_teardown: end_non_revertible.needs_teardown(),
-            reverted: self.reverted
+            needs_teardown: end_non_revertible.needs_teardown()
         }
     }
 }

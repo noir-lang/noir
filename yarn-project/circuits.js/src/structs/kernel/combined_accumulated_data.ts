@@ -26,6 +26,7 @@ import {
 } from '../../constants.gen.js';
 import { CallRequest } from '../call_request.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
+import { RevertCode } from '../revert_code.js';
 import { SideEffect, SideEffectLinkedToNoteHash, sideEffectCmp } from '../side_effects.js';
 
 const log = createDebugOnlyLogger('aztec:combined_accumulated_data');
@@ -35,6 +36,10 @@ const log = createDebugOnlyLogger('aztec:combined_accumulated_data');
  */
 export class CombinedAccumulatedData {
   constructor(
+    /**
+     * Flag indicating whether the transaction reverted.
+     */
+    public reverted: RevertCode,
     /**
      * The new note hashes made in this transaction.
      */
@@ -81,6 +86,7 @@ export class CombinedAccumulatedData {
 
   toBuffer() {
     return serializeToBuffer(
+      this.reverted,
       this.newNoteHashes,
       this.newNullifiers,
       this.privateCallStack,
@@ -106,6 +112,7 @@ export class CombinedAccumulatedData {
   static fromBuffer(buffer: Buffer | BufferReader): CombinedAccumulatedData {
     const reader = BufferReader.asReader(buffer);
     return new CombinedAccumulatedData(
+      RevertCode.fromBuffer(reader),
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, SideEffect),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest),
@@ -130,6 +137,7 @@ export class CombinedAccumulatedData {
 
   static empty() {
     return new CombinedAccumulatedData(
+      RevertCode.OK,
       makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, SideEffect.empty),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
@@ -152,9 +160,8 @@ export class CombinedAccumulatedData {
   public static recombine(
     nonRevertible: PublicAccumulatedNonRevertibleData,
     revertible: PublicAccumulatedRevertibleData,
-    reverted: boolean,
   ): CombinedAccumulatedData {
-    if (reverted && !revertible.isEmpty()) {
+    if (!nonRevertible.reverted.isOK() && !revertible.isEmpty()) {
       log(inspect(revertible));
       throw new Error('Revertible data should be empty if the transaction is reverted');
     }
@@ -198,6 +205,7 @@ export class CombinedAccumulatedData {
     );
 
     return new CombinedAccumulatedData(
+      nonRevertible.reverted,
       newNoteHashes,
       newNullifiers,
       revertible.privateCallStack,
@@ -484,6 +492,10 @@ export class PrivateAccumulatedRevertibleData {
 export class PrivateAccumulatedNonRevertibleData {
   constructor(
     /**
+     * Flag indicating whether the transaction reverted.
+     */
+    public reverted: RevertCode,
+    /**
      * The new non-revertible commitments made in this transaction.
      */
     public newNoteHashes: Tuple<SideEffect, typeof MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX>,
@@ -498,12 +510,13 @@ export class PrivateAccumulatedNonRevertibleData {
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.newNoteHashes, this.newNullifiers, this.publicCallStack);
+    return serializeToBuffer(this.reverted.toBuffer(), this.newNoteHashes, this.newNullifiers, this.publicCallStack);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): PrivateAccumulatedNonRevertibleData {
     const reader = BufferReader.asReader(buffer);
     return new PrivateAccumulatedNonRevertibleData(
+      RevertCode.fromBuffer(reader),
       reader.readArray(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect),
       reader.readArray(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
@@ -520,6 +533,7 @@ export class PrivateAccumulatedNonRevertibleData {
 
   static empty() {
     return new PrivateAccumulatedNonRevertibleData(
+      RevertCode.OK,
       makeTuple(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect.empty),
       makeTuple(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
@@ -529,6 +543,10 @@ export class PrivateAccumulatedNonRevertibleData {
 
 export class PublicAccumulatedNonRevertibleData {
   constructor(
+    /**
+     * Flag indicating whether the transaction reverted.
+     */
+    public reverted: RevertCode,
     /**
      * The new non-revertible commitments made in this transaction.
      */
@@ -552,6 +570,7 @@ export class PublicAccumulatedNonRevertibleData {
 
   toBuffer() {
     return serializeToBuffer(
+      this.reverted,
       this.newNoteHashes,
       this.newNullifiers,
       this.publicCallStack,
@@ -562,6 +581,7 @@ export class PublicAccumulatedNonRevertibleData {
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new this(
+      RevertCode.fromBuffer(reader),
       reader.readArray(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect),
       reader.readArray(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
       reader.readArray(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
@@ -579,6 +599,7 @@ export class PublicAccumulatedNonRevertibleData {
 
   static empty() {
     return new this(
+      RevertCode.OK,
       makeTuple(MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, SideEffect.empty),
       makeTuple(MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty),
       makeTuple(MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
@@ -588,6 +609,7 @@ export class PublicAccumulatedNonRevertibleData {
 
   static fromPrivateAccumulatedNonRevertibleData(data: PrivateAccumulatedNonRevertibleData) {
     return new this(
+      data.reverted,
       data.newNoteHashes,
       data.newNullifiers,
       data.publicCallStack,
@@ -597,6 +619,7 @@ export class PublicAccumulatedNonRevertibleData {
 
   [inspect.custom]() {
     return `PublicAccumulatedNonRevertibleData {
+  reverted: ${this.reverted},
   newNoteHashes: [${this.newNoteHashes.map(h => h.toString()).join(', ')}],
   newNullifiers: [${this.newNullifiers.map(h => h.toString()).join(', ')}],
   publicCallStack: [${this.publicCallStack.map(h => h.toString()).join(', ')}],

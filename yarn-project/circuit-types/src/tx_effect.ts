@@ -5,6 +5,7 @@ import {
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  RevertCode,
 } from '@aztec/circuits.js';
 import { assertRightPadded, makeTuple } from '@aztec/foundation/array';
 import { padArrayEnd } from '@aztec/foundation/collection';
@@ -15,6 +16,10 @@ import { inspect } from 'util';
 
 export class TxEffect {
   constructor(
+    /**
+     * Whether the transaction reverted during public app logic.
+     */
+    public reverted: RevertCode,
     /**
      * The note hashes to be inserted into the note hash tree.
      */
@@ -45,6 +50,7 @@ export class TxEffect {
     const nonZeroPublicDataWrites = this.publicDataWrites.filter(h => !h.isEmpty());
 
     return Buffer.concat([
+      this.reverted.toBuffer(),
       serializeArrayOfBufferableToVector(nonZeroNoteHashes, 1),
       serializeArrayOfBufferableToVector(nonZeroNullifiers, 1),
       serializeArrayOfBufferableToVector(nonZeroL2ToL1Msgs, 1),
@@ -62,12 +68,14 @@ export class TxEffect {
   static fromBuffer(buffer: Buffer | BufferReader): TxEffect {
     const reader = BufferReader.asReader(buffer);
 
+    const reverted = RevertCode.fromBuffer(reader);
     const nonZeroNoteHashes = reader.readVectorUint8Prefix(Fr);
     const nonZeroNullifiers = reader.readVectorUint8Prefix(Fr);
     const nonZeroL2ToL1Msgs = reader.readVectorUint8Prefix(Fr);
     const nonZeroPublicDataWrites = reader.readVectorUint8Prefix(PublicDataWrite);
 
     return new TxEffect(
+      reverted,
       padArrayEnd(nonZeroNoteHashes, Fr.ZERO, MAX_NEW_NOTE_HASHES_PER_TX),
       padArrayEnd(nonZeroNullifiers, Fr.ZERO, MAX_NEW_NULLIFIERS_PER_TX),
       padArrayEnd(nonZeroL2ToL1Msgs, Fr.ZERO, MAX_NEW_L2_TO_L1_MSGS_PER_TX),
@@ -98,6 +106,7 @@ export class TxEffect {
     const unencryptedLogsHashKernel0 = this.unencryptedLogs.hash();
 
     const inputValue = Buffer.concat([
+      this.reverted.toBuffer(),
       noteHashesBuffer,
       nullifiersBuffer,
       newL2ToL1MsgsBuffer,
@@ -116,6 +125,7 @@ export class TxEffect {
     numUnencryptedLogsPerCall = 1,
   ): TxEffect {
     return new TxEffect(
+      RevertCode.random(),
       makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, Fr.random),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.random),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.random),
@@ -136,6 +146,7 @@ export class TxEffect {
     // print out the non-empty fields
 
     return `TxEffect { 
+      reverted: ${this.reverted},
       note hashes: [${this.noteHashes.map(h => h.toString()).join(', ')}],
       nullifiers: [${this.nullifiers.map(h => h.toString()).join(', ')}],
       l2ToL1Msgs: [${this.l2ToL1Msgs.map(h => h.toString()).join(', ')}],

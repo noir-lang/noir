@@ -36,7 +36,7 @@ pub fn validate_inputs(public_call: PublicCallData) {
 }
 
 pub fn validate_public_call_non_revert(public_call: PublicCallData) {
-    assert(public_call.call_stack_item.public_inputs.reverted == false, "Public call cannot be reverted");
+    assert(public_call.call_stack_item.public_inputs.reverted == 0, "Public call cannot be reverted");
 }
 
 pub fn initialize_reverted_flag(
@@ -44,7 +44,11 @@ pub fn initialize_reverted_flag(
     public_call: PublicCallData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
-    circuit_outputs.reverted = previous_kernel.public_inputs.reverted | public_call.call_stack_item.public_inputs.reverted;
+    if previous_kernel.public_inputs.end_non_revertible.reverted != 0 {
+        circuit_outputs.end_non_revertible.reverted = previous_kernel.public_inputs.end_non_revertible.reverted;
+    } else if public_call.call_stack_item.public_inputs.reverted != 0 {
+        circuit_outputs.end_non_revertible.reverted = public_call.call_stack_item.public_inputs.reverted;
+    }
 }
 
 // Initialises the circuit outputs with the end state of the previous iteration. 
@@ -55,7 +59,7 @@ pub fn initialize_emitted_end_values(
 ) {
     circuit_outputs.constants = previous_kernel.public_inputs.constants;
 
-    if circuit_outputs.reverted == false {
+    if circuit_outputs.end_non_revertible.reverted == 0 {
         let start = previous_kernel.public_inputs.end;
         circuit_outputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
         circuit_outputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
@@ -85,7 +89,7 @@ pub fn initialize_end_values(
 ) {
     initialize_emitted_end_values(previous_kernel, circuit_outputs);
 
-    if circuit_outputs.reverted == false {
+    if circuit_outputs.end_non_revertible.reverted == 0 {
         let start = previous_kernel.public_inputs.end;
         // circuit_outputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack); // This is enforced in the private tail to always be empty.
         circuit_outputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);

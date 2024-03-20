@@ -26,6 +26,7 @@ import { ContractStorageUpdateRequest } from './contract_storage_update_request.
 import { Header } from './header.js';
 import { L2ToL1Message } from './l2_to_l1_message.js';
 import { ReadRequest } from './read_request.js';
+import { RevertCode } from './revert_code.js';
 import { SideEffect, SideEffectLinkedToNoteHash } from './side_effects.js';
 
 /**
@@ -113,7 +114,7 @@ export class PublicCircuitPublicInputs {
     /**
      * Flag indicating if the call was reverted.
      */
-    public reverted: boolean,
+    public reverted: RevertCode,
   ) {}
 
   /**
@@ -148,7 +149,7 @@ export class PublicCircuitPublicInputs {
       Fr.ZERO,
       Header.empty(),
       AztecAddress.ZERO,
-      false,
+      RevertCode.OK,
     );
   }
 
@@ -175,7 +176,7 @@ export class PublicCircuitPublicInputs {
       this.unencryptedLogPreimagesLength.isZero() &&
       this.historicalHeader.isEmpty() &&
       this.proverAddress.isZero() &&
-      this.reverted === false
+      this.reverted.isOK()
     );
   }
 
@@ -250,7 +251,7 @@ export class PublicCircuitPublicInputs {
       reader.readObject(Fr),
       reader.readObject(Header),
       reader.readObject(AztecAddress),
-      reader.readBoolean(),
+      reader.readObject(RevertCode),
     );
   }
 
@@ -275,7 +276,7 @@ export class PublicCircuitPublicInputs {
       reader.readField(),
       Header.fromFields(reader),
       AztecAddress.fromFields(reader),
-      reader.readBoolean(),
+      RevertCode.fromFields(reader),
     );
   }
 

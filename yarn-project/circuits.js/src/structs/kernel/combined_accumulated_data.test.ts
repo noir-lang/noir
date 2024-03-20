@@ -24,7 +24,7 @@ describe('CombinedAccumulatedData', () => {
     end.newNoteHashes[0].counter = new Fr(2); // a note created in private app logic
     end.newNoteHashes[1].counter = new Fr(8); // a note created in public app logic
 
-    const combined = CombinedAccumulatedData.recombine(nonRevertible, end, false);
+    const combined = CombinedAccumulatedData.recombine(nonRevertible, end);
 
     expect(combined.newNoteHashes.map(x => x.counter.toNumber()).slice(0, 5)).toEqual([1, 2, 5, 8, 10]);
   });
@@ -39,7 +39,7 @@ describe('CombinedAccumulatedData', () => {
     end.newNullifiers[0].counter = new Fr(2); // a nullifier created in private app logic
     end.newNullifiers[1].counter = new Fr(8); // a nullifier created in public app logic
 
-    const combined = CombinedAccumulatedData.recombine(nonRevertible, end, false);
+    const combined = CombinedAccumulatedData.recombine(nonRevertible, end);
 
     expect(combined.newNullifiers.map(x => x.counter.toNumber()).slice(0, 5)).toEqual([1, 2, 5, 8, 10]);
   });

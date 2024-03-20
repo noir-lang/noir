@@ -507,7 +507,7 @@ mod tests {
     #[test(should_fail_with="Public call cannot be reverted")]
     fn fails_if_public_call_reverted() {
         let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
-        builder.public_call.public_inputs.reverted = true;
+        builder.public_call.public_inputs.reverted = 1;
 
         builder.failed();
     }

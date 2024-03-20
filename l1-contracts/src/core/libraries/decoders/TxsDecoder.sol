@@ -24,18 +24,19 @@ import {Hash} from "../Hash.sol";
  *  | 0x4                                                                                                                       | a * 0x20   | newL1ToL2Msgs
  *  | 0x4 + a * 0x20 = tx0Start                                                                                                 | 0x4        | len(numTxs) (denoted t)
  *  |                                                                                                                           |            | TxEffect 0 {
- *  | tx0Start                                                                                                                  | 0x1        |   len(newNoteHashes) (denoted b)
- *  | tx0Start + 0x1                                                                                                            | b * 0x20   |   newNoteHashes
- *  | tx0Start + 0x1 + b * 0x20                                                                                                 | 0x1        |   len(newNullifiers) (denoted c)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1                                                                                           | c * 0x20   |   newNullifiers
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20                                                                                | 0x1        |   len(newL2ToL1Msgs) (denoted d)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                                                          | d * 0x20   |   newL2ToL1Msgs
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                                               | 0x1        |   len(newPublicDataWrites) (denoted e)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                                                        | e * 0x40   |   newPublicDataWrites
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                                             | 0x04       |   byteLen(newEncryptedLogs) (denoted f)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4                                       | f          |   newEncryptedLogs
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f                                   | 0x04       |   byteLen(newUnencryptedLogs) (denoted g)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4                             | g          |   newUnencryptedLogs
+ *  | tx0Start                                                                                                                  | 0x20       |   reverted
+ *  | tx0Start + 0x20                                                                                                           | 0x1        |   len(newNoteHashes) (denoted b)
+ *  | tx0Start + 0x20 + 0x1                                                                                                     | b * 0x20   |   newNoteHashes
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20                                                                                          | 0x1        |   len(newNullifiers) (denoted c)
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1                                                                                    | c * 0x20   |   newNullifiers
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20                                                                         | 0x1        |   len(newL2ToL1Msgs) (denoted d)
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                                                   | d * 0x20   |   newL2ToL1Msgs
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                                        | 0x1        |   len(newPublicDataWrites) (denoted e)
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                                                 | e * 0x40   |   newPublicDataWrites
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                                      | 0x04       |   byteLen(newEncryptedLogs) (denoted f)
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4                                | f          |   newEncryptedLogs
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f                            | 0x04       |   byteLen(newUnencryptedLogs) (denoted g)
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4                      | g          |   newUnencryptedLogs
  *  |                                                                                                                           |            | },
  *  |                                                                                                                           |            | TxEffect 1 {
  *  |                                                                                                                           |            |   ...
@@ -47,6 +48,7 @@ import {Hash} from "../Hash.sol";
  */
 library TxsDecoder {
   struct ArrayOffsets {
+    uint256 reverted;
     uint256 noteHash;
     uint256 nullifier;
     uint256 l2ToL1Msgs;
@@ -96,6 +98,7 @@ library TxsDecoder {
         /*
          * Compute the leaf to insert.
          * Leaf_i = (
+         *    reverted,
          *    newNoteHashesKernel,
          *    newNullifiersKernel,
          *    newPublicDataWritesKernel,
@@ -109,6 +112,10 @@ library TxsDecoder {
          * Note that we always read data, the l2Block (atm) must therefore include dummy or zero-notes for
          * Zero values.
          */
+
+        // Reverted flag
+        offsets.reverted = offset;
+        offset += 0x20;
 
         // Note hashes
         uint256 count = read1(_body, offset);
@@ -147,6 +154,7 @@ library TxsDecoder {
 
         // Insertions are split into multiple `bytes.concat` to work around stack too deep.
         vars.baseLeaf = bytes.concat(
+          bytes32(slice(_body, offsets.reverted, 0x20)),
           bytes.concat(
             sliceAndPad(
               _body,

@@ -49,7 +49,7 @@ export type RevertedTx = ProcessedTx & {
 };
 
 export function isRevertedTx(tx: ProcessedTx): tx is RevertedTx {
-  return tx.data.reverted;
+  return !tx.data.endNonRevertibleData.reverted.isOK();
 }
 
 export function partitionReverts(txs: ProcessedTx[]): { reverted: RevertedTx[]; nonReverted: ProcessedTx[] } {
@@ -117,7 +117,6 @@ export function getPreviousOutputAndProof(
       tx.data.needsSetup,
       tx.data.needsAppLogic,
       tx.data.needsTeardown,
-      false, // reverted
     );
     return {
       publicKernelPublicInput,
@@ -175,6 +174,7 @@ export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr): 
 
 export function toTxEffect(tx: ProcessedTx): TxEffect {
   return new TxEffect(
+    tx.data.combinedData.reverted,
     tx.data.combinedData.newNoteHashes.map((c: SideEffect) => c.value) as Tuple<Fr, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
     tx.data.combinedData.newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value) as Tuple<
       Fr,

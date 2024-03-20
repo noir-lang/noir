@@ -47,7 +47,7 @@ impl PublicKernelTeardownCircuitPrivateInputs {
 
         common::update_public_end_non_revertible_values(self.public_call, &mut public_inputs);
 
-        if public_inputs.reverted == false {
+        if public_inputs.end_non_revertible.reverted == 0 {
             common::accumulate_unencrypted_logs(
                 self.public_call,
                 self.previous_kernel.public_inputs.end.unencrypted_logs_hash,
@@ -374,7 +374,7 @@ mod tests {
     #[test(should_fail_with="Public call cannot be reverted")]
     fn fails_if_public_call_reverted() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
-        builder.public_call.public_inputs.reverted = true;
+        builder.public_call.public_inputs.reverted = 1;
 
         builder.failed();
     }

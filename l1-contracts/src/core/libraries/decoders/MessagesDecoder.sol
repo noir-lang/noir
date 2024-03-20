@@ -27,18 +27,19 @@ import {Hash} from "../Hash.sol";
  *  | 0x4                                                                                                                       | a * 0x20   | newL1ToL2Msgs
  *  | 0x4 + a * 0x20 = tx0Start                                                                                                 | 0x4        | len(numTxs) (denoted t)
  *  |                                                                                                                           |            | TxEffect 0 {
- *  | tx0Start                                                                                                                  | 0x1        |   len(newNoteHashes) (denoted b)
- *  | tx0Start + 0x1                                                                                                            | b * 0x20   |   newNoteHashes
- *  | tx0Start + 0x1 + b * 0x20                                                                                                 | 0x1        |   len(newNullifiers) (denoted c)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1                                                                                           | c * 0x20   |   newNullifiers
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20                                                                                | 0x1        |   len(newL2ToL1Msgs) (denoted d)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                                                          | d * 0x20   |   newL2ToL1Msgs
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                                               | 0x1        |   len(newPublicDataWrites) (denoted e)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                                                        | e * 0x40   |   newPublicDataWrites
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                                             | 0x04       |   byteLen(newEncryptedLogs) (denoted f)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4                                       | f          |   newEncryptedLogs
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f                                   | 0x04       |   byteLen(newUnencryptedLogs) (denoted g)
- *  | tx0Start + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4                             | g          |   newUnencryptedLogs
+ *  | tx0Start                                                                                                                  | 0x20       |   reverted
+ *  | tx0Start + 0x20                                                                                                           | 0x1        |   len(newNoteHashes) (denoted b)
+ *  | tx0Start + 0x20 + 0x1                                                                                                     | b * 0x20   |   newNoteHashes
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20                                                                                          | 0x1        |   len(newNullifiers) (denoted c)
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1                                                                                    | c * 0x20   |   newNullifiers
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20                                                                         | 0x1        |   len(newL2ToL1Msgs) (denoted d)
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1                                                                   | d * 0x20   |   newL2ToL1Msgs
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20                                                        | 0x1        |   len(newPublicDataWrites) (denoted e)
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01                                                 | e * 0x40   |   newPublicDataWrites
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40                                      | 0x04       |   byteLen(newEncryptedLogs) (denoted f)
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4                                | f          |   newEncryptedLogs
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f                            | 0x04       |   byteLen(newUnencryptedLogs) (denoted g)
+ *  | tx0Start + 0x20 + 0x1 + b * 0x20 + 0x1 + c * 0x20 + 0x1 + d * 0x20 + 0x01 + e * 0x40 + 0x4 + f + 0x4                      | g          |   newUnencryptedLogs
  *  |                                                                                                                           |            | },
  *  |                                                                                                                           |            | TxEffect 1 {
  *  |                                                                                                                           |            |   ...
@@ -89,6 +90,9 @@ library MessagesDecoder {
 
     // Now we iterate over the tx effects
     for (uint256 i = 0; i < numTxs; i++) {
+      // reverted
+      offset += 0x20;
+
       // Note hashes
       count = read1(_body, offset);
       offset += 0x1;

@@ -11,6 +11,7 @@ export enum TxStatus {
   DROPPED = 'dropped',
   MINED = 'mined',
   PENDING = 'pending',
+  REVERTED = 'reverted',
 }
 
 /**

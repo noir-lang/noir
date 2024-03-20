@@ -22,7 +22,7 @@ struct PublicKernelTailCircuitPrivateInputs {
 
 impl PublicKernelTailCircuitPrivateInputs {
     fn propagate_reverted_flag(self, public_inputs: &mut PublicKernelCircuitPublicInputsBuilder) {
-        public_inputs.reverted = self.previous_kernel.public_inputs.reverted;
+        public_inputs.end_non_revertible.reverted = self.previous_kernel.public_inputs.end_non_revertible.reverted;
     }
 
     fn validate_inputs(self) {

@@ -115,14 +115,16 @@ const sidebars = {
       label: "L1 smart contracts",
       type: "category",
       link: { type: "doc", id: "l1-smart-contracts/index" },
-      items: [
-        "l1-smart-contracts/frontier",
-      ],
+      items: ["l1-smart-contracts/frontier"],
     },
     {
-      label: "Data publication and availability",
-      type: "doc",
-      id: "data-publication-and-availability/index",
+      label: "Data availability",
+      type: "category",
+      link: { type: "doc", id: "data-publication-and-availability/index" },
+      items: [
+        "data-publication-and-availability/overview",
+        "data-publication-and-availability/published-data",
+      ],
     },
     {
       label: "Logs",
@@ -134,9 +136,7 @@ const sidebars = {
       label: "Pre-compiled Contracts",
       type: "category",
       link: { type: "doc", id: "pre-compiled-contracts/index" },
-      items: [
-        "pre-compiled-contracts/registry",
-      ],
+      items: ["pre-compiled-contracts/registry"],
     },
     {
       label: "Private Message Delivery",

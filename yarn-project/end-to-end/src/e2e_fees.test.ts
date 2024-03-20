@@ -10,6 +10,7 @@ import {
   PrivateFeePaymentMethod,
   PublicFeePaymentMethod,
   TxHash,
+  TxStatus,
   Wallet,
   computeAuthWitMessageHash,
   computeMessageSecretHash,
@@ -162,7 +163,7 @@ describe('e2e_fees', () => {
     );
 
     // if we skip simulation, it includes the failed TX
-    await bananaCoin.methods
+    const txReceipt = await bananaCoin.methods
       .transfer_public(aliceAddress, sequencerAddress, OutrageousPublicAmountAliceDoesNotHave, 0)
       .send({
         skipPublicSimulation: true,
@@ -172,6 +173,7 @@ describe('e2e_fees', () => {
         },
       })
       .wait();
+    expect(txReceipt.status).toBe(TxStatus.REVERTED);
 
     // and thus we paid the fee
     await expectMapping(

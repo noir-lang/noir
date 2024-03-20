@@ -1,5 +1,5 @@
 use dep::types::abis::public_call_data::PublicCallData;
-use dep::types::abis::kernel_data::{PublicKernelData};
+use dep::types::abis::kernel_data::PublicKernelData;
 use dep::types::PublicKernelCircuitPublicInputs;
 use dep::types::abis::kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder;
 use dep::types::utils::arrays::array_to_bounded_vec;
@@ -36,7 +36,7 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
 
         common::update_validation_requests(self.public_call, &mut public_inputs);
 
-        if public_inputs.reverted == false {
+        if public_inputs.end_non_revertible.reverted == 0 {
             // Pops the item from the call stack and validates it against the current execution.
             let call_request = public_inputs.end.public_call_stack.pop();
             common::validate_call_against_request(self.public_call, call_request);

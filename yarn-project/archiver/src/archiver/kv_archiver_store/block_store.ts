@@ -134,7 +134,15 @@ export class BlockStore {
     }
 
     const block = this.getBlock(blockNumber)!;
-    return new TxReceipt(txHash, TxStatus.MINED, '', block.hash().toBuffer(), block.number);
+    const tx = block.getTx(txIndex);
+
+    return new TxReceipt(
+      txHash,
+      tx.reverted.isOK() ? TxStatus.MINED : TxStatus.REVERTED,
+      '',
+      block.hash().toBuffer(),
+      block.number,
+    );
   }
 
   /**
