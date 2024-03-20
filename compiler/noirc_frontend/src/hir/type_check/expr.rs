@@ -205,15 +205,19 @@ impl<'interner> TypeChecker<'interner> {
                 let return_type = self.bind_function_type(function, args, span);
 
                 // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
-                if is_current_func_constrained
-                    && is_unconstrained_call
-                    && return_type.contains_slice()
-                {
-                    self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained {
-                        span: self.interner.expr_span(expr_id),
-                    });
-                    return Type::Error;
-                }
+                if is_current_func_constrained && is_unconstrained_call {
+                    if return_type.contains_slice() {
+                        self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained {
+                            span: self.interner.expr_span(expr_id),
+                        });
+                        return Type::Error;
+                    } else if matches!(&return_type.follow_bindings(), Type::MutableReference(_)) {
+                        self.errors.push(TypeCheckError::UnconstrainedReferenceToConstrained {
+                            span: self.interner.expr_span(expr_id),
+                        });
+                        return Type::Error;
+                    }
+                };
 
                 return_type
             }
