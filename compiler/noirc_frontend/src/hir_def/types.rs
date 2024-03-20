@@ -1630,9 +1630,14 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            TraitAsType(..) | FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Code | Error => {
-                self.clone()
-            }
+            TraitAsType(..)
+            | FieldElement
+            | Integer(_, _)
+            | Bool
+            | Constant(_)
+            | Unit
+            | Code
+            | Error => self.clone(),
         }
     }
 
@@ -1761,7 +1766,6 @@ impl From<&Type> for PrintableType {
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }
-            // Is this actually unreachable?
             Type::Code => unreachable!(),
         }
     }
