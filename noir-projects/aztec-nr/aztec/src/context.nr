@@ -3,13 +3,13 @@ mod inputs;
 
 mod private_context;
 mod public_context;
+mod avm_context;
 mod interface;
-mod avm;
 
-use private_context::PrivateContext;
 use interface::ContextInterface;
+use private_context::PrivateContext;
 use public_context::PublicContext;
-use avm::AVMContext;
+use avm_context::AVMContext;
 
 struct Context {
     private: Option<&mut PrivateContext>,

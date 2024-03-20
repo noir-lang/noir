@@ -28,7 +28,8 @@ contract AvmTest {
     use dep::aztec::state_vars::PublicMutable;
     use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH};
     use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
-    use dep::aztec::protocol_types::traits::{ToField};
+    use dep::aztec::protocol_types::traits::ToField;
+    use dep::aztec::protocol_types::constants::RETURN_VALUES_LENGTH;
     use dep::compressed_string::CompressedString;
 
     // avm lib
@@ -168,7 +169,7 @@ contract AvmTest {
      ************************************************************************/
     #[aztec(public-vm)]
     fn get_address() -> pub AztecAddress {
-        context.address()
+        context.this_address()
     }
 
     #[aztec(public-vm)]
@@ -178,7 +179,7 @@ contract AvmTest {
 
     #[aztec(public-vm)]
     fn get_sender() -> pub AztecAddress {
-        context.sender()
+        context.msg_sender()
     }
 
     #[aztec(public-vm)]
@@ -188,7 +189,7 @@ contract AvmTest {
 
     #[aztec(public-vm)]
     fn get_portal() -> pub EthAddress {
-        context.portal()
+        context.this_portal_address()
     }
 
     #[aztec(public-vm)]
@@ -233,14 +234,14 @@ contract AvmTest {
 
     #[aztec(public-vm)]
     fn emit_unencrypted_log() {
-        context.emit_unencrypted_log(/*event_selector=*/ 5, /*message=*/ [10, 20, 30]);
-        context.emit_unencrypted_log(/*event_selector=*/ 8, /*message=*/ "Hello, world!");
+        context.accumulate_unencrypted_logs(/*event_selector=*/ 5, /*message=*/ [10, 20, 30]);
+        context.accumulate_unencrypted_logs(/*event_selector=*/ 8, /*message=*/ "Hello, world!");
         let s: CompressedString<2,44> = CompressedString::from_string("A long time ago, in a galaxy far far away...");
-        context.emit_unencrypted_log(/*event_selector=*/ 10, /*message=*/ s);
+        context.accumulate_unencrypted_logs(/*event_selector=*/ 10, /*message=*/ s);
     }
 
     #[aztec(public-vm)]
-    fn note_hash_exists(note_hash: Field, leaf_index: Field) -> pub u8 {
+    fn note_hash_exists(note_hash: Field, leaf_index: Field) -> pub bool {
         context.note_hash_exists(note_hash, leaf_index)
     }
 
@@ -258,16 +259,16 @@ contract AvmTest {
 
     // Use the standard context interface to check for a nullifier
     #[aztec(public-vm)]
-    fn nullifier_exists(nullifier: Field) -> pub u8 {
+    fn nullifier_exists(nullifier: Field) -> pub bool {
         context.nullifier_exists(nullifier)
     }
 
     // Use the standard context interface to emit a new nullifier
     #[aztec(public-vm)]
     fn emit_nullifier_and_check(nullifier: Field) {
-        context.emit_nullifier(nullifier);
+        context.push_new_nullifier(nullifier, 0);
         let exists = context.nullifier_exists(nullifier);
-        assert(exists == 1, "Nullifier was just created, but its existence wasn't detected!");
+        assert(exists, "Nullifier was just created, but its existence wasn't detected!");
     }
 
     // Create the same nullifier twice (shouldn't work!)
@@ -279,7 +280,7 @@ contract AvmTest {
     }
 
     #[aztec(public-vm)]
-    fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> pub u8 {
+    fn l1_to_l2_msg_exists(msg_hash: Field, msg_leaf_index: Field) -> pub bool {
         context.l1_to_l2_msg_exists(msg_hash, msg_leaf_index)
     }
 
@@ -295,7 +296,7 @@ contract AvmTest {
         let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
 
         // Nested call
-        let results = context.call(gas, context.address(), [argA, argB], selector);
+        let results = context.call_public_function_raw(gas, context.this_address(), selector, [argA, argB]);
         let returnData: [Field; 1] = results.0;
         // this explicit size   ^ is necessary to ensure that retSize is compile-time
         // (ensure the returnData is in a HeapArray not a HeapVector)
@@ -313,7 +314,7 @@ contract AvmTest {
         let selector = FunctionSelector::from_signature("add_args_return(Field,Field)");
 
         // Nested call using standard context interface function
-        let returnData: [Field; 1] = context.call_public_function(context.address(), selector, [argA, argB]);
+        let returnData: [Field; RETURN_VALUES_LENGTH] = context.call_public_function(context.this_address(), selector, [argA, argB]);
         // this explicit size   ^ is necessary to ensure that retSize is compile-time
         // (ensure the returnData is in a HeapArray not a HeapVector)
 
@@ -327,7 +328,7 @@ contract AvmTest {
         let selector = FunctionSelector::from_signature("add_args_return(Field,Field)").to_field();
         let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
 
-        let (resultData, success): ([Field; 1], u8) = context.call_static(gas, context.address(), [argA, argB], selector);
+        let (resultData, success): ([Field; 1], u8) = context.static_call_public_function_raw(gas, context.this_address(), selector, [argA, argB]);
 
         (resultData[0], success)
     }
@@ -339,7 +340,7 @@ contract AvmTest {
         let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
         let calldata: [Field; 1] = [20];
 
-        let (_returnData, success): ([Field; 0], u8) = context.call_static(gas, context.address(), calldata, selector);
+        let (_returnData, success): ([Field; 0], u8) = context.static_call_public_function_raw(gas, context.this_address(), selector, calldata);
 
         success
     }
@@ -349,7 +350,7 @@ contract AvmTest {
     fn nested_static_call_to_add(argA: Field, argB: Field) -> pub Field {
         let selector = FunctionSelector::from_signature("add_args_return(Field,Field)");
 
-        let resultData: [Field; 1] = context.static_call_public_function(context.address(), selector, [argA, argB]);
+        let resultData: [Field; RETURN_VALUES_LENGTH] = context.static_call_public_function(context.this_address(), selector, [argA, argB]);
 
         resultData[0]
     }
@@ -360,6 +361,6 @@ contract AvmTest {
         let selector = FunctionSelector::from_signature("set_storage_single(Field)");
         let calldata: [Field; 1] = [20];
 
-        let _resultData: [Field; 0] = context.static_call_public_function(context.address(), selector, calldata);
+        let _resultData: [Field; RETURN_VALUES_LENGTH] = context.static_call_public_function(context.this_address(), selector, calldata);
     }
 }
