@@ -122,7 +122,16 @@ pub(crate) fn rewrite(
                 format!("[{repeated}; {length}]")
             }
             Literal::Array(ArrayLiteral::Standard(exprs)) => {
-                super::array(visitor.fork(), exprs, span)
+                super::array(visitor.fork(), exprs, span, false)
+            }
+            Literal::Slice(ArrayLiteral::Repeated { repeated_element, length }) => {
+                let repeated = rewrite_sub_expr(visitor, shape, *repeated_element);
+                let length = rewrite_sub_expr(visitor, shape, *length);
+
+                format!("&[{repeated}; {length}]")
+            }
+            Literal::Slice(ArrayLiteral::Standard(exprs)) => {
+                super::array(visitor.fork(), exprs, span, true)
             }
             Literal::Unit => "()".to_string(),
         },
