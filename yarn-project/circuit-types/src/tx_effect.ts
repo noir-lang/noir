@@ -19,7 +19,7 @@ export class TxEffect {
     /**
      * Whether the transaction reverted during public app logic.
      */
-    public reverted: RevertCode,
+    public revertCode: RevertCode,
     /**
      * The note hashes to be inserted into the note hash tree.
      */
@@ -50,7 +50,7 @@ export class TxEffect {
     const nonZeroPublicDataWrites = this.publicDataWrites.filter(h => !h.isEmpty());
 
     return Buffer.concat([
-      this.reverted.toBuffer(),
+      this.revertCode.toBuffer(),
       serializeArrayOfBufferableToVector(nonZeroNoteHashes, 1),
       serializeArrayOfBufferableToVector(nonZeroNullifiers, 1),
       serializeArrayOfBufferableToVector(nonZeroL2ToL1Msgs, 1),
@@ -68,14 +68,14 @@ export class TxEffect {
   static fromBuffer(buffer: Buffer | BufferReader): TxEffect {
     const reader = BufferReader.asReader(buffer);
 
-    const reverted = RevertCode.fromBuffer(reader);
+    const revertCode = RevertCode.fromBuffer(reader);
     const nonZeroNoteHashes = reader.readVectorUint8Prefix(Fr);
     const nonZeroNullifiers = reader.readVectorUint8Prefix(Fr);
     const nonZeroL2ToL1Msgs = reader.readVectorUint8Prefix(Fr);
     const nonZeroPublicDataWrites = reader.readVectorUint8Prefix(PublicDataWrite);
 
     return new TxEffect(
-      reverted,
+      revertCode,
       padArrayEnd(nonZeroNoteHashes, Fr.ZERO, MAX_NEW_NOTE_HASHES_PER_TX),
       padArrayEnd(nonZeroNullifiers, Fr.ZERO, MAX_NEW_NULLIFIERS_PER_TX),
       padArrayEnd(nonZeroL2ToL1Msgs, Fr.ZERO, MAX_NEW_L2_TO_L1_MSGS_PER_TX),
@@ -106,7 +106,7 @@ export class TxEffect {
     const unencryptedLogsHashKernel0 = this.unencryptedLogs.hash();
 
     const inputValue = Buffer.concat([
-      this.reverted.toBuffer(),
+      this.revertCode.toBuffer(),
       noteHashesBuffer,
       nullifiersBuffer,
       newL2ToL1MsgsBuffer,
@@ -146,7 +146,7 @@ export class TxEffect {
     // print out the non-empty fields
 
     return `TxEffect { 
-      reverted: ${this.reverted},
+      revertCode: ${this.revertCode},
       note hashes: [${this.noteHashes.map(h => h.toString()).join(', ')}],
       nullifiers: [${this.nullifiers.map(h => h.toString()).join(', ')}],
       l2ToL1Msgs: [${this.l2ToL1Msgs.map(h => h.toString()).join(', ')}],

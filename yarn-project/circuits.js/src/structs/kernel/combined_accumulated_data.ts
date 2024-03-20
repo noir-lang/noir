@@ -39,7 +39,7 @@ export class CombinedAccumulatedData {
     /**
      * Flag indicating whether the transaction reverted.
      */
-    public reverted: RevertCode,
+    public revertCode: RevertCode,
     /**
      * The new note hashes made in this transaction.
      */
@@ -86,7 +86,7 @@ export class CombinedAccumulatedData {
 
   toBuffer() {
     return serializeToBuffer(
-      this.reverted,
+      this.revertCode,
       this.newNoteHashes,
       this.newNullifiers,
       this.privateCallStack,
@@ -161,9 +161,9 @@ export class CombinedAccumulatedData {
     nonRevertible: PublicAccumulatedNonRevertibleData,
     revertible: PublicAccumulatedRevertibleData,
   ): CombinedAccumulatedData {
-    if (!nonRevertible.reverted.isOK() && !revertible.isEmpty()) {
+    if (!nonRevertible.revertCode.isOK() && !revertible.isEmpty()) {
       log(inspect(revertible));
-      throw new Error('Revertible data should be empty if the transaction is reverted');
+      throw new Error('Revertible data should be empty if the transaction is revertCode');
     }
 
     const newNoteHashes = padArrayEnd(
@@ -205,7 +205,7 @@ export class CombinedAccumulatedData {
     );
 
     return new CombinedAccumulatedData(
-      nonRevertible.reverted,
+      nonRevertible.revertCode,
       newNoteHashes,
       newNullifiers,
       revertible.privateCallStack,
@@ -494,7 +494,7 @@ export class PrivateAccumulatedNonRevertibleData {
     /**
      * Flag indicating whether the transaction reverted.
      */
-    public reverted: RevertCode,
+    public revertCode: RevertCode,
     /**
      * The new non-revertible commitments made in this transaction.
      */
@@ -510,7 +510,7 @@ export class PrivateAccumulatedNonRevertibleData {
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.reverted.toBuffer(), this.newNoteHashes, this.newNullifiers, this.publicCallStack);
+    return serializeToBuffer(this.revertCode.toBuffer(), this.newNoteHashes, this.newNullifiers, this.publicCallStack);
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): PrivateAccumulatedNonRevertibleData {
@@ -546,7 +546,7 @@ export class PublicAccumulatedNonRevertibleData {
     /**
      * Flag indicating whether the transaction reverted.
      */
-    public reverted: RevertCode,
+    public revertCode: RevertCode,
     /**
      * The new non-revertible commitments made in this transaction.
      */
@@ -570,7 +570,7 @@ export class PublicAccumulatedNonRevertibleData {
 
   toBuffer() {
     return serializeToBuffer(
-      this.reverted,
+      this.revertCode,
       this.newNoteHashes,
       this.newNullifiers,
       this.publicCallStack,
@@ -609,7 +609,7 @@ export class PublicAccumulatedNonRevertibleData {
 
   static fromPrivateAccumulatedNonRevertibleData(data: PrivateAccumulatedNonRevertibleData) {
     return new this(
-      data.reverted,
+      data.revertCode,
       data.newNoteHashes,
       data.newNullifiers,
       data.publicCallStack,
@@ -619,7 +619,7 @@ export class PublicAccumulatedNonRevertibleData {
 
   [inspect.custom]() {
     return `PublicAccumulatedNonRevertibleData {
-  reverted: ${this.reverted},
+  revertCode: ${this.revertCode},
   newNoteHashes: [${this.newNoteHashes.map(h => h.toString()).join(', ')}],
   newNullifiers: [${this.newNullifiers.map(h => h.toString()).join(', ')}],
   publicCallStack: [${this.publicCallStack.map(h => h.toString()).join(', ')}],

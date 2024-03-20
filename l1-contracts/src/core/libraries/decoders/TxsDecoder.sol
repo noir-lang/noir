@@ -24,7 +24,7 @@ import {Hash} from "../Hash.sol";
  *  | 0x4                                                                                                                       | a * 0x20   | newL1ToL2Msgs
  *  | 0x4 + a * 0x20 = tx0Start                                                                                                 | 0x4        | len(numTxs) (denoted t)
  *  |                                                                                                                           |            | TxEffect 0 {
- *  | tx0Start                                                                                                                  | 0x20       |   reverted
+ *  | tx0Start                                                                                                                  | 0x20       |   revertCode
  *  | tx0Start + 0x20                                                                                                           | 0x1        |   len(newNoteHashes) (denoted b)
  *  | tx0Start + 0x20 + 0x1                                                                                                     | b * 0x20   |   newNoteHashes
  *  | tx0Start + 0x20 + 0x1 + b * 0x20                                                                                          | 0x1        |   len(newNullifiers) (denoted c)
@@ -48,7 +48,7 @@ import {Hash} from "../Hash.sol";
  */
 library TxsDecoder {
   struct ArrayOffsets {
-    uint256 reverted;
+    uint256 revertCode;
     uint256 noteHash;
     uint256 nullifier;
     uint256 l2ToL1Msgs;
@@ -98,7 +98,7 @@ library TxsDecoder {
         /*
          * Compute the leaf to insert.
          * Leaf_i = (
-         *    reverted,
+         *    revertCode,
          *    newNoteHashesKernel,
          *    newNullifiersKernel,
          *    newPublicDataWritesKernel,
@@ -113,8 +113,8 @@ library TxsDecoder {
          * Zero values.
          */
 
-        // Reverted flag
-        offsets.reverted = offset;
+        // Revert Code
+        offsets.revertCode = offset;
         offset += 0x20;
 
         // Note hashes
@@ -154,7 +154,7 @@ library TxsDecoder {
 
         // Insertions are split into multiple `bytes.concat` to work around stack too deep.
         vars.baseLeaf = bytes.concat(
-          bytes32(slice(_body, offsets.reverted, 0x20)),
+          bytes32(slice(_body, offsets.revertCode, 0x20)),
           bytes.concat(
             sliceAndPad(
               _body,

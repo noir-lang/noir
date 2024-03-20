@@ -6,7 +6,7 @@ The "Effects" of a transaction are the collection of state changes and metadata 
 
 | Field                | Type                                                                    | Description                                                                          |
 | -------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `reverted`           | `RevertCode`                                                            | Indicates the reason for reverting in public application logic. 0 indicates success. |
+| `revertCode`         | `RevertCode`                                                            | Indicates the reason for reverting in public application logic. 0 indicates success. |
 | `note_hashes`        | `Tuple<Fr, typeof MAX_NEW_NOTE_HASHES_PER_TX>`                          | The note hashes to be inserted into the note hash tree.                              |
 | `nullifiers`         | `Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>`                           | The nullifiers to be inserted into the nullifier tree.                               |
 | `l2_to_l2_msgs`      | `Tuple<Fr, typeof MAX_NEW_L2_TO_L1_MSGS_PER_TX>`                        | The L2 to L1 messages to be inserted into the messagebox on L1.                      |
@@ -22,7 +22,7 @@ Each can have several transactions. Thus, an block is presently encoded as:
 | 0x4                                                                                                      | a \* 0x20 | newL1ToL2Msgs                           |
 | 0x4 + a \* 0x20 = tx0Start                                                                               | 0x4       | len(numTxs) (denoted t)                 |
 |                                                                                                          |           | TxEffect 0 {                            |
-| tx0Start                                                                                                 | 0x20      | reverted                                |
+| tx0Start                                                                                                 | 0x20      | revertCode                              |
 | tx0Start + 0x20                                                                                          | 0x1       | len(newNoteHashes) (denoted b)          |
 | tx0Start + 0x20 + 0x1                                                                                    | b \* 0x20 | newNoteHashes                           |
 | tx0Start + 0x20 + 0x1 + b \* 0x20                                                                        | 0x1       | len(newNullifiers) (denoted c)          |

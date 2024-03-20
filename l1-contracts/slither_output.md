@@ -50,41 +50,34 @@ src/core/Rollup.sol#L57-L96
 Impact: Medium
 Confidence: High
  - [ ] ID-4
-Dubious typecast in [TxsDecoder.decode(bytes)](src/core/libraries/decoders/TxsDecoder.sol#L78-L192):
-	bytes => bytes32 casting occurs in [vars.baseLeaf = bytes.concat(bytes32(slice(_body,offsets.reverted,0x20)),bytes.concat(sliceAndPad(_body,offsets.noteHash,counts.noteHash * 0x20,Constants.NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP),sliceAndPad(_body,offsets.nullifier,counts.nullifier * 0x20,Constants.NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP),sliceAndPad(_body,offsets.l2ToL1Msgs,counts.l2ToL1Msgs * 0x20,Constants.L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP),sliceAndPad(_body,offsets.publicData,counts.publicData * 0x40,Constants.PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP)),bytes.concat(vars.encryptedLogsHash,vars.unencryptedLogsHash))](src/core/libraries/decoders/TxsDecoder.sol#L156-L185)
-
-src/core/libraries/decoders/TxsDecoder.sol#L78-L192
-
-
- - [ ] ID-5
 Dubious typecast in [MessagesDecoder.read4(bytes,uint256)](src/core/libraries/decoders/MessagesDecoder.sol#L164-L166):
 	bytes => bytes4 casting occurs in [uint256(uint32(bytes4(_data)))](src/core/libraries/decoders/MessagesDecoder.sol#L165)
 
 src/core/libraries/decoders/MessagesDecoder.sol#L164-L166
 
 
- - [ ] ID-6
+ - [ ] ID-5
 Dubious typecast in [Outbox.sendL1Messages(bytes32[])](src/core/messagebridge/Outbox.sol#L38-L46):
 	uint256 => uint32 casting occurs in [version = uint32(REGISTRY.getVersionFor(msg.sender))](src/core/messagebridge/Outbox.sol#L40)
 
 src/core/messagebridge/Outbox.sol#L38-L46
 
 
- - [ ] ID-7
+ - [ ] ID-6
 Dubious typecast in [TxsDecoder.read1(bytes,uint256)](src/core/libraries/decoders/TxsDecoder.sol#L322-L324):
 	bytes => bytes1 casting occurs in [uint256(uint8(bytes1(slice(_data,_offset,1))))](src/core/libraries/decoders/TxsDecoder.sol#L323)
 
 src/core/libraries/decoders/TxsDecoder.sol#L322-L324
 
 
- - [ ] ID-8
+ - [ ] ID-7
 Dubious typecast in [TxsDecoder.read4(bytes,uint256)](src/core/libraries/decoders/TxsDecoder.sol#L332-L334):
 	bytes => bytes4 casting occurs in [uint256(uint32(bytes4(slice(_data,_offset,4))))](src/core/libraries/decoders/TxsDecoder.sol#L333)
 
 src/core/libraries/decoders/TxsDecoder.sol#L332-L334
 
 
- - [ ] ID-9
+ - [ ] ID-8
 Dubious typecast in [HeaderLib.decode(bytes)](src/core/libraries/HeaderLib.sol#L143-L184):
 	bytes => bytes32 casting occurs in [header.lastArchive = AppendOnlyTreeSnapshot(bytes32(_header),uint32(bytes4(_header)))](src/core/libraries/HeaderLib.sol#L151-L153)
 	bytes => bytes4 casting occurs in [header.lastArchive = AppendOnlyTreeSnapshot(bytes32(_header),uint32(bytes4(_header)))](src/core/libraries/HeaderLib.sol#L151-L153)
@@ -108,6 +101,13 @@ Dubious typecast in [HeaderLib.decode(bytes)](src/core/libraries/HeaderLib.sol#L
 	bytes => bytes32 casting occurs in [header.globalVariables.feeRecipient = bytes32(_header)](src/core/libraries/HeaderLib.sol#L181)
 
 src/core/libraries/HeaderLib.sol#L143-L184
+
+
+ - [ ] ID-9
+Dubious typecast in [TxsDecoder.decode(bytes)](src/core/libraries/decoders/TxsDecoder.sol#L78-L192):
+	bytes => bytes32 casting occurs in [vars.baseLeaf = bytes.concat(bytes32(slice(_body,offsets.revertCode,0x20)),bytes.concat(sliceAndPad(_body,offsets.noteHash,counts.noteHash * 0x20,Constants.NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP),sliceAndPad(_body,offsets.nullifier,counts.nullifier * 0x20,Constants.NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP),sliceAndPad(_body,offsets.l2ToL1Msgs,counts.l2ToL1Msgs * 0x20,Constants.L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP),sliceAndPad(_body,offsets.publicData,counts.publicData * 0x40,Constants.PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP)),bytes.concat(vars.encryptedLogsHash,vars.unencryptedLogsHash))](src/core/libraries/decoders/TxsDecoder.sol#L156-L185)
+
+src/core/libraries/decoders/TxsDecoder.sol#L78-L192
 
 
  - [ ] ID-10

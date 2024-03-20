@@ -5,7 +5,7 @@ use crate::constants::{
 };
 
 struct PrivateAccumulatedNonRevertibleData {
-    reverted: Field,
+    revert_code: Field,
     new_note_hashes: [SideEffect; MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX],
     new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX],
     public_call_stack: [CallRequest; MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX],

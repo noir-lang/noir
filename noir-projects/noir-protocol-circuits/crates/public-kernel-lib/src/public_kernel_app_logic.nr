@@ -23,7 +23,7 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
     fn public_kernel_app_logic(self) -> PublicKernelCircuitPublicInputs {
         // construct the circuit outputs
         let mut public_inputs: PublicKernelCircuitPublicInputsBuilder = unsafe::zeroed();
-        common::initialize_reverted_flag(self.previous_kernel, self.public_call, &mut public_inputs);
+        common::initialize_revert_code(self.previous_kernel, self.public_call, &mut public_inputs);
 
         // initialise the end state with our provided previous kernel state
         common::initialize_end_values(self.previous_kernel, &mut public_inputs);
@@ -36,7 +36,7 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
 
         common::update_validation_requests(self.public_call, &mut public_inputs);
 
-        if public_inputs.end_non_revertible.reverted == 0 {
+        if public_inputs.end_non_revertible.revert_code == 0 {
             // Pops the item from the call stack and validates it against the current execution.
             let call_request = public_inputs.end.public_call_stack.pop();
             common::validate_call_against_request(self.public_call, call_request);

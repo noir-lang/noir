@@ -114,7 +114,7 @@ export class PublicCircuitPublicInputs {
     /**
      * Flag indicating if the call was reverted.
      */
-    public reverted: RevertCode,
+    public revertCode: RevertCode,
   ) {}
 
   /**
@@ -176,7 +176,7 @@ export class PublicCircuitPublicInputs {
       this.unencryptedLogPreimagesLength.isZero() &&
       this.historicalHeader.isEmpty() &&
       this.proverAddress.isZero() &&
-      this.reverted.isOK()
+      this.revertCode.isOK()
     );
   }
 
@@ -204,7 +204,7 @@ export class PublicCircuitPublicInputs {
       fields.unencryptedLogPreimagesLength,
       fields.historicalHeader,
       fields.proverAddress,
-      fields.reverted,
+      fields.revertCode,
     ] as const;
   }
 

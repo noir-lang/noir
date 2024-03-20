@@ -39,7 +39,6 @@ struct PreviousKernelDataBuilder {
     vk_path: [Field; VK_TREE_HEIGHT],
     sideffect_counter: u32,
     min_revertible_side_effect_counter: u32,
-    reverted: bool
 }
 
 impl PreviousKernelDataBuilder {
@@ -74,8 +73,7 @@ impl PreviousKernelDataBuilder {
             vk_index: 0,
             vk_path: [0; VK_TREE_HEIGHT],
             sideffect_counter: 2,
-            min_revertible_side_effect_counter: 2,
-            reverted: false
+            min_revertible_side_effect_counter: 2
         }
     }
 

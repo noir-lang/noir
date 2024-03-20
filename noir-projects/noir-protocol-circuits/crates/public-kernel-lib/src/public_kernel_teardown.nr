@@ -28,7 +28,7 @@ impl PublicKernelTeardownCircuitPrivateInputs {
         let mut public_inputs: PublicKernelCircuitPublicInputsBuilder = unsafe::zeroed();
         // since this phase is non-revertible, we must assert the public call did not revert
         common::validate_public_call_non_revert(self.public_call);
-        common::initialize_reverted_flag(self.previous_kernel, self.public_call, &mut public_inputs);
+        common::initialize_revert_code(self.previous_kernel, self.public_call, &mut public_inputs);
 
         // initialise the end state with our provided previous kernel state
         common::initialize_end_values(self.previous_kernel, &mut public_inputs);
@@ -47,7 +47,7 @@ impl PublicKernelTeardownCircuitPrivateInputs {
 
         common::update_public_end_non_revertible_values(self.public_call, &mut public_inputs);
 
-        if public_inputs.end_non_revertible.reverted == 0 {
+        if public_inputs.end_non_revertible.revert_code == 0 {
             common::accumulate_unencrypted_logs(
                 self.public_call,
                 self.previous_kernel.public_inputs.end.unencrypted_logs_hash,
@@ -374,7 +374,7 @@ mod tests {
     #[test(should_fail_with="Public call cannot be reverted")]
     fn fails_if_public_call_reverted() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
-        builder.public_call.public_inputs.reverted = 1;
+        builder.public_call.public_inputs.revert_code = 1;
 
         builder.failed();
     }

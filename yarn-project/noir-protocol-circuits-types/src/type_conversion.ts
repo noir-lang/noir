@@ -777,12 +777,12 @@ export function mapPrivateCallDataToNoir(privateCallData: PrivateCallData): Priv
   };
 }
 
-export function mapRevertCodeFromNoir(reverted: NoirField): RevertCode {
-  return RevertCode.fromField(mapFieldFromNoir(reverted));
+export function mapRevertCodeFromNoir(revertCode: NoirField): RevertCode {
+  return RevertCode.fromField(mapFieldFromNoir(revertCode));
 }
 
-export function mapRevertCodeToNoir(reverted: RevertCode): NoirField {
-  return mapFieldToNoir(reverted.toField());
+export function mapRevertCodeToNoir(revertCode: RevertCode): NoirField {
+  return mapFieldToNoir(revertCode.toField());
 }
 
 /**
@@ -969,7 +969,7 @@ export function mapCombinedAccumulatedDataFromNoir(
   combinedAccumulatedData: CombinedAccumulatedDataNoir,
 ): CombinedAccumulatedData {
   return new CombinedAccumulatedData(
-    mapRevertCodeFromNoir(combinedAccumulatedData.reverted),
+    mapRevertCodeFromNoir(combinedAccumulatedData.revert_code),
     mapTupleFromNoir(combinedAccumulatedData.new_note_hashes, MAX_NEW_NOTE_HASHES_PER_TX, mapSideEffectFromNoir),
     mapTupleFromNoir(combinedAccumulatedData.new_nullifiers, MAX_NEW_NULLIFIERS_PER_TX, mapSideEffectLinkedFromNoir),
     mapTupleFromNoir(
@@ -1037,7 +1037,7 @@ export function mapAccumulatedNonRevertibleDataFromNoir(
   accumulatedMetaData: PrivateAccumulatedNonRevertibleDataNoir,
 ): PrivateAccumulatedNonRevertibleData {
   return new PrivateAccumulatedNonRevertibleData(
-    mapRevertCodeFromNoir(accumulatedMetaData.reverted),
+    mapRevertCodeFromNoir(accumulatedMetaData.revert_code),
     mapTupleFromNoir(accumulatedMetaData.new_note_hashes, MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, mapSideEffectFromNoir),
     mapTupleFromNoir(
       accumulatedMetaData.new_nullifiers,
@@ -1061,7 +1061,7 @@ export function mapAccumulatedNonRevertibleDataToNoir(
   accumulatedMetaData: PrivateAccumulatedNonRevertibleData,
 ): PrivateAccumulatedNonRevertibleDataNoir {
   return {
-    reverted: mapRevertCodeToNoir(accumulatedMetaData.reverted),
+    revert_code: mapRevertCodeToNoir(accumulatedMetaData.revertCode),
     new_note_hashes: mapTuple(accumulatedMetaData.newNoteHashes, mapSideEffectToNoir),
     new_nullifiers: mapTuple(accumulatedMetaData.newNullifiers, mapSideEffectLinkedToNoir),
     public_call_stack: mapTuple(accumulatedMetaData.publicCallStack, mapCallRequestToNoir),
@@ -1093,7 +1093,7 @@ export function mapCombinedAccumulatedDataToNoir(
   combinedAccumulatedData: CombinedAccumulatedData,
 ): CombinedAccumulatedDataNoir {
   return {
-    reverted: mapRevertCodeToNoir(combinedAccumulatedData.reverted),
+    revert_code: mapRevertCodeToNoir(combinedAccumulatedData.revertCode),
     new_note_hashes: mapTuple(combinedAccumulatedData.newNoteHashes, mapSideEffectToNoir),
     new_nullifiers: mapTuple(combinedAccumulatedData.newNullifiers, mapSideEffectLinkedToNoir),
     private_call_stack: mapTuple(combinedAccumulatedData.privateCallStack, mapCallRequestToNoir),
@@ -1194,7 +1194,7 @@ export function mapPublicAccumulatedNonRevertibleDataToNoir(
   data: PublicAccumulatedNonRevertibleData,
 ): PublicAccumulatedNonRevertibleDataNoir {
   return {
-    reverted: mapRevertCodeToNoir(data.reverted),
+    revert_code: mapRevertCodeToNoir(data.revertCode),
     new_note_hashes: mapTuple(data.newNoteHashes, mapSideEffectToNoir),
     new_nullifiers: mapTuple(data.newNullifiers, mapSideEffectLinkedToNoir),
     public_call_stack: mapTuple(data.publicCallStack, mapCallRequestToNoir),
@@ -1394,7 +1394,7 @@ export function mapPublicAccumulatedNonRevertibleDataFromNoir(
   data: PublicAccumulatedNonRevertibleDataNoir,
 ): PublicAccumulatedNonRevertibleData {
   return new PublicAccumulatedNonRevertibleData(
-    mapRevertCodeFromNoir(data.reverted),
+    mapRevertCodeFromNoir(data.revert_code),
     mapTupleFromNoir(data.new_note_hashes, MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, mapSideEffectFromNoir),
     mapTupleFromNoir(data.new_nullifiers, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, mapSideEffectLinkedFromNoir),
     mapTupleFromNoir(
@@ -1533,7 +1533,7 @@ export function mapPublicCircuitPublicInputsToNoir(
     historical_header: mapHeaderToNoir(publicInputs.historicalHeader),
 
     prover_address: mapAztecAddressToNoir(publicInputs.proverAddress),
-    reverted: mapRevertCodeToNoir(publicInputs.reverted),
+    revert_code: mapRevertCodeToNoir(publicInputs.revertCode),
   };
 }
 /**

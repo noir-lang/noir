@@ -21,8 +21,8 @@ struct PublicKernelTailCircuitPrivateInputs {
 }
 
 impl PublicKernelTailCircuitPrivateInputs {
-    fn propagate_reverted_flag(self, public_inputs: &mut PublicKernelCircuitPublicInputsBuilder) {
-        public_inputs.end_non_revertible.reverted = self.previous_kernel.public_inputs.end_non_revertible.reverted;
+    fn propagate_revert_code(self, public_inputs: &mut PublicKernelCircuitPublicInputsBuilder) {
+        public_inputs.end_non_revertible.revert_code = self.previous_kernel.public_inputs.end_non_revertible.revert_code;
     }
 
     fn validate_inputs(self) {
@@ -105,7 +105,7 @@ impl PublicKernelTailCircuitPrivateInputs {
 
         self.validate_inputs();
 
-        self.propagate_reverted_flag(&mut public_inputs);
+        self.propagate_revert_code(&mut public_inputs);
 
         common::initialize_emitted_end_values(self.previous_kernel, &mut public_inputs);
 

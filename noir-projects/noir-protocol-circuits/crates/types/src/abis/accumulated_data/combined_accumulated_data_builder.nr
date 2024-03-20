@@ -25,7 +25,7 @@ use crate::traits::is_empty;
 use crate::utils::arrays::{array_cp, array_concat, array_to_bounded_vec};
 
 struct CombinedAccumulatedDataBuilder {
-    reverted: Field,
+    revert_code: Field,
 
     new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_TX>,
     new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_TX>,
@@ -51,7 +51,7 @@ impl CombinedAccumulatedDataBuilder {
         revertible: PublicAccumulatedRevertibleData
     ) -> CombinedAccumulatedDataBuilder {
         CombinedAccumulatedDataBuilder {
-            reverted: non_revertible.reverted,
+            revert_code: non_revertible.revert_code,
             new_note_hashes: array_to_bounded_vec(array_concat(non_revertible.new_note_hashes, revertible.new_note_hashes)),
             new_nullifiers: array_to_bounded_vec(array_concat(non_revertible.new_nullifiers, revertible.new_nullifiers)),
             private_call_stack: array_to_bounded_vec(revertible.private_call_stack),
@@ -77,7 +77,7 @@ impl CombinedAccumulatedDataBuilder {
 
     pub fn finish(self) -> CombinedAccumulatedData {
         CombinedAccumulatedData {
-            reverted: self.reverted,
+            revert_code: self.revert_code,
             new_note_hashes: self.new_note_hashes.storage,
             new_nullifiers: self.new_nullifiers.storage,
             private_call_stack: self.private_call_stack.storage,

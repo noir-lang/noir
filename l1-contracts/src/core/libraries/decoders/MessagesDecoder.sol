@@ -27,7 +27,7 @@ import {Hash} from "../Hash.sol";
  *  | 0x4                                                                                                                       | a * 0x20   | newL1ToL2Msgs
  *  | 0x4 + a * 0x20 = tx0Start                                                                                                 | 0x4        | len(numTxs) (denoted t)
  *  |                                                                                                                           |            | TxEffect 0 {
- *  | tx0Start                                                                                                                  | 0x20       |   reverted
+ *  | tx0Start                                                                                                                  | 0x20       |   revertCode
  *  | tx0Start + 0x20                                                                                                           | 0x1        |   len(newNoteHashes) (denoted b)
  *  | tx0Start + 0x20 + 0x1                                                                                                     | b * 0x20   |   newNoteHashes
  *  | tx0Start + 0x20 + 0x1 + b * 0x20                                                                                          | 0x1        |   len(newNullifiers) (denoted c)
@@ -90,7 +90,7 @@ library MessagesDecoder {
 
     // Now we iterate over the tx effects
     for (uint256 i = 0; i < numTxs; i++) {
-      // reverted
+      // revertCode
       offset += 0x20;
 
       // Note hashes

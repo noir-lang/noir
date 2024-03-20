@@ -146,7 +146,7 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
     // 1 unencrypted logs hash --> 1 sha256 hash -> 32 bytes  -> 2 fields | Beware when populating bytes that it is only 32!
     let mut txs_effects_hash_input = [0; TX_EFFECTS_HASH_INPUT_FIELDS];
 
-    let reverted = combined.reverted;
+    let revert_code = combined.revert_code;
     let new_note_hashes = combined.new_note_hashes;
     let new_nullifiers = combined.new_nullifiers;
     let newL2ToL1msgs = combined.new_l2_to_l1_msgs;
@@ -156,7 +156,7 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
 
     let mut offset = 0;
 
-    txs_effects_hash_input[offset] = reverted;
+    txs_effects_hash_input[offset] = revert_code;
     offset += 1;
 
     for j in 0..MAX_NEW_NOTE_HASHES_PER_TX {
@@ -216,7 +216,7 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
 
 #[test]
 fn consistent_TX_EFFECTS_HASH_INPUT_FIELDS() {
-    // 1 for reverted
+    // 1 for revert_code
     let expected_size = 1
         + MAX_NEW_NOTE_HASHES_PER_TX
         + MAX_NEW_NULLIFIERS_PER_TX

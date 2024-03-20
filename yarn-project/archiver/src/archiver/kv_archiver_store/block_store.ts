@@ -138,7 +138,7 @@ export class BlockStore {
 
     return new TxReceipt(
       txHash,
-      tx.reverted.isOK() ? TxStatus.MINED : TxStatus.REVERTED,
+      tx.revertCode.isOK() ? TxStatus.MINED : TxStatus.REVERTED,
       '',
       block.hash().toBuffer(),
       block.number,
