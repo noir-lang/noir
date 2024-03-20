@@ -48,6 +48,7 @@ pub(crate) fn optimize_into_acir(
     let ssa_gen_span_guard = ssa_gen_span.enter();
     let ssa = SsaBuilder::new(program, print_ssa_passes, force_brillig_output)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
+        .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
