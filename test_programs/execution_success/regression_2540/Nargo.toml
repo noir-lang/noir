@@ -1,7 +1,0 @@
-[package]
-name = "regression_2540"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.25.0"
-
-[dependencies]
