@@ -4,7 +4,7 @@ use std::path::Path;
 
 use acvm::acir::{
     circuit::{ExpressionWidth, Program},
-    native_types::WitnessMap,
+    native_types::{WitnessMap, WitnessStack},
 };
 use acvm::FieldElement;
 use tempfile::tempdir;
@@ -56,7 +56,7 @@ impl Backend {
     pub fn prove(
         &self,
         program: &Program,
-        witness_values: WitnessMap,
+        witness_values: WitnessStack,
     ) -> Result<Vec<u8>, BackendError> {
         let binary_path = self.assert_binary_exists()?;
         self.assert_correct_version()?;
