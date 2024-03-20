@@ -157,6 +157,24 @@ pub fn brillig_to_avm(brillig: &Brillig) -> Vec<u8> {
             } => {
                 avm_instrs.push(generate_mov_instruction(Some(ALL_DIRECT), source.to_usize() as u32, destination.to_usize() as u32));
             }
+            BrilligOpcode::ConditionalMov {
+                source_a,
+                source_b,
+                condition,
+                destination,
+            } => {
+                avm_instrs.push(AvmInstruction {
+                    opcode: AvmOpcode::CMOV,
+                    indirect: Some(ALL_DIRECT),
+                    operands: vec![
+                        AvmOperand::U32 { value: source_a.to_usize() as u32 },
+                        AvmOperand::U32 { value: source_b.to_usize() as u32 },
+                        AvmOperand::U32 { value: condition.to_usize() as u32 },
+                        AvmOperand::U32 { value: destination.to_usize() as u32 },
+                    ],
+                    ..Default::default()
+                });
+            }
             BrilligOpcode::Load {
                 destination,
                 source_pointer,
