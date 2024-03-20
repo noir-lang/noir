@@ -1,0 +1,26 @@
+name: Benchmark
+on: 
+  pull_request:
+  push:
+    branches:
+      - master
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  run-benchmark:
+    name: Run benchmarks
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: boa-dev/criterion-compare-action@v3
+        with:
+          # Optional. Compare only this package
+          package: "nargo_cli"
+          # Optional. Compare only this benchmark target
+          benchName: "criterion"

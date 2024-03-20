@@ -86,9 +86,5 @@ test-binary = "3.0.2"
 name = "criterion"
 harness = false
 
-[[bench]]
-name = "iai"
-harness = false
-
 [features]
 codegen-docs = ["dep:clap-markdown"]
