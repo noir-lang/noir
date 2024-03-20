@@ -53,6 +53,6 @@ mod tests {
             .expect("Expected circuit witness to be successfully solved.");
 
         // Exit the bash session.
-        dbg_session.send_line("exit").expect("Failed to quit debugger");
+        dbg_session.send_line("exit").expect("Failed to quit bash session");
     }
 }
