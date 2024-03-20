@@ -37,12 +37,7 @@ criterion_group! {
 }
 criterion_group! {
     name = prove_benches;
-    config = Criterion::default().sample_size(10).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets = criterion_selected_tests_prove
-}
-criterion_group! {
-    name = prove_benches;
     config = Criterion::default().sample_size(20).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_selected_tests_prove
 }
-criterion_main!(execution_benches, prove_execution_benches, prove_benches);
+criterion_main!(execution_benches, prove_benches);
