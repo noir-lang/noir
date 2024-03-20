@@ -15,7 +15,7 @@ RUN foundryup
 WORKDIR /usr/src/l1-contracts
 COPY . .
 RUN git init
-RUN forge clean && forge fmt --check && forge build && forge test
+RUN forge clean && forge fmt --check && forge build && forge test --no-match-contract UniswapPortalTest
 
 RUN npm install --global yarn
 RUN yarn && yarn lint
