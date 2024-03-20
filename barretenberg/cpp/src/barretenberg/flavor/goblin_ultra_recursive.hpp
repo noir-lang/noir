@@ -100,8 +100,6 @@ template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
     class VerificationKey
         : public VerificationKey_<GoblinUltraFlavor::PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
       public:
-        std::vector<FF> public_inputs;
-
         VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
         {
             this->circuit_size = circuit_size;
@@ -122,10 +120,6 @@ template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
             this->log_circuit_size = numeric::get_msb(this->circuit_size);
             this->num_public_inputs = native_key->num_public_inputs;
             this->pub_inputs_offset = native_key->pub_inputs_offset;
-            this->public_inputs = std::vector<FF>(native_key->num_public_inputs);
-            for (auto [public_input, native_public_input] : zip_view(this->public_inputs, native_key->public_inputs)) {
-                public_input = FF::from_witness(builder, native_public_input);
-            }
             this->q_m = Commitment::from_witness(builder, native_key->q_m);
             this->q_l = Commitment::from_witness(builder, native_key->q_l);
             this->q_r = Commitment::from_witness(builder, native_key->q_r);

@@ -21,11 +21,10 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::receive_and_finalise_inst
         transcript->template receive_from_prover<FF>(domain_separator + "_pub_inputs_offset");
     inst->verification_key->pub_inputs_offset = uint32_t(pub_inputs_offset.get_value());
 
-    inst->verification_key->public_inputs.clear();
     for (size_t i = 0; i < inst->verification_key->num_public_inputs; ++i) {
         auto public_input_i =
             transcript->template receive_from_prover<FF>(domain_separator + "_public_input_" + std::to_string(i));
-        inst->verification_key->public_inputs.emplace_back(public_input_i);
+        inst->public_inputs.emplace_back(public_input_i);
     }
 
     // Get commitments to first three wire polynomials
@@ -72,7 +71,7 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::receive_and_finalise_inst
         transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.z_lookup);
 
     // Compute correction terms for grand products
-    const FF public_input_delta = compute_public_input_delta<Flavor>(inst->verification_key->public_inputs,
+    const FF public_input_delta = compute_public_input_delta<Flavor>(inst->public_inputs,
                                                                      beta,
                                                                      gamma,
                                                                      inst->verification_key->circuit_size,
@@ -156,7 +155,7 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyRecursiveVerifi
         accumulator->verification_key->circuit_size, accumulator->verification_key->num_public_inputs);
     next_accumulator->verification_key->pcs_verification_key = accumulator->verification_key->pcs_verification_key;
     next_accumulator->verification_key->pub_inputs_offset = accumulator->verification_key->pub_inputs_offset;
-    next_accumulator->verification_key->public_inputs = accumulator->verification_key->public_inputs;
+    next_accumulator->public_inputs = accumulator->public_inputs;
     size_t vk_idx = 0;
     for (auto& expected_vk : next_accumulator->verification_key->get_all()) {
         size_t inst = 0;
@@ -194,16 +193,14 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyRecursiveVerifi
         comm_idx++;
     }
 
-    next_accumulator->verification_key->num_public_inputs = accumulator->verification_key->num_public_inputs;
-    next_accumulator->verification_key->public_inputs =
-        std::vector<FF>(next_accumulator->verification_key->num_public_inputs, 0);
+    next_accumulator->public_inputs = std::vector<FF>(next_accumulator->verification_key->num_public_inputs, 0);
     size_t public_input_idx = 0;
-    for (auto& public_input : next_accumulator->verification_key->public_inputs) {
+    for (auto& public_input : next_accumulator->public_inputs) {
         size_t inst = 0;
         for (auto& instance : instances) {
             if (instance->verification_key->num_public_inputs >=
                 next_accumulator->verification_key->num_public_inputs) {
-                public_input += instance->verification_key->public_inputs[public_input_idx] * lagranges[inst];
+                public_input += instance->public_inputs[public_input_idx] * lagranges[inst];
                 inst++;
             };
         }

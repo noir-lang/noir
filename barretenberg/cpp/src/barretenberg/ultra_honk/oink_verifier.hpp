@@ -11,6 +11,7 @@ namespace bb {
 template <IsUltraFlavor Flavor> struct OinkOutput {
     bb::RelationParameters<typename Flavor::FF> relation_parameters;
     typename Flavor::WitnessCommitments commitments;
+    std::vector<typename Flavor::FF> public_inputs;
 };
 
 /**
@@ -36,6 +37,7 @@ template <IsUltraFlavor Flavor> class OinkVerifier {
     typename Flavor::CommitmentLabels comm_labels;
     bb::RelationParameters<FF> relation_parameters;
     WitnessCommitments witness_comms;
+    std::vector<FF> public_inputs;
 
     OinkVerifier(const std::shared_ptr<VerificationKey>& verifier_key,
                  const std::shared_ptr<Transcript>& transcript,

@@ -17,10 +17,9 @@ template <IsUltraFlavor Flavor> OinkOutput<Flavor> OinkVerifier<Flavor>::verify(
     execute_log_derivative_inverse_round();
     execute_grand_product_computation_round();
 
-    return OinkOutput<Flavor>{
-        .relation_parameters = relation_parameters,
-        .commitments = witness_comms,
-    };
+    return OinkOutput<Flavor>{ .relation_parameters = relation_parameters,
+                               .commitments = witness_comms,
+                               .public_inputs = public_inputs };
 }
 
 /**
@@ -40,11 +39,10 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_preamble_roun
     ASSERT(public_input_size == key->num_public_inputs);
     ASSERT(pub_inputs_offset == key->pub_inputs_offset);
 
-    key->public_inputs.clear();
     for (size_t i = 0; i < public_input_size; ++i) {
         auto public_input_i =
             transcript->template receive_from_prover<FF>(domain_separator + "public_input_" + std::to_string(i));
-        key->public_inputs.emplace_back(public_input_i);
+        public_inputs.emplace_back(public_input_i);
     }
 }
 
@@ -116,11 +114,8 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_log_derivativ
  */
 template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_grand_product_computation_round()
 {
-    const FF public_input_delta = compute_public_input_delta<Flavor>(key->public_inputs,
-                                                                     relation_parameters.beta,
-                                                                     relation_parameters.gamma,
-                                                                     key->circuit_size,
-                                                                     key->pub_inputs_offset);
+    const FF public_input_delta = compute_public_input_delta<Flavor>(
+        public_inputs, relation_parameters.beta, relation_parameters.gamma, key->circuit_size, key->pub_inputs_offset);
     const FF lookup_grand_product_delta =
         compute_lookup_grand_product_delta<FF>(relation_parameters.beta, relation_parameters.gamma, key->circuit_size);
 

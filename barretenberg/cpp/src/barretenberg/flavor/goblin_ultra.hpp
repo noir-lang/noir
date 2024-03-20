@@ -287,20 +287,7 @@ class GoblinUltraFlavor {
      * circuits.
      * @todo TODO(https://github.com/AztecProtocol/barretenberg/issues/876)
      */
-    class VerificationKey : public VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
-      public:
-        std::vector<FF> public_inputs;
-
-        VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
-            : VerificationKey_(circuit_size, num_public_inputs)
-        {}
-
-        template <typename ProvingKeyPtr>
-        VerificationKey(const ProvingKeyPtr& proving_key)
-            : VerificationKey_(proving_key)
-            , public_inputs(proving_key->public_inputs)
-        {}
-    };
+    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey>;
 
     /**
      * @brief A container for storing the partially evaluated multivariates produced by sumcheck.

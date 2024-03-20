@@ -290,20 +290,7 @@ class UltraFlavor {
      * that, and split out separate PrecomputedPolynomials/Commitments data for clarity but also for portability of our
      * circuits.
      */
-    class VerificationKey : public VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
-      public:
-        std::vector<FF> public_inputs;
-
-        VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
-            : VerificationKey_(circuit_size, num_public_inputs)
-        {}
-
-        template <typename ProvingKeyPtr>
-        VerificationKey(const ProvingKeyPtr& proving_key)
-            : VerificationKey_(proving_key)
-            , public_inputs(proving_key->public_inputs)
-        {}
-    };
+    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey>;
 
     /**
      * @brief A field element for each entity of the flavor. These entities represent the prover polynomials

@@ -23,6 +23,7 @@ template <class Flavor, size_t NUM_ = 2> class VerifierInstance_ {
     RelationParameters<FF> relation_parameters;
     RelationSeparator alphas;
     bool is_accumulator = false;
+    std::vector<FF> public_inputs;
 
     // The folding parameters (\vec{β}, e) which are set for accumulators (i.e. relaxed instances).
     std::vector<FF> gate_challenges;

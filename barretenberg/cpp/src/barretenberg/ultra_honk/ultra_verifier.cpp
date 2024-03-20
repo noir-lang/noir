@@ -49,7 +49,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
     transcript = std::make_shared<Transcript>(proof);
     VerifierCommitments commitments{ key };
     OinkVerifier<Flavor> oink_verifier{ key, transcript };
-    auto [relation_parameters, witness_commitments] = oink_verifier.verify();
+    auto [relation_parameters, witness_commitments, _] = oink_verifier.verify();
 
     // Copy the witness_commitments over to the VerifierCommitments
     for (auto [wit_comm_1, wit_comm_2] : zip_view(commitments.get_witness(), witness_commitments.get_all())) {
