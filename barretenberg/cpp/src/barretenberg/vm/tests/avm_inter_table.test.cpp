@@ -39,7 +39,7 @@ TEST_F(AvmInterTableTests, tagErrNotCopiedInMain)
     // Equality operation on U128 and second operand is of type U16.
     trace_builder.set(32, 18, AvmMemoryTag::U128);
     trace_builder.set(32, 76, AvmMemoryTag::U16);
-    trace_builder.op_eq(18, 76, 65, AvmMemoryTag::U128);
+    trace_builder.op_eq(0, 18, 76, 65, AvmMemoryTag::U128);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
 
@@ -89,10 +89,10 @@ class AvmPermMainAluNegativeTests : public AvmInterTableTests {
 
         trace_builder.set(19, 0, AvmMemoryTag::U64);
         trace_builder.set(15, 1, AvmMemoryTag::U64);
-        trace_builder.op_add(0, 1, 1, AvmMemoryTag::U64); // 19 + 15 = 34
-        trace_builder.op_add(0, 1, 1, AvmMemoryTag::U64); // 19 + 34 = 53
-        trace_builder.op_mul(0, 1, 2, AvmMemoryTag::U64); // 19 * 53 = 1007
-        trace_builder.return_op(0, 0);
+        trace_builder.op_add(0, 0, 1, 1, AvmMemoryTag::U64); // 19 + 15 = 34
+        trace_builder.op_add(0, 0, 1, 1, AvmMemoryTag::U64); // 19 + 34 = 53
+        trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U64); // 19 * 53 = 1007
+        trace_builder.return_op(0, 0, 0);
 
         trace = trace_builder.finalize();
 
@@ -190,8 +190,8 @@ class AvmPermMainMemNegativeTests : public AvmInterTableTests {
     {
         trace_builder.set(a, 52, AvmMemoryTag::U8);
         trace_builder.set(b, 11, AvmMemoryTag::U8);
-        trace_builder.op_sub(52, 11, 55, AvmMemoryTag::U8);
-        trace_builder.return_op(0, 0);
+        trace_builder.op_sub(0, 52, 11, 55, AvmMemoryTag::U8);
+        trace_builder.return_op(0, 0, 0);
 
         trace = trace_builder.finalize();
 

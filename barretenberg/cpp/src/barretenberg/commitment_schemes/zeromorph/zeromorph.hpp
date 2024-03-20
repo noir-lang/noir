@@ -441,7 +441,7 @@ template <typename PCS> class ZeroMorphVerifier_ {
     using Curve = typename PCS::Curve;
     using FF = typename Curve::ScalarField;
     using Commitment = typename Curve::AffineElement;
-    using VerifierAccumulator = PCS::VerifierAccumulator;
+    using VerifierAccumulator = typename PCS::VerifierAccumulator;
 
   public:
     /**

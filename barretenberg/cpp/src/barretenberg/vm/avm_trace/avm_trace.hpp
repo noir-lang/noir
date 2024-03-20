@@ -28,23 +28,23 @@ class AvmTraceBuilder {
 
     uint32_t getPc() const { return pc; }
 
-    // Addition with direct memory access.
-    void op_add(uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Addition with direct or indirect memory access.
+    void op_add(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
-    // Subtraction with direct memory access.
-    void op_sub(uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Subtraction with direct or indirect memory access.
+    void op_sub(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
-    // Multiplication with direct memory access.
-    void op_mul(uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Multiplication with direct or indirect memory access.
+    void op_mul(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
-    // Division with direct memory access.
-    void op_div(uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Division with direct or indirect memory access.
+    void op_div(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
-    // Bitwise not with direct memory access.
-    void op_not(uint32_t a_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Bitwise not with direct or indirect memory access.
+    void op_not(uint8_t indirect, uint32_t a_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
-    // Equality with direct memory access.
-    void op_eq(uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+    // Equality with direct or indirect memory access.
+    void op_eq(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
     // Set a constant from bytecode with direct memory access.
     void set(uint128_t val, uint32_t dst_offset, AvmMemoryTag in_tag);
@@ -65,23 +65,41 @@ class AvmTraceBuilder {
     // Halt -> stop program execution.
     void halt();
 
-    // CALLDATACOPY opcode with direct memory access, i.e.,
-    // M[dst_offset:dst_offset+copy_size] = calldata[cd_offset:cd_offset+copy_size]
-    void calldata_copy(uint32_t cd_offset,
+    // CALLDATACOPY opcode with direct/indirect memory access, i.e.,
+    // direct: M[dst_offset:dst_offset+copy_size] = calldata[cd_offset:cd_offset+copy_size]
+    // indirect: M[M[dst_offset]:M[dst_offset]+copy_size] = calldata[cd_offset:cd_offset+copy_size]
+    void calldata_copy(uint8_t indirect,
+                       uint32_t cd_offset,
                        uint32_t copy_size,
                        uint32_t dst_offset,
                        std::vector<FF> const& call_data_mem);
 
-    // RETURN opcode with direct memory access, i.e.,
-    // return(M[ret_offset:ret_offset+ret_size])
-    std::vector<FF> return_op(uint32_t ret_offset, uint32_t ret_size);
+    // RETURN opcode with direct and indirect memory access, i.e.,
+    // direct:   return(M[ret_offset:ret_offset+ret_size])
+    // indirect: return(M[M[ret_offset]:M[ret_offset]+ret_size])
+    std::vector<FF> return_op(uint8_t indirect, uint32_t ret_offset, uint32_t ret_size);
 
   private:
+    // Used for the standard indirect address resolution of three operands opcode.
+    struct IndirectThreeResolution {
+        bool tag_match = false;
+        uint32_t direct_a_offset;
+        uint32_t direct_b_offset;
+        uint32_t direct_dst_offset;
+
+        bool indirect_flag_a = false;
+        bool indirect_flag_b = false;
+        bool indirect_flag_c = false;
+    };
+
     std::vector<Row> main_trace;
     AvmMemTraceBuilder mem_trace_builder;
     AvmAluTraceBuilder alu_trace_builder;
 
     void finalise_mem_trace_lookup_counts();
+
+    IndirectThreeResolution resolve_ind_three(
+        uint32_t clk, uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset);
 
     uint32_t pc = 0;
     uint32_t internal_return_ptr = CALLSTACK_OFFSET;

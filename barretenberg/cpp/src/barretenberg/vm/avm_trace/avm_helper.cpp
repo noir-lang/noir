@@ -84,4 +84,13 @@ void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end, bool e
     }
 }
 
+bool is_operand_indirect(uint8_t ind_value, uint8_t operand_idx)
+{
+    if (operand_idx > 7) {
+        return false;
+    }
+
+    return static_cast<bool>((ind_value & (1 << operand_idx)) >> operand_idx);
+}
+
 } // namespace bb::avm_trace

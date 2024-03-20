@@ -42,7 +42,7 @@ class AvmMemOpcodeTests : public ::testing::Test {
         }
 
         trace_builder.op_mov(indirect ? 3 : 0, src_offset, dst_offset);
-        trace_builder.return_op(0, 0);
+        trace_builder.return_op(0, 0, 0);
         trace = trace_builder.finalize();
     }
 
@@ -182,7 +182,7 @@ TEST_F(AvmMemOpcodeTests, indirectMovInvalidAddressTag)
     trace_builder.set(16, 101, AvmMemoryTag::U128); // This will make the indirect load failing.
     trace_builder.set(5, 15, AvmMemoryTag::FF);
     trace_builder.op_mov(3, 100, 101);
-    trace_builder.return_op(0, 0);
+    trace_builder.return_op(0, 0, 0);
     trace = trace_builder.finalize();
 
     computeIndices(true);

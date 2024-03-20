@@ -101,38 +101,44 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
             // Compute
             // Compute - Arithmetic
         case OpCode::ADD:
-            trace_builder.op_add(std::get<uint32_t>(inst.operands.at(2)),
+            trace_builder.op_add(std::get<uint8_t>(inst.operands.at(0)),
+                                 std::get<uint32_t>(inst.operands.at(2)),
                                  std::get<uint32_t>(inst.operands.at(3)),
                                  std::get<uint32_t>(inst.operands.at(4)),
                                  std::get<AvmMemoryTag>(inst.operands.at(1)));
             break;
         case OpCode::SUB:
-            trace_builder.op_sub(std::get<uint32_t>(inst.operands.at(2)),
+            trace_builder.op_sub(std::get<uint8_t>(inst.operands.at(0)),
+                                 std::get<uint32_t>(inst.operands.at(2)),
                                  std::get<uint32_t>(inst.operands.at(3)),
                                  std::get<uint32_t>(inst.operands.at(4)),
                                  std::get<AvmMemoryTag>(inst.operands.at(1)));
             break;
         case OpCode::MUL:
-            trace_builder.op_mul(std::get<uint32_t>(inst.operands.at(2)),
+            trace_builder.op_mul(std::get<uint8_t>(inst.operands.at(0)),
+                                 std::get<uint32_t>(inst.operands.at(2)),
                                  std::get<uint32_t>(inst.operands.at(3)),
                                  std::get<uint32_t>(inst.operands.at(4)),
                                  std::get<AvmMemoryTag>(inst.operands.at(1)));
             break;
         case OpCode::DIV:
-            trace_builder.op_div(std::get<uint32_t>(inst.operands.at(2)),
+            trace_builder.op_div(std::get<uint8_t>(inst.operands.at(0)),
+                                 std::get<uint32_t>(inst.operands.at(2)),
                                  std::get<uint32_t>(inst.operands.at(3)),
                                  std::get<uint32_t>(inst.operands.at(4)),
                                  std::get<AvmMemoryTag>(inst.operands.at(1)));
             break;
         // Compute - Bitwise
         case OpCode::NOT:
-            trace_builder.op_not(std::get<uint32_t>(inst.operands.at(2)),
+            trace_builder.op_not(std::get<uint8_t>(inst.operands.at(0)),
+                                 std::get<uint32_t>(inst.operands.at(2)),
                                  std::get<uint32_t>(inst.operands.at(4)),
                                  std::get<AvmMemoryTag>(inst.operands.at(1)));
             break;
             // Execution Environment - Calldata
         case OpCode::CALLDATACOPY:
-            trace_builder.calldata_copy(std::get<uint32_t>(inst.operands.at(1)),
+            trace_builder.calldata_copy(std::get<uint8_t>(inst.operands.at(0)),
+                                        std::get<uint32_t>(inst.operands.at(1)),
                                         std::get<uint32_t>(inst.operands.at(2)),
                                         std::get<uint32_t>(inst.operands.at(3)),
                                         calldata);
@@ -185,8 +191,9 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
             break;
             // Control Flow - Contract Calls
         case OpCode::RETURN:
-            // Skip indirect at index 0
-            trace_builder.return_op(std::get<uint32_t>(inst.operands.at(1)), std::get<uint32_t>(inst.operands.at(2)));
+            trace_builder.return_op(std::get<uint8_t>(inst.operands.at(0)),
+                                    std::get<uint32_t>(inst.operands.at(1)),
+                                    std::get<uint32_t>(inst.operands.at(2)));
             break;
         default:
             break;
