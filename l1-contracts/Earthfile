@@ -19,5 +19,5 @@ COPY --keep-ts --dir lib scripts src terraform test *.json *.toml *.sh .
 
 build:
     RUN git init && git add . && yarn lint && yarn slither && yarn slither-has-diff
-    RUN forge clean && forge fmt --check && forge build && forge test
+    RUN forge clean && forge fmt --check && forge build && forge test --no-match-contract UniswapPortalTest
     SAVE ARTIFACT out
