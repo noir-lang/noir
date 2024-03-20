@@ -1150,7 +1150,8 @@ where
             nothing().boxed()
         },
         lambdas::lambda(expr_parser.clone()),
-        block(statement).map(ExpressionKind::Block),
+        block(statement.clone()).map(ExpressionKind::Block),
+        quote(statement),
         variable(),
         literal(),
     ))
@@ -1173,6 +1174,19 @@ where
         .map_with_span(Expression::new)
         .or(parenthesized(expr_parser))
         .labelled(ParsingRuleLabel::Atom)
+}
+
+fn quote<'a, P>(statement: P) -> impl NoirParser<ExpressionKind> + 'a
+where
+    P: NoirParser<StatementKind> + 'a,
+{
+    keyword(Keyword::Quote).ignore_then(block(statement)).validate(|block, span, emit| {
+        emit(ParserError::with_reason(
+            ParserErrorReason::ExperimentalFeature("quoted expressions"),
+            span,
+        ));
+        ExpressionKind::Quote(block)
+    })
 }
 
 fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>

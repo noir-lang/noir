@@ -1085,6 +1085,7 @@ impl<'a> Resolver<'a> {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::TraitAsType(..)
+            | Type::Code
             | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {
@@ -1620,6 +1621,9 @@ impl<'a> Resolver<'a> {
                 })
             }),
             ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
+
+            // The quoted expression isn't resolved since we don't want errors if variables aren't defined
+            ExpressionKind::Quote(block) => HirExpression::Quote(block),
         };
 
         // If these lines are ever changed, make sure to change the early return

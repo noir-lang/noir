@@ -516,6 +516,7 @@ impl<'interner> Monomorphizer<'interner> {
                 unreachable!("Encountered HirExpression::MethodCall during monomorphization {hir_method_call:?}")
             }
             HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
+            HirExpression::Quote(_) => unreachable!("quote expression remaining in runtime code"),
         };
 
         Ok(expr)
@@ -954,6 +955,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
+            HirType::Code => unreachable!("Tried to translate Code type into runtime code"),
         }
     }
 
