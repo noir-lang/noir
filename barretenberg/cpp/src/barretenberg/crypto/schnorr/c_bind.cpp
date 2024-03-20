@@ -3,6 +3,8 @@
 #include "schnorr.hpp"
 
 using namespace bb;
+using namespace bb::crypto;
+
 using affine_element = grumpkin::g1::affine_element;
 using multisig = crypto::schnorr_multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>;
 using multisig_public_key = typename multisig::MultiSigPublicKey;
