@@ -40,6 +40,7 @@ class Solver {
     cvc5::TermManager term_manager;
     cvc5::Solver solver;
     cvc5::Sort ff_sort;
+    cvc5::Sort bv_sort;
     std::string modulus; // modulus in base 10
     bool res = false;
     cvc5::Result cvc_result;
@@ -47,11 +48,13 @@ class Solver {
 
     explicit Solver(const std::string& modulus,
                     const SolverConfiguration& config = default_solver_config,
-                    uint32_t base = 16)
+                    uint32_t base = 16,
+                    uint32_t bvsize = 254)
         : solver(term_manager)
     {
         this->ff_sort = term_manager.mkFiniteFieldSort(modulus, base);
         this->modulus = ff_sort.getFiniteFieldSize();
+        this->bv_sort = term_manager.mkBitVectorSort(bvsize);
         if (config.produce_models) {
             solver.setOption("produce-models", "true");
         }

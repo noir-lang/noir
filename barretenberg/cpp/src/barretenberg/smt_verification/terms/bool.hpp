@@ -1,6 +1,5 @@
 #pragma once
-#include "ffiterm.hpp"
-#include "ffterm.hpp"
+#include "term.hpp"
 
 namespace smt_terms {
 using namespace smt_solver;
@@ -21,11 +20,8 @@ class Bool {
     Bool(const cvc5::Term& t, Solver* slv)
         : solver(slv)
         , term(t){};
-    explicit Bool(const FFTerm& t)
-        : solver(t.solver)
-        , term(t.term){};
 
-    explicit Bool(const FFITerm& t)
+    explicit Bool(const STerm& t)
         : solver(t.solver)
         , term(t.term){};
 

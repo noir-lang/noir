@@ -1,6 +1,5 @@
 #include "solver.hpp"
-#include "barretenberg/smt_verification/terms/ffiterm.hpp"
-#include "barretenberg/smt_verification/terms/ffterm.hpp"
+#include "barretenberg/smt_verification/terms/term.hpp"
 
 #include <gtest/gtest.h>
 
@@ -11,13 +10,13 @@ using namespace smt_terms;
 TEST(Solver, FFTerm_use_case)
 {
     Solver s("101", default_solver_config, 10);
-    FFTerm x = FFTerm::Var("x", &s);
-    FFTerm y = FFTerm::Var("y", &s);
+    STerm x = FFVar("x", &s);
+    STerm y = FFVar("y", &s);
 
     y* y == x* x* x + bb::fr(2);
-    FFTerm l = (3 * x * x) / (bb::fr(2) * y);
-    FFTerm xr = l * l - x - x;
-    FFTerm yr = l * (x - xr) - y;
+    STerm l = (3 * x * x) / (bb::fr(2) * y);
+    STerm xr = l * l - x - x;
+    STerm yr = l * (x - xr) - y;
     x == xr;
     y == -yr;
     bool res = s.check();
@@ -35,8 +34,8 @@ TEST(Solver, FFTerm_use_case)
 TEST(Solver, FFITerm_use_case)
 {
     Solver s("bce4e33b636e0cf38d13a55c3");
-    FFITerm x = FFITerm::Var("x", &s);
-    FFITerm y = FFITerm::Var("y", &s);
+    STerm x = FFIVar("x", &s);
+    STerm y = FFIVar("y", &s);
 
     bb::fr a = bb::fr::random_element();
     x <= bb::fr(2).pow(32);
@@ -51,18 +50,18 @@ TEST(Solver, FFITerm_use_case)
     info("+");
     info(vvars["y"]);
     info("=");
-    info(s.getValue(FFITerm(a, &s).term));
+    info(s.getValue(STerm(a, &s, TermType::FFITerm).term));
 }
 
 TEST(Solver, human_readable_constraints_FFTerm)
 {
     Solver s("101", default_solver_config, 10);
-    FFTerm x = FFTerm::Var("x", &s);
-    FFTerm y = FFTerm::Var("y", &s);
+    STerm x = FFVar("x", &s);
+    STerm y = FFVar("y", &s);
     y* y == x* x* x + bb::fr(2);
-    FFTerm l = (3 * x * x) / (bb::fr(2) * y);
-    FFTerm xr = l * l - x - x;
-    FFTerm yr = l * (x - xr) - y;
+    STerm l = (3 * x * x) / (bb::fr(2) * y);
+    STerm xr = l * l - x - x;
+    STerm yr = l * (x - xr) - y;
     x == xr;
     y == -yr;
     s.print_assertions();
@@ -71,12 +70,12 @@ TEST(Solver, human_readable_constraints_FFTerm)
 TEST(Solver, human_readable_constraints_FFITerm)
 {
     Solver s("101", default_solver_config, 10);
-    FFITerm x = FFITerm::Var("x", &s);
-    FFITerm y = FFITerm::Var("y", &s);
+    STerm x = FFIVar("x", &s);
+    STerm y = FFIVar("y", &s);
     y* y == x* x* x + bb::fr(2);
-    FFITerm l = (3 * x * x) / (bb::fr(2) * y);
-    FFITerm xr = l * l - x - x;
-    FFITerm yr = l * (x - xr) - y;
+    STerm l = (3 * x * x) / (bb::fr(2) * y);
+    STerm xr = l * l - x - x;
+    STerm yr = l * (x - xr) - y;
     x == xr;
     y == -yr;
     s.print_assertions();

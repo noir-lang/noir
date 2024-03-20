@@ -3,9 +3,11 @@
 #include <string>
 
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "barretenberg/stdlib/primitives/uint/uint.hpp"
+
 #include "barretenberg/smt_verification/circuit/circuit.hpp"
 #include "barretenberg/smt_verification/util/smt_util.hpp"
-#include "barretenberg/stdlib/primitives/field/field.hpp"
 
 #include <gtest/gtest.h>
 
@@ -19,6 +21,7 @@ auto& engine = numeric::get_debug_randomness();
 using field_t = stdlib::field_t<StandardCircuitBuilder>;
 using witness_t = stdlib::witness_t<StandardCircuitBuilder>;
 using pub_witness_t = stdlib::public_witness_t<StandardCircuitBuilder>;
+using uint_ct = stdlib::uint32<StandardCircuitBuilder>;
 
 TEST(circuit, assert_equal)
 {
@@ -49,7 +52,7 @@ TEST(circuit, assert_equal)
     auto buf = builder.export_circuit();
     CircuitSchema circuit_info = unpack_from_buffer(buf);
     Solver s(circuit_info.modulus);
-    Circuit<FFTerm> circuit(circuit_info, &s);
+    Circuit circuit(circuit_info, &s, TermType::FFTerm);
 
     ASSERT_EQ(circuit[k.get_witness_index()].term, circuit["c"].term);
     ASSERT_EQ(circuit[d.get_witness_index()].term, circuit["a"].term);
@@ -57,6 +60,23 @@ TEST(circuit, assert_equal)
 
     ASSERT_EQ(circuit[i.get_witness_index()].term, circuit[k.get_witness_index()].term);
     ASSERT_EQ(circuit[i.get_witness_index()].term, circuit[j.get_witness_index()].term);
+}
+
+TEST(circuit, cached_subcircuits)
+{
+    StandardCircuitBuilder builder = StandardCircuitBuilder();
+    field_t a(witness_t(&builder, fr::zero()));
+    builder.set_variable_name(a.get_witness_index(), "a");
+    a.create_range_constraint(5);
+    field_t b(witness_t(&builder, fr::zero()));
+    b.create_range_constraint(5);
+    builder.set_variable_name(b.get_witness_index(), "b");
+
+    auto buf = builder.export_circuit();
+    CircuitSchema circuit_info = unpack_from_buffer(buf);
+    Solver s(circuit_info.modulus);
+    Circuit circuit(circuit_info, &s, TermType::FFITerm);
+    s.print_assertions();
 }
 
 TEST(circuit, range_relaxation_assertions)
@@ -75,7 +95,7 @@ TEST(circuit, range_relaxation_assertions)
     auto buf = builder.export_circuit();
     CircuitSchema circuit_info = unpack_from_buffer(buf);
     Solver s(circuit_info.modulus);
-    Circuit<FFITerm> circuit(circuit_info, &s);
+    Circuit circuit(circuit_info, &s, TermType::FFITerm);
 
     s.print_assertions();
 }
@@ -90,25 +110,42 @@ TEST(circuit, range_relaxation)
         auto buf = builder.export_circuit();
         CircuitSchema circuit_info = unpack_from_buffer(buf);
         Solver s(circuit_info.modulus);
-        Circuit<FFITerm> circuit(circuit_info, &s);
+        Circuit circuit(circuit_info, &s, TermType::FFITerm);
     }
 }
 
-TEST(circuit, cached_subcircuits)
+TEST(circuit, xor_relaxation_assertions)
 {
     StandardCircuitBuilder builder = StandardCircuitBuilder();
-    field_t a(witness_t(&builder, fr::zero()));
+    uint_ct a(witness_t(&builder, static_cast<uint32_t>(fr(120))));
+    uint_ct b(witness_t(&builder, static_cast<uint32_t>(fr(120))));
+    uint_ct c = a ^ b;
     builder.set_variable_name(a.get_witness_index(), "a");
-    a.create_range_constraint(5);
-    field_t b(witness_t(&builder, fr::zero()));
-    b.create_range_constraint(5);
     builder.set_variable_name(b.get_witness_index(), "b");
+    builder.set_variable_name(c.get_witness_index(), "c");
 
     auto buf = builder.export_circuit();
     CircuitSchema circuit_info = unpack_from_buffer(buf);
-    Solver s(circuit_info.modulus);
-    Circuit<FFITerm> circuit(circuit_info, &s);
+    Solver s(circuit_info.modulus, default_solver_config, 16, 32);
+    Circuit circuit(circuit_info, &s, TermType::BVTerm);
+
     s.print_assertions();
 }
 
-// TODO(alex): check xor relaxations after bivector is here
+TEST(circuit, and_relaxation_assertions)
+{
+    StandardCircuitBuilder builder = StandardCircuitBuilder();
+    uint_ct a(witness_t(&builder, static_cast<uint32_t>(fr(120))));
+    uint_ct b(witness_t(&builder, static_cast<uint32_t>(fr(120))));
+    uint_ct c = a & b;
+    builder.set_variable_name(a.get_witness_index(), "a");
+    builder.set_variable_name(b.get_witness_index(), "b");
+    builder.set_variable_name(c.get_witness_index(), "c");
+
+    auto buf = builder.export_circuit();
+    CircuitSchema circuit_info = unpack_from_buffer(buf);
+    Solver s(circuit_info.modulus, default_solver_config, 16, 32);
+    Circuit circuit(circuit_info, &s, TermType::BVTerm);
+
+    s.print_assertions();
+}
