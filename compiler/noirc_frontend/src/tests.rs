@@ -1256,6 +1256,22 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         assert_eq!(get_program_errors(src).len(), 2);
     }
 
+    // Regression for #2540
+    #[test]
+    fn for_loop_over_array() {
+        let src = r#"
+            fn hello<N>(_array: [u1; N]) {
+                for _ in 0..N {}
+            }
+
+            fn main() {
+                let array: [u1; 2] = [0, 1];
+                hello(array);
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 0);
+    }
+
     // Regression for #4545
     #[test]
     fn type_aliases_in_main() {
