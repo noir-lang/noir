@@ -5,22 +5,27 @@ use transforms::{
     compute_note_hash_and_nullifier::inject_compute_note_hash_and_nullifier,
     events::{generate_selector_impl, transform_events},
     functions::{transform_function, transform_unconstrained, transform_vm_function},
+    note_interface::generate_note_interface_impl,
     storage::{
         assign_storage_slots, check_for_storage_definition, check_for_storage_implementation,
         generate_storage_implementation,
     },
 };
 
-use noirc_frontend::hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl};
+use noirc_frontend::{
+    hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl},
+    macros_api::{
+        CrateId, FileId, HirContext, MacroError, MacroProcessor, SecondaryAttribute, SortedModule,
+        Span,
+    },
+};
 
-use noirc_frontend::macros_api::SortedModule;
-use noirc_frontend::macros_api::{CrateId, MacroError};
-use noirc_frontend::macros_api::{FileId, MacroProcessor};
-use noirc_frontend::macros_api::{HirContext, SecondaryAttribute, Span};
-
-use utils::ast_utils::is_custom_attribute;
-use utils::checks::{check_for_aztec_dependency, has_aztec_dependency};
-use utils::{constants::MAX_CONTRACT_PRIVATE_FUNCTIONS, errors::AztecMacroError};
+use utils::{
+    ast_utils::is_custom_attribute,
+    checks::{check_for_aztec_dependency, has_aztec_dependency},
+    constants::MAX_CONTRACT_PRIVATE_FUNCTIONS,
+    errors::AztecMacroError,
+};
 pub struct AztecMacro;
 
 impl MacroProcessor for AztecMacro {
@@ -28,9 +33,10 @@ impl MacroProcessor for AztecMacro {
         &self,
         ast: SortedModule,
         crate_id: &CrateId,
+        file_id: FileId,
         context: &HirContext,
     ) -> Result<SortedModule, (MacroError, FileId)> {
-        transform(ast, crate_id, context)
+        transform(ast, crate_id, file_id, context)
     }
 
     fn process_collected_defs(
@@ -61,38 +67,34 @@ impl MacroProcessor for AztecMacro {
 fn transform(
     mut ast: SortedModule,
     crate_id: &CrateId,
+    file_id: FileId,
     context: &HirContext,
 ) -> Result<SortedModule, (MacroError, FileId)> {
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        if transform_module(&mut submodule.contents, crate_id, context)
-            .map_err(|(err, file_id)| (err.into(), file_id))?
-        {
+        if transform_module(&mut submodule.contents).map_err(|err| (err.into(), file_id))? {
             check_for_aztec_dependency(crate_id, context)?;
         }
     }
+
+    generate_note_interface_impl(&mut ast).map_err(|err| (err.into(), file_id))?;
+
     Ok(ast)
 }
 
 /// Determines if ast nodes are annotated with aztec attributes.
 /// For annotated functions it calls the `transform` function which will perform the required transformations.
 /// Returns true if an annotated node is found, false otherwise
-fn transform_module(
-    module: &mut SortedModule,
-    crate_id: &CrateId,
-    context: &HirContext,
-) -> Result<bool, (AztecMacroError, FileId)> {
+fn transform_module(module: &mut SortedModule) -> Result<bool, AztecMacroError> {
     let mut has_transformed_module = false;
 
     // Check for a user defined storage struct
     let storage_defined = check_for_storage_definition(module);
     let storage_implemented = check_for_storage_implementation(module);
 
-    let crate_graph = &context.crate_graph[crate_id];
-
     if storage_defined && !storage_implemented {
-        generate_storage_implementation(module).map_err(|err| (err, crate_graph.root_file_id))?;
+        generate_storage_implementation(module)?;
     }
 
     for structure in module.types.iter() {
@@ -144,12 +146,10 @@ fn transform_module(
                 is_initializer,
                 insert_init_check,
                 is_internal,
-            )
-            .map_err(|err| (err, crate_graph.root_file_id))?;
+            )?;
             has_transformed_module = true;
         } else if is_public_vm {
-            transform_vm_function(func, storage_defined)
-                .map_err(|err| (err, crate_graph.root_file_id))?;
+            transform_vm_function(func, storage_defined)?;
             has_transformed_module = true;
         } else if storage_defined && func.def.is_unconstrained {
             transform_unconstrained(func);
@@ -173,11 +173,9 @@ fn transform_module(
             .count();
 
         if private_functions_count > MAX_CONTRACT_PRIVATE_FUNCTIONS {
-            let crate_graph = &context.crate_graph[crate_id];
-            return Err((
-                AztecMacroError::ContractHasTooManyPrivateFunctions { span: Span::default() },
-                crate_graph.root_file_id,
-            ));
+            return Err(AztecMacroError::ContractHasTooManyPrivateFunctions {
+                span: Span::default(),
+            });
         }
     }
 

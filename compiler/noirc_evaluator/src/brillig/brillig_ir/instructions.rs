@@ -359,6 +359,25 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Mov { destination, source });
     }
 
+    /// Emits a conditional `mov` instruction.
+    ///
+    /// Copies the value at `source` into `destination`
+    pub(crate) fn conditional_mov_instruction(
+        &mut self,
+        destination: MemoryAddress,
+        condition: MemoryAddress,
+        source_a: MemoryAddress,
+        source_b: MemoryAddress,
+    ) {
+        self.debug_show.conditional_mov_instruction(destination, condition, source_a, source_b);
+        self.push_opcode(BrilligOpcode::ConditionalMov {
+            destination,
+            source_a,
+            source_b,
+            condition,
+        });
+    }
+
     /// Cast truncates the value to the given bit size and converts the type of the value in memory to that bit size.
     pub(crate) fn cast_instruction(
         &mut self,

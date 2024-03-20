@@ -339,6 +339,15 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 self.memory.write(*destination_address, source_value);
                 self.increment_program_counter()
             }
+            Opcode::ConditionalMov { destination, source_a, source_b, condition } => {
+                let condition_value = self.memory.read(*condition);
+                if condition_value.is_zero() {
+                    self.memory.write(*destination, self.memory.read(*source_b));
+                } else {
+                    self.memory.write(*destination, self.memory.read(*source_a));
+                }
+                self.increment_program_counter()
+            }
             Opcode::Trap => self.fail("explicit trap hit in brillig".to_string()),
             Opcode::Stop { return_data_offset, return_data_size } => {
                 self.finish(*return_data_offset, *return_data_size)
@@ -791,6 +800,52 @@ mod tests {
 
         let source_value = memory.read(MemoryAddress::from(0));
         assert_eq!(source_value, Value::from(1u128));
+    }
+
+    #[test]
+    fn cmov_opcode() {
+        let calldata =
+            vec![Value::from(0u128), Value::from(1u128), Value::from(2u128), Value::from(3u128)];
+
+        let calldata_copy = Opcode::CalldataCopy {
+            destination_address: MemoryAddress::from(0),
+            size: 4,
+            offset: 0,
+        };
+
+        let opcodes = &[
+            calldata_copy,
+            Opcode::ConditionalMov {
+                destination: MemoryAddress(4), // Sets 3_u128 to memory address 4
+                source_a: MemoryAddress(2),
+                source_b: MemoryAddress(3),
+                condition: MemoryAddress(0),
+            },
+            Opcode::ConditionalMov {
+                destination: MemoryAddress(5), // Sets 2_u128 to memory address 5
+                source_a: MemoryAddress(2),
+                source_b: MemoryAddress(3),
+                condition: MemoryAddress(1),
+            },
+        ];
+        let mut vm = VM::new(calldata, opcodes, vec![], &DummyBlackBoxSolver);
+
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+
+        let VM { memory, .. } = vm;
+
+        let destination_value = memory.read(MemoryAddress::from(4));
+        assert_eq!(destination_value, Value::from(3_u128));
+
+        let source_value = memory.read(MemoryAddress::from(5));
+        assert_eq!(source_value, Value::from(2_u128));
     }
 
     #[test]

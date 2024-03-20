@@ -1339,18 +1339,23 @@ impl<'block> BrilligBlock<'block> {
             BrilligBinaryOp::LessThan,
         );
 
-        self.brillig_context.codegen_branch(result_is_negative.address, |ctx, is_negative| {
-            if is_negative {
-                // Two's complement of num
-                let zero = ctx.make_constant_instruction(0_usize.into(), num.bit_size);
-                ctx.binary_instruction(zero, num, absolute_value, BrilligBinaryOp::Sub);
-                ctx.deallocate_single_addr(zero);
-            } else {
-                // Simply move the original num
-                ctx.mov_instruction(absolute_value.address, num.address);
-            }
-        });
+        // Two's complement of num
+        let zero = self.brillig_context.make_constant_instruction(0_usize.into(), num.bit_size);
+        let twos_complement =
+            SingleAddrVariable::new(self.brillig_context.allocate_register(), num.bit_size);
+        self.brillig_context.binary_instruction(zero, num, twos_complement, BrilligBinaryOp::Sub);
+
+        // absolute_value = result_is_negative ? twos_complement : num
+        self.brillig_context.conditional_mov_instruction(
+            absolute_value.address,
+            result_is_negative.address,
+            twos_complement.address,
+            num.address,
+        );
+
+        self.brillig_context.deallocate_single_addr(zero);
         self.brillig_context.deallocate_single_addr(max_positive);
+        self.brillig_context.deallocate_single_addr(twos_complement);
     }
 
     fn convert_signed_division(
