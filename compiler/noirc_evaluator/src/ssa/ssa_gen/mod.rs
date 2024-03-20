@@ -152,6 +152,8 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
+            Expression::Break => Ok(self.codegen_break()),
+            Expression::Continue => Ok(self.codegen_continue()),
         }
     }
 
@@ -197,6 +199,15 @@ impl<'a> FunctionContext<'a> {
                     ast::Type::Array(_, _) => {
                         self.codegen_array_checked(elements, typ[0].clone())?
                     }
+                    _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
+                })
+            }
+            ast::Literal::Slice(array) => {
+                let elements =
+                    try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
+
+                let typ = Self::convert_type(&array.typ).flatten();
+                Ok(match array.typ {
                     ast::Type::Slice(_) => {
                         let slice_length =
                             self.builder.length_constant(array.contents.len() as u128);
@@ -204,10 +215,7 @@ impl<'a> FunctionContext<'a> {
                             self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![slice_length.into(), slice_contents])
                     }
-                    _ => unreachable!(
-                        "ICE: array literal type must be an array or a slice, but got {}",
-                        array.typ
-                    ),
+                    _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
                 })
             }
             ast::Literal::Integer(value, typ, location) => {
@@ -477,6 +485,10 @@ impl<'a> FunctionContext<'a> {
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
         let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
 
+        // Remember the blocks and variable used in case there are break/continue instructions
+        // within the loop which need to jump to them.
+        self.enter_loop(loop_entry, loop_index, loop_end);
+
         self.builder.set_location(for_expr.start_range_location);
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
 
@@ -507,6 +519,7 @@ impl<'a> FunctionContext<'a> {
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
+        self.exit_loop();
         Ok(Self::unit_value())
     }
 
@@ -735,5 +748,20 @@ impl<'a> FunctionContext<'a> {
     fn codegen_semi(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
         self.codegen_expression(expr)?;
         Ok(Self::unit_value())
+    }
+
+    fn codegen_break(&mut self) -> Values {
+        let loop_end = self.current_loop().loop_end;
+        self.builder.terminate_with_jmp(loop_end, Vec::new());
+        Self::unit_value()
+    }
+
+    fn codegen_continue(&mut self) -> Values {
+        let loop_ = self.current_loop();
+
+        // Must remember to increment i before jumping
+        let new_loop_index = self.make_offset(loop_.loop_index, 1);
+        self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
+        Self::unit_value()
     }
 }

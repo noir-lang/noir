@@ -84,6 +84,10 @@ pub enum ResolverError {
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { span: Span, item: String, cycle: String },
+    #[error("break/continue are only allowed in unconstrained functions")]
+    JumpInConstrainedFn { is_break: bool, span: Span },
+    #[error("break/continue are only allowed within loops")]
+    JumpOutsideLoop { is_break: bool, span: Span },
 }
 
 impl ResolverError {
@@ -319,6 +323,22 @@ impl From<ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Dependency cycle found".into(),
                     format!("'{item}' recursively depends on itself: {cycle}"),
+                    span,
+                )
+            },
+            ResolverError::JumpInConstrainedFn { is_break, span } => {
+                let item = if is_break { "break" } else { "continue" };
+                Diagnostic::simple_error(
+                    format!("{item} is only allowed in unconstrained functions"),
+                    "Constrained code must always have a known number of loop iterations".into(),
+                    span,
+                )
+            },
+            ResolverError::JumpOutsideLoop { is_break, span } => {
+                let item = if is_break { "break" } else { "continue" };
+                Diagnostic::simple_error(
+                    format!("{item} is only allowed within loops"),
+                    "".into(),
                     span,
                 )
             },

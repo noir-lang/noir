@@ -49,11 +49,10 @@ impl FunctionBuilder {
     ) -> Self {
         let mut new_function = Function::new(function_name, function_id);
         new_function.set_runtime(runtime);
-        let current_block = new_function.entry_block();
 
         Self {
+            current_block: new_function.entry_block(),
             current_function: new_function,
-            current_block,
             finished_functions: Vec::new(),
             call_stack: CallStack::new(),
         }
@@ -153,9 +152,10 @@ impl FunctionBuilder {
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
+        let block = self.current_block();
         self.current_function.dfg.insert_instruction_and_results(
             instruction,
-            self.current_block,
+            block,
             ctrl_typevars,
             self.call_stack.clone(),
         )
@@ -310,8 +310,11 @@ impl FunctionBuilder {
     }
 
     /// Terminates the current block with the given terminator instruction
+    /// if the current block does not already have a terminator instruction.
     fn terminate_block_with(&mut self, terminator: TerminatorInstruction) {
-        self.current_function.dfg.set_block_terminator(self.current_block, terminator);
+        if self.current_function.dfg[self.current_block].terminator().is_none() {
+            self.current_function.dfg.set_block_terminator(self.current_block, terminator);
+        }
     }
 
     /// Terminate the current block with a jmp instruction to jmp to the given

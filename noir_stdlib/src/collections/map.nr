@@ -288,10 +288,10 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         let mut result = Option::none();
 
         let hash = self.hash(key);
-        let mut break = false;
+        let mut should_break = false;
 
         for attempt in 0..N {
-            if !break {
+            if !should_break {
                 let index = self.quadratic_probe(hash, attempt as u64);
                 let slot = self._table[index];
 
@@ -300,7 +300,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
                     let (current_key, value) = slot.key_value_unchecked();
                     if current_key == key {
                         result = Option::some(value);
-                        break = true;
+                        should_break = true;
                     }
                 }
             }
@@ -324,10 +324,10 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         self.assert_load_factor();
 
         let hash = self.hash(key);
-        let mut break = false;
+        let mut should_break = false;
 
         for attempt in 0..N {
-            if !break {
+            if !should_break {
                 let index = self.quadratic_probe(hash, attempt as u64);
                 let mut slot = self._table[index];
                 let mut insert = false;
@@ -346,7 +346,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
                 if insert {
                     slot.set(key, value);
                     self._table[index] = slot;
-                    break = true;
+                    should_break = true;
                 }
             }
         }
@@ -364,10 +364,10 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         H: Hasher {
         // docs:end:remove
         let hash = self.hash(key);
-        let mut break = false;
+        let mut should_break = false;
 
         for attempt in 0..N {
-            if !break {
+            if !should_break {
                 let index = self.quadratic_probe(hash, attempt as u64);
                 let mut slot = self._table[index];
 
@@ -378,7 +378,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
                         slot.mark_deleted();
                         self._table[index] = slot;
                         self._len -= 1;
-                        break = true;
+                        should_break = true;
                     }
                 }
             }
