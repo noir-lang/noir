@@ -195,12 +195,9 @@ impl FunctionBuilder {
         self.call_stack.clone()
     }
 
-    /// Insert a Load instruction at the end of the current block, loading from the given offset
-    /// of the given address which should point to a previous Allocate instruction. Note that
-    /// this is limited to loading a single value. Loading multiple values (such as a tuple)
-    /// will require multiple loads.
-    /// 'offset' is in units of FieldElements here. So loading the fourth FieldElement stored in
-    /// an array will have an offset of 3.
+    /// Insert a Load instruction at the end of the current block, loading from the given address
+    /// which should point to a previous Allocate instruction. Note that this is limited to loading
+    /// a single value. Loading multiple values (such as a tuple) will require multiple loads.
     /// Returns the element that was loaded.
     pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
         self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
@@ -221,11 +218,9 @@ impl FunctionBuilder {
         operator: BinaryOp,
         rhs: ValueId,
     ) -> ValueId {
-        assert_eq!(
-            self.type_of_value(lhs),
-            self.type_of_value(rhs),
-            "ICE - Binary instruction operands must have the same type"
-        );
+        let lhs_type = self.type_of_value(lhs);
+        let rhs_type = self.type_of_value(rhs);
+        assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }
