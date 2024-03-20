@@ -101,6 +101,9 @@ pub enum Type {
     /// bind to an integer without special checks to bind it to a non-type.
     Constant(u64),
 
+    /// The type of quoted code in macros. This is always a comptime-only type
+    Code,
+
     /// The result of some type error. Remembering type errors as their own type variant lets
     /// us avoid issuing repeat type errors for the same item. For example, a lambda with
     /// an invalid type would otherwise issue a new error each time it is called
@@ -144,6 +147,7 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Constant(_)
+            | Type::Code
             | Type::Slice(_)
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
@@ -626,6 +630,7 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::Forall(_, _)
+            | Type::Code
             | Type::TraitAsType(..) => false,
 
             Type::Array(length, elem) => {
@@ -689,6 +694,7 @@ impl Type {
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
+            | Type::Code
             | Type::Slice(_)
             | Type::TraitAsType(..) => false,
 
@@ -852,6 +858,7 @@ impl std::fmt::Display for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
             }
+            Type::Code => write!(f, "Code"),
         }
     }
 }
@@ -1529,6 +1536,7 @@ impl Type {
             | Type::Constant(_)
             | Type::TraitAsType(..)
             | Type::Error
+            | Type::Code
             | Type::Unit => self.clone(),
         }
     }
@@ -1570,6 +1578,7 @@ impl Type {
             | Type::Constant(_)
             | Type::TraitAsType(..)
             | Type::Error
+            | Type::Code
             | Type::Unit => false,
         }
     }
@@ -1621,9 +1630,14 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            TraitAsType(..) | FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Error => {
-                self.clone()
-            }
+            TraitAsType(..)
+            | FieldElement
+            | Integer(_, _)
+            | Bool
+            | Constant(_)
+            | Unit
+            | Code
+            | Error => self.clone(),
         }
     }
 
@@ -1752,6 +1766,7 @@ impl From<&Type> for PrintableType {
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }
+            Type::Code => unreachable!(),
         }
     }
 }
@@ -1836,6 +1851,7 @@ impl std::fmt::Debug for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element:?}")
             }
+            Type::Code => write!(f, "Code"),
         }
     }
 }
