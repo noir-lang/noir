@@ -1,25 +1,19 @@
 import { L2BlockL2Logs, TxEffect } from '@aztec/circuit-types';
-import { NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
-import { makeTuple } from '@aztec/foundation/array';
-import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { inspect } from 'util';
 
 export class Body {
-  constructor(
-    public l1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
-    public txEffects: TxEffect[],
-  ) {}
+  constructor(public txEffects: TxEffect[]) {}
 
   /**
    * Serializes a block body
    * @returns A serialized L2 block body.
    */
   toBuffer() {
-    return serializeToBuffer(this.l1ToL2Messages.length, this.l1ToL2Messages, this.txEffects.length, this.txEffects);
+    return serializeToBuffer(this.txEffects.length, this.txEffects);
   }
 
   /**
@@ -28,20 +22,12 @@ export class Body {
    */
   static fromBuffer(buf: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buf);
-    const l1ToL2Messages = reader.readVector(Fr);
 
-    return new this(
-      padArrayEnd(l1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP),
-      reader.readVector(TxEffect),
-    );
+    return new this(reader.readVector(TxEffect));
   }
 
   [inspect.custom]() {
-    // print non empty l2ToL1Messages and txEffects
-    const l1ToL2Messages = this.l1ToL2Messages.filter(h => !h.isZero());
-
     return `Body {
-  l1ToL2Messages: ${inspect(l1ToL2Messages)},
   txEffects: ${inspect(this.txEffects)},
 }`;
   }
@@ -102,13 +88,11 @@ export class Body {
     numPublicCallsPerTx = 3,
     numEncryptedLogsPerCall = 2,
     numUnencryptedLogsPerCall = 1,
-    numL1ToL2MessagesPerCall = 2,
   ) {
-    const l1ToL2Messages = makeTuple(numL1ToL2MessagesPerCall, Fr.random);
     const txEffects = [...new Array(txsPerBlock)].map(_ =>
       TxEffect.random(numPrivateCallsPerTx, numPublicCallsPerTx, numEncryptedLogsPerCall, numUnencryptedLogsPerCall),
     );
 
-    return new Body(padArrayEnd(l1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP), txEffects);
+    return new Body(txEffects);
   }
 }

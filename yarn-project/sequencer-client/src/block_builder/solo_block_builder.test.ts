@@ -240,7 +240,7 @@ describe('sequencer/solo_block_builder', () => {
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
     const txEffects: TxEffect[] = txs.map(tx => toTxEffect(tx));
 
-    const body = new Body(padArrayEnd(mockL1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP), txEffects);
+    const body = new Body(txEffects);
     // We are constructing the block here just to get body hash/calldata hash so we can pass in an empty archive and header
     const l2Block = L2Block.fromFields({
       archive: AppendOnlyTreeSnapshot.zero(),

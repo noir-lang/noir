@@ -64,18 +64,15 @@ describe('Aztec persistence', () => {
     ownerAddress = ownerWallet.getCompleteAddress();
     ownerSalt = ownerWallet.salt;
 
-    const deployer = TokenContract.deploy(ownerWallet, ownerWallet.getAddress(), 'Test token', 'TEST', 2);
-    await deployer.simulate({});
-
-    const contract = await deployer.send().deployed();
+    const contract = await TokenContract.deploy(ownerWallet, ownerWallet.getAddress(), 'Test token', 'TEST', 2)
+      .send()
+      .deployed();
     contractInstance = contract.instance;
     contractAddress = contract.address;
 
     const secret = Fr.random();
 
-    const mintTx = contract.methods.mint_private(1000n, computeMessageSecretHash(secret));
-    await mintTx.simulate();
-    const mintTxReceipt = await mintTx.send().wait();
+    const mintTxReceipt = await contract.methods.mint_private(1000n, computeMessageSecretHash(secret)).send().wait();
 
     await addPendingShieldNoteToPXE(
       ownerWallet,
@@ -85,9 +82,7 @@ describe('Aztec persistence', () => {
       mintTxReceipt.txHash,
     );
 
-    const redeemTx = contract.methods.redeem_shield(ownerAddress.address, 1000n, secret);
-    await redeemTx.simulate();
-    await redeemTx.send().wait();
+    await contract.methods.redeem_shield(ownerAddress.address, 1000n, secret).send().wait();
 
     await initialContext.teardown();
   }, 100_000);

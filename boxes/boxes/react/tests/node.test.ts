@@ -21,9 +21,7 @@ describe('BoxReact Contract Tests', () => {
 
   test('Can set a number', async () => {
     logger(`${await wallet.getRegisteredAccounts()}`);
-    const callTxReceipt = await contract.methods.setNumber(numberToSet, wallet.getCompleteAddress()).send().wait();
-
-    expect(callTxReceipt.status).toBe(TxStatus.MINED);
+    await contract.methods.setNumber(numberToSet, wallet.getCompleteAddress()).send().wait();
   }, 40000);
 
   test('Can read a number', async () => {

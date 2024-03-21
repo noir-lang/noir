@@ -72,7 +72,7 @@ contract RollupTest is DecoderBase {
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidChainId.selector, 0x420, 31337));
-    rollup.process(header, archive, body, bytes(""));
+    rollup.process(header, archive, bytes(""));
   }
 
   function testRevertInvalidVersion() public {
@@ -88,7 +88,7 @@ contract RollupTest is DecoderBase {
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidVersion.selector, 0x420, 1));
-    rollup.process(header, archive, body, bytes(""));
+    rollup.process(header, archive, bytes(""));
   }
 
   function testRevertTimestampInFuture() public {
@@ -105,7 +105,7 @@ contract RollupTest is DecoderBase {
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__TimestampInFuture.selector));
-    rollup.process(header, archive, body, bytes(""));
+    rollup.process(header, archive, bytes(""));
   }
 
   function testRevertTimestampTooOld() public {
@@ -120,7 +120,7 @@ contract RollupTest is DecoderBase {
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__TimestampTooOld.selector));
-    rollup.process(header, archive, body, bytes(""));
+    rollup.process(header, archive, bytes(""));
   }
 
   function _testBlock(string memory name) public {
@@ -139,7 +139,7 @@ contract RollupTest is DecoderBase {
     uint256 toConsume = inbox.toConsume();
 
     vm.record();
-    rollup.process(header, archive, body, bytes(""));
+    rollup.process(header, archive, bytes(""));
 
     assertEq(inbox.toConsume(), toConsume + 1, "Message subtree not consumed");
 

@@ -1,5 +1,5 @@
 import { L2Block, MerkleTreeId, SiblingPath } from '@aztec/circuit-types';
-import { Header, NullifierLeafPreimage, StateReference } from '@aztec/circuits.js';
+import { Fr, Header, NullifierLeafPreimage, StateReference } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult } from '@aztec/merkle-tree';
@@ -140,8 +140,9 @@ export interface MerkleTreeOperations {
   /**
    * Handles a single L2 block (i.e. Inserts the new note hashes into the merkle tree).
    * @param block - The L2 block to handle.
+   * @param l1ToL2Messages - The L1 to L2 messages for the block.
    */
-  handleL2Block(block: L2Block): Promise<HandleL2BlockResult>;
+  handleL2BlockAndMessages(block: L2Block, l1ToL2Messages: Fr[]): Promise<HandleL2BlockAndMessagesResult>;
 
   /**
    * Commits pending changes to the underlying store.
@@ -154,8 +155,8 @@ export interface MerkleTreeOperations {
   rollback(): Promise<void>;
 }
 
-/** Return type for handleL2Block */
-export type HandleL2BlockResult = {
+/** Return type for handleL2BlockAndMessages */
+export type HandleL2BlockAndMessagesResult = {
   /** Whether the block processed was emitted by our sequencer */ isBlockOurs: boolean;
 };
 

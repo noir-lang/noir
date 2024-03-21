@@ -11,7 +11,6 @@ import {IRegistry} from "./interfaces/messagebridge/IRegistry.sol";
 
 // Libraries
 import {HeaderLib} from "./libraries/HeaderLib.sol";
-import {MessagesDecoder} from "./libraries/decoders/MessagesDecoder.sol";
 import {Hash} from "./libraries/Hash.sol";
 import {Errors} from "./libraries/Errors.sol";
 import {Constants} from "./libraries/ConstantsGen.sol";
@@ -54,15 +53,12 @@ contract Rollup is IRollup {
    * @notice Process an incoming L2 block and progress the state
    * @param _header - The L2 block header
    * @param _archive - A root of the archive tree after the L2 block is applied
-   * @param _body - The L2 block body
    * @param _proof - The proof of correct execution
    */
-  function process(
-    bytes calldata _header,
-    bytes32 _archive,
-    bytes calldata _body, // TODO(#5073) Nuke this when updating to the new message model
-    bytes memory _proof
-  ) external override(IRollup) {
+  function process(bytes calldata _header, bytes32 _archive, bytes memory _proof)
+    external
+    override(IRollup)
+  {
     // Decode and validate header
     HeaderLib.Header memory header = HeaderLib.decode(_header);
     HeaderLib.validate(header, VERSION, lastBlockTs, archive);
@@ -71,10 +67,6 @@ contract Rollup is IRollup {
     if (!AVAILABILITY_ORACLE.isAvailable(header.contentCommitment.txsEffectsHash)) {
       revert Errors.Rollup__UnavailableTxs(header.contentCommitment.txsEffectsHash);
     }
-
-    // Decode the cross-chain messages (Will be removed as part of message model change)
-    // TODO(#5339)
-    (,,, bytes32[] memory l2ToL1Msgs) = MessagesDecoder.decode(_body);
 
     bytes32[] memory publicInputs = new bytes32[](1);
     publicInputs[0] = _computePublicInputHash(_header, _archive);

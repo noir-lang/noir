@@ -221,12 +221,11 @@ function makeLeafInsertedEvent(l1BlockNum: bigint, l2BlockNumber: bigint, index:
 function makeRollupTx(l2Block: L2Block) {
   const header = toHex(l2Block.header.toBuffer());
   const archive = toHex(l2Block.archive.root.toBuffer());
-  const body = toHex(l2Block.body.toBuffer());
   const proof = `0x`;
   const input = encodeFunctionData({
     abi: RollupAbi,
     functionName: 'process',
-    args: [header, archive, body, proof],
+    args: [header, archive, proof],
   });
   return { input } as Transaction<bigint, number>;
 }

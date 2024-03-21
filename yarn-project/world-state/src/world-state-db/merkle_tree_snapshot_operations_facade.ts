@@ -4,7 +4,7 @@ import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { BatchInsertionResult, IndexedTreeSnapshot, TreeSnapshot } from '@aztec/merkle-tree';
 
 import { MerkleTreeDb } from './merkle_tree_db.js';
-import { HandleL2BlockResult, MerkleTreeOperations, TreeInfo } from './merkle_tree_operations.js';
+import { HandleL2BlockAndMessagesResult, MerkleTreeOperations, TreeInfo } from './merkle_tree_operations.js';
 
 /**
  * Merkle tree operations on readonly tree snapshots.
@@ -130,7 +130,7 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
     return Promise.reject(new Error('Tree snapshot operations are read-only'));
   }
 
-  handleL2Block(): Promise<HandleL2BlockResult> {
+  handleL2BlockAndMessages(): Promise<HandleL2BlockAndMessagesResult> {
     return Promise.reject(new Error('Tree snapshot operations are read-only'));
   }
 

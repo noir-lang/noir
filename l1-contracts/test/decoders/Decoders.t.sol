@@ -8,11 +8,9 @@ import {Hash} from "../../src/core/libraries/Hash.sol";
 import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
 
 import {HeaderLibHelper} from "./helpers/HeaderLibHelper.sol";
-import {MessagesDecoderHelper} from "./helpers/MessagesDecoderHelper.sol";
 import {TxsDecoderHelper} from "./helpers/TxsDecoderHelper.sol";
 import {HeaderLib} from "../../src/core/libraries/HeaderLib.sol";
 
-import {MessagesDecoder} from "../../src/core/libraries/decoders/MessagesDecoder.sol";
 import {TxsDecoder} from "../../src/core/libraries/decoders/TxsDecoder.sol";
 
 import {AvailabilityOracle} from "../../src/core/availability_oracle/AvailabilityOracle.sol";
@@ -25,12 +23,10 @@ import {AvailabilityOracle} from "../../src/core/availability_oracle/Availabilit
  */
 contract DecodersTest is DecoderBase {
   HeaderLibHelper internal headerHelper;
-  MessagesDecoderHelper internal messagesHelper;
   TxsDecoderHelper internal txsHelper;
 
   function setUp() public virtual {
     headerHelper = new HeaderLibHelper();
-    messagesHelper = new MessagesDecoderHelper();
     txsHelper = new TxsDecoderHelper();
   }
 
@@ -150,21 +146,6 @@ contract DecodersTest is DecoderBase {
       assertEq(
         header.lastArchive.root, referenceHeader.lastArchive.root, "Invalid lastArchive.root"
       );
-    }
-
-    // Messages
-    {
-      (,,, bytes32[] memory msgsL2ToL1Msgs) = messagesHelper.decode(data.block.body);
-
-      // assertEq(msgsL2ToL1MsgsHash, b.l2ToL1MessagesHash, "Invalid l2ToL1MsgsHash");
-
-      // L2 -> L1 messages
-      assertEq(
-        msgsL2ToL1Msgs.length, data.messages.l2ToL1Messages.length, "Invalid l2ToL1Msgs length"
-      );
-      for (uint256 i = 0; i < msgsL2ToL1Msgs.length; i++) {
-        assertEq(msgsL2ToL1Msgs[i], data.messages.l2ToL1Messages[i], "Invalid l2ToL1Msgs messages");
-      }
     }
 
     // Txs
