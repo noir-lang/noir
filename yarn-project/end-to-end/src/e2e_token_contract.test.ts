@@ -395,8 +395,22 @@ describe('e2e_token_contract', () => {
             .withWallet(wallets[1])
             .methods.transfer_public(accounts[0].address, accounts[1].address, amount, nonce);
 
+          expect(
+            await wallets[0].lookupValidity(wallets[0].getAddress(), { caller: accounts[1].address, action }),
+          ).toEqual({
+            isValidInPrivate: false,
+            isValidInPublic: false,
+          });
+
           // We need to compute the message we want to sign and add it to the wallet as approved
           await wallets[0].setPublicAuthWit({ caller: accounts[1].address, action }, true).send().wait();
+
+          expect(
+            await wallets[0].lookupValidity(wallets[0].getAddress(), { caller: accounts[1].address, action }),
+          ).toEqual({
+            isValidInPrivate: false,
+            isValidInPublic: true,
+          });
 
           // Perform the transfer
           await expect(action.simulate()).rejects.toThrow(U128_UNDERFLOW_ERROR);
@@ -567,6 +581,12 @@ describe('e2e_token_contract', () => {
 
         const witness = await wallets[0].createAuthWit({ caller: accounts[1].address, action });
         await wallets[1].addAuthWitness(witness);
+        expect(
+          await wallets[0].lookupValidity(wallets[0].getAddress(), { caller: accounts[1].address, action }),
+        ).toEqual({
+          isValidInPrivate: true,
+          isValidInPublic: false,
+        });
         // docs:end:authwit_transfer_example
 
         // Perform the transfer

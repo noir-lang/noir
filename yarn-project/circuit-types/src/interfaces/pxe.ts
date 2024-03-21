@@ -36,6 +36,13 @@ export interface PXE {
   addAuthWitness(authWitness: AuthWitness): Promise<void>;
 
   /**
+   * Fetches the serialized auth witness for a given message hash or returns undefined if not found.
+   * @param messageHash - The hash of the message for which to get the auth witness.
+   * @returns The serialized auth witness for the given message hash.
+   */
+  getAuthWitness(messageHash: Fr): Promise<Fr[] | undefined>;
+
+  /**
    * Adding a capsule to the capsule dispenser.
    * @param capsule - An array of field elements representing the capsule.
    * @remarks A capsule is a "blob" of data that is passed to the contract through an oracle.

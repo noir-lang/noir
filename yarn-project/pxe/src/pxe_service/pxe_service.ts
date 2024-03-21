@@ -147,6 +147,10 @@ export class PXEService implements PXE {
     return this.db.addAuthWitness(witness.requestHash, witness.witness);
   }
 
+  public getAuthWitness(messageHash: Fr): Promise<Fr[] | undefined> {
+    return this.db.getAuthWitness(messageHash);
+  }
+
   public addCapsule(capsule: Fr[]) {
     return this.db.addCapsule(capsule);
   }
