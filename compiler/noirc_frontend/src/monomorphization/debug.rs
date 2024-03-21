@@ -196,8 +196,8 @@ fn element_type_at_index(ptype: &PrintableType, i: usize) -> &PrintableType {
         PrintableType::Tuple { types } => &types[i],
         PrintableType::Struct { name: _name, fields } => &fields[i].1,
         PrintableType::String { length: _length } => &PrintableType::UnsignedInteger { width: 8 },
-        _ => {
-            panic!["expected type with sub-fields, found terminal type"]
+        other => {
+            panic!["expected type with sub-fields, found terminal type: {other:?}"]
         }
     }
 }
