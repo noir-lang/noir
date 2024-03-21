@@ -5,6 +5,8 @@ use crate::default::Default;
 use crate::hash::{Hash, Hasher, BuildHasher};
 use crate::collections::bounded_vec::BoundedVec;
 
+global MAX_COLLISION_LEN = 8;
+
 // We use load factor α_max = 0.75. 
 // Upon exceeding it, assert will fail in order to inform the user 
 // about performance degradation, so that he can adjust the capacity.
@@ -290,7 +292,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         let hash = self.hash(key);
         let mut should_break = false;
 
-        for attempt in 0..N {
+        for attempt in 0..MAX_COLLISION_LEN {
             if !should_break {
                 let index = self.quadratic_probe(hash, attempt as u64);
                 let slot = self._table[index];
@@ -326,7 +328,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         let hash = self.hash(key);
         let mut should_break = false;
 
-        for attempt in 0..N {
+        for attempt in 0..MAX_COLLISION_LEN {
             if !should_break {
                 let index = self.quadratic_probe(hash, attempt as u64);
                 let mut slot = self._table[index];
@@ -350,6 +352,8 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
                 }
             }
         }
+
+        assert(should_break, "HashMap::insert: too many collisions, out of space!");
     }
 
     // Removes a key-value entry. If key is not present, HashMap remains unchanged.
