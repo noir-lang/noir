@@ -260,9 +260,7 @@ impl<'interner> TypeChecker<'interner> {
                     Type::Error => Type::Error,
                     Type::String(_) => {
                         let (_lvalue_name, lvalue_span) = self.get_lvalue_name_and_span(&lvalue);
-                        self.errors.push(TypeCheckError::StringIndexAssign {
-                            span: lvalue_span,
-                        });
+                        self.errors.push(TypeCheckError::StringIndexAssign { span: lvalue_span });
                         Type::Error
                     }
                     other => {
