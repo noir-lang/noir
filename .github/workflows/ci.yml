@@ -33,6 +33,7 @@ jobs:
 
       - name: Test
         working-directory: ./yarn-project/end-to-end
+        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr'
         run: |
           # TODO put in script
           if [ "${{ matrix.environment }}" == "arm" ]; then
@@ -72,6 +73,7 @@ jobs:
 
       - name: Build and test
         working-directory: ./barretenberg/cpp
+        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr'
         run:  |
           # TODO put in script
           if [ "${{ matrix.environment }}" == "arm" ]; then
