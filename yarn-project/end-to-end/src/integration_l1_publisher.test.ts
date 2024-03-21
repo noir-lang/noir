@@ -24,10 +24,11 @@ import {
   SideEffectLinkedToNoteHash,
 } from '@aztec/circuits.js';
 import { fr, makeNewSideEffect, makeNewSideEffectLinkedToNoteHash, makeProof } from '@aztec/circuits.js/testing';
-import { createEthereumChain } from '@aztec/ethereum';
+import { L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { makeTuple, range } from '@aztec/foundation/array';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { AvailabilityOracleAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
+import { SHA256, StandardTree } from '@aztec/merkle-tree';
 import {
   EmptyRollupProver,
   L1Publisher,
@@ -44,6 +45,7 @@ import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import * as fs from 'fs';
 import {
+  Account,
   Address,
   Chain,
   GetContractReturnType,
@@ -72,6 +74,8 @@ const numberOfConsecutiveBlocks = 2;
 
 describe('L1Publisher integration', () => {
   let publicClient: PublicClient<HttpTransport, Chain>;
+  let walletClient: WalletClient<HttpTransport, Chain, Account>;
+  let l1ContractAddresses: L1ContractAddresses;
   let deployerAccount: PrivateKeyAccount;
 
   let rollupAddress: Address;
@@ -79,7 +83,7 @@ describe('L1Publisher integration', () => {
   let outboxAddress: Address;
 
   let rollup: GetContractReturnType<typeof RollupAbi, PublicClient<HttpTransport, Chain>>;
-  let inbox: GetContractReturnType<typeof InboxAbi, WalletClient<HttpTransport, Chain>>;
+  let inbox: GetContractReturnType<typeof InboxAbi, PublicClient<HttpTransport, Chain>>;
   let outbox: GetContractReturnType<typeof OutboxAbi, PublicClient<HttpTransport, Chain>>;
 
   let publisher: L1Publisher;
@@ -101,12 +105,11 @@ describe('L1Publisher integration', () => {
 
   beforeEach(async () => {
     deployerAccount = privateKeyToAccount(deployerPK);
-    const {
-      l1ContractAddresses,
-      walletClient,
-      publicClient: publicClient_,
-    } = await setupL1Contracts(config.rpcUrl, deployerAccount, logger);
-    publicClient = publicClient_;
+    ({ l1ContractAddresses, publicClient, walletClient } = await setupL1Contracts(
+      config.rpcUrl,
+      deployerAccount,
+      logger,
+    ));
 
     rollupAddress = getAddress(l1ContractAddresses.rollupAddress.toString());
     inboxAddress = getAddress(l1ContractAddresses.inboxAddress.toString());
@@ -123,7 +126,6 @@ describe('L1Publisher integration', () => {
       abi: InboxAbi,
       client: walletClient,
     });
-
     outbox = getContract({
       address: outboxAddress,
       abi: OutboxAbi,
@@ -372,10 +374,10 @@ describe('L1Publisher integration', () => {
 
       const newL2ToL1MsgsArray = block.body.txEffects.flatMap(txEffect => txEffect.l2ToL1Msgs);
 
-      // check that values are not in the outbox
-      for (let j = 0; j < newL2ToL1MsgsArray.length; j++) {
-        expect(await outbox.read.contains([newL2ToL1MsgsArray[j].toString()])).toBeFalsy();
-      }
+      const [emptyRoot] = await outbox.read.roots([block.header.globalVariables.blockNumber.toBigInt()]);
+
+      // Check that we have not yet written a root to this blocknumber
+      expect(BigInt(emptyRoot)).toStrictEqual(0n);
 
       writeJson(`mixed_block_${i}`, block, l1ToL2Content, recipientAddress, deployerAccount.address);
 
@@ -413,10 +415,16 @@ describe('L1Publisher integration', () => {
       expect(newToConsume).toEqual(toConsume + 1n);
       toConsume = newToConsume;
 
+      const treeHeight = Math.ceil(Math.log2(newL2ToL1MsgsArray.length));
+
+      const tree = new StandardTree(openTmpStore(true), new SHA256(), 'temp_outhash_sibling_path', treeHeight);
+      await tree.appendLeaves(newL2ToL1MsgsArray.map(l2ToL1Msg => l2ToL1Msg.toBuffer()));
+
+      const expectedRoot = tree.getRoot(true);
+      const [actualRoot] = await outbox.read.roots([block.header.globalVariables.blockNumber.toBigInt()]);
+
       // check that values are inserted into the outbox
-      for (let j = 0; j < newL2ToL1MsgsArray.length; j++) {
-        expect(await outbox.read.contains([newL2ToL1MsgsArray[j].toString()])).toBeTruthy();
-      }
+      expect(`0x${expectedRoot.toString('hex')}`).toEqual(actualRoot);
 
       // There is a 1 block lag between before messages get consumed from the inbox
       currentL1ToL2Messages = nextL1ToL2Messages;

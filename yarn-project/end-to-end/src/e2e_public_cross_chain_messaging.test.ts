@@ -21,7 +21,7 @@ import { TestContract } from '@aztec/noir-contracts.js';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
 import { TokenBridgeContract } from '@aztec/noir-contracts.js/TokenBridge';
 
-import { Hex } from 'viem';
+import { Chain, GetContractReturnType, Hex, HttpTransport, PublicClient } from 'viem';
 import { decodeEventLog, toFunctionSelector } from 'viem/utils';
 
 import { publicDeployAccounts, setup } from './fixtures/utils.js';
@@ -44,8 +44,8 @@ describe('e2e_public_cross_chain_messaging', () => {
   let crossChainTestHarness: CrossChainTestHarness;
   let l2Token: TokenContract;
   let l2Bridge: TokenBridgeContract;
-  let inbox: any;
-  let outbox: any;
+  let inbox: GetContractReturnType<typeof InboxAbi, PublicClient<HttpTransport, Chain>>;
+  let outbox: GetContractReturnType<typeof OutboxAbi, PublicClient<HttpTransport, Chain>>;
 
   beforeAll(async () => {
     ({ aztecNode, pxe, deployL1ContractsValues, wallets, accounts, logger, teardown } = await setup(2));
@@ -113,16 +113,25 @@ describe('e2e_public_cross_chain_messaging', () => {
     await user1Wallet.setPublicAuthWit(burnMessageHash, true).send().wait();
 
     // 5. Withdraw owner's funds from L2 to L1
-    const entryKey = await crossChainTestHarness.checkEntryIsNotInOutbox(withdrawAmount);
-    await crossChainTestHarness.withdrawPublicFromAztecToL1(withdrawAmount, nonce);
+    const l2ToL1Message = crossChainTestHarness.getL2ToL1MessageLeaf(withdrawAmount);
+    const l2TxReceipt = await crossChainTestHarness.withdrawPublicFromAztecToL1(withdrawAmount, nonce);
     await crossChainTestHarness.expectPublicBalanceOnL2(ownerAddress, afterBalance - withdrawAmount);
 
     // Check balance before and after exit.
     expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount);
-    await crossChainTestHarness.withdrawFundsFromBridgeOnL1(withdrawAmount, entryKey);
-    expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount + withdrawAmount);
 
-    expect(await outbox.read.contains([entryKey.toString()])).toBeFalsy();
+    const [l2ToL1MessageIndex, siblingPath] = await aztecNode.getL2ToL1MessageIndexAndSiblingPath(
+      l2TxReceipt.blockNumber!,
+      l2ToL1Message,
+    );
+
+    await crossChainTestHarness.withdrawFundsFromBridgeOnL1(
+      withdrawAmount,
+      l2TxReceipt.blockNumber!,
+      l2ToL1MessageIndex,
+      siblingPath,
+    );
+    expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount + withdrawAmount);
   }, 120_000);
   // docs:end:e2e_public_cross_chain
 
@@ -225,14 +234,19 @@ describe('e2e_public_cross_chain_messaging', () => {
       const content = Fr.random();
       const recipient = crossChainTestHarness.ethAccount;
 
+      let l2TxReceipt;
+
       // We create the L2 -> L1 message using the test contract
       if (isPrivate) {
-        await testContract.methods
+        l2TxReceipt = await testContract.methods
           .create_l2_to_l1_message_arbitrary_recipient_private(content, recipient)
           .send()
           .wait();
       } else {
-        await testContract.methods.create_l2_to_l1_message_arbitrary_recipient_public(content, recipient).send().wait();
+        l2TxReceipt = await testContract.methods
+          .create_l2_to_l1_message_arbitrary_recipient_public(content, recipient)
+          .send()
+          .wait();
       }
 
       const l2ToL1Message = {
@@ -244,7 +258,33 @@ describe('e2e_public_cross_chain_messaging', () => {
         content: content.toString() as Hex,
       };
 
-      const txHash = await outbox.write.consume([l2ToL1Message] as const, {} as any);
+      const leaf = Fr.fromBufferReduce(
+        sha256(
+          Buffer.concat([
+            testContract.address.toBuffer(),
+            new Fr(1).toBuffer(), // aztec version
+            recipient.toBuffer32(),
+            new Fr(crossChainTestHarness.publicClient.chain.id).toBuffer(), // chain id
+            content.toBuffer(),
+          ]),
+        ),
+      );
+
+      const [l2MessageIndex, siblingPath] = await aztecNode.getL2ToL1MessageIndexAndSiblingPath(
+        l2TxReceipt.blockNumber!,
+        leaf,
+      );
+
+      const txHash = await outbox.write.consume(
+        [
+          l2ToL1Message,
+          BigInt(l2TxReceipt.blockNumber!),
+          BigInt(l2MessageIndex),
+          siblingPath.toBufferArray().map((buf: Buffer) => `0x${buf.toString('hex')}`) as readonly `0x${string}`[],
+        ],
+        {} as any,
+      );
+
       const txReceipt = await crossChainTestHarness.publicClient.waitForTransactionReceipt({
         hash: txHash,
       });
@@ -258,12 +298,19 @@ describe('e2e_public_cross_chain_messaging', () => {
         abi: OutboxAbi,
         data: txLog.data,
         topics: txLog.topics,
-      });
+      }) as {
+        eventName: 'MessageConsumed';
+        args: {
+          l2BlockNumber: bigint;
+          root: `0x${string}`;
+          messageHash: `0x${string}`;
+          leafIndex: bigint;
+        };
+      };
 
-      // We check that MessageConsumed event was emitted with the expected recipient
-      // Note: For whatever reason, viem types "think" that there is no recipient on topics.args. I hack around this
-      // by casting the args to "any"
-      expect((topics.args as any).recipient).toBe(recipient.toChecksumString());
+      // We check that MessageConsumed event was emitted with the expected message hash and leaf index
+      expect(topics.args.messageHash).toStrictEqual(leaf.toString());
+      expect(topics.args.leafIndex).toStrictEqual(BigInt(0));
     },
     60_000,
   );
@@ -284,11 +331,14 @@ describe('e2e_public_cross_chain_messaging', () => {
       );
 
       // We inject the message to Inbox
-      const txHash = await inbox.write.sendL2Message([
-        { actor: message.recipient.recipient.toString() as Hex, version: 1n },
-        message.content.toString() as Hex,
-        message.secretHash.toString() as Hex,
-      ] as const);
+      const txHash = await inbox.write.sendL2Message(
+        [
+          { actor: message.recipient.recipient.toString() as Hex, version: 1n },
+          message.content.toString() as Hex,
+          message.secretHash.toString() as Hex,
+        ] as const,
+        {} as any,
+      );
 
       // We check that the message was correctly injected by checking the emitted event
       const msgLeaf = message.hash();

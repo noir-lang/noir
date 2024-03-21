@@ -47,7 +47,7 @@ library MerkleLib {
     }
 
     if (subtreeRoot != _expectedRoot) {
-      revert Errors.MerkleLib__InvalidRoot(_expectedRoot, subtreeRoot);
+      revert Errors.MerkleLib__InvalidRoot(_expectedRoot, subtreeRoot, _leaf, _index);
     }
   }
 }

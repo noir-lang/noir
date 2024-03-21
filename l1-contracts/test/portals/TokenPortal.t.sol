@@ -7,18 +7,19 @@ import {Rollup} from "../../src/core/Rollup.sol";
 import {AvailabilityOracle} from "../../src/core/availability_oracle/AvailabilityOracle.sol";
 import {Constants} from "../../src/core/libraries/ConstantsGen.sol";
 import {Registry} from "../../src/core/messagebridge/Registry.sol";
-import {Outbox} from "../../src/core/messagebridge/Outbox.sol";
 import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
 import {Hash} from "../../src/core/libraries/Hash.sol";
 import {Errors} from "../../src/core/libraries/Errors.sol";
 
 // Interfaces
-import {IRegistry} from "../../src/core/interfaces/messagebridge/IRegistry.sol";
 import {IInbox} from "../../src/core/interfaces/messagebridge/IInbox.sol";
+import {IOutbox} from "../../src/core/interfaces/messagebridge/IOutbox.sol";
 
 // Portal tokens
 import {TokenPortal} from "./TokenPortal.sol";
 import {PortalERC20} from "./PortalERC20.sol";
+
+import {NaiveMerkle} from "../merkle/Naive.sol";
 
 contract TokenPortalTest is Test {
   using Hash for DataStructures.L1ToL2Msg;
@@ -28,8 +29,10 @@ contract TokenPortalTest is Test {
   event MessageConsumed(bytes32 indexed entryKey, address indexed recipient);
 
   Registry internal registry;
+
   IInbox internal inbox;
-  Outbox internal outbox;
+  IOutbox internal outbox;
+
   Rollup internal rollup;
   bytes32 internal l2TokenAddress = bytes32(uint256(0x42));
 
@@ -54,9 +57,9 @@ contract TokenPortalTest is Test {
 
   function setUp() public {
     registry = new Registry();
-    outbox = new Outbox(address(registry));
     rollup = new Rollup(registry, new AvailabilityOracle());
     inbox = rollup.INBOX();
+    outbox = rollup.OUTBOX();
 
     registry.upgrade(address(rollup), address(inbox), address(outbox));
 
@@ -148,10 +151,9 @@ contract TokenPortalTest is Test {
 
   function _createWithdrawMessageForOutbox(address _designatedCaller)
     internal
-    view
-    returns (bytes32)
+    returns (bytes32, bytes32)
   {
-    bytes32 entryKey = outbox.computeEntryKey(
+    bytes32 l2ToL1Message = Hash.sha256ToField(
       DataStructures.L2ToL1Msg({
         sender: DataStructures.L2Actor({actor: l2TokenAddress, version: 1}),
         recipient: DataStructures.L1Actor({actor: address(tokenPortal), chainId: block.chainid}),
@@ -162,71 +164,100 @@ contract TokenPortalTest is Test {
           )
       })
     );
-    return entryKey;
+
+    uint256 treeHeight = 1;
+    NaiveMerkle tree = new NaiveMerkle(treeHeight);
+    tree.insertLeaf(l2ToL1Message);
+    bytes32 treeRoot = tree.computeRoot();
+
+    return (l2ToL1Message, treeRoot);
   }
 
-  function _addWithdrawMessageInOutbox(address _designatedCaller) internal returns (bytes32) {
+  function _addWithdrawMessageInOutbox(address _designatedCaller, uint256 _l2BlockNumber)
+    internal
+    returns (bytes32, bytes32[] memory, bytes32)
+  {
     // send assets to the portal
     portalERC20.mint(address(tokenPortal), withdrawAmount);
 
     // Create the message
-    bytes32[] memory entryKeys = new bytes32[](1);
-    entryKeys[0] = _createWithdrawMessageForOutbox(_designatedCaller);
+    (bytes32 l2ToL1Message,) = _createWithdrawMessageForOutbox(_designatedCaller);
+
+    uint256 treeHeight = 1;
+    NaiveMerkle tree = new NaiveMerkle(treeHeight);
+    tree.insertLeaf(l2ToL1Message);
+
+    (bytes32[] memory siblingPath,) = tree.computeSiblingPath(0);
+
+    bytes32 treeRoot = tree.computeRoot();
     // Insert messages into the outbox (impersonating the rollup contract)
     vm.prank(address(rollup));
-    outbox.sendL1Messages(entryKeys);
-    return entryKeys[0];
+    outbox.insert(_l2BlockNumber, treeRoot, treeHeight);
+
+    return (l2ToL1Message, siblingPath, treeRoot);
   }
 
   function testAnyoneCanCallWithdrawIfNoDesignatedCaller(address _caller) public {
     vm.assume(_caller != address(0));
-    bytes32 expectedEntryKey = _addWithdrawMessageInOutbox(address(0));
+
+    uint256 l2BlockNumber = 69;
+    // add message with caller as this address
+    (bytes32 l2ToL1Message, bytes32[] memory siblingPath, bytes32 treeRoot) =
+      _addWithdrawMessageInOutbox(address(0), l2BlockNumber);
     assertEq(portalERC20.balanceOf(recipient), 0);
 
     vm.startPrank(_caller);
     vm.expectEmit(true, true, true, true);
-    emit MessageConsumed(expectedEntryKey, address(tokenPortal));
-    bytes32 actualEntryKey = tokenPortal.withdraw(recipient, withdrawAmount, false);
-    assertEq(expectedEntryKey, actualEntryKey);
+    emit IOutbox.MessageConsumed(l2BlockNumber, treeRoot, l2ToL1Message, 0);
+    tokenPortal.withdraw(recipient, withdrawAmount, false, l2BlockNumber, 0, siblingPath);
+
     // Should have received 654 RNA tokens
     assertEq(portalERC20.balanceOf(recipient), withdrawAmount);
 
     // Should not be able to withdraw again
     vm.expectRevert(
-      abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, actualEntryKey)
+      abi.encodeWithSelector(Errors.Outbox__AlreadyNullified.selector, l2BlockNumber, 0)
     );
-    tokenPortal.withdraw(recipient, withdrawAmount, false);
+    tokenPortal.withdraw(recipient, withdrawAmount, false, l2BlockNumber, 0, siblingPath);
     vm.stopPrank();
   }
 
   function testWithdrawWithDesignatedCallerFailsForOtherCallers(address _caller) public {
     vm.assume(_caller != address(this));
+    uint256 l2BlockNumber = 69;
     // add message with caller as this address
-    _addWithdrawMessageInOutbox(address(this));
+    (, bytes32[] memory siblingPath, bytes32 treeRoot) =
+      _addWithdrawMessageInOutbox(address(this), l2BlockNumber);
 
     vm.startPrank(_caller);
-    bytes32 entryKeyPortalChecksAgainst = _createWithdrawMessageForOutbox(_caller);
+    (bytes32 l2ToL1MessageHash, bytes32 consumedRoot) = _createWithdrawMessageForOutbox(_caller);
     vm.expectRevert(
-      abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKeyPortalChecksAgainst)
+      abi.encodeWithSelector(
+        Errors.MerkleLib__InvalidRoot.selector, treeRoot, consumedRoot, l2ToL1MessageHash, 0
+      )
     );
-    tokenPortal.withdraw(recipient, withdrawAmount, true);
+    tokenPortal.withdraw(recipient, withdrawAmount, true, l2BlockNumber, 0, siblingPath);
 
-    entryKeyPortalChecksAgainst = _createWithdrawMessageForOutbox(address(0));
+    (l2ToL1MessageHash, consumedRoot) = _createWithdrawMessageForOutbox(address(0));
     vm.expectRevert(
-      abi.encodeWithSelector(Errors.Outbox__NothingToConsume.selector, entryKeyPortalChecksAgainst)
+      abi.encodeWithSelector(
+        Errors.MerkleLib__InvalidRoot.selector, treeRoot, consumedRoot, l2ToL1MessageHash, 0
+      )
     );
-    tokenPortal.withdraw(recipient, withdrawAmount, false);
+    tokenPortal.withdraw(recipient, withdrawAmount, false, l2BlockNumber, 0, siblingPath);
     vm.stopPrank();
   }
 
   function testWithdrawWithDesignatedCallerSucceedsForDesignatedCaller() public {
+    uint256 l2BlockNumber = 69;
     // add message with caller as this address
-    bytes32 expectedEntryKey = _addWithdrawMessageInOutbox(address(this));
+    (bytes32 l2ToL1Message, bytes32[] memory siblingPath, bytes32 treeRoot) =
+      _addWithdrawMessageInOutbox(address(this), l2BlockNumber);
 
     vm.expectEmit(true, true, true, true);
-    emit MessageConsumed(expectedEntryKey, address(tokenPortal));
-    bytes32 actualEntryKey = tokenPortal.withdraw(recipient, withdrawAmount, true);
-    assertEq(expectedEntryKey, actualEntryKey);
+    emit IOutbox.MessageConsumed(l2BlockNumber, treeRoot, l2ToL1Message, 0);
+    tokenPortal.withdraw(recipient, withdrawAmount, true, l2BlockNumber, 0, siblingPath);
+
     // Should have received 654 RNA tokens
     assertEq(portalERC20.balanceOf(recipient), withdrawAmount);
   }

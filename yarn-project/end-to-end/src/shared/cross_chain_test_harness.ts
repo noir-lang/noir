@@ -5,10 +5,13 @@ import {
   DebugLogger,
   EthAddress,
   ExtendedNote,
+  FieldsOf,
   Fr,
   Note,
   PXE,
+  SiblingPath,
   TxHash,
+  TxReceipt,
   Wallet,
   computeMessageSecretHash,
   deployL1Contract,
@@ -26,7 +29,16 @@ import {
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
 import { TokenBridgeContract } from '@aztec/noir-contracts.js/TokenBridge';
 
-import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract, toFunctionSelector } from 'viem';
+import {
+  Account,
+  Chain,
+  GetContractReturnType,
+  HttpTransport,
+  PublicClient,
+  WalletClient,
+  getContract,
+  toFunctionSelector,
+} from 'viem';
 
 // docs:start:deployAndInitializeTokenAndBridgeContracts
 /**
@@ -126,7 +138,7 @@ export class CrossChainTestHarness {
     aztecNode: AztecNode,
     pxeService: PXE,
     publicClient: PublicClient<HttpTransport, Chain>,
-    walletClient: any,
+    walletClient: WalletClient<HttpTransport, Chain, Account>,
     wallet: Wallet,
     logger: DebugLogger,
     underlyingERC20Address?: EthAddress,
@@ -201,9 +213,9 @@ export class CrossChainTestHarness {
     /** Underlying token for portal tests. */
     public underlyingERC20: any,
     /** Message Bridge Inbox. */
-    public inbox: any,
+    public inbox: GetContractReturnType<typeof InboxAbi, WalletClient<HttpTransport, Chain, Account>>,
     /** Message Bridge Outbox. */
-    public outbox: any,
+    public outbox: GetContractReturnType<typeof OutboxAbi, WalletClient<HttpTransport, Chain, Account>>,
     /** Viem Public client instance. */
     public publicClient: PublicClient<HttpTransport, Chain>,
     /** Viem Wallet Client instance. */
@@ -313,18 +325,22 @@ export class CrossChainTestHarness {
     await this.l2Bridge.methods.claim_public(this.ownerAddress, bridgeAmount, secret).send().wait();
   }
 
-  async withdrawPrivateFromAztecToL1(withdrawAmount: bigint, nonce: Fr = Fr.ZERO) {
-    await this.l2Bridge.methods
+  async withdrawPrivateFromAztecToL1(withdrawAmount: bigint, nonce: Fr = Fr.ZERO): Promise<FieldsOf<TxReceipt>> {
+    const withdrawReceipt = await this.l2Bridge.methods
       .exit_to_l1_private(this.l2Token.address, this.ethAccount, withdrawAmount, EthAddress.ZERO, nonce)
       .send()
       .wait();
+
+    return withdrawReceipt;
   }
 
-  async withdrawPublicFromAztecToL1(withdrawAmount: bigint, nonce: Fr = Fr.ZERO) {
-    await this.l2Bridge.methods
+  async withdrawPublicFromAztecToL1(withdrawAmount: bigint, nonce: Fr = Fr.ZERO): Promise<FieldsOf<TxReceipt>> {
+    const withdrawReceipt = await this.l2Bridge.methods
       .exit_to_l1_public(this.ethAccount, withdrawAmount, EthAddress.ZERO, nonce)
       .send()
       .wait();
+
+    return withdrawReceipt;
   }
 
   async getL2PrivateBalanceOf(owner: AztecAddress) {
@@ -346,9 +362,7 @@ export class CrossChainTestHarness {
     expect(balance).toBe(expectedBalance);
   }
 
-  async checkEntryIsNotInOutbox(withdrawAmount: bigint, callerOnL1: EthAddress = EthAddress.ZERO): Promise<Fr> {
-    this.logger('Ensure that the entry is not in outbox yet');
-
+  getL2ToL1MessageLeaf(withdrawAmount: bigint, callerOnL1: EthAddress = EthAddress.ZERO): Fr {
     const content = Fr.fromBufferReduce(
       sha256(
         Buffer.concat([
@@ -359,7 +373,7 @@ export class CrossChainTestHarness {
         ]),
       ),
     );
-    const entryKey = Fr.fromBufferReduce(
+    const leaf = Fr.fromBufferReduce(
       sha256(
         Buffer.concat([
           this.l2Bridge.address.toBuffer(),
@@ -370,25 +384,39 @@ export class CrossChainTestHarness {
         ]),
       ),
     );
-    expect(await this.outbox.read.contains([entryKey.toString()])).toBeFalsy();
 
-    return entryKey;
+    return leaf;
   }
 
-  async withdrawFundsFromBridgeOnL1(withdrawAmount: bigint, entryKey: Fr) {
+  async withdrawFundsFromBridgeOnL1(
+    withdrawAmount: bigint,
+    blockNumber: number,
+    messageIndex: number,
+    siblingPath: SiblingPath<number>,
+  ) {
     this.logger('Send L1 tx to consume entry and withdraw funds');
     // Call function on L1 contract to consume the message
-    const { request: withdrawRequest, result: withdrawEntryKey } = await this.tokenPortal.simulate.withdraw([
+    const { request: withdrawRequest } = await this.tokenPortal.simulate.withdraw([
       this.ethAccount.toString(),
       withdrawAmount,
       false,
+      BigInt(blockNumber),
+      BigInt(messageIndex),
+      siblingPath.toBufferArray().map((buf: Buffer) => `0x${buf.toString('hex')}`) as readonly `0x${string}`[],
     ]);
 
-    expect(withdrawEntryKey).toBe(entryKey.toString());
-    expect(await this.outbox.read.contains([withdrawEntryKey])).toBeTruthy();
+    expect(
+      await this.outbox.read.hasMessageBeenConsumedAtBlockAndIndex([BigInt(blockNumber), BigInt(messageIndex)], {}),
+    ).toBe(false);
 
     await this.walletClient.writeContract(withdrawRequest);
-    return withdrawEntryKey;
+    await expect(async () => {
+      await this.walletClient.writeContract(withdrawRequest);
+    }).rejects.toThrow();
+
+    expect(
+      await this.outbox.read.hasMessageBeenConsumedAtBlockAndIndex([BigInt(blockNumber), BigInt(messageIndex)], {}),
+    ).toBe(true);
   }
 
   async shieldFundsOnL2(shieldAmount: bigint, secretHash: Fr) {

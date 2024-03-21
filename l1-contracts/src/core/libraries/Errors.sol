@@ -55,5 +55,5 @@ library Errors {
   error HeaderLib__InvalidHeaderSize(uint256 expected, uint256 actual); // 0xf3ccb247
 
   // MerkleLib
-  error MerkleLib__InvalidRoot(bytes32 expected, bytes32 actual); // 0xb77e99
+  error MerkleLib__InvalidRoot(bytes32 expected, bytes32 actual, bytes32 leaf, uint256 leafIndex); // 0x5f216bf1
 }
