@@ -1,7 +1,7 @@
 [package]
 name = "schnorr_single_key_account_contract"
 authors = [""]
-compiler_version = ">=0.18.0"
+compiler_version = ">=0.25.0"
 type = "contract"
 
 [dependencies]
