@@ -27,7 +27,7 @@ function parseIntoWitnessMap(outputString: string) {
 /**
  *
  * @param inputWitness - The circuit's input witness
- * @param bytecode - The circuit buytecode
+ * @param bytecode - The circuit bytecode
  * @param workingDirectory - A directory to use for temporary files by the ACVM
  * @param pathToAcvm - The path to the ACVm binary
  * @returns The completed partial witness outputted from the circuit
