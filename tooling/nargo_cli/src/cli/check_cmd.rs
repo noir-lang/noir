@@ -111,9 +111,7 @@ fn check_package(
                 let prover_toml = create_input_toml_template(parameters.clone(), None);
                 write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
             } else {
-                eprintln!(
-                    "Note: Prover.toml already exists. Use --overwrite to force overwrite."
-                );
+                eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
             }
 
             if should_write_verifier {
