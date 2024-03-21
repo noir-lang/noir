@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use acvm::acir::circuit::Circuit;
+use acvm::acir::circuit::Program;
 use fm::FileId;
 
 use noirc_errors::debug_info::DebugInfo;
@@ -19,10 +19,10 @@ pub struct CompiledProgram {
     pub hash: u64,
 
     #[serde(
-        serialize_with = "Circuit::serialize_circuit_base64",
-        deserialize_with = "Circuit::deserialize_circuit_base64"
+        serialize_with = "Program::serialize_program_base64",
+        deserialize_with = "Program::deserialize_program_base64"
     )]
-    pub circuit: Circuit,
+    pub program: Program,
     pub abi: noirc_abi::Abi,
     pub debug: DebugInfo,
     pub file_map: BTreeMap<FileId, DebugFile>,

@@ -140,8 +140,8 @@ impl RuntimeError {
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
-            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack } => call_stack,
-            RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack } => call_stack,
+            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
+            | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack } => call_stack,
         }
     }
 }

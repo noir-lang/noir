@@ -607,8 +607,13 @@ pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver>(
         file_map: program.file_map,
         warnings: program.warnings,
     };
-    let mut session =
-        DapSession::new(server, solver, &program.circuit, &debug_artifact, initial_witness);
+    let mut session = DapSession::new(
+        server,
+        solver,
+        &program.program.functions[0],
+        &debug_artifact,
+        initial_witness,
+    );
 
     session.run_loop()
 }

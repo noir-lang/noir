@@ -217,7 +217,7 @@ impl<'interner> TypeChecker<'interner> {
                         });
                         return Type::Error;
                     }
-                }
+                };
 
                 return_type
             }
