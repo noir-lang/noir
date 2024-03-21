@@ -25,7 +25,6 @@ function processHighlighting(codeSnippet, identifier) {
   const regex4 = /this-will-error:([a-zA-Z0-9-._:]+)/;
   const replacement4 = "this-will-error";
 
-  let result = "";
   let mutated = false;
 
   const processLine = (line, regex, replacement) => {
@@ -46,16 +45,37 @@ function processHighlighting(codeSnippet, identifier) {
     return line.trim() == "//" || line.trim() == "#" ? "" : line;
   };
 
+  const countLeadingSpaces = (line) => {
+    const match = line.match(/^ */);
+    return match ? match[0].length : 0;
+  };
+  let indention = 200;
+  let resultLines = [];
+
   for (let line of lines) {
     mutated = false;
     line = processLine(line, regex1, replacement1);
     line = processLine(line, regex2, replacement2);
     line = processLine(line, regex3, replacement3);
     line = processLine(line, regex4, replacement4);
-    result += line === "" && mutated ? "" : line + "\n";
+
+    if (!(line === "" && mutated)) {
+      resultLines.push(line);
+
+      const leadingSpaces = countLeadingSpaces(line);
+      if (line.length > 0 && leadingSpaces < indention) {
+        indention = leadingSpaces;
+      }
+    }
   }
 
-  return result.trim();
+  let result = "";
+  for (let line of resultLines) {
+    result +=
+      (line.length > indention ? line.substring(indention) : line).trimEnd() +
+      "\n";
+  }
+  return result.trimEnd();
 }
 
 /**
@@ -70,7 +90,6 @@ function processHighlighting(codeSnippet, identifier) {
  */
 function extractCodeSnippet(filePath, identifier) {
   let fileContent = fs.readFileSync(filePath, "utf-8");
-  let lineRemovalCount = 0;
   let linesToRemove = [];
 
   const startRegex = /(?:\/\/|#)\s+docs:start:([a-zA-Z0-9-._:]+)/g; // `g` will iterate through the regex.exec loop
@@ -96,7 +115,6 @@ function extractCodeSnippet(filePath, identifier) {
             let line = lines[i];
             if (line.trim() == match[0].trim()) {
               linesToRemove.push(i + 1); // lines are indexed from 1
-              ++lineRemovalCount;
             }
           }
         } else {
