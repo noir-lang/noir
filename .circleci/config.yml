@@ -217,6 +217,18 @@ jobs:
           command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/bb-tests.sh
           aztec_manifest_key: barretenberg-x86_64-linux-clang-assert
 
+  barretenberg-avm-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/avm-tests.sh
+          aztec_manifest_key: barretenberg-x86_64-linux-clang-assert
+
   barretenberg-bench:
     machine:
       # NOTE: we usually use alpine build image when making spot images, but
@@ -294,7 +306,7 @@ jobs:
           name: "Build and test"
           command: cond_spot_run_test bb.js 32 ./scripts/run_tests
           aztec_manifest_key: bb.js
-  
+
   # Noir
   noir-x86_64:
     docker:
@@ -1315,6 +1327,7 @@ workflows:
       - barretenberg-proof-system-tests: *bb_test
       - barretenberg-dsl-tests: *bb_test
       - barretenberg-tests: *bb_test
+      - barretenberg-avm-tests: *bb_test
       - barretenberg-stdlib-tests: *bb_test
       - barretenberg-stdlib-plonk-recursion-ultra-tests: *bb_test
       - barretenberg-stdlib-honk-recursion-ultra-tests: *bb_test
@@ -1455,6 +1468,7 @@ workflows:
             - barretenberg-proof-system-tests
             - barretenberg-dsl-tests
             - barretenberg-tests
+            - barretenberg-avm-tests
             - barretenberg-stdlib-tests
             - barretenberg-stdlib-plonk-recursion-ultra-tests
             - barretenberg-stdlib-honk-recursion-ultra-tests

@@ -38,7 +38,6 @@ TESTS=(
   plonk_tests
   polynomials_tests
   srs_tests
-  vm_tests
 )
 TESTS_STR="${TESTS[@]}"
 
