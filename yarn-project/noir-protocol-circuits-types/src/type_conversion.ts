@@ -47,6 +47,7 @@ import {
   MembershipWitness,
   MergeRollupInputs,
   NULLIFIER_TREE_HEIGHT,
+  NUM_BYTES_PER_SHA256,
   NUM_FIELDS_PER_SHA256,
   NonMembershipHint,
   NoteHashReadRequestMembershipWitness,
@@ -104,7 +105,8 @@ import {
   TxRequest,
   ValidationRequests,
 } from '@aztec/circuits.js';
-import { Tuple, from2Fields, mapTuple, to2Fields } from '@aztec/foundation/serialize';
+import { toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { Tuple, mapTuple, toTruncField } from '@aztec/foundation/serialize';
 
 import { BaseParityInputs as BaseParityInputsNoir } from './types/parity_base_types.js';
 import { RootParityInputs as RootParityInputsNoir } from './types/parity_root_types.js';
@@ -805,20 +807,20 @@ export function mapTupleFromNoir<T, N extends number, M>(
 
 /**
  * Maps a SHA256 hash from noir to the parsed type.
- * @param hash - The hash as it is represented in Noir (2 fields).
- * @returns The hash represented as a 32 bytes long buffer.
+ * @param hash - The hash as it is represented in Noir (1 fields).
+ * @returns The hash represented as a 31 bytes long buffer.
  */
-export function mapSha256HashFromNoir(hash: FixedLengthArray<Field, 2>): Buffer {
-  return from2Fields(mapFieldFromNoir(hash[0]), mapFieldFromNoir(hash[1]));
+export function mapSha256HashFromNoir(hash: FixedLengthArray<Field, typeof NUM_FIELDS_PER_SHA256>): Buffer {
+  return Buffer.concat(hash.map(mapFieldFromNoir).map(fr => toBufferBE(fr.toBigInt(), NUM_BYTES_PER_SHA256)));
 }
 
 /**
  * Maps a sha256 to the representation used in noir.
  * @param hash - The hash represented as a 32 bytes long buffer.
- * @returns The hash as it is represented in Noir (2 fields).
+ * @returns The hash as it is represented in Noir (1 field, truncated).
  */
-export function mapSha256HashToNoir(hash: Buffer): FixedLengthArray<Field, 2> {
-  return to2Fields(hash).map(mapFieldToNoir) as FixedLengthArray<Field, 2>;
+export function mapSha256HashToNoir(hash: Buffer): FixedLengthArray<Field, typeof NUM_FIELDS_PER_SHA256> {
+  return toTruncField(hash).map(mapFieldToNoir) as FixedLengthArray<Field, typeof NUM_FIELDS_PER_SHA256>;
 }
 
 /**
@@ -1615,8 +1617,8 @@ export function mapBaseOrMergeRollupPublicInputsFromNoir(
     mapConstantRollupDataFromNoir(baseOrMergeRollupPublicInputs.constants),
     mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.start),
     mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.end),
-    mapTupleFromNoir(baseOrMergeRollupPublicInputs.txs_effects_hash, 2, mapFieldFromNoir),
-    mapTupleFromNoir(baseOrMergeRollupPublicInputs.out_hash, 2, mapFieldFromNoir),
+    mapTupleFromNoir(baseOrMergeRollupPublicInputs.txs_effects_hash, NUM_FIELDS_PER_SHA256, mapFieldFromNoir),
+    mapTupleFromNoir(baseOrMergeRollupPublicInputs.out_hash, NUM_FIELDS_PER_SHA256, mapFieldFromNoir),
   );
 }
 
@@ -1696,7 +1698,7 @@ export function mapRootParityInputToNoir(rootParityInput: RootParityInput): Root
 export function mapParityPublicInputsToNoir(parityPublicInputs: ParityPublicInputs): ParityPublicInputsNoir {
   return {
     aggregation_object: {},
-    sha_root: mapSha256HashToNoir(parityPublicInputs.shaRoot),
+    sha_root: mapFieldToNoir(parityPublicInputs.shaRoot),
     converted_root: mapFieldToNoir(parityPublicInputs.convertedRoot),
   };
 }
@@ -1724,7 +1726,7 @@ export function mapRootRollupPublicInputsFromNoir(
 export function mapParityPublicInputsFromNoir(parityPublicInputs: ParityPublicInputsNoir): ParityPublicInputs {
   return new ParityPublicInputs(
     AggregationObject.makeFake(),
-    mapSha256HashFromNoir(parityPublicInputs.sha_root),
+    mapFieldFromNoir(parityPublicInputs.sha_root),
     mapFieldFromNoir(parityPublicInputs.converted_root),
   );
 }

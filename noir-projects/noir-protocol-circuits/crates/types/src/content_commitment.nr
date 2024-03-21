@@ -2,7 +2,7 @@ use crate::{
     constants::{NUM_FIELDS_PER_SHA256, CONTENT_COMMITMENT_LENGTH},
     traits::{Deserialize, Empty, Hash, Serialize}, utils::{arr_copy_slice}
 };
-
+// TODO(Miranda): Remove arrays entirely as NUM_FIELDS_PER_SHA256 = 1
 struct ContentCommitment {
   tx_tree_height: Field,
   txs_effects_hash: [Field; NUM_FIELDS_PER_SHA256],

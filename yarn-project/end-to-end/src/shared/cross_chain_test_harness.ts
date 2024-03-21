@@ -18,6 +18,7 @@ import {
   retryUntil,
   sha256,
 } from '@aztec/aztec.js';
+import { toTruncField } from '@aztec/foundation/serialize';
 import {
   InboxAbi,
   OutboxAbi,
@@ -363,7 +364,7 @@ export class CrossChainTestHarness {
   }
 
   getL2ToL1MessageLeaf(withdrawAmount: bigint, callerOnL1: EthAddress = EthAddress.ZERO): Fr {
-    const content = Fr.fromBufferReduce(
+    const content = toTruncField(
       sha256(
         Buffer.concat([
           Buffer.from(toFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
@@ -372,8 +373,8 @@ export class CrossChainTestHarness {
           callerOnL1.toBuffer32(),
         ]),
       ),
-    );
-    const leaf = Fr.fromBufferReduce(
+    )[0];
+    const leaf = toTruncField(
       sha256(
         Buffer.concat([
           this.l2Bridge.address.toBuffer(),
@@ -383,7 +384,7 @@ export class CrossChainTestHarness {
           content.toBuffer(),
         ]),
       ),
-    );
+    )[0];
 
     return leaf;
   }

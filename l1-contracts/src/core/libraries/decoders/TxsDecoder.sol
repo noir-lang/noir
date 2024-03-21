@@ -177,7 +177,7 @@ library TxsDecoder {
           bytes.concat(vars.encryptedLogsHash, vars.unencryptedLogsHash)
         );
 
-        vars.baseLeaves[i] = sha256(vars.baseLeaf);
+        vars.baseLeaves[i] = Hash.sha256ToField(vars.baseLeaf);
       }
     }
 
@@ -235,14 +235,15 @@ library TxsDecoder {
 
       // Hash the logs of this iteration's function call
       bytes32 privateCircuitPublicInputsLogsHash =
-        sha256(slice(_body, offset, privateCircuitPublicInputLogsLength));
+        Hash.sha256ToField(slice(_body, offset, privateCircuitPublicInputLogsLength));
       offset += privateCircuitPublicInputLogsLength;
 
       // Decrease remaining logs length by this privateCircuitPublicInputsLogs's length (len(I?_LOGS)) and 4 bytes for I?_LOGS_LEN
       remainingLogsLength -= (privateCircuitPublicInputLogsLength + 0x4);
 
-      kernelPublicInputsLogsHash =
-        sha256(bytes.concat(kernelPublicInputsLogsHash, privateCircuitPublicInputsLogsHash));
+      kernelPublicInputsLogsHash = Hash.sha256ToField(
+        bytes.concat(kernelPublicInputsLogsHash, privateCircuitPublicInputsLogsHash)
+      );
     }
 
     return (kernelPublicInputsLogsHash, offset);
@@ -267,7 +268,7 @@ library TxsDecoder {
 
     for (uint256 i = 0; i < treeDepth; i++) {
       for (uint256 j = 0; j < treeSize; j += 2) {
-        _leafs[j / 2] = sha256(bytes.concat(_leafs[j], _leafs[j + 1]));
+        _leafs[j / 2] = Hash.sha256ToField(bytes.concat(_leafs[j], _leafs[j + 1]));
       }
       treeSize /= 2;
     }

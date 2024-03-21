@@ -45,7 +45,7 @@ import {
 import { makeTuple, range } from '@aztec/foundation/array';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { padArrayEnd, times } from '@aztec/foundation/collection';
-import { to2Fields } from '@aztec/foundation/serialize';
+import { toTruncField } from '@aztec/foundation/serialize';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
@@ -227,12 +227,12 @@ describe('sequencer/solo_block_builder', () => {
     // Calculate what would be the tree roots after the first tx and update mock circuit output
     await updateExpectedTreesFromTxs([txs[0]]);
     baseRollupOutputLeft.end = await getPartialStateReference();
-    baseRollupOutputLeft.txsEffectsHash = to2Fields(toTxEffect(tx).hash());
+    baseRollupOutputLeft.txsEffectsHash = toTruncField(toTxEffect(tx).hash());
 
     // Same for the tx on the right
     await updateExpectedTreesFromTxs([txs[1]]);
     baseRollupOutputRight.end = await getPartialStateReference();
-    baseRollupOutputRight.txsEffectsHash = to2Fields(toTxEffect(tx).hash());
+    baseRollupOutputRight.txsEffectsHash = toTruncField(toTxEffect(tx).hash());
 
     // Update l1 to l2 message tree
     await updateL1ToL2MessageTree(mockL1ToL2Messages);
@@ -347,8 +347,8 @@ describe('sequencer/solo_block_builder', () => {
       processedTx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1] = SideEffectLinkedToNoteHash.empty();
 
       processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
-      processedTx.data.end.encryptedLogsHash = to2Fields(processedTx.encryptedLogs.hash());
-      processedTx.data.end.unencryptedLogsHash = to2Fields(processedTx.unencryptedLogs.hash());
+      processedTx.data.end.encryptedLogsHash = toTruncField(processedTx.encryptedLogs.hash());
+      processedTx.data.end.unencryptedLogsHash = toTruncField(processedTx.unencryptedLogs.hash());
 
       return processedTx;
     };

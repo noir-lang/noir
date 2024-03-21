@@ -130,7 +130,7 @@ describe('e2e_p2p_network', () => {
           error: '',
         }),
       );
-      logger(`Receipt received and expecting contract deployment at ${origin}`);
+      logger(`Receipt received`);
       txs.push(tx);
     }
     return txs;

@@ -7,6 +7,7 @@ use crate::{
     components::{compute_tx_effects_hash, compute_kernel_out_hash}
 };
 use dep::types::{
+    hash::sha256_to_field,
     abis::{
     append_only_tree_snapshot::AppendOnlyTreeSnapshot,
     membership_witness::{ArchiveRootMembershipWitness, NullifierMembershipWitness, PublicDataMembershipWitness},
@@ -378,7 +379,7 @@ mod tests {
         base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs
     },
         base::{state_diff_hints::StateDiffHints, base_rollup_inputs::BaseRollupInputs},
-        components::{TX_EFFECTS_HASH_FULL_FIELDS, TX_EFFECTS_HASH_LOG_FIELDS, compute_kernel_out_hash}
+        components::{TX_EFFECTS_HASH_INPUT_FIELDS, compute_kernel_out_hash}
     };
     use dep::types::{
         abis::{
@@ -405,7 +406,7 @@ mod tests {
         kernel_data_builder::PreviousKernelDataBuilder,
         merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes}, sort::sort_high_to_low
     },
-        utils::{field::full_field_less_than, uint256::U256}
+        utils::{field::{full_field_less_than, field_from_bytes_32_trunc, field_from_bytes}, uint256::U256}
     };
 
     struct NullifierInsertion {
@@ -938,9 +939,9 @@ mod tests {
     unconstrained fn empty_tx_effects_hash() {
         let outputs = BaseRollupInputsBuilder::new().execute();
 
-        let hash_input_flattened = [0; TX_EFFECTS_HASH_FULL_FIELDS * 32 + TX_EFFECTS_HASH_LOG_FIELDS * 16];
+        let hash_input_flattened = [0; TX_EFFECTS_HASH_INPUT_FIELDS * 32];
         let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-        let expected_tx_effects_hash = U256::from_bytes32(sha_digest).to_u128_limbs();
+        let expected_tx_effects_hash = [field_from_bytes_32_trunc(sha_digest)];
         for i in 0..NUM_FIELDS_PER_SHA256 {
             assert_eq(outputs.txs_effects_hash[i], expected_tx_effects_hash[i]);
         }
@@ -952,7 +953,7 @@ mod tests {
 
         let hash_input_flattened = [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32];
         let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-        let expected_out_hash = U256::from_bytes32(sha_digest).to_u128_limbs();
+        let expected_out_hash = [field_from_bytes_32_trunc(sha_digest)];
         for i in 0..NUM_FIELDS_PER_SHA256 {
             assert_eq(outputs.out_hash[i], expected_out_hash[i]);
         }
@@ -968,7 +969,7 @@ mod tests {
         let mut hash_input_flattened = [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32];
         hash_input_flattened[MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32 - 1] = 123;
         let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-        let expected_out_hash = U256::from_bytes32(sha_digest).to_u128_limbs();
+        let expected_out_hash = [field_from_bytes_32_trunc(sha_digest)];
 
         for i in 0..NUM_FIELDS_PER_SHA256 {
             assert_eq(out_hash[i], expected_out_hash[i]);

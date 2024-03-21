@@ -79,6 +79,8 @@ pub fn assert_prev_rollups_follow_on_from_each_other(
     );
 }
 
+// TODO(Miranda): Remove arrays entirely as NUM_FIELDS_PER_SHA256 = 1
+
 /**
  * @brief From two previous rollup data, compute a single out hash
  *
@@ -88,11 +90,9 @@ pub fn assert_prev_rollups_follow_on_from_each_other(
 pub fn compute_out_hash(previous_rollup_data: [PreviousRollupData; 2]) -> [Field; NUM_FIELDS_PER_SHA256] {
     accumulate_sha256(
         [
-        U128::from_integer(previous_rollup_data[0].base_or_merge_rollup_public_inputs.out_hash[0]),
-        U128::from_integer(previous_rollup_data[0].base_or_merge_rollup_public_inputs.out_hash[1]),
-        U128::from_integer(previous_rollup_data[1].base_or_merge_rollup_public_inputs.out_hash[0]),
-        U128::from_integer(previous_rollup_data[1].base_or_merge_rollup_public_inputs.out_hash[1])
-    ]
+        previous_rollup_data[0].base_or_merge_rollup_public_inputs.out_hash[0],
+        previous_rollup_data[1].base_or_merge_rollup_public_inputs.out_hash[0],
+        ]
     )
 }
 
@@ -107,8 +107,8 @@ pub fn compute_kernel_out_hash(combined: CombinedAccumulatedData) -> [Field; NUM
         }
     }
 
-    let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-    U256::from_bytes32(sha_digest).to_u128_limbs()
+    let sha_digest = dep::types::hash::sha256_to_field(hash_input_flattened);
+    [sha_digest]
 }
 
 /**
@@ -120,17 +120,13 @@ pub fn compute_kernel_out_hash(combined: CombinedAccumulatedData) -> [Field; NUM
 pub fn compute_txs_effects_hash(previous_rollup_data: [PreviousRollupData; 2]) -> [Field; NUM_FIELDS_PER_SHA256] {
     accumulate_sha256(
         [
-        U128::from_integer(previous_rollup_data[0].base_or_merge_rollup_public_inputs.txs_effects_hash[0]),
-        U128::from_integer(previous_rollup_data[0].base_or_merge_rollup_public_inputs.txs_effects_hash[1]),
-        U128::from_integer(previous_rollup_data[1].base_or_merge_rollup_public_inputs.txs_effects_hash[0]),
-        U128::from_integer(previous_rollup_data[1].base_or_merge_rollup_public_inputs.txs_effects_hash[1])
+        previous_rollup_data[0].base_or_merge_rollup_public_inputs.txs_effects_hash[0],
+        previous_rollup_data[1].base_or_merge_rollup_public_inputs.txs_effects_hash[0],
     ]
     )
 }
 
-global TX_EFFECTS_HASH_FULL_FIELDS = 195;
-global TX_EFFECTS_HASH_LOG_FIELDS = 4;
-global TX_EFFECTS_HASH_INPUT_FIELDS = 199; // TX_EFFECTS_HASH_FULL_FIELDS + TX_EFFECTS_HASH_LOG_FIELDS
+global TX_EFFECTS_HASH_INPUT_FIELDS = 197;
 
 // Computes the tx effects hash for a base rollup (a single transaction)
 // TODO(Alvaro): This is too slow for brillig without the array optimization
@@ -142,8 +138,8 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
     // 2 l2 -> l1 messages -> 2 fields
     // 32 public data update requests -> 64 fields
     // 1 contract deployments -> 3 fields
-    // 1 encrypted logs hash --> 1 sha256 hash -> 32 bytes -> 2 fields | Beware when populating bytes that it is only 32!  
-    // 1 unencrypted logs hash --> 1 sha256 hash -> 32 bytes  -> 2 fields | Beware when populating bytes that it is only 32!
+    // 1 encrypted logs hash --> 1 sha256 hash -> 31 bytes -> 1 fields | Beware when populating bytes that we fill (prepend) to 32!  
+    // 1 unencrypted logs hash --> 1 sha256 hash -> 31 bytes  -> 1 fields | Beware when populating bytes that we fill (prepend) to 32!
     let mut txs_effects_hash_input = [0; TX_EFFECTS_HASH_INPUT_FIELDS];
 
     let revert_code = combined.revert_code;
@@ -196,23 +192,16 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
     offset += NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
     assert_eq(offset, TX_EFFECTS_HASH_INPUT_FIELDS); // Sanity check
 
-    let mut hash_input_flattened = [0; TX_EFFECTS_HASH_FULL_FIELDS * 32 + TX_EFFECTS_HASH_LOG_FIELDS * 16];
-    for offset in 0..TX_EFFECTS_HASH_FULL_FIELDS {
+    let mut hash_input_flattened = [0; TX_EFFECTS_HASH_INPUT_FIELDS * 32];
+    for offset in 0..TX_EFFECTS_HASH_INPUT_FIELDS {
         let input_as_bytes = txs_effects_hash_input[offset].to_be_bytes(32);
         for byte_index in 0..32 {
             hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];
         }
     }
 
-    for log_field_index in 0..TX_EFFECTS_HASH_LOG_FIELDS {
-        let input_as_bytes = txs_effects_hash_input[TX_EFFECTS_HASH_FULL_FIELDS + log_field_index].to_be_bytes(16);
-        for byte_index in 0..16 {
-            hash_input_flattened[TX_EFFECTS_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] = input_as_bytes[byte_index];
-        }
-    }
-
-    let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-    U256::from_bytes32(sha_digest).to_u128_limbs()
+    let sha_digest = dep::types::hash::sha256_to_field(hash_input_flattened);
+    [sha_digest]
 }
 
 #[test]
@@ -227,19 +216,3 @@ fn consistent_TX_EFFECTS_HASH_INPUT_FIELDS() {
         + NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
     assert(TX_EFFECTS_HASH_INPUT_FIELDS == expected_size, "tx effects hash input size is incorrect");
 }
-
-#[test]
-fn consistent_tx_effects_hash_log_input_size() {
-    assert_eq(
-        TX_EFFECTS_HASH_LOG_FIELDS, NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256
-        + NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256, "tx effects hash log input field size is incorrect"
-    );
-}
-
-#[test]
-fn consistent_tx_effects_input_size() {
-    assert_eq(
-        TX_EFFECTS_HASH_INPUT_FIELDS, TX_EFFECTS_HASH_FULL_FIELDS + TX_EFFECTS_HASH_LOG_FIELDS, "tx effects hash input field size is incorrect"
-    );
-}
-

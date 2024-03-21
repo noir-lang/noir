@@ -4,6 +4,7 @@ pragma solidity >=0.8.18;
 
 import {Test} from "forge-std/Test.sol";
 
+import {Hash} from "../../src/core/libraries/Hash.sol";
 import {NaiveMerkle} from "./Naive.sol";
 
 contract NaiveTest is Test {
@@ -28,11 +29,11 @@ contract NaiveTest is Test {
      */
     bytes32[3] memory expectedPath = [
       bytes32(abi.encode(2)),
-      sha256(bytes.concat(bytes32(abi.encode(3)), bytes32(abi.encode(4)))),
-      sha256(
+      Hash.sha256ToField(bytes.concat(bytes32(abi.encode(3)), bytes32(abi.encode(4)))),
+      Hash.sha256ToField(
         bytes.concat(
-          sha256(bytes.concat(bytes32(abi.encode(5)), bytes32(abi.encode(6)))),
-          sha256(bytes.concat(bytes32(abi.encode(7)), bytes32(abi.encode(8))))
+          Hash.sha256ToField(bytes.concat(bytes32(abi.encode(5)), bytes32(abi.encode(6)))),
+          Hash.sha256ToField(bytes.concat(bytes32(abi.encode(7)), bytes32(abi.encode(8))))
         )
       )
     ];
@@ -64,11 +65,11 @@ contract NaiveTest is Test {
      */
     bytes32[3] memory expectedPath = [
       bytes32(abi.encode(7)),
-      sha256(bytes.concat(bytes32(abi.encode(5)), bytes32(abi.encode(6)))),
-      sha256(
+      Hash.sha256ToField(bytes.concat(bytes32(abi.encode(5)), bytes32(abi.encode(6)))),
+      Hash.sha256ToField(
         bytes.concat(
-          sha256(bytes.concat(bytes32(abi.encode(1)), bytes32(abi.encode(2)))),
-          sha256(bytes.concat(bytes32(abi.encode(3)), bytes32(abi.encode(4))))
+          Hash.sha256ToField(bytes.concat(bytes32(abi.encode(1)), bytes32(abi.encode(2)))),
+          Hash.sha256ToField(bytes.concat(bytes32(abi.encode(3)), bytes32(abi.encode(4))))
         )
       )
     ];

@@ -11,7 +11,7 @@ import {
   computeAuthWitMessageHash,
 } from '@aztec/aztec.js';
 import { sha256 } from '@aztec/foundation/crypto';
-import { serializeToBuffer } from '@aztec/foundation/serialize';
+import { serializeToBuffer, toTruncField } from '@aztec/foundation/serialize';
 import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts.js';
 
 import { toFunctionSelector } from 'viem/utils';
@@ -157,14 +157,14 @@ describe('e2e_cross_chain_messaging', () => {
     await crossChainTestHarness.makeMessageConsumable(msgLeaf);
 
     // 3. Consume L1 -> L2 message and mint private tokens on L2
-    const content = Fr.fromBufferReduce(
+    const content = toTruncField(
       sha256(
         Buffer.concat([
           Buffer.from(toFunctionSelector('mint_private(bytes32,uint256)').substring(2), 'hex'),
           serializeToBuffer(...[secretHashForL2MessageConsumption, new Fr(bridgeAmount)]),
         ]),
       ),
-    );
+    )[0];
     const wrongMessage = new L1ToL2Message(
       new L1Actor(crossChainTestHarness.tokenPortalAddress, crossChainTestHarness.publicClient.chain.id),
       new L2Actor(l2Bridge.address, 1),
@@ -235,14 +235,14 @@ describe('e2e_cross_chain_messaging', () => {
     // Wait for the message to be available for consumption
     await crossChainTestHarness.makeMessageConsumable(msgLeaf);
 
-    const content = Fr.fromBufferReduce(
+    const content = toTruncField(
       sha256(
         Buffer.concat([
           Buffer.from(toFunctionSelector('mint_public(bytes32,uint256)').substring(2), 'hex'),
           serializeToBuffer(...[ownerAddress, new Fr(bridgeAmount)]),
         ]),
       ),
-    );
+    )[0];
     const wrongMessage = new L1ToL2Message(
       new L1Actor(crossChainTestHarness.tokenPortalAddress, crossChainTestHarness.publicClient.chain.id),
       new L2Actor(l2Bridge.address, 1),

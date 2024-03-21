@@ -96,8 +96,8 @@ global L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH: u64 = 12;
 
 // MISC CONSTANTS
 global FUNCTION_SELECTOR_NUM_BYTES: Field = 4;
-// sha256 hash is stored in two fields to accommodate all 256-bits of the hash
-global NUM_FIELDS_PER_SHA256: u64 = 2;
+// sha256 hash is truncated into a single field
+global NUM_FIELDS_PER_SHA256: u64 = 1;
 global ARGS_HASH_CHUNK_LENGTH: u64 = 32;
 global ARGS_HASH_CHUNK_COUNT: u64 = 32;
 // The following is used in immutable state variables to compute an initialization slot whose value is used to
@@ -147,7 +147,7 @@ global VIEW_NOTE_ORACLE_RETURN_LENGTH: u64 = 212;
 // LENGTH OF STRUCTS SERIALIZED TO FIELDS
 global AZTEC_ADDRESS_LENGTH = 1;
 global CALL_CONTEXT_LENGTH: u64 = 7;
-global CONTENT_COMMITMENT_LENGTH: u64 = 7;
+global CONTENT_COMMITMENT_LENGTH: u64 = 4;
 global CONTRACT_INSTANCE_LENGTH: u64 = 6;
 global CONTRACT_STORAGE_READ_LENGTH: u64 = 2;
 global CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH: u64 = 2;
@@ -155,19 +155,19 @@ global ETH_ADDRESS_LENGTH = 1;
 global FUNCTION_DATA_LENGTH: u64 = 2;
 global FUNCTION_LEAF_PREIMAGE_LENGTH: u64 = 5;
 global GLOBAL_VARIABLES_LENGTH: u64 = 6;
-global HEADER_LENGTH: u64 = 23; // 2 for last_archive, 7 for content commitment, 8 for state reference, 6 for global vars
+global HEADER_LENGTH: u64 = 20; // 2 for last_archive, 4 for content commitment, 8 for state reference, 6 for global vars
 global L1_TO_L2_MESSAGE_LENGTH: u64 = 6;
 global L2_TO_L1_MESSAGE_LENGTH: u64 = 2;
 global NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH = 4;
 global NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH = 5;
 global PARTIAL_STATE_REFERENCE_LENGTH: u64 = 6;
-global PRIVATE_CALL_STACK_ITEM_LENGTH: u64 = 213;
+global PRIVATE_CALL_STACK_ITEM_LENGTH: u64 = 208;
 // Change this ONLY if you have changed the PrivateCircuitPublicInputs structure.
 // In other words, if the structure/size of the public inputs of a function call changes then we should change this
 // constant as well PRIVATE_CALL_STACK_ITEM_LENGTH
-global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 210;
+global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 205;
 // Change this ONLY if you have changed the PublicCircuitPublicInputs structure.
-global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 202;
+global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 198;
 global STATE_REFERENCE_LENGTH: u64 = 8; // 2 for snap + 8 for partial
 global TX_CONTEXT_DATA_LENGTH: u64 = 4;
 global TX_REQUEST_LENGTH: u64 = 8; // 2 + TX_CONTEXT_DATA_LENGTH + FUNCTION_DATA_LENGTH

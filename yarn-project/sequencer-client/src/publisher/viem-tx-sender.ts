@@ -77,7 +77,7 @@ export class ViemTxSender implements L1PublisherTxSender {
   }
 
   checkIfTxsAreAvailable(block: L2Block): Promise<boolean> {
-    const args = [`0x${block.body.getTxsEffectsHash().toString('hex')}`] as const;
+    const args = [`0x${block.body.getTxsEffectsHash().toString('hex').padStart(64, '0')}`] as const;
     return this.availabilityOracleContract.read.isAvailable(args);
   }
 

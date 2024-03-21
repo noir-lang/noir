@@ -7,7 +7,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
 import { AztecKVStore, AztecSingleton } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
-import { SHA256, StandardTree } from '@aztec/merkle-tree';
+import { SHA256Trunc, StandardTree } from '@aztec/merkle-tree';
 
 import { HandleL2BlockAndMessagesResult, MerkleTreeOperations, MerkleTrees } from '../world-state-db/index.js';
 import { MerkleTreeOperationsFacade } from '../world-state-db/merkle_tree_operations_facade.js';
@@ -240,7 +240,12 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
    * @throws If the L1 to L2 messages do not hash to the block inHash.
    */
   async #verifyMessagesHashToInHash(l1ToL2Messages: Fr[], inHash: Buffer) {
-    const tree = new StandardTree(openTmpStore(true), new SHA256(), 'temp_in_hash_check', L1_TO_L2_MSG_SUBTREE_HEIGHT);
+    const tree = new StandardTree(
+      openTmpStore(true),
+      new SHA256Trunc(),
+      'temp_in_hash_check',
+      L1_TO_L2_MSG_SUBTREE_HEIGHT,
+    );
     await tree.appendLeaves(l1ToL2Messages.map(msg => msg.toBuffer()));
 
     if (!tree.getRoot(true).equals(inHash)) {

@@ -1,15 +1,5 @@
 import { getConfigEnvVars } from '@aztec/aztec-node';
-import {
-  AztecAddress,
-  Body,
-  Fr,
-  GlobalVariables,
-  L2Actor,
-  L2Block,
-  createDebugLogger,
-  mockTx,
-  to2Fields,
-} from '@aztec/aztec.js';
+import { AztecAddress, Body, Fr, GlobalVariables, L2Actor, L2Block, createDebugLogger, mockTx } from '@aztec/aztec.js';
 import {
   EthAddress,
   Header,
@@ -26,9 +16,10 @@ import {
 import { fr, makeNewSideEffect, makeNewSideEffectLinkedToNoteHash, makeProof } from '@aztec/circuits.js/testing';
 import { L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { makeTuple, range } from '@aztec/foundation/array';
+import { toTruncField } from '@aztec/foundation/serialize';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { AvailabilityOracleAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
-import { SHA256, StandardTree } from '@aztec/merkle-tree';
+import { SHA256Trunc, StandardTree } from '@aztec/merkle-tree';
 import {
   EmptyRollupProver,
   L1Publisher,
@@ -183,8 +174,8 @@ describe('L1Publisher integration', () => {
     processedTx.data.end.newNullifiers[processedTx.data.end.newNullifiers.length - 1] =
       SideEffectLinkedToNoteHash.empty();
     processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
-    processedTx.data.end.encryptedLogsHash = to2Fields(processedTx.encryptedLogs.hash());
-    processedTx.data.end.unencryptedLogsHash = to2Fields(processedTx.unencryptedLogs.hash());
+    processedTx.data.end.encryptedLogsHash = toTruncField(processedTx.encryptedLogs.hash());
+    processedTx.data.end.unencryptedLogsHash = toTruncField(processedTx.unencryptedLogs.hash());
 
     return processedTx;
   };
@@ -324,9 +315,9 @@ describe('L1Publisher integration', () => {
       data: txLog.data,
       topics: txLog.topics,
     });
-
-    // We check that the txsEffectsHash in the TxsPublished event is as expected
-    expect(topics.args.txsEffectsHash).toEqual(`0x${body.getTxsEffectsHash().toString('hex')}`);
+    // Sol gives bytes32 txsHash, so we pad the ts bytes31 version
+    // We check that the txsHash in the TxsPublished event is as expected
+    expect(topics.args.txsEffectsHash).toEqual(`0x${body.getTxsEffectsHash().toString('hex').padStart(64, '0')}`);
   });
 
   it(`Build ${numberOfConsecutiveBlocks} blocks of 4 bloated txs building on each other`, async () => {
@@ -416,7 +407,7 @@ describe('L1Publisher integration', () => {
 
       const treeHeight = Math.ceil(Math.log2(newL2ToL1MsgsArray.length));
 
-      const tree = new StandardTree(openTmpStore(true), new SHA256(), 'temp_outhash_sibling_path', treeHeight);
+      const tree = new StandardTree(openTmpStore(true), new SHA256Trunc(), 'temp_outhash_sibling_path', treeHeight);
       await tree.appendLeaves(newL2ToL1MsgsArray.map(l2ToL1Msg => l2ToL1Msg.toBuffer()));
 
       const expectedRoot = tree.getRoot(true);

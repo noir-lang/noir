@@ -24,7 +24,7 @@ unconstrained pub fn emit_encrypted_log<N>(
             note_type_id,
             encryption_pub_key,
             preimage
-        ), 0
+        )
     ]
 }
 
@@ -41,5 +41,5 @@ unconstrained pub fn emit_unencrypted_log<T>(
     message: T
 ) -> [Field; NUM_FIELDS_PER_SHA256] {
     // https://github.com/AztecProtocol/aztec-packages/issues/885
-    [emit_unencrypted_log_oracle(contract_address, event_selector, message), 0]
+    [emit_unencrypted_log_oracle(contract_address, event_selector, message)]
 }

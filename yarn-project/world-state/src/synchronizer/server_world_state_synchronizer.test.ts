@@ -6,7 +6,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { sleep } from '@aztec/foundation/sleep';
 import { AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
-import { INITIAL_LEAF, Pedersen, SHA256, StandardTree } from '@aztec/merkle-tree';
+import { INITIAL_LEAF, Pedersen, SHA256Trunc, StandardTree } from '@aztec/merkle-tree';
 
 import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
@@ -111,7 +111,7 @@ describe('server_world_state_synchronizer', () => {
       .map(() => Fr.random());
     const tree = new StandardTree(
       openTmpStore(true),
-      new SHA256(),
+      new SHA256Trunc(),
       'empty_subtree_in_hash',
       L1_TO_L2_MSG_SUBTREE_HEIGHT,
     );

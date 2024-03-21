@@ -2,8 +2,13 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
+import {Hash} from "../../libraries/Hash.sol";
 import {IFrontier} from "../../interfaces/messagebridge/IFrontier.sol";
 
+// This truncates each hash and hash preimage to 31 bytes to follow Noir.
+// It follows the logic in /noir-protocol-circuits/crates/parity-lib/src/utils/sha256_merkle_tree.nr
+// TODO(Miranda): Possibly nuke this contract, and use a generic version which can either use
+// regular sha256 or sha256ToField when emulating circuits
 contract FrontierMerkle is IFrontier {
   uint256 public immutable HEIGHT;
   uint256 public immutable SIZE;
@@ -22,7 +27,7 @@ contract FrontierMerkle is IFrontier {
 
     zeros[0] = bytes32(0);
     for (uint256 i = 1; i <= HEIGHT; i++) {
-      zeros[i] = sha256(bytes.concat(zeros[i - 1], zeros[i - 1]));
+      zeros[i] = Hash.sha256ToField(bytes.concat(zeros[i - 1], zeros[i - 1]));
     }
   }
 
@@ -31,7 +36,7 @@ contract FrontierMerkle is IFrontier {
     uint256 level = _computeLevel(index);
     bytes32 right = _leaf;
     for (uint256 i = 0; i < level; i++) {
-      right = sha256(bytes.concat(frontier[i], right));
+      right = Hash.sha256ToField(bytes.concat(frontier[i], bytes32(right)));
     }
     frontier[level] = right;
 
@@ -65,9 +70,9 @@ contract FrontierMerkle is IFrontier {
           // and in that case we started higher up the tree
           revert("Mistakes were made");
         }
-        temp = sha256(bytes.concat(frontier[i], temp));
+        temp = Hash.sha256ToField(bytes.concat(frontier[i], temp));
       } else {
-        temp = sha256(bytes.concat(temp, zeros[i]));
+        temp = Hash.sha256ToField(bytes.concat(temp, zeros[i]));
       }
       bits >>= 1;
     }

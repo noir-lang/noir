@@ -15,7 +15,7 @@ import {
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { sha256 } from '@aztec/foundation/crypto';
-import { serializeToBuffer } from '@aztec/foundation/serialize';
+import { serializeToBuffer, toTruncField } from '@aztec/foundation/serialize';
 import { InboxAbi, OutboxAbi } from '@aztec/l1-artifacts';
 import { TestContract } from '@aztec/noir-contracts.js';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
@@ -150,14 +150,14 @@ describe('e2e_public_cross_chain_messaging', () => {
 
     await crossChainTestHarness.makeMessageConsumable(msgLeaf);
 
-    const content = Fr.fromBufferReduce(
+    const content = toTruncField(
       sha256(
         Buffer.concat([
           Buffer.from(toFunctionSelector('mint_public(bytes32,uint256)').substring(2), 'hex'),
           serializeToBuffer(...[user2Wallet.getAddress(), new Fr(bridgeAmount)]),
         ]),
       ),
-    );
+    )[0];
     const wrongMessage = new L1ToL2Message(
       new L1Actor(crossChainTestHarness.tokenPortalAddress, crossChainTestHarness.publicClient.chain.id),
       new L2Actor(l2Bridge.address, 1),
@@ -204,14 +204,14 @@ describe('e2e_public_cross_chain_messaging', () => {
     await crossChainTestHarness.makeMessageConsumable(msgLeaf);
 
     // Wrong message hash
-    const content = Fr.fromBufferReduce(
+    const content = toTruncField(
       sha256(
         Buffer.concat([
           Buffer.from(toFunctionSelector('mint_private(bytes32,uint256)').substring(2), 'hex'),
           serializeToBuffer(...[secretHash, new Fr(bridgeAmount)]),
         ]),
       ),
-    );
+    )[0];
     const wrongMessage = new L1ToL2Message(
       new L1Actor(crossChainTestHarness.tokenPortalAddress, crossChainTestHarness.publicClient.chain.id),
       new L2Actor(l2Bridge.address, 1),
@@ -258,7 +258,7 @@ describe('e2e_public_cross_chain_messaging', () => {
         content: content.toString() as Hex,
       };
 
-      const leaf = Fr.fromBufferReduce(
+      const leaf = toTruncField(
         sha256(
           Buffer.concat([
             testContract.address.toBuffer(),
@@ -268,7 +268,7 @@ describe('e2e_public_cross_chain_messaging', () => {
             content.toBuffer(),
           ]),
         ),
-      );
+      )[0];
 
       const [l2MessageIndex, siblingPath] = await aztecNode.getL2ToL1MessageIndexAndSiblingPath(
         l2TxReceipt.blockNumber!,

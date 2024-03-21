@@ -35,7 +35,7 @@ struct PrivateCircuitPublicInputs {
 
     start_side_effect_counter : u32,
     end_side_effect_counter : u32,
-
+    // TODO(Miranda): Remove arrays entirely as NUM_FIELDS_PER_SHA256 = 1
     encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
     unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
 
@@ -177,6 +177,6 @@ fn empty_hash() {
     let hash = inputs.hash();
 
     // Value from private_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x2b5ba01a6b73b68b4f44196e2dea49afd4076333e2dee8eddc9186e080f18201;
+    let test_data_empty_hash = 0x0f16478dc1731c940b04c312d322697f6a3bff523d2660d896426b2ab3af9598;
     assert_eq(hash, test_data_empty_hash);
 }

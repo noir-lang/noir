@@ -3,7 +3,7 @@ import { FunctionArtifactWithDebugMetadata, decodeReturnValues } from '@aztec/fo
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { to2Fields } from '@aztec/foundation/serialize';
+import { toTruncField } from '@aztec/foundation/serialize';
 
 import { extractReturnWitness } from '../acvm/deserialize.js';
 import { Oracle, acvm, extractCallStack } from '../acvm/index.js';
@@ -47,9 +47,9 @@ export async function executePrivateFunction(
   const encryptedLogs = context.getEncryptedLogs();
   const unencryptedLogs = context.getUnencryptedLogs();
   // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165) --> set this in Noir
-  publicInputs.encryptedLogsHash = to2Fields(encryptedLogs.hash());
+  publicInputs.encryptedLogsHash = toTruncField(encryptedLogs.hash());
   publicInputs.encryptedLogPreimagesLength = new Fr(encryptedLogs.getSerializedLength());
-  publicInputs.unencryptedLogsHash = to2Fields(unencryptedLogs.hash());
+  publicInputs.unencryptedLogsHash = toTruncField(unencryptedLogs.hash());
   publicInputs.unencryptedLogPreimagesLength = new Fr(unencryptedLogs.getSerializedLength());
 
   const callStackItem = new PrivateCallStackItem(contractAddress, functionData, publicInputs);

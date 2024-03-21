@@ -2,6 +2,7 @@ import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/circuit-types';
 import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { computeMessageSecretHash } from '@aztec/circuits.js/hash';
 import { sha256 } from '@aztec/foundation/crypto';
+import { toTruncField } from '@aztec/foundation/serialize';
 
 /**
  * Test utility function to craft an L1 to L2 message.
@@ -21,8 +22,7 @@ export const buildL1ToL2Message = (
   const selectorBuf = Buffer.from(selector, 'hex');
 
   const contentBuf = Buffer.concat([selectorBuf, ...contentPreimage.map(field => field.toBuffer())]);
-  const content = Fr.fromBufferReduce(sha256(contentBuf));
-
+  const content = toTruncField(sha256(contentBuf))[0];
   const secretHash = computeMessageSecretHash(secret);
 
   // Eventually the kernel will need to prove the kernel portal pair exists within the contract tree,

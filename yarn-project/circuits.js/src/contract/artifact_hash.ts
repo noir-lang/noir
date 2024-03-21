@@ -35,6 +35,8 @@ export function computeArtifactHash(artifact: ContractArtifact): Fr {
   const unconstrainedFunctionRoot = computeArtifactFunctionTreeRoot(artifact, FunctionType.UNCONSTRAINED);
   const metadataHash = computeArtifactMetadataHash(artifact);
   const preimage = [numToUInt8(VERSION), privateFunctionRoot, unconstrainedFunctionRoot, metadataHash];
+  // TODO(miranda): Artifact and artifact metadata hashes are currently the only SHAs not truncated by a byte.
+  // They are never recalculated in the circuit or L1 contract, but they are input to circuits, so perhaps modding here is preferable?
   // TODO(@spalladino) Reducing sha256 to a field may have security implications. Validate this with crypto team.
   return Fr.fromBufferReduce(sha256(Buffer.concat(preimage)));
 }

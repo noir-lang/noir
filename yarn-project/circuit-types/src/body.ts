@@ -1,7 +1,7 @@
 import { L2BlockL2Logs, TxEffect } from '@aztec/circuit-types';
 import { sha256 } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer, truncateAndPad } from '@aztec/foundation/serialize';
 
 import { inspect } from 'util';
 
@@ -50,7 +50,7 @@ export class Body {
           const left = layers[activeLayer][i];
           const right = layers[activeLayer][i + 1];
 
-          layer.push(sha256(Buffer.concat([left, right])));
+          layer.push(truncateAndPad(sha256(Buffer.concat([left, right]))));
         }
 
         layers.push(layer);

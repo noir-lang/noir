@@ -42,7 +42,7 @@ import {
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { Tuple, to2Fields } from '@aztec/foundation/serialize';
+import { Tuple, toTruncField } from '@aztec/foundation/serialize';
 import {
   PublicExecution,
   PublicExecutionResult,
@@ -349,7 +349,7 @@ export abstract class AbstractPhaseManager {
     );
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165) --> set this in Noir
-    const unencryptedLogsHash = to2Fields(result.unencryptedLogs.hash());
+    const unencryptedLogsHash = toTruncField(result.unencryptedLogs.hash());
     const unencryptedLogPreimagesLength = new Fr(result.unencryptedLogs.getSerializedLength());
 
     return PublicCircuitPublicInputs.from({

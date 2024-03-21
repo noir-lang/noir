@@ -1,6 +1,6 @@
 use crate::{
     abis::{previous_rollup_data::PreviousRollupData, constant_rollup_data::ConstantRollupData},
-    components, root::{compute_messages_hash, root_rollup_public_inputs::RootRollupPublicInputs}
+    components, root::{root_rollup_public_inputs::RootRollupPublicInputs}
 };
 use dep::{
     parity_lib::RootParityInput,
@@ -61,7 +61,7 @@ impl RootRollupInputs {
         let content_commitment = ContentCommitment {
             tx_tree_height: right.height_in_block_tree + 1,
             txs_effects_hash: components::compute_txs_effects_hash(self.previous_rollup_data),
-            in_hash: self.l1_to_l2_roots.public_inputs.sha_root,
+            in_hash: [self.l1_to_l2_roots.public_inputs.sha_root],
             out_hash: components::compute_out_hash(self.previous_rollup_data)
         };
 

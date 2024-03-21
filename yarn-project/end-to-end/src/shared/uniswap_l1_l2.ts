@@ -10,6 +10,7 @@ import {
 } from '@aztec/aztec.js';
 import { deployL1Contract } from '@aztec/ethereum';
 import { sha256 } from '@aztec/foundation/crypto';
+import { toTruncField } from '@aztec/foundation/serialize';
 import { InboxAbi, UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
 import { UniswapContract } from '@aztec/noir-contracts.js/Uniswap';
 
@@ -246,7 +247,7 @@ export const uniswapL1L2TestSuite = (
         .send()
         .wait();
 
-      const swapPrivateContent = Fr.fromBufferReduce(
+      const swapPrivateContent = toTruncField(
         sha256(
           Buffer.concat([
             Buffer.from(
@@ -265,9 +266,9 @@ export const uniswapL1L2TestSuite = (
             ownerEthAddress.toBuffer32(),
           ]),
         ),
-      );
+      )[0];
 
-      const swapPrivateLeaf = Fr.fromBufferReduce(
+      const swapPrivateLeaf = toTruncField(
         sha256(
           Buffer.concat([
             uniswapL2Contract.address.toBuffer(),
@@ -277,9 +278,9 @@ export const uniswapL1L2TestSuite = (
             swapPrivateContent.toBuffer(),
           ]),
         ),
-      );
+      )[0];
 
-      const withdrawContent = Fr.fromBufferReduce(
+      const withdrawContent = toTruncField(
         sha256(
           Buffer.concat([
             Buffer.from(toFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
@@ -288,9 +289,9 @@ export const uniswapL1L2TestSuite = (
             uniswapPortalAddress.toBuffer32(),
           ]),
         ),
-      );
+      )[0];
 
-      const withdrawLeaf = Fr.fromBufferReduce(
+      const withdrawLeaf = toTruncField(
         sha256(
           Buffer.concat([
             wethCrossChainHarness.l2Bridge.address.toBuffer(),
@@ -300,7 +301,7 @@ export const uniswapL1L2TestSuite = (
             withdrawContent.toBuffer(),
           ]),
         ),
-      );
+      )[0];
 
       // ensure that user's funds were burnt
       await wethCrossChainHarness.expectPrivateBalanceOnL2(ownerAddress, wethL2BalanceBeforeSwap - wethAmountToBridge);
@@ -475,7 +476,7 @@ export const uniswapL1L2TestSuite = (
       // 4.2 Call swap_public from user2 on behalf of owner
       const uniswapL2Interaction = await action.send().wait();
 
-      const swapPublicContent = Fr.fromBufferReduce(
+      const swapPublicContent = toTruncField(
         sha256(
           Buffer.concat([
             Buffer.from(
@@ -494,9 +495,9 @@ export const uniswapL1L2TestSuite = (
             ownerEthAddress.toBuffer32(),
           ]),
         ),
-      );
+      )[0];
 
-      const swapPublicLeaf = Fr.fromBufferReduce(
+      const swapPublicLeaf = toTruncField(
         sha256(
           Buffer.concat([
             uniswapL2Contract.address.toBuffer(),
@@ -506,9 +507,9 @@ export const uniswapL1L2TestSuite = (
             swapPublicContent.toBuffer(),
           ]),
         ),
-      );
+      )[0];
 
-      const withdrawContent = Fr.fromBufferReduce(
+      const withdrawContent = toTruncField(
         sha256(
           Buffer.concat([
             Buffer.from(toFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
@@ -517,9 +518,9 @@ export const uniswapL1L2TestSuite = (
             uniswapPortalAddress.toBuffer32(),
           ]),
         ),
-      );
+      )[0];
 
-      const withdrawLeaf = Fr.fromBufferReduce(
+      const withdrawLeaf = toTruncField(
         sha256(
           Buffer.concat([
             wethCrossChainHarness.l2Bridge.address.toBuffer(),
@@ -529,7 +530,7 @@ export const uniswapL1L2TestSuite = (
             withdrawContent.toBuffer(),
           ]),
         ),
-      );
+      )[0];
 
       // check weth balance of owner on L2 (we first bridged `wethAmountToBridge` into L2 and now withdrew it!)
       await wethCrossChainHarness.expectPublicBalanceOnL2(ownerAddress, wethL2BalanceBeforeSwap - wethAmountToBridge);
@@ -842,7 +843,7 @@ export const uniswapL1L2TestSuite = (
         .send()
         .wait();
 
-      const swapPrivateContent = Fr.fromBufferReduce(
+      const swapPrivateContent = toTruncField(
         sha256(
           Buffer.concat([
             Buffer.from(
@@ -861,9 +862,9 @@ export const uniswapL1L2TestSuite = (
             ownerEthAddress.toBuffer32(),
           ]),
         ),
-      );
+      )[0];
 
-      const swapPrivateLeaf = Fr.fromBufferReduce(
+      const swapPrivateLeaf = toTruncField(
         sha256(
           Buffer.concat([
             uniswapL2Contract.address.toBuffer(),
@@ -873,9 +874,9 @@ export const uniswapL1L2TestSuite = (
             swapPrivateContent.toBuffer(),
           ]),
         ),
-      );
+      )[0];
 
-      const withdrawContent = Fr.fromBufferReduce(
+      const withdrawContent = toTruncField(
         sha256(
           Buffer.concat([
             Buffer.from(toFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
@@ -884,9 +885,9 @@ export const uniswapL1L2TestSuite = (
             uniswapPortalAddress.toBuffer32(),
           ]),
         ),
-      );
+      )[0];
 
-      const withdrawLeaf = Fr.fromBufferReduce(
+      const withdrawLeaf = toTruncField(
         sha256(
           Buffer.concat([
             wethCrossChainHarness.l2Bridge.address.toBuffer(),
@@ -896,7 +897,7 @@ export const uniswapL1L2TestSuite = (
             withdrawContent.toBuffer(),
           ]),
         ),
-      );
+      )[0];
 
       const [swapPrivateL2MessageIndex, swapPrivateSiblingPath] = await aztecNode.getL2ToL1MessageIndexAndSiblingPath(
         withdrawReceipt.blockNumber!,
@@ -979,7 +980,7 @@ export const uniswapL1L2TestSuite = (
         .send()
         .wait();
 
-      const swapPublicContent = Fr.fromBufferReduce(
+      const swapPublicContent = toTruncField(
         sha256(
           Buffer.concat([
             Buffer.from(
@@ -998,9 +999,9 @@ export const uniswapL1L2TestSuite = (
             ownerEthAddress.toBuffer32(),
           ]),
         ),
-      );
+      )[0];
 
-      const swapPublicLeaf = Fr.fromBufferReduce(
+      const swapPublicLeaf = toTruncField(
         sha256(
           Buffer.concat([
             uniswapL2Contract.address.toBuffer(),
@@ -1010,9 +1011,9 @@ export const uniswapL1L2TestSuite = (
             swapPublicContent.toBuffer(),
           ]),
         ),
-      );
+      )[0];
 
-      const withdrawContent = Fr.fromBufferReduce(
+      const withdrawContent = toTruncField(
         sha256(
           Buffer.concat([
             Buffer.from(toFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
@@ -1021,9 +1022,9 @@ export const uniswapL1L2TestSuite = (
             uniswapPortalAddress.toBuffer32(),
           ]),
         ),
-      );
+      )[0];
 
-      const withdrawLeaf = Fr.fromBufferReduce(
+      const withdrawLeaf = toTruncField(
         sha256(
           Buffer.concat([
             wethCrossChainHarness.l2Bridge.address.toBuffer(),
@@ -1033,7 +1034,7 @@ export const uniswapL1L2TestSuite = (
             withdrawContent.toBuffer(),
           ]),
         ),
-      );
+      )[0];
 
       const [swapPublicL2MessageIndex, swapPublicSiblingPath] = await aztecNode.getL2ToL1MessageIndexAndSiblingPath(
         withdrawReceipt.blockNumber!,
