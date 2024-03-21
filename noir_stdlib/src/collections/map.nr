@@ -5,11 +5,10 @@ use crate::default::Default;
 use crate::hash::{Hash, Hasher, BuildHasher};
 use crate::collections::bounded_vec::BoundedVec;
 
-// We use load factor α_max = 0.75. 
-// Upon exceeding it, assert will fail in order to inform the user 
-// about performance degradation, so that he can adjust the capacity.
-global MAX_LOAD_FACTOR_NUMERATOR = 3;
-global MAX_LOAD_FACTOR_DEN0MINATOR = 4;
+// When a hash collision occurs, the hashmap stores the element in the next
+// available space instead. To avoid looping through the entire hashmap, this
+// is limited to a maximum amount of MAX_COLLISION_LEN tries.
+global MAX_COLLISION_LEN = 8;
 
 // Hash table with open addressing and quadratic probing.
 // Size of the underlying table must be known at compile time.
@@ -36,7 +35,7 @@ struct Slot<K, V> {
 }
 
 impl<K, V> Default for Slot<K, V>{
-    fn default() -> Self{
+    fn default() -> Self {
         Slot{
             _key_value: Option::none(),
             _is_deleted: false
@@ -84,6 +83,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     where
         B: BuildHasher<H> {
         // docs:end:with_hasher
+        assert(N > MAX_COLLISION_LEN, f"HashMap size of {N} too small, it must be greater than {MAX_COLLISION_LEN}");
         let _table = [Slot::default(); N];
         let _len = 0;
         Self { _table, _len, _build_hasher }
@@ -271,7 +271,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // docs:start:capacity
     pub fn capacity(_self: Self) -> u64 {
         // docs:end:capacity
-        N
+        N - MAX_COLLISION_LEN
     }
 
     // Get the value by key. If it does not exist, returns none().
@@ -286,21 +286,19 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         H: Hasher {
         // docs:end:get
         let mut result = Option::none();
+        let first_index = self.hash(key) % self.capacity();
 
-        let hash = self.hash(key);
-        let mut should_break = false;
-
-        for attempt in 0..N {
-            if !should_break {
-                let index = self.quadratic_probe(hash, attempt as u64);
+        for i in 0..MAX_COLLISION_LEN {
+            if result.is_none() {
+                let index = first_index + i;
                 let slot = self._table[index];
 
                 // Not marked as deleted and has key-value.
+                // TODO: This is wrong, need to check the tombstone value. See #4614
                 if slot.is_valid() {
                     let (current_key, value) = slot.key_value_unchecked();
                     if current_key == key {
                         result = Option::some(value);
-                        should_break = true;
                     }
                 }
             }
@@ -321,35 +319,33 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         B: BuildHasher<H>,
         H: Hasher {
         // docs:end:insert
-        self.assert_load_factor();
-
-        let hash = self.hash(key);
+        let first_index = self.hash(key) % self.capacity();
         let mut should_break = false;
 
-        for attempt in 0..N {
+        for i in 0..MAX_COLLISION_LEN {
             if !should_break {
-                let index = self.quadratic_probe(hash, attempt as u64);
+                let index = first_index + i;
                 let mut slot = self._table[index];
-                let mut insert = false;
 
                 // Either marked as deleted or has unset key-value.
                 if slot.is_available() {
-                    insert = true;
                     self._len += 1;
-                } else {
-                    let (current_key, _) = slot.key_value_unchecked();
-                    if current_key == key {
-                        insert = true;
-                    }
-                }
 
-                if insert {
                     slot.set(key, value);
                     self._table[index] = slot;
                     should_break = true;
+                } else {
+                    let (current_key, _) = slot.key_value_unchecked();
+                    if current_key == key {
+                        slot.set(key, value);
+                        self._table[index] = slot;
+                        should_break = true;
+                    }
                 }
             }
         }
+
+        assert(should_break, "HashMap::insert: too many collisions, out of space!");
     }
 
     // Removes a key-value entry. If key is not present, HashMap remains unchanged.
@@ -363,12 +359,12 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         B: BuildHasher<H>,
         H: Hasher {
         // docs:end:remove
-        let hash = self.hash(key);
+        let first_index = self.hash(key) % self.capacity();
         let mut should_break = false;
 
-        for attempt in 0..N {
+        for i in 0..MAX_COLLISION_LEN {
             if !should_break {
-                let index = self.quadratic_probe(hash, attempt as u64);
+                let index = first_index + i;
                 let mut slot = self._table[index];
 
                 // Not marked as deleted and has key-value.
@@ -397,26 +393,6 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         let mut hasher = self._build_hasher.build_hasher();
         key.hash(&mut hasher);
         hasher.finish() as u64
-    }
-
-    // Probing scheme: quadratic function.
-    // We use 0.5 constant near variadic attempt and attempt^2 monomials.
-    // This ensures good uniformity of distribution for table sizes
-    // equal to prime numbers or powers of two. 
-    fn quadratic_probe(_self: Self, hash: u64, attempt: u64) -> u64 {
-        (hash + (attempt + attempt * attempt) / 2) % N
-    }
-
-    // Amount of elements in the table in relation to available slots exceeds α_max. 
-    // To avoid a comparatively more expensive division operation 
-    // we conduct cross-multiplication instead.
-    // n / m >= MAX_LOAD_FACTOR_NUMERATOR / MAX_LOAD_FACTOR_DEN0MINATOR 
-    // n * MAX_LOAD_FACTOR_DEN0MINATOR >= m * MAX_LOAD_FACTOR_NUMERATOR
-    fn assert_load_factor(self) {
-        let lhs = self._len * MAX_LOAD_FACTOR_DEN0MINATOR;
-        let rhs = self._table.len() * MAX_LOAD_FACTOR_NUMERATOR;
-        let exceeded = lhs >= rhs;
-        assert(!exceeded, "Load factor is exceeded, consider increasing the capacity.");
     }
 }
 
@@ -467,6 +443,7 @@ where
 {
     fn default() -> Self {
 // docs:end:default
+        assert(N > MAX_COLLISION_LEN, f"HashMap size of {N} too small, it must be greater than {MAX_COLLISION_LEN}");
         let _build_hasher = B::default();
         let map: HashMap<K, V, N, B> = HashMap::with_hasher(_build_hasher);
         map
