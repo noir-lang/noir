@@ -21,8 +21,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: x86_64-unknown-linux-gnu
-          save-if: false
+          key: benchmarks
 
       - uses: boa-dev/criterion-compare-action@v3.2.4
         with:
