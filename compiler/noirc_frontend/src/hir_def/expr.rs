@@ -31,7 +31,6 @@ pub enum HirExpression {
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
     Error,
-    Quote(crate::BlockExpression),
 }
 
 impl HirExpression {
@@ -100,7 +99,6 @@ impl HirBinaryOp {
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
     Array(HirArrayLiteral),
-    Slice(HirArrayLiteral),
     Bool(bool),
     Integer(FieldElement, bool), //true for negative integer and false for positive
     Str(String),

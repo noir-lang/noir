@@ -6,12 +6,7 @@ use crate::{
     visitor::{expr::NewlineMode, FmtVisitor},
 };
 
-pub(crate) fn rewrite(
-    mut visitor: FmtVisitor,
-    array: Vec<Expression>,
-    array_span: Span,
-    is_slice: bool,
-) -> String {
+pub(crate) fn rewrite(mut visitor: FmtVisitor, array: Vec<Expression>, array_span: Span) -> String {
     let pattern: &[_] = &[' ', '\t'];
 
     visitor.indent.block_indent(visitor.config);
@@ -80,9 +75,8 @@ pub(crate) fn rewrite(
         }
     }
 
-    let open_bracket = if is_slice { "&[" } else { "[" };
     crate::visitor::expr::wrap_exprs(
-        open_bracket,
+        "[",
         "]",
         items_str.trim().into(),
         nested_indent,

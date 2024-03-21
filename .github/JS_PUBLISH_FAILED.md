@@ -1,6 +1,6 @@
 ---
 title: "JS packages failed to publish"
-assignees: TomAFrench, Savio-Sou
+assignees: TomAFrench kevaundray Savio-Sou
 labels: js
 ---
 

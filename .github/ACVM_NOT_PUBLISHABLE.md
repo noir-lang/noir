@@ -1,7 +1,8 @@
 ---
 title: "ACVM crates are not publishable"
-assignees: TomAFrench, Savio-Sou
+assignees: TomAFrench kevaundray savio-sou
 ---
+
 
 The ACVM crates are currently unpublishable, making a release will NOT push our crates to crates.io.
 

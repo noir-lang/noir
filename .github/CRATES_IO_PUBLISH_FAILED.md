@@ -1,6 +1,6 @@
 ---
 title: "ACVM crates failed to publish"
-assignees: TomAFrench, Savio-Sou
+assignees: TomAFrench kevaundray savio-sou
 ---
 
 The {{env.CRATE_VERSION}} release of the ACVM crates failed.

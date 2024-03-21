@@ -612,11 +612,9 @@ impl Context {
                             self.ssa_values.insert(*result, output);
                         }
                     }
-                    Value::ForeignFunction(_) => {
-                        return Err(RuntimeError::UnconstrainedOracleReturnToConstrained {
-                            call_stack: self.acir_context.get_call_stack(),
-                        })
-                    }
+                    Value::ForeignFunction(_) => unreachable!(
+                        "All `oracle` methods should be wrapped in an unconstrained fn"
+                    ),
                     _ => unreachable!("expected calling a function but got {function_value:?}"),
                 }
             }

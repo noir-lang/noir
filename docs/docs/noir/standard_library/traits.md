@@ -32,8 +32,6 @@ impl Default for bool { .. }
 impl<T, N> Default for [T; N]
     where T: Default { .. }
 
-impl<T> Default for [T] { .. }
-
 impl<A, B> Default for (A, B)
     where A: Default, B: Default { .. }
 
@@ -48,8 +46,7 @@ impl<A, B, C, D, E> Default for (A, B, C, D, E)
 ```
 
 For primitive integer types, the return value of `default` is `0`. Container
-types such as arrays are filled with default values of their element type,
-except slices whose length is unknown and thus defaulted to zero.
+types such as arrays are filled with default values of their element type.
 
 
 ## `std::convert`
@@ -115,9 +112,6 @@ impl Eq for bool { .. }
 impl<T, N> Eq for [T; N]
     where T: Eq { .. }
 
-impl<T> Eq for [T]
-    where T: Eq { .. }
-
 impl<A, B> Eq for (A, B)
     where A: Eq, B: Eq { .. }
 
@@ -158,9 +152,6 @@ impl Ord for () { .. }
 impl Ord for bool { .. }
 
 impl<T, N> Ord for [T; N]
-    where T: Ord { .. }
-
-impl<T> Ord for [T]
     where T: Ord { .. }
 
 impl<A, B> Ord for (A, B)
