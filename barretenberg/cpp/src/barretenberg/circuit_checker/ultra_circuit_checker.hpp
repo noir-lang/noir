@@ -3,9 +3,9 @@
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/relations/auxiliary_relation.hpp"
+#include "barretenberg/relations/delta_range_constraint_relation.hpp"
 #include "barretenberg/relations/ecc_op_queue_relation.hpp"
 #include "barretenberg/relations/elliptic_relation.hpp"
-#include "barretenberg/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/relations/poseidon2_external_relation.hpp"
 #include "barretenberg/relations/poseidon2_internal_relation.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
@@ -21,7 +21,7 @@ class UltraCircuitChecker {
     using Arithmetic = UltraArithmeticRelation<FF>;
     using Elliptic = EllipticRelation<FF>;
     using Auxiliary = AuxiliaryRelation<FF>;
-    using GenPermSort = GenPermSortRelation<FF>;
+    using DeltaRangeConstraint = DeltaRangeConstraintRelation<FF>;
     using PoseidonExternal = Poseidon2ExternalRelation<FF>;
     using PoseidonInternal = Poseidon2InternalRelation<FF>;
     using Params = RelationParameters<FF>;

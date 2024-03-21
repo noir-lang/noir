@@ -127,7 +127,7 @@ template <typename BuilderType> class GoblinUltraRecursiveFlavor_ {
             this->q_4 = Commitment::from_witness(builder, native_key->q_4);
             this->q_c = Commitment::from_witness(builder, native_key->q_c);
             this->q_arith = Commitment::from_witness(builder, native_key->q_arith);
-            this->q_sort = Commitment::from_witness(builder, native_key->q_sort);
+            this->q_delta_range = Commitment::from_witness(builder, native_key->q_delta_range);
             this->q_elliptic = Commitment::from_witness(builder, native_key->q_elliptic);
             this->q_aux = Commitment::from_witness(builder, native_key->q_aux);
             this->q_lookup = Commitment::from_witness(builder, native_key->q_lookup);

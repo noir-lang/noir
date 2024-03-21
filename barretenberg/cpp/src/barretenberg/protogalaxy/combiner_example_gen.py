@@ -15,7 +15,7 @@ class Row:
         self.q_4 = start + 2 * 4
         self.q_m = start + 2 * 5
         self.q_arith = start + 2 * 6
-        self.q_sort = start + 2 * 7
+        self.q_delta_range = start + 2 * 7
         self.q_elliptic = start + 2 * 8
         self.q_aux = start + 2 * 9
         self.q_lookup = start + 2 * 10

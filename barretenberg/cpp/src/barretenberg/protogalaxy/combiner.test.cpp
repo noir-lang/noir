@@ -23,7 +23,7 @@ TEST(Protogalaxy, CombinerOn2Instances)
 
     const auto restrict_to_standard_arithmetic_relation = [](auto& polys) {
         std::fill(polys.q_arith.begin(), polys.q_arith.end(), 1);
-        std::fill(polys.q_sort.begin(), polys.q_sort.end(), 0);
+        std::fill(polys.q_delta_range.begin(), polys.q_delta_range.end(), 0);
         std::fill(polys.q_elliptic.begin(), polys.q_elliptic.end(), 0);
         std::fill(polys.q_aux.begin(), polys.q_aux.end(), 0);
         std::fill(polys.q_lookup.begin(), polys.q_lookup.end(), 0);
@@ -151,7 +151,7 @@ TEST(Protogalaxy, CombinerOn4Instances)
 
     const auto zero_all_selectors = [](auto& polys) {
         std::fill(polys.q_arith.begin(), polys.q_arith.end(), 0);
-        std::fill(polys.q_sort.begin(), polys.q_sort.end(), 0);
+        std::fill(polys.q_delta_range.begin(), polys.q_delta_range.end(), 0);
         std::fill(polys.q_elliptic.begin(), polys.q_elliptic.end(), 0);
         std::fill(polys.q_aux.begin(), polys.q_aux.end(), 0);
         std::fill(polys.q_lookup.begin(), polys.q_lookup.end(), 0);

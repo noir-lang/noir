@@ -4,9 +4,9 @@
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/proof_system/library/grand_product_library.hpp"
 #include "barretenberg/relations/auxiliary_relation.hpp"
+#include "barretenberg/relations/delta_range_constraint_relation.hpp"
 #include "barretenberg/relations/ecc_op_queue_relation.hpp"
 #include "barretenberg/relations/elliptic_relation.hpp"
-#include "barretenberg/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/relations/lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
@@ -138,7 +138,7 @@ template <typename Flavor> void create_some_lookup_gates(auto& circuit_builder)
         plookup::MultiTableId::FIXED_BASE_LEFT_LO, sequence_data_lo, input_lo_index);
 }
 
-template <typename Flavor> void create_some_genperm_sort_gates(auto& circuit_builder)
+template <typename Flavor> void create_some_delta_range_constraint_gates(auto& circuit_builder)
 {
     // Add a sort gate (simply checks that consecutive inputs have a difference of < 4)
     using FF = typename Flavor::FF;
@@ -257,7 +257,7 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
     // Create an assortment of representative gates
     create_some_add_gates<Flavor>(builder);
     create_some_lookup_gates<Flavor>(builder);
-    create_some_genperm_sort_gates<Flavor>(builder);
+    create_some_delta_range_constraint_gates<Flavor>(builder);
     create_some_elliptic_curve_addition_gates<Flavor>(builder);
     create_some_RAM_gates<Flavor>(builder);
 
@@ -277,7 +277,7 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
 
     // Check that selectors are nonzero to ensure corresponding relation has nontrivial contribution
     ensure_non_zero(proving_key->q_arith);
-    ensure_non_zero(proving_key->q_sort);
+    ensure_non_zero(proving_key->q_delta_range);
     ensure_non_zero(proving_key->q_lookup);
     ensure_non_zero(proving_key->q_elliptic);
     ensure_non_zero(proving_key->q_aux);
@@ -308,7 +308,7 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
     // Create an assortment of representative gates
     create_some_add_gates<Flavor>(builder);
     create_some_lookup_gates<Flavor>(builder);
-    create_some_genperm_sort_gates<Flavor>(builder);
+    create_some_delta_range_constraint_gates<Flavor>(builder);
     create_some_elliptic_curve_addition_gates<Flavor>(builder);
     create_some_RAM_gates<Flavor>(builder);
     create_some_ecc_op_queue_gates<Flavor>(builder); // Goblin!
@@ -330,7 +330,7 @@ TEST_F(RelationCorrectnessTests, GoblinUltraRelationCorrectness)
 
     // Check that selectors are nonzero to ensure corresponding relation has nontrivial contribution
     ensure_non_zero(proving_key->q_arith);
-    ensure_non_zero(proving_key->q_sort);
+    ensure_non_zero(proving_key->q_delta_range);
     ensure_non_zero(proving_key->q_lookup);
     ensure_non_zero(proving_key->q_elliptic);
     ensure_non_zero(proving_key->q_aux);
@@ -481,7 +481,7 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorPermutationRelationCorrectness)
     check_relation<Flavor, std::tuple_element_t<0, Relations>>(full_circuit_size, prover_polynomials, params);
 }
 
-TEST_F(RelationCorrectnessTests, GoblinTranslatorGenPermSortRelationCorrectness)
+TEST_F(RelationCorrectnessTests, GoblinTranslatorDeltaRangeConstraintRelationCorrectness)
 {
     using Flavor = GoblinTranslatorFlavor;
     using FF = typename Flavor::FF;
@@ -502,11 +502,11 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorGenPermSortRelationCorrectness)
         polynomial = Polynomial{ circuit_size };
     }
 
-    // Construct lagrange polynomials that are needed for Goblin Translator's GenPermSort Relation
+    // Construct lagrange polynomials that are needed for Goblin Translator's DeltaRangeConstraint Relation
     prover_polynomials.lagrange_first[0] = 1;
     prover_polynomials.lagrange_last[circuit_size - 1] = 1;
 
-    // Create a vector and fill with necessary steps for the GenPermSort relation
+    // Create a vector and fill with necessary steps for the DeltaRangeConstraint relation
     auto sorted_elements_count = (max_value / sort_step) + 1;
     std::vector<uint64_t> vector_for_sorting(circuit_size);
     for (size_t i = 0; i < sorted_elements_count - 1; i++) {
@@ -552,7 +552,7 @@ TEST_F(RelationCorrectnessTests, GoblinTranslatorGenPermSortRelationCorrectness)
 
     using Relations = typename Flavor::Relations;
 
-    // Check that GenPermSort relation is satisfied across each row of the prover polynomials
+    // Check that DeltaRangeConstraint relation is satisfied across each row of the prover polynomials
     check_relation<Flavor, std::tuple_element_t<1, Relations>>(circuit_size, prover_polynomials, params);
 }
 

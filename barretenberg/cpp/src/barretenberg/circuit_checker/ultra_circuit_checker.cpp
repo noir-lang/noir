@@ -90,9 +90,9 @@ bool UltraCircuitChecker::check_block(Builder& builder,
             info("Failed Auxiliary relation at row idx = ", idx);
             return false;
         }
-        result = result && check_relation<GenPermSort>(values, params);
+        result = result && check_relation<DeltaRangeConstraint>(values, params);
         if (result == false) {
-            info("Failed GenPermSort relation at row idx = ", idx);
+            info("Failed DeltaRangeConstraint relation at row idx = ", idx);
             return false;
         }
         result = result && check_lookup(values, lookup_hash_table);
@@ -234,7 +234,7 @@ void UltraCircuitChecker::populate_values(
     values.q_o = block.q_3()[idx];
     values.q_4 = block.q_4()[idx];
     values.q_arith = block.q_arith()[idx];
-    values.q_sort = block.q_sort()[idx];
+    values.q_delta_range = block.q_delta_range()[idx];
     values.q_elliptic = block.q_elliptic()[idx];
     values.q_aux = block.q_aux()[idx];
     values.q_lookup = block.q_lookup_type()[idx];

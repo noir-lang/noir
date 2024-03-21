@@ -9,8 +9,8 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/relations/auxiliary_relation.hpp"
+#include "barretenberg/relations/delta_range_constraint_relation.hpp"
 #include "barretenberg/relations/elliptic_relation.hpp"
-#include "barretenberg/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/relations/lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
@@ -46,7 +46,7 @@ class UltraFlavor {
     using Relations = std::tuple<bb::UltraArithmeticRelation<FF>,
                                  bb::UltraPermutationRelation<FF>,
                                  bb::LookupRelation<FF>,
-                                 bb::GenPermSortRelation<FF>,
+                                 bb::DeltaRangeConstraintRelation<FF>,
                                  bb::EllipticRelation<FF>,
                                  bb::AuxiliaryRelation<FF>>;
 
@@ -94,7 +94,7 @@ class UltraFlavor {
                               q_o,            // column 4
                               q_4,            // column 5
                               q_arith,        // column 6
-                              q_sort,         // column 7
+                              q_delta_range,  // column 7
                               q_elliptic,     // column 8
                               q_aux,          // column 9
                               q_lookup,       // column 10
@@ -117,7 +117,7 @@ class UltraFlavor {
 
         auto get_selectors()
         {
-            return RefArray{ q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_sort, q_elliptic, q_aux, q_lookup };
+            return RefArray{ q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_delta_range, q_elliptic, q_aux, q_lookup };
         };
         auto get_sigma_polynomials() { return RefArray{ sigma_1, sigma_2, sigma_3, sigma_4 }; };
         auto get_id_polynomials() { return RefArray{ id_1, id_2, id_3, id_4 }; };
@@ -187,7 +187,7 @@ class UltraFlavor {
                               q_4,                // column 4
                               q_m,                // column 5
                               q_arith,            // column 6
-                              q_sort,             // column 7
+                              q_delta_range,      // column 7
                               q_elliptic,         // column 8
                               q_aux,              // column 9
                               q_lookup,           // column 10
@@ -228,7 +228,7 @@ class UltraFlavor {
         // Gemini-specific getters.
         auto get_unshifted()
         {
-            return RefArray{ q_m,           q_c,   q_l,      q_r,     q_o,     q_4,          q_arith, q_sort,
+            return RefArray{ q_m,           q_c,   q_l,      q_r,     q_o,     q_4,          q_arith, q_delta_range,
                              q_elliptic,    q_aux, q_lookup, sigma_1, sigma_2, sigma_3,      sigma_4, id_1,
                              id_2,          id_3,  id_4,     table_1, table_2, table_3,      table_4, lagrange_first,
                              lagrange_last, w_l,   w_r,      w_o,     w_4,     sorted_accum, z_perm,  z_lookup
@@ -238,7 +238,7 @@ class UltraFlavor {
 
         auto get_precomputed()
         {
-            return RefArray{ q_m,          q_c,   q_l,      q_r,     q_o,     q_4,     q_arith, q_sort,
+            return RefArray{ q_m,          q_c,   q_l,      q_r,     q_o,     q_4,     q_arith, q_delta_range,
                              q_elliptic,   q_aux, q_lookup, sigma_1, sigma_2, sigma_3, sigma_4, id_1,
                              id_2,         id_3,  id_4,     table_1, table_2, table_3, table_4, lagrange_first,
                              lagrange_last
@@ -382,7 +382,7 @@ class UltraFlavor {
             q_4 = "Q_4";
             q_m = "Q_M";
             q_arith = "Q_ARITH";
-            q_sort = "Q_SORT";
+            q_delta_range = "Q_SORT";
             q_elliptic = "Q_ELLIPTIC";
             q_aux = "Q_AUX";
             q_lookup = "Q_LOOKUP";
@@ -420,7 +420,7 @@ class UltraFlavor {
             q_o = verification_key->q_o;
             q_4 = verification_key->q_4;
             q_arith = verification_key->q_arith;
-            q_sort = verification_key->q_sort;
+            q_delta_range = verification_key->q_delta_range;
             q_elliptic = verification_key->q_elliptic;
             q_aux = verification_key->q_aux;
             q_lookup = verification_key->q_lookup;

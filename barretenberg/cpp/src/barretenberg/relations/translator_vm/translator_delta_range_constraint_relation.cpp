@@ -1,4 +1,4 @@
-#include "barretenberg/relations/translator_vm/translator_gen_perm_sort_relation.hpp"
+#include "barretenberg/relations/translator_vm/translator_delta_range_constraint_relation.hpp"
 #include "barretenberg/flavor/goblin_translator.hpp"
 
 namespace bb {
@@ -17,10 +17,10 @@ namespace bb {
  */
 template <typename FF>
 template <typename ContainerOverSubrelations, typename AllEntities, typename Parameters>
-void GoblinTranslatorGenPermSortRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulators,
-                                                             const AllEntities& in,
-                                                             const Parameters&,
-                                                             const FF& scaling_factor)
+void GoblinTranslatorDeltaRangeConstraintRelationImpl<FF>::accumulate(ContainerOverSubrelations& accumulators,
+                                                                      const AllEntities& in,
+                                                                      const Parameters&,
+                                                                      const FF& scaling_factor)
 {
     static const FF minus_one = FF(-1);
     static const FF minus_two = FF(-2);
@@ -126,7 +126,7 @@ void GoblinTranslatorGenPermSortRelationImpl<FF>::accumulate(ContainerOverSubrel
     }();
 };
 
-template class GoblinTranslatorGenPermSortRelationImpl<bb::fr>;
-DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorGenPermSortRelationImpl, GoblinTranslatorFlavor);
+template class GoblinTranslatorDeltaRangeConstraintRelationImpl<bb::fr>;
+DEFINE_SUMCHECK_RELATION_CLASS(GoblinTranslatorDeltaRangeConstraintRelationImpl, GoblinTranslatorFlavor);
 
 } // namespace bb

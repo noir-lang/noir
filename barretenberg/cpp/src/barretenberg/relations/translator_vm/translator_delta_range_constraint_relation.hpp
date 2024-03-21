@@ -3,7 +3,7 @@
 
 namespace bb {
 
-template <typename FF_> class GoblinTranslatorGenPermSortRelationImpl {
+template <typename FF_> class GoblinTranslatorDeltaRangeConstraintRelationImpl {
   public:
     using FF = FF_;
 
@@ -44,6 +44,6 @@ template <typename FF_> class GoblinTranslatorGenPermSortRelationImpl {
 };
 
 template <typename FF>
-using GoblinTranslatorGenPermSortRelation = Relation<GoblinTranslatorGenPermSortRelationImpl<FF>>;
+using GoblinTranslatorDeltaRangeConstraintRelation = Relation<GoblinTranslatorDeltaRangeConstraintRelationImpl<FF>>;
 
 } // namespace bb

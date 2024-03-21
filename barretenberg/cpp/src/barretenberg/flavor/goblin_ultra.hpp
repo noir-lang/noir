@@ -8,9 +8,9 @@
 #include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/relations/auxiliary_relation.hpp"
 #include "barretenberg/relations/databus_lookup_relation.hpp"
+#include "barretenberg/relations/delta_range_constraint_relation.hpp"
 #include "barretenberg/relations/ecc_op_queue_relation.hpp"
 #include "barretenberg/relations/elliptic_relation.hpp"
-#include "barretenberg/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/relations/lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/relations/poseidon2_external_relation.hpp"
@@ -53,7 +53,7 @@ class GoblinUltraFlavor {
     using Relations_ = std::tuple<bb::UltraArithmeticRelation<FF>,
                                   bb::UltraPermutationRelation<FF>,
                                   bb::LookupRelation<FF>,
-                                  bb::GenPermSortRelation<FF>,
+                                  bb::DeltaRangeConstraintRelation<FF>,
                                   bb::EllipticRelation<FF>,
                                   bb::AuxiliaryRelation<FF>,
                                   bb::EccOpQueueRelation<FF>,
@@ -103,7 +103,7 @@ class GoblinUltraFlavor {
                               q_o,                  // column 4
                               q_4,                  // column 5
                               q_arith,              // column 6
-                              q_sort,               // column 7
+                              q_delta_range,        // column 7
                               q_elliptic,           // column 8
                               q_aux,                // column 9
                               q_lookup,             // column 10
@@ -139,7 +139,7 @@ class GoblinUltraFlavor {
                              q_o,
                              q_4,
                              q_arith,
-                             q_sort,
+                             q_delta_range,
                              q_elliptic,
                              q_aux,
                              q_lookup,
@@ -386,7 +386,7 @@ class GoblinUltraFlavor {
             q_4 = "Q_4";
             q_m = "Q_M";
             q_arith = "Q_ARITH";
-            q_sort = "Q_SORT";
+            q_delta_range = "Q_SORT";
             q_elliptic = "Q_ELLIPTIC";
             q_aux = "Q_AUX";
             q_lookup = "Q_LOOKUP";
@@ -427,7 +427,7 @@ class GoblinUltraFlavor {
             this->q_4 = verification_key->q_4;
             this->q_c = verification_key->q_c;
             this->q_arith = verification_key->q_arith;
-            this->q_sort = verification_key->q_sort;
+            this->q_delta_range = verification_key->q_delta_range;
             this->q_elliptic = verification_key->q_elliptic;
             this->q_aux = verification_key->q_aux;
             this->q_lookup = verification_key->q_lookup;

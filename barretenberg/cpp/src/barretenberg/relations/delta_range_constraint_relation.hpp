@@ -3,7 +3,7 @@
 
 namespace bb {
 
-template <typename FF_> class GenPermSortRelationImpl {
+template <typename FF_> class DeltaRangeConstraintRelationImpl {
   public:
     using FF = FF_;
 
@@ -17,7 +17,7 @@ template <typename FF_> class GenPermSortRelationImpl {
     /**
      * @brief Expression for the generalized permutation sort gate.
      * @details The relation is defined as C(in(X)...) =
-     *    q_sort * \sum{ i = [0, 3]} \alpha^i D_i(D_i - 1)(D_i - 2)(D_i - 3)
+     *    q_delta_range * \sum{ i = [0, 3]} \alpha^i D_i(D_i - 1)(D_i - 2)(D_i - 3)
      *      where
      *      D_0 = w_2 - w_1
      *      D_1 = w_3 - w_2
@@ -42,7 +42,7 @@ template <typename FF_> class GenPermSortRelationImpl {
         auto w_3 = View(in.w_o);
         auto w_4 = View(in.w_4);
         auto w_1_shift = View(in.w_l_shift);
-        auto q_sort = View(in.q_sort);
+        auto q_delta_range = View(in.q_delta_range);
 
         static const FF minus_one = FF(-1);
         static const FF minus_two = FF(-2);
@@ -59,7 +59,7 @@ template <typename FF_> class GenPermSortRelationImpl {
         tmp_1 *= (delta_1 + minus_one);
         tmp_1 *= (delta_1 + minus_two);
         tmp_1 *= (delta_1 + minus_three);
-        tmp_1 *= q_sort;
+        tmp_1 *= q_delta_range;
         tmp_1 *= scaling_factor;
         std::get<0>(accumulators) += tmp_1;
 
@@ -68,7 +68,7 @@ template <typename FF_> class GenPermSortRelationImpl {
         tmp_2 *= (delta_2 + minus_one);
         tmp_2 *= (delta_2 + minus_two);
         tmp_2 *= (delta_2 + minus_three);
-        tmp_2 *= q_sort;
+        tmp_2 *= q_delta_range;
         tmp_2 *= scaling_factor;
         std::get<1>(accumulators) += tmp_2;
 
@@ -77,7 +77,7 @@ template <typename FF_> class GenPermSortRelationImpl {
         tmp_3 *= (delta_3 + minus_one);
         tmp_3 *= (delta_3 + minus_two);
         tmp_3 *= (delta_3 + minus_three);
-        tmp_3 *= q_sort;
+        tmp_3 *= q_delta_range;
         tmp_3 *= scaling_factor;
         std::get<2>(accumulators) += tmp_3;
 
@@ -86,12 +86,12 @@ template <typename FF_> class GenPermSortRelationImpl {
         tmp_4 *= (delta_4 + minus_one);
         tmp_4 *= (delta_4 + minus_two);
         tmp_4 *= (delta_4 + minus_three);
-        tmp_4 *= q_sort;
+        tmp_4 *= q_delta_range;
         tmp_4 *= scaling_factor;
         std::get<3>(accumulators) += tmp_4;
     };
 };
 
-template <typename FF> using GenPermSortRelation = Relation<GenPermSortRelationImpl<FF>>;
+template <typename FF> using DeltaRangeConstraintRelation = Relation<DeltaRangeConstraintRelationImpl<FF>>;
 
 } // namespace bb

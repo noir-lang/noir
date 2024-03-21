@@ -11,8 +11,8 @@
 #include "barretenberg/proof_system/circuit_builder/goblin_translator_circuit_builder.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/translator_vm/translator_decomposition_relation.hpp"
+#include "barretenberg/relations/translator_vm/translator_delta_range_constraint_relation.hpp"
 #include "barretenberg/relations/translator_vm/translator_extra_relations.hpp"
-#include "barretenberg/relations/translator_vm/translator_gen_perm_sort_relation.hpp"
 #include "barretenberg/relations/translator_vm/translator_non_native_field_relation.hpp"
 #include "barretenberg/relations/translator_vm/translator_permutation_relation.hpp"
 #include "relation_definitions.hpp"
@@ -38,7 +38,7 @@ class GoblinTranslatorFlavor {
     static constexpr size_t MINIMUM_MINI_CIRCUIT_SIZE = 2048;
 
     // The size of the circuit which is filled with non-zero values for most polynomials. Most relations (everything
-    // except for Permutation and GenPermSort) can be evaluated just on the first chunk
+    // except for Permutation and DeltaRangeConstraint) can be evaluated just on the first chunk
     // It is also the only parameter that can be changed without updating relations or structures in the flavor
     static constexpr size_t MINI_CIRCUIT_SIZE = mini_circuit_size;
 
@@ -56,7 +56,7 @@ class GoblinTranslatorFlavor {
     // Number of wires
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
 
-    // The step in the GenPermSort relation
+    // The step in the DeltaRangeConstraint relation
     static constexpr size_t SORT_STEP = 3;
 
     // The bitness of the range constraint
@@ -82,7 +82,7 @@ class GoblinTranslatorFlavor {
     using GrandProductRelations = std::tuple<GoblinTranslatorPermutationRelation<FF>>;
     // define the tuple of Relations that comprise the Sumcheck relation
     using Relations = std::tuple<GoblinTranslatorPermutationRelation<FF>,
-                                 GoblinTranslatorGenPermSortRelation<FF>,
+                                 GoblinTranslatorDeltaRangeConstraintRelation<FF>,
                                  GoblinTranslatorOpcodeConstraintRelation<FF>,
                                  GoblinTranslatorAccumulatorTransferRelation<FF>,
                                  GoblinTranslatorDecompositionRelation<FF>,
@@ -99,13 +99,13 @@ class GoblinTranslatorFlavor {
     static constexpr size_t NUM_RELATIONS = std::tuple_size_v<Relations>;
 
     // define the containers for storing the contributions from each relation in Sumcheck
-    using SumcheckTupleOfTuplesOfUnivariates =
-        std::tuple<typename GoblinTranslatorPermutationRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
-                   typename GoblinTranslatorGenPermSortRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
-                   typename GoblinTranslatorOpcodeConstraintRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
-                   typename GoblinTranslatorAccumulatorTransferRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
-                   typename GoblinTranslatorDecompositionRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
-                   typename GoblinTranslatorNonNativeFieldRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations>;
+    using SumcheckTupleOfTuplesOfUnivariates = std::tuple<
+        typename GoblinTranslatorPermutationRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+        typename GoblinTranslatorDeltaRangeConstraintRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+        typename GoblinTranslatorOpcodeConstraintRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+        typename GoblinTranslatorAccumulatorTransferRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+        typename GoblinTranslatorDecompositionRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations,
+        typename GoblinTranslatorNonNativeFieldRelation<FF>::SumcheckTupleOfUnivariatesOverSubrelations>;
     using TupleOfArraysOfValues = decltype(create_tuple_of_arrays_of_values<Relations>());
 
   private:
@@ -157,7 +157,7 @@ class GoblinTranslatorFlavor {
          * @details Goblin proves that several polynomials contain only values in a certain range through 2 relations:
          * 1) A grand product which ignores positions of elements (GoblinTranslatorPermutationRelation)
          * 2) A relation enforcing a certain ordering on the elements of the given polynomial
-         * (GoblinTranslatorGenPermSortRelation)
+         * (GoblinTranslatorDeltaRangeConstraintRelation)
          *
          * We take the values from 4 polynomials, and spread them into 5 polynomials + add all the steps from MAX_VALUE
          * to 0. We order these polynomials and use them in the denominator of the grand product, at the same time

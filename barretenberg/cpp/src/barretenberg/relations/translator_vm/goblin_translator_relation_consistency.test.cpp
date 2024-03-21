@@ -102,10 +102,10 @@ TEST_F(GoblinTranslatorRelationConsistency, PermutationRelation)
     run_test(/*random_inputs=*/true);
 };
 
-TEST_F(GoblinTranslatorRelationConsistency, GenPermSortRelation)
+TEST_F(GoblinTranslatorRelationConsistency, DeltaRangeConstraintRelation)
 {
     const auto run_test = [](bool random_inputs) {
-        using Relation = GoblinTranslatorGenPermSortRelation<FF>;
+        using Relation = GoblinTranslatorDeltaRangeConstraintRelation<FF>;
         using RelationValues = typename Relation::SumcheckArrayOfValuesOverSubrelations;
 
         const InputElements input_elements = random_inputs ? get_random_input() : get_special_input();

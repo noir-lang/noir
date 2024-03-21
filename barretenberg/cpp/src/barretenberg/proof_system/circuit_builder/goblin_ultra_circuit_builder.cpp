@@ -50,7 +50,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     this->blocks.poseidon_external.q_c().emplace_back(0);
     this->blocks.poseidon_external.q_arith().emplace_back(0);
     this->blocks.poseidon_external.q_4().emplace_back(0);
-    this->blocks.poseidon_external.q_sort().emplace_back(0);
+    this->blocks.poseidon_external.q_delta_range().emplace_back(0);
     this->blocks.poseidon_external.q_lookup_type().emplace_back(0);
     this->blocks.poseidon_external.q_elliptic().emplace_back(0);
     this->blocks.poseidon_external.q_aux().emplace_back(0);
@@ -73,7 +73,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     this->blocks.poseidon_internal.q_c().emplace_back(0);
     this->blocks.poseidon_internal.q_arith().emplace_back(0);
     this->blocks.poseidon_internal.q_4().emplace_back(0);
-    this->blocks.poseidon_internal.q_sort().emplace_back(0);
+    this->blocks.poseidon_internal.q_delta_range().emplace_back(0);
     this->blocks.poseidon_internal.q_lookup_type().emplace_back(0);
     this->blocks.poseidon_internal.q_elliptic().emplace_back(0);
     this->blocks.poseidon_internal.q_aux().emplace_back(0);
@@ -239,7 +239,7 @@ void GoblinUltraCircuitBuilder_<FF>::create_calldata_lookup_gate(const databus_l
     block.q_2().emplace_back(0);
     block.q_3().emplace_back(0);
     block.q_c().emplace_back(0);
-    block.q_sort().emplace_back(0);
+    block.q_delta_range().emplace_back(0);
     block.q_arith().emplace_back(0);
     block.q_4().emplace_back(0);
     block.q_lookup_type().emplace_back(0);
@@ -267,7 +267,7 @@ void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_external_gate(const poseid
     block.q_c().emplace_back(0);
     block.q_arith().emplace_back(0);
     block.q_4().emplace_back(Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][3]);
-    block.q_sort().emplace_back(0);
+    block.q_delta_range().emplace_back(0);
     block.q_lookup_type().emplace_back(0);
     block.q_elliptic().emplace_back(0);
     block.q_aux().emplace_back(0);
@@ -293,7 +293,7 @@ void GoblinUltraCircuitBuilder_<FF>::create_poseidon2_internal_gate(const poseid
     block.q_c().emplace_back(0);
     block.q_arith().emplace_back(0);
     block.q_4().emplace_back(0);
-    block.q_sort().emplace_back(0);
+    block.q_delta_range().emplace_back(0);
     block.q_lookup_type().emplace_back(0);
     block.q_elliptic().emplace_back(0);
     block.q_aux().emplace_back(0);

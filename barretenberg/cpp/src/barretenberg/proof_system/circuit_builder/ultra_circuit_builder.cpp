@@ -67,7 +67,7 @@ void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_no
     blocks.arithmetic.q_3().emplace_back(1);
     blocks.arithmetic.q_4().emplace_back(1);
     blocks.arithmetic.q_c().emplace_back(0);
-    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_delta_range().emplace_back(0);
     blocks.arithmetic.q_arith().emplace_back(0);
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
@@ -78,7 +78,7 @@ void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_no
     check_selector_length_consistency();
     ++this->num_gates;
 
-    // q_sort
+    // q_delta_range
     blocks.delta_range.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
     blocks.delta_range.q_m().emplace_back(0);
     blocks.delta_range.q_1().emplace_back(0);
@@ -86,7 +86,7 @@ void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_no
     blocks.delta_range.q_3().emplace_back(0);
     blocks.delta_range.q_4().emplace_back(0);
     blocks.delta_range.q_c().emplace_back(0);
-    blocks.delta_range.q_sort().emplace_back(1);
+    blocks.delta_range.q_delta_range().emplace_back(1);
     blocks.delta_range.q_arith().emplace_back(0);
     blocks.delta_range.q_lookup_type().emplace_back(0);
     blocks.delta_range.q_elliptic().emplace_back(0);
@@ -106,7 +106,7 @@ void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_no
     blocks.elliptic.q_3().emplace_back(0);
     blocks.elliptic.q_4().emplace_back(0);
     blocks.elliptic.q_c().emplace_back(0);
-    blocks.elliptic.q_sort().emplace_back(0);
+    blocks.elliptic.q_delta_range().emplace_back(0);
     blocks.elliptic.q_arith().emplace_back(0);
     blocks.elliptic.q_lookup_type().emplace_back(0);
     blocks.elliptic.q_elliptic().emplace_back(1);
@@ -126,7 +126,7 @@ void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_no
     blocks.aux.q_3().emplace_back(0);
     blocks.aux.q_4().emplace_back(0);
     blocks.aux.q_c().emplace_back(0);
-    blocks.aux.q_sort().emplace_back(0);
+    blocks.aux.q_delta_range().emplace_back(0);
     blocks.aux.q_arith().emplace_back(0);
     blocks.aux.q_lookup_type().emplace_back(0);
     blocks.aux.q_elliptic().emplace_back(0);
@@ -184,7 +184,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_add_gate(const add_triple_<FF
     blocks.arithmetic.q_c().emplace_back(in.const_scaling);
     blocks.arithmetic.q_arith().emplace_back(1);
     blocks.arithmetic.q_4().emplace_back(0);
-    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_delta_range().emplace_back(0);
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
@@ -216,7 +216,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_big_add_gate(const add_quad_<
     blocks.arithmetic.q_c().emplace_back(in.const_scaling);
     blocks.arithmetic.q_arith().emplace_back(include_next_gate_w_4 ? 2 : 1);
     blocks.arithmetic.q_4().emplace_back(in.d_scaling);
-    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_delta_range().emplace_back(0);
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
@@ -310,7 +310,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_big_mul_gate(const mul_quad_<
     blocks.arithmetic.q_c().emplace_back(in.const_scaling);
     blocks.arithmetic.q_arith().emplace_back(1);
     blocks.arithmetic.q_4().emplace_back(in.d_scaling);
-    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_delta_range().emplace_back(0);
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
@@ -336,7 +336,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_balanced_add_gate(const add_q
     blocks.arithmetic.q_c().emplace_back(in.const_scaling);
     blocks.arithmetic.q_arith().emplace_back(1);
     blocks.arithmetic.q_4().emplace_back(in.d_scaling);
-    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_delta_range().emplace_back(0);
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
@@ -378,7 +378,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_mul_gate(const mul_triple_<FF
     blocks.arithmetic.q_c().emplace_back(in.const_scaling);
     blocks.arithmetic.q_arith().emplace_back(1);
     blocks.arithmetic.q_4().emplace_back(0);
-    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_delta_range().emplace_back(0);
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
@@ -404,7 +404,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_bool_gate(const uint32_t vari
     blocks.arithmetic.q_2().emplace_back(0);
     blocks.arithmetic.q_3().emplace_back(0);
     blocks.arithmetic.q_c().emplace_back(0);
-    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_delta_range().emplace_back(0);
 
     blocks.arithmetic.q_arith().emplace_back(1);
     blocks.arithmetic.q_4().emplace_back(0);
@@ -435,7 +435,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_poly_gate(const poly_triple_<
     blocks.arithmetic.q_2().emplace_back(in.q_r);
     blocks.arithmetic.q_3().emplace_back(in.q_o);
     blocks.arithmetic.q_c().emplace_back(in.q_c);
-    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_delta_range().emplace_back(0);
 
     blocks.arithmetic.q_arith().emplace_back(1);
     blocks.arithmetic.q_4().emplace_back(0);
@@ -497,7 +497,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_ecc_add_gate(const ecc_add_ga
         block.q_2().emplace_back(0);
         block.q_m().emplace_back(0);
         block.q_c().emplace_back(0);
-        block.q_sort().emplace_back(0);
+        block.q_delta_range().emplace_back(0);
         block.q_lookup_type().emplace_back(0);
         block.q_elliptic().emplace_back(1);
         block.q_aux().emplace_back(0);
@@ -551,7 +551,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_ecc_dbl_gate(const ecc_dbl_ga
         block.q_c().emplace_back(0);
         block.q_arith().emplace_back(0);
         block.q_4().emplace_back(0);
-        block.q_sort().emplace_back(0);
+        block.q_delta_range().emplace_back(0);
         block.q_lookup_type().emplace_back(0);
         block.q_aux().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
@@ -582,7 +582,7 @@ void UltraCircuitBuilder_<Arithmetization>::fix_witness(const uint32_t witness_i
     blocks.arithmetic.q_c().emplace_back(-witness_value);
     blocks.arithmetic.q_arith().emplace_back(1);
     blocks.arithmetic.q_4().emplace_back(0);
-    blocks.arithmetic.q_sort().emplace_back(0);
+    blocks.arithmetic.q_delta_range().emplace_back(0);
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
@@ -658,7 +658,7 @@ plookup::ReadData<uint32_t> UltraCircuitBuilder_<Arithmetization>::create_gates_
         blocks.lookup.q_c().emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_3_step_sizes[i + 1]));
         blocks.lookup.q_arith().emplace_back(0);
         blocks.lookup.q_4().emplace_back(0);
-        blocks.lookup.q_sort().emplace_back(0);
+        blocks.lookup.q_delta_range().emplace_back(0);
         blocks.lookup.q_elliptic().emplace_back(0);
         blocks.lookup.q_aux().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
@@ -967,7 +967,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint(const std::ve
         blocks.delta_range.q_c().emplace_back(0);
         blocks.delta_range.q_arith().emplace_back(0);
         blocks.delta_range.q_4().emplace_back(0);
-        blocks.delta_range.q_sort().emplace_back(1);
+        blocks.delta_range.q_delta_range().emplace_back(1);
         blocks.delta_range.q_elliptic().emplace_back(0);
         blocks.delta_range.q_lookup_type().emplace_back(0);
         blocks.delta_range.q_aux().emplace_back(0);
@@ -1001,7 +1001,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_dummy_gate(
     block.q_c().emplace_back(0);
     block.q_arith().emplace_back(0);
     block.q_4().emplace_back(0);
-    block.q_sort().emplace_back(0);
+    block.q_delta_range().emplace_back(0);
     block.q_elliptic().emplace_back(0);
     block.q_lookup_type().emplace_back(0);
     block.q_aux().emplace_back(0);
@@ -1059,7 +1059,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
         block.q_c().emplace_back(0);
         block.q_arith().emplace_back(0);
         block.q_4().emplace_back(0);
-        block.q_sort().emplace_back(1);
+        block.q_delta_range().emplace_back(1);
         block.q_elliptic().emplace_back(0);
         block.q_lookup_type().emplace_back(0);
         block.q_aux().emplace_back(0);
@@ -1082,7 +1082,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
         block.q_c().emplace_back(0);
         block.q_arith().emplace_back(0);
         block.q_4().emplace_back(0);
-        block.q_sort().emplace_back(1);
+        block.q_delta_range().emplace_back(1);
         block.q_elliptic().emplace_back(0);
         block.q_lookup_type().emplace_back(0);
         block.q_aux().emplace_back(0);
@@ -1203,7 +1203,7 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
 {
     auto& block = blocks.aux;
     block.q_aux().emplace_back(type == AUX_SELECTORS::NONE ? 0 : 1);
-    block.q_sort().emplace_back(0);
+    block.q_delta_range().emplace_back(0);
     block.q_lookup_type().emplace_back(0);
     block.q_elliptic().emplace_back(0);
     switch (type) {
@@ -1620,7 +1620,7 @@ std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
     blocks.aux.q_c().emplace_back(0);
     blocks.aux.q_arith().emplace_back(2);
     blocks.aux.q_4().emplace_back(-LIMB_SHIFT.sqr());
-    blocks.aux.q_sort().emplace_back(0);
+    blocks.aux.q_delta_range().emplace_back(0);
     blocks.aux.q_lookup_type().emplace_back(0);
     blocks.aux.q_elliptic().emplace_back(0);
     blocks.aux.q_aux().emplace_back(0);
@@ -1904,7 +1904,7 @@ std::array<uint32_t, 5> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
     block.q_arith().emplace_back(1);
 
     for (size_t i = 0; i < 4; ++i) {
-        block.q_sort().emplace_back(0);
+        block.q_delta_range().emplace_back(0);
         block.q_lookup_type().emplace_back(0);
         block.q_elliptic().emplace_back(0);
         block.q_aux().emplace_back(0);
@@ -2024,7 +2024,7 @@ std::array<uint32_t, 5> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
     block.q_arith().emplace_back(1);
 
     for (size_t i = 0; i < 4; ++i) {
-        block.q_sort().emplace_back(0);
+        block.q_delta_range().emplace_back(0);
         block.q_lookup_type().emplace_back(0);
         block.q_elliptic().emplace_back(0);
         block.q_aux().emplace_back(0);

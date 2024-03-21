@@ -11,8 +11,8 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/relations/auxiliary_relation.hpp"
+#include "barretenberg/relations/delta_range_constraint_relation.hpp"
 #include "barretenberg/relations/elliptic_relation.hpp"
-#include "barretenberg/relations/gen_perm_sort_relation.hpp"
 #include "barretenberg/relations/lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
@@ -74,7 +74,7 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
     using Relations = std::tuple<bb::UltraArithmeticRelation<FF>,
                                  bb::UltraPermutationRelation<FF>,
                                  bb::LookupRelation<FF>,
-                                 bb::GenPermSortRelation<FF>,
+                                 bb::DeltaRangeConstraintRelation<FF>,
                                  bb::EllipticRelation<FF>,
                                  bb::AuxiliaryRelation<FF>>;
 
@@ -116,7 +116,7 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
                               q_o,            // column 4
                               q_4,            // column 5
                               q_arith,        // column 6
-                              q_sort,         // column 7
+                              q_delta_range,  // column 7
                               q_elliptic,     // column 8
                               q_aux,          // column 9
                               q_lookup,       // column 10
@@ -137,7 +137,7 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
 
         auto get_selectors()
         {
-            return RefArray{ q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_sort, q_elliptic, q_aux, q_lookup };
+            return RefArray{ q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_delta_range, q_elliptic, q_aux, q_lookup };
         };
         auto get_sigma_polynomials() { return RefArray{ sigma_1, sigma_2, sigma_3, sigma_4 }; };
         auto get_id_polynomials() { return RefArray{ id_1, id_2, id_3, id_4 }; };
@@ -190,7 +190,7 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
                               q_4,                // column 4
                               q_m,                // column 5
                               q_arith,            // column 6
-                              q_sort,             // column 7
+                              q_delta_range,      // column 7
                               q_elliptic,         // column 8
                               q_aux,              // column 9
                               q_lookup,           // column 10
@@ -232,7 +232,7 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
         // Gemini-specific getters.
         auto get_unshifted()
         {
-            return RefArray{ q_m,           q_c,   q_l,      q_r,     q_o,     q_4,          q_arith, q_sort,
+            return RefArray{ q_m,           q_c,   q_l,      q_r,     q_o,     q_4,          q_arith, q_delta_range,
                              q_elliptic,    q_aux, q_lookup, sigma_1, sigma_2, sigma_3,      sigma_4, id_1,
                              id_2,          id_3,  id_4,     table_1, table_2, table_3,      table_4, lagrange_first,
                              lagrange_last, w_l,   w_r,      w_o,     w_4,     sorted_accum, z_perm,  z_lookup
@@ -241,7 +241,7 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
         };
         auto get_precomputed()
         {
-            return RefArray{ q_m,          q_c,   q_l,      q_r,     q_o,     q_4,     q_arith, q_sort,
+            return RefArray{ q_m,          q_c,   q_l,      q_r,     q_o,     q_4,     q_arith, q_delta_range,
                              q_elliptic,   q_aux, q_lookup, sigma_1, sigma_2, sigma_3, sigma_4, id_1,
                              id_2,         id_3,  id_4,     table_1, table_2, table_3, table_4, lagrange_first,
                              lagrange_last
@@ -298,7 +298,7 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
             this->q_4 = Commitment::from_witness(builder, native_key->q_4);
             this->q_c = Commitment::from_witness(builder, native_key->q_c);
             this->q_arith = Commitment::from_witness(builder, native_key->q_arith);
-            this->q_sort = Commitment::from_witness(builder, native_key->q_sort);
+            this->q_delta_range = Commitment::from_witness(builder, native_key->q_delta_range);
             this->q_elliptic = Commitment::from_witness(builder, native_key->q_elliptic);
             this->q_aux = Commitment::from_witness(builder, native_key->q_aux);
             this->q_lookup = Commitment::from_witness(builder, native_key->q_lookup);
@@ -355,7 +355,7 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
             this->q_4 = "Q_4";
             this->q_m = "Q_M";
             this->q_arith = "Q_ARITH";
-            this->q_sort = "Q_SORT";
+            this->q_delta_range = "Q_SORT";
             this->q_elliptic = "Q_ELLIPTIC";
             this->q_aux = "Q_AUX";
             this->q_lookup = "Q_LOOKUP";
@@ -388,7 +388,7 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
             this->q_4 = verification_key->q_4;
             this->q_c = verification_key->q_c;
             this->q_arith = verification_key->q_arith;
-            this->q_sort = verification_key->q_sort;
+            this->q_delta_range = verification_key->q_delta_range;
             this->q_elliptic = verification_key->q_elliptic;
             this->q_aux = verification_key->q_aux;
             this->q_lookup = verification_key->q_lookup;
