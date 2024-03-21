@@ -1087,4 +1087,172 @@ mod tests {
             assert_eq!(got, token);
         }
     }
+
+    fn blns_base64_to_statements(base64_str: String) -> Vec<(Token, Vec<String>)> {
+        use base64::engine::general_purpose;
+        use std::borrow::Cow;
+        use std::io::Cursor;
+        use std::io::Read;
+
+        let mut wrapped_reader = Cursor::new(base64_str);
+        let mut decoder = base64::read::DecoderReader::new(
+            &mut wrapped_reader,
+            &general_purpose::STANDARD);
+        let mut base64_decoded = Vec::new();
+        decoder.read_to_end(&mut base64_decoded).unwrap();
+
+        // NOTE: when successful, this is the same conversion method as used in
+        // noirc_driver::stdlib::stdlib_paths_with_source, viz.
+        //
+        // let source = std::str::from_utf8(..).unwrap().to_string();
+        let s: Cow<'_, str> = match std::str::from_utf8(&base64_decoded) {
+            Ok(s) => std::borrow::Cow::Borrowed(s),
+            Err(_err) => {
+                // recover as much of the string as possible
+                // when str::from_utf8 fails
+                String::from_utf8_lossy(&result)
+            },
+        };
+
+        vec![
+            (Token::Ident("".to_string()), vec![
+                format!("
+                    let \"{}\" = ();
+                ", s),
+            ]),
+
+            // TODO add back with discriminants?
+                // // Token::Str(String)
+                // format!("
+                //     let s = \"{}\";
+                // ", s),
+                //
+                // // Token::RawStr(String, u8)
+                // // let s = r"Hello world";
+                // format!("
+                //     let s = r\"{}\";
+                // ", s),
+                //
+                // // let s = r#"Simon says "hello world""#;
+                // format!("
+                //     let s = r#\"{}\"#;
+                // ", s),
+                //
+                // // // Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
+                // // let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####; 
+                // format!("
+                //     let s = r##\"{}\"##;
+                // ", s),
+                // format!("
+                //     let s = r###\"{}\"###;
+                // ", s),
+                // format!("
+                //     let s = r####\"{}\"####;
+                // ", s),
+                // format!("
+                //     let s = r#####\"{}\"#####;
+                // ", s),
+                //
+                // // Token::FmtStr(String)
+                // format!("
+                //     assert(x == y, f\"{}\");
+                // ", s),
+                //
+                // // Token::LineComment(String, Option<DocStyle>)
+                // format!("
+                //     // {}
+                // ", s),
+                //
+                // // Token::BlockComment(String, Option<DocStyle>)
+                // format!("
+                //     /*{}*/
+                // ", s),
+
+        ]
+    }
+
+    #[test]
+    fn test_big_list_of_naughty_strings() {
+        use std::io::Cursor;
+        use std::io::Read;
+        use std::mem::discriminant;
+        use std::path::Path;
+        use std::process::Command;
+
+        let blns_url = "https://raw.githubusercontent.com/minimaxir/big-list-of-naughty-strings/master/blns.base64.json";
+        // TODO: fix temp directory handling or remove
+        // let mut blns_path = Path::new("target/tmp");
+        // while !blns_path.is_dir() {
+        //     blns_path = blns_path.parent().unwrap();
+        // }
+        // let blns_path = blns_path.join("blns.base64.json");
+
+        let blns_path_str = "../../target/tmp/blns.base64.json";
+        // let blns_path_str = blns_path.to_str().unwrap();
+
+        let command_str = format!("ls {blns_path_str} || curl {blns_url} --output {blns_path_str}");
+
+        Command::new("sh")
+            .arg("-c")
+            .arg(command_str)
+            .output()
+            .expect("failed to download BLNS database with cURL: is cURL available on your system?");
+
+        let mut blns_bytes = std::fs::File::open(blns_path_str).unwrap();
+
+        // TODO: revert fetch to backend_interface-style
+        // https://github.com/noir-lang/noir/blob/master/tooling/backend_interface/src/download.rs#L50
+        //
+        // let blns_response = reqwest::blocking::get(blns_url).expect("fetching BLNS file failed");
+        // let blns_bytes = blns_response.bytes().expect("decoding BLNS file failed");
+        // let mut blns_cursor = Cursor::new(blns_bytes.to_vec());
+
+        let mut blns_cursor = blns_bytes;
+        let mut blns_contents = String::new();
+        blns_cursor.read_to_string(&mut blns_contents).unwrap();
+        let blns_base64: Vec<String> = serde_json::from_str(&blns_contents).expect("BLNS json invalid");
+
+        blns_base64.into_iter().for_each(|blns_base64_str| {
+            blns_base64_to_statements(blns_base64_str).into_iter().for_each(|(token_discriminator, blns_program_strs)| {
+                blns_program_strs.into_iter().for_each(|blns_program_str| {
+                    let mut expected_token_found = false;
+                    let mut lexer = Lexer::new(&blns_program_str);
+                    let mut result_tokens = Vec::new();
+                    loop {
+                        match lexer.next_token() {
+                            Ok(next_token) => {
+                                result_tokens.push(next_token.clone());
+
+                                if discriminant(&token_discriminator) == discriminant(&next_token.token()) {
+                                    expected_token_found = true;
+                                }
+
+                                if next_token == Token::EOF {
+                                    assert!(lexer.done, "lexer not done when EOF emitted!");
+                                    break
+                                }
+                            }
+
+                            Err(LexerErrorKind::InvalidIntegerLiteral { .. }) |
+                            Err(LexerErrorKind::UnexpectedCharacter { .. }) |
+
+                            // TODO: unclear whether this should trigger
+                            Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
+                                // we have to expect that it was found because this error could be
+                                // covering it
+                                expected_token_found = true;
+                            }
+                            Err(err) => {
+                                panic!("Unexpected lexer error found: {:?}", err)
+                            }
+                        }
+                    }
+
+                    // TODO: avoid printing BLNS
+                    assert!(expected_token_found, "{}", format!("expected token not found: {:?}\n\ninput:\n{:?}\n\noutput:\n{:?}", token_discriminator, blns_program_str, result_tokens));
+                })
+            })
+        })
+    }
+
 }
