@@ -28,4 +28,4 @@ jobs:
         with:
           branchName: "master"
           package: "nargo_cli"
-          benchName: "criterion"
+          benchName: "execution"
