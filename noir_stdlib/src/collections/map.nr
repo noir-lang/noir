@@ -45,6 +45,7 @@ impl<Size> HashMap<Size> {
             {
                 found_index = i as Field;
                 found = true;
+                break;
             }
         }
         (found_index, found)
@@ -74,6 +75,7 @@ impl<Size> HashMap<Size> {
             {
                 found_index = previous_index as Field;
                 insert_between_two_entries = true;
+                break;
             }
         }
         (found_index, insert_between_two_entries, insert_at_start, insert_at_end)
@@ -174,6 +176,7 @@ impl<Size> HashMap<Size> {
             if (key == self.entries[i].key) {
                 index = i;
                 found = true;
+                break;
             }
         }
         assert(found == true);
