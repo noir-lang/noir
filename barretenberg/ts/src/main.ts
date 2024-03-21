@@ -129,28 +129,29 @@ export async function proveAndVerify(bytecodePath: string, witnessPath: string, 
   /* eslint-enable camelcase */
 }
 
-export async function accumulateAndVerifyGoblin(bytecodePath: string, witnessPath: string, crsPath: string) {
+export async function proveAndVerifyUltraHonk(bytecodePath: string, witnessPath: string, crsPath: string) {
   /* eslint-disable camelcase */
-  const acir_test = path.basename(process.cwd());
-
-  const { api, acirComposer, circuitSize, subgroupSize } = await initGoblin(bytecodePath, crsPath);
+  const { api } = await init(bytecodePath, crsPath);
   try {
-    debug(`In accumulateAndVerifyGoblin:`);
     const bytecode = getBytecode(bytecodePath);
     const witness = getWitness(witnessPath);
 
-    writeBenchmark('gate_count', circuitSize, { acir_test, threads });
-    writeBenchmark('subgroup_size', subgroupSize, { acir_test, threads });
+    const verified = await api.acirProveAndVerifyUltraHonk(bytecode, witness);
+    return verified;
+  } finally {
+    await api.destroy();
+  }
+  /* eslint-enable camelcase */
+}
 
-    debug(`acirGoblinAccumulate()`);
-    const proofTimer = new Timer();
-    const proof = await api.acirGoblinAccumulate(acirComposer, bytecode, witness);
-    writeBenchmark('proof_construction_time', proofTimer.ms(), { acir_test, threads });
+export async function proveAndVerifyGoblinUltraHonk(bytecodePath: string, witnessPath: string, crsPath: string) {
+  /* eslint-disable camelcase */
+  const { api } = await init(bytecodePath, crsPath);
+  try {
+    const bytecode = getBytecode(bytecodePath);
+    const witness = getWitness(witnessPath);
 
-    debug(`acirVerifyGoblinProof()`);
-    const verified = await api.acirGoblinVerifyAccumulator(acirComposer, proof);
-    debug(`verified: ${verified}`);
-    console.log({ verified });
+    const verified = await api.acirProveAndVerifyGoblinUltraHonk(bytecode, witness);
     return verified;
   } finally {
     await api.destroy();
@@ -380,13 +381,24 @@ program
   });
 
 program
-  .command('accumulate_and_verify_goblin')
+  .command('prove_and_verify_ultra_honk')
+  .description('Generate an UltraHonk proof and verify it. Process exits with success or failure code.')
+  .option('-b, --bytecode-path <path>', 'Specify the bytecode path', './target/acir.gz')
+  .option('-w, --witness-path <path>', 'Specify the witness path', './target/witness.gz')
+  .action(async ({ bytecodePath, witnessPath, crsPath }) => {
+    handleGlobalOptions();
+    const result = await proveAndVerifyUltraHonk(bytecodePath, witnessPath, crsPath);
+    process.exit(result ? 0 : 1);
+  });
+
+program
+  .command('prove_and_verify_goblin_ultra_honk')
   .description('Generate a GUH proof and verify it. Process exits with success or failure code.')
   .option('-b, --bytecode-path <path>', 'Specify the bytecode path', './target/acir.gz')
   .option('-w, --witness-path <path>', 'Specify the witness path', './target/witness.gz')
   .action(async ({ bytecodePath, witnessPath, crsPath }) => {
     handleGlobalOptions();
-    const result = await accumulateAndVerifyGoblin(bytecodePath, witnessPath, crsPath);
+    const result = await proveAndVerifyGoblinUltraHonk(bytecodePath, witnessPath, crsPath);
     process.exit(result ? 0 : 1);
   });
 

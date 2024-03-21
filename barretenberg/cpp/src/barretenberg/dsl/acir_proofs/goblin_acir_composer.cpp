@@ -21,25 +21,6 @@ void GoblinAcirComposer::create_circuit(acir_format::AcirFormat& constraint_syst
     MockCircuits::construct_goblin_ecc_op_circuit(builder_);
 }
 
-std::vector<bb::fr> GoblinAcirComposer::accumulate()
-{
-    // // Construct a GUH proof for the circuit via the accumulate mechanism
-    // return goblin.accumulate_for_acir(builder_);
-
-    // Construct one final GUH proof via the accumulate mechanism
-    std::vector<bb::fr> ultra_proof = goblin.accumulate_for_acir(builder_);
-
-    // Construct a Goblin proof (ECCVM, Translator, Merge); result stored internally
-    goblin.prove_for_acir();
-
-    return ultra_proof;
-}
-
-bool GoblinAcirComposer::verify_accumulator(std::vector<bb::fr> const& proof)
-{
-    return goblin.verify_accumulator_for_acir(proof);
-}
-
 std::vector<bb::fr> GoblinAcirComposer::accumulate_and_prove()
 {
     // Construct one final GUH proof via the accumulate mechanism

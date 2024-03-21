@@ -1,5 +1,6 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
+#include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include <cstddef>
 
@@ -202,7 +203,7 @@ void build_constraints(Builder& builder, AcirFormat const& constraint_system, bo
 }
 
 /**
- * @brief Create a circuit from acir constraints and optionally a witness
+ * @brief Specialization for creating Ultra circuit from acir constraints and optionally a witness
  *
  * @tparam Builder
  * @param constraint_system
@@ -210,8 +211,8 @@ void build_constraints(Builder& builder, AcirFormat const& constraint_system, bo
  * @param witness
  * @return Builder
  */
-template <typename Builder>
-Builder create_circuit(const AcirFormat& constraint_system, size_t size_hint, WitnessVector const& witness)
+template <>
+UltraCircuitBuilder create_circuit(const AcirFormat& constraint_system, size_t size_hint, WitnessVector const& witness)
 {
     Builder builder{
         size_hint, witness, constraint_system.public_inputs, constraint_system.varnum, constraint_system.recursive
@@ -221,11 +222,38 @@ Builder create_circuit(const AcirFormat& constraint_system, size_t size_hint, Wi
     build_constraints(builder, constraint_system, has_valid_witness_assignments);
 
     return builder;
-}
+};
 
-template UltraCircuitBuilder create_circuit<UltraCircuitBuilder>(const AcirFormat& constraint_system,
-                                                                 size_t size_hint,
-                                                                 WitnessVector const& witness);
+/**
+ * @brief Specialization for creating GoblinUltra circuit from acir constraints and optionally a witness
+ *
+ * @tparam Builder
+ * @param constraint_system
+ * @param size_hint
+ * @param witness
+ * @return Builder
+ */
+template <>
+GoblinUltraCircuitBuilder create_circuit(const AcirFormat& constraint_system,
+                                         [[maybe_unused]] size_t size_hint,
+                                         WitnessVector const& witness)
+{
+    // Construct a builder using the witness and public input data from acir and with the goblin-owned op_queue
+    auto op_queue = std::make_shared<ECCOpQueue>(); // instantiate empty op_queue
+    auto builder =
+        GoblinUltraCircuitBuilder{ op_queue, witness, constraint_system.public_inputs, constraint_system.varnum };
+
+    // Populate constraints in the builder via the data in constraint_system
+    bool has_valid_witness_assignments = !witness.empty();
+    acir_format::build_constraints(builder, constraint_system, has_valid_witness_assignments);
+
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/817): Add some arbitrary op gates to ensure the
+    // associated polynomials are non-zero and to give ECCVM and Translator some ECC ops to process.
+    MockCircuits::construct_goblin_ecc_op_circuit(builder);
+
+    return builder;
+};
+
 template void build_constraints<GoblinUltraCircuitBuilder>(GoblinUltraCircuitBuilder&, AcirFormat const&, bool);
 
 } // namespace acir_format

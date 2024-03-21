@@ -128,40 +128,41 @@ bool proveAndVerify(const std::string& bytecodePath, const std::string& witnessP
 }
 
 /**
- * @brief Constructs and verifies a Honk proof for an ACIR circuit via the Goblin accumulate mechanism
+ * @brief Constructs and verifies a Honk proof for an acir-generated circuit
  *
- * Communication:
- * - proc_exit: A boolean value is returned indicating whether the proof is valid.
- *   an exit code of 0 will be returned for success and 1 for failure.
- *
- * @param bytecodePath Path to the file containing the serialized acir constraint system
- * @param witnessPath Path to the file containing the serialized witness
- * @return verified
+ * @tparam Flavor
+ * @param bytecodePath Path to serialized acir circuit data
+ * @param witnessPath Path to serialized acir witness data
  */
-bool accumulateAndVerifyGoblin(const std::string& bytecodePath, const std::string& witnessPath)
+template <IsUltraFlavor Flavor> bool proveAndVerifyHonk(const std::string& bytecodePath, const std::string& witnessPath)
 {
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): Don't hardcode dyadic circuit size. Currently set
-    // to max circuit size present in acir tests suite.
-    size_t hardcoded_bn254_dyadic_size_hack = 1 << 19;
-    init_bn254_crs(hardcoded_bn254_dyadic_size_hack);
-    size_t hardcoded_grumpkin_dyadic_size_hack = 1 << 10; // For eccvm only
-    init_grumpkin_crs(hardcoded_grumpkin_dyadic_size_hack);
+    using Builder = Flavor::CircuitBuilder;
+    using Prover = UltraProver_<Flavor>;
+    using Verifier = UltraVerifier_<Flavor>;
+    using VerificationKey = Flavor::VerificationKey;
 
     // Populate the acir constraint system and witness from gzipped data
     auto constraint_system = get_constraint_system(bytecodePath);
     auto witness = get_witness(witnessPath);
 
-    // Instantiate a Goblin acir composer and construct a bberg circuit from the acir representation
-    acir_proofs::GoblinAcirComposer acir_composer;
-    acir_composer.create_circuit(constraint_system, witness);
+    // Construct a bberg circuit from the acir representation
+    auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness);
 
-    // Call accumulate to generate a GoblinUltraHonk proof
-    auto proof = acir_composer.accumulate();
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/811): Add a buffer to the expected circuit size to
+    // account for the addition of "gates to ensure nonzero polynomials" (in Honk only).
+    const size_t additional_gates_buffer = 15; // conservatively large to be safe
+    size_t srs_size = builder.get_circuit_subgroup_size(builder.get_total_circuit_size() + additional_gates_buffer);
+    init_bn254_crs(srs_size);
 
-    // Verify the GoblinUltraHonk proof
-    auto verified = acir_composer.verify_accumulator(proof);
+    // Construct Honk proof
+    Prover prover{ builder };
+    auto proof = prover.construct_proof();
 
-    return verified;
+    // Verify Honk proof
+    auto verification_key = std::make_shared<VerificationKey>(prover.instance->proving_key);
+    Verifier verifier{ verification_key };
+
+    return verifier.verify_proof(proof);
 }
 
 /**
@@ -569,8 +570,11 @@ int main(int argc, char* argv[])
         if (command == "prove_and_verify") {
             return proveAndVerify(bytecode_path, witness_path) ? 0 : 1;
         }
-        if (command == "accumulate_and_verify_goblin") {
-            return accumulateAndVerifyGoblin(bytecode_path, witness_path) ? 0 : 1;
+        if (command == "prove_and_verify_ultra_honk") {
+            return proveAndVerifyHonk<UltraFlavor>(bytecode_path, witness_path) ? 0 : 1;
+        }
+        if (command == "prove_and_verify_goblin_ultra_honk") {
+            return proveAndVerifyHonk<GoblinUltraFlavor>(bytecode_path, witness_path) ? 0 : 1;
         }
         if (command == "prove_and_verify_goblin") {
             return proveAndVerifyGoblin(bytecode_path, witness_path) ? 0 : 1;

@@ -599,12 +599,8 @@
     "isAsync": false
   },
   {
-    "functionName": "acir_goblin_accumulate",
+    "functionName": "acir_prove_and_verify_ultra_honk",
     "inArgs": [
-      {
-        "name": "acir_composer_ptr",
-        "type": "in_ptr"
-      },
       {
         "name": "constraint_system_buf",
         "type": "const uint8_t *"
@@ -616,8 +612,28 @@
     ],
     "outArgs": [
       {
-        "name": "out",
-        "type": "uint8_t **"
+        "name": "result",
+        "type": "bool *"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_prove_and_verify_goblin_ultra_honk",
+    "inArgs": [
+      {
+        "name": "constraint_system_buf",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "witness_buf",
+        "type": "const uint8_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "result",
+        "type": "bool *"
       }
     ],
     "isAsync": false
@@ -710,26 +726,6 @@
   },
   {
     "functionName": "acir_verify_proof",
-    "inArgs": [
-      {
-        "name": "acir_composer_ptr",
-        "type": "in_ptr"
-      },
-      {
-        "name": "proof_buf",
-        "type": "const uint8_t *"
-      }
-    ],
-    "outArgs": [
-      {
-        "name": "result",
-        "type": "bool *"
-      }
-    ],
-    "isAsync": false
-  },
-  {
-    "functionName": "acir_goblin_verify_accumulator",
     "inArgs": [
       {
         "name": "acir_composer_ptr",

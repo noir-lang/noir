@@ -25,22 +25,6 @@ class GoblinAcirComposer {
     void create_circuit(acir_format::AcirFormat& constraint_system, acir_format::WitnessVector& witness);
 
     /**
-     * @brief Accumulate a circuit via Goblin
-     * @details For the present circuit, construct a GUH proof and the vkey needed to verify it
-     *
-     * @return std::vector<bb::fr> The GUH proof bytes
-     */
-    std::vector<bb::fr> accumulate();
-
-    /**
-     * @brief Verify the Goblin accumulator (the GUH proof) using the vkey internal to Goblin
-     *
-     * @param proof
-     * @return bool Whether or not the proof was verified
-     */
-    bool verify_accumulator(std::vector<bb::fr> const& proof);
-
-    /**
      * @brief Accumulate a final circuit and construct a full Goblin proof
      * @details Accumulation means constructing a GUH proof of a single (final) circuit. A full Goblin proof consists of
      * a merge proof, an ECCVM proof and a Translator proof. The Goblin proof is only constructed at the end of the

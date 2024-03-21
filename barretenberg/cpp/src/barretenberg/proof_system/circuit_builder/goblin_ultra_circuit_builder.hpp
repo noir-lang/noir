@@ -72,7 +72,7 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
      */
     GoblinUltraCircuitBuilder_(std::shared_ptr<ECCOpQueue> op_queue_in,
                                auto& witness_values,
-                               std::vector<uint32_t>& public_inputs,
+                               const std::vector<uint32_t>& public_inputs,
                                size_t varnum)
         : UltraCircuitBuilder_<UltraHonkArith<FF>>(/*size_hint=*/0, witness_values, public_inputs, varnum)
         , op_queue(op_queue_in)
