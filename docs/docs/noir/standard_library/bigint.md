@@ -31,7 +31,7 @@ For instance the big integer 'Secpk1Fq' in the standard library refers to intege
 
 Feel free to explore the source code for the other primes:
 
-#include_code curve_order_base noir_stdlib/src/bigint.nr rust
+#include_code big_int_definition noir_stdlib/src/bigint.nr rust
 
 ## Example usage
 
@@ -48,7 +48,7 @@ The available operations for each big integer are:
 Construct a big integer from its little-endian bytes representation. Example:
 
 ```rust
- let a = Secpk1Fq::from_le_bytes([x, y, 0, 45, 2]);
+ let a = Secpk1Fq::from_le_bytes(&[x, y, 0, 45, 2]);
  ```
 
 Sure, here's the formatted version of the remaining methods:

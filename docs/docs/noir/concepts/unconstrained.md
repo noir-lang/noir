@@ -93,3 +93,7 @@ Backend circuit size: 2902
 This ends up taking off another ~250 gates from our circuit! We've ended up with more ACIR opcodes than before but they're easier for the backend to prove (resulting in fewer gates).
 
 Generally we want to use brillig whenever there's something that's easy to verify but hard to compute within the circuit. For example, if you wanted to calculate a square root of a number it'll be a much better idea to calculate this in brillig and then assert that if you square the result you get back your number.
+
+## Break and Continue
+
+In addition to loops over runtime bounds, `break` and `continue` are also available in unconstrained code. See [break and continue](../concepts/control_flow/#break-and-continue)

@@ -48,6 +48,49 @@ impl<'interner> TypeChecker<'interner> {
         false
     }
 
+    fn check_hir_array_literal(
+        &mut self,
+        hir_array_literal: HirArrayLiteral,
+    ) -> (Result<u64, Box<Type>>, Box<Type>) {
+        match hir_array_literal {
+            HirArrayLiteral::Standard(arr) => {
+                let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
+
+                let first_elem_type = elem_types
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| self.interner.next_type_variable());
+
+                // Check if the array is homogeneous
+                for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
+                    let location = self.interner.expr_location(&arr[index]);
+
+                    elem_type.unify(&first_elem_type, &mut self.errors, || {
+                        TypeCheckError::NonHomogeneousArray {
+                            first_span: self.interner.expr_location(&arr[0]).span,
+                            first_type: first_elem_type.to_string(),
+                            first_index: index,
+                            second_span: location.span,
+                            second_type: elem_type.to_string(),
+                            second_index: index + 1,
+                        }
+                        .add_context("elements in an array must have the same type")
+                    });
+                }
+
+                (Ok(arr.len() as u64), Box::new(first_elem_type.clone()))
+            }
+            HirArrayLiteral::Repeated { repeated_element, length } => {
+                let elem_type = self.check_expression(&repeated_element);
+                let length = match length {
+                    Type::Constant(length) => Ok(length),
+                    other => Err(Box::new(other)),
+                };
+                (length, Box::new(elem_type))
+            }
+        }
+    }
+
     /// Infers a type for a given expression, and return this type.
     /// As a side-effect, this function will also remember this type in the NodeInterner
     /// for the given expr_id key.
@@ -59,64 +102,42 @@ impl<'interner> TypeChecker<'interner> {
     pub(crate) fn check_expression(&mut self, expr_id: &ExprId) -> Type {
         let typ = match self.interner.expression(expr_id) {
             HirExpression::Ident(ident) => self.check_ident(ident, expr_id),
-            HirExpression::Literal(literal) => {
-                match literal {
-                    HirLiteral::Array(HirArrayLiteral::Standard(arr)) => {
-                        let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
-
-                        let first_elem_type = elem_types
-                            .first()
-                            .cloned()
-                            .unwrap_or_else(|| self.interner.next_type_variable());
-
-                        let arr_type = Type::Array(
-                            Box::new(Type::constant_variable(arr.len() as u64, self.interner)),
-                            Box::new(first_elem_type.clone()),
-                        );
-
-                        // Check if the array is homogeneous
-                        for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
-                            let location = self.interner.expr_location(&arr[index]);
-
-                            elem_type.unify(&first_elem_type, &mut self.errors, || {
-                                TypeCheckError::NonHomogeneousArray {
-                                    first_span: self.interner.expr_location(&arr[0]).span,
-                                    first_type: first_elem_type.to_string(),
-                                    first_index: index,
-                                    second_span: location.span,
-                                    second_type: elem_type.to_string(),
-                                    second_index: index + 1,
-                                }
-                                .add_context("elements in an array must have the same type")
-                            });
-                        }
-
-                        arr_type
-                    }
-                    HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length }) => {
-                        let elem_type = self.check_expression(&repeated_element);
-                        let length = match length {
-                            Type::Constant(length) => {
-                                Type::constant_variable(length, self.interner)
-                            }
-                            other => other,
-                        };
-                        Type::Array(Box::new(length), Box::new(elem_type))
-                    }
-                    HirLiteral::Bool(_) => Type::Bool,
-                    HirLiteral::Integer(_, _) => Type::polymorphic_integer_or_field(self.interner),
-                    HirLiteral::Str(string) => {
-                        let len = Type::Constant(string.len() as u64);
-                        Type::String(Box::new(len))
-                    }
-                    HirLiteral::FmtStr(string, idents) => {
-                        let len = Type::Constant(string.len() as u64);
-                        let types = vecmap(&idents, |elem| self.check_expression(elem));
-                        Type::FmtString(Box::new(len), Box::new(Type::Tuple(types)))
-                    }
-                    HirLiteral::Unit => Type::Unit,
+            HirExpression::Literal(literal) => match literal {
+                HirLiteral::Array(hir_array_literal) => {
+                    let (length, elem_type) = self.check_hir_array_literal(hir_array_literal);
+                    Type::Array(
+                        length.map_or_else(
+                            |typ| typ,
+                            |constant| Box::new(Type::constant_variable(constant, self.interner)),
+                        ),
+                        elem_type,
+                    )
                 }
-            }
+                HirLiteral::Slice(hir_array_literal) => {
+                    let (length_type, elem_type) = self.check_hir_array_literal(hir_array_literal);
+                    match length_type {
+                        Ok(_length) => Type::Slice(elem_type),
+                        Err(_non_constant) => {
+                            self.errors.push(TypeCheckError::NonConstantSliceLength {
+                                span: self.interner.expr_span(expr_id),
+                            });
+                            Type::Error
+                        }
+                    }
+                }
+                HirLiteral::Bool(_) => Type::Bool,
+                HirLiteral::Integer(_, _) => Type::polymorphic_integer_or_field(self.interner),
+                HirLiteral::Str(string) => {
+                    let len = Type::Constant(string.len() as u64);
+                    Type::String(Box::new(len))
+                }
+                HirLiteral::FmtStr(string, idents) => {
+                    let len = Type::Constant(string.len() as u64);
+                    let types = vecmap(&idents, |elem| self.check_expression(elem));
+                    Type::FmtString(Box::new(len), Box::new(Type::Tuple(types)))
+                }
+                HirLiteral::Unit => Type::Unit,
+            },
             HirExpression::Infix(infix_expr) => {
                 // The type of the infix expression must be looked up from a type table
                 let lhs_type = self.check_expression(&infix_expr.lhs);
@@ -184,15 +205,19 @@ impl<'interner> TypeChecker<'interner> {
                 let return_type = self.bind_function_type(function, args, span);
 
                 // Check that we are not passing a slice from an unconstrained runtime to a constrained runtime
-                if is_current_func_constrained
-                    && is_unconstrained_call
-                    && return_type.contains_slice()
-                {
-                    self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained {
-                        span: self.interner.expr_span(expr_id),
-                    });
-                    return Type::Error;
-                }
+                if is_current_func_constrained && is_unconstrained_call {
+                    if return_type.contains_slice() {
+                        self.errors.push(TypeCheckError::UnconstrainedSliceReturnToConstrained {
+                            span: self.interner.expr_span(expr_id),
+                        });
+                        return Type::Error;
+                    } else if matches!(&return_type.follow_bindings(), Type::MutableReference(_)) {
+                        self.errors.push(TypeCheckError::UnconstrainedReferenceToConstrained {
+                            span: self.interner.expr_span(expr_id),
+                        });
+                        return Type::Error;
+                    }
+                };
 
                 return_type
             }
@@ -307,6 +332,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
+            HirExpression::Quote(_) => Type::Code,
         };
 
         self.interner.push_expr_type(*expr_id, typ.clone());
@@ -553,6 +579,7 @@ impl<'interner> TypeChecker<'interner> {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
+            Type::Slice(base_type) => *base_type,
             Type::Error => Type::Error,
             typ => {
                 let span = self.interner.expr_span(&new_lhs);

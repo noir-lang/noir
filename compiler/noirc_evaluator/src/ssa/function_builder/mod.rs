@@ -49,11 +49,10 @@ impl FunctionBuilder {
     ) -> Self {
         let mut new_function = Function::new(function_name, function_id);
         new_function.set_runtime(runtime);
-        let current_block = new_function.entry_block();
 
         Self {
+            current_block: new_function.entry_block(),
             current_function: new_function,
-            current_block,
             finished_functions: Vec::new(),
             call_stack: CallStack::new(),
         }
@@ -153,9 +152,10 @@ impl FunctionBuilder {
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
+        let block = self.current_block();
         self.current_function.dfg.insert_instruction_and_results(
             instruction,
-            self.current_block,
+            block,
             ctrl_typevars,
             self.call_stack.clone(),
         )
@@ -195,12 +195,9 @@ impl FunctionBuilder {
         self.call_stack.clone()
     }
 
-    /// Insert a Load instruction at the end of the current block, loading from the given offset
-    /// of the given address which should point to a previous Allocate instruction. Note that
-    /// this is limited to loading a single value. Loading multiple values (such as a tuple)
-    /// will require multiple loads.
-    /// 'offset' is in units of FieldElements here. So loading the fourth FieldElement stored in
-    /// an array will have an offset of 3.
+    /// Insert a Load instruction at the end of the current block, loading from the given address
+    /// which should point to a previous Allocate instruction. Note that this is limited to loading
+    /// a single value. Loading multiple values (such as a tuple) will require multiple loads.
     /// Returns the element that was loaded.
     pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
         self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
@@ -221,11 +218,9 @@ impl FunctionBuilder {
         operator: BinaryOp,
         rhs: ValueId,
     ) -> ValueId {
-        assert_eq!(
-            self.type_of_value(lhs),
-            self.type_of_value(rhs),
-            "ICE - Binary instruction operands must have the same type"
-        );
+        let lhs_type = self.type_of_value(lhs);
+        let rhs_type = self.type_of_value(rhs);
+        assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }
@@ -309,9 +304,24 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
     }
 
+    /// Insert an instruction to increment an array's reference count. This only has an effect
+    /// in unconstrained code where arrays are reference counted and copy on write.
+    pub(crate) fn insert_inc_rc(&mut self, value: ValueId) {
+        self.insert_instruction(Instruction::IncrementRc { value }, None);
+    }
+
+    /// Insert an instruction to decrement an array's reference count. This only has an effect
+    /// in unconstrained code where arrays are reference counted and copy on write.
+    pub(crate) fn insert_dec_rc(&mut self, value: ValueId) {
+        self.insert_instruction(Instruction::DecrementRc { value }, None);
+    }
+
     /// Terminates the current block with the given terminator instruction
+    /// if the current block does not already have a terminator instruction.
     fn terminate_block_with(&mut self, terminator: TerminatorInstruction) {
-        self.current_function.dfg.set_block_terminator(self.current_block, terminator);
+        if self.current_function.dfg[self.current_block].terminator().is_none() {
+            self.current_function.dfg.set_block_terminator(self.current_block, terminator);
+        }
     }
 
     /// Terminate the current block with a jmp instruction to jmp to the given
@@ -384,51 +394,65 @@ impl FunctionBuilder {
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn increment_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, true);
+        self.update_array_reference_count(value, true, None);
     }
 
     /// Insert instructions to decrement the reference count of any array(s) stored
     /// within the given value. If the given value is not an array and does not contain
     /// any arrays, this does nothing.
     pub(crate) fn decrement_array_reference_count(&mut self, value: ValueId) {
-        self.update_array_reference_count(value, false);
+        self.update_array_reference_count(value, false, None);
     }
 
     /// Increment or decrement the given value's reference count if it is an array.
     /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
     /// are ignored outside of unconstrained code.
-    pub(crate) fn update_array_reference_count(&mut self, value: ValueId, increment: bool) {
+    fn update_array_reference_count(
+        &mut self,
+        value: ValueId,
+        increment: bool,
+        load_address: Option<ValueId>,
+    ) {
         match self.type_of_value(value) {
             Type::Numeric(_) => (),
             Type::Function => (),
             Type::Reference(element) => {
                 if element.contains_an_array() {
-                    let value = self.insert_load(value, element.as_ref().clone());
-                    self.increment_array_reference_count(value);
+                    let reference = value;
+                    let value = self.insert_load(reference, element.as_ref().clone());
+                    self.update_array_reference_count(value, increment, Some(reference));
                 }
             }
             typ @ Type::Array(..) | typ @ Type::Slice(..) => {
                 // If there are nested arrays or slices, we wait until ArrayGet
                 // is issued to increment the count of that array.
-                let instruction = if increment {
-                    Instruction::IncrementRc { value }
-                } else {
-                    Instruction::DecrementRc { value }
+                let update_rc = |this: &mut Self, value| {
+                    if increment {
+                        this.insert_inc_rc(value);
+                    } else {
+                        this.insert_dec_rc(value);
+                    }
                 };
-                self.insert_instruction(instruction, None);
+
+                update_rc(self, value);
+                let dfg = &self.current_function.dfg;
 
                 // This is a bit odd, but in brillig the inc_rc instruction operates on
                 // a copy of the array's metadata, so we need to re-store a loaded array
                 // even if there have been no other changes to it.
-                if let Value::Instruction { instruction, .. } = &self.current_function.dfg[value] {
-                    let instruction = &self.current_function.dfg[*instruction];
+                if let Some(address) = load_address {
+                    // If we already have a load from the Type::Reference case, avoid inserting
+                    // another load and rc update.
+                    self.insert_store(address, value);
+                } else if let Value::Instruction { instruction, .. } = &dfg[value] {
+                    let instruction = &dfg[*instruction];
                     if let Instruction::Load { address } = instruction {
                         // We can't re-use `value` in case the original address was stored
                         // to again in the meantime. So introduce another load.
                         let address = *address;
-                        let value = self.insert_load(address, typ);
-                        self.insert_instruction(Instruction::IncrementRc { value }, None);
-                        self.insert_store(address, value);
+                        let new_load = self.insert_load(address, typ);
+                        update_rc(self, new_load);
+                        self.insert_store(address, new_load);
                     }
                 }
             }

@@ -1664,6 +1664,7 @@ enum TypeMethodKey {
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
     Array,
+    Slice,
     Bool,
     String,
     FmtString,
@@ -1671,6 +1672,7 @@ enum TypeMethodKey {
     Tuple,
     Function,
     Generic,
+    Code,
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -1679,6 +1681,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     match &typ {
         Type::FieldElement => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
+        Type::Slice(_) => Some(Slice),
         Type::Integer(_, _) => Some(FieldOrInt),
         Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
         Type::TypeVariable(_, TypeVariableKind::Integer) => Some(FieldOrInt),
@@ -1689,6 +1692,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),
+        Type::Code => Some(Code),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
 
@@ -1697,7 +1701,6 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Forall(_, _)
         | Type::Constant(_)
         | Type::Error
-        | Type::NotConstant
         | Type::Struct(_, _)
         | Type::TraitAsType(..) => None,
     }

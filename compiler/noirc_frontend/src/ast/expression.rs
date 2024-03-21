@@ -27,6 +27,7 @@ pub enum ExpressionKind {
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
+    Quote(BlockExpression),
     Error,
 }
 
@@ -65,6 +66,17 @@ impl ExpressionKind {
 
     pub fn repeated_array(repeated_element: Expression, length: Expression) -> ExpressionKind {
         ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
+            repeated_element: Box::new(repeated_element),
+            length: Box::new(length),
+        }))
+    }
+
+    pub fn slice(contents: Vec<Expression>) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(contents)))
+    }
+
+    pub fn repeated_slice(repeated_element: Expression, length: Expression) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Repeated {
             repeated_element: Box::new(repeated_element),
             length: Box::new(length),
         }))
@@ -319,6 +331,7 @@ impl UnaryOp {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Literal {
     Array(ArrayLiteral),
+    Slice(ArrayLiteral),
     Bool(bool),
     Integer(FieldElement, /*sign*/ bool), // false for positive integer and true for negative
     Str(String),
@@ -483,6 +496,7 @@ impl Display for ExpressionKind {
             }
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
+            Quote(block) => write!(f, "quote {block}"),
             Error => write!(f, "Error"),
         }
     }
@@ -497,6 +511,13 @@ impl Display for Literal {
             }
             Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
                 write!(f, "[{repeated_element}; {length}]")
+            }
+            Literal::Slice(ArrayLiteral::Standard(elements)) => {
+                let contents = vecmap(elements, ToString::to_string);
+                write!(f, "&[{}]", contents.join(", "))
+            }
+            Literal::Slice(ArrayLiteral::Repeated { repeated_element, length }) => {
+                write!(f, "&[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer, sign) => {

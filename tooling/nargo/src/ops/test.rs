@@ -28,18 +28,23 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
     foreign_call_resolver_url: Option<&str>,
     config: &CompileOptions,
 ) -> TestStatus {
-    let program = compile_no_check(context, config, test_function.get_id(), None, false);
-    match program {
-        Ok(program) => {
+    let compiled_program = compile_no_check(context, config, test_function.get_id(), None, false);
+    match compiled_program {
+        Ok(compiled_program) => {
             // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
             // otherwise constraints involving these expressions will not error.
             let circuit_execution = execute_circuit(
-                &program.circuit,
+                // TODO(https://github.com/noir-lang/noir/issues/4428)
+                &compiled_program.program.functions[0],
                 WitnessMap::new(),
                 blackbox_solver,
                 &mut DefaultForeignCallExecutor::new(show_output, foreign_call_resolver_url),
             );
-            test_status_program_compile_pass(test_function, program.debug, circuit_execution)
+            test_status_program_compile_pass(
+                test_function,
+                compiled_program.debug,
+                circuit_execution,
+            )
         }
         Err(err) => test_status_program_compile_fail(err, test_function),
     }
