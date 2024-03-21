@@ -1,3 +1,4 @@
+
 #include "../gemini/gemini.hpp"
 #include "../shplonk/shplonk.hpp"
 #include "./mock_transcript.hpp"
@@ -71,7 +72,7 @@ TEST_F(IPATest, OpenZeroPolynomial)
     // initialize verifier transcript from proof data
     auto verifier_transcript = std::make_shared<NativeTranscript>(prover_transcript->proof_data);
 
-    auto result = IPA::verify(this->vk(), opening_claim, verifier_transcript);
+    auto result = IPA::reduce_verify(this->vk(), opening_claim, verifier_transcript);
     EXPECT_TRUE(result);
 }
 
@@ -96,7 +97,7 @@ TEST_F(IPATest, OpenAtZero)
     // initialize verifier transcript from proof data
     auto verifier_transcript = std::make_shared<NativeTranscript>(prover_transcript->proof_data);
 
-    auto result = IPA::verify(this->vk(), opening_claim, verifier_transcript);
+    auto result = IPA::reduce_verify(this->vk(), opening_claim, verifier_transcript);
     EXPECT_TRUE(result);
 }
 
@@ -144,7 +145,7 @@ TEST_F(IPATest, ChallengesAreZero)
         auto new_random_vector = random_vector;
         new_random_vector[i] = Fr::zero();
         transcript->initialize(new_random_vector, lrs, { uint256_t(n) });
-        EXPECT_ANY_THROW(IPA::verify_internal(this->vk(), opening_claim, transcript));
+        EXPECT_ANY_THROW(IPA::reduce_verify_internal(this->vk(), opening_claim, transcript));
     }
 }
 
@@ -186,7 +187,7 @@ TEST_F(IPATest, AIsZeroAfterOneRound)
     transcript->reset_indices();
 
     // Verify
-    EXPECT_TRUE(IPA::verify_internal(this->vk(), opening_claim, transcript));
+    EXPECT_TRUE(IPA::reduce_verify_internal(this->vk(), opening_claim, transcript));
 }
 #endif
 } // namespace bb
@@ -225,7 +226,7 @@ TEST_F(IPATest, Open)
     // initialize verifier transcript from proof data
     auto verifier_transcript = std::make_shared<NativeTranscript>(prover_transcript->proof_data);
 
-    auto result = IPA::verify(this->vk(), opening_claim, verifier_transcript);
+    auto result = IPA::reduce_verify(this->vk(), opening_claim, verifier_transcript);
     EXPECT_TRUE(result);
 
     EXPECT_EQ(prover_transcript->get_manifest(), verifier_transcript->get_manifest());
@@ -321,7 +322,7 @@ TEST_F(IPATest, GeminiShplonkIPAWithShift)
 
     const auto shplonk_verifier_claim =
         ShplonkVerifier::reduce_verification(this->vk(), gemini_verifier_claim, verifier_transcript);
-    bool verified = IPA::verify(this->vk(), shplonk_verifier_claim, verifier_transcript);
+    auto result = IPA::reduce_verify(this->vk(), shplonk_verifier_claim, verifier_transcript);
 
-    EXPECT_EQ(verified, true);
+    EXPECT_EQ(result, true);
 }

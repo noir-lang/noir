@@ -474,7 +474,7 @@ class UltraFlavor {
         std::array<FF, NUM_ALL_ENTITIES> sumcheck_evaluations;
         std::vector<Commitment> zm_cq_comms;
         Commitment zm_cq_comm;
-        Commitment zm_pi_comm;
+        Commitment kzg_w_comm;
 
         Transcript() = default;
 
@@ -532,7 +532,7 @@ class UltraFlavor {
                 zm_cq_comms.push_back(deserialize_from_buffer<Commitment>(proof_data, num_frs_read));
             }
             zm_cq_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
-            zm_pi_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+            kzg_w_comm = deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
         }
         /**
          * @brief Serializes the structure variables into a FULL Ultra proof. Should be called only if
@@ -565,7 +565,7 @@ class UltraFlavor {
                 serialize_to_buffer(zm_cq_comms[i], proof_data);
             }
             serialize_to_buffer(zm_cq_comm, proof_data);
-            serialize_to_buffer(zm_pi_comm, proof_data);
+            serialize_to_buffer(kzg_w_comm, proof_data);
 
             // sanity check to make sure we generate the same length of proof as before.
             ASSERT(proof_data.size() == old_proof_length);

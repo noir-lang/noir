@@ -599,15 +599,23 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
         Commitment lookup_inverses_comm;
         std::vector<bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>> sumcheck_univariates;
         std::array<FF, NUM_ALL_ENTITIES> sumcheck_evaluations;
-        std::vector<Commitment> gemini_univariate_comms;
-        std::vector<FF> gemini_a_evals;
-        Commitment shplonk_q_comm;
-        Commitment kzg_w_comm;
-        // the rest are only for Grumpkin
+        std::vector<Commitment> zm_cq_comms;
+        Commitment zm_cq_comm;
         uint32_t ipa_poly_degree;
         std::vector<Commitment> ipa_l_comms;
         std::vector<Commitment> ipa_r_comms;
         FF ipa_a_0_eval;
+        Commitment translation_hack_comm;
+        FF translation_eval_op;
+        FF translation_eval_px;
+        FF translation_eval_py;
+        FF translation_eval_z1;
+        FF translation_eval_z2;
+        FF hack_eval;
+        uint32_t translation_ipa_poly_degree;
+        std::vector<Commitment> translation_ipa_l_comms;
+        std::vector<Commitment> translation_ipa_r_comms;
+        FF translation_ipa_a_0_eval;
 
         Transcript() = default;
 
@@ -781,43 +789,60 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
             }
             sumcheck_evaluations = NativeTranscript::template deserialize_from_buffer<std::array<FF, NUM_ALL_ENTITIES>>(
                 NativeTranscript::proof_data, num_frs_read);
-            for (size_t i = 0; i < log_n - 1; ++i) {
-                gemini_univariate_comms.emplace_back(NativeTranscript::template deserialize_from_buffer<Commitment>(
+            for (size_t i = 0; i < log_n; ++i) {
+                zm_cq_comms.push_back(
+                    NativeTranscript::template deserialize_from_buffer<Commitment>(proof_data, num_frs_read));
+            }
+            zm_cq_comm = NativeTranscript::template deserialize_from_buffer<Commitment>(proof_data, num_frs_read);
+
+            ipa_poly_degree = NativeTranscript::template deserialize_from_buffer<uint32_t>(NativeTranscript::proof_data,
+                                                                                           num_frs_read);
+            auto log_poly_degree = static_cast<size_t>(numeric::get_msb(ipa_poly_degree));
+            for (size_t i = 0; i < log_poly_degree; ++i) {
+                ipa_l_comms.emplace_back(NativeTranscript::template deserialize_from_buffer<Commitment>(
+                    NativeTranscript::proof_data, num_frs_read));
+                ipa_r_comms.emplace_back(NativeTranscript::template deserialize_from_buffer<Commitment>(
                     NativeTranscript::proof_data, num_frs_read));
             }
-            for (size_t i = 0; i < log_n; ++i) {
-                gemini_a_evals.emplace_back(
-                    NativeTranscript::template deserialize_from_buffer<FF>(NativeTranscript::proof_data, num_frs_read));
-            }
-            shplonk_q_comm = NativeTranscript::template deserialize_from_buffer<Commitment>(
+            ipa_a_0_eval =
+                NativeTranscript::template deserialize_from_buffer<FF>(NativeTranscript::proof_data, num_frs_read);
+            translation_hack_comm = NativeTranscript::template deserialize_from_buffer<Commitment>(
                 NativeTranscript::proof_data, num_frs_read);
-            if (std::is_same<PCS, KZG<curve::BN254>>::value) {
-                kzg_w_comm = NativeTranscript::template deserialize_from_buffer<Commitment>(
-                    NativeTranscript::proof_data, num_frs_read);
-            } else if (std::is_same<PCS, IPA<curve::Grumpkin>>::value) {
-                ipa_poly_degree = NativeTranscript::template deserialize_from_buffer<uint32_t>(
-                    NativeTranscript::proof_data, num_frs_read);
-                auto log_poly_degree = static_cast<size_t>(numeric::get_msb(ipa_poly_degree));
-                for (size_t i = 0; i < log_poly_degree; ++i) {
-                    ipa_l_comms.emplace_back(NativeTranscript::template deserialize_from_buffer<Commitment>(
-                        NativeTranscript::proof_data, num_frs_read));
-                    ipa_r_comms.emplace_back(NativeTranscript::template deserialize_from_buffer<Commitment>(
-                        NativeTranscript::proof_data, num_frs_read));
-                }
-                ipa_a_0_eval =
-                    NativeTranscript::template deserialize_from_buffer<FF>(NativeTranscript::proof_data, num_frs_read);
-            } else {
-                throw_or_abort("Unsupported PCS");
+            translation_eval_op =
+                NativeTranscript::template deserialize_from_buffer<FF>(NativeTranscript::proof_data, num_frs_read);
+            translation_eval_px =
+                NativeTranscript::template deserialize_from_buffer<FF>(NativeTranscript::proof_data, num_frs_read);
+            translation_eval_py =
+                NativeTranscript::template deserialize_from_buffer<FF>(NativeTranscript::proof_data, num_frs_read);
+            translation_eval_z1 =
+                NativeTranscript::template deserialize_from_buffer<FF>(NativeTranscript::proof_data, num_frs_read);
+            translation_eval_z2 =
+                NativeTranscript::template deserialize_from_buffer<FF>(NativeTranscript::proof_data, num_frs_read);
+            hack_eval =
+                NativeTranscript::template deserialize_from_buffer<FF>(NativeTranscript::proof_data, num_frs_read);
+
+            translation_ipa_poly_degree = NativeTranscript::template deserialize_from_buffer<uint32_t>(
+                NativeTranscript::proof_data, num_frs_read);
+
+            for (size_t i = 0; i < log_poly_degree; ++i) {
+                translation_ipa_l_comms.emplace_back(NativeTranscript::template deserialize_from_buffer<Commitment>(
+                    NativeTranscript::proof_data, num_frs_read));
+                translation_ipa_r_comms.emplace_back(NativeTranscript::template deserialize_from_buffer<Commitment>(
+                    NativeTranscript::proof_data, num_frs_read));
             }
+
+            translation_ipa_a_0_eval =
+                NativeTranscript::template deserialize_from_buffer<FF>(NativeTranscript::proof_data, num_frs_read);
         }
 
         void serialize_full_transcript()
         {
             size_t old_proof_length = NativeTranscript::proof_data.size();
             NativeTranscript::proof_data.clear();
-            size_t log_n = numeric::get_msb(circuit_size);
 
             NativeTranscript::template serialize_to_buffer(circuit_size, NativeTranscript::proof_data);
+            size_t log_n = numeric::get_msb(circuit_size);
+
             NativeTranscript::template serialize_to_buffer(transcript_add_comm, NativeTranscript::proof_data);
             NativeTranscript::template serialize_to_buffer(transcript_mul_comm, NativeTranscript::proof_data);
             NativeTranscript::template serialize_to_buffer(transcript_eq_comm, NativeTranscript::proof_data);
@@ -903,26 +928,39 @@ template <typename CycleGroup_T, typename Curve_T, typename PCS_T> class ECCVMBa
                 NativeTranscript::template serialize_to_buffer(sumcheck_univariates[i], NativeTranscript::proof_data);
             }
             NativeTranscript::template serialize_to_buffer(sumcheck_evaluations, NativeTranscript::proof_data);
-            for (size_t i = 0; i < log_n - 1; ++i) {
-                NativeTranscript::template serialize_to_buffer(gemini_univariate_comms[i],
+            for (size_t i = 0; i < log_n; ++i) {
+                NativeTranscript::template serialize_to_buffer(zm_cq_comms[i], NativeTranscript::proof_data);
+            }
+            NativeTranscript::template serialize_to_buffer(zm_cq_comm, NativeTranscript::proof_data);
+
+            NativeTranscript::template serialize_to_buffer(ipa_poly_degree, NativeTranscript::proof_data);
+
+            auto log_poly_degree = static_cast<size_t>(numeric::get_msb(ipa_poly_degree));
+            for (size_t i = 0; i < log_poly_degree; ++i) {
+                NativeTranscript::template serialize_to_buffer(ipa_l_comms[i], NativeTranscript::proof_data);
+                NativeTranscript::template serialize_to_buffer(ipa_r_comms[i], NativeTranscript::proof_data);
+            }
+
+            NativeTranscript::template serialize_to_buffer(ipa_a_0_eval, NativeTranscript::proof_data);
+            NativeTranscript::template serialize_to_buffer(translation_hack_comm, NativeTranscript::proof_data);
+            NativeTranscript::template serialize_to_buffer(translation_eval_op, NativeTranscript::proof_data);
+            NativeTranscript::template serialize_to_buffer(translation_eval_px, NativeTranscript::proof_data);
+            NativeTranscript::template serialize_to_buffer(translation_eval_py, NativeTranscript::proof_data);
+            NativeTranscript::template serialize_to_buffer(translation_eval_z1, NativeTranscript::proof_data);
+            NativeTranscript::template serialize_to_buffer(translation_eval_z2, NativeTranscript::proof_data);
+            NativeTranscript::template serialize_to_buffer(hack_eval, NativeTranscript::proof_data);
+
+            NativeTranscript::template serialize_to_buffer(translation_ipa_poly_degree, NativeTranscript::proof_data);
+            log_poly_degree = static_cast<size_t>(numeric::get_msb(translation_ipa_poly_degree));
+            for (size_t i = 0; i < log_poly_degree; ++i) {
+                NativeTranscript::template serialize_to_buffer(translation_ipa_l_comms[i],
+                                                               NativeTranscript::proof_data);
+                NativeTranscript::template serialize_to_buffer(translation_ipa_r_comms[i],
                                                                NativeTranscript::proof_data);
             }
-            for (size_t i = 0; i < log_n; ++i) {
-                NativeTranscript::template serialize_to_buffer(gemini_a_evals[i], NativeTranscript::proof_data);
-            }
-            NativeTranscript::template serialize_to_buffer(shplonk_q_comm, NativeTranscript::proof_data);
-            if (std::is_same<PCS, KZG<curve::BN254>>::value) {
-                NativeTranscript::template serialize_to_buffer(kzg_w_comm, NativeTranscript::proof_data);
-            } else if (std::is_same<PCS, IPA<curve::Grumpkin>>::value) {
-                NativeTranscript::template serialize_to_buffer(ipa_poly_degree, NativeTranscript::proof_data);
-                auto log_poly_degree = static_cast<size_t>(numeric::get_msb(ipa_poly_degree));
-                for (size_t i = 0; i < log_poly_degree; ++i) {
-                    NativeTranscript::template serialize_to_buffer(ipa_l_comms[i], NativeTranscript::proof_data);
-                    NativeTranscript::template serialize_to_buffer(ipa_r_comms[i], NativeTranscript::proof_data);
-                }
 
-                NativeTranscript::template serialize_to_buffer(ipa_a_0_eval, NativeTranscript::proof_data);
-            }
+            serialize_to_buffer(translation_ipa_a_0_eval, proof_data);
+
             ASSERT(NativeTranscript::proof_data.size() == old_proof_length);
         }
     };

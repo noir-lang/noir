@@ -35,7 +35,7 @@ namespace bb {
  *
  * @remark IPA is not a very intuitive algorithm, so here are a few things that might help internalize it:
  *
- *1. Originally we have two vectors \f$\vec{a}\f$ and \f$\vec{b}\f$, which the product of which we want to prove, but
+ *1. Originally we have two vectors \f$\vec{a}\f$ and \f$\vec{b}\f$, whose product we want to prove, but
  *the prover can't just send vector \f$\vec{a}\f$ to the verifier, it can only provide a commitment
  \f$\langle\vec{a},\vec{G}\rangle\f$
  *2. The verifier computes the \f$C'=C+\langle\vec{a},\vec{b}\rangle\cdot U\f$ to "bind" together the
@@ -50,8 +50,8 @@ namespace bb {
  \alpha^{-1}\langle\vec{a}_{low},\vec{b}_{high}\rangle+\alpha \langle \vec{a}_{high},\vec{b}_{low}\rangle +
  \langle\vec{a}_{high},\vec{b}_{high}\rangle=
  \langle\vec{a},\vec{b}\rangle+\alpha^{-1}\langle\vec{a}_{low},\vec{b}_{high}\rangle+\alpha \langle
- \vec{a}_{high},\vec{b}_{low}\rangle\f$, so if we provide commitments to
- \f$\langle\vec{a}_{low},\vec{b}_{high}\rangle\f$ and \f$\langle \vec{a}_{high},\vec{b}_{low}\rangle\f$  the verifier
+ \vec{a}_{high},\vec{b}_{low}\rangle\f$, so if we provide commitments to the cross-terms
+ \f$\langle\vec{a}_{low},\vec{b}_{high}\rangle\f$ and \f$\langle \vec{a}_{high},\vec{b}_{low}\rangle\f$,  the verifier
  can reduce initial commitment to the result \f$\langle \vec{a},\vec{b}\rangle U\f$ to the new commitment \f$\langle
  \vec{a}_{new},\vec{b}_{new}\rangle U\f$
  *5. Analogously, if \f$\vec{G}_{new}=\vec{G}_{low}+\alpha^{-1}\vec{G}_{high}\f$, then we can reduce the initial
@@ -71,14 +71,16 @@ namespace bb {
  * The old version of documentation is available at <a href="https://hackmd.io/q-A8y6aITWyWJrvsGGMWNA?view">Old IPA
  documentation </a>
  */
-template <typename Curve> class IPA {
-    // clang-fromat on
+template <typename Curve_> class IPA {
+  public:
+    using Curve = Curve_;
     using Fr = typename Curve::ScalarField;
     using GroupElement = typename Curve::Element;
     using Commitment = typename Curve::AffineElement;
     using CK = CommitmentKey<Curve>;
     using VK = VerifierCommitmentKey<Curve>;
     using Polynomial = bb::Polynomial<Fr>;
+    using VerifierAccumulator = bool;
 
 // These allow access to internal functions so that we can never use a mock transcript unless it's fuzzing or testing of IPA specifically
 #ifdef IPA_TEST
@@ -107,8 +109,10 @@ template <typename Curve> class IPA {
      *1. Send the degree of \f$f(x)\f$ plus one, equal to \f$d\f$ to the verifier
      *2. Receive the generator challenge \f$u\f$ from the verifier. If it is zero, abort
      *3. Compute the auxiliary generator \f$U=u\cdot G\f$, where \f$G\f$ is a generator of \f$E(\mathbb{F}_p)\f$​
-     *4. Set \f$\vec{G}_{k}=\vec{G}\f$, \f$\vec{a}_{k}=\vec{p}\f$
-     *5. Compute the vector \f$\vec{b}_{k}=(1,\beta,\beta^2,...,\beta^{d-1})\f$
+     *4. Set \f$\vec{G}_{k}=\vec{G}\f$, \f$\vec{a}_{k}=\vec{p}\f$ where \f$vec{p}\f$ represent the polynomial's
+     *coefficients 
+ .   *5. Compute the vector \f$\vec{b}_{k}=(1,\beta,\beta^2,...,\beta^{d-1})\f$ where \f$p(\beta)$\f is the
+     evaluation we wish to prove.
      *6. Perform \f$k\f$ rounds (for \f$i \in \{k,...,1\}\f$) of:
      *   1. Compute
      \f$L_{i-1}=\langle\vec{a}_{i\_low},\vec{G}_{i\_high}\rangle+\langle\vec{a}_{i\_low},\vec{b}_{i\_high}\rangle\cdot
@@ -328,13 +332,11 @@ template <typename Curve> class IPA {
      *9. Receive \f$\vec{a}_{0}\f$ of length 1
      *10. Compute \f$C_{right}=a_{0}G_{s}+a_{0}b_{0}U\f$
      *11. Check that \f$C_{right} = C_0\f$. If they match, return true. Otherwise return false.
-     *
-     *
      */
     template <typename Transcript>
-    static bool verify_internal(const std::shared_ptr<VK>& vk,
-                                const OpeningClaim<Curve>& opening_claim,
-                                const std::shared_ptr<Transcript>& transcript)
+    static VerifierAccumulator reduce_verify_internal(const std::shared_ptr<VK>& vk,
+                                                      const OpeningClaim<Curve>& opening_claim,
+                                                      const std::shared_ptr<Transcript>& transcript)
     {
         // Step 1.
         // Receive polynomial_degree + 1 = d from the prover
@@ -352,7 +354,6 @@ template <typename Curve> class IPA {
         auto aux_generator = Commitment::one() * generator_challenge;
 
         auto log_poly_degree = static_cast<size_t>(numeric::get_msb(poly_length));
-
         // Step 3.
         // Compute C' = C + f(\beta) ⋅ U
         GroupElement C_prime = opening_claim.commitment + (aux_generator * opening_claim.opening_pair.evaluation);
@@ -495,11 +496,13 @@ template <typename Curve> class IPA {
      *
      *@remark The verification procedure documentation is in \link IPA::verify_internal verify_internal \endlink
      */
-    static bool verify(const std::shared_ptr<VK>& vk,
-                       const OpeningClaim<Curve>& opening_claim,
-                       const std::shared_ptr<NativeTranscript>& transcript)
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/912): Return the proper VerifierAccumulator once
+    // implemented
+    static VerifierAccumulator reduce_verify(const std::shared_ptr<VK>& vk,
+                                             const OpeningClaim<Curve>& opening_claim,
+                                             const std::shared_ptr<NativeTranscript>& transcript)
     {
-        return verify_internal(vk, opening_claim, transcript);
+        return reduce_verify_internal(vk, opening_claim, transcript);
     }
 };
 

@@ -32,7 +32,7 @@ class ProxyCaller {
                                 const OpeningClaim<Curve>& opening_claim,
                                 const std::shared_ptr<Transcript>& transcript)
     {
-        return IPA<Curve>::verify_internal(vk, opening_claim, transcript);
+        return IPA<Curve>::reduce_verify_internal(vk, opening_claim, transcript);
     }
 };
 } // namespace bb

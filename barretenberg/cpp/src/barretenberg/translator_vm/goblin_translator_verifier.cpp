@@ -244,7 +244,6 @@ bool GoblinTranslatorVerifier::verify_proof(const HonkProof& proof)
 
     // If Sumcheck did not verify, return false
     if (sumcheck_verified.has_value() && !sumcheck_verified.value()) {
-        info("sumcheck failed");
         return false;
     }
 

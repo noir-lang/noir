@@ -31,11 +31,11 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
      *
      * @return TranscriptManifest
      */
-    TranscriptManifest construct_eccvm_honk_manifest(size_t circuit_size, size_t ipa_poly_degree)
+    TranscriptManifest construct_eccvm_honk_manifest(size_t circuit_size, size_t log_ipa_poly_degree)
     {
         TranscriptManifest manifest_expected;
-
         auto log_n = numeric::get_msb(circuit_size);
+        ASSERT(log_n == log_ipa_poly_degree);
 
         size_t MAX_PARTIAL_RELATION_LENGTH = Flavor::BATCHED_RELATION_PARTIAL_LENGTH;
         // Size of types is number of bb::frs needed to represent the type
@@ -147,31 +147,23 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
         manifest_expected.add_challenge(round, "rho");
 
         round++;
-        for (size_t i = 1; i < log_n; ++i) {
-            std::string idx = std::to_string(i);
-            manifest_expected.add_entry(round, "Gemini:FOLD_" + idx, frs_per_G);
-        }
-        manifest_expected.add_challenge(round, "Gemini:r");
-
-        round++;
         for (size_t i = 0; i < log_n; ++i) {
             std::string idx = std::to_string(i);
-            manifest_expected.add_entry(round, "Gemini:a_" + idx, frs_per_Fr);
+            manifest_expected.add_entry(round, "ZM:C_q_" + idx, frs_per_G);
         }
-        manifest_expected.add_challenge(round, "Shplonk:nu");
+        manifest_expected.add_challenge(round, "ZM:y");
 
         round++;
-        manifest_expected.add_entry(round, "Shplonk:Q", frs_per_G);
-        manifest_expected.add_challenge(round, "Shplonk:z");
+        manifest_expected.add_entry(round, "ZM:C_q", frs_per_G);
+        manifest_expected.add_challenge(round, "ZM:x", "ZM:z");
 
         round++;
-        manifest_expected.add_entry(round, "IPA:poly_degree", frs_per_uint32);
+        manifest_expected.add_entry(round, "IPA:poly_degree_plus_1", frs_per_uint32);
         manifest_expected.add_challenge(round, "IPA:generator_challenge");
 
-        auto log_poly_degree = static_cast<size_t>(numeric::get_msb(ipa_poly_degree));
-        for (size_t i = 0; i < log_poly_degree; ++i) {
+        for (size_t i = 0; i < log_n; ++i) {
             round++;
-            std::string idx = std::to_string(i);
+            std::string idx = std::to_string(log_n - i - 1);
             manifest_expected.add_entry(round, "IPA:L_" + idx, frs_per_G);
             manifest_expected.add_entry(round, "IPA:R_" + idx, frs_per_G);
             std::string label = "IPA:round_challenge_" + idx;
@@ -180,6 +172,34 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
 
         round++;
         manifest_expected.add_entry(round, "IPA:a_0", frs_per_Fr);
+        manifest_expected.add_entry(round, "Translation:hack_commitment", frs_per_G);
+        manifest_expected.add_challenge(round, "Translation:evaluation_challenge_x");
+
+        round++;
+        manifest_expected.add_entry(round, "Translation:op", frs_per_Fr);
+        manifest_expected.add_entry(round, "Translation:Px", frs_per_Fr);
+        manifest_expected.add_entry(round, "Translation:Py", frs_per_Fr);
+        manifest_expected.add_entry(round, "Translation:z1", frs_per_Fr);
+        manifest_expected.add_entry(round, "Translation:z2", frs_per_Fr);
+        manifest_expected.add_entry(round, "Translation:hack_evaluation", frs_per_Fr);
+        manifest_expected.add_challenge(round, "Translation:ipa_batching_challenge");
+
+        round++;
+        manifest_expected.add_entry(round, "IPA:poly_degree_plus_1", frs_per_uint32);
+        manifest_expected.add_challenge(round, "IPA:generator_challenge");
+
+        for (size_t i = 0; i < log_n; ++i) {
+            round++;
+            std::string idx = std::to_string(log_n - i - 1);
+            manifest_expected.add_entry(round, "IPA:L_" + idx, frs_per_G);
+            manifest_expected.add_entry(round, "IPA:R_" + idx, frs_per_G);
+            std::string label = "IPA:round_challenge_" + idx;
+            manifest_expected.add_challenge(round, label);
+        }
+
+        round++;
+        manifest_expected.add_entry(round, "IPA:a_0", frs_per_Fr);
+        manifest_expected.add_challenge(round, "Translation:batching_challenge");
 
         return manifest_expected;
     }
@@ -227,8 +247,6 @@ TYPED_TEST_SUITE(ECCVMTranscriptTests, FlavorTypes);
  */
 TYPED_TEST(ECCVMTranscriptTests, ProverManifestConsistency)
 {
-    GTEST_SKIP() << "TODO(https://github.com/AztecProtocol/barretenberg/issues/782): update and reinstate after the "
-                    "protocol is finalized.";
     using Flavor = TypeParam;
 
     // Construct a simple circuit
@@ -241,9 +259,8 @@ TYPED_TEST(ECCVMTranscriptTests, ProverManifestConsistency)
 
     // Check that the prover generated manifest agrees with the manifest hard coded in this suite
     auto manifest_expected =
-        this->construct_eccvm_honk_manifest(prover.key->circuit_size, prover.shplonk_output.witness.size());
+        this->construct_eccvm_honk_manifest(prover.key->circuit_size, prover.sumcheck_output.challenge.size());
     auto prover_manifest = prover.transcript->get_manifest();
-
     // Note: a manifest can be printed using manifest.print()
     for (size_t round = 0; round < manifest_expected.size(); ++round) {
         ASSERT_EQ(prover_manifest[round], manifest_expected[round]) << "Prover manifest discrepency in round " << round;
@@ -257,9 +274,6 @@ TYPED_TEST(ECCVMTranscriptTests, ProverManifestConsistency)
  */
 TYPED_TEST(ECCVMTranscriptTests, VerifierManifestConsistency)
 {
-    GTEST_SKIP() << "TODO(https://github.com/AztecProtocol/barretenberg/issues/782): update and reinstate after the "
-                    "protocol is finalized.";
-
     using Flavor = TypeParam;
 
     // Construct a simple circuit
@@ -279,7 +293,10 @@ TYPED_TEST(ECCVMTranscriptTests, VerifierManifestConsistency)
     auto verifier_manifest = verifier.transcript->get_manifest();
 
     // Note: a manifest can be printed using manifest.print()
-    for (size_t round = 0; round < prover_manifest.size(); ++round) {
+    // The last challenge generated by the ECCVM Prover is the translation univariate batching challenge and, on the
+    // verifier side, is only generated in the translator verifier hence the ECCVM prover's manifest will have one extra
+    // challenge
+    for (size_t round = 0; round < prover_manifest.size() - 1; ++round) {
         ASSERT_EQ(prover_manifest[round], verifier_manifest[round])
             << "Prover/Verifier manifest discrepency in round " << round;
     }
@@ -313,9 +330,6 @@ TYPED_TEST(ECCVMTranscriptTests, ChallengeGenerationTest)
 
 TYPED_TEST(ECCVMTranscriptTests, StructureTest)
 {
-    GTEST_SKIP() << "TODO(https://github.com/AztecProtocol/barretenberg/issues/782): update and reinstate after the "
-                    "protocol is finalized.";
-
     using Flavor = TypeParam;
 
     // Construct a simple circuit
@@ -331,16 +345,17 @@ TYPED_TEST(ECCVMTranscriptTests, StructureTest)
     // try deserializing and serializing with no changes and check proof is still valid
     prover.transcript->deserialize_full_transcript();
     prover.transcript->serialize_full_transcript();
-    EXPECT_TRUE(verifier.verify_proof(prover.export_proof())); // we have changed nothing so proof is still valid
+    EXPECT_TRUE(
+        verifier.verify_proof(prover.transcript->proof_data)); // we have changed nothing so proof is still valid
 
     typename Flavor::Commitment one_group_val = Flavor::Commitment::one();
     auto rand_val = Flavor::FF::random_element();
     prover.transcript->transcript_Px_comm = one_group_val * rand_val; // choose random object to modify
     EXPECT_TRUE(verifier.verify_proof(
-        prover.export_proof())); // we have not serialized it back to the proof so it should still be fine
+        prover.transcript->proof_data)); // we have not serialized it back to the proof so it should still be fine
 
     prover.transcript->serialize_full_transcript();
-    EXPECT_FALSE(verifier.verify_proof(prover.export_proof())); // the proof is now wrong after serializing it
+    EXPECT_FALSE(verifier.verify_proof(prover.transcript->proof_data)); // the proof is now wrong after serializing it
 
     prover.transcript->deserialize_full_transcript();
     EXPECT_EQ(static_cast<typename Flavor::Commitment>(prover.transcript->transcript_Px_comm),

@@ -44,9 +44,9 @@ TYPED_TEST(KZGTest, single)
     KZG::compute_opening_proof(this->ck(), opening_pair, witness, prover_transcript);
 
     auto verifier_transcript = NativeTranscript::verifier_init_empty(prover_transcript);
-    bool verified = KZG::verify(this->vk(), opening_claim, verifier_transcript);
+    auto pairing_points = KZG::reduce_verify(opening_claim, verifier_transcript);
 
-    EXPECT_EQ(verified, true);
+    EXPECT_EQ(this->vk()->pairing_check(pairing_points[0], pairing_points[1]), true);
 }
 
 /**
@@ -170,11 +170,11 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
 
     // KZG verifier:
     // aggregates inputs [Q] - [Q_z] and [W] into an 'accumulator' (can perform pairing check on result)
-    bool verified = KZG::verify(this->vk(), shplonk_verifier_claim, verifier_transcript);
+    auto pairing_points = KZG::reduce_verify(shplonk_verifier_claim, verifier_transcript);
 
     // Final pairing check: e([Q] - [Q_z] + z[W], [1]_2) = e([W], [x]_2)
 
-    EXPECT_EQ(verified, true);
+    EXPECT_EQ(this->vk()->pairing_check(pairing_points[0], pairing_points[1]), true);
 }
 
 } // namespace bb

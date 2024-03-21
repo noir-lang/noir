@@ -1,6 +1,5 @@
 #pragma once
-#include "barretenberg/commitment_schemes/gemini/gemini.hpp"
-#include "barretenberg/commitment_schemes/shplonk/shplonk.hpp"
+#include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
 #include "barretenberg/flavor/ecc_vm.hpp"
 #include "barretenberg/goblin/translation_evaluations.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
@@ -24,6 +23,7 @@ template <IsECCVMFlavor Flavor> class ECCVMProver_ {
     using Curve = typename Flavor::Curve;
     using Transcript = typename Flavor::Transcript;
     using TranslationEvaluations = bb::TranslationEvaluations;
+    using ZeroMorph = ZeroMorphProver_<PCS>;
 
   public:
     explicit ECCVMProver_(const std::shared_ptr<ProvingKey>& input_key,
@@ -35,11 +35,7 @@ template <IsECCVMFlavor Flavor> class ECCVMProver_ {
     BB_PROFILE void execute_log_derivative_commitments_round();
     BB_PROFILE void execute_grand_product_computation_round();
     BB_PROFILE void execute_relation_check_rounds();
-    BB_PROFILE void execute_univariatization_round();
-    BB_PROFILE void execute_pcs_evaluation_round();
-    BB_PROFILE void execute_shplonk_batched_quotient_round();
-    BB_PROFILE void execute_shplonk_partial_evaluation_round();
-    BB_PROFILE void execute_final_pcs_round();
+    BB_PROFILE void execute_zeromorph_rounds();
     BB_PROFILE void execute_transcript_consistency_univariate_opening_round();
 
     HonkProof& export_proof();
@@ -72,12 +68,7 @@ template <IsECCVMFlavor Flavor> class ECCVMProver_ {
     FF translation_batching_challenge_v; // to be rederived by the translator verifier
 
     SumcheckOutput<Flavor> sumcheck_output;
-    GeminiProverOutput<Curve> gemini_output;
-    ShplonkProverOutput<Curve> shplonk_output;
     std::shared_ptr<PCSCommitmentKey> commitment_key;
-
-    using Gemini = GeminiProver_<Curve>;
-    using Shplonk = ShplonkProver_<Curve>;
 
   private:
     HonkProof proof;

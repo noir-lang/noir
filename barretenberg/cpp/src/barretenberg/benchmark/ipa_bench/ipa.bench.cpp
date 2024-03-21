@@ -60,7 +60,7 @@ void ipa_verify(State& state) noexcept
         auto verifier_transcript = std::make_shared<NativeTranscript>(prover_transcript->proof_data);
 
         state.ResumeTiming();
-        auto result = IPA<Curve>::verify(vk, opening_claim, verifier_transcript);
+        auto result = IPA<Curve>::reduce_verify(vk, opening_claim, verifier_transcript);
         ASSERT(result);
     }
 }

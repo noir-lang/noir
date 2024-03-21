@@ -1,6 +1,5 @@
 #include "./eccvm_verifier.hpp"
-#include "barretenberg/commitment_schemes/gemini/gemini.hpp"
-#include "barretenberg/commitment_schemes/shplonk/shplonk.hpp"
+#include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
@@ -32,15 +31,13 @@ template <typename Flavor> ECCVMVerifier_<Flavor>& ECCVMVerifier_<Flavor>::opera
 template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkProof& proof)
 {
     using FF = typename Flavor::FF;
-    using GroupElement = typename Flavor::GroupElement;
     using Commitment = typename Flavor::Commitment;
     using PCS = typename Flavor::PCS;
-    using Curve = typename Flavor::Curve;
-    using Gemini = GeminiVerifier_<Curve>;
-    using Shplonk = ShplonkVerifier_<Curve>;
+    using ZeroMorph = ZeroMorphVerifier_<PCS>;
     using VerifierCommitments = typename Flavor::VerifierCommitments;
     using CommitmentLabels = typename Flavor::CommitmentLabels;
     using Transcript = typename Flavor::Transcript;
+    using Curve = typename Flavor::Curve;
 
     RelationParameters<FF> relation_parameters;
 
@@ -161,7 +158,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkP
         gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
     }
 
-    auto [multivariate_challenge, purported_evaluations, sumcheck_verified] =
+    auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
         sumcheck.verify(relation_parameters, alpha, gate_challenges);
 
     // If Sumcheck did not verify, return false
@@ -169,69 +166,13 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkP
         return false;
     }
 
-    // Execute Gemini/Shplonk verification:
-
-    // Construct inputs for Gemini verifier:
-    // - Multivariate opening point u = (u_0, ..., u_{d-1})
-    // - batched unshifted and to-be-shifted polynomial commitments
-    auto batched_commitment_unshifted = GroupElement::zero();
-    auto batched_commitment_to_be_shifted = GroupElement::zero();
-    const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
-    // Compute powers of batching challenge rho
-    FF rho = transcript->template get_challenge<FF>("rho");
-    std::vector<FF> rhos = gemini::powers_of_rho(rho, NUM_POLYNOMIALS);
-
-    // Compute batched multivariate evaluation
-    FF batched_evaluation = FF::zero();
-    size_t evaluation_idx = 0;
-    for (auto& value : purported_evaluations.get_unshifted()) {
-        batched_evaluation += value * rhos[evaluation_idx];
-        ++evaluation_idx;
-    }
-    for (auto& value : purported_evaluations.get_shifted()) {
-        batched_evaluation += value * rhos[evaluation_idx];
-        ++evaluation_idx;
-    }
-
-    // Construct batched commitment for NON-shifted polynomials
-    size_t commitment_idx = 0;
-    for (auto& commitment : commitments.get_unshifted()) {
-        // TODO(@zac-williamson)(https://github.com/AztecProtocol/barretenberg/issues/820) ensure ECCVM polynomial
-        // commitments are never points at infinity
-        if (commitment.y != 0) {
-            batched_commitment_unshifted += commitment * rhos[commitment_idx];
-        } else {
-            // TODO(https://github.com/AztecProtocol/barretenberg/issues/820)
-        }
-        ++commitment_idx;
-    }
-
-    // Construct batched commitment for to-be-shifted polynomials
-    for (auto& commitment : commitments.get_to_be_shifted()) {
-        // TODO(@zac-williamson) ensure ECCVM polynomial commitments are never points at infinity (#2214)
-        if (commitment.y != 0) {
-            batched_commitment_to_be_shifted += commitment * rhos[commitment_idx];
-        } else {
-            // TODO(https://github.com/AztecProtocol/barretenberg/issues/820)
-        }
-        ++commitment_idx;
-    }
-
-    // Produce a Gemini claim consisting of:
-    // - d+1 commitments [Fold_{r}^(0)], [Fold_{-r}^(0)], and [Fold^(l)], l = 1:d-1
-    // - d+1 evaluations a_0_pos, and a_l, l = 0:d-1
-    auto gemini_claim = Gemini::reduce_verification(multivariate_challenge,
-                                                    batched_evaluation,
-                                                    batched_commitment_unshifted,
-                                                    batched_commitment_to_be_shifted,
-                                                    transcript);
-
-    // Produce a Shplonk claim: commitment [Q] - [Q_z], evaluation zero (at random challenge z)
-    auto shplonk_claim = Shplonk::reduce_verification(pcs_verification_key, gemini_claim, transcript);
-
-    // Verify the Shplonk claim with KZG or IPA
-    auto multivariate_opening_verified = PCS::verify(pcs_verification_key, shplonk_claim, transcript);
-
+    bool multivariate_opening_verified = ZeroMorph::verify(commitments.get_unshifted(),
+                                                           commitments.get_to_be_shifted(),
+                                                           claimed_evaluations.get_unshifted(),
+                                                           claimed_evaluations.get_shifted(),
+                                                           multivariate_challenge,
+                                                           pcs_verification_key,
+                                                           transcript);
     // Execute transcript consistency univariate opening round
     // TODO(#768): Find a better way to do this. See issue for details.
     bool univariate_opening_verified = false;
@@ -271,7 +212,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkP
         // Construct and verify batched opening claim
         OpeningClaim<Curve> batched_univariate_claim = { { evaluation_challenge_x, batched_transcript_eval },
                                                          batched_commitment };
-        univariate_opening_verified = PCS::verify(pcs_verification_key, batched_univariate_claim, transcript);
+        univariate_opening_verified = PCS::reduce_verify(pcs_verification_key, batched_univariate_claim, transcript);
     }
 
     return sumcheck_verified.value() && multivariate_opening_verified && univariate_opening_verified;
