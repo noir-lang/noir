@@ -112,7 +112,7 @@ fn check_package(
                 write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
             } else {
                 eprintln!(
-                    "Warning: Prover.toml already exists. Use --overwrite to force overwrite."
+                    "Note: Prover.toml already exists. Use --overwrite to force overwrite."
                 );
             }
 
@@ -124,7 +124,7 @@ fn check_package(
                 write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
             } else {
                 eprintln!(
-                    "Warning: Verifier.toml already exists. Use --overwrite to force overwrite."
+                    "Note: Verifier.toml already exists. Use --overwrite to force overwrite."
                 );
             }
 
