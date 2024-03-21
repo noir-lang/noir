@@ -130,3 +130,9 @@ If the dependencies fail to resolve ensure that the tag matches a tag in the [az
 ```bash
 aztec-up
 ```
+
+If exceptionally needing to test different versions, a `VERSION` tag can be specified. Eg to use `master`:
+
+```bash
+VERSION=master aztec-up
+```
