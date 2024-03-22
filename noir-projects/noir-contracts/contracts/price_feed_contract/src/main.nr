@@ -21,7 +21,7 @@ contract PriceFeed {
         storage.assets.at(asset_id).read()
     }
 
-    unconstrained fn fetch_price(assetId: Field) -> pub Asset {
-        storage.assets.at(assetId).read()
+    unconstrained fn fetch_price(asset_id: Field) -> pub Asset {
+        storage.assets.at(asset_id).read()
     }
 }

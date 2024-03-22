@@ -359,8 +359,8 @@ contract Test {
     }
 
     // Purely exists for testing
-    unconstrained fn get_random(kindaSeed: Field) -> pub Field {
-        kindaSeed * rand()
+    unconstrained fn get_random(kinda_seed: Field) -> pub Field {
+        kinda_seed * rand()
     }
 
     struct DummyNote {

@@ -121,7 +121,7 @@ impl PublicContextInterface for AVMContext {
         temporary_function_selector: FunctionSelector,
         args: [Field; ARGS_COUNT]
     ) -> [Field; RETURN_VALUES_LENGTH] {
-        let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
+        let gas = [/*l1_gas*/42, /*l2_gas*/24, /*da_gas*/420];
 
         let results = call(
             gas,
@@ -129,11 +129,11 @@ impl PublicContextInterface for AVMContext {
             args,
             temporary_function_selector.to_field()
         );
-        let returnData: [Field; RETURN_VALUES_LENGTH] = results.0;
+        let data_to_return: [Field; RETURN_VALUES_LENGTH] = results.0;
         let success: u8 = results.1;
         assert(success == 1, "Nested call failed!");
 
-        returnData
+        data_to_return
     }
 
     fn static_call_public_function<ARGS_COUNT>(
@@ -142,9 +142,9 @@ impl PublicContextInterface for AVMContext {
         temporary_function_selector: FunctionSelector,
         args: [Field; ARGS_COUNT]
     ) -> [Field; RETURN_VALUES_LENGTH] {
-        let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
+        let gas = [/*l1_gas*/42, /*l2_gas*/24, /*da_gas*/420];
 
-        let (returnData, success): ([Field; RETURN_VALUES_LENGTH], u8) = call_static(
+        let (data_to_return, success): ([Field; RETURN_VALUES_LENGTH], u8) = call_static(
             gas,
             contract_address,
             args,
@@ -152,7 +152,7 @@ impl PublicContextInterface for AVMContext {
         );
 
         assert(success == 1, "Nested static call failed!");
-        returnData
+        data_to_return
     }
 
     fn delegate_call_public_function<ARGS_COUNT>(
@@ -263,7 +263,7 @@ fn send_l2_to_l1_msg(recipient: EthAddress, content: Field) {}
 
 #[oracle(avmOpcodeCall)]
 fn call<ARGS_COUNT, RET_SIZE>(
-    gas: [Field; 3], // gas allocation: [l1Gas, l2Gas, daGas]
+    gas: [Field; 3], // gas allocation: [l1_gas, l2_gas, da_gas]
     address: AztecAddress,
     args: [Field; ARGS_COUNT],
     // TODO(5110): consider passing in calldata directly
@@ -273,7 +273,7 @@ fn call<ARGS_COUNT, RET_SIZE>(
 
 #[oracle(avmOpcodeStaticCall)]
 fn call_static<ARGS_COUNT, RET_SIZE>(
-    gas: [Field; 3], // gas allocation: [l1Gas, l2Gas, daGas]
+    gas: [Field; 3], // gas allocation: [l1_gas, l2_gas, da_gas]
     address: AztecAddress,
     args: [Field; ARGS_COUNT],
     // TODO(5110): consider passing in calldata directly

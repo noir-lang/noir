@@ -54,7 +54,7 @@ pub fn get_mint_private_content_hash(
 
 // docs:start:get_withdraw_content_hash
 // Computes a content hash of a withdraw message.
-pub fn get_withdraw_content_hash(recipient: EthAddress, amount: Field, callerOnL1: EthAddress) -> Field {
+pub fn get_withdraw_content_hash(recipient: EthAddress, amount: Field, caller_on_l1: EthAddress) -> Field {
     // Compute the content hash
     // Compute sha256(selector || amount || recipient)
     // then convert to a single field element
@@ -62,7 +62,7 @@ pub fn get_withdraw_content_hash(recipient: EthAddress, amount: Field, callerOnL
     let mut hash_bytes: [u8; 100] = [0; 100];
     let recipient_bytes = recipient.to_field().to_be_bytes(32);
     let amount_bytes = amount.to_be_bytes(32);
-    let callerOnL1_bytes = callerOnL1.to_field().to_be_bytes(32);
+    let caller_on_l1_bytes = caller_on_l1.to_field().to_be_bytes(32);
 
     //  0x69328dec, selector for "withdraw(address,uint256,address)"
     hash_bytes[0] = 0x69;
@@ -73,7 +73,7 @@ pub fn get_withdraw_content_hash(recipient: EthAddress, amount: Field, callerOnL
     for i in 0..32 {
         hash_bytes[i + 4] = recipient_bytes[i];
         hash_bytes[i + 36] = amount_bytes[i];
-        hash_bytes[i + 68] = callerOnL1_bytes[i];
+        hash_bytes[i + 68] = caller_on_l1_bytes[i];
     }
     let content_hash = sha256_to_field(hash_bytes);
     content_hash

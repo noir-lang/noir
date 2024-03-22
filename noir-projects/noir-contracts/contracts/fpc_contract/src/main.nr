@@ -73,13 +73,13 @@ contract FPC {
 
     #[aztec(public)]
     #[aztec(internal)]
-    fn pay_fee_with_shielded_rebate(amount: Field, asset: AztecAddress, secretHash: Field) {
+    fn pay_fee_with_shielded_rebate(amount: Field, asset: AztecAddress, secret_hash: Field) {
         let refund = context.call_public_function(
             storage.gas_token_address.read_public(),
             FunctionSelector::from_signature("pay_fee(Field)"),
             [amount]
         )[0];
 
-        Token::at(asset).shield(&mut context, context.this_address(), refund, secretHash, 0);
+        Token::at(asset).shield(&mut context, context.this_address(), refund, secret_hash, 0);
     }
 }

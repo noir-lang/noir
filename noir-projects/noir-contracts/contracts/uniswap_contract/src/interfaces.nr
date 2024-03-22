@@ -65,13 +65,13 @@ impl TokenBridge {
         context: &mut PublicContext,
         recipient: EthAddress,
         amount: Field,
-        callerOnL1: EthAddress,
+        caller_on_l1: EthAddress,
         nonce: Field
     ) {
         let _ = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("exit_to_l1_public((Field),Field,(Field),Field)"),
-            [recipient.to_field(), amount, callerOnL1.to_field(), nonce]
+            [recipient.to_field(), amount, caller_on_l1.to_field(), nonce]
         );
     }
 }

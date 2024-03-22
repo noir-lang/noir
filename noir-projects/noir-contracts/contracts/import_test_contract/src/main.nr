@@ -11,7 +11,7 @@ contract ImportTest {
         ManyNotesADeepStructTestCodeGenStruct
     };
 
-    // Calls the testCodeGen on the Test contract at the target address
+    // Calls the test_code_gen on the Test contract at the target address
     // Used for testing calling a function with arguments of multiple types
     // See yarn-project/simulator/src/client/private_execution.ts
     // See yarn-project/end-to-end/src/e2e_nested_contract.test.ts
@@ -40,31 +40,31 @@ contract ImportTest {
         return_values[0]
     }
 
-    // Calls the getThisAddress on the Test contract at the target address
+    // Calls the get_this_address on the Test contract at the target address
     // Used for testing calling a function with no arguments
     // See yarn-project/end-to-end/src/e2e_nested_contract.test.ts
     #[aztec(private)]
-    fn callNoArgs(target: AztecAddress) -> Field {
+    fn call_no_args(target: AztecAddress) -> Field {
         let test_contract_instance = TestPrivateContextInterface::at(target);
         let return_values = test_contract_instance.get_this_address(&mut context);
 
         return_values[0]
     }
 
-    // Calls the createNullifierPublic on the Test contract at the target address
+    // Calls the create_nullifier_public on the Test contract at the target address
     // Used for testing calling an open function
     // See yarn-project/end-to-end/src/e2e_nested_contract.test.ts
     #[aztec(private)]
-    fn callOpenFn(target: AztecAddress) {
+    fn call_open_fn(target: AztecAddress) {
         let test_contract_instance = TestPrivateContextInterface::at(target);
         test_contract_instance.create_nullifier_public(&mut context, 1, 2);
     }
 
-    // Calls the createNullifierPublic on the Test contract at the target address
+    // Calls the create_nullifier_public on the Test contract at the target address
     // Used for testing calling an open function from another open function
     // See yarn-project/end-to-end/src/e2e_nested_contract.test.ts
     #[aztec(public)]
-    fn pubCallOpenFn(target: AztecAddress) -> Field {
+    fn pub_call_open_fn(target: AztecAddress) -> Field {
         let test_contract_instance = TestPublicContextInterface::at(target);
         let ret = test_contract_instance.create_nullifier_public(&mut context, 1, 2);
 

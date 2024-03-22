@@ -43,21 +43,21 @@ fn check_note_fields<N>(serialized_note: [Field; N], selects: BoundedVec<Option<
         let value_field = extract_property_value_from_selector(serialized_note, select.property_selector);
 
         // Values are computed ahead of time because circuits evaluate all branches
-        let isEqual = value_field == select.value.to_field();
-        let isLt = value_field.lt(select.value.to_field());
+        let is_equal = value_field == select.value.to_field();
+        let is_lt = value_field.lt(select.value.to_field());
 
         if (select.comparator == Comparator.EQ) {
-            assert(isEqual, "Mismatch return note field.");
+            assert(is_equal, "Mismatch return note field.");
         } else if (select.comparator == Comparator.NEQ) {
-            assert(!isEqual, "Mismatch return note field.");
+            assert(!is_equal, "Mismatch return note field.");
         } else if (select.comparator == Comparator.LT) {
-            assert(isLt, "Mismatch return note field.");
+            assert(is_lt, "Mismatch return note field.");
         } else if (select.comparator == Comparator.LTE) {
-            assert(isLt | isEqual, "Mismatch return note field.");
+            assert(is_lt | is_equal, "Mismatch return note field.");
         } else if (select.comparator == Comparator.GT) {
-            assert(!isLt & !isEqual, "Mismatch return note field.");
+            assert(!is_lt & !is_equal, "Mismatch return note field.");
         } else if (select.comparator == Comparator.GTE) {
-            assert(!isLt, "Mismatch return note field.");
+            assert(!is_lt, "Mismatch return note field.");
         }
     }
 }

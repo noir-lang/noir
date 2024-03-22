@@ -52,11 +52,11 @@ contract TokenBridge {
     fn exit_to_l1_public(
         recipient: EthAddress, // ethereum address to withdraw to
         amount: Field,
-        callerOnL1: EthAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
+        caller_on_l1: EthAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
         nonce: Field // nonce used in the approval message by `msg.sender` to let bridge burn their tokens on L2
     ) {
         // Send an L2 to L1 message
-        let content = get_withdraw_content_hash(recipient, amount, callerOnL1);
+        let content = get_withdraw_content_hash(recipient, amount, caller_on_l1);
         context.message_portal(context.this_portal_address(), content);
 
         // Burn tokens
@@ -100,11 +100,11 @@ contract TokenBridge {
         token: AztecAddress,
         recipient: EthAddress, // ethereum address to withdraw to
         amount: Field,
-        callerOnL1: EthAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
+        caller_on_l1: EthAddress, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
         nonce: Field // nonce used in the approval message by `msg.sender` to let bridge burn their tokens on L2
     ) {
         // Send an L2 to L1 message
-        let content = get_withdraw_content_hash(recipient, amount, callerOnL1);
+        let content = get_withdraw_content_hash(recipient, amount, caller_on_l1);
         context.message_portal(context.this_portal_address(), content);
 
         // docs:start:call_assert_token_is_same

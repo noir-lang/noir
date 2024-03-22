@@ -291,68 +291,68 @@ contract AvmTest {
 
     // Directly call the external call opcode to initiate a nested call to the add function
     #[aztec(public-vm)]
-    fn raw_nested_call_to_add(argA: Field, argB: Field) -> pub Field {
+    fn raw_nested_call_to_add(arg_a: Field, arg_b: Field) -> pub Field {
         let selector = FunctionSelector::from_signature("add_args_return(Field,Field)").to_field();
-        let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
+        let gas = [/*l1_gas*/42, /*l2_gas*/24, /*da_gas*/420];
 
         // Nested call
-        let results = context.call_public_function_raw(gas, context.this_address(), selector, [argA, argB]);
-        let returnData: [Field; 1] = results.0;
-        // this explicit size   ^ is necessary to ensure that retSize is compile-time
-        // (ensure the returnData is in a HeapArray not a HeapVector)
+        let results = context.call_public_function_raw(gas, context.this_address(), selector, [arg_a, arg_b]);
+        let data_to_return: [Field; 1] = results.0;
+        // this explicit size   ^ is necessary to ensure that ret_size is compile-time
+        // (ensure the data_to_return is in a HeapArray not a HeapVector)
         let success: u8 = results.1;
 
         assert(success == 1, "Call failed");
 
-        let addResult = returnData[0];
-        addResult
+        let add_result = data_to_return[0];
+        add_result
     }
 
     // Use the `call_public_function` wrapper to initiate a nested call to the add function
     #[aztec(public-vm)]
-    fn nested_call_to_add(argA: Field, argB: Field) -> pub Field {
+    fn nested_call_to_add(arg_a: Field, arg_b: Field) -> pub Field {
         let selector = FunctionSelector::from_signature("add_args_return(Field,Field)");
 
         // Nested call using standard context interface function
-        let returnData: [Field; RETURN_VALUES_LENGTH] = context.call_public_function(context.this_address(), selector, [argA, argB]);
-        // this explicit size   ^ is necessary to ensure that retSize is compile-time
-        // (ensure the returnData is in a HeapArray not a HeapVector)
+        let data_to_return: [Field; RETURN_VALUES_LENGTH] = context.call_public_function(context.this_address(), selector, [arg_a, arg_b]);
+        // this explicit size   ^ is necessary to ensure that ret_size is compile-time
+        // (ensure the data_to_return is in a HeapArray not a HeapVector)
 
-        let addResult = returnData[0];
-        addResult
+        let add_result = data_to_return[0];
+        add_result
     }
 
     // Directly call_static the external call opcode to initiate a nested call to the add function
     #[aztec(public-vm)]
-    fn raw_nested_static_call_to_add(argA: Field, argB: Field) -> pub (Field, u8) {
+    fn raw_nested_static_call_to_add(arg_a: Field, arg_b: Field) -> pub (Field, u8) {
         let selector = FunctionSelector::from_signature("add_args_return(Field,Field)").to_field();
-        let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
+        let gas = [/*l1_gas*/42, /*l2_gas*/24, /*da_gas*/420];
 
-        let (resultData, success): ([Field; 1], u8) = context.static_call_public_function_raw(gas, context.this_address(), selector, [argA, argB]);
+        let (result_data, success): ([Field; 1], u8) = context.static_call_public_function_raw(gas, context.this_address(), selector, [arg_a, arg_b]);
 
-        (resultData[0], success)
+        (result_data[0], success)
     }
 
     // Directly call_static `set_storage_single`. Should fail since it's accessing storage.
     #[aztec(public-vm)]
     fn raw_nested_static_call_to_set_storage() -> pub u8 {
         let selector = FunctionSelector::from_signature("set_storage_single(Field)").to_field();
-        let gas = [/*l1Gas*/42, /*l2Gas*/24, /*daGas*/420];
+        let gas = [/*l1_gas*/42, /*l2_gas*/24, /*da_gas*/420];
         let calldata: [Field; 1] = [20];
 
-        let (_returnData, success): ([Field; 0], u8) = context.static_call_public_function_raw(gas, context.this_address(), selector, calldata);
+        let (_data_to_return, success): ([Field; 0], u8) = context.static_call_public_function_raw(gas, context.this_address(), selector, calldata);
 
         success
     }
 
     // Indirectly call_static the external call opcode to initiate a nested call to the add function
     #[aztec(public-vm)]
-    fn nested_static_call_to_add(argA: Field, argB: Field) -> pub Field {
+    fn nested_static_call_to_add(arg_a: Field, arg_b: Field) -> pub Field {
         let selector = FunctionSelector::from_signature("add_args_return(Field,Field)");
 
-        let resultData: [Field; RETURN_VALUES_LENGTH] = context.static_call_public_function(context.this_address(), selector, [argA, argB]);
+        let result_data: [Field; RETURN_VALUES_LENGTH] = context.static_call_public_function(context.this_address(), selector, [arg_a, arg_b]);
 
-        resultData[0]
+        result_data[0]
     }
 
     // Indirectly call_static `set_storage_single`. Should revert since it's accessing storage.

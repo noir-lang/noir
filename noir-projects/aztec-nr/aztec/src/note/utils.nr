@@ -92,7 +92,7 @@ pub fn compute_note_hash_and_nullifier<T, N, S>(
     serialized_note: [Field; S] // docs:end:compute_note_hash_and_nullifier_args
 ) -> [Field; 4] where T: NoteInterface<N> {
     let mut note = deserialize_content(arr_copy_slice(serialized_note, [0; N], 0));
-    // TODO: change this to note.setHeader(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
+    // TODO: change this to note.set_header(header) once https://github.com/noir-lang/noir/issues/4095 is fixed
     T::set_header((&mut note), note_header);
 
     let inner_note_hash = compute_inner_note_hash(note);

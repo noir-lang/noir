@@ -303,8 +303,8 @@ contract Lending {
         storage.static_debt.at(owner).write(debt_returns.static_debt.to_integer());
     }
 
-    unconstrained fn get_asset(assetId: Field) -> pub Asset {
-        storage.assets.at(assetId).read()
+    unconstrained fn get_asset(asset_id: Field) -> pub Asset {
+        storage.assets.at(asset_id).read()
     }
 
     unconstrained fn get_position(owner: AztecAddress) -> pub Position {

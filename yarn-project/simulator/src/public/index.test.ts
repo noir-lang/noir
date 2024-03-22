@@ -247,14 +247,14 @@ describe('ACIR public execution simulator', () => {
   describe('Parent/Child contracts', () => {
     it('calls the public entry point in the parent', async () => {
       const parentContractAddress = AztecAddress.random();
-      const parentEntryPointFn = ParentContractArtifact.functions.find(f => f.name === 'pubEntryPoint')!;
+      const parentEntryPointFn = ParentContractArtifact.functions.find(f => f.name === 'pub_entry_point')!;
       const parentEntryPointFnSelector = FunctionSelector.fromNameAndParameters(
         parentEntryPointFn.name,
         parentEntryPointFn.parameters,
       );
 
       const childContractAddress = AztecAddress.random();
-      const childValueFn = ChildContractArtifact.functions.find(f => f.name === 'pubGetValue')!;
+      const childValueFn = ChildContractArtifact.functions.find(f => f.name === 'pub_get_value')!;
       const childValueFnSelector = FunctionSelector.fromNameAndParameters(childValueFn.name, childValueFn.parameters);
 
       const initialValue = 3n;

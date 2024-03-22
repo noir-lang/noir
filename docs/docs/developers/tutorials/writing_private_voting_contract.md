@@ -89,7 +89,7 @@ In this contract, we will store three vars:
 
 1. admin, as an Aztec address held in public state
 2. tally, as a map with key as the persona and value as the number (in Field) held in public state
-3. voteEnded, as a boolean held in public state
+3. vote_ended, as a boolean held in public state
 
 ## Constructor
 
@@ -97,7 +97,7 @@ The next step is to initialize the contract with a constructor. The constructor 
 
 #include_code constructor noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
-This function takes the admin argument and writes it to the storage. We are also using this function to set the `voteEnded` boolean as false in the same way.
+This function takes the admin argument and writes it to the storage. We are also using this function to set the `vote_ended` boolean as false in the same way.
 
 ## Casting a vote privately
 
@@ -125,7 +125,7 @@ Create this new public function like this:
 
 The first thing we do here is assert that the vote has not ended.
 
-`assert()` takes two arguments: the assertion, in this case that `storage.voteEnded` is not false, and the error thrown if the assertion fails.
+`assert()` takes two arguments: the assertion, in this case that `storage.vote_ended` is not false, and the error thrown if the assertion fails.
 
 The code after the assertion will only run if the assertion is true. In this snippet, we read the current vote tally at the voteId, add 1 to it, and write this new number to the voteId. The `Field` element allows us to use `+` to add to an integer.
 

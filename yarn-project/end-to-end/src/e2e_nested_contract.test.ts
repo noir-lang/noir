@@ -31,7 +31,7 @@ describe('e2e_nested_contract', () => {
 
     it('performs nested calls', async () => {
       await parentContract.methods
-        .entryPoint(childContract.address, childContract.methods.value.selector)
+        .entry_point(childContract.address, childContract.methods.value.selector)
         .send()
         .wait();
 
@@ -68,21 +68,21 @@ describe('e2e_nested_contract', () => {
     it('fails simulation if calling a function not allowed to be called externally', async () => {
       await expect(
         parentContract.methods
-          .entryPoint(childContract.address, (childContract.methods as any).valueInternal.selector)
+          .entry_point(childContract.address, (childContract.methods as any).value_internal.selector)
           .simulate(),
-      ).rejects.toThrow(/Assertion failed: Function valueInternal can only be called internally/);
+      ).rejects.toThrow(/Assertion failed: Function value_internal can only be called internally/);
     }, 100_000);
 
     it('performs public nested calls', async () => {
       await parentContract.methods
-        .pubEntryPoint(childContract.address, childContract.methods.pubGetValue.selector, 42n)
+        .pub_entry_point(childContract.address, childContract.methods.pub_get_value.selector, 42n)
         .send()
         .wait();
     }, 100_000);
 
     it('enqueues a single public call', async () => {
       await parentContract.methods
-        .enqueueCallToChild(childContract.address, childContract.methods.pubIncValue.selector, 42n)
+        .enqueue_call_to_child(childContract.address, childContract.methods.pub_inc_value.selector, 42n)
         .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(new Fr(42n));
@@ -91,14 +91,18 @@ describe('e2e_nested_contract', () => {
     it('fails simulation if calling a public function not allowed to be called externally', async () => {
       await expect(
         parentContract.methods
-          .enqueueCallToChild(childContract.address, (childContract.methods as any).pubIncValueInternal.selector, 42n)
+          .enqueue_call_to_child(
+            childContract.address,
+            (childContract.methods as any).pub_inc_value_internal.selector,
+            42n,
+          )
           .simulate(),
-      ).rejects.toThrow(/Assertion failed: Function pubIncValueInternal can only be called internally/);
+      ).rejects.toThrow(/Assertion failed: Function pub_inc_value_internal can only be called internally/);
     }, 100_000);
 
     it('enqueues multiple public calls', async () => {
       await parentContract.methods
-        .enqueueCallToChildTwice(childContract.address, childContract.methods.pubIncValue.selector, 42n)
+        .enqueue_call_to_child_twice(childContract.address, childContract.methods.pub_inc_value.selector, 42n)
         .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(new Fr(85n));
@@ -106,7 +110,7 @@ describe('e2e_nested_contract', () => {
 
     it('enqueues a public call with nested public calls', async () => {
       await parentContract.methods
-        .enqueueCallToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector, 42n)
+        .enqueue_call_to_pub_entry_point(childContract.address, childContract.methods.pub_inc_value.selector, 42n)
         .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(new Fr(42n));
@@ -114,7 +118,7 @@ describe('e2e_nested_contract', () => {
 
     it('enqueues multiple public calls with nested public calls', async () => {
       await parentContract.methods
-        .enqueueCallsToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector, 42n)
+        .enqueue_calls_to_pub_entry_point(childContract.address, childContract.methods.pub_inc_value.selector, 42n)
         .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(new Fr(85n));
@@ -123,7 +127,7 @@ describe('e2e_nested_contract', () => {
     // Regression for https://github.com/AztecProtocol/aztec-packages/issues/640
     it('reads fresh value after write within the same tx', async () => {
       await parentContract.methods
-        .pubEntryPointTwice(childContract.address, childContract.methods.pubIncValue.selector, 42n)
+        .pub_entry_point_twice(childContract.address, childContract.methods.pub_inc_value.selector, 42n)
         .send()
         .wait();
       expect(await getChildStoredValue(childContract)).toEqual(new Fr(84n));
@@ -134,10 +138,10 @@ describe('e2e_nested_contract', () => {
     // through the account contract, if the account entrypoint behaves properly, it will honor
     // this order and not run the private call first which results in the public calls being inverted.
     it('executes public calls in expected order', async () => {
-      const pubSetValueSelector = childContract.methods.pubSetValue.selector;
+      const pubSetValueSelector = childContract.methods.pub_set_value.selector;
       const actions = [
-        childContract.methods.pubSetValue(20n).request(),
-        parentContract.methods.enqueueCallToChild(childContract.address, pubSetValueSelector, 40n).request(),
+        childContract.methods.pub_set_value(20n).request(),
+        parentContract.methods.enqueue_call_to_child(childContract.address, pubSetValueSelector, 40n).request(),
       ];
 
       const tx = await new BatchCall(wallet, actions).send().wait();
@@ -170,17 +174,17 @@ describe('e2e_nested_contract', () => {
 
     it('calls a method no arguments', async () => {
       logger(`Calling noargs on importer contract`);
-      await importerContract.methods.callNoArgs(testContract.address).send().wait();
+      await importerContract.methods.call_no_args(testContract.address).send().wait();
     }, 30_000);
 
     it('calls an open function', async () => {
       logger(`Calling openfn on importer contract`);
-      await importerContract.methods.callOpenFn(testContract.address).send().wait();
+      await importerContract.methods.call_open_fn(testContract.address).send().wait();
     }, 30_000);
 
     it('calls an open function from an open function', async () => {
       logger(`Calling pub openfn on importer contract`);
-      await importerContract.methods.pubCallOpenFn(testContract.address).send().wait();
+      await importerContract.methods.pub_call_open_fn(testContract.address).send().wait();
     }, 30_000);
   });
 });

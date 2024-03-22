@@ -13,32 +13,32 @@ contract Delegator {
 
     #[aztec(private)]
     fn private_delegate_set_value(
-        targetContract: AztecAddress,
-        targetSelector: FunctionSelector,
+        target_contract: AztecAddress,
+        target_selector: FunctionSelector,
         args: [Field; 2]
     ) {
         // Call the target private function
-        let return_values = context.delegate_call_private_function(targetContract, targetSelector, args);
+        let return_values = context.delegate_call_private_function(target_contract, target_selector, args);
         // Copy the return value from the call to this function's return values
         return_values[0]
     }
 
     #[aztec(private)]
     fn enqueued_delegate_set_value(
-        targetContract: AztecAddress,
-        targetSelector: FunctionSelector,
+        target_contract: AztecAddress,
+        target_selector: FunctionSelector,
         args: [Field; 1]
     ) {
-        context.delegate_call_public_function(targetContract, targetSelector, args);
+        context.delegate_call_public_function(target_contract, target_selector, args);
     }
 
     #[aztec(public)]
     fn public_delegate_set_value(
-        targetContract: AztecAddress,
-        targetSelector: FunctionSelector,
+        target_contract: AztecAddress,
+        target_selector: FunctionSelector,
         args: [Field; 1]
     ) {
-        let _ = context.delegate_call_public_function(targetContract, targetSelector, args);
+        let _ = context.delegate_call_public_function(target_contract, target_selector, args);
     }
 
     unconstrained fn view_private_value(amount: Field, owner: AztecAddress) -> pub Field {

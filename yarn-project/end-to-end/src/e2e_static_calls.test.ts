@@ -26,7 +26,7 @@ describe('e2e_static_calls', () => {
       await childContract.methods.privateSetValue(42n, wallet.getCompleteAddress().address).send().wait();
       // ...this call doesn't fail due to get_notes returning 0 notes
       await parentContract.methods
-        .privateStaticCall(childContract.address, childContract.methods.privateGetValue.selector, [
+        .private_static_call(childContract.address, childContract.methods.private_get_value.selector, [
           42n,
           wallet.getCompleteAddress().address,
         ])
@@ -39,7 +39,7 @@ describe('e2e_static_calls', () => {
       await childContract.methods.privateSetValue(42n, wallet.getCompleteAddress().address).send().wait();
       // ...this call doesn't fail due to get_notes returning 0 notes
       await parentContract.methods
-        .privateStaticCallNested(childContract.address, childContract.methods.privateGetValue.selector, [
+        .private_nested_static_call(childContract.address, childContract.methods.private_get_value.selector, [
           42n,
           wallet.getCompleteAddress().address,
         ])
@@ -49,28 +49,32 @@ describe('e2e_static_calls', () => {
 
     it('performs legal public to public static calls', async () => {
       await parentContract.methods
-        .publicStaticCall(childContract.address, childContract.methods.pubGetValue.selector, [42n])
+        .public_static_call(childContract.address, childContract.methods.pub_get_value.selector, [42n])
         .send()
         .wait();
     }, 100_000);
 
     it('performs legal (nested) public to public static calls', async () => {
       await parentContract.methods
-        .publicNestedStaticCall(childContract.address, childContract.methods.pubGetValue.selector, [42n])
+        .public_nested_static_call(childContract.address, childContract.methods.pub_get_value.selector, [42n])
         .send()
         .wait();
     }, 100_000);
 
     it('performs legal enqueued public static calls', async () => {
       await parentContract.methods
-        .enqueueStaticCallToPubFunction(childContract.address, childContract.methods.pubGetValue.selector, [42n])
+        .enqueue_static_call_to_pub_function(childContract.address, childContract.methods.pub_get_value.selector, [42n])
         .send()
         .wait();
     }, 100_000);
 
     it('performs legal (nested) enqueued public static calls', async () => {
       await parentContract.methods
-        .enqueueStaticNestedCallToPubFunction(childContract.address, childContract.methods.pubGetValue.selector, [42n])
+        .enqueue_static_nested_call_to_pub_function(
+          childContract.address,
+          childContract.methods.pub_get_value.selector,
+          [42n],
+        )
         .send()
         .wait();
     }, 100_000);
@@ -78,7 +82,7 @@ describe('e2e_static_calls', () => {
     it('fails when performing illegal private to private static calls', async () => {
       await expect(
         parentContract.methods
-          .privateStaticCall(childContract.address, childContract.methods.privateSetValue.selector, [
+          .private_static_call(childContract.address, childContract.methods.private_set_value.selector, [
             42n,
             wallet.getCompleteAddress().address,
           ])
@@ -90,7 +94,7 @@ describe('e2e_static_calls', () => {
     it('fails when performing illegal (nested) private to private static calls', async () => {
       await expect(
         parentContract.methods
-          .privateStaticCallNested(childContract.address, childContract.methods.privateSetValue.selector, [
+          .private_nested_static_call(childContract.address, childContract.methods.private_set_value.selector, [
             42n,
             wallet.getCompleteAddress().address,
           ])
@@ -102,7 +106,7 @@ describe('e2e_static_calls', () => {
     it('fails when performing illegal public to public static calls', async () => {
       await expect(
         parentContract.methods
-          .publicStaticCall(childContract.address, childContract.methods.pubSetValue.selector, [42n])
+          .public_static_call(childContract.address, childContract.methods.pub_set_value.selector, [42n])
           .send()
           .wait(),
       ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');
@@ -111,7 +115,7 @@ describe('e2e_static_calls', () => {
     it('fails when performing illegal (nested) public to public static calls', async () => {
       await expect(
         parentContract.methods
-          .publicNestedStaticCall(childContract.address, childContract.methods.pubSetValue.selector, [42n])
+          .public_nested_static_call(childContract.address, childContract.methods.pub_set_value.selector, [42n])
           .send()
           .wait(),
       ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');
@@ -120,7 +124,9 @@ describe('e2e_static_calls', () => {
     it('fails when performing illegal enqueued public static calls', async () => {
       await expect(
         parentContract.methods
-          .enqueueStaticCallToPubFunction(childContract.address, childContract.methods.pubSetValue.selector, [42n])
+          .enqueue_static_call_to_pub_function(childContract.address, childContract.methods.pub_set_value.selector, [
+            42n,
+          ])
           .send()
           .wait(),
       ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');
@@ -129,9 +135,11 @@ describe('e2e_static_calls', () => {
     it('fails when performing illegal (nested) enqueued public static calls', async () => {
       await expect(
         parentContract.methods
-          .enqueueStaticNestedCallToPubFunction(childContract.address, childContract.methods.pubSetValue.selector, [
-            42n,
-          ])
+          .enqueue_static_nested_call_to_pub_function(
+            childContract.address,
+            childContract.methods.pub_set_value.selector,
+            [42n],
+          )
           .send()
           .wait(),
       ).rejects.toThrow('Static call cannot update the state, emit L2->L1 messages or generate logs');

@@ -194,7 +194,7 @@ describe('e2e_2_pxes', () => {
     const newValueToSet = new Fr(256n);
 
     const childContractWithWalletB = await ChildContract.at(childCompleteAddress.address, walletB);
-    await childContractWithWalletB.methods.pubIncValue(newValueToSet).send().wait({ interval: 0.1 });
+    await childContractWithWalletB.methods.pub_inc_value(newValueToSet).send().wait({ interval: 0.1 });
 
     await awaitServerSynchronized(pxeA);
 

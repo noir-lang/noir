@@ -37,6 +37,6 @@ console.log(`Transferred ${amount} to ${recipientAddress} on block ${tx.blockNum
 import { Contract } from '@aztec/aztec.js';
 
 const contract = await Contract.at(contractAddress, MyContractArtifact, wallet);
-const balance = await contract.methods.getBalance(wallet.getAddress()).view();
+const balance = await contract.methods.get_balance(wallet.getAddress()).view();
 console.log(`Account balance is ${balance}`);
 ```

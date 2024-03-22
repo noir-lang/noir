@@ -42,5 +42,5 @@ const _tx = await contract.methods.transfer(1, wallet).send().wait();
 // docs:end:send_transaction
 
 // docs:start:call_view_function
-const _balance = await contract.methods.getBalance(wallet.getAddress()).view();
+const _balance = await contract.methods.get_balance(wallet.getAddress()).view();
 // docs:end:call_view_function

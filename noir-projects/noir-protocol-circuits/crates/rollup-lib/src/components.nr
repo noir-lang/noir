@@ -145,10 +145,10 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
     let revert_code = combined.revert_code;
     let new_note_hashes = combined.new_note_hashes;
     let new_nullifiers = combined.new_nullifiers;
-    let newL2ToL1msgs = combined.new_l2_to_l1_msgs;
+    let new_l2_to_l1_msgs = combined.new_l2_to_l1_msgs;
     let public_data_update_requests = combined.public_data_update_requests;
-    let encryptedLogsHash = combined.encrypted_logs_hash;
-    let unencryptedLogsHash = combined.unencrypted_logs_hash;
+    let encrypted_logs_hash = combined.encrypted_logs_hash;
+    let unencrypted_logs_hash = combined.unencrypted_logs_hash;
 
     let mut offset = 0;
 
@@ -167,7 +167,7 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
     offset += MAX_NEW_NULLIFIERS_PER_TX ;
 
     for j in 0..MAX_NEW_L2_TO_L1_MSGS_PER_TX {
-        txs_effects_hash_input[offset + j] = newL2ToL1msgs[j];
+        txs_effects_hash_input[offset + j] = new_l2_to_l1_msgs[j];
     }
     offset += MAX_NEW_L2_TO_L1_MSGS_PER_TX;
 
@@ -180,13 +180,13 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
     offset += MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2;
 
     for j in 0..NUM_FIELDS_PER_SHA256 {
-        txs_effects_hash_input[offset + j] = encryptedLogsHash[j];
+        txs_effects_hash_input[offset + j] = encrypted_logs_hash[j];
     }
 
     offset += NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
 
     for j in 0..NUM_FIELDS_PER_SHA256 {
-        txs_effects_hash_input[offset + j] = unencryptedLogsHash[j];
+        txs_effects_hash_input[offset + j] = unencrypted_logs_hash[j];
     }
 
     offset += NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
