@@ -176,7 +176,7 @@ describe('e2e_note_getter', () => {
     async function assertNoReturnValue(storageSlot: number, activeOrNullified: boolean) {
       await expect(contract.methods.call_view_notes(storageSlot, activeOrNullified).view()).rejects.toThrow('is_some');
       await expect(contract.methods.call_get_notes(storageSlot, activeOrNullified).send().wait()).rejects.toThrow(
-        'is_some',
+        `Assertion failed: Cannot return zero notes`,
       );
     }
 

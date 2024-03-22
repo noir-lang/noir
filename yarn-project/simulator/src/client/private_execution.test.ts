@@ -918,27 +918,15 @@ describe('Private Execution test suite', () => {
 
       const getThenNullifyArtifact = getFunctionArtifact(PendingNoteHashesContractArtifact, 'get_then_nullify_note');
 
-      const getZeroArtifact = getFunctionArtifact(PendingNoteHashesContractArtifact, 'get_note_zero_balance');
-
       const insertFnSelector = FunctionSelector.fromNameAndParameters(insertArtifact.name, insertArtifact.parameters);
       const getThenNullifyFnSelector = FunctionSelector.fromNameAndParameters(
         getThenNullifyArtifact.name,
         getThenNullifyArtifact.parameters,
       );
-      const getZeroFnSelector = FunctionSelector.fromNameAndParameters(
-        getZeroArtifact.name,
-        getZeroArtifact.parameters,
-      );
 
       oracle.getPortalContractAddress.mockImplementation(() => Promise.resolve(EthAddress.ZERO));
 
-      const args = [
-        amountToTransfer,
-        owner,
-        insertFnSelector.toField(),
-        getThenNullifyFnSelector.toField(),
-        getZeroFnSelector.toField(),
-      ];
+      const args = [amountToTransfer, owner, insertFnSelector.toField(), getThenNullifyFnSelector.toField()];
       const result = await runSimulator({
         args: args,
         artifact: artifact,
@@ -947,7 +935,6 @@ describe('Private Execution test suite', () => {
 
       const execInsert = result.nestedExecutions[0];
       const execGetThenNullify = result.nestedExecutions[1];
-      const getNotesAfterNullify = result.nestedExecutions[2];
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner);
       const noteTypeId = new Fr(869710811710178111116101n); // ValueNote
@@ -991,10 +978,6 @@ describe('Private Execution test suite', () => {
         siloedNullifierSecretKey.high,
       ]);
       expect(nullifier.value).toEqual(expectedNullifier);
-
-      // check that the last get_notes call return no note
-      const afterNullifyingNoteValue = getNotesAfterNullify.callStackItem.publicInputs.returnValues[0].value;
-      expect(afterNullifyingNoteValue).toEqual(0n);
     });
 
     it('cant read a commitment that is inserted later in same call', async () => {
@@ -1007,48 +990,13 @@ describe('Private Execution test suite', () => {
       const artifact = getFunctionArtifact(PendingNoteHashesContractArtifact, 'test_bad_get_then_insert_flat');
 
       const args = [amountToTransfer, owner];
-      const result = await runSimulator({
-        args: args,
-        artifact: artifact,
-        contractAddress,
-      });
-
-      const storageSlot = computeSlotForMapping(new Fr(1n), owner);
-      const noteTypeId = new Fr(869710811710178111116101n); // ValueNote
-
-      expect(result.newNotes).toHaveLength(1);
-      const noteAndSlot = result.newNotes[0];
-      expect(noteAndSlot.storageSlot).toEqual(storageSlot);
-      expect(noteAndSlot.noteTypeId).toEqual(noteTypeId);
-
-      expect(noteAndSlot.note.items[0]).toEqual(new Fr(amountToTransfer));
-
-      const newNoteHashes = sideEffectArrayToValueArray(
-        nonEmptySideEffects(result.callStackItem.publicInputs.newNoteHashes),
-      );
-      expect(newNoteHashes).toHaveLength(1);
-
-      const noteHash = newNoteHashes[0];
-      expect(noteHash).toEqual(
-        await acirSimulator.computeInnerNoteHash(
+      await expect(
+        runSimulator({
+          args: args,
+          artifact: artifact,
           contractAddress,
-          storageSlot,
-          noteAndSlot.noteTypeId,
-          noteAndSlot.note,
-        ),
-      );
-
-      // read requests should be empty
-      const readRequest = result.callStackItem.publicInputs.noteHashReadRequests[0].value;
-      expect(readRequest).toEqual(Fr.ZERO);
-
-      // should get note value 0 because it actually gets a fake note since the real one hasn't been inserted yet!
-      const gotNoteValue = result.callStackItem.publicInputs.returnValues[0];
-      expect(gotNoteValue).toEqual(Fr.ZERO);
-
-      // there should be no nullifiers
-      const nullifier = result.callStackItem.publicInputs.newNullifiers[0].value;
-      expect(nullifier).toEqual(Fr.ZERO);
+        }),
+      ).rejects.toThrow(`Assertion failed: Cannot return zero notes`);
     });
   });
 
@@ -1066,6 +1014,17 @@ describe('Private Execution test suite', () => {
       oracle.getCompleteAddress.mockResolvedValue(completeAddress);
       const result = await runSimulator({ artifact, args });
       expect(result.returnValues).toEqual([pubKey.x.value, pubKey.y.value]);
+    });
+  });
+
+  describe('Get notes', () => {
+    it('fails if returning no notes', async () => {
+      const artifact = getFunctionArtifact(TestContractArtifact, 'call_get_notes');
+
+      const args = [2n, true];
+      oracle.getNotes.mockResolvedValue([]);
+
+      await expect(runSimulator({ artifact, args })).rejects.toThrow(`Assertion failed: Cannot return zero notes`);
     });
   });
 

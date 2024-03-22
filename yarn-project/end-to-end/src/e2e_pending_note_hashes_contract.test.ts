@@ -79,10 +79,12 @@ describe('e2e_pending_note_hashes_contract', () => {
         owner,
         deployedContract.methods.insert_note.selector,
         deployedContract.methods.get_then_nullify_note.selector,
-        deployedContract.methods.get_note_zero_balance.selector,
       )
       .send()
       .wait();
+    await expect(deployedContract.methods.get_note_zero_balance(owner).send().wait()).rejects.toThrow(
+      `Assertion failed: Cannot return zero notes`,
+    );
 
     await expectNoteHashesSquashedExcept(0);
     await expectNullifiersSquashedExcept(0);
@@ -154,10 +156,12 @@ describe('e2e_pending_note_hashes_contract', () => {
         owner,
         deployedContract.methods.insert_note.selector,
         deployedContract.methods.get_then_nullify_note.selector,
-        deployedContract.methods.get_note_zero_balance.selector,
       )
       .send()
       .wait();
+    await expect(deployedContract.methods.get_note_zero_balance(owner).send().wait()).rejects.toThrow(
+      `Assertion failed: Cannot return zero notes`,
+    );
 
     // second TX creates 1 note, but it is squashed!
     await expectNoteHashesSquashedExcept(0);
@@ -186,7 +190,6 @@ describe('e2e_pending_note_hashes_contract', () => {
         owner,
         deployedContract.methods.dummy.selector,
         deployedContract.methods.get_then_nullify_note.selector,
-        deployedContract.methods.get_note_zero_balance.selector,
       )
       .send()
       .wait();

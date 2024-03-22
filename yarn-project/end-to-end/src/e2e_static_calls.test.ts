@@ -22,6 +22,9 @@ describe('e2e_static_calls', () => {
 
   describe('parent calls child', () => {
     it('performs legal private to private static calls', async () => {
+      // We create a note in the set, so...
+      await childContract.methods.privateSetValue(42n, wallet.getCompleteAddress().address).send().wait();
+      // ...this call doesn't fail due to get_notes returning 0 notes
       await parentContract.methods
         .privateStaticCall(childContract.address, childContract.methods.privateGetValue.selector, [
           42n,
@@ -32,6 +35,9 @@ describe('e2e_static_calls', () => {
     }, 100_000);
 
     it('performs legal (nested) private to private static calls', async () => {
+      // We create a note in the set, so...
+      await childContract.methods.privateSetValue(42n, wallet.getCompleteAddress().address).send().wait();
+      // ...this call doesn't fail due to get_notes returning 0 notes
       await parentContract.methods
         .privateStaticCallNested(childContract.address, childContract.methods.privateGetValue.selector, [
           42n,

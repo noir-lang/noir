@@ -275,7 +275,7 @@ describe('e2e_token_contract', () => {
             'The note has been destroyed.',
           );
           await expect(asset.methods.redeem_shield(accounts[0].address, amount, secret).simulate()).rejects.toThrow(
-            'Can only remove a note that has been read from the set.',
+            `Assertion failed: Cannot return zero notes`,
           );
         });
 
