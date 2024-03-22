@@ -1,5 +1,5 @@
 use dep::types::{
-    abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot, constants::NUM_FIELDS_PER_SHA256,
+    abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
     partial_state_reference::PartialStateReference
 };
 use crate::abis::constant_rollup_data::ConstantRollupData;
@@ -26,6 +26,6 @@ struct BaseOrMergeRollupPublicInputs {
     // So we want to constrain it when casting these fields to U128
 
     // We hash public inputs to make them constant-sized (to then be unpacked on-chain)
-    txs_effects_hash : [Field; NUM_FIELDS_PER_SHA256],
-    out_hash : [Field; NUM_FIELDS_PER_SHA256], 
+    txs_effects_hash : Field,
+    out_hash : Field, 
 }

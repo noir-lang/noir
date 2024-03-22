@@ -19,7 +19,7 @@ use crate::{
 };
 use crate::constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
-    MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, NUM_FIELDS_PER_SHA256,
+    MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
     VK_TREE_HEIGHT
 };
 use dep::std::unsafe;
@@ -235,12 +235,12 @@ impl PreviousKernelDataBuilder {
         self.min_revertible_side_effect_counter = self.sideffect_counter;
     }
 
-    pub fn set_encrypted_logs(&mut self, hash: [Field; NUM_FIELDS_PER_SHA256], preimages_length: Field) {
+    pub fn set_encrypted_logs(&mut self, hash: Field, preimages_length: Field) {
         self.end.encrypted_logs_hash = hash;
         self.end.encrypted_log_preimages_length = preimages_length;
     }
 
-    pub fn set_unencrypted_logs(&mut self, hash: [Field; NUM_FIELDS_PER_SHA256], preimages_length: Field) {
+    pub fn set_unencrypted_logs(&mut self, hash: Field, preimages_length: Field) {
         self.end.unencrypted_logs_hash = hash;
         self.end.unencrypted_log_preimages_length = preimages_length;
     }

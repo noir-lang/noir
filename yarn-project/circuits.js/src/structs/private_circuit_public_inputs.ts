@@ -15,7 +15,6 @@ import {
   MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-  NUM_FIELDS_PER_SHA256,
   PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
   RETURN_VALUES_LENGTH,
 } from '../constants.gen.js';
@@ -98,14 +97,14 @@ export class PrivateCircuitPublicInputs {
     public endSideEffectCounter: Fr,
     /**
      * Hash of the encrypted logs emitted in this function call.
-     * Note: Represented as an array of 2 fields in order to fit in all of the 256 bits of sha256 hash.
+     * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public encryptedLogsHash: Tuple<Fr, typeof NUM_FIELDS_PER_SHA256>,
+    public encryptedLogsHash: Fr,
     /**
      * Hash of the unencrypted logs emitted in this function call.
-     * Note: Represented as an array of 2 fields in order to fit in all of the 256 bits of sha256 hash.
+     * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public unencryptedLogsHash: Tuple<Fr, typeof NUM_FIELDS_PER_SHA256>,
+    public unencryptedLogsHash: Fr,
     /**
      * Length of the encrypted log preimages emitted in this function call.
      * Note: Here so that the gas cost of this request can be measured by circuits, without actually needing to feed
@@ -166,8 +165,8 @@ export class PrivateCircuitPublicInputs {
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
       reader.readObject(Fr),
       reader.readObject(Fr),
-      reader.readArray(NUM_FIELDS_PER_SHA256, Fr),
-      reader.readArray(NUM_FIELDS_PER_SHA256, Fr),
+      reader.readObject(Fr),
+      reader.readObject(Fr),
       reader.readObject(Fr),
       reader.readObject(Fr),
       reader.readObject(Header),
@@ -194,8 +193,8 @@ export class PrivateCircuitPublicInputs {
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
       reader.readField(),
       reader.readField(),
-      reader.readFieldArray(NUM_FIELDS_PER_SHA256),
-      reader.readFieldArray(NUM_FIELDS_PER_SHA256),
+      reader.readField(),
+      reader.readField(),
       reader.readField(),
       reader.readField(),
       reader.readObject(Header),
@@ -225,8 +224,8 @@ export class PrivateCircuitPublicInputs {
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message.empty),
       Fr.ZERO,
       Fr.ZERO,
-      makeTuple(NUM_FIELDS_PER_SHA256, Fr.zero),
-      makeTuple(NUM_FIELDS_PER_SHA256, Fr.zero),
+      Fr.ZERO,
+      Fr.ZERO,
       Fr.ZERO,
       Fr.ZERO,
       Header.empty(),
@@ -254,8 +253,8 @@ export class PrivateCircuitPublicInputs {
       isZeroArray(this.privateCallStackHashes) &&
       isZeroArray(this.publicCallStackHashes) &&
       isEmptyArray(this.newL2ToL1Msgs) &&
-      isZeroArray(this.encryptedLogsHash) &&
-      isZeroArray(this.unencryptedLogsHash) &&
+      this.encryptedLogsHash.isZero() &&
+      this.unencryptedLogsHash.isZero() &&
       this.encryptedLogPreimagesLength.isZero() &&
       this.unencryptedLogPreimagesLength.isZero() &&
       this.historicalHeader.isEmpty() &&

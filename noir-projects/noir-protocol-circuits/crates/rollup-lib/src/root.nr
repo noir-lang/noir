@@ -6,7 +6,7 @@ use root_rollup_inputs::RootRollupInputs;
 use root_rollup_public_inputs::RootRollupPublicInputs;
 
 // TODO: Move all the following code to different files
-use dep::types::{constants::{NUM_FIELDS_PER_SHA256, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP}, utils::uint256::U256, hash::sha256_to_field};
+use dep::types::{constants::NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, utils::uint256::U256, hash::sha256_to_field};
 
 // See `test_message_input_flattened_length` on keeping this in sync,
 // why its here and how this constant was computed.
@@ -16,7 +16,7 @@ global NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP_NUM_BYTES: u64 = 512;
 //
 // TODO(Miranda): remove? This appears to be unused
 // Returns the hash truncated to one field element
-fn compute_messages_hash(leaves: [Field; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP]) -> [Field; NUM_FIELDS_PER_SHA256] {
+fn compute_messages_hash(leaves: [Field; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP]) -> Field {
     // Slice variation
     // let mut hash_input_flattened = [];
     // for leaf in leaves {
@@ -36,7 +36,7 @@ fn compute_messages_hash(leaves: [Field; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP]) -
         }
     }
 
-    [sha256_to_field(hash_input_flattened)]
+    sha256_to_field(hash_input_flattened)
 }
 
 #[test]

@@ -12,7 +12,7 @@ use crate::constants::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
     MAX_NEW_NULLIFIERS_PER_CALL, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, NUM_FIELDS_PER_SHA256,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
     RETURN_VALUES_LENGTH
 };
 
@@ -36,9 +36,9 @@ struct PrivateCircuitPublicInputsBuilder {
     private_call_stack_hashes: BoundedVec<Field, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     public_call_stack_hashes: BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
-    // TODO(Miranda): Remove arrays entirely as NUM_FIELDS_PER_SHA256 = 1
-    encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
-    unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
+
+    encrypted_logs_hash: Field,
+    unencrypted_logs_hash: Field,
 
     encrypted_log_preimages_length: Field,
     unencrypted_log_preimages_length: Field,

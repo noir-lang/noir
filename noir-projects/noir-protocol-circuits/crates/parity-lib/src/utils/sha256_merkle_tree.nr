@@ -26,7 +26,7 @@ impl<N> Sha256MerkleTree<N> {
                     leaves[2*i],
                     leaves[2*i+1]
                 ]
-            )[0];
+            );
         }
 
         // hash the other layers
@@ -36,7 +36,7 @@ impl<N> Sha256MerkleTree<N> {
                     nodes[2*i],
                     nodes[2*i+1]
                 ]
-            )[0];
+            );
         }
 
         Sha256MerkleTree { leaves, nodes }

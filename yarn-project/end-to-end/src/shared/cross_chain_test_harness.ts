@@ -16,9 +16,8 @@ import {
   computeMessageSecretHash,
   deployL1Contract,
   retryUntil,
-  sha256,
 } from '@aztec/aztec.js';
-import { toTruncField } from '@aztec/foundation/serialize';
+import { sha256ToField } from '@aztec/foundation/crypto';
 import {
   InboxAbi,
   OutboxAbi,
@@ -364,27 +363,23 @@ export class CrossChainTestHarness {
   }
 
   getL2ToL1MessageLeaf(withdrawAmount: bigint, callerOnL1: EthAddress = EthAddress.ZERO): Fr {
-    const content = toTruncField(
-      sha256(
-        Buffer.concat([
-          Buffer.from(toFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
-          this.ethAccount.toBuffer32(),
-          new Fr(withdrawAmount).toBuffer(),
-          callerOnL1.toBuffer32(),
-        ]),
-      ),
-    )[0];
-    const leaf = toTruncField(
-      sha256(
-        Buffer.concat([
-          this.l2Bridge.address.toBuffer(),
-          new Fr(1).toBuffer(), // aztec version
-          this.tokenPortalAddress.toBuffer32() ?? Buffer.alloc(32, 0),
-          new Fr(this.publicClient.chain.id).toBuffer(), // chain id
-          content.toBuffer(),
-        ]),
-      ),
-    )[0];
+    const content = sha256ToField(
+      Buffer.concat([
+        Buffer.from(toFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
+        this.ethAccount.toBuffer32(),
+        new Fr(withdrawAmount).toBuffer(),
+        callerOnL1.toBuffer32(),
+      ]),
+    );
+    const leaf = sha256ToField(
+      Buffer.concat([
+        this.l2Bridge.address.toBuffer(),
+        new Fr(1).toBuffer(), // aztec version
+        this.tokenPortalAddress.toBuffer32() ?? Buffer.alloc(32, 0),
+        new Fr(this.publicClient.chain.id).toBuffer(), // chain id
+        content.toBuffer(),
+      ]),
+    );
 
     return leaf;
   }

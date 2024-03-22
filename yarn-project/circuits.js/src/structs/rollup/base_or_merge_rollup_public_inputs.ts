@@ -1,7 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { NUM_FIELDS_PER_SHA256 } from '../../constants.gen.js';
 import { AggregationObject } from '../aggregation_object.js';
 import { PartialStateReference } from '../partial_state_reference.js';
 import { RollupTypes } from '../shared.js';
@@ -39,15 +38,15 @@ export class BaseOrMergeRollupPublicInputs {
      */
     public end: PartialStateReference,
     /**
-     * SHA256 hashes of transactions effects. Used to make public inputs constant-sized (to then be unpacked on-chain).
-     * Note: Length 2 for high and low.
+     * SHA256 hash of transactions effects. Used to make public inputs constant-sized (to then be unpacked on-chain).
+     * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public txsEffectsHash: Tuple<Fr, typeof NUM_FIELDS_PER_SHA256>,
+    public txsEffectsHash: Fr,
     /**
-     * SHA256 hashes of outhash. Used to make public inputs constant-sized (to then be unpacked on-chain).
-     * Note: Length 2 for high and low.
+     * SHA256 hash of outhash. Used to make public inputs constant-sized (to then be unpacked on-chain).
+     * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public outHash: Tuple<Fr, typeof NUM_FIELDS_PER_SHA256>,
+    public outHash: Fr,
   ) {}
 
   /**
@@ -65,8 +64,9 @@ export class BaseOrMergeRollupPublicInputs {
       reader.readObject(ConstantRollupData),
       reader.readObject(PartialStateReference),
       reader.readObject(PartialStateReference),
-      reader.readArray(NUM_FIELDS_PER_SHA256, Fr) as [Fr],
-      reader.readArray(NUM_FIELDS_PER_SHA256, Fr) as [Fr],
+      //TODO check
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
     );
   }
 

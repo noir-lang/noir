@@ -1,23 +1,23 @@
 use crate::{
-    constants::{NUM_FIELDS_PER_SHA256, CONTENT_COMMITMENT_LENGTH},
+    constants::CONTENT_COMMITMENT_LENGTH,
     traits::{Deserialize, Empty, Hash, Serialize}, utils::{arr_copy_slice}
 };
-// TODO(Miranda): Remove arrays entirely as NUM_FIELDS_PER_SHA256 = 1
+
 struct ContentCommitment {
   tx_tree_height: Field,
-  txs_effects_hash: [Field; NUM_FIELDS_PER_SHA256],
-  in_hash: [Field; NUM_FIELDS_PER_SHA256],
-  out_hash: [Field; NUM_FIELDS_PER_SHA256],
+  txs_effects_hash: Field,
+  in_hash: Field,
+  out_hash: Field,
 }
 
 impl Serialize<CONTENT_COMMITMENT_LENGTH> for ContentCommitment {
   fn serialize(self) -> [Field; CONTENT_COMMITMENT_LENGTH] {
     let mut fields: BoundedVec<Field, CONTENT_COMMITMENT_LENGTH> = BoundedVec::new();
 
-    fields.extend_from_array([self.tx_tree_height]);
-    fields.extend_from_array(self.txs_effects_hash);
-    fields.extend_from_array(self.in_hash);
-    fields.extend_from_array(self.out_hash);
+    fields.push(self.tx_tree_height);
+    fields.push(self.txs_effects_hash);
+    fields.push(self.in_hash);
+    fields.push(self.out_hash);
 
     fields.storage
   }
@@ -26,15 +26,12 @@ impl Serialize<CONTENT_COMMITMENT_LENGTH> for ContentCommitment {
 impl Deserialize<CONTENT_COMMITMENT_LENGTH> for ContentCommitment {
   fn deserialize(serialized: [Field; CONTENT_COMMITMENT_LENGTH]) -> Self {
     let tx_tree_height = serialized[0];
-    let mut offset = 1;
 
-    let txs_effects_hash = arr_copy_slice(serialized, [0; NUM_FIELDS_PER_SHA256], offset);
-    offset = offset + NUM_FIELDS_PER_SHA256;
+    let txs_effects_hash = serialized[1];
 
-    let in_hash = arr_copy_slice(serialized, [0; NUM_FIELDS_PER_SHA256], offset);
-    offset = offset + NUM_FIELDS_PER_SHA256;
+    let in_hash = serialized[2];
 
-    let out_hash = arr_copy_slice(serialized, [0; NUM_FIELDS_PER_SHA256], offset);
+    let out_hash = serialized[3];
 
     Self {
       tx_tree_height,
@@ -49,9 +46,9 @@ impl Empty for ContentCommitment {
   fn empty() -> Self {
     Self {
       tx_tree_height: 0,
-      txs_effects_hash: [0; NUM_FIELDS_PER_SHA256],
-      in_hash: [0; NUM_FIELDS_PER_SHA256],
-      out_hash: [0; NUM_FIELDS_PER_SHA256],
+      txs_effects_hash: 0,
+      in_hash: 0,
+      out_hash: 0,
     }
   }
 }

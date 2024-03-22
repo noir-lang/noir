@@ -72,7 +72,6 @@ import {
   NULLIFIER_TREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   NUM_BASE_PARITY_PER_ROOT_PARITY,
-  NUM_FIELDS_PER_SHA256,
   NUM_MSGS_PER_BASE_PARITY,
   NoteHashReadRequestMembershipWitness,
   NullifierKeyValidationRequest,
@@ -296,8 +295,8 @@ export function makeCombinedAccumulatedData(seed = 1, full = false): CombinedAcc
     tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x400),
     tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x500),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600),
-    tupleGenerator(NUM_FIELDS_PER_SHA256, fr, seed + 0x700), // encrypted logs hash
-    tupleGenerator(NUM_FIELDS_PER_SHA256, fr, seed + 0x800), // unencrypted logs hash
+    fr(seed + 0x700), // encrypted logs hash
+    fr(seed + 0x800), // unencrypted logs hash
     fr(seed + 0x900), // encrypted_log_preimages_length
     fr(seed + 0xa00), // unencrypted_log_preimages_length
     tupleGenerator(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, makePublicDataUpdateRequest, seed + 0xd00),
@@ -318,8 +317,8 @@ export function makeCombinedAccumulatedRevertibleData(seed = 1, full = false): P
     tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x400),
     tupleGenerator(MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x500),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600),
-    tupleGenerator(NUM_FIELDS_PER_SHA256, fr, seed + 0x700), // encrypted logs hash
-    tupleGenerator(NUM_FIELDS_PER_SHA256, fr, seed + 0x800), // unencrypted logs hash
+    fr(seed + 0x700), // encrypted logs hash
+    fr(seed + 0x800), // unencrypted logs hash
     fr(seed + 0x900), // encrypted_log_preimages_length
     fr(seed + 0xa00), // unencrypted_log_preimages_length
     tupleGenerator(MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, makePublicDataUpdateRequest, seed + 0xd00),
@@ -340,8 +339,8 @@ export function makeFinalAccumulatedData(seed = 1, full = false): PrivateAccumul
     tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x400),
     tupleGenerator(MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x500),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600),
-    tupleGenerator(NUM_FIELDS_PER_SHA256, fr, seed + 0x700), // encrypted logs hash
-    tupleGenerator(NUM_FIELDS_PER_SHA256, fr, seed + 0x800), // unencrypted logs hash
+    fr(seed + 0x700), // encrypted logs hash
+    fr(seed + 0x800), // unencrypted logs hash
     fr(seed + 0x900), // encrypted_log_preimages_length
     fr(seed + 0xa00), // unencrypted_log_preimages_length
   );
@@ -434,7 +433,7 @@ export function makePublicCircuitPublicInputs(
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x900),
     fr(seed + 0xa00),
     fr(seed + 0xa01),
-    tupleGenerator(NUM_FIELDS_PER_SHA256, fr, seed + 0x901),
+    fr(seed + 0x901),
     fr(seed + 0x902),
     makeHeader(seed + 0xa00, undefined),
     makeAztecAddress(seed + 0xb01),
@@ -884,8 +883,8 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     newL2ToL1Msgs: makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x800),
     startSideEffectCounter: fr(seed + 0x849),
     endSideEffectCounter: fr(seed + 0x850),
-    encryptedLogsHash: makeTuple(NUM_FIELDS_PER_SHA256, fr, seed + 0x900),
-    unencryptedLogsHash: makeTuple(NUM_FIELDS_PER_SHA256, fr, seed + 0xa00),
+    encryptedLogsHash: fr(seed + 0x900),
+    unencryptedLogsHash: fr(seed + 0xa00),
     encryptedLogPreimagesLength: fr(seed + 0xb00),
     unencryptedLogPreimagesLength: fr(seed + 0xc00),
     historicalHeader: makeHeader(seed + 0xd00, undefined),
@@ -1005,8 +1004,8 @@ export function makeBaseOrMergeRollupPublicInputs(
     makeConstantBaseRollupData(seed + 0x200, globalVariables),
     makePartialStateReference(seed + 0x300),
     makePartialStateReference(seed + 0x400),
-    [fr(seed + 0x901)],
-    [fr(seed + 0x902)],
+    fr(seed + 0x901),
+    fr(seed + 0x902),
   );
 }
 

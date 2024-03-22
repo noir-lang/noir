@@ -82,9 +82,7 @@ PrivateKernelInnerCircuitPublicInputs {
   },
   "end": CombinedAccumulatedData {
     "encryptedLogPreimagesLength": Fr<0x000000000000000000000000000000000000000000000000000000000000000c>,
-    "encryptedLogsHash": [
-      Fr<0x00f33ae280239814c4dfaaafc16fc138a8d3eae52bb962af6576cbb61c2af246>,
-    ],
+    "encryptedLogsHash": Fr<0x00f33ae280239814c4dfaaafc16fc138a8d3eae52bb962af6576cbb61c2af246>,
     "newL2ToL1Msgs": [
       Fr<0x0000000000000000000000000000000000000000000000000000000000000000>,
       Fr<0x0000000000000000000000000000000000000000000000000000000000000000>,
@@ -999,9 +997,7 @@ PrivateKernelInnerCircuitPublicInputs {
       "code": 0,
     },
     "unencryptedLogPreimagesLength": Fr<0x000000000000000000000000000000000000000000000000000000000000000c>,
-    "unencryptedLogsHash": [
-      Fr<0x00f33ae280239814c4dfaaafc16fc138a8d3eae52bb962af6576cbb61c2af246>,
-    ],
+    "unencryptedLogsHash": Fr<0x00f33ae280239814c4dfaaafc16fc138a8d3eae52bb962af6576cbb61c2af246>,
   },
   "isPrivate": true,
   "minRevertibleSideEffectCounter": Fr<0x0000000000000000000000000000000000000000000000000000000000000002>,
@@ -1896,9 +1892,7 @@ PrivateKernelTailCircuitPublicInputs {
   },
   "end": PrivateAccumulatedRevertibleData {
     "encryptedLogPreimagesLength": Fr<0x0000000000000000000000000000000000000000000000000000000000000138>,
-    "encryptedLogsHash": [
-      Fr<0x0003100e66eb6812178264cd03595ddc65ec007a177d3b06abc1d8fc27357eca>,
-    ],
+    "encryptedLogsHash": Fr<0x0003100e66eb6812178264cd03595ddc65ec007a177d3b06abc1d8fc27357eca>,
     "newL2ToL1Msgs": [
       Fr<0x0000000000000000000000000000000000000000000000000000000000000000>,
       Fr<0x0000000000000000000000000000000000000000000000000000000000000000>,
@@ -2546,9 +2540,7 @@ PrivateKernelTailCircuitPublicInputs {
       },
     ],
     "unencryptedLogPreimagesLength": Fr<0x0000000000000000000000000000000000000000000000000000000000000004>,
-    "unencryptedLogsHash": [
-      Fr<0x006003947a07e21c81ce2062539d6d6864fe999b58b03fc46f6c190d9eac9b39>,
-    ],
+    "unencryptedLogsHash": Fr<0x006003947a07e21c81ce2062539d6d6864fe999b58b03fc46f6c190d9eac9b39>,
   },
   "endNonRevertibleData": PrivateAccumulatedNonRevertibleData {
     "newNoteHashes": [

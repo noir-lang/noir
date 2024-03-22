@@ -158,9 +158,9 @@ mod tests {
         let mut builder = PrivateKernelInitInputsBuilder::new();
 
         // Logs for the private call.
-        let encrypted_logs_hash = [16];
+        let encrypted_logs_hash = 16;
         let encrypted_log_preimages_length = 100;
-        let unencrypted_logs_hash = [26];
+        let unencrypted_logs_hash = 26;
         let unencrypted_log_preimages_length = 50;
         builder.private_call.set_encrypted_logs(encrypted_logs_hash, encrypted_log_preimages_length);
         builder.private_call.set_unencrypted_logs(unencrypted_logs_hash, unencrypted_log_preimages_length);
@@ -176,10 +176,10 @@ mod tests {
         assert_eq(public_inputs.end.unencrypted_log_preimages_length, unencrypted_log_preimages_length);
 
         // Logs hashes should be a sha256 hash of a 0 value (the previous log hash) and the `(un)encrypted_logs_hash` from private input
-        let expected_encrypted_logs_hash = compute_logs_hash([0], encrypted_logs_hash);
+        let expected_encrypted_logs_hash = compute_logs_hash(0, encrypted_logs_hash);
         assert_eq(public_inputs.end.encrypted_logs_hash, expected_encrypted_logs_hash);
 
-        let expected_unencrypted_logs_hash = compute_logs_hash([0], unencrypted_logs_hash);
+        let expected_unencrypted_logs_hash = compute_logs_hash(0, unencrypted_logs_hash);
         assert_eq(public_inputs.end.unencrypted_logs_hash, expected_unencrypted_logs_hash);
     }
 

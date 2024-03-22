@@ -14,7 +14,7 @@ import {
   ValidationRequests,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { Tuple, toTruncField } from '@aztec/foundation/serialize';
+import { Tuple } from '@aztec/foundation/serialize';
 
 /**
  * Represents a tx that has been processed by the sequencer public processor,
@@ -193,8 +193,8 @@ export function toTxEffect(tx: ProcessedTx): TxEffect {
 
 function validateProcessedTxLogs(tx: ProcessedTx): void {
   const unencryptedLogs = tx.unencryptedLogs || new TxL2Logs([]);
-  const kernelUnencryptedLogsHash = tx.data.combinedData.unencryptedLogsHash[0];
-  const referenceHash = toTruncField(unencryptedLogs.hash())[0];
+  const kernelUnencryptedLogsHash = tx.data.combinedData.unencryptedLogsHash;
+  const referenceHash = Fr.fromBuffer(unencryptedLogs.hash());
   if (!referenceHash.equals(kernelUnencryptedLogsHash)) {
     throw new Error(
       `Unencrypted logs hash mismatch. Expected ${referenceHash.toString()}, got ${kernelUnencryptedLogsHash.toString()}.

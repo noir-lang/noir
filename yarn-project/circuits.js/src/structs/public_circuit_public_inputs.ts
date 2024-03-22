@@ -16,7 +16,6 @@ import {
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_CALL,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
-  NUM_FIELDS_PER_SHA256,
   PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH,
   RETURN_VALUES_LENGTH,
 } from '../constants.gen.js';
@@ -94,9 +93,9 @@ export class PublicCircuitPublicInputs {
     public endSideEffectCounter: Fr,
     /**
      * Hash of the unencrypted logs emitted in this function call.
-     * Note: Represented as an array of 2 fields in order to fit in all of the 256 bits of sha256 hash.
+     * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public unencryptedLogsHash: Tuple<Fr, typeof NUM_FIELDS_PER_SHA256>,
+    public unencryptedLogsHash: Fr,
     /**
      * Length of the unencrypted log preimages emitted in this function call.
      */
@@ -145,7 +144,7 @@ export class PublicCircuitPublicInputs {
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message.empty),
       Fr.ZERO,
       Fr.ZERO,
-      makeTuple(NUM_FIELDS_PER_SHA256, Fr.zero),
+      Fr.ZERO,
       Fr.ZERO,
       Header.empty(),
       AztecAddress.ZERO,
@@ -172,7 +171,7 @@ export class PublicCircuitPublicInputs {
       isArrayEmpty(this.newL2ToL1Msgs, item => item.isEmpty()) &&
       this.startSideEffectCounter.isZero() &&
       this.endSideEffectCounter.isZero() &&
-      isFrArrayEmpty(this.unencryptedLogsHash) &&
+      this.unencryptedLogsHash.isZero() &&
       this.unencryptedLogPreimagesLength.isZero() &&
       this.historicalHeader.isEmpty() &&
       this.proverAddress.isZero() &&
@@ -247,7 +246,7 @@ export class PublicCircuitPublicInputs {
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
       reader.readObject(Fr),
       reader.readObject(Fr),
-      reader.readArray(NUM_FIELDS_PER_SHA256, Fr),
+      reader.readObject(Fr),
       reader.readObject(Fr),
       reader.readObject(Header),
       reader.readObject(AztecAddress),
@@ -272,7 +271,7 @@ export class PublicCircuitPublicInputs {
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, L2ToL1Message),
       reader.readField(),
       reader.readField(),
-      reader.readFieldArray(NUM_FIELDS_PER_SHA256),
+      reader.readField(),
       reader.readField(),
       Header.fromFields(reader),
       AztecAddress.fromFields(reader),

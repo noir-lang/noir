@@ -24,8 +24,7 @@ use dep::protocol_types::{
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
     MAX_PUBLIC_DATA_READS_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
-    MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL,
-    NUM_FIELDS_PER_SHA256, RETURN_VALUES_LENGTH
+    MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, RETURN_VALUES_LENGTH
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     grumpkin_private_key::GrumpkinPrivateKey, hash::hash_args, header::Header,
@@ -156,8 +155,8 @@ impl PrivateContext {
 
     pub fn finish(self) -> PrivateCircuitPublicInputs {
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
-        let encrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];
-        let unencrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];
+        let encrypted_logs_hash = 0;
+        let unencrypted_logs_hash = 0;
         let encrypted_log_preimages_length = 0;
         let unencrypted_log_preimages_length = 0;
 
@@ -471,7 +470,7 @@ impl PrivateContext {
                 new_l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
                 start_side_effect_counter: 0,
                 end_side_effect_counter: 0,
-                unencrypted_logs_hash: [0; NUM_FIELDS_PER_SHA256],
+                unencrypted_logs_hash: 0,
                 unencrypted_log_preimages_length: 0,
                 historical_header: Header::empty(),
                 prover_address: AztecAddress::zero(),

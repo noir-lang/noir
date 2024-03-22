@@ -1,8 +1,8 @@
 import { Body, TxEffect, TxHash } from '@aztec/circuit-types';
 import { AppendOnlyTreeSnapshot, Header, STRING_ENCODING } from '@aztec/circuits.js';
-import { sha256 } from '@aztec/foundation/crypto';
+import { sha256, sha256ToField } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer, toTruncField } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { makeAppendOnlyTreeSnapshot, makeHeader } from './l2_block_code_to_purge.js';
 
@@ -160,7 +160,7 @@ export class L2Block {
       this.body.getTxsEffectsHash(),
     );
 
-    return toTruncField(sha256(buf))[0];
+    return sha256ToField(buf);
   }
 
   /**

@@ -6,9 +6,9 @@ import {
   EthAddress,
   Fr,
   SiblingPath,
-  sha256,
 } from '@aztec/aztec.js';
-import { toTruncField, truncateAndPad } from '@aztec/foundation/serialize';
+import { sha256ToField } from '@aztec/foundation/crypto';
+import { truncateAndPad } from '@aztec/foundation/serialize';
 import { SHA256 } from '@aztec/merkle-tree';
 import { TestContract } from '@aztec/noir-contracts.js';
 
@@ -103,17 +103,15 @@ describe('E2E Outbox Tests', () => {
   }
 
   function makeL2ToL1Message(recipient: EthAddress, content: Fr = Fr.ZERO): Fr {
-    const leaf = toTruncField(
-      sha256(
-        Buffer.concat([
-          contract.address.toBuffer(),
-          new Fr(1).toBuffer(), // aztec version
-          recipient.toBuffer32(),
-          new Fr(deployL1ContractsValues.publicClient.chain.id).toBuffer(), // chain id
-          content.toBuffer(),
-        ]),
-      ),
-    )[0];
+    const leaf = sha256ToField(
+      Buffer.concat([
+        contract.address.toBuffer(),
+        new Fr(1).toBuffer(), // aztec version
+        recipient.toBuffer32(),
+        new Fr(deployL1ContractsValues.publicClient.chain.id).toBuffer(), // chain id
+        content.toBuffer(),
+      ]),
+    );
 
     return leaf;
   }

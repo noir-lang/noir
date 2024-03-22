@@ -295,14 +295,14 @@ mod tests {
     fn circuit_outputs_should_be_correctly_populated_with_previous_public_kernel_logs() {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
         // Logs for the current call stack.
-        let unencrypted_logs_hash = [26];
+        let unencrypted_logs_hash = 26;
         let unencrypted_log_preimages_length = 50;
         builder.public_call.set_unencrypted_logs(unencrypted_logs_hash, unencrypted_log_preimages_length);
 
         // Logs for the previous call stack.
-        let prev_encrypted_logs_hash = [80];
+        let prev_encrypted_logs_hash = 80;
         let prev_encrypted_log_preimages_length = 13;
-        let prev_unencrypted_logs_hash = [956];
+        let prev_unencrypted_logs_hash = 956;
         let prev_unencrypted_log_preimages_length = 24;
         builder.previous_kernel.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
         builder.previous_kernel.set_unencrypted_logs(

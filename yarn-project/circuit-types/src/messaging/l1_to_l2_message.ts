@@ -1,6 +1,6 @@
-import { sha256 } from '@aztec/foundation/crypto';
+import { sha256ToField } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, serializeToBuffer, toTruncField } from '@aztec/foundation/serialize';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { L1Actor } from './l1_actor.js';
 import { L2Actor } from './l2_actor.js';
@@ -41,7 +41,7 @@ export class L1ToL2Message {
   }
 
   hash(): Fr {
-    return toTruncField(sha256(serializeToBuffer(...this.toFields())))[0];
+    return sha256ToField(serializeToBuffer(...this.toFields()));
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): L1ToL2Message {

@@ -72,7 +72,6 @@ library Constants {
   uint256 internal constant L1_TO_L2_MSG_SUBTREE_HEIGHT = 4;
   uint256 internal constant L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH = 12;
   uint256 internal constant FUNCTION_SELECTOR_NUM_BYTES = 4;
-  uint256 internal constant NUM_FIELDS_PER_SHA256 = 1;
   uint256 internal constant ARGS_HASH_CHUNK_LENGTH = 32;
   uint256 internal constant ARGS_HASH_CHUNK_COUNT = 32;
   uint256 internal constant INITIALIZATION_SLOT_SEPARATOR = 1000_000_000;

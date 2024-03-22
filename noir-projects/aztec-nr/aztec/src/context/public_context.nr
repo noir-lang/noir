@@ -15,8 +15,7 @@ use dep::protocol_types::{
     MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
-    MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
-    NUM_FIELDS_PER_SHA256, RETURN_VALUES_LENGTH
+    MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL, RETURN_VALUES_LENGTH
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
     hash::hash_args, header::Header, messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader
@@ -39,8 +38,8 @@ struct PublicContext {
     new_nullifiers: BoundedVec<SideEffectLinkedToNoteHash, MAX_NEW_NULLIFIERS_PER_CALL>,
 
     new_l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,
-    // TODO(Miranda): Remove arrays entirely as NUM_FIELDS_PER_SHA256 = 1
-    unencrypted_logs_hash: BoundedVec<Field, NUM_FIELDS_PER_SHA256>,
+
+    unencrypted_logs_hash: Field,
     unencrypted_logs_preimages_length: Field,
 
     // Header of a block whose state is used during public execution. Set by sequencer to be a header of a block
@@ -64,7 +63,7 @@ impl PublicContext {
             new_note_hashes: BoundedVec::new(),
             new_nullifiers: BoundedVec::new(),
             new_l2_to_l1_msgs: BoundedVec::new(),
-            unencrypted_logs_hash: BoundedVec::new(),
+            unencrypted_logs_hash: 0,
             unencrypted_logs_preimages_length: 0,
             historical_header: inputs.historical_header,
             prover_address: AztecAddress::zero() // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
@@ -121,7 +120,7 @@ impl PublicContext {
 
     pub fn finish(self) -> PublicCircuitPublicInputs {
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
-        let unencrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];
+        let unencrypted_logs_hash = 0;
         let unencrypted_log_preimages_length = 0;
 
         // Compute the public call stack hashes

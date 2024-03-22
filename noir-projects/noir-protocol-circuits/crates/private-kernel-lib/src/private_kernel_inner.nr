@@ -673,17 +673,17 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         // Logs for the current call stack.
-        let encrypted_logs_hash = [16];
+        let encrypted_logs_hash = 16;
         let encrypted_log_preimages_length = 100;
-        let unencrypted_logs_hash = [26];
+        let unencrypted_logs_hash = 26;
         let unencrypted_log_preimages_length = 50;
         builder.private_call.set_encrypted_logs(encrypted_logs_hash, encrypted_log_preimages_length);
         builder.private_call.set_unencrypted_logs(unencrypted_logs_hash, unencrypted_log_preimages_length);
 
         // Logs for the previous call stack.
-        let prev_encrypted_logs_hash = [80];
+        let prev_encrypted_logs_hash = 80;
         let prev_encrypted_log_preimages_length = 13;
-        let prev_unencrypted_logs_hash = [956];
+        let prev_unencrypted_logs_hash = 956;
         let prev_unencrypted_log_preimages_length = 24;
         builder.previous_kernel.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
         builder.previous_kernel.set_unencrypted_logs(

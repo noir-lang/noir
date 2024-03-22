@@ -1,4 +1,4 @@
-use dep::protocol_types::{address::AztecAddress, constants::NUM_FIELDS_PER_SHA256, grumpkin_point::GrumpkinPoint};
+use dep::protocol_types::{address::AztecAddress, grumpkin_point::GrumpkinPoint};
 
 // TODO: Should take encrypted data.
 #[oracle(emitEncryptedLog)]
@@ -16,8 +16,7 @@ unconstrained pub fn emit_encrypted_log<N>(
     note_type_id: Field,
     encryption_pub_key: GrumpkinPoint,
     preimage: [Field; N]
-) -> [Field; NUM_FIELDS_PER_SHA256] {
-    [
+) -> Field {
         emit_encrypted_log_oracle(
             contract_address,
             storage_slot,
@@ -25,7 +24,6 @@ unconstrained pub fn emit_encrypted_log<N>(
             encryption_pub_key,
             preimage
         )
-    ]
 }
 
 #[oracle(emitUnencryptedLog)]
@@ -39,7 +37,7 @@ unconstrained pub fn emit_unencrypted_log<T>(
     contract_address: AztecAddress,
     event_selector: Field,
     message: T
-) -> [Field; NUM_FIELDS_PER_SHA256] {
+) -> Field {
     // https://github.com/AztecProtocol/aztec-packages/issues/885
-    [emit_unencrypted_log_oracle(contract_address, event_selector, message)]
+    emit_unencrypted_log_oracle(contract_address, event_selector, message)
 }

@@ -12,7 +12,7 @@ use dep::types::{
     MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
     MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_CALL, NUM_FIELDS_PER_SHA256,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_CALL,
     MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
     MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 },
@@ -433,7 +433,7 @@ fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &
  */
 pub fn accumulate_unencrypted_logs(
     public_call: PublicCallData,
-    previous_unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
+    previous_unencrypted_logs_hash: Field,
     previous_unencrypted_log_preimages_length: Field,
     public_inputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
@@ -441,8 +441,8 @@ pub fn accumulate_unencrypted_logs(
 
     let current_unencrypted_logs_hash = public_call_public_inputs.unencrypted_logs_hash;
     public_inputs.end.unencrypted_logs_hash = accumulate_sha256([
-        previous_unencrypted_logs_hash[0],
-        current_unencrypted_logs_hash[0],
+        previous_unencrypted_logs_hash,
+        current_unencrypted_logs_hash,
     ]);
 
     // Add log preimages lengths from current iteration to accumulated lengths

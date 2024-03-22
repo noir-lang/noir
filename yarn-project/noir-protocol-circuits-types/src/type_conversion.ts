@@ -49,7 +49,6 @@ import {
   MergeRollupInputs,
   NULLIFIER_TREE_HEIGHT,
   NUM_BYTES_PER_SHA256,
-  NUM_FIELDS_PER_SHA256,
   NonMembershipHint,
   NoteHashReadRequestMembershipWitness,
   NullifierKeyValidationRequest,
@@ -199,7 +198,6 @@ import {
   ConstantRollupData as ConstantRollupDataNoir,
   ContentCommitment as ContentCommitmentNoir,
   Field,
-  FixedLengthArray,
   GlobalVariables as GlobalVariablesNoir,
   Header as HeaderNoir,
   ParityPublicInputs as ParityPublicInputsNoir,
@@ -701,8 +699,8 @@ export function mapPrivateCircuitPublicInputsToNoir(
     new_l2_to_l1_msgs: mapTuple(privateCircuitPublicInputs.newL2ToL1Msgs, mapL2ToL1MessageToNoir),
     start_side_effect_counter: mapFieldToNoir(privateCircuitPublicInputs.startSideEffectCounter),
     end_side_effect_counter: mapFieldToNoir(privateCircuitPublicInputs.endSideEffectCounter),
-    encrypted_logs_hash: mapTuple(privateCircuitPublicInputs.encryptedLogsHash, mapFieldToNoir),
-    unencrypted_logs_hash: mapTuple(privateCircuitPublicInputs.unencryptedLogsHash, mapFieldToNoir),
+    encrypted_logs_hash: mapFieldToNoir(privateCircuitPublicInputs.encryptedLogsHash),
+    unencrypted_logs_hash: mapFieldToNoir(privateCircuitPublicInputs.unencryptedLogsHash),
     encrypted_log_preimages_length: mapFieldToNoir(privateCircuitPublicInputs.encryptedLogPreimagesLength),
     unencrypted_log_preimages_length: mapFieldToNoir(privateCircuitPublicInputs.unencryptedLogPreimagesLength),
     historical_header: mapHeaderToNoir(privateCircuitPublicInputs.historicalHeader),
@@ -815,8 +813,8 @@ export function mapTupleFromNoir<T, N extends number, M>(
  * @param hash - The hash as it is represented in Noir (1 fields).
  * @returns The hash represented as a 31 bytes long buffer.
  */
-export function mapSha256HashFromNoir(hash: FixedLengthArray<Field, typeof NUM_FIELDS_PER_SHA256>): Buffer {
-  return Buffer.concat(hash.map(mapFieldFromNoir).map(fr => toBufferBE(fr.toBigInt(), NUM_BYTES_PER_SHA256)));
+export function mapSha256HashFromNoir(hash: Field): Buffer {
+  return toBufferBE(mapFieldFromNoir(hash).toBigInt(), NUM_BYTES_PER_SHA256);
 }
 
 /**
@@ -824,8 +822,8 @@ export function mapSha256HashFromNoir(hash: FixedLengthArray<Field, typeof NUM_F
  * @param hash - The hash represented as a 32 bytes long buffer.
  * @returns The hash as it is represented in Noir (1 field, truncated).
  */
-export function mapSha256HashToNoir(hash: Buffer): FixedLengthArray<Field, typeof NUM_FIELDS_PER_SHA256> {
-  return toTruncField(hash).map(mapFieldToNoir) as FixedLengthArray<Field, typeof NUM_FIELDS_PER_SHA256>;
+export function mapSha256HashToNoir(hash: Buffer): Field {
+  return mapFieldToNoir(toTruncField(hash));
 }
 
 /**
@@ -1019,8 +1017,8 @@ export function mapCombinedAccumulatedDataFromNoir(
       mapCallRequestFromNoir,
     ),
     mapTupleFromNoir(combinedAccumulatedData.new_l2_to_l1_msgs, MAX_NEW_L2_TO_L1_MSGS_PER_TX, mapFieldFromNoir),
-    mapTupleFromNoir(combinedAccumulatedData.encrypted_logs_hash, NUM_FIELDS_PER_SHA256, mapFieldFromNoir),
-    mapTupleFromNoir(combinedAccumulatedData.unencrypted_logs_hash, NUM_FIELDS_PER_SHA256, mapFieldFromNoir),
+    mapFieldFromNoir(combinedAccumulatedData.encrypted_logs_hash),
+    mapFieldFromNoir(combinedAccumulatedData.unencrypted_logs_hash),
     mapFieldFromNoir(combinedAccumulatedData.encrypted_log_preimages_length),
     mapFieldFromNoir(combinedAccumulatedData.unencrypted_log_preimages_length),
     mapTupleFromNoir(
@@ -1057,8 +1055,8 @@ export function mapFinalAccumulatedDataFromNoir(
       mapCallRequestFromNoir,
     ),
     mapTupleFromNoir(finalAccumulatedData.new_l2_to_l1_msgs, MAX_NEW_L2_TO_L1_MSGS_PER_TX, mapFieldFromNoir),
-    mapTupleFromNoir(finalAccumulatedData.encrypted_logs_hash, NUM_FIELDS_PER_SHA256, mapFieldFromNoir),
-    mapTupleFromNoir(finalAccumulatedData.unencrypted_logs_hash, NUM_FIELDS_PER_SHA256, mapFieldFromNoir),
+    mapFieldFromNoir(finalAccumulatedData.encrypted_logs_hash),
+    mapFieldFromNoir(finalAccumulatedData.unencrypted_logs_hash),
     mapFieldFromNoir(finalAccumulatedData.encrypted_log_preimages_length),
     mapFieldFromNoir(finalAccumulatedData.unencrypted_log_preimages_length),
   );
@@ -1113,8 +1111,8 @@ export function mapPrivateAccumulatedRevertibleDataToNoir(
     private_call_stack: mapTuple(data.privateCallStack, mapCallRequestToNoir),
     public_call_stack: mapTuple(data.publicCallStack, mapCallRequestToNoir),
     new_l2_to_l1_msgs: mapTuple(data.newL2ToL1Msgs, mapFieldToNoir),
-    encrypted_logs_hash: mapTuple(data.encryptedLogsHash, mapFieldToNoir),
-    unencrypted_logs_hash: mapTuple(data.unencryptedLogsHash, mapFieldToNoir),
+    encrypted_logs_hash: mapFieldToNoir(data.encryptedLogsHash),
+    unencrypted_logs_hash: mapFieldToNoir(data.unencryptedLogsHash),
     encrypted_log_preimages_length: mapFieldToNoir(data.encryptedLogPreimagesLength),
     unencrypted_log_preimages_length: mapFieldToNoir(data.unencryptedLogPreimagesLength),
   };
@@ -1135,8 +1133,8 @@ export function mapCombinedAccumulatedDataToNoir(
     private_call_stack: mapTuple(combinedAccumulatedData.privateCallStack, mapCallRequestToNoir),
     public_call_stack: mapTuple(combinedAccumulatedData.publicCallStack, mapCallRequestToNoir),
     new_l2_to_l1_msgs: mapTuple(combinedAccumulatedData.newL2ToL1Msgs, mapFieldToNoir),
-    encrypted_logs_hash: mapTuple(combinedAccumulatedData.encryptedLogsHash, mapFieldToNoir),
-    unencrypted_logs_hash: mapTuple(combinedAccumulatedData.unencryptedLogsHash, mapFieldToNoir),
+    encrypted_logs_hash: mapFieldToNoir(combinedAccumulatedData.encryptedLogsHash),
+    unencrypted_logs_hash: mapFieldToNoir(combinedAccumulatedData.unencryptedLogsHash),
     encrypted_log_preimages_length: mapFieldToNoir(combinedAccumulatedData.encryptedLogPreimagesLength),
     unencrypted_log_preimages_length: mapFieldToNoir(combinedAccumulatedData.unencryptedLogPreimagesLength),
     public_data_update_requests: mapTuple(
@@ -1220,8 +1218,8 @@ export function mapPublicAccumulatedRevertibleDataToNoir(
     private_call_stack: mapTuple(data.privateCallStack, mapCallRequestToNoir),
     public_call_stack: mapTuple(data.publicCallStack, mapCallRequestToNoir),
     new_l2_to_l1_msgs: mapTuple(data.newL2ToL1Msgs, mapFieldToNoir),
-    encrypted_logs_hash: mapTuple(data.encryptedLogsHash, mapFieldToNoir),
-    unencrypted_logs_hash: mapTuple(data.unencryptedLogsHash, mapFieldToNoir),
+    encrypted_logs_hash: mapFieldToNoir(data.encryptedLogsHash),
+    unencrypted_logs_hash: mapFieldToNoir(data.unencryptedLogsHash),
     encrypted_log_preimages_length: mapFieldToNoir(data.encryptedLogPreimagesLength),
     unencrypted_log_preimages_length: mapFieldToNoir(data.unencryptedLogPreimagesLength),
     public_data_update_requests: mapTuple(data.publicDataUpdateRequests, mapPublicDataUpdateRequestToNoir),
@@ -1322,8 +1320,8 @@ export function mapFinalAccumulatedDataToNoir(
     private_call_stack: mapTuple(finalAccumulatedData.privateCallStack, mapCallRequestToNoir),
     public_call_stack: mapTuple(finalAccumulatedData.publicCallStack, mapCallRequestToNoir),
     new_l2_to_l1_msgs: mapTuple(finalAccumulatedData.newL2ToL1Msgs, mapFieldToNoir),
-    encrypted_logs_hash: mapTuple(finalAccumulatedData.encryptedLogsHash, mapFieldToNoir),
-    unencrypted_logs_hash: mapTuple(finalAccumulatedData.unencryptedLogsHash, mapFieldToNoir),
+    encrypted_logs_hash: mapFieldToNoir(finalAccumulatedData.encryptedLogsHash),
+    unencrypted_logs_hash: mapFieldToNoir(finalAccumulatedData.unencryptedLogsHash),
     encrypted_log_preimages_length: mapFieldToNoir(finalAccumulatedData.encryptedLogPreimagesLength),
     unencrypted_log_preimages_length: mapFieldToNoir(finalAccumulatedData.unencryptedLogPreimagesLength),
   };
@@ -1460,8 +1458,8 @@ export function mapPublicAccumulatedRevertibleDataFromNoir(
     mapTupleFromNoir(data.private_call_stack, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, mapCallRequestFromNoir),
     mapTupleFromNoir(data.public_call_stack, MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, mapCallRequestFromNoir),
     mapTupleFromNoir(data.new_l2_to_l1_msgs, MAX_NEW_L2_TO_L1_MSGS_PER_TX, mapFieldFromNoir),
-    mapTupleFromNoir(data.encrypted_logs_hash, NUM_FIELDS_PER_SHA256, mapFieldFromNoir),
-    mapTupleFromNoir(data.unencrypted_logs_hash, NUM_FIELDS_PER_SHA256, mapFieldFromNoir),
+    mapFieldFromNoir(data.encrypted_logs_hash),
+    mapFieldFromNoir(data.unencrypted_logs_hash),
     mapFieldFromNoir(data.encrypted_log_preimages_length),
     mapFieldFromNoir(data.unencrypted_log_preimages_length),
     mapTupleFromNoir(
@@ -1569,7 +1567,7 @@ export function mapPublicCircuitPublicInputsToNoir(
     new_l2_to_l1_msgs: mapTuple(publicInputs.newL2ToL1Msgs, mapL2ToL1MessageToNoir),
     start_side_effect_counter: mapFieldToNoir(publicInputs.startSideEffectCounter),
     end_side_effect_counter: mapFieldToNoir(publicInputs.endSideEffectCounter),
-    unencrypted_logs_hash: mapTuple(publicInputs.unencryptedLogsHash, mapFieldToNoir),
+    unencrypted_logs_hash: mapFieldToNoir(publicInputs.unencryptedLogsHash),
     unencrypted_log_preimages_length: mapFieldToNoir(publicInputs.unencryptedLogPreimagesLength),
     historical_header: mapHeaderToNoir(publicInputs.historicalHeader),
 
@@ -1608,8 +1606,8 @@ export function mapBaseOrMergeRollupPublicInputsToNoir(
     constants: mapConstantRollupDataToNoir(baseOrMergeRollupPublicInputs.constants),
     start: mapPartialStateReferenceToNoir(baseOrMergeRollupPublicInputs.start),
     end: mapPartialStateReferenceToNoir(baseOrMergeRollupPublicInputs.end),
-    txs_effects_hash: mapTuple(baseOrMergeRollupPublicInputs.txsEffectsHash, mapFieldToNoir),
-    out_hash: mapTuple(baseOrMergeRollupPublicInputs.outHash, mapFieldToNoir),
+    txs_effects_hash: mapFieldToNoir(baseOrMergeRollupPublicInputs.txsEffectsHash),
+    out_hash: mapFieldToNoir(baseOrMergeRollupPublicInputs.outHash),
   };
 }
 
@@ -1656,8 +1654,8 @@ export function mapBaseOrMergeRollupPublicInputsFromNoir(
     mapConstantRollupDataFromNoir(baseOrMergeRollupPublicInputs.constants),
     mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.start),
     mapPartialStateReferenceFromNoir(baseOrMergeRollupPublicInputs.end),
-    mapTupleFromNoir(baseOrMergeRollupPublicInputs.txs_effects_hash, NUM_FIELDS_PER_SHA256, mapFieldFromNoir),
-    mapTupleFromNoir(baseOrMergeRollupPublicInputs.out_hash, NUM_FIELDS_PER_SHA256, mapFieldFromNoir),
+    mapFieldFromNoir(baseOrMergeRollupPublicInputs.txs_effects_hash),
+    mapFieldFromNoir(baseOrMergeRollupPublicInputs.out_hash),
   );
 }
 

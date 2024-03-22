@@ -8,7 +8,7 @@ use crate::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
     MAX_NEW_NULLIFIERS_PER_CALL, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, NUM_FIELDS_PER_SHA256,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
     RETURN_VALUES_LENGTH, PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
     GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS
 },
@@ -38,9 +38,8 @@ struct PrivateCircuitPublicInputs {
 
     start_side_effect_counter : u32,
     end_side_effect_counter : u32,
-    // TODO(Miranda): Remove arrays entirely as NUM_FIELDS_PER_SHA256 = 1
-    encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
-    unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
+    encrypted_logs_hash: Field,
+    unencrypted_logs_hash: Field,
 
     // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
     // variable-length data.
@@ -116,8 +115,8 @@ impl Serialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicInp
         }
         fields.push(self.start_side_effect_counter as Field);
         fields.push(self.end_side_effect_counter as Field);
-        fields.extend_from_array(self.encrypted_logs_hash);
-        fields.extend_from_array(self.unencrypted_logs_hash);
+        fields.push(self.encrypted_logs_hash);
+        fields.push(self.unencrypted_logs_hash);
         fields.push(self.encrypted_log_preimages_length);
         fields.push(self.unencrypted_log_preimages_length);
         fields.extend_from_array(self.historical_header.serialize());
@@ -150,8 +149,8 @@ impl Deserialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicI
             new_l2_to_l1_msgs: reader.read_struct_array(L2ToL1Message::deserialize, [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL]),
             start_side_effect_counter: reader.read() as u32,
             end_side_effect_counter: reader.read() as u32,
-            encrypted_logs_hash: reader.read_array([0; NUM_FIELDS_PER_SHA256]),
-            unencrypted_logs_hash: reader.read_array([0; NUM_FIELDS_PER_SHA256]),
+            encrypted_logs_hash: reader.read() as Field,
+            unencrypted_logs_hash: reader.read() as Field,
             encrypted_log_preimages_length: reader.read(),
             unencrypted_log_preimages_length: reader.read(),
             historical_header: reader.read_struct(Header::deserialize),

@@ -96,8 +96,6 @@ global L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH: u64 = 12;
 
 // MISC CONSTANTS
 global FUNCTION_SELECTOR_NUM_BYTES: Field = 4;
-// sha256 hash is truncated into a single field
-global NUM_FIELDS_PER_SHA256: u64 = 1;
 global ARGS_HASH_CHUNK_LENGTH: u64 = 32;
 global ARGS_HASH_CHUNK_COUNT: u64 = 32;
 // The following is used in immutable state variables to compute an initialization slot whose value is used to

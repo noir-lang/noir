@@ -6,7 +6,7 @@ use crate::contract_class_id::ContractClassId;
 use crate::abis::side_effect::{SideEffect};
 use crate::utils::{uint256::U256, field::field_from_bytes_32_trunc};
 use crate::constants::{
-    ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, FUNCTION_TREE_HEIGHT, NUM_FIELDS_PER_SHA256,
+    ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, FUNCTION_TREE_HEIGHT,
     GENERATOR_INDEX__SILOED_NOTE_HASH, GENERATOR_INDEX__OUTER_NULLIFIER, GENERATOR_INDEX__VK,
     GENERATOR_INDEX__CONSTRUCTOR, GENERATOR_INDEX__PARTIAL_ADDRESS, GENERATOR_INDEX__CONTRACT_ADDRESS,
     GENERATOR_INDEX__NOTE_HASH_NONCE, GENERATOR_INDEX__UNIQUE_NOTE_HASH, GENERATOR_INDEX__FUNCTION_ARGS
@@ -119,9 +119,8 @@ pub fn compute_l2_to_l1_hash(
 //
 // TODO(Jan and David): This is used for the encrypted_log hashes.
 // Can we check to see if we can just use hash_to_field or pedersen_compress here?
-// TODO(Miranda): Remove arrays entirely as NUM_FIELDS_PER_SHA256 = 1
 //
-pub fn accumulate_sha256(input: [Field; NUM_FIELDS_PER_SHA256 * 2]) -> [Field; NUM_FIELDS_PER_SHA256] {
+pub fn accumulate_sha256(input: [Field; 2]) -> Field {
     // This is a note about the cpp code, since it takes an array of Fields
     // instead of a U128.
     // 4 Field elements when converted to bytes will usually 
@@ -141,17 +140,17 @@ pub fn accumulate_sha256(input: [Field; NUM_FIELDS_PER_SHA256 * 2]) -> [Field; N
         }
     }
 
-    [sha256_to_field(hash_input_flattened)]
+    sha256_to_field(hash_input_flattened)
 }
 
 pub fn compute_logs_hash(
-    previous_log_hash: [Field; NUM_FIELDS_PER_SHA256],
-    current_log_hash: [Field; NUM_FIELDS_PER_SHA256]
-) -> [Field; NUM_FIELDS_PER_SHA256] {
+    previous_log_hash: Field,
+    current_log_hash: Field
+) -> Field {
     accumulate_sha256(
         [
-            previous_log_hash[0],
-            current_log_hash[0]
+            previous_log_hash,
+            current_log_hash
         ]
     )
 }

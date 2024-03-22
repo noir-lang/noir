@@ -17,7 +17,7 @@ use dep::types::{
 },
     constants::{
     NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
-    PUBLIC_DATA_TREE_HEIGHT, NOTE_HASH_SUBTREE_HEIGHT, NUM_FIELDS_PER_SHA256,
+    PUBLIC_DATA_TREE_HEIGHT, NOTE_HASH_SUBTREE_HEIGHT,
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX,
     MAX_NEW_NULLIFIERS_PER_TX, NUM_ENCRYPTED_LOGS_HASHES_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     NUM_UNENCRYPTED_LOGS_HASHES_PER_TX, NULLIFIER_SUBTREE_HEIGHT, NULLIFIER_TREE_HEIGHT,
@@ -407,7 +407,7 @@ mod tests {
         MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
         NOTE_HASH_TREE_HEIGHT, NOTE_HASH_SUBTREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
         NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_HEIGHT, PUBLIC_DATA_TREE_HEIGHT,
-        PUBLIC_DATA_SUBTREE_HEIGHT, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, NUM_FIELDS_PER_SHA256,
+        PUBLIC_DATA_SUBTREE_HEIGHT, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
         MAX_NEW_L2_TO_L1_MSGS_PER_TX
     },
         contract_class_id::ContractClassId, partial_state_reference::PartialStateReference,
@@ -952,10 +952,8 @@ mod tests {
 
         let hash_input_flattened = [0; TX_EFFECTS_HASH_INPUT_FIELDS * 32];
         let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-        let expected_tx_effects_hash = [field_from_bytes_32_trunc(sha_digest)];
-        for i in 0..NUM_FIELDS_PER_SHA256 {
-            assert_eq(outputs.txs_effects_hash[i], expected_tx_effects_hash[i]);
-        }
+        let expected_tx_effects_hash = field_from_bytes_32_trunc(sha_digest);
+        assert_eq(outputs.txs_effects_hash, expected_tx_effects_hash);
     }
 
     #[test]
@@ -964,10 +962,8 @@ mod tests {
 
         let hash_input_flattened = [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32];
         let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-        let expected_out_hash = [field_from_bytes_32_trunc(sha_digest)];
-        for i in 0..NUM_FIELDS_PER_SHA256 {
-            assert_eq(outputs.out_hash[i], expected_out_hash[i]);
-        }
+        let expected_out_hash = field_from_bytes_32_trunc(sha_digest);
+        assert_eq(outputs.out_hash, expected_out_hash);
     }
 
     #[test]
@@ -980,11 +976,8 @@ mod tests {
         let mut hash_input_flattened = [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32];
         hash_input_flattened[MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32 - 1] = 123;
         let sha_digest = dep::std::hash::sha256(hash_input_flattened);
-        let expected_out_hash = [field_from_bytes_32_trunc(sha_digest)];
-
-        for i in 0..NUM_FIELDS_PER_SHA256 {
-            assert_eq(out_hash[i], expected_out_hash[i]);
-        }
+        let expected_out_hash = field_from_bytes_32_trunc(sha_digest);
+        assert_eq(out_hash, expected_out_hash);
     }
 
     #[test(should_fail_with = "membership check failed")]

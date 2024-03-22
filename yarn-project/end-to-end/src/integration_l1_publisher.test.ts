@@ -24,7 +24,6 @@ import {
 import { fr, makeNewSideEffect, makeNewSideEffectLinkedToNoteHash, makeProof } from '@aztec/circuits.js/testing';
 import { L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { makeTuple, range } from '@aztec/foundation/array';
-import { toTruncField } from '@aztec/foundation/serialize';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { AvailabilityOracleAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import { SHA256Trunc, StandardTree } from '@aztec/merkle-tree';
@@ -181,8 +180,8 @@ describe('L1Publisher integration', () => {
     processedTx.data.end.newNullifiers[processedTx.data.end.newNullifiers.length - 1] =
       SideEffectLinkedToNoteHash.empty();
     processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
-    processedTx.data.end.encryptedLogsHash = toTruncField(processedTx.encryptedLogs.hash());
-    processedTx.data.end.unencryptedLogsHash = toTruncField(processedTx.unencryptedLogs.hash());
+    processedTx.data.end.encryptedLogsHash = Fr.fromBuffer(processedTx.encryptedLogs.hash());
+    processedTx.data.end.unencryptedLogsHash = Fr.fromBuffer(processedTx.unencryptedLogs.hash());
 
     return processedTx;
   };

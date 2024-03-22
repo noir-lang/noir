@@ -21,7 +21,7 @@ describe('buffer to fields and back', () => {
     const originalBuffer = Buffer.concat([Buffer.alloc(1), randomBytes(31)]);
 
     // Serialize the buffer to one field
-    const field = toTruncField(originalBuffer)[0];
+    const field = toTruncField(originalBuffer);
 
     // Deserialize the field back to a buffer
     const reconstructedBuffer = fromTruncField(field);

@@ -3,7 +3,7 @@ use crate::abis::previous_rollup_data::PreviousRollupData;
 use dep::types::{
     mocked::AggregationObject, hash::accumulate_sha256,
     constants::{
-    NUM_FIELDS_PER_SHA256, MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
+    MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
     MAX_NEW_L2_TO_L1_MSGS_PER_TX, NUM_UNENCRYPTED_LOGS_HASHES_PER_TX, NUM_ENCRYPTED_LOGS_HASHES_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 },
@@ -79,24 +79,22 @@ pub fn assert_prev_rollups_follow_on_from_each_other(
     );
 }
 
-// TODO(Miranda): Remove arrays entirely as NUM_FIELDS_PER_SHA256 = 1
-
 /**
  * @brief From two previous rollup data, compute a single out hash
  *
  * @param previous_rollup_data
  * @return out hash stored in 2 fields
  */
-pub fn compute_out_hash(previous_rollup_data: [PreviousRollupData; 2]) -> [Field; NUM_FIELDS_PER_SHA256] {
+pub fn compute_out_hash(previous_rollup_data: [PreviousRollupData; 2]) -> Field {
     accumulate_sha256(
         [
-        previous_rollup_data[0].base_or_merge_rollup_public_inputs.out_hash[0],
-        previous_rollup_data[1].base_or_merge_rollup_public_inputs.out_hash[0],
+        previous_rollup_data[0].base_or_merge_rollup_public_inputs.out_hash,
+        previous_rollup_data[1].base_or_merge_rollup_public_inputs.out_hash,
         ]
     )
 }
 
-pub fn compute_kernel_out_hash(combined: CombinedAccumulatedData) -> [Field; NUM_FIELDS_PER_SHA256] {
+pub fn compute_kernel_out_hash(combined: CombinedAccumulatedData) -> Field {
     let mut out_hash_inputs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_TX] = combined.new_l2_to_l1_msgs;
 
     let mut hash_input_flattened = [0; MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32];
@@ -108,7 +106,7 @@ pub fn compute_kernel_out_hash(combined: CombinedAccumulatedData) -> [Field; NUM
     }
 
     let sha_digest = dep::types::hash::sha256_to_field(hash_input_flattened);
-    [sha_digest]
+    sha_digest
 }
 
 /**
@@ -117,11 +115,11 @@ pub fn compute_kernel_out_hash(combined: CombinedAccumulatedData) -> [Field; NUM
  * @param previous_rollup_data
  * @return The hash of the transaction effects stored in 2 fields
  */
-pub fn compute_txs_effects_hash(previous_rollup_data: [PreviousRollupData; 2]) -> [Field; NUM_FIELDS_PER_SHA256] {
+pub fn compute_txs_effects_hash(previous_rollup_data: [PreviousRollupData; 2]) -> Field {
     accumulate_sha256(
         [
-        previous_rollup_data[0].base_or_merge_rollup_public_inputs.txs_effects_hash[0],
-        previous_rollup_data[1].base_or_merge_rollup_public_inputs.txs_effects_hash[0],
+        previous_rollup_data[0].base_or_merge_rollup_public_inputs.txs_effects_hash,
+        previous_rollup_data[1].base_or_merge_rollup_public_inputs.txs_effects_hash,
     ]
     )
 }
@@ -130,7 +128,7 @@ global TX_EFFECTS_HASH_INPUT_FIELDS = 197;
 
 // Computes the tx effects hash for a base rollup (a single transaction)
 // TODO(Alvaro): This is too slow for brillig without the array optimization
-pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM_FIELDS_PER_SHA256] {
+pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> Field {
     // Compute tx effect hash
     // Consist of
     // MAX_NEW_NOTE_HASHES_PER_TX fields for note hashes
@@ -179,17 +177,13 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
     }
     offset += MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2;
 
-    for j in 0..NUM_FIELDS_PER_SHA256 {
-        txs_effects_hash_input[offset + j] = encrypted_logs_hash[j];
-    }
+    txs_effects_hash_input[offset] = encrypted_logs_hash;
 
-    offset += NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
+    offset += NUM_ENCRYPTED_LOGS_HASHES_PER_TX;
 
-    for j in 0..NUM_FIELDS_PER_SHA256 {
-        txs_effects_hash_input[offset + j] = unencrypted_logs_hash[j];
-    }
+    txs_effects_hash_input[offset] = unencrypted_logs_hash;
 
-    offset += NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
+    offset += NUM_UNENCRYPTED_LOGS_HASHES_PER_TX;
     assert_eq(offset, TX_EFFECTS_HASH_INPUT_FIELDS); // Sanity check
 
     let mut hash_input_flattened = [0; TX_EFFECTS_HASH_INPUT_FIELDS * 32];
@@ -201,7 +195,7 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData) -> [Field; NUM
     }
 
     let sha_digest = dep::types::hash::sha256_to_field(hash_input_flattened);
-    [sha_digest]
+    sha_digest
 }
 
 #[test]
@@ -212,7 +206,7 @@ fn consistent_TX_EFFECTS_HASH_INPUT_FIELDS() {
         + MAX_NEW_NULLIFIERS_PER_TX
         + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2
         + MAX_NEW_L2_TO_L1_MSGS_PER_TX
-        + NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256
-        + NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256;
+        + NUM_ENCRYPTED_LOGS_HASHES_PER_TX
+        + NUM_UNENCRYPTED_LOGS_HASHES_PER_TX;
     assert(TX_EFFECTS_HASH_INPUT_FIELDS == expected_size, "tx effects hash input size is incorrect");
 }

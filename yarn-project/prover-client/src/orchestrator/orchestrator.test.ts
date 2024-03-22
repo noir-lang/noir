@@ -45,7 +45,6 @@ import {
 } from '@aztec/circuits.js/testing';
 import { makeTuple, range } from '@aztec/foundation/array';
 import { padArrayEnd, times } from '@aztec/foundation/collection';
-import { toTruncField } from '@aztec/foundation/serialize';
 import { sleep } from '@aztec/foundation/sleep';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { WASMSimulator } from '@aztec/simulator';
@@ -365,8 +364,8 @@ describe('prover/tx-prover', () => {
       processedTx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1] = SideEffectLinkedToNoteHash.empty();
 
       processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
-      processedTx.data.end.encryptedLogsHash = toTruncField(processedTx.encryptedLogs.hash());
-      processedTx.data.end.unencryptedLogsHash = toTruncField(processedTx.unencryptedLogs.hash());
+      processedTx.data.end.encryptedLogsHash = Fr.fromBuffer(processedTx.encryptedLogs.hash());
+      processedTx.data.end.unencryptedLogsHash = Fr.fromBuffer(processedTx.unencryptedLogs.hash());
 
       return processedTx;
     };

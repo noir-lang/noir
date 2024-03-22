@@ -1,11 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import {
-  BufferReader,
-  FieldReader,
-  fromTruncField,
-  serializeToBuffer,
-  toTruncField,
-} from '@aztec/foundation/serialize';
+import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { CONTENT_COMMITMENT_LENGTH } from '../constants.gen.js';
 
@@ -16,11 +10,20 @@ export class ContentCommitment {
     if (txsEffectsHash.length !== NUM_BYTES_PER_SHA256) {
       throw new Error(`txsEffectsHash buffer must be ${NUM_BYTES_PER_SHA256} bytes`);
     }
+    if (txsEffectsHash[0] !== 0) {
+      throw new Error(`txsEffectsHash buffer should be truncated and left padded`);
+    }
     if (inHash.length !== NUM_BYTES_PER_SHA256) {
       throw new Error(`inHash buffer must be ${NUM_BYTES_PER_SHA256} bytes`);
     }
+    if (inHash[0] !== 0) {
+      throw new Error(`inHash buffer should be truncated and left padded`);
+    }
     if (outHash.length !== NUM_BYTES_PER_SHA256) {
       throw new Error(`outHash buffer must be ${NUM_BYTES_PER_SHA256} bytes`);
+    }
+    if (outHash[0] !== 0) {
+      throw new Error(`outHash buffer should be truncated and left padded`);
     }
   }
 
@@ -31,9 +34,9 @@ export class ContentCommitment {
   toFields(): Fr[] {
     const serialized = [
       this.txTreeHeight,
-      ...toTruncField(this.txsEffectsHash),
-      ...toTruncField(this.inHash),
-      ...toTruncField(this.outHash),
+      Fr.fromBuffer(this.txsEffectsHash),
+      Fr.fromBuffer(this.inHash),
+      Fr.fromBuffer(this.outHash),
     ];
     if (serialized.length !== CONTENT_COMMITMENT_LENGTH) {
       throw new Error(`Expected content commitment to have 4 fields, but it has ${serialized.length} fields`);
@@ -56,9 +59,9 @@ export class ContentCommitment {
     const reader = FieldReader.asReader(fields);
     return new ContentCommitment(
       reader.readField(),
-      fromTruncField(reader.readField()),
-      fromTruncField(reader.readField()),
-      fromTruncField(reader.readField()),
+      reader.readField().toBuffer(),
+      reader.readField().toBuffer(),
+      reader.readField().toBuffer(),
     );
   }
 

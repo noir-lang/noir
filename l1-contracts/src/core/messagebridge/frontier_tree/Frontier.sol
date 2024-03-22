@@ -36,7 +36,7 @@ contract FrontierMerkle is IFrontier {
     uint256 level = _computeLevel(index);
     bytes32 right = _leaf;
     for (uint256 i = 0; i < level; i++) {
-      right = Hash.sha256ToField(bytes.concat(frontier[i], bytes32(right)));
+      right = Hash.sha256ToField(bytes.concat(frontier[i], right));
     }
     frontier[level] = right;
 
