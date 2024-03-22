@@ -135,7 +135,7 @@ At ~/noir-examples/recursion/circuits/main/src/main.nr:1:20
 x:Field = 0x01
 ```
 
-As a result of stepping, we have now hydrated variable `x`, whose initial value comes from the witness map. 
+As a result of stepping, the variable `x`, whose initial value comes from the witness map, is now in context and returned by `vars`.
 
 ```
 > next
