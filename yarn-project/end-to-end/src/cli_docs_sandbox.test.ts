@@ -117,6 +117,7 @@ GasTokenContractArtifact
 ImportTestContractArtifact
 InclusionProofsContractArtifact
 LendingContractArtifact
+MultiCallEntrypointContractArtifact
 ParentContractArtifact
 PendingNoteHashesContractArtifact
 PriceFeedContractArtifact

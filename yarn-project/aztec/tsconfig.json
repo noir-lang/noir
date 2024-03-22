@@ -25,6 +25,9 @@
       "path": "../circuits.js"
     },
     {
+      "path": "../entrypoints"
+    },
+    {
       "path": "../ethereum"
     },
     {

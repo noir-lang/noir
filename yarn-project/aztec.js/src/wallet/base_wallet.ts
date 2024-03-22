@@ -19,9 +19,9 @@ import { ContractArtifact } from '@aztec/foundation/abi';
 import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { NodeInfo } from '@aztec/types/interfaces';
 
-import { FeeOptions } from '../account/interface.js';
 import { Wallet } from '../account/wallet.js';
 import { ContractFunctionInteraction } from '../contract/contract_function_interaction.js';
+import { FeeOptions } from '../entrypoint/entrypoint.js';
 
 /**
  * A base class for Wallet implementations

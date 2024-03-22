@@ -10,6 +10,7 @@
     "./account": "./dest/api/account.js",
     "./aztec_address": "./dest/api/aztec_address.js",
     "./deployment": "./dest/api/deployment.js",
+    "./entrypoint": "./dest/api/entrypoint.js",
     "./eth_address": "./dest/api/eth_address.js",
     "./ethereum": "./dest/api/ethereum.js",
     "./fee": "./dest/api/fee.js",

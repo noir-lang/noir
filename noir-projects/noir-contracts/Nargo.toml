@@ -36,4 +36,5 @@ members = [
     "contracts/token_bridge_contract",
     "contracts/uniswap_contract",
     "contracts/reader_contract",
+    "contracts/multi_call_entrypoint_contract",
 ]

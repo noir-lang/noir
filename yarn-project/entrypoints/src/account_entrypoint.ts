@@ -1,4 +1,5 @@
-import { AuthWitnessProvider, EntrypointInterface, FeeOptions } from '@aztec/aztec.js/account';
+import { AuthWitnessProvider } from '@aztec/aztec.js/account';
+import { EntrypointInterface, FeeOptions } from '@aztec/aztec.js/entrypoint';
 import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
 import { AztecAddress, FunctionData, GeneratorIndex, TxContext } from '@aztec/circuits.js';
 import { FunctionAbi, encodeArguments } from '@aztec/foundation/abi';

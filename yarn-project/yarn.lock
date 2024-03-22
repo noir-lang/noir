@@ -228,6 +228,7 @@ __metadata:
     "@aztec/aztec.js": "workspace:^"
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
+    "@aztec/entrypoints": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/kv-store": "workspace:^"
@@ -441,6 +442,7 @@ __metadata:
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/protocol-contracts": "workspace:^"
     "@jest/globals": ^29.5.0
     "@types/jest": ^29.5.0
     jest: ^29.5.0

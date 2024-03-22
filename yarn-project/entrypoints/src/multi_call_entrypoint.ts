@@ -1,57 +1,38 @@
-import { computeInnerAuthWitHash, computeOuterAuthWitHash } from '@aztec/aztec.js';
-import { AuthWitnessProvider } from '@aztec/aztec.js/account';
 import { EntrypointInterface } from '@aztec/aztec.js/entrypoint';
 import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
-import { AztecAddress, Fr, FunctionData, TxContext } from '@aztec/circuits.js';
+import { AztecAddress, FunctionData, TxContext } from '@aztec/circuits.js';
 import { FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
+import { getCanonicalMultiCallEntrypointAddress } from '@aztec/protocol-contracts/multi-call-entrypoint';
 
 import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from './constants.js';
-import { buildDappPayload } from './entrypoint_payload.js';
+import { buildAppPayload } from './entrypoint_payload.js';
 
 /**
- * Implementation for an entrypoint interface that follows the default entrypoint signature
- * for an account, which accepts an AppPayload and a FeePayload as defined in noir-libs/aztec-noir/src/entrypoint module
+ * Implementation for an entrypoint interface that can execute multiple function calls in a single transaction
  */
-export class DefaultDappEntrypoint implements EntrypointInterface {
+export class DefaultMultiCallEntrypoint implements EntrypointInterface {
   constructor(
-    private userAddress: AztecAddress,
-    private userAuthWitnessProvider: AuthWitnessProvider,
-    private dappEntrypointAddress: AztecAddress,
+    private address: AztecAddress = getCanonicalMultiCallEntrypointAddress(),
     private chainId: number = DEFAULT_CHAIN_ID,
     private version: number = DEFAULT_VERSION,
   ) {}
 
-  async createTxExecutionRequest(executions: FunctionCall[]): Promise<TxExecutionRequest> {
-    if (executions.length !== 1) {
-      throw new Error('ILLEGAL');
-    }
-    const { payload, packedArguments } = buildDappPayload(executions[0]);
+  createTxExecutionRequest(executions: FunctionCall[]): Promise<TxExecutionRequest> {
+    const { payload: appPayload, packedArguments: appPackedArguments } = buildAppPayload(executions);
 
     const abi = this.getEntrypointAbi();
-    const entrypointPackedArgs = PackedArguments.fromArgs(encodeArguments(abi, [payload, this.userAddress]));
-
-    const functionData = FunctionData.fromAbi(abi);
-
-    const innerHash = computeInnerAuthWitHash([Fr.ZERO, functionData.selector.toField(), entrypointPackedArgs.hash]);
-    const outerHash = computeOuterAuthWitHash(
-      this.dappEntrypointAddress,
-      new Fr(this.chainId),
-      new Fr(this.version),
-      innerHash,
-    );
-
-    const authWitness = await this.userAuthWitnessProvider.createAuthWit(outerHash);
+    const entrypointPackedArgs = PackedArguments.fromArgs(encodeArguments(abi, [appPayload]));
 
     const txRequest = TxExecutionRequest.from({
       argsHash: entrypointPackedArgs.hash,
-      origin: this.dappEntrypointAddress,
-      functionData,
+      origin: this.address,
+      functionData: FunctionData.fromAbi(abi),
       txContext: TxContext.empty(this.chainId, this.version),
-      packedArguments: [...packedArguments, entrypointPackedArgs],
-      authWitnesses: [authWitness],
+      packedArguments: [...appPackedArguments, entrypointPackedArgs],
+      authWitnesses: [],
     });
 
-    return txRequest;
+    return Promise.resolve(txRequest);
   }
 
   private getEntrypointAbi() {
@@ -62,16 +43,16 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
       isInternal: false,
       parameters: [
         {
-          name: 'payload',
+          name: 'app_payload',
           type: {
             kind: 'struct',
-            path: 'dapp_payload::DAppPayload',
+            path: 'authwit::entrypoint::app::AppPayload',
             fields: [
               {
                 name: 'function_calls',
                 type: {
                   kind: 'array',
-                  length: 1,
+                  length: 4,
                   type: {
                     kind: 'struct',
                     path: 'authwit::entrypoint::function_call::FunctionCall',
@@ -89,7 +70,7 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
                         name: 'target_address',
                         type: {
                           kind: 'struct',
-                          path: 'authwit::aztec::protocol_types::address::aztec_address::AztecAddress',
+                          path: 'authwit::aztec::protocol_types::address::AztecAddress',
                           fields: [{ name: 'inner', type: { kind: 'field' } }],
                         },
                       },
@@ -100,15 +81,6 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
               },
               { name: 'nonce', type: { kind: 'field' } },
             ],
-          },
-          visibility: 'public',
-        },
-        {
-          name: 'user_address',
-          type: {
-            kind: 'struct',
-            path: 'authwit::aztec::protocol_types::address::aztec_address::AztecAddress',
-            fields: [{ name: 'inner', type: { kind: 'field' } }],
           },
           visibility: 'public',
         },

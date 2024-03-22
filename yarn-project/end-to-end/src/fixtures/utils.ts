@@ -17,6 +17,7 @@ import {
   LogType,
   PXE,
   SentTx,
+  SignerlessWallet,
   Wallet,
   createAztecNodeClient,
   createDebugLogger,
@@ -27,6 +28,7 @@ import {
   waitForPXE,
 } from '@aztec/aztec.js';
 import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
+import { DefaultMultiCallEntrypoint } from '@aztec/entrypoints/multi-call';
 import { randomBytes } from '@aztec/foundation/crypto';
 import {
   AvailabilityOracleAbi,
@@ -264,7 +266,7 @@ async function setupWithRemoteEnvironment(
   if (['1', 'true'].includes(ENABLE_GAS)) {
     // this contract might already have been deployed
     // the following function is idempotent
-    await deployCanonicalGasToken(wallets[0]);
+    await deployCanonicalGasToken(new SignerlessWallet(pxeClient, new DefaultMultiCallEntrypoint()));
   }
 
   return {
@@ -370,9 +372,7 @@ export async function setup(
   const { pxe, accounts, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, pxeOpts, logger);
 
   if (['1', 'true'].includes(ENABLE_GAS)) {
-    // this should be a neutral wallet, but the SignerlessWallet only accepts a single function call
-    // and this needs two: one to register the class and another to deploy the instance
-    await deployCanonicalGasToken(wallets[0]);
+    await deployCanonicalGasToken(new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint()));
   }
 
   const cheatCodes = CheatCodes.create(config.rpcUrl, pxe!);

@@ -2,8 +2,9 @@ import { AuthWitness, FunctionCall, PXE, TxExecutionRequest } from '@aztec/circu
 import { AztecAddress, Fr } from '@aztec/circuits.js';
 import { ABIParameterVisibility, FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 
-import { AccountInterface, FeeOptions } from '../account/interface.js';
+import { AccountInterface } from '../account/interface.js';
 import { ContractFunctionInteraction } from '../contract/contract_function_interaction.js';
+import { FeeOptions } from '../entrypoint/entrypoint.js';
 import { computeAuthWitMessageHash } from '../utils/authwit.js';
 import { BaseWallet } from './base_wallet.js';
 

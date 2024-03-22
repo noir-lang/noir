@@ -6,7 +6,8 @@
   "type": "module",
   "exports": {
     "./dapp": "./dest/dapp_entrypoint.js",
-    "./account": "./dest/account_entrypoint.js"
+    "./account": "./dest/account_entrypoint.js",
+    "./multi-call": "./dest/multi_call_entrypoint.js"
   },
   "typedocOptions": {
     "entryPoints": [
@@ -40,6 +41,7 @@
     "@aztec/circuit-types": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
+    "@aztec/protocol-contracts": "workspace:^",
     "tslib": "^2.4.0"
   },
   "devDependencies": {

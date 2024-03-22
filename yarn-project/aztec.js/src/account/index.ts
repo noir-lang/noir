@@ -9,7 +9,7 @@
 import { Fr } from '@aztec/circuits.js';
 
 export { AccountContract } from './contract.js';
-export { AccountInterface, AuthWitnessProvider, EntrypointInterface, FeeOptions } from './interface.js';
+export { AccountInterface, AuthWitnessProvider } from './interface.js';
 export * from './wallet.js';
 
 /** A contract deployment salt. */

@@ -32,6 +32,7 @@
     "cli",
     "docs",
     "end-to-end",
+    "entrypoints",
     "ethereum",
     "foundation",
     "key-store",

@@ -1,12 +1,4 @@
-export {
-  AccountContract,
-  AccountInterface,
-  AuthWitnessProvider,
-  EntrypointInterface,
-  Salt,
-  Wallet,
-  FeeOptions,
-} from '../account/index.js';
+export { AccountContract, AccountInterface, AuthWitnessProvider, Salt, Wallet } from '../account/index.js';
 
 export { AccountManager } from '../account_manager/index.js';
 
