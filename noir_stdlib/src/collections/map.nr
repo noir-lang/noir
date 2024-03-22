@@ -293,9 +293,12 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // docs:start:retain
     pub fn retain(&mut self, f: fn(K, V) -> bool) {
         // docs:end:retain
+        self._len = 0;
+
         for index in 0..N {
             let mut slot = self._table[index];
             slot.retain(f);
+            self._len += slot.items.len();
             self._table[index] = slot;
         }
     }
