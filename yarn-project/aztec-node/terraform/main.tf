@@ -155,7 +155,7 @@ resource "aws_ecs_task_definition" "aztec-node" {
   {
     "name": "${var.DEPLOY_TAG}-aztec-node-${count.index + 1}",
     "image": "${var.DOCKERHUB_ACCOUNT}/aztec:${var.DEPLOY_TAG}",
-    "command": ["start", "--node", "--archiver", "--sequencer"],
+    "command": ["start", "--node", "--archiver", "--sequencer", "--prover"],
     "essential": true,
     "memoryReservation": 3776,
     "portMappings": [

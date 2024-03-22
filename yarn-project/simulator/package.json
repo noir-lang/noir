@@ -35,6 +35,7 @@
     "@aztec/foundation": "workspace:^",
     "@aztec/types": "workspace:^",
     "@noir-lang/acvm_js": "portal:../../noir/packages/acvm_js",
+    "@noir-lang/types": "portal:../../noir/packages/types",
     "levelup": "^5.1.1",
     "memdown": "^6.1.1",
     "tslib": "^2.4.0"

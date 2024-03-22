@@ -1,5 +1,7 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+const EMPTY_PROOF_SIZE = 42;
+
 /**
  * The Proof class is a wrapper around the circuits proof.
  * Underlying it is a buffer of proof data in a form a barretenberg prover understands.
@@ -47,5 +49,5 @@ export class Proof {
  * @returns The empty "proof".
  */
 export function makeEmptyProof() {
-  return new Proof(Buffer.alloc(0));
+  return new Proof(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
 }

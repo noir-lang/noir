@@ -55,10 +55,16 @@
       "path": "../protocol-contracts"
     },
     {
+      "path": "../prover-client"
+    },
+    {
       "path": "../pxe"
     },
     {
       "path": "../sequencer-client"
+    },
+    {
+      "path": "../simulator"
     },
     {
       "path": "../types"

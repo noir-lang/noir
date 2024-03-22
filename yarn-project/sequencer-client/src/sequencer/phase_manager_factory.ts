@@ -3,7 +3,6 @@ import { GlobalVariables, Header, PublicKernelCircuitPublicInputs } from '@aztec
 import { PublicExecutor, PublicStateDB } from '@aztec/simulator';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
-import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ContractsDataSourcePublicDB } from '../simulator/public_executor.js';
 import { AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
@@ -30,7 +29,6 @@ export class PhaseManagerFactory {
     db: MerkleTreeOperations,
     publicExecutor: PublicExecutor,
     publicKernel: PublicKernelCircuitSimulator,
-    publicProver: PublicProver,
     globalVariables: GlobalVariables,
     historicalHeader: Header,
     publicContractsDB: ContractsDataSourcePublicDB,
@@ -41,7 +39,6 @@ export class PhaseManagerFactory {
         db,
         publicExecutor,
         publicKernel,
-        publicProver,
         globalVariables,
         historicalHeader,
         publicContractsDB,
@@ -52,7 +49,6 @@ export class PhaseManagerFactory {
         db,
         publicExecutor,
         publicKernel,
-        publicProver,
         globalVariables,
         historicalHeader,
         publicContractsDB,
@@ -63,7 +59,6 @@ export class PhaseManagerFactory {
         db,
         publicExecutor,
         publicKernel,
-        publicProver,
         globalVariables,
         historicalHeader,
         publicContractsDB,
@@ -80,7 +75,6 @@ export class PhaseManagerFactory {
     db: MerkleTreeOperations,
     publicExecutor: PublicExecutor,
     publicKernel: PublicKernelCircuitSimulator,
-    publicProver: PublicProver,
     globalVariables: GlobalVariables,
     historicalHeader: Header,
     publicContractsDB: ContractsDataSourcePublicDB,
@@ -96,7 +90,6 @@ export class PhaseManagerFactory {
         db,
         publicExecutor,
         publicKernel,
-        publicProver,
         globalVariables,
         historicalHeader,
         publicContractsDB,
@@ -110,7 +103,6 @@ export class PhaseManagerFactory {
         db,
         publicExecutor,
         publicKernel,
-        publicProver,
         globalVariables,
         historicalHeader,
         publicContractsDB,
@@ -121,7 +113,6 @@ export class PhaseManagerFactory {
         db,
         publicExecutor,
         publicKernel,
-        publicProver,
         globalVariables,
         historicalHeader,
         publicContractsDB,

@@ -36,6 +36,7 @@ export function getProgram(userLog: LogFn, debugLogger: DebugLogger): Command {
     .option('-px, --pxe [options]', cliTexts.pxe)
     .option('-a, --archiver [options]', cliTexts.archiver)
     .option('-s, --sequencer [options]', cliTexts.sequencer)
+    .option('-r, --prover [options]', cliTexts.prover)
     .option('-p2p, --p2p-bootstrap [options]', cliTexts.p2pBootstrap)
     .action(async options => {
       // list of 'stop' functions to call when process ends

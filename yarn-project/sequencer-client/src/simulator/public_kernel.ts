@@ -20,9 +20,9 @@ import {
   convertPublicTeardownRollupInputsToWitnessMap,
   convertPublicTeardownRollupOutputFromWitnessMap,
 } from '@aztec/noir-protocol-circuits-types';
+import { SimulationProvider, WASMSimulator } from '@aztec/simulator';
 
-import { PublicKernelCircuitSimulator, WASMSimulator } from './index.js';
-import { SimulationProvider } from './simulation_provider.js';
+import { PublicKernelCircuitSimulator } from './index.js';
 
 /**
  * Implements the PublicKernelCircuitSimulator.

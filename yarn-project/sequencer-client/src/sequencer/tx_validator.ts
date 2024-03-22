@@ -1,11 +1,10 @@
-import { Tx } from '@aztec/circuit-types';
+import { ProcessedTx, Tx } from '@aztec/circuit-types';
 import { AztecAddress, EthAddress, Fr, GlobalVariables } from '@aztec/circuits.js';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Logger, createDebugLogger } from '@aztec/foundation/log';
 import { getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
 import { AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
-import { ProcessedTx } from './processed_tx.js';
 
 /** A source of what nullifiers have been committed to the state trees */
 export interface NullifierSource {

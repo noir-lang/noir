@@ -3,7 +3,6 @@ import { GlobalVariables, Header, Proof, PublicKernelCircuitPublicInputs } from 
 import { PublicExecutor, PublicStateDB } from '@aztec/simulator';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
-import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ContractsDataSourcePublicDB } from '../simulator/public_executor.js';
 import { AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
@@ -16,14 +15,13 @@ export class SetupPhaseManager extends AbstractPhaseManager {
     protected db: MerkleTreeOperations,
     protected publicExecutor: PublicExecutor,
     protected publicKernel: PublicKernelCircuitSimulator,
-    protected publicProver: PublicProver,
     protected globalVariables: GlobalVariables,
     protected historicalHeader: Header,
     protected publicContractsDB: ContractsDataSourcePublicDB,
     protected publicStateDB: PublicStateDB,
     public phase: PublicKernelPhase = PublicKernelPhase.SETUP,
   ) {
-    super(db, publicExecutor, publicKernel, publicProver, globalVariables, historicalHeader, phase);
+    super(db, publicExecutor, publicKernel, globalVariables, historicalHeader, phase);
   }
 
   override async handle(

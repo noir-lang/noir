@@ -114,6 +114,18 @@ export class L2Block {
     });
   }
 
+  /**
+   * Creates an L2 block containing empty data.
+   * @returns The L2 block.
+   */
+  static empty(): L2Block {
+    return L2Block.fromFields({
+      archive: AppendOnlyTreeSnapshot.zero(),
+      header: Header.empty(),
+      body: Body.empty(),
+    });
+  }
+
   get number(): number {
     return Number(this.header.globalVariables.blockNumber.toBigInt());
   }

@@ -12,6 +12,9 @@ export type AztecNodeConfig = ArchiverConfig &
     /** Whether the sequencer is disabled for this node. */
     disableSequencer: boolean;
 
+    /** Whether the prover is disabled for this node. */
+    disableProver: boolean;
+
     /** A URL for an archiver service that the node will use. */
     archiverUrl?: string;
   };
@@ -21,13 +24,14 @@ export type AztecNodeConfig = ArchiverConfig &
  * @returns A valid aztec node config.
  */
 export function getConfigEnvVars(): AztecNodeConfig {
-  const { SEQ_DISABLED } = process.env;
+  const { SEQ_DISABLED, PROVER_DISABLED } = process.env;
   const allEnvVars: AztecNodeConfig = {
     ...getSequencerVars(),
     ...getArchiverVars(),
     ...getP2PConfigEnvVars(),
     ...getWorldStateVars(),
     disableSequencer: !!SEQ_DISABLED,
+    disableProver: !!PROVER_DISABLED,
     archiverUrl: process.env.ARCHIVER_URL,
   };
 

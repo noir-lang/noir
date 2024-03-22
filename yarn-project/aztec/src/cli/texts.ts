@@ -63,7 +63,14 @@ export const cliTexts = {
     'requiredConfirmations:SEQ_REQUIRED_CONFIRMATIONS - number - The number of confirmations required before publishing a block. Default: 1\n' +
     'l1BlockPublishRetryIntervalMS:SEQ_PUBLISH_RETRY_INTERVAL_MS - number - The interval in ms to wait before retrying to publish a block. Default: 1000\n' +
     'transactionPollingIntervalMS:SEQ_TX_POLLING_INTERVAL_MS - number - The interval in ms to wait before polling for new transactions. Default: 1000\n' +
+    'acvmBinaryPath:ACVM_BINARY_PATH - string - The full path to an instance of the acvm cli application. If not provided will fallback to WASM circuit simulation\n' +
+    'acvmWorkingDirectory:ACVM_WORKING_DIRECTORY - string - A directory to use for temporary files used by the acvm application. If not provided WASM circuit simulation will be used\n' +
     contractAddresses,
+  prover:
+    'Starts a Prover with options. If started additionally to --node, the Prover will attach to that node.\n' +
+    'Available options are listed below as cliProperty:ENV_VARIABLE_NAME.\n' +
+    'acvmBinaryPath:ACVM_BINARY_PATH - string - The full path to an instance of the acvm cli application. If not provided will fallback to WASM circuit simulation\n' +
+    'acvmWorkingDirectory:ACVM_WORKING_DIRECTORY - string - A directory to use for temporary files used by the acvm application. If not provided WASM circuit simulation will be used\n',
   p2pBootstrap:
     'Starts a P2P bootstrap node with options.\n' +
     'Available options are listed below as cliProperty:ENV_VARIABLE_NAME.\n' +

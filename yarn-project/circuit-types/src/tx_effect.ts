@@ -142,6 +142,18 @@ export class TxEffect {
     );
   }
 
+  static empty(): TxEffect {
+    return new TxEffect(
+      RevertCode.OK,
+      makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, Fr.zero),
+      makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
+      makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.zero),
+      makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataWrite.empty),
+      TxL2Logs.empty(),
+      TxL2Logs.empty(),
+    );
+  }
+
   /**
    * Returns a string representation of the TxEffect object.
    */

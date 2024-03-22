@@ -59,6 +59,10 @@ export const startNode = async (
     nodeConfig.publisherPrivateKey = `0x${Buffer.from(privKey!).toString('hex')}`;
   }
 
+  if (!options.prover) {
+    nodeConfig.disableProver = true;
+  }
+
   // Create and start Aztec Node.
   const node = await createAztecNode(nodeConfig);
   const nodeServer = createAztecNodeRpcServer(node);
