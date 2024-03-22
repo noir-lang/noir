@@ -107,4 +107,4 @@ type Bad2 = Bad1;
 
 ### BigInt
 
-You can achieve BigInt functionality using the [Noir BigInt](https://github.com/shuklaayush/noir-bigint) library.
+To fully utilize BigInt functionality in your Noir projects, consult the [Noir Standard Library BigInt documentation](../standard_library/bigint). This includes a comprehensive guide and examples for using native bigint abstractions, as outlined in the [source code](https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/bigint.nr).
