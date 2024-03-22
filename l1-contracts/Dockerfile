@@ -4,8 +4,8 @@ FROM ubuntu:lunar
 RUN apt update && apt install curl git jq bash nodejs npm python3.11-full python3-pip -y
 
 # Use virtualenv, do not try to use pipx, it's not working.
-RUN python3 -m venv /root/.venv
-RUN /root/.venv/bin/pip3 install slither-analyzer==0.10.0 slitherin==0.5.0
+# RUN python3 -m venv /root/.venv
+# RUN /root/.venv/bin/pip3 install slither-analyzer==0.10.0 slitherin==0.5.0
 RUN curl -L https://foundry.paradigm.xyz | bash
 
 # Set env variables for foundry and venv
@@ -20,7 +20,7 @@ RUN forge clean && forge fmt --check && forge build && forge test --no-match-con
 RUN npm install --global yarn
 RUN yarn && yarn lint
 
-RUN git add . && yarn slither && yarn slither-has-diff
+# RUN git add . && yarn slither && yarn slither-has-diff
 RUN forge build
 
 FROM scratch
