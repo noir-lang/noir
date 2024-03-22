@@ -31,13 +31,29 @@ For instance the big integer 'Secpk1Fq' in the standard library refers to intege
 
 Feel free to explore the source code for the other primes:
 
-#include_code big_int_definition noir_stdlib/src/bigint.nr rust
+```rust
+struct BigInt {
+    pointer: u32,
+    modulus: u32,
+}
+```
+> <sup><sub>[Source code: noir_stdlib/src/bigint.nr#L19-L22](https://github.com/noir-lang/noir/blob/v0.25.0/noir_stdlib/src/bigint.nr#L19-L22)</sub></sup>
+
 
 ## Example usage
 
 A common use-case is when constructing a big integer from its bytes representation, and performing arithmetic operations on it:
 
-#include_code big_int_example test_programs/execution_success/bigint/src/main.nr rust
+```rust
+fn big_int_example(x: u8, y: u8) {
+    let a = Secpk1Fq::from_le_bytes(&[x, y, 0, 45, 2]);
+    let b = Secpk1Fq::from_le_bytes(&[y, x, 9]);
+    let c = (a + b) * b / a;
+    let d = c.to_le_bytes();
+    println(d[0]);
+}
+```
+> <sup><sub>[Source code: test_programs/execution_success/bigint/src/main.nr#L20-L28](https://github.com/noir-lang/noir/blob/v0.25.0/test_programs/execution_success/bigint/src/main.nr#L20-L28)</sub></sup>
 
 ## Methods
 
