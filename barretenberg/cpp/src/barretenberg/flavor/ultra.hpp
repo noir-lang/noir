@@ -8,11 +8,14 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/proof_system/library/grand_product_delta.hpp"
+#include "barretenberg/proof_system/library/grand_product_library.hpp"
 #include "barretenberg/relations/auxiliary_relation.hpp"
 #include "barretenberg/relations/delta_range_constraint_relation.hpp"
 #include "barretenberg/relations/elliptic_relation.hpp"
 #include "barretenberg/relations/lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
+#include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
@@ -272,6 +275,7 @@ class UltraFlavor {
 
         std::vector<uint32_t> memory_read_records;
         std::vector<uint32_t> memory_write_records;
+        std::array<Polynomial, 4> sorted_polynomials;
 
         auto get_to_be_shifted()
         {
@@ -280,6 +284,108 @@ class UltraFlavor {
         };
         // The plookup wires that store plookup read data.
         auto get_table_column_wires() { return RefArray{ w_l, w_r, w_o }; };
+
+        /**
+         * @brief Construct sorted list accumulator polynomial 's'.
+         *
+         * @details Compute s = s_1 + η*s_2 + η²*s_3 + η³*s_4 (via Horner) where s_i are the
+         * sorted concatenated witness/table polynomials
+         *
+         * @param key proving key
+         * @param sorted_list_polynomials sorted concatenated witness/table polynomials
+         * @param eta random challenge
+         * @return Polynomial
+         */
+        void compute_sorted_list_accumulator(const FF& eta)
+        {
+            const size_t circuit_size = this->circuit_size;
+
+            auto sorted_list_accumulator = Polynomial{ circuit_size };
+
+            // Construct s via Horner, i.e. s = s_1 + η(s_2 + η(s_3 + η*s_4))
+            for (size_t i = 0; i < circuit_size; ++i) {
+                FF T0 = this->sorted_polynomials[3][i];
+                T0 *= eta;
+                T0 += this->sorted_polynomials[2][i];
+                T0 *= eta;
+                T0 += this->sorted_polynomials[1][i];
+                T0 *= eta;
+                T0 += this->sorted_polynomials[0][i];
+                sorted_list_accumulator[i] = T0;
+            }
+            this->sorted_accum = sorted_list_accumulator.share();
+        }
+
+        void compute_sorted_accumulator_polynomials(const FF& eta)
+        {
+            // Compute sorted witness-table accumulator
+            this->compute_sorted_list_accumulator(eta);
+
+            // Finalize fourth wire polynomial by adding lookup memory records
+            add_plookup_memory_records_to_wire_4(eta);
+        }
+
+        /**
+         * @brief Add plookup memory records to the fourth wire polynomial
+         *
+         * @details This operation must be performed after the first three wires have been committed to, hence the
+         * dependence on the `eta` challenge.
+         *
+         * @tparam Flavor
+         * @param eta challenge produced after commitment to first three wire polynomials
+         */
+        void add_plookup_memory_records_to_wire_4(const FF& eta)
+        {
+            // The plookup memory record values are computed at the indicated indices as
+            // w4 = w3 * eta^3 + w2 * eta^2 + w1 * eta + read_write_flag;
+            // (See plookup_auxiliary_widget.hpp for details)
+            auto wires = this->get_wires();
+
+            // Compute read record values
+            for (const auto& gate_idx : this->memory_read_records) {
+                wires[3][gate_idx] += wires[2][gate_idx];
+                wires[3][gate_idx] *= eta;
+                wires[3][gate_idx] += wires[1][gate_idx];
+                wires[3][gate_idx] *= eta;
+                wires[3][gate_idx] += wires[0][gate_idx];
+                wires[3][gate_idx] *= eta;
+            }
+
+            // Compute write record values
+            for (const auto& gate_idx : this->memory_write_records) {
+                wires[3][gate_idx] += wires[2][gate_idx];
+                wires[3][gate_idx] *= eta;
+                wires[3][gate_idx] += wires[1][gate_idx];
+                wires[3][gate_idx] *= eta;
+                wires[3][gate_idx] += wires[0][gate_idx];
+                wires[3][gate_idx] *= eta;
+                wires[3][gate_idx] += 1;
+            }
+        }
+
+        /**
+         * @brief Computes public_input_delta, lookup_grand_product_delta, the z_perm and z_lookup polynomials
+         *
+         * @param relation_parameters
+         */
+        void compute_grand_product_polynomials(RelationParameters<FF>& relation_parameters)
+        {
+            auto public_input_delta = compute_public_input_delta<UltraFlavor>(this->public_inputs,
+                                                                              relation_parameters.beta,
+                                                                              relation_parameters.gamma,
+                                                                              this->circuit_size,
+                                                                              this->pub_inputs_offset);
+            relation_parameters.public_input_delta = public_input_delta;
+            auto lookup_grand_product_delta = compute_lookup_grand_product_delta(
+                relation_parameters.beta, relation_parameters.gamma, this->circuit_size);
+            relation_parameters.lookup_grand_product_delta = lookup_grand_product_delta;
+
+            // Compute permutation and lookup grand product polynomials
+            auto prover_polynomials = ProverPolynomials(*this);
+            compute_grand_products<UltraFlavor>(*this, prover_polynomials, relation_parameters);
+            this->z_perm = prover_polynomials.z_perm;
+            this->z_lookup = prover_polynomials.z_lookup;
+        }
     };
 
     /**
@@ -307,6 +413,28 @@ class UltraFlavor {
      */
     class ProverPolynomials : public AllEntities<Polynomial> {
       public:
+        ProverPolynomials(ProvingKey& proving_key)
+        {
+            for (auto [prover_poly, key_poly] : zip_view(this->get_unshifted(), proving_key.get_all())) {
+                ASSERT(flavor_get_label(*this, prover_poly) == flavor_get_label(proving_key, key_poly));
+                prover_poly = key_poly.share();
+            }
+            for (auto [prover_poly, key_poly] : zip_view(this->get_shifted(), proving_key.get_to_be_shifted())) {
+                ASSERT(flavor_get_label(*this, prover_poly) == (flavor_get_label(proving_key, key_poly) + "_shift"));
+                prover_poly = key_poly.shifted();
+            }
+        }
+        ProverPolynomials(std::shared_ptr<ProvingKey>& proving_key)
+        {
+            for (auto [prover_poly, key_poly] : zip_view(this->get_unshifted(), proving_key->get_all())) {
+                ASSERT(flavor_get_label(*this, prover_poly) == flavor_get_label(*proving_key, key_poly));
+                prover_poly = key_poly.share();
+            }
+            for (auto [prover_poly, key_poly] : zip_view(this->get_shifted(), proving_key->get_to_be_shifted())) {
+                ASSERT(flavor_get_label(*this, prover_poly) == (flavor_get_label(*proving_key, key_poly) + "_shift"));
+                prover_poly = key_poly.shifted();
+            }
+        }
         // Define all operations as default, except move construction/assignment
         ProverPolynomials() = default;
         ProverPolynomials& operator=(const ProverPolynomials&) = delete;

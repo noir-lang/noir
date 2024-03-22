@@ -12,7 +12,6 @@ to_keep = [
     "ProtogalaxyProver::fold_instances(t)",
     "Decider::construct_proof(t)",
     "ECCVMComposer::create_prover(t)",
-    "GoblinTranslatorComposer::create_prover(t)",
     "ECCVMProver::construct_proof(t)",
     "GoblinTranslatorProver::construct_proof(t)",
     "Goblin::merge(t)"

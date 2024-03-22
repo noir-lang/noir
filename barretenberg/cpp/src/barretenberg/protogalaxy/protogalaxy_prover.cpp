@@ -6,22 +6,11 @@ template <class ProverInstances>
 void ProtoGalaxyProver_<ProverInstances>::finalise_and_send_instance(std::shared_ptr<Instance> instance,
                                                                      const std::string& domain_separator)
 {
-    OinkProver<Flavor> oink_prover(instance, commitment_key, transcript, domain_separator + '_');
+    OinkProver<Flavor> oink_prover(instance->proving_key, commitment_key, transcript, domain_separator + '_');
 
-    // Add circuit size public input size and public inputs to transcript
-    oink_prover.execute_preamble_round();
-
-    // Compute first three wire commitments
-    oink_prover.execute_wire_commitments_round();
-
-    // Compute sorted list accumulator and commitment
-    oink_prover.execute_sorted_list_accumulator_round();
-
-    // Fiat-Shamir: beta & gamma
-    oink_prover.execute_log_derivative_inverse_round();
-
-    // Compute grand product(s) and commitments.
-    oink_prover.execute_grand_product_computation_round();
+    auto [relation_params] = oink_prover.prove();
+    instance->relation_parameters = std::move(relation_params);
+    instance->prover_polynomials = ProverPolynomials(instance->proving_key);
 
     // Generate relation separators alphas for sumcheck
     for (size_t idx = 0; idx < NUM_SUBRELATIONS - 1; idx++) {

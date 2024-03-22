@@ -60,10 +60,10 @@ template <class Flavor> class InstanceTests : public testing::Test {
         // Get random challenge eta
         auto eta = FF::random_element();
 
-        auto sorted_list_polynomials = instance.sorted_polynomials;
+        auto sorted_list_polynomials = instance.proving_key->sorted_polynomials;
 
         // Method 1: computed sorted list accumulator polynomial using prover library method
-        instance.compute_sorted_list_accumulator(eta);
+        instance.proving_key->compute_sorted_list_accumulator(eta);
         auto sorted_list_accumulator = instance.proving_key->sorted_accum;
 
         // Method 2: Compute local sorted list accumulator simply and inefficiently

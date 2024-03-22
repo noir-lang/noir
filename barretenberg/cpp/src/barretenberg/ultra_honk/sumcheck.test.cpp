@@ -147,16 +147,16 @@ TEST_F(SumcheckTestsRealCircuit, Ultra)
         false);
 
     // Create a prover (it will compute proving key and witness)
-    auto instance = std::make_shared<ProverInstance_<UltraFlavor>>(builder);
+    auto instance = std::make_shared<ProverInstance_<Flavor>>(builder);
 
     // Generate eta, beta and gamma
-    FF eta = FF::random_element();
-    FF beta = FF::random_element();
-    FF gamma = FF::random_element();
+    instance->relation_parameters.eta = FF::random_element();
+    instance->relation_parameters.beta = FF::random_element();
+    instance->relation_parameters.gamma = FF::random_element();
 
-    instance->initialize_prover_polynomials();
-    instance->compute_sorted_accumulator_polynomials(eta);
-    instance->compute_grand_product_polynomials(beta, gamma);
+    instance->proving_key->compute_sorted_accumulator_polynomials(instance->relation_parameters.eta);
+    instance->proving_key->compute_grand_product_polynomials(instance->relation_parameters);
+    instance->prover_polynomials = Flavor::ProverPolynomials(instance->proving_key);
 
     auto prover_transcript = Transcript::prover_init_empty();
     auto circuit_size = instance->proving_key->circuit_size;

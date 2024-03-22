@@ -21,10 +21,12 @@
 
 #include "barretenberg/flavor/goblin_ultra.hpp"
 #include "barretenberg/flavor/ultra.hpp"
-#include "barretenberg/sumcheck/instance/prover_instance.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace bb {
+template <IsUltraFlavor Flavor> struct OinkProverOutput {
+    bb::RelationParameters<typename Flavor::FF> relation_parameters;
+};
 
 /**
  * @brief Class for all the oink rounds, which are shared between the folding prover and ultra prover.
@@ -36,30 +38,31 @@ namespace bb {
  */
 template <IsUltraFlavor Flavor> class OinkProver {
     using CommitmentKey = typename Flavor::CommitmentKey;
-    using Instance = ProverInstance_<Flavor>;
+    using ProvingKey = typename Flavor::ProvingKey;
     using Transcript = typename Flavor::Transcript;
     using FF = typename Flavor::FF;
 
   public:
-    std::shared_ptr<Instance> instance;
+    std::shared_ptr<ProvingKey> proving_key;
     std::shared_ptr<Transcript> transcript;
     std::shared_ptr<CommitmentKey> commitment_key;
     std::string domain_separator;
     typename Flavor::WitnessCommitments witness_commitments;
     typename Flavor::CommitmentLabels commitment_labels;
 
-    OinkProver(const std::shared_ptr<ProverInstance_<Flavor>>& inst,
+    bb::RelationParameters<typename Flavor::FF> relation_parameters;
+
+    OinkProver(const std::shared_ptr<ProvingKey>& proving_key,
                const std::shared_ptr<typename Flavor::CommitmentKey>& commitment_key,
                const std::shared_ptr<typename Flavor::Transcript>& transcript,
                std::string domain_separator = "")
-        : instance(inst)
+        : proving_key(proving_key)
         , transcript(transcript)
         , commitment_key(commitment_key)
         , domain_separator(std::move(domain_separator))
-    {
-        instance->initialize_prover_polynomials();
-    }
+    {}
 
+    OinkProverOutput<Flavor> prove();
     void execute_preamble_round();
     void execute_wire_commitments_round();
     void execute_sorted_list_accumulator_round();

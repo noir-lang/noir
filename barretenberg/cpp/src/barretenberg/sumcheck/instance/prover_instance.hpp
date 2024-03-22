@@ -33,8 +33,6 @@ template <class Flavor> class ProverInstance_ {
     std::shared_ptr<ProvingKey> proving_key;
     ProverPolynomials prover_polynomials;
 
-    std::array<Polynomial, 4> sorted_polynomials;
-
     RelationSeparator alphas;
     bb::RelationParameters<FF> relation_parameters;
 
@@ -73,7 +71,7 @@ template <class Flavor> class ProverInstance_ {
 
         construct_table_polynomials(circuit, dyadic_circuit_size);
 
-        sorted_polynomials = construct_sorted_list_polynomials<Flavor>(circuit, dyadic_circuit_size);
+        proving_key->sorted_polynomials = construct_sorted_list_polynomials<Flavor>(circuit, dyadic_circuit_size);
 
         std::span<FF> public_wires_source = proving_key->w_r;
 
@@ -92,19 +90,8 @@ template <class Flavor> class ProverInstance_ {
     ProverInstance_() = default;
     ~ProverInstance_() = default;
 
-    void initialize_prover_polynomials();
-
-    void compute_sorted_accumulator_polynomials(FF);
-
-    void compute_sorted_list_accumulator(FF);
-
-    void compute_logderivative_inverse(FF, FF)
-        requires IsGoblinFlavor<Flavor>;
-
     void compute_databus_id()
         requires IsGoblinFlavor<Flavor>;
-
-    void compute_grand_product_polynomials(FF, FF);
 
   private:
     static constexpr size_t num_zero_rows = Flavor::has_zero_row ? 1 : 0;
@@ -117,8 +104,6 @@ template <class Flavor> class ProverInstance_ {
         requires IsGoblinFlavor<Flavor>;
 
     void construct_table_polynomials(Circuit&, size_t);
-
-    void add_plookup_memory_records_to_wire_4(FF);
 };
 
 } // namespace bb

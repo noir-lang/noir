@@ -142,7 +142,7 @@ void compute_grand_product(const size_t circuit_size,
 }
 
 template <typename Flavor>
-void compute_grand_products(std::shared_ptr<typename Flavor::ProvingKey>& key,
+void compute_grand_products(const typename Flavor::ProvingKey& key,
                             typename Flavor::ProverPolynomials& full_polynomials,
                             bb::RelationParameters<typename Flavor::FF>& relation_parameters)
 {
@@ -157,10 +157,10 @@ void compute_grand_products(std::shared_ptr<typename Flavor::ProvingKey>& key,
         // For example, for UltraPermutationRelation, this will be `full_polynomials.z_perm`
         // For example, for LookupRelation, this will be `full_polynomials.z_lookup`
         bb::Polynomial<FF>& full_polynomial = GrandProdRelation::get_grand_product_polynomial(full_polynomials);
-        auto& key_polynomial = GrandProdRelation::get_grand_product_polynomial(*key);
+        auto& key_polynomial = GrandProdRelation::get_grand_product_polynomial(key);
         full_polynomial = key_polynomial.share();
 
-        compute_grand_product<Flavor, GrandProdRelation>(key->circuit_size, full_polynomials, relation_parameters);
+        compute_grand_product<Flavor, GrandProdRelation>(key.circuit_size, full_polynomials, relation_parameters);
         bb::Polynomial<FF>& full_polynomial_shift =
             GrandProdRelation::get_shifted_grand_product_polynomial(full_polynomials);
         full_polynomial_shift = key_polynomial.shifted();
