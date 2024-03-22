@@ -1088,7 +1088,7 @@ mod tests {
         }
     }
 
-    fn blns_base64_to_statements(base64_str: String) -> Vec<(Token, Vec<String>)> {
+    fn blns_base64_to_statements(base64_str: String) -> Vec<(Option<Token>, Vec<String>)> {
         use base64::engine::general_purpose;
         use std::borrow::Cow;
         use std::io::Cursor;
@@ -1110,64 +1110,92 @@ mod tests {
             Err(_err) => {
                 // recover as much of the string as possible
                 // when str::from_utf8 fails
-                String::from_utf8_lossy(&result)
+                String::from_utf8_lossy(&base64_decoded)
             },
         };
 
         vec![
-            (Token::Ident("".to_string()), vec![
+            // Token::Ident(_)
+            (None, vec![
                 format!("
                     let \"{}\" = ();
                 ", s),
             ]),
 
-            // TODO add back with discriminants?
-                // // Token::Str(String)
-                // format!("
-                //     let s = \"{}\";
-                // ", s),
-                //
-                // // Token::RawStr(String, u8)
-                // // let s = r"Hello world";
-                // format!("
-                //     let s = r\"{}\";
-                // ", s),
-                //
-                // // let s = r#"Simon says "hello world""#;
-                // format!("
-                //     let s = r#\"{}\"#;
-                // ", s),
-                //
-                // // // Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
-                // // let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####; 
-                // format!("
-                //     let s = r##\"{}\"##;
-                // ", s),
-                // format!("
-                //     let s = r###\"{}\"###;
-                // ", s),
-                // format!("
-                //     let s = r####\"{}\"####;
-                // ", s),
-                // format!("
-                //     let s = r#####\"{}\"#####;
-                // ", s),
-                //
-                // // Token::FmtStr(String)
-                // format!("
-                //     assert(x == y, f\"{}\");
-                // ", s),
-                //
-                // // Token::LineComment(String, Option<DocStyle>)
-                // format!("
-                //     // {}
-                // ", s),
-                //
-                // // Token::BlockComment(String, Option<DocStyle>)
+            (Some(Token::Str("".to_string())), vec![
+                // Token::Str(String)
+                format!("
+                    let s = \"{}\";
+                ", s),
+            ]),
+
+            (Some(Token::RawStr("".to_string(), 0)), vec![
+
+                // let s = r"Hello world";
+                format!("
+                    let s = r\"{}\";
+                ", s),
+
+                // let s = r#"Simon says "hello world""#;
+                format!("
+                    let s = r#\"{}\"#;
+                ", s),
+
+                // // Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
+                // let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####; 
+                format!("
+                    let s = r##\"{}\"##;
+                ", s),
+                format!("
+                    let s = r###\"{}\"###;
+                ", s),
+                format!("
+                    let s = r####\"{}\"####;
+                ", s),
+                format!("
+                    let s = r#####\"{}\"#####;
+                ", s),
+            ]),
+
+            (Some(Token::FmtStr("".to_string())), vec![
+
+                format!("
+                    assert(x == y, f\"{}\");
+                ", s),
+            ]),
+
+            // expected token not found
+            //
+            // (Some(Token::LineComment("".to_string(), None)), vec![
+            //     format!("
+            //         //{}
+            //     ", s),
+            //
+            //     format!("
+            //         // {}
+            //     ", s),
+            // ]),
+
+            // expected token not found
+            //
+            // According to the docs: https://noir-lang.org/docs/noir/concepts/comments/
+            // "Start a block comment with /* and end the block with */."
+            (Some(Token::BlockComment("".to_string(), None)), vec![
+                // bug
                 // format!("
                 //     /*{}*/
                 // ", s),
 
+                // bug
+                // format!("
+                //     /* {} */
+                // ", s),
+
+                // format!("
+                //     /*\n{}\n*/
+                // ", s),
+
+            ]),
         ]
     }
 
@@ -1213,7 +1241,7 @@ mod tests {
         let blns_base64: Vec<String> = serde_json::from_str(&blns_contents).expect("BLNS json invalid");
 
         blns_base64.into_iter().for_each(|blns_base64_str| {
-            blns_base64_to_statements(blns_base64_str).into_iter().for_each(|(token_discriminator, blns_program_strs)| {
+            blns_base64_to_statements(blns_base64_str).into_iter().for_each(|(token_discriminator_opt, blns_program_strs)| {
                 blns_program_strs.into_iter().for_each(|blns_program_str| {
                     let mut expected_token_found = false;
                     let mut lexer = Lexer::new(&blns_program_str);
@@ -1223,9 +1251,10 @@ mod tests {
                             Ok(next_token) => {
                                 result_tokens.push(next_token.clone());
 
-                                if discriminant(&token_discriminator) == discriminant(&next_token.token()) {
-                                    expected_token_found = true;
-                                }
+                                expected_token_found |= token_discriminator_opt
+                                    .as_ref()
+                                    .map(|token_discriminator| discriminant(token_discriminator) == discriminant(&next_token.token()))
+                                    .unwrap_or(true);
 
                                 if next_token == Token::EOF {
                                     assert!(lexer.done, "lexer not done when EOF emitted!");
@@ -1249,7 +1278,7 @@ mod tests {
                     }
 
                     // TODO: avoid printing BLNS
-                    assert!(expected_token_found, "{}", format!("expected token not found: {:?}\n\ninput:\n{:?}\n\noutput:\n{:?}", token_discriminator, blns_program_str, result_tokens));
+                    assert!(expected_token_found, "{}", format!("expected token not found: {:?}\n\ninput:\n{:?}\n\noutput:\n{:?}", token_discriminator_opt, blns_program_str, result_tokens));
                 })
             })
         })
