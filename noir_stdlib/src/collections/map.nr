@@ -30,46 +30,63 @@ struct HashMap<K, V, N, B> {
 // 2. (empty)
 // 3. (deleted)
 struct Slot<K, V> {
-    _key_value: Option<(K, V)>,
-    _is_deleted: bool,
+    key: K,
+    value: V,
+
+    // Values:
+    // 0: empty, not deleted
+    // 1: filled, not deleted
+    // 2: empty, deleted
+    // Any other state is invalid
+    flag: Field,
 }
 
 impl<K, V> Default for Slot<K, V>{
     fn default() -> Self {
         Slot{
-            _key_value: Option::none(),
-            _is_deleted: false
+            key: crate::unsafe::zeroed(),
+            value: crate::unsafe::zeroed(),
+            flag: 0,
         }
     }
 }
 
 impl<K, V> Slot<K, V> {
+    fn is_deleted(self) -> bool {
+        self.flag == 2
+    }
+
     fn is_valid(self) -> bool {
-        !self._is_deleted & self._key_value.is_some()
+        self.flag == 1
     }
 
     fn is_available(self) -> bool {
-        self._is_deleted | self._key_value.is_none()
+        self.flag != 1
     }
 
     fn key_value(self) -> Option<(K, V)> {
-        self._key_value
+        if self.flag == 1 {
+            Option::some((self.key, self.value))
+        } else {
+            Option::none()
+        }
     }
 
     fn key_value_unchecked(self) -> (K, V) {
-        self._key_value.unwrap_unchecked()
+        (self.key, self.value)
     }
 
     fn set(&mut self, key: K, value: V) {
-        self._key_value = Option::some((key, value));
-        self._is_deleted = false;
+        self.key = key;
+        self.value = value;
+        self.flag = 1;
     }
 
     // Shall not override `_key_value` with Option::none(),
     // because we must be able to differentiate empty 
     // and deleted slots for lookup.
     fn mark_deleted(&mut self) {
-        self._is_deleted = true;
+        self.flag = 2;
     }
 }
 
