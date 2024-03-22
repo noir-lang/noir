@@ -439,6 +439,8 @@ export const uniswapL1L2TestSuite = (
       const nonceForWETHTransferApproval = new Fr(1n);
       const transferMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
+        ownerWallet.getChainId(),
+        ownerWallet.getVersion(),
         wethCrossChainHarness.l2Token.methods
           .transfer_public(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHTransferApproval)
           .request(),
@@ -470,7 +472,12 @@ export const uniswapL1L2TestSuite = (
           ownerEthAddress,
           nonceForSwap,
         );
-      const swapMessageHash = computeAuthWitMessageHash(sponsorAddress, action.request());
+      const swapMessageHash = computeAuthWitMessageHash(
+        sponsorAddress,
+        ownerWallet.getChainId(),
+        ownerWallet.getVersion(),
+        action.request(),
+      );
       await ownerWallet.setPublicAuthWit(swapMessageHash, true).send().wait();
 
       // 4.2 Call swap_public from user2 on behalf of owner
@@ -636,6 +643,9 @@ export const uniswapL1L2TestSuite = (
 
       const expectedMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
+        ownerWallet.getChainId(),
+        ownerWallet.getVersion(),
+
         wethCrossChainHarness.l2Token.methods
           .unshield(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHUnshieldApproval)
           .request(),
@@ -709,6 +719,9 @@ export const uniswapL1L2TestSuite = (
       const nonceForWETHTransferApproval = new Fr(2n);
       const transferMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
+        ownerWallet.getChainId(),
+        ownerWallet.getVersion(),
+
         wethCrossChainHarness.l2Token.methods
           .transfer_public(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHTransferApproval)
           .request(),
@@ -760,7 +773,12 @@ export const uniswapL1L2TestSuite = (
           ownerEthAddress,
           nonceForSwap,
         );
-      const swapMessageHash = computeAuthWitMessageHash(approvedUser, action.request());
+      const swapMessageHash = computeAuthWitMessageHash(
+        approvedUser,
+        ownerWallet.getChainId(),
+        ownerWallet.getVersion(),
+        action.request(),
+      );
       await ownerWallet.setPublicAuthWit(swapMessageHash, true).send().wait();
 
       // Swap!
@@ -775,6 +793,8 @@ export const uniswapL1L2TestSuite = (
 
       const transferMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
+        ownerWallet.getChainId(),
+        ownerWallet.getVersion(),
         wethCrossChainHarness.l2Token.methods
           .transfer_public(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHTransferApproval)
           .request(),
@@ -955,6 +975,8 @@ export const uniswapL1L2TestSuite = (
       const nonceForWETHTransferApproval = new Fr(5n);
       const transferMessageHash = computeAuthWitMessageHash(
         uniswapL2Contract.address,
+        ownerWallet.getChainId(),
+        ownerWallet.getVersion(),
         wethCrossChainHarness.l2Token.methods
           .transfer_public(ownerAddress, uniswapL2Contract.address, wethAmountToBridge, nonceForWETHTransferApproval)
           .request(),

@@ -23,6 +23,8 @@ export interface AuthWitnessProvider {
    * If a message hash is provided, it will create a witness for that directly.
    * Otherwise, it will compute the message hash using the caller and the action of the intent.
    * @param messageHashOrIntent - The message hash or the intent (caller and action) to approve
+   * @param chainId - The chain id for the message, will default to the current chain id
+   * @param version - The version for the message, will default to the current protocol version
    * @returns The authentication witness
    */
   createAuthWit(
@@ -34,6 +36,10 @@ export interface AuthWitnessProvider {
           caller: AztecAddress;
           /** The action to approve */
           action: ContractFunctionInteraction | FunctionCall;
+          /** The chain id to approve */
+          chainId?: Fr;
+          /** The version to approve  */
+          version?: Fr;
         },
   ): Promise<AuthWitness>;
 }
@@ -59,5 +65,11 @@ export interface AccountInterface extends AuthWitnessProvider, EntrypointInterfa
 
   /** Returns the address for this account. */
   getAddress(): AztecAddress;
+
+  /** Returns the chain id for this account */
+  getChainId(): Fr;
+
+  /** Returns the rollup version for this account */
+  getVersion(): Fr;
 }
 // docs:end:account-interface

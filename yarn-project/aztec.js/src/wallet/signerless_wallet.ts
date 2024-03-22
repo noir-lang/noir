@@ -27,11 +27,19 @@ export class SignerlessWallet extends BaseWallet {
     );
   }
 
+  getChainId(): Fr {
+    throw new Error('Method not implemented.');
+  }
+
+  getVersion(): Fr {
+    throw new Error('Method not implemented.');
+  }
+
   getCompleteAddress(): CompleteAddress {
     throw new Error('Method not implemented.');
   }
 
-  createAuthWit(_message: Fr): Promise<AuthWitness> {
+  createAuthWit(_messageHash: Fr): Promise<AuthWitness> {
     throw new Error('Method not implemented.');
   }
 }

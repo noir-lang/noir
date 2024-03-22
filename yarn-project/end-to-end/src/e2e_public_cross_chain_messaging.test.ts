@@ -108,6 +108,8 @@ describe('e2e_public_cross_chain_messaging', () => {
     const nonce = Fr.random();
     const burnMessageHash = computeAuthWitMessageHash(
       l2Bridge.address,
+      wallets[0].getChainId(),
+      wallets[0].getVersion(),
       l2Token.methods.burn_public(ownerAddress, withdrawAmount, nonce).request(),
     );
     await user1Wallet.setPublicAuthWit(burnMessageHash, true).send().wait();

@@ -30,9 +30,9 @@ export class SchnorrAccountContract extends DefaultAccountContract {
 class SchnorrAuthWitnessProvider implements AuthWitnessProvider {
   constructor(private signingPrivateKey: GrumpkinPrivateKey) {}
 
-  createAuthWit(message: Fr): Promise<AuthWitness> {
+  createAuthWit(messageHash: Fr): Promise<AuthWitness> {
     const schnorr = new Schnorr();
-    const signature = schnorr.constructSignature(message.toBuffer(), this.signingPrivateKey).toBuffer();
-    return Promise.resolve(new AuthWitness(message, [...signature]));
+    const signature = schnorr.constructSignature(messageHash.toBuffer(), this.signingPrivateKey).toBuffer();
+    return Promise.resolve(new AuthWitness(messageHash, [...signature]));
   }
 }

@@ -58,11 +58,16 @@ export class PrivateFeePaymentMethod implements FeePaymentMethod {
    */
   async getFunctionCalls(maxFee: Fr): Promise<FunctionCall[]> {
     const nonce = Fr.random();
-    const messageHash = computeAuthWitMessageHash(this.paymentContract, {
-      args: [this.wallet.getCompleteAddress().address, this.paymentContract, maxFee, nonce],
-      functionData: new FunctionData(FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)'), true),
-      to: this.asset,
-    });
+    const messageHash = computeAuthWitMessageHash(
+      this.paymentContract,
+      this.wallet.getChainId(),
+      this.wallet.getVersion(),
+      {
+        args: [this.wallet.getCompleteAddress().address, this.paymentContract, maxFee, nonce],
+        functionData: new FunctionData(FunctionSelector.fromSignature('unshield((Field),(Field),Field,Field)'), true),
+        to: this.asset,
+      },
+    );
     await this.wallet.createAuthWit(messageHash);
 
     const secretHashForRebate = computeMessageSecretHash(this.rebateSecret);

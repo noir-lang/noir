@@ -31,6 +31,10 @@ export abstract class BaseWallet implements Wallet {
 
   abstract getCompleteAddress(): CompleteAddress;
 
+  abstract getChainId(): Fr;
+
+  abstract getVersion(): Fr;
+
   abstract createTxExecutionRequest(execs: FunctionCall[], fee?: FeeOptions): Promise<TxExecutionRequest>;
 
   abstract createAuthWit(
@@ -42,6 +46,10 @@ export abstract class BaseWallet implements Wallet {
           caller: AztecAddress;
           /** The action to approve */
           action: ContractFunctionInteraction | FunctionCall;
+          /** The chain id to approve */
+          chainId?: Fr;
+          /** The version to approve  */
+          version?: Fr;
         },
   ): Promise<AuthWitness>;
 

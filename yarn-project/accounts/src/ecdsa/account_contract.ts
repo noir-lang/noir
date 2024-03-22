@@ -30,9 +30,9 @@ export class EcdsaAccountContract extends DefaultAccountContract {
 class EcdsaAuthWitnessProvider implements AuthWitnessProvider {
   constructor(private signingPrivateKey: Buffer) {}
 
-  createAuthWit(message: Fr): Promise<AuthWitness> {
+  createAuthWit(messageHash: Fr): Promise<AuthWitness> {
     const ecdsa = new Ecdsa();
-    const signature = ecdsa.constructSignature(message.toBuffer(), this.signingPrivateKey);
-    return Promise.resolve(new AuthWitness(message, [...signature.r, ...signature.s]));
+    const signature = ecdsa.constructSignature(messageHash.toBuffer(), this.signingPrivateKey);
+    return Promise.resolve(new AuthWitness(messageHash, [...signature.r, ...signature.s]));
   }
 }

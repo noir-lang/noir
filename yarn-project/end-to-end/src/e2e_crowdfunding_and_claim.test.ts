@@ -9,7 +9,6 @@ import {
   Note,
   PXE,
   TxHash,
-  computeAuthWitMessageHash,
   computeMessageSecretHash,
   generatePublicKey,
 } from '@aztec/aztec.js';
@@ -264,8 +263,7 @@ describe('e2e_crowdfunding_and_claim', () => {
       const action = donationToken
         .withWallet(donorWallets[1])
         .methods.transfer(donorWallets[1].getAddress(), crowdfundingContract.address, donationAmount, 0);
-      const messageHash = computeAuthWitMessageHash(crowdfundingContract.address, action.request());
-      const witness = await donorWallets[1].createAuthWit(messageHash);
+      const witness = await donorWallets[1].createAuthWit({ caller: crowdfundingContract.address, action });
       await donorWallets[1].addAuthWitness(witness);
     }
 

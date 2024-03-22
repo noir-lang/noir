@@ -166,7 +166,7 @@ contract Uniswap {
     // if valid, it returns the IS_VALID selector which is expected by token contract
     #[aztec(public)]
     fn spend_public_authwit(inner_hash: Field) -> Field {
-        let message_hash = compute_outer_authwit_hash(context.msg_sender(), inner_hash);
+        let message_hash = compute_outer_authwit_hash(context.msg_sender(), context.chain_id(), context.version(), inner_hash);
         let value = storage.approved_action.at(message_hash).read();
         if (value) {
             context.push_new_nullifier(message_hash, 0);
@@ -192,6 +192,8 @@ contract Uniswap {
         let message_hash = compute_call_authwit_hash(
             token_bridge,
             token,
+            context.chain_id(),
+            context.version(),
             selector,
             [context.this_address().to_field(), amount, nonce_for_burn_approval]
         );

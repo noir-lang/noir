@@ -10,6 +10,8 @@ import { NodeInfo } from '@aztec/types/interfaces';
  */
 export class DefaultAccountInterface implements AccountInterface {
   private entrypoint: EntrypointInterface;
+  private chainId: Fr;
+  private version: Fr;
 
   constructor(
     private authWitnessProvider: AuthWitnessProvider,
@@ -22,14 +24,16 @@ export class DefaultAccountInterface implements AccountInterface {
       nodeInfo.chainId,
       nodeInfo.protocolVersion,
     );
+    this.chainId = new Fr(nodeInfo.chainId);
+    this.version = new Fr(nodeInfo.protocolVersion);
   }
 
   createTxExecutionRequest(executions: FunctionCall[], fee?: FeeOptions): Promise<TxExecutionRequest> {
     return this.entrypoint.createTxExecutionRequest(executions, fee);
   }
 
-  createAuthWit(message: Fr): Promise<AuthWitness> {
-    return this.authWitnessProvider.createAuthWit(message);
+  createAuthWit(messageHash: Fr): Promise<AuthWitness> {
+    return this.authWitnessProvider.createAuthWit(messageHash);
   }
 
   getCompleteAddress(): CompleteAddress {
@@ -38,5 +42,13 @@ export class DefaultAccountInterface implements AccountInterface {
 
   getAddress(): AztecAddress {
     return this.address.address;
+  }
+
+  getChainId(): Fr {
+    return this.chainId;
+  }
+
+  getVersion(): Fr {
+    return this.version;
   }
 }

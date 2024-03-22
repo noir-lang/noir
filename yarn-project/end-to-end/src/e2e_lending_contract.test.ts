@@ -328,6 +328,8 @@ describe('e2e_lending_contract', () => {
       const nonce = Fr.random();
       const messageHash = computeAuthWitMessageHash(
         lendingContract.address,
+        wallet.getChainId(),
+        wallet.getVersion(),
         stableCoin.methods.burn_public(lendingAccount.address, repayAmount, nonce).request(),
       );
 

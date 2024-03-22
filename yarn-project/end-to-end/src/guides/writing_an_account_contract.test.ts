@@ -34,10 +34,10 @@ class SchnorrHardcodedKeyAccountContract extends DefaultAccountContract {
   getAuthWitnessProvider(_address: CompleteAddress): AuthWitnessProvider {
     const privateKey = this.privateKey;
     return {
-      createAuthWit(message: Fr): Promise<AuthWitness> {
+      createAuthWit(messageHash: Fr): Promise<AuthWitness> {
         const signer = new Schnorr();
-        const signature = signer.constructSignature(message.toBuffer(), privateKey);
-        return Promise.resolve(new AuthWitness(message, [...signature.toBuffer()]));
+        const signature = signer.constructSignature(messageHash.toBuffer(), privateKey);
+        return Promise.resolve(new AuthWitness(messageHash, [...signature.toBuffer()]));
       },
     };
   }
