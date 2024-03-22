@@ -1,5 +1,7 @@
 mod validation_requests;
 mod validation_requests_builder;
+mod rollup_validation_requests;
 
 use validation_requests::ValidationRequests;
 use validation_requests_builder::ValidationRequestsBuilder;
+use rollup_validation_requests::RollupValidationRequests;

@@ -158,14 +158,15 @@ global GLOBAL_VARIABLES_LENGTH: u64 = 6;
 global HEADER_LENGTH: u64 = 20; // 2 for last_archive, 4 for content commitment, 8 for state reference, 6 for global vars
 global L1_TO_L2_MESSAGE_LENGTH: u64 = 6;
 global L2_TO_L1_MESSAGE_LENGTH: u64 = 2;
+global MAX_BLOCK_NUMBER_LENGTH: u64 = 2; // 1 for the option flag, 1 for the value
 global NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH = 4;
 global NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH = 5;
 global PARTIAL_STATE_REFERENCE_LENGTH: u64 = 6;
-global PRIVATE_CALL_STACK_ITEM_LENGTH: u64 = 208;
+global PRIVATE_CALL_STACK_ITEM_LENGTH: u64 = 210;
 // Change this ONLY if you have changed the PrivateCircuitPublicInputs structure.
 // In other words, if the structure/size of the public inputs of a function call changes then we should change this
 // constant as well PRIVATE_CALL_STACK_ITEM_LENGTH
-global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 205;
+global PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 207;
 // Change this ONLY if you have changed the PublicCircuitPublicInputs structure.
 global PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH: u64 = 198;
 global STATE_REFERENCE_LENGTH: u64 = 8; // 2 for snap + 8 for partial

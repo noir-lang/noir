@@ -362,6 +362,7 @@ export function getKernelDataFor(tx: ProcessedTx, vks: VerificationKeys): Rollup
     tx.data.aggregationObject,
     tx.data.combinedData,
     tx.data.constants,
+    tx.data.rollupValidationRequests,
   );
   return new RollupKernelData(
     inputs,

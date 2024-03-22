@@ -81,9 +81,9 @@ mod tests {
     use dep::types::{
         abis::{
         call_request::CallRequest, function_selector::FunctionSelector,
-        kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, public_data_read::PublicDataRead,
-        public_data_update_request::PublicDataUpdateRequest, public_call_data::PublicCallData,
-        read_request::ReadRequest
+        kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, max_block_number::MaxBlockNumber,
+        public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
+        public_call_data::PublicCallData, read_request::ReadRequest
     },
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
         contrakt::storage_read::StorageRead, hash::compute_logs_hash,
@@ -357,6 +357,8 @@ mod tests {
     fn circuit_outputs_should_be_correctly_populated_with_previous_private_kernel() {
         let mut builder = PublicKernelSetupCircuitPrivateInputsBuilder::new();
 
+        builder.previous_kernel.validation_requests.max_block_number = MaxBlockNumber::new(13);
+
         builder.public_call.append_public_call_requests_for_regular_calls(2);
         let storage = builder.public_call.public_call_stack.storage;
 
@@ -384,6 +386,7 @@ mod tests {
 
         let public_inputs = kernel.public_kernel_setup();
 
+        assert_eq(public_inputs.validation_requests.for_rollup.max_block_number.unwrap(), 13);
         assert_eq_call_requests(public_inputs.end.private_call_stack, []);
         assert_eq_call_requests(
             public_inputs.end_non_revertible.public_call_stack,

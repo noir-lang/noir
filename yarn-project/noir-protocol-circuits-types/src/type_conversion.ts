@@ -44,6 +44,7 @@ import {
   MAX_REVERTIBLE_NULLIFIERS_PER_TX,
   MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MaxBlockNumber,
   MembershipWitness,
   MergeRollupInputs,
   NULLIFIER_TREE_HEIGHT,
@@ -92,6 +93,7 @@ import {
   RevertCode,
   RollupKernelCircuitPublicInputs,
   RollupKernelData,
+  RollupValidationRequests,
   RootParityInput,
   RootParityInputs,
   RootRollupInputs,
@@ -121,6 +123,7 @@ import {
   FunctionSelector as FunctionSelectorNoir,
   GrumpkinPrivateKey as GrumpkinPrivateKeyNoir,
   L2ToL1Message as L2ToL1MessageNoir,
+  MaxBlockNumber as MaxBlockNumberNoir,
   AztecAddress as NoirAztecAddress,
   EthAddress as NoirEthAddress,
   Field as NoirField,
@@ -136,6 +139,7 @@ import {
   PublicDataUpdateRequest as PublicDataUpdateRequestNoir,
   ReadRequestContext as ReadRequestContextNoir,
   ReadRequest as ReadRequestNoir,
+  RollupValidationRequests as RollupValidationRequestsNoir,
   SideEffectLinkedToNoteHash as SideEffectLinkedToNoteHashNoir,
   SideEffect as SideEffectNoir,
   TxContext as TxContextNoir,
@@ -680,6 +684,7 @@ export function mapPrivateCircuitPublicInputsToNoir(
   privateCircuitPublicInputs: PrivateCircuitPublicInputs,
 ): PrivateCircuitPublicInputsNoir {
   return {
+    max_block_number: mapMaxBlockNumberToNoir(privateCircuitPublicInputs.maxBlockNumber),
     call_context: mapCallContextToNoir(privateCircuitPublicInputs.callContext),
     args_hash: mapFieldToNoir(privateCircuitPublicInputs.argsHash),
     return_values: mapTuple(privateCircuitPublicInputs.returnValues, mapFieldToNoir),
@@ -926,6 +931,7 @@ function mapNullifierNonExistentReadRequestHintsToNoir(
 
 function mapValidationRequestsToNoir(requests: ValidationRequests): ValidationRequestsNoir {
   return {
+    for_rollup: mapRollupValidationRequestsToNoir(requests.forRollup),
     note_hash_read_requests: mapTuple(requests.noteHashReadRequests, mapSideEffectToNoir),
     nullifier_read_requests: mapTuple(requests.nullifierReadRequests, mapReadRequestContextToNoir),
     nullifier_non_existent_read_requests: mapTuple(
@@ -942,6 +948,7 @@ function mapValidationRequestsToNoir(requests: ValidationRequests): ValidationRe
 
 function mapValidationRequestsFromNoir(requests: ValidationRequestsNoir): ValidationRequests {
   return new ValidationRequests(
+    mapRollupValidationRequestsFromNoir(requests.for_rollup),
     mapTupleFromNoir(requests.note_hash_read_requests, MAX_NOTE_HASH_READ_REQUESTS_PER_TX, mapSideEffectFromNoir),
     mapTupleFromNoir(
       requests.nullifier_read_requests,
@@ -960,6 +967,33 @@ function mapValidationRequestsFromNoir(requests: ValidationRequestsNoir): Valida
     ),
     mapTupleFromNoir(requests.public_data_reads, MAX_PUBLIC_DATA_READS_PER_TX, mapPublicDataReadFromNoir),
   );
+}
+
+export function mapRollupValidationRequestsToNoir(
+  rollupValidationRequests: RollupValidationRequests,
+): RollupValidationRequestsNoir {
+  return {
+    max_block_number: mapMaxBlockNumberToNoir(rollupValidationRequests.maxBlockNumber),
+  };
+}
+
+export function mapRollupValidationRequestsFromNoir(
+  rollupValidationRequests: RollupValidationRequestsNoir,
+): RollupValidationRequests {
+  return new RollupValidationRequests(mapMaxBlockNumberFromNoir(rollupValidationRequests.max_block_number));
+}
+
+export function mapMaxBlockNumberToNoir(maxBlockNumber: MaxBlockNumber): MaxBlockNumberNoir {
+  return {
+    _opt: {
+      _is_some: maxBlockNumber.isSome,
+      _value: mapFieldToNoir(maxBlockNumber.value),
+    },
+  };
+}
+
+export function mapMaxBlockNumberFromNoir(maxBlockNumber: MaxBlockNumberNoir): MaxBlockNumber {
+  return new MaxBlockNumber(maxBlockNumber._opt._is_some, mapFieldFromNoir(maxBlockNumber._opt._value));
 }
 
 /**
@@ -1156,6 +1190,7 @@ export function mapPublicKernelCircuitPublicInputsToNoir(
   return {
     aggregation_object: {},
     constants: mapCombinedConstantDataToNoir(inputs.constants),
+    rollup_validation_requests: mapRollupValidationRequestsToNoir(inputs.rollupValidationRequests),
     validation_requests: mapValidationRequestsToNoir(inputs.validationRequests),
     end: mapPublicAccumulatedRevertibleDataToNoir(inputs.end),
     end_non_revertible: mapPublicAccumulatedNonRevertibleDataToNoir(inputs.endNonRevertibleData),
@@ -1170,6 +1205,7 @@ export function mapRollupKernelCircuitPublicInputsToNoir(
 ): RollupKernelCircuitPublicInputsNoir {
   return {
     aggregation_object: {},
+    rollup_validation_requests: mapRollupValidationRequestsToNoir(inputs.rollupValidationRequests),
     constants: mapCombinedConstantDataToNoir(inputs.constants),
     end: mapCombinedAccumulatedDataToNoir(inputs.end),
   };
@@ -1298,6 +1334,7 @@ export function mapPrivateKernelTailCircuitPublicInputsFromNoir(
 ): PrivateKernelTailCircuitPublicInputs {
   return new PrivateKernelTailCircuitPublicInputs(
     AggregationObject.makeFake(),
+    mapRollupValidationRequestsFromNoir(inputs.rollup_validation_requests),
     mapAccumulatedNonRevertibleDataFromNoir(inputs.end_non_revertible),
     mapFinalAccumulatedDataFromNoir(inputs.end),
     mapCombinedConstantDataFromNoir(inputs.constants),
@@ -1312,6 +1349,7 @@ export function mapPrivateKernelTailCircuitPublicInputsToNoir(
 ): PrivateKernelTailCircuitPublicInputsNoir {
   return {
     aggregation_object: {},
+    rollup_validation_requests: mapRollupValidationRequestsToNoir(inputs.rollupValidationRequests),
     constants: mapCombinedConstantDataToNoir(inputs.constants),
     end: mapFinalAccumulatedDataToNoir(inputs.end),
     end_non_revertible: mapAccumulatedNonRevertibleDataToNoir(inputs.endNonRevertibleData),
@@ -1382,6 +1420,7 @@ export function mapPublicKernelCircuitPublicInputsFromNoir(
 ): PublicKernelCircuitPublicInputs {
   return new PublicKernelCircuitPublicInputs(
     AggregationObject.makeFake(),
+    mapRollupValidationRequestsFromNoir(inputs.rollup_validation_requests),
     mapValidationRequestsFromNoir(inputs.validation_requests),
     mapPublicAccumulatedNonRevertibleDataFromNoir(inputs.end_non_revertible),
     mapPublicAccumulatedRevertibleDataFromNoir(inputs.end),

@@ -110,6 +110,7 @@ export function getPreviousOutputAndProof(
   } else {
     const publicKernelPublicInput = new PublicKernelCircuitPublicInputs(
       tx.data.aggregationObject,
+      tx.data.rollupValidationRequests,
       ValidationRequests.empty(),
       PublicAccumulatedNonRevertibleData.fromPrivateAccumulatedNonRevertibleData(tx.data.endNonRevertibleData),
       PublicAccumulatedRevertibleData.fromPrivateAccumulatedRevertibleData(tx.data.end),

@@ -1,8 +1,8 @@
 // A contract used for testing a random hodgepodge of small features from simulator and end-to-end tests.
 contract Test {
     use dep::aztec::prelude::{
-        AztecAddress, EthAddress, NoteHeader, NoteGetterOptions, NoteViewerOptions, PrivateContext,
-        PrivateImmutable, PrivateSet
+        AztecAddress, EthAddress, FunctionSelector, NoteHeader, NoteGetterOptions, NoteViewerOptions,
+        PrivateContext, PrivateImmutable, PrivateSet
     };
 
     use dep::aztec::protocol_types::{
@@ -62,6 +62,25 @@ contract Test {
     fn get_this_address() -> AztecAddress {
         context.this_address()
     }
+
+    #[aztec(private)]
+    fn request_max_block_number(max_block_number: u32, enqueue_public_call: bool) {
+        // docs:start:request-max-block-number
+        context.request_max_block_number(max_block_number);
+        // docs:end:request-max-block-number
+
+        if enqueue_public_call {
+            let _ = context.call_public_function(
+                context.this_address(),
+                FunctionSelector::from_signature("dummy_public_call()"),
+                []
+            );
+        }
+    }
+
+    #[aztec(public)]
+    #[aztec(internal)]
+    fn dummy_public_call() {}
 
     #[aztec(private)]
     fn call_create_note(value: Field, owner: AztecAddress, storage_slot: Field) {

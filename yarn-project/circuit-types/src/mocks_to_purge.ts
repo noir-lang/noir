@@ -31,6 +31,7 @@ import {
   SideEffectLinkedToNoteHash,
   TxContext,
 } from '@aztec/circuits.js';
+import { makeRollupValidationRequests } from '@aztec/circuits.js/testing';
 import { makeHalfFullTuple, makeTuple, range } from '@aztec/foundation/array';
 
 import { makeHeader } from './l2_block_code_to_purge.js';
@@ -43,6 +44,7 @@ import { makeHeader } from './l2_block_code_to_purge.js';
 export function makePrivateKernelTailCircuitPublicInputs(seed = 1, full = true): PrivateKernelTailCircuitPublicInputs {
   return new PrivateKernelTailCircuitPublicInputs(
     makeAggregationObject(seed),
+    makeRollupValidationRequests(seed),
     makeAccumulatedNonRevertibleData(seed + 0x100, full),
     makeFinalAccumulatedData(seed + 0x200, full),
     makeConstantData(seed + 0x300),

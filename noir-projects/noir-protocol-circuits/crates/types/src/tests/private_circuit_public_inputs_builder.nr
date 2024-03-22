@@ -1,6 +1,7 @@
 use crate::{
     abis::{
-    call_context::CallContext, nullifier_key_validation_request::NullifierKeyValidationRequest,
+    call_context::CallContext, max_block_number::MaxBlockNumber,
+    nullifier_key_validation_request::NullifierKeyValidationRequest,
     private_circuit_public_inputs::PrivateCircuitPublicInputs, read_request::ReadRequest,
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
@@ -22,6 +23,8 @@ struct PrivateCircuitPublicInputsBuilder {
     return_values: BoundedVec<Field, RETURN_VALUES_LENGTH>,
 
     min_revertible_side_effect_counter: u32,
+
+    max_block_number: MaxBlockNumber,
 
     note_hash_read_requests: BoundedVec<SideEffect, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>,
     nullifier_read_requests: BoundedVec<ReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_CALL>,
@@ -84,6 +87,7 @@ impl PrivateCircuitPublicInputsBuilder {
             args_hash: self.args_hash,
             return_values: self.return_values.storage,
             min_revertible_side_effect_counter: self.min_revertible_side_effect_counter,
+            max_block_number: self.max_block_number,
             note_hash_read_requests: self.note_hash_read_requests.storage,
             nullifier_read_requests: self.nullifier_read_requests.storage,
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,

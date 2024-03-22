@@ -11,6 +11,7 @@ import {
 import { NullifierKeyValidationRequestContext } from './nullifier_key_validation_request.js';
 import { PublicDataRead } from './public_data_read_request.js';
 import { ReadRequestContext } from './read_request.js';
+import { RollupValidationRequests } from './rollup_validation_requests.js';
 import { SideEffect } from './side_effects.js';
 
 /**
@@ -18,6 +19,11 @@ import { SideEffect } from './side_effects.js';
  */
 export class ValidationRequests {
   constructor(
+    /**
+     * Validation requests that cannot be fulfilled in the current context (private or public), and must be instead be
+     * forwarded to the rollup for it to take care of them.
+     */
+    public forRollup: RollupValidationRequests,
     /**
      * All the read requests made in this transaction.
      */
@@ -48,6 +54,7 @@ export class ValidationRequests {
 
   toBuffer() {
     return serializeToBuffer(
+      this.forRollup,
       this.noteHashReadRequests,
       this.nullifierReadRequests,
       this.nullifierNonExistentReadRequests,
@@ -68,6 +75,7 @@ export class ValidationRequests {
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new ValidationRequests(
+      reader.readObject(RollupValidationRequests),
       reader.readArray(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, SideEffect),
       reader.readArray(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ReadRequestContext),
       reader.readArray(MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, ReadRequestContext),
@@ -87,6 +95,7 @@ export class ValidationRequests {
 
   static empty() {
     return new ValidationRequests(
+      RollupValidationRequests.empty(),
       makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, SideEffect.empty),
       makeTuple(MAX_NULLIFIER_READ_REQUESTS_PER_TX, ReadRequestContext.empty),
       makeTuple(MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, ReadRequestContext.empty),

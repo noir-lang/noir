@@ -1,5 +1,5 @@
 ---
-title: Function Context
+## title: Function Context
 ---
 
 # The Function Context
@@ -93,6 +93,14 @@ The `args_hash` is the result of pedersen hashing all of a function's inputs.
 The return values are a set of values that are returned from an applications execution to be passed to other functions through the kernel. Developers do not need to worry about passing their function return values to the `context` directly as `Aztec.nr` takes care of it for you. See the documentation surrounding `Aztec.nr` [macro expansion](./inner_workings.md#after-expansion) for more details.
 
     return_values : BoundedVec<Field, RETURN_VALUES_LENGTH>,
+
+## Max Block Number
+
+Some data structures impose time constraints, e.g. they may make it so that a value can only be changed after a certain delay. Interacting with these in private involves creating proofs that are only valid as long as they are included before a certain future point in time. To achieve this, the `request_max_block_number` function can be used to set this property:
+
+#include_code max-block-number /noir-projects/aztec-nr/aztec/src/context/private_context.nr rust
+
+A transaction that requests a maximum block number will never be included in a block with a block number larger than the requested value, since it would be considered invalid. This can also be used to make transactions automatically expire after some time if not included.
 
 ### Read Requests
 

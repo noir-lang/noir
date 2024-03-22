@@ -72,6 +72,17 @@ impl BaseRollupInputs {
             == self.constants.global_variables.version, "kernel version does not match the rollup version"
         );
 
+        let rollup_validation_requests = self.kernel_data.public_inputs.rollup_validation_requests;
+
+        // Verify the max block number
+        // TODO #5345: why is block_number a Field and not u32?
+        if rollup_validation_requests.max_block_number.is_some() {
+            assert(
+                self.constants.global_variables.block_number as u32
+                <= rollup_validation_requests.max_block_number.unwrap_unchecked(), "kernel max_block_number is smaller than block number"
+            );
+        }
+
         let commitments_tree_subroot = self.calculate_commitments_subtree();
 
         let empty_commitments_subtree_root = calculate_empty_tree_root(NOTE_HASH_SUBTREE_HEIGHT);
@@ -1003,6 +1014,30 @@ mod tests {
         let mut builder = BaseRollupInputsBuilder::new();
         builder.constants.global_variables.version = 3;
         builder.fails();
+    }
+
+    #[test(should_fail_with = "kernel max_block_number is smaller than block number")]
+    unconstrained fn constants_dont_satisfy_smaller_max_block_number() {
+        let mut builder = BaseRollupInputsBuilder::new();
+        builder.constants.global_variables.block_number = 42;
+        builder.kernel_data.set_max_block_number(5);
+        builder.fails();
+    }
+
+    #[test]
+    unconstrained fn constants_satisfy_equal_max_block_number() {
+        let mut builder = BaseRollupInputsBuilder::new();
+        builder.constants.global_variables.block_number = 42;
+        builder.kernel_data.set_max_block_number(42);
+        builder.succeeds();
+    }
+
+    #[test]
+    unconstrained fn constants_satisfy_larger_max_block_number() {
+        let mut builder = BaseRollupInputsBuilder::new();
+        builder.constants.global_variables.block_number = 42;
+        builder.kernel_data.set_max_block_number(4294967295);
+        builder.succeeds();
     }
 
     #[test]

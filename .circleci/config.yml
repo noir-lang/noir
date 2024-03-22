@@ -657,6 +657,18 @@ jobs:
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
+  e2e-max-block-number:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_max_block_number.test.ts
+          aztec_manifest_key: end-to-end
+
   e2e-multiple-accounts-1-enc-key:
     steps:
       - *checkout

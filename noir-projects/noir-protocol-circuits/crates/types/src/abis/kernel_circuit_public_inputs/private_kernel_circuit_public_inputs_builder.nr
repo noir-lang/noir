@@ -37,6 +37,7 @@ impl PrivateKernelCircuitPublicInputsBuilder {
             end_non_revertible,
             end,
             constants: self.constants,
+            rollup_validation_requests: self.validation_requests.to_rollup(),
             needs_setup: end_non_revertible.needs_setup(),
             needs_app_logic: end.needs_app_logic(),
             needs_teardown: end_non_revertible.needs_teardown()

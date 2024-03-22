@@ -11,7 +11,7 @@ use crate::{
 use dep::protocol_types::{
     abis::{
     call_context::CallContext, function_data::FunctionData, function_selector::FunctionSelector,
-    nullifier_key_validation_request::NullifierKeyValidationRequest,
+    max_block_number::MaxBlockNumber, nullifier_key_validation_request::NullifierKeyValidationRequest,
     private_call_stack_item::PrivateCallStackItem,
     private_circuit_public_inputs::PrivateCircuitPublicInputs,
     public_call_stack_item::PublicCallStackItem,
@@ -45,6 +45,8 @@ struct PrivateContext {
 
     args_hash : Field,
     return_values : BoundedVec<Field, RETURN_VALUES_LENGTH>,
+
+    max_block_number: MaxBlockNumber,
 
     note_hash_read_requests: BoundedVec<SideEffect, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>,
     nullifier_read_requests: BoundedVec<ReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_CALL>,
@@ -129,6 +131,7 @@ impl PrivateContext {
             min_revertible_side_effect_counter,
             args_hash,
             return_values: BoundedVec::new(),
+            max_block_number: MaxBlockNumber::default(),
             note_hash_read_requests: BoundedVec::new(),
             nullifier_read_requests: BoundedVec::new(),
             nullifier_key_validation_requests: BoundedVec::new(),
@@ -163,6 +166,7 @@ impl PrivateContext {
             args_hash: self.args_hash,
             return_values: self.return_values.storage,
             min_revertible_side_effect_counter: self.min_revertible_side_effect_counter,
+            max_block_number: self.max_block_number,
             note_hash_read_requests: self.note_hash_read_requests.storage,
             nullifier_read_requests: self.nullifier_read_requests.storage,
             nullifier_key_validation_requests: self.nullifier_key_validation_requests.storage,
@@ -186,6 +190,12 @@ impl PrivateContext {
 
     pub fn capture_min_revertible_side_effect_counter(&mut self) {
         self.min_revertible_side_effect_counter = self.side_effect_counter;
+    }
+
+    // docs:start:max-block-number
+    pub fn request_max_block_number(&mut self, max_block_number: u32) {
+        // docs:end:max-block-number
+        self.max_block_number = MaxBlockNumber::min_with_u32(self.max_block_number, max_block_number);
     }
 
     pub fn push_note_hash_read_request(&mut self, note_hash: Field) {

@@ -159,6 +159,32 @@ describe('TxValidator', () => {
     });
   });
 
+  describe('inspects tx max block number', () => {
+    it('rejects tx with lower max block number', async () => {
+      const badTx = maxBlockNumberTx(globalVariables.blockNumber.sub(new Fr(1)));
+
+      await expect(validator.validateTxs([badTx])).resolves.toEqual([[], [badTx]]);
+    });
+
+    it('allows tx with larger max block number', async () => {
+      const goodTx = maxBlockNumberTx(globalVariables.blockNumber.add(new Fr(1)));
+
+      await expect(validator.validateTxs([goodTx])).resolves.toEqual([[goodTx], []]);
+    });
+
+    it('allows tx with equal max block number', async () => {
+      const goodTx = maxBlockNumberTx(globalVariables.blockNumber);
+
+      await expect(validator.validateTxs([goodTx])).resolves.toEqual([[goodTx], []]);
+    });
+
+    it('allows tx with unset max block number', async () => {
+      const goodTx = nonFeePayingTx();
+
+      await expect(validator.validateTxs([goodTx])).resolves.toEqual([[goodTx], []]);
+    });
+  });
+
   // get unique txs that are also stable across test runs
   let txSeed = 1;
   /** Creates a mock tx for the current chain */
@@ -234,6 +260,16 @@ describe('TxValidator', () => {
     tx.data.endNonRevertibleData.publicCallStack[1] = feeExecutionFn.toCallRequest();
     tx.enqueuedPublicFunctionCalls[1] = feeExecutionFn;
     tx.data.needsTeardown = true;
+
+    return tx;
+  }
+
+  /** Create a tx that constraints its max block number */
+  function maxBlockNumberTx(maxBlockNumber: Fr) {
+    const tx = nonFeePayingTx();
+
+    tx.data.rollupValidationRequests.maxBlockNumber.isSome = true;
+    tx.data.rollupValidationRequests.maxBlockNumber.value = maxBlockNumber;
 
     return tx;
   }

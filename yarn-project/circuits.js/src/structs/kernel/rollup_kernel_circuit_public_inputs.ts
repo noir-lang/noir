@@ -1,6 +1,7 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { AggregationObject } from '../aggregation_object.js';
+import { RollupValidationRequests } from '../rollup_validation_requests.js';
 import { CombinedAccumulatedData } from './combined_accumulated_data.js';
 import { CombinedConstantData } from './combined_constant_data.js';
 
@@ -22,10 +23,14 @@ export class RollupKernelCircuitPublicInputs {
      * Data which is not modified by the circuits.
      */
     public constants: CombinedConstantData,
+    /**
+     * Validation requests accumulated from private and public execution to be completed by the rollup.
+     */
+    public rollupValidationRequests: RollupValidationRequests,
   ) {}
 
   toBuffer() {
-    return serializeToBuffer(this.aggregationObject, this.end, this.constants);
+    return serializeToBuffer(this.aggregationObject, this.end, this.constants, this.rollupValidationRequests);
   }
 
   /**
@@ -39,6 +44,7 @@ export class RollupKernelCircuitPublicInputs {
       reader.readObject(AggregationObject),
       reader.readObject(CombinedAccumulatedData),
       reader.readObject(CombinedConstantData),
+      reader.readObject(RollupValidationRequests),
     );
   }
 
@@ -47,6 +53,7 @@ export class RollupKernelCircuitPublicInputs {
       AggregationObject.makeFake(),
       CombinedAccumulatedData.empty(),
       CombinedConstantData.empty(),
+      RollupValidationRequests.empty(),
     );
   }
 }

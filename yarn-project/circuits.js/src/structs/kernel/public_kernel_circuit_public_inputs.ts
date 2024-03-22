@@ -3,6 +3,7 @@ import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { inspect } from 'util';
 
 import { AggregationObject } from '../aggregation_object.js';
+import { RollupValidationRequests } from '../rollup_validation_requests.js';
 import { ValidationRequests } from '../validation_requests.js';
 import {
   CombinedAccumulatedData,
@@ -23,6 +24,10 @@ export class PublicKernelCircuitPublicInputs {
      * Aggregated proof of all the previous kernel iterations.
      */
     public aggregationObject: AggregationObject, // Contains the aggregated proof of all previous kernel iterations
+    /**
+     * Validation requests forwarded to the rollup accumulated from public functions.
+     */
+    public rollupValidationRequests: RollupValidationRequests,
     /**
      * Validation requests accumulated from public functions.
      */
@@ -56,6 +61,7 @@ export class PublicKernelCircuitPublicInputs {
   toBuffer() {
     return serializeToBuffer(
       this.aggregationObject,
+      this.rollupValidationRequests,
       this.validationRequests,
       this.endNonRevertibleData,
       this.end,
@@ -86,6 +92,7 @@ export class PublicKernelCircuitPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new PublicKernelCircuitPublicInputs(
       reader.readObject(AggregationObject),
+      reader.readObject(RollupValidationRequests),
       reader.readObject(ValidationRequests),
       reader.readObject(PublicAccumulatedNonRevertibleData),
       reader.readObject(PublicAccumulatedRevertibleData),
@@ -99,6 +106,7 @@ export class PublicKernelCircuitPublicInputs {
   static empty() {
     return new PublicKernelCircuitPublicInputs(
       AggregationObject.makeFake(),
+      RollupValidationRequests.empty(),
       ValidationRequests.empty(),
       PublicAccumulatedNonRevertibleData.empty(),
       PublicAccumulatedRevertibleData.empty(),
@@ -112,6 +120,7 @@ export class PublicKernelCircuitPublicInputs {
   [inspect.custom]() {
     return `PublicKernelCircuitPublicInputs {
   aggregationObject: ${this.aggregationObject},
+  rollupValidationRequests: ${inspect(this.rollupValidationRequests)},
   validationRequests: ${inspect(this.validationRequests)},
   endNonRevertibleData: ${inspect(this.endNonRevertibleData)},
   end: ${inspect(this.end)},

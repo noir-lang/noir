@@ -8,8 +8,9 @@ use crate::{
     PublicKernelCircuitPublicInputs, RollupKernelCircuitPublicInputs
 },
     kernel_data::{PrivateKernelInnerData, PublicKernelData, RollupKernelData},
-    public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
-    read_request::ReadRequestContext, side_effect::{SideEffect, SideEffectLinkedToNoteHash},
+    max_block_number::MaxBlockNumber, public_data_read::PublicDataRead,
+    public_data_update_request::PublicDataUpdateRequest, read_request::ReadRequestContext,
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash},
     validation_requests::ValidationRequestsBuilder
 },
     address::{AztecAddress, EthAddress}, header::Header, hash::silo_nullifier,
@@ -80,6 +81,10 @@ impl PreviousKernelDataBuilder {
     pub fn is_public(&mut self) -> Self {
         self.is_private = false;
         *self
+    }
+
+    pub fn set_max_block_number(&mut self, max_block_number: u32) {
+        self.validation_requests.max_block_number = MaxBlockNumber::new(max_block_number);
     }
 
     pub fn append_public_data_update_requests(&mut self, num_updates: u64) {
@@ -293,6 +298,7 @@ impl PreviousKernelDataBuilder {
             end_non_revertible,
             end,
             validation_requests: self.validation_requests.finish(),
+            rollup_validation_requests: self.validation_requests.to_rollup(),
             constants: CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context },
             needs_setup: end_non_revertible.needs_setup(),
             needs_app_logic: end.needs_app_logic(),
@@ -306,7 +312,8 @@ impl PreviousKernelDataBuilder {
         let public_inputs = RollupKernelCircuitPublicInputs {
             aggregation_object: AggregationObject {},
             end: self.end.finish(),
-            constants: CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context }
+            constants: CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context },
+            rollup_validation_requests: self.validation_requests.to_rollup()
         };
 
         RollupKernelData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }

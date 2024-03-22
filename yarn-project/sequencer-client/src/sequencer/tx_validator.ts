@@ -76,6 +76,11 @@ export class TxValidator {
         continue;
       }
 
+      if (this.#validateMaxBlockNumber(tx) === INVALID_TX) {
+        invalidTxs.push(tx);
+        continue;
+      }
+
       validTxs.push(tx);
     }
 
@@ -184,5 +189,16 @@ export class TxValidator {
     }
 
     return VALID_TX;
+  }
+
+  #validateMaxBlockNumber(tx: Tx | ProcessedTx): TxValidationStatus {
+    const maxBlockNumber = tx.data.rollupValidationRequests.maxBlockNumber;
+
+    if (maxBlockNumber.isSome && maxBlockNumber.value < this.#globalVariables.blockNumber) {
+      this.#log.warn(`Rejecting tx ${Tx.getHash(tx)} for low max block number`);
+      return INVALID_TX;
+    } else {
+      return VALID_TX;
+    }
   }
 }

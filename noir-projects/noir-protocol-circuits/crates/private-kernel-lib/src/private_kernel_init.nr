@@ -391,6 +391,23 @@ mod tests {
     }
 
     #[test]
+    fn default_max_block_number() {
+        let mut builder = PrivateKernelInitInputsBuilder::new();
+        let public_inputs = builder.execute();
+
+        assert(public_inputs.validation_requests.for_rollup.max_block_number.is_none());
+    }
+
+    #[test]
+    fn propagate_max_block_number_request() {
+        let mut builder = PrivateKernelInitInputsBuilder::new();
+        builder.private_call.request_max_block_number(42);
+        let public_inputs = builder.execute();
+
+        assert_eq(public_inputs.validation_requests.for_rollup.max_block_number.unwrap(), 42);
+    }
+
+    #[test]
     fn native_no_note_hash_read_requests_works() {
         let mut builder = PrivateKernelInitInputsBuilder::new();
 

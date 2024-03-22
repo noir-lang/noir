@@ -76,8 +76,10 @@ pub fn initialize_emitted_end_values(
     circuit_outputs.end_non_revertible.new_nullifiers = array_to_bounded_vec(start_non_revertible.new_nullifiers);
     circuit_outputs.end_non_revertible.public_data_update_requests = array_to_bounded_vec(start_non_revertible.public_data_update_requests);
 
-    // TODO - should be propagated only in initialize_end_values() and clear them in the tail circuit.
+    // TODO - should be propagated only in initialize_end_values() and clear them in the tail circuit. The 
+    // max_block_number must be propagated to the rollup however as a RollupValidationRequest.
     let start = previous_kernel.public_inputs.validation_requests;
+    circuit_outputs.validation_requests.max_block_number = start.for_rollup.max_block_number;
     circuit_outputs.validation_requests.public_data_reads = array_to_bounded_vec(start.public_data_reads);
 }
 
@@ -99,6 +101,7 @@ pub fn initialize_end_values(
     circuit_outputs.end_non_revertible.public_call_stack = array_to_bounded_vec(start_non_revertible.public_call_stack);
 
     let start = previous_kernel.public_inputs.validation_requests;
+    circuit_outputs.validation_requests.max_block_number = previous_kernel.public_inputs.validation_requests.for_rollup.max_block_number;
     circuit_outputs.validation_requests.nullifier_read_requests = array_to_bounded_vec(start.nullifier_read_requests);
     circuit_outputs.validation_requests.nullifier_non_existent_read_requests = array_to_bounded_vec(start.nullifier_non_existent_read_requests);
 }
@@ -158,6 +161,7 @@ fn validate_call_requests<N>(
 }
 
 pub fn update_validation_requests(public_call: PublicCallData, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
+    // Note that the public kernel cannot modify the max block number value - it simply forwards it to the rollup
     propagate_nullifier_read_requests(public_call, circuit_outputs);
     propagate_nullifier_non_existent_read_requests(public_call, circuit_outputs);
     propagate_valid_public_data_reads(public_call, circuit_outputs);
