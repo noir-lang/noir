@@ -1,5 +1,5 @@
 use crate::{
-    context::Context, history::public_value_inclusion::prove_public_value_inclusion,
+    context::Context, history::public_storage::public_storage_historical_read,
     oracle::{storage::{storage_read, storage_write}}, state_vars::storage::Storage
 };
 use dep::protocol_types::{constants::INITIALIZATION_SLOT_SEPARATOR, traits::{Deserialize, Serialize}};
@@ -54,20 +54,15 @@ impl<T> SharedImmutable<T> {
         assert(self.context.public.is_none(), "Private read only supported in private functions");
         let private_context = self.context.private.unwrap();
 
-        // Read the value from storage (using the public tree)
-        let fields = storage_read(self.storage_slot);
+        let mut fields = [0; T_SERIALIZED_LEN];
 
-        // Loop over the fields and prove their inclusion in the public tree
         for i in 0..fields.len() {
-            // TODO: Update membership proofs to use current header (Requires #4179)
-            // Currently executing unnecessary computation:
-            // - a membership proof of the value in the public tree of the header 
-            prove_public_value_inclusion(
-                fields[i],
-                self.storage_slot + i as Field,
-                (*private_context).this_address(),
-                (*private_context)
-            )
+            fields[i] =
+                public_storage_historical_read(
+                    (*private_context),
+                    self.storage_slot + i as Field,
+                    (*private_context).this_address()
+                );
         }
         T::deserialize(fields)
     }
