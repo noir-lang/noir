@@ -19,7 +19,7 @@ import {
 } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
+import { getCanonicalClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
 import { CommitmentsDB, MessageLoadOracleInputs, PublicContractsDB, PublicStateDB } from '@aztec/simulator';
 import { ContractClassPublic, ContractDataSource, ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { MerkleTreeOperations } from '@aztec/world-state';
@@ -43,7 +43,7 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
   public addNewContracts(tx: Tx): Promise<void> {
     // Extract contract class and instance data from logs and add to cache for this block
     const logs = tx.unencryptedLogs.unrollLogs().map(UnencryptedL2Log.fromBuffer);
-    ContractClassRegisteredEvent.fromLogs(logs, ClassRegistererAddress).forEach(e => {
+    ContractClassRegisteredEvent.fromLogs(logs, getCanonicalClassRegistererAddress()).forEach(e => {
       this.log(`Adding class ${e.contractClassId.toString()} to public execution contract cache`);
       this.classCache.set(e.contractClassId.toString(), e.toContractClassPublic());
     });
@@ -66,7 +66,7 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
     // Let's say we have two txs adding the same contract on the same block. If the 2nd one reverts,
     // wouldn't that accidentally remove the contract added on the first one?
     const logs = tx.unencryptedLogs.unrollLogs().map(UnencryptedL2Log.fromBuffer);
-    ContractClassRegisteredEvent.fromLogs(logs, ClassRegistererAddress).forEach(e =>
+    ContractClassRegisteredEvent.fromLogs(logs, getCanonicalClassRegistererAddress()).forEach(e =>
       this.classCache.delete(e.contractClassId.toString()),
     );
     ContractInstanceDeployedEvent.fromLogs(logs).forEach(e => this.instanceCache.delete(e.address.toString()));
