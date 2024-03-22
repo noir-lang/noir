@@ -111,9 +111,13 @@ global BLOB_SIZE_IN_BYTES: Field = 126976;
 global MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS: u64 = 15000;
 // Bytecode size for private functions is per function, not for the entire contract.
 // Note that private functions bytecode includes a mix of acir and brillig.
-global MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS: u64 = 500;
+global MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS: u64 = 3000;
 // Same for unconstrained functions: the size is per function.
-global MAX_PACKED_BYTECODE_SIZE_PER_UNCONSTRAINED_FUNCTION_IN_FIELDS: u64 = 500;
+global MAX_PACKED_BYTECODE_SIZE_PER_UNCONSTRAINED_FUNCTION_IN_FIELDS: u64 = 3000;
+// How many fields are on the serialized ClassPrivateFunctionBroadcasted event in addition to MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS.
+global REGISTERER_PRIVATE_FUNCTION_BROADCASTED_ADDITIONAL_FIELDS: u64 = 19;
+// How many fields are on the serialized ClassUnconstrainedFunctionBroadcasted event in addition to MAX_PACKED_BYTECODE_SIZE_PER_UNCONSTRAINED_FUNCTION_IN_FIELDS.
+global REGISTERER_UNCONSTRAINED_FUNCTION_BROADCASTED_ADDITIONAL_FIELDS: u64 = 12;
 // Since we are not yet emitting selectors we'll use this magic value to identify events emitted by the ClassRegisterer.
 // This is just a stopgap until we implement proper selectors.
 // sha224sum 'struct ContractClassRegistered {contract_class_id: ContractClassId, version: Field, artifact_hash: Field, private_functions_root: Field, packed_public_bytecode: [Field; MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS] }'
@@ -126,7 +130,7 @@ global REGISTERER_UNCONSTRAINED_FUNCTION_BROADCASTED_MAGIC_VALUE = 0xe7af8166354
 // CONTRACT INSTANCE CONSTANTS
 // sha224sum 'struct ContractInstanceDeployed'
 global DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE = 0x85864497636cf755ae7bde03f267ce01a520981c21c3682aaf82a631;
-global DEPLOYER_CONTRACT_ADDRESS = 0x00de4d0d9913ddba5fbba9286031b4a5dc9b2af5e824154ae75938f96c1bfe78;
+global DEPLOYER_CONTRACT_ADDRESS = 0x127a8fd1a31888ccd00c88d84b93474449bb6683197083e1727dd02ab6803c6c;
 
 // NOIR CONSTANTS - constants used only in yarn-packages/noir-contracts
 // Some are defined here because Noir doesn't yet support globals referencing other globals yet.

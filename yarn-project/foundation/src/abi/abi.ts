@@ -165,7 +165,7 @@ export interface FunctionArtifact extends FunctionAbi {
   /**
    * The ACIR bytecode of the function.
    */
-  bytecode: string;
+  bytecode: Buffer;
   /**
    * The verification key of the function.
    */

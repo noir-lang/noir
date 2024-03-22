@@ -1,4 +1,4 @@
-import { getSampleContractInstanceDeployedEventPayload } from '../tests/fixtures.js';
+import { getSampleContractInstanceDeployedEventPayload } from '../../tests/fixtures.js';
 import { ContractInstanceDeployedEvent } from './contract_instance_deployed_event.js';
 
 describe('ContractInstanceDeployedEvent', () => {

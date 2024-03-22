@@ -3,8 +3,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { PrivateFunction } from '@aztec/types/contracts';
 
 import { FUNCTION_TREE_HEIGHT, GeneratorIndex } from '../constants.gen.js';
-import { MerkleTree } from '../merkle/merkle_tree.js';
-import { MerkleTreeCalculator } from '../merkle/merkle_tree_calculator.js';
+import { MerkleTree, MerkleTreeCalculator } from '../merkle/index.js';
 
 // Memoize the merkle tree calculators to avoid re-computing the zero-hash for each level in each call
 let privateFunctionTreeCalculator: MerkleTreeCalculator | undefined;

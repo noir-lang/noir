@@ -25,6 +25,18 @@ export function getSampleContractInstanceDeployedEventPayload(): Buffer {
   return Buffer.from(readFileSync(path).toString(), 'hex');
 }
 
+// Generated from end-to-end/src/e2e_deploy_contract.test.ts with AZTEC_GENERATE_TEST_DATA
+export function getSamplePrivateFunctionBroadcastedEventPayload(): Buffer {
+  const path = getPathToFixture('PrivateFunctionBroadcastedEventData.hex');
+  return Buffer.from(readFileSync(path).toString(), 'hex');
+}
+
+// Generated from end-to-end/src/e2e_deploy_contract.test.ts with AZTEC_GENERATE_TEST_DATA
+export function getSampleUnconstrainedFunctionBroadcastedEventPayload(): Buffer {
+  const path = getPathToFixture('UnconstrainedFunctionBroadcastedEventData.hex');
+  return Buffer.from(readFileSync(path).toString(), 'hex');
+}
+
 function getPathToFixture(name: string) {
   return resolve(dirname(fileURLToPath(import.meta.url)), `../../fixtures/${name}`);
 }

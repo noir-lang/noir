@@ -3,7 +3,13 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
-import { ContractClassPublic, PrivateFunction, PublicFunction } from '@aztec/types/contracts';
+import {
+  ContractClassPublic,
+  ExecutablePrivateFunctionWithMembershipProof,
+  PrivateFunction,
+  PublicFunction,
+  UnconstrainedFunctionWithMembershipProof,
+} from '@aztec/types/contracts';
 
 import { SchnorrSignature } from '../barretenberg/index.js';
 import {
@@ -1274,6 +1280,35 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
   });
 }
 
+export function makeExecutablePrivateFunctionWithMembershipProof(
+  seed = 0,
+): ExecutablePrivateFunctionWithMembershipProof {
+  return {
+    selector: makeSelector(seed),
+    bytecode: makeBytes(100, seed + 1),
+    artifactTreeSiblingPath: makeTuple(3, fr, seed + 2),
+    artifactTreeLeafIndex: seed + 2,
+    privateFunctionTreeSiblingPath: makeTuple(3, fr, seed + 3),
+    privateFunctionTreeLeafIndex: seed + 3,
+    artifactMetadataHash: fr(seed + 4),
+    functionMetadataHash: fr(seed + 5),
+    unconstrainedFunctionsArtifactTreeRoot: fr(seed + 6),
+    vkHash: fr(seed + 7),
+  };
+}
+
+export function makeUnconstrainedFunctionWithMembershipProof(seed = 0): UnconstrainedFunctionWithMembershipProof {
+  return {
+    selector: makeSelector(seed),
+    bytecode: makeBytes(100, seed + 1),
+    artifactTreeSiblingPath: makeTuple(3, fr, seed + 2),
+    artifactTreeLeafIndex: seed + 2,
+    artifactMetadataHash: fr(seed + 4),
+    functionMetadataHash: fr(seed + 5),
+    privateFunctionsArtifactTreeRoot: fr(seed + 6),
+  };
+}
+
 export function makeContractClassPublic(seed = 0): ContractClassPublic {
   const artifactHash = fr(seed + 1);
   const publicFunctions = makeTuple(3, makeContractClassPublicFunction, seed + 2);
@@ -1287,6 +1322,8 @@ export function makeContractClassPublic(seed = 0): ContractClassPublic {
     packedBytecode,
     privateFunctionsRoot,
     publicFunctions,
+    privateFunctions: [],
+    unconstrainedFunctions: [],
     version: 1,
   };
 }
@@ -1295,7 +1332,6 @@ function makeContractClassPublicFunction(seed = 0): PublicFunction {
   return {
     selector: FunctionSelector.fromField(fr(seed + 1)),
     bytecode: makeBytes(100, seed + 2),
-    isInternal: false,
   };
 }
 
@@ -1304,7 +1340,6 @@ function makeContractClassPrivateFunction(seed = 0): PrivateFunction {
   return {
     selector: FunctionSelector.fromField(fr(seed + 1)),
     vkHash: fr(seed + 2),
-    isInternal: false,
   };
 }
 

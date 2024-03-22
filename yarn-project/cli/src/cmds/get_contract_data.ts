@@ -26,7 +26,7 @@ export async function getContractData(
   });
 
   if (contractClass) {
-    log(`Bytecode: 0x${contractClass.packedBytecode.toString('hex')}`);
+    log(`Bytecode: ${contractClass.packedBytecode.toString('base64')}`);
   }
   log('\n');
 }

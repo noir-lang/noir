@@ -5,9 +5,10 @@ use dep::aztec::protocol_types::{
     constants::{
     FUNCTION_TREE_HEIGHT, ARTIFACT_FUNCTION_TREE_MAX_HEIGHT,
     MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS,
-    REGISTERER_PRIVATE_FUNCTION_BROADCASTED_MAGIC_VALUE
+    REGISTERER_PRIVATE_FUNCTION_BROADCASTED_MAGIC_VALUE,
+    REGISTERER_PRIVATE_FUNCTION_BROADCASTED_ADDITIONAL_FIELDS
 },
-    traits::{Serialize}
+    traits::Serialize
 };
 
 struct PrivateFunction {
@@ -36,13 +37,15 @@ struct ClassPrivateFunctionBroadcasted {
     artifact_metadata_hash: Field,
     unconstrained_functions_artifact_tree_root: Field,
     private_function_tree_sibling_path: [Field; FUNCTION_TREE_HEIGHT],
+    private_function_tree_leaf_index: Field,
     artifact_function_tree_sibling_path: [Field; ARTIFACT_FUNCTION_TREE_MAX_HEIGHT],
+    artifact_function_tree_leaf_index: Field,
     function: PrivateFunction
 }
 
-impl Serialize<MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS + 17> for ClassPrivateFunctionBroadcasted {
-    fn serialize(self: Self) -> [Field; MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS + 17] {
-        let mut packed = [0; MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS + 17];
+impl Serialize<MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS + REGISTERER_PRIVATE_FUNCTION_BROADCASTED_ADDITIONAL_FIELDS> for ClassPrivateFunctionBroadcasted {
+    fn serialize(self: Self) -> [Field; MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS + REGISTERER_PRIVATE_FUNCTION_BROADCASTED_ADDITIONAL_FIELDS] {
+        let mut packed = [0; MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS + REGISTERER_PRIVATE_FUNCTION_BROADCASTED_ADDITIONAL_FIELDS];
         packed[0] = REGISTERER_PRIVATE_FUNCTION_BROADCASTED_MAGIC_VALUE;
         packed[1] = self.contract_class_id.to_field();
         packed[2] = self.artifact_metadata_hash;
@@ -50,12 +53,14 @@ impl Serialize<MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS + 17> for
         for i in 0..FUNCTION_TREE_HEIGHT {
           packed[i + 4] = self.private_function_tree_sibling_path[i];
         }
+        packed[4 + FUNCTION_TREE_HEIGHT] = self.private_function_tree_leaf_index;
         for i in 0..ARTIFACT_FUNCTION_TREE_MAX_HEIGHT {
-          packed[i + 4 + FUNCTION_TREE_HEIGHT] = self.private_function_tree_sibling_path[i];
+          packed[i + 5 + FUNCTION_TREE_HEIGHT] = self.artifact_function_tree_sibling_path[i];
         }
+        packed[5 + ARTIFACT_FUNCTION_TREE_MAX_HEIGHT + FUNCTION_TREE_HEIGHT] = self.artifact_function_tree_leaf_index;
         let packed_function = self.function.serialize();
         for i in 0..MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS + 3 {
-            packed[i + 4 + ARTIFACT_FUNCTION_TREE_MAX_HEIGHT + FUNCTION_TREE_HEIGHT] = packed_function[i];
+            packed[i + 6 + ARTIFACT_FUNCTION_TREE_MAX_HEIGHT + FUNCTION_TREE_HEIGHT] = packed_function[i];
         }
         packed
     }

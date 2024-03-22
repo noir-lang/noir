@@ -25,7 +25,7 @@ export async function executeUnconstrainedFunction(
   const functionSelector = functionData.selector;
   log(`Executing unconstrained function ${contractAddress}:${functionSelector}`);
 
-  const acir = Buffer.from(artifact.bytecode, 'base64');
+  const acir = artifact.bytecode;
   const initialWitness = toACVMWitness(0, args);
   const { partialWitness } = await acvm(
     await AcirSimulator.getSolver(),

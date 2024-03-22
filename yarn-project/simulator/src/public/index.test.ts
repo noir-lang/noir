@@ -112,7 +112,7 @@ describe('ACIR public execution simulator', () => {
           sideEffectCounter: 0,
         });
 
-        publicContracts.getBytecode.mockResolvedValue(Buffer.from(mintArtifact.bytecode, 'base64'));
+        publicContracts.getBytecode.mockResolvedValue(mintArtifact.bytecode);
 
         // Mock the old value for the recipient balance to be 20
         const isMinter = new Fr(1n); // 1n means true
@@ -188,7 +188,7 @@ describe('ACIR public execution simulator', () => {
         recipientStorageSlot = computeSlotForMapping(new Fr(6n), recipient);
         senderStorageSlot = computeSlotForMapping(new Fr(6n), sender);
 
-        publicContracts.getBytecode.mockResolvedValue(Buffer.from(transferArtifact.bytecode, 'base64'));
+        publicContracts.getBytecode.mockResolvedValue(transferArtifact.bytecode);
 
         execution = { contractAddress, functionData, args, callContext };
       });
@@ -275,9 +275,9 @@ describe('ACIR public execution simulator', () => {
       // eslint-disable-next-line require-await
       publicContracts.getBytecode.mockImplementation(async (addr: AztecAddress, selector: FunctionSelector) => {
         if (addr.equals(parentContractAddress) && selector.equals(parentEntryPointFnSelector)) {
-          return Buffer.from(parentEntryPointFn.bytecode, 'base64');
+          return parentEntryPointFn.bytecode;
         } else if (addr.equals(childContractAddress) && selector.equals(childValueFnSelector)) {
-          return Buffer.from(childValueFn.bytecode, 'base64');
+          return childValueFn.bytecode;
         } else {
           return undefined;
         }
@@ -337,7 +337,7 @@ describe('ACIR public execution simulator', () => {
         sideEffectCounter: 0,
       });
 
-      publicContracts.getBytecode.mockResolvedValue(Buffer.from(shieldArtifact.bytecode, 'base64'));
+      publicContracts.getBytecode.mockResolvedValue(shieldArtifact.bytecode);
       // mock initial balance to be greater than the amount being sent
       publicState.storageRead.mockResolvedValue(amount);
 
@@ -371,7 +371,7 @@ describe('ACIR public execution simulator', () => {
         sideEffectCounter: 0,
       });
 
-      publicContracts.getBytecode.mockResolvedValue(Buffer.from(createL2ToL1MessagePublicArtifact.bytecode, 'base64'));
+      publicContracts.getBytecode.mockResolvedValue(createL2ToL1MessagePublicArtifact.bytecode);
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
       const result = await executor.simulate(execution, GlobalVariables.empty());
@@ -401,7 +401,7 @@ describe('ACIR public execution simulator', () => {
         sideEffectCounter: 0,
       });
 
-      publicContracts.getBytecode.mockResolvedValue(Buffer.from(createNullifierPublicArtifact.bytecode, 'base64'));
+      publicContracts.getBytecode.mockResolvedValue(createNullifierPublicArtifact.bytecode);
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
       const result = await executor.simulate(execution, GlobalVariables.empty());
@@ -469,7 +469,7 @@ describe('ACIR public execution simulator', () => {
         );
 
       const mockOracles = (updateState = true) => {
-        publicContracts.getBytecode.mockResolvedValue(Buffer.from(mintPublicArtifact.bytecode, 'base64'));
+        publicContracts.getBytecode.mockResolvedValue(mintPublicArtifact.bytecode);
         publicState.storageRead.mockResolvedValue(Fr.ZERO);
 
         const siblingPathBuffers = Array(L1_TO_L2_MSG_TREE_HEIGHT)
@@ -661,7 +661,7 @@ describe('ACIR public execution simulator', () => {
     });
 
     beforeEach(() => {
-      publicContracts.getBytecode.mockResolvedValue(Buffer.from(assertGlobalVarsArtifact.bytecode, 'base64'));
+      publicContracts.getBytecode.mockResolvedValue(assertGlobalVarsArtifact.bytecode);
     });
 
     // Note: Order here has to match the order of the properties in GlobalVariables.getFields(...) function.
@@ -744,7 +744,7 @@ describe('ACIR public execution simulator', () => {
     });
 
     beforeEach(() => {
-      publicContracts.getBytecode.mockResolvedValue(Buffer.from(assertHeaderPublicArtifact.bytecode, 'base64'));
+      publicContracts.getBytecode.mockResolvedValue(assertHeaderPublicArtifact.bytecode);
     });
 
     it('Header is correctly set', () => {

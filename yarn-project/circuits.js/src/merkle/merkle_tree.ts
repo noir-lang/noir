@@ -45,4 +45,28 @@ export class MerkleTree {
   public getIndex(element: Buffer) {
     return this.leaves.findIndex(leaf => leaf.equals(element));
   }
+
+  /** Returns a nice string representation of the tree, useful for debugging purposes. */
+  public drawTree() {
+    const levels: string[][] = [];
+    const tree = this.nodes;
+    const maxRowSize = Math.ceil(tree.length / 2);
+    let paddingSize = 1;
+    let rowSize = maxRowSize;
+    let rowOffset = 0;
+    while (rowSize > 0) {
+      levels.push(
+        tree
+          .slice(rowOffset, rowOffset + rowSize)
+          .map(n => n.toString('hex').slice(0, 8) + ' '.repeat((paddingSize - 1) * 9)),
+      );
+      rowOffset += rowSize;
+      paddingSize <<= 1;
+      rowSize >>= 1;
+    }
+    return levels
+      .reverse()
+      .map(row => row.join(' '))
+      .join('\n');
+  }
 }

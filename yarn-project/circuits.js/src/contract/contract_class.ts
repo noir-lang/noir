@@ -1,4 +1,4 @@
-import { ContractArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { ContractArtifact, FunctionArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { ContractClass, ContractClassWithId } from '@aztec/types/contracts';
 
@@ -21,8 +21,7 @@ export function getContractClassFromArtifact(
     .filter(f => f.functionType === FunctionType.OPEN)
     .map(f => ({
       selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
-      bytecode: Buffer.from(f.bytecode, 'base64'),
-      isInternal: f.isInternal,
+      bytecode: f.bytecode,
     }))
     .sort(cmpFunctionArtifacts);
 
@@ -30,11 +29,7 @@ export function getContractClassFromArtifact(
 
   const privateFunctions: ContractClass['privateFunctions'] = artifact.functions
     .filter(f => f.functionType === FunctionType.SECRET)
-    .map(f => ({
-      selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
-      vkHash: getVerificationKeyHash(f.verificationKey!),
-      isInternal: f.isInternal,
-    }))
+    .map(getContractClassPrivateFunctionFromArtifact)
     .sort(cmpFunctionArtifacts);
 
   const contractClass: ContractClass = {
@@ -47,11 +42,20 @@ export function getContractClassFromArtifact(
   return { ...contractClass, ...computeContractClassIdWithPreimage(contractClass) };
 }
 
+export function getContractClassPrivateFunctionFromArtifact(
+  f: FunctionArtifact,
+): ContractClass['privateFunctions'][number] {
+  return {
+    selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
+    vkHash: computeVerificationKeyHash(f.verificationKey!),
+  };
+}
+
 /**
  * Calculates the hash of a verification key.
  * Returns zero for consistency with Noir.
  */
-function getVerificationKeyHash(_verificationKeyInBase64: string) {
+export function computeVerificationKeyHash(_verificationKeyInBase64: string) {
   // return Fr.fromBuffer(hashVK(Buffer.from(verificationKeyInBase64, 'hex')));
   return Fr.ZERO;
 }

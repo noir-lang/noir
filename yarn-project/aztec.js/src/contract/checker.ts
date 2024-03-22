@@ -25,7 +25,7 @@ export function abiChecker(artifact: ContractArtifact) {
     }
 
     // TODO: implement a better check for bytecode (right now only checks if it's > 0)
-    if (!('bytecode' in func && typeof func.bytecode === 'string' && func.bytecode.length > 0)) {
+    if (!('bytecode' in func && func.bytecode.length > 0)) {
       throw new Error('ABI function parameter has incorrect bytecode');
     }
 

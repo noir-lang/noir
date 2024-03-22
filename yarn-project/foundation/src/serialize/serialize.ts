@@ -162,8 +162,10 @@ export function serializeToBufferArray(...objs: Bufferable[]): Buffer[] {
     } else if (typeof obj === 'string') {
       ret.push(numToUInt32BE(obj.length));
       ret.push(Buffer.from(obj));
-    } else {
+    } else if ('toBuffer' in obj) {
       ret.push(obj.toBuffer());
+    } else {
+      throw new Error(`Cannot serialize input to buffer: ${typeof obj} ${(obj as any).constructor?.name}`);
     }
   }
   return ret;

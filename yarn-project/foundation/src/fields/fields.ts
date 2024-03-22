@@ -355,3 +355,8 @@ function extendedEuclidean(a: bigint, modulus: bigint): [bigint, bigint, bigint]
  */
 export type GrumpkinScalar = Fq;
 export const GrumpkinScalar = Fq;
+
+/** Wraps a function that returns a buffer so that all results are reduced into a field of the given type. */
+export function reduceFn<TInput, TField extends BaseField>(fn: (input: TInput) => Buffer, field: DerivedField<TField>) {
+  return (input: TInput) => fromBufferReduce(fn(input), field);
+}

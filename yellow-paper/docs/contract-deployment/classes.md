@@ -165,7 +165,9 @@ function broadcast_private_function(
   artifact_metadata_hash: Field,
   unconstrained_functions_artifact_tree_root: Field,
   private_function_tree_sibling_path: Field[],
+  private_function_tree_leaf_index: Field,
   artifact_function_tree_sibling_path: Field[],
+  artifact_function_tree_leaf_index: Field,
   function: { selector: Field, metadata_hash: Field, vk_hash: Field, bytecode: Field[] },
 )
   emit_unencrypted_event ClassPrivateFunctionBroadcasted(
@@ -173,7 +175,9 @@ function broadcast_private_function(
     artifact_metadata_hash,
     unconstrained_functions_artifact_tree_root,
     private_function_tree_sibling_path,
+    private_function_tree_leaf_index,
     artifact_function_tree_sibling_path,
+    artifact_function_tree_leaf_index,
     function,
   )
 ```
@@ -184,6 +188,7 @@ function broadcast_unconstrained_function(
   artifact_metadata_hash: Field,
   private_functions_artifact_tree_root: Field,
   artifact_function_tree_sibling_path: Field[],
+  artifact_function_tree_leaf_index: Field
   function: { selector: Field, metadata_hash: Field, bytecode: Field[] }[],
 )
   emit_unencrypted_event ClassUnconstrainedFunctionBroadcasted(
@@ -191,6 +196,7 @@ function broadcast_unconstrained_function(
     artifact_metadata_hash,
     private_functions_artifact_tree_root,
     artifact_function_tree_sibling_path,
+    artifact_function_tree_leaf_index,
     function,
   )
 ```
@@ -207,12 +213,12 @@ contract_class = db.get_contract_class(contract_class_id)
 
 // Compute function leaf and assert it belongs to the private functions tree
 function_leaf = pedersen([selector as Field, vk_hash], GENERATOR__FUNCTION_LEAF)
-computed_private_function_tree_root = compute_root(function_leaf, private_function_tree_sibling_path)
+computed_private_function_tree_root = compute_root(function_leaf, private_function_tree_sibling_path, private_function_tree_leaf_index)
 assert computed_private_function_tree_root == contract_class.private_function_root
 
 // Compute artifact leaf and assert it belongs to the artifact
 artifact_function_leaf = sha256(selector, metadata_hash, sha256(bytecode))
-computed_artifact_private_function_tree_root = compute_root(artifact_function_leaf, artifact_function_tree_sibling_path)
+computed_artifact_private_function_tree_root = compute_root(artifact_function_leaf, artifact_function_tree_sibling_path, artifact_function_tree_leaf_index)
 computed_artifact_hash = sha256(computed_artifact_private_function_tree_root, unconstrained_functions_artifact_tree_root, artifact_metadata_hash)
 assert computed_artifact_hash == contract_class.artifact_hash
 ```
@@ -227,7 +233,7 @@ contract_class = db.get_contract_class(contract_class_id)
 
 // Compute artifact leaf and assert it belongs to the artifact
 artifact_function_leaf = sha256(selector, metadata_hash, sha256(bytecode))
-computed_artifact_unconstrained_function_tree_root = compute_root(artifact_function_leaf, artifact_function_tree_sibling_path)
+computed_artifact_unconstrained_function_tree_root = compute_root(artifact_function_leaf, artifact_function_tree_sibling_path, artifact_function_tree_leaf_index)
 computed_artifact_hash = sha256(private_functions_artifact_tree_root, computed_artifact_unconstrained_function_tree_root, artifact_metadata_hash)
 assert computed_artifact_hash == contract_class.artifact_hash
 ```

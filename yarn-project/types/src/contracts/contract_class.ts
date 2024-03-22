@@ -1,6 +1,5 @@
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
-import { PartialBy } from '@aztec/foundation/types';
 
 const VERSION = 1 as const;
 
@@ -28,11 +27,6 @@ export interface PrivateFunction {
   selector: FunctionSelector;
   /** Hash of the verification key associated to this private function. */
   vkHash: Fr;
-  /**
-   * Whether the function is internal.
-   * @deprecated To be reimplemented as an app-level macro.
-   */
-  isInternal: boolean;
 }
 
 /** Public function definition within a contract class. */
@@ -41,11 +35,14 @@ export interface PublicFunction {
   selector: FunctionSelector;
   /** Public bytecode. */
   bytecode: Buffer;
-  /**
-   * Whether the function is internal.
-   * @deprecated To be reimplemented as an app-level macro.
-   */
-  isInternal: boolean;
+}
+
+/** Unconstrained function definition. */
+export interface UnconstrainedFunction {
+  /** Selector of the function. Calculated as the hash of the method name and parameters. The specification of this is not enforced by the protocol. */
+  selector: FunctionSelector;
+  /** Brillig. */
+  bytecode: Buffer;
 }
 
 /** Commitments to fields of a contract class. */
@@ -61,6 +58,41 @@ interface ContractClassCommitments {
 /** A contract class with its precomputed id. */
 export type ContractClassWithId = ContractClass & Pick<ContractClassCommitments, 'id'>;
 
-/** A contract class with public bytecode information only. */
-export type ContractClassPublic = PartialBy<ContractClass, 'privateFunctions'> &
-  Pick<ContractClassCommitments, 'id' | 'privateFunctionsRoot'>;
+/** A contract class with public bytecode information, and optional private and unconstrained. */
+export type ContractClassPublic = {
+  privateFunctions: ExecutablePrivateFunctionWithMembershipProof[];
+  unconstrainedFunctions: UnconstrainedFunctionWithMembershipProof[];
+} & Pick<ContractClassCommitments, 'id' | 'privateFunctionsRoot'> &
+  Omit<ContractClass, 'privateFunctions'>;
+
+/** Private function definition with executable bytecode. */
+export interface ExecutablePrivateFunction extends PrivateFunction {
+  /** ACIR and Brillig bytecode */
+  bytecode: Buffer;
+}
+
+/** Sibling paths and sibling commitments for proving membership of a private function within a contract class. */
+export type PrivateFunctionMembershipProof = {
+  artifactMetadataHash: Fr;
+  functionMetadataHash: Fr;
+  unconstrainedFunctionsArtifactTreeRoot: Fr;
+  privateFunctionTreeSiblingPath: Fr[];
+  privateFunctionTreeLeafIndex: number;
+  artifactTreeSiblingPath: Fr[];
+  artifactTreeLeafIndex: number;
+};
+
+/** A private function with a memebership proof. */
+export type ExecutablePrivateFunctionWithMembershipProof = ExecutablePrivateFunction & PrivateFunctionMembershipProof;
+
+/** Sibling paths and commitments for proving membership of an unconstrained function within a contract class. */
+export type UnconstrainedFunctionMembershipProof = {
+  artifactMetadataHash: Fr;
+  functionMetadataHash: Fr;
+  privateFunctionsArtifactTreeRoot: Fr;
+  artifactTreeSiblingPath: Fr[];
+  artifactTreeLeafIndex: number;
+};
+
+/** An unconstrained function with a membership proof. */
+export type UnconstrainedFunctionWithMembershipProof = UnconstrainedFunction & UnconstrainedFunctionMembershipProof;

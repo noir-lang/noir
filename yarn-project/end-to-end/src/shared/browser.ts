@@ -4,6 +4,7 @@ import * as AztecAccountsSingleKey from '@aztec/accounts/single_key';
 import * as AztecAccountsTesting from '@aztec/accounts/testing';
 import * as AztecJs from '@aztec/aztec.js';
 import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
+import { contractArtifactToBuffer } from '@aztec/types/abi';
 
 import { Server } from 'http';
 import Koa from 'koa';
@@ -19,7 +20,10 @@ declare global {
     /**
      * The aztec.js library.
      */
-    AztecJs: typeof AztecJs & typeof AztecAccountsSingleKey & typeof AztecAccountsTesting & typeof AztecAccountsSchnorr;
+    AztecJs: { Buffer: typeof Buffer } & typeof AztecJs &
+      typeof AztecAccountsSingleKey &
+      typeof AztecAccountsTesting &
+      typeof AztecAccountsSchnorr;
   }
 }
 
@@ -207,7 +211,7 @@ export const browserTestSuite = (
 
     const deployTokenContract = async () => {
       const [txHash, tokenAddress] = await page.evaluate(
-        async (rpcUrl, initialBalance, TokenContractArtifact) => {
+        async (rpcUrl, initialBalance, serializedTokenContractArtifact) => {
           const {
             DeployMethod,
             createPXEClient,
@@ -221,7 +225,13 @@ export const browserTestSuite = (
             INITIAL_TEST_ENCRYPTION_KEYS,
             INITIAL_TEST_SIGNING_KEYS,
             INITIAL_TEST_ACCOUNT_SALTS,
+            Buffer,
           } = window.AztecJs;
+          // We serialize the artifact since buffers (used for bytecode) do not cross well from one realm to another
+          const TokenContractArtifact = JSON.parse(
+            Buffer.from(serializedTokenContractArtifact, 'base64').toString('utf-8'),
+            (key, value) => (key === 'bytecode' && typeof value === 'string' ? Buffer.from(value, 'base64') : value),
+          );
           const pxe = createPXEClient(rpcUrl!);
 
           // we need to ensure that a known account is present in order to create a wallet
@@ -271,7 +281,7 @@ export const browserTestSuite = (
         },
         pxeURL,
         initialBalance,
-        TokenContractArtifact,
+        contractArtifactToBuffer(TokenContractArtifact).toString('base64'),
       );
 
       const txResult = await testClient.getTxReceipt(AztecJs.TxHash.fromString(txHash));

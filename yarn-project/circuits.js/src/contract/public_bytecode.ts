@@ -15,7 +15,7 @@ import { FUNCTION_SELECTOR_NUM_BYTES } from '../constants.gen.js';
  */
 export function packBytecode(publicFns: ContractClass['publicFunctions']): Buffer {
   return serializeArrayOfBufferableToVector(
-    publicFns.map(fn => serializeToBuffer(fn.selector, fn.isInternal, numToInt32BE(fn.bytecode.length), fn.bytecode)),
+    publicFns.map(fn => serializeToBuffer(fn.selector, numToInt32BE(fn.bytecode.length), fn.bytecode)),
   );
 }
 
@@ -28,7 +28,6 @@ export function unpackBytecode(buffer: Buffer): ContractClass['publicFunctions']
   return reader.readVector({
     fromBuffer: (reader: BufferReader) => ({
       selector: FunctionSelector.fromBuffer(reader.readBytes(FUNCTION_SELECTOR_NUM_BYTES)),
-      isInternal: reader.readBoolean(),
       bytecode: reader.readBuffer(),
     }),
   });

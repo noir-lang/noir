@@ -96,6 +96,7 @@ __metadata:
     "@jest/globals": ^29.5.0
     "@types/debug": ^4.1.7
     "@types/jest": ^29.5.0
+    "@types/lodash.groupby": ^4.6.9
     "@types/lodash.omit": ^4.5.7
     "@types/node": ^18.15.11
     "@types/ws": ^8.5.4
@@ -104,6 +105,7 @@ __metadata:
     jest: ^29.5.0
     jest-mock-extended: ^3.0.4
     lmdb: ^2.9.2
+    lodash.groupby: ^4.6.0
     lodash.omit: ^4.5.0
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
@@ -3424,6 +3426,15 @@ __metadata:
   dependencies:
     "@types/lodash": "*"
   checksum: 9239e078c1aba47ead8d3232d46869a6b9e886387c92c8d9a0a1549b7f21864cfa8428b5725ebbfcd31e5c54761a6fa3d4bbe049a776fe3e973cb10d967fbd0c
+  languageName: node
+  linkType: hard
+
+"@types/lodash.groupby@npm:^4.6.9":
+  version: 4.6.9
+  resolution: "@types/lodash.groupby@npm:4.6.9"
+  dependencies:
+    "@types/lodash": "*"
+  checksum: b8310a9f89badc42a504887ca0b9619c2a284b3fec8dc505cf72508eb6beba47b822df939c7d57c0f69bc685f51ff5a232e0480ecad6b18b7ab76fecc1d74691
   languageName: node
   linkType: hard
 
@@ -9594,6 +9605,13 @@ __metadata:
   version: 4.6.0
   resolution: "lodash.every@npm:4.6.0"
   checksum: bfb96426ccdf05ef230339ba57400c59a60a16ce6a4f41f50eb89e7ba612686900fcaf1c3a28f907a8ba993b96da681303bd622cdcadfc7d60e1f0f098384aa4
+  languageName: node
+  linkType: hard
+
+"lodash.groupby@npm:^4.6.0":
+  version: 4.6.0
+  resolution: "lodash.groupby@npm:4.6.0"
+  checksum: e2d4d13d12790a1cacab3f5f120b7c072a792224e83b2f403218866d18efde76024b2579996dfebb230a61ce06469332e16639103669a35a605287e19ced6b9b
   languageName: node
   linkType: hard
 

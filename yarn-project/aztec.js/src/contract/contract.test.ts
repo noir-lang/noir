@@ -63,7 +63,7 @@ describe('Contract Class', () => {
           },
         ],
         returnTypes: [],
-        bytecode: '0af',
+        bytecode: Buffer.alloc(8, 0xfa),
       },
       {
         name: 'baz',
@@ -72,7 +72,7 @@ describe('Contract Class', () => {
         isInternal: false,
         parameters: [],
         returnTypes: [],
-        bytecode: '0be',
+        bytecode: Buffer.alloc(8, 0xfb),
         debugSymbols: '',
       },
       {
@@ -96,7 +96,7 @@ describe('Contract Class', () => {
             width: 32,
           },
         ],
-        bytecode: '0cd',
+        bytecode: Buffer.alloc(8, 0xfc),
         debugSymbols: '',
       },
     ],

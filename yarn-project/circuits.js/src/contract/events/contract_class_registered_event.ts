@@ -7,9 +7,9 @@ import { ContractClassPublic } from '@aztec/types/contracts';
 
 import chunk from 'lodash.chunk';
 
-import { REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE } from '../constants.gen.js';
-import { computeContractClassId, computePublicBytecodeCommitment } from './contract_class_id.js';
-import { unpackBytecode } from './public_bytecode.js';
+import { REGISTERER_CONTRACT_CLASS_REGISTERED_MAGIC_VALUE } from '../../constants.gen.js';
+import { computeContractClassId, computePublicBytecodeCommitment } from '../contract_class_id.js';
+import { unpackBytecode } from '../public_bytecode.js';
 
 /** Event emitted from the ContractClassRegisterer. */
 export class ContractClassRegisteredEvent {
@@ -80,6 +80,8 @@ export class ContractClassRegisteredEvent {
       privateFunctionsRoot: this.privateFunctionsRoot,
       publicFunctions: unpackBytecode(this.packedPublicBytecode),
       version: this.version,
+      privateFunctions: [],
+      unconstrainedFunctions: [],
     };
   }
 }

@@ -13,16 +13,19 @@
     "./noir": "./dest/noir/index.js"
   },
   "scripts": {
-    "build": "yarn clean && tsc -b",
+    "build": "yarn clean && yarn generate && tsc -b",
     "build:dev": "tsc -b --watch",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test:light": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
+    "generate": "yarn generate:noir-contracts",
+    "generate:noir-contracts": "./scripts/copy-contracts.sh"
   },
   "inherits": [
-    "../package.common.json"
+    "../package.common.json",
+    "./package.local.json"
   ],
   "jest": {
     "preset": "ts-jest/presets/default-esm",

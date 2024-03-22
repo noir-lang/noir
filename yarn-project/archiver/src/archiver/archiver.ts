@@ -13,7 +13,13 @@ import {
   UnencryptedL2Log,
 } from '@aztec/circuit-types';
 import { ContractClassRegisteredEvent, FunctionSelector } from '@aztec/circuits.js';
-import { ContractInstanceDeployedEvent } from '@aztec/circuits.js/contract';
+import {
+  ContractInstanceDeployedEvent,
+  PrivateFunctionBroadcastedEvent,
+  UnconstrainedFunctionBroadcastedEvent,
+  isValidPrivateFunctionMembershipProof,
+  isValidUnconstrainedFunctionMembershipProof,
+} from '@aztec/circuits.js/contract';
 import { createEthereumChain } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -25,9 +31,12 @@ import {
   ContractClassPublic,
   ContractDataSource,
   ContractInstanceWithAddress,
+  ExecutablePrivateFunctionWithMembershipProof,
   PublicFunction,
+  UnconstrainedFunctionWithMembershipProof,
 } from '@aztec/types/contracts';
 
+import groupBy from 'lodash.groupby';
 import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
 
 import { ArchiverDataStore } from './archiver_store.js';
@@ -54,11 +63,6 @@ export class Archiver implements ArchiveSource {
    * A promise in which we will be continually fetching new L2 blocks.
    */
   private runningPromise?: RunningPromise;
-
-  /**
-   * Use this to track logged block in order to avoid repeating the same message.
-   */
-  private lastLoggedL1BlockNumber = 0n;
 
   /**
    * Creates a new instance of the Archiver.
@@ -276,6 +280,7 @@ export class Archiver implements ArchiveSource {
           .map(log => UnencryptedL2Log.fromBuffer(log));
         await this.storeRegisteredContractClasses(blockLogs, block.number);
         await this.storeDeployedContractInstances(blockLogs, block.number);
+        await this.storeBroadcastedIndividualFunctions(blockLogs, block.number);
       }),
     );
 
@@ -305,6 +310,50 @@ export class Archiver implements ArchiveSource {
     if (contractInstances.length > 0) {
       contractInstances.forEach(c => this.log(`Storing contract instance at ${c.address.toString()}`));
       await this.store.addContractInstances(contractInstances, blockNum);
+    }
+  }
+
+  private async storeBroadcastedIndividualFunctions(allLogs: UnencryptedL2Log[], _blockNum: number) {
+    // Filter out private and unconstrained function broadcast events
+    const privateFnEvents = PrivateFunctionBroadcastedEvent.fromLogs(allLogs, getCanonicalClassRegistererAddress());
+    const unconstrainedFnEvents = UnconstrainedFunctionBroadcastedEvent.fromLogs(
+      allLogs,
+      getCanonicalClassRegistererAddress(),
+    );
+
+    // Group all events by contract class id
+    for (const [classIdString, classEvents] of Object.entries(
+      groupBy([...privateFnEvents, ...unconstrainedFnEvents], e => e.contractClassId.toString()),
+    )) {
+      const contractClassId = Fr.fromString(classIdString);
+      const contractClass = await this.store.getContractClass(contractClassId);
+      if (!contractClass) {
+        this.log.warn(`Skipping broadcasted functions as contract class ${contractClassId.toString()} was not found`);
+        continue;
+      }
+
+      // Split private and unconstrained functions, and filter out invalid ones
+      const allFns = classEvents.map(e => e.toFunctionWithMembershipProof());
+      const privateFns = allFns.filter(
+        (fn): fn is ExecutablePrivateFunctionWithMembershipProof => 'unconstrainedFunctionsArtifactTreeRoot' in fn,
+      );
+      const unconstrainedFns = allFns.filter(
+        (fn): fn is UnconstrainedFunctionWithMembershipProof => 'privateFunctionsArtifactTreeRoot' in fn,
+      );
+      const validPrivateFns = privateFns.filter(fn => isValidPrivateFunctionMembershipProof(fn, contractClass));
+      const validUnconstrainedFns = unconstrainedFns.filter(fn =>
+        isValidUnconstrainedFunctionMembershipProof(fn, contractClass),
+      );
+      const validFnCount = validPrivateFns.length + validUnconstrainedFns.length;
+      if (validFnCount !== allFns.length) {
+        this.log.warn(`Skipping ${allFns.length - validFnCount} invalid functions`);
+      }
+
+      // Store the functions in the contract class in a single operation
+      if (validFnCount > 0) {
+        this.log(`Storing ${validFnCount} functions for contract class ${contractClassId.toString()}`);
+      }
+      await this.store.addFunctions(contractClassId, validPrivateFns, validUnconstrainedFns);
     }
   }
 

@@ -35,8 +35,8 @@ function logFunction(fn: FunctionArtifact, log: LogFn) {
   const signatureWithParameterNames = decodeFunctionSignatureWithParameterNames(fn.name, fn.parameters);
   const signature = decodeFunctionSignature(fn.name, fn.parameters);
   const selector = FunctionSelector.fromSignature(signature);
-  const bytecodeSize = Buffer.from(fn.bytecode, 'base64').length;
-  const bytecodeHash = sha256(Buffer.from(fn.bytecode, 'base64')).toString('hex');
+  const bytecodeSize = fn.bytecode.length;
+  const bytecodeHash = sha256(fn.bytecode).toString('hex');
   log(
     `${fn.functionType} ${signatureWithParameterNames} \n\tfunction signature: ${signature}\n\tselector: ${selector}\n\tbytecode: ${bytecodeSize} bytes (sha256 ${bytecodeHash})`,
   );

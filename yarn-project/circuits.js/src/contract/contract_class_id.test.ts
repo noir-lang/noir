@@ -14,14 +14,12 @@ describe('ContractClass', () => {
           {
             selector: FunctionSelector.fromString('0x12345678'),
             vkHash: Fr.fromString('0x1234'),
-            isInternal: false,
           },
         ],
         publicFunctions: [
           {
             selector: FunctionSelector.fromString('0x12345678'),
             bytecode: Buffer.from('123456789012345678901234567890', 'hex'),
-            isInternal: false,
           },
         ],
       };

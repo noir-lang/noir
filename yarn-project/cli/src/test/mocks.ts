@@ -18,7 +18,7 @@ export const mockContractArtifact: ContractArtifact = {
         },
       ],
       returnTypes: [],
-      bytecode: 'constructorBytecode',
+      bytecode: Buffer.alloc(8, 0xfa),
       debugSymbols: '',
     },
     {
@@ -61,7 +61,7 @@ export const mockContractArtifact: ContractArtifact = {
         },
       ],
       returnTypes: [{ kind: 'boolean' }],
-      bytecode: 'mockBytecode',
+      bytecode: Buffer.alloc(8, 0xfa),
       debugSymbols: '',
     },
   ],

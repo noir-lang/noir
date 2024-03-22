@@ -23,7 +23,7 @@ export async function executePrivateFunction(
 ): Promise<ExecutionResult> {
   const functionSelector = functionData.selector;
   log(`Executing external function ${contractAddress}:${functionSelector}(${artifact.name})`);
-  const acir = Buffer.from(artifact.bytecode, 'base64');
+  const acir = artifact.bytecode;
   const initialWitness = context.getInitialWitness(artifact);
   const acvmCallback = new Oracle(context);
   const { partialWitness } = await acvm(await AcirSimulator.getSolver(), acir, initialWitness, acvmCallback).catch(

@@ -43,6 +43,11 @@ export class BufferReader {
     return new BufferReader(buf);
   }
 
+  /** Returns true if the underlying buffer has been consumed completely. */
+  public isEmpty(): boolean {
+    return this.index === this.buffer.length;
+  }
+
   /**
    * Reads a 32-bit unsigned integer from the buffer at the current index position.
    * Updates the index position by 4 bytes after reading the number.

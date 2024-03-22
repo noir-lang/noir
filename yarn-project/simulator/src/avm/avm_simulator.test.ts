@@ -704,5 +704,5 @@ function getAvmTestContractBytecode(functionName: string): Buffer {
     !!artifact?.bytecode,
     `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
   );
-  return Buffer.from(artifact.bytecode, 'base64');
+  return artifact.bytecode;
 }

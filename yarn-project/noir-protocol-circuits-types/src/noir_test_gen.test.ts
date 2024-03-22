@@ -32,8 +32,8 @@ describe('Data generation for noir tests', () => {
     publicKeysHash: new Fr(45678),
     salt: new Fr(56789),
     privateFunctions: [
-      { selector: FunctionSelector.fromField(new Fr(1010101)), isInternal: false, vkHash: new Fr(0) },
-      { selector: FunctionSelector.fromField(new Fr(2020202)), isInternal: true, vkHash: new Fr(0) },
+      { selector: FunctionSelector.fromField(new Fr(1010101)), vkHash: new Fr(0) },
+      { selector: FunctionSelector.fromField(new Fr(2020202)), vkHash: new Fr(0) },
     ],
     toString: () => 'defaultContract',
   };
@@ -44,7 +44,7 @@ describe('Data generation for noir tests', () => {
     packedBytecode: Buffer.from([3, 4, 3, 4]),
     publicKeysHash: new Fr(4545),
     salt: new Fr(5656),
-    privateFunctions: [{ selector: FunctionSelector.fromField(new Fr(334455)), isInternal: false, vkHash: new Fr(0) }],
+    privateFunctions: [{ selector: FunctionSelector.fromField(new Fr(334455)), vkHash: new Fr(0) }],
     toString: () => 'parentContract',
   };
 

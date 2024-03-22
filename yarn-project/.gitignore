@@ -43,6 +43,7 @@ scripts/tmp
 noir-contracts.js/src
 noir-contracts.js/artifacts/
 noir-contracts.js/codegenCache.json
+types/fixtures/*.json
 
 .yarn/*
 !.yarn/patches

@@ -1,5 +1,5 @@
-import { getSampleContractClassRegisteredEventPayload } from '../tests/fixtures.js';
-import { computePublicBytecodeCommitment } from './contract_class_id.js';
+import { getSampleContractClassRegisteredEventPayload } from '../../tests/fixtures.js';
+import { computePublicBytecodeCommitment } from '../contract_class_id.js';
 import { ContractClassRegisteredEvent } from './contract_class_registered_event.js';
 
 describe('ContractClassRegisteredEvent', () => {
