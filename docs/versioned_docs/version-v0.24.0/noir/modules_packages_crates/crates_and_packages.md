@@ -24,7 +24,7 @@ _Library crates_ don't have a `main` function and they don't compile down to ACI
 
 #### Contracts
 
-Contract crates are similar to binary crates in that they compile to ACIR which you can create proofs against. They are different in that they do not have a single `main` function, but are a collection of functions to be deployed to the [Aztec network](https://aztec.network). You can learn more about the technical details of Aztec in the [monorepo](https://github.com/AztecProtocol/aztec-packages) or contract [examples](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts/contracts).
+Contract crates are similar to binary crates in that they compile to ACIR which you can create proofs against. They are different in that they do not have a single `main` function, but are a collection of functions to be deployed to the [Aztec network](https://aztec.network). You can learn more about the technical details of Aztec in the [monorepo](https://github.com/AztecProtocol/aztec-packages) or contract [examples](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-contracts/contracts).
 
 ### Crate Root
 
