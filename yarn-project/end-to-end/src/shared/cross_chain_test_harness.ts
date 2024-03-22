@@ -255,13 +255,13 @@ export class CrossChainTestHarness {
     // Deposit tokens to the TokenPortal
     this.logger('Sending messages to L1 portal to be consumed publicly');
     const args = [this.ownerAddress.toString(), bridgeAmount, secretHash.toString()] as const;
-    const { result: entryKeyHex } = await this.tokenPortal.simulate.depositToAztecPublic(args, {
+    const { result: messageHash } = await this.tokenPortal.simulate.depositToAztecPublic(args, {
       account: this.ethAccount.toString(),
     } as any);
     const txHash2 = await this.tokenPortal.write.depositToAztecPublic(args, {} as any);
     await this.publicClient.waitForTransactionReceipt({ hash: txHash2 });
 
-    return Fr.fromString(entryKeyHex);
+    return Fr.fromString(messageHash);
   }
 
   async sendTokensToPortalPrivate(
@@ -281,13 +281,13 @@ export class CrossChainTestHarness {
       bridgeAmount,
       secretHashForL2MessageConsumption.toString(),
     ] as const;
-    const { result: entryKeyHex } = await this.tokenPortal.simulate.depositToAztecPrivate(args, {
+    const { result: messageHash } = await this.tokenPortal.simulate.depositToAztecPrivate(args, {
       account: this.ethAccount.toString(),
     } as any);
     const txHash2 = await this.tokenPortal.write.depositToAztecPrivate(args, {} as any);
     await this.publicClient.waitForTransactionReceipt({ hash: txHash2 });
 
-    return Fr.fromString(entryKeyHex);
+    return Fr.fromString(messageHash);
   }
 
   async mintTokensPublicOnL2(amount: bigint) {
@@ -392,17 +392,17 @@ export class CrossChainTestHarness {
   async withdrawFundsFromBridgeOnL1(
     withdrawAmount: bigint,
     blockNumber: number,
-    messageIndex: number,
+    messageIndex: bigint,
     siblingPath: SiblingPath<number>,
   ) {
-    this.logger('Send L1 tx to consume entry and withdraw funds');
+    this.logger('Send L1 tx to consume message and withdraw funds');
     // Call function on L1 contract to consume the message
     const { request: withdrawRequest } = await this.tokenPortal.simulate.withdraw([
       this.ethAccount.toString(),
       withdrawAmount,
       false,
       BigInt(blockNumber),
-      BigInt(messageIndex),
+      messageIndex,
       siblingPath.toBufferArray().map((buf: Buffer) => `0x${buf.toString('hex')}`) as readonly `0x${string}`[],
     ]);
 
@@ -463,9 +463,9 @@ export class CrossChainTestHarness {
    * the message is sent to Inbox and when the subtree containing the message is included in the block and then when
    * it's included it becomes available for consumption in the next block because the l1 to l2 message tree.
    */
-  async makeMessageConsumable(msgLeaf: Fr) {
+  async makeMessageConsumable(msgHash: Fr) {
     // We poll isL1ToL2MessageSynced endpoint until the message is available
-    await retryUntil(async () => await this.aztecNode.isL1ToL2MessageSynced(msgLeaf), 'message sync', 10);
+    await retryUntil(async () => await this.aztecNode.isL1ToL2MessageSynced(msgHash), 'message sync', 10);
 
     await this.mintTokensPublicOnL2(0n);
     await this.mintTokensPublicOnL2(0n);

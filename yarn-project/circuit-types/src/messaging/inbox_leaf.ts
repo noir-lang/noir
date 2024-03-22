@@ -8,7 +8,7 @@ export class InboxLeaf {
     public readonly blockNumber: bigint,
     /** Index of the leaf in L2 block message subtree. */
     public readonly index: bigint,
-    /** Leaf in the subtree. */
+    /** Leaf in the subtree/message hash. */
     public readonly leaf: Fr,
   ) {}
 

@@ -226,11 +226,11 @@ export class ViewDataOracle extends TypedOracle {
 
   /**
    * Fetches the a message from the db, given its key.
-   * @param entryKey - A buffer representing the entry key.
-   * @returns The l1 to l2 message data
+   * @param messageHash - Hash of the message.
+   * @returns The l1 to l2 membership witness (index of message in the tree and sibling path).
    */
-  public async getL1ToL2MembershipWitness(entryKey: Fr) {
-    return await this.db.getL1ToL2MembershipWitness(entryKey);
+  public async getL1ToL2MembershipWitness(messageHash: Fr) {
+    return await this.db.getL1ToL2MembershipWitness(messageHash);
   }
 
   /**

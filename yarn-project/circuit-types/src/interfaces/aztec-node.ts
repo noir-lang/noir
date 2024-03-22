@@ -77,18 +77,19 @@ export interface AztecNode {
   isL1ToL2MessageSynced(l1ToL2Message: Fr): Promise<boolean>;
 
   /**
-   * Returns the index of a l2ToL1Message in a ephemeral l2 to l1 data tree as well as its sibling path.
+   * Returns a membership witness of an l2ToL1Message in an ephemeral l2 to l1 message tree.
+   * @dev Membership witness is a consists of the index and the sibling path of the l2ToL1Message.
    * @remarks This tree is considered ephemeral because it is created on-demand by: taking all the l2ToL1 messages
    * in a single block, and then using them to make a variable depth append-only tree with these messages as leaves.
    * The tree is discarded immediately after calculating what we need from it.
    * @param blockNumber - The block number at which to get the data.
-   * @param l2ToL1Message - The l2ToL1Message get the index / sibling path for.
+   * @param l2ToL1Message - The l2ToL1Message to get the membership witness for.
    * @returns A tuple of the index and the sibling path of the L2ToL1Message.
    */
-  getL2ToL1MessageIndexAndSiblingPath(
+  getL2ToL1MessageMembershipWitness(
     blockNumber: L2BlockNumber,
     l2ToL1Message: Fr,
-  ): Promise<[number, SiblingPath<number>]>;
+  ): Promise<[bigint, SiblingPath<number>]>;
 
   /**
    * Returns a sibling path for a leaf in the committed historic blocks tree.

@@ -11,8 +11,7 @@ import { Fr } from '@aztec/foundation/fields';
  */
 export class L1ToL2MessageStore {
   /**
-   * A map containing the entry key to the corresponding L1 to L2
-   * messages (and the number of times the message has been seen).
+   * A map pointing from a key in a "blockNum-messageIndex" format to the corresponding L1 to L2 message hash.
    */
   protected store: Map<string, Fr> = new Map();
 

@@ -6,18 +6,6 @@ The `DataStructures` are structs that we are using throughout the message infras
 
 **Links**: [Implementation](https://github.com/AztecProtocol/aztec-packages/blob/master/l1-contracts/src/core/libraries/DataStructures.sol).
 
-## `Entry`
-
-An entry for the messageboxes multi-sets. 
-
-#include_code data_structure_entry l1-contracts/src/core/libraries/DataStructures.sol solidity
-
-| Name           | Type    | Description |
-| -------------- | ------- | ----------- |
-| `count`        | `uint32` | The occurrence of the entry in the dataset |
-| `version`      | `uint32` | The version of the entry |
-
-
 ## `L1Actor`
 
 An entity on L1, specifying the address and the chainId for the entity. Used when specifying sender/recipient with an entity that is on L1.

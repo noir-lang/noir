@@ -224,11 +224,11 @@ export class WorldStateDB implements CommitmentsDB {
   }
 
   public async getL1ToL2MembershipWitness(
-    entryKey: Fr,
+    messageHash: Fr,
   ): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
-    const index = (await this.db.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, entryKey.toBuffer()))!;
+    const index = (await this.db.findLeafIndex(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, messageHash.toBuffer()))!;
     if (index === undefined) {
-      throw new Error(`Message ${entryKey.toString()} not found`);
+      throw new Error(`Message ${messageHash.toString()} not found`);
     }
     const siblingPath = await this.db.getSiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>(
       MerkleTreeId.L1_TO_L2_MESSAGE_TREE,

@@ -81,19 +81,19 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       });
     });
 
-    describe('getSynchedL1BlockNumbers', () => {
+    describe('getSynchPoint', () => {
       it('returns 0n if no blocks have been added', async () => {
-        await expect(store.getSynchedL1BlockNumbers()).resolves.toEqual({
-          blocks: 0n,
-          messages: 0n,
+        await expect(store.getSynchPoint()).resolves.toEqual({
+          blocksSynchedTo: 0n,
+          messagesSynchedTo: 0n,
         });
       });
 
       it('returns the L1 block number in which the most recent L2 block was published', async () => {
         await store.addBlocks(blocks);
-        await expect(store.getSynchedL1BlockNumbers()).resolves.toEqual({
-          blocks: blocks.lastProcessedL1BlockNumber,
-          messages: 0n,
+        await expect(store.getSynchPoint()).resolves.toEqual({
+          blocksSynchedTo: blocks.lastProcessedL1BlockNumber,
+          messagesSynchedTo: 0n,
         });
       });
 
@@ -102,9 +102,9 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
           lastProcessedL1BlockNumber: 1n,
           retrievedData: [new InboxLeaf(0n, 0n, Fr.ZERO)],
         });
-        await expect(store.getSynchedL1BlockNumbers()).resolves.toEqual({
-          blocks: 0n,
-          messages: 1n,
+        await expect(store.getSynchPoint()).resolves.toEqual({
+          blocksSynchedTo: 0n,
+          messagesSynchedTo: 1n,
         });
       });
     });

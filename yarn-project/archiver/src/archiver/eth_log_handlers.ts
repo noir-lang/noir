@@ -8,17 +8,17 @@ import { AvailabilityOracleAbi, InboxAbi, RollupAbi } from '@aztec/l1-artifacts'
 import { Hex, Log, PublicClient, decodeFunctionData, getAbiItem, getAddress, hexToBytes } from 'viem';
 
 /**
- * Processes newly received LeafInserted (L1 to L2) logs.
- * @param logs - LeafInserted logs.
- * @returns Array of all processed LeafInserted logs
+ * Processes newly received MessageSent (L1 to L2) logs.
+ * @param logs - MessageSent logs.
+ * @returns Array of all processed MessageSent logs
  */
-export function processLeafInsertedLogs(
-  logs: Log<bigint, number, false, undefined, true, typeof InboxAbi, 'LeafInserted'>[],
+export function processMessageSentLogs(
+  logs: Log<bigint, number, false, undefined, true, typeof InboxAbi, 'MessageSent'>[],
 ): InboxLeaf[] {
   const leaves: InboxLeaf[] = [];
   for (const log of logs) {
-    const { blockNumber, index, value } = log.args;
-    leaves.push(new InboxLeaf(blockNumber, index, Fr.fromString(value)));
+    const { l2BlockNumber, index, hash } = log.args;
+    leaves.push(new InboxLeaf(l2BlockNumber, index, Fr.fromString(hash)));
   }
   return leaves;
 }
@@ -191,24 +191,24 @@ export function getTxsPublishedLogs(
 }
 
 /**
- * Get relevant `LeafInserted` logs emitted by Inbox on chain.
+ * Get relevant `MessageSent` logs emitted by Inbox on chain.
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param inboxAddress - The address of the inbox contract.
  * @param fromBlock - First block to get logs from (inclusive).
  * @param toBlock - Last block to get logs from (inclusive).
- * @returns An array of `LeafInserted` logs.
+ * @returns An array of `MessageSent` logs.
  */
-export function getLeafInsertedLogs(
+export function getMessageSentLogs(
   publicClient: PublicClient,
   inboxAddress: EthAddress,
   fromBlock: bigint,
   toBlock: bigint,
-): Promise<Log<bigint, number, false, undefined, true, typeof InboxAbi, 'LeafInserted'>[]> {
+): Promise<Log<bigint, number, false, undefined, true, typeof InboxAbi, 'MessageSent'>[]> {
   return publicClient.getLogs({
     address: getAddress(inboxAddress.toString()),
     event: getAbiItem({
       abi: InboxAbi,
-      name: 'LeafInserted',
+      name: 'MessageSent',
     }),
     fromBlock,
     toBlock: toBlock + 1n, // the toBlock argument in getLogs is exclusive

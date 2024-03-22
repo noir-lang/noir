@@ -23,8 +23,6 @@ import {UniswapPortal} from "./UniswapPortal.sol";
 contract UniswapPortalTest is Test {
   using Hash for DataStructures.L2ToL1Msg;
 
-  event L1ToL2MessageCancelled(bytes32 indexed entryKey);
-
   IERC20 public constant DAI = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
   IERC20 public constant WETH9 = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
@@ -152,14 +150,14 @@ contract UniswapPortalTest is Test {
   }
 
   function _addMessagesToOutbox(
-    bytes32 daiWithdrawEntryKey,
-    bytes32 swapEntryKey,
+    bytes32 daiWithdrawMessageHash,
+    bytes32 swapMessageHash,
     uint256 _l2BlockNumber
   ) internal returns (bytes32, bytes32[] memory, bytes32[] memory) {
     uint256 treeHeight = 1;
     NaiveMerkle tree = new NaiveMerkle(treeHeight);
-    tree.insertLeaf(daiWithdrawEntryKey);
-    tree.insertLeaf(swapEntryKey);
+    tree.insertLeaf(daiWithdrawMessageHash);
+    tree.insertLeaf(swapMessageHash);
 
     bytes32 treeRoot = tree.computeRoot();
     (bytes32[] memory withdrawSiblingPath,) = tree.computeSiblingPath(0);
@@ -286,14 +284,14 @@ contract UniswapPortalTest is Test {
   function testRevertIfSwapParamsDifferentToOutboxMessage() public {
     uint256 l2BlockNumber = 69;
 
-    bytes32 daiWithdrawEntryKey =
+    bytes32 daiWithdrawMessageHash =
       _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
-    bytes32 swapEntryKey = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
+    bytes32 swapMessageHash = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
     (, bytes32[] memory withdrawSiblingPath, bytes32[] memory swapSiblingPath) =
-      _addMessagesToOutbox(daiWithdrawEntryKey, swapEntryKey, l2BlockNumber);
+      _addMessagesToOutbox(daiWithdrawMessageHash, swapMessageHash, l2BlockNumber);
 
     bytes32 newAztecRecipient = bytes32(uint256(0x4));
-    bytes32 entryKeyPortalChecksAgainst =
+    bytes32 messageHashPortalChecksAgainst =
       _createUniswapSwapMessagePublic(newAztecRecipient, address(this));
 
     bytes32 actualRoot;
@@ -302,13 +300,13 @@ contract UniswapPortalTest is Test {
     {
       uint256 treeHeight = 1;
       NaiveMerkle tree1 = new NaiveMerkle(treeHeight);
-      tree1.insertLeaf(daiWithdrawEntryKey);
-      tree1.insertLeaf(swapEntryKey);
+      tree1.insertLeaf(daiWithdrawMessageHash);
+      tree1.insertLeaf(swapMessageHash);
       actualRoot = tree1.computeRoot();
 
       NaiveMerkle tree2 = new NaiveMerkle(treeHeight);
-      tree2.insertLeaf(daiWithdrawEntryKey);
-      tree2.insertLeaf(entryKeyPortalChecksAgainst);
+      tree2.insertLeaf(daiWithdrawMessageHash);
+      tree2.insertLeaf(messageHashPortalChecksAgainst);
       consumedRoot = tree2.computeRoot();
     }
 
@@ -317,7 +315,7 @@ contract UniswapPortalTest is Test {
         Errors.MerkleLib__InvalidRoot.selector,
         actualRoot,
         consumedRoot,
-        entryKeyPortalChecksAgainst,
+        messageHashPortalChecksAgainst,
         1
       )
     );
@@ -351,12 +349,12 @@ contract UniswapPortalTest is Test {
   function testSwapWithDesignatedCaller() public {
     uint256 l2BlockNumber = 69;
 
-    bytes32 daiWithdrawEntryKey =
+    bytes32 daiWithdrawMessageHash =
       _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
-    bytes32 swapEntryKey = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
+    bytes32 swapMessageHash = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
 
     (, bytes32[] memory withdrawSiblingPath, bytes32[] memory swapSiblingPath) =
-      _addMessagesToOutbox(daiWithdrawEntryKey, swapEntryKey, l2BlockNumber);
+      _addMessagesToOutbox(daiWithdrawMessageHash, swapMessageHash, l2BlockNumber);
 
     PortalDataStructures.OutboxMessageMetadata[2] memory outboxMessageMetadata = [
       PortalDataStructures.OutboxMessageMetadata({
@@ -397,13 +395,13 @@ contract UniswapPortalTest is Test {
     vm.assume(_caller != address(uniswapPortal));
     uint256 l2BlockNumber = 69;
 
-    bytes32 daiWithdrawEntryKey =
+    bytes32 daiWithdrawMessageHash =
       _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
     // don't set caller on swapPublic() -> so anyone can call this method.
-    bytes32 swapEntryKey = _createUniswapSwapMessagePublic(aztecRecipient, address(0));
+    bytes32 swapMessageHash = _createUniswapSwapMessagePublic(aztecRecipient, address(0));
 
     (, bytes32[] memory withdrawSiblingPath, bytes32[] memory swapSiblingPath) =
-      _addMessagesToOutbox(daiWithdrawEntryKey, swapEntryKey, l2BlockNumber);
+      _addMessagesToOutbox(daiWithdrawMessageHash, swapMessageHash, l2BlockNumber);
 
     PortalDataStructures.OutboxMessageMetadata[2] memory outboxMessageMetadata = [
       PortalDataStructures.OutboxMessageMetadata({
@@ -445,12 +443,12 @@ contract UniswapPortalTest is Test {
     vm.assume(_caller != address(this));
     uint256 l2BlockNumber = 69;
 
-    bytes32 daiWithdrawEntryKey =
+    bytes32 daiWithdrawMessageHash =
       _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
-    bytes32 swapEntryKey = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
+    bytes32 swapMessageHash = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
 
     (, bytes32[] memory withdrawSiblingPath, bytes32[] memory swapSiblingPath) =
-      _addMessagesToOutbox(daiWithdrawEntryKey, swapEntryKey, l2BlockNumber);
+      _addMessagesToOutbox(daiWithdrawMessageHash, swapMessageHash, l2BlockNumber);
 
     PortalDataStructures.OutboxMessageMetadata[2] memory outboxMessageMetadata = [
       PortalDataStructures.OutboxMessageMetadata({
@@ -466,7 +464,8 @@ contract UniswapPortalTest is Test {
     ];
 
     vm.startPrank(_caller);
-    bytes32 entryKeyPortalChecksAgainst = _createUniswapSwapMessagePublic(aztecRecipient, _caller);
+    bytes32 messageHashPortalChecksAgainst =
+      _createUniswapSwapMessagePublic(aztecRecipient, _caller);
 
     bytes32 actualRoot;
     bytes32 consumedRoot;
@@ -474,13 +473,13 @@ contract UniswapPortalTest is Test {
     {
       uint256 treeHeight = 1;
       NaiveMerkle tree1 = new NaiveMerkle(treeHeight);
-      tree1.insertLeaf(daiWithdrawEntryKey);
-      tree1.insertLeaf(swapEntryKey);
+      tree1.insertLeaf(daiWithdrawMessageHash);
+      tree1.insertLeaf(swapMessageHash);
       actualRoot = tree1.computeRoot();
 
       NaiveMerkle tree2 = new NaiveMerkle(treeHeight);
-      tree2.insertLeaf(daiWithdrawEntryKey);
-      tree2.insertLeaf(entryKeyPortalChecksAgainst);
+      tree2.insertLeaf(daiWithdrawMessageHash);
+      tree2.insertLeaf(messageHashPortalChecksAgainst);
       consumedRoot = tree2.computeRoot();
     }
 
@@ -489,7 +488,7 @@ contract UniswapPortalTest is Test {
         Errors.MerkleLib__InvalidRoot.selector,
         actualRoot,
         consumedRoot,
-        entryKeyPortalChecksAgainst,
+        messageHashPortalChecksAgainst,
         1
       )
     );
@@ -506,18 +505,18 @@ contract UniswapPortalTest is Test {
       outboxMessageMetadata
     );
 
-    entryKeyPortalChecksAgainst = _createUniswapSwapMessagePublic(aztecRecipient, address(0));
+    messageHashPortalChecksAgainst = _createUniswapSwapMessagePublic(aztecRecipient, address(0));
 
     {
       uint256 treeHeight = 1;
       NaiveMerkle tree1 = new NaiveMerkle(treeHeight);
-      tree1.insertLeaf(daiWithdrawEntryKey);
-      tree1.insertLeaf(swapEntryKey);
+      tree1.insertLeaf(daiWithdrawMessageHash);
+      tree1.insertLeaf(swapMessageHash);
       actualRoot = tree1.computeRoot();
 
       NaiveMerkle tree2 = new NaiveMerkle(treeHeight);
-      tree2.insertLeaf(daiWithdrawEntryKey);
-      tree2.insertLeaf(entryKeyPortalChecksAgainst);
+      tree2.insertLeaf(daiWithdrawMessageHash);
+      tree2.insertLeaf(messageHashPortalChecksAgainst);
       consumedRoot = tree2.computeRoot();
     }
     vm.expectRevert(
@@ -525,7 +524,7 @@ contract UniswapPortalTest is Test {
         Errors.MerkleLib__InvalidRoot.selector,
         actualRoot,
         consumedRoot,
-        entryKeyPortalChecksAgainst,
+        messageHashPortalChecksAgainst,
         1
       )
     );
@@ -546,13 +545,13 @@ contract UniswapPortalTest is Test {
   function testRevertIfSwapMessageWasForDifferentPublicOrPrivateFlow() public {
     uint256 l2BlockNumber = 69;
 
-    bytes32 daiWithdrawEntryKey =
+    bytes32 daiWithdrawMessageHash =
       _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
 
     // Create message for `_isPrivateFlow`:
-    bytes32 swapEntryKey = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
+    bytes32 swapMessageHash = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
     (, bytes32[] memory withdrawSiblingPath, bytes32[] memory swapSiblingPath) =
-      _addMessagesToOutbox(daiWithdrawEntryKey, swapEntryKey, l2BlockNumber);
+      _addMessagesToOutbox(daiWithdrawMessageHash, swapMessageHash, l2BlockNumber);
 
     PortalDataStructures.OutboxMessageMetadata[2] memory outboxMessageMetadata = [
       PortalDataStructures.OutboxMessageMetadata({
@@ -567,7 +566,7 @@ contract UniswapPortalTest is Test {
       })
     ];
 
-    bytes32 entryKeyPortalChecksAgainst =
+    bytes32 messageHashPortalChecksAgainst =
       _createUniswapSwapMessagePrivate(secretHashForRedeemingMintedNotes, address(this));
 
     bytes32 actualRoot;
@@ -576,13 +575,13 @@ contract UniswapPortalTest is Test {
     {
       uint256 treeHeight = 1;
       NaiveMerkle tree1 = new NaiveMerkle(treeHeight);
-      tree1.insertLeaf(daiWithdrawEntryKey);
-      tree1.insertLeaf(swapEntryKey);
+      tree1.insertLeaf(daiWithdrawMessageHash);
+      tree1.insertLeaf(swapMessageHash);
       actualRoot = tree1.computeRoot();
 
       NaiveMerkle tree2 = new NaiveMerkle(treeHeight);
-      tree2.insertLeaf(daiWithdrawEntryKey);
-      tree2.insertLeaf(entryKeyPortalChecksAgainst);
+      tree2.insertLeaf(daiWithdrawMessageHash);
+      tree2.insertLeaf(messageHashPortalChecksAgainst);
       consumedRoot = tree2.computeRoot();
     }
 
@@ -591,7 +590,7 @@ contract UniswapPortalTest is Test {
         Errors.MerkleLib__InvalidRoot.selector,
         actualRoot,
         consumedRoot,
-        entryKeyPortalChecksAgainst,
+        messageHashPortalChecksAgainst,
         1
       )
     );

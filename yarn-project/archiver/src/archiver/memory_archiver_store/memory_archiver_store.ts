@@ -357,10 +357,10 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     return Promise.resolve(this.l2BlockContexts[this.l2BlockContexts.length - 1].block.number);
   }
 
-  public getSynchedL1BlockNumbers(): Promise<ArchiverL1SynchPoint> {
+  public getSynchPoint(): Promise<ArchiverL1SynchPoint> {
     return Promise.resolve({
-      blocks: this.lastL1BlockNewBlocks,
-      messages: this.lastL1BlockNewMessages,
+      blocksSynchedTo: this.lastL1BlockNewBlocks,
+      messagesSynchedTo: this.lastL1BlockNewMessages,
     });
   }
 }

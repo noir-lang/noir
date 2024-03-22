@@ -8,22 +8,6 @@ pragma solidity >=0.8.18;
  * @notice Library that contains data structures used throughout the Aztec protocol
  */
 library DataStructures {
-  // docs:start:data_structure_entry
-  /**
-   * @notice Entry struct - Done as struct to easily support extensions if needed
-   * @param fee - The fee provided to sequencer for including in the inbox. 0 if Outbox (as not applicable).
-   * @param count - The occurrence of the entry in the dataset
-   * @param version - The version of the entry
-   * @param deadline - The deadline to consume a message. Only after it, can a message be cancelled.
-   */
-  struct Entry {
-    uint64 fee;
-    uint32 count;
-    uint32 version;
-    uint32 deadline;
-  }
-  // docs:end:data_structure_entry
-
   // docs:start:l1_actor
   /**
    * @notice Actor on L1.

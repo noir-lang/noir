@@ -20,9 +20,9 @@ library Errors {
   error Outbox__Unauthorized(); // 0x2c9490c2
   error Outbox__InvalidChainId(); // 0x577ec7c4
   error Outbox__InvalidVersion(uint256 entry, uint256 message); // 0x7915cac3
-  error Outbox__NothingToConsume(bytes32 entryKey); // 0xfb4fb506
+  error Outbox__NothingToConsume(bytes32 messageHash); // 0xfb4fb506
   error Outbox__IncompatibleEntryArguments(
-    bytes32 entryKey,
+    bytes32 messageHash,
     uint64 storedFee,
     uint64 feePassed,
     uint32 storedVersion,

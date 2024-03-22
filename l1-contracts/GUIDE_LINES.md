@@ -120,13 +120,18 @@ Natspec should be written for all functions (`internal` mainly for clarity). Use
 
 ```solidity
   /**
-   * @notice Consumes an entry from the Outbox
-   * @dev Only meaningfully callable by portals, otherwise should never hit an entry
-   * @dev Emits the `MessageConsumed` event when consuming messages
-   * @param _message - The L2 to L1 message
-   * @return entryKey - The key of the entry removed
+   * @notice Inserts a new message into the Inbox
+   * @dev Emits `MessageSent` with data for easy access by the sequencer
+   * @param _recipient - The recipient of the message
+   * @param _content - The content of the message (application specific)
+   * @param _secretHash - The secret hash of the message (make it possible to hide when a specific message is consumed on L2)
+   * @return Hash of the sent message.
    */
-  function consume(DataStructures.L2ToL1Msg memory _message)
+  function sendL2Message(
+    DataStructures.L2Actor memory _recipient,
+    bytes32 _content,
+    bytes32 _secretHash
+  ) external override(IInbox) returns (bytes32) {
 ```
 
 ### Solhint configuration

@@ -214,12 +214,10 @@ export class KVArchiverDataStore implements ArchiverDataStore {
   /**
    * Gets the last L1 block number processed by the archiver
    */
-  getSynchedL1BlockNumbers(): Promise<ArchiverL1SynchPoint> {
-    const blocks = this.#blockStore.getSynchedL1BlockNumber();
-    const messages = this.#messageStore.getSynchedL1BlockNumber();
+  getSynchPoint(): Promise<ArchiverL1SynchPoint> {
     return Promise.resolve({
-      blocks,
-      messages,
+      blocksSynchedTo: this.#blockStore.getSynchedL1BlockNumber(),
+      messagesSynchedTo: this.#messageStore.getSynchedL1BlockNumber(),
     });
   }
 }

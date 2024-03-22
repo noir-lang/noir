@@ -6,10 +6,10 @@ import { PublicClient } from 'viem';
 
 import {
   getL2BlockProcessedLogs,
-  getLeafInsertedLogs,
+  getMessageSentLogs,
   getTxsPublishedLogs,
   processL2BlockProcessedLogs,
-  processLeafInsertedLogs,
+  processMessageSentLogs,
   processTxsPublishedLogs,
 } from './eth_log_handlers.js';
 
@@ -132,14 +132,14 @@ export async function retrieveL1ToL2Messages(
     if (searchStartBlock > searchEndBlock) {
       break;
     }
-    const leafInsertedLogs = await getLeafInsertedLogs(publicClient, inboxAddress, searchStartBlock, searchEndBlock);
-    if (leafInsertedLogs.length === 0) {
+    const messageSentLogs = await getMessageSentLogs(publicClient, inboxAddress, searchStartBlock, searchEndBlock);
+    if (messageSentLogs.length === 0) {
       break;
     }
-    const l1ToL2Messages = processLeafInsertedLogs(leafInsertedLogs);
+    const l1ToL2Messages = processMessageSentLogs(messageSentLogs);
     retrievedL1ToL2Messages.push(...l1ToL2Messages);
     // handles the case when there are no new messages:
-    searchStartBlock = (leafInsertedLogs.findLast(msgLog => !!msgLog)?.blockNumber || searchStartBlock) + 1n;
+    searchStartBlock = (messageSentLogs.findLast(msgLog => !!msgLog)?.blockNumber || searchStartBlock) + 1n;
   } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
   return { lastProcessedL1BlockNumber: searchStartBlock - 1n, retrievedData: retrievedL1ToL2Messages };
 }

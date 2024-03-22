@@ -215,7 +215,7 @@ describe('L1Publisher integration', () => {
       topics: txLog.topics,
     });
 
-    return Fr.fromString(topics.args.value);
+    return Fr.fromString(topics.args.hash);
   };
 
   /**

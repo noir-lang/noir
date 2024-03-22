@@ -67,36 +67,36 @@ describe('E2E Outbox Tests', () => {
     // the index to match the order of the block we obtained earlier. We also then use this sibling path to hash up to the root,
     // verifying that the expected root obtained through the message and the sibling path match the actual root
     // that was returned by the circuits in the header as out_hash.
-    const [index, siblingPath] = await aztecNode.getL2ToL1MessageIndexAndSiblingPath(
+    const [index, siblingPath] = await aztecNode.getL2ToL1MessageMembershipWitness(
       txReceipt.blockNumber!,
       l2ToL1Messages![0],
     );
     expect(siblingPath.pathSize).toBe(2);
-    expect(index).toBe(0);
+    expect(index).toBe(0n);
     const expectedRoot = calculateExpectedRoot(l2ToL1Messages![0], siblingPath as SiblingPath<2>, index);
     expect(expectedRoot.toString('hex')).toEqual(block?.header.contentCommitment.outHash.toString('hex'));
 
-    const [index2, siblingPath2] = await aztecNode.getL2ToL1MessageIndexAndSiblingPath(
+    const [index2, siblingPath2] = await aztecNode.getL2ToL1MessageMembershipWitness(
       txReceipt.blockNumber!,
       l2ToL1Messages![1],
     );
     expect(siblingPath2.pathSize).toBe(2);
-    expect(index2).toBe(1);
+    expect(index2).toBe(1n);
     const expectedRoot2 = calculateExpectedRoot(l2ToL1Messages![1], siblingPath2 as SiblingPath<2>, index2);
     expect(expectedRoot2.toString('hex')).toEqual(block?.header.contentCommitment.outHash.toString('hex'));
   }, 360_000);
 
-  function calculateExpectedRoot(l2ToL1Message: Fr, siblingPath: SiblingPath<2>, index: number): Buffer {
+  function calculateExpectedRoot(l2ToL1Message: Fr, siblingPath: SiblingPath<2>, index: bigint): Buffer {
     const firstLayerInput: [Buffer, Buffer] =
-      index & 0x1
+      index & 0x1n
         ? [siblingPath.toBufferArray()[0], l2ToL1Message.toBuffer()]
         : [l2ToL1Message.toBuffer(), siblingPath.toBufferArray()[0]];
     const firstLayer = merkleSha256.hash(...firstLayerInput);
-    index /= 2;
+    index /= 2n;
     // In the circuit, the 'firstLayer' is the kernel out hash, which is truncated to 31 bytes
     // To match the result, the below preimages and the output are truncated to 31 then padded
     const secondLayerInput: [Buffer, Buffer] =
-      index & 0x1
+      index & 0x1n
         ? [siblingPath.toBufferArray()[1], truncateAndPad(firstLayer)]
         : [truncateAndPad(firstLayer), siblingPath.toBufferArray()[1]];
     return truncateAndPad(merkleSha256.hash(...secondLayerInput));

@@ -148,10 +148,13 @@ export class Archiver implements ArchiveSource {
      *
      * This code does not handle reorgs.
      */
-    const lastL1Blocks = await this.store.getSynchedL1BlockNumbers();
+    const l1SynchPoint = await this.store.getSynchPoint();
     const currentL1BlockNumber = await this.publicClient.getBlockNumber();
 
-    if (currentL1BlockNumber <= lastL1Blocks.blocks && currentL1BlockNumber <= lastL1Blocks.messages) {
+    if (
+      currentL1BlockNumber <= l1SynchPoint.blocksSynchedTo &&
+      currentL1BlockNumber <= l1SynchPoint.messagesSynchedTo
+    ) {
       // chain hasn't moved forward
       // or it's been rolled back
       return;
@@ -184,14 +187,14 @@ export class Archiver implements ArchiveSource {
       this.publicClient,
       this.inboxAddress,
       blockUntilSynced,
-      lastL1Blocks.messages + 1n,
+      l1SynchPoint.messagesSynchedTo + 1n,
       currentL1BlockNumber,
     );
 
     if (retrievedL1ToL2Messages.retrievedData.length !== 0) {
       this.log(
         `Retrieved ${retrievedL1ToL2Messages.retrievedData.length} new L1 -> L2 messages between L1 blocks ${
-          lastL1Blocks.messages + 1n
+          l1SynchPoint.messagesSynchedTo + 1n
         } and ${currentL1BlockNumber}.`,
       );
     }
@@ -205,7 +208,7 @@ export class Archiver implements ArchiveSource {
       this.publicClient,
       this.availabilityOracleAddress,
       blockUntilSynced,
-      lastL1Blocks.blocks + 1n,
+      l1SynchPoint.blocksSynchedTo + 1n,
       currentL1BlockNumber,
     );
 
@@ -220,7 +223,7 @@ export class Archiver implements ArchiveSource {
         this.publicClient,
         this.rollupAddress,
         blockUntilSynced,
-        lastL1Blocks.blocks + 1n,
+        l1SynchPoint.blocksSynchedTo + 1n,
         currentL1BlockNumber,
         nextExpectedL2BlockNum,
       );
@@ -244,7 +247,7 @@ export class Archiver implements ArchiveSource {
       } else {
         this.log(
           `Retrieved ${blocks.length} new L2 blocks between L1 blocks ${
-            lastL1Blocks.blocks + 1n
+            l1SynchPoint.blocksSynchedTo + 1n
           } and ${currentL1BlockNumber}.`,
         );
       }

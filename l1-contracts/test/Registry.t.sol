@@ -9,7 +9,6 @@ import {Registry} from "../src/core/messagebridge/Registry.sol";
 import {Errors} from "../src/core/libraries/Errors.sol";
 
 import {DataStructures} from "../src/core/libraries/DataStructures.sol";
-import {MessageBox} from "../src/core/libraries/MessageBox.sol";
 
 contract RegistryTest is Test {
   address internal constant DEAD = address(0xdead);

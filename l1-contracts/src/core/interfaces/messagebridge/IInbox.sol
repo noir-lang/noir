@@ -10,12 +10,18 @@ import {DataStructures} from "../../libraries/DataStructures.sol";
  * @notice Lives on L1 and is used to pass messages into the rollup from L1.
  */
 interface IInbox {
-  event LeafInserted(uint256 indexed blockNumber, uint256 index, bytes32 value);
+  /**
+   * @notice Emitted when a message is sent
+   * @param l2BlockNumber - The L2 block number in which the message is included
+   * @param index - The index of the message in the block
+   * @param hash - The hash of the message
+   */
+  event MessageSent(uint256 indexed l2BlockNumber, uint256 index, bytes32 hash);
 
   // docs:start:send_l1_to_l2_message
   /**
    * @notice Inserts a new message into the Inbox
-   * @dev Emits `LeafInserted` with data for easy access by the sequencer
+   * @dev Emits `MessageSent` with data for easy access by the sequencer
    * @param _recipient - The recipient of the message
    * @param _content - The content of the message (application specific)
    * @param _secretHash - The secret hash of the message (make it possible to hide when a specific message is consumed on L2)

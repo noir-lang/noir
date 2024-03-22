@@ -20,10 +20,10 @@ import { DataRetrieval } from './data_retrieval.js';
  * Represents the latest L1 block processed by the archiver for various objects in L2.
  */
 export type ArchiverL1SynchPoint = {
-  /** The last L1 block that added a new L2 block.  */
-  blocks: bigint;
-  /** The last L1 block that added L1 -> L2 messages from the Inbox. */
-  messages: bigint;
+  /** Number of the last L1 block that added a new L2 block.  */
+  blocksSynchedTo: bigint;
+  /** Number of the last L1 block that added L1 -> L2 messages from the Inbox. */
+  messagesSynchedTo: bigint;
 };
 
 /**
@@ -134,7 +134,7 @@ export interface ArchiverDataStore {
   /**
    * Gets the synch point of the archiver
    */
-  getSynchedL1BlockNumbers(): Promise<ArchiverL1SynchPoint>;
+  getSynchPoint(): Promise<ArchiverL1SynchPoint>;
 
   /**
    * Add new contract classes from an L2 block to the store's list.

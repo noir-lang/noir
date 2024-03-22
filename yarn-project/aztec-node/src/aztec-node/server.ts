@@ -424,10 +424,10 @@ export class AztecNodeService implements AztecNode {
    * @param l2ToL1Message - The l2ToL1Message get the index / sibling path for.
    * @returns A tuple of the index and the sibling path of the L2ToL1Message.
    */
-  public async getL2ToL1MessageIndexAndSiblingPath(
+  public async getL2ToL1MessageMembershipWitness(
     blockNumber: L2BlockNumber,
     l2ToL1Message: Fr,
-  ): Promise<[number, SiblingPath<number>]> {
+  ): Promise<[bigint, SiblingPath<number>]> {
     const block = await this.blockSource.getBlock(blockNumber === 'latest' ? await this.getBlockNumber() : blockNumber);
 
     if (block === undefined) {
@@ -440,11 +440,11 @@ export class AztecNodeService implements AztecNode {
       throw new Error('L2 to L1 Messages are not padded');
     }
 
-    const indexOfL2ToL1Message = l2ToL1Messages.findIndex(l2ToL1MessageInBlock =>
-      l2ToL1MessageInBlock.equals(l2ToL1Message),
+    const indexOfL2ToL1Message = BigInt(
+      l2ToL1Messages.findIndex(l2ToL1MessageInBlock => l2ToL1MessageInBlock.equals(l2ToL1Message)),
     );
 
-    if (indexOfL2ToL1Message === -1) {
+    if (indexOfL2ToL1Message === -1n) {
       throw new Error('The L2ToL1Message you are trying to prove inclusion of does not exist');
     }
 
@@ -453,7 +453,7 @@ export class AztecNodeService implements AztecNode {
     const tree = new StandardTree(openTmpStore(true), new SHA256Trunc(), 'temp_outhash_sibling_path', treeHeight);
     await tree.appendLeaves(l2ToL1Messages.map(l2ToL1Msg => l2ToL1Msg.toBuffer()));
 
-    return [indexOfL2ToL1Message, await tree.getSiblingPath(BigInt(indexOfL2ToL1Message), true)];
+    return [indexOfL2ToL1Message, await tree.getSiblingPath(indexOfL2ToL1Message, true)];
   }
 
   /**

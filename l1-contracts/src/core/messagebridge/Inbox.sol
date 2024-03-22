@@ -52,11 +52,11 @@ contract Inbox is IInbox {
 
   /**
    * @notice Inserts a new message into the Inbox
-   * @dev Emits `LeafInserted` with data for easy access by the sequencer
+   * @dev Emits `MessageSent` with data for easy access by the sequencer
    * @param _recipient - The recipient of the message
    * @param _content - The content of the message (application specific)
    * @param _secretHash - The secret hash of the message (make it possible to hide when a specific message is consumed on L2)
-   * @return The key of the message in the set
+   * @return Hash of the sent message.
    */
   function sendL2Message(
     DataStructures.L2Actor memory _recipient,
@@ -89,7 +89,7 @@ contract Inbox is IInbox {
 
     bytes32 leaf = message.sha256ToField();
     uint256 index = currentTree.insertLeaf(leaf);
-    emit LeafInserted(inProgress, index, leaf);
+    emit MessageSent(inProgress, index, leaf);
 
     return leaf;
   }

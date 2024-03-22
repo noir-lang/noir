@@ -53,7 +53,7 @@ contract UniswapPortal {
    * @param _aztecRecipient - The aztec address to receive the output assets
    * @param _secretHashForL1ToL2Message - The hash of the secret consumable message. The hash should be 254 bits (so it can fit in a Field element)
    * @param _withCaller - When true, using `msg.sender` as the caller, otherwise address(0)
-   * @return The entryKey of the deposit transaction in the Inbox
+   * @return A hash of the L1 to L2 message inserted in the Inbox
    */
   function swapPublic(
     address _inputTokenPortal,
@@ -160,7 +160,7 @@ contract UniswapPortal {
    * @param _secretHashForRedeemingMintedNotes - The hash of the secret to redeem minted notes privately on Aztec. The hash should be 254 bits (so it can fit in a Field element)
    * @param _secretHashForL1ToL2Message - The hash of the secret consumable message. The hash should be 254 bits (so it can fit in a Field element)
    * @param _withCaller - When true, using `msg.sender` as the caller, otherwise address(0)
-   * @return The entryKey of the deposit transaction in the Inbox
+   * @return A hash of the L1 to L2 message inserted in the Inbox
    */
   function swapPrivate(
     address _inputTokenPortal,

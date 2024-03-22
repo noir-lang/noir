@@ -81,7 +81,7 @@ contract InboxTest is Test {
     bytes32 leaf = message.sha256ToField();
     vm.expectEmit(true, true, true, true);
     // event we expect
-    emit IInbox.LeafInserted(FIRST_REAL_TREE_NUM, 0, leaf);
+    emit IInbox.MessageSent(FIRST_REAL_TREE_NUM, 0, leaf);
     // event we will get
     bytes32 insertedLeaf =
       inbox.sendL2Message(message.recipient, message.content, message.secretHash);

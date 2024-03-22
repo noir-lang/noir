@@ -171,7 +171,7 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('checkNullifierExists');
   }
 
-  getL1ToL2MembershipWitness(_entryKey: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
+  getL1ToL2MembershipWitness(_messageHash: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
     throw new OracleMethodNotAvailableError('getL1ToL2MembershipWitness');
   }
 

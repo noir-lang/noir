@@ -46,14 +46,14 @@ describe('Archiver', () => {
     publicClient.getBlockNumber.mockResolvedValueOnce(2500n).mockResolvedValueOnce(2600n).mockResolvedValueOnce(2700n);
     // logs should be created in order of how archiver syncs.
     publicClient.getLogs
-      .mockResolvedValueOnce([makeLeafInsertedEvent(98n, 1n, 0n), makeLeafInsertedEvent(99n, 1n, 1n)])
+      .mockResolvedValueOnce([makeMessageSentEvent(98n, 1n, 0n), makeMessageSentEvent(99n, 1n, 1n)])
       .mockResolvedValueOnce([makeTxsPublishedEvent(101n, blocks[0].body.getTxsEffectsHash())])
       .mockResolvedValueOnce([makeL2BlockProcessedEvent(101n, 1n)])
       .mockResolvedValueOnce([
-        makeLeafInsertedEvent(2504n, 2n, 0n),
-        makeLeafInsertedEvent(2505n, 2n, 1n),
-        makeLeafInsertedEvent(2505n, 2n, 2n),
-        makeLeafInsertedEvent(2506n, 3n, 1n),
+        makeMessageSentEvent(2504n, 2n, 0n),
+        makeMessageSentEvent(2505n, 2n, 1n),
+        makeMessageSentEvent(2505n, 2n, 2n),
+        makeMessageSentEvent(2506n, 3n, 1n),
       ])
       .mockResolvedValueOnce([
         makeTxsPublishedEvent(2510n, blocks[1].body.getTxsEffectsHash()),
@@ -142,7 +142,7 @@ describe('Archiver', () => {
     publicClient.getBlockNumber.mockResolvedValue(102n);
     // add all of the L1 to L2 messages to the mock
     publicClient.getLogs
-      .mockResolvedValueOnce([makeLeafInsertedEvent(66n, 1n, 0n), makeLeafInsertedEvent(68n, 1n, 1n)])
+      .mockResolvedValueOnce([makeMessageSentEvent(66n, 1n, 0n), makeMessageSentEvent(68n, 1n, 1n)])
       .mockResolvedValueOnce([
         makeTxsPublishedEvent(70n, blocks[0].body.getTxsEffectsHash()),
         makeTxsPublishedEvent(80n, blocks[1].body.getTxsEffectsHash()),
@@ -196,21 +196,21 @@ function makeTxsPublishedEvent(l1BlockNum: bigint, txsEffectsHash: Buffer) {
 }
 
 /**
- * Makes fake L1ToL2 LeafInserted events for testing purposes.
+ * Makes fake L1ToL2 MessageSent events for testing purposes.
  * @param l1BlockNum - L1 block number.
- * @param l2BlockNumber - The L2 block number of the leaf inserted.
- * @returns LeafInserted event logs.
+ * @param l2BlockNumber - The L2 block number of in which the message was included.
+ * @returns MessageSent event logs.
  */
-function makeLeafInsertedEvent(l1BlockNum: bigint, l2BlockNumber: bigint, index: bigint) {
+function makeMessageSentEvent(l1BlockNum: bigint, l2BlockNumber: bigint, index: bigint) {
   return {
     blockNumber: l1BlockNum,
     args: {
-      blockNumber: l2BlockNumber,
+      l2BlockNumber,
       index,
-      value: Fr.random().toString(),
+      hash: Fr.random().toString(),
     },
     transactionHash: `0x${l1BlockNum}`,
-  } as Log<bigint, number, false, undefined, true, typeof InboxAbi, 'LeafInserted'>;
+  } as Log<bigint, number, false, undefined, true, typeof InboxAbi, 'MessageSent'>;
 }
 
 /**

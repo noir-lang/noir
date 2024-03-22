@@ -79,12 +79,12 @@ export interface PublicContractsDB {
 /** Database interface for providing access to commitment tree, l1 to l2 message tree, and nullifier tree. */
 export interface CommitmentsDB {
   /**
-   * Gets a confirmed L1 to L2 message for the given entry key.
+   * Gets a confirmed L1 to L2 message for the given message hash.
    * TODO(Maddiaa): Can be combined with aztec-node method that does the same thing.
-   * @param entryKey - The entry key.
-   * @returns - The l1 to l2 message object
+   * @param messageHash - Hash of the message.
+   * @returns The l1 to l2 membership witness (index of message in the tree and sibling path).
    */
-  getL1ToL2MembershipWitness(entryKey: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>>;
+  getL1ToL2MembershipWitness(messageHash: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>>;
 
   /**
    * Gets the index of a commitment in the note hash tree.
