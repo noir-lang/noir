@@ -283,8 +283,8 @@ impl DefCollector {
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in def_collector.collected_imports {
             match resolve_import(crate_id, &collected_import, &context.def_maps) {
-                Ok((resolved_import, warning)) => {
-                    if let Some(warning) = warning {
+                Ok(resolved_import) => {
+                    if let Some(warning) = resolved_import.warning {
                         errors.push((
                             DefCollectorErrorKind::PathResolutionError(warning).into(),
                             root_file_id,
@@ -309,9 +309,9 @@ impl DefCollector {
                         }
                     }
                 }
-                Err((error, module_id)) => {
+                Err(error) => {
                     let current_def_map = context.def_maps.get(&crate_id).unwrap();
-                    let file_id = current_def_map.file_id(module_id);
+                    let file_id = current_def_map.file_id(collected_import.module_id);
                     let error = DefCollectorErrorKind::PathResolutionError(error);
                     errors.push((error.into(), file_id));
                 }

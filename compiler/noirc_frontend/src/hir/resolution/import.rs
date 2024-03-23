@@ -15,8 +15,13 @@ pub struct ImportDirective {
     pub is_prelude: bool,
 }
 
-pub type PathResolution =
-    Result<(ModuleId, PerNs, Option<PathResolutionError>), PathResolutionError>;
+pub struct PathResolution {
+    module_id: ModuleId,
+    namespace: PerNs,
+    warning: Option<PathResolutionError>,
+}
+
+type PathResolutionResult = Result<PathResolution, PathResolutionError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PathResolutionError {
@@ -37,6 +42,7 @@ pub struct ResolvedImport {
     // The module which we must add the resolved namespace to
     pub module_scope: LocalModuleId,
     pub is_prelude: bool,
+    pub warning: Option<PathResolutionError>,
 }
 
 impl From<PathResolutionError> for CustomDiagnostic {
@@ -63,14 +69,13 @@ pub fn resolve_import(
     crate_id: CrateId,
     import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-) -> Result<(ResolvedImport, Option<PathResolutionError>), (PathResolutionError, LocalModuleId)> {
+) -> Result<ResolvedImport, PathResolutionError> {
     let allow_contracts =
         allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
 
     let module_scope = import_directive.module_id;
-    let (resolved_module, resolved_namespace, mut warning) =
-        resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, allow_contracts)
-            .map_err(|error| (error, module_scope))?;
+    let PathResolution { module_id: resolved_module, namespace: resolved_namespace, mut warning } =
+        resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, allow_contracts)?;
 
     let name = resolve_path_name(import_directive);
 
@@ -94,15 +99,13 @@ pub fn resolve_import(
         }
     });
 
-    Ok((
-        ResolvedImport {
-            name,
-            resolved_namespace,
-            module_scope,
-            is_prelude: import_directive.is_prelude,
-        },
+    Ok(ResolvedImport {
+        name,
+        resolved_namespace,
+        module_scope,
+        is_prelude: import_directive.is_prelude,
         warning,
-    ))
+    })
 }
 
 fn allow_referencing_contracts(
@@ -119,7 +122,7 @@ fn resolve_path_to_ns(
     importing_crate: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
-) -> PathResolution {
+) -> PathResolutionResult {
     let import_path = &import_directive.path.segments;
     let def_map = &def_maps[&crate_id];
 
@@ -163,7 +166,7 @@ fn resolve_path_from_crate_root(
     import_path: &[Ident],
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
-) -> PathResolution {
+) -> PathResolutionResult {
     resolve_name_in_module(
         crate_id,
         importing_crate,
@@ -181,7 +184,7 @@ fn resolve_name_in_module(
     starting_mod: LocalModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
-) -> PathResolution {
+) -> PathResolutionResult {
     let def_map = &def_maps[&krate];
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
     let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
@@ -189,7 +192,11 @@ fn resolve_name_in_module(
     // There is a possibility that the import path is empty
     // In that case, early return
     if import_path.is_empty() {
-        return Ok((current_mod_id, PerNs::types(current_mod_id.into()), None));
+        return Ok(PathResolution {
+            module_id: current_mod_id,
+            namespace: PerNs::types(current_mod_id.into()),
+            warning: None,
+        });
     }
 
     let first_segment = import_path.first().expect("ice: could not fetch first segment");
@@ -246,7 +253,7 @@ fn resolve_name_in_module(
         current_ns = found_ns;
     }
 
-    Ok((current_mod_id, current_ns, warning))
+    Ok(PathResolution { module_id: current_mod_id, namespace: current_ns, warning })
 }
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
@@ -262,11 +269,10 @@ fn resolve_external_dep(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
     importing_crate: CrateId,
-) -> PathResolution {
+) -> PathResolutionResult {
     // Use extern_prelude to get the dep
-    //
     let path = &directive.path.segments;
-    //
+
     // Fetch the root module from the prelude
     let crate_name = path.first().unwrap();
     let dep_module = current_def_map
