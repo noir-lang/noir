@@ -4,7 +4,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 
-use crate::hir::resolution::import::{resolve_import, ImportDirective};
+use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::resolution::{
     collect_impls, collect_trait_impls, path_resolver, resolve_free_functions, resolve_globals,
     resolve_impls, resolve_structs, resolve_trait_by_path, resolve_trait_impls, resolve_traits,
@@ -419,13 +419,13 @@ fn inject_prelude(
         Path { segments: segments.clone(), kind: crate::PathKind::Dep, span: Span::default() };
 
     if !crate_id.is_stdlib() {
-        if let Ok((module_def, ident)) = path_resolver::resolve_path(
+        if let Ok(PathResolution { module_def_id, warning }) = path_resolver::resolve_path(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             path,
         ) {
-            assert!(ident.is_none(), "Tried to add private item to prelude");
-            let module_id = module_def.as_module().expect("std::prelude should be a module");
+            assert!(warning.is_none(), "Tried to add private item to prelude");
+            let module_id = module_def_id.as_module().expect("std::prelude should be a module");
             let prelude = context.module(module_id).scope().names();
 
             for path in prelude {

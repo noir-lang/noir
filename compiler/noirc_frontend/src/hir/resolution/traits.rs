@@ -21,7 +21,7 @@ use crate::{
 
 use super::{
     functions, get_module_mut, get_struct_type,
-    import::PathResolutionError,
+    import::{PathResolutionError, PathResolution},
     path_resolver::{PathResolver, StandardPathResolver},
     resolver::Resolver,
     take_errors,
@@ -375,7 +375,9 @@ pub(crate) fn resolve_trait_by_path(
     let path_resolver = StandardPathResolver::new(module);
 
     match path_resolver.resolve(def_maps, path.clone()) {
-        Ok((ModuleDefId::TraitId(trait_id), warning)) => Ok((trait_id, warning)),
+        Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), warning }) => {
+            Ok((trait_id, warning))
+        }
         Ok(_) => Err(DefCollectorErrorKind::NotATrait { not_a_trait_name: path }),
         Err(_) => Err(DefCollectorErrorKind::TraitNotFound { trait_path: path }),
     }

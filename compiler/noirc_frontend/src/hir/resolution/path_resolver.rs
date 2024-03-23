@@ -1,9 +1,9 @@
-use super::import::{resolve_import, ImportDirective, PathResolutionError};
+use super::import::{resolve_import, ImportDirective, PathResolution, PathResolutionResult};
 use crate::Path;
 use std::collections::BTreeMap;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 
 pub trait PathResolver {
     /// Resolve the given path returning the resolved ModuleDefId.
@@ -11,7 +11,7 @@ pub trait PathResolver {
         &self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
-    ) -> Result<(ModuleDefId, Option<PathResolutionError>), PathResolutionError>;
+    ) -> PathResolutionResult;
 
     fn local_module_id(&self) -> LocalModuleId;
 
@@ -34,7 +34,7 @@ impl PathResolver for StandardPathResolver {
         &self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
-    ) -> Result<(ModuleDefId, Option<PathResolutionError>), PathResolutionError> {
+    ) -> PathResolutionResult {
         resolve_path(def_maps, self.module_id, path)
     }
 
@@ -53,7 +53,7 @@ pub fn resolve_path(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     module_id: ModuleId,
     path: Path,
-) -> Result<(ModuleDefId, Option<PathResolutionError>), PathResolutionError> {
+) -> PathResolutionResult {
     // lets package up the path into an ImportDirective and resolve it using that
     let import =
         ImportDirective { module_id: module_id.local_id, path, alias: None, is_prelude: false };
@@ -63,5 +63,5 @@ pub fn resolve_path(
     let id =
         namespace.values.or(namespace.types).map(|(id, _, _)| id).expect("Found empty namespace");
 
-    Ok((id, resolved_import.warning))
+    Ok(PathResolution { module_def_id: id, warning: resolved_import.warning })
 }

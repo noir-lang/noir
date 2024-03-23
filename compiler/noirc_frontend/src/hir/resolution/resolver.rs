@@ -56,6 +56,7 @@ use crate::hir_def::{
 };
 
 use super::errors::{PubPosition, ResolverError};
+use super::import::PathResolution;
 
 const SELF_TYPE_NAME: &str = "Self";
 
@@ -663,7 +664,7 @@ impl<'a> Resolver<'a> {
 
         // If we cannot find a local generic of the same name, try to look up a global
         match self.path_resolver.resolve(self.def_maps, path.clone()) {
-            Ok((ModuleDefId::GlobalId(id), warning)) => {
+            Ok(PathResolution { module_def_id: ModuleDefId::GlobalId(id), warning }) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
@@ -1846,16 +1847,13 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        let (mod_def_id, warning) = self
-            .path_resolver
-            .resolve(self.def_maps, path)
-            .map_err(ResolverError::PathResolutionError)?;
+        let path_resolution = self.path_resolver.resolve(self.def_maps, path)?;
 
-        if let Some(warning) = warning {
+        if let Some(warning) = path_resolution.warning {
             self.push_err(warning.into());
         }
 
-        Ok(mod_def_id)
+        Ok(path_resolution.module_def_id)
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {

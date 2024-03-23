@@ -15,13 +15,21 @@ pub struct ImportDirective {
     pub is_prelude: bool,
 }
 
-pub struct PathResolution {
+struct NamespaceResolution {
     module_id: ModuleId,
     namespace: PerNs,
     warning: Option<PathResolutionError>,
 }
 
-type PathResolutionResult = Result<PathResolution, PathResolutionError>;
+type NamespaceResolutionResult = Result<NamespaceResolution, PathResolutionError>;
+
+pub struct PathResolution {
+    pub module_def_id: ModuleDefId,
+
+    pub warning: Option<PathResolutionError>,
+}
+
+pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PathResolutionError {
@@ -74,8 +82,11 @@ pub fn resolve_import(
         allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
 
     let module_scope = import_directive.module_id;
-    let PathResolution { module_id: resolved_module, namespace: resolved_namespace, mut warning } =
-        resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, allow_contracts)?;
+    let NamespaceResolution {
+        module_id: resolved_module,
+        namespace: resolved_namespace,
+        mut warning,
+    } = resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, allow_contracts)?;
 
     let name = resolve_path_name(import_directive);
 
@@ -122,7 +133,7 @@ fn resolve_path_to_ns(
     importing_crate: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
-) -> PathResolutionResult {
+) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
     let def_map = &def_maps[&crate_id];
 
@@ -166,7 +177,7 @@ fn resolve_path_from_crate_root(
     import_path: &[Ident],
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
-) -> PathResolutionResult {
+) -> NamespaceResolutionResult {
     resolve_name_in_module(
         crate_id,
         importing_crate,
@@ -184,7 +195,7 @@ fn resolve_name_in_module(
     starting_mod: LocalModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
-) -> PathResolutionResult {
+) -> NamespaceResolutionResult {
     let def_map = &def_maps[&krate];
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
     let mut current_mod = &def_map.modules[current_mod_id.local_id.0];
@@ -192,7 +203,7 @@ fn resolve_name_in_module(
     // There is a possibility that the import path is empty
     // In that case, early return
     if import_path.is_empty() {
-        return Ok(PathResolution {
+        return Ok(NamespaceResolution {
             module_id: current_mod_id,
             namespace: PerNs::types(current_mod_id.into()),
             warning: None,
@@ -253,7 +264,7 @@ fn resolve_name_in_module(
         current_ns = found_ns;
     }
 
-    Ok(PathResolution { module_id: current_mod_id, namespace: current_ns, warning })
+    Ok(NamespaceResolution { module_id: current_mod_id, namespace: current_ns, warning })
 }
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
@@ -269,7 +280,7 @@ fn resolve_external_dep(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     allow_contracts: bool,
     importing_crate: CrateId,
-) -> PathResolutionResult {
+) -> NamespaceResolutionResult {
     // Use extern_prelude to get the dep
     let path = &directive.path.segments;
 
