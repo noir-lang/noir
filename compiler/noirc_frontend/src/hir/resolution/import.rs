@@ -105,7 +105,7 @@ pub fn resolve_import(
     ))
 }
 
-pub(super) fn allow_referencing_contracts(
+fn allow_referencing_contracts(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     krate: CrateId,
     local_id: LocalModuleId,
@@ -113,7 +113,7 @@ pub(super) fn allow_referencing_contracts(
     ModuleId { krate, local_id }.module(def_maps).is_contract
 }
 
-pub fn resolve_path_to_ns(
+fn resolve_path_to_ns(
     import_directive: &ImportDirective,
     crate_id: CrateId,
     importing_crate: CrateId,
