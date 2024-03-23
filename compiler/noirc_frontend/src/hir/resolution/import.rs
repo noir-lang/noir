@@ -300,7 +300,7 @@ fn resolve_external_dep(
 
 // Issue an error if the given private function is being called from a non-child module, or
 // if the given pub(crate) function is being called from another crate
-pub(super) fn can_reference_module_id(
+fn can_reference_module_id(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     importing_crate: CrateId,
     current_module: LocalModuleId,
