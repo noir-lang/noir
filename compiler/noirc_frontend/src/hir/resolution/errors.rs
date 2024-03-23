@@ -25,7 +25,7 @@ pub enum ResolverError {
     #[error("path is not an identifier")]
     PathIsNotIdent { span: Span },
     #[error("could not resolve path")]
-    PathResolutionError(PathResolutionError),
+    PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
     Expected { span: Span, expected: String, got: String },
     #[error("Duplicate field in constructor")]
