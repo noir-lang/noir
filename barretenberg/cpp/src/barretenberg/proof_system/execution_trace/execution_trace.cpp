@@ -37,6 +37,7 @@ void ExecutionTrace_<Flavor>::add_wires_and_selectors_to_proving_key(
         for (auto [pkey_selector, trace_selector] : zip_view(proving_key->get_selectors(), trace_data.selectors)) {
             pkey_selector = trace_selector.share();
         }
+        proving_key->pub_inputs_offset = trace_data.pub_inputs_offset;
     } else if constexpr (IsPlonkFlavor<Flavor>) {
         for (size_t idx = 0; idx < trace_data.wires.size(); ++idx) {
             std::string wire_tag = "w_" + std::to_string(idx + 1) + "_lagrange";
@@ -106,6 +107,10 @@ typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_t
         if (block.has_ram_rom) {
             trace_data.ram_rom_offset = offset;
         }
+        // Store offset of public inputs block for use in the pub input mechanism of the permutation argument
+        if (block.is_pub_inputs) {
+            trace_data.pub_inputs_offset = offset;
+        }
 
         offset += block_size;
     }
@@ -144,14 +149,13 @@ void ExecutionTrace_<Flavor>::add_ecc_op_wires_to_proving_key(
     // Copy the ecc op data from the conventional wires into the op wires over the range of ecc op gates
     const size_t op_wire_offset = Flavor::has_zero_row ? 1 : 0;
     for (auto [ecc_op_wire, wire] : zip_view(op_wire_polynomials, proving_key->get_wires())) {
-        for (size_t i = 0; i < builder.num_ecc_op_gates; ++i) {
+        for (size_t i = 0; i < builder.blocks.ecc_op.size(); ++i) {
             size_t idx = i + op_wire_offset;
             ecc_op_wire[idx] = wire[idx];
             ecc_op_selector[idx] = 1; // construct the selector as the indicator on the ecc op block
         }
     }
 
-    proving_key->num_ecc_op_gates = builder.num_ecc_op_gates;
     proving_key->ecc_op_wire_1 = op_wire_polynomials[0].share();
     proving_key->ecc_op_wire_2 = op_wire_polynomials[1].share();
     proving_key->ecc_op_wire_3 = op_wire_polynomials[2].share();

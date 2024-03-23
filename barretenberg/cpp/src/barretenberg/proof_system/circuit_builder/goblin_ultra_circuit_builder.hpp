@@ -17,8 +17,6 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
     static constexpr size_t DEFAULT_NON_NATIVE_FIELD_LIMB_BITS =
         UltraCircuitBuilder_<UltraHonkArith<FF>>::DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
 
-    size_t num_ecc_op_gates = 0; // number of ecc op "gates" (rows); these are placed at the start of the circuit
-
     // Stores record of ecc operations and performs corresponding native operations internally
     std::shared_ptr<ECCOpQueue> op_queue;
 
@@ -100,7 +98,8 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
     size_t get_num_gates() const override
     {
         auto num_ultra_gates = UltraCircuitBuilder_<UltraHonkArith<FF>>::get_num_gates();
-        return num_ultra_gates + num_ecc_op_gates;
+        auto num_goblin_ecc_op_gates = this->blocks.ecc_op.size();
+        return num_ultra_gates + num_goblin_ecc_op_gates;
     }
 
     /**x
@@ -116,11 +115,12 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
         size_t nnfcount = 0;
         UltraCircuitBuilder_<UltraHonkArith<FF>>::get_num_gates_split_into_components(
             count, rangecount, romcount, ramcount, nnfcount);
+        auto num_goblin_ecc_op_gates = this->blocks.ecc_op.size();
 
-        size_t total = count + romcount + ramcount + rangecount + num_ecc_op_gates;
+        size_t total = count + romcount + ramcount + rangecount + num_goblin_ecc_op_gates;
         std::cout << "gates = " << total << " (arith " << count << ", rom " << romcount << ", ram " << ramcount
                   << ", range " << rangecount << ", non native field gates " << nnfcount << ", goblin ecc op gates "
-                  << num_ecc_op_gates << "), pubinp = " << this->public_inputs.size() << std::endl;
+                  << num_goblin_ecc_op_gates << "), pubinp = " << this->public_inputs.size() << std::endl;
     }
 
     /**

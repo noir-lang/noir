@@ -21,8 +21,8 @@ template <class Flavor> class ExecutionTrace_ {
         std::array<Polynomial, Builder::Arithmetization::NUM_SELECTORS> selectors;
         // A vector of sets (vectors) of addresses into the wire polynomials whose values are copy constrained
         std::vector<CyclicPermutation> copy_cycles;
-        // The starting index in the trace of the block containing RAM/RAM read/write gates
-        uint32_t ram_rom_offset = 0;
+        uint32_t ram_rom_offset = 0;    // offset of the RAM/ROM block in the execution trace
+        uint32_t pub_inputs_offset = 0; // offset of the public inputs block in the execution trace
 
         TraceData(size_t dyadic_circuit_size, Builder& builder)
         {

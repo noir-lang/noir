@@ -190,8 +190,8 @@ ecc_op_tuple GoblinUltraCircuitBuilder_<FF>::decompose_ecc_operands(uint32_t op_
  *
  * @param in Variables array indices corresponding to operation inputs
  * @note We dont explicitly set values for the selectors here since their values are fully determined by
- * num_ecc_op_gates. E.g. in the composer we can reconstruct q_ecc_op as the indicator on the first num_ecc_op_gates
- * indices. All other selectors are simply 0 on this domain.
+ * the number of ecc op gates. E.g. in the composer we can reconstruct q_ecc_op as the indicator over the range of ecc
+ * op gates. All other selectors are simply 0 on this domain.
  */
 template <typename FF> void GoblinUltraCircuitBuilder_<FF>::populate_ecc_op_wires(const ecc_op_tuple& in)
 {
@@ -204,8 +204,6 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::populate_ecc_op_wire
     for (auto& selector : this->blocks.ecc_op.selectors) {
         selector.emplace_back(0);
     }
-
-    num_ecc_op_gates += 2;
 };
 
 template <typename FF> void GoblinUltraCircuitBuilder_<FF>::set_goblin_ecc_op_code_constant_variables()

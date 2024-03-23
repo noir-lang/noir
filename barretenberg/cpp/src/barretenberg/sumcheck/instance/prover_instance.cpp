@@ -18,7 +18,7 @@ template <class Flavor> size_t ProverInstance_<Flavor>::compute_dyadic_size(Circ
     // minumum size of execution trace due to everything else
     size_t min_size_of_execution_trace = circuit.public_inputs.size() + circuit.num_gates;
     if constexpr (IsGoblinFlavor<Flavor>) {
-        min_size_of_execution_trace += circuit.num_ecc_op_gates;
+        min_size_of_execution_trace += circuit.blocks.ecc_op.size();
     }
 
     // The number of gates is the maxmimum required by the lookup argument or everything else, plus an optional zero row

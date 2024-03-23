@@ -270,8 +270,6 @@ class GoblinUltraFlavor {
         std::vector<uint32_t> memory_write_records;
         std::array<Polynomial, 4> sorted_polynomials;
 
-        size_t num_ecc_op_gates; // needed to determine public input offset
-
         auto get_to_be_shifted()
         {
             return RefArray{ this->table_1, this->table_2, this->table_3,      this->table_4, this->w_l,     this->w_r,

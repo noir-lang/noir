@@ -147,20 +147,16 @@ PermutationMapping<Flavor::NUM_WIRES, generalized> compute_permutation_mapping(
         cycle_index++;
     }
 
-    // Add information about public inputs to the computation
+    // Add information about public inputs so that the cycles can be altered later; See the construction of the
+    // permutation polynomials for details.
     const auto num_public_inputs = static_cast<uint32_t>(circuit_constructor.public_inputs.size());
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/862): this is brittle. depends on when PI are placed.
-    // how can we make this more robust?
-    // The public inputs are placed at the top of the execution trace, potentially offset by a zero row.
-    const size_t num_zero_rows = Flavor::has_zero_row ? 1 : 0;
-    size_t pub_input_offset = num_zero_rows;
-    // If Goblin, PI are further offset by number of ecc op gates
-    if constexpr (IsGoblinFlavor<Flavor>) {
-        pub_input_offset += circuit_constructor.num_ecc_op_gates;
+    size_t pub_inputs_offset = 0;
+    if constexpr (IsHonkFlavor<Flavor>) {
+        pub_inputs_offset = proving_key->pub_inputs_offset;
     }
     for (size_t i = 0; i < num_public_inputs; ++i) {
-        size_t idx = i + pub_input_offset;
+        size_t idx = i + pub_inputs_offset;
         mapping.sigmas[0][idx].row_index = static_cast<uint32_t>(idx);
         mapping.sigmas[0][idx].column_index = 0;
         mapping.sigmas[0][idx].is_public_input = true;
