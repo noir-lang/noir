@@ -21,7 +21,7 @@ use crate::{
 
 use super::{
     functions, get_module_mut, get_struct_type,
-    import::{PathResolutionError, PathResolution},
+    import::{PathResolution, PathResolutionError},
     path_resolver::{PathResolver, StandardPathResolver},
     resolver::Resolver,
     take_errors,
