@@ -23,19 +23,6 @@ class DataBusComposerTests : public ::testing::Test {
 
     using Curve = curve::BN254;
     using FF = Curve::ScalarField;
-    using Point = Curve::AffineElement;
-    using CommitmentKey = bb::CommitmentKey<Curve>;
-
-    /**
-     * @brief Generate a simple test circuit that includes arithmetic and goblin ecc op gates
-     *
-     * @param builder
-     */
-    void generate_test_circuit(auto& builder)
-    {
-        // Add some ecc op gates and arithmetic gates
-        GoblinMockCircuits::construct_simple_circuit(builder);
-    }
 };
 
 /**
@@ -49,38 +36,35 @@ TEST_F(DataBusComposerTests, CallDataRead)
 {
     auto op_queue = std::make_shared<bb::ECCOpQueue>();
 
-    // Add mock data to op queue to simulate interaction with a previous circuit
-    GoblinMockCircuits::perform_op_queue_interactions_for_mock_first_circuit(op_queue);
-
     auto builder = GoblinUltraCircuitBuilder{ op_queue };
 
-    // Create a general test circuit
-    generate_test_circuit(builder);
+    // Add some ecc op gates and arithmetic gates
+    GoblinMockCircuits::construct_simple_circuit(builder);
 
-    // Add some values to calldata and store the corresponding witness index
-    std::array<FF, 5> calldata_values = { 7, 10, 3, 12, 1 };
+    // Add some values to calldata
+    std::vector<FF> calldata_values = { 7, 10, 3, 12, 1 };
     for (auto& val : calldata_values) {
         builder.add_public_calldata(val);
     }
 
-    // Define some indices at which to read calldata
-    std::array<uint32_t, 2> read_index_values = { 1, 4 };
+    // Define some raw indices at which to read calldata (these will be ASSERTed to be valid)
+    std::vector<uint32_t> read_indices = { 1, 4 };
 
-    // Create some calldata lookup gates
-    for (uint32_t& read_index : read_index_values) {
+    // Create some calldata read gates. (Normally we'd use the result of the read. Example of that is below)
+    for (uint32_t& read_idx : read_indices) {
         // Create a variable corresponding to the index at which we want to read into calldata
-        uint32_t read_idx_witness_idx = builder.add_variable(read_index);
+        uint32_t read_idx_witness_idx = builder.add_variable(read_idx);
 
-        // Create a variable corresponding to the result of the read. Note that we do not in general connect reads from
-        // calldata via copy constraints (i.e. we create a unique variable for the result of each read)
-        ASSERT_LT(read_index, builder.public_calldata.size());
-        FF calldata_value = builder.get_variable(builder.public_calldata[read_index]);
-        uint32_t value_witness_idx = builder.add_variable(calldata_value);
-
-        builder.create_calldata_lookup_gate({ read_idx_witness_idx, value_witness_idx });
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/821): automate updating of read counts
-        builder.calldata_read_counts[read_index]++;
+        builder.read_calldata(read_idx_witness_idx);
     }
+
+    // In general we'll want to use the result of a calldata read in another operation. Here's an example using
+    // an add gate to show that the result of the read is as expected:
+    uint32_t read_idx = 2;
+    FF expected_result = calldata_values[read_idx];
+    uint32_t read_idx_witness_idx = builder.add_variable(read_idx);
+    uint32_t result_witness_idx = builder.read_calldata(read_idx_witness_idx);
+    builder.create_add_gate({ result_witness_idx, builder.zero_idx, builder.zero_idx, 1, 0, 0, -expected_result });
 
     // Construct and verify Honk proof
     auto instance = std::make_shared<ProverInstance_<GoblinUltraFlavor>>(builder);

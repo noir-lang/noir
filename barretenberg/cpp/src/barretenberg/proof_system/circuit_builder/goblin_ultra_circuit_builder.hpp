@@ -42,6 +42,7 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
     void populate_ecc_op_wires(const ecc_op_tuple& in);
     ecc_op_tuple decompose_ecc_operands(uint32_t op, const g1::affine_element& point, const FF& scalar = FF::zero());
     void set_goblin_ecc_op_code_constant_variables();
+    void create_calldata_read_gate(const databus_lookup_gate_<FF>& in);
 
   public:
     GoblinUltraCircuitBuilder_(const size_t size_hint = 0,
@@ -136,7 +137,7 @@ template <typename FF> class GoblinUltraCircuitBuilder_ : public UltraCircuitBui
         return index;
     }
 
-    void create_calldata_lookup_gate(const databus_lookup_gate_<FF>& in);
+    uint32_t read_calldata(const uint32_t& read_idx_witness_idx);
 
     void create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in);
     void create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in);

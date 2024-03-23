@@ -35,11 +35,7 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     add_public_calldata(FF(25)); // ensure there is at least one entry in calldata
     uint32_t raw_read_idx = 0;   // read first entry in calldata
     auto read_idx = this->add_variable(raw_read_idx);
-    FF calldata_value = this->get_variable(public_calldata[raw_read_idx]);
-    auto value_idx = this->add_variable(calldata_value);
-    create_calldata_lookup_gate({ read_idx, value_idx });
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/821): automate updating of read counts
-    calldata_read_counts[raw_read_idx]++;
+    read_calldata(read_idx);
 
     // mock a poseidon external gate, with all zeros as input
     this->blocks.poseidon_external.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
@@ -221,13 +217,40 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::set_goblin_ecc_op_co
 }
 
 /**
+ * @brief Read from calldata
+ * @details Creates a calldata lookup gate based on the read data
+ *
+ * @tparam FF
+ * @param read_idx_witness_idx Variable index of the read index
+ * @return uint32_t Variable index of the result of the read
+ */
+template <typename FF> uint32_t GoblinUltraCircuitBuilder_<FF>::read_calldata(const uint32_t& read_idx_witness_idx)
+{
+    // Get the raw index into the calldata
+    const uint32_t read_idx = static_cast<uint32_t>(uint256_t(this->get_variable(read_idx_witness_idx)));
+
+    // Ensure that the read index is valid
+    ASSERT(read_idx < public_calldata.size());
+
+    // Create a variable corresponding to the result of the read. Note that we do not in general connect reads from
+    // calldata via copy constraints (i.e. we create a unique variable for the result of each read)
+    FF calldata_value = this->get_variable(public_calldata[read_idx]);
+    uint32_t value_witness_idx = this->add_variable(calldata_value);
+
+    create_calldata_read_gate({ read_idx_witness_idx, value_witness_idx });
+    calldata_read_counts[read_idx]++;
+
+    return value_witness_idx;
+}
+
+/**
  * @brief Create a calldata lookup/read gate
  *
  * @tparam FF
  * @param databus_lookup_gate_ witness indices corresponding to: calldata index, calldata value
  */
 template <typename FF>
-void GoblinUltraCircuitBuilder_<FF>::create_calldata_lookup_gate(const databus_lookup_gate_<FF>& in)
+void GoblinUltraCircuitBuilder_<FF>::create_calldata_read_gate(const databus_lookup_gate_<FF>& in)
 {
     auto& block = this->blocks.busread;
     block.populate_wires(in.value, in.index, this->zero_idx, this->zero_idx);
