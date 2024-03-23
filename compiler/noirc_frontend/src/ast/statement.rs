@@ -249,7 +249,7 @@ pub struct ModuleDeclaration {
 impl std::fmt::Display for ModuleDeclaration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.visibility != ItemVisibility::Private {
-            write!(f, "{}", self.visibility)?;
+            write!(f, "{} ", self.visibility)?;
         };
 
         write!(f, "mod {}", self.ident)
