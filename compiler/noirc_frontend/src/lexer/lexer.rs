@@ -1205,35 +1205,11 @@ mod tests {
         use std::io::Read;
         use std::mem::discriminant;
         use std::path::Path;
-        use std::process::Command;
 
-        let blns_url = "https://raw.githubusercontent.com/minimaxir/big-list-of-naughty-strings/master/blns.base64.json";
-        // TODO: fix temp directory handling or remove
-        // let mut blns_path = Path::new("target/tmp");
-        // while !blns_path.is_dir() {
-        //     blns_path = blns_path.parent().unwrap();
-        // }
-        // let blns_path = blns_path.join("blns.base64.json");
-
-        let blns_path_str = "../../target/tmp/blns.base64.json";
-        // let blns_path_str = blns_path.to_str().unwrap();
-
-        let command_str = format!("ls {blns_path_str} || curl {blns_url} --output {blns_path_str}");
-
-        Command::new("sh")
-            .arg("-c")
-            .arg(command_str)
-            .output()
-            .expect("failed to download BLNS database with cURL: is cURL available on your system?");
-
+        let blns_dir_str: String = std::env::var("BLNS_JSON_DIR").expect("BLNS_JSON_DIR not set");
+        let blns_path = Path::new(&blns_dir_str).join("blns.base64.json");
+        let blns_path_str = blns_path.to_str().unwrap();
         let mut blns_bytes = std::fs::File::open(blns_path_str).unwrap();
-
-        // TODO: revert fetch to backend_interface-style
-        // https://github.com/noir-lang/noir/blob/master/tooling/backend_interface/src/download.rs#L50
-        //
-        // let blns_response = reqwest::blocking::get(blns_url).expect("fetching BLNS file failed");
-        // let blns_bytes = blns_response.bytes().expect("decoding BLNS file failed");
-        // let mut blns_cursor = Cursor::new(blns_bytes.to_vec());
 
         let mut blns_cursor = blns_bytes;
         let mut blns_contents = String::new();
