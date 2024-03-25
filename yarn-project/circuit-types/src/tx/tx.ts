@@ -9,6 +9,7 @@ import {
 import { arrayNonEmptyLength } from '@aztec/foundation/collection';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { UnencryptedL2Log } from '../index.js';
 import { GetUnencryptedLogsResponse } from '../logs/get_unencrypted_logs_response.js';
 import { L2LogsSource } from '../logs/l2_logs_source.js';
 import { TxL2Logs } from '../logs/tx_l2_logs.js';
@@ -166,7 +167,8 @@ export class Tx {
       size: this.toBuffer().length,
       classRegisteredCount: this.unencryptedLogs
         .unrollLogs()
-        .filter(log => ContractClassRegisteredEvent.isContractClassRegisteredEvent(log)).length,
+        .map(log => UnencryptedL2Log.fromBuffer(log))
+        .filter(log => ContractClassRegisteredEvent.isContractClassRegisteredEvent(log.data)).length,
     };
   }
 
