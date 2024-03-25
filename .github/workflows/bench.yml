@@ -26,5 +26,4 @@ jobs:
       - uses: boa-dev/criterion-compare-action@v3.2.4
         with:
           branchName: "master"
-          package: "nargo_cli"
           benchName: "execution"
