@@ -1,16 +1,16 @@
 version: '3'
 services:
   fork:
-    image: ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916
+    image: aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991:latest
     entrypoint: >
       sh -c '
       if [ -n "$FORK_BLOCK_NUMBER" ] && [ -n "$FORK_URL" ]; then
-        anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337 --fork-url "$FORK_URL" --fork-block-number "$FORK_BLOCK_NUMBER"
+        exec anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337 --fork-url "$FORK_URL" --fork-block-number "$FORK_BLOCK_NUMBER"
       else
-        anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337
+        exec anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337
       fi'
-    ports:
-      - '8545:8545'
+    expose:
+      - '8545'
 
   sandbox:
     image: aztecprotocol/aztec:latest
@@ -27,8 +27,8 @@ services:
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
       AVM_ENABLED: ${AVM_ENABLED:-}
       ENABLE_GAS: ${ENABLE_GAS:-}
-    ports:
-      - '8080:8080'
+    expose:
+      - '8080'
 
   end-to-end:
     image: aztecprotocol/end-to-end:latest

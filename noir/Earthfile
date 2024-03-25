@@ -20,6 +20,7 @@ nargo:
     ENV COMMIT_HASH=$(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}')
     COPY ./scripts/bootstrap_native.sh ./scripts/bootstrap_native.sh
     RUN ./scripts/bootstrap_native.sh
+    RUN echo CONTENT HASH $COMMIT_HASH | tee .content-hash
     SAVE ARTIFACT /build/noir-repo/target/release/nargo nargo
     SAVE ARTIFACT /build/noir-repo/target/release/acvm acvm
     SAVE IMAGE aztecprotocol/nargo
@@ -64,6 +65,7 @@ packages:
 
     # TODO(AD) is this OK as a content hash?
     ENV COMMIT_HASH=$(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}')
+    RUN echo CONTENT HASH $COMMIT_HASH | tee .content-hash
     RUN PATH="/root/.cargo/bin:$PATH" ./scripts/bootstrap_packages.sh
     SAVE ARTIFACT packages
     SAVE IMAGE --cache-hint

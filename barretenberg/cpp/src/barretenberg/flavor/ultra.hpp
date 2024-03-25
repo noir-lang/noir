@@ -435,7 +435,7 @@ class UltraFlavor {
                 prover_poly = key_poly.shifted();
             }
         }
-        // Define all operations as default, except move construction/assignment
+        // Define all operations as default, except copy construction/assignment
         ProverPolynomials() = default;
         ProverPolynomials& operator=(const ProverPolynomials&) = delete;
         ProverPolynomials(const ProverPolynomials& o) = delete;

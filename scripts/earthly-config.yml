@@ -1,3 +1,0 @@
-global:
-    cache_size_mb: 100000
-    container_frontend: docker-shell

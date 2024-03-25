@@ -1,16 +1,16 @@
 version: '3'
 services:
   fork:
-    image: ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916
+    image: aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991:latest
     entrypoint: 'anvil --silent -p 8545 --host 0.0.0.0 --chain-id 31337'
-    ports:
-      - '8545:8545'
+    expose:
+      - '8545'
 
   p2p-bootstrap:
     image: aztecprotocol/aztec:latest
     command: 'start --p2p-bootstrap'
-    ports:
-      - '40400:40400'
+    expose:
+      - '40400'
     environment:
       DEBUG: 'aztec:*'
       DEBUG_COLORS: 1

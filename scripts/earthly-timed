@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 [ -n "${BUILD_SYSTEM_DEBUG:-}" ] && set -x # conditionally trace
 
@@ -49,7 +48,7 @@ for arg in "$@"; do
     fi
 done
 if [ $INTERACTIVE = true ] ; then
-  $(dirname $0)/earthly $@
+  earthly $@
 else
-  $(dirname $0)/earthly $@ 2>&1 | add_timestamps >&2
+  earthly $@ 2>&1 | add_timestamps >&2
 fi

@@ -6,6 +6,7 @@ WORKDIR /build
 # minimum files to download yarn packages
 # keep timestamps for incremental builds
 COPY --dir .yarn package.json yarn.lock .yarnrc.yml .
+RUN echo CONTENT HASH $(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}') | tee .content-hash
 RUN yarn --immutable
 
 # other source files

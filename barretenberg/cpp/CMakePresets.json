@@ -74,7 +74,7 @@
       "name": "clang16-assert",
       "displayName": "Build with Clang-16 using RelWithAssert",
       "description": "Build with globally installed Clang-16 in release with ASSERTs mode",
-      "inherits": "default",
+      "inherits": "clang16",
       "environment": {
         "CMAKE_BUILD_TYPE": "RelWithAssert"
       }

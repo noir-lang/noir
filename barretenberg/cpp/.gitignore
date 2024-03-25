@@ -12,3 +12,4 @@ acir_tests
 go*.tar.gz
 barretenberg_modules.dot
 barretenberg_modules.png
+src/barretenberg/bb/config.hpp

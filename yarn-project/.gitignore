@@ -11,6 +11,7 @@
 **/target
 **/.debounce-*
 **/.tsc.pid
+**/*.result
 accounts/src/artifacts
 aztec-faucet/data*
 aztec-node/data*

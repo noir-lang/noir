@@ -1,1 +1,10 @@
 **/*.wasm
+.yarn/*
+!.yarn/releases
+node_modules
+dest
+.tsbuildinfo*
+*.log
+/crs
+package.tgz
+package

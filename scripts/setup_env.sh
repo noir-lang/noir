@@ -3,23 +3,11 @@
 # Setup environment variables
 echo "Setting up environment variables..."
 echo FORCE_COLOR=1 >> $GITHUB_ENV
-echo DOCKER_HOST=ssh://build-instance-$1.aztecprotocol.com >> $GITHUB_ENV
 
 # Docker login
 echo "Logging in to Docker..."
-echo $2 | docker login -u aztecprotocolci --password-stdin
+echo $1 | docker login -u aztecprotocolci --password-stdin
 
-# Configure SSH
-echo "Configuring SSH..."
-mkdir -p ~/.ssh
-echo $3 | base64 -d > ~/.ssh/build_instance_key
-chmod 600 ~/.ssh/build_instance_key
-cat > ~/.ssh/config <<EOF
-IdentityFile ~/.ssh/build_instance_key
-StrictHostKeyChecking no
-User ubuntu
-EOF
-
-# Install earthly
-$(dirname $0)/earthly --version
+# Make earthly-cloud and earthly-cloud-bench scripts available
 echo "PATH=$(dirname $(realpath $0)):$PATH" >> $GITHUB_ENV
+echo "GITHUB_ACTOR=$2" >> $GITHUB_ENV

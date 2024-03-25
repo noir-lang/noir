@@ -6,16 +6,15 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  e2e:
+  # there's a lot of x86 tasks - let's split out the build step
+  build-x86:
     runs-on: ubuntu-latest
     env:
       EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
-    # TODO currently names are coupled to platform
-    strategy: { matrix: { environment: [x86, arm], test: [e2e-escrow-contract, e2e-account-contracts] } }
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
-      group: ${{ matrix.test }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.environment }}
-      cancel-in-progress: true
+      group: build-${{ github.event.pull_request.number || github.ref_name }}-x86
+      cancel-in-progress: ${{ github.ref_name != 'master' }}
     steps:
       - uses: earthly/actions-setup@v1
         with:
@@ -29,38 +28,34 @@ jobs:
 
       - name: Setup
         working-directory: ./scripts
-        run: ./setup_env.sh ${{ matrix.environment }} ${{ secrets.DOCKERHUB_PASSWORD }} ${{ secrets.BUILD_INSTANCE_SSH_KEY }}
+        run: ./setup_env.sh ${{ secrets.DOCKERHUB_PASSWORD }} ${{ github.actor }}
 
       - name: Test
-        working-directory: ./yarn-project/end-to-end
-        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr'
+        working-directory: ./yarn-project
+        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
         run: |
-          # TODO put in script
-          if [ "${{ matrix.environment }}" == "arm" ]; then
-            PLATFORM=linux/arm64
-          elif [ "${{ matrix.environment }}" == "x86" ]; then
-            PLATFORM=linux/amd64
-          fi
-          earthly sat --org aztec launch --size 4xlarge --platform $PLATFORM build-${{github.actor}}-${{ matrix.environment }} || true
-          if [ ${{ github.ref_name }} = master ] ; then
-            # update the remote cache
-            export EARTHLY_PUSH=true
-          fi
-          # TODO need to use more SAVE IMAGE --cache-hint and explicit BUILD statements for remote-cache to work well but then it should read artifacts from master done by all runners
-          earthly -P --no-output --org aztec --remote-cache=aztecprotocol/cache:${{matrix.test}} --sat build-${{github.actor}}-${{ matrix.environment }} +${{ matrix.test }}
+          # push to registry
+          earthly-cloud build x86 --push +build-end-to-end
 
-  bb-native-tests:
+  # all the end-to-end integration tests for aztec
+  e2e-arm:
     runs-on: ubuntu-latest
     env:
       EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
-    # run for both x86_64 and arm64
-    # TODO currently names are coupled to platform
-    strategy: { matrix: { environment: [x86, arm] } }
+    strategy:
+      matrix:
+        test:
+          - e2e-card-game
+          - e2e-crowdfunding-and-claim
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
-      group: bb-native-tests-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.environment }}
-      cancel-in-progress: true
+      group: ${{ matrix.test }}-${{ github.event.pull_request.number || github.ref_name }}-arm
+      cancel-in-progress: ${{ github.ref_name != 'master' }}
     steps:
+      - uses: earthly/actions-setup@v1
+        with:
+          version: v0.8.5
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -69,22 +64,151 @@ jobs:
 
       - name: Setup
         working-directory: ./scripts
-        run: ./setup_env.sh ${{ matrix.environment }} ${{ secrets.DOCKERHUB_PASSWORD }} ${{ secrets.BUILD_INSTANCE_SSH_KEY }}
+        run: ./setup_env.sh ${{ secrets.DOCKERHUB_PASSWORD }} ${{ github.actor }}
 
-      - name: Build and test
-        working-directory: ./barretenberg/cpp
-        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr'
-        run:  |
-          # TODO put in script
-          if [ "${{ matrix.environment }}" == "arm" ]; then
-            PLATFORM=linux/arm64
-          elif [ "${{ matrix.environment }}" == "x86" ]; then
-            PLATFORM=linux/amd64
-          fi
-          earthly sat --org aztec launch --size 4xlarge --platform $PLATFORM build-${{github.actor}}-${{ matrix.environment }} || true
-          if [ ${{ github.ref_name }} = master ] ; then
-            # update the remote cache
-            export EARTHLY_PUSH=true
-          fi
-          # TODO need to use more SAVE IMAGE --cache-hint and explicit BUILD statements for remote-cache to work well but then it should read artifacts from master done by all runners
-          earthly -P --no-output --org aztec --remote-cache=aztecprotocol/cache:bb-native-tests --sat build-${{github.actor}}-${{ matrix.environment }} +test
+      - name: Test
+        working-directory: ./yarn-project/end-to-end/
+        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
+        # We don't do much on arm, just run it on their builder
+        run: 
+          earthly-cloud build arm --no-output +${{ matrix.test }} --e2e_remote=true
+
+  # all the end-to-end integration tests for aztec
+  e2e-x86:
+    needs: build-x86
+    runs-on: ubuntu-latest
+    env:
+      EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
+    strategy:
+      matrix:
+        test:
+          - e2e-state-vars
+          - e2e-block-building
+          - e2e-nested-contract
+          - e2e-static-calls
+          - e2e-delegate-calls
+          - e2e-non-contract-account
+          - e2e-cross-chain-messaging
+          - e2e-crowdfunding-and-claim
+          - e2e-public-cross-chain-messaging
+          - e2e-public-to-private-messaging
+          - e2e-account-contracts
+          - e2e-escrow-contract
+          - e2e-inclusion-proofs-contract
+          - e2e-pending-note-hashes-contract
+          - e2e-ordering
+          - uniswap-trade-on-l1-from-l2
+          - integration-archiver-l1-to-l2
+          - integration-l1-publisher
+          - e2e-cli
+          - e2e-persistence
+          # - e2e-browser # TODO failing
+          - e2e-card-game
+          - e2e-avm-simulator
+          - e2e-fees
+          - e2e-dapp-subscription
+          - pxe
+          - cli-docs-sandbox
+          # - e2e-docs-examples # TODO failing
+    # cancel if reran on same PR if exists, otherwise if on same commit
+    concurrency:
+      group: ${{ matrix.test }}-${{ github.event.pull_request.number || github.ref_name }}-x86
+      cancel-in-progress: ${{ github.ref_name != 'master' }}
+    steps:
+      - uses: earthly/actions-setup@v1
+        with:
+          version: v0.8.5
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: recursive
+
+      - name: Setup
+        working-directory: ./scripts
+        run: ./setup_env.sh ${{ secrets.DOCKERHUB_PASSWORD }} ${{ github.actor }}
+
+      - name: Pull E2E Images
+        working-directory: ./barretenberg/cpp/
+        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
+        run: |
+          docker pull aztecprotocol/aztec-cache:$(git rev-parse HEAD)
+          docker pull aztecprotocol/end-to-end-cache:$(git rev-parse HEAD)
+          docker tag aztecprotocol/aztec-cache:$(git rev-parse HEAD) aztecprotocol/aztec:latest
+          docker tag aztecprotocol/end-to-end-cache:$(git rev-parse HEAD) aztecprotocol/end-to-end:latest
+
+      - name: Test
+        working-directory: ./yarn-project/end-to-end/
+        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
+        run: |
+          earthly-cloud build x86 --no-output +${{ matrix.test }}
+
+  # barretenberg (prover) native tests
+  bb-native-tests:
+    runs-on: ubuntu-latest
+    env:
+      EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
+    strategy: { matrix: { environment: [x86, arm] } }
+    # cancel if reran on same PR if exists, otherwise if on same commit
+    concurrency:
+      group: bb-native-tests-${{ github.event.pull_request.number || github.ref_name }}-${{ matrix.environment }}
+      cancel-in-progress: ${{ github.ref_name != 'master' }}
+    steps:
+      - uses: earthly/actions-setup@v1
+        with:
+          version: v0.8.5
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: recursive
+
+      - name: Setup
+        working-directory: ./scripts
+        run: ./setup_env.sh ${{ secrets.DOCKERHUB_PASSWORD }} ${{ github.actor }}
+
+      - name: Test
+        working-directory: ./barretenberg/cpp/
+        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
+        run: |
+          earthly-cloud build ${{ matrix.environment }} --no-output +test
+
+  # All benchmarks, purposefully ran sequential on a machine
+  # they should use parallelism within the benchmark, but only one thing should run at a time
+  # for accurate results
+  # We don't depend on 'build' as we use a different runner and will build components on the fist step that uses them.
+  bench:
+    runs-on: ubuntu-latest
+    env:
+      EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
+    # cancel if reran on same PR if exists, otherwise if on same commit
+    concurrency:
+      # TODO no longer exclusive.. revisit this
+      group: ${{ github.actor }}-x86
+      cancel-in-progress: ${{ github.ref_name != 'master' }}
+    steps:
+      - uses: earthly/actions-setup@v1
+        with:
+          version: v0.8.5
+          
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: recursive
+
+      - name: Setup
+        working-directory: ./scripts
+        run: ./setup_env.sh ${{ secrets.DOCKERHUB_PASSWORD }} ${{ github.actor }}
+
+      - name: Client IVC Bench
+        working-directory: ./barretenberg/cpp/
+        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
+        run: earthly-cloud bench x86 --no-output +bench-client-ivc
+
+      - name: Ultrahonk Bench
+        working-directory: ./barretenberg/cpp/
+        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
+        run: earthly-cloud bench x86 --no-output +bench-ultra-honk

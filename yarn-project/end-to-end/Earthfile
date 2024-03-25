@@ -1,153 +1,169 @@
 
 VERSION 0.8
 
-get-aztec:
-    FROM ubuntu:lunar
-    # for use_aztec_image to work, need to run earthly +build first or have image copied
-    ARG use_aztec_image=false
-    IF [ "$use_aztec_image" != false ]
-      FROM aztecprotocol/cache:aztec
-    ELSE
-      FROM ../+aztec
-    END
+# requires first saving the images locally with ../+build-end-to-end
 
-get-end-to-end:
-    FROM ubuntu:lunar
-  # for use_end_to_end_image to work, need to run earthly +build first or have image copied
-    ARG use_end_to_end_image=false
-    IF [ $use_end_to_end_image != false ]
-      FROM aztecprotocol/cache:end-to-end
-    ELSE
-      FROM ../+end-to-end-minimal
-    END
+# run lcoally, used for our mainly x86 jobs
+E2E_TEST_LOCAL:
+  FUNCTION
+  ARG test
+  ARG compose_file=./scripts/docker-compose.yml
+  ARG avm_enabled=""
+  ARG enable_gas=""
+  LOCALLY
+  ENV AVM_ENABLED=$avm_enabled
+  ENV ENABLE_GAS=$enable_gas
+  ENV TEST=$test.test.ts
+  # Locally, we do not use WITH DOCKER as we have had issues with earthly copying big images
+  RUN docker compose -f $compose_file up --exit-code-from=end-to-end --force-recreate
+
+# run on satellite, used for our few ARM jobs (means github runner doesn't need to be ARM)
+E2E_TEST_REMOTE:
+  FUNCTION
+  ARG test
+  ARG compose_file=./scripts/docker-compose.yml
+  ARG avm_enabled=""
+  ARG enable_gas=""
+  FROM earthly/dind:alpine-3.19-docker-25.0.2-r0
+  ENV AVM_ENABLED=$avm_enabled
+  ENV ENABLE_GAS=$enable_gas
+  ENV TEST=$test.test.ts
+  COPY $compose_file $compose_file
+  # For ARM, we do use WITH DOCKER as we don't have many e2e tests, but note E2E_TEST_LOCAL
+  WITH DOCKER \
+    --load aztecprotocol/aztec:latest=../+aztec \
+    --load aztecprotocol/end-to-end:latest=../+end-to-end-minimal \
+    --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+get
+      # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
+      RUN docker compose -f $compose_file up --exit-code-from=sandbox --force-recreate
+  END
 
 E2E_TEST:
-    FUNCTION
-    ARG test
-    ARG compose_file=./scripts/docker-compose.yml
-    FROM earthly/dind:alpine-3.19-docker-25.0.2-r0
-    ENV TEST=$test
-    COPY $compose_file $compose_file
-    WITH DOCKER \
-      --load aztecprotocol/aztec:latest=+get-aztec \
-      --load aztecprotocol/end-to-end:latest=+get-end-to-end \
-      --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+get
-        # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
-        RUN docker compose -f $compose_file up --exit-code-from=sandbox --force-recreate
-    END
-# we could use a parameterized target, but these just print cleaner in earthly log
+  FUNCTION
+  ARG test
+  ARG compose_file=./scripts/docker-compose.yml
+  ARG avm_enabled=""
+  ARG enable_gas=""
+  ARG e2e_remote=false
+  LOCALLY
+  IF [ $e2e_remote = true ]
+    DO +E2E_TEST_REMOTE --test=$test --compose_file=$compose_file --avm_enabled=$avm_enabled --enable_gas=$enable_gas
+  ELSE
+    DO +E2E_TEST_LOCAL --test=$test --compose_file=$compose_file --avm_enabled=$avm_enabled --enable_gas=$enable_gas
+  END
 
+# we could use a parameterized target, but these just print cleaner in earthly log
 e2e-block-building:
-  DO +E2E_TEST --test=e2e_block_building.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_block_building --e2e_remote=$e2e_remote
 
 e2e-nested-contract:
-  DO +E2E_TEST --test=e2e_nested_contract.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_nested_contract --e2e_remote=$e2e_remote
 
 e2e-static-calls:
-  DO +E2E_TEST --test=e2e_static_calls.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_static_calls --e2e_remote=$e2e_remote
+
+e2e-state-vars:
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_state_vars --e2e_remote=$e2e_remote
 
 e2e-delegate-calls:
-  DO +E2E_TEST --test=e2e_delegate_calls.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_delegate_calls --e2e_remote=$e2e_remote
 
 e2e-non-contract-account:
-  DO +E2E_TEST --test=e2e_non_contract_account.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_non_contract_account --e2e_remote=$e2e_remote
 
 e2e-cross-chain-messaging:
-  DO +E2E_TEST --test=e2e_cross_chain_messaging.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_cross_chain_messaging --e2e_remote=$e2e_remote
 
 e2e-crowdfunding-and-claim:
-  DO +E2E_TEST --test=e2e_crowdfunding_and_claim.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_crowdfunding_and_claim --e2e_remote=$e2e_remote
 
 e2e-public-cross-chain-messaging:
-  DO +E2E_TEST --test=e2e_public_cross_chain_messaging.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_public_cross_chain_messaging --e2e_remote=$e2e_remote
 
 e2e-public-to-private-messaging:
-  DO +E2E_TEST --test=e2e_public_to_private_messaging.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_public_to_private_messaging --e2e_remote=$e2e_remote
 
 e2e-account-contracts:
-  DO +E2E_TEST --test=e2e_account_contracts.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_account_contracts --e2e_remote=$e2e_remote
 
 e2e-escrow-contract:
-  DO +E2E_TEST --test=e2e_escrow_contract.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_escrow_contract --e2e_remote=$e2e_remote
 
 e2e-inclusion-proofs-contract:
-  DO +E2E_TEST --test=e2e_inclusion_proofs_contract.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_inclusion_proofs_contract --e2e_remote=$e2e_remote
 
 e2e-pending-note-hashes-contract:
-  DO +E2E_TEST --test=e2e_pending_note_hashes_contract.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_pending_note_hashes_contract --e2e_remote=$e2e_remote
 
 e2e-ordering:
-  DO +E2E_TEST --test=e2e_ordering.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_ordering --e2e_remote=$e2e_remote
 
 uniswap-trade-on-l1-from-l2:
-  DO +E2E_TEST --test=uniswap_trade_on_l1_from_l2.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=uniswap_trade_on_l1_from_l2 --e2e_remote=$e2e_remote
 
 integration-archiver-l1-to-l2:
-  DO +E2E_TEST --test=integration_archiver_l1_to_l2.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=integration_archiver_l1_to_l2 --e2e_remote=$e2e_remote
 
 integration-l1-publisher:
-  DO +E2E_TEST --test=integration_l1_publisher.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=integration_l1_publisher --e2e_remote=$e2e_remote
 
 e2e-cli:
-  DO +E2E_TEST --test=e2e_cli.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_cli --e2e_remote=$e2e_remote
 
 e2e-persistence:
-  DO +E2E_TEST --test=e2e_persistence.test.ts --compose_file=./scripts/docker-compose-no-sandbox.yml
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_persistence --compose_file=./scripts/docker-compose-no-sandbox.yml --e2e_remote=$e2e_remote
 
 e2e-browser:
-  DO +E2E_TEST --test=e2e_aztec_js_browser.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_aztec_js_browser --e2e_remote=$e2e_remote
 
 e2e-card-game:
-  DO +E2E_TEST --test=e2e_card_game.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_card_game --e2e_remote=$e2e_remote
 
 e2e-avm-simulator:
-  ENV AVM_ENABLED=1
-  DO +E2E_TEST --test=e2e_avm_simulator.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_avm_simulator --avm_enabled=1 --e2e_remote=$e2e_remote
 
 e2e-fees:
-  ENV ENABLE_GAS=1
-  DO +E2E_TEST --test=e2e_fees.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_fees --enable_gas=1 --e2e_remote=$e2e_remote
 
 e2e-dapp-subscription:
-  ENV ENABLE_GAS=1
-  DO +E2E_TEST --test=e2e_dapp_subscription.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=e2e_dapp_subscription --enable_gas=1 --e2e_remote=$e2e_remote
 
 pxe:
-  DO +E2E_TEST --test=pxe_sandbox.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=pxe_sandbox --e2e_remote=$e2e_remote
 
 cli-docs-sandbox:
-  DO +E2E_TEST --test=cli_docs_sandbox.test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=cli_docs_sandbox --e2e_remote=$e2e_remote
 
 e2e-docs-examples:
-  ENV AVM_ENABLED=1
-  DO +E2E_TEST --test=docs_examples_test.ts
+  ARG e2e_remote=false
+  DO +E2E_TEST --test=docs_examples --avm_enabled=1 --e2e_remote=$e2e_remote
 
-test-all:
-  BUILD +e2e-state-vars
-  BUILD +e2e-block-building
-  BUILD +e2e-nested-contract
-  BUILD +e2e-static-calls
-  BUILD +e2e-delegate-calls
-  BUILD +e2e-non-contract-account
-  BUILD +e2e-cross-chain-messaging
-  BUILD +e2e-crowdfunding-and-claim
-  BUILD +e2e-public-cross-chain-messaging
-  BUILD +e2e-public-to-private-messaging
-  BUILD +e2e-account-contracts
-  BUILD +e2e-escrow-contract
-  BUILD +e2e-inclusion-proofs-contract
-  BUILD +e2e-pending-note-hashes-contract
-  BUILD +e2e-ordering
-  BUILD +uniswap-trade-on-l1-from-l2
-  BUILD +integration-archiver-l1-to-l2
-  BUILD +integration-l1-publisher
-  BUILD +e2e-cli
-  BUILD +e2e-persistence
-  BUILD +e2e-browser
-  BUILD +e2e-card-game
-  BUILD +e2e-avm-simulator
-  BUILD +e2e-fees
-  BUILD +e2e-dapp-subscription
-  BUILD +pxe
-  BUILD +cli-docs-sandbox
-  BUILD +e2e-docs-examples
+# all:
+#   for stability, instead of an 'all' target in Earthly, use `make all`
