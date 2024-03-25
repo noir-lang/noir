@@ -25,5 +25,5 @@ jobs:
 
       - uses: boa-dev/criterion-compare-action@v3.2.4
         with:
-          branchName: "master"
+          branchName: "tf/benchmarks-in-ci"
           benchName: "execution"
