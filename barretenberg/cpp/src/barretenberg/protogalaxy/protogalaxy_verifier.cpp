@@ -146,6 +146,8 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyVerifier_<Verif
     for (size_t inst_idx = 0; inst_idx < VerifierInstances::NUM; inst_idx++) {
         auto instance = instances[inst_idx];
         expected_parameters.eta += instance->relation_parameters.eta * lagranges[inst_idx];
+        expected_parameters.eta_two += instance->relation_parameters.eta_two * lagranges[inst_idx];
+        expected_parameters.eta_three += instance->relation_parameters.eta_three * lagranges[inst_idx];
         expected_parameters.beta += instance->relation_parameters.beta * lagranges[inst_idx];
         expected_parameters.gamma += instance->relation_parameters.gamma * lagranges[inst_idx];
         expected_parameters.public_input_delta +=

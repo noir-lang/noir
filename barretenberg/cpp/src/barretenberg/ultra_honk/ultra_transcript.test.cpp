@@ -55,7 +55,7 @@ class UltraTranscriptTests : public ::testing::Test {
         manifest_expected.add_entry(round, "W_L", frs_per_G);
         manifest_expected.add_entry(round, "W_R", frs_per_G);
         manifest_expected.add_entry(round, "W_O", frs_per_G);
-        manifest_expected.add_challenge(round, "eta");
+        manifest_expected.add_challenge(round, "eta", "eta_two", "eta_three");
 
         round++;
         manifest_expected.add_entry(round, "SORTED_ACCUM", frs_per_G);

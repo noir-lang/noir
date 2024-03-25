@@ -84,6 +84,8 @@ template <IsRecursiveFlavor Flavor> class RecursiveVerifierInstance_ {
             challenge_idx++;
         }
         relation_parameters.eta = FF::from_witness(builder, instance->relation_parameters.eta);
+        relation_parameters.eta_two = FF::from_witness(builder, instance->relation_parameters.eta_two);
+        relation_parameters.eta_three = FF::from_witness(builder, instance->relation_parameters.eta_three);
         relation_parameters.beta = FF::from_witness(builder, instance->relation_parameters.beta);
         relation_parameters.gamma = FF::from_witness(builder, instance->relation_parameters.gamma);
         relation_parameters.public_input_delta =
@@ -131,6 +133,8 @@ template <IsRecursiveFlavor Flavor> class RecursiveVerifierInstance_ {
         }
 
         inst.relation_parameters.eta = relation_parameters.eta.get_value();
+        inst.relation_parameters.eta_two = relation_parameters.eta_two.get_value();
+        inst.relation_parameters.eta_three = relation_parameters.eta_three.get_value();
         inst.relation_parameters.beta = relation_parameters.beta.get_value();
         inst.relation_parameters.gamma = relation_parameters.gamma.get_value();
         inst.relation_parameters.public_input_delta = relation_parameters.public_input_delta.get_value();

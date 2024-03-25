@@ -348,8 +348,14 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     static void check_recursive_verification_circuit(OuterBuilder& outer_circuit, bool expected_result)
     {
         info("number of gates in recursive verification circuit = ", outer_circuit.get_num_gates());
-        bool result = CircuitChecker::check(outer_circuit);
+        OuterComposer outer_composer;
+        auto prover = outer_composer.create_prover(outer_circuit);
+        auto verifier = outer_composer.create_verifier(outer_circuit);
+        auto proof = prover.construct_proof();
+        auto result = verifier.verify_proof(proof);
+        // bool result = CircuitChecker::check(outer_circuit);
         EXPECT_EQ(result, expected_result);
+        static_cast<void>(expected_result);
         auto g2_lines = srs::get_bn254_crs_factory()->get_verifier_crs()->get_precomputed_g2_lines();
         EXPECT_EQ(check_recursive_proof_public_inputs(outer_circuit, g2_lines), true);
     }
@@ -366,7 +372,13 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
         create_inner_circuit(builder, inputs);
 
-        bool result = CircuitChecker::check(builder);
+        InnerComposer inner_composer;
+
+        auto prover = inner_composer.create_prover(builder);
+        auto verifier = inner_composer.create_verifier(builder);
+        auto proof = prover.construct_proof();
+        auto result = verifier.verify_proof(proof);
+
         EXPECT_EQ(result, true);
     }
 
@@ -567,9 +579,9 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
     }
 };
 
-typedef testing::Types<plonk::StandardComposer, plonk::UltraComposer> OuterCircuitTypes;
+typedef testing::Types<plonk::StandardComposer, plonk::UltraComposer> OuterComposerTypes;
 
-TYPED_TEST_SUITE(stdlib_verifier, OuterCircuitTypes);
+TYPED_TEST_SUITE(stdlib_verifier, OuterComposerTypes);
 
 HEAVY_TYPED_TEST(stdlib_verifier, test_inner_circuit)
 {

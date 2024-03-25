@@ -151,10 +151,15 @@ TEST_F(SumcheckTestsRealCircuit, Ultra)
 
     // Generate eta, beta and gamma
     instance->relation_parameters.eta = FF::random_element();
+    instance->relation_parameters.eta = FF::random_element();
+    instance->relation_parameters.eta_two = FF::random_element();
+    instance->relation_parameters.eta_three = FF::random_element();
     instance->relation_parameters.beta = FF::random_element();
     instance->relation_parameters.gamma = FF::random_element();
 
-    instance->proving_key->compute_sorted_accumulator_polynomials(instance->relation_parameters.eta);
+    instance->proving_key->compute_sorted_accumulator_polynomials(instance->relation_parameters.eta,
+                                                                  instance->relation_parameters.eta_two,
+                                                                  instance->relation_parameters.eta_three);
     instance->proving_key->compute_grand_product_polynomials(instance->relation_parameters);
     instance->prover_polynomials = Flavor::ProverPolynomials(instance->proving_key);
 

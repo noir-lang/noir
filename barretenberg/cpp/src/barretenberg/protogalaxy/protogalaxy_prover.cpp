@@ -121,6 +121,8 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
     auto& combined_relation_parameters = instances.relation_parameters;
     auto folded_relation_parameters = bb::RelationParameters<FF>{
         combined_relation_parameters.eta.evaluate(challenge),
+        combined_relation_parameters.eta_two.evaluate(challenge),
+        combined_relation_parameters.eta_three.evaluate(challenge),
         combined_relation_parameters.beta.evaluate(challenge),
         combined_relation_parameters.gamma.evaluate(challenge),
         combined_relation_parameters.public_input_delta.evaluate(challenge),

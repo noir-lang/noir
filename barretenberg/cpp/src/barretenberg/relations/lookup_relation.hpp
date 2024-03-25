@@ -28,7 +28,7 @@ template <typename FF_> class LookupRelationImpl {
     };
 
     static constexpr std::array<size_t, 2> TOTAL_LENGTH_ADJUSTMENTS{
-        6, // grand product construction sub-relation
+        4, // grand product construction sub-relation
         0  // left-shiftable polynomial sub-relation
     };
     /**
@@ -67,8 +67,8 @@ template <typename FF_> class LookupRelationImpl {
         const auto& beta = ParameterView(params.beta);
         const auto& gamma = ParameterView(params.gamma);
         const auto& eta = ParameterView(params.eta);
-        const auto eta_sqr = eta * eta;
-        const auto eta_cube = eta_sqr * eta;
+        const auto& eta_two = ParameterView(params.eta_two);
+        const auto& eta_three = ParameterView(params.eta_three);
 
         const auto one_plus_beta = beta + FF(1);
         const auto gamma_by_one_plus_beta = gamma * one_plus_beta;
@@ -97,24 +97,24 @@ template <typename FF_> class LookupRelationImpl {
         auto column_3_step_size = View(in.q_c);
         auto q_lookup = View(in.q_lookup);
 
-        // (w_1 + q_2*w_1_shift) + η(w_2 + q_m*w_2_shift) + η²(w_3 + q_c*w_3_shift) + η³q_index.
-        // deg 2 or 4
+        // (w_1 + q_2*w_1_shift) + η(w_2 + q_m*w_2_shift) + η₂(w_3 + q_c*w_3_shift) + η₃q_index.
+        // deg 2 or 3
         auto wire_accum = (w_1 + column_1_step_size * w_1_shift) + (w_2 + column_2_step_size * w_2_shift) * eta +
-                          (w_3 + column_3_step_size * w_3_shift) * eta_sqr + table_index * eta_cube;
+                          (w_3 + column_3_step_size * w_3_shift) * eta_two + table_index * eta_three;
 
-        // t_1 + ηt_2 + η²t_3 + η³t_4
-        // deg 1 or 4
-        auto table_accum = table_1 + table_2 * eta + table_3 * eta_sqr + table_4 * eta_cube;
+        // t_1 + ηt_2 + η₂t_3 + η₃t_4
+        // deg 1 or 2
+        auto table_accum = table_1 + table_2 * eta + table_3 * eta_two + table_4 * eta_three;
 
-        // t_1_shift + ηt_2_shift + η²t_3_shift + η³t_4_shift
-        // deg 4
+        // t_1_shift + ηt_2_shift + η₂t_3_shift + η₃t_4_shift
+        // deg 1 or 2
         auto table_accum_shift =
-            table_1_shift + table_2_shift * eta + table_3_shift * eta_sqr + table_4_shift * eta_cube;
+            table_1_shift + table_2_shift * eta + table_3_shift * eta_two + table_4_shift * eta_three;
 
-        auto tmp = (q_lookup * wire_accum + gamma);                               // deg 2 or 4
-        tmp *= (table_accum + table_accum_shift * beta + gamma_by_one_plus_beta); // 1 or 5
-        tmp *= one_plus_beta;                                                     // deg 1
-        return tmp;                                                               // deg 4 or 10
+        auto tmp = (q_lookup * wire_accum + gamma);                               // deg 3 or 4
+        tmp *= (table_accum + table_accum_shift * beta + gamma_by_one_plus_beta); // 1 or 3
+        tmp *= one_plus_beta;                                                     // deg 0 or 1
+        return tmp;                                                               // deg 4 or 8
     }
 
     /**
@@ -186,10 +186,10 @@ template <typename FF_> class LookupRelationImpl {
             auto lagrange_first = View(in.lagrange_first);
             auto lagrange_last = View(in.lagrange_last);
 
-            const auto lhs = compute_grand_product_numerator<Accumulator>(in, params);   // deg 4 or 10
+            const auto lhs = compute_grand_product_numerator<Accumulator>(in, params);   // deg 4 or 8
             const auto rhs = compute_grand_product_denominator<Accumulator>(in, params); // deg 1 or 2
 
-            // (deg 5 or 11) - (deg 3 or 5)
+            // (deg 5 or 9) - (deg 3 or 5)
             const auto tmp =
                 lhs * (z_lookup + lagrange_first) - rhs * (z_lookup_shift + lagrange_last * grand_product_delta);
             std::get<0>(accumulators) += tmp * scaling_factor;

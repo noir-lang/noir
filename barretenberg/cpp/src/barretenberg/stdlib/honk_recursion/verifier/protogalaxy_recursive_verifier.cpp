@@ -50,7 +50,8 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::receive_and_finalise_inst
     }
 
     // Get challenge for sorted list batching and wire four memory records commitment
-    auto eta = transcript->template get_challenge<FF>(domain_separator + "_eta");
+    auto [eta, eta_two, eta_three] = transcript->template get_challenges<FF>(
+        domain_separator + "_eta", domain_separator + "_eta_two", domain_separator + "_eta_three");
     witness_commitments.sorted_accum =
         transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.sorted_accum);
     witness_commitments.w_4 = transcript->template receive_from_prover<Commitment>(domain_separator + "_" + labels.w_4);
@@ -79,7 +80,7 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::receive_and_finalise_inst
     const FF lookup_grand_product_delta =
         compute_lookup_grand_product_delta<FF>(beta, gamma, inst->verification_key->circuit_size);
     inst->relation_parameters =
-        RelationParameters<FF>{ eta, beta, gamma, public_input_delta, lookup_grand_product_delta };
+        RelationParameters<FF>{ eta, eta_two, eta_three, beta, gamma, public_input_delta, lookup_grand_product_delta };
 
     // Get the relation separation challenges
     for (size_t idx = 0; idx < NUM_SUBRELATIONS - 1; idx++) {
@@ -222,6 +223,8 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyRecursiveVerifi
     for (size_t inst_idx = 0; inst_idx < VerifierInstances::NUM; inst_idx++) {
         auto instance = instances[inst_idx];
         expected_parameters.eta += instance->relation_parameters.eta * lagranges[inst_idx];
+        expected_parameters.eta_two += instance->relation_parameters.eta_two * lagranges[inst_idx];
+        expected_parameters.eta_three += instance->relation_parameters.eta_three * lagranges[inst_idx];
         expected_parameters.beta += instance->relation_parameters.beta * lagranges[inst_idx];
         expected_parameters.gamma += instance->relation_parameters.gamma * lagranges[inst_idx];
         expected_parameters.public_input_delta +=

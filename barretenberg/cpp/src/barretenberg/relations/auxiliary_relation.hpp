@@ -41,12 +41,12 @@ template <typename FF_> class AuxiliaryRelationImpl {
     };
 
     static constexpr std::array<size_t, 6> TOTAL_LENGTH_ADJUSTMENTS{
-        6, // auxiliary sub-relation
-        6, // ROM consistency sub-relation 1
-        6, // ROM consistency sub-relation 2
-        6, // RAM consistency sub-relation 1
-        6, // RAM consistency sub-relation 2
-        6  // RAM consistency sub-relation 3
+        1, // auxiliary sub-relation
+        1, // ROM consistency sub-relation 1
+        1, // ROM consistency sub-relation 2
+        1, // RAM consistency sub-relation 1
+        1, // RAM consistency sub-relation 2
+        1  // RAM consistency sub-relation 3
     };
 
     /**
@@ -96,6 +96,8 @@ template <typename FF_> class AuxiliaryRelationImpl {
         using ParameterView = GetParameterView<Parameters, View>;
 
         const auto& eta = ParameterView(params.eta);
+        const auto& eta_two = ParameterView(params.eta_two);
+        const auto& eta_three = ParameterView(params.eta_three);
 
         auto w_1 = View(in.w_l);
         auto w_2 = View(in.w_r);
@@ -186,13 +188,13 @@ template <typename FF_> class AuxiliaryRelationImpl {
          *  * t: `timestamp` of memory cell being accessed (used for RAM, set to 0 for ROM)
          *  * v: `value` of memory cell being accessed
          *  * a: `access` type of record. read: 0 = read, 1 = write
-         *  * r: `record` of memory cell. record = access + index * eta + timestamp * eta^2 + value * eta^3
+         *  * r: `record` of memory cell. record = access + index * eta + timestamp * η₂ + value * η₃
          *
          * A ROM memory record contains a tuple of the following fields:
          *  * i: `index` of memory cell being accessed
          *  * v: `value1` of memory cell being accessed (ROM tables can store up to 2 values per index)
          *  * v2:`value2` of memory cell being accessed (ROM tables can store up to 2 values per index)
-         *  * r: `record` of memory cell. record = index * eta + value2 * eta^2 + value1 * eta^3
+         *  * r: `record` of memory cell. record = index * eta + value2 * η₂ + value1 * η₃
          *
          *  When performing a read/write access, the values of i, t, v, v2, a, r are stored in the following wires +
          * selectors, depending on whether the gate is a RAM read/write or a ROM read
@@ -210,21 +212,19 @@ template <typename FF_> class AuxiliaryRelationImpl {
         /**
          * Memory Record Check
          * Partial degree: 1
-         * Total degree: 4
+         * Total degree: 2
          *
          * A ROM/ROM access gate can be evaluated with the identity:
          *
-         * qc + w1 \eta + w2 \eta^2 + w3 \eta^3 - w4 = 0
+         * qc + w1 \eta + w2 η₂ + w3 η₃ - w4 = 0
          *
          * For ROM gates, qc = 0
          */
-        auto memory_record_check = w_3 * eta;
-        memory_record_check += w_2;
-        memory_record_check *= eta;
-        memory_record_check += w_1;
-        memory_record_check *= eta;
+        auto memory_record_check = w_3 * eta_three;
+        memory_record_check += w_2 * eta_two;
+        memory_record_check += w_1 * eta;
         memory_record_check += q_c;
-        auto partial_record_check = memory_record_check; // used in RAM consistency check; deg 1 or 4
+        auto partial_record_check = memory_record_check; // used in RAM consistency check; deg 1 or 2
         memory_record_check = memory_record_check - w_4;
 
         /**
@@ -253,13 +253,13 @@ template <typename FF_> class AuxiliaryRelationImpl {
             adjacent_values_match_if_adjacent_indices_match * (q_1 * q_2) * (q_aux * scaling_factor); // deg 5
         std::get<2>(accumulators) +=
             index_is_monotonically_increasing * (q_1 * q_2) * (q_aux * scaling_factor); // deg 5
-        auto ROM_consistency_check_identity = memory_record_check * (q_1 * q_2);        // deg 3 or 7
+        auto ROM_consistency_check_identity = memory_record_check * (q_1 * q_2);        // deg 3 or 4
 
         /**
          * RAM Consistency Check
          *
          * The 'access' type of the record is extracted with the expression `w_4 - partial_record_check`
-         * (i.e. for an honest Prover `w1 * eta + w2 * eta^2 + w3 * eta^3 - w4 = access`.
+         * (i.e. for an honest Prover `w1 * η + w2 * η₂ + w3 * η₃ - w4 = access`.
          * This is validated by requiring `access` to be boolean
          *
          * For two adjacent entries in the sorted list if _both_
@@ -273,22 +273,20 @@ template <typename FF_> class AuxiliaryRelationImpl {
          * N.B. it is the responsibility of the circuit writer to ensure that every RAM cell is initialized
          * with a WRITE operation.
          */
-        auto access_type = (w_4 - partial_record_check);             // will be 0 or 1 for honest Prover; deg 1 or 4
-        auto access_check = access_type * access_type - access_type; // check value is 0 or 1; deg 2 or 8
+        auto access_type = (w_4 - partial_record_check);             // will be 0 or 1 for honest Prover; deg 1 or 2
+        auto access_check = access_type * access_type - access_type; // check value is 0 or 1; deg 2 or 4
 
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/757): If we sorted in
-        // reverse order we could re-use `partial_record_check`  1 -  ((w3' * eta + w2') * eta + w1') * eta
-        // deg 1 or 4
-        auto next_gate_access_type = w_3_shift * eta;
-        next_gate_access_type += w_2_shift;
-        next_gate_access_type *= eta;
-        next_gate_access_type += w_1_shift;
-        next_gate_access_type *= eta;
+        // reverse order we could re-use `partial_record_check`  1 -  (w3' * eta_three + w2' * eta_two + w1' *
+        // eta) deg 1 or 2
+        auto next_gate_access_type = w_3_shift * eta_three;
+        next_gate_access_type += w_2_shift * eta_two;
+        next_gate_access_type += w_1_shift * eta;
         next_gate_access_type = w_4_shift - next_gate_access_type;
 
         auto value_delta = w_3_shift - w_3;
         auto adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation =
-            (index_delta * FF(-1) + FF(1)) * value_delta * (next_gate_access_type * FF(-1) + FF(1)); // deg 3 or 6
+            (index_delta * FF(-1) + FF(1)) * value_delta * (next_gate_access_type * FF(-1) + FF(1)); // deg 3 or 4
 
         // We can't apply the RAM consistency check identity on the final entry in the sorted list (the wires in the
         // next gate would make the identity fail).  We need to validate that its 'access type' bool is correct. Can't
@@ -300,11 +298,11 @@ template <typename FF_> class AuxiliaryRelationImpl {
         // Putting it all together...
         std::get<3>(accumulators) +=
             adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation * (q_arith) *
-            (q_aux * scaling_factor); // deg 5 or 8
+            (q_aux * scaling_factor); // deg 5 or 6
         std::get<4>(accumulators) += index_is_monotonically_increasing * (q_arith) * (q_aux * scaling_factor); // deg 4
         std::get<5>(accumulators) +=
             next_gate_access_type_is_boolean * (q_arith) * (q_aux * scaling_factor); // deg 4 or 6
-        auto RAM_consistency_check_identity = access_check * (q_arith);              // deg 3 or 9
+        auto RAM_consistency_check_identity = access_check * (q_arith);              // deg 3 or 5
 
         /**
          * RAM Timestamp Consistency Check
@@ -324,14 +322,14 @@ template <typename FF_> class AuxiliaryRelationImpl {
          * The complete RAM/ROM memory identity
          * Partial degree:
          */
-        auto memory_identity = ROM_consistency_check_identity;         // deg 3 or 6
+        auto memory_identity = ROM_consistency_check_identity;         // deg 3 or 4
         memory_identity += RAM_timestamp_check_identity * (q_4 * q_1); // deg 4
-        memory_identity += memory_record_check * (q_m * q_1);          // deg 3 or 6
-        memory_identity += RAM_consistency_check_identity;             // deg 3 or 9
+        memory_identity += memory_record_check * (q_m * q_1);          // deg 3 or 4
+        memory_identity += RAM_consistency_check_identity;             // deg 3 or 5
 
-        // (deg 3 or 9) + (deg 4) + (deg 3)
+        // (deg 3 or 5) + (deg 4) + (deg 3)
         auto auxiliary_identity = memory_identity + non_native_field_identity + limb_accumulator_identity;
-        auxiliary_identity *= (q_aux * scaling_factor); // deg 4 or 10
+        auxiliary_identity *= (q_aux * scaling_factor); // deg 5 or 6
         std::get<0>(accumulators) += auxiliary_identity;
     };
 };

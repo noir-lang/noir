@@ -280,6 +280,15 @@ class GoblinUltraFlavor {
         // The plookup wires that store plookup read data.
         auto get_table_column_wires() { return RefArray{ w_l, w_r, w_o }; };
 
+        void compute_sorted_accumulator_polynomials(const FF& eta, const FF& eta_two, const FF& eta_three)
+        {
+            // Compute sorted witness-table accumulator
+            compute_sorted_list_accumulator(eta, eta_two, eta_three);
+
+            // Finalize fourth wire polynomial by adding lookup memory records
+            add_plookup_memory_records_to_wire_4(eta, eta_two, eta_three);
+        }
+
         /**
          * @brief Construct sorted list accumulator polynomial 's'.
          *
@@ -291,33 +300,20 @@ class GoblinUltraFlavor {
          * @param eta random challenge
          * @return Polynomial
          */
-        void compute_sorted_list_accumulator(const FF& eta)
+        void compute_sorted_list_accumulator(const FF& eta, const FF& eta_two, const FF& eta_three)
         {
-            const size_t circuit_size = this->circuit_size;
 
-            auto sorted_list_accumulator = Polynomial{ circuit_size };
+            auto sorted_list_accumulator = Polynomial{ this->circuit_size };
 
             // Construct s via Horner, i.e. s = s_1 + η(s_2 + η(s_3 + η*s_4))
-            for (size_t i = 0; i < circuit_size; ++i) {
-                FF T0 = this->sorted_polynomials[3][i];
-                T0 *= eta;
-                T0 += this->sorted_polynomials[2][i];
-                T0 *= eta;
-                T0 += this->sorted_polynomials[1][i];
-                T0 *= eta;
-                T0 += this->sorted_polynomials[0][i];
+            for (size_t i = 0; i < this->circuit_size; ++i) {
+                FF T0 = sorted_polynomials[3][i] * eta_three;
+                T0 += sorted_polynomials[2][i] * eta_two;
+                T0 += sorted_polynomials[1][i] * eta;
+                T0 += sorted_polynomials[0][i];
                 sorted_list_accumulator[i] = T0;
             }
-            this->sorted_accum = sorted_list_accumulator.share();
-        }
-
-        void compute_sorted_accumulator_polynomials(const FF& eta)
-        {
-            // Compute sorted witness-table accumulator
-            this->compute_sorted_list_accumulator(eta);
-
-            // Finalize fourth wire polynomial by adding lookup memory records
-            add_plookup_memory_records_to_wire_4(eta);
+            sorted_accum = sorted_list_accumulator.share();
         }
 
         /**
@@ -329,31 +325,25 @@ class GoblinUltraFlavor {
          * @tparam Flavor
          * @param eta challenge produced after commitment to first three wire polynomials
          */
-        void add_plookup_memory_records_to_wire_4(const FF& eta)
+        void add_plookup_memory_records_to_wire_4(const FF& eta, const FF& eta_two, const FF& eta_three)
         {
             // The plookup memory record values are computed at the indicated indices as
             // w4 = w3 * eta^3 + w2 * eta^2 + w1 * eta + read_write_flag;
             // (See plookup_auxiliary_widget.hpp for details)
-            auto wires = this->get_wires();
+            auto wires = get_wires();
 
             // Compute read record values
-            for (const auto& gate_idx : this->memory_read_records) {
-                wires[3][gate_idx] += wires[2][gate_idx];
-                wires[3][gate_idx] *= eta;
-                wires[3][gate_idx] += wires[1][gate_idx];
-                wires[3][gate_idx] *= eta;
-                wires[3][gate_idx] += wires[0][gate_idx];
-                wires[3][gate_idx] *= eta;
+            for (const auto& gate_idx : memory_read_records) {
+                wires[3][gate_idx] += wires[2][gate_idx] * eta_three;
+                wires[3][gate_idx] += wires[1][gate_idx] * eta_two;
+                wires[3][gate_idx] += wires[0][gate_idx] * eta;
             }
 
             // Compute write record values
-            for (const auto& gate_idx : this->memory_write_records) {
-                wires[3][gate_idx] += wires[2][gate_idx];
-                wires[3][gate_idx] *= eta;
-                wires[3][gate_idx] += wires[1][gate_idx];
-                wires[3][gate_idx] *= eta;
-                wires[3][gate_idx] += wires[0][gate_idx];
-                wires[3][gate_idx] *= eta;
+            for (const auto& gate_idx : memory_write_records) {
+                wires[3][gate_idx] += wires[2][gate_idx] * eta_three;
+                wires[3][gate_idx] += wires[1][gate_idx] * eta_two;
+                wires[3][gate_idx] += wires[0][gate_idx] * eta;
                 wires[3][gate_idx] += 1;
             }
         }

@@ -5,7 +5,7 @@
 
 namespace bb {
 
-using HonkProof = std::vector<bb::fr>;
+using HonkProof = std::vector<bb::fr>; // this can be fr?
 
 template <typename Builder> using StdlibProof = std::vector<bb::stdlib::field_t<Builder>>;
 
