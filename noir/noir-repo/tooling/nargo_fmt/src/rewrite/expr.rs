@@ -1,4 +1,7 @@
-use noirc_frontend::{token::Token, ArrayLiteral, Expression, ExpressionKind, Literal, UnaryOp};
+use noirc_frontend::{
+    macros_api::Span, token::Token, ArrayLiteral, BlockExpression, Expression, ExpressionKind,
+    Literal, UnaryOp,
+};
 
 use crate::visitor::{
     expr::{format_brackets, format_parens, NewlineMode},
@@ -20,11 +23,7 @@ pub(crate) fn rewrite(
     shape: Shape,
 ) -> String {
     match kind {
-        ExpressionKind::Block(block) => {
-            let mut visitor = visitor.fork();
-            visitor.visit_block(block, span);
-            visitor.finish()
-        }
+        ExpressionKind::Block(block) => rewrite_block(visitor, block, span),
         ExpressionKind::Prefix(prefix) => {
             let op = match prefix.operator {
                 UnaryOp::Minus => "-",
@@ -122,7 +121,16 @@ pub(crate) fn rewrite(
                 format!("[{repeated}; {length}]")
             }
             Literal::Array(ArrayLiteral::Standard(exprs)) => {
-                super::array(visitor.fork(), exprs, span)
+                super::array(visitor.fork(), exprs, span, false)
+            }
+            Literal::Slice(ArrayLiteral::Repeated { repeated_element, length }) => {
+                let repeated = rewrite_sub_expr(visitor, shape, *repeated_element);
+                let length = rewrite_sub_expr(visitor, shape, *length);
+
+                format!("&[{repeated}; {length}]")
+            }
+            Literal::Slice(ArrayLiteral::Standard(exprs)) => {
+                super::array(visitor.fork(), exprs, span, true)
             }
             Literal::Unit => "()".to_string(),
         },
@@ -150,6 +158,13 @@ pub(crate) fn rewrite(
             visitor.format_if(*if_expr)
         }
         ExpressionKind::Lambda(_) | ExpressionKind::Variable(_) => visitor.slice(span).to_string(),
+        ExpressionKind::Quote(block) => format!("quote {}", rewrite_block(visitor, block, span)),
         ExpressionKind::Error => unreachable!(),
     }
+}
+
+fn rewrite_block(visitor: &FmtVisitor, block: BlockExpression, span: Span) -> String {
+    let mut visitor = visitor.fork();
+    visitor.visit_block(block, span);
+    visitor.finish()
 }

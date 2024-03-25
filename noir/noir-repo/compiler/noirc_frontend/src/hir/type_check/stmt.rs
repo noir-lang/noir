@@ -51,7 +51,7 @@ impl<'interner> TypeChecker<'interner> {
             HirStatement::Constrain(constrain_stmt) => self.check_constrain_stmt(constrain_stmt),
             HirStatement::Assign(assign_stmt) => self.check_assign_stmt(assign_stmt, stmt_id),
             HirStatement::For(for_loop) => self.check_for_loop(for_loop),
-            HirStatement::Error => (),
+            HirStatement::Break | HirStatement::Continue | HirStatement::Error => (),
         }
         Type::Unit
     }
@@ -256,7 +256,13 @@ impl<'interner> TypeChecker<'interner> {
 
                 let typ = match lvalue_type.follow_bindings() {
                     Type::Array(_, elem_type) => *elem_type,
+                    Type::Slice(elem_type) => *elem_type,
                     Type::Error => Type::Error,
+                    Type::String(_) => {
+                        let (_lvalue_name, lvalue_span) = self.get_lvalue_name_and_span(&lvalue);
+                        self.errors.push(TypeCheckError::StringIndexAssign { span: lvalue_span });
+                        Type::Error
+                    }
                     other => {
                         // TODO: Need a better span here
                         self.errors.push(TypeCheckError::TypeMismatch {

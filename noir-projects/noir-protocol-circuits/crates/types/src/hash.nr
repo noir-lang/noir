@@ -3,10 +3,10 @@ use crate::mocked::VerificationKey;
 use crate::abis::function_selector::FunctionSelector;
 use crate::abis::contract_class_function_leaf_preimage::ContractClassFunctionLeafPreimage;
 use crate::contract_class_id::ContractClassId;
-use crate::abis::side_effect::{SideEffect};
+use crate::abis::side_effect::SideEffect;
 use crate::utils::{uint256::U256, field::field_from_bytes_32_trunc};
 use crate::constants::{
-    ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, FUNCTION_TREE_HEIGHT,
+    ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, MAX_ARGS_LENGTH, FUNCTION_TREE_HEIGHT,
     GENERATOR_INDEX__SILOED_NOTE_HASH, GENERATOR_INDEX__OUTER_NULLIFIER, GENERATOR_INDEX__VK,
     GENERATOR_INDEX__CONSTRUCTOR, GENERATOR_INDEX__PARTIAL_ADDRESS, GENERATOR_INDEX__CONTRACT_ADDRESS,
     GENERATOR_INDEX__NOTE_HASH_NONCE, GENERATOR_INDEX__UNIQUE_NOTE_HASH, GENERATOR_INDEX__FUNCTION_ARGS
@@ -23,7 +23,13 @@ pub fn sha256_to_field<N>(bytes_to_hash: [u8; N]) -> Field {
     hash_in_a_field
 }
 
-pub fn hash_args<N>(args: [Field; N]) -> Field {
+pub fn hash_args_array<N>(args: [Field; N]) -> Field {
+    let mut args_vec = BoundedVec::new();
+    args_vec.extend_from_array(args);
+    hash_args(args_vec)
+}
+
+pub fn hash_args(args: BoundedVec<Field, MAX_ARGS_LENGTH>) -> Field {
     if args.len() == 0 {
         0
     } else {
@@ -36,7 +42,7 @@ pub fn hash_args<N>(args: [Field; N]) -> Field {
                 for j in 0..ARGS_HASH_CHUNK_LENGTH {
                     let item_index = i * ARGS_HASH_CHUNK_LENGTH + j;
                     if item_index < args.len() {
-                        chunk_args[j] = args[item_index];
+                        chunk_args[j] = args.get_unchecked(item_index);
                     }
                 }
                 chunk_hash = pedersen_hash(chunk_args, GENERATOR_INDEX__FUNCTION_ARGS);
@@ -143,15 +149,12 @@ pub fn accumulate_sha256(input: [Field; 2]) -> Field {
     sha256_to_field(hash_input_flattened)
 }
 
-pub fn compute_logs_hash(
-    previous_log_hash: Field,
-    current_log_hash: Field
-) -> Field {
+pub fn compute_logs_hash(previous_log_hash: Field, current_log_hash: Field) -> Field {
     accumulate_sha256(
         [
-            previous_log_hash,
-            current_log_hash
-        ]
+        previous_log_hash,
+        current_log_hash
+    ]
     )
 }
 
@@ -210,7 +213,7 @@ fn smoke_sha256_to_field() {
         140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159
     ];
     let result = sha256_to_field(full_buffer);
-    
+
     assert(result == 0x448ebbc9e1a31220a2f3830c18eef61b9bd070e5084b7fa2a359fe729184c7);
 
     // to show correctness of the current ver (truncate one byte) vs old ver (mod full bytes):
@@ -223,12 +226,12 @@ fn smoke_sha256_to_field() {
 
 #[test]
 fn compute_var_args_hash() {
-    let mut input = [0; 800];
+    let mut input = BoundedVec::new();
     for i in 0..800 {
-        input[i] = i as Field;
+        input.push(i as Field);
     }
     let hash = hash_args(input);
-    assert(hash == 0x371960dd84ed3445ab099ac4c1af5ba90e0c713b593e0ca52ee532087c7f097);
+    assert(hash == 0x05a1023fef839ac88731f49ae983e172c1b600a3c8f3393ad0ac25d819ac0f0f);
 }
 
 #[test]
@@ -236,7 +239,6 @@ fn compute_l2_l1_hash() {
     // All zeroes
     let hash_result = compute_l2_to_l1_hash(AztecAddress::from_field(0), 0, 0, L2ToL1Message::empty());
     assert(hash_result == 0xb393978842a0fa3d3e1470196f098f473f9678e72463cb65ec4ab5581856c2);
-
 
     // Non-zero case
     let message = L2ToL1Message { recipient: EthAddress::from_field(3), content: 5 };

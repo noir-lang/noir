@@ -189,7 +189,7 @@ contract Test {
         a_struct: DummyNote,
         a_deep_struct: DeepStruct
     ) -> distinct pub PrivateCircuitPublicInputs {
-        let mut args: BoundedVec<Field, 17> = BoundedVec::new();
+        let mut args = BoundedVec::new();
         args.push(a_field);
         args.push(a_bool as Field);
         args.push(a_number as Field);
@@ -204,7 +204,7 @@ contract Test {
             args.push(note.amount);
             args.push(note.secret_hash);
         }
-        let args_hash = hash_args(args.storage);
+        let args_hash = hash_args(args);
         let mut context = PrivateContext::new(inputs, args_hash);
         context.return_values.push(args_hash);
         context.finish()

@@ -1306,7 +1306,14 @@ impl<'block> BrilligBlock<'block> {
             BinaryOp::Sub => BrilligBinaryOp::Sub,
             BinaryOp::Mul => BrilligBinaryOp::Mul,
             BinaryOp::Eq => BrilligBinaryOp::Equals,
-            BinaryOp::Lt => BrilligBinaryOp::LessThan,
+            BinaryOp::Lt => {
+                if is_signed {
+                    self.convert_signed_less_than(left, right, result_variable);
+                    return;
+                } else {
+                    BrilligBinaryOp::LessThan
+                }
+            }
             BinaryOp::And => BrilligBinaryOp::And,
             BinaryOp::Or => BrilligBinaryOp::Or,
             BinaryOp::Xor => BrilligBinaryOp::Xor,
@@ -1437,6 +1444,36 @@ impl<'block> BrilligBlock<'block> {
         // Free scratch registers
         self.brillig_context.deallocate_single_addr(scratch_var_i);
         self.brillig_context.deallocate_single_addr(scratch_var_j);
+    }
+
+    fn convert_signed_less_than(
+        &mut self,
+        left: SingleAddrVariable,
+        right: SingleAddrVariable,
+        result: SingleAddrVariable,
+    ) {
+        let biased_left =
+            SingleAddrVariable::new(self.brillig_context.allocate_register(), left.bit_size);
+        let biased_right =
+            SingleAddrVariable::new(self.brillig_context.allocate_register(), right.bit_size);
+
+        let bias = self
+            .brillig_context
+            .make_constant_instruction((1_u128 << (left.bit_size - 1)).into(), left.bit_size);
+
+        self.brillig_context.binary_instruction(left, bias, biased_left, BrilligBinaryOp::Add);
+        self.brillig_context.binary_instruction(right, bias, biased_right, BrilligBinaryOp::Add);
+
+        self.brillig_context.binary_instruction(
+            biased_left,
+            biased_right,
+            result,
+            BrilligBinaryOp::LessThan,
+        );
+
+        self.brillig_context.deallocate_single_addr(biased_left);
+        self.brillig_context.deallocate_single_addr(biased_right);
+        self.brillig_context.deallocate_single_addr(bias);
     }
 
     fn add_overflow_check(

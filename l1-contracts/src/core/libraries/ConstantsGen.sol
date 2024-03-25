@@ -72,8 +72,8 @@ library Constants {
   uint256 internal constant L1_TO_L2_MSG_SUBTREE_HEIGHT = 4;
   uint256 internal constant L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH = 12;
   uint256 internal constant FUNCTION_SELECTOR_NUM_BYTES = 4;
-  uint256 internal constant ARGS_HASH_CHUNK_LENGTH = 32;
-  uint256 internal constant ARGS_HASH_CHUNK_COUNT = 32;
+  uint256 internal constant ARGS_HASH_CHUNK_LENGTH = 64;
+  uint256 internal constant ARGS_HASH_CHUNK_COUNT = 64;
   uint256 internal constant INITIALIZATION_SLOT_SEPARATOR = 1000_000_000;
   uint256 internal constant INITIAL_L2_BLOCK_NUM = 1;
   uint256 internal constant BLOB_SIZE_IN_BYTES = 126976;
@@ -91,7 +91,7 @@ library Constants {
   uint256 internal constant DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE =
     0x85864497636cf755ae7bde03f267ce01a520981c21c3682aaf82a631;
   uint256 internal constant DEPLOYER_CONTRACT_ADDRESS =
-    0x127a8fd1a31888ccd00c88d84b93474449bb6683197083e1727dd02ab6803c6c;
+    0x2496dd9fa6701d5be6537860bcf258c778c678201d6e481ccc7e827dc62356ac;
   uint256 internal constant L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 17;
   uint256 internal constant MAX_NOTE_FIELDS_LENGTH = 20;
   uint256 internal constant GET_NOTE_ORACLE_RETURN_LENGTH = 23;

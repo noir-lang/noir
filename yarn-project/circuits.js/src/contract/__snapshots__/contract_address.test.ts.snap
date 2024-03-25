@@ -6,7 +6,7 @@ exports[`ContractAddress Public key hash matches Noir 1`] = `"0x1923a6246e305720
 
 exports[`ContractAddress computeContractAddressFromInstance 1`] = `"0x027ea2b41ced2ec9a98305984e96dd28518536a4628883ccdc06e38aa8997220"`;
 
-exports[`ContractAddress computeInitializationHash 1`] = `Fr<0x18f463b8ec102a089c65276a7dc7ec572b091ca394b5e06c03bfd378cb44187f>`;
+exports[`ContractAddress computeInitializationHash 1`] = `Fr<0x109865e4b959adba34b722e72a69baaf9ee78e31bb1042318f0d91006ed86780>`;
 
 exports[`ContractAddress computePartialAddress 1`] = `Fr<0x1923a6246e305720b6aaf751fde0342613e93c82e455c3831e28375c16dd40d8>`;
 

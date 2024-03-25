@@ -47,7 +47,7 @@ impl DAppPayload {
         for i in 0..DAPP_MAX_CALLS {
             bytes.extend_from_array(self.function_calls[i].to_be_bytes());
         }
-        bytes.extend_from_array(self.nonce.to_be_bytes(32));
+        bytes.extend_from_slice(self.nonce.to_be_bytes(32));
 
         bytes.storage
     }

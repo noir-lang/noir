@@ -250,7 +250,7 @@ contract DocsExample {
     }
 
     /// Macro equivalence section
-    use dep::aztec::hasher::Hasher;
+    use dep::aztec::hash::hash_args;
 
     use dep::aztec::protocol_types::abis::private_circuit_public_inputs::PrivateCircuitPublicInputs;
     use dep::aztec::context::inputs::PrivateContextInputs;
@@ -281,14 +281,14 @@ contract DocsExample {
         // ************************************************************
         // The hasher is a structure used to generate a hash of the circuits inputs. 
         // docs:start:context-example-hasher
-        let mut hasher = Hasher::new();
-        hasher.add(a);
-        hasher.add(b);
+        let mut serialized_args = BoundedVec::new();
+        serialized_args.push(a);
+        serialized_args.push(b);
         // docs:end:context-example-hasher
 
         // The context object is created with the inputs and the hash of the inputs
         // docs:start:context-example-context
-        let mut context = PrivateContext::new(inputs, hasher.hash());
+        let mut context = PrivateContext::new(inputs, hash_args(serialized_args));
         // docs:end:context-example-context
 
         // docs:start:storage-example-context

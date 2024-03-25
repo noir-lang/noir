@@ -4,7 +4,7 @@ exports[`hash Computes an empty nullifier hash  1`] = `"0x066e6cdc4a6ba5e4781ded
 
 exports[`hash Computes an empty sideeffect hash  1`] = `"0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed"`;
 
-exports[`hash Var args hash matches noir 1`] = `Fr<0x0371960dd84ed3445ab099ac4c1af5ba90e0c713b593e0ca52ee532087c7f097>`;
+exports[`hash Var args hash matches noir 1`] = `Fr<0x05a1023fef839ac88731f49ae983e172c1b600a3c8f3393ad0ac25d819ac0f0f>`;
 
 exports[`hash compute secret message hash 1`] = `Fr<0x0dc06f2167e2cd19adf738d1f38469d7f8bff1e26b029816e8230bcd6ab6332e>`;
 
@@ -24,6 +24,6 @@ exports[`hash hashes VK 1`] = `Buffer<0x048110667f80b02f77b7d744976657cea9a7c5f1
 
 exports[`hash hashes empty function args 1`] = `Fr<0x0000000000000000000000000000000000000000000000000000000000000000>`;
 
-exports[`hash hashes function args 1`] = `Fr<0x1e73c794bf82a06462cd300a7c8bda272f1efd4fc86b383529821aed6af362ea>`;
+exports[`hash hashes function args 1`] = `Fr<0x1a76e9750a1493d95ce48be1fa31831fc370d7e68f563fe5c781c6f58e1f1eac>`;
 
-exports[`hash hashes many function args 1`] = `Fr<0x0b18f89c04ce43fd4a54f297961e61e10dd111303cfe0d2b1e79e38561574a3a>`;
+exports[`hash hashes many function args 1`] = `Fr<0x21e37f4da2762d4daff39c2337d812b9c7b9c46aa9fafdf666d7d7fd9935d124>`;

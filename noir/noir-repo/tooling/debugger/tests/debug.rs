@@ -12,7 +12,9 @@ mod tests {
         let nargo_bin =
             cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
 
-        let mut dbg_session = spawn_bash(Some(15000)).expect("Could not start bash session");
+        let timeout_seconds = 20;
+        let mut dbg_session =
+            spawn_bash(Some(timeout_seconds * 1000)).expect("Could not start bash session");
 
         // Set backend to `/dev/null` to force an error if nargo tries to speak to a backend.
         dbg_session
@@ -49,5 +51,8 @@ mod tests {
         dbg_session
             .exp_regex(".*Circuit witness successfully solved.*")
             .expect("Expected circuit witness to be successfully solved.");
+
+        // Exit the bash session.
+        dbg_session.send_line("exit").expect("Failed to quit bash session");
     }
 }

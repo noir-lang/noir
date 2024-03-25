@@ -1,3 +1,4 @@
+use acvm::acir::native_types::WitnessStack;
 use clap::Args;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use nargo::ops::{compile_program, report_errors};
@@ -138,7 +139,7 @@ pub(crate) fn prove_package(
         Format::Toml,
     )?;
 
-    let proof = backend.prove(&compiled_program.program, solved_witness)?;
+    let proof = backend.prove(&compiled_program.program, WitnessStack::from(solved_witness))?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
