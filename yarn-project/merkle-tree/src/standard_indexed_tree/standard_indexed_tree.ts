@@ -234,6 +234,10 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     return index;
   }
 
+  public findLeafIndexAfter(_leaf: Buffer, _startIndex: bigint, _includeUncommitted: boolean): bigint | undefined {
+    throw new Error('Method not implemented for indexed trees');
+  }
+
   /**
    * Initializes the tree.
    * @param prefilledSize - A number of leaves that are prefilled with values.

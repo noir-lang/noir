@@ -39,8 +39,8 @@ impl L1ToL2Message {
 
     pub fn deserialize(
         fields: [Field; L1_TO_L2_MESSAGE_LENGTH],
-        secret: Field,
-        tree_index: Field
+        secret: Field, // TODO(#5420): refactor this so that this param does not have to be passed separately
+        tree_index: Field // TODO(#5420): refactor this so that this param does not have to be passed separately
     ) -> L1ToL2Message {
         L1ToL2Message {
             sender: EthAddress::from_field(fields[0]),

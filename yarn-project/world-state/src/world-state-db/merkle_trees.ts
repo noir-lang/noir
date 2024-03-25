@@ -340,6 +340,25 @@ export class MerkleTrees implements MerkleTreeDb {
   }
 
   /**
+   * Returns the first index containing a leaf value after `startIndex`.
+   * @param treeId - The tree for which the index should be returned.
+   * @param value - The value to search for in the tree.
+   * @param startIndex - The index to start searching from (used when skipping nullified messages)
+   * @param includeUncommitted - Indicates whether to include uncommitted data.
+   */
+  public async findLeafIndexAfter(
+    treeId: MerkleTreeId,
+    value: Buffer,
+    startIndex: bigint,
+    includeUncommitted: boolean,
+  ): Promise<bigint | undefined> {
+    return await this.synchronize(() => {
+      const tree = this.trees[treeId];
+      return Promise.resolve(tree.findLeafIndexAfter(value, startIndex, includeUncommitted));
+    });
+  }
+
+  /**
    * Updates a leaf in a tree at a given index.
    * @param treeId - The ID of the tree.
    * @param leaf - The new leaf value.

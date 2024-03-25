@@ -233,6 +233,8 @@ impl PublicContextInterface for PublicContext {
         self.new_l2_to_l1_msgs.push(message);
     }
 
+    // We can consume message with a secret in public context because the message cannot be modified and therefore
+    // there is no front-running risk (e.g. somebody could front run you to claim your tokens to your address).
     fn consume_l1_to_l2_message(&mut self, content: Field, secret: Field, sender: EthAddress) {
         let this = (*self).this_address();
         let nullifier = process_l1_to_l2_message(

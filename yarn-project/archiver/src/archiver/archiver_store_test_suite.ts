@@ -211,6 +211,20 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
           await store.addL1ToL2Messages({ lastProcessedL1BlockNumber: 100n, retrievedData: msgs });
         }).rejects.toThrow(`Message index ${l1ToL2MessageSubtreeSize} out of subtree range`);
       });
+
+      it('correctly handles duplicate messages', async () => {
+        const messageHash = Fr.random();
+
+        const msgs = [new InboxLeaf(1n, 0n, messageHash), new InboxLeaf(2n, 0n, messageHash)];
+
+        await store.addL1ToL2Messages({ lastProcessedL1BlockNumber: 100n, retrievedData: msgs });
+
+        const index1 = (await store.getL1ToL2MessageIndex(messageHash, 0n))!;
+        const index2 = await store.getL1ToL2MessageIndex(messageHash, index1 + 1n);
+
+        expect(index2).toBeDefined();
+        expect(index2).toBeGreaterThan(index1);
+      });
     });
 
     describe('contractInstances', () => {

@@ -6,6 +6,7 @@ import {
   NoteStatus,
   NullifierMembershipWitness,
   PublicDataWitness,
+  SiblingPath,
 } from '@aztec/circuit-types';
 import {
   AztecAddress,
@@ -16,6 +17,7 @@ import {
   Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
 } from '@aztec/circuits.js';
+import { computeL1ToL2MessageNullifier } from '@aztec/circuits.js/hash';
 import { FunctionArtifactWithDebugMetadata, getFunctionArtifactWithDebugMetadata } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { DBOracle, KeyPair, MessageLoadOracleInputs } from '@aztec/simulator';
@@ -121,17 +123,40 @@ export class SimulatorOracle implements DBOracle {
   }
 
   /**
-   * Fetches the a message from the db, given its key.
+   * Fetches a message from the db, given its key.
+   * @param contractAddress - Address of a contract by which the message was emitted.
    * @param messageHash - Hash of the message.
+   * @param secret - Secret used to compute a nullifier.
+   * @dev Contract address and secret are only used to compute the nullifier to get non-nullified messages
    * @returns The l1 to l2 membership witness (index of message in the tree and sibling path).
    */
-  async getL1ToL2MembershipWitness(messageHash: Fr): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
-    const response = await this.aztecNode.getL1ToL2MessageMembershipWitness('latest', messageHash);
-    if (!response) {
-      throw new Error(`No L1 to L2 message found for message hash ${messageHash.toString()}`);
-    }
-    const [index, siblingPath] = response;
-    return new MessageLoadOracleInputs(index, siblingPath);
+  async getL1ToL2MembershipWitness(
+    contractAddress: AztecAddress,
+    messageHash: Fr,
+    secret: Fr,
+  ): Promise<MessageLoadOracleInputs<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
+    let nullifierIndex: bigint | undefined;
+    let messageIndex = 0n;
+    let startIndex = 0n;
+    let siblingPath: SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>;
+
+    // We iterate over messages until we find one whose nullifier is not in the nullifier tree --> we need to check
+    // for nullifiers because messages can have duplicates.
+    do {
+      const response = await this.aztecNode.getL1ToL2MessageMembershipWitness('latest', messageHash, startIndex);
+      if (!response) {
+        throw new Error(`No non-nullified L1 to L2 message found for message hash ${messageHash.toString()}`);
+      }
+      [messageIndex, siblingPath] = response;
+
+      const messageNullifier = computeL1ToL2MessageNullifier(contractAddress, messageHash, secret, messageIndex);
+      nullifierIndex = await this.getNullifierIndex(messageNullifier);
+
+      startIndex = messageIndex + 1n;
+    } while (nullifierIndex !== undefined);
+
+    // Assuming messageIndex is what you intended to use for the index in MessageLoadOracleInputs
+    return new MessageLoadOracleInputs(messageIndex, siblingPath);
   }
 
   /**

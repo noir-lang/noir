@@ -43,7 +43,11 @@ export class StandardTree extends TreeBase implements AppendOnlyTree {
   }
 
   public findLeafIndex(value: Buffer, includeUncommitted: boolean): bigint | undefined {
-    for (let i = 0n; i < this.getNumLeaves(includeUncommitted); i++) {
+    return this.findLeafIndexAfter(value, 0n, includeUncommitted);
+  }
+
+  public findLeafIndexAfter(value: Buffer, startIndex: bigint, includeUncommitted: boolean): bigint | undefined {
+    for (let i = startIndex; i < this.getNumLeaves(includeUncommitted); i++) {
       const currentValue = this.getLeafValue(i, includeUncommitted);
       if (currentValue && currentValue.equals(value)) {
         return i;

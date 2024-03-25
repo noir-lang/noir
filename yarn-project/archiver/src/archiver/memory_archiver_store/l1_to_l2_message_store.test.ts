@@ -25,9 +25,22 @@ describe('l1_to_l2_message_store', () => {
     expect(retrievedMsgs.length).toEqual(10);
 
     const msg = msgs[4];
-    const index = store.getMessageIndex(msg.leaf);
+    const index = store.getMessageIndex(msg.leaf, 0n);
     expect(index).toEqual(
       (blockNumber - BigInt(INITIAL_L2_BLOCK_NUM)) * BigInt(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP) + msg.index,
     );
+  });
+
+  it('correctly handles duplicate messages', () => {
+    const messageHash = Fr.random();
+
+    store.addMessage(new InboxLeaf(1n, 0n, messageHash));
+    store.addMessage(new InboxLeaf(2n, 0n, messageHash));
+
+    const index1 = store.getMessageIndex(messageHash, 0n)!;
+    const index2 = store.getMessageIndex(messageHash, index1 + 1n);
+
+    expect(index2).toBeDefined();
+    expect(index2).toBeGreaterThan(index1);
   });
 });

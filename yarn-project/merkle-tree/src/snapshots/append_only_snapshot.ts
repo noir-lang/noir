@@ -250,8 +250,12 @@ class AppendOnlySnapshot implements TreeSnapshot {
   }
 
   findLeafIndex(value: Buffer): bigint | undefined {
+    return this.findLeafIndexAfter(value, 0n);
+  }
+
+  findLeafIndexAfter(value: Buffer, startIndex: bigint): bigint | undefined {
     const numLeaves = this.getNumLeaves();
-    for (let i = 0n; i < numLeaves; i++) {
+    for (let i = startIndex; i < numLeaves; i++) {
       const currentValue = this.getLeafValue(i);
       if (currentValue && currentValue.equals(value)) {
         return i;

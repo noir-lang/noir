@@ -331,4 +331,13 @@ export abstract class TreeBase implements MerkleTree {
    * @returns The index of the first leaf found with a given value (undefined if not found).
    */
   abstract findLeafIndex(value: Buffer, includeUncommitted: boolean): bigint | undefined;
+
+  /**
+   * Returns the first index containing a leaf value after `startIndex`.
+   * @param leaf - The leaf value to look for.
+   * @param startIndex - The index to start searching from (used when skipping nullified messages)
+   * @param includeUncommitted - Indicates whether to include uncommitted data.
+   * @returns The index of the first leaf found with a given value (undefined if not found).
+   */
+  abstract findLeafIndexAfter(leaf: Buffer, startIndex: bigint, includeUncommitted: boolean): bigint | undefined;
 }

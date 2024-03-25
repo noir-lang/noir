@@ -62,19 +62,25 @@ export interface AztecNode {
    * Returns the index and a sibling path for a leaf in the committed l1 to l2 data tree.
    * @param blockNumber - The block number at which to get the data.
    * @param l1ToL2Message - The l1ToL2Message to get the index / sibling path for.
-   * @returns A tuple of the index and the sibling path of the message  (undefined if not found).
+   * @param startIndex - The index to start searching from.
+   * @returns A tuple of the index and the sibling path of the L1ToL2Message (undefined if not found).
    */
   getL1ToL2MessageMembershipWitness(
     blockNumber: L2BlockNumber,
     l1ToL2Message: Fr,
+    startIndex: bigint,
   ): Promise<[bigint, SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>] | undefined>;
 
   /**
    * Returns whether an L1 to L2 message is synced by archiver and if it's ready to be included in a block.
    * @param l1ToL2Message - The L1 to L2 message to check.
+   * @param startL2BlockNumber - The block number after which we are interested in checking if the message was
+   * included.
+   * @remarks We pass in the minL2BlockNumber because there can be duplicate messages and the block number allow us
+   * to skip the duplicates (we know after which block a given message is to be included).
    * @returns Whether the message is synced and ready to be included in a block.
    */
-  isL1ToL2MessageSynced(l1ToL2Message: Fr): Promise<boolean>;
+  isL1ToL2MessageSynced(l1ToL2Message: Fr, startL2BlockNumber: number): Promise<boolean>;
 
   /**
    * Returns a membership witness of an l2ToL1Message in an ephemeral l2 to l1 message tree.

@@ -49,17 +49,21 @@ export class L1ToL2MessageStore {
   }
 
   /**
-   * Gets the L1 to L2 message index in the L1 to L2 message tree.
+   * Gets the first L1 to L2 message index in the L1 to L2 message tree which is greater than or equal to `startIndex`.
    * @param l1ToL2Message - The L1 to L2 message.
+   * @param startIndex - The index to start searching from.
    * @returns The index of the L1 to L2 message in the L1 to L2 message tree (undefined if not found).
    */
-  getMessageIndex(l1ToL2Message: Fr): bigint | undefined {
+  getMessageIndex(l1ToL2Message: Fr, startIndex: bigint): bigint | undefined {
     for (const [key, message] of this.store.entries()) {
       if (message.equals(l1ToL2Message)) {
-        const [blockNumber, messageIndex] = key.split('-');
+        const keyParts = key.split('-');
+        const [blockNumber, messageIndex] = [BigInt(keyParts[0]), BigInt(keyParts[1])];
         const indexInTheWholeTree =
-          (BigInt(blockNumber) - BigInt(INITIAL_L2_BLOCK_NUM)) * BigInt(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP) +
-          BigInt(messageIndex);
+          (blockNumber - BigInt(INITIAL_L2_BLOCK_NUM)) * BigInt(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP) + messageIndex;
+        if (indexInTheWholeTree < startIndex) {
+          continue;
+        }
         return indexInTheWholeTree;
       }
     }

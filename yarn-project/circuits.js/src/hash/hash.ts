@@ -173,3 +173,13 @@ export function computeNullifierHash(input: SideEffectLinkedToNoteHash) {
 export function computeMessageSecretHash(secretMessage: Fr) {
   return pedersenHash([secretMessage.toBuffer()], GeneratorIndex.L1_TO_L2_MESSAGE_SECRET);
 }
+
+export function computeL1ToL2MessageNullifier(
+  contract: AztecAddress,
+  messageHash: Fr,
+  secret: Fr,
+  messageIndex: bigint,
+) {
+  const innerMessageNullifier = pedersenHash([messageHash, secret, messageIndex], GeneratorIndex.NULLIFIER);
+  return siloNullifier(contract, innerMessageNullifier);
+}

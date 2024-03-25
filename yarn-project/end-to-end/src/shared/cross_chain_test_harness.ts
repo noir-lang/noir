@@ -459,8 +459,13 @@ export class CrossChainTestHarness {
    * it's included it becomes available for consumption in the next block because the l1 to l2 message tree.
    */
   async makeMessageConsumable(msgHash: Fr) {
+    const currentL2BlockNumber = await this.aztecNode.getBlockNumber();
     // We poll isL1ToL2MessageSynced endpoint until the message is available
-    await retryUntil(async () => await this.aztecNode.isL1ToL2MessageSynced(msgHash), 'message sync', 10);
+    await retryUntil(
+      async () => await this.aztecNode.isL1ToL2MessageSynced(msgHash, currentL2BlockNumber),
+      'message sync',
+      10,
+    );
 
     await this.mintTokensPublicOnL2(0n);
     await this.mintTokensPublicOnL2(0n);

@@ -33,6 +33,11 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
     return tree.findLeafIndex(value);
   }
 
+  async findLeafIndexAfter(treeId: MerkleTreeId, value: Buffer, startIndex: bigint): Promise<bigint | undefined> {
+    const tree = await this.#getTreeSnapshot(treeId);
+    return tree.findLeafIndexAfter(value, startIndex);
+  }
+
   async getLeafPreimage(
     treeId: MerkleTreeId.NULLIFIER_TREE,
     index: bigint,

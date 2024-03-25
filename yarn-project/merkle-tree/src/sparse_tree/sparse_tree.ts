@@ -46,4 +46,8 @@ export class SparseTree extends TreeBase implements UpdateOnlyTree {
   public findLeafIndex(_value: Buffer, _includeUncommitted: boolean): bigint | undefined {
     throw new Error('Finding leaf index is not supported for sparse trees');
   }
+
+  public findLeafIndexAfter(_value: Buffer, _startIndex: bigint, _includeUncommitted: boolean): bigint | undefined {
+    throw new Error('Finding leaf index is not supported for sparse trees');
+  }
 }
