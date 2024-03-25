@@ -64,6 +64,7 @@ impl From<PathResolutionError> for CustomDiagnostic {
                 "Contracts may only be referenced from within a contract".to_string(),
                 ident.span(),
             ),
+            // This will be upgraded to an error in future versions
             PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
                 error.to_string(),
                 format!("{ident} is private"),
