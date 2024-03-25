@@ -134,7 +134,10 @@ describe('e2e_deploy_contract', () => {
 
         await Promise.all([goodDeploy.simulate(firstOpts), badDeploy.simulate(secondOpts)]);
         const [goodTx, badTx] = [goodDeploy.send(firstOpts), badDeploy.send(secondOpts)];
-        const [goodTxPromiseResult, badTxReceiptResult] = await Promise.allSettled([goodTx.wait(), badTx.wait()]);
+        const [goodTxPromiseResult, badTxReceiptResult] = await Promise.allSettled([
+          goodTx.wait(),
+          badTx.wait({ dontThrowOnRevert: true }),
+        ]);
 
         expect(goodTxPromiseResult.status).toBe('fulfilled');
         expect(badTxReceiptResult.status).toBe('fulfilled'); // but reverted
@@ -396,7 +399,7 @@ describe('e2e_deploy_contract', () => {
             const receipt = await contract.methods
               .increment_public_value(whom, 10)
               .send({ skipPublicSimulation: true })
-              .wait();
+              .wait({ dontThrowOnRevert: true });
             expect(receipt.status).toEqual(TxStatus.REVERTED);
 
             // Meanwhile we check we didn't increment the value
@@ -436,10 +439,12 @@ describe('e2e_deploy_contract', () => {
           }, 60_000);
 
           it('refuses to initialize the instance with wrong args via a public function', async () => {
-            // TODO(@spalladino): This tx is mined but reverts, we need to check revert flag once it's available
-            // Meanwhile, we check that its side effects did not come through as a means to assert it reverted
             const whom = AztecAddress.random();
-            await contract.methods.public_constructor(whom, 43).send({ skipPublicSimulation: true }).wait();
+            const receipt = await contract.methods
+              .public_constructor(whom, 43)
+              .send({ skipPublicSimulation: true })
+              .wait({ dontThrowOnRevert: true });
+            expect(receipt.status).toEqual(TxStatus.REVERTED);
             expect(await contract.methods.get_public_value(whom).view()).toEqual(0n);
           }, 30_000);
 

@@ -172,7 +172,7 @@ describe('e2e_fees', () => {
           paymentMethod: new PublicFeePaymentMethod(bananaCoin.address, bananaFPC.address, wallets[0]),
         },
       })
-      .wait();
+      .wait({ dontThrowOnRevert: true });
     expect(txReceipt.status).toBe(TxStatus.REVERTED);
 
     // and thus we paid the fee

@@ -15,6 +15,8 @@ export type WaitOpts = {
   waitForNotesSync?: boolean;
   /** Whether to include information useful for debugging/testing in the receipt. */
   debug?: boolean;
+  /** Whether to accept a revert as a status code for the tx when waiting for it. If false, will throw if the tx reverts. */
+  dontThrowOnRevert?: boolean;
 };
 
 export const DefaultWaitOpts: WaitOpts = {
@@ -60,10 +62,10 @@ export class SentTx {
    */
   public async wait(opts?: WaitOpts): Promise<FieldsOf<TxReceipt>> {
     if (opts?.debug && opts.waitForNotesSync === false) {
-      throw new Error('Cannot set getNotes to true if waitForNotesSync is false');
+      throw new Error('Cannot set debug to true if waitForNotesSync is false');
     }
     const receipt = await this.waitForReceipt(opts);
-    if (receipt.status !== TxStatus.MINED && receipt.status !== TxStatus.REVERTED) {
+    if (!(receipt.status === TxStatus.MINED || (receipt.status === TxStatus.REVERTED && opts?.dontThrowOnRevert))) {
       throw new Error(
         `Transaction ${await this.getTxHash()} was ${receipt.status}. Reason: ${receipt.error ?? 'unknown'}`,
       );
