@@ -1,6 +1,7 @@
 import { FunctionSelector, bufferFromFields } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
+import { removeArrayPaddingEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 import { UnconstrainedFunction, UnconstrainedFunctionWithMembershipProof } from '@aztec/types/contracts';
@@ -85,13 +86,18 @@ export class UnconstrainedFunctionBroadcastedEvent {
   }
 
   toFunctionWithMembershipProof(): UnconstrainedFunctionWithMembershipProof {
+    // We should be able to safely remove the zero elements that pad the variable-length sibling path,
+    // since a sibling with value zero can only occur on the tree leaves, so the sibling path will never end
+    // in a zero. The only exception is a tree with depth 2 with one non-zero leaf, where the sibling path would
+    // be a single zero element, but in that case the artifact tree should be just the single leaf.
+    const artifactTreeSiblingPath = removeArrayPaddingEnd(this.artifactFunctionTreeSiblingPath, Fr.isZero);
     return {
       ...this.unconstrainedFunction,
       bytecode: this.unconstrainedFunction.bytecode,
       functionMetadataHash: this.unconstrainedFunction.metadataHash,
       artifactMetadataHash: this.artifactMetadataHash,
       privateFunctionsArtifactTreeRoot: this.privateFunctionsArtifactTreeRoot,
-      artifactTreeSiblingPath: this.artifactFunctionTreeSiblingPath.filter(fr => !fr.isZero()),
+      artifactTreeSiblingPath,
       artifactTreeLeafIndex: this.artifactFunctionTreeLeafIndex,
     };
   }

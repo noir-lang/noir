@@ -1,12 +1,12 @@
 import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 
-import { getSampleContractArtifact } from '../tests/fixtures.js';
+import { getBenchmarkContractArtifact } from '../tests/fixtures.js';
 import { getContractClassFromArtifact } from './contract_class.js';
 
 describe('ContractClass', () => {
   it('creates a contract class from a contract compilation artifact', () => {
-    const artifact = getSampleContractArtifact();
+    const artifact = getBenchmarkContractArtifact();
     const contractClass = getContractClassFromArtifact({
       ...artifact,
       artifactHash: Fr.fromString('0x1234'),

@@ -2,7 +2,7 @@ import { ContractArtifact, FunctionArtifact, FunctionSelector, FunctionType } fr
 import { Fr } from '@aztec/foundation/fields';
 import { ContractClass } from '@aztec/types/contracts';
 
-import { getSampleContractArtifact } from '../tests/fixtures.js';
+import { getBenchmarkContractArtifact } from '../tests/fixtures.js';
 import { computeVerificationKeyHash, getContractClassFromArtifact } from './contract_class.js';
 import { ContractClassIdPreimage } from './contract_class_id.js';
 import {
@@ -18,7 +18,7 @@ describe('private_function_membership_proof', () => {
   let selector: FunctionSelector;
 
   beforeAll(() => {
-    artifact = getSampleContractArtifact();
+    artifact = getBenchmarkContractArtifact();
     contractClass = getContractClassFromArtifact(artifact);
     privateFunction = artifact.functions.findLast(fn => fn.functionType === FunctionType.SECRET)!;
     vkHash = computeVerificationKeyHash(privateFunction.verificationKey!);
