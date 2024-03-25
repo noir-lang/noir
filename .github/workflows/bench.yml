@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-benchmark:
-    name: Run benchmarks
+  execute:
+    name: Run execution benchmarks
     runs-on: ubuntu-22.04
     timeout-minutes: 30
 
@@ -23,7 +23,32 @@ jobs:
         with:
           key: benchmarks
 
-      - uses: boa-dev/criterion-compare-action@v3.2.4
+      - run: cargo bench execute
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          branchName: "master"
-          benchName: "execution"
+          name: execution-benchmarks
+          path: ./target/criterion
+          retention-days: 10
+
+  prove:
+    name: Run proving benchmarks
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: benchmarks
+
+      - run: cargo bench prove
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: proving-benchmarks
+          path: ./target/criterion
+          retention-days: 10

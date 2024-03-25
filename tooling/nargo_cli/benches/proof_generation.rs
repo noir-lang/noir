@@ -31,6 +31,6 @@ criterion_command!(prove, "prove");
 criterion_group! {
     name = prove_benches;
     config = Criterion::default().sample_size(20).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets = criterion_selected_tests_execution
+    targets = criterion_selected_tests_prove
 }
 criterion_main!(prove_benches);
