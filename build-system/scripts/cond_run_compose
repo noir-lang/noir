@@ -19,8 +19,9 @@ SUCCESS_TAG=$BASE_TAG-$JOB_NAME
 echo "Success tag: $SUCCESS_TAG"
 
 if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
-  # Login to pull our ecr images with docker.
+  # Login to pull our images from ecr or dockerhub.
   retry ecr_login
+  retry dockerhub_login
 
   # For each dependency and self, pull in the latest image and give it correct tag.
   for REPO in $(query_manifest runDependencies $REPOSITORY $JOB_NAME); do
