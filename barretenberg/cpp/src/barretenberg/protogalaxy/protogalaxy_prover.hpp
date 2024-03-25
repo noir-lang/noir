@@ -34,6 +34,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     using Instance = typename ProverInstances::Instance;
     using Utils = bb::RelationUtils<Flavor>;
     using RowEvaluations = typename Flavor::AllValues;
+    using ProvingKey = typename Flavor::ProvingKey;
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Relations = typename Flavor::Relations;
     using RelationSeparator = typename Flavor::RelationSeparator;
