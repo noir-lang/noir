@@ -116,6 +116,10 @@ pub fn transform_vm_function(
     let create_context = create_avm_context()?;
     func.def.body.0.insert(0, create_context);
 
+    // Add the inputs to the params (first!)
+    let input = create_inputs("AvmContextInputs");
+    func.def.parameters.insert(0, input);
+
     // We want the function to be seen as a public function
     func.def.is_unconstrained = true;
 
@@ -353,11 +357,14 @@ fn create_context(ty: &str, params: &[Param]) -> Result<Vec<Statement>, AztecMac
 ///     // ...
 /// }
 fn create_avm_context() -> Result<Statement, AztecMacroError> {
+    // Create the inputs to the context
+    let inputs_expression = variable("inputs");
+
     let let_context = mutable_assignment(
         "context", // Assigned to
         call(
             variable_path(chained_dep!("aztec", "context", "AVMContext", "new")), // Path
-            vec![],                                                               // args
+            vec![inputs_expression],                                              // args
         ),
     );
 
