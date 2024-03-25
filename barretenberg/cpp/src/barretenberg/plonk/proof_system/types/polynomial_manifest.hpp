@@ -1,6 +1,6 @@
 #pragma once
 
-#include "barretenberg/proof_system/types/circuit_type.hpp"
+#include "barretenberg/plonk_honk_shared/types/circuit_type.hpp"
 #include <array>
 #include <string>
 #include <vector>

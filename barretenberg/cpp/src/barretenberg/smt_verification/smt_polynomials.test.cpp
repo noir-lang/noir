@@ -4,9 +4,9 @@
 #include <iostream>
 #include <string>
 
-#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include "barretenberg/serialize/cbind.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "barretenberg/stdlib_circuit_builders/standard_circuit_builder.hpp"
 
 #include "barretenberg/smt_verification/circuit/circuit.hpp"
 #include "barretenberg/smt_verification/util/smt_util.hpp"

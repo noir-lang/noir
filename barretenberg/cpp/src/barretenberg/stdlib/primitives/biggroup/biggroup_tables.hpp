@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/proof_system/plookup_tables/types.hpp"
+#include "barretenberg/stdlib_circuit_builders/plookup_tables/types.hpp"
 namespace bb::stdlib {
 
 using plookup::MultiTableId;

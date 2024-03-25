@@ -1,9 +1,9 @@
 #include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/common/test.hpp"
-#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
-#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
-#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/stdlib_circuit_builders/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/stdlib_circuit_builders/standard_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 #include "sha256.hpp"
 
 #include "barretenberg/numeric/bitop/rotate.hpp"

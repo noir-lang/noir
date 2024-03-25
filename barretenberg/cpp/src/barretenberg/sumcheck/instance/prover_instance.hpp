@@ -1,11 +1,11 @@
 #pragma once
+#include "barretenberg/execution_trace/execution_trace.hpp"
 #include "barretenberg/flavor/flavor.hpp"
-#include "barretenberg/flavor/goblin_ultra.hpp"
-#include "barretenberg/flavor/ultra.hpp"
-#include "barretenberg/proof_system/composer/composer_lib.hpp"
-#include "barretenberg/proof_system/composer/permutation_lib.hpp"
-#include "barretenberg/proof_system/execution_trace/execution_trace.hpp"
+#include "barretenberg/plonk_honk_shared/composer/composer_lib.hpp"
+#include "barretenberg/plonk_honk_shared/composer/permutation_lib.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
+#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 
 namespace bb {
 /**

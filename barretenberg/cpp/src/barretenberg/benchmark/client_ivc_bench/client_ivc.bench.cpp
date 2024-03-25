@@ -5,7 +5,7 @@
 #include "barretenberg/common/op_count.hpp"
 #include "barretenberg/common/op_count_google_bench.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
-#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 #include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
 using namespace benchmark;

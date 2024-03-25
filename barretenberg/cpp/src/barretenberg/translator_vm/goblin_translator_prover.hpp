@@ -1,8 +1,8 @@
 #pragma once
-#include "barretenberg/flavor/goblin_translator.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
+#include "barretenberg/translator_vm/goblin_translator_flavor.hpp"
 
 namespace bb {
 

@@ -18,6 +18,7 @@ TESTS=(
   sumcheck_tests
   eccvm_tests
   translator_vm_tests
+  plonk_honk_shared_tests
   protogalaxy_tests
   ultra_honk_tests
   goblin_tests

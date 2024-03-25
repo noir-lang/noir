@@ -1,7 +1,7 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
-#include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
-#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 #include <cstddef>
 
 namespace acir_format {

@@ -15,7 +15,7 @@
 #include "barretenberg/dsl/acir_format/recursion_constraint.hpp"
 #include "barretenberg/dsl/acir_format/schnorr_verify.hpp"
 #include "barretenberg/dsl/acir_format/sha256_constraint.hpp"
-#include "barretenberg/proof_system/arithmetization/gate_data.hpp"
+#include "barretenberg/plonk_honk_shared/arithmetization/gate_data.hpp"
 #include "serde/index.hpp"
 #include <iterator>
 

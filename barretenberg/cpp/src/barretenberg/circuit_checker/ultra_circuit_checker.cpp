@@ -1,5 +1,5 @@
 #include "ultra_circuit_checker.hpp"
-#include "barretenberg/flavor/goblin_ultra.hpp"
+#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
 #include <barretenberg/plonk/proof_system/constants.hpp>
 #include <unordered_set>
 

@@ -1,7 +1,7 @@
 #include "barretenberg/stdlib/honk_recursion/verifier/ultra_recursive_verifier.hpp"
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
-#include "barretenberg/proof_system/library/grand_product_delta.hpp"
+#include "barretenberg/plonk_honk_shared/library/grand_product_delta.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace bb::stdlib::recursion::honk {

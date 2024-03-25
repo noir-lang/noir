@@ -1,5 +1,5 @@
 #include "barretenberg/relations/translator_vm/translator_decomposition_relation.hpp"
-#include "barretenberg/flavor/goblin_translator.hpp"
+#include "barretenberg/translator_vm/goblin_translator_flavor.hpp"
 
 namespace bb {
 

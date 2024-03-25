@@ -1,6 +1,6 @@
 #include "sumcheck_round.hpp"
-#include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/relations/utils.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 
 #include <gtest/gtest.h>
 

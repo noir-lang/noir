@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 
+#include "barretenberg/eccvm/eccvm_circuit_builder.hpp"
 #include "barretenberg/eccvm/eccvm_composer.hpp"
-#include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_circuit_builder.hpp"
 
 using namespace benchmark;
 using namespace bb;

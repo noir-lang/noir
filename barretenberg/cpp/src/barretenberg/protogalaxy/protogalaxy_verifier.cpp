@@ -1,5 +1,5 @@
 #include "protogalaxy_verifier.hpp"
-#include "barretenberg/proof_system/library/grand_product_delta.hpp"
+#include "barretenberg/plonk_honk_shared/library/grand_product_delta.hpp"
 #include "barretenberg/ultra_honk/oink_verifier.hpp"
 namespace bb {
 

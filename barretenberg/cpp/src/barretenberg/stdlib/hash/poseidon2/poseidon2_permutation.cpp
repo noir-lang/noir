@@ -1,8 +1,8 @@
 #include "poseidon2_permutation.hpp"
 
-#include "barretenberg/proof_system/arithmetization/gate_data.hpp"
-#include "barretenberg/proof_system/circuit_builder/goblin_ultra_circuit_builder.hpp"
+#include "barretenberg/plonk_honk_shared/arithmetization/gate_data.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
+#include "barretenberg/stdlib_circuit_builders/goblin_ultra_circuit_builder.hpp"
 
 namespace bb::stdlib {
 

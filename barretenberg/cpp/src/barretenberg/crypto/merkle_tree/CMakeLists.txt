@@ -3,5 +3,5 @@ barretenberg_module(
     stdlib_primitives
     stdlib_blake3s
     stdlib_pedersen_hash
-    circuit_checker
+    crypto_poseidon2
 )

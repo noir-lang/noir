@@ -1,5 +1,5 @@
 #include "ecc_wnaf_relation.hpp"
-#include "barretenberg/flavor/ecc_vm.hpp"
+#include "barretenberg/eccvm/eccvm_flavor.hpp"
 #include "barretenberg/flavor/relation_definitions.hpp"
 
 namespace bb {

@@ -1,8 +1,8 @@
 #include "barretenberg/common/log.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/proof_system/circuit_builder/goblin_translator_circuit_builder.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_round.hpp"
+#include "barretenberg/translator_vm/goblin_translator_circuit_builder.hpp"
 #include "barretenberg/translator_vm/goblin_translator_prover.hpp"
 #include "barretenberg/translator_vm/goblin_translator_verifier.hpp"
 

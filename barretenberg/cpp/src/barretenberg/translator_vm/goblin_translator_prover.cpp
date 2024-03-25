@@ -3,7 +3,7 @@
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
-#include "barretenberg/proof_system/library/grand_product_library.hpp"
+#include "barretenberg/plonk_honk_shared/library/grand_product_library.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
 
 namespace bb {

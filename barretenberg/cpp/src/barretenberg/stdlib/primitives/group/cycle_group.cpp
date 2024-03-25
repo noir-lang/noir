@@ -3,8 +3,8 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
 #include "./cycle_group.hpp"
-#include "barretenberg/proof_system/plookup_tables/types.hpp"
 #include "barretenberg/stdlib/primitives/plookup/plookup.hpp"
+#include "barretenberg/stdlib_circuit_builders/plookup_tables/types.hpp"
 namespace bb::stdlib {
 
 template <typename Composer>

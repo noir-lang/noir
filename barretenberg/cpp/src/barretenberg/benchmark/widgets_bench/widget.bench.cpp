@@ -1,6 +1,4 @@
 #include "barretenberg/benchmark/ultra_bench/mock_circuits.hpp"
-#include "barretenberg/flavor/goblin_ultra.hpp"
-#include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/widgets/random_widgets/permutation_widget.hpp"
@@ -9,6 +7,8 @@
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/genperm_sort_widget.hpp"
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/plookup_arithmetic_widget.hpp"
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/plookup_auxiliary_widget.hpp"
+#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 
 // The widgets are implemented in a non-uniform way where the transition widgets provide a per-row execution function
 // `accumulate_contribution` while the random widgets do not. Defining this preprocessor variable allows to derive a

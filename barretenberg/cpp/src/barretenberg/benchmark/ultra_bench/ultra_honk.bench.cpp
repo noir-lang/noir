@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 
 #include "barretenberg/benchmark/ultra_bench/mock_circuits.hpp"
-#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 
 using namespace benchmark;
 using namespace bb;

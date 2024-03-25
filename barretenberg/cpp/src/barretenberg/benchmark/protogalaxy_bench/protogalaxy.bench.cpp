@@ -1,8 +1,8 @@
 #include <benchmark/benchmark.h>
 
-#include "barretenberg/proof_system/circuit_builder/mock_circuits.hpp"
-#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/protogalaxy/protogalaxy_prover.hpp"
+#include "barretenberg/stdlib_circuit_builders/mock_circuits.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 #include "barretenberg/sumcheck/instance/instances.hpp"
 #include "barretenberg/sumcheck/instance/prover_instance.hpp"
 

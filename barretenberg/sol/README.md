@@ -10,7 +10,7 @@ The verifier will follow an overall architecture below, consisting of 3 contract
 
 ![Verifier architecture](./figures/verifier.png)
 
-The verification key is currently generated via [Barretenberg](https://github.com/AztecProtocol/barretenberg/blob/master/cpp/src/aztec/proof_system/verification_key/sol_gen.hpp), Aztec's backend for generating proofs.
+The verification key is currently generated via [Barretenberg](https://github.com/AztecProtocol/barretenberg/blob/master/cpp/src/aztec/plonk_honk_shared/verification_key/sol_gen.hpp), Aztec's backend for generating proofs.
 
 ## Current implementations
 

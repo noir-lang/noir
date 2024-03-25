@@ -1,6 +1,6 @@
 #include "protogalaxy_recursive_verifier.hpp"
+#include "barretenberg/plonk_honk_shared/library/grand_product_delta.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/proof_system/library/grand_product_delta.hpp"
 #include "barretenberg/stdlib/honk_recursion/verifier/recursive_instances.hpp"
 
 namespace bb::stdlib::recursion::honk {

@@ -6,7 +6,7 @@
 #include "merkle_tree.hpp"
 
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
-#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 
 using namespace bb;
 using namespace bb::crypto::merkle_tree;

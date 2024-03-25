@@ -1,7 +1,7 @@
 #include "./plookup.hpp"
-#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
-#include "barretenberg/proof_system/plookup_tables/types.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
+#include "barretenberg/stdlib_circuit_builders/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/stdlib_circuit_builders/plookup_tables/types.hpp"
 
 namespace bb {
 class UltraPlonkBuilder;

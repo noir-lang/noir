@@ -1,12 +1,12 @@
 #include "blake2s_plookup.hpp"
 #include "blake_util.hpp"
 
-#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
-#include "barretenberg/proof_system/plookup_tables/sha256.hpp"
 #include "barretenberg/stdlib/primitives/bit_array/bit_array.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/plookup/plookup.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
+#include "barretenberg/stdlib_circuit_builders/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/stdlib_circuit_builders/plookup_tables/sha256.hpp"
 
 /**
  * Optimizations:

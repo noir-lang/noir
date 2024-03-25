@@ -256,7 +256,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 proof_system_tests
+          command: cond_spot_run_test barretenberg-x86_64-linux-clang-assert 32 ./scripts/run_tests 1 stdlib_circuit_builders_tests
           aztec_manifest_key: barretenberg-x86_64-linux-clang-assert
 
   barretenberg-stdlib-plonk-recursion-ultra-tests:

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "barretenberg/crypto/merkle_tree/hash_path.hpp"
-#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
@@ -10,6 +9,7 @@
 #include "barretenberg/stdlib/primitives/group/cycle_group.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 
 namespace bb::join_split_example {
 

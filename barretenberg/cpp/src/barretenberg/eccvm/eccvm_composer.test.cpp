@@ -3,11 +3,11 @@
 #include <gtest/gtest.h>
 #include <vector>
 
+#include "barretenberg/eccvm/eccvm_circuit_builder.hpp"
 #include "barretenberg/eccvm/eccvm_composer.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/plonk_honk_shared/library/grand_product_delta.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_circuit_builder.hpp"
-#include "barretenberg/proof_system/library/grand_product_delta.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_round.hpp"

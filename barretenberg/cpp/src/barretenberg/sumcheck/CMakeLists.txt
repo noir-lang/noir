@@ -1,1 +1,1 @@
-barretenberg_module(sumcheck flavor srs transcript)
+barretenberg_module(sumcheck stdlib_circuit_builders transcript)

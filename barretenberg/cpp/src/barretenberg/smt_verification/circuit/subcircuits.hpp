@@ -1,5 +1,5 @@
 #pragma once
-#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/standard_circuit_builder.hpp"
 
 #include "barretenberg/smt_verification/circuit/circuit_schema.hpp"
 

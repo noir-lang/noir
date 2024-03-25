@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "barretenberg/crypto/merkle_tree/membership.hpp"
-#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 
 using namespace bb;
 using namespace bb::crypto;

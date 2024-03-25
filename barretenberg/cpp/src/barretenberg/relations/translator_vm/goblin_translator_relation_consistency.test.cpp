@@ -11,7 +11,7 @@
  * satisfied in general by random inputs) only that the two implementations are equivalent.
  *
  */
-#include "barretenberg/flavor/goblin_translator.hpp"
+#include "barretenberg/translator_vm/goblin_translator_flavor.hpp"
 #include <gtest/gtest.h>
 
 using namespace bb;

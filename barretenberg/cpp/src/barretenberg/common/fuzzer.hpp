@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/standard_circuit_builder.hpp"
 #include <concepts>
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage, google-runtime-int)

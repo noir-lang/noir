@@ -1,6 +1,6 @@
-#include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 #include <cstddef>
 #include <gtest/gtest.h>
 

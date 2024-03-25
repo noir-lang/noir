@@ -1,8 +1,8 @@
 #pragma once
 #include "barretenberg/circuit_checker/standard_circuit_checker.hpp"
 #include "barretenberg/circuit_checker/ultra_circuit_checker.hpp"
-#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
-#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/standard_circuit_builder.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 
 #include <optional>
 

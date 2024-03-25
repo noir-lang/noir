@@ -1,8 +1,8 @@
-#include "barretenberg/flavor/ultra.hpp"
 #include "barretenberg/honk/utils/testing.hpp"
 #include "barretenberg/polynomials/pow.hpp"
 #include "barretenberg/protogalaxy/protogalaxy_prover.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 #include "barretenberg/sumcheck/instance/instances.hpp"
 #include <gtest/gtest.h>
 

@@ -1,9 +1,9 @@
 
 
 #pragma once
-#include "barretenberg/flavor/generated/avm_flavor.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
+#include "barretenberg/vm/generated/avm_flavor.hpp"
 
 namespace bb {
 class AvmVerifier {

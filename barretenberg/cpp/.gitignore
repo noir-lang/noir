@@ -1,7 +1,7 @@
 .cache/
 build*/
 src/wasi-sdk*
-src/barretenberg/proof_system/proving_key/fixtures
+src/barretenberg/plonk_honk_shared/proving_key/fixtures
 src/barretenberg/rollup/proofs/*/fixtures
 srs_db/*/*/transcript*
 srs_db/*/bn254_g*

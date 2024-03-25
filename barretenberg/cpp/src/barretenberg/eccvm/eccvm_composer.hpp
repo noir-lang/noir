@@ -1,9 +1,9 @@
 #pragma once
 
+#include "barretenberg/eccvm/eccvm_circuit_builder.hpp"
 #include "barretenberg/eccvm/eccvm_prover.hpp"
 #include "barretenberg/eccvm/eccvm_verifier.hpp"
-#include "barretenberg/proof_system/circuit_builder/eccvm/eccvm_circuit_builder.hpp"
-#include "barretenberg/proof_system/composer/composer_lib.hpp"
+#include "barretenberg/plonk_honk_shared/composer/composer_lib.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/srs/global_crs.hpp"
 

@@ -68,10 +68,10 @@
 #include "barretenberg/common/std_array.hpp"
 #include "barretenberg/common/std_vector.hpp"
 #include "barretenberg/common/zip_view.hpp"
+#include "barretenberg/plonk_honk_shared/types/circuit_type.hpp"
 #include "barretenberg/polynomials/barycentric.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
-#include "barretenberg/proof_system/types/circuit_type.hpp"
 #include <array>
 #include <barretenberg/srs/global_crs.hpp>
 #include <concepts>

@@ -1,7 +1,7 @@
 #pragma once
-#include "barretenberg/flavor/goblin_translator.hpp"
 #include "barretenberg/goblin/translation_evaluations.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
+#include "barretenberg/translator_vm/goblin_translator_flavor.hpp"
 #include "barretenberg/translator_vm/goblin_translator_prover.hpp"
 
 namespace bb {

@@ -6,9 +6,8 @@
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/plonk/proof_system/verifier/verifier.hpp"
-#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
-#include "barretenberg/proof_system/execution_trace/execution_trace.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
+#include "barretenberg/stdlib_circuit_builders/standard_circuit_builder.hpp"
 #include <utility>
 
 namespace bb::plonk {

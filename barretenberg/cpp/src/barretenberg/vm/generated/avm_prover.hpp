@@ -2,11 +2,11 @@
 
 #pragma once
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
-#include "barretenberg/flavor/generated/avm_flavor.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/sumcheck/sumcheck_output.hpp"
 #include "barretenberg/transcript/transcript.hpp"
+#include "barretenberg/vm/generated/avm_flavor.hpp"
 
 namespace bb {
 

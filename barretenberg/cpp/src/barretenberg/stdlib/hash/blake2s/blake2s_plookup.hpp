@@ -1,6 +1,6 @@
 #pragma once
-#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
+#include "barretenberg/stdlib_circuit_builders/plookup_tables/plookup_tables.hpp"
 #include <array>
 
 #include "barretenberg/numeric/bitop/sparse_form.hpp"

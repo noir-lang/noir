@@ -1,7 +1,7 @@
-#include "barretenberg/flavor/ecc_vm.hpp"
-#include "barretenberg/flavor/goblin_translator.hpp"
-#include "barretenberg/flavor/goblin_ultra.hpp"
-#include "barretenberg/flavor/ultra.hpp"
+#include "barretenberg/eccvm/eccvm_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/goblin_ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
+#include "barretenberg/translator_vm/goblin_translator_flavor.hpp"
 #include <benchmark/benchmark.h>
 
 namespace {

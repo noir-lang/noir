@@ -5,7 +5,7 @@
 #include "barretenberg/common/thread.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
-#include "barretenberg/proof_system/types/circuit_type.hpp"
+#include "barretenberg/plonk_honk_shared/types/circuit_type.hpp"
 #include <memory.h>
 #include <memory>
 

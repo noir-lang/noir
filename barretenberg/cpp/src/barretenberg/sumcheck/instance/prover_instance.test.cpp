@@ -1,8 +1,8 @@
 
 #include "prover_instance.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
+#include "barretenberg/plonk_honk_shared/library/grand_product_library.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/proof_system/library/grand_product_library.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include <gtest/gtest.h>
 using namespace bb;

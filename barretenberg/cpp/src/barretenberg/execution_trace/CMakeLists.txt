@@ -1,0 +1,1 @@
+barretenberg_module(execution_trace plonk_honk_shared)

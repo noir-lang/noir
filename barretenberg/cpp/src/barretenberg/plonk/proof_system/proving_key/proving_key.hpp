@@ -11,10 +11,10 @@
 #include "barretenberg/srs/factories/crs_factory.hpp"
 
 #ifdef __wasm__
-#include "barretenberg/proof_system/polynomial_store/polynomial_store_cache.hpp"
-// #include "barretenberg/proof_system/polynomial_store/polynomial_store_wasm.hpp"
+#include "barretenberg/polynomials/polynomial_store_cache.hpp"
+// #include "barretenberg/polynomials/polynomial_store_wasm.hpp"
 #else
-#include "barretenberg/proof_system/polynomial_store/polynomial_store.hpp"
+#include "barretenberg/polynomials/polynomial_store.hpp"
 #endif
 
 namespace bb::plonk {
