@@ -6,7 +6,7 @@ import { mock } from 'jest-mock-extended';
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from '../../index.js';
 import { AvmContext } from '../avm_context.js';
 import { Field, Uint8 } from '../avm_memory_types.js';
-import { initContext } from '../fixtures/index.js';
+import { adjustCalldataIndex, initContext } from '../fixtures/index.js';
 import { HostStorage } from '../journal/host_storage.js';
 import { AvmPersistableStateManager } from '../journal/journal.js';
 import { encodeToBytecode } from '../serialization/bytecode_serialization.js';
@@ -70,7 +70,12 @@ describe('External Calls', () => {
       const retSize = 2;
       const successOffset = 7;
       const otherContextInstructionsBytecode = encodeToBytecode([
-        new CalldataCopy(/*indirect=*/ 0, /*csOffset=*/ 0, /*copySize=*/ argsSize, /*dstOffset=*/ 0),
+        new CalldataCopy(
+          /*indirect=*/ 0,
+          /*csOffset=*/ adjustCalldataIndex(0),
+          /*copySize=*/ argsSize,
+          /*dstOffset=*/ 0,
+        ),
         new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*size=*/ 1, /*slotOffset=*/ 0),
         new Return(/*indirect=*/ 0, /*retOffset=*/ 0, /*size=*/ 2),
       ]);
@@ -162,7 +167,12 @@ describe('External Calls', () => {
       context.machineState.memory.setSlice(2, args);
 
       const otherContextInstructions: Instruction[] = [
-        new CalldataCopy(/*indirect=*/ 0, /*csOffset=*/ 0, /*copySize=*/ argsSize, /*dstOffset=*/ 0),
+        new CalldataCopy(
+          /*indirect=*/ 0,
+          /*csOffset=*/ adjustCalldataIndex(0),
+          /*copySize=*/ argsSize,
+          /*dstOffset=*/ 0,
+        ),
         new SStore(/*indirect=*/ 0, /*srcOffset=*/ 1, /*size=*/ 1, /*slotOffset=*/ 0),
       ];
 

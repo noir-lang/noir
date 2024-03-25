@@ -1,7 +1,18 @@
 import { FunctionSelector, GlobalVariables } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { pedersenHash } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
+
+export class AvmContextInputs {
+  static readonly SIZE = 2;
+
+  constructor(private selector: Fr, private argsHash: Fr) {}
+
+  public toFields(): Fr[] {
+    return [this.selector, this.argsHash];
+  }
+}
 
 /**
  * Contains variables that remain constant during AVM execution
@@ -40,7 +51,15 @@ export class AvmExecutionEnvironment {
     // containing all functions, and function selector will become an application-level mechanism
     // (e.g. first few bytes of calldata + compiler-generated jump table)
     public readonly temporaryFunctionSelector: FunctionSelector,
-  ) {}
+  ) {
+    // We encode some extra inputs (AvmContextInputs) in calldata.
+    // This will have to go once we move away from one proof per call.
+    const inputs = new AvmContextInputs(
+      temporaryFunctionSelector.toField(),
+      pedersenHash(calldata.map(word => word.toBuffer())),
+    );
+    this.calldata = [...inputs.toFields(), ...calldata];
+  }
 
   public deriveEnvironmentForNestedCall(
     address: AztecAddress,

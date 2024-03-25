@@ -3,15 +3,17 @@ use dep::protocol_types::traits::Serialize;
 use dep::protocol_types::abis::function_selector::FunctionSelector;
 use dep::protocol_types::abis::public_circuit_public_inputs::PublicCircuitPublicInputs;
 use dep::protocol_types::constants::RETURN_VALUES_LENGTH;
-use crate::context::inputs::PublicContextInputs;
+use crate::context::inputs::avm_context_inputs::AvmContextInputs;
 use crate::context::interface::ContextInterface;
 use crate::context::interface::PublicContextInterface;
 
-struct AVMContext {}
+struct AVMContext {
+    inputs: AvmContextInputs,
+}
 
 impl AVMContext {
-    pub fn new() -> Self {
-        AVMContext {}
+    pub fn new(inputs: AvmContextInputs) -> Self {
+        AVMContext { inputs }
     }
 
     pub fn origin(self) -> AztecAddress {
@@ -190,16 +192,14 @@ impl ContextInterface for AVMContext {
         version()
     }
     fn selector(self) -> FunctionSelector {
-        assert(false, "'selector' not implemented!");
-        FunctionSelector::zero()
+        FunctionSelector::from_field(self.inputs.selector)
     }
     fn get_header(self) -> Header {
         assert(false, "'get_header' not implemented!");
         Header::empty()
     }
     fn get_args_hash(self) -> Field {
-        assert(false, "'get_args_hash' not implemented!");
-        0
+        self.inputs.args_hash
     }
 }
 

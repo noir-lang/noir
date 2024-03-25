@@ -1,6 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { allSameExcept, initExecutionEnvironment } from './fixtures/index.js';
+import { allSameExcept, anyAvmContextInputs, initExecutionEnvironment } from './fixtures/index.js';
 
 describe('Execution Environment', () => {
   const newAddress = new Fr(123456n);
@@ -14,7 +14,8 @@ describe('Execution Environment', () => {
       allSameExcept(executionEnvironment, {
         address: newAddress,
         storageAddress: newAddress,
-        calldata,
+        // Calldata also includes AvmContextInputs
+        calldata: anyAvmContextInputs().concat(calldata),
       }),
     );
   });
@@ -27,7 +28,8 @@ describe('Execution Environment', () => {
       allSameExcept(executionEnvironment, {
         address: newAddress,
         isDelegateCall: true,
-        calldata,
+        // Calldata also includes AvmContextInputs
+        calldata: anyAvmContextInputs().concat(calldata),
       }),
     );
   });
@@ -41,7 +43,8 @@ describe('Execution Environment', () => {
         address: newAddress,
         storageAddress: newAddress,
         isStaticCall: true,
-        calldata,
+        // Calldata also includes AvmContextInputs
+        calldata: anyAvmContextInputs().concat(calldata),
       }),
     );
   });

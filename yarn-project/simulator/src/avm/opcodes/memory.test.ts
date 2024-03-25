@@ -3,7 +3,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { AvmContext } from '../avm_context.js';
 import { Field, TypeTag, Uint8, Uint16, Uint32, Uint64, Uint128 } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
-import { initContext, initExecutionEnvironment } from '../fixtures/index.js';
+import { adjustCalldataIndex, initContext, initExecutionEnvironment } from '../fixtures/index.js';
 import { Addressing, AddressingMode } from './addressing_mode.js';
 import { CMov, CalldataCopy, Cast, Mov, Set } from './memory.js';
 
@@ -435,7 +435,12 @@ describe('Memory instructions', () => {
       context = initContext({ env: initExecutionEnvironment({ calldata }) });
       context.machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
-      await new CalldataCopy(/*indirect=*/ 0, /*cdOffset=*/ 0, /*copySize=*/ 0, /*dstOffset=*/ 0).execute(context);
+      await new CalldataCopy(
+        /*indirect=*/ 0,
+        /*cdOffset=*/ adjustCalldataIndex(0),
+        /*copySize=*/ 0,
+        /*dstOffset=*/ 0,
+      ).execute(context);
 
       const actual = context.machineState.memory.get(0);
       expect(actual).toEqual(new Uint16(12));
@@ -446,7 +451,12 @@ describe('Memory instructions', () => {
       context = initContext({ env: initExecutionEnvironment({ calldata }) });
       context.machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
-      await new CalldataCopy(/*indirect=*/ 0, /*cdOffset=*/ 0, /*copySize=*/ 3, /*dstOffset=*/ 0).execute(context);
+      await new CalldataCopy(
+        /*indirect=*/ 0,
+        /*cdOffset=*/ adjustCalldataIndex(0),
+        /*copySize=*/ 3,
+        /*dstOffset=*/ 0,
+      ).execute(context);
 
       const actual = context.machineState.memory.getSlice(/*offset=*/ 0, /*size=*/ 3);
       expect(actual).toEqual([new Field(1), new Field(2), new Field(3)]);
@@ -457,7 +467,12 @@ describe('Memory instructions', () => {
       context = initContext({ env: initExecutionEnvironment({ calldata }) });
       context.machineState.memory.set(0, new Uint16(12)); // Some previous data to be overwritten
 
-      await new CalldataCopy(/*indirect=*/ 0, /*cdOffset=*/ 1, /*copySize=*/ 2, /*dstOffset=*/ 0).execute(context);
+      await new CalldataCopy(
+        /*indirect=*/ 0,
+        /*cdOffset=*/ adjustCalldataIndex(1),
+        /*copySize=*/ 2,
+        /*dstOffset=*/ 0,
+      ).execute(context);
 
       const actual = context.machineState.memory.getSlice(/*offset=*/ 0, /*size=*/ 2);
       expect(actual).toEqual([new Field(2), new Field(3)]);

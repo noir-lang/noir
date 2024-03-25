@@ -233,6 +233,16 @@ contract AvmTest {
     // }
 
     #[aztec(public-vm)]
+    fn check_selector() {
+        assert(context.selector() == FunctionSelector::from_signature("check_selector()"));
+    }
+
+    #[aztec(public-vm)]
+    fn get_args_hash(_a: u8, _fields: [Field; 3]) -> pub Field {
+        context.get_args_hash()
+    }
+
+    #[aztec(public-vm)]
     fn emit_unencrypted_log() {
         context.accumulate_unencrypted_logs(/*event_selector=*/ 5, /*message=*/ [10, 20, 30]);
         context.accumulate_unencrypted_logs(/*event_selector=*/ 8, /*message=*/ "Hello, world!");
