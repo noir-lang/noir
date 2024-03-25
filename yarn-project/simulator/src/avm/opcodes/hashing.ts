@@ -23,21 +23,24 @@ export class Poseidon2 extends Instruction {
   constructor(
     private indirect: number,
     private dstOffset: number,
-    private hashOffset: number,
-    private hashSize: number,
+    private messageOffset: number,
+    private messageSize: number,
   ) {
     super();
   }
 
   async execute(context: AvmContext): Promise<void> {
     // We hash a set of field elements
-    const [hashOffset] = Addressing.fromWire(this.indirect).resolve([this.hashOffset], context.machineState.memory);
+    const [dstOffset, messageOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.dstOffset, this.messageOffset],
+      context.machineState.memory,
+    );
 
     // Memory pointer will be indirect
-    const hashData = context.machineState.memory.getSlice(hashOffset, this.hashSize).map(word => word.toBuffer());
+    const hashData = context.machineState.memory.getSlice(messageOffset, this.messageSize).map(word => word.toBuffer());
 
     const hash = poseidonHash(hashData);
-    context.machineState.memory.set(this.dstOffset, new Field(hash));
+    context.machineState.memory.set(dstOffset, new Field(hash));
 
     context.machineState.incrementPc();
   }
@@ -59,8 +62,8 @@ export class Keccak extends Instruction {
   constructor(
     private indirect: number,
     private dstOffset: number,
-    private hashOffset: number,
-    private hashSize: number,
+    private messageOffset: number,
+    private messageSize: number,
   ) {
     super();
   }
@@ -68,12 +71,12 @@ export class Keccak extends Instruction {
   // Note hash output is 32 bytes, so takes up two fields
   async execute(context: AvmContext): Promise<void> {
     // We hash a set of field elements
-    const [hashOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve(
-      [this.hashOffset, this.dstOffset],
+    const [dstOffset, messageOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.dstOffset, this.messageOffset],
       context.machineState.memory,
     );
 
-    const hashData = context.machineState.memory.getSlice(hashOffset, this.hashSize).map(word => word.toBuffer());
+    const hashData = context.machineState.memory.getSlice(messageOffset, this.messageSize).map(word => word.toBuffer());
 
     const hash = keccak(Buffer.concat(hashData));
 
@@ -104,21 +107,21 @@ export class Sha256 extends Instruction {
   constructor(
     private indirect: number,
     private dstOffset: number,
-    private hashOffset: number,
-    private hashSize: number,
+    private messageOffset: number,
+    private messageSize: number,
   ) {
     super();
   }
 
   // Note hash output is 32 bytes, so takes up two fields
   async execute(context: AvmContext): Promise<void> {
-    const [hashOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve(
-      [this.hashOffset, this.dstOffset],
+    const [dstOffset, messageOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.dstOffset, this.messageOffset],
       context.machineState.memory,
     );
 
     // We hash a set of field elements
-    const hashData = context.machineState.memory.getSlice(hashOffset, this.hashSize).map(word => word.toBuffer());
+    const hashData = context.machineState.memory.getSlice(messageOffset, this.messageSize).map(word => word.toBuffer());
 
     const hash = sha256(Buffer.concat(hashData));
 
@@ -149,21 +152,25 @@ export class Pedersen extends Instruction {
   constructor(
     private indirect: number,
     private dstOffset: number,
-    private hashOffset: number,
-    private hashSize: number,
+    private messageOffset: number,
+    private messageSizeOffset: number,
   ) {
     super();
   }
 
   async execute(context: AvmContext): Promise<void> {
-    const [hashOffset] = Addressing.fromWire(this.indirect).resolve([this.hashOffset], context.machineState.memory);
+    const [dstOffset, messageOffset, messageSizeOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.dstOffset, this.messageOffset, this.messageSizeOffset],
+      context.machineState.memory,
+    );
 
     // We hash a set of field elements
-    const hashData = context.machineState.memory.getSlice(hashOffset, this.hashSize).map(word => word.toBuffer());
+    const messageSize = Number(context.machineState.memory.get(messageSizeOffset).toBigInt());
+    const hashData = context.machineState.memory.getSlice(messageOffset, messageSize).map(word => word.toBuffer());
 
     // No domain sep for now
     const hash = pedersenHash(hashData);
-    context.machineState.memory.set(this.dstOffset, new Field(hash));
+    context.machineState.memory.set(dstOffset, new Field(hash));
 
     context.machineState.incrementPc();
   }

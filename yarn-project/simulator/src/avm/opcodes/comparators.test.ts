@@ -42,7 +42,7 @@ describe('Comparators', () => {
         new Eq(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 3, /*dstOffset=*/ 12),
       ].forEach(i => i.execute(context));
 
-      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 3);
       expect(actual).toEqual([new Uint8(0), new Uint8(0), new Uint8(1)]);
     });
 
@@ -55,7 +55,7 @@ describe('Comparators', () => {
         new Eq(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 3, /*dstOffset=*/ 12),
       ].forEach(i => i.execute(context));
 
-      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 3);
       expect(actual).toEqual([new Uint8(0), new Uint8(0), new Uint8(1)]);
     });
 
@@ -106,7 +106,7 @@ describe('Comparators', () => {
         new Lt(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 12),
       ].forEach(i => i.execute(context));
 
-      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 3);
       expect(actual).toEqual([new Uint8(0), new Uint8(1), new Uint8(0)]);
     });
 
@@ -119,7 +119,7 @@ describe('Comparators', () => {
         new Lt(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 12),
       ].forEach(i => i.execute(context));
 
-      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 3);
       expect(actual).toEqual([new Uint8(0), new Uint8(1), new Uint8(0)]);
     });
 
@@ -170,7 +170,7 @@ describe('Comparators', () => {
         new Lte(/*indirect=*/ 0, TypeTag.UINT32, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 12),
       ].forEach(i => i.execute(context));
 
-      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 3);
       expect(actual).toEqual([new Uint8(1), new Uint8(1), new Uint8(0)]);
     });
 
@@ -183,7 +183,7 @@ describe('Comparators', () => {
         new Lte(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 2, /*dstOffset=*/ 12),
       ].forEach(i => i.execute(context));
 
-      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 4);
+      const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 3);
       expect(actual).toEqual([new Uint8(1), new Uint8(1), new Uint8(0)]);
     });
 

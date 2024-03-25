@@ -642,8 +642,8 @@ fn handle_2_field_hash_instruction(
     inputs: &[ValueOrArray],
 ) {
     // handle field returns differently
-    let hash_offset_maybe = inputs[0];
-    let (hash_offset, hash_size) = match hash_offset_maybe {
+    let message_offset_maybe = inputs[0];
+    let (message_offset, message_size) = match message_offset_maybe {
         ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0, size),
         _ => panic!("Keccak | Sha256 address inputs destination should be a single value"),
     };
@@ -669,16 +669,16 @@ fn handle_2_field_hash_instruction(
 
     avm_instrs.push(AvmInstruction {
         opcode,
-        indirect: Some(3), // 11 - addressing mode, indirect for input and output
+        indirect: Some(ZEROTH_OPERAND_INDIRECT | FIRST_OPERAND_INDIRECT),
         operands: vec![
             AvmOperand::U32 {
                 value: dest_offset as u32,
             },
             AvmOperand::U32 {
-                value: hash_offset as u32,
+                value: message_offset as u32,
             },
             AvmOperand::U32 {
-                value: hash_size as u32,
+                value: message_size as u32,
             },
         ],
         ..Default::default()
@@ -701,8 +701,8 @@ fn handle_single_field_hash_instruction(
     inputs: &[ValueOrArray],
 ) {
     // handle field returns differently
-    let hash_offset_maybe = inputs[0];
-    let (hash_offset, hash_size) = match hash_offset_maybe {
+    let message_offset_maybe = inputs[0];
+    let (message_offset, message_size) = match message_offset_maybe {
         ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0, size),
         _ => panic!("Poseidon address inputs destination should be a single value"),
     };
@@ -724,16 +724,16 @@ fn handle_single_field_hash_instruction(
 
     avm_instrs.push(AvmInstruction {
         opcode,
-        indirect: Some(1),
+        indirect: Some(FIRST_OPERAND_INDIRECT),
         operands: vec![
             AvmOperand::U32 {
                 value: dest_offset as u32,
             },
             AvmOperand::U32 {
-                value: hash_offset as u32,
+                value: message_offset as u32,
             },
             AvmOperand::U32 {
-                value: hash_size as u32,
+                value: message_size as u32,
             },
         ],
         ..Default::default()
@@ -882,23 +882,23 @@ fn handle_black_box_function(avm_instrs: &mut Vec<AvmInstruction>, operation: &B
             domain_separator: _,
             output,
         } => {
-            let hash_offset = inputs.pointer.0;
-            let hash_size = inputs.size.0;
+            let message_offset = inputs.pointer.0;
+            let message_size_offset = inputs.size.0;
 
             let dest_offset = output.0;
 
             avm_instrs.push(AvmInstruction {
                 opcode: AvmOpcode::PEDERSEN,
-                indirect: Some(1),
+                indirect: Some(FIRST_OPERAND_INDIRECT),
                 operands: vec![
                     AvmOperand::U32 {
                         value: dest_offset as u32,
                     },
                     AvmOperand::U32 {
-                        value: hash_offset as u32,
+                        value: message_offset as u32,
                     },
                     AvmOperand::U32 {
-                        value: hash_size as u32,
+                        value: message_size_offset as u32,
                     },
                 ],
                 ..Default::default()

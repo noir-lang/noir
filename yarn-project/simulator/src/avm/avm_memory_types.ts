@@ -229,6 +229,7 @@ export class TaggedMemory {
     assert(offset + size < TaggedMemory.MAX_MEMORY_SIZE);
     const value = this._mem.slice(offset, offset + size);
     TaggedMemory.log(`getSlice(${offset}, ${size}) = ${value}`);
+    assert(value.length === size, `Expected slice of size ${size}, got ${value.length}.`);
     return value;
   }
 
