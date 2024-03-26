@@ -29,7 +29,7 @@ export abstract class Instruction {
    * Loads default gas cost for the instruction from the GasCosts table.
    * Instruction sub-classes can override this if their gas cost is not fixed.
    */
-  public gasCost(): GasCost {
+  protected gasCost(): GasCost {
     return GasCosts[this.opcode] ?? EmptyGasCost;
   }
 

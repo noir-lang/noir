@@ -85,9 +85,9 @@ chargeGas(context, l1GasCost, l2GasCost, daGasCost)
 
 Before an instruction is executed, the VM enforces that there is sufficient gas remaining via the following assertions:
 ```
-assert machineState.l1GasLeft - instr.l1GasCost > 0
-assert machineState.l2GasLeft - instr.l2GasCost > 0
-assert machineState.daGasLeft - instr.daGasCost > 0
+assert machineState.l1GasLeft - instr.l1GasCost >= 0
+assert machineState.l2GasLeft - instr.l2GasCost >= 0
+assert machineState.daGasLeft - instr.daGasCost >= 0
 ```
 
 > Many instructions (like arithmetic operations) have 0 `l1GasCost` and `daGasCost`. Instructions only incur an L1 or DA cost if they modify the [world state](./state#avm-world-state) or [accrued substate](./state#accrued-substate).
@@ -163,9 +163,9 @@ The AVM's exceptional halting conditions area listed below:
 
 1. **Insufficient gas**
     ```
-    assert machineState.l1GasLeft - instr.l1GasCost > 0
-    assert machineState.l2GasLeft - instr.l2GasCost > 0
-    assert machineState.daGasLeft - instr.l2GasCost > 0
+    assert machineState.l1GasLeft - instr.l1GasCost >= 0
+    assert machineState.l2GasLeft - instr.l2GasCost >= 0
+    assert machineState.daGasLeft - instr.l2GasCost >= 0
     ```
 1. **Invalid instruction encountered**
     ```

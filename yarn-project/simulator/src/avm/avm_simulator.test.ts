@@ -42,12 +42,10 @@ describe('AVM simulator: injected bytecode', () => {
     const context = initContext({ env: initExecutionEnvironment({ calldata }) });
     const { l2GasLeft: initialL2GasLeft } = AvmMachineState.fromState(context.machineState);
     const results = await new AvmSimulator(context).executeBytecode(bytecode);
-    const expectedL2GasUsed = ops.reduce((sum, op) => sum + op.gasCost().l2Gas, 0);
 
     expect(results.reverted).toBe(false);
     expect(results.output).toEqual([new Fr(3)]);
-    expect(expectedL2GasUsed).toBeGreaterThan(0);
-    expect(context.machineState.l2GasLeft).toEqual(initialL2GasLeft - expectedL2GasUsed);
+    expect(context.machineState.l2GasLeft).toEqual(initialL2GasLeft - 30);
   });
 
   it('Should halt if runs out of gas', async () => {
@@ -60,6 +58,9 @@ describe('AVM simulator: injected bytecode', () => {
     expect(results.reverted).toBe(true);
     expect(results.output).toEqual([]);
     expect(results.revertReason?.name).toEqual('OutOfGasError');
+    expect(context.machineState.l2GasLeft).toEqual(0);
+    expect(context.machineState.l1GasLeft).toEqual(0);
+    expect(context.machineState.daGasLeft).toEqual(0);
   });
 });
 
