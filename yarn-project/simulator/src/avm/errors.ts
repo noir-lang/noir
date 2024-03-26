@@ -55,3 +55,11 @@ export class TagCheckError extends AvmExecutionError {
     this.name = 'TagCheckError';
   }
 }
+
+/** Error thrown when out of gas. */
+export class OutOfGasError extends AvmExecutionError {
+  constructor(dimensions: string[]) {
+    super(`Not enough ${dimensions.map(d => d.toUpperCase()).join(', ')} gas left`);
+    this.name = 'OutOfGasError';
+  }
+}

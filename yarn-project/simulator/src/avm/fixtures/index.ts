@@ -85,13 +85,13 @@ export function initGlobalVariables(overrides?: Partial<GlobalVariables>): Globa
 }
 
 /**
- * Create an empty instance of the Machine State where all values are zero, unless overridden in the overrides object
+ * Create an empty instance of the Machine State where all values are set to a large enough amount, unless overridden in the overrides object
  */
 export function initMachineState(overrides?: Partial<AvmMachineState>): AvmMachineState {
   return AvmMachineState.fromState({
-    l1GasLeft: overrides?.l1GasLeft ?? 0,
-    l2GasLeft: overrides?.l2GasLeft ?? 0,
-    daGasLeft: overrides?.daGasLeft ?? 0,
+    l1GasLeft: overrides?.l1GasLeft ?? 1e6,
+    l2GasLeft: overrides?.l2GasLeft ?? 1e6,
+    daGasLeft: overrides?.daGasLeft ?? 1e6,
   });
 }
 

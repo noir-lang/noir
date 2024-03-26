@@ -50,7 +50,6 @@ export class AvmSimulator {
    */
   public async executeInstructions(instructions: Instruction[]): Promise<AvmContractCallResults> {
     assert(instructions.length > 0);
-
     try {
       // Execute instruction pointed to by the current program counter
       // continuing until the machine state signifies a halt
@@ -65,7 +64,7 @@ export class AvmSimulator {
         // Execute the instruction.
         // Normal returns and reverts will return normally here.
         // "Exceptional halts" will throw.
-        await instruction.execute(this.context);
+        await instruction.run(this.context);
 
         if (this.context.machineState.pc >= instructions.length) {
           this.log('Passed end of program!');
