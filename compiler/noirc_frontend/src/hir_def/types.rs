@@ -589,6 +589,7 @@ impl Type {
                 TypeBinding::Bound(binding) => binding.is_bindable(),
                 TypeBinding::Unbound(_) => true,
             },
+            Type::Alias(alias, args) => alias.borrow().get_type(args).is_bindable(),
             _ => false,
         }
     }
