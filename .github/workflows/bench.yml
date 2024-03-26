@@ -1,0 +1,54 @@
+name: Benchmark
+on: 
+  pull_request:
+  push:
+    branches:
+      - master
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  execute:
+    name: Run execution benchmarks
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: benchmarks
+
+      - run: cargo bench execute
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: execution-benchmarks
+          path: ./target/criterion
+          retention-days: 10
+
+  prove:
+    name: Run proving benchmarks
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: benchmarks
+
+      - run: cargo bench prove
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: proving-benchmarks
+          path: ./target/criterion
+          retention-days: 10
