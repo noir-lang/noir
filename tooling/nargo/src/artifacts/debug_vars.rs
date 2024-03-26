@@ -1,4 +1,4 @@
-use acvm::brillig_vm::brillig::Value;
+use acvm::FieldElement;
 use noirc_errors::debug_info::{
     DebugFnId, DebugFunction, DebugInfo, DebugTypeId, DebugVarId, DebugVariable,
 };
@@ -66,7 +66,7 @@ impl DebugVars {
         }
     }
 
-    pub fn assign_var(&mut self, var_id: DebugVarId, values: &[Value]) {
+    pub fn assign_var(&mut self, var_id: DebugVarId, values: &[FieldElement]) {
         let type_id = &self.variables.get(&var_id).unwrap().debug_type_id;
         let ptype = self.types.get(type_id).unwrap();
 
@@ -74,10 +74,10 @@ impl DebugVars {
             .last_mut()
             .expect("unexpected empty stack frames")
             .1
-            .insert(var_id, decode_value(&mut values.iter().map(|v| v.to_field()), ptype));
+            .insert(var_id, decode_value(&mut values.iter().copied(), ptype));
     }
 
-    pub fn assign_field(&mut self, var_id: DebugVarId, indexes: Vec<u32>, values: &[Value]) {
+    pub fn assign_field(&mut self, var_id: DebugVarId, indexes: Vec<u32>, values: &[FieldElement]) {
         let current_frame = &mut self.frames.last_mut().expect("unexpected empty stack frames").1;
         let mut cursor: &mut PrintableValue = current_frame
             .get_mut(&var_id)
@@ -147,10 +147,10 @@ impl DebugVars {
                 }
             };
         }
-        *cursor = decode_value(&mut values.iter().map(|v| v.to_field()), cursor_type);
+        *cursor = decode_value(&mut values.iter().copied(), cursor_type);
     }
 
-    pub fn assign_deref(&mut self, _var_id: DebugVarId, _values: &[Value]) {
+    pub fn assign_deref(&mut self, _var_id: DebugVarId, _values: &[FieldElement]) {
         unimplemented![]
     }
 

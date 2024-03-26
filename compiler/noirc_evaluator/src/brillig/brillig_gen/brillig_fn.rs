@@ -3,8 +3,8 @@ use iter_extended::vecmap;
 use crate::{
     brillig::brillig_ir::{
         artifact::{BrilligParameter, Label},
-        brillig_variable::BrilligVariable,
-        BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        brillig_variable::{get_bit_size_from_ssa_type, BrilligVariable},
+        BrilligContext,
     },
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -110,17 +110,5 @@ impl FunctionContext {
                 FunctionContext::ssa_type_to_parameter(&typ)
             })
             .collect()
-    }
-}
-
-pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
-    match typ {
-        Type::Numeric(num_type) => num_type.bit_size(),
-        Type::Reference(_) => BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-        // NB. function references are converted to a constant when
-        // translating from SSA to Brillig (to allow for debugger
-        // instrumentation to work properly)
-        Type::Function => 32,
-        _ => unreachable!("ICE bit size not on a non numeric type"),
     }
 }
