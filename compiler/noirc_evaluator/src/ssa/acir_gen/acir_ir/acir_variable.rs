@@ -236,7 +236,10 @@ impl AcirContext {
         self.acir_ir.call_stack = call_stack;
     }
 
-    fn get_or_create_witness_var(&mut self, var: AcirVar) -> Result<AcirVar, InternalError> {
+    pub(crate) fn get_or_create_witness_var(
+        &mut self,
+        var: AcirVar,
+    ) -> Result<AcirVar, InternalError> {
         if self.var_to_expression(var)?.to_witness().is_some() {
             // If called with a variable which is already a witness then return the same variable.
             return Ok(var);
