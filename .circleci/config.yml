@@ -1366,6 +1366,7 @@ workflows:
       - barretenberg-acir-tests-bb: *bb_acir_tests
       - barretenberg-acir-tests-bb-sol:
           requires:
+            - barretenberg-x86_64-linux-clang-assert
             - barretenberg-x86_64-linux-clang-sol
             - noir-compile-acir-tests
           <<: *bb_acir_tests
