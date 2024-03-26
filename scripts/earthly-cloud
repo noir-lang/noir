@@ -60,13 +60,12 @@ if $INTERACTIVE ; then
   # don't play nice with tee if interactive
   earthly $EARTHLY_FLAGS $@
 elif ! earthly $EARTHLY_FLAGS $@ 2>&1 | tee .output.txt >&2 ; then
-  # we got a failure, handle retries
+  # we try earthly once, capturing output
+  # if we get one of our (unfortunate) known failures, handle retries
   # TODO potentially handle other intermittent errors here
   if grep 'failed to get edge: inconsistent graph state' .output.txt >/dev/null ; then
-    # TODO we need to limit earthly parallelism or sometimes get
+    # TODO when earthly is overloaded we sometimes get 
     # 'failed to solve: failed to get edge: inconsistent graph state'
-    # so we use arbitrary WAIT statement groups. Pending earthly support.
-    # for now we just try to recover from the failures.
     echo "Got 'inconsistent graph state'. Restarting earthly. See https://github.com/earthly/earthly/issues/2454'"
     earthly $EARTHLY_FLAGS $@
   else
