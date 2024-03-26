@@ -1,5 +1,0 @@
-[package]
-name = "assert_constant_fail"
-type = "bin"
-authors = [""]
-[dependencies]

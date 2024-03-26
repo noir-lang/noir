@@ -1,6 +1,0 @@
-[package]
-name = "brillig_cow"
-type = "bin"
-authors = [""]
-
-[dependencies]

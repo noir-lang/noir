@@ -1,5 +1,0 @@
-[package]
-name = "nested_arrays_from_brillig"
-type = "bin"
-authors = [""]
-[dependencies]

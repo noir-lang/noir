@@ -1,7 +1,0 @@
-[package]
-name = "custom_entry"
-type = "bin"
-entry = "src/foobarbaz.nr"
-authors = [""]
-
-[dependencies]

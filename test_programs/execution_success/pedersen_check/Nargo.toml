@@ -1,6 +1,0 @@
-[package]
-name = "pedersen_check"
-type = "bin"
-authors = [""]
-
-[dependencies]

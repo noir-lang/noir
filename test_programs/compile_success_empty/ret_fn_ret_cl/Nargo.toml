@@ -1,6 +1,0 @@
-[package]
-name = "ret_fn_ret_cl"
-type = "bin"
-authors = [""]
-
-[dependencies]

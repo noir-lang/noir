@@ -1,5 +1,0 @@
-[package]
-name = "submodules"
-type = "bin"
-authors = [""]
-[dependencies]

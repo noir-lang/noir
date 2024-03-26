@@ -1,6 +1,0 @@
-[package]
-name = "unary_operators"
-type = "bin"
-authors = [""]
-
-[dependencies]

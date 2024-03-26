@@ -1,7 +1,0 @@
-[package]
-name = "reexporting_lib"
-type = "lib"
-authors = [""]
-
-[dependencies]
-exporting_lib = { path = "../exporting_lib" }

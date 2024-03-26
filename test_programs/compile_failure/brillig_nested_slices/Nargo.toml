@@ -1,5 +1,0 @@
-[package]
-name = "brillig_nested_slices"
-type = "bin"
-authors = [""]
-[dependencies]

@@ -1,6 +1,0 @@
-[package]
-name = "brillig_assert"
-type = "bin"
-authors = [""]
-
-[dependencies]

@@ -1,6 +1,0 @@
-[package]
-name = "references"
-type = "bin"
-authors = [""]
-
-[dependencies]

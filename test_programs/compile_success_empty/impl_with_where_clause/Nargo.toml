@@ -1,6 +1,0 @@
-[package]
-name = "impl_with_where_clause"
-type = "bin"
-authors = [""]
-
-[dependencies]

@@ -1,6 +1,0 @@
-[package]
-name = "simple_comparison"
-type = "bin"
-authors = [""]
-
-[dependencies]

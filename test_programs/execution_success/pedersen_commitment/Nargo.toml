@@ -1,6 +1,0 @@
-[package]
-name = "pedersen_commitment"
-type = "bin"
-authors = [""]
-
-[dependencies]

@@ -1,5 +1,0 @@
-[package]
-name = "bin_dep"
-type = "bin"
-authors = [""]
-[dependencies]

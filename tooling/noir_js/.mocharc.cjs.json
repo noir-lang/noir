@@ -1,6 +1,0 @@
-{
-  "extensions": ["cjs"],
-  "spec": [
-    "test/node/**/*.test.cjs"
-  ]
-}

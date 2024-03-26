@@ -1,6 +1,0 @@
-[package]
-name = "generators"
-type = "bin"
-authors = [""]
-
-[dependencies]

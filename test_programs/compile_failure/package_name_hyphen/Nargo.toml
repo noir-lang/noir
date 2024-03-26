@@ -1,5 +1,0 @@
-[package]
-name = "hyphenated-name"
-type = "bin"
-authors = [""]
-[dependencies]

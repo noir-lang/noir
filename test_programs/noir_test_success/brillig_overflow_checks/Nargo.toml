@@ -1,5 +1,0 @@
-[package]
-name = "brillig_overflow_checks"
-type = "bin"
-authors = [""]
-[dependencies]

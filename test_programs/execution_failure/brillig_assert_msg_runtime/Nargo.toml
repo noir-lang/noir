@@ -1,7 +1,0 @@
-[package]
-name = "brillig_assert_msg_runtime"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.23.0"
-
-[dependencies]

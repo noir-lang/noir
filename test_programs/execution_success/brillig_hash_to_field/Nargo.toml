@@ -1,6 +1,0 @@
-[package]
-name = "brillig_hash_to_field"
-type = "bin"
-authors = [""]
-
-[dependencies]

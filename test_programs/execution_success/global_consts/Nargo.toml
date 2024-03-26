@@ -1,6 +1,0 @@
-[package]
-name = "global_consts"
-type = "bin"
-authors = [""]
-
-[dependencies]

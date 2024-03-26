@@ -1,7 +1,0 @@
-[package]
-name = "side_effects_constrain_array"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.20.0"
-
-[dependencies]

@@ -1,6 +1,0 @@
-[package]
-name = "signed_comparison"
-type = "bin"
-authors = [""]
-
-[dependencies]

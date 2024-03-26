@@ -1,6 +1,0 @@
-[package]
-name = "modulus"
-type = "bin"
-authors = [""]
-
-[dependencies]

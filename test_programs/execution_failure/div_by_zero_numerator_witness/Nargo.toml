@@ -1,6 +1,0 @@
-[package]
-name = "div_by_zero_numerator_witness"
-type = "bin"
-authors = [""]
-
-[dependencies]

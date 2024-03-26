@@ -1,7 +1,0 @@
-[package]
-name = "cyclic_dep"
-type = "bin"
-authors = [""]
-
-[dependencies]
-dep1 = { path= "./dep1"}

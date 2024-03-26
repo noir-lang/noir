@@ -1,6 +1,0 @@
-[package]
-name = "brillig_wrapping"
-type = "bin"
-authors = [""]
-
-[dependencies]

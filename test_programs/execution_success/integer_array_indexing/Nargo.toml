@@ -1,6 +1,0 @@
-[package]
-name = "integer_array_indexing"
-type = "bin"
-authors = [""]
-
-[dependencies]

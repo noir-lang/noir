@@ -1,7 +1,0 @@
-[package]
-name = "assert_statement_recursive"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.23.0"
-
-[dependencies]
