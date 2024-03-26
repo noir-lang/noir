@@ -10,37 +10,42 @@ import { TokenContract, TokenContractArtifact } from '@aztec/noir-contracts.js/T
 
 // docs:end:import_token_contract
 
-// docs:start:define_account_vars
-const PXE_URL = process.env.PXE_URL || 'http://localhost:8080';
-const encryptionPrivateKey = GrumpkinScalar.random();
-const signingPrivateKey = GrumpkinScalar.random();
-const pxe = createPXEClient(PXE_URL);
-// docs:end:define_account_vars
+describe('docs_examples', () => {
+  it('deploys and interacts with a token contract', async () => {
+    // docs:start:define_account_vars
+    const PXE_URL = process.env.PXE_URL || 'http://localhost:8080';
+    const encryptionPrivateKey = GrumpkinScalar.random();
+    const signingPrivateKey = GrumpkinScalar.random();
+    const pxe = createPXEClient(PXE_URL);
+    // docs:end:define_account_vars
 
-// docs:start:create_wallet
-const wallet = await getSchnorrAccount(pxe, encryptionPrivateKey, signingPrivateKey).waitSetup();
-// docs:end:create_wallet
+    // docs:start:create_wallet
+    const wallet = await getSchnorrAccount(pxe, encryptionPrivateKey, signingPrivateKey).waitSetup();
+    // docs:end:create_wallet
 
-// docs:start:deploy_contract
-const deployedContract = await TokenContract.deploy(
-  wallet, // wallet instance
-  wallet.getAddress(), // account
-  'TokenName', // constructor arg1
-  'TokenSymbol', // constructor arg2
-  18,
-) // constructor arg3
-  .send()
-  .deployed();
-// docs:end:deploy_contract
+    // docs:start:deploy_contract
+    const deployedContract = await TokenContract.deploy(
+      wallet, // wallet instance
+      wallet.getAddress(), // account
+      'TokenName', // constructor arg1
+      'TokenSymbol', // constructor arg2
+      18,
+    ) // constructor arg3
+      .send()
+      .deployed();
+    // docs:end:deploy_contract
 
-// docs:start:get_contract
-const contract = await Contract.at(deployedContract.address, TokenContractArtifact, wallet);
-// docs:end:get_contract
+    // docs:start:get_contract
+    const contract = await Contract.at(deployedContract.address, TokenContractArtifact, wallet);
+    // docs:end:get_contract
 
-// docs:start:send_transaction
-const _tx = await contract.methods.transfer(1, wallet).send().wait();
-// docs:end:send_transaction
+    // docs:start:send_transaction
+    const _tx = await contract.methods.mint_public(wallet.getAddress(), 1).send().wait();
+    // docs:end:send_transaction
 
-// docs:start:call_view_function
-const _balance = await contract.methods.get_balance(wallet.getAddress()).view();
-// docs:end:call_view_function
+    // docs:start:call_view_function
+    const balance = await contract.methods.balance_of_public(wallet.getAddress()).view();
+    expect(balance).toEqual(1n);
+    // docs:end:call_view_function
+  }, 120_000);
+});

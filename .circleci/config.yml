@@ -1013,7 +1013,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=pxe_sandbox.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=pxe.test.ts
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
@@ -1033,7 +1033,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=docs_examples_test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=docs_examples.test.ts
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
