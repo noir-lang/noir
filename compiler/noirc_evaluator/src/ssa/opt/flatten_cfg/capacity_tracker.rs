@@ -92,9 +92,10 @@ impl<'a> SliceCapacityTracker<'a> {
                                 }
                             }
 
-                            let contents_capacity = slice_sizes.get(&slice_contents).expect("ICE: Should have a capacity set for the input to a slice intrinsic");
-                            let new_capacity = *contents_capacity + 1;
-                            slice_sizes.insert(result_slice, new_capacity);
+                            if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
+                                let new_capacity = *contents_capacity + 1;
+                                slice_sizes.insert(result_slice, new_capacity);
+                            }
                         }
                         Intrinsic::SlicePopBack
                         | Intrinsic::SliceRemove
@@ -103,9 +104,10 @@ impl<'a> SliceCapacityTracker<'a> {
                                 .expect("ICE: Should have an argument index for slice intrinsics");
                             let slice_contents = arguments[argument_index];
 
-                            let contents_capacity = slice_sizes.get(&slice_contents).expect("ICE: Should have a capacity set for the input to a slice intrinsic");
-                            let new_capacity = *contents_capacity - 1;
-                            slice_sizes.insert(result_slice, new_capacity);
+                            if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
+                                let new_capacity = *contents_capacity - 1;
+                                slice_sizes.insert(result_slice, new_capacity);
+                            }
                         }
                         Intrinsic::ToBits(_) => {
                             // Compiler sanity check
