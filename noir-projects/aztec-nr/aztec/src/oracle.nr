@@ -14,7 +14,7 @@ mod get_membership_witness;
 mod get_public_key;
 mod nullifier_key;
 mod get_sibling_path;
-mod rand;
+mod unsafe_rand;
 mod enqueue_public_function_call;
 mod header;
 mod public_call;

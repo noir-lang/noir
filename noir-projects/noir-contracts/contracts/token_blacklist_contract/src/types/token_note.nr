@@ -1,6 +1,6 @@
 use dep::aztec::prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContext, emit_encrypted_log};
 use dep::aztec::{note::utils::compute_note_hash_for_consumption, hash::pedersen_hash};
-use dep::aztec::oracle::{rand::rand, nullifier_key::get_nullifier_secret_key, get_public_key::get_public_key};
+use dep::aztec::oracle::{unsafe_rand::unsafe_rand, nullifier_key::get_nullifier_secret_key, get_public_key::get_public_key};
 
 trait OwnedNote {
     fn new(amount: U128, owner: AztecAddress) -> Self;
@@ -69,7 +69,7 @@ impl OwnedNote for TokenNote {
         Self {
             amount,
             owner,
-            randomness: rand(),
+            randomness: unsafe_rand(),
             header: NoteHeader::empty(),
         }
     }

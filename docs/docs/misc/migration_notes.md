@@ -6,6 +6,17 @@ keywords: [sandbox, cli, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## TBD
+
+### [Aztec.nr] rand oracle is now called unsafe_rand
+`oracle::rand::rand` has been renamed to `oracle::unsafe_rand::unsafe_rand`.
+This change was made to communicate that we do not constrain the value in circuit and instead we just trust our PXE.
+
+```diff
+- let random_value = rand();
++ let random_value = unsafe_rand();
+```
+
 ## 0.31.0
 
 ### [Aztec.nr] Public storage historical read API improvement
