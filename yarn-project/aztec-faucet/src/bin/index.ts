@@ -7,7 +7,7 @@ import http from 'http';
 import Koa from 'koa';
 import cors from 'koa-cors';
 import Router from 'koa-router';
-import { Hex, http as ViemHttp, createWalletClient, parseEther } from 'viem';
+import { Hex, http as ViemHttp, createPublicClient, createWalletClient, parseEther } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 const {
@@ -68,6 +68,10 @@ async function transferEth(address: string) {
     chain: chain.chainInfo,
     transport: ViemHttp(chain.rpcUrl),
   });
+  const publicClient = createPublicClient({
+    chain: chain.chainInfo,
+    transport: ViemHttp(chain.rpcUrl),
+  });
   const hexAddress = createHex(address);
   checkThrottle(hexAddress);
   try {
@@ -76,6 +80,7 @@ async function transferEth(address: string) {
       to: hexAddress,
       value: parseEther(ETH_AMOUNT),
     });
+    await publicClient.waitForTransactionReceipt({ hash });
     mapping[hexAddress] = new Date();
     logger.info(`Sent ${ETH_AMOUNT} ETH to ${hexAddress} in tx ${hash}`);
   } catch (error) {

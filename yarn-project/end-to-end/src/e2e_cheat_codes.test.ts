@@ -110,24 +110,25 @@ describe('e2e_cheat_codes', () => {
       // without impersonation we wouldn't be able to send funds.
       const myAddress = (await walletClient.getAddresses())[0];
       const randomAddress = EthAddress.random().toString();
-      await walletClient.sendTransaction({
+      const tx1Hash = await walletClient.sendTransaction({
         account: myAddress,
         to: randomAddress,
         value: parseEther('1'),
       });
+      await publicClient.waitForTransactionReceipt({ hash: tx1Hash });
       const beforeBalance = await publicClient.getBalance({ address: randomAddress });
 
       // impersonate random address
       await cc.eth.startImpersonating(EthAddress.fromString(randomAddress));
       // send funds from random address
       const amountToSend = parseEther('0.1');
-      const txHash = await walletClient.sendTransaction({
+      const tx2Hash = await walletClient.sendTransaction({
         account: randomAddress,
         to: myAddress,
         value: amountToSend,
       });
-      const tx = await publicClient.waitForTransactionReceipt({ hash: txHash });
-      const feePaid = tx.gasUsed * tx.effectiveGasPrice;
+      const txReceipt = await publicClient.waitForTransactionReceipt({ hash: tx2Hash });
+      const feePaid = txReceipt.gasUsed * txReceipt.effectiveGasPrice;
       expect(await publicClient.getBalance({ address: randomAddress })).toBe(beforeBalance - amountToSend - feePaid);
 
       // stop impersonating

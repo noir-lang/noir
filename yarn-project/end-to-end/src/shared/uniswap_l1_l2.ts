@@ -155,24 +155,24 @@ export const uniswapL1L2TestSuite = (
         [registryAddress.toString(), uniswapL2Contract.address.toString()],
         {} as any,
       );
-    });
 
-    beforeEach(async () => {
       // Give me some WETH so I can deposit to L2 and do the swap...
       logger('Getting some weth');
-      await walletClient.sendTransaction({ to: WETH9_ADDRESS.toString(), value: parseEther('1') });
+      const hash = await walletClient.sendTransaction({ to: WETH9_ADDRESS.toString(), value: parseEther('1000') });
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      const wethBalance = await wethCrossChainHarness.getL1BalanceOf(ownerEthAddress);
+      expect(wethBalance).toBe(parseEther('1000'));
     });
     // docs:end:uniswap_l1_l2_test_beforeAll
 
     afterAll(async () => {
       await cleanup();
     });
+
     // docs:start:uniswap_private
     it('should uniswap trade on L1 from L2 funds privately (swaps WETH -> DAI)', async () => {
       const wethL1BeforeBalance = await wethCrossChainHarness.getL1BalanceOf(ownerEthAddress);
-      if (wethL1BeforeBalance < wethAmountToBridge) {
-        throw new Error('Not enough WETH to run this test. Try restarting anvil.');
-      }
 
       // 1. Approve and deposit weth to the portal and move to L2
       const [secretForMintingWeth, secretHashForMintingWeth] = wethCrossChainHarness.generateClaimSecret();
