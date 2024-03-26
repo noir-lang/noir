@@ -77,13 +77,26 @@ b="\033[34m"  # Blue
 p="\033[35m"  # Purple
 r="\033[0m"   # Reset
 
-(build_native > >(awk -v g="$g" -v r="$r" '{print g "native: " r $0}')) &
-(build_wasm > >(awk -v b="$b" -v r="$r" '{print b "wasm: " r $0}')) &
-(build_wasm_threads > >(awk -v p="$p" -v r="$r" '{print p "wasm_threads: "r $0}')) &
 
-for job in $(jobs -p); do
-  wait $job || exit 1
-done
+AVAILABLE_MEMORY=$(awk '/MemFree/ { printf $2 }' /proc/meminfo)
+# This value may be too low.
+# If builds fail with an amount of free memory greater than this value then it should be increased.
+MIN_PARALLEL_BUILD_MEMORY=32000000
+
+if [[ AVAILABLE_MEMORY -lt MIN_PARALLEL_BUILD_MEMORY ]]; then
+  echo "System does not have enough memory for parallel builds, falling back to sequential"
+  build_native 
+  build_wasm
+  build_wasm_threads
+else
+  (build_native > >(awk -v g="$g" -v r="$r" '{print g "native: " r $0}')) &
+  (build_wasm > >(awk -v b="$b" -v r="$r" '{print b "wasm: " r $0}')) &
+  (build_wasm_threads > >(awk -v p="$p" -v r="$r" '{print p "wasm_threads: "r $0}')) &
+
+  for job in $(jobs -p); do
+    wait $job || exit 1
+  done
+fi
 
 if [ ! -d ./srs_db/grumpkin ]; then
   # The Grumpkin SRS is generated manually at the moment, only up to a large enough size for tests
