@@ -1,4 +1,4 @@
-import { AztecAddress, EthAddress } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 
 /**
  * The sequencer configuration.
@@ -18,4 +18,10 @@ export interface SequencerConfig {
   acvmWorkingDirectory?: string;
   /** The path to the ACVM binary */
   acvmBinaryPath?: string;
+
+  /** The list of permitted fee payment contract classes */
+  allowedFeePaymentContractClasses?: Fr[];
+
+  /** The list of permitted fee payment contract instances. Takes precedence over contract classes */
+  allowedFeePaymentContractInstances?: AztecAddress[];
 }

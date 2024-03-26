@@ -1,10 +1,4 @@
-import {
-  L1ToL2MessageSource,
-  MerkleTreeId,
-  NullifierMembershipWitness,
-  Tx,
-  UnencryptedL2Log,
-} from '@aztec/circuit-types';
+import { MerkleTreeId, NullifierMembershipWitness, Tx, UnencryptedL2Log } from '@aztec/circuit-types';
 import {
   AztecAddress,
   ContractClassRegisteredEvent,
@@ -198,7 +192,7 @@ export class WorldStatePublicDB implements PublicStateDB {
  * Implements WorldState db using a world state database.
  */
 export class WorldStateDB implements CommitmentsDB {
-  constructor(private db: MerkleTreeOperations, private l1ToL2MessageSource: L1ToL2MessageSource) {}
+  constructor(private db: MerkleTreeOperations) {}
 
   public async getNullifierMembershipWitnessAtLatestBlock(
     nullifier: Fr,

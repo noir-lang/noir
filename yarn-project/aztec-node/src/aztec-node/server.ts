@@ -651,7 +651,6 @@ export class AztecNodeService implements AztecNode {
     const publicProcessorFactory = new PublicProcessorFactory(
       merkleTrees.asLatest(),
       this.contractDataSource,
-      this.l1ToL2MessageSource,
       new WASMSimulator(),
     );
     const processor = await publicProcessorFactory.create(prevHeader, newGlobalVariables);

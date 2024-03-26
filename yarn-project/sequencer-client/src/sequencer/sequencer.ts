@@ -1,4 +1,4 @@
-import { L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, ProcessedTx, Tx } from '@aztec/circuit-types';
+import { L1ToL2MessageSource, L2Block, L2BlockSource, ProcessedTx, Tx } from '@aztec/circuit-types';
 import { BlockProver, PROVING_STATUS } from '@aztec/circuit-types/interfaces';
 import { L2BlockBuiltStats } from '@aztec/circuit-types/stats';
 import { AztecAddress, EthAddress, GlobalVariables } from '@aztec/circuits.js';
@@ -11,10 +11,10 @@ import { WorldStateStatus, WorldStateSynchronizer } from '@aztec/world-state';
 
 import { GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
 import { L1Publisher } from '../publisher/l1-publisher.js';
-import { WorldStatePublicDB } from '../simulator/public_executor.js';
 import { SequencerConfig } from './config.js';
 import { PublicProcessorFactory } from './public_processor.js';
 import { TxValidator } from './tx_validator.js';
+import { TxValidatorFactory } from './tx_validator_factory.js';
 
 /**
  * Sequencer client
@@ -35,6 +35,8 @@ export class Sequencer {
   private _feeRecipient = AztecAddress.ZERO;
   private lastPublishedBlock = 0;
   private state = SequencerState.STOPPED;
+  private allowedFeePaymentContractClasses: Fr[] = [];
+  private allowedFeePaymentContractInstances: AztecAddress[] = [];
 
   constructor(
     private publisher: L1Publisher,
@@ -45,8 +47,8 @@ export class Sequencer {
     private l2BlockSource: L2BlockSource,
     private l1ToL2MessageSource: L1ToL2MessageSource,
     private publicProcessorFactory: PublicProcessorFactory,
+    private txValidatorFactory: TxValidatorFactory,
     config: SequencerConfig = {},
-    private gasPortalAddress = EthAddress.ZERO,
     private log = createDebugLogger('aztec:sequencer'),
   ) {
     this.updateConfig(config);
@@ -72,6 +74,12 @@ export class Sequencer {
     }
     if (config.feeRecipient) {
       this._feeRecipient = config.feeRecipient;
+    }
+    if (config.allowedFeePaymentContractClasses) {
+      this.allowedFeePaymentContractClasses = config.allowedFeePaymentContractClasses;
+    }
+    if (config.allowedFeePaymentContractInstances) {
+      this.allowedFeePaymentContractInstances = config.allowedFeePaymentContractInstances;
     }
   }
 
@@ -170,17 +178,10 @@ export class Sequencer {
         this._feeRecipient,
       );
 
-      // Filter out invalid txs
-      const trees = this.worldState.getLatest();
-      const txValidator = new TxValidator(
-        {
-          getNullifierIndex(nullifier: Fr): Promise<bigint | undefined> {
-            return trees.findLeafIndex(MerkleTreeId.NULLIFIER_TREE, nullifier.toBuffer());
-          },
-        },
-        new WorldStatePublicDB(trees),
-        this.gasPortalAddress,
+      const txValidator = this.txValidatorFactory.buildTxValidator(
         newGlobalVariables,
+        this.allowedFeePaymentContractClasses,
+        this.allowedFeePaymentContractInstances,
       );
 
       // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here

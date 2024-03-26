@@ -10,6 +10,7 @@ import { getGlobalVariableBuilder } from '../global_variable_builder/index.js';
 import { getL1Publisher } from '../publisher/index.js';
 import { Sequencer, SequencerConfig } from '../sequencer/index.js';
 import { PublicProcessorFactory } from '../sequencer/public_processor.js';
+import { TxValidatorFactory } from '../sequencer/tx_validator_factory.js';
 
 /**
  * Encapsulates the full sequencer and publisher.
@@ -43,12 +44,7 @@ export class SequencerClient {
     const globalsBuilder = getGlobalVariableBuilder(config);
     const merkleTreeDb = worldStateSynchronizer.getLatest();
 
-    const publicProcessorFactory = new PublicProcessorFactory(
-      merkleTreeDb,
-      contractDataSource,
-      l1ToL2MessageSource,
-      simulationProvider,
-    );
+    const publicProcessorFactory = new PublicProcessorFactory(merkleTreeDb, contractDataSource, simulationProvider);
 
     const sequencer = new Sequencer(
       publisher,
@@ -59,8 +55,8 @@ export class SequencerClient {
       l2BlockSource,
       l1ToL2MessageSource,
       publicProcessorFactory,
+      new TxValidatorFactory(merkleTreeDb, contractDataSource, config.l1Contracts.gasPortalAddress),
       config,
-      config.l1Contracts.gasPortalAddress,
     );
 
     await sequencer.start();

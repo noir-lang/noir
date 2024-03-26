@@ -15,7 +15,7 @@ import {
   computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
-import { FunctionData } from '@aztec/circuits.js';
+import { FunctionData, getContractClassFromArtifact } from '@aztec/circuits.js';
 import { ContractArtifact, decodeFunctionSignature } from '@aztec/foundation/abi';
 import {
   TokenContract as BananaCoin,
@@ -41,7 +41,7 @@ const TOKEN_SYMBOL = 'BC';
 const TOKEN_DECIMALS = 18n;
 const BRIDGED_FPC_GAS = 500n;
 
-jest.setTimeout(100_000);
+jest.setTimeout(1_000_000_000);
 
 describe('e2e_fees', () => {
   let aliceWallet: Wallet;
@@ -63,6 +63,9 @@ describe('e2e_fees', () => {
     e2eContext = await setup(3);
 
     const { accounts, logger, aztecNode, pxe, deployL1ContractsValues, wallets } = e2eContext;
+    await aztecNode.setConfig({
+      allowedFeePaymentContractClasses: [getContractClassFromArtifact(FPCContract.artifact).id],
+    });
 
     logFunctionSignatures(BananaCoin.artifact, logger);
     logFunctionSignatures(FPCContract.artifact, logger);

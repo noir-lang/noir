@@ -21,6 +21,7 @@ import {
   makeEmptyProof,
 } from '@aztec/circuits.js';
 import { P2P, P2PClientState } from '@aztec/p2p';
+import { ContractDataSource } from '@aztec/types/contracts';
 import { MerkleTreeOperations, WorldStateRunningState, WorldStateSynchronizer } from '@aztec/world-state';
 
 import { MockProxy, mock, mockFn } from 'jest-mock-extended';
@@ -29,6 +30,7 @@ import { GlobalVariableBuilder } from '../global_variable_builder/global_builder
 import { L1Publisher } from '../index.js';
 import { PublicProcessor, PublicProcessorFactory } from './public_processor.js';
 import { Sequencer } from './sequencer.js';
+import { TxValidatorFactory } from './tx_validator_factory.js';
 
 describe('sequencer', () => {
   let publisher: MockProxy<L1Publisher>;
@@ -86,6 +88,12 @@ describe('sequencer', () => {
       getBlockNumber: () => Promise.resolve(lastBlockNumber),
     });
 
+    // all txs use the same allowed FPC class
+    const fpcClassId = Fr.random();
+    const contractSource = mock<ContractDataSource>({
+      getContractClass: mockFn().mockResolvedValue(fpcClassId),
+    });
+
     sequencer = new TestSubject(
       publisher,
       globalVariableBuilder,
@@ -95,6 +103,10 @@ describe('sequencer', () => {
       l2BlockSource,
       l1ToL2MessageSource,
       publicProcessorFactory,
+      new TxValidatorFactory(merkleTreeOps, contractSource, EthAddress.random()),
+      {
+        allowedFeePaymentContractClasses: [fpcClassId],
+      },
     );
   });
 

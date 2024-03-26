@@ -65,6 +65,8 @@ export const cliTexts = {
     'transactionPollingIntervalMS:SEQ_TX_POLLING_INTERVAL_MS - number - The interval in ms to wait before polling for new transactions. Default: 1000\n' +
     'acvmBinaryPath:ACVM_BINARY_PATH - string - The full path to an instance of the acvm cli application. If not provided will fallback to WASM circuit simulation\n' +
     'acvmWorkingDirectory:ACVM_WORKING_DIRECTORY - string - A directory to use for temporary files used by the acvm application. If not provided WASM circuit simulation will be used\n' +
+    'allowedFeePaymentContractClasses:SEQ_FPC_CLASSES - string[] - Which fee payment contract classes the sequencer allows' +
+    'allowedFeePaymentContractInstances:SEQ_FPC_INSTANCES - string[] - Which fee payment contracts the sequencer allows.' +
     contractAddresses,
   prover:
     'Starts a Prover with options. If started additionally to --node, the Prover will attach to that node.\n' +
