@@ -12,11 +12,15 @@
 #include "barretenberg/stdlib_circuit_builders/circuit_builder_base.hpp"
 
 #include "barretenberg/relations/generated/avm/avm_alu.hpp"
+#include "barretenberg/relations/generated/avm/avm_binary.hpp"
 #include "barretenberg/relations/generated/avm/avm_main.hpp"
 #include "barretenberg/relations/generated/avm/avm_mem.hpp"
 #include "barretenberg/relations/generated/avm/incl_main_tag_err.hpp"
 #include "barretenberg/relations/generated/avm/incl_mem_tag_err.hpp"
+#include "barretenberg/relations/generated/avm/lookup_byte_lengths.hpp"
+#include "barretenberg/relations/generated/avm/lookup_byte_operations.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_alu.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_bin.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_a.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_b.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_c.hpp"
@@ -79,6 +83,26 @@ template <typename FF> struct AvmFullRow {
     FF avm_alu_alu_u64_r0{};
     FF avm_alu_alu_cf{};
     FF avm_alu_alu_op_eq_diff_inv{};
+    FF avm_byte_lookup_table_op_id{};
+    FF avm_byte_lookup_table_input_a{};
+    FF avm_byte_lookup_table_input_b{};
+    FF avm_byte_lookup_table_output{};
+    FF avm_byte_lookup_bin_sel{};
+    FF avm_byte_lookup_table_in_tags{};
+    FF avm_byte_lookup_table_byte_lengths{};
+    FF avm_binary_bin_clk{};
+    FF avm_binary_bin_sel{};
+    FF avm_binary_acc_ia{};
+    FF avm_binary_acc_ib{};
+    FF avm_binary_acc_ic{};
+    FF avm_binary_in_tag{};
+    FF avm_binary_op_id{};
+    FF avm_binary_bin_ia_bytes{};
+    FF avm_binary_bin_ib_bytes{};
+    FF avm_binary_bin_ic_bytes{};
+    FF avm_binary_start{};
+    FF avm_binary_mem_tag_ctr{};
+    FF avm_binary_mem_tag_ctr_inv{};
     FF avm_main_pc{};
     FF avm_main_internal_return_ptr{};
     FF avm_main_sel_internal_call{};
@@ -92,7 +116,11 @@ template <typename FF> struct AvmFullRow {
     FF avm_main_sel_op_div{};
     FF avm_main_sel_op_not{};
     FF avm_main_sel_op_eq{};
+    FF avm_main_sel_op_and{};
+    FF avm_main_sel_op_or{};
+    FF avm_main_sel_op_xor{};
     FF avm_main_alu_sel{};
+    FF avm_main_bin_sel{};
     FF avm_main_in_tag{};
     FF avm_main_op_err{};
     FF avm_main_tag_err{};
@@ -116,31 +144,42 @@ template <typename FF> struct AvmFullRow {
     FF avm_main_mem_idx_b{};
     FF avm_main_mem_idx_c{};
     FF avm_main_last{};
+    FF avm_main_bin_op_id{};
     FF perm_main_alu{};
+    FF perm_main_bin{};
     FF perm_main_mem_a{};
     FF perm_main_mem_b{};
     FF perm_main_mem_c{};
     FF perm_main_mem_ind_a{};
     FF perm_main_mem_ind_b{};
     FF perm_main_mem_ind_c{};
+    FF lookup_byte_lengths{};
+    FF lookup_byte_operations{};
     FF incl_main_tag_err{};
     FF incl_mem_tag_err{};
+    FF lookup_byte_lengths_counts{};
+    FF lookup_byte_operations_counts{};
     FF incl_main_tag_err_counts{};
     FF incl_mem_tag_err_counts{};
-    FF avm_main_internal_return_ptr_shift{};
-    FF avm_main_pc_shift{};
-    FF avm_mem_m_addr_shift{};
-    FF avm_mem_m_val_shift{};
-    FF avm_mem_m_tag_shift{};
-    FF avm_mem_m_rw_shift{};
-    FF avm_alu_alu_u16_r7_shift{};
-    FF avm_alu_alu_u16_r1_shift{};
-    FF avm_alu_alu_u16_r5_shift{};
+    FF avm_binary_acc_ic_shift{};
+    FF avm_binary_op_id_shift{};
+    FF avm_binary_acc_ia_shift{};
+    FF avm_binary_mem_tag_ctr_shift{};
+    FF avm_binary_acc_ib_shift{};
+    FF avm_alu_alu_u16_r3_shift{};
     FF avm_alu_alu_u16_r6_shift{};
     FF avm_alu_alu_u16_r0_shift{};
-    FF avm_alu_alu_u16_r4_shift{};
+    FF avm_alu_alu_u16_r1_shift{};
     FF avm_alu_alu_u16_r2_shift{};
-    FF avm_alu_alu_u16_r3_shift{};
+    FF avm_alu_alu_u16_r7_shift{};
+    FF avm_alu_alu_u16_r4_shift{};
+    FF avm_alu_alu_u16_r5_shift{};
+    FF avm_main_internal_return_ptr_shift{};
+    FF avm_main_pc_shift{};
+    FF avm_mem_m_tag_shift{};
+    FF avm_mem_m_val_shift{};
+    FF avm_mem_m_addr_shift{};
+    FF avm_mem_m_rw_shift{};
 };
 
 class AvmCircuitBuilder {
@@ -153,8 +192,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 113;
-    static constexpr size_t num_polys = 99;
+    static constexpr size_t num_fixed_columns = 148;
+    static constexpr size_t num_polys = 129;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -221,6 +260,26 @@ class AvmCircuitBuilder {
             polys.avm_alu_alu_u64_r0[i] = rows[i].avm_alu_alu_u64_r0;
             polys.avm_alu_alu_cf[i] = rows[i].avm_alu_alu_cf;
             polys.avm_alu_alu_op_eq_diff_inv[i] = rows[i].avm_alu_alu_op_eq_diff_inv;
+            polys.avm_byte_lookup_table_op_id[i] = rows[i].avm_byte_lookup_table_op_id;
+            polys.avm_byte_lookup_table_input_a[i] = rows[i].avm_byte_lookup_table_input_a;
+            polys.avm_byte_lookup_table_input_b[i] = rows[i].avm_byte_lookup_table_input_b;
+            polys.avm_byte_lookup_table_output[i] = rows[i].avm_byte_lookup_table_output;
+            polys.avm_byte_lookup_bin_sel[i] = rows[i].avm_byte_lookup_bin_sel;
+            polys.avm_byte_lookup_table_in_tags[i] = rows[i].avm_byte_lookup_table_in_tags;
+            polys.avm_byte_lookup_table_byte_lengths[i] = rows[i].avm_byte_lookup_table_byte_lengths;
+            polys.avm_binary_bin_clk[i] = rows[i].avm_binary_bin_clk;
+            polys.avm_binary_bin_sel[i] = rows[i].avm_binary_bin_sel;
+            polys.avm_binary_acc_ia[i] = rows[i].avm_binary_acc_ia;
+            polys.avm_binary_acc_ib[i] = rows[i].avm_binary_acc_ib;
+            polys.avm_binary_acc_ic[i] = rows[i].avm_binary_acc_ic;
+            polys.avm_binary_in_tag[i] = rows[i].avm_binary_in_tag;
+            polys.avm_binary_op_id[i] = rows[i].avm_binary_op_id;
+            polys.avm_binary_bin_ia_bytes[i] = rows[i].avm_binary_bin_ia_bytes;
+            polys.avm_binary_bin_ib_bytes[i] = rows[i].avm_binary_bin_ib_bytes;
+            polys.avm_binary_bin_ic_bytes[i] = rows[i].avm_binary_bin_ic_bytes;
+            polys.avm_binary_start[i] = rows[i].avm_binary_start;
+            polys.avm_binary_mem_tag_ctr[i] = rows[i].avm_binary_mem_tag_ctr;
+            polys.avm_binary_mem_tag_ctr_inv[i] = rows[i].avm_binary_mem_tag_ctr_inv;
             polys.avm_main_pc[i] = rows[i].avm_main_pc;
             polys.avm_main_internal_return_ptr[i] = rows[i].avm_main_internal_return_ptr;
             polys.avm_main_sel_internal_call[i] = rows[i].avm_main_sel_internal_call;
@@ -234,7 +293,11 @@ class AvmCircuitBuilder {
             polys.avm_main_sel_op_div[i] = rows[i].avm_main_sel_op_div;
             polys.avm_main_sel_op_not[i] = rows[i].avm_main_sel_op_not;
             polys.avm_main_sel_op_eq[i] = rows[i].avm_main_sel_op_eq;
+            polys.avm_main_sel_op_and[i] = rows[i].avm_main_sel_op_and;
+            polys.avm_main_sel_op_or[i] = rows[i].avm_main_sel_op_or;
+            polys.avm_main_sel_op_xor[i] = rows[i].avm_main_sel_op_xor;
             polys.avm_main_alu_sel[i] = rows[i].avm_main_alu_sel;
+            polys.avm_main_bin_sel[i] = rows[i].avm_main_bin_sel;
             polys.avm_main_in_tag[i] = rows[i].avm_main_in_tag;
             polys.avm_main_op_err[i] = rows[i].avm_main_op_err;
             polys.avm_main_tag_err[i] = rows[i].avm_main_tag_err;
@@ -258,33 +321,44 @@ class AvmCircuitBuilder {
             polys.avm_main_mem_idx_b[i] = rows[i].avm_main_mem_idx_b;
             polys.avm_main_mem_idx_c[i] = rows[i].avm_main_mem_idx_c;
             polys.avm_main_last[i] = rows[i].avm_main_last;
+            polys.avm_main_bin_op_id[i] = rows[i].avm_main_bin_op_id;
             polys.perm_main_alu[i] = rows[i].perm_main_alu;
+            polys.perm_main_bin[i] = rows[i].perm_main_bin;
             polys.perm_main_mem_a[i] = rows[i].perm_main_mem_a;
             polys.perm_main_mem_b[i] = rows[i].perm_main_mem_b;
             polys.perm_main_mem_c[i] = rows[i].perm_main_mem_c;
             polys.perm_main_mem_ind_a[i] = rows[i].perm_main_mem_ind_a;
             polys.perm_main_mem_ind_b[i] = rows[i].perm_main_mem_ind_b;
             polys.perm_main_mem_ind_c[i] = rows[i].perm_main_mem_ind_c;
+            polys.lookup_byte_lengths[i] = rows[i].lookup_byte_lengths;
+            polys.lookup_byte_operations[i] = rows[i].lookup_byte_operations;
             polys.incl_main_tag_err[i] = rows[i].incl_main_tag_err;
             polys.incl_mem_tag_err[i] = rows[i].incl_mem_tag_err;
+            polys.lookup_byte_lengths_counts[i] = rows[i].lookup_byte_lengths_counts;
+            polys.lookup_byte_operations_counts[i] = rows[i].lookup_byte_operations_counts;
             polys.incl_main_tag_err_counts[i] = rows[i].incl_main_tag_err_counts;
             polys.incl_mem_tag_err_counts[i] = rows[i].incl_mem_tag_err_counts;
         }
 
-        polys.avm_main_internal_return_ptr_shift = Polynomial(polys.avm_main_internal_return_ptr.shifted());
-        polys.avm_main_pc_shift = Polynomial(polys.avm_main_pc.shifted());
-        polys.avm_mem_m_addr_shift = Polynomial(polys.avm_mem_m_addr.shifted());
-        polys.avm_mem_m_val_shift = Polynomial(polys.avm_mem_m_val.shifted());
-        polys.avm_mem_m_tag_shift = Polynomial(polys.avm_mem_m_tag.shifted());
-        polys.avm_mem_m_rw_shift = Polynomial(polys.avm_mem_m_rw.shifted());
-        polys.avm_alu_alu_u16_r7_shift = Polynomial(polys.avm_alu_alu_u16_r7.shifted());
-        polys.avm_alu_alu_u16_r1_shift = Polynomial(polys.avm_alu_alu_u16_r1.shifted());
-        polys.avm_alu_alu_u16_r5_shift = Polynomial(polys.avm_alu_alu_u16_r5.shifted());
+        polys.avm_binary_acc_ic_shift = Polynomial(polys.avm_binary_acc_ic.shifted());
+        polys.avm_binary_op_id_shift = Polynomial(polys.avm_binary_op_id.shifted());
+        polys.avm_binary_acc_ia_shift = Polynomial(polys.avm_binary_acc_ia.shifted());
+        polys.avm_binary_mem_tag_ctr_shift = Polynomial(polys.avm_binary_mem_tag_ctr.shifted());
+        polys.avm_binary_acc_ib_shift = Polynomial(polys.avm_binary_acc_ib.shifted());
+        polys.avm_alu_alu_u16_r3_shift = Polynomial(polys.avm_alu_alu_u16_r3.shifted());
         polys.avm_alu_alu_u16_r6_shift = Polynomial(polys.avm_alu_alu_u16_r6.shifted());
         polys.avm_alu_alu_u16_r0_shift = Polynomial(polys.avm_alu_alu_u16_r0.shifted());
-        polys.avm_alu_alu_u16_r4_shift = Polynomial(polys.avm_alu_alu_u16_r4.shifted());
+        polys.avm_alu_alu_u16_r1_shift = Polynomial(polys.avm_alu_alu_u16_r1.shifted());
         polys.avm_alu_alu_u16_r2_shift = Polynomial(polys.avm_alu_alu_u16_r2.shifted());
-        polys.avm_alu_alu_u16_r3_shift = Polynomial(polys.avm_alu_alu_u16_r3.shifted());
+        polys.avm_alu_alu_u16_r7_shift = Polynomial(polys.avm_alu_alu_u16_r7.shifted());
+        polys.avm_alu_alu_u16_r4_shift = Polynomial(polys.avm_alu_alu_u16_r4.shifted());
+        polys.avm_alu_alu_u16_r5_shift = Polynomial(polys.avm_alu_alu_u16_r5.shifted());
+        polys.avm_main_internal_return_ptr_shift = Polynomial(polys.avm_main_internal_return_ptr.shifted());
+        polys.avm_main_pc_shift = Polynomial(polys.avm_main_pc.shifted());
+        polys.avm_mem_m_tag_shift = Polynomial(polys.avm_mem_m_tag.shifted());
+        polys.avm_mem_m_val_shift = Polynomial(polys.avm_mem_m_val.shifted());
+        polys.avm_mem_m_addr_shift = Polynomial(polys.avm_mem_m_addr.shifted());
+        polys.avm_mem_m_rw_shift = Polynomial(polys.avm_mem_m_rw.shifted());
 
         return polys;
     }
@@ -356,6 +430,14 @@ class AvmCircuitBuilder {
             return true;
         };
 
+        if (!evaluate_relation.template operator()<Avm_vm::avm_binary<FF>>("avm_binary",
+                                                                           Avm_vm::get_relation_label_avm_binary)) {
+            return false;
+        }
+        if (!evaluate_relation.template operator()<Avm_vm::avm_alu<FF>>("avm_alu",
+                                                                        Avm_vm::get_relation_label_avm_alu)) {
+            return false;
+        }
         if (!evaluate_relation.template operator()<Avm_vm::avm_main<FF>>("avm_main",
                                                                          Avm_vm::get_relation_label_avm_main)) {
             return false;
@@ -364,12 +446,11 @@ class AvmCircuitBuilder {
                                                                         Avm_vm::get_relation_label_avm_mem)) {
             return false;
         }
-        if (!evaluate_relation.template operator()<Avm_vm::avm_alu<FF>>("avm_alu",
-                                                                        Avm_vm::get_relation_label_avm_alu)) {
-            return false;
-        }
 
         if (!evaluate_logderivative.template operator()<perm_main_alu_relation<FF>>("PERM_MAIN_ALU")) {
+            return false;
+        }
+        if (!evaluate_logderivative.template operator()<perm_main_bin_relation<FF>>("PERM_MAIN_BIN")) {
             return false;
         }
         if (!evaluate_logderivative.template operator()<perm_main_mem_a_relation<FF>>("PERM_MAIN_MEM_A")) {
@@ -388,6 +469,13 @@ class AvmCircuitBuilder {
             return false;
         }
         if (!evaluate_logderivative.template operator()<perm_main_mem_ind_c_relation<FF>>("PERM_MAIN_MEM_IND_C")) {
+            return false;
+        }
+        if (!evaluate_logderivative.template operator()<lookup_byte_lengths_relation<FF>>("LOOKUP_BYTE_LENGTHS")) {
+            return false;
+        }
+        if (!evaluate_logderivative.template operator()<lookup_byte_operations_relation<FF>>(
+                "LOOKUP_BYTE_OPERATIONS")) {
             return false;
         }
         if (!evaluate_logderivative.template operator()<incl_main_tag_err_relation<FF>>("INCL_MAIN_TAG_ERR")) {

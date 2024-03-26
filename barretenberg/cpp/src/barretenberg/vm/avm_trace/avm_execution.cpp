@@ -135,6 +135,29 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
                                  std::get<uint32_t>(inst.operands.at(4)),
                                  std::get<AvmMemoryTag>(inst.operands.at(1)));
             break;
+
+        case OpCode::AND:
+            trace_builder.op_and(std::get<uint8_t>(inst.operands.at(0)),
+                                 std::get<uint32_t>(inst.operands.at(2)),
+                                 std::get<uint32_t>(inst.operands.at(3)),
+                                 std::get<uint32_t>(inst.operands.at(4)),
+                                 std::get<AvmMemoryTag>(inst.operands.at(1)));
+            break;
+        case OpCode::OR:
+            trace_builder.op_or(std::get<uint8_t>(inst.operands.at(0)),
+                                std::get<uint32_t>(inst.operands.at(2)),
+                                std::get<uint32_t>(inst.operands.at(3)),
+                                std::get<uint32_t>(inst.operands.at(4)),
+                                std::get<AvmMemoryTag>(inst.operands.at(1)));
+            break;
+
+        case OpCode::XOR:
+            trace_builder.op_xor(std::get<uint8_t>(inst.operands.at(0)),
+                                 std::get<uint32_t>(inst.operands.at(2)),
+                                 std::get<uint32_t>(inst.operands.at(3)),
+                                 std::get<uint32_t>(inst.operands.at(4)),
+                                 std::get<AvmMemoryTag>(inst.operands.at(1)));
+            break;
             // Execution Environment - Calldata
         case OpCode::CALLDATACOPY:
             trace_builder.calldata_copy(std::get<uint8_t>(inst.operands.at(0)),

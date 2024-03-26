@@ -1,0 +1,81 @@
+
+include "avm_byte_lookup.pil";
+include "avm_main.pil";
+
+namespace avm_binary(256);
+
+    pol commit bin_clk;
+
+    // Selector for Binary Operation
+    pol commit bin_sel;
+    bin_sel * (1 - bin_sel) = 0;
+
+    // Byte recomposition column, the value in these columns are part of the equivalence
+    // check to main wherever Start is set to 1.
+    pol commit acc_ia;
+    pol commit acc_ib;
+    pol commit acc_ic;
+
+    // This is the instruction tag {1,2,3,4,5} (restricted to not be a field)
+    // Operations over FF are not supported, it is assumed this exclusion is handled
+    // outside of this subtrace.
+
+    // Constraints come from equiv to main_trace
+    pol commit in_tag;
+
+    // Selectors for binary operations, correctness checked by permutation to the main trace.
+    // Op Id is restricted to be the same during the same computation (i.e. between Starts)
+    pol commit op_id;
+    #[OP_ID_REL]
+    (op_id' - op_id) * mem_tag_ctr = 0;
+
+    // Little Endian bitwise decomposition of accumulators (which are processed top-down),
+    // constrained to be U8 given by the lookup to the avm_byte_lookup
+    pol commit bin_ia_bytes;
+    pol commit bin_ib_bytes;
+    pol commit bin_ic_bytes;
+
+    pol commit start; // Identifies when we want to capture the output to the main trace.
+
+
+    // To support dynamically sized memory operands we use a counter against a lookup
+    // This decrementing counter goes from [MEM_TAG, 0] where MEM_TAG is the number of bytes in the
+    // corresponding integer. i.e. MEM_TAG is between 1 (U8) and 16(U128).
+    // Consistency can be achieved with a lookup table between the instr_tag and bytes_length
+    pol commit mem_tag_ctr;
+    #[MEM_TAG_REL]
+    (mem_tag_ctr' - mem_tag_ctr + 1) * mem_tag_ctr = 0;
+
+    // Bin_sel is a boolean that is set to 1 if mem_tag_ctr != 0.
+    // This is checked by two relation conditions and utilising mem_tag_ctr_inv
+    pol commit mem_tag_ctr_inv;
+
+    // bin_sel is set to 1 when mem_tag_ctr != 0, and 0 otherwise.
+    // we constrain it such that bin_sel = mem_tag_ctr * mem_tag_ctr_inv unless mem_tag_ctr = 0 the bin_sel = 0
+    // In here we use the consolidated equality relation because it doesnt require us to enforce
+    // this additional relation: mem_tag_ctr_inv = 1 when mem_tag_ctr = 0. (allows default zero value in trace)
+    #[BIN_SEL_CTR_REL]
+    mem_tag_ctr * ((1 - bin_sel) * (1 - mem_tag_ctr_inv) + mem_tag_ctr_inv) - bin_sel = 0;
+
+    // Forces accumulator to start at zero when mem_tag_ctr == 0
+    (1 - bin_sel) * acc_ia = 0; 
+    (1 - bin_sel) * acc_ib = 0; 
+    (1 - bin_sel) * acc_ic = 0;
+
+    #[LOOKUP_BYTE_LENGTHS]
+    start {in_tag, mem_tag_ctr} 
+    in 
+    avm_byte_lookup.bin_sel {avm_byte_lookup.table_in_tags, avm_byte_lookup.table_byte_lengths};
+
+    #[LOOKUP_BYTE_OPERATIONS]
+    bin_sel {op_id, bin_ia_bytes, bin_ib_bytes, bin_ic_bytes}
+    in 
+    avm_byte_lookup.bin_sel {avm_byte_lookup.table_op_id, avm_byte_lookup.table_input_a, avm_byte_lookup.table_input_b, avm_byte_lookup.table_output};
+
+    #[ACC_REL_A]
+    (acc_ia - bin_ia_bytes - 256 * acc_ia') * mem_tag_ctr = 0;
+    #[ACC_REL_B]
+    (acc_ib - bin_ib_bytes - 256 * acc_ib') * mem_tag_ctr = 0;
+     #[ACC_REL_C]
+    (acc_ic - bin_ic_bytes - 256 * acc_ic') * mem_tag_ctr = 0;
+

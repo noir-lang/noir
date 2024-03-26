@@ -79,7 +79,6 @@ void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end, bool e
             info("sel_op_not:           ", trace.at(i).avm_main_sel_op_not);
             info("sel_op_sel_alu:       ", trace.at(i).avm_main_alu_sel);
         }
-
         info("\n");
     }
 }

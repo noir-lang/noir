@@ -7,27 +7,27 @@
 namespace bb::Avm_vm {
 
 template <typename FF> struct Avm_memRow {
-    FF avm_mem_m_one_min_inv{};
-    FF avm_mem_m_sel_mov{};
-    FF avm_mem_m_ind_op_c{};
-    FF avm_mem_m_ind_op_b{};
     FF avm_mem_m_op_b{};
-    FF avm_mem_m_sub_clk{};
-    FF avm_mem_m_addr{};
-    FF avm_mem_m_op_c{};
-    FF avm_mem_m_last{};
-    FF avm_mem_m_addr_shift{};
-    FF avm_mem_m_val_shift{};
-    FF avm_mem_m_op_a{};
     FF avm_mem_m_tag_shift{};
-    FF avm_mem_m_rw_shift{};
+    FF avm_mem_m_rw{};
     FF avm_mem_m_ind_op_a{};
-    FF avm_mem_m_tag_err{};
+    FF avm_mem_m_val_shift{};
+    FF avm_mem_m_ind_op_b{};
+    FF avm_mem_m_in_tag{};
+    FF avm_mem_m_sel_mov{};
+    FF avm_mem_m_one_min_inv{};
+    FF avm_mem_m_addr_shift{};
+    FF avm_mem_m_last{};
+    FF avm_mem_m_tag{};
+    FF avm_mem_m_op_c{};
+    FF avm_mem_m_rw_shift{};
+    FF avm_mem_m_ind_op_c{};
     FF avm_mem_m_val{};
     FF avm_mem_m_lastAccess{};
-    FF avm_mem_m_tag{};
-    FF avm_mem_m_rw{};
-    FF avm_mem_m_in_tag{};
+    FF avm_mem_m_tag_err{};
+    FF avm_mem_m_addr{};
+    FF avm_mem_m_sub_clk{};
+    FF avm_mem_m_op_a{};
 };
 
 inline std::string get_relation_label_avm_mem(int index)
@@ -36,23 +36,23 @@ inline std::string get_relation_label_avm_mem(int index)
     case 12:
         return "MEM_LAST_ACCESS_DELIMITER";
 
+    case 15:
+        return "MEM_ZERO_INIT";
+
+    case 13:
+        return "MEM_READ_WRITE_VAL_CONSISTENCY";
+
     case 16:
         return "MEM_IN_TAG_CONSISTENCY_1";
+
+    case 14:
+        return "MEM_READ_WRITE_TAG_CONSISTENCY";
 
     case 17:
         return "MEM_IN_TAG_CONSISTENCY_2";
 
     case 24:
         return "MOV_SAME_TAG";
-
-    case 15:
-        return "MEM_ZERO_INIT";
-
-    case 14:
-        return "MEM_READ_WRITE_TAG_CONSISTENCY";
-
-    case 13:
-        return "MEM_READ_WRITE_VAL_CONSISTENCY";
     }
     return std::to_string(index);
 }

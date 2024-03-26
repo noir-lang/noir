@@ -1,0 +1,16 @@
+
+namespace avm_byte_lookup(256);
+    // These columns are commited for now, but will be migrated to constant/fixed when
+    // we support more *exotic* code generation options
+    pol commit table_op_id; // identifies if operation is AND/OR/XOR
+    pol commit table_input_a; // column of all 8-bit numbers
+    pol commit table_input_b; // column of all 8-bit numbers
+    pol commit table_output; // output = a AND/OR/XOR b
+    // Selector to indicate when to utilise the lookup table
+    // TODO: Support for 1-sided lookups may make this redundant.
+    pol commit bin_sel;
+
+    // These two columns are a mapping between instruction tags and their byte lengths
+    // {U8: 1, U16: 2, ... , U128: 16}
+    pol commit table_in_tags; // Column of U8,U16,...,U128
+    pol commit table_byte_lengths; // Columns of byte lengths 1,2,...,16;
