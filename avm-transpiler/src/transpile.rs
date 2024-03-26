@@ -2,8 +2,9 @@ use acvm::acir::brillig::Opcode as BrilligOpcode;
 use acvm::acir::circuit::brillig::Brillig;
 
 use acvm::brillig_vm::brillig::{
-    BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, MemoryAddress, Value, ValueOrArray,
+    BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, MemoryAddress, ValueOrArray,
 };
+use acvm::FieldElement;
 
 use crate::instructions::{
     AvmInstruction, AvmOperand, AvmTypeTag, ALL_DIRECT, FIRST_OPERAND_INDIRECT,
@@ -798,7 +799,7 @@ fn handle_getter_instruction(
 fn handle_const(
     avm_instrs: &mut Vec<AvmInstruction>,
     destination: &MemoryAddress,
-    value: &Value,
+    value: &FieldElement,
     bit_size: &u32,
 ) {
     let tag = tag_from_bit_size(*bit_size);
@@ -808,7 +809,7 @@ fn handle_const(
         avm_instrs.push(generate_set_instruction(tag, dest, value.to_u128()));
     } else {
         // We can't fit a field in an instruction. This should've been handled in Brillig.
-        let field = value.to_field();
+        let field = value;
         if !field.fits_in_u128() {
             panic!("SET: Field value doesn't fit in 128 bits, that's not supported!");
         }
