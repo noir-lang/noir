@@ -41,7 +41,7 @@ export class L1ToL2Message {
   }
 
   hash(): Fr {
-    return sha256ToField(serializeToBuffer(...this.toFields()));
+    return sha256ToField(this.toFields());
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): L1ToL2Message {

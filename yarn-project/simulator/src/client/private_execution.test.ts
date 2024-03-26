@@ -162,8 +162,6 @@ describe('Private Execution test suite', () => {
     return trees[name];
   };
 
-  const hashFields = (data: Fr[]) => pedersenHash(data.map(f => f.toBuffer()));
-
   beforeAll(() => {
     logger = createDebugLogger('aztec:test:private_execution');
 
@@ -248,7 +246,7 @@ describe('Private Execution test suite', () => {
       const noteHashIndex = randomInt(1); // mock index in TX's final newNoteHashes array
       const nonce = computeCommitmentNonce(mockFirstNullifier, noteHashIndex);
       const note = new Note([new Fr(amount), owner.toField(), Fr.random()]);
-      const innerNoteHash = hashFields(note.items);
+      const innerNoteHash = pedersenHash(note.items);
       return {
         contractAddress,
         storageSlot,
@@ -449,7 +447,7 @@ describe('Private Execution test suite', () => {
       logger(`Parent deployed at ${parentAddress.toShortString()}`);
       logger(`Calling child function ${childSelector.toString()} at ${childAddress.toShortString()}`);
 
-      const args = [Fr.fromBuffer(childAddress.toBuffer()), Fr.fromBuffer(childSelector.toBuffer())];
+      const args = [childAddress, childSelector];
       const result = await runSimulator({ args, artifact: parentArtifact });
 
       expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(privateIncrement));
@@ -784,7 +782,7 @@ describe('Private Execution test suite', () => {
       oracle.getPortalContractAddress.mockImplementation(() => Promise.resolve(childPortalContractAddress));
       oracle.getFunctionArtifact.mockImplementation(() => Promise.resolve({ ...childContractArtifact, isInternal }));
 
-      const args = [Fr.fromBuffer(childAddress.toBuffer()), childSelector.toField(), 42n];
+      const args = [childAddress, childSelector, 42n];
       const result = await runSimulator({
         msgSender: parentAddress,
         contractAddress: parentAddress,
@@ -896,7 +894,7 @@ describe('Private Execution test suite', () => {
         ownerNullifierKeyPair.secretKey,
         contractAddress,
       );
-      const expectedNullifier = hashFields([
+      const expectedNullifier = pedersenHash([
         innerNoteHash,
         siloedNullifierSecretKey.low,
         siloedNullifierSecretKey.high,
@@ -972,7 +970,7 @@ describe('Private Execution test suite', () => {
         ownerNullifierKeyPair.secretKey,
         contractAddress,
       );
-      const expectedNullifier = hashFields([
+      const expectedNullifier = pedersenHash([
         innerNoteHash,
         siloedNullifierSecretKey.low,
         siloedNullifierSecretKey.high,

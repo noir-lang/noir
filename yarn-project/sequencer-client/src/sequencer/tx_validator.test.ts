@@ -96,7 +96,7 @@ describe('TxValidator', () => {
   describe('inspects tx gas', () => {
     it('allows native fee paying txs', async () => {
       const sender = makeAztecAddress();
-      const expectedBalanceSlot = pedersenHash([new Fr(1).toBuffer(), sender.toBuffer()]);
+      const expectedBalanceSlot = pedersenHash([new Fr(1), sender]);
       const tx = nativeFeePayingTx(sender);
 
       publicStateSource.storageRead.mockImplementation((address, slot) => {
@@ -112,7 +112,7 @@ describe('TxValidator', () => {
 
     it('rejects native fee paying txs if out of balance', async () => {
       const sender = makeAztecAddress();
-      const expectedBalanceSlot = pedersenHash([new Fr(1).toBuffer(), sender.toBuffer()]);
+      const expectedBalanceSlot = pedersenHash([new Fr(1), sender]);
       const tx = nativeFeePayingTx(sender);
 
       publicStateSource.storageRead.mockImplementation((address, slot) => {
@@ -128,7 +128,7 @@ describe('TxValidator', () => {
 
     it('allows txs paying through a fee payment contract', async () => {
       const fpcAddress = makeAztecAddress();
-      const expectedBalanceSlot = pedersenHash([new Fr(1).toBuffer(), fpcAddress.toBuffer()]);
+      const expectedBalanceSlot = pedersenHash([new Fr(1), fpcAddress]);
       const tx = fxFeePayingTx(fpcAddress);
 
       publicStateSource.storageRead.mockImplementation((address, slot) => {
@@ -144,7 +144,7 @@ describe('TxValidator', () => {
 
     it('rejects txs paying through a fee payment contract out of balance', async () => {
       const fpcAddress = makeAztecAddress();
-      const expectedBalanceSlot = pedersenHash([new Fr(1).toBuffer(), fpcAddress.toBuffer()]);
+      const expectedBalanceSlot = pedersenHash([new Fr(1), fpcAddress]);
       const tx = nativeFeePayingTx(fpcAddress);
 
       publicStateSource.storageRead.mockImplementation((address, slot) => {

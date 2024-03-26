@@ -246,7 +246,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
       expect(results.reverted).toBe(false);
-      expect(results.output).toEqual([pedersenHash(calldata.map(f => f.toBuffer()))]);
+      expect(results.output).toEqual([pedersenHash(calldata)]);
     });
   });
 

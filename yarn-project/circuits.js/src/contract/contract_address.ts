@@ -43,10 +43,7 @@ export function computePartialAddress(
       ? instance.saltedInitializationHash
       : computeSaltedInitializationHash(instance);
 
-  return pedersenHash(
-    [instance.contractClassId, saltedInitializationHash].map(x => x.toBuffer()),
-    GeneratorIndex.PARTIAL_ADDRESS,
-  );
+  return pedersenHash([instance.contractClassId, saltedInitializationHash], GeneratorIndex.PARTIAL_ADDRESS);
 }
 
 /**
@@ -57,9 +54,7 @@ export function computeSaltedInitializationHash(
   instance: Pick<ContractInstance, 'initializationHash' | 'salt' | 'portalContractAddress' | 'deployer'>,
 ): Fr {
   return pedersenHash(
-    [instance.salt, instance.initializationHash, instance.deployer, instance.portalContractAddress].map(x =>
-      x.toBuffer(),
-    ),
+    [instance.salt, instance.initializationHash, instance.deployer, instance.portalContractAddress],
     GeneratorIndex.PARTIAL_ADDRESS,
   );
 }
@@ -73,10 +68,7 @@ export function computeContractAddressFromPartial(
   args: ({ publicKeyHash: Fr } | { publicKey: PublicKey }) & { partialAddress: Fr },
 ): AztecAddress {
   const publicKeyHash = 'publicKey' in args ? computePublicKeysHash(args.publicKey) : args.publicKeyHash;
-  const result = pedersenHash(
-    [publicKeyHash.toBuffer(), args.partialAddress.toBuffer()],
-    GeneratorIndex.CONTRACT_ADDRESS,
-  );
+  const result = pedersenHash([publicKeyHash, args.partialAddress], GeneratorIndex.CONTRACT_ADDRESS);
   return AztecAddress.fromField(result);
 }
 
@@ -89,7 +81,7 @@ export function computePublicKeysHash(publicKey: PublicKey | undefined): Fr {
   if (!publicKey) {
     return Fr.ZERO;
   }
-  return pedersenHash([publicKey.x.toBuffer(), publicKey.y.toBuffer()], GeneratorIndex.PARTIAL_ADDRESS);
+  return pedersenHash([publicKey.x, publicKey.y], GeneratorIndex.PARTIAL_ADDRESS);
 }
 
 /**
@@ -115,5 +107,5 @@ export function computeInitializationHash(initFn: FunctionAbi | undefined, args:
  */
 export function computeInitializationHashFromEncodedArgs(initFn: FunctionSelector, encodedArgs: Fr[]): Fr {
   const argsHash = computeVarArgsHash(encodedArgs);
-  return pedersenHash([initFn.toBuffer(), argsHash.toBuffer()], GeneratorIndex.CONSTRUCTOR);
+  return pedersenHash([initFn, argsHash], GeneratorIndex.CONSTRUCTOR);
 }

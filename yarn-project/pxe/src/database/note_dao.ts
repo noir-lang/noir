@@ -1,7 +1,7 @@
 import { Note, TxHash } from '@aztec/circuit-types';
 import { AztecAddress, Fr, Point, PublicKey } from '@aztec/circuits.js';
-import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { BufferReader } from '@aztec/foundation/serialize';
+import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { NoteData } from '@aztec/simulator';
 
 /**
@@ -35,17 +35,17 @@ export class NoteDao implements NoteData {
   ) {}
 
   toBuffer(): Buffer {
-    return Buffer.concat([
-      this.note.toBuffer(),
-      this.contractAddress.toBuffer(),
-      this.storageSlot.toBuffer(),
-      this.noteTypeId.toBuffer(),
+    return serializeToBuffer([
+      this.note,
+      this.contractAddress,
+      this.storageSlot,
+      this.noteTypeId,
       this.txHash.buffer,
-      this.nonce.toBuffer(),
-      this.innerNoteHash.toBuffer(),
-      this.siloedNullifier.toBuffer(),
-      toBufferBE(this.index, 32),
-      this.publicKey.toBuffer(),
+      this.nonce,
+      this.innerNoteHash,
+      this.siloedNullifier,
+      this.index,
+      this.publicKey,
     ]);
   }
   static fromBuffer(buffer: Buffer | BufferReader) {

@@ -97,7 +97,7 @@ export class PublicCallStackItem {
     }
 
     return pedersenHash(
-      [this.contractAddress, this.functionData.hash(), this.publicInputs.hash()].map(f => f.toBuffer()),
+      [this.contractAddress, this.functionData.hash(), this.publicInputs.hash()],
       GeneratorIndex.CALL_STACK_ITEM,
     );
   }

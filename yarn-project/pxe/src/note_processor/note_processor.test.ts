@@ -7,7 +7,6 @@ import {
   L2Block,
   L2BlockContext,
   L2BlockL2Logs,
-  Note,
   TaggedNote,
   TxL2Logs,
 } from '@aztec/circuit-types';
@@ -43,8 +42,6 @@ describe('Note Processor', () => {
   const numCommitmentsPerBlock = TXS_PER_BLOCK * MAX_NEW_NOTE_HASHES_PER_TX;
   const firstBlockDataStartIndex = (firstBlockNum - 1) * numCommitmentsPerBlock;
   const firstBlockDataEndIndex = firstBlockNum * numCommitmentsPerBlock;
-
-  const computeMockNoteHash = (note: Note) => pedersenHash(note.items.map(i => i.toBuffer()));
 
   // ownedData: [tx1, tx2, ...], the numbers in each tx represents the indices of the note hashes the account owns.
   const createEncryptedLogsAndOwnedL1NotePayloads = (ownedData: number[][], ownedNotes: TaggedNote[]) => {
@@ -109,7 +106,7 @@ describe('Note Processor', () => {
       ownedL1NotePayloads.push(...payloads);
       for (let i = 0; i < TXS_PER_BLOCK; i++) {
         block.body.txEffects[i].noteHashes = newNotes
-          .map(n => computeMockNoteHash(n.notePayload.note))
+          .map(n => pedersenHash(n.notePayload.note.items))
           .slice(i * MAX_NEW_NOTE_HASHES_PER_TX, (i + 1) * MAX_NEW_NOTE_HASHES_PER_TX) as Tuple<
           Fr,
           typeof MAX_NEW_NOTE_HASHES_PER_TX
@@ -148,7 +145,7 @@ describe('Note Processor', () => {
       Promise.resolve({
         innerNoteHash: Fr.random(),
         siloedNoteHash: Fr.random(),
-        uniqueSiloedNoteHash: computeMockNoteHash(args[4]), // args[4] is note
+        uniqueSiloedNoteHash: pedersenHash(args[4].items), // args[4] is note
         innerNullifier: Fr.random(),
       }),
     );

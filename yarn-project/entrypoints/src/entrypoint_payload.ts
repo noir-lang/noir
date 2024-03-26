@@ -99,15 +99,12 @@ export async function buildFeePayload(feeOpts?: FeeOptions): Promise<PayloadWith
 // TODO (dogfooding) change all of these names app/dapp/fee/payload and generator indices for all of them
 /** Hashes a payload to a 32-byte buffer */
 export function hashPayload(payload: EntrypointPayload, generatorIndex: number) {
-  return pedersenHash(
-    flattenPayload(payload).map(fr => fr.toBuffer()),
-    generatorIndex,
-  );
+  return pedersenHash(flattenPayload(payload), generatorIndex);
 }
 
 /** Hash the payload for a dapp */
 export function hashDappPayload(payload: EntrypointPayload, userAddress: AztecAddress, generatorIndex: number) {
-  return pedersenHash([...flattenPayload(payload).map(fr => fr.toBuffer()), userAddress.toBuffer()], generatorIndex);
+  return pedersenHash([...flattenPayload(payload), userAddress], generatorIndex);
 }
 
 /** Flattens an payload */

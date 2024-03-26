@@ -71,10 +71,7 @@ export class TxRequest {
   }
 
   hash() {
-    return pedersenHash(
-      this.toFields().map(field => field.toBuffer()),
-      GeneratorIndex.TX_REQUEST,
-    );
+    return pedersenHash(this.toFields(), GeneratorIndex.TX_REQUEST);
   }
 
   static empty() {

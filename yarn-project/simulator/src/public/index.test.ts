@@ -347,9 +347,9 @@ describe('ACIR public execution simulator', () => {
       // Assert the note hash was created
       expect(result.newNoteHashes.length).toEqual(1);
 
-      const expectedNoteHash = pedersenHash([amount.toBuffer(), secretHash.toBuffer()]);
+      const expectedNoteHash = pedersenHash([amount, secretHash]);
       const storageSlot = new Fr(5); // for pending_shields
-      const expectedInnerNoteHash = pedersenHash([storageSlot, expectedNoteHash].map(f => f.toBuffer()));
+      const expectedInnerNoteHash = pedersenHash([storageSlot, expectedNoteHash]);
       expect(result.newNoteHashes[0].value).toEqual(expectedInnerNoteHash);
     });
 
@@ -379,7 +379,7 @@ describe('ACIR public execution simulator', () => {
       // Assert the l2 to l1 message was created
       expect(result.newL2ToL1Messages.length).toEqual(1);
 
-      const expectedNewMessage = new L2ToL1Message(portalContractAddress, pedersenHash(params.map(a => a.toBuffer())));
+      const expectedNewMessage = new L2ToL1Message(portalContractAddress, pedersenHash(params));
 
       expect(result.newL2ToL1Messages[0]).toEqual(expectedNewMessage);
     });
@@ -409,7 +409,7 @@ describe('ACIR public execution simulator', () => {
       // Assert the l2 to l1 message was created
       expect(result.newNullifiers.length).toEqual(1);
 
-      const expectedNewMessageValue = pedersenHash(params.map(a => a.toBuffer()));
+      const expectedNewMessageValue = pedersenHash(params);
       expect(result.newNullifiers[0].value).toEqual(expectedNewMessageValue);
     });
 
@@ -479,7 +479,7 @@ describe('ACIR public execution simulator', () => {
 
         let root = preimage.hash();
         for (const sibling of siblingPathBuffers) {
-          root = pedersenHash([root.toBuffer(), sibling]);
+          root = pedersenHash([root, sibling]);
         }
         commitmentsDb.getL1ToL2MembershipWitness.mockImplementation(() => {
           return Promise.resolve(new MessageLoadOracleInputs(0n, siblingPath));

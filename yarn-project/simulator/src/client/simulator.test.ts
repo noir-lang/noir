@@ -23,8 +23,6 @@ describe('Simulator', () => {
   const ownerNullifierSecretKey = GrumpkinScalar.random();
   const ownerNullifierPublicKey = Point.random();
 
-  const hashFields = (data: Fr[]) => pedersenHash(data.map(f => f.toBuffer()));
-
   beforeEach(() => {
     oracle = mock<DBOracle>();
     node = mock<AztecNode>();
@@ -50,11 +48,11 @@ describe('Simulator', () => {
       oracle.getFunctionArtifactByName.mockResolvedValue(artifact);
 
       const note = createNote();
-      const tokenNoteHash = hashFields(note.items);
-      const innerNoteHash = hashFields([storageSlot, tokenNoteHash]);
+      const tokenNoteHash = pedersenHash(note.items);
+      const innerNoteHash = pedersenHash([storageSlot, tokenNoteHash]);
       const siloedNoteHash = siloNoteHash(contractAddress, innerNoteHash);
       const uniqueSiloedNoteHash = computeUniqueCommitment(nonce, siloedNoteHash);
-      const innerNullifier = hashFields([
+      const innerNullifier = pedersenHash([
         uniqueSiloedNoteHash,
         ownerNullifierSecretKey.low,
         ownerNullifierSecretKey.high,

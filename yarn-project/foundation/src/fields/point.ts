@@ -1,4 +1,4 @@
-import { BufferReader, FieldReader } from '../serialize/index.js';
+import { BufferReader, FieldReader, serializeToBuffer } from '../serialize/index.js';
 import { Fr } from './fields.js';
 
 /**
@@ -88,7 +88,7 @@ export class Point {
    * @returns A Buffer representation of the Point instance.
    */
   toBuffer() {
-    return Buffer.concat([this.x.toBuffer(), this.y.toBuffer()]);
+    return serializeToBuffer([this.x, this.y]);
   }
 
   /**

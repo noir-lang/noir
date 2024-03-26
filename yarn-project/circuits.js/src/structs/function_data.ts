@@ -87,9 +87,6 @@ export class FunctionData {
   }
 
   hash(): Fr {
-    return pedersenHash(
-      this.toFields().map(field => field.toBuffer()),
-      GeneratorIndex.FUNCTION_DATA,
-    );
+    return pedersenHash(this.toFields(), GeneratorIndex.FUNCTION_DATA);
   }
 }

@@ -24,7 +24,7 @@ export class LendingAccount {
    * @returns Key in public space
    */
   public key() {
-    return pedersenHash([this.address, this.secret].map(f => f.toBuffer()));
+    return pedersenHash([this.address, this.secret]);
   }
 }
 

@@ -54,10 +54,7 @@ export class AvmExecutionEnvironment {
   ) {
     // We encode some extra inputs (AvmContextInputs) in calldata.
     // This will have to go once we move away from one proof per call.
-    const inputs = new AvmContextInputs(
-      temporaryFunctionSelector.toField(),
-      pedersenHash(calldata.map(word => word.toBuffer())),
-    );
+    const inputs = new AvmContextInputs(temporaryFunctionSelector.toField(), pedersenHash(calldata));
     this.calldata = [...inputs.toFields(), ...calldata];
   }
 

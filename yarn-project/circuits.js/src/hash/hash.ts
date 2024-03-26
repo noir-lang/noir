@@ -61,7 +61,7 @@ export function hashVK(vkBuf: Buffer) {
  * @returns A commitment nonce.
  */
 export function computeCommitmentNonce(nullifierZero: Fr, commitmentIndex: number): Fr {
-  return pedersenHash([nullifierZero.toBuffer(), numToUInt32BE(commitmentIndex, 32)], GeneratorIndex.NOTE_HASH_NONCE);
+  return pedersenHash([nullifierZero, numToUInt32BE(commitmentIndex, 32)], GeneratorIndex.NOTE_HASH_NONCE);
 }
 
 /**
@@ -72,7 +72,7 @@ export function computeCommitmentNonce(nullifierZero: Fr, commitmentIndex: numbe
  * @returns A siloed commitment.
  */
 export function siloNoteHash(contract: AztecAddress, innerNoteHash: Fr): Fr {
-  return pedersenHash([contract.toBuffer(), innerNoteHash.toBuffer()], GeneratorIndex.SILOED_NOTE_HASH);
+  return pedersenHash([contract, innerNoteHash], GeneratorIndex.SILOED_NOTE_HASH);
 }
 
 /**
@@ -82,7 +82,7 @@ export function siloNoteHash(contract: AztecAddress, innerNoteHash: Fr): Fr {
  * @returns A unique commitment.
  */
 export function computeUniqueCommitment(nonce: Fr, siloedCommitment: Fr): Fr {
-  return pedersenHash([nonce.toBuffer(), siloedCommitment.toBuffer()], GeneratorIndex.UNIQUE_NOTE_HASH);
+  return pedersenHash([nonce, siloedCommitment], GeneratorIndex.UNIQUE_NOTE_HASH);
 }
 
 /**
@@ -93,7 +93,7 @@ export function computeUniqueCommitment(nonce: Fr, siloedCommitment: Fr): Fr {
  * @returns A siloed nullifier.
  */
 export function siloNullifier(contract: AztecAddress, innerNullifier: Fr): Fr {
-  return pedersenHash([contract.toBuffer(), innerNullifier.toBuffer()], GeneratorIndex.OUTER_NULLIFIER);
+  return pedersenHash([contract, innerNullifier], GeneratorIndex.OUTER_NULLIFIER);
 }
 
 /**
@@ -114,7 +114,7 @@ export function computePublicDataTreeValue(value: Fr): Fr {
 
  */
 export function computePublicDataTreeLeafSlot(contractAddress: AztecAddress, storageSlot: Fr): Fr {
-  return pedersenHash([contractAddress.toBuffer(), storageSlot.toBuffer()], GeneratorIndex.PUBLIC_LEAF_INDEX);
+  return pedersenHash([contractAddress, storageSlot], GeneratorIndex.PUBLIC_LEAF_INDEX);
 }
 
 /**
@@ -138,31 +138,22 @@ export function computeVarArgsHash(args: Fr[]) {
     if (c.length < ARGS_HASH_CHUNK_LENGTH) {
       c = padArrayEnd(c, Fr.ZERO, ARGS_HASH_CHUNK_LENGTH);
     }
-    return pedersenHash(
-      c.map(a => a.toBuffer()),
-      GeneratorIndex.FUNCTION_ARGS,
-    );
+    return pedersenHash(c, GeneratorIndex.FUNCTION_ARGS);
   });
 
   if (chunksHashes.length < ARGS_HASH_CHUNK_COUNT) {
     chunksHashes = padArrayEnd(chunksHashes, Fr.ZERO, ARGS_HASH_CHUNK_COUNT);
   }
 
-  return pedersenHash(
-    chunksHashes.map(a => a.toBuffer()),
-    GeneratorIndex.FUNCTION_ARGS,
-  );
+  return pedersenHash(chunksHashes, GeneratorIndex.FUNCTION_ARGS);
 }
 
 export function computeCommitmentsHash(input: SideEffect) {
-  return pedersenHash([input.value.toBuffer(), input.counter.toBuffer()], GeneratorIndex.SIDE_EFFECT);
+  return pedersenHash([input.value, input.counter], GeneratorIndex.SIDE_EFFECT);
 }
 
 export function computeNullifierHash(input: SideEffectLinkedToNoteHash) {
-  return pedersenHash(
-    [input.value.toBuffer(), input.noteHash.toBuffer(), input.counter.toBuffer()],
-    GeneratorIndex.SIDE_EFFECT,
-  );
+  return pedersenHash([input.value, input.noteHash, input.counter], GeneratorIndex.SIDE_EFFECT);
 }
 
 /**
@@ -171,7 +162,7 @@ export function computeNullifierHash(input: SideEffectLinkedToNoteHash) {
  * @returns the hash
  */
 export function computeMessageSecretHash(secretMessage: Fr) {
-  return pedersenHash([secretMessage.toBuffer()], GeneratorIndex.L1_TO_L2_MESSAGE_SECRET);
+  return pedersenHash([secretMessage], GeneratorIndex.L1_TO_L2_MESSAGE_SECRET);
 }
 
 export function computeL1ToL2MessageNullifier(

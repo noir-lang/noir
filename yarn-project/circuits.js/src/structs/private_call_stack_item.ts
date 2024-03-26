@@ -91,10 +91,7 @@ export class PrivateCallStackItem {
    * @returns Hash.
    */
   public hash(): Fr {
-    return pedersenHash(
-      this.toFields().map(field => field.toBuffer()),
-      GeneratorIndex.CALL_STACK_ITEM,
-    );
+    return pedersenHash(this.toFields(), GeneratorIndex.CALL_STACK_ITEM);
   }
 
   /**

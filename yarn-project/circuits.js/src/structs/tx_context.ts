@@ -90,9 +90,6 @@ export class TxContext {
   }
 
   hash(): Fr {
-    return pedersenHash(
-      this.toFields().map(f => f.toBuffer()),
-      GeneratorIndex.TX_CONTEXT,
-    );
+    return pedersenHash(this.toFields(), GeneratorIndex.TX_CONTEXT);
   }
 }

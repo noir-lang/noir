@@ -246,7 +246,7 @@ export class AztecCheatCodes {
   public computeSlotInMap(baseSlot: Fr | bigint, key: Fr | bigint | AztecAddress): Fr {
     // Based on `at` function in
     // aztec3-packages/aztec-nr/aztec/src/state_vars/map.nr
-    return pedersenHash([new Fr(baseSlot), new Fr(key)].map(f => f.toBuffer()));
+    return pedersenHash([new Fr(baseSlot), new Fr(key)]);
   }
 
   /**

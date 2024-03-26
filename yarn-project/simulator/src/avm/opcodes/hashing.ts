@@ -166,7 +166,7 @@ export class Pedersen extends Instruction {
 
     // We hash a set of field elements
     const messageSize = Number(context.machineState.memory.get(messageSizeOffset).toBigInt());
-    const hashData = context.machineState.memory.getSlice(messageOffset, messageSize).map(word => word.toBuffer());
+    const hashData = context.machineState.memory.getSlice(messageOffset, messageSize);
 
     // No domain sep for now
     const hash = pedersenHash(hashData);

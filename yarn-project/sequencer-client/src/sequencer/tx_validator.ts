@@ -171,7 +171,7 @@ export class TxValidator {
     }
 
     // TODO(#1204) if a generator index is used for the derived storage slot of a map, update it here as well
-    const slot = pedersenHash([GAS_TOKEN_BALANCES_SLOT.toBuffer(), teardownFn.callContext.msgSender.toBuffer()]);
+    const slot = pedersenHash([GAS_TOKEN_BALANCES_SLOT, teardownFn.callContext.msgSender]);
     const gasBalance = await this.#publicStateSource.storageRead(
       getCanonicalGasTokenAddress(this.#gasPortalAddress),
       slot,

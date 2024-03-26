@@ -154,7 +154,7 @@ describe('e2e_block_building', () => {
       it('drops tx with private nullifier already emitted from public on the same block', async () => {
         const secret = Fr.random();
         // See yarn-project/simulator/src/public/index.test.ts 'Should be able to create a nullifier from the public context'
-        const emittedPublicNullifier = pedersenHash([new Fr(140), secret].map(a => a.toBuffer()));
+        const emittedPublicNullifier = pedersenHash([new Fr(140), secret]);
 
         const calls = [
           contract.methods.create_nullifier_public(140n, secret),
@@ -172,7 +172,7 @@ describe('e2e_block_building', () => {
     describe('across blocks', () => {
       it('drops a tx that tries to spend a nullifier already emitted on a previous block', async () => {
         const secret = Fr.random();
-        const emittedPublicNullifier = pedersenHash([new Fr(140), secret].map(a => a.toBuffer()));
+        const emittedPublicNullifier = pedersenHash([new Fr(140), secret]);
 
         await expect(contract.methods.create_nullifier_public(140n, secret).send().wait()).resolves.toEqual(
           expect.objectContaining({

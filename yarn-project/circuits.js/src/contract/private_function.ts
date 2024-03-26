@@ -27,10 +27,7 @@ function computePrivateFunctionLeaves(fns: PrivateFunction[]): Buffer[] {
 
 /** Returns the leaf for a given private function. */
 export function computePrivateFunctionLeaf(fn: PrivateFunction): Buffer {
-  return pedersenHash(
-    [fn.selector, fn.vkHash].map(x => x.toBuffer()),
-    GeneratorIndex.FUNCTION_LEAF,
-  ).toBuffer();
+  return pedersenHash([fn.selector, fn.vkHash], GeneratorIndex.FUNCTION_LEAF).toBuffer();
 }
 
 function getPrivateFunctionTreeCalculator(): MerkleTreeCalculator {

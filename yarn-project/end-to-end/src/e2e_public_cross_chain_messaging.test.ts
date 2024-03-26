@@ -15,7 +15,6 @@ import {
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { sha256ToField } from '@aztec/foundation/crypto';
-import { serializeToBuffer } from '@aztec/foundation/serialize';
 import { InboxAbi, OutboxAbi } from '@aztec/l1-artifacts';
 import { TestContract } from '@aztec/noir-contracts.js';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
@@ -152,12 +151,11 @@ describe('e2e_public_cross_chain_messaging', () => {
 
     await crossChainTestHarness.makeMessageConsumable(msgHash);
 
-    const content = sha256ToField(
-      Buffer.concat([
-        Buffer.from(toFunctionSelector('mint_public(bytes32,uint256)').substring(2), 'hex'),
-        serializeToBuffer(...[user2Wallet.getAddress(), new Fr(bridgeAmount)]),
-      ]),
-    );
+    const content = sha256ToField([
+      Buffer.from(toFunctionSelector('mint_public(bytes32,uint256)').substring(2), 'hex'),
+      user2Wallet.getAddress(),
+      new Fr(bridgeAmount),
+    ]);
     const wrongMessage = new L1ToL2Message(
       new L1Actor(crossChainTestHarness.tokenPortalAddress, crossChainTestHarness.publicClient.chain.id),
       new L2Actor(l2Bridge.address, 1),
@@ -204,12 +202,11 @@ describe('e2e_public_cross_chain_messaging', () => {
     await crossChainTestHarness.makeMessageConsumable(msgHash);
 
     // Wrong message hash
-    const content = sha256ToField(
-      Buffer.concat([
-        Buffer.from(toFunctionSelector('mint_private(bytes32,uint256)').substring(2), 'hex'),
-        serializeToBuffer(...[secretHash, new Fr(bridgeAmount)]),
-      ]),
-    );
+    const content = sha256ToField([
+      Buffer.from(toFunctionSelector('mint_private(bytes32,uint256)').substring(2), 'hex'),
+      secretHash,
+      new Fr(bridgeAmount),
+    ]);
     const wrongMessage = new L1ToL2Message(
       new L1Actor(crossChainTestHarness.tokenPortalAddress, crossChainTestHarness.publicClient.chain.id),
       new L2Actor(l2Bridge.address, 1),
@@ -256,15 +253,13 @@ describe('e2e_public_cross_chain_messaging', () => {
         content: content.toString() as Hex,
       };
 
-      const leaf = sha256ToField(
-        Buffer.concat([
-          testContract.address.toBuffer(),
-          new Fr(1).toBuffer(), // aztec version
-          recipient.toBuffer32(),
-          new Fr(crossChainTestHarness.publicClient.chain.id).toBuffer(), // chain id
-          content.toBuffer(),
-        ]),
-      );
+      const leaf = sha256ToField([
+        testContract.address,
+        new Fr(1), // aztec version
+        recipient.toBuffer32(),
+        new Fr(crossChainTestHarness.publicClient.chain.id), // chain id
+        content,
+      ]);
 
       const [l2MessageIndex, siblingPath] = await aztecNode.getL2ToL1MessageMembershipWitness(
         l2TxReceipt.blockNumber!,

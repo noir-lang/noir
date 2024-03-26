@@ -152,7 +152,7 @@ export function serializeToBufferArray(...objs: Bufferable[]): Buffer[] {
       ret.push(boolToBuffer(obj));
     } else if (typeof obj === 'bigint') {
       // Throw if bigint does not fit into 32 bytes
-      if (obj > BigInt('0xffffffffffffffffffffffffffffffff')) {
+      if (obj > BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')) {
         throw new Error(`BigInt ${obj} does not fit into 32 bytes`);
       }
       ret.push(serializeBigInt(obj));

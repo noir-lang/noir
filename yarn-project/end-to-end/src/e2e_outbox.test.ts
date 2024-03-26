@@ -103,15 +103,13 @@ describe('E2E Outbox Tests', () => {
   }
 
   function makeL2ToL1Message(recipient: EthAddress, content: Fr = Fr.ZERO): Fr {
-    const leaf = sha256ToField(
-      Buffer.concat([
-        contract.address.toBuffer(),
-        new Fr(1).toBuffer(), // aztec version
-        recipient.toBuffer32(),
-        new Fr(deployL1ContractsValues.publicClient.chain.id).toBuffer(), // chain id
-        content.toBuffer(),
-      ]),
-    );
+    const leaf = sha256ToField([
+      contract.address,
+      new Fr(1), // aztec version
+      recipient.toBuffer32(),
+      new Fr(deployL1ContractsValues.publicClient.chain.id), // chain id
+      content,
+    ]);
 
     return leaf;
   }

@@ -145,7 +145,7 @@ export class L2Block {
    */
   // TODO(#4844)
   getPublicInputsHash(): Fr {
-    const buf = serializeToBuffer(
+    const preimage = [
       this.header.globalVariables,
       AppendOnlyTreeSnapshot.zero(), // this.startNoteHashTreeSnapshot / commitments,
       AppendOnlyTreeSnapshot.zero(), // this.startNullifierTreeSnapshot,
@@ -158,9 +158,9 @@ export class L2Block {
       this.header.state.l1ToL2MessageTree,
       this.archive,
       this.body.getTxsEffectsHash(),
-    );
+    ];
 
-    return sha256ToField(buf);
+    return sha256ToField(preimage);
   }
 
   /**

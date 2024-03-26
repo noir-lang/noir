@@ -363,23 +363,19 @@ export class CrossChainTestHarness {
   }
 
   getL2ToL1MessageLeaf(withdrawAmount: bigint, callerOnL1: EthAddress = EthAddress.ZERO): Fr {
-    const content = sha256ToField(
-      Buffer.concat([
-        Buffer.from(toFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
-        this.ethAccount.toBuffer32(),
-        new Fr(withdrawAmount).toBuffer(),
-        callerOnL1.toBuffer32(),
-      ]),
-    );
-    const leaf = sha256ToField(
-      Buffer.concat([
-        this.l2Bridge.address.toBuffer(),
-        new Fr(1).toBuffer(), // aztec version
-        this.tokenPortalAddress.toBuffer32() ?? Buffer.alloc(32, 0),
-        new Fr(this.publicClient.chain.id).toBuffer(), // chain id
-        content.toBuffer(),
-      ]),
-    );
+    const content = sha256ToField([
+      Buffer.from(toFunctionSelector('withdraw(address,uint256,address)').substring(2), 'hex'),
+      this.ethAccount.toBuffer32(),
+      new Fr(withdrawAmount).toBuffer(),
+      callerOnL1.toBuffer32(),
+    ]);
+    const leaf = sha256ToField([
+      this.l2Bridge.address.toBuffer(),
+      new Fr(1).toBuffer(), // aztec version
+      this.tokenPortalAddress.toBuffer32() ?? Buffer.alloc(32, 0),
+      new Fr(this.publicClient.chain.id).toBuffer(), // chain id
+      content.toBuffer(),
+    ]);
 
     return leaf;
   }

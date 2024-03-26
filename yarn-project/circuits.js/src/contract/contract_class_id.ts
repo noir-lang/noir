@@ -36,7 +36,7 @@ export function computeContractClassIdWithPreimage(
       ? contractClass.publicBytecodeCommitment
       : computePublicBytecodeCommitment(contractClass.packedBytecode);
   const id = pedersenHash(
-    [artifactHash.toBuffer(), privateFunctionsRoot.toBuffer(), publicBytecodeCommitment.toBuffer()],
+    [artifactHash, privateFunctionsRoot, publicBytecodeCommitment],
     GeneratorIndex.CONTRACT_LEAF, // TODO(@spalladino): Review all generator indices in this file
   );
   return { id, artifactHash, privateFunctionsRoot, publicBytecodeCommitment };

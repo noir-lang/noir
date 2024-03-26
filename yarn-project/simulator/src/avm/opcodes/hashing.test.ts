@@ -231,8 +231,7 @@ describe('Hashing Opcodes', () => {
 
       const dstOffset = 3;
 
-      const inputBuffer = args.map(field => field.toBuffer());
-      const expectedHash = pedersenHash(inputBuffer);
+      const expectedHash = pedersenHash(args);
       await new Pedersen(indirect, dstOffset, messageOffset, sizeOffset).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);
@@ -258,8 +257,7 @@ describe('Hashing Opcodes', () => {
 
       const dstOffset = 300;
 
-      const inputBuffer = args.map(field => field.toBuffer());
-      const expectedHash = pedersenHash(inputBuffer);
+      const expectedHash = pedersenHash(args);
       await new Pedersen(indirect, dstOffset, messageOffset, sizeOffset).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);

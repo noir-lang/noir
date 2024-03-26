@@ -14,5 +14,5 @@ export function computeSlotForMapping(
     toField: () => Fr;
   },
 ) {
-  return pedersenHash([mappingSlot, key.toField()].map(field => field.toBuffer()));
+  return pedersenHash([mappingSlot, key.toField()]);
 }
