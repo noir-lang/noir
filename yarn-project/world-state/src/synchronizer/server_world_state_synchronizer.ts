@@ -245,8 +245,10 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
       new SHA256Trunc(),
       'temp_in_hash_check',
       L1_TO_L2_MSG_SUBTREE_HEIGHT,
+      0n,
+      Fr,
     );
-    await tree.appendLeaves(l1ToL2Messages.map(msg => msg.toBuffer()));
+    await tree.appendLeaves(l1ToL2Messages);
 
     if (!tree.getRoot(true).equals(inHash)) {
       throw new Error('Obtained L1 to L2 messages failed to be hashed to the block inHash');

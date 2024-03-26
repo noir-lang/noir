@@ -1,4 +1,5 @@
 import { randomBytes } from '@aztec/foundation/crypto';
+import { FromBuffer } from '@aztec/foundation/serialize';
 import { AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 
@@ -8,14 +9,15 @@ import { describeSnapshotBuilderTestSuite } from './snapshot_builder_test_suite.
 
 describe('AppendOnlySnapshot', () => {
   let tree: StandardTree;
-  let snapshotBuilder: AppendOnlySnapshotBuilder;
+  let snapshotBuilder: AppendOnlySnapshotBuilder<Buffer>;
   let db: AztecKVStore;
 
   beforeEach(async () => {
     db = openTmpStore();
     const hasher = new Pedersen();
-    tree = await newTree(StandardTree, db, hasher, 'test', 4);
-    snapshotBuilder = new AppendOnlySnapshotBuilder(db, tree, hasher);
+    const deserializer: FromBuffer<Buffer> = { fromBuffer: b => b };
+    tree = await newTree(StandardTree, db, hasher, 'test', deserializer, 4);
+    snapshotBuilder = new AppendOnlySnapshotBuilder(db, tree, hasher, deserializer);
   });
 
   describeSnapshotBuilderTestSuite(

@@ -79,6 +79,7 @@
     "erc",
     "falsey",
     "fargate",
+    "Fieldeable",
     "filestat",
     "flatmap",
     "foundryup",

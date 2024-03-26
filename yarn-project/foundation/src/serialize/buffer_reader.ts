@@ -312,3 +312,14 @@ export class BufferReader {
     return this.buffer.length;
   }
 }
+
+/**
+ * A deserializer
+ */
+export interface FromBuffer<T> {
+  /**
+   * Deserializes an object from a buffer
+   * @param buffer - The buffer to deserialize.
+   */
+  fromBuffer(buffer: Buffer): T;
+}

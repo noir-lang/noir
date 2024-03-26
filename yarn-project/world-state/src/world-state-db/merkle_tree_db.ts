@@ -1,4 +1,5 @@
-import { MAX_NEW_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX } from '@aztec/circuits.js';
+import { MerkleTreeId } from '@aztec/circuit-types';
+import { Fr, MAX_NEW_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX } from '@aztec/circuits.js';
 import { IndexedTreeSnapshot, TreeSnapshot } from '@aztec/merkle-tree';
 
 import { MerkleTreeOperations } from './merkle_tree_operations.js';
@@ -40,6 +41,14 @@ type MerkleTreeSetters =
   | 'handleL2BlockAndMessages'
   | 'batchInsert';
 
+export type TreeSnapshots = {
+  [MerkleTreeId.NULLIFIER_TREE]: IndexedTreeSnapshot;
+  [MerkleTreeId.NOTE_HASH_TREE]: TreeSnapshot<Fr>;
+  [MerkleTreeId.PUBLIC_DATA_TREE]: IndexedTreeSnapshot;
+  [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: TreeSnapshot<Fr>;
+  [MerkleTreeId.ARCHIVE]: TreeSnapshot<Fr>;
+};
+
 /**
  * Defines the interface for operations on a set of Merkle Trees configuring whether to return committed or uncommitted data.
  */
@@ -52,5 +61,5 @@ export type MerkleTreeDb = {
      * Returns a snapshot of the current state of the trees.
      * @param block - The block number to take the snapshot at.
      */
-    getSnapshot(block: number): Promise<ReadonlyArray<TreeSnapshot | IndexedTreeSnapshot>>;
+    getSnapshot(block: number): Promise<TreeSnapshots>;
   };

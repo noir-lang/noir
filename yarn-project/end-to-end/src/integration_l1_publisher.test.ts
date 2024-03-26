@@ -428,8 +428,15 @@ describe('L1Publisher integration', () => {
 
       const treeHeight = Math.ceil(Math.log2(newL2ToL1MsgsArray.length));
 
-      const tree = new StandardTree(openTmpStore(true), new SHA256Trunc(), 'temp_outhash_sibling_path', treeHeight);
-      await tree.appendLeaves(newL2ToL1MsgsArray.map(l2ToL1Msg => l2ToL1Msg.toBuffer()));
+      const tree = new StandardTree(
+        openTmpStore(true),
+        new SHA256Trunc(),
+        'temp_outhash_sibling_path',
+        treeHeight,
+        0n,
+        Fr,
+      );
+      await tree.appendLeaves(newL2ToL1MsgsArray);
 
       const expectedRoot = tree.getRoot(true);
       const [actualRoot] = await outbox.read.roots([block.header.globalVariables.blockNumber.toBigInt()]);

@@ -1,3 +1,6 @@
+import { Bufferable, FromBuffer } from '@aztec/foundation/serialize';
+import { AztecKVStore } from '@aztec/kv-store';
+
 import { TreeBase } from '../tree_base.js';
 import { BaseFullTreeSnapshot, BaseFullTreeSnapshotBuilder } from './base_full_snapshot.js';
 import { TreeSnapshot, TreeSnapshotBuilder } from './snapshot_builder.js';
@@ -16,11 +19,15 @@ import { TreeSnapshot, TreeSnapshotBuilder } from './snapshot_builder.js';
  * Worst case space complexity: O(N * M)
  * Sibling path access: O(H) database reads
  */
-export class FullTreeSnapshotBuilder
-  extends BaseFullTreeSnapshotBuilder<TreeBase, TreeSnapshot>
-  implements TreeSnapshotBuilder<TreeSnapshot>
+export class FullTreeSnapshotBuilder<T extends Bufferable>
+  extends BaseFullTreeSnapshotBuilder<TreeBase<T>, TreeSnapshot<T>>
+  implements TreeSnapshotBuilder<TreeSnapshot<T>>
 {
-  protected openSnapshot(root: Buffer, numLeaves: bigint): TreeSnapshot {
-    return new BaseFullTreeSnapshot(this.nodes, root, numLeaves, this.tree);
+  constructor(db: AztecKVStore, tree: TreeBase<T>, private deserializer: FromBuffer<T>) {
+    super(db, tree);
+  }
+
+  protected openSnapshot(root: Buffer, numLeaves: bigint): TreeSnapshot<T> {
+    return new BaseFullTreeSnapshot(this.nodes, root, numLeaves, this.tree, this.deserializer);
   }
 }

@@ -94,7 +94,7 @@ export async function buildBaseRollupInput(
 
   // Update the note hash trees with the new items being inserted to get the new roots
   // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
-  const newNoteHashes = tx.data.combinedData.newNoteHashes.map(x => x.value.toBuffer());
+  const newNoteHashes = tx.data.combinedData.newNoteHashes.map(x => x.value);
   await db.appendLeaves(MerkleTreeId.NOTE_HASH_TREE, newNoteHashes);
 
   // The read witnesses for a given TX should be generated before the writes of the same TX are applied.
@@ -214,10 +214,7 @@ export async function executeRootRollupCircuit(
   const rootInput = await getRootRollupInput(...left, ...right, l1ToL2Roots, newL1ToL2Messages, db);
 
   // Update the local trees to include the new l1 to l2 messages
-  await db.appendLeaves(
-    MerkleTreeId.L1_TO_L2_MESSAGE_TREE,
-    newL1ToL2Messages.map(m => m.toBuffer()),
-  );
+  await db.appendLeaves(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, newL1ToL2Messages);
 
   // Simulate and get proof for the root circuit
   const rootOutput = await simulator.rootRollupCircuit(rootInput);

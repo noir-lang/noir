@@ -38,14 +38,14 @@ describe('e2e_blacklist_token_contract', () => {
 
   let tokenSim: TokenSimulator;
 
-  let slowUpdateTreeSimulator: SparseTree;
+  let slowUpdateTreeSimulator: SparseTree<Fr>;
 
   let cheatCodes: CheatCodes;
 
   const getMembershipProof = async (index: bigint, includeUncommitted: boolean) => {
     return {
       index,
-      value: Fr.fromBuffer(slowUpdateTreeSimulator.getLeafValue(index, includeUncommitted)!),
+      value: slowUpdateTreeSimulator.getLeafValue(index, includeUncommitted)!,
       // eslint-disable-next-line camelcase
       sibling_path: (await slowUpdateTreeSimulator.getSiblingPath(index, includeUncommitted)).toFields(),
     };
@@ -101,9 +101,9 @@ describe('e2e_blacklist_token_contract', () => {
     await wallets[accountIndex].addNote(extendedNote);
   };
 
-  const updateSlowTree = async (tree: SparseTree, wallet: Wallet, index: AztecAddress, value: bigint) => {
+  const updateSlowTree = async (tree: SparseTree<Fr>, wallet: Wallet, index: AztecAddress, value: bigint) => {
     await wallet.addCapsule(getUpdateCapsule(await getUpdateProof(value, index.toBigInt())));
-    await tree.updateLeaf(new Fr(value).toBuffer(), index.toBigInt());
+    await tree.updateLeaf(new Fr(value), index.toBigInt());
   };
 
   beforeAll(async () => {
@@ -113,7 +113,7 @@ describe('e2e_blacklist_token_contract', () => {
     slowTree = await SlowTreeContract.deploy(wallets[0]).send().deployed();
 
     const depth = 254;
-    slowUpdateTreeSimulator = await newTree(SparseTree, openTmpStore(), new Pedersen(), 'test', depth);
+    slowUpdateTreeSimulator = await newTree(SparseTree, openTmpStore(), new Pedersen(), 'test', Fr, depth);
 
     // Add account[0] as admin
     await updateSlowTree(slowUpdateTreeSimulator, wallets[0], accounts[0].address, 4n);

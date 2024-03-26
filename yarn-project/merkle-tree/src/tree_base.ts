@@ -1,6 +1,7 @@
 import { SiblingPath } from '@aztec/circuit-types';
 import { toBigIntLE, toBufferLE } from '@aztec/foundation/bigint-buffer';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { Bufferable, FromBuffer, serializeToBuffer } from '@aztec/foundation/serialize';
 import { AztecKVStore, AztecMap, AztecSingleton } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
 
@@ -44,7 +45,7 @@ export const INITIAL_LEAF = Buffer.from('000000000000000000000000000000000000000
 /**
  * A Merkle tree implementation that uses a LevelDB database to store the tree.
  */
-export abstract class TreeBase implements MerkleTree {
+export abstract class TreeBase<T extends Bufferable> implements MerkleTree<T> {
   protected readonly maxIndex: bigint;
   protected cachedSize?: bigint;
   private root!: Buffer;
@@ -62,6 +63,7 @@ export abstract class TreeBase implements MerkleTree {
     private name: string,
     private depth: number,
     protected size: bigint = 0n,
+    protected deserializer: FromBuffer<T>,
     root?: Buffer,
   ) {
     if (!(depth >= 1 && depth <= MAX_DEPTH)) {
@@ -173,7 +175,22 @@ export abstract class TreeBase implements MerkleTree {
    * @param includeUncommitted - Indicates whether to include uncommitted changes.
    * @returns Leaf value at the given index or undefined.
    */
-  public getLeafValue(index: bigint, includeUncommitted: boolean): Buffer | undefined {
+  public getLeafValue(index: bigint, includeUncommitted: boolean): T | undefined {
+    const buf = this.getLatestValueAtIndex(this.depth, index, includeUncommitted);
+    if (buf) {
+      return this.deserializer.fromBuffer(buf);
+    } else {
+      return undefined;
+    }
+  }
+
+  /**
+   * Gets the value at the given index.
+   * @param index - The index of the leaf.
+   * @param includeUncommitted - Indicates whether to include uncommitted changes.
+   * @returns Leaf value at the given index or undefined.
+   */
+  public getLeafBuffer(index: bigint, includeUncommitted: boolean): Buffer | undefined {
     return this.getLatestValueAtIndex(this.depth, index, includeUncommitted);
   }
 
@@ -292,7 +309,7 @@ export abstract class TreeBase implements MerkleTree {
    *          `getLatestValueAtIndex` will return a value from cache (because at least one of the 2 children was
    *          touched in previous iteration).
    */
-  protected appendLeaves(leaves: Buffer[]): void {
+  protected appendLeaves(leaves: T[]): void {
     const numLeaves = this.getNumLeaves(true);
     if (numLeaves + BigInt(leaves.length) - 1n > this.maxIndex) {
       throw Error(`Can't append beyond max index. Max index: ${this.maxIndex}`);
@@ -303,7 +320,7 @@ export abstract class TreeBase implements MerkleTree {
     let level = this.depth;
     for (let i = 0; i < leaves.length; i++) {
       const cacheKey = indexToKeyHash(this.name, level, firstIndex + BigInt(i));
-      this.cache[cacheKey] = leaves[i];
+      this.cache[cacheKey] = serializeToBuffer(leaves[i]);
     }
 
     let lastIndex = firstIndex + BigInt(leaves.length);
@@ -330,7 +347,7 @@ export abstract class TreeBase implements MerkleTree {
    * @param includeUncommitted - Indicates whether to include uncommitted data.
    * @returns The index of the first leaf found with a given value (undefined if not found).
    */
-  abstract findLeafIndex(value: Buffer, includeUncommitted: boolean): bigint | undefined;
+  abstract findLeafIndex(value: T, includeUncommitted: boolean): bigint | undefined;
 
   /**
    * Returns the first index containing a leaf value after `startIndex`.
@@ -339,5 +356,5 @@ export abstract class TreeBase implements MerkleTree {
    * @param includeUncommitted - Indicates whether to include uncommitted data.
    * @returns The index of the first leaf found with a given value (undefined if not found).
    */
-  abstract findLeafIndexAfter(leaf: Buffer, startIndex: bigint, includeUncommitted: boolean): bigint | undefined;
+  abstract findLeafIndexAfter(leaf: T, startIndex: bigint, includeUncommitted: boolean): bigint | undefined;
 }

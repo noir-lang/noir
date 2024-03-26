@@ -98,7 +98,7 @@ describe('Data generation for noir tests', () => {
 
   it('Computes a note hash tree', async () => {
     const indexes = new Array(128).fill(null).map((_, i) => BigInt(i));
-    const leaves = indexes.map(i => new Fr(i + 1n).toBuffer());
+    const leaves = indexes.map(i => new Fr(i + 1n));
 
     const db = openTmpStore();
 
@@ -107,6 +107,8 @@ describe('Data generation for noir tests', () => {
       new Pedersen(),
       `${MerkleTreeId[MerkleTreeId.NOTE_HASH_TREE]}`,
       NOTE_HASH_TREE_HEIGHT,
+      0n,
+      Fr,
     );
 
     await noteHashTree.appendLeaves(leaves);

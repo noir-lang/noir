@@ -235,11 +235,7 @@ export class WorldStateDB implements CommitmentsDB {
     // We iterate over messages until we find one whose nullifier is not in the nullifier tree --> we need to check
     // for nullifiers because messages can have duplicates.
     do {
-      messageIndex = (await this.db.findLeafIndexAfter(
-        MerkleTreeId.L1_TO_L2_MESSAGE_TREE,
-        messageHash.toBuffer(),
-        startIndex,
-      ))!;
+      messageIndex = (await this.db.findLeafIndexAfter(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, messageHash, startIndex))!;
       if (messageIndex === undefined) {
         throw new Error(`No non-nullified L1 to L2 message found for message hash ${messageHash.toString()}`);
       }
@@ -259,7 +255,7 @@ export class WorldStateDB implements CommitmentsDB {
   }
 
   public async getCommitmentIndex(commitment: Fr): Promise<bigint | undefined> {
-    return await this.db.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, commitment.toBuffer());
+    return await this.db.findLeafIndex(MerkleTreeId.NOTE_HASH_TREE, commitment);
   }
 
   public async getNullifierIndex(nullifier: Fr): Promise<bigint | undefined> {

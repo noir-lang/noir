@@ -1,4 +1,5 @@
 import { SiblingPath } from '@aztec/circuit-types';
+import { Bufferable } from '@aztec/foundation/serialize';
 
 /**
  * Defines the interface for a source of sibling paths.
@@ -15,7 +16,7 @@ export interface SiblingPathSource {
 /**
  * Defines the interface for a Merkle tree.
  */
-export interface MerkleTree extends SiblingPathSource {
+export interface MerkleTree<T extends Bufferable = Buffer> extends SiblingPathSource {
   /**
    * Returns the current root of the tree.
    * @param includeUncommitted - Set to true to include uncommitted updates in the calculated root.
@@ -48,7 +49,7 @@ export interface MerkleTree extends SiblingPathSource {
    * @param index - The index of the leaf value to be returned.
    * @param includeUncommitted - Set to true to include uncommitted updates in the data set.
    */
-  getLeafValue(index: bigint, includeUncommitted: boolean): Buffer | undefined;
+  getLeafValue(index: bigint, includeUncommitted: boolean): T | undefined;
 
   /**
    * Returns the index of a leaf given its value, or undefined if no leaf with that value is found.
@@ -56,7 +57,7 @@ export interface MerkleTree extends SiblingPathSource {
    * @param includeUncommitted - Indicates whether to include uncommitted data.
    * @returns The index of the first leaf found with a given value (undefined if not found).
    */
-  findLeafIndex(leaf: Buffer, includeUncommitted: boolean): bigint | undefined;
+  findLeafIndex(leaf: T, includeUncommitted: boolean): bigint | undefined;
 
   /**
    * Returns the first index containing a leaf value after `startIndex`.
@@ -65,5 +66,5 @@ export interface MerkleTree extends SiblingPathSource {
    * @param includeUncommitted - Indicates whether to include uncommitted data.
    * @returns The index of the first leaf found with a given value (undefined if not found).
    */
-  findLeafIndexAfter(leaf: Buffer, startIndex: bigint, includeUncommitted: boolean): bigint | undefined;
+  findLeafIndexAfter(leaf: T, startIndex: bigint, includeUncommitted: boolean): bigint | undefined;
 }

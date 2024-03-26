@@ -1,4 +1,5 @@
 import { SiblingPath } from '@aztec/circuit-types';
+import { Bufferable, FromBuffer, serializeToBuffer } from '@aztec/foundation/serialize';
 import { AztecKVStore, AztecMap } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
 
@@ -37,19 +38,24 @@ type SnapshotMetadata = {
  *  Best case: O(H) database reads + O(1) hashes
  *  Worst case: O(H) database reads + O(H) hashes
  */
-export class AppendOnlySnapshotBuilder implements TreeSnapshotBuilder {
+export class AppendOnlySnapshotBuilder<T extends Bufferable> implements TreeSnapshotBuilder<TreeSnapshot<T>> {
   #nodeValue: AztecMap<ReturnType<typeof historicalNodeKey>, Buffer>;
   #nodeLastModifiedByBlock: AztecMap<ReturnType<typeof nodeModifiedAtBlockKey>, number>;
   #snapshotMetadata: AztecMap<number, SnapshotMetadata>;
 
-  constructor(private db: AztecKVStore, private tree: TreeBase & AppendOnlyTree, private hasher: Hasher) {
+  constructor(
+    private db: AztecKVStore,
+    private tree: TreeBase<T> & AppendOnlyTree<T>,
+    private hasher: Hasher,
+    private deserializer: FromBuffer<T>,
+  ) {
     const treeName = tree.getName();
     this.#nodeValue = db.openMap(`append_only_snapshot:${treeName}:node`);
     this.#nodeLastModifiedByBlock = db.openMap(`append_ony_snapshot:${treeName}:block`);
     this.#snapshotMetadata = db.openMap(`append_only_snapshot:${treeName}:snapshot_metadata`);
   }
 
-  getSnapshot(block: number): Promise<TreeSnapshot> {
+  getSnapshot(block: number): Promise<TreeSnapshot<T>> {
     const meta = this.#getSnapshotMeta(block);
 
     if (typeof meta === 'undefined') {
@@ -65,11 +71,12 @@ export class AppendOnlySnapshotBuilder implements TreeSnapshotBuilder {
         meta.root,
         this.tree,
         this.hasher,
+        this.deserializer,
       ),
     );
   }
 
-  snapshot(block: number): Promise<TreeSnapshot> {
+  snapshot(block: number): Promise<TreeSnapshot<T>> {
     return this.db.transaction(() => {
       const meta = this.#getSnapshotMeta(block);
       if (typeof meta !== 'undefined') {
@@ -82,6 +89,7 @@ export class AppendOnlySnapshotBuilder implements TreeSnapshotBuilder {
           meta.root,
           this.tree,
           this.hasher,
+          this.deserializer,
         );
       }
 
@@ -136,6 +144,7 @@ export class AppendOnlySnapshotBuilder implements TreeSnapshotBuilder {
         root,
         this.tree,
         this.hasher,
+        this.deserializer,
       );
     });
   }
@@ -148,15 +157,16 @@ export class AppendOnlySnapshotBuilder implements TreeSnapshotBuilder {
 /**
  * a
  */
-class AppendOnlySnapshot implements TreeSnapshot {
+class AppendOnlySnapshot<T extends Bufferable> implements TreeSnapshot<T> {
   constructor(
     private nodes: AztecMap<string, Buffer>,
     private nodeHistory: AztecMap<string, number>,
     private block: number,
     private leafCount: bigint,
     private historicalRoot: Buffer,
-    private tree: TreeBase & AppendOnlyTree,
+    private tree: TreeBase<T> & AppendOnlyTree<T>,
     private hasher: Hasher,
+    private deserializer: FromBuffer<T>,
   ) {}
 
   public getSiblingPath<N extends number>(index: bigint): SiblingPath<N> {
@@ -191,7 +201,7 @@ class AppendOnlySnapshot implements TreeSnapshot {
     return this.historicalRoot;
   }
 
-  getLeafValue(index: bigint): Buffer | undefined {
+  getLeafValue(index: bigint): T | undefined {
     const leafLevel = this.getDepth();
     const blockNumber = this.#getBlockNumberThatModifiedNode(leafLevel, index);
 
@@ -202,7 +212,8 @@ class AppendOnlySnapshot implements TreeSnapshot {
 
     // leaf was set some time in the past
     if (blockNumber <= this.block) {
-      return this.nodes.get(historicalNodeKey(leafLevel, index));
+      const val = this.nodes.get(historicalNodeKey(leafLevel, index));
+      return val ? this.deserializer.fromBuffer(val) : undefined;
     }
 
     // leaf has been set but in a block in the future
@@ -249,15 +260,16 @@ class AppendOnlySnapshot implements TreeSnapshot {
     return this.nodeHistory.get(nodeModifiedAtBlockKey(level, index));
   }
 
-  findLeafIndex(value: Buffer): bigint | undefined {
+  findLeafIndex(value: T): bigint | undefined {
     return this.findLeafIndexAfter(value, 0n);
   }
 
-  findLeafIndexAfter(value: Buffer, startIndex: bigint): bigint | undefined {
+  findLeafIndexAfter(value: T, startIndex: bigint): bigint | undefined {
+    const valueBuffer = serializeToBuffer(value);
     const numLeaves = this.getNumLeaves();
     for (let i = startIndex; i < numLeaves; i++) {
       const currentValue = this.getLeafValue(i);
-      if (currentValue && currentValue.equals(value)) {
+      if (currentValue && serializeToBuffer(currentValue).equals(valueBuffer)) {
         return i;
       }
     }

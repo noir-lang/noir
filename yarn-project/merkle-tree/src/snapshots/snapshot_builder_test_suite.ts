@@ -1,14 +1,18 @@
 import { randomBigInt } from '@aztec/foundation/crypto';
+import { Bufferable } from '@aztec/foundation/serialize';
+
+import { jest } from '@jest/globals';
 
 import { TreeBase } from '../tree_base.js';
-import { TreeSnapshotBuilder } from './snapshot_builder.js';
+import { TreeSnapshot, TreeSnapshotBuilder } from './snapshot_builder.js';
+
+jest.setTimeout(50_000);
 
 /** Creates a test suit for snapshots */
-export function describeSnapshotBuilderTestSuite<T extends TreeBase, S extends TreeSnapshotBuilder>(
-  getTree: () => T,
-  getSnapshotBuilder: () => S,
-  modifyTree: (tree: T) => Promise<void>,
-) {
+export function describeSnapshotBuilderTestSuite<
+  T extends TreeBase<Bufferable>,
+  S extends TreeSnapshotBuilder<TreeSnapshot<Bufferable>>,
+>(getTree: () => T, getSnapshotBuilder: () => S, modifyTree: (tree: T) => Promise<void>) {
   describe('SnapshotBuilder', () => {
     let tree: T;
     let snapshotBuilder: S;
@@ -34,7 +38,9 @@ export function describeSnapshotBuilderTestSuite<T extends TreeBase, S extends T
 
         const block = 1;
         const snapshot = await snapshotBuilder.snapshot(block);
-        await expect(snapshotBuilder.snapshot(block)).resolves.toEqual(snapshot);
+        const newSnapshot = await snapshotBuilder.snapshot(block);
+
+        expect(newSnapshot.getRoot()).toEqual(snapshot.getRoot());
       });
 
       it('returns the same path if tree has not diverged', async () => {

@@ -114,8 +114,10 @@ describe('server_world_state_synchronizer', () => {
       new SHA256Trunc(),
       'empty_subtree_in_hash',
       L1_TO_L2_MSG_SUBTREE_HEIGHT,
+      0n,
+      Fr,
     );
-    await tree.appendLeaves(l1ToL2Messages.map(msg => msg.toBuffer()));
+    await tree.appendLeaves(l1ToL2Messages);
     inHash = tree.getRoot(true);
   });
 

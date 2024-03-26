@@ -1,4 +1,5 @@
 import { SiblingPath } from '@aztec/circuit-types';
+import { Bufferable, FromBuffer, serializeToBuffer } from '@aztec/foundation/serialize';
 import { AztecKVStore, AztecMap } from '@aztec/kv-store';
 
 import { TreeBase } from '../tree_base.js';
@@ -30,7 +31,7 @@ type SnapshotMetadata = {
  * Worst case space complexity: O(N * M)
  * Sibling path access: O(H) database reads
  */
-export abstract class BaseFullTreeSnapshotBuilder<T extends TreeBase, S extends TreeSnapshot>
+export abstract class BaseFullTreeSnapshotBuilder<T extends TreeBase<Bufferable>, S extends TreeSnapshot<Bufferable>>
   implements TreeSnapshotBuilder<S>
 {
   protected nodes: AztecMap<string, [Buffer, Buffer]>;
@@ -119,12 +120,13 @@ export abstract class BaseFullTreeSnapshotBuilder<T extends TreeBase, S extends 
 /**
  * A source of sibling paths from a snapshot tree
  */
-export class BaseFullTreeSnapshot implements TreeSnapshot {
+export class BaseFullTreeSnapshot<T extends Bufferable> implements TreeSnapshot<T> {
   constructor(
     protected db: AztecMap<string, [Buffer, Buffer]>,
     protected historicRoot: Buffer,
     protected numLeaves: bigint,
-    protected tree: TreeBase,
+    protected tree: TreeBase<T>,
+    protected deserializer: FromBuffer<T>,
   ) {}
 
   getSiblingPath<N extends number>(index: bigint): SiblingPath<N> {
@@ -141,13 +143,13 @@ export class BaseFullTreeSnapshot implements TreeSnapshot {
     return new SiblingPath<N>(this.tree.getDepth() as N, siblings);
   }
 
-  getLeafValue(index: bigint): Buffer | undefined {
+  getLeafValue(index: bigint): T | undefined {
     let leafNode: Buffer | undefined = undefined;
     for (const [node, _sibling] of this.pathFromRootToLeaf(index)) {
       leafNode = node;
     }
 
-    return leafNode;
+    return leafNode ? this.deserializer.fromBuffer(leafNode) : undefined;
   }
 
   getDepth(): number {
@@ -202,15 +204,16 @@ export class BaseFullTreeSnapshot implements TreeSnapshot {
     return path;
   }
 
-  findLeafIndex(value: Buffer): bigint | undefined {
+  findLeafIndex(value: T): bigint | undefined {
     return this.findLeafIndexAfter(value, 0n);
   }
 
-  public findLeafIndexAfter(value: Buffer, startIndex: bigint): bigint | undefined {
+  public findLeafIndexAfter(value: T, startIndex: bigint): bigint | undefined {
     const numLeaves = this.getNumLeaves();
+    const buffer = serializeToBuffer(value);
     for (let i = startIndex; i < numLeaves; i++) {
       const currentValue = this.getLeafValue(i);
-      if (currentValue && currentValue.equals(value)) {
+      if (currentValue && serializeToBuffer(currentValue).equals(buffer)) {
         return i;
       }
     }

@@ -1,3 +1,4 @@
+import { Bufferable, FromBuffer } from '@aztec/foundation/serialize';
 import { AztecKVStore } from '@aztec/kv-store';
 import { Hasher } from '@aztec/types/interfaces';
 
@@ -13,15 +14,16 @@ import { TreeBase } from './tree_base.js';
  * @param prefilledSize - A number of leaves that are prefilled with values.
  * @returns The newly created tree.
  */
-export async function newTree<T extends TreeBase>(
-  c: new (store: AztecKVStore, hasher: Hasher, name: string, depth: number, size: bigint) => T,
+export async function newTree<T extends TreeBase<Bufferable>, D extends FromBuffer<Bufferable>>(
+  c: new (store: AztecKVStore, hasher: Hasher, name: string, depth: number, size: bigint, deserializer: D) => T,
   store: AztecKVStore,
   hasher: Hasher,
   name: string,
+  deserializer: D,
   depth: number,
   prefilledSize = 1,
 ): Promise<T> {
-  const tree = new c(store, hasher, name, depth, 0n);
+  const tree = new c(store, hasher, name, depth, 0n, deserializer);
   await tree.init(prefilledSize);
   return tree;
 }

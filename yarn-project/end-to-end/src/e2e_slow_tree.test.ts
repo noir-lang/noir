@@ -23,11 +23,11 @@ describe('e2e_slow_tree', () => {
 
   it('Messing around with noir slow tree', async () => {
     const depth = 254;
-    const slowUpdateTreeSimulator = await newTree(SparseTree, openTmpStore(), new Pedersen(), 'test', depth);
+    const slowUpdateTreeSimulator = await newTree(SparseTree, openTmpStore(), new Pedersen(), 'test', Fr, depth);
     const getMembershipProof = async (index: bigint, includeUncommitted: boolean) => {
       return {
         index,
-        value: Fr.fromBuffer(slowUpdateTreeSimulator.getLeafValue(index, includeUncommitted)!),
+        value: slowUpdateTreeSimulator.getLeafValue(index, includeUncommitted)!,
         // eslint-disable-next-line camelcase
         sibling_path: (await slowUpdateTreeSimulator.getSiblingPath(index, includeUncommitted)).toFields(),
       };
@@ -102,7 +102,7 @@ describe('e2e_slow_tree', () => {
       .update_at_public(await getUpdateProof(1n, key))
       .send()
       .wait();
-    await slowUpdateTreeSimulator.updateLeaf(new Fr(1).toBuffer(), key);
+    await slowUpdateTreeSimulator.updateLeaf(new Fr(1), key);
 
     // Update below.
     _root = {
@@ -140,7 +140,7 @@ describe('e2e_slow_tree', () => {
     const t2 = computeNextChange(BigInt(await cheatCodes.eth.timestamp()));
     await wallet.addCapsule(getUpdateCapsule(await getUpdateProof(4n, key)));
     await contract.methods.update_at_private(key, 4n).send().wait();
-    await slowUpdateTreeSimulator.updateLeaf(new Fr(4).toBuffer(), key);
+    await slowUpdateTreeSimulator.updateLeaf(new Fr(4), key);
     _root = {
       before: Fr.fromBuffer(slowUpdateTreeSimulator.getRoot(false)).toBigInt(),
       after: Fr.fromBuffer(slowUpdateTreeSimulator.getRoot(true)).toBigInt(),

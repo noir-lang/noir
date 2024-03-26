@@ -15,12 +15,28 @@ import { SparseTree } from './sparse_tree.js';
 
 const log = createDebugLogger('aztec:sparse_tree_test');
 
-const createDb = async (db: AztecKVStore, hasher: Hasher, name: string, depth: number): Promise<UpdateOnlyTree> => {
-  return await newTree(SparseTree, db, hasher, name, depth);
+const createDb = async (
+  db: AztecKVStore,
+  hasher: Hasher,
+  name: string,
+  depth: number,
+): Promise<UpdateOnlyTree<Buffer>> => {
+  return await newTree(
+    SparseTree,
+    db,
+    hasher,
+    name,
+    {
+      fromBuffer: (buffer: Buffer): Buffer => buffer,
+    },
+    depth,
+  );
 };
 
-const createFromName = async (db: AztecKVStore, hasher: Hasher, name: string): Promise<UpdateOnlyTree> => {
-  return await loadTree(SparseTree, db, hasher, name);
+const createFromName = async (db: AztecKVStore, hasher: Hasher, name: string): Promise<UpdateOnlyTree<Buffer>> => {
+  return await loadTree(SparseTree, db, hasher, name, {
+    fromBuffer: (buffer: Buffer): Buffer => buffer,
+  });
 };
 
 const TEST_TREE_DEPTH = 3;

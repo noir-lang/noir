@@ -83,7 +83,7 @@ describe('Private Execution test suite', () => {
     l1ToL2Messages: L1_TO_L2_MSG_TREE_HEIGHT,
   };
 
-  let trees: { [name: keyof typeof treeHeights]: AppendOnlyTree } = {};
+  let trees: { [name: keyof typeof treeHeights]: AppendOnlyTree<Fr> } = {};
   const txContextFields: FieldsOf<TxContext> = {
     isFeePaymentTx: false,
     isRebatePaymentTx: false,
@@ -127,11 +127,11 @@ describe('Private Execution test suite', () => {
     if (!trees[name]) {
       const db = openTmpStore();
       const pedersen = new Pedersen();
-      trees[name] = await newTree(StandardTree, db, pedersen, name, treeHeights[name]);
+      trees[name] = await newTree(StandardTree, db, pedersen, name, Fr, treeHeights[name]);
     }
     const tree = trees[name];
 
-    await tree.appendLeaves(leaves.map(l => l.toBuffer()));
+    await tree.appendLeaves(leaves);
 
     // Create a new snapshot.
     const newSnap = new AppendOnlyTreeSnapshot(Fr.fromBuffer(tree.getRoot(true)), Number(tree.getNumLeaves(true)));

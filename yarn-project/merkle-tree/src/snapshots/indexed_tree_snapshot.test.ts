@@ -9,7 +9,15 @@ import { IndexedTreeSnapshotBuilder } from './indexed_tree_snapshot.js';
 import { describeSnapshotBuilderTestSuite } from './snapshot_builder_test_suite.js';
 
 class NullifierTree extends StandardIndexedTreeWithAppend {
-  constructor(db: AztecKVStore, hasher: Hasher, name: string, depth: number, size: bigint = 0n, root?: Buffer) {
+  constructor(
+    db: AztecKVStore,
+    hasher: Hasher,
+    name: string,
+    depth: number,
+    size: bigint = 0n,
+    _noop: any,
+    root?: Buffer,
+  ) {
     super(db, hasher, name, depth, size, NullifierLeafPreimage, NullifierLeaf, root);
   }
 }
@@ -21,7 +29,7 @@ describe('IndexedTreeSnapshotBuilder', () => {
 
   beforeEach(async () => {
     db = openTmpStore();
-    tree = await newTree(NullifierTree, db, new Pedersen(), 'test', 4);
+    tree = await newTree(NullifierTree, db, new Pedersen(), 'test', { fromBuffer: (b: Buffer) => b }, 4);
     snapshotBuilder = new IndexedTreeSnapshotBuilder(db, tree, NullifierLeafPreimage);
   });
 

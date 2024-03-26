@@ -7,6 +7,7 @@ import {
   PublicDataTreeLeafPreimage,
 } from '@aztec/circuits.js';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { FromBuffer } from '@aztec/foundation/serialize';
 import { AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { Hasher } from '@aztec/types/interfaces';
@@ -16,23 +17,43 @@ import { treeTestSuite } from '../../test/test_suite.js';
 import { StandardIndexedTreeWithAppend } from './standard_indexed_tree_with_append.js';
 
 class NullifierTree extends StandardIndexedTreeWithAppend {
-  constructor(store: AztecKVStore, hasher: Hasher, name: string, depth: number, size: bigint = 0n, root?: Buffer) {
+  constructor(
+    store: AztecKVStore,
+    hasher: Hasher,
+    name: string,
+    depth: number,
+    size: bigint = 0n,
+    _noop: any,
+    root?: Buffer,
+  ) {
     super(store, hasher, name, depth, size, NullifierLeafPreimage, NullifierLeaf, root);
   }
 }
 
 class PublicDataTree extends StandardIndexedTreeWithAppend {
-  constructor(store: AztecKVStore, hasher: Hasher, name: string, depth: number, size: bigint = 0n, root?: Buffer) {
+  constructor(
+    store: AztecKVStore,
+    hasher: Hasher,
+    name: string,
+    depth: number,
+    size: bigint = 0n,
+    _noop: any,
+    root?: Buffer,
+  ) {
     super(store, hasher, name, depth, size, PublicDataTreeLeafPreimage, PublicDataTreeLeaf, root);
   }
 }
 
+const noopDeserializer: FromBuffer<Buffer> = {
+  fromBuffer: (buffer: Buffer) => buffer,
+};
+
 const createDb = async (store: AztecKVStore, hasher: Hasher, name: string, depth: number, prefilledSize = 1) => {
-  return await newTree(NullifierTree, store, hasher, name, depth, prefilledSize);
+  return await newTree(NullifierTree, store, hasher, name, noopDeserializer, depth, prefilledSize);
 };
 
 const createFromName = async (store: AztecKVStore, hasher: Hasher, name: string) => {
-  return await loadTree(NullifierTree, store, hasher, name);
+  return await loadTree(NullifierTree, store, hasher, name, noopDeserializer);
 };
 
 const createNullifierTreeLeafHashInputs = (value: number, nextIndex: number, nextValue: number) => {
@@ -521,7 +542,7 @@ describe('StandardIndexedTreeSpecific', () => {
     it('should be able to upsert leaves', async () => {
       // Create a depth-3 indexed merkle tree
       const db = openTmpStore();
-      const tree = await newTree(PublicDataTree, db, pedersen, 'test', 3, 1);
+      const tree = await newTree(PublicDataTree, db, pedersen, 'test', {}, 3, 1);
 
       /**
        * Initial state:

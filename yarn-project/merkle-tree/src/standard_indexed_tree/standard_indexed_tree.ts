@@ -1,6 +1,7 @@
 import { SiblingPath } from '@aztec/circuit-types';
 import { TreeInsertionStats } from '@aztec/circuit-types/stats';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { FromBuffer } from '@aztec/foundation/serialize';
 import { Timer } from '@aztec/foundation/timer';
 import { IndexedTreeLeaf, IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 import { AztecKVStore, AztecMap } from '@aztec/kv-store';
@@ -51,10 +52,14 @@ function getEmptyLowLeafWitness<N extends number>(
   };
 }
 
+export const noopDeserializer: FromBuffer<Buffer> = {
+  fromBuffer: (buf: Buffer) => buf,
+};
+
 /**
  * Standard implementation of an indexed tree.
  */
-export class StandardIndexedTree extends TreeBase implements IndexedTree {
+export class StandardIndexedTree extends TreeBase<Buffer> implements IndexedTree {
   #snapshotBuilder = new IndexedTreeSnapshotBuilder(this.store, this, this.leafPreimageFactory);
 
   protected cachedLeafPreimages: { [key: string]: IndexedTreeLeafPreimage } = {};
@@ -71,7 +76,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     protected leafFactory: LeafFactory,
     root?: Buffer,
   ) {
-    super(store, hasher, name, depth, size, root);
+    super(store, hasher, name, depth, size, noopDeserializer, root);
     this.leaves = store.openMap(`tree_${name}_leaves`);
     this.leafIndex = store.openMap(`tree_${name}_leaf_index`);
   }

@@ -136,7 +136,7 @@ describe('prover/tx-prover', () => {
             .sort(sideEffectCmp),
           SideEffect.empty(),
           MAX_NEW_NOTE_HASHES_PER_TX,
-        ).map(l => l.value.toBuffer()),
+        ).map(l => l.value),
       ),
     );
     await expectsDb.batchInsert(

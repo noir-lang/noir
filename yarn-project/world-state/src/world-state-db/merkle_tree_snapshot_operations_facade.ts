@@ -1,10 +1,16 @@
 import { MerkleTreeId, SiblingPath } from '@aztec/circuit-types';
 import { AppendOnlyTreeSnapshot, Fr, Header, PartialStateReference, StateReference } from '@aztec/circuits.js';
 import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
-import { BatchInsertionResult, IndexedTreeSnapshot, TreeSnapshot } from '@aztec/merkle-tree';
+import { BatchInsertionResult, IndexedTreeSnapshot } from '@aztec/merkle-tree';
 
-import { MerkleTreeDb } from './merkle_tree_db.js';
-import { HandleL2BlockAndMessagesResult, MerkleTreeOperations, TreeInfo } from './merkle_tree_operations.js';
+import { MerkleTreeDb, TreeSnapshots } from './merkle_tree_db.js';
+import {
+  HandleL2BlockAndMessagesResult,
+  IndexedTreeId,
+  MerkleTreeLeafType,
+  MerkleTreeOperations,
+  TreeInfo,
+} from './merkle_tree_operations.js';
 
 /**
  * Merkle tree operations on readonly tree snapshots.
@@ -12,47 +18,56 @@ import { HandleL2BlockAndMessagesResult, MerkleTreeOperations, TreeInfo } from '
 export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations {
   #treesDb: MerkleTreeDb;
   #blockNumber: number;
-  #treeSnapshots: ReadonlyArray<TreeSnapshot | IndexedTreeSnapshot> = [];
+  #treeSnapshots: TreeSnapshots = {} as any;
 
   constructor(trees: MerkleTreeDb, blockNumber: number) {
     this.#treesDb = trees;
     this.#blockNumber = blockNumber;
   }
 
-  async #getTreeSnapshot(merkleTreeId: number): Promise<TreeSnapshot | IndexedTreeSnapshot> {
-    if (this.#treeSnapshots[merkleTreeId]) {
-      return this.#treeSnapshots[merkleTreeId];
+  async #getTreeSnapshot(treeId: MerkleTreeId): Promise<TreeSnapshots[typeof treeId]> {
+    if (this.#treeSnapshots[treeId]) {
+      return this.#treeSnapshots[treeId];
     }
 
     this.#treeSnapshots = await this.#treesDb.getSnapshot(this.#blockNumber);
-    return this.#treeSnapshots[merkleTreeId]!;
+    return this.#treeSnapshots[treeId]!;
   }
 
-  async findLeafIndex(treeId: MerkleTreeId, value: Buffer): Promise<bigint | undefined> {
+  async findLeafIndex<ID extends MerkleTreeId>(treeId: ID, value: MerkleTreeLeafType<ID>): Promise<bigint | undefined> {
     const tree = await this.#getTreeSnapshot(treeId);
-    return tree.findLeafIndex(value);
+    // TODO #5448 fix "as any"
+    return tree.findLeafIndex(value as any);
   }
 
-  async findLeafIndexAfter(treeId: MerkleTreeId, value: Buffer, startIndex: bigint): Promise<bigint | undefined> {
+  async findLeafIndexAfter<ID extends MerkleTreeId>(
+    treeId: MerkleTreeId,
+    value: MerkleTreeLeafType<ID>,
+    startIndex: bigint,
+  ): Promise<bigint | undefined> {
     const tree = await this.#getTreeSnapshot(treeId);
-    return tree.findLeafIndexAfter(value, startIndex);
+    // TODO #5448 fix "as any"
+    return tree.findLeafIndexAfter(value as any, startIndex);
   }
 
-  async getLeafPreimage(
-    treeId: MerkleTreeId.NULLIFIER_TREE,
+  async getLeafPreimage<ID extends IndexedTreeId>(
+    treeId: ID,
     index: bigint,
   ): Promise<IndexedTreeLeafPreimage | undefined> {
     const snapshot = (await this.#getTreeSnapshot(treeId)) as IndexedTreeSnapshot;
     return snapshot.getLatestLeafPreimageCopy(BigInt(index));
   }
 
-  async getLeafValue(treeId: MerkleTreeId, index: bigint): Promise<Buffer | undefined> {
+  async getLeafValue<ID extends MerkleTreeId>(
+    treeId: ID,
+    index: bigint,
+  ): Promise<MerkleTreeLeafType<typeof treeId> | undefined> {
     const snapshot = await this.#getTreeSnapshot(treeId);
-    return snapshot.getLeafValue(BigInt(index));
+    return snapshot.getLeafValue(BigInt(index)) as MerkleTreeLeafType<typeof treeId> | undefined;
   }
 
   async getPreviousValueIndex(
-    treeId: MerkleTreeId.NULLIFIER_TREE,
+    treeId: IndexedTreeId,
     value: bigint,
   ): Promise<
     | {

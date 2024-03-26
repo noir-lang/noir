@@ -1,7 +1,9 @@
 import { SiblingPath } from '@aztec/circuit-types';
 import { IndexedTreeLeaf, IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
+import { IndexedTreeSnapshot, TreeSnapshot, TreeSnapshotBuilder } from '../snapshots/snapshot_builder.js';
 import { AppendOnlyTree } from './append_only_tree.js';
+import { MerkleTree } from './merkle_tree.js';
 
 /**
  * Factory for creating leaf preimages.
@@ -73,7 +75,10 @@ export interface BatchInsertionResult<TreeHeight extends number, SubtreeSiblingP
 /**
  * Indexed merkle tree.
  */
-export interface IndexedTree extends AppendOnlyTree {
+export interface IndexedTree
+  extends MerkleTree<Buffer>,
+    TreeSnapshotBuilder<IndexedTreeSnapshot>,
+    Omit<AppendOnlyTree<Buffer>, keyof TreeSnapshotBuilder<TreeSnapshot<Buffer>>> {
   /**
    * Finds the index of the largest leaf whose value is less than or equal to the provided value.
    * @param newValue - The new value to be inserted into the tree.

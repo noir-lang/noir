@@ -28,7 +28,7 @@ import {
   setup,
 } from './fixtures/utils.js';
 
-jest.setTimeout(1_000_000);
+jest.setTimeout(100_000);
 
 const TOKEN_NAME = 'BananaCoin';
 const TOKEN_SYMBOL = 'BC';
