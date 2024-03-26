@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.31.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.30.1...barretenberg.js-v0.31.0) (2024-03-26)
+
+
+### Features
+
+* Earthly bb tests + arm + satellites ([#5268](https://github.com/AztecProtocol/aztec-packages/issues/5268)) ([eca12b3](https://github.com/AztecProtocol/aztec-packages/commit/eca12b3a173f9ef1880e3b703ab778beb036a23b))
+* Less earthly runners + e2e GA runners, bb bench ([#5356](https://github.com/AztecProtocol/aztec-packages/issues/5356)) ([2136a66](https://github.com/AztecProtocol/aztec-packages/commit/2136a66cc1fa2249b3ef47b787cfa1de9576dc38))
+* Simplified bb Honk interface ([#5319](https://github.com/AztecProtocol/aztec-packages/issues/5319)) ([a2d138f](https://github.com/AztecProtocol/aztec-packages/commit/a2d138fa8c0ecf90bea843d38d2d693d6a38b2cc))
+
 ## [0.30.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.30.0...barretenberg.js-v0.30.1) (2024-03-20)
 
 

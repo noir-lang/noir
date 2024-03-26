@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.31.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.30.1...aztec-cli-v0.31.0) (2024-03-26)
+
+
+### Features
+
+* Capture broadcasted functions in node ([#5353](https://github.com/AztecProtocol/aztec-packages/issues/5353)) ([bc05db2](https://github.com/AztecProtocol/aztec-packages/commit/bc05db26c864c9a9dae43f149814e082cdcfd7df))
+
+
+### Bug Fixes
+
+* **cli:** Support initializers not named constructor in cli ([#5397](https://github.com/AztecProtocol/aztec-packages/issues/5397)) ([85f14c5](https://github.com/AztecProtocol/aztec-packages/commit/85f14c5dc84c46910b8de498472959fa561d593c))
+
 ## [0.30.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.30.0...aztec-cli-v0.30.1) (2024-03-20)
 
 
