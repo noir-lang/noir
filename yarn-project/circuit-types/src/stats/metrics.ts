@@ -7,7 +7,8 @@ export type MetricGroupBy =
   | 'circuit-name'
   | 'classes-registered'
   | 'leaf-count'
-  | 'data-writes';
+  | 'data-writes'
+  | 'fee-payment-method';
 
 /** Definition of a metric to track in benchmarks. */
 export interface Metric {
@@ -131,6 +132,12 @@ export const Metrics = [
     name: 'tx_size_in_bytes',
     groupBy: 'classes-registered',
     description: 'Size of txs received in the mempool.',
+    events: ['tx-added-to-pool'],
+  },
+  {
+    name: 'tx_with_fee_size_in_bytes',
+    groupBy: 'fee-payment-method',
+    description: 'Size of txs after fully processing them (including fee payment).',
     events: ['tx-added-to-pool'],
   },
   {

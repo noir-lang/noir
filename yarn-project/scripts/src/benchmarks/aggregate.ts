@@ -160,8 +160,17 @@ function processTxPXEProcessingStats(entry: TxPXEProcessingStats, results: Bench
 }
 
 /** Process entries for events tx-public-part-processed, grouped by public data writes */
-function processTxSequencerProcessingStats(entry: TxSequencerProcessingStats, results: BenchmarkCollectedResults) {
+function processTxSequencerProcessingStats(
+  entry: TxSequencerProcessingStats,
+  results: BenchmarkCollectedResults,
+  fileName: string,
+) {
   append(results, 'tx_sequencer_processing_time_ms', entry.publicDataUpdateRequests, entry.duration);
+  // only track specific txs to ensure they're doing the same thing
+  // TODO(alexg): need a better way to identify these txs
+  if (entry.classRegisteredCount === 0 && entry.newCommitmentCount >= 2 && fileName.includes('bench-tx-size')) {
+    append(results, 'tx_with_fee_size_in_bytes', entry.feePaymentMethod, entry.effectsSize);
+  }
 }
 
 /** Process a tree insertion event and updates results */
@@ -192,7 +201,7 @@ function processTreeInsertion(entry: TreeInsertionStats, results: BenchmarkColle
 }
 
 /** Processes a parsed entry from a log-file and updates results */
-function processEntry(entry: Stats, results: BenchmarkCollectedResults) {
+function processEntry(entry: Stats, results: BenchmarkCollectedResults, fileName: string) {
   switch (entry.eventName) {
     case 'rollup-published-to-l1':
       return processRollupPublished(entry, results);
@@ -211,7 +220,7 @@ function processEntry(entry: Stats, results: BenchmarkCollectedResults) {
     case 'tx-pxe-processing':
       return processTxPXEProcessingStats(entry, results);
     case 'tx-sequencer-processing':
-      return processTxSequencerProcessingStats(entry, results);
+      return processTxSequencerProcessingStats(entry, results, fileName);
     case 'tree-insertion':
       return processTreeInsertion(entry, results);
     default:
@@ -240,7 +249,7 @@ export async function main() {
 
     for await (const line of rl) {
       const entry = JSON.parse(line);
-      processEntry(entry, collected);
+      processEntry(entry, collected, path.basename(filePath));
     }
   }
 

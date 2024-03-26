@@ -165,6 +165,18 @@ export class Tx {
 
       proofSize: this.proof.buffer.length,
       size: this.toBuffer().length,
+
+      feePaymentMethod:
+        // needsTeardown? then we pay a fee
+        this.data.needsTeardown
+          ? // needsSetup? then we pay through a fee payment contract
+            this.data.needsSetup
+            ? // if the first call is to `approve_public_authwit`, then it's a public payment
+              this.enqueuedPublicFunctionCalls.at(-1)!.functionData.selector.toField().toBigInt() === 0x43417bb1n
+              ? 'fpc_public'
+              : 'fpc_private'
+            : 'native'
+          : 'none',
       classRegisteredCount: this.unencryptedLogs
         .unrollLogs()
         .map(log => UnencryptedL2Log.fromBuffer(log))

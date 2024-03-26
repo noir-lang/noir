@@ -26,6 +26,8 @@ services:
       WS_BLOCK_CHECK_INTERVAL_MS: 50
       PXE_BLOCK_POLLING_INTERVAL_MS: 50
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
+      ENABLE_GAS: ${ENABLE_GAS:-''}
+      JOB_NAME: ${JOB_NAME:-''}
     command: ${TEST:-./src/e2e_deploy_contract.test.ts}
     volumes:
       - ../log:/usr/src/yarn-project/end-to-end/log:rw

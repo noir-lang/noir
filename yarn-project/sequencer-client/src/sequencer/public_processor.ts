@@ -7,6 +7,7 @@ import {
   getPreviousOutputAndProof,
   makeEmptyProcessedTx,
   makeProcessedTx,
+  toTxEffect,
   validateProcessedTx,
 } from '@aztec/circuit-types';
 import { TxSequencerProcessingStats } from '@aztec/circuit-types/stats';
@@ -133,6 +134,7 @@ export class PublicProcessor {
         this.log(`Processed public part of ${tx.data.endNonRevertibleData.newNullifiers[0].value}`, {
           eventName: 'tx-sequencer-processing',
           duration: timer.ms(),
+          effectsSize: toTxEffect(processedTransaction).toBuffer().length,
           publicDataUpdateRequests:
             processedTransaction.data.combinedData.publicDataUpdateRequests.filter(x => !x.leafSlot.isZero()).length ??
             0,
