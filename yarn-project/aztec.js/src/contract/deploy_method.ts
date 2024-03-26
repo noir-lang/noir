@@ -5,7 +5,7 @@ import {
   getContractClassFromArtifact,
   getContractInstanceFromDeployParams,
 } from '@aztec/circuits.js';
-import { ContractArtifact, FunctionArtifact, getDefaultInitializer } from '@aztec/foundation/abi';
+import { ContractArtifact, FunctionArtifact, getInitializer } from '@aztec/foundation/abi';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -63,16 +63,10 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     private artifact: ContractArtifact,
     private postDeployCtor: (address: AztecAddress, wallet: Wallet) => Promise<TContract>,
     private args: any[] = [],
-    constructorName?: string,
+    constructorNameOrArtifact?: string | FunctionArtifact,
   ) {
     super(wallet);
-    this.constructorArtifact = constructorName
-      ? artifact.functions.find(f => f.name === constructorName)
-      : getDefaultInitializer(artifact);
-
-    if (constructorName && !this.constructorArtifact) {
-      throw new Error(`Constructor method ${constructorName} not found in contract artifact`);
-    }
+    this.constructorArtifact = getInitializer(artifact, constructorNameOrArtifact);
   }
 
   /**

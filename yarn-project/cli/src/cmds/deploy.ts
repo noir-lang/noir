@@ -1,11 +1,12 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import { ContractDeployer, EthAddress, Fq, Fr, Point } from '@aztec/aztec.js';
+import { getInitializer } from '@aztec/foundation/abi';
 import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
 import { encodeArgs } from '../encoding.js';
 import { GITHUB_TAG_PREFIX } from '../github.js';
-import { getContractArtifact, getFunctionArtifact } from '../utils.js';
+import { getContractArtifact } from '../utils.js';
 
 export async function deploy(
   artifactPath: string,
@@ -16,13 +17,14 @@ export async function deploy(
   portalAddress: EthAddress,
   salt: Fr,
   privateKey: Fq,
+  initializer: string | undefined,
   wait: boolean,
   debugLogger: DebugLogger,
   log: LogFn,
   logJson: (output: any) => void,
 ) {
   const contractArtifact = await getContractArtifact(artifactPath, log);
-  const constructorArtifact = contractArtifact.functions.find(({ name }) => name === 'constructor');
+  const constructorArtifact = getInitializer(contractArtifact, initializer);
 
   const client = await createCompatibleClient(rpcUrl, debugLogger);
   const nodeInfo = await client.getNodeInfo();
@@ -34,16 +36,17 @@ export async function deploy(
   }
 
   const wallet = await getSchnorrAccount(client, privateKey, privateKey, Fr.ZERO).getWallet();
-  const deployer = new ContractDeployer(contractArtifact, wallet, publicKey);
+  const deployer = new ContractDeployer(contractArtifact, wallet, publicKey, initializer);
 
-  const constructor = getFunctionArtifact(contractArtifact, 'constructor');
-  if (!constructor) {
-    throw new Error(`Constructor not found in contract ABI`);
+  let args = [];
+  if (rawArgs.length > 0) {
+    if (!constructorArtifact) {
+      throw new Error(`Cannot process constructor arguments as no constructor was found`);
+    }
+    debugLogger(`Input arguments: ${rawArgs.map((x: any) => `"${x}"`).join(', ')}`);
+    args = encodeArgs(rawArgs, constructorArtifact!.parameters);
+    debugLogger(`Encoded arguments: ${args.join(', ')}`);
   }
-
-  debugLogger(`Input arguments: ${rawArgs.map((x: any) => `"${x}"`).join(', ')}`);
-  const args = encodeArgs(rawArgs, constructorArtifact!.parameters);
-  debugLogger(`Encoded arguments: ${args.join(', ')}`);
 
   const deploy = deployer.deploy(...args);
 

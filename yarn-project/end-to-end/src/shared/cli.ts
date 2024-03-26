@@ -8,16 +8,7 @@ const TRANSFER_BALANCE = 3000;
 
 export const cliTestSuite = (
   name: string,
-  setup: () => Promise<{
-    /**
-     * The PXE instance.
-     */
-    pxe: PXE;
-    /**
-     * The URL of the PXE RPC server.
-     */
-    rpcURL: string;
-  }>,
+  setup: () => Promise<{ pxe: PXE; rpcURL: string }>,
   cleanup: () => Promise<void>,
   debug: DebugLogger,
 ) =>
@@ -118,6 +109,38 @@ export const cliTestSuite = (
       const fetchedAddress = findInLogs(/Public Key:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
       expect(fetchedAddress).toEqual(newCompleteAddress.publicKey.toString());
     });
+
+    // Regression test for deploy cmd with a constructor not named "constructor"
+    it('deploys a contract using a public initializer', async () => {
+      debug('Create an account using a private key');
+      await run('generate-private-key', false);
+      const privKey = findInLogs(/Private\sKey:\s+0x(?<privKey>[a-fA-F0-9]+)/)?.groups?.privKey;
+      expect(privKey).toHaveLength(64);
+      await run(`create-account --private-key ${privKey}`);
+      const foundAddress = findInLogs(/Address:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
+      expect(foundAddress).toBeDefined();
+      const ownerAddress = AztecAddress.fromString(foundAddress!);
+      const salt = 42;
+
+      debug('Deploy StatefulTestContract with public_constructor using created account.');
+      await run(
+        `deploy StatefulTestContractArtifact --private-key ${privKey} --salt ${salt} --initializer public_constructor --args ${ownerAddress} 100`,
+      );
+      const loggedAddress = findInLogs(/Contract\sdeployed\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
+      expect(loggedAddress).toBeDefined();
+      contractAddress = AztecAddress.fromString(loggedAddress!);
+
+      const deployedContract = await pxe.getContractInstance(contractAddress);
+      expect(deployedContract?.address).toEqual(contractAddress);
+
+      clearLogs();
+      await run(
+        `call get_public_value --args ${ownerAddress} --contract-artifact StatefulTestContractArtifact --contract-address ${contractAddress.toString()}`,
+      );
+
+      const balance = findInLogs(/View\sresult:\s+(?<data>\S+)/)?.groups?.data;
+      expect(balance!).toEqual(`${BigInt(100).toString()}n`);
+    }, 60_000);
 
     it.each([
       ['an example Token contract', 'TokenContractArtifact', '0'],

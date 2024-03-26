@@ -342,8 +342,8 @@ export function getFunctionDebugMetadata(
 
 /**
  * Returns an initializer from the contract, assuming there is at least one. If there are multiple initializers,
- * it returns the one named "constructor"; if there is none with that name, it returns the first private initializer
- * it finds.
+ * it returns the one named "constructor" or "initializer"; if there is none with that name, it returns the first
+ * initializer it finds, prioritizing initializers with no arguments and then private ones.
  * @param contractArtifact - The contract artifact.
  * @returns An initializer function, or none if there are no functions flagged as initializers in the contract.
  */
@@ -351,7 +351,36 @@ export function getDefaultInitializer(contractArtifact: ContractArtifact): Funct
   const initializers = contractArtifact.functions.filter(f => f.isInitializer);
   return initializers.length > 1
     ? initializers.find(f => f.name === 'constructor') ??
+        initializers.find(f => f.name === 'initializer') ??
+        initializers.find(f => f.parameters?.length === 0) ??
         initializers.find(f => f.functionType === FunctionType.SECRET) ??
         initializers[0]
     : initializers[0];
+}
+
+/**
+ * Returns an initializer from the contract.
+ * @param initalizerNameOrArtifact - The name of the constructor, or the artifact of the constructor, or undefined
+ * to pick the default initializer.
+ */
+export function getInitializer(
+  contract: ContractArtifact,
+  initalizerNameOrArtifact: string | undefined | FunctionArtifact,
+): FunctionArtifact | undefined {
+  if (typeof initalizerNameOrArtifact === 'string') {
+    const found = contract.functions.find(f => f.name === initalizerNameOrArtifact);
+    if (!found) {
+      throw new Error(`Constructor method ${initalizerNameOrArtifact} not found in contract artifact`);
+    } else if (!found.isInitializer) {
+      throw new Error(`Method ${initalizerNameOrArtifact} is not an initializer`);
+    }
+    return found;
+  } else if (initalizerNameOrArtifact === undefined) {
+    return getDefaultInitializer(contract);
+  } else {
+    if (!initalizerNameOrArtifact.isInitializer) {
+      throw new Error(`Method ${initalizerNameOrArtifact.name} is not an initializer`);
+    }
+    return initalizerNameOrArtifact;
+  }
 }
