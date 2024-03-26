@@ -55,8 +55,6 @@ import {
 } from '@aztec/simulator';
 import { MerkleTreeOperations } from '@aztec/world-state';
 
-import { env } from 'process';
-
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { HintsBuilder } from './hints_builder.js';
 import { lastSideEffectCounter } from './utils.js';
@@ -209,9 +207,9 @@ export abstract class AbstractPhaseManager {
         const isExecutionRequest = !isPublicExecutionResult(current);
 
         const sideEffectCounter = lastSideEffectCounter(tx) + 1;
-        // NOTE: temporary glue to incorporate avm execution calls
+        // NOTE: temporary glue to incorporate avm execution calls.
         const simulator = (execution: PublicExecution, globalVariables: GlobalVariables) =>
-          env.AVM_ENABLED
+          execution.functionData.isTranspiled
             ? this.publicExecutor.simulateAvm(execution, globalVariables, sideEffectCounter)
             : this.publicExecutor.simulate(execution, globalVariables, sideEffectCounter);
 

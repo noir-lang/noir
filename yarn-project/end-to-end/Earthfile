@@ -8,10 +8,8 @@ E2E_TEST_LOCAL:
   FUNCTION
   ARG test
   ARG compose_file=./scripts/docker-compose.yml
-  ARG avm_enabled=""
   ARG enable_gas=""
   LOCALLY
-  ENV AVM_ENABLED=$avm_enabled
   ENV ENABLE_GAS=$enable_gas
   ENV TEST=$test.test.ts
   # Locally, we do not use WITH DOCKER as we have had issues with earthly copying big images
@@ -22,10 +20,8 @@ E2E_TEST_REMOTE:
   FUNCTION
   ARG test
   ARG compose_file=./scripts/docker-compose.yml
-  ARG avm_enabled=""
   ARG enable_gas=""
   FROM earthly/dind:alpine-3.19-docker-25.0.2-r0
-  ENV AVM_ENABLED=$avm_enabled
   ENV ENABLE_GAS=$enable_gas
   ENV TEST=$test.test.ts
   COPY $compose_file $compose_file
@@ -42,14 +38,13 @@ E2E_TEST:
   FUNCTION
   ARG test
   ARG compose_file=./scripts/docker-compose.yml
-  ARG avm_enabled=""
   ARG enable_gas=""
   ARG e2e_remote=false
   LOCALLY
   IF [ $e2e_remote = true ]
-    DO +E2E_TEST_REMOTE --test=$test --compose_file=$compose_file --avm_enabled=$avm_enabled --enable_gas=$enable_gas
+    DO +E2E_TEST_REMOTE --test=$test --compose_file=$compose_file --enable_gas=$enable_gas
   ELSE
-    DO +E2E_TEST_LOCAL --test=$test --compose_file=$compose_file --avm_enabled=$avm_enabled --enable_gas=$enable_gas
+    DO +E2E_TEST_LOCAL --test=$test --compose_file=$compose_file --enable_gas=$enable_gas
   END
 
 # we could use a parameterized target, but these just print cleaner in earthly log
@@ -143,7 +138,7 @@ e2e-card-game:
 
 e2e-avm-simulator:
   ARG e2e_remote=false
-  DO +E2E_TEST --test=e2e_avm_simulator --avm_enabled=1 --e2e_remote=$e2e_remote
+  DO +E2E_TEST --test=e2e_avm_simulator --e2e_remote=$e2e_remote
 
 e2e-fees:
   ARG e2e_remote=false
@@ -163,7 +158,7 @@ cli-docs-sandbox:
 
 e2e-docs-examples:
   ARG e2e_remote=false
-  DO +E2E_TEST --test=docs_examples --avm_enabled=1 --e2e_remote=$e2e_remote
+  DO +E2E_TEST --test=docs_examples --e2e_remote=$e2e_remote
 
 # all:
 #   for stability, instead of an 'all' target in Earthly, use `make all`

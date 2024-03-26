@@ -31,8 +31,6 @@ ssh -A -F $SSH_CONFIG_PATH $IP "
   export ECR_URL=$ECR_URL
   export BUILD_SYSTEM_DEBUG=${BUILD_SYSTEM_DEBUG:-}
 
-  # temp while we transitioning to avm
-  export AVM_ENABLED=${AVM_ENABLED:-}
   source ./remote_initialize
   $@
 "

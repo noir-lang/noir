@@ -21,4 +21,4 @@ $NARGO compile --silence-warnings
 
 echo "Transpiling avm contracts... (only '#[aztec(public-vm)]')"
 TRANSPILER=${TRANSPILER:-../../avm-transpiler/target/release/avm-transpiler}
-ls target/avm_*.json | parallel -L8 "$TRANSPILER {} {}"
+ls target/avm_*.json | parallel "$TRANSPILER {} {}"
