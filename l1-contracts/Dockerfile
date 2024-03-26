@@ -24,4 +24,4 @@ RUN yarn && yarn lint
 RUN forge build
 
 FROM scratch
-COPY --from=0 /usr/src/l1-contracts/out /usr/src/l1-contracts/out
+COPY --from=0 /usr/src/l1-contracts/ /usr/src/l1-contracts/

@@ -1193,6 +1193,16 @@ jobs:
             should_release || exit 0
             yarn-project/deploy_npm.sh latest
       - run:
+          name: "Release canary to NPM: l1-contracts"
+          command: |
+            should_release || exit 0
+            deploy_npm l1-contracts canary
+      - run:
+          name: "Release latest to NPM: l1-contracts"
+          command: |
+            should_release || exit 0
+            deploy_npm l1-contracts latest
+      - run:
           name: "Deploy mainnet fork"
           command: |
             should_deploy || exit 0
