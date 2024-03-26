@@ -1,4 +1,11 @@
-import { AztecNode, KeyStore, L1NotePayload, L2BlockContext, L2BlockL2Logs, TaggedNote } from '@aztec/circuit-types';
+import {
+  AztecNode,
+  EncryptedL2BlockL2Logs,
+  KeyStore,
+  L1NotePayload,
+  L2BlockContext,
+  TaggedNote,
+} from '@aztec/circuit-types';
 import { NoteProcessorStats } from '@aztec/circuit-types/stats';
 import { INITIAL_L2_BLOCK_NUM, MAX_NEW_NOTE_HASHES_PER_TX, PublicKey } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
@@ -84,7 +91,10 @@ export class NoteProcessor {
    * @param encryptedL2BlockLogs - An array of encrypted logs associated with the L2 block contexts.
    * @returns A promise that resolves once the processing is completed.
    */
-  public async process(l2BlockContexts: L2BlockContext[], encryptedL2BlockLogs: L2BlockL2Logs[]): Promise<void> {
+  public async process(
+    l2BlockContexts: L2BlockContext[],
+    encryptedL2BlockLogs: EncryptedL2BlockL2Logs[],
+  ): Promise<void> {
     if (l2BlockContexts.length !== encryptedL2BlockLogs.length) {
       throw new Error(
         `Number of blocks and EncryptedLogs is not equal. Received ${l2BlockContexts.length} blocks, ${encryptedL2BlockLogs.length} encrypted logs.`,
@@ -125,7 +135,7 @@ export class NoteProcessor {
         for (const functionLogs of txFunctionLogs) {
           for (const log of functionLogs.logs) {
             this.stats.seen++;
-            const taggedNote = TaggedNote.fromEncryptedBuffer(log, privateKey, curve);
+            const taggedNote = TaggedNote.fromEncryptedBuffer(log.data, privateKey, curve);
             if (taggedNote?.notePayload) {
               const { notePayload: payload } = taggedNote;
               // We have successfully decrypted the data.

@@ -1,12 +1,13 @@
 import {
+  EncryptedTxL2Logs,
   FunctionCall,
-  FunctionL2Logs,
   ProcessedTx,
   PublicDataWrite,
   SiblingPath,
   SimulationError,
   Tx,
-  TxL2Logs,
+  UnencryptedFunctionL2Logs,
+  UnencryptedTxL2Logs,
   mockTx,
   toTxEffect,
 } from '@aztec/circuit-types';
@@ -206,7 +207,13 @@ describe('public_processor', () => {
       );
       kernelOutput.end.unencryptedLogsHash = Fr.ZERO;
 
-      const tx = new Tx(kernelOutput, proof, TxL2Logs.empty(), TxL2Logs.empty(), publicCallRequests);
+      const tx = new Tx(
+        kernelOutput,
+        proof,
+        EncryptedTxL2Logs.empty(),
+        UnencryptedTxL2Logs.empty(),
+        publicCallRequests,
+      );
 
       tx.data.needsSetup = false;
       tx.data.needsTeardown = false;
@@ -252,7 +259,7 @@ describe('public_processor', () => {
       kernelOutput.needsSetup = false;
       kernelOutput.needsTeardown = false;
 
-      const tx = new Tx(kernelOutput, proof, TxL2Logs.empty(), TxL2Logs.empty(), [callRequest]);
+      const tx = new Tx(kernelOutput, proof, EncryptedTxL2Logs.empty(), UnencryptedTxL2Logs.empty(), [callRequest]);
 
       const publicExecutionResult = PublicExecutionResultBuilder.fromPublicCallRequest({
         request: callRequest,
@@ -302,8 +309,8 @@ describe('public_processor', () => {
       const tx = new Tx(
         kernelOutput,
         proof,
-        TxL2Logs.empty(),
-        TxL2Logs.empty(),
+        EncryptedTxL2Logs.empty(),
+        UnencryptedTxL2Logs.empty(),
         // reverse because `enqueuedPublicFunctions` expects the last element to be the front of the queue
         callRequests.slice().reverse(),
       );
@@ -418,8 +425,8 @@ describe('public_processor', () => {
       const tx = new Tx(
         kernelOutput,
         proof,
-        TxL2Logs.empty(),
-        TxL2Logs.empty(),
+        EncryptedTxL2Logs.empty(),
+        UnencryptedTxL2Logs.empty(),
         // reverse because `enqueuedPublicFunctions` expects the last element to be the front of the queue
         callRequests.slice().reverse(),
       );
@@ -522,8 +529,8 @@ describe('public_processor', () => {
       const tx = new Tx(
         kernelOutput,
         proof,
-        TxL2Logs.empty(),
-        TxL2Logs.empty(),
+        EncryptedTxL2Logs.empty(),
+        UnencryptedTxL2Logs.empty(),
         // reverse because `enqueuedPublicFunctions` expects the last element to be the front of the queue
         callRequests.slice().reverse(),
       );
@@ -625,8 +632,8 @@ describe('public_processor', () => {
       const tx = new Tx(
         kernelOutput,
         proof,
-        TxL2Logs.empty(),
-        TxL2Logs.empty(),
+        EncryptedTxL2Logs.empty(),
+        UnencryptedTxL2Logs.empty(),
         // reverse because `enqueuedPublicFunctions` expects the last element to be the front of the queue
         callRequests.slice().reverse(),
       );
@@ -812,7 +819,7 @@ class PublicExecutionResultBuilder {
       newNullifiers: [],
       newL2ToL1Messages: [],
       contractStorageReads: [],
-      unencryptedLogs: new FunctionL2Logs([]),
+      unencryptedLogs: UnencryptedFunctionL2Logs.empty(),
       startSideEffectCounter: Fr.ZERO,
       endSideEffectCounter: Fr.ZERO,
       reverted: this._reverted,

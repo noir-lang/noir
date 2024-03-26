@@ -1,4 +1,4 @@
-import { FunctionL2Logs, NullifierMembershipWitness, UnencryptedL2Log } from '@aztec/circuit-types';
+import { NullifierMembershipWitness, UnencryptedFunctionL2Logs, UnencryptedL2Log } from '@aztec/circuit-types';
 import { CallContext, FunctionData, FunctionSelector, GlobalVariables, Header } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -72,7 +72,7 @@ export class PublicExecutionContext extends TypedOracle {
    * Return the encrypted logs emitted during this execution.
    */
   public getUnencryptedLogs() {
-    return new FunctionL2Logs(this.unencryptedLogs.map(log => log.toBuffer()));
+    return new UnencryptedFunctionL2Logs(this.unencryptedLogs);
   }
 
   /**

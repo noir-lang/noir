@@ -1,6 +1,7 @@
 import {
   AuthWitness,
   AztecNode,
+  EncryptedTxL2Logs,
   ExtendedNote,
   FunctionCall,
   GetUnencryptedLogsResponse,
@@ -15,8 +16,8 @@ import {
   TxEffect,
   TxExecutionRequest,
   TxHash,
-  TxL2Logs,
   TxReceipt,
+  UnencryptedTxL2Logs,
   isNoirCallStackUnresolved,
 } from '@aztec/circuit-types';
 import { TxPXEProcessingStats } from '@aztec/circuit-types/stats';
@@ -621,8 +622,8 @@ export class PXEService implements PXE {
       `Needs setup: ${publicInputs.needsSetup}, needs app logic: ${publicInputs.needsAppLogic}, needs teardown: ${publicInputs.needsTeardown}`,
     );
 
-    const encryptedLogs = new TxL2Logs(collectEncryptedLogs(executionResult));
-    const unencryptedLogs = new TxL2Logs(collectUnencryptedLogs(executionResult));
+    const encryptedLogs = new EncryptedTxL2Logs(collectEncryptedLogs(executionResult));
+    const unencryptedLogs = new UnencryptedTxL2Logs(collectUnencryptedLogs(executionResult));
     const enqueuedPublicFunctions = collectEnqueuedPublicFunctionCalls(executionResult);
 
     // HACK(#1639): Manually patches the ordering of the public call stack

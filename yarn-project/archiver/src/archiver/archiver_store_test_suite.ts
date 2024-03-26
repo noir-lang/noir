@@ -1,4 +1,4 @@
-import { InboxLeaf, L2Block, L2BlockContext, LogId, LogType, TxHash, UnencryptedL2Log } from '@aztec/circuit-types';
+import { InboxLeaf, L2Block, L2BlockContext, LogId, LogType, TxHash } from '@aztec/circuit-types';
 import '@aztec/circuit-types/jest';
 import { AztecAddress, Fr, INITIAL_L2_BLOCK_NUM, L1_TO_L2_MSG_SUBTREE_HEIGHT } from '@aztec/circuits.js';
 import {
@@ -367,11 +367,10 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         const targetTxIndex = randomInt(txsPerBlock);
         const targetFunctionLogIndex = randomInt(numPublicFunctionCalls);
         const targetLogIndex = randomInt(numUnencryptedLogs);
-        const targetContractAddress = UnencryptedL2Log.fromBuffer(
+        const targetContractAddress =
           blocks.retrievedData[targetBlockIndex].body.txEffects[targetTxIndex].unencryptedLogs.functionLogs[
             targetFunctionLogIndex
-          ].logs[targetLogIndex],
-        ).contractAddress;
+          ].logs[targetLogIndex].contractAddress;
 
         const response = await store.getUnencryptedLogs({ contractAddress: targetContractAddress });
 
@@ -388,11 +387,10 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         const targetTxIndex = randomInt(txsPerBlock);
         const targetFunctionLogIndex = randomInt(numPublicFunctionCalls);
         const targetLogIndex = randomInt(numUnencryptedLogs);
-        const targetSelector = UnencryptedL2Log.fromBuffer(
+        const targetSelector =
           blocks.retrievedData[targetBlockIndex].body.txEffects[targetTxIndex].unencryptedLogs.functionLogs[
             targetFunctionLogIndex
-          ].logs[targetLogIndex],
-        ).selector;
+          ].logs[targetLogIndex].selector;
 
         const response = await store.getUnencryptedLogs({ selector: targetSelector });
 

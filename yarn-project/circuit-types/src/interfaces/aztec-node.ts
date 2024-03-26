@@ -12,7 +12,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { ContractClassPublic, ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { L2Block } from '../l2_block.js';
-import { GetUnencryptedLogsResponse, L2BlockL2Logs, LogFilter, LogType } from '../logs/index.js';
+import { FromLogType, GetUnencryptedLogsResponse, L2BlockL2Logs, LogFilter, LogType } from '../logs/index.js';
 import { MerkleTreeId } from '../merkle_tree_id.js';
 import { SiblingPath } from '../sibling_path/index.js';
 import { Tx, TxHash, TxReceipt } from '../tx/index.js';
@@ -203,7 +203,11 @@ export interface AztecNode {
    * @param logType - Specifies whether to return encrypted or unencrypted logs.
    * @returns The requested logs.
    */
-  getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]>;
+  getLogs<TLogType extends LogType>(
+    from: number,
+    limit: number,
+    logType: TLogType,
+  ): Promise<L2BlockL2Logs<FromLogType<TLogType>>[]>;
 
   /**
    * Gets unencrypted logs based on the provided filter.

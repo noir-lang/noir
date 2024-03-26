@@ -1,9 +1,9 @@
 import {
   AuthWitness,
+  EncryptedL2BlockL2Logs,
   ExtendedNote,
   ExtendedUnencryptedL2Log,
   L2Block,
-  L2BlockL2Logs,
   LogId,
   Note,
   NullifierMembershipWitness,
@@ -13,6 +13,7 @@ import {
   TxExecutionRequest,
   TxHash,
   TxReceipt,
+  UnencryptedL2BlockL2Logs,
 } from '@aztec/circuit-types';
 import {
   AztecAddress,
@@ -52,7 +53,7 @@ export const createPXEClient = (url: string, fetch = makeFetch([1, 2, 3], false)
       TxExecutionRequest,
       TxHash,
     },
-    { Tx, TxReceipt, L2BlockL2Logs, NullifierMembershipWitness },
+    { Tx, TxReceipt, EncryptedL2BlockL2Logs, UnencryptedL2BlockL2Logs, NullifierMembershipWitness },
     false,
     'pxe',
     fetch,

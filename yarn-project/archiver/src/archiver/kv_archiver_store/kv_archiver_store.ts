@@ -1,5 +1,7 @@
 import {
   Body,
+  EncryptedL2BlockL2Logs,
+  FromLogType,
   GetUnencryptedLogsResponse,
   InboxLeaf,
   L2Block,
@@ -9,6 +11,7 @@ import {
   TxEffect,
   TxHash,
   TxReceipt,
+  UnencryptedL2BlockL2Logs,
 } from '@aztec/circuit-types';
 import { Fr } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -150,8 +153,8 @@ export class KVArchiverDataStore implements ArchiverDataStore {
    * @returns True if the operation is successful.
    */
   addLogs(
-    encryptedLogs: L2BlockL2Logs | undefined,
-    unencryptedLogs: L2BlockL2Logs | undefined,
+    encryptedLogs: EncryptedL2BlockL2Logs | undefined,
+    unencryptedLogs: UnencryptedL2BlockL2Logs | undefined,
     blockNumber: number,
   ): Promise<boolean> {
     return this.#logStore.addLogs(encryptedLogs, unencryptedLogs, blockNumber);
@@ -196,7 +199,11 @@ export class KVArchiverDataStore implements ArchiverDataStore {
    * @param logType - Specifies whether to return encrypted or unencrypted logs.
    * @returns The requested logs.
    */
-  getLogs(start: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]> {
+  getLogs<TLogType extends LogType>(
+    start: number,
+    limit: number,
+    logType: TLogType,
+  ): Promise<L2BlockL2Logs<FromLogType<TLogType>>[]> {
     try {
       return Promise.resolve(Array.from(this.#logStore.getLogs(start, limit, logType)));
     } catch (err) {

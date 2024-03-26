@@ -1,4 +1,5 @@
 import {
+  FromLogType,
   GetUnencryptedLogsResponse,
   L1ToL2MessageSource,
   L2Block,
@@ -276,8 +277,7 @@ export class Archiver implements ArchiveSource {
       retrievedBlocks.retrievedData.map(async block => {
         const blockLogs = block.body.txEffects
           .flatMap(txEffect => (txEffect ? [txEffect.unencryptedLogs] : []))
-          .flatMap(txLog => txLog.unrollLogs())
-          .map(log => UnencryptedL2Log.fromBuffer(log));
+          .flatMap(txLog => txLog.unrollLogs());
         await this.storeRegisteredContractClasses(blockLogs, block.number);
         await this.storeDeployedContractInstances(blockLogs, block.number);
         await this.storeBroadcastedIndividualFunctions(blockLogs, block.number);
@@ -437,7 +437,11 @@ export class Archiver implements ArchiveSource {
    * @param logType - Specifies whether to return encrypted or unencrypted logs.
    * @returns The requested logs.
    */
-  public getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]> {
+  public getLogs<TLogType extends LogType>(
+    from: number,
+    limit: number,
+    logType: TLogType,
+  ): Promise<L2BlockL2Logs<FromLogType<TLogType>>[]> {
     return this.store.getLogs(from, limit, logType);
   }
 

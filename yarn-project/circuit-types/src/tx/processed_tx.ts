@@ -1,4 +1,12 @@
-import { PublicDataWrite, SimulationError, Tx, TxEffect, TxHash, TxL2Logs } from '@aztec/circuit-types';
+import {
+  EncryptedTxL2Logs,
+  PublicDataWrite,
+  SimulationError,
+  Tx,
+  TxEffect,
+  TxHash,
+  UnencryptedTxL2Logs,
+} from '@aztec/circuit-types';
 import {
   Fr,
   Header,
@@ -143,8 +151,8 @@ export function makeProcessedTx(
     hash: tx.getTxHash(),
     data: publicKernelPublicInput,
     proof: previousProof,
-    encryptedLogs: revertReason ? new TxL2Logs([]) : tx.encryptedLogs,
-    unencryptedLogs: revertReason ? new TxL2Logs([]) : tx.unencryptedLogs,
+    encryptedLogs: revertReason ? EncryptedTxL2Logs.empty() : tx.encryptedLogs,
+    unencryptedLogs: revertReason ? UnencryptedTxL2Logs.empty() : tx.unencryptedLogs,
     isEmpty: false,
     revertReason,
   };
@@ -164,8 +172,8 @@ export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr): 
   const hash = new TxHash(Fr.ZERO.toBuffer());
   return {
     hash,
-    encryptedLogs: new TxL2Logs([]),
-    unencryptedLogs: new TxL2Logs([]),
+    encryptedLogs: EncryptedTxL2Logs.empty(),
+    unencryptedLogs: UnencryptedTxL2Logs.empty(),
     data: emptyKernelOutput,
     proof: emptyProof,
     isEmpty: true,
@@ -186,13 +194,13 @@ export function toTxEffect(tx: ProcessedTx): TxEffect {
       PublicDataWrite,
       typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
     >,
-    tx.encryptedLogs || new TxL2Logs([]),
-    tx.unencryptedLogs || new TxL2Logs([]),
+    tx.encryptedLogs || EncryptedTxL2Logs.empty(),
+    tx.unencryptedLogs || UnencryptedTxL2Logs.empty(),
   );
 }
 
 function validateProcessedTxLogs(tx: ProcessedTx): void {
-  const unencryptedLogs = tx.unencryptedLogs || new TxL2Logs([]);
+  const unencryptedLogs = tx.unencryptedLogs || UnencryptedTxL2Logs.empty();
   const kernelUnencryptedLogsHash = tx.data.combinedData.unencryptedLogsHash;
   const referenceHash = Fr.fromBuffer(unencryptedLogs.hash());
   if (!referenceHash.equals(kernelUnencryptedLogsHash)) {

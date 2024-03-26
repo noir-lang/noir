@@ -1,14 +1,15 @@
 import {
   AztecNode,
-  FunctionL2Logs,
+  EncryptedFunctionL2Logs,
+  EncryptedL2BlockL2Logs,
+  EncryptedL2Log,
+  EncryptedTxL2Logs,
   KeyPair,
   KeyStore,
   L1NotePayload,
   L2Block,
   L2BlockContext,
-  L2BlockL2Logs,
   TaggedNote,
-  TxL2Logs,
 } from '@aztec/circuit-types';
 import { Fr, INITIAL_L2_BLOCK_NUM, MAX_NEW_NOTE_HASHES_PER_TX } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
@@ -47,7 +48,7 @@ describe('Note Processor', () => {
   const createEncryptedLogsAndOwnedL1NotePayloads = (ownedData: number[][], ownedNotes: TaggedNote[]) => {
     const newNotes: TaggedNote[] = [];
     const ownedL1NotePayloads: L1NotePayload[] = [];
-    const txLogs: TxL2Logs[] = [];
+    const txLogs: EncryptedTxL2Logs[] = [];
     let usedOwnedNote = 0;
     for (let i = 0; i < TXS_PER_BLOCK; ++i) {
       const ownedDataIndices = ownedData[i] || [];
@@ -55,7 +56,7 @@ describe('Note Processor', () => {
         throw new Error(`Data index should be less than ${MAX_NEW_NOTE_HASHES_PER_TX}.`);
       }
 
-      const logs: FunctionL2Logs[] = [];
+      const logs: EncryptedFunctionL2Logs[] = [];
       for (let noteIndex = 0; noteIndex < MAX_NEW_NOTE_HASHES_PER_TX; ++noteIndex) {
         const isOwner = ownedDataIndices.includes(noteIndex);
         const publicKey = isOwner ? owner.getPublicKey() : Point.random();
@@ -68,12 +69,12 @@ describe('Note Processor', () => {
         // const encryptedNote =
         const log = note.toEncryptedBuffer(publicKey, grumpkin);
         // 1 tx containing 1 function invocation containing 1 log
-        logs.push(new FunctionL2Logs([log]));
+        logs.push(new EncryptedFunctionL2Logs([new EncryptedL2Log(log)]));
       }
-      txLogs.push(new TxL2Logs(logs));
+      txLogs.push(new EncryptedTxL2Logs(logs));
     }
 
-    const encryptedLogs = new L2BlockL2Logs(txLogs);
+    const encryptedLogs = new EncryptedL2BlockL2Logs(txLogs);
     return { newNotes, ownedL1NotePayloads, encryptedLogs };
   };
 
@@ -88,7 +89,7 @@ describe('Note Processor', () => {
     }
 
     const blockContexts: L2BlockContext[] = [];
-    const encryptedLogsArr: L2BlockL2Logs[] = [];
+    const encryptedLogsArr: EncryptedL2BlockL2Logs[] = [];
     const ownedL1NotePayloads: L1NotePayload[] = [];
     const numberOfBlocks = prependedBlocks + appendedBlocks + 1;
     for (let i = 0; i < numberOfBlocks; ++i) {

@@ -2,18 +2,19 @@ import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serializ
 
 import isEqual from 'lodash.isequal';
 
-import { LogType } from './log_type.js';
-import { TxL2Logs } from './tx_l2_logs.js';
+import { EncryptedL2Log } from './encrypted_l2_log.js';
+import { EncryptedTxL2Logs, TxL2Logs, UnencryptedTxL2Logs } from './tx_l2_logs.js';
+import { UnencryptedL2Log } from './unencrypted_l2_log.js';
 
 /**
  * Data container of logs emitted in all txs in a given L2 block.
  */
-export class L2BlockL2Logs {
+export abstract class L2BlockL2Logs<TLog extends UnencryptedL2Log | EncryptedL2Log> {
   constructor(
     /**
      * An array containing logs emitted in individual function invocations in this tx.
      */
-    public readonly txLogs: TxL2Logs[],
+    public readonly txLogs: TxL2Logs<TLog>[],
   ) {}
 
   /**
@@ -42,75 +43,11 @@ export class L2BlockL2Logs {
   }
 
   /**
-   * Deserializes logs from a buffer.
-   * @param buffer - The buffer containing the serialized logs.
-   * @returns A new `L2BlockL2Logs` object.
-   */
-  public static fromBuffer(buffer: Buffer | BufferReader): L2BlockL2Logs {
-    const reader = BufferReader.asReader(buffer);
-
-    const logsBufLength = reader.readNumber();
-    const serializedTxLogs = reader.readBufferArray(logsBufLength);
-
-    const txLogs = serializedTxLogs.map(logs => TxL2Logs.fromBuffer(logs, false));
-    return new L2BlockL2Logs(txLogs);
-  }
-
-  /**
    * Seralizes logs into a string.
    * @returns A string representation of the serialized logs.
    */
   public toString(): string {
     return this.toBuffer().toString('hex');
-  }
-
-  /**
-   * Deserializes logs from a string.
-   * @param data - The string containing the serialized logs.
-   * @returns A new `L2BlockL2Logs` object.
-   */
-  public static fromString(data: string): L2BlockL2Logs {
-    const buffer = Buffer.from(data, 'hex');
-    return L2BlockL2Logs.fromBuffer(buffer);
-  }
-
-  /**
-   * Creates a new `L2BlockL2Logs` object with `numCalls` function logs and `numLogsPerCall` logs in each function
-   * call.
-   * @param numTxs - The number of txs in the block.
-   * @param numCalls - The number of function calls in the tx.
-   * @param numLogsPerCall - The number of logs emitted in each function call.
-   * @param logType - The type of logs to generate.
-   * @returns A new `L2BlockL2Logs` object.
-   */
-  public static random(
-    numTxs: number,
-    numCalls: number,
-    numLogsPerCall: number,
-    logType = LogType.ENCRYPTED,
-  ): L2BlockL2Logs {
-    const txLogs: TxL2Logs[] = [];
-    for (let i = 0; i < numTxs; i++) {
-      txLogs.push(TxL2Logs.random(numCalls, numLogsPerCall, logType));
-    }
-    return new L2BlockL2Logs(txLogs);
-  }
-
-  /**
-   * Unrolls logs from a set of blocks.
-   * @param blockLogs - Input logs from a set of blocks.
-   * @returns Unrolled logs.
-   */
-  public static unrollLogs(blockLogs: (L2BlockL2Logs | undefined)[]): Buffer[] {
-    const logs: Buffer[] = [];
-    for (const blockLog of blockLogs) {
-      if (blockLog) {
-        for (const txLog of blockLog.txLogs) {
-          logs.push(...txLog.unrollLogs());
-        }
-      }
-    }
-    return logs;
   }
 
   /**
@@ -128,18 +65,8 @@ export class L2BlockL2Logs {
    * @param other - Another L2BlockL2Logs object to compare with.
    * @returns True if the two objects are equal, false otherwise.
    */
-  public equals(other: L2BlockL2Logs): boolean {
+  public equals(other: L2BlockL2Logs<TLog>): boolean {
     return isEqual(this, other);
-  }
-
-  /**
-   * Convert a plain JSON object to a L2BlockL2Logs class object.
-   * @param obj - A plain L2BlockL2Logs JSON object.
-   * @returns A L2BlockL2Logs class object.
-   */
-  public static fromJSON(obj: any) {
-    const txLogs = obj.txLogs.map((log: any) => TxL2Logs.fromJSON(log));
-    return new L2BlockL2Logs(txLogs);
   }
 
   /**
@@ -147,7 +74,151 @@ export class L2BlockL2Logs {
    * @param l2BlockL2logs - L2BlockL2Logs to sum over.
    * @returns Total sum of log entries.
    */
-  public static getTotalLogCount(l2BlockL2logs: L2BlockL2Logs[]): number {
+  public static getTotalLogCount<TLog extends UnencryptedL2Log | EncryptedL2Log>(
+    l2BlockL2logs: L2BlockL2Logs<TLog>[],
+  ): number {
     return l2BlockL2logs.reduce((sum, log) => sum + log.getTotalLogCount(), 0);
+  }
+}
+
+export class EncryptedL2BlockL2Logs extends L2BlockL2Logs<EncryptedL2Log> {
+  /**
+   * Convert a plain JSON object to a L2BlockL2Logs class object.
+   * @param obj - A plain L2BlockL2Logs JSON object.
+   * @returns A L2BlockL2Logs class object.
+   */
+  public static fromJSON(obj: any) {
+    const txLogs = obj.txLogs.map((log: any) => EncryptedTxL2Logs.fromJSON(log));
+    return new EncryptedL2BlockL2Logs(txLogs);
+  }
+
+  /**
+   * Deserializes logs from a buffer.
+   * @param buffer - The buffer containing the serialized logs.
+   * @returns A new `L2BlockL2Logs` object.
+   */
+  public static fromBuffer(buffer: Buffer | BufferReader): EncryptedL2BlockL2Logs {
+    const reader = BufferReader.asReader(buffer);
+
+    const logsBufLength = reader.readNumber();
+    const serializedTxLogs = reader.readBufferArray(logsBufLength);
+
+    const txLogs = serializedTxLogs.map(logs => EncryptedTxL2Logs.fromBuffer(logs, false));
+    return new EncryptedL2BlockL2Logs(txLogs);
+  }
+
+  /**
+   * Deserializes logs from a string.
+   * @param data - The string containing the serialized logs.
+   * @returns A new `L2BlockL2Logs` object.
+   */
+  public static fromString(data: string): EncryptedL2BlockL2Logs {
+    const buffer = Buffer.from(data, 'hex');
+    return EncryptedL2BlockL2Logs.fromBuffer(buffer);
+  }
+
+  /**
+   * Creates a new `L2BlockL2Logs` object with `numCalls` function logs and `numLogsPerCall` logs in each function
+   * call.
+   * @param numTxs - The number of txs in the block.
+   * @param numCalls - The number of function calls in the tx.
+   * @param numLogsPerCall - The number of logs emitted in each function call.
+   * @param logType - The type of logs to generate.
+   * @returns A new `L2BlockL2Logs` object.
+   */
+  public static random(numTxs: number, numCalls: number, numLogsPerCall: number): EncryptedL2BlockL2Logs {
+    const txLogs: EncryptedTxL2Logs[] = [];
+    for (let i = 0; i < numTxs; i++) {
+      txLogs.push(EncryptedTxL2Logs.random(numCalls, numLogsPerCall));
+    }
+    return new EncryptedL2BlockL2Logs(txLogs);
+  }
+
+  /**
+   * Unrolls logs from a set of blocks.
+   * @param blockLogs - Input logs from a set of blocks.
+   * @returns Unrolled logs.
+   */
+  public static unrollLogs(blockLogs: (EncryptedL2BlockL2Logs | undefined)[]): EncryptedL2Log[] {
+    const logs: EncryptedL2Log[] = [];
+    for (const blockLog of blockLogs) {
+      if (blockLog) {
+        for (const txLog of blockLog.txLogs) {
+          logs.push(...txLog.unrollLogs());
+        }
+      }
+    }
+    return logs;
+  }
+}
+
+export class UnencryptedL2BlockL2Logs extends L2BlockL2Logs<UnencryptedL2Log> {
+  /**
+   * Convert a plain JSON object to a L2BlockL2Logs class object.
+   * @param obj - A plain L2BlockL2Logs JSON object.
+   * @returns A L2BlockL2Logs class object.
+   */
+  public static fromJSON(obj: any) {
+    const txLogs = obj.txLogs.map((log: any) => UnencryptedTxL2Logs.fromJSON(log));
+    return new UnencryptedL2BlockL2Logs(txLogs);
+  }
+
+  /**
+   * Deserializes logs from a buffer.
+   * @param buffer - The buffer containing the serialized logs.
+   * @returns A new `L2BlockL2Logs` object.
+   */
+  public static fromBuffer(buffer: Buffer | BufferReader): UnencryptedL2BlockL2Logs {
+    const reader = BufferReader.asReader(buffer);
+
+    const logsBufLength = reader.readNumber();
+    const serializedTxLogs = reader.readBufferArray(logsBufLength);
+
+    const txLogs = serializedTxLogs.map(logs => UnencryptedTxL2Logs.fromBuffer(logs, false));
+    return new UnencryptedL2BlockL2Logs(txLogs);
+  }
+
+  /**
+   * Deserializes logs from a string.
+   * @param data - The string containing the serialized logs.
+   * @returns A new `L2BlockL2Logs` object.
+   */
+  public static fromString(data: string): UnencryptedL2BlockL2Logs {
+    const buffer = Buffer.from(data, 'hex');
+    return UnencryptedL2BlockL2Logs.fromBuffer(buffer);
+  }
+
+  /**
+   * Creates a new `L2BlockL2Logs` object with `numCalls` function logs and `numLogsPerCall` logs in each function
+   * call.
+   * @param numTxs - The number of txs in the block.
+   * @param numCalls - The number of function calls in the tx.
+   * @param numLogsPerCall - The number of logs emitted in each function call.
+   * @param logType - The type of logs to generate.
+   * @returns A new `L2BlockL2Logs` object.
+   */
+  public static random(numTxs: number, numCalls: number, numLogsPerCall: number): UnencryptedL2BlockL2Logs {
+    const txLogs: UnencryptedTxL2Logs[] = [];
+    for (let i = 0; i < numTxs; i++) {
+      txLogs.push(UnencryptedTxL2Logs.random(numCalls, numLogsPerCall));
+    }
+    return new UnencryptedL2BlockL2Logs(txLogs);
+  }
+
+  /**
+   * Unrolls logs from a set of blocks.
+   * @param blockLogs - Input logs from a set of blocks.
+   * @returns Unrolled logs.
+   */
+  public static unrollLogs(blockLogs: (UnencryptedL2BlockL2Logs | undefined)[]): UnencryptedL2Log[] {
+    const logs: UnencryptedL2Log[] = [];
+    for (const blockLog of blockLogs) {
+      if (blockLog) {
+        for (const txLog of blockLog.txLogs) {
+          logs.push(...txLog.unrollLogs());
+        }
+      }
+    }
+    return logs;
   }
 }

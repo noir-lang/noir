@@ -1,4 +1,4 @@
-import { FunctionL2Logs } from '@aztec/circuit-types';
+import { UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
 import { Fr, GlobalVariables, Header, PublicCircuitPublicInputs } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 
@@ -92,7 +92,7 @@ export async function executePublicFunction(
       contractStorageReads: [],
       contractStorageUpdateRequests: [],
       nestedExecutions: [],
-      unencryptedLogs: FunctionL2Logs.empty(),
+      unencryptedLogs: UnencryptedFunctionL2Logs.empty(),
       reverted,
       revertReason,
     };

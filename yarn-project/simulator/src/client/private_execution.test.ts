@@ -214,7 +214,7 @@ describe('Private Execution test suite', () => {
       const [functionLogs] = collectUnencryptedLogs(result);
       expect(functionLogs.logs).toHaveLength(1);
       // Test that the log payload (ie ignoring address, selector, and header) matches what we emitted
-      expect(functionLogs.logs[0].subarray(-32).toString('hex')).toEqual(owner.toBuffer().toString('hex'));
+      expect(functionLogs.logs[0].data.subarray(-32).toString('hex')).toEqual(owner.toBuffer().toString('hex'));
     });
 
     it('emits a field array as an unencrypted log', async () => {
@@ -225,7 +225,7 @@ describe('Private Execution test suite', () => {
       expect(functionLogs.logs).toHaveLength(1);
       // Test that the log payload (ie ignoring address, selector, and header) matches what we emitted
       const expected = Buffer.concat(args[0].map(arg => arg.toBuffer())).toString('hex');
-      expect(functionLogs.logs[0].subarray(-32 * 5).toString('hex')).toEqual(expected);
+      expect(functionLogs.logs[0].data.subarray(-32 * 5).toString('hex')).toEqual(expected);
     });
   });
 

@@ -1,7 +1,7 @@
 import { GetUnencryptedLogsResponse } from './get_unencrypted_logs_response.js';
 import { L2BlockL2Logs } from './l2_block_l2_logs.js';
 import { LogFilter } from './log_filter.js';
-import { LogType } from './log_type.js';
+import { FromLogType, LogType } from './log_type.js';
 
 /**
  * Interface of classes allowing for the retrieval of logs.
@@ -14,7 +14,11 @@ export interface L2LogsSource {
    * @param logType - Specifies whether to return encrypted or unencrypted logs.
    * @returns The requested logs.
    */
-  getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]>;
+  getLogs<TLogType extends LogType>(
+    from: number,
+    limit: number,
+    logType: TLogType,
+  ): Promise<L2BlockL2Logs<FromLogType<TLogType>>[]>;
 
   /**
    * Gets unencrypted logs based on the provided filter.

@@ -1,4 +1,4 @@
-import { LogType, PublicDataWrite, TxHash, TxL2Logs } from '@aztec/circuit-types';
+import { EncryptedTxL2Logs, PublicDataWrite, TxHash, UnencryptedTxL2Logs } from '@aztec/circuit-types';
 import {
   Fr,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
@@ -45,8 +45,8 @@ export class TxEffect {
     /**
      * The logs of the txEffect
      */
-    public encryptedLogs: TxL2Logs,
-    public unencryptedLogs: TxL2Logs,
+    public encryptedLogs: EncryptedTxL2Logs,
+    public unencryptedLogs: UnencryptedTxL2Logs,
   ) {}
 
   toBuffer(): Buffer {
@@ -86,8 +86,8 @@ export class TxEffect {
       padArrayEnd(nonZeroNullifiers, Fr.ZERO, MAX_NEW_NULLIFIERS_PER_TX),
       padArrayEnd(nonZeroL2ToL1Msgs, Fr.ZERO, MAX_NEW_L2_TO_L1_MSGS_PER_TX),
       padArrayEnd(nonZeroPublicDataWrites, PublicDataWrite.empty(), MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX),
-      TxL2Logs.fromBuffer(reader),
-      TxL2Logs.fromBuffer(reader),
+      EncryptedTxL2Logs.fromBuffer(reader),
+      UnencryptedTxL2Logs.fromBuffer(reader),
     );
   }
 
@@ -137,8 +137,8 @@ export class TxEffect {
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.random),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.random),
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataWrite.random),
-      TxL2Logs.random(numPrivateCallsPerTx, numEncryptedLogsPerCall, LogType.ENCRYPTED),
-      TxL2Logs.random(numPublicCallsPerTx, numUnencryptedLogsPerCall, LogType.UNENCRYPTED),
+      EncryptedTxL2Logs.random(numPrivateCallsPerTx, numEncryptedLogsPerCall),
+      UnencryptedTxL2Logs.random(numPublicCallsPerTx, numUnencryptedLogsPerCall),
     );
   }
 
@@ -149,8 +149,8 @@ export class TxEffect {
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.zero),
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataWrite.empty),
-      TxL2Logs.empty(),
-      TxL2Logs.empty(),
+      EncryptedTxL2Logs.empty(),
+      UnencryptedTxL2Logs.empty(),
     );
   }
 

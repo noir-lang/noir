@@ -1,4 +1,4 @@
-import { FunctionL2Logs, Note } from '@aztec/circuit-types';
+import { EncryptedFunctionL2Logs, Note, UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
 import {
   FunctionData,
   FunctionSelector,
@@ -76,8 +76,8 @@ describe('Kernel Prover', () => {
       acir: Buffer.alloc(0),
       partialWitness: new Map(),
       enqueuedPublicFunctionCalls: [],
-      encryptedLogs: new FunctionL2Logs([]),
-      unencryptedLogs: new FunctionL2Logs([]),
+      encryptedLogs: EncryptedFunctionL2Logs.empty(),
+      unencryptedLogs: UnencryptedFunctionL2Logs.empty(),
     };
   };
 

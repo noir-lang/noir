@@ -1,6 +1,7 @@
 import { ArchiveSource, Archiver, KVArchiverDataStore, createArchiverClient } from '@aztec/archiver';
 import {
   AztecNode,
+  FromLogType,
   GetUnencryptedLogsResponse,
   L1ToL2MessageSource,
   L2Block,
@@ -265,9 +266,13 @@ export class AztecNodeService implements AztecNode {
    * @param logType - Specifies whether to return encrypted or unencrypted logs.
    * @returns The requested logs.
    */
-  public getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]> {
+  public getLogs<TLogType extends LogType>(
+    from: number,
+    limit: number,
+    logType: LogType,
+  ): Promise<L2BlockL2Logs<FromLogType<TLogType>>[]> {
     const logSource = logType === LogType.ENCRYPTED ? this.encryptedLogsSource : this.unencryptedLogsSource;
-    return logSource.getLogs(from, limit, logType);
+    return logSource.getLogs(from, limit, logType) as Promise<L2BlockL2Logs<FromLogType<TLogType>>[]>;
   }
 
   /**

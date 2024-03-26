@@ -1,4 +1,4 @@
-import { FunctionL2Logs, SimulationError } from '@aztec/circuit-types';
+import { SimulationError, UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
 import {
   AztecAddress,
   ContractStorageRead,
@@ -46,7 +46,7 @@ export interface PublicExecutionResult {
    * Unencrypted logs emitted during execution of this function call.
    * Note: These are preimages to `unencryptedLogsHash`.
    */
-  unencryptedLogs: FunctionL2Logs;
+  unencryptedLogs: UnencryptedFunctionL2Logs;
   /**
    * Whether the execution reverted.
    */
@@ -154,7 +154,7 @@ export function checkValidStaticCall(
   newNullifiers: SideEffectLinkedToNoteHash[],
   contractStorageUpdateRequests: ContractStorageUpdateRequest[],
   newL2ToL1Messages: L2ToL1Message[],
-  unencryptedLogs: FunctionL2Logs,
+  unencryptedLogs: UnencryptedFunctionL2Logs,
 ) {
   if (
     contractStorageUpdateRequests.length > 0 ||

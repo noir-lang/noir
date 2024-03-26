@@ -1,5 +1,11 @@
-import { FunctionL2Logs } from '@aztec/circuit-types';
-import { PrivateCallStackItem } from '@aztec/circuits.js';
+import {
+  EncryptedFunctionL2Logs,
+  EncryptedL2Log,
+  UnencryptedFunctionL2Logs,
+  UnencryptedL2Log,
+} from '@aztec/circuit-types';
+import { AztecAddress, PrivateCallStackItem } from '@aztec/circuits.js';
+import { EventSelector } from '@aztec/foundation/abi';
 
 import { ExecutionResult, collectEncryptedLogs, collectUnencryptedLogs } from './execution_result.js';
 
@@ -14,16 +20,20 @@ function emptyExecutionResult(): ExecutionResult {
     returnValues: [],
     nestedExecutions: [],
     enqueuedPublicFunctionCalls: [],
-    encryptedLogs: FunctionL2Logs.empty(),
-    unencryptedLogs: FunctionL2Logs.empty(),
+    encryptedLogs: EncryptedFunctionL2Logs.empty(),
+    unencryptedLogs: UnencryptedFunctionL2Logs.empty(),
   };
 }
 
 describe('Execution Result test suite - collect encrypted logs', () => {
-  function emptyExecutionResultWithEncryptedLogs(encryptedLogs = FunctionL2Logs.empty()): ExecutionResult {
+  function emptyExecutionResultWithEncryptedLogs(encryptedLogs = EncryptedFunctionL2Logs.empty()): ExecutionResult {
     const executionResult = emptyExecutionResult();
     executionResult.encryptedLogs = encryptedLogs;
     return executionResult;
+  }
+
+  function makeEncryptedFunctionLogs(contents: string[]) {
+    return new EncryptedFunctionL2Logs(contents.map(s => new EncryptedL2Log(Buffer.from(s))));
   }
 
   it('collect encrypted logs with nested fn calls', () => {
@@ -38,14 +48,14 @@ describe('Execution Result test suite - collect encrypted logs', () => {
     Circuits and ACVM process in a DFS + stack like format: [fnA, fnE, fnG, fnF, fnC, fnD, fnB]
     */
     const executionResult: ExecutionResult = emptyExecutionResultWithEncryptedLogs(
-      new FunctionL2Logs([Buffer.from('Log 1')]),
+      makeEncryptedFunctionLogs(['Log 1']),
     );
-    const fnB = emptyExecutionResultWithEncryptedLogs(new FunctionL2Logs([Buffer.from('Log 2')]));
-    const fnC = emptyExecutionResultWithEncryptedLogs(new FunctionL2Logs([Buffer.from('Log 3')]));
-    const fnD = emptyExecutionResultWithEncryptedLogs(new FunctionL2Logs([Buffer.from('Log 4')]));
-    const fnE = emptyExecutionResultWithEncryptedLogs(new FunctionL2Logs([Buffer.from('Log 5')]));
-    const fnF = emptyExecutionResultWithEncryptedLogs(new FunctionL2Logs([Buffer.from('Log 6')]));
-    const fnG = emptyExecutionResultWithEncryptedLogs(new FunctionL2Logs([Buffer.from('Log 7')]));
+    const fnB = emptyExecutionResultWithEncryptedLogs(makeEncryptedFunctionLogs(['Log 2']));
+    const fnC = emptyExecutionResultWithEncryptedLogs(makeEncryptedFunctionLogs(['Log 3']));
+    const fnD = emptyExecutionResultWithEncryptedLogs(makeEncryptedFunctionLogs(['Log 4']));
+    const fnE = emptyExecutionResultWithEncryptedLogs(makeEncryptedFunctionLogs(['Log 5']));
+    const fnF = emptyExecutionResultWithEncryptedLogs(makeEncryptedFunctionLogs(['Log 6']));
+    const fnG = emptyExecutionResultWithEncryptedLogs(makeEncryptedFunctionLogs(['Log 7']));
 
     fnE.nestedExecutions.push(fnF, fnG);
 
@@ -55,13 +65,13 @@ describe('Execution Result test suite - collect encrypted logs', () => {
 
     const encryptedLogs = collectEncryptedLogs(executionResult);
     expect(encryptedLogs).toEqual([
-      new FunctionL2Logs([Buffer.from('Log 1')]),
-      new FunctionL2Logs([Buffer.from('Log 5')]),
-      new FunctionL2Logs([Buffer.from('Log 7')]),
-      new FunctionL2Logs([Buffer.from('Log 6')]),
-      new FunctionL2Logs([Buffer.from('Log 3')]),
-      new FunctionL2Logs([Buffer.from('Log 4')]),
-      new FunctionL2Logs([Buffer.from('Log 2')]),
+      makeEncryptedFunctionLogs(['Log 1']),
+      makeEncryptedFunctionLogs(['Log 5']),
+      makeEncryptedFunctionLogs(['Log 7']),
+      makeEncryptedFunctionLogs(['Log 6']),
+      makeEncryptedFunctionLogs(['Log 3']),
+      makeEncryptedFunctionLogs(['Log 4']),
+      makeEncryptedFunctionLogs(['Log 2']),
     ]);
   });
 
@@ -74,19 +84,19 @@ describe('Execution Result test suite - collect encrypted logs', () => {
     Circuits and ACVM process in a DFS + stack like format: [fnA, fnC, fnD, fnB]
     */
     const executionResult: ExecutionResult = emptyExecutionResultWithEncryptedLogs(
-      new FunctionL2Logs([Buffer.from('Log 1'), Buffer.from('Log 2')]),
+      makeEncryptedFunctionLogs(['Log 1', 'Log 2']),
     );
-    const fnB = emptyExecutionResultWithEncryptedLogs(new FunctionL2Logs([Buffer.from('Log 3'), Buffer.from('Log 4')]));
-    const fnC = emptyExecutionResultWithEncryptedLogs(new FunctionL2Logs([Buffer.from('Log 5')]));
-    const fnD = emptyExecutionResultWithEncryptedLogs(new FunctionL2Logs([Buffer.from('Log 6')]));
+    const fnB = emptyExecutionResultWithEncryptedLogs(makeEncryptedFunctionLogs(['Log 3', 'Log 4']));
+    const fnC = emptyExecutionResultWithEncryptedLogs(makeEncryptedFunctionLogs(['Log 5']));
+    const fnD = emptyExecutionResultWithEncryptedLogs(makeEncryptedFunctionLogs(['Log 6']));
     fnC.nestedExecutions.push(fnD);
     executionResult.nestedExecutions.push(fnB, fnC);
     const encryptedLogs = collectEncryptedLogs(executionResult);
     expect(encryptedLogs).toEqual([
-      new FunctionL2Logs([Buffer.from('Log 1'), Buffer.from('Log 2')]),
-      new FunctionL2Logs([Buffer.from('Log 5')]),
-      new FunctionL2Logs([Buffer.from('Log 6')]),
-      new FunctionL2Logs([Buffer.from('Log 3'), Buffer.from('Log 4')]),
+      makeEncryptedFunctionLogs(['Log 1', 'Log 2']),
+      makeEncryptedFunctionLogs(['Log 5']),
+      makeEncryptedFunctionLogs(['Log 6']),
+      makeEncryptedFunctionLogs(['Log 3', 'Log 4']),
     ]);
   });
 
@@ -98,15 +108,15 @@ describe('Execution Result test suite - collect encrypted logs', () => {
     Circuits and ACVM process in a DFS + stack like format: [fnA, fnB, fnC]
     */
     const executionResult: ExecutionResult = emptyExecutionResult();
-    const fnB = emptyExecutionResultWithEncryptedLogs(new FunctionL2Logs([Buffer.from('Log 1')]));
+    const fnB = emptyExecutionResultWithEncryptedLogs(makeEncryptedFunctionLogs(['Log 1']));
     const fnC = emptyExecutionResult();
     fnB.nestedExecutions.push(fnC);
     executionResult.nestedExecutions.push(fnB);
     const encryptedLogs = collectEncryptedLogs(executionResult);
     expect(encryptedLogs).toEqual([
-      FunctionL2Logs.empty(),
-      new FunctionL2Logs([Buffer.from('Log 1')]),
-      FunctionL2Logs.empty(),
+      EncryptedFunctionL2Logs.empty(),
+      makeEncryptedFunctionLogs(['Log 1']),
+      EncryptedFunctionL2Logs.empty(),
     ]);
   });
 
@@ -131,11 +141,11 @@ describe('Execution Result test suite - collect encrypted logs', () => {
 
     const encryptedLogs = collectEncryptedLogs(executionResult);
     expect(encryptedLogs).toEqual([
-      FunctionL2Logs.empty(),
-      FunctionL2Logs.empty(),
-      FunctionL2Logs.empty(),
-      FunctionL2Logs.empty(),
-      FunctionL2Logs.empty(),
+      EncryptedFunctionL2Logs.empty(),
+      EncryptedFunctionL2Logs.empty(),
+      EncryptedFunctionL2Logs.empty(),
+      EncryptedFunctionL2Logs.empty(),
+      EncryptedFunctionL2Logs.empty(),
     ]);
   });
 });
@@ -143,17 +153,25 @@ describe('Execution Result test suite - collect encrypted logs', () => {
 describe('collect unencrypted logs', () => {
   // collection of unencrypted logs work similar to encrypted logs, so lets write other kinds of test cases:
 
-  function emptyExecutionResultWithUnencryptedLogs(unencryptedLogs = FunctionL2Logs.empty()): ExecutionResult {
+  function emptyExecutionResultWithUnencryptedLogs(
+    unencryptedLogs = UnencryptedFunctionL2Logs.empty(),
+  ): ExecutionResult {
     const executionResult = emptyExecutionResult();
     executionResult.unencryptedLogs = unencryptedLogs;
     return executionResult;
+  }
+
+  function makeUnencryptedFunctionLogs(contents: string[]) {
+    return new UnencryptedFunctionL2Logs(
+      contents.map(s => new UnencryptedL2Log(AztecAddress.ZERO, EventSelector.empty(), Buffer.from(s))),
+    );
   }
 
   it('collect unencrypted logs even when no logs and no recursion', () => {
     // fnA()
     const executionResult: ExecutionResult = emptyExecutionResult();
     const unencryptedLogs = collectUnencryptedLogs(executionResult);
-    expect(unencryptedLogs).toEqual([FunctionL2Logs.empty()]);
+    expect(unencryptedLogs).toEqual([UnencryptedFunctionL2Logs.empty()]);
   });
 
   it('collect unencrypted logs with no logs in some nested calls', () => {
@@ -165,17 +183,15 @@ describe('collect unencrypted logs', () => {
     */
     const executionResult: ExecutionResult = emptyExecutionResult();
     const fnB = emptyExecutionResult();
-    const fnC = emptyExecutionResultWithUnencryptedLogs(
-      new FunctionL2Logs([Buffer.from('Log 1'), Buffer.from('Log 2'), Buffer.from('Log 3')]),
-    );
+    const fnC = emptyExecutionResultWithUnencryptedLogs(makeUnencryptedFunctionLogs(['Log 1', 'Log 2', 'Log 3']));
 
     executionResult.nestedExecutions.push(fnB, fnC);
 
     const unencryptedLogs = collectUnencryptedLogs(executionResult);
     expect(unencryptedLogs).toEqual([
-      FunctionL2Logs.empty(),
-      new FunctionL2Logs([Buffer.from('Log 1'), Buffer.from('Log 2'), Buffer.from('Log 3')]),
-      FunctionL2Logs.empty(),
+      UnencryptedFunctionL2Logs.empty(),
+      makeUnencryptedFunctionLogs(['Log 1', 'Log 2', 'Log 3']),
+      UnencryptedFunctionL2Logs.empty(),
     ]);
   });
 
@@ -190,20 +206,16 @@ describe('collect unencrypted logs', () => {
     */
     const executionResult: ExecutionResult = emptyExecutionResult();
     const fnB = emptyExecutionResult();
-    const fnC = emptyExecutionResultWithUnencryptedLogs(
-      new FunctionL2Logs([Buffer.from('Log 1'), Buffer.from('Log 2'), Buffer.from('Log 3')]),
-    );
-    const fnD = emptyExecutionResultWithUnencryptedLogs(
-      new FunctionL2Logs([Buffer.from('Log 4'), Buffer.from('Log 5'), Buffer.from('Log 6')]),
-    );
+    const fnC = emptyExecutionResultWithUnencryptedLogs(makeUnencryptedFunctionLogs(['Log 1', 'Log 2', 'Log 3']));
+    const fnD = emptyExecutionResultWithUnencryptedLogs(makeUnencryptedFunctionLogs(['Log 4', 'Log 5', 'Log 6']));
     fnB.nestedExecutions.push(fnC, fnD);
     executionResult.nestedExecutions.push(fnB);
     const unencryptedLogs = collectUnencryptedLogs(executionResult);
     expect(unencryptedLogs).toEqual([
-      FunctionL2Logs.empty(),
-      FunctionL2Logs.empty(),
-      new FunctionL2Logs([Buffer.from('Log 4'), Buffer.from('Log 5'), Buffer.from('Log 6')]),
-      new FunctionL2Logs([Buffer.from('Log 1'), Buffer.from('Log 2'), Buffer.from('Log 3')]),
+      UnencryptedFunctionL2Logs.empty(),
+      UnencryptedFunctionL2Logs.empty(),
+      makeUnencryptedFunctionLogs(['Log 4', 'Log 5', 'Log 6']),
+      makeUnencryptedFunctionLogs(['Log 1', 'Log 2', 'Log 3']),
     ]);
   });
 });

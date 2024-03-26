@@ -1,19 +1,18 @@
-import { randomBytes, sha256 } from '@aztec/foundation/crypto';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { sha256 } from '@aztec/foundation/crypto';
 import { BufferReader, prefixBufferWithLength, truncateAndPad } from '@aztec/foundation/serialize';
 
-import { LogType } from './log_type.js';
+import { EncryptedL2Log } from './encrypted_l2_log.js';
 import { UnencryptedL2Log } from './unencrypted_l2_log.js';
 
 /**
  * Data container of logs emitted in 1 function invocation (corresponds to 1 kernel iteration).
  */
-export class FunctionL2Logs {
+export abstract class FunctionL2Logs<TLog extends UnencryptedL2Log | EncryptedL2Log> {
   constructor(
     /**
      * An array of logs.
      */
-    public readonly logs: Buffer[],
+    public readonly logs: TLog[],
   ) {}
 
   /**
@@ -23,7 +22,7 @@ export class FunctionL2Logs {
    *          the resulting buffer is prefixed with 4 bytes for its total length.
    */
   public toBuffer(): Buffer {
-    const serializedLogs = this.logs.map(buffer => prefixBufferWithLength(buffer));
+    const serializedLogs = this.logs.map(log => prefixBufferWithLength(log.toBuffer()));
     return prefixBufferWithLength(Buffer.concat(serializedLogs));
   }
 
@@ -48,57 +47,53 @@ export class FunctionL2Logs {
   }
 
   /**
+   * Convert a FunctionL2Logs class object to a plain JSON object.
+   * @returns A plain object with FunctionL2Logs properties.
+   */
+  public toJSON() {
+    return {
+      logs: this.logs.map(log => log.toJSON()),
+    };
+  }
+}
+
+export class EncryptedFunctionL2Logs extends FunctionL2Logs<EncryptedL2Log> {
+  /**
+   * Creates an empty L2Logs object with no logs.
+   * @returns A new FunctionL2Logs object with no logs.
+   */
+  public static empty(): EncryptedFunctionL2Logs {
+    return new EncryptedFunctionL2Logs([]);
+  }
+
+  /**
    * Deserializes logs from a buffer.
    * @param buf - The buffer containing the serialized logs.
    * @param isLengthPrefixed - Whether the buffer is prefixed with 4 bytes for its total length.
    * @returns Deserialized instance of `FunctionL2Logs`.
    */
-  public static fromBuffer(buf: Buffer, isLengthPrefixed = true): FunctionL2Logs {
+  public static fromBuffer(buf: Buffer, isLengthPrefixed = true): EncryptedFunctionL2Logs {
     const reader = new BufferReader(buf, 0);
 
     // If the buffer is length prefixed use the length to read the array. Otherwise, the entire buffer is consumed.
     const logsBufLength = isLengthPrefixed ? reader.readNumber() : -1;
     const logs = reader.readBufferArray(logsBufLength);
 
-    return new FunctionL2Logs(logs);
+    return new EncryptedFunctionL2Logs(logs.map(EncryptedL2Log.fromBuffer));
   }
 
   /**
    * Creates a new L2Logs object with `numLogs` logs.
    * @param numLogs - The number of logs to create.
    * @param logType - The type of logs to generate.
-   * @returns A new FunctionL2Logs object.
+   * @returns A new EncryptedFunctionL2Logs object.
    */
-  public static random(numLogs: number, logType = LogType.ENCRYPTED): FunctionL2Logs {
-    const logs: Buffer[] = [];
+  public static random(numLogs: number): EncryptedFunctionL2Logs {
+    const logs: EncryptedL2Log[] = [];
     for (let i = 0; i < numLogs; i++) {
-      if (logType === LogType.ENCRYPTED) {
-        const randomEphPubKey = Point.random();
-        const randomLogContent = randomBytes(144 - Point.SIZE_IN_BYTES);
-        logs.push(Buffer.concat([Fr.random().toBuffer(), randomLogContent, randomEphPubKey.toBuffer()]));
-      } else {
-        logs.push(UnencryptedL2Log.random().toBuffer());
-      }
+      logs.push(EncryptedL2Log.random());
     }
-    return new FunctionL2Logs(logs);
-  }
-
-  /**
-   * Creates an empty L2Logs object with no logs.
-   * @returns A new FunctionL2Logs object with no logs.
-   */
-  public static empty(): FunctionL2Logs {
-    return new FunctionL2Logs([]);
-  }
-
-  /**
-   * Convert a FunctionL2Logs class object to a plain JSON object.
-   * @returns A plain object with FunctionL2Logs properties.
-   */
-  public toJSON() {
-    return {
-      logs: this.logs.map(log => log.toString('hex')),
-    };
+    return new EncryptedFunctionL2Logs(logs);
   }
 
   /**
@@ -107,7 +102,57 @@ export class FunctionL2Logs {
    * @returns A FunctionL2Logs class object.
    */
   public static fromJSON(obj: any) {
-    const logs = obj.logs.map((log: string) => Buffer.from(log, 'hex'));
-    return new FunctionL2Logs(logs);
+    const logs = obj.logs.map(EncryptedL2Log.fromJSON);
+    return new EncryptedFunctionL2Logs(logs);
+  }
+}
+
+export class UnencryptedFunctionL2Logs extends FunctionL2Logs<UnencryptedL2Log> {
+  /**
+   * Creates an empty L2Logs object with no logs.
+   * @returns A new FunctionL2Logs object with no logs.
+   */
+  public static empty(): UnencryptedFunctionL2Logs {
+    return new UnencryptedFunctionL2Logs([]);
+  }
+
+  /**
+   * Deserializes logs from a buffer.
+   * @param buf - The buffer containing the serialized logs.
+   * @param isLengthPrefixed - Whether the buffer is prefixed with 4 bytes for its total length.
+   * @returns Deserialized instance of `FunctionL2Logs`.
+   */
+  public static fromBuffer(buf: Buffer, isLengthPrefixed = true): UnencryptedFunctionL2Logs {
+    const reader = new BufferReader(buf, 0);
+
+    // If the buffer is length prefixed use the length to read the array. Otherwise, the entire buffer is consumed.
+    const logsBufLength = isLengthPrefixed ? reader.readNumber() : -1;
+    const logs = reader.readBufferArray(logsBufLength);
+
+    return new UnencryptedFunctionL2Logs(logs.map(UnencryptedL2Log.fromBuffer));
+  }
+
+  /**
+   * Creates a new L2Logs object with `numLogs` logs.
+   * @param numLogs - The number of logs to create.
+   * @param logType - The type of logs to generate.
+   * @returns A new UnencryptedFunctionL2Logs object.
+   */
+  public static random(numLogs: number): UnencryptedFunctionL2Logs {
+    const logs: UnencryptedL2Log[] = [];
+    for (let i = 0; i < numLogs; i++) {
+      logs.push(UnencryptedL2Log.random());
+    }
+    return new UnencryptedFunctionL2Logs(logs);
+  }
+
+  /**
+   * Convert a plain JSON object to a FunctionL2Logs class object.
+   * @param obj - A plain FunctionL2Logs JSON object.
+   * @returns A FunctionL2Logs class object.
+   */
+  public static fromJSON(obj: any) {
+    const logs = obj.logs.map(UnencryptedL2Log.fromJSON);
+    return new UnencryptedFunctionL2Logs(logs);
   }
 }

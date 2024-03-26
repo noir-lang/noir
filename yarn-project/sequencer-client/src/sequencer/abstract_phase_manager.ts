@@ -1,4 +1,4 @@
-import { FunctionL2Logs, MerkleTreeId, SimulationError, Tx } from '@aztec/circuit-types';
+import { MerkleTreeId, SimulationError, Tx, UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
 import {
   AztecAddress,
   CallRequest,
@@ -180,7 +180,7 @@ export abstract class AbstractPhaseManager {
     tx: Tx,
     previousPublicKernelOutput: PublicKernelCircuitPublicInputs,
     previousPublicKernelProof: Proof,
-  ): Promise<[PublicKernelCircuitPublicInputs, Proof, FunctionL2Logs[], SimulationError | undefined]> {
+  ): Promise<[PublicKernelCircuitPublicInputs, Proof, UnencryptedFunctionL2Logs[], SimulationError | undefined]> {
     let kernelOutput = previousPublicKernelOutput;
     let kernelProof = previousPublicKernelProof;
 
@@ -190,7 +190,7 @@ export abstract class AbstractPhaseManager {
       return [kernelOutput, kernelProof, [], undefined];
     }
 
-    const newUnencryptedFunctionLogs: FunctionL2Logs[] = [];
+    const newUnencryptedFunctionLogs: UnencryptedFunctionL2Logs[] = [];
 
     // TODO(#1684): Should multiple separately enqueued public calls be treated as
     // separate public callstacks to be proven by separate public kernel sequences

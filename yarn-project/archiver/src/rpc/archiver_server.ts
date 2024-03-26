@@ -1,10 +1,11 @@
 import {
+  EncryptedL2BlockL2Logs,
   ExtendedUnencryptedL2Log,
   L2Block,
-  L2BlockL2Logs,
   NullifierMembershipWitness,
   TxEffect,
   TxReceipt,
+  UnencryptedL2BlockL2Logs,
 } from '@aztec/circuit-types';
 import { EthAddress, Fr } from '@aztec/circuits.js';
 import { JsonRpcServer } from '@aztec/foundation/json-rpc/server';
@@ -24,7 +25,8 @@ export function createArchiverRpcServer(archiverService: Archiver): JsonRpcServe
       ExtendedUnencryptedL2Log,
       Fr,
       L2Block,
-      L2BlockL2Logs,
+      EncryptedL2BlockL2Logs,
+      UnencryptedL2BlockL2Logs,
       TxEffect,
     },
     { TxReceipt, NullifierMembershipWitness },
