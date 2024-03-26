@@ -6,7 +6,6 @@ use acir::{
 use indexmap::IndexMap;
 
 mod csat;
-mod r1cs;
 
 pub(crate) use csat::CSatTransformer;
 
