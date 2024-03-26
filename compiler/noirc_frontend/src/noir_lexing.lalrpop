@@ -20,8 +20,10 @@ extern {
 // TODO: rename Term
 pub Term: noir_token::Token = {
 
-    // TODO: are '\r's invalid in Noir?
+    // '\r's are invalid in Noir
     "\r" => noir_token::Token::Invalid('\r'),
+
+    <s:Symbol> => s,
     <n:Num> => noir_token::Token::Int(n),
     <b:Bool> => noir_token::Token::Bool(b),
     <k:Keyword> => noir_token::Token::Keyword(k),
@@ -122,8 +124,52 @@ LineComment: (String, Option<noir_token::DocStyle>) = {
 // InnerBlockComment: _ = {
 //     "/*" <style:BlockCommentStyle> <comment:InnerBlockComment> "*/" => _
 // 
-// 
-//     }
+//     _ => _
+// }
+
+// Attribute: noir_token::Attribute = {
+//     "#[" <x:AttributeInner> "]" => x,
+// }
+
+// TODO:
+// AttributeInner: noir_token::Attribute = {
+//     r"[^()[]]*" "(" r"[^()[]]*" ")"
+// }
+
+Symbol: noir_token::Token = {
+    "<" => noir_token::Token::Less,
+    "<=" => noir_token::Token::LessEqual,
+    ">" => noir_token::Token::Greater,
+    ">=" => noir_token::Token::GreaterEqual,
+    "==" => noir_token::Token::Equal,
+    "!=" => noir_token::Token::NotEqual,
+    "+" => noir_token::Token::Plus,
+    "-" => noir_token::Token::Minus,
+    "*" => noir_token::Token::Star,
+    "/" => noir_token::Token::Slash,
+    "%" => noir_token::Token::Percent,
+    "&" => noir_token::Token::Ampersand,
+    "^" => noir_token::Token::Caret,
+    "<<" => noir_token::Token::ShiftLeft,
+    ">>" => noir_token::Token::ShiftRight,
+    "." => noir_token::Token::Dot,
+    ".." => noir_token::Token::DoubleDot,
+    "(" => noir_token::Token::LeftParen,
+    ")" => noir_token::Token::RightParen,
+    "{" => noir_token::Token::LeftBrace,
+    "}" => noir_token::Token::RightBrace,
+    "[" => noir_token::Token::LeftBracket,
+    "]" => noir_token::Token::RightBracket,
+    "->" => noir_token::Token::Arrow,
+    "|" => noir_token::Token::Pipe,
+    "#" => noir_token::Token::Pound,
+    "," => noir_token::Token::Comma,
+    ":" => noir_token::Token::Colon,
+    "::" => noir_token::Token::DoubleColon,
+    ";" => noir_token::Token::Semicolon,
+    "!" => noir_token::Token::Bang,
+    "=" => noir_token::Token::Assign,
+}
 
 
 // TODO: rest of tokens
@@ -135,70 +181,7 @@ LineComment: (String, Option<noir_token::DocStyle>) = {
 //     FmtStr(String),
 //     IntType(IntType),
 //     Attribute(Attribute),
-//     /// <
-//     Less,
-//     /// <=
-//     LessEqual,
-//     /// >
-//     Greater,
-//     /// >=
-//     GreaterEqual,
-//     /// ==
-//     Equal,
-//     /// !=
-//     NotEqual,
-//     /// +
-//     Plus,
-//     /// -
-//     Minus,
-//     /// *
-//     Star,
-//     /// /
-//     Slash,
-//     /// %
-//     Percent,
-//     /// &
-//     Ampersand,
-//     /// ^
-//     Caret,
-//     /// <<
-//     ShiftLeft,
-//     /// >>
-//     ShiftRight,
-//     /// .
-//     Dot,
-//     /// ..
-//     DoubleDot,
-//     /// (
-//     LeftParen,
-//     /// )
-//     RightParen,
-//     /// {
-//     LeftBrace,
-//     /// }
-//     RightBrace,
-//     /// [
-//     LeftBracket,
-//     /// ]
-//     RightBracket,
-//     /// ->
-//     Arrow,
-//     /// |
-//     Pipe,
-//     /// #
-//     Pound,
-//     /// ,
-//     Comma,
-//     /// :
-//     Colon,
-//     /// ::
-//     DoubleColon,
-//     /// ;
-//     Semicolon,
-//     /// !
-//     Bang,
-//     /// =
-//     Assign,
+//
 //     #[allow(clippy::upper_case_acronyms)]
 //     EOF,
 // 
