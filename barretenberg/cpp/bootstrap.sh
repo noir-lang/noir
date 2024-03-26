@@ -77,8 +77,17 @@ b="\033[34m"  # Blue
 p="\033[35m"  # Purple
 r="\033[0m"   # Reset
 
+AVAILABLE_MEMORY=0
 
-AVAILABLE_MEMORY=$(awk '/MemFree/ { printf $2 }' /proc/meminfo)
+case "$(uname)" in
+  Linux*)
+    # Check available memory on Linux
+    AVAILABLE_MEMORY=$(awk '/MemFree/ { printf $2 }' /proc/meminfo)
+    ;;
+  *)
+    echo "Parallel builds not supported on this operating system"
+    ;;
+esac
 # This value may be too low.
 # If builds fail with an amount of free memory greater than this value then it should be increased.
 MIN_PARALLEL_BUILD_MEMORY=32000000
