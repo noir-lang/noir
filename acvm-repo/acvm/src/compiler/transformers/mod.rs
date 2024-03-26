@@ -9,7 +9,6 @@ mod csat;
 mod r1cs;
 
 pub(crate) use csat::CSatTransformer;
-pub(crate) use r1cs::R1CSTransformer;
 
 use super::{transform_assert_messages, AcirTransformationMap};
 
@@ -43,8 +42,7 @@ pub(super) fn transform_internal(
 ) -> (Circuit, Vec<usize>) {
     let mut transformer = match &expression_width {
         ExpressionWidth::Unbounded => {
-            let transformer = R1CSTransformer::new(acir);
-            return (transformer.transform(), acir_opcode_positions);
+            return (acir, acir_opcode_positions);
         }
         ExpressionWidth::Bounded { width } => {
             let mut csat = CSatTransformer::new(*width);
