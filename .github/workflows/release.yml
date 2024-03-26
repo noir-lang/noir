@@ -79,6 +79,16 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.86
+
+      - name: Install wasm-opt
+        run: |
+          npm i wasm-opt -g
+
       - name: Query new noir version
         id: noir-version
         run: |
