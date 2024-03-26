@@ -13,7 +13,8 @@ namespace avm_mem(256);
     pol commit m_last; // Boolean indicating the last row of the memory trace (not execution trace)
     pol commit m_rw; // Enum: 0 (read), 1 (write)
 
-    pol commit m_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.in_tag)
+    pol commit r_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.r_in_tag)
+    pol commit w_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.w_in_tag)
 
     // Indicator of the intermediate register pertaining to the memory operation (foreign key to avm_main.mem_op_XXX)
     pol commit m_op_a;
@@ -30,10 +31,10 @@ namespace avm_mem(256);
     pol commit m_sel_mov;
 
     // Error columns
-    pol commit m_tag_err; // Boolean (1 if m_in_tag != m_tag is detected)
+    pol commit m_tag_err; // Boolean (1 if r_in_tag != m_tag is detected)
 
     // Helper columns
-    pol commit m_one_min_inv; // Extra value to prove m_in_tag != m_tag with error handling
+    pol commit m_one_min_inv; // Extra value to prove r_in_tag != m_tag with error handling
 
     // Type constraints
     m_lastAccess * (1 - m_lastAccess) = 0;
@@ -48,7 +49,7 @@ namespace avm_mem(256);
     m_ind_op_c * (1 - m_ind_op_c) = 0;
 
     // TODO: m_addr is u32 and 0 <= m_tag <= 6
-    //       (m_in_tag will be constrained through inclusion check to main trace)
+    //       (r_in_tag, w_in_tag will be constrained through inclusion check to main trace)
 
     // Maximum one memory operation enabled per row
     pol MEM_SEL = m_op_a + m_op_b + m_op_c + m_ind_op_a + m_ind_op_b + m_ind_op_c;
@@ -105,46 +106,52 @@ namespace avm_mem(256);
     #[MEM_ZERO_INIT]
     m_lastAccess * (1 - m_rw') * m_val' = 0;
 
-    // Memory tag consistency check
-    // We want to prove that m_in_tag == m_tag <==> m_tag_err == 0
-    // We want to show that we can invert (m_in_tag - m_tag) when m_tag_err == 1,
-    // i.e., m_tag_err == 1 ==> m_in_tag != m_tag
+    // Memory tag consistency check for load operations, i.e., m_rw == 0.
+    // We want to prove that r_in_tag == m_tag <==> m_tag_err == 0
+    // We want to show that we can invert (r_in_tag - m_tag) when m_tag_err == 1,
+    // i.e., m_tag_err == 1 ==> r_in_tag != m_tag
     // For this purpose, we need an extra column to store a witness
-    // which can be used to show that (m_in_tag - m_tag) is invertible (non-zero).
+    // which can be used to show that (r_in_tag - m_tag) is invertible (non-zero).
     // We re-use the same zero (non)-equality technique as in SUBOP_DIVISION_ZERO_ERR1/2 applied
-    // to (m_in_tag - m_tag) by replacing m_tag_err by 1 - m_tag_err because here
+    // to (r_in_tag - m_tag) by replacing m_tag_err by 1 - m_tag_err because here
     // the equality to zero is not an error. Another modification
-    // consists in storing 1 - (m_in_tag - m_tag)^(-1) in the extra witness column
-    // instead of (m_in_tag - m_tag)^(-1) as this allows to store zero by default (i.e., when m_tag_err == 0).
-    // The new column m_one_min_inv is set to 1 - (m_in_tag - m_tag)^(-1) when m_tag_err == 1
+    // consists in storing 1 - (r_in_tag - m_tag)^(-1) in the extra witness column
+    // instead of (r_in_tag - m_tag)^(-1) as this allows to store zero by default (i.e., when m_tag_err == 0).
+    // The new column m_one_min_inv is set to 1 - (r_in_tag - m_tag)^(-1) when m_tag_err == 1
     // but must be set to 0 when tags are matching and m_tag_err = 0
     #[MEM_IN_TAG_CONSISTENCY_1]
-    (m_in_tag - m_tag) * (1 - m_one_min_inv) - m_tag_err = 0;
+    (1 - m_rw) * ((r_in_tag - m_tag) * (1 - m_one_min_inv) - m_tag_err) = 0;
     #[MEM_IN_TAG_CONSISTENCY_2]
     (1 - m_tag_err) * m_one_min_inv = 0;
 
-    // Correctness of two above checks MEM_IN_TAG_CONSISTENCY_1/2:
-    // m_in_tag == m_tag ==> m_tag_err == 0 (first relation)
-    // m_tag_err == 0 ==> m_one_min_inv == 0 by second relation. First relation ==> m_in_tag - m_tag == 0
+    // Correctness of two above checks MEM_IN_TAG_CONSISTENCY_1/2 (assuming m_rw == 0):
+    // r_in_tag == m_tag ==> m_tag_err == 0 (first relation)
+    // m_tag_err == 0 ==> m_one_min_inv == 0 by second relation. First relation ==> r_in_tag - m_tag == 0
+
+    // Enforce that a write instruction tag is equal to m_tag for a write operation
+    m_rw * (w_in_tag - m_tag) = 0;
+
+    // Enforce that a write instruction never leads to a tag error
+    #[NO_TAG_ERR_WRITE]
+    m_rw * m_tag_err = 0;
 
     //====== Indirect Memory Constraints =====================================
-    // Enforce m_in_tag == 3, i.e., in_tag must be U32
-    m_ind_op_a * (m_in_tag - 3) = 0;
-    m_ind_op_b * (m_in_tag - 3) = 0;
-    m_ind_op_c * (m_in_tag - 3) = 0;
+    // Enforce r_in_tag == 3, i.e., r_in_tag must be U32
+    m_ind_op_a * (r_in_tag - 3) = 0;
+    m_ind_op_b * (r_in_tag - 3) = 0;
+    m_ind_op_c * (r_in_tag - 3) = 0;
 
     // Indirect operation is always a load
     m_ind_op_a * m_rw = 0;
     m_ind_op_b * m_rw = 0;
     m_ind_op_c * m_rw = 0;
 
-    //====== MOV Opcode in_tag Constraint =====================================
-    // The following constraint ensures that the m_in_tag is set to m_tag for
+    //====== MOV Opcode Tag Constraint =====================================
+    // The following constraint ensures that the r_in_tag is set to m_tag for
     // the load operation pertaining to Ia.
-    // The permutation check #[PERM_MAIN_MEM_A] guarantees that the m_in_tag
-    // value load operation for Ia is copied back in the main trace. Then,
-    // #[PERM_MAIN_MEM_C] copies back m_in_tag for store operation from Ic.
-    // Finally, the following constraint guarantees that m_tag is correct for
-    // the output.
+    // The permutation check #[PERM_MAIN_MEM_A] guarantees that the r_in_tag
+    // value load operation for Ia is copied back in the main trace.
+    // Constraint #[MOV_MAIN_SAME_TAG] copies r_in_tag to w_in_tag in the main
+    // trace. Then, #[PERM_MAIN_MEM_C] copies w_in_tag for store operation from Ic.
     #[MOV_SAME_TAG]
-    m_sel_mov * m_tag_err = 0; // Equivalent to m_sel_mov * (m_in_tag - m_tag) = 0
+    m_sel_mov * m_tag_err = 0; // Equivalent to m_sel_mov * (r_in_tag - m_tag) = 0

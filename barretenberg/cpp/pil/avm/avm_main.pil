@@ -55,8 +55,9 @@ namespace avm_main(256);
     // Helper selector to characterize a Binary chiplet selector
     pol commit bin_sel;
 
-    // Instruction memory tag (1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6: field)
-    pol commit in_tag;
+    // Instruction memory tags read/write (1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6: field)
+    pol commit r_in_tag;
+    pol commit w_in_tag;
 
     // Errors
     pol commit op_err; // Boolean flag pertaining to an operation error
@@ -144,7 +145,12 @@ namespace avm_main(256);
     // TODO - Constraints:
     // - mem_idx_a, mem_idx_b, mem_idx_c to u32 type
     // - ind_a, ind_b, ind_c to u32 type
-    // - 0 <= in_tag <= 6
+    // - 0 <= r_in_tag, w_in_tag <= 6 // Maybe not needed as probably derived by the operation decomposition.
+
+    //====== COMPARATOR OPCODES CONSTRAINTS =====================================
+    // Enforce that the tag for the ouput of EQ opcode is u8 (i.e. equal to 1).
+    #[EQ_OUTPUT_U8]
+    sel_op_eq * (w_in_tag - 1) = 0;
 
     // Relation for division over the finite field
     // If tag_err == 1 in a division, then ib == 0 and op_err == 1.
@@ -230,6 +236,8 @@ namespace avm_main(256);
     //====== MEMORY OPCODES CONSTRAINTS =========================================
     #[MOV_SAME_VALUE]
     sel_mov * (ia - ic) = 0; // Ensure that the correct value is moved/copied.
+    #[MOV_MAIN_SAME_TAG]
+    sel_mov * (r_in_tag - w_in_tag) = 0;
 
     //====== Inter-table Constraints ============================================
     #[INCL_MAIN_TAG_ERR]
@@ -246,7 +254,7 @@ namespace avm_main(256);
     #[PERM_MAIN_ALU]
     alu_sel {clk, ia, ib, ic,
              sel_op_add, sel_op_sub, sel_op_mul, sel_op_eq,
-             sel_op_not, in_tag}
+             sel_op_not, r_in_tag}
     is
     avm_alu.alu_sel {avm_alu.alu_clk, avm_alu.alu_ia, avm_alu.alu_ib, avm_alu.alu_ic,
                      avm_alu.alu_op_add, avm_alu.alu_op_sub, avm_alu.alu_op_mul, avm_alu.alu_op_eq,
@@ -267,25 +275,28 @@ namespace avm_main(256);
     bin_sel = sel_op_and + sel_op_or + sel_op_xor;
     
     #[PERM_MAIN_BIN]
-    bin_sel {ia, ib, ic, bin_op_id, in_tag}
+    bin_sel {ia, ib, ic, bin_op_id, r_in_tag}
     is
     avm_binary.start {avm_binary.acc_ia, avm_binary.acc_ib, avm_binary.acc_ic,
                       avm_binary.op_id, avm_binary.in_tag};
 
     #[PERM_MAIN_MEM_A]
-    mem_op_a {clk, mem_idx_a, ia, rwa, in_tag, sel_mov}
+    mem_op_a {clk, mem_idx_a, ia, rwa, r_in_tag, w_in_tag, sel_mov}
     is
-    avm_mem.m_op_a {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw, avm_mem.m_in_tag, avm_mem.m_sel_mov};
+    avm_mem.m_op_a {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw,
+                    avm_mem.r_in_tag, avm_mem.w_in_tag, avm_mem.m_sel_mov};
 
     #[PERM_MAIN_MEM_B]
-    mem_op_b {clk, mem_idx_b, ib, rwb, in_tag}
+    mem_op_b {clk, mem_idx_b, ib, rwb, r_in_tag, w_in_tag}
     is
-    avm_mem.m_op_b {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw, avm_mem.m_in_tag};
+    avm_mem.m_op_b {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw,
+                    avm_mem.r_in_tag, avm_mem.w_in_tag};
 
     #[PERM_MAIN_MEM_C]
-    mem_op_c {clk, mem_idx_c, ic, rwc, in_tag}
+    mem_op_c {clk, mem_idx_c, ic, rwc, r_in_tag, w_in_tag}
     is
-    avm_mem.m_op_c {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw, avm_mem.m_in_tag};
+    avm_mem.m_op_c {avm_mem.m_clk, avm_mem.m_addr, avm_mem.m_val, avm_mem.m_rw,
+                    avm_mem.r_in_tag, avm_mem.w_in_tag};
 
     #[PERM_MAIN_MEM_IND_A]
     ind_op_a {clk, ind_a, mem_idx_a}

@@ -55,7 +55,7 @@ TEST_F(AvmMemoryTests, mismatchedTagAddOperation)
     EXPECT_TRUE(row != trace.end());
 
     EXPECT_EQ(row->avm_mem_m_tag_err, FF(1)); // Error is raised
-    EXPECT_EQ(row->avm_mem_m_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
+    EXPECT_EQ(row->avm_mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
     EXPECT_EQ(row->avm_mem_m_tag, FF(static_cast<uint32_t>(AvmMemoryTag::FF)));
 
     // Find the memory trace position corresponding to the add sub-operation of register ib.
@@ -66,7 +66,7 @@ TEST_F(AvmMemoryTests, mismatchedTagAddOperation)
     EXPECT_TRUE(row != trace.end());
 
     EXPECT_EQ(row->avm_mem_m_tag_err, FF(1)); // Error is raised
-    EXPECT_EQ(row->avm_mem_m_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
+    EXPECT_EQ(row->avm_mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U8)));
     EXPECT_EQ(row->avm_mem_m_tag, FF(static_cast<uint32_t>(AvmMemoryTag::FF)));
 
     validate_trace_proof(std::move(trace));
@@ -98,7 +98,7 @@ TEST_F(AvmMemoryTests, mismatchedTagEqOperation)
     EXPECT_TRUE(row != trace.end());
 
     EXPECT_EQ(row->avm_mem_m_tag_err, FF(0)); // Error is NOT raised
-    EXPECT_EQ(row->avm_mem_m_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
+    EXPECT_EQ(row->avm_mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
     EXPECT_EQ(row->avm_mem_m_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
 
     // Find the memory trace position corresponding to the load sub-operation of register ib.
@@ -109,7 +109,7 @@ TEST_F(AvmMemoryTests, mismatchedTagEqOperation)
     EXPECT_TRUE(row != trace.end());
 
     EXPECT_EQ(row->avm_mem_m_tag_err, FF(1)); // Error is raised
-    EXPECT_EQ(row->avm_mem_m_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
+    EXPECT_EQ(row->avm_mem_r_in_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U32)));
     EXPECT_EQ(row->avm_mem_m_tag, FF(static_cast<uint32_t>(AvmMemoryTag::U16)));
 
     validate_trace_proof(std::move(trace));
@@ -278,4 +278,32 @@ TEST_F(AvmMemoryTests, consistentTagNoErrorViolation)
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "MEM_IN_TAG_CONSISTENCY_1");
 }
+
+// Testing violation that a write operation must not set a VM error.
+TEST_F(AvmMemoryTests, noErrorTagWriteViolation)
+{
+    trace_builder.calldata_copy(0, 0, 2, 0, std::vector<FF>{ 84, 7 });
+
+    trace_builder.op_div(0, 0, 1, 4, AvmMemoryTag::FF);
+    trace_builder.halt();
+    auto trace = trace_builder.finalize();
+
+    // Find the first row enabling the division selector
+    auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_op_div == FF(1); });
+
+    ASSERT_TRUE(row != trace.end());
+
+    auto clk = row->avm_main_clk;
+
+    // Find the memory trace position corresponding to the div sub-operation of register ic.
+    row = std::ranges::find_if(trace.begin(), trace.end(), [clk](Row r) {
+        return r.avm_mem_m_clk == clk && r.avm_mem_m_sub_clk == AvmMemTraceBuilder::SUB_CLK_STORE_C;
+    });
+
+    ASSERT_TRUE(row != trace.end());
+    row->avm_mem_m_tag_err = FF(1);
+
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "NO_TAG_ERR_WRITE");
+}
+
 } // namespace tests_avm

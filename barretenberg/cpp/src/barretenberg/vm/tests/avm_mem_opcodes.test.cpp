@@ -102,13 +102,14 @@ class AvmMemOpcodeTests : public ::testing::Test {
                     AllOf(Field(&Row::avm_main_ia, val_ff),
                           Field(&Row::avm_main_ib, 0),
                           Field(&Row::avm_main_ic, val_ff),
-                          Field(&Row::avm_main_in_tag, static_cast<uint32_t>(tag))));
+                          Field(&Row::avm_main_r_in_tag, static_cast<uint32_t>(tag)),
+                          Field(&Row::avm_main_w_in_tag, static_cast<uint32_t>(tag))));
 
         auto const& mem_a_row = trace.at(mem_a_idx);
 
         EXPECT_THAT(mem_a_row,
                     AllOf(Field(&Row::avm_mem_m_tag_err, 0),
-                          Field(&Row::avm_mem_m_in_tag, static_cast<uint32_t>(tag)),
+                          Field(&Row::avm_mem_r_in_tag, static_cast<uint32_t>(tag)),
                           Field(&Row::avm_mem_m_tag, static_cast<uint32_t>(tag)),
                           Field(&Row::avm_mem_m_sel_mov, 1),
                           Field(&Row::avm_mem_m_addr, indirect ? dir_src_offset : src_offset),
@@ -120,7 +121,7 @@ class AvmMemOpcodeTests : public ::testing::Test {
 
         EXPECT_THAT(mem_c_row,
                     AllOf(Field(&Row::avm_mem_m_tag_err, 0),
-                          Field(&Row::avm_mem_m_in_tag, static_cast<uint32_t>(tag)),
+                          Field(&Row::avm_mem_w_in_tag, static_cast<uint32_t>(tag)),
                           Field(&Row::avm_mem_m_tag, static_cast<uint32_t>(tag)),
                           Field(&Row::avm_mem_m_addr, indirect ? dir_dst_offset : dst_offset),
                           Field(&Row::avm_mem_m_val, val_ff),
@@ -130,7 +131,7 @@ class AvmMemOpcodeTests : public ::testing::Test {
             auto const& mem_ind_a_row = trace.at(mem_ind_a_idx);
             EXPECT_THAT(mem_ind_a_row,
                         AllOf(Field(&Row::avm_mem_m_tag_err, 0),
-                              Field(&Row::avm_mem_m_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
+                              Field(&Row::avm_mem_r_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
                               Field(&Row::avm_mem_m_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
                               Field(&Row::avm_mem_m_addr, src_offset),
                               Field(&Row::avm_mem_m_val, dir_src_offset),
@@ -139,7 +140,7 @@ class AvmMemOpcodeTests : public ::testing::Test {
             auto const& mem_ind_c_row = trace.at(mem_ind_c_idx);
             EXPECT_THAT(mem_ind_c_row,
                         AllOf(Field(&Row::avm_mem_m_tag_err, 0),
-                              Field(&Row::avm_mem_m_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
+                              Field(&Row::avm_mem_r_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
                               Field(&Row::avm_mem_m_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
                               Field(&Row::avm_mem_m_addr, dst_offset),
                               Field(&Row::avm_mem_m_val, dir_dst_offset),
@@ -191,7 +192,7 @@ TEST_F(AvmMemOpcodeTests, indirectMovInvalidAddressTag)
     EXPECT_THAT(trace.at(mem_ind_c_idx),
                 AllOf(Field(&Row::avm_mem_m_tag_err, 1),
                       Field(&Row::avm_mem_m_tag, static_cast<uint32_t>(AvmMemoryTag::U128)),
-                      Field(&Row::avm_mem_m_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
+                      Field(&Row::avm_mem_r_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
                       Field(&Row::avm_mem_m_ind_op_c, 1)));
 
     validate_trace_proof(std::move(trace));
@@ -230,9 +231,9 @@ TEST_F(AvmMemOpcodeNegativeTests, indMovWrongOutputValue)
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "MOV_SAME_VALUE");
 }
 
-// We want to test that the output tag cannot be changed.
-// In this test, we modify the m_in_tag for load operation to Ia.
-// Then, we propagate the error tag and the copy of m_in_tag to the
+// We want to test that the output tag for MOV cannot be altered.
+// In this test, we modify the r_in_tag for load operation to Ia.
+// Then, we propagate the error tag and the copy of r_in_tag to the
 // main trace and the memory entry related to store operation from Ic.
 TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputTagLoadIa)
 {
@@ -243,12 +244,15 @@ TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputTagLoadIa)
     buildTrace(false, 234, 0, 1, AvmMemoryTag::U8);
     computeIndices(false);
 
-    trace.at(mem_a_idx).avm_mem_m_in_tag = tag_u64;
+    auto trace_tmp = trace;
+
+    trace.at(mem_a_idx).avm_mem_r_in_tag = tag_u64;
     trace.at(mem_a_idx).avm_mem_m_tag_err = 1;
     trace.at(mem_a_idx).avm_mem_m_one_min_inv = one_min_inverse_diff;
     trace.at(mem_c_idx).avm_mem_m_tag = tag_u64;
-    trace.at(mem_c_idx).avm_mem_m_in_tag = tag_u64;
-    trace.at(main_idx).avm_main_in_tag = tag_u64;
+    trace.at(mem_c_idx).avm_mem_w_in_tag = tag_u64;
+    trace.at(main_idx).avm_main_r_in_tag = tag_u64;
+    trace.at(main_idx).avm_main_w_in_tag = tag_u64;
     trace.at(main_idx).avm_main_tag_err = 1;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "MOV_SAME_TAG");
@@ -265,33 +269,50 @@ TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputTagDisabledSelector)
     buildTrace(false, 234, 0, 1, AvmMemoryTag::U8);
     computeIndices(false);
 
-    trace.at(mem_a_idx).avm_mem_m_in_tag = tag_u64;
+    trace.at(mem_a_idx).avm_mem_r_in_tag = tag_u64;
+    trace.at(mem_a_idx).avm_mem_w_in_tag = tag_u64;
     trace.at(mem_a_idx).avm_mem_m_tag_err = 1;
     trace.at(mem_a_idx).avm_mem_m_one_min_inv = one_min_inverse_diff;
     trace.at(mem_a_idx).avm_mem_m_sel_mov = 0;
     trace.at(mem_c_idx).avm_mem_m_tag = tag_u64;
-    trace.at(mem_c_idx).avm_mem_m_in_tag = tag_u64;
-    trace.at(main_idx).avm_main_in_tag = tag_u64;
+    trace.at(mem_c_idx).avm_mem_r_in_tag = tag_u64;
+    trace.at(mem_c_idx).avm_mem_w_in_tag = tag_u64;
+    trace.at(main_idx).avm_main_r_in_tag = tag_u64;
+    trace.at(main_idx).avm_main_w_in_tag = tag_u64;
     trace.at(main_idx).avm_main_tag_err = 1;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_A");
 }
 
-// The manipulation of the tag occurs in the main trace and then we
-// propagate this change to the store memory operation of Ic.
-TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputTagMainTrace)
+// Same goal as above but we alter the w_in_tag in the main trace
+// and propagate this to the store operation.
+TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputTagInMainTrace)
 {
     FF const tag_u64 = FF(static_cast<uint32_t>(AvmMemoryTag::U64));
 
     buildTrace(false, 234, 0, 1, AvmMemoryTag::U8);
     computeIndices(false);
 
-    trace.at(main_idx).avm_main_in_tag = tag_u64;
+    trace.at(mem_c_idx).avm_mem_m_tag = tag_u64;
+    trace.at(mem_c_idx).avm_mem_w_in_tag = tag_u64;
+    trace.at(main_idx).avm_main_w_in_tag = tag_u64;
+    trace.at(main_idx).avm_main_tag_err = 1;
+
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "MOV_MAIN_SAME_TAG");
+}
+
+// The manipulation of the tag occurs in the store operation.
+TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputTagMainTraceRead)
+{
+    FF const tag_u64 = FF(static_cast<uint32_t>(AvmMemoryTag::U64));
+
+    buildTrace(false, 234, 0, 1, AvmMemoryTag::U8);
+    computeIndices(false);
 
     trace.at(mem_c_idx).avm_mem_m_tag = tag_u64;
-    trace.at(mem_c_idx).avm_mem_m_in_tag = tag_u64;
+    trace.at(mem_c_idx).avm_mem_w_in_tag = tag_u64;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_A");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_C");
 }
 
 } // namespace tests_avm

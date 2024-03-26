@@ -287,11 +287,12 @@ TEST_F(AvmPermMainMemNegativeTests, wrongInTagIaInMem)
 {
     executeSub(21, 3);
     auto wrong_in_tag = static_cast<uint32_t>(AvmMemoryTag::U32);
-    trace.at(mem_idx_a).avm_mem_m_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
+    trace.at(mem_idx_a).avm_mem_r_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
     trace.at(mem_idx_a).avm_mem_m_tag = wrong_in_tag;
 
     // We need to adjust the write operation beforehand (set opcode).
-    trace.at(mem_idx_a - 1).avm_mem_m_in_tag = wrong_in_tag;
+    trace.at(mem_idx_a - 1).avm_mem_r_in_tag = wrong_in_tag;
+    trace.at(mem_idx_a - 1).avm_mem_w_in_tag = wrong_in_tag;
     trace.at(mem_idx_a - 1).avm_mem_m_tag = wrong_in_tag;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_A");
@@ -301,11 +302,12 @@ TEST_F(AvmPermMainMemNegativeTests, wrongInTagIbInMem)
 {
     executeSub(21, 3);
     auto wrong_in_tag = static_cast<uint32_t>(AvmMemoryTag::U16);
-    trace.at(mem_idx_b).avm_mem_m_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
+    trace.at(mem_idx_b).avm_mem_r_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
     trace.at(mem_idx_b).avm_mem_m_tag = wrong_in_tag;
 
     // We need to adjust the write operation beforehand (set opcode).
-    trace.at(mem_idx_b - 1).avm_mem_m_in_tag = wrong_in_tag;
+    trace.at(mem_idx_b - 1).avm_mem_r_in_tag = wrong_in_tag;
+    trace.at(mem_idx_b - 1).avm_mem_w_in_tag = wrong_in_tag;
     trace.at(mem_idx_b - 1).avm_mem_m_tag = wrong_in_tag;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_B");
@@ -315,7 +317,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongInTagIcInMem)
 {
     executeSub(21, 3);
     auto wrong_in_tag = static_cast<uint32_t>(AvmMemoryTag::U128);
-    trace.at(mem_idx_c).avm_mem_m_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
+    trace.at(mem_idx_c).avm_mem_w_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
     trace.at(mem_idx_c).avm_mem_m_tag = wrong_in_tag;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_C");

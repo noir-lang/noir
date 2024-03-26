@@ -61,8 +61,10 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_lastAccess);
     commitments.avm_mem_m_last = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_last);
     commitments.avm_mem_m_rw = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_rw);
-    commitments.avm_mem_m_in_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_in_tag);
+    commitments.avm_mem_r_in_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_r_in_tag);
+    commitments.avm_mem_w_in_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_w_in_tag);
     commitments.avm_mem_m_op_a = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_op_a);
     commitments.avm_mem_m_op_b = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_op_b);
     commitments.avm_mem_m_op_c = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_op_c);
@@ -211,8 +213,10 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_alu_sel);
     commitments.avm_main_bin_sel =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_bin_sel);
-    commitments.avm_main_in_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_in_tag);
+    commitments.avm_main_r_in_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_r_in_tag);
+    commitments.avm_main_w_in_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_w_in_tag);
     commitments.avm_main_op_err =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_op_err);
     commitments.avm_main_tag_err =

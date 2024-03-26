@@ -7,43 +7,43 @@
 namespace bb::Avm_vm {
 
 template <typename FF> struct Avm_binaryRow {
-    FF avm_binary_bin_sel{};
-    FF avm_binary_acc_ib{};
-    FF avm_binary_mem_tag_ctr{};
-    FF avm_binary_bin_ic_bytes{};
-    FF avm_binary_acc_ic_shift{};
-    FF avm_binary_acc_ia{};
-    FF avm_binary_op_id_shift{};
-    FF avm_binary_acc_ia_shift{};
-    FF avm_binary_op_id{};
-    FF avm_binary_mem_tag_ctr_shift{};
-    FF avm_binary_acc_ic{};
-    FF avm_binary_bin_ia_bytes{};
-    FF avm_binary_bin_ib_bytes{};
     FF avm_binary_mem_tag_ctr_inv{};
+    FF avm_binary_bin_ic_bytes{};
+    FF avm_binary_acc_ia{};
+    FF avm_binary_acc_ib{};
+    FF avm_binary_acc_ic{};
+    FF avm_binary_mem_tag_ctr_shift{};
+    FF avm_binary_acc_ia_shift{};
+    FF avm_binary_op_id_shift{};
+    FF avm_binary_bin_sel{};
+    FF avm_binary_bin_ib_bytes{};
+    FF avm_binary_op_id{};
+    FF avm_binary_bin_ia_bytes{};
     FF avm_binary_acc_ib_shift{};
+    FF avm_binary_mem_tag_ctr{};
+    FF avm_binary_acc_ic_shift{};
 };
 
 inline std::string get_relation_label_avm_binary(int index)
 {
     switch (index) {
-    case 1:
-        return "OP_ID_REL";
+    case 9:
+        return "ACC_REL_C";
 
     case 7:
         return "ACC_REL_A";
 
-    case 8:
-        return "ACC_REL_B";
-
-    case 9:
-        return "ACC_REL_C";
-
-    case 3:
-        return "BIN_SEL_CTR_REL";
+    case 1:
+        return "OP_ID_REL";
 
     case 2:
         return "MEM_TAG_REL";
+
+    case 8:
+        return "ACC_REL_B";
+
+    case 3:
+        return "BIN_SEL_CTR_REL";
     }
     return std::to_string(index);
 }
