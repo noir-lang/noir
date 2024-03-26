@@ -56,7 +56,7 @@ contract Lending {
         assert(asset.last_updated_ts == 0);
         assert(asset.interest_accumulator == U128::from_integer(0));
 
-        let last_updated_ts = context.timestamp() as u64;
+        let last_updated_ts = context.timestamp();
 
         asset_loc.write(
             Asset { interest_accumulator: U128::from_integer(1000000000), last_updated_ts, loan_to_value, oracle }
@@ -72,7 +72,7 @@ contract Lending {
         let asset_loc = storage.assets.at(0);
         let mut asset = asset_loc.read();
 
-        let timestamp = context.timestamp() as u64;
+        let timestamp = context.timestamp();
         let dt = timestamp - asset.last_updated_ts;
 
         // Only update if time has passed.
@@ -84,7 +84,7 @@ contract Lending {
 
             // accumulator *= multiplier, and multiplier >= 1
             asset.interest_accumulator = (asset.interest_accumulator * multiplier) / precision;
-            asset.last_updated_ts = context.timestamp() as u64;
+            asset.last_updated_ts = context.timestamp();
 
             asset_loc.write(asset);
         }

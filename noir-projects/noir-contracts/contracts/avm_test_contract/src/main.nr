@@ -223,7 +223,7 @@ contract AvmTest {
     }
 
     #[aztec(public-vm)]
-    fn get_timestamp() -> pub Field {
+    fn get_timestamp() -> pub u64 {
         context.timestamp()
     }
 

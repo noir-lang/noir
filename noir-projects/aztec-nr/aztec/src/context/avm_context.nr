@@ -78,7 +78,7 @@ impl PublicContextInterface for AVMContext {
         block_number()
     }
 
-    fn timestamp(self) -> Field {
+    fn timestamp(self) -> u64 {
         timestamp()
     }
 
@@ -238,7 +238,7 @@ fn version() -> Field {}
 fn block_number() -> Field {}
 
 #[oracle(avmOpcodeTimestamp)]
-fn timestamp() -> Field {}
+fn timestamp() -> u64 {}
 
 #[oracle(avmOpcodeNoteHashExists)]
 fn note_hash_exists(note_hash: Field, leaf_index: Field) -> u8 {}

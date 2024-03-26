@@ -10,7 +10,7 @@ struct GlobalVariables {
     chain_id : Field,
     version : Field,
     block_number : Field,
-    timestamp : Field,
+    timestamp : u64,
     coinbase : EthAddress,
     fee_recipient : AztecAddress,
 }
@@ -22,7 +22,7 @@ impl Serialize<GLOBAL_VARIABLES_LENGTH> for GlobalVariables {
             self.chain_id,
             self.version,
             self.block_number,
-            self.timestamp,
+            self.timestamp as Field,
             self.coinbase.to_field(),
             self.fee_recipient.to_field(),
         ]
@@ -35,7 +35,7 @@ impl Deserialize<GLOBAL_VARIABLES_LENGTH> for GlobalVariables {
             chain_id: serialized[0],
             version: serialized[1],
             block_number: serialized[2],
-            timestamp: serialized[3],
+            timestamp: serialized[3] as u64,
             coinbase: EthAddress::from_field(serialized[4]),
             fee_recipient: AztecAddress::from_field(serialized[5]),
         }

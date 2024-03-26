@@ -204,7 +204,7 @@ impl PublicContextInterface for PublicContext {
         self.inputs.public_global_variables.block_number
     }
 
-    fn timestamp(self) -> Field {
+    fn timestamp(self) -> u64 {
         self.inputs.public_global_variables.timestamp
     }
 

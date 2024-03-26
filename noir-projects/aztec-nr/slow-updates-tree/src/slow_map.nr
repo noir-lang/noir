@@ -46,7 +46,7 @@ impl<N,M> SlowMap<N,M> {
 
     // Reads the "CURRENT" value of the root
     pub fn current_root(self: Self) -> Field {
-        let time = self.context.public.unwrap().timestamp() as u64;
+        let time = self.context.public.unwrap().timestamp();
         let root_object = self.read_root();
         if time <= root_object.next_change as u64 {
             root_object.before
@@ -66,7 +66,7 @@ impl<N,M> SlowMap<N,M> {
     // docs:start:read_at
     // Reads the "CURRENT" value of the leaf
     pub fn read_at(self: Self, key: Field) -> Field {
-        let time = self.context.public.unwrap().timestamp() as u64;
+        let time = self.context.public.unwrap().timestamp();
         let leaf = self.read_leaf_at(key);
         if time <= leaf.next_change as u64 {
             leaf.before
@@ -87,7 +87,7 @@ impl<N,M> SlowMap<N,M> {
         // The calling function should ensure that the index is within the tree.
         // This must be done separately to ensure we are not constraining too tight here.
 
-        let time = self.context.public.unwrap().timestamp() as u64;
+        let time = self.context.public.unwrap().timestamp();
         let next_change = compute_next_change(time as Field);
 
         let mut root = self.read_root();
@@ -132,7 +132,7 @@ impl<N,M> SlowMap<N,M> {
     // in public, limiting the cost of the update.
     pub fn update_unsafe_at(self: Self, index: Field, leaf_value: Field, new_root: Field) {
         // User must ensure that the checks from update_at is performed for safety
-        let time = self.context.public.unwrap().timestamp() as u64;
+        let time = self.context.public.unwrap().timestamp();
         let next_change = compute_next_change(time as Field);
 
         let mut root = self.read_root();

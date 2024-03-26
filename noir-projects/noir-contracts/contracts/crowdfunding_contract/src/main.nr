@@ -44,7 +44,7 @@ contract Crowdfunding {
     #[aztec(internal)]
     fn _check_deadline() {
         let deadline = storage.deadline.read();
-        assert(context.timestamp() as u64 < deadline, "Deadline has passed");
+        assert(context.timestamp() < deadline, "Deadline has passed");
     }
 
     #[aztec(private)]

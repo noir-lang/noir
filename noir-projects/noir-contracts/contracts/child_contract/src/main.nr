@@ -33,7 +33,7 @@ contract Child {
             + context.chain_id()
             + context.version()
             + context.block_number()
-            + context.timestamp();
+            + context.timestamp() as Field;
 
         return_value
     }

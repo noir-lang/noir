@@ -261,7 +261,7 @@ contract Test {
 
     // docs:start:is-time-equal
     #[aztec(public)]
-    fn is_time_equal(time: Field) -> Field {
+    fn is_time_equal(time: u64) -> u64 {
         assert(context.timestamp() == time);
         time
     }
@@ -334,7 +334,7 @@ contract Test {
         chain_id: Field,
         version: Field,
         block_number: Field,
-        timestamp: Field,
+        timestamp: u64,
         coinbase: EthAddress,
         fee_recipient: AztecAddress
     ) {

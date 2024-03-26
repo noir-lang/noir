@@ -21,7 +21,7 @@ trait ContextInterface {
 // If you are adding something here, then you should also implement it in the AVMContext.
 trait PublicContextInterface {
     fn block_number(self) -> Field;
-    fn timestamp(self) -> Field;
+    fn timestamp(self) -> u64;
     fn coinbase(self) -> EthAddress;
     fn fee_recipient(self) -> AztecAddress;
     fn push_nullifier_read_request(&mut self, nullifier: Field);
