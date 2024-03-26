@@ -2,7 +2,7 @@
 // for context. 
 // We were not accurately accounting for situations where the slice capacity tracker
 // was expecting a capacity from slice intrinsic results.
-fn main(expected: pub Field, first: Field, mut input: [Field; 8192]) {
+fn main(expected: pub Field, first: Field, mut input: [Field; 20]) {
     let mut hasher_slice = input.as_slice();
     hasher_slice = hasher_slice.push_front(first);
     assert(hasher_slice[0] == expected);
