@@ -10,6 +10,11 @@ namespace avm_main(256);
     pol constant first = [1] + [0]*; // Used mostly to toggle off the first row consisting
                                      // only in first element of shifted polynomials.
 
+    //===== Fix Range Checks Selectors=============================================
+    // We re-use the clk column for the lookup values of 8-bit resp. 16-bit range check.
+    pol commit sel_rng_8;  // Boolean selector for the  8-bit range check lookup
+    pol commit sel_rng_16; // Boolean selector for the 16-bit range check lookup
+
     //===== CONTROL FLOW ==========================================================
     // Program counter
     pol commit pc; 

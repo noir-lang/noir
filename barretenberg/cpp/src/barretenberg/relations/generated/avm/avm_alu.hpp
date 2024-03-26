@@ -7,77 +7,77 @@
 namespace bb::Avm_vm {
 
 template <typename FF> struct Avm_aluRow {
-    FF avm_alu_alu_in_tag{};
-    FF avm_alu_alu_u16_r2_shift{};
-    FF avm_alu_alu_u8_tag{};
-    FF avm_alu_alu_u16_r0_shift{};
-    FF avm_alu_alu_u16_r3_shift{};
-    FF avm_alu_alu_u16_r0{};
-    FF avm_alu_alu_cf{};
-    FF avm_alu_alu_op_mul{};
-    FF avm_alu_alu_u32_tag{};
-    FF avm_alu_alu_u64_tag{};
-    FF avm_alu_alu_u16_r1{};
-    FF avm_alu_alu_u16_r1_shift{};
-    FF avm_alu_alu_u16_r4_shift{};
-    FF avm_alu_alu_u64_r0{};
-    FF avm_alu_alu_u16_r7{};
-    FF avm_alu_alu_ib{};
-    FF avm_alu_alu_u16_r7_shift{};
-    FF avm_alu_alu_ia{};
-    FF avm_alu_alu_op_sub{};
-    FF avm_alu_alu_u8_r0{};
-    FF avm_alu_alu_op_not{};
     FF avm_alu_alu_ff_tag{};
-    FF avm_alu_alu_u16_r2{};
+    FF avm_alu_alu_u16_r1_shift{};
+    FF avm_alu_alu_u16_r3_shift{};
     FF avm_alu_alu_u16_r4{};
     FF avm_alu_alu_u8_r1{};
-    FF avm_alu_alu_u16_r6_shift{};
+    FF avm_alu_alu_u16_r7{};
+    FF avm_alu_alu_u16_r2_shift{};
     FF avm_alu_alu_op_eq{};
-    FF avm_alu_alu_op_add{};
-    FF avm_alu_alu_op_eq_diff_inv{};
+    FF avm_alu_alu_u8_tag{};
     FF avm_alu_alu_u16_r5_shift{};
     FF avm_alu_alu_u16_tag{};
-    FF avm_alu_alu_u128_tag{};
-    FF avm_alu_alu_u16_r6{};
-    FF avm_alu_alu_u16_r3{};
-    FF avm_alu_alu_u16_r5{};
+    FF avm_alu_alu_u16_r4_shift{};
+    FF avm_alu_alu_u16_r6_shift{};
+    FF avm_alu_alu_u64_r0{};
+    FF avm_alu_alu_u16_r0_shift{};
+    FF avm_alu_alu_op_add{};
     FF avm_alu_alu_ic{};
+    FF avm_alu_alu_u32_tag{};
+    FF avm_alu_alu_op_sub{};
+    FF avm_alu_alu_u16_r6{};
+    FF avm_alu_alu_u64_tag{};
+    FF avm_alu_alu_u8_r0{};
+    FF avm_alu_alu_ib{};
+    FF avm_alu_alu_u16_r1{};
+    FF avm_alu_alu_u16_r3{};
+    FF avm_alu_alu_u16_r0{};
+    FF avm_alu_alu_cf{};
+    FF avm_alu_alu_u16_r7_shift{};
+    FF avm_alu_alu_u16_r5{};
+    FF avm_alu_alu_u16_r2{};
+    FF avm_alu_alu_op_eq_diff_inv{};
+    FF avm_alu_alu_u128_tag{};
     FF avm_alu_alu_sel{};
+    FF avm_alu_alu_op_not{};
+    FF avm_alu_alu_op_mul{};
+    FF avm_alu_alu_in_tag{};
+    FF avm_alu_alu_ia{};
 };
 
 inline std::string get_relation_label_avm_alu(int index)
 {
     switch (index) {
+    case 9:
+        return "ALU_ADD_SUB_1";
+
+    case 19:
+        return "ALU_RES_IS_BOOL";
+
+    case 16:
+        return "ALU_MULTIPLICATION_OUT_U128";
+
+    case 10:
+        return "ALU_ADD_SUB_2";
+
+    case 12:
+        return "ALU_MUL_COMMON_1";
+
+    case 18:
+        return "ALU_OP_NOT";
+
+    case 11:
+        return "ALU_MULTIPLICATION_FF";
+
     case 13:
         return "ALU_MUL_COMMON_2";
 
     case 20:
         return "ALU_OP_EQ";
 
-    case 11:
-        return "ALU_MULTIPLICATION_FF";
-
-    case 19:
-        return "ALU_RES_IS_BOOL";
-
-    case 9:
-        return "ALU_ADD_SUB_1";
-
-    case 16:
-        return "ALU_MULTIPLICATION_OUT_U128";
-
-    case 12:
-        return "ALU_MUL_COMMON_1";
-
-    case 10:
-        return "ALU_ADD_SUB_2";
-
     case 17:
         return "ALU_FF_NOT_XOR";
-
-    case 18:
-        return "ALU_OP_NOT";
     }
     return std::to_string(index);
 }

@@ -178,6 +178,10 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_mem_tag_ctr);
     commitments.avm_binary_mem_tag_ctr_inv =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_mem_tag_ctr_inv);
+    commitments.avm_main_sel_rng_8 =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_rng_8);
+    commitments.avm_main_sel_rng_16 =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_rng_16);
     commitments.avm_main_pc = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_pc);
     commitments.avm_main_internal_return_ptr =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_internal_return_ptr);

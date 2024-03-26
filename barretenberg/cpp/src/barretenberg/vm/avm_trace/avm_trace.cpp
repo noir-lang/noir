@@ -1120,18 +1120,14 @@ std::vector<Row> AvmTraceBuilder::finalize()
     // Get tag_err counts from the mem_trace_builder
     finalise_mem_trace_lookup_counts();
 
-    // TODO: We will have to handle this through error handling and not an assertion
-    // Smaller than N because we have to add an extra initial row to support shifted
-    // elements
-    assert(mem_trace_size < AVM_TRACE_SIZE);
-    assert(main_trace_size < AVM_TRACE_SIZE);
-    assert(alu_trace_size < AVM_TRACE_SIZE);
-
     // Main Trace needs to be at least as big as the biggest subtrace.
     // If the bin_trace_size has entries, we need the main_trace to be as big as our byte lookup table (3 * 2**16
     // long)
-    size_t lookup_table = bin_trace_size > 0 ? 3 * (1 << 16) : 0;
-    std::vector<size_t> trace_sizes = { mem_trace_size, main_trace_size, alu_trace_size, lookup_table };
+    size_t const lookup_table_size = bin_trace_size > 0 ? 3 * (1 << 16) : 0;
+    size_t const range_check_size = range_checked_required ? UINT16_MAX : 0;
+    std::vector<size_t> trace_sizes = {
+        mem_trace_size, main_trace_size, alu_trace_size, lookup_table_size, range_check_size
+    };
     auto trace_size = std::max_element(trace_sizes.begin(), trace_sizes.end());
 
     // We only need to pad with zeroes to the size to the largest trace here, pow_2 padding is handled in the
@@ -1245,6 +1241,24 @@ std::vector<Row> AvmTraceBuilder::finalize()
         if (dest.avm_alu_alu_op_add == FF(1) || dest.avm_alu_alu_op_sub == FF(1) || dest.avm_alu_alu_op_mul == FF(1) ||
             dest.avm_alu_alu_op_eq == FF(1) || dest.avm_alu_alu_op_not == FF(1)) {
             dest.avm_alu_alu_sel = FF(1);
+        }
+    }
+
+    for (size_t i = 0; i < main_trace_size; i++) {
+        auto& r = main_trace.at(i);
+
+        if ((r.avm_main_sel_op_add == FF(1) || r.avm_main_sel_op_sub == FF(1) || r.avm_main_sel_op_mul == FF(1) ||
+             r.avm_main_sel_op_eq == FF(1) || r.avm_main_sel_op_not == FF(1)) &&
+            r.avm_main_tag_err == FF(0)) {
+            r.avm_main_alu_sel = FF(1);
+        }
+
+        if (i <= UINT8_MAX) {
+            r.avm_main_sel_rng_8 = FF(1);
+        }
+
+        if (i <= UINT16_MAX) {
+            r.avm_main_sel_rng_16 = FF(1);
         }
     }
 

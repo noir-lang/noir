@@ -104,6 +104,8 @@ template <typename FF> struct AvmFullRow {
     FF avm_binary_start{};
     FF avm_binary_mem_tag_ctr{};
     FF avm_binary_mem_tag_ctr_inv{};
+    FF avm_main_sel_rng_8{};
+    FF avm_main_sel_rng_16{};
     FF avm_main_pc{};
     FF avm_main_internal_return_ptr{};
     FF avm_main_sel_internal_call{};
@@ -163,25 +165,25 @@ template <typename FF> struct AvmFullRow {
     FF lookup_byte_operations_counts{};
     FF incl_main_tag_err_counts{};
     FF incl_mem_tag_err_counts{};
-    FF avm_mem_m_rw_shift{};
     FF avm_mem_m_tag_shift{};
-    FF avm_mem_m_val_shift{};
+    FF avm_mem_m_rw_shift{};
     FF avm_mem_m_addr_shift{};
-    FF avm_main_pc_shift{};
-    FF avm_main_internal_return_ptr_shift{};
-    FF avm_alu_alu_u16_r2_shift{};
-    FF avm_alu_alu_u16_r0_shift{};
-    FF avm_alu_alu_u16_r3_shift{};
-    FF avm_alu_alu_u16_r1_shift{};
-    FF avm_alu_alu_u16_r4_shift{};
-    FF avm_alu_alu_u16_r7_shift{};
-    FF avm_alu_alu_u16_r6_shift{};
-    FF avm_alu_alu_u16_r5_shift{};
-    FF avm_binary_mem_tag_ctr_shift{};
-    FF avm_binary_acc_ia_shift{};
+    FF avm_mem_m_val_shift{};
+    FF avm_binary_acc_ic_shift{};
     FF avm_binary_op_id_shift{};
     FF avm_binary_acc_ib_shift{};
-    FF avm_binary_acc_ic_shift{};
+    FF avm_binary_mem_tag_ctr_shift{};
+    FF avm_binary_acc_ia_shift{};
+    FF avm_main_internal_return_ptr_shift{};
+    FF avm_main_pc_shift{};
+    FF avm_alu_alu_u16_r1_shift{};
+    FF avm_alu_alu_u16_r3_shift{};
+    FF avm_alu_alu_u16_r2_shift{};
+    FF avm_alu_alu_u16_r5_shift{};
+    FF avm_alu_alu_u16_r4_shift{};
+    FF avm_alu_alu_u16_r6_shift{};
+    FF avm_alu_alu_u16_r0_shift{};
+    FF avm_alu_alu_u16_r7_shift{};
 };
 
 class AvmCircuitBuilder {
@@ -194,8 +196,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 150;
-    static constexpr size_t num_polys = 131;
+    static constexpr size_t num_fixed_columns = 152;
+    static constexpr size_t num_polys = 133;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -283,6 +285,8 @@ class AvmCircuitBuilder {
             polys.avm_binary_start[i] = rows[i].avm_binary_start;
             polys.avm_binary_mem_tag_ctr[i] = rows[i].avm_binary_mem_tag_ctr;
             polys.avm_binary_mem_tag_ctr_inv[i] = rows[i].avm_binary_mem_tag_ctr_inv;
+            polys.avm_main_sel_rng_8[i] = rows[i].avm_main_sel_rng_8;
+            polys.avm_main_sel_rng_16[i] = rows[i].avm_main_sel_rng_16;
             polys.avm_main_pc[i] = rows[i].avm_main_pc;
             polys.avm_main_internal_return_ptr[i] = rows[i].avm_main_internal_return_ptr;
             polys.avm_main_sel_internal_call[i] = rows[i].avm_main_sel_internal_call;
@@ -344,25 +348,25 @@ class AvmCircuitBuilder {
             polys.incl_mem_tag_err_counts[i] = rows[i].incl_mem_tag_err_counts;
         }
 
-        polys.avm_mem_m_rw_shift = Polynomial(polys.avm_mem_m_rw.shifted());
         polys.avm_mem_m_tag_shift = Polynomial(polys.avm_mem_m_tag.shifted());
-        polys.avm_mem_m_val_shift = Polynomial(polys.avm_mem_m_val.shifted());
+        polys.avm_mem_m_rw_shift = Polynomial(polys.avm_mem_m_rw.shifted());
         polys.avm_mem_m_addr_shift = Polynomial(polys.avm_mem_m_addr.shifted());
-        polys.avm_main_pc_shift = Polynomial(polys.avm_main_pc.shifted());
-        polys.avm_main_internal_return_ptr_shift = Polynomial(polys.avm_main_internal_return_ptr.shifted());
-        polys.avm_alu_alu_u16_r2_shift = Polynomial(polys.avm_alu_alu_u16_r2.shifted());
-        polys.avm_alu_alu_u16_r0_shift = Polynomial(polys.avm_alu_alu_u16_r0.shifted());
-        polys.avm_alu_alu_u16_r3_shift = Polynomial(polys.avm_alu_alu_u16_r3.shifted());
-        polys.avm_alu_alu_u16_r1_shift = Polynomial(polys.avm_alu_alu_u16_r1.shifted());
-        polys.avm_alu_alu_u16_r4_shift = Polynomial(polys.avm_alu_alu_u16_r4.shifted());
-        polys.avm_alu_alu_u16_r7_shift = Polynomial(polys.avm_alu_alu_u16_r7.shifted());
-        polys.avm_alu_alu_u16_r6_shift = Polynomial(polys.avm_alu_alu_u16_r6.shifted());
-        polys.avm_alu_alu_u16_r5_shift = Polynomial(polys.avm_alu_alu_u16_r5.shifted());
-        polys.avm_binary_mem_tag_ctr_shift = Polynomial(polys.avm_binary_mem_tag_ctr.shifted());
-        polys.avm_binary_acc_ia_shift = Polynomial(polys.avm_binary_acc_ia.shifted());
+        polys.avm_mem_m_val_shift = Polynomial(polys.avm_mem_m_val.shifted());
+        polys.avm_binary_acc_ic_shift = Polynomial(polys.avm_binary_acc_ic.shifted());
         polys.avm_binary_op_id_shift = Polynomial(polys.avm_binary_op_id.shifted());
         polys.avm_binary_acc_ib_shift = Polynomial(polys.avm_binary_acc_ib.shifted());
-        polys.avm_binary_acc_ic_shift = Polynomial(polys.avm_binary_acc_ic.shifted());
+        polys.avm_binary_mem_tag_ctr_shift = Polynomial(polys.avm_binary_mem_tag_ctr.shifted());
+        polys.avm_binary_acc_ia_shift = Polynomial(polys.avm_binary_acc_ia.shifted());
+        polys.avm_main_internal_return_ptr_shift = Polynomial(polys.avm_main_internal_return_ptr.shifted());
+        polys.avm_main_pc_shift = Polynomial(polys.avm_main_pc.shifted());
+        polys.avm_alu_alu_u16_r1_shift = Polynomial(polys.avm_alu_alu_u16_r1.shifted());
+        polys.avm_alu_alu_u16_r3_shift = Polynomial(polys.avm_alu_alu_u16_r3.shifted());
+        polys.avm_alu_alu_u16_r2_shift = Polynomial(polys.avm_alu_alu_u16_r2.shifted());
+        polys.avm_alu_alu_u16_r5_shift = Polynomial(polys.avm_alu_alu_u16_r5.shifted());
+        polys.avm_alu_alu_u16_r4_shift = Polynomial(polys.avm_alu_alu_u16_r4.shifted());
+        polys.avm_alu_alu_u16_r6_shift = Polynomial(polys.avm_alu_alu_u16_r6.shifted());
+        polys.avm_alu_alu_u16_r0_shift = Polynomial(polys.avm_alu_alu_u16_r0.shifted());
+        polys.avm_alu_alu_u16_r7_shift = Polynomial(polys.avm_alu_alu_u16_r7.shifted());
 
         return polys;
     }
@@ -438,16 +442,16 @@ class AvmCircuitBuilder {
                                                                         Avm_vm::get_relation_label_avm_mem)) {
             return false;
         }
+        if (!evaluate_relation.template operator()<Avm_vm::avm_binary<FF>>("avm_binary",
+                                                                           Avm_vm::get_relation_label_avm_binary)) {
+            return false;
+        }
         if (!evaluate_relation.template operator()<Avm_vm::avm_main<FF>>("avm_main",
                                                                          Avm_vm::get_relation_label_avm_main)) {
             return false;
         }
         if (!evaluate_relation.template operator()<Avm_vm::avm_alu<FF>>("avm_alu",
                                                                         Avm_vm::get_relation_label_avm_alu)) {
-            return false;
-        }
-        if (!evaluate_relation.template operator()<Avm_vm::avm_binary<FF>>("avm_binary",
-                                                                           Avm_vm::get_relation_label_avm_binary)) {
             return false;
         }
 
