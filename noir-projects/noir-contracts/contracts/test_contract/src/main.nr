@@ -21,7 +21,10 @@ contract Test {
         note_getter_options::NoteStatus
     },
         deploy::deploy_contract as aztec_deploy_contract,
-        oracle::{get_public_key::get_public_key as get_public_key_oracle, context::get_portal_address, unsafe_rand::unsafe_rand},
+        oracle::{
+        get_public_key::get_public_key as get_public_key_oracle, context::get_portal_address,
+        unsafe_rand::unsafe_rand
+    },
         log::emit_unencrypted_log_from_private
     };
     use dep::token_portal_content_hash_lib::{get_mint_private_content_hash, get_mint_public_content_hash};

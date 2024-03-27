@@ -1,6 +1,5 @@
 use dep::protocol_types::{
-    abis::function_selector::FunctionSelector, 
-    address::AztecAddress, 
+    abis::function_selector::FunctionSelector, address::AztecAddress,
     constants::ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH
 };
 

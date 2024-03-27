@@ -8,7 +8,9 @@ pub fn deploy_contract(context: &mut PrivateContext, target: AztecAddress) {
 
     let universal_deploy = instance.deployer.is_zero();
     if !universal_deploy {
-        assert(instance.deployer == context.this_address(), "Deployer address does not match current address");
+        assert(
+            instance.deployer == context.this_address(), "Deployer address does not match current address"
+        );
     }
 
     // Adapted from noir-contracts/contracts/contract_instance_deployer_contract/src/interface/ContractInstanceDeployer.nr

@@ -1,6 +1,6 @@
 use crate::abis::{membership_witness::NoteHashReadRequestMembershipWitness, side_effect::SideEffect};
 use crate::tests::fixtures;
-use crate::constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL};
+use crate::constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL;
 
 pub fn generate_note_hash_read_requests(how_many: u64) -> (BoundedVec<SideEffect, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>, BoundedVec<NoteHashReadRequestMembershipWitness, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>) {
     generate_note_hash_read_requests_with_config(how_many, false, [0; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL])

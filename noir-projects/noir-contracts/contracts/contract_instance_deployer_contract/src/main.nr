@@ -3,8 +3,8 @@ mod events;
 contract ContractInstanceDeployer {
     use dep::aztec::protocol_types::{
         address::{AztecAddress, EthAddress, PublicKeysHash, PartialAddress},
-        contract_class_id::ContractClassId,
-        constants::{DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE}, traits::{Serialize}
+        contract_class_id::ContractClassId, constants::DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE,
+        traits::Serialize
     };
 
     use dep::aztec::log::{emit_unencrypted_log, emit_unencrypted_log_from_private};

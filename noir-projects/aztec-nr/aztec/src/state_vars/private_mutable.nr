@@ -1,4 +1,4 @@
-use dep::protocol_types::{address::AztecAddress, constants::{GENERATOR_INDEX__INITIALIZATION_NULLIFIER}, hash::pedersen_hash};
+use dep::protocol_types::{address::AztecAddress, constants::GENERATOR_INDEX__INITIALIZATION_NULLIFIER, hash::pedersen_hash};
 
 use crate::context::{PrivateContext, PublicContext, Context};
 use crate::note::{

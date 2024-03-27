@@ -17,13 +17,13 @@ unconstrained pub fn emit_encrypted_log<N>(
     encryption_pub_key: GrumpkinPoint,
     preimage: [Field; N]
 ) -> Field {
-        emit_encrypted_log_oracle(
-            contract_address,
-            storage_slot,
-            note_type_id,
-            encryption_pub_key,
-            preimage
-        )
+    emit_encrypted_log_oracle(
+        contract_address,
+        storage_slot,
+        note_type_id,
+        encryption_pub_key,
+        preimage
+    )
 }
 
 #[oracle(emitUnencryptedLog)]

@@ -1,4 +1,4 @@
-use crate::context::{Context};
+use crate::context::Context;
 use crate::oracle::storage::storage_read;
 use crate::oracle::storage::storage_write;
 use dep::protocol_types::traits::{Deserialize, Serialize};

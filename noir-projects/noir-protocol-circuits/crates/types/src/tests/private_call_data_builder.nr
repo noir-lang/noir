@@ -3,7 +3,7 @@ use crate::{
     call_request::{CallerContext, CallRequest}, private_call_stack_item::PrivateCallStackItem,
     function_data::FunctionData, max_block_number::MaxBlockNumber,
     membership_witness::{FunctionLeafMembershipWitness, NoteHashReadRequestMembershipWitness},
-    private_circuit_public_inputs::{PrivateCircuitPublicInputs},
+    private_circuit_public_inputs::PrivateCircuitPublicInputs,
     private_kernel::private_call_data::PrivateCallData
 },
     address::{AztecAddress, EthAddress, SaltedInitializationHash, PublicKeysHash},

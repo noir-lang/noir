@@ -1,6 +1,6 @@
 use crate::{
-    constants::CONTENT_COMMITMENT_LENGTH,
-    traits::{Deserialize, Empty, Hash, Serialize}, utils::{arr_copy_slice}
+    constants::CONTENT_COMMITMENT_LENGTH, traits::{Deserialize, Empty, Hash, Serialize},
+    utils::arr_copy_slice
 };
 
 struct ContentCommitment {

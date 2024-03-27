@@ -16,7 +16,14 @@ pub fn process_l1_to_l2_message(
     secret: Field
 ) -> Field {
     let secret_hash = compute_secret_hash(secret);
-    let message_hash = compute_message_hash(portal_contract_address, chain_id, storage_contract_address, version, content, secret_hash);
+    let message_hash = compute_message_hash(
+        portal_contract_address,
+        chain_id,
+        storage_contract_address,
+        version,
+        content,
+        secret_hash
+    );
 
     let returned_message = get_l1_to_l2_membership_witness(storage_contract_address, message_hash, secret);
     let leaf_index = returned_message[0];

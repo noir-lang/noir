@@ -23,7 +23,11 @@ pub fn insert_subtree_to_snapshot_tree<N>(
     );
 
     // if index of leaf is x, index of its parent is x/2 or x >> 1. We need to find the parent `subtree_depth` levels up.
-    let new_root = root_from_sibling_path(subtree_root_to_insert, leaf_index_at_depth as Field, sibling_path);
+    let new_root = root_from_sibling_path(
+        subtree_root_to_insert,
+        leaf_index_at_depth as Field,
+        sibling_path
+    );
 
     // 2^subtree_depth is the number of leaves added. 2^x = 1 << x
     let new_next_available_leaf_index = (snapshot.next_available_leaf_index as u64) + (1 << (subtree_depth as u64));

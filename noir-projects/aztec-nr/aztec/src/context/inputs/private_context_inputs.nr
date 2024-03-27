@@ -1,7 +1,4 @@
-use dep::protocol_types::{
-    abis::call_context::CallContext,
-    header::Header
-};
+use dep::protocol_types::{abis::call_context::CallContext, header::Header};
 use crate::context::globals::private_global_variables::PrivateGlobalVariables;
 
 // PrivateContextInputs are expected to be provided to each private function

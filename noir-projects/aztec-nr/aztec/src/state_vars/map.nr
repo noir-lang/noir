@@ -1,5 +1,5 @@
 use crate::context::{PrivateContext, PublicContext, Context};
-use dep::protocol_types::{hash::pedersen_hash, traits::{ToField}};
+use dep::protocol_types::{hash::pedersen_hash, traits::ToField};
 use crate::state_vars::storage::Storage;
 
 // docs:start:map

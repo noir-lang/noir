@@ -3,8 +3,8 @@ use crate::abis::previous_rollup_data::PreviousRollupData;
 use dep::types::{
     mocked::AggregationObject, hash::accumulate_sha256,
     constants::{
-    MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
-    MAX_NEW_L2_TO_L1_MSGS_PER_TX, NUM_UNENCRYPTED_LOGS_HASHES_PER_TX, NUM_ENCRYPTED_LOGS_HASHES_PER_TX,
+    MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
+    NUM_UNENCRYPTED_LOGS_HASHES_PER_TX, NUM_ENCRYPTED_LOGS_HASHES_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 },
     utils::uint256::U256,
@@ -89,8 +89,8 @@ pub fn compute_out_hash(previous_rollup_data: [PreviousRollupData; 2]) -> Field 
     accumulate_sha256(
         [
         previous_rollup_data[0].base_or_merge_rollup_public_inputs.out_hash,
-        previous_rollup_data[1].base_or_merge_rollup_public_inputs.out_hash,
-        ]
+        previous_rollup_data[1].base_or_merge_rollup_public_inputs.out_hash
+    ]
     )
 }
 
@@ -119,7 +119,7 @@ pub fn compute_txs_effects_hash(previous_rollup_data: [PreviousRollupData; 2]) -
     accumulate_sha256(
         [
         previous_rollup_data[0].base_or_merge_rollup_public_inputs.txs_effects_hash,
-        previous_rollup_data[1].base_or_merge_rollup_public_inputs.txs_effects_hash,
+        previous_rollup_data[1].base_or_merge_rollup_public_inputs.txs_effects_hash
     ]
     )
 }

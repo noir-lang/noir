@@ -131,9 +131,7 @@ mod tests {
     #[test]
     fn txs_effects_hash() {
         let mut inputs = default_merge_rollup_inputs();
-        let expected_hash = accumulate_sha256(
-            [1, 2]
-        );
+        let expected_hash = accumulate_sha256([1, 2]);
         let outputs = inputs.merge_rollup_circuit();
 
         assert_eq(outputs.txs_effects_hash, expected_hash);

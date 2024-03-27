@@ -1,7 +1,4 @@
-use dep::types::{
-    abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot,
-    header::Header
-};
+use dep::types::{abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot, header::Header};
 use dep::types::mocked::AggregationObject;
 
 struct RootRollupPublicInputs {

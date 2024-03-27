@@ -1,6 +1,6 @@
 use dep::aztec::context::{PrivateContext, PublicContext, Context};
 use dep::aztec::state_vars::{Map, PublicMutable};
-use dep::aztec::protocol_types::{address::AztecAddress, abis::function_selector::FunctionSelector, hash::{pedersen_hash}};
+use dep::aztec::protocol_types::{address::AztecAddress, abis::function_selector::FunctionSelector, hash::pedersen_hash};
 
 use crate::entrypoint::{app::AppPayload, fee::FeePayload};
 use crate::auth::{IS_VALID_SELECTOR, compute_outer_authwit_hash};
@@ -76,7 +76,12 @@ impl AccountActions {
         // The `inner_hash` is "siloed" with the `msg_sender` to ensure that only it can 
         // consume the message.
         // This ensures that contracts cannot consume messages that are not intended for them.
-        let message_hash = compute_outer_authwit_hash(context.msg_sender(), context.chain_id(), context.version(), inner_hash);
+        let message_hash = compute_outer_authwit_hash(
+            context.msg_sender(),
+            context.chain_id(),
+            context.version(),
+            inner_hash
+        );
         let valid_fn = self.is_valid_impl;
         assert(valid_fn(context, message_hash) == true, "Message not authorized by account");
         context.push_new_nullifier(message_hash, 0);
@@ -90,7 +95,12 @@ impl AccountActions {
         // The `inner_hash` is "siloed" with the `msg_sender` to ensure that only it can 
         // consume the message.
         // This ensures that contracts cannot consume messages that are not intended for them.
-        let message_hash = compute_outer_authwit_hash(context.msg_sender(), context.chain_id(), context.version(), inner_hash);
+        let message_hash = compute_outer_authwit_hash(
+            context.msg_sender(),
+            context.chain_id(),
+            context.version(),
+            inner_hash
+        );
         let is_valid = self.approved_action.at(message_hash).read();
         assert(is_valid == true, "Message not authorized by account");
         context.push_new_nullifier(message_hash, 0);

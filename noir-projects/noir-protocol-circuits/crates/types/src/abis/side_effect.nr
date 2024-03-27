@@ -1,5 +1,5 @@
 use crate::{
-    address::AztecAddress, constants::{GENERATOR_INDEX__SIDE_EFFECT},
+    address::AztecAddress, constants::GENERATOR_INDEX__SIDE_EFFECT,
     traits::{Empty, Hash, Serialize, Deserialize}
 };
 use dep::std::cmp::Eq;

@@ -1,6 +1,4 @@
-use dep::types::{
-    mocked::AggregationObject,
-};
+use dep::types::{mocked::AggregationObject};
 
 struct ParityPublicInputs {
     aggregation_object: AggregationObject,

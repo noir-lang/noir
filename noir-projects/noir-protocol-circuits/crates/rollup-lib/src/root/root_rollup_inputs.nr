@@ -84,10 +84,6 @@ impl RootRollupInputs {
             0
         );
 
-        RootRollupPublicInputs {
-            aggregation_object,
-            archive,
-            header
-        }
+        RootRollupPublicInputs { aggregation_object, archive, header }
     }
 }

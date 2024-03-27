@@ -60,9 +60,7 @@ mod tests {
 
     #[test]
     fn check_block_hashes_empty_blocks() {
-        let expected_txs_effects_hash = accumulate_sha256(
-            [1, 2]
-        );
+        let expected_txs_effects_hash = accumulate_sha256([1, 2]);
 
         let inputs = default_root_rollup_inputs();
         let outputs = inputs.root_rollup_circuit();

@@ -1,6 +1,4 @@
-use dep::types::{
-    hash::accumulate_sha256,
-};
+use dep::types::{hash::accumulate_sha256};
 
 // Note: Once we'll truncate sha256 to 1 Field we can nuke this and generalize the standard MerkleTree over different
 // hash functions.

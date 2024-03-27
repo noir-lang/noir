@@ -3,9 +3,8 @@ contract StatefulTest {
     use dep::aztec::prelude::{PrivateContext, NoteHeader, Map, PublicMutable, PrivateSet, AztecAddress, FunctionSelector};
     use dep::value_note::{balance_utils, utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote}};
     use dep::aztec::{
-        deploy::{deploy_contract as aztec_deploy_contract}, context::{PublicContext, Context},
-        oracle::get_contract_instance::get_contract_instance,
-        initializer::assert_is_initialized,
+        deploy::deploy_contract as aztec_deploy_contract, context::{PublicContext, Context},
+        oracle::get_contract_instance::get_contract_instance, initializer::assert_is_initialized
     };
 
     struct Storage {
