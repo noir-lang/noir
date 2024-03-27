@@ -240,6 +240,23 @@ assert computed_artifact_hash == contract_class.artifact_hash
 
 It is strongly recommended for developers registering new classes to broadcast the code for `compute_hash_and_nullifier`, so any private message recipients have the code available to process their incoming notes. However, the `ContractClassRegisterer` contract does not enforce this during registration, since it is difficult to check the multiple signatures for `compute_hash_and_nullifier` as they may evolve over time to account for new note sizes.
 
+### Encoding Bytecode
+
+The `register`, `broadcast_unconstrained_function`, and `broadcast_private_function` functions all receive and emit variable-length bytecode in unencrypted events. In every function, bytecode is encoded in a fixed-length array of field elements, which sets a maximum length for each:
+
+- `MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS`: 15000 field elements, used for a contract's public bytecode in the `register` function.
+- `MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS`: 3000 field elements, used for the ACIR and Brillig bytecode of a broadcasted private function in `broadcast_private_function`.
+- `MAX_PACKED_BYTECODE_SIZE_PER_UNCONSTRAINED_FUNCTION_IN_FIELDS`: 3000 field elements, used for the Brillig bytecode of a broadcasted unconstrained function in `broadcast_unconstrained_function`.
+
+To encode the bytecode into a fixed-length array of Fields, the bytecode is first split into 31-byte chunks, and each chunk interpreted big-endian as a field element. The total length in bytes is then prepended as an initial element, and then right-padded with zeroes.
+
+```
+chunks = chunk bytecode into 31 bytes elements, last element right-padded with zeroes
+fields = right-align each chunk into 32 bytes and cast to a field element
+padding = repeat a zero-value field MAX_SIZE - fields.count - 1 times
+encoded = [bytecode.length as field, ...fields, ...padding]
+```
+
 ## Discarded Approaches
 
 ### Bundling private function information into a single tree
