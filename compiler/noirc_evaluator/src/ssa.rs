@@ -67,19 +67,26 @@ pub(crate) fn optimize_into_acir(
             .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
             .finish();
 
+    // For pretty printing the Brillig codegen time
+    let now = Instant::now();
+
     let brillig = ssa.to_brillig(print_brillig_trace);
+
+    if print_codegen_timings {
+        println!("SSA to Brillig: {} ms", now.elapsed().as_millis());
+    }
 
     drop(ssa_gen_span_guard);
 
     let last_array_uses = ssa.find_last_array_uses();
 
-    // For pretty printing ACIR timings
+    // For pretty printing the ACIR codegen time
     let now = Instant::now();
 
     let acir = ssa.into_acir(brillig, abi_distinctness, &last_array_uses);
 
     if print_codegen_timings {
-        println!("SSA to ACIR: {}", now.elapsed().as_millis());
+        println!("SSA to ACIR: {} ms", now.elapsed().as_millis());
     }
 
     acir
@@ -233,12 +240,7 @@ impl SsaBuilder {
     }
 
     fn to_brillig(&self, print_brillig_trace: bool) -> Brillig {
-        let now = Instant::now();
-        let brillig = self.ssa.to_brillig(print_brillig_trace);
-        if self.print_codegen_timings {
-            println!("SSA to Brillig: {} ms", now.elapsed().as_millis());
-        }
-        brillig
+        self.ssa.to_brillig(print_brillig_trace)
     }
 
     fn print(self, msg: &str) -> Self {
