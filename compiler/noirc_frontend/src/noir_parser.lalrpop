@@ -1,0 +1,55 @@
+use std::str::FromStr;
+
+use acvm::FieldElement;
+use noirc_errors::{Position, Span};
+
+use crate::lexer::token as noir_token;
+use crate::lexer::lexer::IntType;
+use crate::lexer::errors::LexerErrorKind;
+
+use lalrpop_util::{ErrorRecovery, ParseError};
+
+
+// TODO: cleanup. is this what we want for ErrorRecovery?
+// grammar;
+grammar<'err>(errors: &'err mut Vec<ErrorRecovery<usize, Token<'input>, &'static str>>);
+
+extern {
+    type Error = Vec<LexerErrorKind>;
+}
+
+// TODO: rename Term
+pub Term: noir_token::Token = {
+
+    <n:Num> => noir_token::Token::Int(n),
+    <b:Bool> => noir_token::Token::Bool(b),
+
+    // "(" <t:Term> ")" => t,
+};
+
+Num: FieldElement = <integer_str_raw:r"[0-9]+"> =>? {
+    // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
+    let integer_str = integer_str_raw.replace('_', "");
+
+    match FieldElement::try_from_str(&integer_str) {
+        None => {
+            let error = vec![LexerErrorKind::InvalidIntegerLiteral {
+                // TODO: fix span?
+                span: Span::empty(0), // inclusive(start, end),
+                found: integer_str,
+            }];
+
+            // TODO: error recovery
+            // errors.push(ParseError::User { error });
+            Err(ParseError::User { error })
+
+        }
+        Some(integer) => Ok(integer),
+    }
+};
+
+Bool: bool = {
+    "true" => true,
+    "false" => false,
+};
+

@@ -1103,70 +1103,16 @@ mod tests {
         //     assert(ten + five == 15);
         // ";
 
-        // lalrpop_mod!(pub noir_lexing, "/lexer/noir_lexing.rs"); // synthesized by LALRPOP
-        lalrpop_mod!(pub noir_lexing); // synthesized by LALRPOP
+        // lalrpop_mod!(pub noir_parser, "/lexer/noir_parser.rs"); // synthesized by LALRPOP
+        lalrpop_mod!(pub noir_parser); // synthesized by LALRPOP
 
         // let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
         let input = "23314";
 
-        // let expected = vec![
-        //     Token::Bang,
-        //     Token::NotEqual,
-        //     Token::Plus,
-        //     Token::LeftParen,
-        //     Token::RightParen,
-        //     Token::LeftBrace,
-        //     Token::RightBrace,
-        //     Token::LeftBracket,
-        //     Token::RightBracket,
-        //     Token::Pipe,
-        //     Token::Comma,
-        //     Token::Semicolon,
-        //     Token::Colon,
-        //     Token::DoubleColon,
-        //     Token::Less,
-        //     Token::LessEqual,
-        //     Token::Greater,
-        //     Token::GreaterEqual,
-        //     Token::Ampersand,
-        //     Token::Minus,
-        //     Token::Arrow,
-        //     Token::Dot,
-        //     Token::DoubleDot,
-        //     Token::Percent,
-        //     Token::Slash,
-        //     Token::Star,
-        //     Token::Assign,
-        //     Token::Equal,
-        //     Token::ShiftLeft,
-        //     Token::Greater,
-        //     Token::Greater,
-        //     Token::EOF,
-        // ];
-
         let mut errors = Vec::new();
-        let calculated = noir_lexing::TermParser::new().parse(&mut errors, input);
+        let calculated = noir_parser::TermParser::new().parse(&mut errors, input);
         assert!(calculated == Ok(Token::Int(23314_i128.into())), "{:?}", calculated);
 
-
-        let input = "\"hi there\\\"!\"";
-
-        let mut errors = Vec::new();
-        let calculated = noir_lexing::TermParser::new().parse(&mut errors, input);
-        assert!(calculated == Ok(Token::Int(23314_i128.into())), "{:?}", calculated);
-
-
-        let input = "// hello
-        let x = 5
-    ";
-
-        let mut errors = Vec::new();
-        let calculated = noir_lexing::TermParser::new().parse(&mut errors, input);
-        assert!(calculated == Ok(Token::Less), "{:?}", calculated);
-
-        // assert!(noir_lexing::TermParser::new().parse("(22)").is_ok());
-        // assert!(noir_lexing::TermParser::new().parse("((((22))))").is_ok());
-        // assert!(noir_lexing::TermParser::new().parse("((22)").is_err());
 
 
     }
