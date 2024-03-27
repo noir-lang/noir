@@ -47,10 +47,14 @@ pub fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
     let mut from_signature_path = selector_path.clone();
     from_signature_path.segments.push(ident("from_signature"));
 
-    let selector_fun_body = BlockExpression(vec![make_statement(StatementKind::Expression(call(
-        variable_path(from_signature_path),
-        vec![expression(ExpressionKind::Literal(Literal::Str(SIGNATURE_PLACEHOLDER.to_string())))],
-    )))]);
+    let selector_fun_body = BlockExpression {
+        statements: vec![make_statement(StatementKind::Expression(call(
+            variable_path(from_signature_path),
+            vec![expression(ExpressionKind::Literal(Literal::Str(
+                SIGNATURE_PLACEHOLDER.to_string(),
+            )))],
+        )))],
+    };
 
     // Define `FunctionSelector` return type
     let return_type =

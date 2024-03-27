@@ -319,12 +319,12 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             return;
         };
 
-        for (index, value) in memory.iter().enumerate() {
-            println!("{index} = {}", value.to_field());
+        for (index, value) in memory.iter().enumerate().filter(|(_, value)| value.bit_size > 0) {
+            println!("{index} = {}", value);
         }
     }
 
-    pub fn write_brillig_memory(&mut self, index: usize, value: String) {
+    pub fn write_brillig_memory(&mut self, index: usize, value: String, bit_size: u32) {
         let Some(field_value) = FieldElement::try_from_str(&value) else {
             println!("Invalid value: {value}");
             return;
@@ -333,7 +333,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             println!("Not executing a Brillig block");
             return;
         }
-        self.context.write_brillig_memory(index, field_value);
+        self.context.write_brillig_memory(index, field_value, bit_size);
     }
 
     pub fn show_vars(&self) {
@@ -513,8 +513,8 @@ pub fn run<B: BlackBoxFunctionSolver>(
             "memset",
             command! {
                 "update a Brillig memory cell with the given value",
-                (index: usize, value: String) => |index, value| {
-                    ref_context.borrow_mut().write_brillig_memory(index, value);
+                (index: usize, value: String, bit_size: u32) => |index, value, bit_size| {
+                    ref_context.borrow_mut().write_brillig_memory(index, value, bit_size);
                     Ok(CommandStatus::Done)
                 }
             },

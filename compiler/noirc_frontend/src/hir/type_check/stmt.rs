@@ -258,6 +258,11 @@ impl<'interner> TypeChecker<'interner> {
                     Type::Array(_, elem_type) => *elem_type,
                     Type::Slice(elem_type) => *elem_type,
                     Type::Error => Type::Error,
+                    Type::String(_) => {
+                        let (_lvalue_name, lvalue_span) = self.get_lvalue_name_and_span(&lvalue);
+                        self.errors.push(TypeCheckError::StringIndexAssign { span: lvalue_span });
+                        Type::Error
+                    }
                     other => {
                         // TODO: Need a better span here
                         self.errors.push(TypeCheckError::TypeMismatch {

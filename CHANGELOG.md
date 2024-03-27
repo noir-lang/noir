@@ -1,5 +1,67 @@
 # Changelog
 
+## [0.26.0](https://github.com/noir-lang/noir/compare/v0.25.0...v0.26.0) (2024-03-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **acir:** Program and witness stack structure (https://github.com/AztecProtocol/aztec-packages/pull/5149)
+* automatic NoteInterface and NoteGetterOptions auto select (https://github.com/AztecProtocol/aztec-packages/pull/4508)
+* separating out array and slice types in the AST ([#4504](https://github.com/noir-lang/noir/issues/4504))
+* Acir call opcode (https://github.com/AztecProtocol/aztec-packages/pull/4773)
+* Support contracts with no constructor (https://github.com/AztecProtocol/aztec-packages/pull/5175)
+* Remove open keyword from Noir (https://github.com/AztecProtocol/aztec-packages/pull/4967)
+
+### Features
+
+* Acir call opcode (https://github.com/AztecProtocol/aztec-packages/pull/4773) ([c3c9e19](https://github.com/noir-lang/noir/commit/c3c9e19a20d61272a04b95fd6c7d34cc4cb96e45))
+* **acir:** Program and witness stack structure (https://github.com/AztecProtocol/aztec-packages/pull/5149) ([13eb71b](https://github.com/noir-lang/noir/commit/13eb71b8de44eb6aad9c37943ad06fc73db589f5))
+* Add `break` and `continue` in unconstrained code ([#4569](https://github.com/noir-lang/noir/issues/4569)) ([f2f827d](https://github.com/noir-lang/noir/commit/f2f827d51e6fe99fa3d17f125b22743da25e25be))
+* Add `nargo compile --watch` command ([#4464](https://github.com/noir-lang/noir/issues/4464)) ([44e60b6](https://github.com/noir-lang/noir/commit/44e60b67469de88f20842c4eead64d736f7bd4a0))
+* Add as_slice builtin function, add execution test ([#4523](https://github.com/noir-lang/noir/issues/4523)) ([6a9ea35](https://github.com/noir-lang/noir/commit/6a9ea35c4f1578058179aa08eedf44eb18bad4a1))
+* Add checks for bit size consistency on brillig gen ([#4542](https://github.com/noir-lang/noir/issues/4542)) ([f3243b7](https://github.com/noir-lang/noir/commit/f3243b763c0b15ae90beb8e35630df27f3d314c0))
+* Add CMOV instruction to brillig and brillig gen (https://github.com/AztecProtocol/aztec-packages/pull/5308) ([13eb71b](https://github.com/noir-lang/noir/commit/13eb71b8de44eb6aad9c37943ad06fc73db589f5))
+* Add experimental `quote` expression to parser ([#4595](https://github.com/noir-lang/noir/issues/4595)) ([4c3a30b](https://github.com/noir-lang/noir/commit/4c3a30b4991a329d3c52e1dfa59d854d7e6910db))
+* Add more impls on Option ([#4549](https://github.com/noir-lang/noir/issues/4549)) ([4cf700b](https://github.com/noir-lang/noir/commit/4cf700bcfe157ebc82cdf7321a16959b7a4add57))
+* Add specific error for attempting `string[x] = ".."` ([#4611](https://github.com/noir-lang/noir/issues/4611)) ([ff95fd9](https://github.com/noir-lang/noir/commit/ff95fd93451b2053360a16b7d3204ca251199296))
+* Allow usage of noir `#[test]` syntax in stdlib ([#4553](https://github.com/noir-lang/noir/issues/4553)) ([a8b7cdb](https://github.com/noir-lang/noir/commit/a8b7cdb8a3698bc8923b6fa8714deebb8bf3923f))
+* Automatic NoteInterface and NoteGetterOptions auto select (https://github.com/AztecProtocol/aztec-packages/pull/4508) ([13eb71b](https://github.com/noir-lang/noir/commit/13eb71b8de44eb6aad9c37943ad06fc73db589f5))
+* **avm:** Brillig CONST of size &gt; u128 (https://github.com/AztecProtocol/aztec-packages/pull/5217) ([c3c9e19](https://github.com/noir-lang/noir/commit/c3c9e19a20d61272a04b95fd6c7d34cc4cb96e45))
+* Brillig IR refactor (https://github.com/AztecProtocol/aztec-packages/pull/5233) ([c3c9e19](https://github.com/noir-lang/noir/commit/c3c9e19a20d61272a04b95fd6c7d34cc4cb96e45))
+* Check initialization arguments in constructors (https://github.com/AztecProtocol/aztec-packages/pull/5144) ([d4213a0](https://github.com/noir-lang/noir/commit/d4213a03c9f77ee8e7663fc965a825258d90a368))
+* Check initializer msg.sender matches deployer from address preimage (https://github.com/AztecProtocol/aztec-packages/pull/5222) ([c3c9e19](https://github.com/noir-lang/noir/commit/c3c9e19a20d61272a04b95fd6c7d34cc4cb96e45))
+* Initial Earthly CI (https://github.com/AztecProtocol/aztec-packages/pull/5069) ([c3c9e19](https://github.com/noir-lang/noir/commit/c3c9e19a20d61272a04b95fd6c7d34cc4cb96e45))
+* Integrated native ACVM (https://github.com/AztecProtocol/aztec-packages/pull/4903) ([a6016b4](https://github.com/noir-lang/noir/commit/a6016b46abf6da6de4566cf6d35a675d805dd9b5))
+* Make brillig-gen more AVM-friendly (https://github.com/AztecProtocol/aztec-packages/pull/5091) ([a6016b4](https://github.com/noir-lang/noir/commit/a6016b46abf6da6de4566cf6d35a675d805dd9b5))
+* New brillig field operations and refactor of binary operations (https://github.com/AztecProtocol/aztec-packages/pull/5208) ([c3c9e19](https://github.com/noir-lang/noir/commit/c3c9e19a20d61272a04b95fd6c7d34cc4cb96e45))
+* Optimize sha2 implementation ([#4441](https://github.com/noir-lang/noir/issues/4441)) ([80373d6](https://github.com/noir-lang/noir/commit/80373d612c023e3e165b49b6d1729486b0ba3b4b))
+* RC optimization pass ([#4560](https://github.com/noir-lang/noir/issues/4560)) ([dfa5126](https://github.com/noir-lang/noir/commit/dfa5126f2c65843c34701cacddf2cbcfb0d7ff11))
+* Remove curly braces with fmt  ([#4529](https://github.com/noir-lang/noir/issues/4529)) ([fe9a437](https://github.com/noir-lang/noir/commit/fe9a437b6d7ddc3f78665df1a576236555880c51))
+* Separating out array and slice types in the AST ([#4504](https://github.com/noir-lang/noir/issues/4504)) ([9a241f9](https://github.com/noir-lang/noir/commit/9a241f9622b342cd9d56bf8481219cfc374c0510))
+* Signed integer division and modulus in brillig gen (https://github.com/AztecProtocol/aztec-packages/pull/5279) ([c3c9e19](https://github.com/noir-lang/noir/commit/c3c9e19a20d61272a04b95fd6c7d34cc4cb96e45))
+* Support contracts with no constructor (https://github.com/AztecProtocol/aztec-packages/pull/5175) ([c3c9e19](https://github.com/noir-lang/noir/commit/c3c9e19a20d61272a04b95fd6c7d34cc4cb96e45))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/5234) ([c3c9e19](https://github.com/noir-lang/noir/commit/c3c9e19a20d61272a04b95fd6c7d34cc4cb96e45))
+* Sync from noir (https://github.com/AztecProtocol/aztec-packages/pull/5286) ([c3c9e19](https://github.com/noir-lang/noir/commit/c3c9e19a20d61272a04b95fd6c7d34cc4cb96e45))
+* Visible aliases for nargo commands ([#4453](https://github.com/noir-lang/noir/issues/4453)) ([773cf19](https://github.com/noir-lang/noir/commit/773cf190ee21381d826ba80391a5d7d5efae9174))
+
+
+### Bug Fixes
+
+* **acir_gen:** More granular element sizes array check ([#4528](https://github.com/noir-lang/noir/issues/4528)) ([f93d16e](https://github.com/noir-lang/noir/commit/f93d16e3e89c5df358c982deae4f3c2d4c82b77f))
+* Added error messages for passing oracles and references from unconstrained to constrained functions ([#4570](https://github.com/noir-lang/noir/issues/4570)) ([265bd8b](https://github.com/noir-lang/noir/commit/265bd8b284e5acd572a3812a94a99fc102227ff2))
+* Allow non-integer globals to reference struct methods ([#4490](https://github.com/noir-lang/noir/issues/4490)) ([00d6494](https://github.com/noir-lang/noir/commit/00d6494ae70b10e1872d96fb4e57ecb0b5f01787))
+* Dynamic assert messages in brillig ([#4531](https://github.com/noir-lang/noir/issues/4531)) ([e24d3fc](https://github.com/noir-lang/noir/commit/e24d3fc5a084610d9511e3c5421275cb9c84a548))
+* Evaluate operators in globals in types ([#4537](https://github.com/noir-lang/noir/issues/4537)) ([c8aa16b](https://github.com/noir-lang/noir/commit/c8aa16bc7e78456cce1736fac82496996a8761f4))
+* Make `nargo` the default binary for cargo run ([#4554](https://github.com/noir-lang/noir/issues/4554)) ([de4986e](https://github.com/noir-lang/noir/commit/de4986eb74b28b2e1065fa6b413d02457ddf61b0))
+* Signed integer comparisons in brillig ([#4579](https://github.com/noir-lang/noir/issues/4579)) ([938d5e8](https://github.com/noir-lang/noir/commit/938d5e85eda00a05de5014e64d3dc9fc7c24936d))
+* **ssa:** Use accurate type during SSA AsSlice simplficiation ([#4610](https://github.com/noir-lang/noir/issues/4610)) ([0473497](https://github.com/noir-lang/noir/commit/04734976e92475b1ab94257e30bc3438c7358681))
+* Substitute generics when checking the field count of a type ([#4547](https://github.com/noir-lang/noir/issues/4547)) ([eeeebac](https://github.com/noir-lang/noir/commit/eeeebacd10698e847f773e26dac8a4a5eb8e84ed))
+
+
+### Miscellaneous Chores
+
+* Remove open keyword from Noir (https://github.com/AztecProtocol/aztec-packages/pull/4967) ([a6016b4](https://github.com/noir-lang/noir/commit/a6016b46abf6da6de4566cf6d35a675d805dd9b5))
+
 ## [0.25.0](https://github.com/noir-lang/noir/compare/v0.24.0...v0.25.0) (2024-03-11)
 
 
