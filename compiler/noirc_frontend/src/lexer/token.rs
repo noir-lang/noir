@@ -15,6 +15,7 @@ pub enum Token {
     Int(FieldElement),
     Bool(bool),
     Str(String),
+    /// the u8 is the number of hashes, i.e. r###..
     RawStr(String, u8),
     FmtStr(String),
     Keyword(Keyword),

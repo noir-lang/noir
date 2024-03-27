@@ -1148,6 +1148,14 @@ mod tests {
         let calculated = noir_lexing::TermParser::new().parse(&mut errors, input);
         assert!(calculated == Ok(Token::Int(23314_i128.into())), "{:?}", calculated);
 
+
+        let input = "\"hi there\\\"!\"";
+
+        let mut errors = Vec::new();
+        let calculated = noir_lexing::TermParser::new().parse(&mut errors, input);
+        assert!(calculated == Ok(Token::Int(23314_i128.into())), "{:?}", calculated);
+
+
         let input = "// hello
         let x = 5
     ";

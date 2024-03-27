@@ -4,6 +4,7 @@ use acvm::FieldElement;
 use noirc_errors::{Position, Span};
 
 use crate::lexer::token as noir_token;
+use crate::lexer::lexer::IntType;
 use crate::lexer::errors::LexerErrorKind;
 
 use lalrpop_util::{ErrorRecovery, ParseError};
@@ -172,6 +173,86 @@ Symbol: noir_token::Token = {
 }
 
 
+IntType: noir_token::Token = {
+    <integer_type:r"(i|u)"> <integer_str:r"[0-9]+"> =>? {
+        match integer_str.parse::<u32>() {
+            Err(_) => {
+                let error = vec![LexerErrorKind::UnexpectedCharacter {
+                    // TODO: fix span
+                    span: Span::empty(0), // inclusive(start, end),
+                    expected: "0..9".to_string(),
+                    found: integer_str.chars().next(),
+                }];
+
+                // TODO: error recovery
+                // errors.push(ParseError::User { error });
+                Err(ParseError::User { error })
+            }
+            Ok(type_size) => {
+                if integer_type == "i" {
+                    Ok(noir_token::Token::IntType(IntType::Signed(type_size)))
+                } else {
+                    Ok(noir_token::Token::IntType(IntType::Unsigned(type_size)))
+                }
+            }
+        }
+    },
+
+}
+
+String: noir_token::Token = {
+    "\"" <s:StringInner> => noir_token::Token::Str(s)
+}
+
+StringInner: String = {
+    "\\r" <StringInner> => {
+        let mut result = "\r".to_owned();
+        result.push_str(&<>);
+        return result;
+    },
+
+    "\\n" <StringInner> => {
+        let mut result = "\n".to_owned();
+        result.push_str(&<>);
+        return result;
+    },
+
+    "\\t" <StringInner> => {
+        let mut result = "\t".to_owned();
+        result.push_str(&<>);
+        return result;
+    },
+
+    "\\0" <StringInner> => {
+        let mut result = "\0".to_owned();
+        result.push_str(&<>);
+        return result;
+    },
+
+    "\\\"" <StringInner> => {
+        let mut result = "\"".to_owned();
+        result.push_str(&<>);
+        return result;
+    },
+
+    "\\\\" <StringInner> => {
+        let mut result = "\\".to_owned();
+        result.push_str(&<>);
+        return result;
+    },
+
+    <s:r"[^\\]"> <t:StringInner> => {
+        let mut result = s;
+        result.push_str(&t);
+        return result;
+    },
+
+    "\"" => "",
+}
+
+
+
+
 // TODO: rest of tokens
 //
 // pub enum Token {
@@ -179,7 +260,6 @@ Symbol: noir_token::Token = {
 //     Str(String),
 //     RawStr(String, u8),
 //     FmtStr(String),
-//     IntType(IntType),
 //     Attribute(Attribute),
 //
 //     #[allow(clippy::upper_case_acronyms)]
