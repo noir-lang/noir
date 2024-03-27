@@ -113,7 +113,7 @@ impl DebugInstrumenter {
             })
             .collect();
 
-        let func_body = &mut func.body.0;
+        let func_body = &mut func.body.statements;
         let mut statements = take(func_body);
 
         self.walk_scope(&mut statements, func.span);
@@ -243,7 +243,9 @@ impl DebugInstrumenter {
                 pattern: ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.span()),
                 r#type: ast::UnresolvedType::unspecified(),
                 expression: ast::Expression {
-                    kind: ast::ExpressionKind::Block(ast::BlockExpression(block_stmts)),
+                    kind: ast::ExpressionKind::Block(ast::BlockExpression {
+                        statements: block_stmts,
+                    }),
                     span: let_stmt.expression.span,
                 },
             }),
@@ -330,11 +332,13 @@ impl DebugInstrumenter {
             kind: ast::StatementKind::Assign(ast::AssignStatement {
                 lvalue: assign_stmt.lvalue.clone(),
                 expression: ast::Expression {
-                    kind: ast::ExpressionKind::Block(ast::BlockExpression(vec![
-                        ast::Statement { kind: let_kind, span: expression_span },
-                        new_assign_stmt,
-                        ast::Statement { kind: ret_kind, span: expression_span },
-                    ])),
+                    kind: ast::ExpressionKind::Block(ast::BlockExpression {
+                        statements: vec![
+                            ast::Statement { kind: let_kind, span: expression_span },
+                            new_assign_stmt,
+                            ast::Statement { kind: ret_kind, span: expression_span },
+                        ],
+                    }),
                     span: expression_span,
                 },
             }),
@@ -344,7 +348,7 @@ impl DebugInstrumenter {
 
     fn walk_expr(&mut self, expr: &mut ast::Expression) {
         match &mut expr.kind {
-            ast::ExpressionKind::Block(ast::BlockExpression(ref mut statements)) => {
+            ast::ExpressionKind::Block(ast::BlockExpression { ref mut statements, .. }) => {
                 self.scope.push(HashMap::default());
                 self.walk_scope(statements, expr.span);
             }
@@ -415,14 +419,16 @@ impl DebugInstrumenter {
 
         self.walk_expr(&mut for_stmt.block);
         for_stmt.block = ast::Expression {
-            kind: ast::ExpressionKind::Block(ast::BlockExpression(vec![
-                set_stmt,
-                ast::Statement {
-                    kind: ast::StatementKind::Semi(for_stmt.block.clone()),
-                    span: for_stmt.block.span,
-                },
-                drop_stmt,
-            ])),
+            kind: ast::ExpressionKind::Block(ast::BlockExpression {
+                statements: vec![
+                    set_stmt,
+                    ast::Statement {
+                        kind: ast::StatementKind::Semi(for_stmt.block.clone()),
+                        span: for_stmt.block.span,
+                    },
+                    drop_stmt,
+                ],
+            }),
             span: for_stmt.span,
         };
     }
