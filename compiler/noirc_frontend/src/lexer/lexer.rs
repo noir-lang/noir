@@ -1123,14 +1123,12 @@ mod tests {
             ]),
 
             (Some(Token::Str("".to_string())), vec![
-                // Token::Str(String)
                 format!("
                     let s = \"{}\";
                 ", s),
             ]),
 
             (Some(Token::RawStr("".to_string(), 0)), vec![
-
                 // let s = r"Hello world";
                 format!("
                     let s = r\"{}\";
@@ -1158,50 +1156,40 @@ mod tests {
             ]),
 
             (Some(Token::FmtStr("".to_string())), vec![
-
                 format!("
                     assert(x == y, f\"{}\");
                 ", s),
             ]),
 
             // expected token not found
-            //
             // (Some(Token::LineComment("".to_string(), None)), vec![
-            //     format!("
-            //         //{}
-            //     ", s),
-            //
-            //     format!("
-            //         // {}
-            //     ", s),
-            // ]),
+            (None, vec![
+                format!("
+                    //{}
+                ", s),
+                format!("
+                    // {}
+                ", s),
+            ]),
 
             // expected token not found
-            //
-            // According to the docs: https://noir-lang.org/docs/noir/concepts/comments/
-            // "Start a block comment with /* and end the block with */."
-            (Some(Token::BlockComment("".to_string(), None)), vec![
-                // bug
-                // format!("
-                //     /*{}*/
-                // ", s),
-
-                // bug
-                // format!("
-                //     /* {} */
-                // ", s),
-
-                // format!("
-                //     /*\n{}\n*/
-                // ", s),
-
+            // (Some(Token::BlockComment("".to_string(), None)), vec![
+            (None, vec![
+                format!("
+                    /*{}*/
+                ", s),
+                format!("
+                    /* {} */
+                ", s),
+                format!("
+                    /*\n{}\n*/
+                ", s),
             ]),
         ]
     }
 
     #[test]
     fn test_big_list_of_naughty_strings() {
-        use std::io::Cursor;
         use std::io::Read;
         use std::mem::discriminant;
         use std::path::Path;
@@ -1209,7 +1197,7 @@ mod tests {
         let blns_dir_str: String = std::env::var("BLNS_JSON_DIR").expect("BLNS_JSON_DIR not set");
         let blns_path = Path::new(&blns_dir_str).join("blns.base64.json");
         let blns_path_str = blns_path.to_str().unwrap();
-        let mut blns_bytes = std::fs::File::open(blns_path_str).unwrap();
+        let blns_bytes = std::fs::File::open(blns_path_str).unwrap();
 
         let mut blns_cursor = blns_bytes;
         let mut blns_contents = String::new();
@@ -1240,11 +1228,7 @@ mod tests {
 
                             Err(LexerErrorKind::InvalidIntegerLiteral { .. }) |
                             Err(LexerErrorKind::UnexpectedCharacter { .. }) |
-
-                            // TODO: unclear whether this should trigger
                             Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
-                                // we have to expect that it was found because this error could be
-                                // covering it
                                 expected_token_found = true;
                             }
                             Err(err) => {
@@ -1253,11 +1237,9 @@ mod tests {
                         }
                     }
 
-                    // TODO: avoid printing BLNS
-                    assert!(expected_token_found, "{}", format!("expected token not found: {:?}\n\ninput:\n{:?}\n\noutput:\n{:?}", token_discriminator_opt, blns_program_str, result_tokens));
+                    assert!(expected_token_found, "{}", format!("expected token not found: {:?}\noutput:\n{:?}", token_discriminator_opt, result_tokens));
                 })
             })
         })
     }
-
 }
