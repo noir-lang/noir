@@ -23,7 +23,7 @@ class perm_main_mem_a_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_mem_op_a == 1 || in.avm_mem_m_op_a == 1);
+        return (in.avm_main_mem_op_a == 1 || in.avm_mem_op_a == 1);
     }
 
     /**
@@ -49,7 +49,7 @@ class perm_main_mem_a_permutation_settings {
         return std::forward_as_tuple(in.perm_main_mem_a,
                                      in.avm_main_mem_op_a,
                                      in.avm_main_mem_op_a,
-                                     in.avm_mem_m_op_a,
+                                     in.avm_mem_op_a,
                                      in.avm_main_clk,
                                      in.avm_main_mem_idx_a,
                                      in.avm_main_ia,
@@ -57,13 +57,13 @@ class perm_main_mem_a_permutation_settings {
                                      in.avm_main_r_in_tag,
                                      in.avm_main_w_in_tag,
                                      in.avm_main_sel_mov,
-                                     in.avm_mem_m_clk,
-                                     in.avm_mem_m_addr,
-                                     in.avm_mem_m_val,
-                                     in.avm_mem_m_rw,
+                                     in.avm_mem_clk,
+                                     in.avm_mem_addr,
+                                     in.avm_mem_val,
+                                     in.avm_mem_rw,
                                      in.avm_mem_r_in_tag,
                                      in.avm_mem_w_in_tag,
-                                     in.avm_mem_m_sel_mov);
+                                     in.avm_mem_sel_mov);
     }
 
     /**
@@ -89,7 +89,7 @@ class perm_main_mem_a_permutation_settings {
         return std::forward_as_tuple(in.perm_main_mem_a,
                                      in.avm_main_mem_op_a,
                                      in.avm_main_mem_op_a,
-                                     in.avm_mem_m_op_a,
+                                     in.avm_mem_op_a,
                                      in.avm_main_clk,
                                      in.avm_main_mem_idx_a,
                                      in.avm_main_ia,
@@ -97,13 +97,13 @@ class perm_main_mem_a_permutation_settings {
                                      in.avm_main_r_in_tag,
                                      in.avm_main_w_in_tag,
                                      in.avm_main_sel_mov,
-                                     in.avm_mem_m_clk,
-                                     in.avm_mem_m_addr,
-                                     in.avm_mem_m_val,
-                                     in.avm_mem_m_rw,
+                                     in.avm_mem_clk,
+                                     in.avm_mem_addr,
+                                     in.avm_mem_val,
+                                     in.avm_mem_rw,
                                      in.avm_mem_r_in_tag,
                                      in.avm_mem_w_in_tag,
-                                     in.avm_mem_m_sel_mov);
+                                     in.avm_mem_sel_mov);
     }
 };
 

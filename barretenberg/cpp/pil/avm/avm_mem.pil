@@ -4,154 +4,154 @@ include "avm_main.pil";
 
 namespace avm_mem(256);
     // ========= Table MEM-TR =================
-    pol commit m_clk;
-    pol commit m_sub_clk;
-    pol commit m_addr;
-    pol commit m_tag; // Memory tag (0: uninitialized, 1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6:field)
-    pol commit m_val;
-    pol commit m_lastAccess; // Boolean (1 when this row is the last of a given address)
-    pol commit m_last; // Boolean indicating the last row of the memory trace (not execution trace)
-    pol commit m_rw; // Enum: 0 (read), 1 (write)
+    pol commit clk;
+    pol commit sub_clk;
+    pol commit addr;
+    pol commit tag; // Memory tag (0: uninitialized, 1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6:field)
+    pol commit val;
+    pol commit lastAccess; // Boolean (1 when this row is the last of a given address)
+    pol commit last; // Boolean indicating the last row of the memory trace (not execution trace)
+    pol commit rw; // Enum: 0 (read), 1 (write)
 
     pol commit r_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.r_in_tag)
     pol commit w_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.w_in_tag)
 
     // Indicator of the intermediate register pertaining to the memory operation (foreign key to avm_main.mem_op_XXX)
-    pol commit m_op_a;
-    pol commit m_op_b;
-    pol commit m_op_c;
+    pol commit op_a;
+    pol commit op_b;
+    pol commit op_c;
 
     // Indicator of the indirect register pertaining to the memory operation (foreign key to avm_main.ind_op_XXX)
-    pol commit m_ind_op_a;
-    pol commit m_ind_op_b;
-    pol commit m_ind_op_c;
+    pol commit ind_op_a;
+    pol commit ind_op_b;
+    pol commit ind_op_c;
 
     // Selector for MOV opcode (copied from main trace for loading operation on intermediated register ia)
     // Boolean constraint is performed in main trace.
-    pol commit m_sel_mov;
+    pol commit sel_mov;
 
     // Error columns
-    pol commit m_tag_err; // Boolean (1 if r_in_tag != m_tag is detected)
+    pol commit tag_err; // Boolean (1 if r_in_tag != tag is detected)
 
     // Helper columns
-    pol commit m_one_min_inv; // Extra value to prove r_in_tag != m_tag with error handling
+    pol commit one_min_inv; // Extra value to prove r_in_tag != tag with error handling
 
     // Type constraints
-    m_lastAccess * (1 - m_lastAccess) = 0;
-    m_last * (1 - m_last) = 0;
-    m_rw * (1 - m_rw) = 0;
-    m_tag_err * (1 - m_tag_err) = 0;
-    m_op_a * (1 - m_op_a) = 0;
-    m_op_b * (1 - m_op_b) = 0;
-    m_op_c * (1 - m_op_c) = 0;
-    m_ind_op_a * (1 - m_ind_op_a) = 0;
-    m_ind_op_b * (1 - m_ind_op_b) = 0;
-    m_ind_op_c * (1 - m_ind_op_c) = 0;
+    lastAccess * (1 - lastAccess) = 0;
+    last * (1 - last) = 0;
+    rw * (1 - rw) = 0;
+    tag_err * (1 - tag_err) = 0;
+    op_a * (1 - op_a) = 0;
+    op_b * (1 - op_b) = 0;
+    op_c * (1 - op_c) = 0;
+    ind_op_a * (1 - ind_op_a) = 0;
+    ind_op_b * (1 - ind_op_b) = 0;
+    ind_op_c * (1 - ind_op_c) = 0;
 
-    // TODO: m_addr is u32 and 0 <= m_tag <= 6
+    // TODO: addr is u32 and 0 <= tag <= 6
     //       (r_in_tag, w_in_tag will be constrained through inclusion check to main trace)
 
     // Maximum one memory operation enabled per row
-    pol MEM_SEL = m_op_a + m_op_b + m_op_c + m_ind_op_a + m_ind_op_b + m_ind_op_c;
+    pol MEM_SEL = op_a + op_b + op_c + ind_op_a + ind_op_b + ind_op_c;
     MEM_SEL * (MEM_SEL - 1) = 0;
 
     // sub_clk derivation
-    pol IND_OP = m_ind_op_a + m_ind_op_b + m_ind_op_c;
-    m_sub_clk = MEM_SEL * (m_ind_op_b + m_op_b + 2 * (m_ind_op_c + m_op_c) + 3 * (1 - IND_OP + m_rw));
+    pol IND_OP = ind_op_a + ind_op_b + ind_op_c;
+    sub_clk = MEM_SEL * (ind_op_b + op_b + 2 * (ind_op_c + op_c) + 3 * (1 - IND_OP + rw));
     // We need the MEM_SEL factor as the right factor is not zero when all columns are zero.
 
-    // Remark: m_lastAccess == 1 on first row and therefore any relation with the
-    //         multiplicative term (1 - m_lastAccess) implicitly includes (1 - avm_main.first)
-    //         Similarly, this includes (1 - m_last) as well.
+    // Remark: lastAccess == 1 on first row and therefore any relation with the
+    //         multiplicative term (1 - lastAccess) implicitly includes (1 - avm_main.first)
+    //         Similarly, this includes (1 - last) as well.
 
-    // m_lastAccess == 0 ==> m_addr' == m_addr
+    // lastAccess == 0 ==> addr' == addr
     // Optimization: We removed the term (1 - avm_main.first)
     #[MEM_LAST_ACCESS_DELIMITER]
-    (1 - m_lastAccess) * (m_addr' - m_addr) = 0;
+    (1 - lastAccess) * (addr' - addr) = 0;
     
-    // We need: m_lastAccess == 1 ==> m_addr' > m_addr
-    // The above implies: m_addr' == m_addr ==> m_lastAccess == 0
+    // We need: lastAccess == 1 ==> addr' > addr
+    // The above implies: addr' == addr ==> lastAccess == 0
     // This condition does not apply on the last row.
     // clk + 1 used as an expression for positive integers
     // TODO: Uncomment when lookups are supported
-    // (1 - first) * (1 - m_last) * m_lastAccess { (m_addr' - m_addr) } in clk + 1; // Gated inclusion check. Is it supported?
+    // (1 - first) * (1 - last) * lastAccess { (addr' - addr) } in clk + 1; // Gated inclusion check. Is it supported?
     
     // TODO: following constraint
-    // m_addr' == m_addr && m_clk == m_clk' ==> m_sub_clk' - m_sub_clk > 0
-    // Can be enforced with (1 - first) * (1 - m_lastAccess) { 6 * (m_clk' - m_clk) + m_sub_clk' - m_sub_clk } in clk + 1
+    // addr' == addr && clk == clk' ==> sub_clk' - sub_clk > 0
+    // Can be enforced with (1 - first) * (1 - lastAccess) { 6 * (clk' - clk) + sub_clk' - sub_clk } in clk + 1
     
     // Alternatively to the above, one could require
-    // that m_addr' - m_addr is 0 or 1 (needs to add placeholders m_addr values):
-    // (m_addr' - m_addr) * (m_addr' - m_addr) - (m_addr' - m_addr) = 0;
-    // if m_addr' - m_addr is 0 or 1, the following is equiv. to m_lastAccess
-    // (m_addr' - m_addr)
+    // that addr' - addr is 0 or 1 (needs to add placeholders addr values):
+    // (addr' - addr) * (addr' - addr) - (addr' - addr) = 0;
+    // if addr' - addr is 0 or 1, the following is equiv. to lastAccess
+    // (addr' - addr)
     
-    // m_lastAccess == 0 && m_rw' == 0 ==> m_val == m_val'
+    // lastAccess == 0 && rw' == 0 ==> val == val'
     // This condition does not apply on the last row.
     // Note: in barretenberg, a shifted polynomial will be 0 on the last row (shift is not cyclic)
     // Note2: in barretenberg, if a poynomial is shifted, its non-shifted equivalent must be 0 on the first row
     
-    // Optimization: We removed the term (1 - avm_main.first) and (1 - m_last)
+    // Optimization: We removed the term (1 - avm_main.first) and (1 - last)
     #[MEM_READ_WRITE_VAL_CONSISTENCY]
-    (1 - m_lastAccess) * (1 - m_rw') * (m_val' - m_val) = 0;
+    (1 - lastAccess) * (1 - rw') * (val' - val) = 0;
     
-    // m_lastAccess == 0 && m_rw' == 0 ==> m_tag == m_tag'
-    // Optimization: We removed the term (1 - avm_main.first) and (1 - m_last)
+    // lastAccess == 0 && rw' == 0 ==> tag == tag'
+    // Optimization: We removed the term (1 - avm_main.first) and (1 - last)
     #[MEM_READ_WRITE_TAG_CONSISTENCY]
-    (1 - m_lastAccess) * (1 - m_rw') * (m_tag' - m_tag) = 0;
+    (1 - lastAccess) * (1 - rw') * (tag' - tag) = 0;
 
     // Constrain that the first load from a given address has value 0. (Consistency of memory initialization.)
-    // We do not constrain that the m_tag == 0 as the 0 value is compatible with any memory type.
-    // If we set m_lastAccess = 1 on the first row, we can enforce this (should be ok as long as we do not shift m_lastAccess):
+    // We do not constrain that the tag == 0 as the 0 value is compatible with any memory type.
+    // If we set lastAccess = 1 on the first row, we can enforce this (should be ok as long as we do not shift lastAccess):
     #[MEM_ZERO_INIT]
-    m_lastAccess * (1 - m_rw') * m_val' = 0;
+    lastAccess * (1 - rw') * val' = 0;
 
-    // Memory tag consistency check for load operations, i.e., m_rw == 0.
-    // We want to prove that r_in_tag == m_tag <==> m_tag_err == 0
-    // We want to show that we can invert (r_in_tag - m_tag) when m_tag_err == 1,
-    // i.e., m_tag_err == 1 ==> r_in_tag != m_tag
+    // Memory tag consistency check for load operations, i.e., rw == 0.
+    // We want to prove that r_in_tag == tag <==> tag_err == 0
+    // We want to show that we can invert (r_in_tag - tag) when tag_err == 1,
+    // i.e., tag_err == 1 ==> r_in_tag != tag
     // For this purpose, we need an extra column to store a witness
-    // which can be used to show that (r_in_tag - m_tag) is invertible (non-zero).
+    // which can be used to show that (r_in_tag - tag) is invertible (non-zero).
     // We re-use the same zero (non)-equality technique as in SUBOP_DIVISION_ZERO_ERR1/2 applied
-    // to (r_in_tag - m_tag) by replacing m_tag_err by 1 - m_tag_err because here
+    // to (r_in_tag - tag) by replacing tag_err by 1 - tag_err because here
     // the equality to zero is not an error. Another modification
-    // consists in storing 1 - (r_in_tag - m_tag)^(-1) in the extra witness column
-    // instead of (r_in_tag - m_tag)^(-1) as this allows to store zero by default (i.e., when m_tag_err == 0).
-    // The new column m_one_min_inv is set to 1 - (r_in_tag - m_tag)^(-1) when m_tag_err == 1
-    // but must be set to 0 when tags are matching and m_tag_err = 0
+    // consists in storing 1 - (r_in_tag - tag)^(-1) in the extra witness column
+    // instead of (r_in_tag - tag)^(-1) as this allows to store zero by default (i.e., when tag_err == 0).
+    // The new column one_min_inv is set to 1 - (r_in_tag - tag)^(-1) when tag_err == 1
+    // but must be set to 0 when tags are matching and tag_err = 0
     #[MEM_IN_TAG_CONSISTENCY_1]
-    (1 - m_rw) * ((r_in_tag - m_tag) * (1 - m_one_min_inv) - m_tag_err) = 0;
+    (1 - rw) * ((r_in_tag - tag) * (1 - one_min_inv) - tag_err) = 0;
     #[MEM_IN_TAG_CONSISTENCY_2]
-    (1 - m_tag_err) * m_one_min_inv = 0;
+    (1 - tag_err) * one_min_inv = 0;
 
-    // Correctness of two above checks MEM_IN_TAG_CONSISTENCY_1/2 (assuming m_rw == 0):
-    // r_in_tag == m_tag ==> m_tag_err == 0 (first relation)
-    // m_tag_err == 0 ==> m_one_min_inv == 0 by second relation. First relation ==> r_in_tag - m_tag == 0
+    // Correctness of two above checks MEM_IN_TAG_CONSISTENCY_1/2 (assuming rw == 0):
+    // r_in_tag == tag ==> tag_err == 0 (first relation)
+    // tag_err == 0 ==> one_min_inv == 0 by second relation. First relation ==> r_in_tag - tag == 0
 
-    // Enforce that a write instruction tag is equal to m_tag for a write operation
-    m_rw * (w_in_tag - m_tag) = 0;
+    // Enforce that a write instruction tag is equal to tag for a write operation
+    rw * (w_in_tag - tag) = 0;
 
     // Enforce that a write instruction never leads to a tag error
     #[NO_TAG_ERR_WRITE]
-    m_rw * m_tag_err = 0;
+    rw * tag_err = 0;
 
     //====== Indirect Memory Constraints =====================================
     // Enforce r_in_tag == 3, i.e., r_in_tag must be U32
-    m_ind_op_a * (r_in_tag - 3) = 0;
-    m_ind_op_b * (r_in_tag - 3) = 0;
-    m_ind_op_c * (r_in_tag - 3) = 0;
+    ind_op_a * (r_in_tag - 3) = 0;
+    ind_op_b * (r_in_tag - 3) = 0;
+    ind_op_c * (r_in_tag - 3) = 0;
 
     // Indirect operation is always a load
-    m_ind_op_a * m_rw = 0;
-    m_ind_op_b * m_rw = 0;
-    m_ind_op_c * m_rw = 0;
+    ind_op_a * rw = 0;
+    ind_op_b * rw = 0;
+    ind_op_c * rw = 0;
 
     //====== MOV Opcode Tag Constraint =====================================
-    // The following constraint ensures that the r_in_tag is set to m_tag for
+    // The following constraint ensures that the r_in_tag is set to tag for
     // the load operation pertaining to Ia.
     // The permutation check #[PERM_MAIN_MEM_A] guarantees that the r_in_tag
     // value load operation for Ia is copied back in the main trace.
     // Constraint #[MOV_MAIN_SAME_TAG] copies r_in_tag to w_in_tag in the main
     // trace. Then, #[PERM_MAIN_MEM_C] copies w_in_tag for store operation from Ic.
     #[MOV_SAME_TAG]
-    m_sel_mov * m_tag_err = 0; // Equivalent to m_sel_mov * (r_in_tag - m_tag) = 0
+    sel_mov * tag_err = 0; // Equivalent to sel_mov * (r_in_tag - tag) = 0

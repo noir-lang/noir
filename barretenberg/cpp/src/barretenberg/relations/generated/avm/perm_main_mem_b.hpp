@@ -23,7 +23,7 @@ class perm_main_mem_b_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_mem_op_b == 1 || in.avm_mem_m_op_b == 1);
+        return (in.avm_main_mem_op_b == 1 || in.avm_mem_op_b == 1);
     }
 
     /**
@@ -49,17 +49,17 @@ class perm_main_mem_b_permutation_settings {
         return std::forward_as_tuple(in.perm_main_mem_b,
                                      in.avm_main_mem_op_b,
                                      in.avm_main_mem_op_b,
-                                     in.avm_mem_m_op_b,
+                                     in.avm_mem_op_b,
                                      in.avm_main_clk,
                                      in.avm_main_mem_idx_b,
                                      in.avm_main_ib,
                                      in.avm_main_rwb,
                                      in.avm_main_r_in_tag,
                                      in.avm_main_w_in_tag,
-                                     in.avm_mem_m_clk,
-                                     in.avm_mem_m_addr,
-                                     in.avm_mem_m_val,
-                                     in.avm_mem_m_rw,
+                                     in.avm_mem_clk,
+                                     in.avm_mem_addr,
+                                     in.avm_mem_val,
+                                     in.avm_mem_rw,
                                      in.avm_mem_r_in_tag,
                                      in.avm_mem_w_in_tag);
     }
@@ -87,17 +87,17 @@ class perm_main_mem_b_permutation_settings {
         return std::forward_as_tuple(in.perm_main_mem_b,
                                      in.avm_main_mem_op_b,
                                      in.avm_main_mem_op_b,
-                                     in.avm_mem_m_op_b,
+                                     in.avm_mem_op_b,
                                      in.avm_main_clk,
                                      in.avm_main_mem_idx_b,
                                      in.avm_main_ib,
                                      in.avm_main_rwb,
                                      in.avm_main_r_in_tag,
                                      in.avm_main_w_in_tag,
-                                     in.avm_mem_m_clk,
-                                     in.avm_mem_m_addr,
-                                     in.avm_mem_m_val,
-                                     in.avm_mem_m_rw,
+                                     in.avm_mem_clk,
+                                     in.avm_mem_addr,
+                                     in.avm_mem_val,
+                                     in.avm_mem_rw,
                                      in.avm_mem_r_in_tag,
                                      in.avm_mem_w_in_tag);
     }

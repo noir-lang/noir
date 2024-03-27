@@ -7,51 +7,51 @@ namespace avm_alu(256);
     // References to main trace table of sub-operations, clk, intermediate
     // registers, operation selectors.
     // TODO: Think on optimizations to decrease the number of such "copied" columns
-    pol commit alu_clk;
-    pol commit alu_ia; // Intermediate registers
-    pol commit alu_ib;
-    pol commit alu_ic;
-    pol commit alu_op_add; // Operation selectors
-    pol commit alu_op_sub;
-    pol commit alu_op_mul;
-    pol commit alu_op_div;
-    pol commit alu_op_not;
-    pol commit alu_op_eq;
+    pol commit clk;
+    pol commit ia; // Intermediate registers
+    pol commit ib;
+    pol commit ic;
+    pol commit op_add; // Operation selectors
+    pol commit op_sub;
+    pol commit op_mul;
+    pol commit op_div;
+    pol commit op_not;
+    pol commit op_eq;
     pol commit alu_sel; // Predicate to activate the copy of intermediate registers to ALU table.
 
     // Instruction tag (1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6: field) copied from Main table
-    pol commit alu_in_tag;
+    pol commit in_tag;
 
     // Flattened boolean instruction tags
-    pol commit alu_ff_tag;
-    pol commit alu_u8_tag;
-    pol commit alu_u16_tag;
-    pol commit alu_u32_tag;
-    pol commit alu_u64_tag;
-    pol commit alu_u128_tag;
+    pol commit ff_tag;
+    pol commit u8_tag;
+    pol commit u16_tag;
+    pol commit u32_tag;
+    pol commit u64_tag;
+    pol commit u128_tag;
 
     // 8-bit slice registers
-    pol commit alu_u8_r0;
-    pol commit alu_u8_r1;
+    pol commit u8_r0;
+    pol commit u8_r1;
 
     // 16-bit slice registers
-    pol commit alu_u16_r0;
-    pol commit alu_u16_r1;
-    pol commit alu_u16_r2;
-    pol commit alu_u16_r3;
-    pol commit alu_u16_r4;
-    pol commit alu_u16_r5;
-    pol commit alu_u16_r6;
-    pol commit alu_u16_r7;
+    pol commit u16_r0;
+    pol commit u16_r1;
+    pol commit u16_r2;
+    pol commit u16_r3;
+    pol commit u16_r4;
+    pol commit u16_r5;
+    pol commit u16_r6;
+    pol commit u16_r7;
 
     // 64-bit slice register
-    pol commit alu_u64_r0;
+    pol commit u64_r0;
 
     // Carry flag
-    pol commit alu_cf;
+    pol commit cf;
 
     // Compute predicate telling whether there is a row entry in the ALU table.
-    alu_sel = alu_op_add + alu_op_sub + alu_op_mul + alu_op_not + alu_op_eq;
+    alu_sel = op_add + op_sub + op_mul + op_not + op_eq;
 
     // ========= Type Constraints =============================================
     // TODO: Range constraints
@@ -63,21 +63,21 @@ namespace avm_alu(256);
     // Remark: Operation selectors are constrained in the main trace.
 
     // Boolean flattened instructions tags
-    alu_ff_tag * (1 - alu_ff_tag) = 0;
-    alu_u8_tag * (1 - alu_u8_tag) = 0;
-    alu_u16_tag * (1 - alu_u16_tag) = 0;
-    alu_u32_tag * (1 - alu_u32_tag) = 0;
-    alu_u64_tag * (1 - alu_u64_tag) = 0;
-    alu_u128_tag * (1 - alu_u128_tag) = 0;
+    ff_tag * (1 - ff_tag) = 0;
+    u8_tag * (1 - u8_tag) = 0;
+    u16_tag * (1 - u16_tag) = 0;
+    u32_tag * (1 - u32_tag) = 0;
+    u64_tag * (1 - u64_tag) = 0;
+    u128_tag * (1 - u128_tag) = 0;
 
     // Mutual exclusion of the flattened instruction tag.
-    alu_sel * (alu_ff_tag + alu_u8_tag + alu_u16_tag + alu_u32_tag + alu_u64_tag + alu_u128_tag - 1) = 0;
+    alu_sel * (ff_tag + u8_tag + u16_tag + u32_tag + u64_tag + u128_tag - 1) = 0;
 
     // Correct flattening of the instruction tag.
-    alu_in_tag = alu_u8_tag + 2 * alu_u16_tag + 3 * alu_u32_tag + 4 * alu_u64_tag + 5 * alu_u128_tag + 6 * alu_ff_tag;
+    in_tag = u8_tag + 2 * u16_tag + 3 * u32_tag + 4 * u64_tag + 5 * u128_tag + 6 * ff_tag;
 
     // Operation selectors are copied from main table and do not need to be constrained here.
-    // TODO: Ensure mutual exclusion of alu_op_add and alu_op_sub as some relations below
+    // TODO: Ensure mutual exclusion of op_add and op_sub as some relations below
     //       requires it.
 
     // ========= ARITHMETIC OPERATION - EXPLANATIONS =================================================
@@ -115,12 +115,12 @@ namespace avm_alu(256);
     // serves to an algebraic expression of commited polynomials in a more concise way.
 
     // Bit slices partial sums
-    pol SUM_8   = alu_u8_r0;
-    pol SUM_16  = SUM_8      + alu_u8_r1 * 2**8;
-    pol SUM_32  = SUM_16     + alu_u16_r0 * 2**16;
-    pol SUM_64  = SUM_32     + alu_u16_r1 * 2**32 + alu_u16_r2 * 2**48;
-    pol SUM_96  = SUM_64     + alu_u16_r3 * 2**64 + alu_u16_r4 * 2**80;
-    pol SUM_128 = SUM_96     + alu_u16_r5 * 2**96 + alu_u16_r6 * 2**112;
+    pol SUM_8   = u8_r0;
+    pol SUM_16  = SUM_8      + u8_r1 * 2**8;
+    pol SUM_32  = SUM_16     + u16_r0 * 2**16;
+    pol SUM_64  = SUM_32     + u16_r1 * 2**32 + u16_r2 * 2**48;
+    pol SUM_96  = SUM_64     + u16_r3 * 2**64 + u16_r4 * 2**80;
+    pol SUM_128 = SUM_96     + u16_r5 * 2**96 + u16_r6 * 2**112;
 
     // ========= ADDITION/SUBTRACTION Operation Constraints ===============================
     //
@@ -135,26 +135,26 @@ namespace avm_alu(256);
     // sum_128 - carry * 2^128 - a + b = 0
     //
     // Finally, we would like this relation to also satisfy the addition over the finite field.
-    // For this, we add c in the relation conditoned by the ff type selector alu_ff_tag. We emphasize
+    // For this, we add c in the relation conditoned by the ff type selector ff_tag. We emphasize
     // that this relation alone for FF will not imply correctness of the FF addition. We only want
     // it to be satisfied. A separate relation will ensure correctness of it.
     //
     // The second relation will consist in showing that sum_N - c = 0 for N = 8, 16, 32, 64, 128.
 
     #[ALU_ADD_SUB_1]
-    (alu_op_add + alu_op_sub) * (SUM_128 - alu_ia + alu_ff_tag * alu_ic) + (alu_op_add - alu_op_sub) * (alu_cf * 2**128 - alu_ib) = 0;
+    (op_add + op_sub) * (SUM_128 - ia + ff_tag * ic) + (op_add - op_sub) * (cf * 2**128 - ib) = 0;
 
     // Helper polynomial
-    pol SUM_TAG = alu_u8_tag * SUM_8 + alu_u16_tag * SUM_16 + alu_u32_tag * SUM_32 + alu_u64_tag * SUM_64 + alu_u128_tag * SUM_128;
+    pol SUM_TAG = u8_tag * SUM_8 + u16_tag * SUM_16 + u32_tag * SUM_32 + u64_tag * SUM_64 + u128_tag * SUM_128;
 
     #[ALU_ADD_SUB_2]
-    (alu_op_add + alu_op_sub) * (SUM_TAG + alu_ff_tag * alu_ia - alu_ic) + alu_ff_tag * (alu_op_add - alu_op_sub) * alu_ib = 0;
+    (op_add + op_sub) * (SUM_TAG + ff_tag * ia - ic) + ff_tag * (op_add - op_sub) * ib = 0;
 
     // ========= MULTIPLICATION Operation Constraints ===============================
 
     // ff multiplication
     #[ALU_MULTIPLICATION_FF]
-    alu_ff_tag * alu_op_mul * (alu_ia * alu_ib - alu_ic) = 0;
+    ff_tag * op_mul * (ia * ib - ic) = 0;
 
 
     // We need 2k bits to express the product (a*b) over the integer, i.e., for type uk
@@ -163,13 +163,13 @@ namespace avm_alu(256);
     // We group relations for u8, u16, u32, u64 together.
 
     // Helper polynomial
-    pol SUM_TAG_NO_128 = alu_u8_tag * SUM_8 + alu_u16_tag * SUM_16 + alu_u32_tag * SUM_32 + alu_u64_tag * SUM_64;
+    pol SUM_TAG_NO_128 = u8_tag * SUM_8 + u16_tag * SUM_16 + u32_tag * SUM_32 + u64_tag * SUM_64;
 
     #[ALU_MUL_COMMON_1]
-    (1 - alu_ff_tag - alu_u128_tag) * alu_op_mul * (SUM_128 - alu_ia * alu_ib) = 0;
+    (1 - ff_tag - u128_tag) * op_mul * (SUM_128 - ia * ib) = 0;
 
     #[ALU_MUL_COMMON_2]
-    alu_op_mul * (SUM_TAG_NO_128 - (1 - alu_ff_tag - alu_u128_tag) * alu_ic) = 0;
+    op_mul * (SUM_TAG_NO_128 - (1 - ff_tag - u128_tag) * ic) = 0;
 
     // ========= u128 MULTIPLICATION Operation Constraints ===============================
     //
@@ -183,52 +183,52 @@ namespace avm_alu(256);
     // as decomposed over 16-bit registers. Second line represents b.
     // Selector flag is only toggled in the first line and we access b through
     // shifted polynomials.
-    // R' is stored in alu_u64_r0
+    // R' is stored in u64_r0
 
     // 64-bit lower limb
-    pol SUM_LOW_64 = alu_u16_r0 + alu_u16_r1 * 2**16 + alu_u16_r2 * 2**32 + alu_u16_r3 * 2**48;
+    pol SUM_LOW_64 = u16_r0 + u16_r1 * 2**16 + u16_r2 * 2**32 + u16_r3 * 2**48;
 
     // 64-bit higher limb
-    pol SUM_HIGH_64 = alu_u16_r4 + alu_u16_r5 * 2**16 + alu_u16_r6 * 2**32 + alu_u16_r7 * 2**48;
+    pol SUM_HIGH_64 = u16_r4 + u16_r5 * 2**16 + u16_r6 * 2**32 + u16_r7 * 2**48;
 
     // 64-bit lower limb for next row
-    pol SUM_LOW_SHIFTED_64 = alu_u16_r0' + alu_u16_r1' * 2**16 + alu_u16_r2' * 2**32 + alu_u16_r3' * 2**48;
+    pol SUM_LOW_SHIFTED_64 = u16_r0' + u16_r1' * 2**16 + u16_r2' * 2**32 + u16_r3' * 2**48;
 
     // 64-bit higher limb for next row
-    pol SUM_HIGH_SHIFTED_64 = alu_u16_r4' + alu_u16_r5' * 2**16 + alu_u16_r6' * 2**32 + alu_u16_r7' * 2**48;
+    pol SUM_HIGH_SHIFTED_64 = u16_r4' + u16_r5' * 2**16 + u16_r6' * 2**32 + u16_r7' * 2**48;
 
     // Arithmetic relations
-    alu_u128_tag * alu_op_mul * (SUM_LOW_64 + SUM_HIGH_64 * 2**64 - alu_ia) = 0;
-    alu_u128_tag * alu_op_mul * (SUM_LOW_SHIFTED_64 + SUM_HIGH_SHIFTED_64 * 2**64 - alu_ib) = 0;
+    u128_tag * op_mul * (SUM_LOW_64 + SUM_HIGH_64 * 2**64 - ia) = 0;
+    u128_tag * op_mul * (SUM_LOW_SHIFTED_64 + SUM_HIGH_SHIFTED_64 * 2**64 - ib) = 0;
     #[ALU_MULTIPLICATION_OUT_U128]
-    alu_u128_tag * alu_op_mul * (
-            alu_ia * SUM_LOW_SHIFTED_64
+    u128_tag * op_mul * (
+            ia * SUM_LOW_SHIFTED_64
           + SUM_LOW_64 * SUM_HIGH_SHIFTED_64 * 2**64
-          - (alu_cf * 2**64 + alu_u64_r0) * 2**128
-          - alu_ic
+          - (cf * 2**64 + u64_r0) * 2**128
+          - ic
         ) = 0;
 
     // ========= BITWISE NOT Operation Constraints ===============================
     // Constrain mem_tag to not be FF (BITWISE NOT doesn't make sense for FF)
     // TODO decide if it is done here or in another trace
 
-    // Do not allow alu_ff_tag to be set if we are doing bitwise
-    pol BITWISE_SEL = alu_op_not; // Add more bitwise operations
+    // Do not allow ff_tag to be set if we are doing bitwise
+    pol BITWISE_SEL = op_not; // Add more bitwise operations
     #[ALU_FF_NOT_XOR]
-    BITWISE_SEL * alu_ff_tag = 0;
+    BITWISE_SEL * ff_tag = 0;
 
     // The value 2^k - 1
-    pol UINT_MAX = alu_u8_tag * 2**8 + 
-                alu_u16_tag * 2**16 +
-                alu_u32_tag * 2**32 +
-                alu_u64_tag * 2**64 +
-                alu_u128_tag * 2**128 - 1;
+    pol UINT_MAX = u8_tag * 2**8 + 
+                u16_tag * 2**16 +
+                u32_tag * 2**32 +
+                u64_tag * 2**64 +
+                u128_tag * 2**128 - 1;
 
     // BITWISE NOT relation is: a + ~a = 2^k - 1
     // Or (a + ~a - 2^k + 1) = 0;
-    // value of "a" stored in alu_ia and "~a" stored in alu_ic
+    // value of "a" stored in ia and "~a" stored in ic
     #[ALU_OP_NOT]
-    alu_op_not * (alu_ia + alu_ic - UINT_MAX) = 0;
+    op_not * (ia + ic - UINT_MAX) = 0;
 
     // ========= EQUALITY Operation Constraints ===============================
     // TODO: Note this method differs from the approach taken for "equality to zero" checks
@@ -245,16 +245,16 @@ namespace avm_alu(256);
     //   c) if e == 0; zw = 1 && z has an inverse. If e == 1; z == 0 and we set w = 0;
 
     // Registers Ia and Ib hold the values that equality is to be tested on
-    pol DIFF = alu_ia - alu_ib;
+    pol DIFF = ia - ib;
 
     // Need an additional helper that holds the inverse of the difference;
-    pol commit alu_op_eq_diff_inv;
+    pol commit op_eq_diff_inv;
 
     // If EQ selector is set, ic needs to be boolean
     #[ALU_RES_IS_BOOL]
-    alu_op_eq * (alu_ic * (1 - alu_ic)) = 0;
+    op_eq * (ic * (1 - ic)) = 0;
 
     #[ALU_OP_EQ]
-    alu_op_eq * (DIFF * (alu_ic * (1 - alu_op_eq_diff_inv) + alu_op_eq_diff_inv) - 1 + alu_ic) = 0;
+    op_eq * (DIFF * (ic * (1 - op_eq_diff_inv) + op_eq_diff_inv) - 1 + ic) = 0;
 
 

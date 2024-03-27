@@ -23,7 +23,7 @@ class perm_main_mem_ind_a_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_ind_op_a == 1 || in.avm_mem_m_ind_op_a == 1);
+        return (in.avm_main_ind_op_a == 1 || in.avm_mem_ind_op_a == 1);
     }
 
     /**
@@ -49,13 +49,13 @@ class perm_main_mem_ind_a_permutation_settings {
         return std::forward_as_tuple(in.perm_main_mem_ind_a,
                                      in.avm_main_ind_op_a,
                                      in.avm_main_ind_op_a,
-                                     in.avm_mem_m_ind_op_a,
+                                     in.avm_mem_ind_op_a,
                                      in.avm_main_clk,
                                      in.avm_main_ind_a,
                                      in.avm_main_mem_idx_a,
-                                     in.avm_mem_m_clk,
-                                     in.avm_mem_m_addr,
-                                     in.avm_mem_m_val);
+                                     in.avm_mem_clk,
+                                     in.avm_mem_addr,
+                                     in.avm_mem_val);
     }
 
     /**
@@ -81,13 +81,13 @@ class perm_main_mem_ind_a_permutation_settings {
         return std::forward_as_tuple(in.perm_main_mem_ind_a,
                                      in.avm_main_ind_op_a,
                                      in.avm_main_ind_op_a,
-                                     in.avm_mem_m_ind_op_a,
+                                     in.avm_mem_ind_op_a,
                                      in.avm_main_clk,
                                      in.avm_main_ind_a,
                                      in.avm_main_mem_idx_a,
-                                     in.avm_mem_m_clk,
-                                     in.avm_mem_m_addr,
-                                     in.avm_mem_m_val);
+                                     in.avm_mem_clk,
+                                     in.avm_mem_addr,
+                                     in.avm_mem_val);
     }
 };
 

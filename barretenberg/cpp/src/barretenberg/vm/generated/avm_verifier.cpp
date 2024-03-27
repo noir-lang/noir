@@ -51,193 +51,91 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
     }
 
     // Get commitments to VM wires
-    commitments.avm_mem_m_clk = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_clk);
-    commitments.avm_mem_m_sub_clk =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_sub_clk);
-    commitments.avm_mem_m_addr = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_addr);
-    commitments.avm_mem_m_tag = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_tag);
-    commitments.avm_mem_m_val = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_val);
-    commitments.avm_mem_m_lastAccess =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_lastAccess);
-    commitments.avm_mem_m_last = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_last);
-    commitments.avm_mem_m_rw = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_rw);
-    commitments.avm_mem_r_in_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_r_in_tag);
-    commitments.avm_mem_w_in_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_w_in_tag);
-    commitments.avm_mem_m_op_a = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_op_a);
-    commitments.avm_mem_m_op_b = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_op_b);
-    commitments.avm_mem_m_op_c = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_op_c);
-    commitments.avm_mem_m_ind_op_a =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_ind_op_a);
-    commitments.avm_mem_m_ind_op_b =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_ind_op_b);
-    commitments.avm_mem_m_ind_op_c =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_ind_op_c);
-    commitments.avm_mem_m_sel_mov =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_sel_mov);
-    commitments.avm_mem_m_tag_err =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_tag_err);
-    commitments.avm_mem_m_one_min_inv =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_m_one_min_inv);
-    commitments.avm_alu_alu_clk =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_clk);
-    commitments.avm_alu_alu_ia = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_ia);
-    commitments.avm_alu_alu_ib = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_ib);
-    commitments.avm_alu_alu_ic = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_ic);
-    commitments.avm_alu_alu_op_add =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_add);
-    commitments.avm_alu_alu_op_sub =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_sub);
-    commitments.avm_alu_alu_op_mul =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_mul);
-    commitments.avm_alu_alu_op_div =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_div);
-    commitments.avm_alu_alu_op_not =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_not);
-    commitments.avm_alu_alu_op_eq =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_eq);
     commitments.avm_alu_alu_sel =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_sel);
-    commitments.avm_alu_alu_in_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_in_tag);
-    commitments.avm_alu_alu_ff_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_ff_tag);
-    commitments.avm_alu_alu_u8_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u8_tag);
-    commitments.avm_alu_alu_u16_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u16_tag);
-    commitments.avm_alu_alu_u32_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u32_tag);
-    commitments.avm_alu_alu_u64_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u64_tag);
-    commitments.avm_alu_alu_u128_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u128_tag);
-    commitments.avm_alu_alu_u8_r0 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u8_r0);
-    commitments.avm_alu_alu_u8_r1 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u8_r1);
-    commitments.avm_alu_alu_u16_r0 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u16_r0);
-    commitments.avm_alu_alu_u16_r1 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u16_r1);
-    commitments.avm_alu_alu_u16_r2 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u16_r2);
-    commitments.avm_alu_alu_u16_r3 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u16_r3);
-    commitments.avm_alu_alu_u16_r4 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u16_r4);
-    commitments.avm_alu_alu_u16_r5 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u16_r5);
-    commitments.avm_alu_alu_u16_r6 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u16_r6);
-    commitments.avm_alu_alu_u16_r7 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u16_r7);
-    commitments.avm_alu_alu_u64_r0 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_u64_r0);
-    commitments.avm_alu_alu_cf = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_cf);
-    commitments.avm_alu_alu_op_eq_diff_inv =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_op_eq_diff_inv);
-    commitments.avm_byte_lookup_table_op_id =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_op_id);
-    commitments.avm_byte_lookup_table_input_a =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_input_a);
-    commitments.avm_byte_lookup_table_input_b =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_input_b);
-    commitments.avm_byte_lookup_table_output =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_output);
-    commitments.avm_byte_lookup_bin_sel =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_bin_sel);
-    commitments.avm_byte_lookup_table_in_tags =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_in_tags);
-    commitments.avm_byte_lookup_table_byte_lengths =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_byte_lengths);
-    commitments.avm_binary_bin_clk =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_bin_clk);
-    commitments.avm_binary_bin_sel =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_bin_sel);
+    commitments.avm_alu_cf = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_cf);
+    commitments.avm_alu_clk = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_clk);
+    commitments.avm_alu_ff_tag = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_ff_tag);
+    commitments.avm_alu_ia = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_ia);
+    commitments.avm_alu_ib = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_ib);
+    commitments.avm_alu_ic = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_ic);
+    commitments.avm_alu_in_tag = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_in_tag);
+    commitments.avm_alu_op_add = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_add);
+    commitments.avm_alu_op_div = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_div);
+    commitments.avm_alu_op_eq = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_eq);
+    commitments.avm_alu_op_eq_diff_inv =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_eq_diff_inv);
+    commitments.avm_alu_op_mul = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_mul);
+    commitments.avm_alu_op_not = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_not);
+    commitments.avm_alu_op_sub = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_sub);
+    commitments.avm_alu_u128_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u128_tag);
+    commitments.avm_alu_u16_r0 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u16_r0);
+    commitments.avm_alu_u16_r1 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u16_r1);
+    commitments.avm_alu_u16_r2 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u16_r2);
+    commitments.avm_alu_u16_r3 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u16_r3);
+    commitments.avm_alu_u16_r4 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u16_r4);
+    commitments.avm_alu_u16_r5 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u16_r5);
+    commitments.avm_alu_u16_r6 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u16_r6);
+    commitments.avm_alu_u16_r7 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u16_r7);
+    commitments.avm_alu_u16_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u16_tag);
+    commitments.avm_alu_u32_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u32_tag);
+    commitments.avm_alu_u64_r0 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u64_r0);
+    commitments.avm_alu_u64_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u64_tag);
+    commitments.avm_alu_u8_r0 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u8_r0);
+    commitments.avm_alu_u8_r1 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u8_r1);
+    commitments.avm_alu_u8_tag = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u8_tag);
     commitments.avm_binary_acc_ia =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_acc_ia);
     commitments.avm_binary_acc_ib =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_acc_ib);
     commitments.avm_binary_acc_ic =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_acc_ic);
+    commitments.avm_binary_bin_sel =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_bin_sel);
+    commitments.avm_binary_clk = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_clk);
+    commitments.avm_binary_ia_bytes =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_ia_bytes);
+    commitments.avm_binary_ib_bytes =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_ib_bytes);
+    commitments.avm_binary_ic_bytes =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_ic_bytes);
     commitments.avm_binary_in_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_in_tag);
-    commitments.avm_binary_op_id =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_op_id);
-    commitments.avm_binary_bin_ia_bytes =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_bin_ia_bytes);
-    commitments.avm_binary_bin_ib_bytes =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_bin_ib_bytes);
-    commitments.avm_binary_bin_ic_bytes =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_bin_ic_bytes);
-    commitments.avm_binary_start =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_start);
     commitments.avm_binary_mem_tag_ctr =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_mem_tag_ctr);
     commitments.avm_binary_mem_tag_ctr_inv =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_mem_tag_ctr_inv);
-    commitments.avm_main_sel_rng_8 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_rng_8);
-    commitments.avm_main_sel_rng_16 =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_rng_16);
-    commitments.avm_main_pc = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_pc);
-    commitments.avm_main_internal_return_ptr =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_internal_return_ptr);
-    commitments.avm_main_sel_internal_call =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_internal_call);
-    commitments.avm_main_sel_internal_return =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_internal_return);
-    commitments.avm_main_sel_jump =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_jump);
-    commitments.avm_main_sel_halt =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_halt);
-    commitments.avm_main_sel_mov =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_mov);
-    commitments.avm_main_sel_op_add =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_add);
-    commitments.avm_main_sel_op_sub =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_sub);
-    commitments.avm_main_sel_op_mul =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_mul);
-    commitments.avm_main_sel_op_div =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_div);
-    commitments.avm_main_sel_op_not =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_not);
-    commitments.avm_main_sel_op_eq =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_eq);
-    commitments.avm_main_sel_op_and =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_and);
-    commitments.avm_main_sel_op_or =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_or);
-    commitments.avm_main_sel_op_xor =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_xor);
+    commitments.avm_binary_op_id =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_op_id);
+    commitments.avm_binary_start =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_binary_start);
+    commitments.avm_byte_lookup_bin_sel =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_bin_sel);
+    commitments.avm_byte_lookup_table_byte_lengths =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_byte_lengths);
+    commitments.avm_byte_lookup_table_in_tags =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_in_tags);
+    commitments.avm_byte_lookup_table_input_a =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_input_a);
+    commitments.avm_byte_lookup_table_input_b =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_input_b);
+    commitments.avm_byte_lookup_table_op_id =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_op_id);
+    commitments.avm_byte_lookup_table_output =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_byte_lookup_table_output);
     commitments.avm_main_alu_sel =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_alu_sel);
+    commitments.avm_main_bin_op_id =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_bin_op_id);
     commitments.avm_main_bin_sel =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_bin_sel);
-    commitments.avm_main_r_in_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_r_in_tag);
-    commitments.avm_main_w_in_tag =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_w_in_tag);
-    commitments.avm_main_op_err =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_op_err);
-    commitments.avm_main_tag_err =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_tag_err);
-    commitments.avm_main_inv = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_inv);
     commitments.avm_main_ia = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_ia);
     commitments.avm_main_ib = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_ib);
     commitments.avm_main_ic = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_ic);
-    commitments.avm_main_mem_op_a =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_op_a);
-    commitments.avm_main_mem_op_b =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_op_b);
-    commitments.avm_main_mem_op_c =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_op_c);
-    commitments.avm_main_rwa = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_rwa);
-    commitments.avm_main_rwb = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_rwb);
-    commitments.avm_main_rwc = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_rwc);
     commitments.avm_main_ind_a = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_ind_a);
     commitments.avm_main_ind_b = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_ind_b);
     commitments.avm_main_ind_c = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_ind_c);
@@ -247,15 +145,95 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_ind_op_b);
     commitments.avm_main_ind_op_c =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_ind_op_c);
+    commitments.avm_main_internal_return_ptr =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_internal_return_ptr);
+    commitments.avm_main_inv = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_inv);
+    commitments.avm_main_last = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_last);
     commitments.avm_main_mem_idx_a =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_idx_a);
     commitments.avm_main_mem_idx_b =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_idx_b);
     commitments.avm_main_mem_idx_c =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_idx_c);
-    commitments.avm_main_last = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_last);
-    commitments.avm_main_bin_op_id =
-        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_bin_op_id);
+    commitments.avm_main_mem_op_a =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_op_a);
+    commitments.avm_main_mem_op_b =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_op_b);
+    commitments.avm_main_mem_op_c =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_mem_op_c);
+    commitments.avm_main_op_err =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_op_err);
+    commitments.avm_main_pc = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_pc);
+    commitments.avm_main_r_in_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_r_in_tag);
+    commitments.avm_main_rwa = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_rwa);
+    commitments.avm_main_rwb = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_rwb);
+    commitments.avm_main_rwc = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_rwc);
+    commitments.avm_main_sel_halt =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_halt);
+    commitments.avm_main_sel_internal_call =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_internal_call);
+    commitments.avm_main_sel_internal_return =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_internal_return);
+    commitments.avm_main_sel_jump =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_jump);
+    commitments.avm_main_sel_mov =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_mov);
+    commitments.avm_main_sel_op_add =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_add);
+    commitments.avm_main_sel_op_and =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_and);
+    commitments.avm_main_sel_op_div =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_div);
+    commitments.avm_main_sel_op_eq =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_eq);
+    commitments.avm_main_sel_op_mul =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_mul);
+    commitments.avm_main_sel_op_not =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_not);
+    commitments.avm_main_sel_op_or =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_or);
+    commitments.avm_main_sel_op_sub =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_sub);
+    commitments.avm_main_sel_op_xor =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_xor);
+    commitments.avm_main_sel_rng_16 =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_rng_16);
+    commitments.avm_main_sel_rng_8 =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_rng_8);
+    commitments.avm_main_tag_err =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_tag_err);
+    commitments.avm_main_w_in_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_w_in_tag);
+    commitments.avm_mem_addr = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_addr);
+    commitments.avm_mem_clk = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_clk);
+    commitments.avm_mem_ind_op_a =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_ind_op_a);
+    commitments.avm_mem_ind_op_b =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_ind_op_b);
+    commitments.avm_mem_ind_op_c =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_ind_op_c);
+    commitments.avm_mem_last = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_last);
+    commitments.avm_mem_lastAccess =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_lastAccess);
+    commitments.avm_mem_one_min_inv =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_one_min_inv);
+    commitments.avm_mem_op_a = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_op_a);
+    commitments.avm_mem_op_b = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_op_b);
+    commitments.avm_mem_op_c = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_op_c);
+    commitments.avm_mem_r_in_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_r_in_tag);
+    commitments.avm_mem_rw = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_rw);
+    commitments.avm_mem_sel_mov =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_sel_mov);
+    commitments.avm_mem_sub_clk =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_sub_clk);
+    commitments.avm_mem_tag = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_tag);
+    commitments.avm_mem_tag_err =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_tag_err);
+    commitments.avm_mem_val = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_val);
+    commitments.avm_mem_w_in_tag =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_w_in_tag);
     commitments.perm_main_alu = transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_alu);
     commitments.perm_main_bin = transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_bin);
     commitments.perm_main_mem_a =

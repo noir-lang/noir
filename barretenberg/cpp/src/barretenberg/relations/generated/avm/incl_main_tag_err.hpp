@@ -87,7 +87,7 @@ class incl_main_tag_err_lookup_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_mem_m_tag_err == 1 || in.avm_main_tag_err == 1);
+        return (in.avm_mem_tag_err == 1 || in.avm_main_tag_err == 1);
     }
 
     /**
@@ -104,7 +104,7 @@ class incl_main_tag_err_lookup_settings {
     static inline auto compute_inverse_exists(const AllEntities& in)
     {
         using View = typename Accumulator::View;
-        const auto is_operation = View(in.avm_mem_m_tag_err);
+        const auto is_operation = View(in.avm_mem_tag_err);
         const auto is_table_entry = View(in.avm_main_tag_err);
         return (is_operation + is_table_entry - is_operation * is_table_entry);
     }
@@ -135,9 +135,9 @@ class incl_main_tag_err_lookup_settings {
 
         return std::forward_as_tuple(in.incl_main_tag_err,
                                      in.incl_main_tag_err_counts,
-                                     in.avm_mem_m_tag_err,
+                                     in.avm_mem_tag_err,
                                      in.avm_main_tag_err,
-                                     in.avm_mem_m_clk,
+                                     in.avm_mem_clk,
                                      in.avm_main_clk);
     }
 
@@ -153,9 +153,9 @@ class incl_main_tag_err_lookup_settings {
 
         return std::forward_as_tuple(in.incl_main_tag_err,
                                      in.incl_main_tag_err_counts,
-                                     in.avm_mem_m_tag_err,
+                                     in.avm_mem_tag_err,
                                      in.avm_main_tag_err,
-                                     in.avm_mem_m_clk,
+                                     in.avm_mem_clk,
                                      in.avm_main_clk);
     }
 };

@@ -19,20 +19,20 @@ void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end, bool e
         info("=====================================================================================");
 
         info("=======MEMORY TRACE==================================================================");
-        info("m_addr:             ", trace.at(i).avm_mem_m_addr);
-        info("m_clk:              ", trace.at(i).avm_mem_m_clk);
-        info("m_sub_clk:          ", trace.at(i).avm_mem_m_sub_clk);
-        info("m_val:              ", trace.at(i).avm_mem_m_val);
-        info("m_rw:               ", trace.at(i).avm_mem_m_rw);
-        info("m_tag:              ", trace.at(i).avm_mem_m_tag);
+        info("m_addr:             ", trace.at(i).avm_mem_addr);
+        info("m_clk:              ", trace.at(i).avm_mem_clk);
+        info("m_sub_clk:          ", trace.at(i).avm_mem_sub_clk);
+        info("m_val:              ", trace.at(i).avm_mem_val);
+        info("m_rw:               ", trace.at(i).avm_mem_rw);
+        info("m_tag:              ", trace.at(i).avm_mem_tag);
         info("r_in_tag:           ", trace.at(i).avm_mem_r_in_tag);
         info("w_in_tag:           ", trace.at(i).avm_mem_w_in_tag);
-        info("m_tag_err:          ", trace.at(i).avm_mem_m_tag_err);
-        info("m_one_min_inv:      ", trace.at(i).avm_mem_m_one_min_inv);
+        info("m_tag_err:          ", trace.at(i).avm_mem_tag_err);
+        info("m_one_min_inv:      ", trace.at(i).avm_mem_one_min_inv);
 
-        info("m_lastAccess:       ", trace.at(i).avm_mem_m_lastAccess);
-        info("m_last:             ", trace.at(i).avm_mem_m_last);
-        info("m_val_shift:        ", trace.at(i).avm_mem_m_val_shift);
+        info("m_lastAccess:       ", trace.at(i).avm_mem_lastAccess);
+        info("m_last:             ", trace.at(i).avm_mem_last);
+        info("m_val_shift:        ", trace.at(i).avm_mem_val_shift);
 
         info("=======CONTROL_FLOW===================================================================");
         info("pc:                 ", trace.at(i).avm_main_pc);
@@ -41,10 +41,10 @@ void log_avm_trace(std::vector<Row> const& trace, size_t beg, size_t end, bool e
         info("internal_return_ptr:", trace.at(i).avm_main_internal_return_ptr);
 
         info("=======ALU TRACE=====================================================================");
-        info("alu_clk             ", trace.at(i).avm_alu_alu_clk);
-        info("alu_ia              ", trace.at(i).avm_alu_alu_ia);
-        info("alu_ib              ", trace.at(i).avm_alu_alu_ib);
-        info("alu_ic              ", trace.at(i).avm_alu_alu_ic);
+        info("alu_clk             ", trace.at(i).avm_alu_clk);
+        info("alu_ia              ", trace.at(i).avm_alu_ia);
+        info("alu_ib              ", trace.at(i).avm_alu_ib);
+        info("alu_ic              ", trace.at(i).avm_alu_ic);
 
         info("=======MAIN TRACE====================================================================");
         info("clk:                ", trace.at(i).avm_main_clk);
