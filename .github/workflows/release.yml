@@ -79,6 +79,15 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.86
+
+      - name: Install wasm-opt
+        run: |
+          npm i wasm-opt -g
+
       - name: Query new noir version
         id: noir-version
         run: |
@@ -112,7 +121,7 @@ jobs:
 
     env:
       # We treat any skipped or failing jobs as a failure for the workflow as a whole.
-      FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }
+      FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
 
     steps:  
       - name: Add warning to sticky comment
