@@ -10,9 +10,12 @@ unconstrained fn brillig_as_slice(x: Field) -> (u64, Field, Field) {
 }
 
 fn main(x: Field) {
-    let (slice_len, dynamic_0, slice_0) = brillig_as_slice(x);
-    assert(slice_len == 1);
-    assert(dynamic_0 == 2);
-    assert(slice_0 == 2);
+    unsafe {
+        // Safety: all return values from unconstrained functions are constrained to constants.
+        let (slice_len, dynamic_0, slice_0) = brillig_as_slice(x);
+        assert(slice_len == 1);
+        assert(dynamic_0 == 2);
+        assert(slice_0 == 2);
+    }
 }
 

@@ -191,21 +191,26 @@ impl Mul for U128 {
 
 impl Div for U128 {
     fn div(self: Self, b: U128) -> U128 {
-        let (q,r) = self.unconstrained_div(b);
-        let a = b * q + r;
-        assert_eq(self, a);
-        assert(r < b);
-        q
+        unsafe {
+            let (q,r) = self.unconstrained_div(b);
+            let a = b * q + r;
+            assert_eq(self, a);
+            assert(r < b);
+            q
+        }
     }
 }
 
 impl Rem for U128 {
     fn rem(self: Self, b: U128) -> U128 {
-        let (q,r) = self.unconstrained_div(b);
-        let a = b * q + r;
-        assert_eq(self, a);
-        assert(r < b);
-        r
+        unsafe {
+            let (q,r) = self.unconstrained_div(b);
+            let a = b * q + r;
+            assert_eq(self, a);
+            assert(r < b);
+            
+            r
+        }
     }
 }
 

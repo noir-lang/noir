@@ -5,7 +5,7 @@ struct BoundedVec<T, MaxLen> {
 
 impl<T, MaxLen> BoundedVec<T, MaxLen> {
     pub fn new() -> Self {
-        let zeroed = crate::unsafe::zeroed();
+        let zeroed = crate::unsafe_func::zeroed();
         BoundedVec { storage: [zeroed; MaxLen], len: 0 }
     }
 
@@ -68,7 +68,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len -= 1;
 
         let elem = self.storage[self.len];
-        self.storage[self.len] = crate::unsafe::zeroed();
+        self.storage[self.len] = crate::unsafe_func::zeroed();
         elem
     }
 

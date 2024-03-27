@@ -1281,4 +1281,16 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         "#;
         assert_eq!(get_program_errors(src).len(), 0);
     }
+
+    #[test]
+    fn unconstrained_function_calls_outside_unsafe() {
+        let src = r#"
+            unconstrained fn foo() {}
+
+            fn main() {
+                foo();
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 1);
+    }
 }

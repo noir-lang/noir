@@ -32,6 +32,11 @@ pub struct TypeChecker<'interner> {
     errors: Vec<TypeCheckError>,
     current_function: Option<FuncId>,
 
+    /// Whether the `TypeChecker` should allow unsafe calls.
+    ///
+    /// This is generally only set to true within an `unsafe` block.
+    allow_unsafe: bool,
+
     /// Trait constraints are collected during type checking until they are
     /// verified at the end of a function. This is because constraints arise
     /// on each variable, but it is only until function calls when the types
@@ -335,7 +340,13 @@ fn check_function_type_matches_expected_type(
 
 impl<'interner> TypeChecker<'interner> {
     fn new(interner: &'interner mut NodeInterner) -> Self {
-        Self { interner, errors: Vec::new(), trait_constraints: Vec::new(), current_function: None }
+        Self {
+            interner,
+            errors: Vec::new(),
+            allow_unsafe: false,
+            trait_constraints: Vec::new(),
+            current_function: None,
+        }
     }
 
     fn check_function_body(&mut self, body: &ExprId) -> Type {
@@ -349,6 +360,7 @@ impl<'interner> TypeChecker<'interner> {
         let mut this = Self {
             interner,
             errors: Vec::new(),
+            allow_unsafe: false,
             trait_constraints: Vec::new(),
             current_function: None,
         };
@@ -468,8 +480,10 @@ mod test {
             expression: expr_id,
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
-        let expr_id = interner
-            .push_expr(HirExpression::Block(HirBlockExpression { statements: vec![stmt_id] }));
+        let expr_id = interner.push_expr(HirExpression::Block(HirBlockExpression {
+            is_unsafe: false,
+            statements: vec![stmt_id],
+        }));
         interner.push_expr_location(expr_id, Span::single_char(0), file);
 
         // Create function to enclose the let statement

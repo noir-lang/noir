@@ -4,5 +4,9 @@ unconstrained fn uncon_ref() -> &mut Field {
 }
 
 fn main() {
-    let e = uncon_ref();
+    unsafe {
+        let e = uncon_ref();
+    }
 }
+
+

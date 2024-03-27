@@ -189,8 +189,28 @@ impl<'interner> TypeChecker<'interner> {
                     (typ, *arg, self.interner.expr_span(arg))
                 });
 
-                // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
                 if is_current_func_constrained && is_unconstrained_call {
+                    if !self.allow_unsafe {
+                        let HirExpression::Ident(expr::HirIdent { id, .. }) =
+                            self.interner.expression(&call_expr.func)
+                        else {
+                            unreachable!("Call expression must be calling a function");
+                        };
+
+                        let Some(DefinitionKind::Function(func_id)) =
+                            self.interner.try_definition(id).map(|def| &def.kind)
+                        else {
+                            unreachable!("Call expression must be calling a function");
+                        };
+
+                        self.errors.push(TypeCheckError::UnconstrainedCallOutsideOfUnsafe {
+                            call_span: self.interner.expr_span(expr_id),
+                            function: self.interner.function_ident(func_id),
+                        });
+                        return Type::Error;
+                    }
+
+                    // Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime
                     for (typ, _, _) in args.iter() {
                         if matches!(&typ.follow_bindings(), Type::MutableReference(_)) {
                             self.errors.push(TypeCheckError::ConstrainedReferenceToUnconstrained {
@@ -271,6 +291,13 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Block(block_expr) => {
                 let mut block_type = Type::Unit;
 
+                // Before entering the block we cache the old value of `allow_unsafe` so it can be restored.
+                let old_allow_unsafe = self.allow_unsafe;
+
+                // If we're already in an unsafe block then entering a new block should preserve this even if
+                // the inner block isn't marked as unsafe.
+                self.allow_unsafe |= block_expr.is_unsafe;
+
                 let statements = block_expr.statements();
                 for (i, stmt) in statements.iter().enumerate() {
                     let expr_type = self.check_statement(stmt);
@@ -293,6 +320,9 @@ impl<'interner> TypeChecker<'interner> {
                         block_type = expr_type;
                     }
                 }
+
+                // Finally, we restore the original value of `self.allow_unsafe`.
+                self.allow_unsafe = old_allow_unsafe;
 
                 block_type
             }

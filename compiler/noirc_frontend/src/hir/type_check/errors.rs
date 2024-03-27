@@ -8,6 +8,7 @@ use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
 use crate::BinaryOpKind;
 use crate::FunctionReturnType;
+use crate::Ident;
 use crate::IntegerBitSize;
 use crate::Signedness;
 
@@ -128,6 +129,10 @@ pub enum TypeCheckError {
     UnconstrainedReferenceToConstrained { span: Span },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { span: Span },
+    #[error(
+        "Cannot enter unconstrained runtime from constrained function outside of an `unsafe` block"
+    )]
+    UnconstrainedCallOutsideOfUnsafe { call_span: Span, function: Ident },
     #[error("Slices must have constant length")]
     NonConstantSliceLength { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
@@ -242,6 +247,9 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::NonConstantSliceLength { span }
             | TypeCheckError::StringIndexAssign { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
+            }
+            TypeCheckError::UnconstrainedCallOutsideOfUnsafe { ref function, call_span } => {
+                Diagnostic::simple_warning(error.to_string(), format!(r#"Function "{function}" is unconstrained"#), call_span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
                 "Functions cannot declare a public return type".to_string(),

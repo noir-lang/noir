@@ -24,15 +24,22 @@ unconstrained fn decompose_unsafe(x: Field) -> (Field, Field) {
 /// Decompose a single field into two 16 byte fields.
 pub fn decompose(x: Field) -> (Field, Field) {
     // Take hints of the decomposition
-    let (xlo, xhi) = decompose_unsafe(x);
-    let borrow = lt_unsafe(PLO, xlo, 16);
+    let (xlo, xhi) = unsafe {
+        let (xlo, xhi) = decompose_unsafe(x);
 
-    // Range check the limbs
-    xlo.assert_max_bit_size(128);
-    xhi.assert_max_bit_size(128);
+        // Range check the limbs
+        xlo.assert_max_bit_size(128);
+        xhi.assert_max_bit_size(128);
 
-    // Check that the decomposition is correct
-    assert_eq(x, xlo + TWO_POW_128 * xhi);
+        // Check that the decomposition is correct
+        assert_eq(x, xlo + TWO_POW_128 * xhi);
+
+        (xlo, xhi)
+    };
+
+    let borrow = unsafe {
+        lt_unsafe(PLO, xlo, 16)
+    };
 
     // Check that (xlo < plo && xhi <= phi) || (xlo >= plo && xhi < phi)
     let rlo = PLO - xlo + (borrow as Field) * TWO_POW_128;
@@ -72,7 +79,9 @@ pub fn assert_gt(a: Field, b: Field) {
     let (alo, ahi) = decompose(a);
     let (blo, bhi) = decompose(b);
 
-    let borrow = lte_unsafe(alo, blo, 16);
+    let borrow = unsafe {
+        lte_unsafe(alo, blo, 16)
+    };
 
     // Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
     let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
@@ -89,12 +98,19 @@ pub fn assert_lt(a: Field, b: Field) {
 pub fn gt(a: Field, b: Field) -> bool {
     if a == b {
         false
-    } else if lt_unsafe(a, b, 32) {
-        assert_gt(b, a);
-        false
     } else {
-        assert_gt(a, b);
-        true
+        let a_lt_b = unsafe {
+            // Safety: We immediately assert the output to be valid based on the if-branch followed.
+            // Using `assert_gt` is sufficient as we've checked for equality already.
+            lt_unsafe(a, b, 32)
+        };
+        if a_lt_b {
+            assert_gt(b, a);
+            false
+        } else {
+            assert_gt(a, b);
+            true
+        }
     }
 }
 
@@ -107,7 +123,7 @@ mod tests {
     use crate::field::bn254::{decompose_unsafe, decompose, lt_unsafe, assert_gt, gt, lt, TWO_POW_128, lte_unsafe, PLO, PHI};
 
     #[test]
-    fn check_decompose_unsafe() {
+    unconstrained fn check_decompose_unsafe() {
         assert_eq(decompose_unsafe(TWO_POW_128), (0, 1));
         assert_eq(decompose_unsafe(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
         assert_eq(decompose_unsafe(0x1234567890), (0x1234567890, 0));
@@ -121,7 +137,7 @@ mod tests {
     }
 
     #[test]
-    fn check_lt_unsafe() {
+    unconstrained fn check_lt_unsafe() {
         assert(lt_unsafe(0, 1, 16));
         assert(lt_unsafe(0, 0x100, 16));
         assert(lt_unsafe(0x100, TWO_POW_128 - 1, 16));
@@ -129,7 +145,7 @@ mod tests {
     }
 
     #[test]
-    fn check_lte_unsafe() {
+    unconstrained fn check_lte_unsafe() {
         assert(lte_unsafe(0, 1, 16));
         assert(lte_unsafe(0, 0x100, 16));
         assert(lte_unsafe(0x100, TWO_POW_128 - 1, 16));

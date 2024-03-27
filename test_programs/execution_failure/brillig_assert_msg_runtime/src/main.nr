@@ -1,5 +1,7 @@
 fn main(x: Field) {
-    assert(1 == conditional(x));
+    unsafe {
+        assert(1 == conditional(x));
+    }
 }
 
 unconstrained fn conditional(x: Field) -> Field {

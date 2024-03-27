@@ -2,7 +2,9 @@ global DEPTH: Field = 40000;
 
 fn main(x: [u32; DEPTH], y: u32) {
     let mut new_x = Vec::new();
-    new_x = clear(x, y);
+    unsafe {
+        new_x = clear(x, y);
+    }
 }
 
 unconstrained fn clear(x: [u32; DEPTH], y: u32) -> Vec<u32> {

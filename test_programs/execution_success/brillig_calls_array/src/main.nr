@@ -2,8 +2,10 @@
 // 
 // The features being tested is brillig calls passing arrays around
 fn main(x: [u32; 3]) {
-    assert(entry_point(x) == 9);
-    another_entry_point(x);
+    unsafe {
+        assert(entry_point(x) == 9);
+        another_entry_point(x);
+    }
 }
 
 unconstrained fn inner(x: [u32; 3]) -> [u32; 3] {
