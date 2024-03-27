@@ -1034,21 +1034,21 @@ mod test {
         let src = r#"
             fn main(x: Field) -> pub Field {
                 let closure_without_captures = |x: Field| -> Field { x + x };
-                let a: Field = closure_without_captures(1);
+                let a = closure_without_captures(1);
 
                 let closure_capturing_a_param = |y: Field| -> Field { y + x };
-                let b: Field = closure_capturing_a_param(2);
+                let b = closure_capturing_a_param(2);
 
                 let closure_capturing_a_local_var = |y: Field| -> Field { y + b };
-                let c: Field = closure_capturing_a_local_var(3);
+                let c = closure_capturing_a_local_var(3);
 
                 let closure_with_transitive_captures = |y: Field| -> Field {
-                    let d: Field = 5;
+                    let d = 5;
                     let nested_closure = |z: Field| -> Field {
                         let doubly_nested_closure = |w: Field| -> Field { w + x + b };
                         a + z + y + d + x + doubly_nested_closure(4) + x + y
                     };
-                    let res: Field = nested_closure(5);
+                    let res = nested_closure(5);
                     res
                 };
 
@@ -1219,8 +1219,8 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
     #[test]
     fn operators_in_global_used_in_type() {
         let src = r#"
-            global ONE: Field = 1;
-            global COUNT: Field = ONE + 2;
+            global ONE = 1;
+            global COUNT = ONE + 2;
             fn main() {
                 let _array: [Field; COUNT] = [1, 2, 3];
             }
@@ -1233,7 +1233,6 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
         let src = r#"
             fn main() {
                 for i in 0 .. 10 {
-                    let i: u64 = i;
                     if i == 2 {
                         continue;
                     }
