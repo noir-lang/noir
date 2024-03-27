@@ -850,15 +850,8 @@ impl<'interner> TypeChecker<'interner> {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
 
-                self.unify(lhs_type, rhs_type, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs_type.clone(),
-                    actual: rhs_type.clone(),
-                    source: Source::Binary,
-                    span,
-                });
-
-                let use_primitive_op = lhs_type.is_numeric();
-                Ok((Bool, !use_primitive_op))
+                let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+                Ok((Bool, use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {
@@ -1088,6 +1081,44 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
+    /// Handles the TypeVariable case for checking binary operators.
+    /// Returns true if we should use the impl for the operator instead of the primitive
+    /// version of it.
+    fn bind_type_variables_for_infix(
+        &mut self,
+        lhs_type: &Type,
+        op: &HirBinaryOp,
+        rhs_type: &Type,
+        span: Span,
+    ) -> bool {
+        self.unify(lhs_type, rhs_type, || TypeCheckError::TypeMismatchWithSource {
+            expected: lhs_type.clone(),
+            actual: rhs_type.clone(),
+            source: Source::Binary,
+            span,
+        });
+
+        let use_impl = !lhs_type.is_numeric();
+
+        // if the type variable is an integer or field we have to narrow it to only an integer
+        if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
+            // In addition to unifying both types, we also have to bind either
+            // the lhs or rhs to an integer type variable. This ensures if both lhs
+            // and rhs are type variables, that they will have the correct integer
+            // type variable kind instead of TypeVariableKind::Normal.
+            let target = Type::polymorphic_integer(self.interner);
+
+            self.unify(lhs_type, &target, || TypeCheckError::TypeMismatchWithSource {
+                expected: lhs_type.clone(),
+                actual: rhs_type.clone(),
+                source: Source::Binary,
+                span,
+            });
+        }
+
+        use_impl
+    }
+
     // Given a binary operator and another type. This method will produce the output type
     // and a boolean indicating whether to use the trait impl corresponding to the operator
     // or not. A value of false indicates the caller to use a primitive operation for this
@@ -1119,15 +1150,8 @@ impl<'interner> TypeChecker<'interner> {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
 
-                self.unify(lhs_type, rhs_type, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs_type.clone(),
-                    actual: rhs_type.clone(),
-                    source: Source::Binary,
-                    span,
-                });
-
-                let use_primitive_op = lhs_type.is_numeric();
-                Ok((other.clone(), !use_primitive_op))
+                let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+                Ok((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {

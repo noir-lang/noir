@@ -608,7 +608,15 @@ impl Type {
 
     pub fn is_numeric(&self) -> bool {
         use Type::*;
-        matches!(self.follow_bindings(), FieldElement | Integer(..) | Bool)
+        use TypeVariableKind as K;
+        matches!(
+            self.follow_bindings(),
+            FieldElement | Integer(..) | Bool | TypeVariable(_, K::Integer | K::IntegerOrField)
+        )
+    }
+
+    pub(crate) fn is_integer_or_field_typevar(&self) -> bool {
+        matches!(self.follow_bindings(), Type::TypeVariable(_, TypeVariableKind::IntegerOrField))
     }
 
     fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
