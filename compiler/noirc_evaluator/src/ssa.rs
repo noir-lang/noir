@@ -8,6 +8,7 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeSet;
+use std::time::Instant;
 
 use crate::{
     brillig::Brillig,
@@ -41,28 +42,30 @@ pub(crate) fn optimize_into_acir(
     print_ssa_passes: bool,
     print_brillig_trace: bool,
     force_brillig_output: bool,
+    print_codegen_timings: bool,
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let ssa = SsaBuilder::new(program, print_ssa_passes, force_brillig_output)?
-        .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
-        .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
-        .run_pass(Ssa::inline_functions, "After Inlining:")
-        // Run mem2reg with the CFG separated into blocks
-        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
-        .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
-        .try_run_pass(Ssa::unroll_loops, "After Unrolling:")?
-        .run_pass(Ssa::simplify_cfg, "After Simplifying:")
-        .run_pass(Ssa::flatten_cfg, "After Flattening:")
-        .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
-        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
-        .run_pass(Ssa::fold_constants, "After Constant Folding:")
-        .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
-        .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
-        .finish();
+    let ssa =
+        SsaBuilder::new(program, print_ssa_passes, force_brillig_output, print_codegen_timings)?
+            .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
+            .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
+            .run_pass(Ssa::inline_functions, "After Inlining:")
+            // Run mem2reg with the CFG separated into blocks
+            .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+            .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
+            .try_run_pass(Ssa::unroll_loops, "After Unrolling:")?
+            .run_pass(Ssa::simplify_cfg, "After Simplifying:")
+            .run_pass(Ssa::flatten_cfg, "After Flattening:")
+            .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
+            // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+            .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+            .run_pass(Ssa::fold_constants, "After Constant Folding:")
+            .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
+            .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
+            .finish();
 
     let brillig = ssa.to_brillig(print_brillig_trace);
 
@@ -70,7 +73,16 @@ pub(crate) fn optimize_into_acir(
 
     let last_array_uses = ssa.find_last_array_uses();
 
-    ssa.into_acir(brillig, abi_distinctness, &last_array_uses)
+    // For pretty printing ACIR timings
+    let now = Instant::now();
+
+    let acir = ssa.into_acir(brillig, abi_distinctness, &last_array_uses);
+
+    if print_codegen_timings {
+        println!("SSA to ACIR: {}", now.elapsed().as_millis());
+    }
+
+    acir
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Circuit].
@@ -83,6 +95,7 @@ pub fn create_circuit(
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
     force_brillig_output: bool,
+    print_codegen_timings: bool,
 ) -> Result<(Circuit, DebugInfo, Vec<Witness>, Vec<Witness>, Vec<SsaReport>), RuntimeError> {
     let debug_variables = program.debug_variables.clone();
     let debug_types = program.debug_types.clone();
@@ -94,6 +107,7 @@ pub fn create_circuit(
         enable_ssa_logging,
         enable_brillig_logging,
         force_brillig_output,
+        print_codegen_timings,
     )?;
     let opcodes = generated_acir.take_opcodes();
     let current_witness_index = generated_acir.current_witness_index().0;
@@ -176,6 +190,7 @@ fn split_public_and_private_inputs(
 struct SsaBuilder {
     ssa: Ssa,
     print_ssa_passes: bool,
+    print_codegen_timings: bool,
 }
 
 impl SsaBuilder {
@@ -183,9 +198,10 @@ impl SsaBuilder {
         program: Program,
         print_ssa_passes: bool,
         force_brillig_runtime: bool,
+        print_codegen_timings: bool,
     ) -> Result<SsaBuilder, RuntimeError> {
         let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
-        Ok(SsaBuilder { print_ssa_passes, ssa }.print("Initial SSA:"))
+        Ok(SsaBuilder { print_ssa_passes, print_codegen_timings, ssa }.print("Initial SSA:"))
     }
 
     fn finish(self) -> Ssa {
@@ -194,7 +210,11 @@ impl SsaBuilder {
 
     /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
     fn run_pass(mut self, pass: fn(Ssa) -> Ssa, msg: &str) -> Self {
+        let now = Instant::now();
         self.ssa = pass(self.ssa);
+        if self.print_codegen_timings {
+            println!("{msg}: {} ms", now.elapsed().as_millis());
+        }
         self.print(msg)
     }
 
@@ -204,12 +224,21 @@ impl SsaBuilder {
         pass: fn(Ssa) -> Result<Ssa, RuntimeError>,
         msg: &str,
     ) -> Result<Self, RuntimeError> {
+        let now = Instant::now();
         self.ssa = pass(self.ssa)?;
+        if self.print_codegen_timings {
+            println!("{msg}: {} ms", now.elapsed().as_millis());
+        }
         Ok(self.print(msg))
     }
 
     fn to_brillig(&self, print_brillig_trace: bool) -> Brillig {
-        self.ssa.to_brillig(print_brillig_trace)
+        let now = Instant::now();
+        let brillig = self.ssa.to_brillig(print_brillig_trace);
+        if self.print_codegen_timings {
+            println!("SSA to Brillig: {} ms", now.elapsed().as_millis());
+        }
+        brillig
     }
 
     fn print(self, msg: &str) -> Self {
