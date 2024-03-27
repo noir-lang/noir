@@ -39,29 +39,29 @@ pub fn transform_function(
     // Add check that msg sender equals this address and flag function as internal
     if is_internal {
         let is_internal_check = create_internal_check(func.name());
-        func.def.body.0.insert(0, is_internal_check);
+        func.def.body.statements.insert(0, is_internal_check);
     }
 
     // Add initialization check
     if insert_init_check {
         let init_check = create_init_check();
-        func.def.body.0.insert(0, init_check);
+        func.def.body.statements.insert(0, init_check);
     }
 
     // Add assertion for initialization arguments and sender
     if is_initializer {
-        func.def.body.0.insert(0, create_assert_initializer());
+        func.def.body.statements.insert(0, create_assert_initializer());
     }
 
     // Add access to the storage struct
     if storage_defined {
         let storage_def = abstract_storage(&ty.to_lowercase(), false);
-        func.def.body.0.insert(0, storage_def);
+        func.def.body.statements.insert(0, storage_def);
     }
 
     // Insert the context creation as the first action
     let create_context = create_context(&context_name, &func.def.parameters)?;
-    func.def.body.0.splice(0..0, (create_context).iter().cloned());
+    func.def.body.statements.splice(0..0, (create_context).iter().cloned());
 
     // Add the inputs to the params
     let input = create_inputs(&inputs_name);
@@ -71,20 +71,20 @@ pub fn transform_function(
     if let Some(return_values) = abstract_return_values(func) {
         // In case we are pushing return values to the context, we remove the statement that originated it
         // This avoids running duplicate code, since blocks like if/else can be value returning statements
-        func.def.body.0.pop();
+        func.def.body.statements.pop();
         // Add the new return statement
-        func.def.body.0.push(return_values);
+        func.def.body.statements.push(return_values);
     }
 
     // Before returning mark the contract as initialized
     if is_initializer {
         let mark_initialized = create_mark_as_initialized();
-        func.def.body.0.push(mark_initialized);
+        func.def.body.statements.push(mark_initialized);
     }
 
     // Push the finish method call to the end of the function
     let finish_def = create_context_finish();
-    func.def.body.0.push(finish_def);
+    func.def.body.statements.push(finish_def);
 
     let return_type = create_return_type(&return_type_name);
     func.def.return_type = return_type;
@@ -109,12 +109,12 @@ pub fn transform_vm_function(
     // Create access to storage
     if storage_defined {
         let storage = abstract_storage("public_vm", true);
-        func.def.body.0.insert(0, storage);
+        func.def.body.statements.insert(0, storage);
     }
 
     // Push Avm context creation to the beginning of the function
     let create_context = create_avm_context()?;
-    func.def.body.0.insert(0, create_context);
+    func.def.body.statements.insert(0, create_context);
 
     // Add the inputs to the params (first!)
     let input = create_inputs("AvmContextInputs");
@@ -135,7 +135,7 @@ pub fn transform_vm_function(
 ///
 /// This will allow developers to access their contract' storage struct in unconstrained functions
 pub fn transform_unconstrained(func: &mut NoirFunction) {
-    func.def.body.0.insert(0, abstract_storage("Unconstrained", true));
+    func.def.body.statements.insert(0, abstract_storage("Unconstrained", true));
 }
 
 /// Helper function that returns what the private context would look like in the ast
@@ -399,7 +399,7 @@ fn create_avm_context() -> Result<Statement, AztecMacroError> {
 /// Any primitive type that can be cast will be casted to a field and pushed to the context.
 fn abstract_return_values(func: &NoirFunction) -> Option<Statement> {
     let current_return_type = func.return_type().typ;
-    let last_statement = func.def.body.0.last()?;
+    let last_statement = func.def.body.statements.last()?;
 
     // TODO: (length, type) => We can limit the size of the array returned to be limited by kernel size
     // Doesn't need done until we have settled on a kernel size
@@ -650,8 +650,10 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     );
 
     // What will be looped over
+
     // - `serialized_args.push({ident}[i] as Field)`
-    let for_loop_block = expression(ExpressionKind::Block(BlockExpression(loop_body)));
+    let for_loop_block =
+        expression(ExpressionKind::Block(BlockExpression { statements: loop_body }));
 
     // `for i in 0..{ident}.len()`
     make_statement(StatementKind::For(ForLoopStatement {

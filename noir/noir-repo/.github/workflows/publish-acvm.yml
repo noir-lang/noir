@@ -74,4 +74,4 @@ jobs:
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           update_existing: true
-          filename: .github/JS_PUBLISH_FAILED.md
+          filename: .github/ACVM_PUBLISH_FAILED.md
