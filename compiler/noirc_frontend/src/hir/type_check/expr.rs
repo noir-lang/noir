@@ -856,7 +856,9 @@ impl<'interner> TypeChecker<'interner> {
                     source: Source::Binary,
                     span,
                 });
-                Ok((Bool, true))
+
+                let use_primitive_op = lhs_type.is_numeric();
+                Ok((Bool, !use_primitive_op))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {
@@ -1123,7 +1125,9 @@ impl<'interner> TypeChecker<'interner> {
                     source: Source::Binary,
                     span,
                 });
-                Ok((other.clone(), true))
+
+                let use_primitive_op = lhs_type.is_numeric();
+                Ok((other.clone(), !use_primitive_op))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
                 if sign_x != sign_y {
