@@ -9,28 +9,28 @@ mod interface;
 use interface::ContextInterface;
 use private_context::PrivateContext;
 use public_context::PublicContext;
-use avm_context::AVMContext;
+use avm_context::AvmContext;
 
 struct Context {
     private: Option<&mut PrivateContext>,
     public: Option<&mut PublicContext>,
-    public_vm: Option<&mut AVMContext>,
+    avm: Option<&mut AvmContext>,
 }
 
 impl Context {
     pub fn private(context: &mut PrivateContext) -> Context {
-        Context { private: Option::some(context), public: Option::none(), public_vm: Option::none() }
+        Context { private: Option::some(context), public: Option::none(), avm: Option::none() }
     }
 
     pub fn public(context: &mut PublicContext) -> Context {
-        Context { public: Option::some(context), private: Option::none(), public_vm: Option::none() }
+        Context { public: Option::some(context), private: Option::none(), avm: Option::none() }
     }
 
-    pub fn public_vm(context: &mut AVMContext) -> Context {
-        Context { public_vm: Option::some(context), public: Option::none(), private: Option::none() }
+    pub fn avm(context: &mut AvmContext) -> Context {
+        Context { avm: Option::some(context), public: Option::none(), private: Option::none() }
     }
 
     pub fn none() -> Context {
-        Context { public: Option::none(), private: Option::none(), public_vm: Option::none() }
+        Context { public: Option::none(), private: Option::none(), avm: Option::none() }
     }
 }

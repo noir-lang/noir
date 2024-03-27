@@ -25,7 +25,7 @@ contract AvmTest {
 
     // Libs
     use dep::aztec::prelude::Map;
-    use dep::aztec::state_vars::PublicMutable;
+    use dep::aztec::state_vars::{PublicImmutable, PublicMutable};
     use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH};
     use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
     use dep::aztec::protocol_types::traits::ToField;
@@ -39,11 +39,23 @@ contract AvmTest {
         single: PublicMutable<Field>,
         list: PublicMutable<Note>,
         map: Map<AztecAddress, PublicMutable<u32>>,
+        immutable: PublicImmutable<Field>,
     }
 
     /************************************************************************
      * Storage
      ************************************************************************/
+    // FIX: calls unsupported getNullifierMembershipWitness.
+    // #[aztec(public-vm)]
+    // #[aztec(initializer)]
+    // fn constructor() {
+    //     storage.immutable.initialize(42);
+    // }
+
+    unconstrained fn view_storage_immutable() -> pub Field {
+        storage.immutable.read()
+    }
+
     unconstrained fn view_storage_single() -> pub Field {
         storage.single.read()
     }

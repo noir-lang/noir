@@ -1,4 +1,5 @@
 import { UnencryptedL2Log } from '@aztec/circuit-types';
+import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { EventSelector, FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { keccak, pedersenHash, poseidonHash, sha256 } from '@aztec/foundation/crypto';
@@ -20,22 +21,20 @@ import {
   initL1ToL2MessageOracleInput,
   initMachineState,
 } from './fixtures/index.js';
-import { Add, CalldataCopy, Instruction, Return } from './opcodes/index.js';
+import { Add, CalldataCopy, Return } from './opcodes/index.js';
 import { encodeToBytecode } from './serialization/bytecode_serialization.js';
 
 describe('AVM simulator: injected bytecode', () => {
   let calldata: Fr[];
-  let ops: Instruction[];
   let bytecode: Buffer;
 
   beforeAll(() => {
     calldata = [new Fr(1), new Fr(2)];
-    ops = [
+    bytecode = encodeToBytecode([
       new CalldataCopy(/*indirect=*/ 0, /*cdOffset=*/ adjustCalldataIndex(0), /*copySize=*/ 2, /*dstOffset=*/ 0),
       new Add(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 2),
       new Return(/*indirect=*/ 0, /*returnOffset=*/ 2, /*copySize=*/ 1),
-    ];
-    bytecode = encodeToBytecode(ops);
+    ]);
   });
 
   it('Should execute bytecode that performs basic addition', async () => {
@@ -247,7 +246,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
       expect(results.reverted).toBe(false);
-      expect(results.output).toEqual([pedersenHash(calldata)]);
+      expect(results.output).toEqual([computeVarArgsHash(calldata)]);
     });
   });
 
@@ -462,6 +461,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
 
       const results = await new AvmSimulator(context).executeBytecode(callBytecode);
 
+      expect(results.revertReason).toBeUndefined();
       expect(results.reverted).toBe(false);
       expect(results.output).toEqual([new Fr(3)]);
     });

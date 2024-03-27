@@ -7,13 +7,13 @@ use crate::context::inputs::avm_context_inputs::AvmContextInputs;
 use crate::context::interface::ContextInterface;
 use crate::context::interface::PublicContextInterface;
 
-struct AVMContext {
+struct AvmContext {
     inputs: AvmContextInputs,
 }
 
-impl AVMContext {
+impl AvmContext {
     pub fn new(inputs: AvmContextInputs) -> Self {
-        AVMContext { inputs }
+        AvmContext { inputs }
     }
 
     pub fn origin(self) -> AztecAddress {
@@ -73,7 +73,7 @@ impl AVMContext {
     }
 }
 
-impl PublicContextInterface for AVMContext {
+impl PublicContextInterface for AvmContext {
     fn block_number(self) -> Field {
         block_number()
     }
@@ -168,7 +168,7 @@ impl PublicContextInterface for AVMContext {
     }
 }
 
-impl ContextInterface for AVMContext {
+impl ContextInterface for AvmContext {
     fn push_new_note_hash(&mut self, note_hash: Field) {
         emit_note_hash(note_hash);
     }
