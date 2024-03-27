@@ -137,7 +137,7 @@ export class Archiver implements ArchiveSource {
   }
 
   /**
-   * Fetches `L2BlockProcessed` and `ContractDeployment` logs from `nextL2BlockFromBlock` and processes them.
+   * Fetches logs from L1 contracts and processes them.
    * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
    */
   private async sync(blockUntilSynced: boolean) {
