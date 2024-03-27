@@ -83,7 +83,7 @@ impl NoirFunction {
         &mut self.def
     }
     pub fn number_of_statements(&self) -> usize {
-        self.def.body.0.len()
+        self.def.body.statements.len()
     }
     pub fn span(&self) -> Span {
         self.def.span

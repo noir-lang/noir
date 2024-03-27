@@ -37,7 +37,7 @@ pub enum HirExpression {
 impl HirExpression {
     /// Returns an empty block expression
     pub const fn empty_block() -> HirExpression {
-        HirExpression::Block(HirBlockExpression(vec![]))
+        HirExpression::Block(HirBlockExpression { statements: vec![] })
     }
 }
 
@@ -249,11 +249,13 @@ pub struct HirIndexExpression {
 }
 
 #[derive(Debug, Clone)]
-pub struct HirBlockExpression(pub Vec<StmtId>);
+pub struct HirBlockExpression {
+    pub statements: Vec<StmtId>,
+}
 
 impl HirBlockExpression {
     pub fn statements(&self) -> &[StmtId] {
-        &self.0
+        &self.statements
     }
 }
 

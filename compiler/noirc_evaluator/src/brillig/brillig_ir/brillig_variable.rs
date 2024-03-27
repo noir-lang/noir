@@ -125,7 +125,9 @@ impl BrilligVariable {
 
 pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
     match typ {
-        Type::Numeric(_) | Type::Reference(_) | Type::Function => HeapValueType::Simple,
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
+            HeapValueType::Simple(get_bit_size_from_ssa_type(typ))
+        }
         Type::Array(elem_type, size) => HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
             size: typ.element_size() * size,
@@ -133,5 +135,16 @@ pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
         Type::Slice(elem_type) => HeapValueType::Vector {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
         },
+    }
+}
+
+pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
+    match typ {
+        Type::Reference(_) => BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        // NB. function references are converted to a constant when
+        // translating from SSA to Brillig (to allow for debugger
+        // instrumentation to work properly)
+        Type::Function => 32,
+        typ => typ.bit_size(),
     }
 }
