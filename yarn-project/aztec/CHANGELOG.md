@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.31.0...aztec-package-v0.32.0) (2024-03-27)
+
+
+### Features
+
+* Sequencer checks list of allowed FPCs ([#5310](https://github.com/AztecProtocol/aztec-packages/issues/5310)) ([adf20dc](https://github.com/AztecProtocol/aztec-packages/commit/adf20dc4974707255daffdaf3526dc48dc035873)), closes [#5000](https://github.com/AztecProtocol/aztec-packages/issues/5000)
+
 ## [0.31.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.30.1...aztec-package-v0.31.0) (2024-03-26)
 
 
