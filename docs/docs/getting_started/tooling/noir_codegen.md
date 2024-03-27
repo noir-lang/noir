@@ -7,7 +7,7 @@ sidebar_position: 2
 
 You can generate TypeScript bindings with `noir_codegen`, allowing for easier and faster integration of your Noir circuits into TypeScript projects.
 
-It is used in conjunction with `nargo export` which generates JSON for specified functions.
+It is used in conjunction with `nargo export` which generates JSON for specified functions in a Noir library (not binary or contract circuits).
 
 ## Installation
 
@@ -24,15 +24,22 @@ npm install @noir-lang/noir_codegen
 ```
 ## Usage
 
-### Export circuit ABI
+### Export ABI of specified functions
 
-Before generating TypeScript bindings, you need to export your Noir programs using `nargo export`:
+Use the `#[export]` macro to indicate which functions in the noir library that you'd like to export.
+```rust
+#[export]
+fn your_function(...
+```
+
+The following command, when run from the directory with `Nargo.toml`, will create a folder with a .json file per exported function:
 
 ```bash
 nargo export
 ```
+The .json files live in a new `exports` directory.
 
-You can run this in the directory where your `Nargo.toml` lives, or you can specify a path like so:
+You can also specify the directory of Noir programs using `--program-dir` as follows:
 
 ```bash
 nargo export --program-dir=./path/to/your/noir/program
@@ -40,16 +47,18 @@ nargo export --program-dir=./path/to/your/noir/program
 
 ### Run noir-codegen 
 
-To run `noir-codegen`, pass the path of your exported JSON. Here is an example of that that might look like:
+The `noir-codegen` command, pass the path of your exported JSON file(s) (wildcard characters accepted too, `*.json`). :
 
 ```bash
-yarn noir-codegen ./export/main.json
+yarn noir-codegen ./export/your_function.json
 ```
+
+An `exports` directory is created with an index.ts file containing all exported functions.
 
 You can optionally specify an output dir for your Typescript bindings to live with `--out-dir`:
 
 ```bash
-yarn noir-codegen ./export/main.json --out-dir ./path/to/output/ir
+yarn noir-codegen ./export/*.json --out-dir ./path/to/output/dir
 ```
 
 
@@ -123,4 +132,4 @@ export async function exported_function_foo(x: u64, y: u64, array: u8[], my_stru
 }
 ```
 
-As you can see, `exported_fcuntion_foo()` is now available to simulate in Typescript, and `unexported_function()` is not.
+As you can see, `exported_function_foo()` is now readily available to us in Typescript, and `unexported_function()` is not.
