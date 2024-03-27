@@ -89,9 +89,9 @@ export function initGlobalVariables(overrides?: Partial<GlobalVariables>): Globa
  */
 export function initMachineState(overrides?: Partial<AvmMachineState>): AvmMachineState {
   return AvmMachineState.fromState({
-    l1GasLeft: overrides?.l1GasLeft ?? 1e6,
-    l2GasLeft: overrides?.l2GasLeft ?? 1e6,
-    daGasLeft: overrides?.daGasLeft ?? 1e6,
+    l1GasLeft: overrides?.l1GasLeft ?? 100e6,
+    l2GasLeft: overrides?.l2GasLeft ?? 100e6,
+    daGasLeft: overrides?.daGasLeft ?? 100e6,
   });
 }
 

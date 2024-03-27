@@ -1,3 +1,4 @@
+import { TypeTag } from './avm_memory_types.js';
 import { Opcode } from './serialization/instruction_serialization.js';
 
 /** Gas cost in L1, L2, and DA for a given instruction. */
@@ -7,6 +8,11 @@ export type GasCost = {
   daGas: number;
 };
 
+/** Creates a new instance with all values set to zero except the ones set. */
+export function makeGasCost(gasCost: Partial<GasCost>) {
+  return { ...EmptyGasCost, ...gasCost };
+}
+
 /** Gas cost of zero across all gas dimensions. */
 export const EmptyGasCost = {
   l1Gas: 0,
@@ -14,18 +20,21 @@ export const EmptyGasCost = {
   daGas: 0,
 };
 
-/** Dimensions of gas usage: L1, L2, and DA */
+/** Dimensions of gas usage: L1, L2, and DA. */
 export const GasDimensions = ['l1Gas', 'l2Gas', 'daGas'] as const;
+
+/** Null object to represent a gas cost that's dynamic instead of fixed for a given instruction. */
+export const DynamicGasCost = Symbol('DynamicGasCost');
 
 /** Temporary default gas cost. We should eventually remove all usage of this variable in favor of actual gas for each opcode. */
 const TemporaryDefaultGasCost = { l1Gas: 0, l2Gas: 10, daGas: 0 };
 
 /** Gas costs for each instruction. */
-export const GasCosts: Record<Opcode, GasCost> = {
-  [Opcode.ADD]: TemporaryDefaultGasCost,
-  [Opcode.SUB]: TemporaryDefaultGasCost,
-  [Opcode.MUL]: TemporaryDefaultGasCost,
-  [Opcode.DIV]: TemporaryDefaultGasCost,
+export const GasCosts = {
+  [Opcode.ADD]: DynamicGasCost,
+  [Opcode.SUB]: DynamicGasCost,
+  [Opcode.MUL]: DynamicGasCost,
+  [Opcode.DIV]: DynamicGasCost,
   [Opcode.FDIV]: TemporaryDefaultGasCost,
   [Opcode.EQ]: TemporaryDefaultGasCost,
   [Opcode.LT]: TemporaryDefaultGasCost,
@@ -55,7 +64,7 @@ export const GasCosts: Record<Opcode, GasCost> = {
   [Opcode.BLOCKL1GASLIMIT]: TemporaryDefaultGasCost,
   [Opcode.BLOCKL2GASLIMIT]: TemporaryDefaultGasCost,
   [Opcode.BLOCKDAGASLIMIT]: TemporaryDefaultGasCost,
-  [Opcode.CALLDATACOPY]: TemporaryDefaultGasCost,
+  [Opcode.CALLDATACOPY]: DynamicGasCost,
   // Gas
   [Opcode.L1GASLEFT]: TemporaryDefaultGasCost,
   [Opcode.L2GASLEFT]: TemporaryDefaultGasCost,
@@ -66,7 +75,7 @@ export const GasCosts: Record<Opcode, GasCost> = {
   [Opcode.INTERNALCALL]: TemporaryDefaultGasCost,
   [Opcode.INTERNALRETURN]: TemporaryDefaultGasCost,
   // Memory
-  [Opcode.SET]: TemporaryDefaultGasCost,
+  [Opcode.SET]: DynamicGasCost,
   [Opcode.MOV]: TemporaryDefaultGasCost,
   [Opcode.CMOV]: TemporaryDefaultGasCost,
   // World state
@@ -91,4 +100,33 @@ export const GasCosts: Record<Opcode, GasCost> = {
   [Opcode.POSEIDON]: TemporaryDefaultGasCost,
   [Opcode.SHA256]: TemporaryDefaultGasCost, // temp - may be removed, but alot of contracts rely on i: TemporaryDefaultGasCost,
   [Opcode.PEDERSEN]: TemporaryDefaultGasCost, // temp - may be removed, but alot of contracts rely on i: TemporaryDefaultGasCost,t
+} as const;
+
+/** Constants used in base cost calculations. */
+export const GasCostConstants = {
+  SET_COST_PER_BYTE: 100,
+  CALLDATACOPY_COST_PER_BYTE: 10,
+  ARITHMETIC_COST_PER_BYTE: 10,
+  ARITHMETIC_COST_PER_INDIRECT_ACCESS: 5,
 };
+
+/** Returns a multiplier based on the size of the type represented by the tag. Throws on uninitialized or invalid. */
+export function getGasCostMultiplierFromTypeTag(tag: TypeTag) {
+  switch (tag) {
+    case TypeTag.UINT8:
+      return 1;
+    case TypeTag.UINT16:
+      return 2;
+    case TypeTag.UINT32:
+      return 4;
+    case TypeTag.UINT64:
+      return 8;
+    case TypeTag.UINT128:
+      return 16;
+    case TypeTag.FIELD:
+      return 32;
+    case TypeTag.INVALID:
+    case TypeTag.UNINITIALIZED:
+      throw new Error(`Invalid tag type for gas cost multiplier: ${TypeTag[tag]}`);
+  }
+}
