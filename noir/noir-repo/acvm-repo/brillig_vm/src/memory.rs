@@ -33,8 +33,7 @@ impl MemoryValue {
 
     pub fn to_usize(&self) -> usize {
         assert!(self.bit_size == MEMORY_ADDRESSING_BIT_SIZE, "value is not typed as brillig usize");
-        usize::try_from(self.value.try_to_u64().expect("value does not fit into u64"))
-            .expect("value does not fit into usize")
+        self.value.to_u128() as usize
     }
 
     pub fn expect_bit_size(&self, expected_bit_size: u32) -> Result<(), MemoryTypeError> {
@@ -116,7 +115,7 @@ impl TryFrom<MemoryValue> for u64 {
 
     fn try_from(memory_value: MemoryValue) -> Result<Self, Self::Error> {
         memory_value.expect_bit_size(64)?;
-        Ok(memory_value.value.try_to_u64().expect("value typed as u64 does not fit into u64"))
+        Ok(memory_value.value.to_u128() as u64)
     }
 }
 
@@ -125,9 +124,7 @@ impl TryFrom<MemoryValue> for u32 {
 
     fn try_from(memory_value: MemoryValue) -> Result<Self, Self::Error> {
         memory_value.expect_bit_size(32)?;
-        let as_u64 =
-            memory_value.value.try_to_u64().expect("value typed as u32 does not fit into u64");
-        Ok(u32::try_from(as_u64).expect("value typed as u32 does not fit into u32"))
+        Ok(memory_value.value.to_u128() as u32)
     }
 }
 
@@ -137,10 +134,7 @@ impl TryFrom<MemoryValue> for u8 {
     fn try_from(memory_value: MemoryValue) -> Result<Self, Self::Error> {
         memory_value.expect_bit_size(8)?;
 
-        Ok(u8::try_from(
-            memory_value.value.try_to_u64().expect("value typed as u8 does not fit into u64"),
-        )
-        .expect("value typed as u8 does not fit into u8"))
+        Ok(memory_value.value.to_u128() as u8)
     }
 }
 
