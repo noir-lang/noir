@@ -82,6 +82,10 @@ template <typename FF> void GoblinUltraCircuitBuilder_<FF>::add_gates_to_ensure_
     // dummy gate to be read into by previous poseidon internal gate via shifts
     this->create_dummy_gate(
         this->blocks.poseidon_internal, this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+
+    // add dummy mul accum op and an equality op
+    this->queue_ecc_mul_accum(bb::g1::affine_element::one() * FF::random_element(), FF::random_element());
+    this->queue_ecc_eq();
 }
 
 /**

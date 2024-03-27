@@ -17,7 +17,7 @@ void GoblinAcirComposer::create_circuit(acir_format::AcirFormat& constraint_syst
     acir_format::build_constraints(builder_, constraint_system, true);
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/817): Add some arbitrary op gates to ensure the
-    // associated polynomials are non-zero and to give ECCVM and Translator some ECC ops to process.
+    //  to give ECCVM and Translator some ECC ops to process.
     MockCircuits::construct_goblin_ecc_op_circuit(builder_);
 }
 
