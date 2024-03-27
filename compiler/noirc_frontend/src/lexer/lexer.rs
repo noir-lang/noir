@@ -1095,9 +1095,8 @@ mod tests {
         use std::io::Read;
 
         let mut wrapped_reader = Cursor::new(base64_str);
-        let mut decoder = base64::read::DecoderReader::new(
-            &mut wrapped_reader,
-            &general_purpose::STANDARD);
+        let mut decoder =
+            base64::read::DecoderReader::new(&mut wrapped_reader, &general_purpose::STANDARD);
         let mut base64_decoded = Vec::new();
         decoder.read_to_end(&mut base64_decoded).unwrap();
 
@@ -1111,80 +1110,127 @@ mod tests {
                 // recover as much of the string as possible
                 // when str::from_utf8 fails
                 String::from_utf8_lossy(&base64_decoded)
-            },
+            }
         };
 
         vec![
             // Token::Ident(_)
-            (None, vec![
-                format!("
+            (
+                None,
+                vec![format!(
+                    "
                     let \"{}\" = ();
-                ", s),
-            ]),
-
-            (Some(Token::Str("".to_string())), vec![
-                format!("
+                ",
+                    s
+                )],
+            ),
+            (
+                Some(Token::Str("".to_string())),
+                vec![format!(
+                    "
                     let s = \"{}\";
-                ", s),
-            ]),
-
-            (Some(Token::RawStr("".to_string(), 0)), vec![
-                // let s = r"Hello world";
-                format!("
+                ",
+                    s
+                )],
+            ),
+            (
+                Some(Token::RawStr("".to_string(), 0)),
+                vec![
+                    // let s = r"Hello world";
+                    format!(
+                        "
                     let s = r\"{}\";
-                ", s),
-
-                // let s = r#"Simon says "hello world""#;
-                format!("
+                ",
+                        s
+                    ),
+                    // let s = r#"Simon says "hello world""#;
+                    format!(
+                        "
                     let s = r#\"{}\"#;
-                ", s),
-
-                // // Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
-                // let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####; 
-                format!("
+                ",
+                        s
+                    ),
+                    // // Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
+                    // let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####;
+                    format!(
+                        "
                     let s = r##\"{}\"##;
-                ", s),
-                format!("
+                ",
+                        s
+                    ),
+                    format!(
+                        "
                     let s = r###\"{}\"###;
-                ", s),
-                format!("
+                ",
+                        s
+                    ),
+                    format!(
+                        "
                     let s = r####\"{}\"####;
-                ", s),
-                format!("
+                ",
+                        s
+                    ),
+                    format!(
+                        "
                     let s = r#####\"{}\"#####;
-                ", s),
-            ]),
-
-            (Some(Token::FmtStr("".to_string())), vec![
-                format!("
+                ",
+                        s
+                    ),
+                ],
+            ),
+            (
+                Some(Token::FmtStr("".to_string())),
+                vec![format!(
+                    "
                     assert(x == y, f\"{}\");
-                ", s),
-            ]),
-
+                ",
+                    s
+                )],
+            ),
             // expected token not found
             // (Some(Token::LineComment("".to_string(), None)), vec![
-            (None, vec![
-                format!("
+            (
+                None,
+                vec![
+                    format!(
+                        "
                     //{}
-                ", s),
-                format!("
+                ",
+                        s
+                    ),
+                    format!(
+                        "
                     // {}
-                ", s),
-            ]),
-
+                ",
+                        s
+                    ),
+                ],
+            ),
             // expected token not found
             // (Some(Token::BlockComment("".to_string(), None)), vec![
-            (None, vec![
-                format!("
+            (
+                None,
+                vec![
+                    format!(
+                        "
                     /*{}*/
-                ", s),
-                format!("
+                ",
+                        s
+                    ),
+                    format!(
+                        "
                     /* {} */
-                ", s),
-                format!("
+                ",
+                        s
+                    ),
+                    format!(
+                        "
                     /*\n{}\n*/
-                ", s),
-            ]),
+                ",
+                        s
+                    ),
+                ],
+            ),
         ]
     }
 
@@ -1202,44 +1248,57 @@ mod tests {
         let mut blns_cursor = blns_bytes;
         let mut blns_contents = String::new();
         blns_cursor.read_to_string(&mut blns_contents).unwrap();
-        let blns_base64: Vec<String> = serde_json::from_str(&blns_contents).expect("BLNS json invalid");
+        let blns_base64: Vec<String> =
+            serde_json::from_str(&blns_contents).expect("BLNS json invalid");
 
         blns_base64.into_iter().for_each(|blns_base64_str| {
-            blns_base64_to_statements(blns_base64_str).into_iter().for_each(|(token_discriminator_opt, blns_program_strs)| {
-                blns_program_strs.into_iter().for_each(|blns_program_str| {
-                    let mut expected_token_found = false;
-                    let mut lexer = Lexer::new(&blns_program_str);
-                    let mut result_tokens = Vec::new();
-                    loop {
-                        match lexer.next_token() {
-                            Ok(next_token) => {
-                                result_tokens.push(next_token.clone());
+            blns_base64_to_statements(blns_base64_str).into_iter().for_each(
+                |(token_discriminator_opt, blns_program_strs)| {
+                    blns_program_strs.into_iter().for_each(|blns_program_str| {
+                        let mut expected_token_found = false;
+                        let mut lexer = Lexer::new(&blns_program_str);
+                        let mut result_tokens = Vec::new();
+                        loop {
+                            match lexer.next_token() {
+                                Ok(next_token) => {
+                                    result_tokens.push(next_token.clone());
 
-                                expected_token_found |= token_discriminator_opt
-                                    .as_ref()
-                                    .map(|token_discriminator| discriminant(token_discriminator) == discriminant(&next_token.token()))
-                                    .unwrap_or(true);
+                                    expected_token_found |= token_discriminator_opt
+                                        .as_ref()
+                                        .map(|token_discriminator| {
+                                            discriminant(token_discriminator)
+                                                == discriminant(&next_token.token())
+                                        })
+                                        .unwrap_or(true);
 
-                                if next_token == Token::EOF {
-                                    assert!(lexer.done, "lexer not done when EOF emitted!");
-                                    break
+                                    if next_token == Token::EOF {
+                                        assert!(lexer.done, "lexer not done when EOF emitted!");
+                                        break;
+                                    }
+                                }
+
+                                Err(LexerErrorKind::InvalidIntegerLiteral { .. })
+                                | Err(LexerErrorKind::UnexpectedCharacter { .. })
+                                | Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
+                                    expected_token_found = true;
+                                }
+                                Err(err) => {
+                                    panic!("Unexpected lexer error found: {:?}", err)
                                 }
                             }
-
-                            Err(LexerErrorKind::InvalidIntegerLiteral { .. }) |
-                            Err(LexerErrorKind::UnexpectedCharacter { .. }) |
-                            Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
-                                expected_token_found = true;
-                            }
-                            Err(err) => {
-                                panic!("Unexpected lexer error found: {:?}", err)
-                            }
                         }
-                    }
 
-                    assert!(expected_token_found, "{}", format!("expected token not found: {:?}\noutput:\n{:?}", token_discriminator_opt, result_tokens));
-                })
-            })
+                        assert!(
+                            expected_token_found,
+                            "{}",
+                            format!(
+                                "expected token not found: {:?}\noutput:\n{:?}",
+                                token_discriminator_opt, result_tokens
+                            )
+                        );
+                    })
+                },
+            )
         })
     }
 }
