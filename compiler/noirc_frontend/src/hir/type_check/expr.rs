@@ -126,7 +126,7 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 }
                 HirLiteral::Bool(_) => Type::Bool,
-                HirLiteral::Integer(_, _) => Type::polymorphic_integer_or_field(self.interner),
+                HirLiteral::Integer(_, _) => self.polymorphic_integer_or_field(),
                 HirLiteral::Str(string) => {
                     let len = Type::Constant(string.len() as u64);
                     Type::String(Box::new(len))
@@ -560,15 +560,13 @@ impl<'interner> TypeChecker<'interner> {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
-        index_type.unify(
-            &Type::polymorphic_integer_or_field(self.interner),
-            &mut self.errors,
-            || TypeCheckError::TypeMismatch {
+        index_type.unify(&self.polymorphic_integer_or_field(), &mut self.errors, || {
+            TypeCheckError::TypeMismatch {
                 expected_typ: "an integer".to_owned(),
                 expr_typ: index_type.to_string(),
                 expr_span: span,
-            },
-        );
+            }
+        });
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
@@ -1106,7 +1104,7 @@ impl<'interner> TypeChecker<'interner> {
             // the lhs or rhs to an integer type variable. This ensures if both lhs
             // and rhs are type variables, that they will have the correct integer
             // type variable kind instead of TypeVariableKind::Normal.
-            let target = Type::polymorphic_integer(self.interner);
+            let target = self.polymorphic_integer();
 
             self.unify(lhs_type, &target, || TypeCheckError::TypeMismatchWithSource {
                 expected: lhs_type.clone(),
@@ -1217,7 +1215,7 @@ impl<'interner> TypeChecker<'interner> {
                     self.errors
                         .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
                 }
-                let expected = Type::polymorphic_integer_or_field(self.interner);
+                let expected = self.polymorphic_integer_or_field();
                 rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),
                     span,

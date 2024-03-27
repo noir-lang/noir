@@ -37,6 +37,11 @@ pub struct TypeChecker<'interner> {
     /// on each variable, but it is only until function calls when the types
     /// needed for the trait constraint may become known.
     trait_constraints: Vec<(TraitConstraint, ExprId)>,
+
+    /// All type variables created in the current function.
+    /// This map is used to default any integer type variables at the end of
+    /// a function (before checking trait constraints) if a type wasn't already chosen.
+    type_variables: Vec<Type>,
 }
 
 /// Type checks a function and assigns the
@@ -124,6 +129,15 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
                     error
                 },
             );
+        }
+    }
+
+    // Default any type variables that still need defaulting.
+    // This is done before trait impl search since leaving them bindable can lead to errors
+    // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
+    for typ in &type_checker.type_variables {
+        if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
+            variable.bind(kind.default_type());
         }
     }
 
@@ -333,7 +347,13 @@ fn check_function_type_matches_expected_type(
 
 impl<'interner> TypeChecker<'interner> {
     fn new(interner: &'interner mut NodeInterner) -> Self {
-        Self { interner, errors: Vec::new(), trait_constraints: Vec::new(), current_function: None }
+        Self {
+            interner,
+            errors: Vec::new(),
+            trait_constraints: Vec::new(),
+            type_variables: Vec::new(),
+            current_function: None,
+        }
     }
 
     fn check_function_body(&mut self, body: &ExprId) -> Type {
@@ -348,6 +368,7 @@ impl<'interner> TypeChecker<'interner> {
             interner,
             errors: Vec::new(),
             trait_constraints: Vec::new(),
+            type_variables: Vec::new(),
             current_function: None,
         };
         let statement = this.interner.get_global(id).let_statement;
@@ -380,6 +401,22 @@ impl<'interner> TypeChecker<'interner> {
             &mut self.errors,
             make_error,
         );
+    }
+
+    /// Return a fresh integer or field type variable and log it
+    /// in self.type_variables to default it later.
+    fn polymorphic_integer_or_field(&mut self) -> Type {
+        let typ = Type::polymorphic_integer_or_field(self.interner);
+        self.type_variables.push(typ.clone());
+        typ
+    }
+
+    /// Return a fresh integer type variable and log it
+    /// in self.type_variables to default it later.
+    fn polymorphic_integer(&mut self) -> Type {
+        let typ = Type::polymorphic_integer(self.interner);
+        self.type_variables.push(typ.clone());
+        typ
     }
 }
 
