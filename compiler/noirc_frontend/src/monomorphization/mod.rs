@@ -1014,7 +1014,12 @@ impl<'interner> Monomorphizer<'interner> {
                     Err(constraints) => {
                         let failed_constraints = vecmap(constraints, |constraint| {
                             let id = constraint.trait_id;
-                            let name = self.interner.get_trait(id).name.to_string();
+                            let mut name = self.interner.get_trait(id).name.to_string();
+                            if !constraint.trait_generics.is_empty() {
+                                let types =
+                                    vecmap(&constraint.trait_generics, |t| format!("{t:?}"));
+                                name += &format!("<{}>", types.join(", "));
+                            }
                             format!("  {}: {name}", constraint.typ)
                         })
                         .join("\n");

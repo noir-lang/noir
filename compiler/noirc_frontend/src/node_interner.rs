@@ -1232,12 +1232,11 @@ impl NodeInterner {
             // Instantiation bindings are generally safe to force substitute into the same type.
             // This is needed here to undo any bindings done to trait methods by monomorphization.
             // Otherwise, an impl for (A, B) could get narrowed to only an impl for e.g. (u8, u16).
-            let constraint_type = constraint.typ.force_substitute(instantiation_bindings);
-            let constraint_type = constraint_type.substitute(type_bindings);
+            let constraint_type =
+                constraint.typ.force_substitute(instantiation_bindings).substitute(type_bindings);
 
             let trait_generics = vecmap(&constraint.trait_generics, |generic| {
-                let generic = generic.force_substitute(instantiation_bindings);
-                generic.substitute(type_bindings)
+                generic.force_substitute(instantiation_bindings).substitute(type_bindings)
             });
 
             self.lookup_trait_implementation_helper(
@@ -1246,10 +1245,11 @@ impl NodeInterner {
                 &trait_generics,
                 // Use a fresh set of type bindings here since the constraint_type originates from
                 // our impl list, which we don't want to bind to.
-                &mut TypeBindings::new(),
+                type_bindings,
                 recursion_limit - 1,
             )?;
         }
+
         Ok(())
     }
 
