@@ -2,7 +2,7 @@ use crate::foreign_calls::DebugForeignCallExecutor;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::brillig_vm::brillig::ForeignCallResult;
-use acvm::brillig_vm::brillig::Value;
+use acvm::brillig_vm::MemoryValue;
 use acvm::pwg::{
     ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
 };
@@ -506,13 +506,13 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         acir_index < opcodes.len() && matches!(opcodes[acir_index], Opcode::Brillig(..))
     }
 
-    pub(super) fn get_brillig_memory(&self) -> Option<&[Value]> {
+    pub(super) fn get_brillig_memory(&self) -> Option<&[MemoryValue]> {
         self.brillig_solver.as_ref().map(|solver| solver.get_memory())
     }
 
-    pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement) {
+    pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement, bit_size: u32) {
         if let Some(solver) = self.brillig_solver.as_mut() {
-            solver.write_memory_at(ptr, value.into());
+            solver.write_memory_at(ptr, MemoryValue::new(value, bit_size));
         }
     }
 
@@ -667,7 +667,7 @@ mod tests {
                 },
                 BrilligOpcode::Const {
                     destination: MemoryAddress::from(1),
-                    value: Value::from(fe_0),
+                    value: fe_0,
                     bit_size: 32,
                 },
                 BrilligOpcode::ForeignCall {
@@ -675,7 +675,7 @@ mod tests {
                     destinations: vec![],
                     destination_value_types: vec![],
                     inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
-                    input_value_types: vec![HeapValueType::Simple],
+                    input_value_types: vec![HeapValueType::field()],
                 },
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
             ],

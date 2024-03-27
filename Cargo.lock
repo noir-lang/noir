@@ -637,6 +637,7 @@ dependencies = [
  "acvm_blackbox_solver",
  "num-bigint",
  "num-traits",
+ "thiserror",
 ]
 
 [[package]]

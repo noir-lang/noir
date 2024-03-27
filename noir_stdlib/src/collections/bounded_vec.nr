@@ -48,6 +48,15 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len = new_len;
     }
 
+    pub fn extend_from_slice(&mut self, slice: [T]) {
+        let new_len = self.len + slice.len();
+        assert(new_len as u64 <= MaxLen as u64, "extend_from_slice out of bounds");
+        for i in 0..slice.len() {
+            self.storage[self.len + i] = slice[i];
+        }
+        self.len = new_len;
+    }
+
     pub fn extend_from_bounded_vec<Len>(&mut self, vec: BoundedVec<T, Len>) {
         let append_len = vec.len();
         let new_len = self.len + append_len;
