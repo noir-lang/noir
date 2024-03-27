@@ -61,8 +61,8 @@
         "acir_field/Cargo.toml",
         "acvm/Cargo.toml",
         "acvm_js/Cargo.toml",
-        "barretenberg_blackbox_solver/Cargo.toml",
         "blackbox_solver/Cargo.toml",
+        "bn254_blackbox_solver/Cargo.toml",
         "brillig/Cargo.toml",
         "brillig_vm/Cargo.toml",
         {

@@ -430,7 +430,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             },
             HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
-            HirExpression::Block(block) => self.block(block.0)?,
+            HirExpression::Block(block) => self.block(block.statements)?,
 
             HirExpression::Prefix(prefix) => {
                 let location = self.interner.expr_location(&expr);
