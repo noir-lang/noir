@@ -120,7 +120,7 @@ impl StatementKind {
         // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
         // which is currently enforced by the restricted syntax of LValues.
         if operator != Token::Assign {
-            let lvalue_expr = lvalue.as_expression(span);
+            let lvalue_expr = lvalue.as_expression();
             let error_msg = "Token passed to Statement::assign is not a binary operator";
 
             let infix = crate::InfixExpression {
@@ -425,9 +425,9 @@ pub struct AssignStatement {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
     Ident(Ident),
-    MemberAccess { object: Box<LValue>, field_name: Ident },
-    Index { array: Box<LValue>, index: Expression },
-    Dereference(Box<LValue>),
+    MemberAccess { object: Box<LValue>, field_name: Ident, span: Span },
+    Index { array: Box<LValue>, index: Expression, span: Span },
+    Dereference(Box<LValue>, Span),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -484,27 +484,39 @@ impl Recoverable for Pattern {
 }
 
 impl LValue {
-    fn as_expression(&self, span: Span) -> Expression {
+    fn as_expression(&self) -> Expression {
         let kind = match self {
             LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone())),
-            LValue::MemberAccess { object, field_name } => {
+            LValue::MemberAccess { object, field_name, span: _ } => {
                 ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
-                    lhs: object.as_expression(span),
+                    lhs: object.as_expression(),
                     rhs: field_name.clone(),
                 }))
             }
-            LValue::Index { array, index } => ExpressionKind::Index(Box::new(IndexExpression {
-                collection: array.as_expression(span),
-                index: index.clone(),
-            })),
-            LValue::Dereference(lvalue) => {
+            LValue::Index { array, index, span: _ } => {
+                ExpressionKind::Index(Box::new(IndexExpression {
+                    collection: array.as_expression(),
+                    index: index.clone(),
+                }))
+            }
+            LValue::Dereference(lvalue, _span) => {
                 ExpressionKind::Prefix(Box::new(crate::PrefixExpression {
                     operator: crate::UnaryOp::Dereference { implicitly_added: false },
-                    rhs: lvalue.as_expression(span),
+                    rhs: lvalue.as_expression(),
                 }))
             }
         };
+        let span = self.span();
         Expression::new(kind, span)
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            LValue::Ident(ident) => ident.span(),
+            LValue::MemberAccess { span, .. }
+            | LValue::Index { span, .. }
+            | LValue::Dereference(_, span) => *span,
+        }
     }
 }
 
@@ -675,9 +687,11 @@ impl Display for LValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LValue::Ident(ident) => ident.fmt(f),
-            LValue::MemberAccess { object, field_name } => write!(f, "{object}.{field_name}"),
-            LValue::Index { array, index } => write!(f, "{array}[{index}]"),
-            LValue::Dereference(lvalue) => write!(f, "*{lvalue}"),
+            LValue::MemberAccess { object, field_name, span: _ } => {
+                write!(f, "{object}.{field_name}")
+            }
+            LValue::Index { array, index, span: _ } => write!(f, "{array}[{index}]"),
+            LValue::Dereference(lvalue, _span) => write!(f, "*{lvalue}"),
         }
     }
 }

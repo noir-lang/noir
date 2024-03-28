@@ -1,0 +1,7 @@
+[package]
+name = "typevar_default"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.26.0"
+
+[dependencies]
