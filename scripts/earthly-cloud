@@ -28,12 +28,15 @@ fi
 # default sizes for build type
 if [ "$RUNNER_TYPE" == "build" ] ; then
   SIZE=4xlarge
-  NUMBER_OF_RUNNERS=4
+  NUMBER_OF_RUNNERS=2
+  if [ "$ARCH" = arm ] ; then
+    NUMBER_OF_RUNNERS=1
+  fi
   # TODO why cant we set this??
   # MAX_PARALLELISM=8
 elif [ "$RUNNER_TYPE" == "bench" ] ; then
   SIZE=2xlarge
-  NUMBER_OF_RUNNERS=2
+  NUMBER_OF_RUNNERS=1
   # MAX_PARALLELISM=1
 fi
 
@@ -55,15 +58,16 @@ RUNNER=$RUNNER_TYPE-$RUNNER_ID-$ARCH
 earthly sat --org aztec launch --size $SIZE --platform $PLATFORM $RUNNER || true
 # --remote-cache=aztecprotocol/cache:bb-native-tests 
 EARTHLY_FLAGS="-P --no-output --org aztec --sat $RUNNER"
+OUTPUT_FILE=$(mktemp)
 # capture output to handle earthly edge cases
 if $INTERACTIVE ; then
   # don't play nice with tee if interactive
   earthly $EARTHLY_FLAGS $@
-elif ! earthly $EARTHLY_FLAGS $@ 2>&1 | tee .output.txt >&2 ; then
+elif ! earthly $EARTHLY_FLAGS $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then
   # we try earthly once, capturing output
   # if we get one of our (unfortunate) known failures, handle retries
   # TODO potentially handle other intermittent errors here
-  if grep 'failed to get edge: inconsistent graph state' .output.txt >/dev/null ; then
+  if grep 'failed to get edge: inconsistent graph state' $OUTPUT_FILE >/dev/null ; then
     # TODO when earthly is overloaded we sometimes get 
     # 'failed to solve: failed to get edge: inconsistent graph state'
     echo "Got 'inconsistent graph state'. Restarting earthly. See https://github.com/earthly/earthly/issues/2454'"

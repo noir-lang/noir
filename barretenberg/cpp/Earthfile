@@ -47,11 +47,20 @@ build-wasi-sdk:
     SAVE ARTIFACT wasi-sdk
     SAVE IMAGE --push aztecprotocol/cache:wasi-sdk-threads-v21.0-$TARGETARCH
 
-get-wasi-sdk:
+get-wasi-sdk-threads:
     ARG TARGETARCH
     # If this is failing, we need to run earthly --push +build-wasi-sdk
     FROM aztecprotocol/cache:wasi-sdk-threads-v21.0-$TARGETARCH
     SAVE ARTIFACT wasi-sdk
+
+get-wasi-sdk:
+    # NOTE: currently only works with x86
+    # TODO Align with above
+    FROM +source
+    COPY ./scripts/install-wasi-sdk.sh ./scripts/
+    RUN ./scripts/install-wasi-sdk.sh
+    # TODO better output name to mirror wasi-sdk
+    SAVE ARTIFACT src/wasi-sdk-20.0 wasi-sdk
 
 wasmtime:
     RUN curl https://wasmtime.dev/install.sh -sSf | bash
@@ -81,10 +90,23 @@ preset-debug:
     SAVE ARTIFACT bin
 
 preset-wasm:
-    ARG BB_WASI_SDK=""
+    ARG TARGETARCH
     FROM +source
-    # wasi-sdk
-    COPY +get-wasi-sdk/wasi-sdk src/wasi-sdk
+    IF [ $TARGETARCH = arm64 ]
+        # Just use threads for now
+        FROM +preset-wasm-threads
+        SAVE ARTIFACT bin
+    ELSE
+        COPY +get-wasi-sdk/wasi-sdk src/wasi-sdk
+        DO +RUN_CMAKE --configure="--preset wasm" --build="--target barretenberg.wasm"
+        RUN ../src/wasi-sdk/bin/llvm-strip ./bin/barretenberg.wasm
+        SAVE ARTIFACT bin
+        SAVE IMAGE --cache-hint
+    END
+
+preset-wasm-threads:
+    FROM +source
+    COPY +get-wasi-sdk-threads/wasi-sdk src/wasi-sdk
     DO +RUN_CMAKE --configure="--preset wasm-threads" --build="--target barretenberg.wasm"
     RUN ../src/wasi-sdk/bin/llvm-strip ./bin/barretenberg.wasm
     SAVE ARTIFACT bin
@@ -132,7 +154,7 @@ bench-client-ivc:
 
 build: # default target
     BUILD +preset-release
-    BUILD +preset-wasm
+    BUILD +preset-wasm-threads
 
 test:
     BUILD +test-clang-format
@@ -190,7 +212,7 @@ BENCH_WASM:
     FUNCTION
     ARG target
     ARG args
-    FROM +preset-wasm
+    FROM +preset-wasm-threads
     DO +RUN_CMAKE --configure="--preset wasm-threads" --build="--target $target"
     COPY --dir ./srs_db/+build/. ../srs_db
     # install

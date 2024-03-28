@@ -13,10 +13,9 @@ RUN yarn --immutable
 COPY --dir src *.json *.js *.cjs .
 
 # copy over wasm build from cpp folder
-COPY ../cpp/+preset-wasm/bin/barretenberg.wasm src/barretenberg_wasm/barretenberg-threads.wasm
-# TODO for now there is no real single-threaded WASM. See if anyone hits problems.
+COPY ../cpp/+preset-wasm-threads/bin/barretenberg.wasm src/barretenberg_wasm/barretenberg-threads.wasm
 COPY ../cpp/+preset-wasm/bin/barretenberg.wasm src/barretenberg_wasm/barretenberg.wasm
-COPY ../cpp/+preset-wasm/bin/barretenberg.wasm dest/node/barretenberg_wasm/barretenberg-threads.wasm
+COPY ../cpp/+preset-wasm-threads/bin/barretenberg.wasm dest/node/barretenberg_wasm/barretenberg-threads.wasm
 COPY ../cpp/+preset-wasm/bin/barretenberg.wasm dest/node-cjs/barretenberg_wasm/barretenberg-threads.wasm
 
 esm:

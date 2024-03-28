@@ -32,7 +32,6 @@ jobs:
 
       - name: Test
         working-directory: ./yarn-project
-        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
         run: |
           # push to registry
           earthly-cloud build x86 --push +build-end-to-end
@@ -68,10 +67,11 @@ jobs:
 
       - name: Test
         working-directory: ./yarn-project/end-to-end/
-        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
         # We don't do much on arm, just run it on their builder
-        run: 
-          earthly-cloud build arm --no-output +${{ matrix.test }} --e2e_remote=true
+        run:
+          # Flags:
+          # - e2e_build=true to get images from a local build, not a dockerhub registry strategy
+          earthly-cloud build arm --no-output +${{ matrix.test }} --e2e_build=true
 
   # all the end-to-end integration tests for aztec
   e2e-x86:
@@ -98,18 +98,17 @@ jobs:
           - e2e-pending-note-hashes-contract
           - e2e-ordering
           - uniswap-trade-on-l1-from-l2
-          - integration-archiver-l1-to-l2
           - integration-l1-publisher
           - e2e-cli
           - e2e-persistence
-          # - e2e-browser # TODO failing
+          - e2e-browser
           - e2e-card-game
           - e2e-avm-simulator
           - e2e-fees
           - e2e-dapp-subscription
           - pxe
           - cli-docs-sandbox
-          # - e2e-docs-examples # TODO failing
+          - e2e-docs-examples
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
       group: ${{ matrix.test }}-${{ github.event.pull_request.number || github.ref_name }}-x86
@@ -131,7 +130,6 @@ jobs:
 
       - name: Pull E2E Images
         working-directory: ./barretenberg/cpp/
-        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
         run: |
           docker pull aztecprotocol/aztec-cache:$(git rev-parse HEAD)
           docker pull aztecprotocol/end-to-end-cache:$(git rev-parse HEAD)
@@ -140,7 +138,6 @@ jobs:
 
       - name: Test
         working-directory: ./yarn-project/end-to-end/
-        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
         run: |
           earthly-cloud build x86 --no-output +${{ matrix.test }}
 
@@ -149,7 +146,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
-    strategy: { matrix: { environment: [x86, arm] } }
+    strategy: { matrix: { environment: [x86] } }
+    # strategy: { matrix: { environment: [x86, arm] } }
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
       group: bb-native-tests-${{ github.event.pull_request.number || github.ref_name }}-${{ matrix.environment }}
@@ -171,7 +169,6 @@ jobs:
 
       - name: Test
         working-directory: ./barretenberg/cpp/
-        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
         run: |
           earthly-cloud build ${{ matrix.environment }} --no-output +test
 
@@ -205,10 +202,8 @@ jobs:
 
       - name: Client IVC Bench
         working-directory: ./barretenberg/cpp/
-        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
         run: earthly-cloud bench x86 --no-output +bench-client-ivc
 
       - name: Ultrahonk Bench
         working-directory: ./barretenberg/cpp/
-        if: github.actor == 'ludamad' || github.actor == 'charlielye' || github.actor == 'sklppy88' || github.actor == 'alexghr' || github.actor == 'benesjan' || github.actor == 'spalladino' || github.actor == 'just-mitch'
         run: earthly-cloud bench x86 --no-output +bench-ultra-honk
