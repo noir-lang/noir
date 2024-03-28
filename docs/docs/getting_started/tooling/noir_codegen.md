@@ -47,7 +47,9 @@ nargo export --program-dir=./path/to/your/noir/program
 
 ### Run noir-codegen 
 
-The `noir-codegen` command, pass the path of your exported JSON file(s) (wildcard characters accepted too, `*.json`). :
+You should now have a folder "exports" with your compiled function. To turn it into a TS binding, we will use the `noir-codegen` package we installed.
+
+If you installed it globally, just pass the path of your exported JSON file(s) (you can use wildcards too, ex. `*.json`). :
 
 ```bash
 yarn noir-codegen ./export/your_function.json
