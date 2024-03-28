@@ -224,7 +224,7 @@ impl SsaBuilder {
         pass: fn(Ssa) -> Result<Ssa, RuntimeError>,
         msg: &str,
     ) -> Result<Self, RuntimeError> {
-        self.ssa = time(msg, self.print_ssa_passes, || pass(self.ssa))?;
+        self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa))?;
         Ok(self.print(msg))
     }
 
