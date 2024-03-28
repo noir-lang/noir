@@ -40,7 +40,7 @@ TESTS=(
   polynomials_tests
   srs_tests
 )
-TESTS_STR="${TESTS[@]}"
+TESTS_STR="${TESTS[@]/#/./bin/}"
 
 docker run --rm -t $IMAGE_URI /bin/sh -c "\
   set -xe; \
@@ -48,4 +48,4 @@ docker run --rm -t $IMAGE_URI /bin/sh -c "\
   srs_db/download_ignition.sh 1; \
   srs_db/download_grumpkin.sh; \
   cd build; \
-  for BIN in $TESTS_STR; do ./bin/\$BIN; done"
+  echo $TESTS_STR | xargs gtest-parallel/gtest-parallel --worker=32;"

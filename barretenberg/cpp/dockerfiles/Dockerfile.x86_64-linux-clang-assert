@@ -24,8 +24,14 @@ COPY . .
 # Build everything to ensure everything builds. All tests will be run from the result of this build.
 RUN ./format.sh check && cmake --preset clang16 -DCMAKE_BUILD_TYPE=RelWithAssert -DCI=ON && cmake --build --preset clang16
 RUN srs_db/download_grumpkin.sh
+RUN git clone --depth=1 https://github.com/google/gtest-parallel.git
+RUN cd gtest-parallel && git checkout 96f4f904922f9bf66689e749c40f314845baaac8
 
 FROM ubuntu:lunar
-RUN apt update && apt install curl libstdc++6 -y
+RUN apt update && apt install curl libstdc++6 python3.11-full -y
 COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db
 COPY --from=builder /usr/src/barretenberg/cpp/build/bin /usr/src/barretenberg/cpp/build/bin
+# Copy gtest-parallel
+COPY --from=builder /usr/src/barretenberg/cpp/gtest-parallel /usr/src/barretenberg/cpp/build/gtest-parallel
+# Cache dir needed for gtest-parallel
+RUN mkdir -p /root/.cache

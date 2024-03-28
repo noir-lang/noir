@@ -15,4 +15,4 @@ docker run --rm -t $IMAGE_URI /bin/sh -c "\
   cd /usr/src/barretenberg/cpp; \
   srs_db/download_ignition.sh 1; \
   cd build; \
-  ./bin/vm_tests;"
+  ./gtest-parallel/gtest-parallel ./bin/vm_tests --workers=32;"
