@@ -1,6 +1,6 @@
 {
-    "position": 2,
-    "label": "Tooling",
+    "label": "Debugger",
+    "position": 1,
     "collapsible": true,
     "collapsed": true
 }
