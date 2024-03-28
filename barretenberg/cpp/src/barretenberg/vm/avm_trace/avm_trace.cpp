@@ -1232,6 +1232,13 @@ std::vector<Row> AvmTraceBuilder::finalize()
         dest.avm_alu_u16_r5 = FF(src.alu_u16_reg.at(5));
         dest.avm_alu_u16_r6 = FF(src.alu_u16_reg.at(6));
         dest.avm_alu_u16_r7 = FF(src.alu_u16_reg.at(7));
+        dest.avm_alu_u16_r8 = FF(src.alu_u16_reg.at(8));
+        dest.avm_alu_u16_r9 = FF(src.alu_u16_reg.at(9));
+        dest.avm_alu_u16_r10 = FF(src.alu_u16_reg.at(10));
+        dest.avm_alu_u16_r11 = FF(src.alu_u16_reg.at(11));
+        dest.avm_alu_u16_r12 = FF(src.alu_u16_reg.at(12));
+        dest.avm_alu_u16_r13 = FF(src.alu_u16_reg.at(13));
+        dest.avm_alu_u16_r14 = FF(src.alu_u16_reg.at(14));
 
         dest.avm_alu_u64_r0 = FF(src.alu_u64_r0);
         dest.avm_alu_op_eq_diff_inv = FF(src.alu_op_eq_diff_inv);

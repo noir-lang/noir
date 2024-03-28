@@ -46,11 +46,11 @@ class AvmFlavor {
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 131;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 138;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 152;
+    static constexpr size_t NUM_ALL_ENTITIES = 159;
 
     using Relations = std::tuple<Avm_vm::avm_alu<FF>,
                                  Avm_vm::avm_binary<FF>,
@@ -115,12 +115,19 @@ class AvmFlavor {
                               avm_alu_u128_tag,
                               avm_alu_u16_r0,
                               avm_alu_u16_r1,
+                              avm_alu_u16_r10,
+                              avm_alu_u16_r11,
+                              avm_alu_u16_r12,
+                              avm_alu_u16_r13,
+                              avm_alu_u16_r14,
                               avm_alu_u16_r2,
                               avm_alu_u16_r3,
                               avm_alu_u16_r4,
                               avm_alu_u16_r5,
                               avm_alu_u16_r6,
                               avm_alu_u16_r7,
+                              avm_alu_u16_r8,
+                              avm_alu_u16_r9,
                               avm_alu_u16_tag,
                               avm_alu_u32_tag,
                               avm_alu_u64_r0,
@@ -249,12 +256,19 @@ class AvmFlavor {
                      avm_alu_u128_tag,
                      avm_alu_u16_r0,
                      avm_alu_u16_r1,
+                     avm_alu_u16_r10,
+                     avm_alu_u16_r11,
+                     avm_alu_u16_r12,
+                     avm_alu_u16_r13,
+                     avm_alu_u16_r14,
                      avm_alu_u16_r2,
                      avm_alu_u16_r3,
                      avm_alu_u16_r4,
                      avm_alu_u16_r5,
                      avm_alu_u16_r6,
                      avm_alu_u16_r7,
+                     avm_alu_u16_r8,
+                     avm_alu_u16_r9,
                      avm_alu_u16_tag,
                      avm_alu_u32_tag,
                      avm_alu_u64_r0,
@@ -389,12 +403,19 @@ class AvmFlavor {
                               avm_alu_u128_tag,
                               avm_alu_u16_r0,
                               avm_alu_u16_r1,
+                              avm_alu_u16_r10,
+                              avm_alu_u16_r11,
+                              avm_alu_u16_r12,
+                              avm_alu_u16_r13,
+                              avm_alu_u16_r14,
                               avm_alu_u16_r2,
                               avm_alu_u16_r3,
                               avm_alu_u16_r4,
                               avm_alu_u16_r5,
                               avm_alu_u16_r6,
                               avm_alu_u16_r7,
+                              avm_alu_u16_r8,
+                              avm_alu_u16_r9,
                               avm_alu_u16_tag,
                               avm_alu_u32_tag,
                               avm_alu_u64_r0,
@@ -544,12 +565,19 @@ class AvmFlavor {
                      avm_alu_u128_tag,
                      avm_alu_u16_r0,
                      avm_alu_u16_r1,
+                     avm_alu_u16_r10,
+                     avm_alu_u16_r11,
+                     avm_alu_u16_r12,
+                     avm_alu_u16_r13,
+                     avm_alu_u16_r14,
                      avm_alu_u16_r2,
                      avm_alu_u16_r3,
                      avm_alu_u16_r4,
                      avm_alu_u16_r5,
                      avm_alu_u16_r6,
                      avm_alu_u16_r7,
+                     avm_alu_u16_r8,
+                     avm_alu_u16_r9,
                      avm_alu_u16_tag,
                      avm_alu_u32_tag,
                      avm_alu_u64_r0,
@@ -699,12 +727,19 @@ class AvmFlavor {
                      avm_alu_u128_tag,
                      avm_alu_u16_r0,
                      avm_alu_u16_r1,
+                     avm_alu_u16_r10,
+                     avm_alu_u16_r11,
+                     avm_alu_u16_r12,
+                     avm_alu_u16_r13,
+                     avm_alu_u16_r14,
                      avm_alu_u16_r2,
                      avm_alu_u16_r3,
                      avm_alu_u16_r4,
                      avm_alu_u16_r5,
                      avm_alu_u16_r6,
                      avm_alu_u16_r7,
+                     avm_alu_u16_r8,
+                     avm_alu_u16_r9,
                      avm_alu_u16_tag,
                      avm_alu_u32_tag,
                      avm_alu_u64_r0,
@@ -956,12 +991,19 @@ class AvmFlavor {
             Base::avm_alu_u128_tag = "AVM_ALU_U128_TAG";
             Base::avm_alu_u16_r0 = "AVM_ALU_U16_R0";
             Base::avm_alu_u16_r1 = "AVM_ALU_U16_R1";
+            Base::avm_alu_u16_r10 = "AVM_ALU_U16_R10";
+            Base::avm_alu_u16_r11 = "AVM_ALU_U16_R11";
+            Base::avm_alu_u16_r12 = "AVM_ALU_U16_R12";
+            Base::avm_alu_u16_r13 = "AVM_ALU_U16_R13";
+            Base::avm_alu_u16_r14 = "AVM_ALU_U16_R14";
             Base::avm_alu_u16_r2 = "AVM_ALU_U16_R2";
             Base::avm_alu_u16_r3 = "AVM_ALU_U16_R3";
             Base::avm_alu_u16_r4 = "AVM_ALU_U16_R4";
             Base::avm_alu_u16_r5 = "AVM_ALU_U16_R5";
             Base::avm_alu_u16_r6 = "AVM_ALU_U16_R6";
             Base::avm_alu_u16_r7 = "AVM_ALU_U16_R7";
+            Base::avm_alu_u16_r8 = "AVM_ALU_U16_R8";
+            Base::avm_alu_u16_r9 = "AVM_ALU_U16_R9";
             Base::avm_alu_u16_tag = "AVM_ALU_U16_TAG";
             Base::avm_alu_u32_tag = "AVM_ALU_U32_TAG";
             Base::avm_alu_u64_r0 = "AVM_ALU_U64_R0";
@@ -1106,12 +1148,19 @@ class AvmFlavor {
         Commitment avm_alu_u128_tag;
         Commitment avm_alu_u16_r0;
         Commitment avm_alu_u16_r1;
+        Commitment avm_alu_u16_r10;
+        Commitment avm_alu_u16_r11;
+        Commitment avm_alu_u16_r12;
+        Commitment avm_alu_u16_r13;
+        Commitment avm_alu_u16_r14;
         Commitment avm_alu_u16_r2;
         Commitment avm_alu_u16_r3;
         Commitment avm_alu_u16_r4;
         Commitment avm_alu_u16_r5;
         Commitment avm_alu_u16_r6;
         Commitment avm_alu_u16_r7;
+        Commitment avm_alu_u16_r8;
+        Commitment avm_alu_u16_r9;
         Commitment avm_alu_u16_tag;
         Commitment avm_alu_u32_tag;
         Commitment avm_alu_u64_r0;
@@ -1256,12 +1305,19 @@ class AvmFlavor {
             avm_alu_u128_tag = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_alu_u16_r0 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_alu_u16_r1 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_alu_u16_r10 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_alu_u16_r11 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_alu_u16_r12 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_alu_u16_r13 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_alu_u16_r14 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_alu_u16_r2 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_alu_u16_r3 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_alu_u16_r4 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_alu_u16_r5 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_alu_u16_r6 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_alu_u16_r7 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_alu_u16_r8 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_alu_u16_r9 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_alu_u16_tag = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_alu_u32_tag = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_alu_u64_r0 = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -1411,12 +1467,19 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_alu_u128_tag, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_alu_u16_r0, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_alu_u16_r1, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_alu_u16_r10, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_alu_u16_r11, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_alu_u16_r12, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_alu_u16_r13, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_alu_u16_r14, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_alu_u16_r2, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_alu_u16_r3, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_alu_u16_r4, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_alu_u16_r5, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_alu_u16_r6, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_alu_u16_r7, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_alu_u16_r8, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_alu_u16_r9, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_alu_u16_tag, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_alu_u32_tag, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_alu_u64_r0, Transcript::proof_data);

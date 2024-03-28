@@ -52,12 +52,19 @@ template <typename FF> struct AvmFullRow {
     FF avm_alu_u128_tag{};
     FF avm_alu_u16_r0{};
     FF avm_alu_u16_r1{};
+    FF avm_alu_u16_r10{};
+    FF avm_alu_u16_r11{};
+    FF avm_alu_u16_r12{};
+    FF avm_alu_u16_r13{};
+    FF avm_alu_u16_r14{};
     FF avm_alu_u16_r2{};
     FF avm_alu_u16_r3{};
     FF avm_alu_u16_r4{};
     FF avm_alu_u16_r5{};
     FF avm_alu_u16_r6{};
     FF avm_alu_u16_r7{};
+    FF avm_alu_u16_r8{};
+    FF avm_alu_u16_r9{};
     FF avm_alu_u16_tag{};
     FF avm_alu_u32_tag{};
     FF avm_alu_u64_r0{};
@@ -196,8 +203,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 152;
-    static constexpr size_t num_polys = 133;
+    static constexpr size_t num_fixed_columns = 159;
+    static constexpr size_t num_polys = 140;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -233,12 +240,19 @@ class AvmCircuitBuilder {
             polys.avm_alu_u128_tag[i] = rows[i].avm_alu_u128_tag;
             polys.avm_alu_u16_r0[i] = rows[i].avm_alu_u16_r0;
             polys.avm_alu_u16_r1[i] = rows[i].avm_alu_u16_r1;
+            polys.avm_alu_u16_r10[i] = rows[i].avm_alu_u16_r10;
+            polys.avm_alu_u16_r11[i] = rows[i].avm_alu_u16_r11;
+            polys.avm_alu_u16_r12[i] = rows[i].avm_alu_u16_r12;
+            polys.avm_alu_u16_r13[i] = rows[i].avm_alu_u16_r13;
+            polys.avm_alu_u16_r14[i] = rows[i].avm_alu_u16_r14;
             polys.avm_alu_u16_r2[i] = rows[i].avm_alu_u16_r2;
             polys.avm_alu_u16_r3[i] = rows[i].avm_alu_u16_r3;
             polys.avm_alu_u16_r4[i] = rows[i].avm_alu_u16_r4;
             polys.avm_alu_u16_r5[i] = rows[i].avm_alu_u16_r5;
             polys.avm_alu_u16_r6[i] = rows[i].avm_alu_u16_r6;
             polys.avm_alu_u16_r7[i] = rows[i].avm_alu_u16_r7;
+            polys.avm_alu_u16_r8[i] = rows[i].avm_alu_u16_r8;
+            polys.avm_alu_u16_r9[i] = rows[i].avm_alu_u16_r9;
             polys.avm_alu_u16_tag[i] = rows[i].avm_alu_u16_tag;
             polys.avm_alu_u32_tag[i] = rows[i].avm_alu_u32_tag;
             polys.avm_alu_u64_r0[i] = rows[i].avm_alu_u64_r0;
