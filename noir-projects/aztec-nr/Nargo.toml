@@ -8,4 +8,5 @@ members = [
   "field-note",
   "slow-updates-tree",
   "value-note",
+  "tests",
 ]

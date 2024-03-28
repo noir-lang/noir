@@ -1,0 +1,9 @@
+[package]
+name = "tests"
+authors = ["aztec-labs"]
+compiler_version = ">=0.18.0"
+type = "lib"
+
+[dependencies]
+aztec = { path = "../aztec" }
+protocol_types = { path = "../../noir-protocol-circuits/crates/types" }

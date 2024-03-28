@@ -101,6 +101,18 @@ pub fn get_notes<Note, N, FILTER_ARGS>(
     options: NoteGetterOptions<Note, N, FILTER_ARGS>
 ) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N> {
     let opt_notes = get_notes_internal(storage_slot, options);
+
+    _get_notes_constrain_get_notes_internal(context, storage_slot, opt_notes, options)
+}
+
+pub fn _get_notes_constrain_get_notes_internal<Note, N, FILTER_ARGS>(
+    context: &mut PrivateContext,
+    storage_slot: Field,
+    opt_notes: [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
+    options: NoteGetterOptions<Note, N, FILTER_ARGS>
+) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N> {
+    let mut returned_notes = [Option::none(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL];
+
     let mut num_notes = 0;
     let mut prev_fields = [0; N];
     for i in 0..opt_notes.len() {
@@ -120,6 +132,9 @@ pub fn get_notes<Note, N, FILTER_ARGS>(
             // failure if malicious oracle injects 0 nonce here for a "pre-existing" note.
             context.push_note_hash_read_request(note_hash_for_read_request);
 
+            // The below code is used to collapse a sparse array into one where the values are guaranteed to be at the front of the array
+            // We write at returned_notes[num_notes] because num_notes is only advanced when we have a value in opt_notes
+            returned_notes[num_notes] = Option::some(note);
             num_notes += 1;
         };
     }
@@ -129,7 +144,7 @@ pub fn get_notes<Note, N, FILTER_ARGS>(
 
     assert(num_notes != 0, "Cannot return zero notes");
 
-    opt_notes
+    returned_notes
 }
 
 unconstrained fn get_note_internal<Note, N>(storage_slot: Field) -> Note where Note: NoteInterface<N> {
