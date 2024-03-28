@@ -31,7 +31,7 @@ describe('GithubDependencyResolver', () => {
   let fetchStub: SinonStub | undefined;
 
   beforeEach(() => {
-    fetchStub = Sinon.stub(globalThis, 'fetch');
+    fetchStub = Sinon.stub();
     fm = createMemFSFileManager(createFsFromVolume(new Volume()), '/');
 
     libDependency = {
@@ -50,14 +50,10 @@ describe('GithubDependencyResolver', () => {
       },
     });
 
-    resolver = new GithubDependencyResolver(fm);
+    resolver = new GithubDependencyResolver(fm, fetchStub);
 
     // cut off outside access
     fetchStub.onCall(0).throws(new Error());
-  });
-
-  afterEach(() => {
-    fetchStub?.restore();
   });
 
   it("returns null if it can't resolve a dependency", async () => {
