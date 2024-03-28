@@ -214,7 +214,7 @@ impl SsaBuilder {
 
     /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
     fn run_pass(mut self, pass: fn(Ssa) -> Ssa, msg: &str) -> Self {
-        self.ssa = time(msg, self.print_ssa_passes, || pass(self.ssa));
+        self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa));
         self.print(msg)
     }
 
