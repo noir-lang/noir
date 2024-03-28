@@ -1556,6 +1556,7 @@ workflows:
             - guides-sample-dapp
             - guides-up-quick-start
             - yellow-paper
+            - noir-packages-tests
             - yarn-project-test
           <<: *defaults
 
