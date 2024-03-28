@@ -3,8 +3,7 @@ use std::str::FromStr;
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
 
-// use crate::lexer::token as noir_token;
-use crate::lexer::token::Token;
+use crate::lexer::token::{Keyword, Token};
 use crate::lexer::lexer::IntType;
 use crate::lexer::errors::LexerErrorKind;
 
@@ -25,24 +24,122 @@ extern {
     enum Token {
         // Str => Token::Str(<String>),
 
+        // symbols
+        "<" => Token::Less,
+        "<=" => Token::LessEqual,
+        ">" => Token::Greater,
+        ">=" => Token::GreaterEqual,
+        "==" => Token::Equal,
+        "!=" => Token::NotEqual,
+        "+" => Token::Plus,
+        "-" => Token::Minus,
+        "*" => Token::Star,
+        "/" => Token::Slash,
+        "%" => Token::Percent,
+        "&" => Token::Ampersand,
+        "^" => Token::Caret,
+        "<<" => Token::ShiftLeft,
+        ">>" => Token::ShiftRight,
+        "." => Token::Dot,
+        ".." => Token::DoubleDot,
+        "(" => Token::LeftParen,
+        ")" => Token::RightParen,
+        "{" => Token::LeftBrace,
+        "}" => Token::RightBrace,
+        "[" => Token::LeftBracket,
+        "]" => Token::RightBracket,
+        "->" => Token::Arrow,
+        "|" => Token::Pipe,
+        "#" => Token::Pound,
+        "," => Token::Comma,
+        ":" => Token::Colon,
+        "::" => Token::DoubleColon,
+        ";" => Token::Semicolon,
+        "!" => Token::Bang,
+        "=" => Token::Assign,
+
+        // keywords
+        "as" => Token::Keyword(Keyword::As),
+        "assert" => Token::Keyword(Keyword::Assert),
+        "assert_eq" => Token::Keyword(Keyword::AssertEq),
+        "bool" => Token::Keyword(Keyword::Bool),
+        "break" => Token::Keyword(Keyword::Break),
+        "call_data" => Token::Keyword(Keyword::CallData),
+        "char" => Token::Keyword(Keyword::Char),
+        "comptime" => Token::Keyword(Keyword::CompTime),
+        "constrain" => Token::Keyword(Keyword::Constrain),
+        "continue" => Token::Keyword(Keyword::Continue),
+        "contract" => Token::Keyword(Keyword::Contract),
+        "crate" => Token::Keyword(Keyword::Crate),
+        "dep" => Token::Keyword(Keyword::Dep),
+        "distinct" => Token::Keyword(Keyword::Distinct),
+        "else" => Token::Keyword(Keyword::Else),
+        "Field" => Token::Keyword(Keyword::Field),
+        "fn" => Token::Keyword(Keyword::Fn),
+        "for" => Token::Keyword(Keyword::For),
+        "fmtstr" => Token::Keyword(Keyword::FormatString),
+        "global" => Token::Keyword(Keyword::Global),
+        "if" => Token::Keyword(Keyword::If),
+        "impl" => Token::Keyword(Keyword::Impl),
+        "in" => Token::Keyword(Keyword::In),
+        "let" => Token::Keyword(Keyword::Let),
+        "mod" => Token::Keyword(Keyword::Mod),
+        "mut" => Token::Keyword(Keyword::Mut),
+        "pub" => Token::Keyword(Keyword::Pub),
+        "quote" => Token::Keyword(Keyword::Quote),
+        "return" => Token::Keyword(Keyword::Return),
+        "return_data" => Token::Keyword(Keyword::ReturnData),
+        "str" => Token::Keyword(Keyword::String),
+        "struct" => Token::Keyword(Keyword::Struct),
+        "trait" => Token::Keyword(Keyword::Trait),
+        "type" => Token::Keyword(Keyword::Type),
+        "unchecked" => Token::Keyword(Keyword::Unchecked),
+        "unconstrained" => Token::Keyword(Keyword::Unconstrained),
+        "use" => Token::Keyword(Keyword::Use),
+        "where" => Token::Keyword(Keyword::Where),
+        "while" => Token::Keyword(Keyword::While),
+
         "true" => Token::Bool(true),
         "false" => Token::Bool(false),
+
+        // whitespace
+        " " => Token::Whitespace(" "),
+        "\n" => Token::Whitespace("\n"),
+        "\r" => Token::Whitespace("\r"),
+        "\t" => Token::Whitespace("\t"),
 
         EOF => Token::EOF,
     }
 }
 
 
-// TODO: rename Term
-pub Term: Token = {
+pub Program: ParsedModule = {
+    // <m:Module> EOF => m,
+    // EOF => (),
 
-    <b:Bool> EOF => b,
+    <x:TopLevelStatement> "\n" <p:Program> => x, // TODO
 
-    EOF => Token::EOF,
+    EOF => (),
+}
 
-    // <n:Num> => Token::Int(n),
-    // "(" <t:Term> ")" => t,
-};
+TopLevelStatement: TopLevelStatement = {
+
+    // "use" => 
+
+}
+
+
+
+// // TODO: rename Term
+// pub Term: Token = {
+
+//     <b:Bool> EOF => b,
+
+//     EOF => Token::EOF,
+
+//     // <n:Num> => Token::Int(n),
+//     // "(" <t:Term> ")" => t,
+// };
 
 
 Bool: Token = {

@@ -90,7 +90,7 @@ pub enum Token {
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
-    Whitespace(String),
+    Whitespace(&str),
 
     /// An invalid character is one that is not in noir's language or grammar.
     ///
