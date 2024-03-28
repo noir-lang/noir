@@ -1245,7 +1245,7 @@ mod tests {
         let blns_contents = include_str!(env!("BLNS_JSON_PATH"));
         let blns_base64: Vec<String> =
             serde_json::from_str(blns_contents).expect("BLNS json invalid");
-        blns_base64.into_iter().for_each(|blns_base64_str| {
+        for blns_base64_str in blns_base64 {
             blns_base64_to_statements(blns_base64_str).into_iter().for_each(
                 |(token_discriminator_opt, blns_program_strs)| {
                     blns_program_strs.into_iter().for_each(|blns_program_str| {
