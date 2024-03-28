@@ -171,6 +171,29 @@ TEST_F(AvmMemOpcodeTests, sameAddressMov)
     validate_trace(false, 11, 356, 356, AvmMemoryTag::U16);
 }
 
+TEST_F(AvmMemOpcodeTests, uninitializedValueMov)
+{
+    auto trace_builder = AvmTraceBuilder();
+    trace_builder.set(4, 1, AvmMemoryTag::U32);
+    trace_builder.op_mov(0, 0, 1);
+    trace_builder.return_op(0, 0, 0);
+    trace = trace_builder.finalize();
+
+    validate_trace(false, 0, 0, 1, AvmMemoryTag::U0);
+}
+
+TEST_F(AvmMemOpcodeTests, indUninitializedValueMov)
+{
+    auto trace_builder = AvmTraceBuilder();
+    trace_builder.set(1, 3, AvmMemoryTag::U32);
+    trace_builder.set(4, 1, AvmMemoryTag::U32);
+    trace_builder.op_mov(3, 2, 3);
+    trace_builder.return_op(0, 0, 0);
+    trace = trace_builder.finalize();
+
+    validate_trace(true, 0, 2, 3, AvmMemoryTag::U0, 0, 1);
+}
+
 TEST_F(AvmMemOpcodeTests, indirectMov)
 {
     buildTrace(true, 23, 0, 1, AvmMemoryTag::U8, 2, 3);

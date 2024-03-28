@@ -65,6 +65,12 @@ class AvmMemTraceBuilder {
         }
     };
 
+    // Structure representing an entry for the memory used in the simulation (not the trace).
+    struct MemEntry {
+        FF val{};
+        AvmMemoryTag tag = AvmMemoryTag::U0;
+    };
+
     // Structure to return value and tag matching boolean after a memory read.
     struct MemRead {
         bool tag_match = false;
@@ -77,7 +83,7 @@ class AvmMemTraceBuilder {
 
     std::vector<MemoryTraceEntry> finalize();
 
-    std::pair<FF, AvmMemoryTag> read_and_load_mov_opcode(uint32_t clk, uint32_t addr);
+    MemEntry read_and_load_mov_opcode(uint32_t clk, uint32_t addr);
     MemRead read_and_load_from_memory(
         uint32_t clk, IntermRegister interm_reg, uint32_t addr, AvmMemoryTag r_in_tag, AvmMemoryTag w_in_tag);
     MemRead indirect_read_and_load_from_memory(uint32_t clk, IndirectRegister ind_reg, uint32_t addr);
@@ -89,10 +95,8 @@ class AvmMemTraceBuilder {
                            AvmMemoryTag w_in_tag);
 
   private:
-    std::vector<MemoryTraceEntry> mem_trace;         // Entries will be sorted by m_clk, m_sub_clk after finalize().
-    std::array<FF, MEM_SIZE> memory{};               // Memory table (used for simulation)
-    std::array<AvmMemoryTag, MEM_SIZE> memory_tag{}; // The tag of the corresponding memory
-                                                     // entry (aligned with the memory array).
+    std::vector<MemoryTraceEntry> mem_trace;       // Entries will be sorted by m_clk, m_sub_clk after finalize().
+    std::unordered_map<uint32_t, MemEntry> memory; // Memory table (used for simulation)
 
     void insert_in_mem_trace(uint32_t m_clk,
                              uint32_t m_sub_clk,
