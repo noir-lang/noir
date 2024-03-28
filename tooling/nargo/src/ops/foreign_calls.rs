@@ -1,6 +1,7 @@
 use acvm::{
-    acir::brillig::{ForeignCallParam, ForeignCallResult, Value},
+    acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
+    FieldElement,
 };
 use jsonrpc::{arg as build_json_rpc_arg, minreq_http::Builder, Client};
 use noirc_printable_type::{decode_string_value, ForeignCallError, PrintableValueDisplay};
@@ -46,15 +47,15 @@ impl From<String> for NargoForeignCallResult {
     }
 }
 
-impl From<Value> for NargoForeignCallResult {
-    fn from(value: Value) -> Self {
+impl From<FieldElement> for NargoForeignCallResult {
+    fn from(value: FieldElement) -> Self {
         let foreign_call_result: ForeignCallResult = value.into();
         foreign_call_result.into()
     }
 }
 
-impl From<Vec<Value>> for NargoForeignCallResult {
-    fn from(values: Vec<Value>) -> Self {
+impl From<Vec<FieldElement>> for NargoForeignCallResult {
+    fn from(values: Vec<FieldElement>) -> Self {
         let foreign_call_result: ForeignCallResult = values.into();
         foreign_call_result.into()
     }
@@ -178,7 +179,10 @@ impl DefaultForeignCallExecutor {
     ) -> Result<(usize, &[ForeignCallParam]), ForeignCallError> {
         let (id, params) =
             foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
-        Ok((id.unwrap_value().to_usize(), params))
+        let id =
+            usize::try_from(id.unwrap_field().try_to_u64().expect("value does not fit into u64"))
+                .expect("value does not fit into usize");
+        Ok((id, params))
     }
 
     fn find_mock_by_id(&mut self, id: usize) -> Option<&mut MockedCall> {
@@ -186,12 +190,12 @@ impl DefaultForeignCallExecutor {
     }
 
     fn parse_string(param: &ForeignCallParam) -> String {
-        let fields: Vec<_> = param.values().into_iter().map(|value| value.to_field()).collect();
+        let fields: Vec<_> = param.fields().to_vec();
         decode_string_value(&fields)
     }
 
     fn execute_print(foreign_call_inputs: &[ForeignCallParam]) -> Result<(), ForeignCallError> {
-        let skip_newline = foreign_call_inputs[0].unwrap_value().is_zero();
+        let skip_newline = foreign_call_inputs[0].unwrap_field().is_zero();
 
         let foreign_call_inputs =
             foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?.1;
@@ -242,7 +246,7 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 self.mocked_responses.push(MockedCall::new(id, mock_oracle_name));
                 self.last_mock_id += 1;
 
-                Ok(Value::from(id).into())
+                Ok(FieldElement::from(id).into())
             }
             Some(ForeignCall::SetMockParams) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
@@ -262,11 +266,8 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
             }
             Some(ForeignCall::SetMockTimes) => {
                 let (id, params) = Self::extract_mock_id(&foreign_call.inputs)?;
-                let times = params[0]
-                    .unwrap_value()
-                    .to_field()
-                    .try_to_u64()
-                    .expect("Invalid bit size of times");
+                let times =
+                    params[0].unwrap_field().try_to_u64().expect("Invalid bit size of times");
 
                 self.find_mock_by_id(id)
                     .unwrap_or_else(|| panic!("Unknown mock id {}", id))
@@ -325,10 +326,8 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
 #[cfg(test)]
 mod tests {
     use acvm::{
-        acir::brillig::ForeignCallParam,
-        brillig_vm::brillig::{ForeignCallResult, Value},
-        pwg::ForeignCallWaitInfo,
-        FieldElement,
+        acir::brillig::ForeignCallParam, brillig_vm::brillig::ForeignCallResult,
+        pwg::ForeignCallWaitInfo, FieldElement,
     };
     use jsonrpc_core::Result as RpcResult;
     use jsonrpc_derive::rpc;
@@ -356,11 +355,11 @@ mod tests {
         fn sum(&self, array: ForeignCallParam) -> RpcResult<ForeignCallResult> {
             let mut res: FieldElement = 0_usize.into();
 
-            for value in array.values() {
-                res += value.to_field();
+            for value in array.fields() {
+                res += value;
             }
 
-            Ok(Value::from(res).into())
+            Ok(res.into())
         }
     }
 
@@ -406,7 +405,7 @@ mod tests {
         };
 
         let result = executor.execute(&foreign_call);
-        assert_eq!(result.unwrap(), Value::from(3_usize).into());
+        assert_eq!(result.unwrap(), FieldElement::from(3_usize).into());
 
         server.close();
     }

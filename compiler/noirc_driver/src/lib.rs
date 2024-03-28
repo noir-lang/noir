@@ -3,7 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use acvm::acir::circuit::ExpressionWidth;
+use acvm::acir::circuit::{ExpressionWidth, Program};
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -67,6 +67,10 @@ pub struct CompileOptions {
     /// Display the ACIR for compiled circuit
     #[arg(long)]
     pub print_acir: bool,
+
+    /// Pretty print benchmark times of each code generation pass
+    #[arg(long, hide = true)]
+    pub benchmark_codegen: bool,
 
     /// Treat all warnings as errors
     #[arg(long, conflicts_with = "silence_warnings")]
@@ -298,7 +302,7 @@ pub fn compile_main(
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
-        println!("{}", compiled_program.circuit);
+        println!("{}", compiled_program.program);
     }
 
     Ok((compiled_program, warnings))
@@ -414,7 +418,7 @@ fn compile_contract_inner(
             name,
             custom_attributes,
             abi: function.abi,
-            bytecode: function.circuit,
+            bytecode: function.program,
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
         });
@@ -478,8 +482,13 @@ pub fn compile_no_check(
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
     let visibility = program.return_visibility;
-    let (circuit, debug, input_witnesses, return_witnesses, warnings) =
-        create_circuit(program, options.show_ssa, options.show_brillig, options.force_brillig)?;
+    let (circuit, debug, input_witnesses, return_witnesses, warnings) = create_circuit(
+        program,
+        options.show_ssa,
+        options.show_brillig,
+        options.force_brillig,
+        options.benchmark_codegen,
+    )?;
 
     let abi =
         abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses, visibility);
@@ -487,7 +496,8 @@ pub fn compile_no_check(
 
     Ok(CompiledProgram {
         hash,
-        circuit,
+        // TODO(https://github.com/noir-lang/noir/issues/4428)
+        program: Program { functions: vec![circuit] },
         debug,
         abi,
         file_map,

@@ -242,8 +242,8 @@ fn compile_success_empty_{test_name}() {{
     }}
 
     // `compile_success_empty` tests should be able to compile down to an empty circuit.
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {{
-        panic!("JSON was not well-formatted {{:?}}",output.stdout)
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {{
+        panic!("JSON was not well-formatted {{:?}}\n\n{{:?}}", e, std::str::from_utf8(&output.stdout))
     }});
     let num_opcodes = &json["programs"][0]["acir_opcodes"];
     assert_eq!(num_opcodes.as_u64().expect("number of opcodes should fit in a u64"), 0);

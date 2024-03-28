@@ -347,7 +347,7 @@ fn block<'a>(
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |span| vec![Statement { kind: StatementKind::Error, span }],
         ))
-        .map(BlockExpression)
+        .map(|statements| BlockExpression { statements })
 }
 
 fn check_statements_require_semicolon(
@@ -421,6 +421,8 @@ where
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
             for_loop(expr_no_constructors, statement),
+            break_statement(),
+            continue_statement(),
             return_statement(expr_parser.clone()),
             expr_parser.map(StatementKind::Expression),
         ))
@@ -429,6 +431,14 @@ where
 
 fn fresh_statement() -> impl NoirParser<StatementKind> {
     statement(expression(), expression_no_constructors(expression()))
+}
+
+fn break_statement() -> impl NoirParser<StatementKind> {
+    keyword(Keyword::Break).to(StatementKind::Break)
+}
+
+fn continue_statement() -> impl NoirParser<StatementKind> {
+    keyword(Keyword::Continue).to(StatementKind::Continue)
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
@@ -565,6 +575,7 @@ fn parse_type_inner(
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
         named_trait(recursive_type_parser.clone()),
+        slice_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         parenthesized_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
@@ -701,10 +712,19 @@ fn generic_type_args(
 fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
     just(Token::LeftBracket)
         .ignore_then(type_parser)
-        .then(just(Token::Semicolon).ignore_then(type_expression()).or_not())
+        .then(just(Token::Semicolon).ignore_then(type_expression()))
         .then_ignore(just(Token::RightBracket))
         .map_with_span(|(element_type, size), span| {
             UnresolvedTypeData::Array(size, Box::new(element_type)).with_span(span)
+        })
+}
+
+fn slice_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
+    just(Token::LeftBracket)
+        .ignore_then(type_parser)
+        .then_ignore(just(Token::RightBracket))
+        .map_with_span(|element_type, span| {
+            UnresolvedTypeData::Slice(Box::new(element_type)).with_span(span)
         })
 }
 
@@ -995,10 +1015,12 @@ where
             // Wrap the inner `if` expression in a block expression.
             // i.e. rewrite the sugared form `if cond1 {} else if cond2 {}` as `if cond1 {} else { if cond2 {} }`.
             let if_expression = Expression::new(kind, span);
-            let desugared_else = BlockExpression(vec![Statement {
-                kind: StatementKind::Expression(if_expression),
-                span,
-            }]);
+            let desugared_else = BlockExpression {
+                statements: vec![Statement {
+                    kind: StatementKind::Expression(if_expression),
+                    span,
+                }],
+            };
             Expression::new(ExpressionKind::Block(desugared_else), span)
         }));
 
@@ -1069,6 +1091,36 @@ where
         .map(|(lhs, count)| ExpressionKind::repeated_array(lhs, count))
 }
 
+fn slice_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
+    just(Token::Ampersand)
+        .ignore_then(standard_slice(expr_parser.clone()).or(slice_sugar(expr_parser)))
+}
+
+/// &[a, b, c, ...]
+fn standard_slice<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
+    expression_list(expr_parser)
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .validate(|elements, _span, _emit| ExpressionKind::slice(elements))
+}
+
+/// &[a; N]
+fn slice_sugar<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
+    expr_parser
+        .clone()
+        .then(just(Token::Semicolon).ignore_then(expr_parser))
+        .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
+        .map(|(lhs, count)| ExpressionKind::repeated_slice(lhs, count))
+}
+
 fn expression_list<P>(expr_parser: P) -> impl NoirParser<Vec<Expression>>
 where
     P: ExprParser,
@@ -1092,6 +1144,7 @@ where
 {
     choice((
         if_expr(expr_no_constructors, statement.clone()),
+        slice_expr(expr_parser.clone()),
         array_expr(expr_parser.clone()),
         if allow_constructors {
             constructor(expr_parser.clone()).boxed()
@@ -1099,7 +1152,8 @@ where
             nothing().boxed()
         },
         lambdas::lambda(expr_parser.clone()),
-        block(statement).map(ExpressionKind::Block),
+        block(statement.clone()).map(ExpressionKind::Block),
+        quote(statement),
         variable(),
         literal(),
     ))
@@ -1122,6 +1176,19 @@ where
         .map_with_span(Expression::new)
         .or(parenthesized(expr_parser))
         .labelled(ParsingRuleLabel::Atom)
+}
+
+fn quote<'a, P>(statement: P) -> impl NoirParser<ExpressionKind> + 'a
+where
+    P: NoirParser<StatementKind> + 'a,
+{
+    keyword(Keyword::Quote).ignore_then(block(statement)).validate(|block, span, emit| {
+        emit(ParserError::with_reason(
+            ParserErrorReason::ExperimentalFeature("quoted expressions"),
+            span,
+        ));
+        ExpressionKind::Quote(block)
+    })
 }
 
 fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>
@@ -1283,6 +1350,50 @@ mod test {
         parse_all_failing(array_expr(expression()), invalid);
     }
 
+    fn expr_to_slice(expr: ExpressionKind) -> ArrayLiteral {
+        let lit = match expr {
+            ExpressionKind::Literal(literal) => literal,
+            _ => unreachable!("expected a literal"),
+        };
+
+        match lit {
+            Literal::Slice(arr) => arr,
+            _ => unreachable!("expected a slice: {:?}", lit),
+        }
+    }
+
+    #[test]
+    fn parse_slice() {
+        let valid = vec![
+            "&[0, 1, 2,3, 4]",
+            "&[0,1,2,3,4,]", // Trailing commas are valid syntax
+            "&[0;5]",
+        ];
+
+        for expr in parse_all(slice_expr(expression()), valid) {
+            match expr_to_slice(expr) {
+                ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
+                ArrayLiteral::Repeated { length, .. } => {
+                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()));
+                }
+            }
+        }
+
+        parse_all_failing(
+            slice_expr(expression()),
+            vec!["0,1,2,3,4]", "&[[0,1,2,3,4]", "&[0,1,2,,]", "&[0,1,2,3,4"],
+        );
+    }
+
+    #[test]
+    fn parse_slice_sugar() {
+        let valid = vec!["&[0;7]", "&[(1, 2); 4]", "&[0;Four]", "&[2;1+3-a]"];
+        parse_all(slice_expr(expression()), valid);
+
+        let invalid = vec!["&[0;;4]", "&[1, 2; 3]"];
+        parse_all_failing(slice_expr(expression()), invalid);
+    }
+
     #[test]
     fn parse_block() {
         parse_with(block(fresh_statement()), "{ [0,1,2,3,4] }").unwrap();
@@ -1290,13 +1401,13 @@ mod test {
         // Regression for #1310: this should be parsed as a block and not a function call
         let res =
             parse_with(block(fresh_statement()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
-        match unwrap_expr(&res.0.last().unwrap().kind) {
+        match unwrap_expr(&res.statements.last().unwrap().kind) {
             // The `if` followed by a tuple is currently creates a block around both in case
             // there was none to start with, so there is an extra block here.
             ExpressionKind::Block(block) => {
-                assert_eq!(block.0.len(), 2);
-                assert!(matches!(unwrap_expr(&block.0[0].kind), ExpressionKind::If(_)));
-                assert!(matches!(unwrap_expr(&block.0[1].kind), ExpressionKind::Tuple(_)));
+                assert_eq!(block.statements.len(), 2);
+                assert!(matches!(unwrap_expr(&block.statements[0].kind), ExpressionKind::If(_)));
+                assert!(matches!(unwrap_expr(&block.statements[1].kind), ExpressionKind::Tuple(_)));
             }
             _ => unreachable!(),
         }

@@ -39,7 +39,7 @@ use crate::{
 use crate::{
     ArrayLiteral, BinaryOpKind, Distinctness, ForRange, FunctionDefinition, FunctionReturnType,
     Generics, ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
-    Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp,
+    Shared, Statement, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp,
     UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
@@ -115,6 +115,13 @@ pub struct Resolver<'a> {
     /// that are captured. We do this in order to create the hidden environment
     /// parameter for the lambda function.
     lambda_stack: Vec<LambdaContext>,
+
+    /// True if we're currently resolving an unconstrained function
+    in_unconstrained_fn: bool,
+
+    /// How many loops we're currently within.
+    /// This increases by 1 at the start of a loop, and decreases by 1 when it ends.
+    nested_loops: u32,
 }
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -155,6 +162,8 @@ impl<'a> Resolver<'a> {
             current_item: None,
             file,
             in_contract,
+            in_unconstrained_fn: false,
+            nested_loops: 0,
         }
     }
 
@@ -243,7 +252,7 @@ impl<'a> Resolver<'a> {
                 typ: typ.clone(),
                 span: name.span(),
             }),
-            body: BlockExpression(Vec::new()),
+            body: BlockExpression { statements: Vec::new() },
             span: name.span(),
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
@@ -416,6 +425,11 @@ impl<'a> Resolver<'a> {
 
     fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
         let func_meta = self.extract_meta(&func, id);
+
+        if func.def.is_unconstrained {
+            self.in_unconstrained_fn = true;
+        }
+
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 HirFunction::empty()
@@ -467,12 +481,12 @@ impl<'a> Resolver<'a> {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                let size = if size.is_none() {
-                    Type::NotConstant
-                } else {
-                    self.resolve_array_size(size, new_variables)
-                };
+                let size = self.resolve_array_size(Some(size), new_variables);
                 Type::Array(Box::new(size), elem)
+            }
+            Slice(elem) => {
+                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr),
             Integer(sign, bits) => Type::Integer(sign, bits),
@@ -1070,14 +1084,18 @@ impl<'a> Resolver<'a> {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
-            | Type::NotConstant
             | Type::TraitAsType(..)
+            | Type::Code
             | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
+                Self::find_numeric_generics_in_type(element_type, found);
+            }
+
+            Type::Slice(element_type) => {
                 Self::find_numeric_generics_in_type(element_type, found);
             }
 
@@ -1148,7 +1166,7 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    pub fn resolve_stmt(&mut self, stmt: StatementKind) -> HirStatement {
+    pub fn resolve_stmt(&mut self, stmt: StatementKind, span: Span) -> HirStatement {
         match stmt {
             StatementKind::Let(let_stmt) => {
                 let expression = self.resolve_expression(let_stmt.expression);
@@ -1188,6 +1206,8 @@ impl<'a> Resolver<'a> {
                         let end_range = self.resolve_expression(end_range);
                         let (identifier, block) = (for_loop.identifier, for_loop.block);
 
+                        self.nested_loops += 1;
+
                         // TODO: For loop variables are currently mutable by default since we haven't
                         //       yet implemented syntax for them to be optionally mutable.
                         let (identifier, block) = self.in_new_scope(|this| {
@@ -1200,6 +1220,8 @@ impl<'a> Resolver<'a> {
                             (decl, this.resolve_expression(block))
                         });
 
+                        self.nested_loops -= 1;
+
                         HirStatement::For(HirForStatement {
                             start_range,
                             end_range,
@@ -1210,9 +1232,17 @@ impl<'a> Resolver<'a> {
                     range @ ForRange::Array(_) => {
                         let for_stmt =
                             range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
-                        self.resolve_stmt(for_stmt)
+                        self.resolve_stmt(for_stmt, for_loop.span)
                     }
                 }
+            }
+            StatementKind::Break => {
+                self.check_break_continue(true, span);
+                HirStatement::Break
+            }
+            StatementKind::Continue => {
+                self.check_break_continue(false, span);
+                HirStatement::Continue
             }
             StatementKind::Error => HirStatement::Error,
         }
@@ -1260,8 +1290,8 @@ impl<'a> Resolver<'a> {
         Some(self.resolve_expression(assert_msg_call_expr))
     }
 
-    pub fn intern_stmt(&mut self, stmt: StatementKind) -> StmtId {
-        let hir_stmt = self.resolve_stmt(stmt);
+    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
+        let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
         self.interner.push_stmt(hir_stmt)
     }
 
@@ -1376,27 +1406,37 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    fn resolve_array_literal(&mut self, array_literal: ArrayLiteral) -> HirArrayLiteral {
+        match array_literal {
+            ArrayLiteral::Standard(elements) => {
+                let elements = vecmap(elements, |elem| self.resolve_expression(elem));
+                HirArrayLiteral::Standard(elements)
+            }
+            ArrayLiteral::Repeated { repeated_element, length } => {
+                let span = length.span;
+                let length =
+                    UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(|error| {
+                        self.errors.push(ResolverError::ParserError(Box::new(error)));
+                        UnresolvedTypeExpression::Constant(0, span)
+                    });
+
+                let length = self.convert_expression_type(length);
+                let repeated_element = self.resolve_expression(*repeated_element);
+
+                HirArrayLiteral::Repeated { repeated_element, length }
+            }
+        }
+    }
+
     pub fn resolve_expression(&mut self, expr: Expression) -> ExprId {
         let hir_expr = match expr.kind {
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),
-                Literal::Array(ArrayLiteral::Standard(elements)) => {
-                    let elements = vecmap(elements, |elem| self.resolve_expression(elem));
-                    HirLiteral::Array(HirArrayLiteral::Standard(elements))
+                Literal::Array(array_literal) => {
+                    HirLiteral::Array(self.resolve_array_literal(array_literal))
                 }
-                Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
-                    let span = length.span;
-                    let length = UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(
-                        |error| {
-                            self.errors.push(ResolverError::ParserError(Box::new(error)));
-                            UnresolvedTypeExpression::Constant(0, span)
-                        },
-                    );
-
-                    let length = self.convert_expression_type(length);
-                    let repeated_element = self.resolve_expression(*repeated_element);
-
-                    HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length })
+                Literal::Slice(array_literal) => {
+                    HirLiteral::Slice(self.resolve_array_literal(array_literal))
                 }
                 Literal::Integer(integer, sign) => HirLiteral::Integer(integer, sign),
                 Literal::Str(str) => HirLiteral::Str(str),
@@ -1581,6 +1621,9 @@ impl<'a> Resolver<'a> {
                 })
             }),
             ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
+
+            // The quoted expression isn't resolved since we don't want errors if variables aren't defined
+            ExpressionKind::Quote(block) => HirExpression::Quote(block),
         };
 
         // If these lines are ever changed, make sure to change the early return
@@ -1909,8 +1952,8 @@ impl<'a> Resolver<'a> {
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         let statements =
-            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt.kind)));
-        HirExpression::Block(HirBlockExpression(statements))
+            self.in_new_scope(|this| vecmap(block_expr.statements, |stmt| this.intern_stmt(stmt)));
+        HirExpression::Block(HirBlockExpression { statements })
     }
 
     pub fn intern_block(&mut self, block: BlockExpression) -> ExprId {
@@ -2035,6 +2078,15 @@ impl<'a> Resolver<'a> {
             }
         }
         HirLiteral::FmtStr(str, fmt_str_idents)
+    }
+
+    fn check_break_continue(&mut self, is_break: bool, span: Span) {
+        if !self.in_unconstrained_fn {
+            self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
+        }
+        if self.nested_loops == 0 {
+            self.push_err(ResolverError::JumpOutsideLoop { is_break, span });
+        }
     }
 }
 

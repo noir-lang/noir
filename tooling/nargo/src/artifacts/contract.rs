@@ -1,4 +1,4 @@
-use acvm::acir::circuit::Circuit;
+use acvm::acir::circuit::Program;
 use noirc_abi::{Abi, ContractEvent};
 use noirc_driver::{CompiledContract, ContractFunction};
 use serde::{Deserialize, Serialize};
@@ -50,10 +50,10 @@ pub struct ContractFunctionArtifact {
     pub abi: Abi,
 
     #[serde(
-        serialize_with = "Circuit::serialize_circuit_base64",
-        deserialize_with = "Circuit::deserialize_circuit_base64"
+        serialize_with = "Program::serialize_program_base64",
+        deserialize_with = "Program::deserialize_program_base64"
     )]
-    pub bytecode: Circuit,
+    pub bytecode: Program,
 
     #[serde(
         serialize_with = "DebugInfo::serialize_compressed_base64_json",

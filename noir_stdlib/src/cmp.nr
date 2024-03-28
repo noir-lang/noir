@@ -28,6 +28,16 @@ impl<T, N> Eq for [T; N] where T: Eq {
     }
 }
 
+impl<T> Eq for [T] where T: Eq {
+    fn eq(self, other: [T]) -> bool {
+        let mut result = self.len() == other.len();
+        for i in 0 .. self.len() {
+            result &= self[i].eq(other[i]);
+        }
+        result
+    }
+}
+
 impl<N> Eq for str<N> {
     fn eq(self, other: str<N>) -> bool {
         let self_bytes = self.as_bytes();
@@ -198,6 +208,26 @@ impl<T, N> Ord for [T; N] where T: Ord {
     // the ordering for the whole array.
     fn cmp(self, other: [T; N]) -> Ordering {
         let mut result = Ordering::equal();
+        for i in 0 .. self.len() {
+            if result == Ordering::equal() {
+                let result_i = self[i].cmp(other[i]);
+
+                if result_i == Ordering::less() {
+                    result = result_i;
+                } else if result_i == Ordering::greater() {
+                    result = result_i;
+                }
+            }
+        }
+        result
+    }
+}
+
+impl<T> Ord for [T] where T: Ord {
+    // The first non-equal element of both arrays determines
+    // the ordering for the whole array.
+    fn cmp(self, other: [T]) -> Ordering {
+        let mut result = self.len().cmp(other.len());
         for i in 0 .. self.len() {
             if result == Ordering::equal() {
                 let result_i = self[i].cmp(other[i]);

@@ -51,7 +51,7 @@ The built-in structure `U128` allows you to use 128-bit unsigned integers almost
 - You cannot cast between a native integer and `U128`
 - There is a higher performance cost when using `U128`, compared to a native type.
 
-Conversion between unsigned integer types and U128 are done through the use of `from_integer` and `to_integer` functions.
+Conversion between unsigned integer types and U128 are done through the use of `from_integer` and `to_integer` functions. `from_integer` also accepts the `Field` type as input.
 
 ```rust
 fn main() {

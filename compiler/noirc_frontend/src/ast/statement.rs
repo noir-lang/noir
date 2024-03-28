@@ -35,6 +35,8 @@ pub enum StatementKind {
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
+    Break,
+    Continue,
     // This is an expression with a trailing semi-colon
     Semi(Expression),
     // This statement is the result of a recovered parse error.
@@ -59,6 +61,8 @@ impl Statement {
             | StatementKind::Constrain(_)
             | StatementKind::Assign(_)
             | StatementKind::Semi(_)
+            | StatementKind::Break
+            | StatementKind::Continue
             | StatementKind::Error => {
                 // To match rust, statements always require a semicolon, even at the end of a block
                 if semi.is_none() {
@@ -599,10 +603,12 @@ impl ForRange {
                 };
 
                 let block_span = block.span;
-                let new_block = BlockExpression(vec![
-                    let_elem,
-                    Statement { kind: StatementKind::Expression(block), span: block_span },
-                ]);
+                let new_block = BlockExpression {
+                    statements: vec![
+                        let_elem,
+                        Statement { kind: StatementKind::Expression(block), span: block_span },
+                    ],
+                };
                 let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
@@ -614,7 +620,9 @@ impl ForRange {
                     span: for_loop_span,
                 };
 
-                let block = ExpressionKind::Block(BlockExpression(vec![let_array, for_loop]));
+                let block = ExpressionKind::Block(BlockExpression {
+                    statements: vec![let_array, for_loop],
+                });
                 StatementKind::Expression(Expression::new(block, for_loop_span))
             }
         }
@@ -637,6 +645,8 @@ impl Display for StatementKind {
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
+            StatementKind::Break => write!(f, "break"),
+            StatementKind::Continue => write!(f, "continue"),
             StatementKind::Semi(semi) => write!(f, "{semi};"),
             StatementKind::Error => write!(f, "Error"),
         }

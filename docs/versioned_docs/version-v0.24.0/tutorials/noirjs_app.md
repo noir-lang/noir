@@ -243,7 +243,7 @@ Now we're ready to prove stuff! Let's feed some inputs to our circuit and calcul
 await setup(); // let's squeeze our wasm inits here
 
 display('logs', 'Generating proof... ⌛');
-const proof = await noir.generateFinalProof(input);
+const proof = await noir.generateProof(input);
 display('logs', 'Generating proof... ✅');
 display('results', proof.proof);
 ```
@@ -264,7 +264,7 @@ Time to celebrate, yes! But we shouldn't trust machines so blindly. Let's add th
 
 ```js
 display('logs', 'Verifying proof... ⌛');
-const verification = await noir.verifyFinalProof(proof);
+const verification = await noir.verifyProof(proof);
 if (verification) display('logs', 'Verifying proof... ✅');
 ```
 

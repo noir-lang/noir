@@ -1,5 +1,5 @@
 use acvm::{
-    acir::brillig::{BinaryFieldOp, BinaryIntOp, MemoryAddress, Opcode as BrilligOpcode, Value},
+    acir::brillig::{BinaryFieldOp, BinaryIntOp, MemoryAddress, Opcode as BrilligOpcode},
     FieldElement,
 };
 
@@ -16,18 +16,32 @@ pub(crate) fn directive_invert() -> GeneratedBrillig {
     // We store the result in this register too.
     let input = MemoryAddress::from(0);
     let one_const = MemoryAddress::from(1);
+    let zero_const = MemoryAddress::from(2);
+    let input_is_zero = MemoryAddress::from(3);
     // Location of the stop opcode
-    let stop_location = 3;
+    let stop_location = 6;
 
     GeneratedBrillig {
         byte_code: vec![
             BrilligOpcode::CalldataCopy { destination_address: input, size: 1, offset: 0 },
+            // Put value zero in register (2)
+            BrilligOpcode::Const {
+                destination: zero_const,
+                value: FieldElement::from(0_usize),
+                bit_size: FieldElement::max_num_bits(),
+            },
+            BrilligOpcode::BinaryFieldOp {
+                op: BinaryFieldOp::Equals,
+                lhs: input,
+                rhs: zero_const,
+                destination: input_is_zero,
+            },
             // If the input is zero, then we jump to the stop opcode
-            BrilligOpcode::JumpIfNot { condition: input, location: stop_location },
+            BrilligOpcode::JumpIf { condition: input_is_zero, location: stop_location },
             // Put value one in register (1)
             BrilligOpcode::Const {
                 destination: one_const,
-                value: Value::from(1_usize),
+                value: FieldElement::from(1_usize),
                 bit_size: FieldElement::max_num_bits(),
             },
             // Divide 1 by the input, and set the result of the division into register (0)
@@ -53,9 +67,12 @@ pub(crate) fn directive_invert() -> GeneratedBrillig {
 ///    (a/b, a-a/b*b)
 /// }
 /// ```
-pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
+pub(crate) fn directive_quotient(mut bit_size: u32) -> GeneratedBrillig {
     // `a` is (0) (i.e register index 0)
     // `b` is (1)
+    if bit_size > FieldElement::max_num_bits() {
+        bit_size = FieldElement::max_num_bits();
+    }
     GeneratedBrillig {
         byte_code: vec![
             BrilligOpcode::CalldataCopy {
@@ -63,9 +80,19 @@ pub(crate) fn directive_quotient(bit_size: u32) -> GeneratedBrillig {
                 size: 2,
                 offset: 0,
             },
+            BrilligOpcode::Cast {
+                destination: MemoryAddress(0),
+                source: MemoryAddress(0),
+                bit_size,
+            },
+            BrilligOpcode::Cast {
+                destination: MemoryAddress(1),
+                source: MemoryAddress(1),
+                bit_size,
+            },
             //q = a/b is set into register (2)
             BrilligOpcode::BinaryIntOp {
-                op: BinaryIntOp::UnsignedDiv,
+                op: BinaryIntOp::Div,
                 lhs: MemoryAddress::from(0),
                 rhs: MemoryAddress::from(1),
                 destination: MemoryAddress::from(2),
