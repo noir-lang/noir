@@ -1079,6 +1079,7 @@ impl NodeInterner {
     /// constraint, but when where clauses are involved, the failing constraint may be several
     /// constraints deep. In this case, all of the constraints are returned, starting with the
     /// failing one.
+    /// If this list of failing constraints is empty, this means type annotations are required.
     pub fn lookup_trait_implementation(
         &self,
         object_type: &Type,
@@ -1121,6 +1122,10 @@ impl NodeInterner {
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
+    /// On error returns either:
+    /// - 1+ failing trait constraints, including the original.
+    ///   Each constraint after the first represents a `where` clause that was followed.
+    /// - 0 trait constraints indicating type annotations are needed to choose an impl.
     pub fn try_lookup_trait_implementation(
         &self,
         object_type: &Type,
@@ -1138,6 +1143,11 @@ impl NodeInterner {
         Ok((impl_kind, bindings))
     }
 
+    /// Returns the trait implementation if found.
+    /// On error returns either:
+    /// - 1+ failing trait constraints, including the original.
+    ///   Each constraint after the first represents a `where` clause that was followed.
+    /// - 0 trait constraints indicating type annotations are needed to choose an impl.
     fn lookup_trait_implementation_helper(
         &self,
         object_type: &Type,
@@ -1155,6 +1165,11 @@ impl NodeInterner {
         }
 
         let object_type = object_type.substitute(type_bindings);
+
+        // If the object type isn't known, just return an error saying type annotations are needed.
+        if object_type.is_bindable() {
+            return Err(Vec::new());
+        }
 
         let impls =
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
@@ -1214,8 +1229,11 @@ impl NodeInterner {
             let (impl_, fresh_bindings) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;
             Ok(impl_)
-        } else {
+        } else if matching_impls.is_empty() {
             Err(vec![make_constraint()])
+        } else {
+            // multiple matching impls, type annotations needed
+            Err(vec![])
         }
     }
 
