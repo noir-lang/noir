@@ -7,7 +7,7 @@ pub enum MonomorphizationError {
     #[error("Length of generic array could not be determined.")]
     UnknownArrayLength { location: Location },
 
-    #[error("Type annotations needed before this point")]
+    #[error("Type annotations needed")]
     TypeAnnotationsNeeded { location: Location },
 }
 
