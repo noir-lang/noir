@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.27.0](https://github.com/noir-lang/noir/compare/v0.26.0...v0.27.0) (2024-03-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* Brillig typed memory (https://github.com/AztecProtocol/aztec-packages/pull/5395)
+
+### Features
+
+* Brillig typed memory (https://github.com/AztecProtocol/aztec-packages/pull/5395) ([0bc18c4](https://github.com/noir-lang/noir/commit/0bc18c4f78171590dd58bded959f68f53a44cc8c))
+
+
+### Bug Fixes
+
+* Slice coercions ([#4640](https://github.com/noir-lang/noir/issues/4640)) ([c0bae17](https://github.com/noir-lang/noir/commit/c0bae17e70f55ebf4b1639e0dfb075d8c5c97892))
+* **ssa:** Accurate constant type for slice dummy data in flattening ([#4661](https://github.com/noir-lang/noir/issues/4661)) ([b87654e](https://github.com/noir-lang/noir/commit/b87654e2b4761dfacc916dac70d43c1b572ec636))
+* **ssa:** Fix slice intrinsic handling in the capacity tracker  ([#4643](https://github.com/noir-lang/noir/issues/4643)) ([1b50ce1](https://github.com/noir-lang/noir/commit/1b50ce155cf95193937729c2a23f34b0ade42ea0))
+
 ## [0.26.0](https://github.com/noir-lang/noir/compare/v0.25.0...v0.26.0) (2024-03-25)
 
 
