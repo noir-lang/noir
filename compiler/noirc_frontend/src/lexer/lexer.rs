@@ -1119,122 +1119,30 @@ mod tests {
 
         vec![
             // Token::Ident(_)
-            (
-                None,
-                vec![format!(
-                    "
-                    let \"{}\" = ();
-                ",
-                    s
-                )],
-            ),
-            (
-                Some(Token::Str("".to_string())),
-                vec![format!(
-                    "
-                    let s = \"{}\";
-                ",
-                    s
-                )],
-            ),
+            (None, vec![format!("let \"{s}\" = ();")]),
+            (Some(Token::Str("".to_string())), vec![format!("let s = \"{s}\";")]),
             (
                 Some(Token::RawStr("".to_string(), 0)),
                 vec![
                     // let s = r"Hello world";
-                    format!(
-                        "
-                    let s = r\"{}\";
-                ",
-                        s
-                    ),
+                    format!("let s = r\"{s}\";"),
                     // let s = r#"Simon says "hello world""#;
-                    format!(
-                        "
-                    let s = r#\"{}\"#;
-                ",
-                        s
-                    ),
+                    format!("let s = r#\"{s}\"#;"),
                     // // Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
                     // let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####;
-                    format!(
-                        "
-                    let s = r##\"{}\"##;
-                ",
-                        s
-                    ),
-                    format!(
-                        "
-                    let s = r###\"{}\"###;
-                ",
-                        s
-                    ),
-                    format!(
-                        "
-                    let s = r####\"{}\"####;
-                ",
-                        s
-                    ),
-                    format!(
-                        "
-                    let s = r#####\"{}\"#####;
-                ",
-                        s
-                    ),
+                    format!("let s = r##\"{s}\"##;"),
+                    format!("let s = r###\"{s}\"###;"),
+                    format!("let s = r####\"{s}\"####; "),
+                    format!("let s = r#####\"{s}\"#####;"),
                 ],
             ),
-            (
-                Some(Token::FmtStr("".to_string())),
-                vec![format!(
-                    "
-                    assert(x == y, f\"{}\");
-                ",
-                    s
-                )],
-            ),
+            (Some(Token::FmtStr("".to_string())), vec![format!("assert(x == y, f\"{s}\");")]),
             // expected token not found
             // (Some(Token::LineComment("".to_string(), None)), vec![
-            (
-                None,
-                vec![
-                    format!(
-                        "
-                    //{}
-                ",
-                        s
-                    ),
-                    format!(
-                        "
-                    // {}
-                ",
-                        s
-                    ),
-                ],
-            ),
+            (None, vec![format!("//{}"), format!("// {}")]),
             // expected token not found
             // (Some(Token::BlockComment("".to_string(), None)), vec![
-            (
-                None,
-                vec![
-                    format!(
-                        "
-                    /*{}*/
-                ",
-                        s
-                    ),
-                    format!(
-                        "
-                    /* {} */
-                ",
-                        s
-                    ),
-                    format!(
-                        "
-                    /*\n{}\n*/
-                ",
-                        s
-                    ),
-                ],
-            ),
+            (None, vec![format!("/*{}*/"), format!("/* {} */"), format!("/*\n{}\n*/")]),
         ]
     }
 
@@ -1249,45 +1157,44 @@ mod tests {
             let statements = blns_base64_to_statements(blns_base64_str);
             for (token_discriminator_opt, blns_program_strs) in statements {
                 for blns_program_str in blns_program_strs {
-                        let mut expected_token_found = false;
-                        let mut lexer = Lexer::new(&blns_program_str);
-                        let mut result_tokens = Vec::new();
-                        loop {
-                            match lexer.next_token() {
-                                Ok(next_token) => {
-                                    result_tokens.push(next_token.clone());
-                                    expected_token_found |= token_discriminator_opt
-                                        .as_ref()
-                                        .map(|token_discriminator| {
-                                            discriminant(token_discriminator)
-                                                == discriminant(&next_token.token())
-                                        })
-                                        .unwrap_or(true);
+                    let mut expected_token_found = false;
+                    let mut lexer = Lexer::new(&blns_program_str);
+                    let mut result_tokens = Vec::new();
+                    loop {
+                        match lexer.next_token() {
+                            Ok(next_token) => {
+                                result_tokens.push(next_token.clone());
+                                expected_token_found |= token_discriminator_opt
+                                    .as_ref()
+                                    .map(|token_discriminator| {
+                                        discriminant(token_discriminator)
+                                            == discriminant(&next_token.token())
+                                    })
+                                    .unwrap_or(true);
 
-                                    if next_token == Token::EOF {
-                                        assert!(lexer.done, "lexer not done when EOF emitted!");
-                                        break;
-                                    }
-                                }
-
-                                Err(LexerErrorKind::InvalidIntegerLiteral { .. })
-                                | Err(LexerErrorKind::UnexpectedCharacter { .. })
-                                | Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
-                                    expected_token_found = true;
-                                }
-                                Err(err) => {
-                                    panic!("Unexpected lexer error found: {:?}", err)
+                                if next_token == Token::EOF {
+                                    assert!(lexer.done, "lexer not done when EOF emitted!");
+                                    break;
                                 }
                             }
-                        }
 
-                        assert!(
-                            expected_token_found,
-                            "expected token not found: {token_discriminator_opt:?}\noutput:\n{result_tokens:?}",
-                        );
-                    })
-                },
-            )
-        })
+                            Err(LexerErrorKind::InvalidIntegerLiteral { .. })
+                            | Err(LexerErrorKind::UnexpectedCharacter { .. })
+                            | Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
+                                expected_token_found = true;
+                            }
+                            Err(err) => {
+                                panic!("Unexpected lexer error found: {:?}", err)
+                            }
+                        }
+                    }
+
+                    assert!(
+                        expected_token_found,
+                        "expected token not found: {token_discriminator_opt:?}\noutput:\n{result_tokens:?}",
+                    );
+                }
+            }
+        }
     }
 }
