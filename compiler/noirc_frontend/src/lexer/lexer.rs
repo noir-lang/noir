@@ -1088,6 +1088,10 @@ mod tests {
         }
     }
 
+    // returns a vector of:
+    //   (expected_token_discriminator, strings_to_lex)
+    // expected_token_discriminator matches a given token when
+    // std::mem::discriminant returns the same discriminant for both.
     fn blns_base64_to_statements(base64_str: String) -> Vec<(Option<Token>, Vec<String>)> {
         use base64::engine::general_purpose;
         use std::borrow::Cow;
@@ -1236,21 +1240,11 @@ mod tests {
 
     #[test]
     fn test_big_list_of_naughty_strings() {
-        use std::io::Read;
         use std::mem::discriminant;
-        use std::path::Path;
 
-        let blns_dir_str: String = std::env::var("BLNS_JSON_DIR").expect("BLNS_JSON_DIR not set");
-        let blns_path = Path::new(&blns_dir_str).join("blns.base64.json");
-        let blns_path_str = blns_path.to_str().unwrap();
-        let blns_bytes = std::fs::File::open(blns_path_str).unwrap();
-
-        let mut blns_cursor = blns_bytes;
-        let mut blns_contents = String::new();
-        blns_cursor.read_to_string(&mut blns_contents).unwrap();
+        let blns_contents = include_str!(env!("BLNS_JSON_PATH"));
         let blns_base64: Vec<String> =
-            serde_json::from_str(&blns_contents).expect("BLNS json invalid");
-
+            serde_json::from_str(blns_contents).expect("BLNS json invalid");
         blns_base64.into_iter().for_each(|blns_base64_str| {
             blns_base64_to_statements(blns_base64_str).into_iter().for_each(
                 |(token_discriminator_opt, blns_program_strs)| {
@@ -1262,7 +1256,6 @@ mod tests {
                             match lexer.next_token() {
                                 Ok(next_token) => {
                                     result_tokens.push(next_token.clone());
-
                                     expected_token_found |= token_discriminator_opt
                                         .as_ref()
                                         .map(|token_discriminator| {
