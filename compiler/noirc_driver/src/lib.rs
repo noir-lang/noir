@@ -68,6 +68,10 @@ pub struct CompileOptions {
     #[arg(long)]
     pub print_acir: bool,
 
+    /// Pretty print benchmark times of each code generation pass
+    #[arg(long, hide = true)]
+    pub benchmark_codegen: bool,
+
     /// Treat all warnings as errors
     #[arg(long, conflicts_with = "silence_warnings")]
     pub deny_warnings: bool,
@@ -478,8 +482,13 @@ pub fn compile_no_check(
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
     let visibility = program.return_visibility;
-    let (circuit, debug, input_witnesses, return_witnesses, warnings) =
-        create_circuit(program, options.show_ssa, options.show_brillig, options.force_brillig)?;
+    let (circuit, debug, input_witnesses, return_witnesses, warnings) = create_circuit(
+        program,
+        options.show_ssa,
+        options.show_brillig,
+        options.force_brillig,
+        options.benchmark_codegen,
+    )?;
 
     let abi =
         abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses, visibility);
