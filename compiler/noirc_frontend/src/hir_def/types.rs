@@ -589,6 +589,7 @@ impl Type {
                 TypeBinding::Bound(binding) => binding.is_bindable(),
                 TypeBinding::Unbound(_) => true,
             },
+            Type::Alias(alias, args) => alias.borrow().get_type(args).is_bindable(),
             _ => false,
         }
     }
@@ -603,6 +604,15 @@ impl Type {
 
     pub fn is_unsigned(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
+    }
+
+    pub fn is_numeric(&self) -> bool {
+        use Type::*;
+        use TypeVariableKind as K;
+        matches!(
+            self.follow_bindings(),
+            FieldElement | Integer(..) | Bool | TypeVariable(_, K::Integer | K::IntegerOrField)
+        )
     }
 
     fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
