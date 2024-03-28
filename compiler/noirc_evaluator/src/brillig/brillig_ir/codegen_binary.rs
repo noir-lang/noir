@@ -1,4 +1,4 @@
-use acvm::acir::brillig::{MemoryAddress, Value};
+use acvm::{acir::brillig::MemoryAddress, FieldElement};
 
 use super::{instructions::BrilligBinaryOp, BrilligContext};
 
@@ -21,7 +21,7 @@ impl BrilligContext {
         op: BrilligBinaryOp,
         constant: usize,
     ) {
-        let const_register = self.make_usize_constant_instruction(Value::from(constant));
+        let const_register = self.make_usize_constant_instruction(FieldElement::from(constant));
         self.memory_op_instruction(operand, const_register.address, destination, op);
         // Mark as no longer used for this purpose, frees for reuse
         self.deallocate_single_addr(const_register);

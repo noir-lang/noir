@@ -453,7 +453,8 @@ impl BrilligContext {
 
 #[cfg(test)]
 mod tests {
-    use acvm::brillig_vm::brillig::Value;
+
+    use acvm::FieldElement;
 
     use crate::brillig::brillig_ir::{
         artifact::BrilligParameter,
@@ -464,12 +465,12 @@ mod tests {
     #[test]
     fn entry_point_with_nested_array_parameter() {
         let calldata = vec![
-            Value::from(1_usize),
-            Value::from(2_usize),
-            Value::from(3_usize),
-            Value::from(4_usize),
-            Value::from(5_usize),
-            Value::from(6_usize),
+            FieldElement::from(1_usize),
+            FieldElement::from(2_usize),
+            FieldElement::from(3_usize),
+            FieldElement::from(4_usize),
+            FieldElement::from(5_usize),
+            FieldElement::from(6_usize),
         ];
         let arguments = vec![BrilligParameter::Array(
             vec![
@@ -496,18 +497,18 @@ mod tests {
         let (vm, return_data_offset, return_data_size) =
             create_and_run_vm(calldata.clone(), &bytecode);
         assert_eq!(return_data_size, 1, "Return data size is incorrect");
-        assert_eq!(vm.get_memory()[return_data_offset], Value::from(1_usize));
+        assert_eq!(vm.get_memory()[return_data_offset].value, FieldElement::from(1_usize));
     }
 
     #[test]
     fn entry_point_with_nested_array_return() {
         let flattened_array = vec![
-            Value::from(1_usize),
-            Value::from(2_usize),
-            Value::from(3_usize),
-            Value::from(4_usize),
-            Value::from(5_usize),
-            Value::from(6_usize),
+            FieldElement::from(1_usize),
+            FieldElement::from(2_usize),
+            FieldElement::from(3_usize),
+            FieldElement::from(4_usize),
+            FieldElement::from(5_usize),
+            FieldElement::from(6_usize),
         ];
         let array_param = BrilligParameter::Array(
             vec![
@@ -536,7 +537,10 @@ mod tests {
         let memory = vm.get_memory();
 
         assert_eq!(
-            memory[return_data_pointer..(return_data_pointer + flattened_array.len())],
+            memory[return_data_pointer..(return_data_pointer + flattened_array.len())]
+                .iter()
+                .map(|mem_val| mem_val.value)
+                .collect::<Vec<_>>(),
             flattened_array
         );
         assert_eq!(return_data_size, flattened_array.len());

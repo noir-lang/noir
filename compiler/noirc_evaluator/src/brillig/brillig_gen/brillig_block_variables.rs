@@ -2,7 +2,10 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
     brillig::brillig_ir::{
-        brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
+        brillig_variable::{
+            get_bit_size_from_ssa_type, BrilligArray, BrilligVariable, BrilligVector,
+            SingleAddrVariable,
+        },
         BrilligContext,
     },
     ssa::ir::{
@@ -13,7 +16,7 @@ use crate::{
     },
 };
 
-use super::brillig_fn::{get_bit_size_from_ssa_type, FunctionContext};
+use super::brillig_fn::FunctionContext;
 
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
