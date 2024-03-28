@@ -1283,11 +1283,7 @@ mod tests {
 
                         assert!(
                             expected_token_found,
-                            "{}",
-                            format!(
-                                "expected token not found: {:?}\noutput:\n{:?}",
-                                token_discriminator_opt, result_tokens
-                            )
+                            "expected token not found: {token_discriminator_opt:?}\noutput:\n{result_tokens:?}",
                         );
                     })
                 },
