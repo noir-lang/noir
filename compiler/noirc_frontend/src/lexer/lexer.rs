@@ -1248,7 +1248,7 @@ mod tests {
         for blns_base64_str in blns_base64 {
             let statements = blns_base64_to_statements(blns_base64_str);
             for (token_discriminator_opt, blns_program_strs) in statements {
-                    blns_program_strs.into_iter().for_each(|blns_program_str| {
+                for blns_program_str in blns_program_strs {
                         let mut expected_token_found = false;
                         let mut lexer = Lexer::new(&blns_program_str);
                         let mut result_tokens = Vec::new();
