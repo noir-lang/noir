@@ -8,7 +8,6 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeSet;
-use std::time::Instant;
 
 use crate::{
     brillig::Brillig,
@@ -68,12 +67,13 @@ pub(crate) fn optimize_into_acir(
             .finish();
 
     // For pretty printing the Brillig codegen time
-    let now = Instant::now();
+    let start_time = chrono::Utc::now().time();
 
     let brillig = ssa.to_brillig(print_brillig_trace);
 
     if print_codegen_timings {
-        println!("SSA to Brillig: {} ms", now.elapsed().as_millis());
+        let end_time = chrono::Utc::now().time();
+        println!("SSA to Brillig: {} ms", (end_time - start_time).num_milliseconds());
     }
 
     drop(ssa_gen_span_guard);
@@ -81,12 +81,13 @@ pub(crate) fn optimize_into_acir(
     let last_array_uses = ssa.find_last_array_uses();
 
     // For pretty printing the ACIR codegen time
-    let now = Instant::now();
+    let start_time = chrono::Utc::now().time();
 
     let acir = ssa.into_acir(brillig, abi_distinctness, &last_array_uses);
 
     if print_codegen_timings {
-        println!("SSA to ACIR: {} ms", now.elapsed().as_millis());
+        let end_time = chrono::Utc::now().time();
+        println!("SSA to ACIR: {} ms", (end_time - start_time).num_milliseconds());
     }
 
     acir
@@ -217,10 +218,11 @@ impl SsaBuilder {
 
     /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
     fn run_pass(mut self, pass: fn(Ssa) -> Ssa, msg: &str) -> Self {
-        let now = Instant::now();
+        let start_time = chrono::Utc::now().time();
         self.ssa = pass(self.ssa);
         if self.print_codegen_timings {
-            println!("{msg}: {} ms", now.elapsed().as_millis());
+            let end_time = chrono::Utc::now().time();
+            println!("{msg}: {} ms", (end_time - start_time).num_milliseconds());
         }
         self.print(msg)
     }
@@ -231,10 +233,11 @@ impl SsaBuilder {
         pass: fn(Ssa) -> Result<Ssa, RuntimeError>,
         msg: &str,
     ) -> Result<Self, RuntimeError> {
-        let now = Instant::now();
+        let start_time = chrono::Utc::now().time();
         self.ssa = pass(self.ssa)?;
         if self.print_codegen_timings {
-            println!("{msg}: {} ms", now.elapsed().as_millis());
+            let end_time = chrono::Utc::now().time();
+            println!("{msg}: {} ms", (end_time - start_time).num_milliseconds());
         }
         Ok(self.print(msg))
     }
