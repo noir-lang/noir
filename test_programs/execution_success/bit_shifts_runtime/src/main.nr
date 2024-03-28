@@ -7,7 +7,7 @@ fn main(x: u64, y: u64) {
     assert(x >> y == 32);
 
     // Bit-shift with signed integers
-    let mut a :i8 = y as i8;
+    let mut a: i8 = y as i8;
     let mut b: i8 = x as i8;
     assert(b << 1 == -128);
     assert(b >> 2 == 16);
