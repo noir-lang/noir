@@ -1,15 +1,15 @@
 ---
-title: Noir Codegen for Typescript
-description: Learn how to use Noir codegen to generate Typescript bindings 
+title: Noir Codegen for TypeScript
+description: Learn how to use Noir codegen to generate TypeScript bindings 
 keywords: [Nargo, Noir, compile, TypeScript]
 sidebar_position: 2
 ---
 
-When using typescript, it is extra work to interpret Noir program outputs in a type-safe way. Third party libraries may exist for popular Noir programs, but they are either hard to find or unmaintained.
+When using TypeScript, it is extra work to interpret Noir program outputs in a type-safe way. Third party libraries may exist for popular Noir programs, but they are either hard to find or unmaintained.
 
-Now you can generate typescript bindings for your Noir programs in two steps: 
+Now you can generate TypeScript bindings for your Noir programs in two steps: 
 1. Exporting Noir functions using `nargo export`
-2. Using the typescript module `noir_codegen` to generate typescript binding
+2. Using the TypeScript module `noir_codegen` to generate TypeScript binding
 
 **Note:** you can only export functions from a Noir *library* (not binary or contract program types).
 
@@ -77,7 +77,7 @@ yarn noir-codegen ./export/your_function.json
 
 This creates an `exports` directory with an `index.ts` file containing all exported functions.
 
-**Note:** adding `--out-dir` allows you to specify an output dir for your Typescript bindings to go. Eg:
+**Note:** adding `--out-dir` allows you to specify an output dir for your TypeScript bindings to go. Eg:
 
 ```bash
 yarn noir-codegen ./export/*.json --out-dir ./path/to/output/dir
@@ -110,4 +110,4 @@ export async function is_equal(x: Field, y: Field, foreignCallHandler?: ForeignC
 }
 ```
 
-Now the `is_equal()` function and relevant types are readily available for use in Typescript.
+Now the `is_equal()` function and relevant types are readily available for use in TypeScript.
