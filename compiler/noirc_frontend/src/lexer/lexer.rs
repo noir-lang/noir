@@ -29,7 +29,7 @@ impl<'a> Lexer<'a> {
         let mut tokens = vec![];
         let mut errors = vec![];
         for result in lexer {
-            match result {
+            match to_spanned_token_result(result) {
                 Ok(token) => tokens.push(token),
                 Err(error) => errors.push(error),
             }
@@ -568,16 +568,33 @@ impl<'a> Lexer<'a> {
     }
 }
 
+
+// TODO: are these needed? if not, cleanup
+fn to_spanned_token_result(x: Result<(usize, Token, usize), LexerErrorKind>) -> SpannedTokenResult {
+    x.map(|(start, token, end)| {
+        let span: Span = (start as u32..end as u32).into();
+        SpannedToken::new(token, span)
+    })
+}
+fn from_spanned_token_result(x: SpannedTokenResult) -> Result<(usize, Token, usize), LexerErrorKind> {
+    x.map(|spanned_token| {
+        (spanned_token.to_span().start() as usize, spanned_token.clone().into(), spanned_token.to_span().end() as usize)
+    })
+}
+
 impl<'a> Iterator for Lexer<'a> {
-    type Item = SpannedTokenResult;
+    // type Item = SpannedTokenResult;
+    type Item = Result<(usize, Token, usize), LexerErrorKind>;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
             None
         } else {
-            Some(self.next_token())
+            Some(from_spanned_token_result(self.next_token()))
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1092,28 +1109,31 @@ mod tests {
     #[test]
     fn test_lalrpop() {
         use lalrpop_util::lalrpop_mod;
-
-        // let input = "
-        //     let five = 5;
-        //     let ten : Field = 10;
-        //     let mul = fn(x, y) {
-        //         x * y;
-        //     };
-        //     constrain mul(five, ten) == 50;
-        //     assert(ten + five == 15);
-        // ";
-
-        // lalrpop_mod!(pub noir_parser, "/lexer/noir_parser.rs"); // synthesized by LALRPOP
         lalrpop_mod!(pub noir_parser); // synthesized by LALRPOP
 
+        // let input = "<";
+        // let mut test_lexer = Lexer::new(input);
+        // assert_eq!(test_lexer.next(), Some(Ok((0, Token::Less, 1))));
+        // assert_eq!(test_lexer.next(), Some(Ok((0, Token::EOF, 1))));
+        // assert_eq!(test_lexer.next(), None);
+
         // let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
-        let input = "23314";
+        // let input = "23314";
+        let input = "true";
+        let mut lexer = Lexer::new(input);
 
-        let mut errors = Vec::new();
-        let calculated = noir_parser::TermParser::new().parse(&mut errors, input);
-        assert!(calculated == Ok(Token::Int(23314_i128.into())), "{:?}", calculated);
+        // let mut errors = Vec::new();
+        // let calculated = noir_parser::TermParser::new().parse(&mut errors, lexer);
 
+        let mut test_lexer = Lexer::new(input);
+        assert_eq!(test_lexer.next(), Some(Ok((0, Token::Bool(true), 4))));
+        assert_eq!(test_lexer.next(), Some(Ok((3, Token::EOF, 4))));
+        assert_eq!(test_lexer.next(), None);
 
+        let calculated = noir_parser::TermParser::new().parse(lexer);
+        // assert!(calculated == Ok(Token::Int(23314_i128.into())), "{:?}", calculated);
+        // assert!(calculated.is_ok(), "{:?}", calculated);
+        assert_eq!(calculated, Ok(Token::Bool(true)), "{:?}", calculated);
 
     }
 
