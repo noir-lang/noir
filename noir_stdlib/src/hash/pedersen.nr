@@ -1,4 +1,4 @@
-use crate::hash::{Hasher, pedersen_hash_slice};
+use crate::hash::Hasher;
 use crate::default::Default;
 
 struct PedersenHasher{
@@ -7,7 +7,8 @@ struct PedersenHasher{
 
 impl Hasher for PedersenHasher {
     fn finish(self) -> Field {
-       pedersen_hash_slice(self._state)
+        // Error here! No pedersen_hash_slice anymore
+        pedersen_hash_slice(self._state)
     }
 
     fn write(&mut self, input: [Field]){
