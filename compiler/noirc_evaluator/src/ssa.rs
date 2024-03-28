@@ -77,10 +77,7 @@ pub(crate) fn optimize_into_acir(
 }
 
 // Helper to time SSA passes
-fn time<F, T>(name: &str, print_timings: bool, f: F) -> T
-where
-    F: FnOnce() -> T,
-{
+fn time<T>(name: &str, print_timings: bool, f: impl FnOnce() -> T) -> T {
     let start_time = chrono::Utc::now().time();
     let result = f();
 
