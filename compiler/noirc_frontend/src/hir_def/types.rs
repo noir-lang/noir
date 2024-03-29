@@ -543,11 +543,11 @@ impl TypeBinding {
 pub struct TypeVariableId(pub usize);
 
 impl Type {
-    pub fn default_int_type() -> Type {
+    pub fn default_int_or_field_type() -> Type {
         Type::FieldElement
     }
 
-    pub fn default_range_loop_type() -> Type {
+    pub fn default_int_type() -> Type {
         Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour)
     }
 
@@ -787,7 +787,7 @@ impl std::fmt::Display for Type {
             Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{}", var.borrow()),
             Type::TypeVariable(binding, TypeVariableKind::Integer) => {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    write!(f, "{}", TypeVariableKind::Integer.default_type())
+                    write!(f, "{}", Type::default_int_type())
                 } else {
                     write!(f, "{}", binding.borrow())
                 }
@@ -1706,11 +1706,12 @@ impl BinaryTypeOperator {
 impl TypeVariableKind {
     /// Returns the default type this type variable should be bound to if it is still unbound
     /// during monomorphization.
-    pub(crate) fn default_type(&self) -> Type {
+    pub(crate) fn default_type(&self) -> Option<Type> {
         match self {
-            TypeVariableKind::IntegerOrField | TypeVariableKind::Normal => Type::default_int_type(),
-            TypeVariableKind::Integer => Type::default_range_loop_type(),
-            TypeVariableKind::Constant(length) => Type::Constant(*length),
+            TypeVariableKind::IntegerOrField => Some(Type::default_int_or_field_type()),
+            TypeVariableKind::Integer => Some(Type::default_int_type()),
+            TypeVariableKind::Constant(length) => Some(Type::Constant(*length)),
+            TypeVariableKind::Normal => None,
         }
     }
 }
@@ -1744,12 +1745,12 @@ impl From<&Type> for PrintableType {
             },
             Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.into(),
-                TypeBinding::Unbound(_) => Type::default_range_loop_type().into(),
+                TypeBinding::Unbound(_) => Type::default_int_type().into(),
             },
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
                 match &*binding.borrow() {
                     TypeBinding::Bound(typ) => typ.into(),
-                    TypeBinding::Unbound(_) => Type::default_int_type().into(),
+                    TypeBinding::Unbound(_) => Type::default_int_or_field_type().into(),
                 }
             }
             Type::Bool => PrintableType::Boolean,
