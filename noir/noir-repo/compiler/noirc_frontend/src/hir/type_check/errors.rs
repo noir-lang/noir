@@ -315,7 +315,7 @@ impl From<TypeCheckError> for Diagnostic {
             }
             TypeCheckError::InvalidTypeForEntryPoint { span } => Diagnostic::simple_error(
                 "Only sized types may be used in the entry point to a program".to_string(),
-                "Slices, references, or any type containing them may not be used in main or a contract function".to_string(), span),
+                "Slices, references, or any type containing them may not be used in main, contract functions, or foldable functions".to_string(), span),
             TypeCheckError::MismatchTraitImplNumParameters {
                 expected_num_parameters,
                 actual_num_parameters,

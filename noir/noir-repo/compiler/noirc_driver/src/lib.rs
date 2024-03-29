@@ -3,13 +3,13 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use acvm::acir::circuit::{ExpressionWidth, Program};
+use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
-use noirc_evaluator::create_circuit;
+use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::graph::{CrateId, CrateName};
@@ -478,18 +478,23 @@ pub fn compile_no_check(
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
     let visibility = program.return_visibility;
-    let (circuit, debug, input_witnesses, return_witnesses, warnings) =
-        create_circuit(program, options.show_ssa, options.show_brillig, options.force_brillig)?;
+
+    let (program, debug, warnings, input_witnesses, return_witnesses) =
+        create_program(program, options.show_ssa, options.show_brillig, options.force_brillig)?;
 
     let abi =
         abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses, visibility);
-    let file_map = filter_relevant_files(&[debug.clone()], &context.file_manager);
+    let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {
         hash,
         // TODO(https://github.com/noir-lang/noir/issues/4428)
-        program: Program { functions: vec![circuit] },
-        debug,
+        program,
+        // TODO(https://github.com/noir-lang/noir/issues/4428)
+        // Debug info is only relevant for errors at execution time which is not yet supported
+        // The CompileProgram `debug` field is used in multiple places and is better
+        // left to be updated once execution of multiple ACIR functions is enabled
+        debug: debug[0].clone(),
         abi,
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),

@@ -1334,6 +1334,7 @@ workflows:
           <<: *defaults
       - noir-packages-tests:
           requires:
+            - bb-js
             - noir-ecr-manifest
             - noir-packages
           <<: *defaults

@@ -727,6 +727,16 @@ mod tests {
     }
 
     #[test]
+    fn fold_attribute() {
+        let input = r#"#[fold]"#;
+
+        let mut lexer = Lexer::new(input);
+        let token = lexer.next_token().unwrap();
+
+        assert_eq!(token.token(), &Token::Attribute(Attribute::Function(FunctionAttribute::Fold)));
+    }
+
+    #[test]
     fn contract_library_method_attribute() {
         let input = r#"#[contract_library_method]"#;
         let mut lexer = Lexer::new(input);

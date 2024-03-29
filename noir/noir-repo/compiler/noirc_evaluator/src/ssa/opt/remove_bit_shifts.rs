@@ -20,7 +20,9 @@ impl Ssa {
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_bit_shifts(mut self) -> Ssa {
-        remove_bit_shifts(self.main_mut());
+        for function in self.functions.values_mut() {
+            remove_bit_shifts(function);
+        }
         self
     }
 }
