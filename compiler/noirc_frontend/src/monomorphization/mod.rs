@@ -860,8 +860,10 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
                 let element = Box::new(Self::convert_type(element.as_ref(), location)?);
-                // TODO: convert to MonomorphizationError
-                let length = length.evaluate_to_u64().unwrap_or(0);
+                let length = match length.evaluate_to_u64() {
+                    Some(length) => length,
+                    None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                };
                 ast::Type::Array(length, element)
             }
             HirType::Slice(element) => {
