@@ -160,7 +160,7 @@ fn check_if_type_is_valid_for_program_input(
     errors: &mut Vec<TypeCheckError>,
 ) {
     let meta = type_checker.interner.function_meta(&func_id);
-    if meta.is_entry_point && !param.1.is_valid_for_program_input() {
+    if (meta.is_entry_point || meta.should_fold) && !param.1.is_valid_for_program_input() {
         let span = param.0.span();
         errors.push(TypeCheckError::InvalidTypeForEntryPoint { span });
     }
@@ -503,6 +503,7 @@ mod test {
             trait_constraints: Vec::new(),
             direct_generics: Vec::new(),
             is_entry_point: true,
+            should_fold: false,
         };
         interner.push_fn_meta(func_meta, func_id);
 
@@ -561,12 +562,7 @@ mod test {
 
         "#;
 
-        let expected_num_errors = 0;
-        type_check_src_code_errors_expected(
-            src,
-            expected_num_errors,
-            vec![String::from("main"), String::from("foo")],
-        );
+        type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
     }
     #[test]
     fn basic_closure() {
@@ -591,6 +587,19 @@ mod test {
 
         type_check_src_code(src, vec![String::from("main")]);
     }
+
+    #[test]
+    fn fold_entry_point() {
+        let src = r#"
+            #[fold]
+            fn fold(x: &mut Field) -> Field {
+                *x
+            }
+        "#;
+
+        type_check_src_code_errors_expected(src, vec![String::from("fold")], 1);
+    }
+
     // This is the same Stub that is in the resolver, maybe we can pull this out into a test module and re-use?
     struct TestPathResolver(HashMap<String, ModuleDefId>);
 
@@ -624,15 +633,15 @@ mod test {
     }
 
     fn type_check_src_code(src: &str, func_namespace: Vec<String>) {
-        type_check_src_code_errors_expected(src, 0, func_namespace);
+        type_check_src_code_errors_expected(src, func_namespace, 0);
     }
 
     // This function assumes that there is only one function and this is the
     // func id that is returned
     fn type_check_src_code_errors_expected(
         src: &str,
-        expected_number_errors: usize,
         func_namespace: Vec<String>,
+        expected_num_type_check_errs: usize,
     ) {
         let (program, errors) = parse_program(src);
         let mut interner = NodeInterner::default();
@@ -640,9 +649,8 @@ mod test {
 
         assert_eq!(
             errors.len(),
-            expected_number_errors,
-            "expected {} errors, but got {}, errors: {:?}",
-            expected_number_errors,
+            0,
+            "expected 0 parser errors, but got {}, errors: {:?}",
             errors.len(),
             errors
         );
@@ -688,6 +696,13 @@ mod test {
 
         // Type check section
         let errors = super::type_check_func(&mut interner, func_ids.first().cloned().unwrap());
-        assert_eq!(errors, vec![]);
+        assert_eq!(
+            errors.len(),
+            expected_num_type_check_errs,
+            "expected {} type check errors, but got {}, errors: {:?}",
+            expected_num_type_check_errs,
+            errors.len(),
+            errors
+        );
     }
 }

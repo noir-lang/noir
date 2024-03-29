@@ -99,8 +99,8 @@ impl std::fmt::Display for Opcode {
             }
             Opcode::Call { id, inputs, outputs } => {
                 write!(f, "CALL func {}: ", id)?;
-                writeln!(f, "inputs: {:?}", inputs)?;
-                writeln!(f, "outputs: {:?}", outputs)
+                write!(f, "inputs: {:?}, ", inputs)?;
+                write!(f, "outputs: {:?}", outputs)
             }
         }
     }

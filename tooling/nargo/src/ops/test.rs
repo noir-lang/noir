@@ -1,4 +1,7 @@
-use acvm::{acir::native_types::WitnessMap, BlackBoxFunctionSolver};
+use acvm::{
+    acir::native_types::{WitnessMap, WitnessStack},
+    BlackBoxFunctionSolver,
+};
 use noirc_driver::{compile_no_check, CompileError, CompileOptions};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_evaluator::errors::RuntimeError;
@@ -6,7 +9,7 @@ use noirc_frontend::hir::{def_map::TestFunction, Context};
 
 use crate::{errors::try_to_diagnose_runtime_error, NargoError};
 
-use super::{execute_circuit, DefaultForeignCallExecutor};
+use super::{execute_program, DefaultForeignCallExecutor};
 
 pub enum TestStatus {
     Pass,
@@ -33,9 +36,8 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
         Ok(compiled_program) => {
             // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
             // otherwise constraints involving these expressions will not error.
-            let circuit_execution = execute_circuit(
-                // TODO(https://github.com/noir-lang/noir/issues/4428)
-                &compiled_program.program.functions[0],
+            let circuit_execution = execute_program(
+                &compiled_program.program,
                 WitnessMap::new(),
                 blackbox_solver,
                 &mut DefaultForeignCallExecutor::new(show_output, foreign_call_resolver_url),
@@ -83,7 +85,7 @@ fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunct
 fn test_status_program_compile_pass(
     test_function: &TestFunction,
     debug: DebugInfo,
-    circuit_execution: Result<WitnessMap, NargoError>,
+    circuit_execution: Result<WitnessStack, NargoError>,
 ) -> TestStatus {
     let circuit_execution_err = match circuit_execution {
         // Circuit execution was successful; ie no errors or unsatisfied constraints

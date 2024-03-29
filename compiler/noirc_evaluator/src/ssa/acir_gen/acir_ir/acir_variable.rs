@@ -1757,6 +1757,30 @@ impl AcirContext {
         }
         Ok(())
     }
+
+    pub(crate) fn call_acir_function(
+        &mut self,
+        id: u32,
+        inputs: Vec<AcirValue>,
+        output_count: usize,
+    ) -> Result<Vec<AcirVar>, RuntimeError> {
+        let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
+        let inputs = inputs
+            .iter()
+            .flat_map(|input| vecmap(input, |input| input.witness))
+            .collect::<Vec<_>>();
+        let outputs = vecmap(0..output_count, |_| self.acir_ir.next_witness_index());
+
+        // Convert `Witness` values which are now constrained to be the output of the
+        // ACIR function call into `AcirVar`s.
+        // Similar to black box functions, we do not apply range information on the output of the  function.
+        // See issue https://github.com/noir-lang/noir/issues/1439
+        let results =
+            vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
+
+        self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs });
+        Ok(results)
+    }
 }
 
 /// Enum representing the possible values that a

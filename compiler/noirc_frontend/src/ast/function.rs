@@ -108,6 +108,7 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
             Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
             Some(FunctionAttribute::Recursive) => FunctionKind::Recursive,
+            Some(FunctionAttribute::Fold) => FunctionKind::Normal,
             None => FunctionKind::Normal,
         };
 

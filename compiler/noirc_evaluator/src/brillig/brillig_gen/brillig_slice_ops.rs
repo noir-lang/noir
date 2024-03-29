@@ -373,8 +373,9 @@ mod tests {
     use crate::ssa::ssa_gen::Ssa;
 
     fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext) {
-        let builder =
-            FunctionBuilder::new("main".to_string(), Id::test_new(0), RuntimeType::Brillig);
+        let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
+        builder.set_runtime(RuntimeType::Brillig);
+
         let ssa = builder.finish();
         let mut brillig_context = create_context();
 
