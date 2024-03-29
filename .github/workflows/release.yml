@@ -78,7 +78,7 @@ jobs:
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
-      
+
       - name: Install wasm-bindgen-cli
         uses: taiki-e/install-action@v2
         with:
