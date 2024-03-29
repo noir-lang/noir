@@ -429,7 +429,8 @@ impl<'interner> TypeChecker<'interner> {
                             let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
                             let mut name = r#trait.name.to_string();
                             if !constraint.trait_generics.is_empty() {
-                                let generics = vecmap(&constraint.trait_generics, ToString::to_string);
+                                let generics =
+                                    vecmap(&constraint.trait_generics, ToString::to_string);
                                 name += &format!("<{}>", generics.join(", "));
                             }
                             Some((constraint.typ, name))
@@ -1102,19 +1103,20 @@ impl<'interner> TypeChecker<'interner> {
 
         let use_impl = !lhs_type.is_numeric();
 
-        // if the type variable is an integer or field we have to narrow it to only an integer
+        // If this operator isn't valid for fields we have to possibly narrow
+        // TypeVariableKind::IntegerOrField to TypeVariableKind::Integer.
+        // Doing so also ensures a type error if Field is used.
+        // The is_numeric check is to allow impls for custom types to bypass this.
         if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric() {
-            // In addition to unifying both types, we also have to bind either
-            // the lhs or rhs to an integer type variable. This ensures if both lhs
-            // and rhs are type variables, that they will have the correct integer
-            // type variable kind instead of TypeVariableKind::Normal.
-            let target = self.polymorphic_integer();
+            let target = Type::polymorphic_integer(self.interner);
 
-            self.unify(lhs_type, &target, || TypeCheckError::TypeMismatchWithSource {
-                expected: lhs_type.clone(),
-                actual: rhs_type.clone(),
-                source: Source::Binary,
-                span,
+            use BinaryOpKind::*;
+            use TypeCheckError::*;
+            self.unify(lhs_type, &target, || match op.kind {
+                Less | LessEqual | Greater | GreaterEqual => FieldComparison { span },
+                And | Or | Xor | ShiftRight | ShiftLeft => FieldBitwiseOp { span },
+                Modulo => FieldModulo { span },
+                other => unreachable!("Operator {other:?} should be valid for Field"),
             });
         }
 
@@ -1178,7 +1180,7 @@ impl<'interner> TypeChecker<'interner> {
                     if op.kind == BinaryOpKind::Modulo {
                         return Err(TypeCheckError::FieldModulo { span });
                     } else {
-                        return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
+                        return Err(TypeCheckError::FieldBitwiseOp { span });
                     }
                 }
                 Ok((FieldElement, false))

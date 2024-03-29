@@ -116,6 +116,7 @@ jobs:
     if: ${{ always() }}
     
     needs:
+      - release-please
       - update-acvm-workspace-package-versions
       - update-docs
 
@@ -127,6 +128,8 @@ jobs:
       - name: Add warning to sticky comment
         uses: marocchino/sticky-pull-request-comment@v2
         with:
+          # We need to specify the PR on which to make the comment as workflow is triggered by push.
+          number: ${{ fromJSON(needs.release-please.outputs.release-pr).number }}
           # delete the comment in case failures have been fixed
           delete: ${{ !env.FAIL }}
           message: "The release workflow has not completed successfully. Releasing now will result in a broken release"
