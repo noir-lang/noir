@@ -234,9 +234,9 @@ impl<'a> ValueMerger<'a> {
     /// such as with dynamic indexing of non-homogenous slices.
     fn make_slice_dummy_data(&mut self, typ: &Type) -> ValueId {
         match typ {
-            Type::Numeric(_) => {
+            Type::Numeric(numeric_type) => {
                 let zero = FieldElement::zero();
-                self.dfg.make_constant(zero, Type::field())
+                self.dfg.make_constant(zero, Type::Numeric(*numeric_type))
             }
             Type::Array(element_types, len) => {
                 let mut array = im::Vector::new();

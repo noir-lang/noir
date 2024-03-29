@@ -301,7 +301,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let should_fold = meta.should_fold;
 
-        let parameters = self.parameters(&meta.parameters);
+        let parameters = self.parameters(&meta.parameters)?;
         let body = self.expr(body_expr_id)?;
         let function = ast::Function {
             id,

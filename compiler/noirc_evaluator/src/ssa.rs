@@ -41,6 +41,7 @@ pub(crate) fn optimize_into_acir(
     print_passes: bool,
     print_brillig_trace: bool,
     force_brillig_output: bool,
+    print_timings: bool,
 ) -> Result<Vec<GeneratedAcir>, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
 
@@ -70,7 +71,22 @@ pub(crate) fn optimize_into_acir(
 
     let last_array_uses = ssa.find_last_array_uses();
 
-    ssa.into_acir(&brillig, abi_distinctness, &last_array_uses)
+    time("SSA to ACIR", print_timings, || {
+        ssa.into_acir(&brillig, abi_distinctness, &last_array_uses)
+    })
+}
+
+// Helper to time SSA passes
+fn time<T>(name: &str, print_timings: bool, f: impl FnOnce() -> T) -> T {
+    let start_time = chrono::Utc::now().time();
+    let result = f();
+
+    if print_timings {
+        let end_time = chrono::Utc::now().time();
+        println!("{name}: {} ms", (end_time - start_time).num_milliseconds());
+    }
+
+    result
 }
 
 /// Compiles the [`Program`] into [`ACIR``][acvm::acir::circuit::Program].
@@ -83,6 +99,7 @@ pub fn create_program(
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
     force_brillig_output: bool,
+    print_codegen_timings: bool,
 ) -> Result<(AcirProgram, Vec<DebugInfo>, Vec<SsaReport>, Vec<Witness>, Vec<Witness>), RuntimeError>
 {
     let debug_variables = program.debug_variables.clone();
@@ -127,7 +144,6 @@ pub fn create_program(
         debug_infos.push(debug_info);
         warning_infos.extend(warnings);
         if is_main {
-            // main_input_witness = circuit.re
             main_input_witnesses = input_witnesses;
             main_return_witnesses = return_witnesses;
         }
