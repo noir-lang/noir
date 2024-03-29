@@ -1,14 +1,14 @@
 use std::io::{self, Write};
 
 use acir::circuit::Program;
-use acir::native_types::WitnessMap;
+use acir::native_types::{WitnessMap, WitnessStack};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use crate::cli::fs::inputs::{read_bytecode_from_file, read_inputs_from_file};
 use crate::cli::fs::witness::save_witness_to_dir;
 use crate::errors::CliError;
-use nargo::ops::{execute_circuit, DefaultForeignCallExecutor};
+use nargo::ops::{execute_program, DefaultForeignCallExecutor};
 
 use super::fs::witness::create_output_witness_string;
 
@@ -39,8 +39,11 @@ pub(crate) struct ExecuteCommand {
 fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
     let bytecode = read_bytecode_from_file(&args.working_directory, &args.bytecode)?;
     let circuit_inputs = read_inputs_from_file(&args.working_directory, &args.input_witness)?;
-    let output_witness = execute_program_from_witness(&circuit_inputs, &bytecode, None)?;
-    let output_witness_string = create_output_witness_string(&output_witness)?;
+    let output_witness = execute_program_from_witness(circuit_inputs, &bytecode, None)?;
+    assert_eq!(output_witness.length(), 1, "ACVM CLI only supports a witness stack of size 1");
+    let output_witness_string = create_output_witness_string(
+        &output_witness.peek().expect("Should have a witness stack item").witness,
+    )?;
     if args.output_witness.is_some() {
         save_witness_to_dir(
             &output_witness_string,
@@ -61,16 +64,16 @@ pub(crate) fn run(args: ExecuteCommand) -> Result<String, CliError> {
 }
 
 pub(crate) fn execute_program_from_witness(
-    inputs_map: &WitnessMap,
+    inputs_map: WitnessMap,
     bytecode: &[u8],
     foreign_call_resolver_url: Option<&str>,
-) -> Result<WitnessMap, CliError> {
+) -> Result<WitnessStack, CliError> {
     let blackbox_solver = Bn254BlackBoxSolver::new();
     let program: Program = Program::deserialize_program(bytecode)
         .map_err(|_| CliError::CircuitDeserializationError())?;
-    execute_circuit(
-        &program.functions[0],
-        inputs_map.clone(),
+    execute_program(
+        &program,
+        inputs_map,
         &blackbox_solver,
         &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),
     )

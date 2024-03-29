@@ -11,7 +11,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::{CallStack, InsertInstructionResult},
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, FunctionId, InlineType, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
@@ -94,12 +94,13 @@ struct PerFunctionContext<'function> {
 }
 
 /// The entry point functions are each function we should inline into - and each function that
-/// should be left in the final program. This is usually just `main` but also includes any
-/// brillig functions used.
+/// should be left in the final program.
+/// This is the `main` function, any Acir functions with a [fold inline type][InlineType::Fold],
+/// and any brillig functions used.
 fn get_entry_point_functions(ssa: &Ssa) -> BTreeSet<FunctionId> {
     let functions = ssa.functions.iter();
     let mut entry_points = functions
-        .filter(|(_, function)| function.runtime() == RuntimeType::Brillig)
+        .filter(|(_, function)| function.runtime().is_entry_point())
         .map(|(id, _)| *id)
         .collect::<BTreeSet<_>>();
 
@@ -115,7 +116,8 @@ impl InlineContext {
     /// that could not be inlined calling it.
     fn new(ssa: &Ssa, entry_point: FunctionId) -> InlineContext {
         let source = &ssa.functions[&entry_point];
-        let builder = FunctionBuilder::new(source.name().to_owned(), entry_point, source.runtime());
+        let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
+        builder.set_runtime(source.runtime());
         Self { builder, recursion_level: 0, entry_point, call_stack: CallStack::new() }
     }
 
@@ -350,8 +352,12 @@ impl<'function> PerFunctionContext<'function> {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(function) => match ssa.functions[&function].runtime() {
-                        RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments),
-                        RuntimeType::Brillig => self.push_instruction(*id),
+                        RuntimeType::Acir(InlineType::Inline) => {
+                            self.inline_function(ssa, *id, function, arguments);
+                        }
+                        RuntimeType::Acir(InlineType::Fold) | RuntimeType::Brillig => {
+                            self.push_instruction(*id);
+                        }
                     },
                     None => self.push_instruction(*id),
                 },
@@ -517,7 +523,7 @@ mod test {
         function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
-            function::RuntimeType,
+            function::{InlineType, RuntimeType},
             instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -536,14 +542,14 @@ mod test {
         //     return 72
         // }
         let foo_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("foo".into(), foo_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
         let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
         builder.terminate_with_return(results);
 
-        builder.new_function("bar".into(), bar_id);
+        builder.new_function("bar".into(), bar_id, InlineType::default());
         let expected_return = 72u128;
         let seventy_two = builder.field_constant(expected_return);
         builder.terminate_with_return(vec![seventy_two]);
@@ -585,7 +591,7 @@ mod test {
         let id2_id = Id::test_new(3);
 
         // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
         let main_v0 = builder.add_parameter(Type::field());
 
         let main_f1 = builder.import_function(square_id);
@@ -598,18 +604,18 @@ mod test {
         builder.terminate_with_return(vec![main_v16]);
 
         // Compiling square f1
-        builder.new_function("square".into(), square_id);
+        builder.new_function("square".into(), square_id, InlineType::default());
         let square_v0 = builder.add_parameter(Type::field());
         let square_v2 = builder.insert_binary(square_v0, BinaryOp::Mul, square_v0);
         builder.terminate_with_return(vec![square_v2]);
 
         // Compiling id1 f2
-        builder.new_function("id1".into(), id1_id);
+        builder.new_function("id1".into(), id1_id, InlineType::default());
         let id1_v0 = builder.add_parameter(Type::Function);
         builder.terminate_with_return(vec![id1_v0]);
 
         // Compiling id2 f3
-        builder.new_function("id2".into(), id2_id);
+        builder.new_function("id2".into(), id2_id, InlineType::default());
         let id2_v0 = builder.add_parameter(Type::Function);
         builder.terminate_with_return(vec![id2_v0]);
 
@@ -641,7 +647,7 @@ mod test {
         //     return v4
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let factorial_id = Id::test_new(1);
         let factorial = builder.import_function(factorial_id);
@@ -650,7 +656,7 @@ mod test {
         let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).to_vec();
         builder.terminate_with_return(results);
 
-        builder.new_function("factorial".into(), factorial_id);
+        builder.new_function("factorial".into(), factorial_id, InlineType::default());
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
 
@@ -741,7 +747,7 @@ mod test {
         //     jmp b3(Field 2)
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let main_cond = builder.add_parameter(Type::bool());
         let inner1_id = Id::test_new(1);
@@ -751,14 +757,14 @@ mod test {
         builder.insert_call(assert_constant, vec![main_v2], vec![]);
         builder.terminate_with_return(vec![]);
 
-        builder.new_function("inner1".into(), inner1_id);
+        builder.new_function("inner1".into(), inner1_id, InlineType::default());
         let inner1_cond = builder.add_parameter(Type::bool());
         let inner2_id = Id::test_new(2);
         let inner2 = builder.import_function(inner2_id);
         let inner1_v2 = builder.insert_call(inner2, vec![inner1_cond], vec![Type::field()])[0];
         builder.terminate_with_return(vec![inner1_v2]);
 
-        builder.new_function("inner2".into(), inner2_id);
+        builder.new_function("inner2".into(), inner2_id, InlineType::default());
         let inner2_cond = builder.add_parameter(Type::bool());
         let then_block = builder.insert_block();
         let else_block = builder.insert_block();
