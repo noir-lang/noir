@@ -231,15 +231,13 @@ impl<'interner> TypeChecker<'interner> {
                 let index_type = self.check_expression(index);
                 let expr_span = self.interner.expr_span(index);
 
-                index_type.unify(
-                    &self.polymorphic_integer_or_field(),
-                    &mut self.errors,
-                    || TypeCheckError::TypeMismatch {
+                index_type.unify(&self.polymorphic_integer_or_field(), &mut self.errors, || {
+                    TypeCheckError::TypeMismatch {
                         expected_typ: "an integer".to_owned(),
                         expr_typ: index_type.to_string(),
                         expr_span,
-                    },
-                );
+                    }
+                });
 
                 let (mut lvalue_type, mut lvalue, mut mutable) =
                     self.check_lvalue(array, assign_span);
