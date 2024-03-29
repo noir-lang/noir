@@ -485,8 +485,13 @@ pub fn compile_no_check(
     }
     let visibility = program.return_visibility;
 
-    let (program, debug, warnings, input_witnesses, return_witnesses) =
-        create_program(program, options.show_ssa, options.show_brillig, options.force_brillig)?;
+    let (program, debug, warnings, input_witnesses, return_witnesses) = create_program(
+        program,
+        options.show_ssa,
+        options.show_brillig,
+        options.force_brillig,
+        options.benchmark_codegen,
+    )?;
 
     let abi =
         abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses, visibility);
