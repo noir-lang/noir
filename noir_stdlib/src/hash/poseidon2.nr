@@ -1,7 +1,7 @@
 use crate::hash::Hasher;
 use crate::default::Default;
 
-global RATE = 3;
+global RATE: u32 = 3;
 
 struct Poseidon2 {
     cache: [Field;3],

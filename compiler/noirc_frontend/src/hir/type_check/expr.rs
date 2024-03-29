@@ -126,7 +126,7 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 }
                 HirLiteral::Bool(_) => Type::Bool,
-                HirLiteral::Integer(_, _) => Type::polymorphic_integer_or_field(self.interner),
+                HirLiteral::Integer(_, _) => self.polymorphic_integer_or_field(),
                 HirLiteral::Str(string) => {
                     let len = Type::Constant(string.len() as u64);
                     Type::String(Box::new(len))
@@ -418,23 +418,28 @@ impl<'interner> TypeChecker<'interner> {
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }
             Err(erroring_constraints) => {
-                // Don't show any errors where try_get_trait returns None.
-                // This can happen if a trait is used that was never declared.
-                let constraints = erroring_constraints
-                    .into_iter()
-                    .map(|constraint| {
-                        let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
-                        let mut name = r#trait.name.to_string();
-                        if !constraint.trait_generics.is_empty() {
-                            let generics = vecmap(&constraint.trait_generics, ToString::to_string);
-                            name += &format!("<{}>", generics.join(", "));
-                        }
-                        Some((constraint.typ, name))
-                    })
-                    .collect::<Option<Vec<_>>>();
+                if erroring_constraints.is_empty() {
+                    self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
+                } else {
+                    // Don't show any errors where try_get_trait returns None.
+                    // This can happen if a trait is used that was never declared.
+                    let constraints = erroring_constraints
+                        .into_iter()
+                        .map(|constraint| {
+                            let r#trait = self.interner.try_get_trait(constraint.trait_id)?;
+                            let mut name = r#trait.name.to_string();
+                            if !constraint.trait_generics.is_empty() {
+                                let generics =
+                                    vecmap(&constraint.trait_generics, ToString::to_string);
+                                name += &format!("<{}>", generics.join(", "));
+                            }
+                            Some((constraint.typ, name))
+                        })
+                        .collect::<Option<Vec<_>>>();
 
-                if let Some(constraints) = constraints {
-                    self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                    if let Some(constraints) = constraints {
+                        self.errors.push(TypeCheckError::NoMatchingImplFound { constraints, span });
+                    }
                 }
             }
         }
@@ -560,15 +565,13 @@ impl<'interner> TypeChecker<'interner> {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
-        index_type.unify(
-            &Type::polymorphic_integer_or_field(self.interner),
-            &mut self.errors,
-            || TypeCheckError::TypeMismatch {
+        index_type.unify(&self.polymorphic_integer_or_field(), &mut self.errors, || {
+            TypeCheckError::TypeMismatch {
                 expected_typ: "an integer".to_owned(),
                 expr_typ: index_type.to_string(),
                 expr_span: span,
-            },
-        );
+            }
+        });
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
@@ -1218,7 +1221,7 @@ impl<'interner> TypeChecker<'interner> {
                     self.errors
                         .push(TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span });
                 }
-                let expected = Type::polymorphic_integer_or_field(self.interner);
+                let expected = self.polymorphic_integer_or_field();
                 rhs_type.unify(&expected, &mut self.errors, || TypeCheckError::InvalidUnaryOp {
                     kind: rhs_type.to_string(),
                     span,
