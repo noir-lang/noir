@@ -108,7 +108,7 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     auto sumcheck = Sumcheck(log_circuit_size, transcript);
     RelationSeparator alpha;
     for (size_t idx = 0; idx < alpha.size(); idx++) {
-        alpha[idx] = transcript->template get_challenge<FF>("Sumcheck:alpha_" + std::to_string(idx));
+        alpha[idx] = transcript->template get_challenge<FF>("alpha_" + std::to_string(idx));
     }
 
     auto gate_challenges = std::vector<FF>(log_circuit_size);

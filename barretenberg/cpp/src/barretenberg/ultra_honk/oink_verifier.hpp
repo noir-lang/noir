@@ -12,6 +12,7 @@ template <IsUltraFlavor Flavor> struct OinkOutput {
     bb::RelationParameters<typename Flavor::FF> relation_parameters;
     typename Flavor::WitnessCommitments commitments;
     std::vector<typename Flavor::FF> public_inputs;
+    typename Flavor::RelationSeparator alphas;
 };
 
 /**
@@ -29,6 +30,7 @@ template <IsUltraFlavor Flavor> class OinkVerifier {
     using Transcript = typename Flavor::Transcript;
     using FF = typename Flavor::FF;
     using Commitment = typename Flavor::Commitment;
+    using RelationSeparator = typename Flavor::RelationSeparator;
 
   public:
     std::shared_ptr<Transcript> transcript;
@@ -58,5 +60,7 @@ template <IsUltraFlavor Flavor> class OinkVerifier {
     void execute_log_derivative_inverse_round();
 
     void execute_grand_product_computation_round();
+
+    RelationSeparator generate_alphas_round();
 };
 } // namespace bb

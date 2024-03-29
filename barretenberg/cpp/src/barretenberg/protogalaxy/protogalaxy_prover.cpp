@@ -8,15 +8,10 @@ void ProtoGalaxyProver_<ProverInstances>::finalise_and_send_instance(std::shared
 {
     OinkProver<Flavor> oink_prover(instance->proving_key, commitment_key, transcript, domain_separator + '_');
 
-    auto [relation_params] = oink_prover.prove();
+    auto [relation_params, alphas] = oink_prover.prove();
     instance->relation_parameters = std::move(relation_params);
     instance->prover_polynomials = ProverPolynomials(instance->proving_key);
-
-    // Generate relation separators alphas for sumcheck
-    for (size_t idx = 0; idx < NUM_SUBRELATIONS - 1; idx++) {
-        instance->alphas[idx] =
-            transcript->template get_challenge<FF>(domain_separator + "_alpha_" + std::to_string(idx));
-    }
+    instance->alphas = std::move(alphas);
 }
 
 template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::prepare_for_folding()

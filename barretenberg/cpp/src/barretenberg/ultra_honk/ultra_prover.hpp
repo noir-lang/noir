@@ -25,7 +25,6 @@ template <IsUltraFlavor Flavor_> class UltraProver_ {
     using ProverInstance = ProverInstance_<Flavor>;
     using Instance = ProverInstance;
     using Transcript = typename Flavor::Transcript;
-    using RelationSeparator = typename Flavor::RelationSeparator;
     using ZeroMorph = ZeroMorphProver_<PCS>;
 
     std::shared_ptr<Instance> instance;

@@ -49,7 +49,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
     transcript = std::make_shared<Transcript>(proof);
     VerifierCommitments commitments{ key };
     OinkVerifier<Flavor> oink_verifier{ key, transcript };
-    auto [relation_parameters, witness_commitments, _] = oink_verifier.verify();
+    auto [relation_parameters, witness_commitments, _, alphas] = oink_verifier.verify();
 
     // Copy the witness_commitments over to the VerifierCommitments
     for (auto [wit_comm_1, wit_comm_2] : zip_view(commitments.get_witness(), witness_commitments.get_all())) {
@@ -59,10 +59,6 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
     // Execute Sumcheck Verifier
     const size_t log_circuit_size = numeric::get_msb(key->circuit_size);
     auto sumcheck = SumcheckVerifier<Flavor>(log_circuit_size, transcript);
-    RelationSeparator alphas;
-    for (size_t idx = 0; idx < alphas.size(); idx++) {
-        alphas[idx] = transcript->template get_challenge<FF>("Sumcheck:alpha_" + std::to_string(idx));
-    }
 
     auto gate_challenges = std::vector<FF>(log_circuit_size);
     for (size_t idx = 0; idx < log_circuit_size; idx++) {

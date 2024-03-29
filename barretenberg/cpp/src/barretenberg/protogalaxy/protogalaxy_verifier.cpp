@@ -9,15 +9,11 @@ void ProtoGalaxyVerifier_<VerifierInstances>::receive_and_finalise_instance(cons
 {
     auto& key = inst->verification_key;
     OinkVerifier<Flavor> oink_verifier{ key, transcript, domain_separator + '_' };
-    auto [relation_parameters, witness_commitments, public_inputs] = oink_verifier.verify();
+    auto [relation_parameters, witness_commitments, public_inputs, alphas] = oink_verifier.verify();
     inst->relation_parameters = std::move(relation_parameters);
     inst->witness_commitments = std::move(witness_commitments);
     inst->public_inputs = std::move(public_inputs);
-
-    // Get the relation separation challenges
-    for (size_t idx = 0; idx < NUM_SUBRELATIONS - 1; idx++) {
-        inst->alphas[idx] = transcript->template get_challenge<FF>(domain_separator + "_alpha_" + std::to_string(idx));
-    }
+    inst->alphas = std::move(alphas);
 }
 
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/795): The rounds prior to actual verifying are common

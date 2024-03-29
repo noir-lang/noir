@@ -73,7 +73,7 @@ class GoblinUltraTranscriptTests : public ::testing::Test {
         manifest_expected.add_entry(round, "Z_LOOKUP", frs_per_G);
 
         for (size_t i = 0; i < NUM_SUBRELATIONS - 1; i++) {
-            std::string label = "Sumcheck:alpha_" + std::to_string(i);
+            std::string label = "alpha_" + std::to_string(i);
             manifest_expected.add_challenge(round, label);
             round++;
         }

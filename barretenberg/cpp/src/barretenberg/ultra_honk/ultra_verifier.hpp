@@ -12,7 +12,6 @@ template <typename Flavor> class UltraVerifier_ {
     using VerificationKey = typename Flavor::VerificationKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using Transcript = typename Flavor::Transcript;
-    using RelationSeparator = typename Flavor::RelationSeparator;
 
   public:
     explicit UltraVerifier_(const std::shared_ptr<Transcript>& transcript,

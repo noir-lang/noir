@@ -16,10 +16,12 @@ template <IsUltraFlavor Flavor> OinkOutput<Flavor> OinkVerifier<Flavor>::verify(
     execute_sorted_list_accumulator_round();
     execute_log_derivative_inverse_round();
     execute_grand_product_computation_round();
+    RelationSeparator alphas = generate_alphas_round();
 
     return OinkOutput<Flavor>{ .relation_parameters = relation_parameters,
-                               .commitments = witness_comms,
-                               .public_inputs = public_inputs };
+                               .commitments = std::move(witness_comms),
+                               .public_inputs = public_inputs,
+                               .alphas = alphas };
 }
 
 /**
@@ -128,6 +130,16 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_grand_product
     witness_comms.z_perm = transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.z_perm);
     witness_comms.z_lookup =
         transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.z_lookup);
+}
+
+template <IsUltraFlavor Flavor> typename Flavor::RelationSeparator OinkVerifier<Flavor>::generate_alphas_round()
+{
+    // Get the relation separation challenges for sumcheck/combiner computation
+    RelationSeparator alphas;
+    for (size_t idx = 0; idx < alphas.size(); idx++) {
+        alphas[idx] = transcript->template get_challenge<FF>(domain_separator + "alpha_" + std::to_string(idx));
+    }
+    return alphas;
 }
 
 template class OinkVerifier<UltraFlavor>;
