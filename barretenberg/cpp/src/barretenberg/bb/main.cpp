@@ -1,5 +1,6 @@
 #include "barretenberg/bb/file_io.hpp"
 #include "barretenberg/common/serialize.hpp"
+#include "barretenberg/dsl/acir_format/acir_format.hpp"
 #include "barretenberg/dsl/types.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
@@ -83,6 +84,18 @@ acir_format::AcirFormat get_constraint_system(std::string const& bytecode_path)
     return acir_format::circuit_buf_to_acir_format(bytecode);
 }
 
+acir_format::WitnessVectorStack get_witness_stack(std::string const& witness_path)
+{
+    auto witness_data = get_bytecode(witness_path);
+    return acir_format::witness_buf_to_witness_stack(witness_data);
+}
+
+std::vector<acir_format::AcirFormat> get_constraint_systems(std::string const& bytecode_path)
+{
+    auto bytecode = get_bytecode(bytecode_path);
+    return acir_format::program_buf_to_acir_format(bytecode);
+}
+
 /**
  * @brief Proves and Verifies an ACIR circuit
  *
@@ -127,23 +140,13 @@ bool proveAndVerify(const std::string& bytecodePath, const std::string& witnessP
     return verified;
 }
 
-/**
- * @brief Constructs and verifies a Honk proof for an acir-generated circuit
- *
- * @tparam Flavor
- * @param bytecodePath Path to serialized acir circuit data
- * @param witnessPath Path to serialized acir witness data
- */
-template <IsUltraFlavor Flavor> bool proveAndVerifyHonk(const std::string& bytecodePath, const std::string& witnessPath)
+template <IsUltraFlavor Flavor>
+bool proveAndVerifyHonkAcirFormat(acir_format::AcirFormat constraint_system, acir_format::WitnessVector witness)
 {
     using Builder = Flavor::CircuitBuilder;
     using Prover = UltraProver_<Flavor>;
     using Verifier = UltraVerifier_<Flavor>;
     using VerificationKey = Flavor::VerificationKey;
-
-    // Populate the acir constraint system and witness from gzipped data
-    auto constraint_system = get_constraint_system(bytecodePath);
-    auto witness = get_witness(witnessPath);
 
     // Construct a bberg circuit from the acir representation
     auto builder = acir_format::create_circuit<Builder>(constraint_system, 0, witness);
@@ -163,6 +166,49 @@ template <IsUltraFlavor Flavor> bool proveAndVerifyHonk(const std::string& bytec
     Verifier verifier{ verification_key };
 
     return verifier.verify_proof(proof);
+}
+
+/**
+ * @brief Constructs and verifies a Honk proof for an acir-generated circuit
+ *
+ * @tparam Flavor
+ * @param bytecodePath Path to serialized acir circuit data
+ * @param witnessPath Path to serialized acir witness data
+ */
+template <IsUltraFlavor Flavor> bool proveAndVerifyHonk(const std::string& bytecodePath, const std::string& witnessPath)
+{
+    // Populate the acir constraint system and witness from gzipped data
+    auto constraint_system = get_constraint_system(bytecodePath);
+    auto witness = get_witness(witnessPath);
+
+    return proveAndVerifyHonkAcirFormat<Flavor>(constraint_system, witness);
+}
+
+/**
+ * @brief Constructs and verifies multiple Honk proofs for an ACIR-generated program.
+ *
+ * @tparam Flavor
+ * @param bytecodePath Path to serialized acir program data. An ACIR program contains a list of circuits.
+ * @param witnessPath Path to serialized acir witness stack data. This dictates the execution trace the backend should
+ * follow.
+ */
+template <IsUltraFlavor Flavor>
+bool proveAndVerifyHonkProgram(const std::string& bytecodePath, const std::string& witnessPath)
+{
+    auto constraint_systems = get_constraint_systems(bytecodePath);
+    auto witness_stack = get_witness_stack(witnessPath);
+
+    while (!witness_stack.empty()) {
+        auto witness_stack_item = witness_stack.back();
+        auto witness = witness_stack_item.second;
+        auto constraint_system = constraint_systems[witness_stack_item.first];
+
+        if (!proveAndVerifyHonkAcirFormat<Flavor>(constraint_system, witness)) {
+            return false;
+        }
+        witness_stack.pop_back();
+    }
+    return true;
 }
 
 /**
@@ -575,6 +621,9 @@ int main(int argc, char* argv[])
         }
         if (command == "prove_and_verify_goblin_ultra_honk") {
             return proveAndVerifyHonk<GoblinUltraFlavor>(bytecode_path, witness_path) ? 0 : 1;
+        }
+        if (command == "prove_and_verify_ultra_honk_program") {
+            return proveAndVerifyHonkProgram<UltraFlavor>(bytecode_path, witness_path) ? 0 : 1;
         }
         if (command == "prove_and_verify_goblin") {
             return proveAndVerifyGoblin(bytecode_path, witness_path) ? 0 : 1;

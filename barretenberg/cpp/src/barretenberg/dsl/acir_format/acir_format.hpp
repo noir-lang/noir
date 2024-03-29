@@ -17,6 +17,7 @@
 #include "recursion_constraint.hpp"
 #include "schnorr_verify.hpp"
 #include "sha256_constraint.hpp"
+#include <utility>
 
 namespace acir_format {
 
@@ -93,6 +94,7 @@ struct AcirFormat {
 };
 
 using WitnessVector = std::vector<fr, ContainerSlabAllocator<fr>>;
+using WitnessVectorStack = std::vector<std::pair<uint32_t, WitnessVector>>;
 
 template <typename Builder = UltraCircuitBuilder>
 Builder create_circuit(const AcirFormat& constraint_system, size_t size_hint = 0, WitnessVector const& witness = {});

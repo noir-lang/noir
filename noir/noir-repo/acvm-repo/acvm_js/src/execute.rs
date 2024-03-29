@@ -113,6 +113,9 @@ pub async fn execute_circuit_with_black_box_solver(
 
                 acvm.resolve_pending_foreign_call(result);
             }
+            ACVMStatus::RequiresAcirCall(_) => {
+                todo!("Handle acir calls in acvm JS");
+            }
         }
     }
 

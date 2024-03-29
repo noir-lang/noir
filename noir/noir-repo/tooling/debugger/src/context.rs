@@ -381,6 +381,9 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             ACVMStatus::RequiresForeignCall(_) => {
                 unreachable!("Unexpected pending foreign call resolution");
             }
+            ACVMStatus::RequiresAcirCall(_) => {
+                todo!("Multiple ACIR calls are not supported");
+            }
         }
     }
 

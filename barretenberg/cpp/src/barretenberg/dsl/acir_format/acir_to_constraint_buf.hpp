@@ -18,6 +18,7 @@
 #include "barretenberg/plonk_honk_shared/arithmetization/gate_data.hpp"
 #include "serde/index.hpp"
 #include <iterator>
+#include <utility>
 
 namespace acir_format {
 
@@ -363,12 +364,8 @@ void handle_memory_op(Program::Opcode::MemoryOp const& mem_op, BlockConstraint& 
     block.trace.push_back(acir_mem_op);
 }
 
-AcirFormat circuit_buf_to_acir_format(std::vector<uint8_t> const& buf)
+AcirFormat circuit_serde_to_acir_format(Program::Circuit const& circuit)
 {
-    // TODO(maxim): Handle the new `Program` structure once ACVM supports a function call stack.
-    // For now we expect a single ACIR function
-    auto circuit = Program::Program::bincodeDeserialize(buf).functions[0];
-
     AcirFormat af;
     // `varnum` is the true number of variables, thus we add one to the index which starts at zero
     af.varnum = circuit.current_witness_index + 1;
@@ -406,24 +403,29 @@ AcirFormat circuit_buf_to_acir_format(std::vector<uint8_t> const& buf)
     return af;
 }
 
+AcirFormat circuit_buf_to_acir_format(std::vector<uint8_t> const& buf)
+{
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/927): Move to using just `program_buf_to_acir_format`
+    // once Honk fully supports all ACIR test flows
+    // For now the backend still expects to work with a single ACIR function
+    auto circuit = Program::Program::bincodeDeserialize(buf).functions[0];
+
+    return circuit_serde_to_acir_format(circuit);
+}
+
 /**
  * @brief Converts from the ACIR-native `WitnessMap` format to Barretenberg's internal `WitnessVector` format.
  *
- * @param buf Serialized representation of a `WitnessMap`.
+ * @param witness_map ACIR-native `WitnessMap` deserialized from a buffer
  * @return A `WitnessVector` equivalent to the passed `WitnessMap`.
  * @note This transformation results in all unassigned witnesses within the `WitnessMap` being assigned the value 0.
  *       Converting the `WitnessVector` back to a `WitnessMap` is unlikely to return the exact same `WitnessMap`.
  */
-WitnessVector witness_buf_to_witness_data(std::vector<uint8_t> const& buf)
+WitnessVector witness_map_to_witness_vector(WitnessStack::WitnessMap const& witness_map)
 {
-    // TODO(maxim): Handle the new `WitnessStack` structure once ACVM supports a function call stack
-    // A `StackItem` contains an index to an ACIR circuit and its respective ACIR-native `WitnessMap`.
-    // For now we expect the `WitnessStack` to contain a single witness.
-    auto w = WitnessStack::WitnessStack::bincodeDeserialize(buf).stack[0].witness;
-
     WitnessVector wv;
     size_t index = 0;
-    for (auto& e : w.value) {
+    for (auto& e : witness_map.value) {
         // ACIR uses a sparse format for WitnessMap where unused witness indices may be left unassigned.
         // To ensure that witnesses sit at the correct indices in the `WitnessVector`, we fill any indices
         // which do not exist within the `WitnessMap` with the dummy value of zero.
@@ -435,6 +437,50 @@ WitnessVector witness_buf_to_witness_data(std::vector<uint8_t> const& buf)
         index++;
     }
     return wv;
+}
+
+/**
+ * @brief Converts from the ACIR-native `WitnessMap` format to Barretenberg's internal `WitnessVector` format.
+ *
+ * @param buf Serialized representation of a `WitnessMap`.
+ * @return A `WitnessVector` equivalent to the passed `WitnessMap`.
+ * @note This transformation results in all unassigned witnesses within the `WitnessMap` being assigned the value 0.
+ *       Converting the `WitnessVector` back to a `WitnessMap` is unlikely to return the exact same `WitnessMap`.
+ */
+WitnessVector witness_buf_to_witness_data(std::vector<uint8_t> const& buf)
+{
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/927): Move to using just `witness_buf_to_witness_stack`
+    // once Honk fully supports all ACIR test flows.
+    // For now the backend still expects to work with the stop of the `WitnessStack`.
+    auto witness_stack = WitnessStack::WitnessStack::bincodeDeserialize(buf);
+    auto w = witness_stack.stack[witness_stack.stack.size() - 1].witness;
+
+    return witness_map_to_witness_vector(w);
+}
+
+std::vector<AcirFormat> program_buf_to_acir_format(std::vector<uint8_t> const& buf)
+{
+    auto program = Program::Program::bincodeDeserialize(buf);
+
+    std::vector<AcirFormat> constraint_systems;
+    constraint_systems.reserve(program.functions.size());
+    for (auto const& function : program.functions) {
+        constraint_systems.emplace_back(circuit_serde_to_acir_format(function));
+    }
+
+    return constraint_systems;
+}
+
+WitnessVectorStack witness_buf_to_witness_stack(std::vector<uint8_t> const& buf)
+{
+    auto witness_stack = WitnessStack::WitnessStack::bincodeDeserialize(buf);
+    WitnessVectorStack witness_vector_stack;
+    witness_vector_stack.reserve(witness_stack.stack.size());
+    for (auto const& stack_item : witness_stack.stack) {
+        witness_vector_stack.emplace_back(
+            std::make_pair(stack_item.index, witness_map_to_witness_vector(stack_item.witness)));
+    }
+    return witness_vector_stack;
 }
 
 } // namespace acir_format
