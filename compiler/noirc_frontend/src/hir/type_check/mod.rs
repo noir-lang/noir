@@ -86,31 +86,13 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     let function_last_type = type_checker.check_function_body(function_body_id);
 
-    // Verify any remaining trait constraints arising from the function body
-    for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
-        let span = type_checker.interner.expr_span(&expr_id);
-        type_checker.verify_trait_constraint(
-            &constraint.typ,
-            constraint.trait_id,
-            &constraint.trait_generics,
-            expr_id,
-            span,
-        );
-    }
-
-    errors.append(&mut type_checker.errors);
-
-    // Now remove all the `where` clause constraints we added
-    for constraint in &expected_trait_constraints {
-        interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
-    }
-
     // Check declared return type and actual return type
     if !can_ignore_ret {
-        let (expr_span, empty_function) = function_info(interner, function_body_id);
-        let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        let (expr_span, empty_function) = function_info(type_checker.interner, function_body_id);
+        let func_span = type_checker.interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = &declared_return_type {
-            if interner
+            if type_checker
+                .interner
                 .lookup_trait_implementation(&function_last_type, *trait_id, generics)
                 .is_err()
             {
@@ -126,7 +108,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             function_last_type.unify_with_coercions(
                 &declared_return_type,
                 *function_body_id,
-                interner,
+                type_checker.interner,
                 &mut errors,
                 || {
                     let mut error = TypeCheckError::TypeMismatchWithSource {
@@ -137,9 +119,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
                     };
 
                     if empty_function {
-                        error = error.add_context(
-                        "implicitly returns `()` as its body has no tail or `return` expression",
-                    );
+                        error = error.add_context("implicitly returns `()` as its body has no tail or `return` expression");
                     }
                     error
                 },
@@ -147,6 +127,24 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         }
     }
 
+    // Verify any remaining trait constraints arising from the function body
+    for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
+        let span = type_checker.interner.expr_span(&expr_id);
+        type_checker.verify_trait_constraint(
+            &constraint.typ,
+            constraint.trait_id,
+            &constraint.trait_generics,
+            expr_id,
+            span,
+        );
+    }
+
+    // Now remove all the `where` clause constraints we added
+    for constraint in &expected_trait_constraints {
+        type_checker.interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
+    }
+
+    errors.append(&mut type_checker.errors);
     errors
 }
 

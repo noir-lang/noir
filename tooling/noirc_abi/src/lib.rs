@@ -147,7 +147,9 @@ impl AbiType {
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
             | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => Self::from_type(context, typ),
-                TypeBinding::Unbound(_) => Self::from_type(context, &Type::default_int_type()),
+                TypeBinding::Unbound(_) => {
+                    Self::from_type(context, &Type::default_int_or_field_type())
+                }
             },
             Type::Bool => Self::Boolean,
             Type::String(size) => {
