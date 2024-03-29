@@ -137,7 +137,8 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
     for typ in &type_checker.type_variables {
         if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
-            variable.bind(kind.default_type());
+            let msg = "TypeChecker should only track defaultable type vars";
+            variable.bind(kind.default_type().expect(msg));
         }
     }
 
