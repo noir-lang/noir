@@ -10,19 +10,19 @@ use crate::lexer::errors::LexerErrorKind;
 /// items differently depending on the Tokens present but will
 /// never parse the same ordering of identical tokens differently.
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub enum Tok<'a> {
-    Ident(&'a str),
+pub enum Tok<'input> {
+    Ident(&'input str),
     Int(FieldElement),
     Bool(bool),
-    Str(&'a str),
+    Str(&'input str),
     /// the u8 is the number of hashes, i.e. r###..
-    RawStr(&'a str, u8),
-    FmtStr(&'a str),
+    RawStr(&'input str, u8),
+    FmtStr(&'input str),
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
-    LineComment(&'a str, Option<DocStyle>),
-    BlockComment(&'a str, Option<DocStyle>),
+    LineComment(&'input str, Option<DocStyle>),
+    BlockComment(&'input str, Option<DocStyle>),
     /// <
     Less,
     /// <=
@@ -90,7 +90,7 @@ pub enum Tok<'a> {
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
-    Whitespace(&'a str),
+    Whitespace(&'input str),
 
     /// An invalid character is one that is not in noir's language or grammar.
     ///
@@ -195,7 +195,7 @@ pub enum Token {
 }
 
 
-pub fn token_to_tok<'a>(x: &'a Token) -> Tok<'a> {
+pub fn token_to_tok<'input>(x: &'input Token) -> Tok<'input> {
     match x {
 
         Token::Ident(ref s) => Tok::Ident(s), 
@@ -272,6 +272,13 @@ impl PartialEq<Token> for SpannedToken {
 impl From<SpannedToken> for Token {
     fn from(spt: SpannedToken) -> Self {
         spt.0.contents
+    }
+}
+
+// TODO: needed?
+impl<'a> From<&'a SpannedToken> for &'a Token {
+    fn from(spt: &'a SpannedToken) -> Self {
+        &spt.0.contents
     }
 }
 

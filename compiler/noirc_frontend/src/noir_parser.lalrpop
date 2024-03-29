@@ -6,23 +6,30 @@ use noirc_errors::{Position, Span};
 use crate::lexer::token::{Keyword, Tok};
 use crate::lexer::lexer::IntType;
 use crate::lexer::errors::LexerErrorKind;
+use crate::ParsedModule;
+use crate::parser::TopLevelStatement;
 
 use lalrpop_util::{ErrorRecovery, ParseError};
 
 // TODO: is this what we want for ErrorRecovery?
 // grammar<'err>(errors: &'err mut Vec<LexerErrorKind>);
-grammar;
+// grammar;
+// grammar<'input>(input: &'input str);
+// grammar<'input>(input: &'input str);
+grammar<'input, 'err>(input: &'input str, errors: &'err mut Vec<ErrorRecovery<usize, Tok<'input>, &'static str>>);
 
 extern {
     type Location = usize;
 
     // TODO: wip error recovery
     // type Error = Vec<LexerErrorKind>;
+    // type Error = LexerErrorKind;
     type Error = LexerErrorKind;
 
     // NOTE: each token needs a terminal defined
-    enum Tok {
+    enum Tok<'input> {
         // Str => Tok::Str(<String>),
+        str => Tok::Str(<&'input str>),
 
         // symbols
         "<" => Tok::Less,
@@ -57,7 +64,6 @@ extern {
         ";" => Tok::Semicolon,
         "!" => Tok::Bang,
         "=" => Tok::Assign,
-
         // keywords
         "as" => Tok::Keyword(Keyword::As),
         "assert" => Tok::Keyword(Keyword::Assert),
@@ -98,10 +104,9 @@ extern {
         "use" => Tok::Keyword(Keyword::Use),
         "where" => Tok::Keyword(Keyword::Where),
         "while" => Tok::Keyword(Keyword::While),
-
+        // bool
         "true" => Tok::Bool(true),
         "false" => Tok::Bool(false),
-
         // whitespace
         " " => Tok::Whitespace(" "),
         "\n" => Tok::Whitespace("\n"),
@@ -113,14 +118,22 @@ extern {
 }
 
 
-pub Program: ParsedModule = {
-    // <m:Module> EOF => m,
-    // EOF => (),
+pub Term: Tok<'input> = {
+    <b:Bool> EOF => b,
 
-    <x:TopLevelStatement> "\n" <p:Program> => x, // TODO
+    // EOF => Tok::EOF,
 
-    EOF => (),
 }
+
+
+// pub Program: &'input ParsedModule = {
+//     // <m:Module> EOF => m,
+//     // EOF => (),
+
+//     // <x:TopLevelStatement> "\n" <p:Program> => x, // TODO
+
+//     EOF => ParsedModule::default(),
+// }
 
 TopLevelStatement: TopLevelStatement = {
 
@@ -128,6 +141,10 @@ TopLevelStatement: TopLevelStatement = {
 
 }
 
+Bool: Tok<'input> = {
+    "true" => Tok::Bool(true),
+    "false" => Tok::Bool(false),
+};
 
 
 // // TODO: rename Term
@@ -141,11 +158,6 @@ TopLevelStatement: TopLevelStatement = {
 //     // "(" <t:Term> ")" => t,
 // };
 
-
-Bool: Tok = {
-    "true" => Tok::Bool(true),
-    "false" => Tok::Bool(false),
-};
 
 
 // Num: FieldElement = <integer_str_raw:r"[0-9]+"> =>? {

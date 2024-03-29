@@ -6,7 +6,9 @@
 //! After the monomorphized ast is created, it is passed to the noirc_evaluator crate to convert it to SSA form,
 //! perform optimizations, convert to ACIR and eventually prove/verify the program.
 #![forbid(unsafe_code)]
-#![warn(unused_crate_dependencies, unused_extern_crates)]
+
+// TODO: revert before PR
+// #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 

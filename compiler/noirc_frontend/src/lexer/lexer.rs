@@ -2,7 +2,7 @@ use crate::token::{Attribute, DocStyle};
 
 use super::{
     errors::LexerErrorKind,
-    token::{IntType, Keyword, SpannedToken, Token, Tokens},
+    token::{IntType, Keyword, SpannedToken, Token, Tokens, Tok, token_to_tok},
 };
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
@@ -582,6 +582,7 @@ fn from_spanned_token_result(x: SpannedTokenResult) -> Result<(usize, Token, usi
     })
 }
 
+
 impl<'a> Iterator for Lexer<'a> {
     // type Item = SpannedTokenResult;
     type Item = Result<(usize, Token, usize), LexerErrorKind>;
@@ -595,10 +596,47 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
+
+// // TODO: cleanup naming
+// fn from_spanned_token_result_2<'a>(x: &mut Lexer<'a>) -> Result<(usize, Tok<'a>, usize), LexerErrorKind> {
+//     x.next_token().as_ref().map(|spanned_token| {
+//         (spanned_token.to_span().start() as usize, token_to_tok(spanned_token.into()), spanned_token.to_span().end() as usize)
+//     }).map_err(|x| x.clone())
+// }
+
+// // TODO: remove, wip shim type
+// pub struct LifetimeLexer<'a> {
+//     lexer: Lexer<'a>,
+// }
+//
+// impl<'a> Iterator for LifetimeLexer<'a> {
+//     type Item = Result<(usize, Tok<'a>, usize), LexerErrorKind>;
+//
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if self.lexer.done {
+//             None
+//         } else {
+//             Some(from_spanned_token_result_2(&mut self.lexer))
+//
+//             // Some(match from_spanned_token_result(self.lexer.next_token()) {
+//             //     Ok((start, ref token, end)) => Ok((start, token_to_tok(token), end)),
+//             //
+//             //     Err(e) => Err(e),
+//             // })
+//         }
+//     }
+// }
+
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+
+    // TODO: cleanup imports
+    use crate::token::{Tok, token_to_tok};
+
     #[test]
     fn test_single_double_char() {
         let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
@@ -1122,18 +1160,29 @@ mod tests {
         let input = "true";
         let mut lexer = Lexer::new(input);
 
-        // let mut errors = Vec::new();
         // let calculated = noir_parser::TermParser::new().parse(&mut errors, lexer);
 
+        let mut errors = Vec::new();
         let mut test_lexer = Lexer::new(input);
         assert_eq!(test_lexer.next(), Some(Ok((0, Token::Bool(true), 4))));
         assert_eq!(test_lexer.next(), Some(Ok((3, Token::EOF, 4))));
         assert_eq!(test_lexer.next(), None);
 
-        let calculated = noir_parser::TermParser::new().parse(lexer);
+
+        // TODO: this is a hack to get the references working
+        // -> this likely means that we'll want to propagate the <'input> lifetime further into Token
+        let lexer_result = lexer.into_iter().collect::<Vec<_>>();
+        let referenced_lexer_result = lexer_result.iter().map(|token_result| {
+            token_result.as_ref().map(|(start, ref token, end)| {
+                (*start, token_to_tok(token), *end)
+            }).map_err(|x| x.clone())
+        });
+
+        let calculated = noir_parser::TermParser::new().parse(input, &mut errors, referenced_lexer_result);
+
         // assert!(calculated == Ok(Token::Int(23314_i128.into())), "{:?}", calculated);
         // assert!(calculated.is_ok(), "{:?}", calculated);
-        assert_eq!(calculated, Ok(Token::Bool(true)), "{:?}", calculated);
+        assert_eq!(calculated, Ok(Tok::Bool(true)), "{:?}", calculated);
 
     }
 
