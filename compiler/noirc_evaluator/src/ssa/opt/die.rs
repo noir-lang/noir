@@ -169,7 +169,7 @@ mod test {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            function::RuntimeType,
+            function::{InlineType, RuntimeType},
             instruction::{BinaryOp, Intrinsic},
             map::Id,
             types::Type,
@@ -199,7 +199,7 @@ mod test {
         let main_id = Id::test_new(0);
 
         // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
         let b1 = builder.insert_block();
 

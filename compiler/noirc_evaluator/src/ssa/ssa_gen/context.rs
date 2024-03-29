@@ -12,8 +12,8 @@ use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::dfg::DataFlowGraph;
-use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
+use crate::ssa::ir::function::{FunctionId as IrFunctionId, InlineType};
 use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
 use crate::ssa::ir::map::AtomicCounter;
@@ -108,7 +108,8 @@ impl<'a> FunctionContext<'a> {
             .expect("No function in queue for the FunctionContext to compile")
             .1;
 
-        let builder = FunctionBuilder::new(function_name, function_id, runtime);
+        let mut builder = FunctionBuilder::new(function_name, function_id);
+        builder.set_runtime(runtime);
         let definitions = HashMap::default();
         let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
         this.add_parameters_to_scope(parameters);
@@ -125,7 +126,8 @@ impl<'a> FunctionContext<'a> {
         if func.unconstrained {
             self.builder.new_brillig_function(func.name.clone(), id);
         } else {
-            self.builder.new_function(func.name.clone(), id);
+            let inline_type = if func.should_fold { InlineType::Fold } else { InlineType::Inline };
+            self.builder.new_function(func.name.clone(), id, inline_type);
         }
         self.add_parameters_to_scope(&func.parameters);
     }

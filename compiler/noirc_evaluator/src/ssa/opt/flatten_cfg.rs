@@ -167,7 +167,9 @@ impl Ssa {
     /// For more information, see the module-level comment at the top of this file.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
-        flatten_function_cfg(self.main_mut());
+        for function in self.functions.values_mut() {
+            flatten_function_cfg(function);
+        }
         self
     }
 }
@@ -839,7 +841,7 @@ mod test {
         function_builder::FunctionBuilder,
         ir::{
             dfg::DataFlowGraph,
-            function::{Function, RuntimeType},
+            function::{Function, InlineType, RuntimeType},
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -860,7 +862,7 @@ mod test {
         //     return v1
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -914,7 +916,7 @@ mod test {
         //     return
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -963,7 +965,7 @@ mod test {
         //     return
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -1024,7 +1026,7 @@ mod test {
         //     return
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -1114,7 +1116,7 @@ mod test {
         //      ↘   ↙
         //       b9
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -1271,7 +1273,7 @@ mod test {
         // before the first store to allocate, which loaded an uninitialized value.
         // In this test we assert the ordering is strictly Allocate then Store then Load.
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -1370,7 +1372,7 @@ mod test {
         //     return
         // }
         let main_id = Id::test_new(1);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         builder.insert_block(); // entry
 
@@ -1423,7 +1425,7 @@ mod test {
         //     jmp b3()
         // }
         let main_id = Id::test_new(1);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         builder.insert_block(); // b0
         let b1 = builder.insert_block();
@@ -1533,7 +1535,7 @@ mod test {
         //     jmp b5()
         // }
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();

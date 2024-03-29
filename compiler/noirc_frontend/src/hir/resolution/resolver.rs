@@ -942,7 +942,7 @@ impl<'a> Resolver<'a> {
             });
         }
         let is_low_level_function =
-            func.attributes().function.as_ref().map_or(false, |func| func.is_low_level());
+            attributes.function.as_ref().map_or(false, |func| func.is_low_level());
         if !self.path_resolver.module_id().krate.is_stdlib() && is_low_level_function {
             let error =
                 ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() };
@@ -991,6 +991,8 @@ impl<'a> Resolver<'a> {
             .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
             .collect();
 
+        let should_fold = attributes.is_foldable();
+
         FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -1005,6 +1007,7 @@ impl<'a> Resolver<'a> {
             has_body: !func.def.body.is_empty(),
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
+            should_fold,
         }
     }
 

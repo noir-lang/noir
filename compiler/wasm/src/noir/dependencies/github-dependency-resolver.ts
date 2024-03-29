@@ -12,10 +12,12 @@ import { LogData } from '../../utils';
  */
 export class GithubDependencyResolver implements DependencyResolver {
   #fm: FileManager;
+  #fetch: typeof fetch;
   #log;
 
-  constructor(fm: FileManager) {
+  constructor(fm: FileManager, fetcher: typeof fetch) {
     this.#fm = fm;
+    this.#fetch = fetcher;
     this.#log = (msg: string, _data?: LogData) => {
       console.log(msg);
     };
@@ -56,7 +58,7 @@ export class GithubDependencyResolver implements DependencyResolver {
       return localArchivePath;
     }
 
-    const response = await fetch(url, {
+    const response = await this.#fetch(url, {
       method: 'GET',
     });
 
