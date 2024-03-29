@@ -71,7 +71,7 @@ impl<'interner> TypeChecker<'interner> {
             expr_span: range_span,
         });
 
-        let expected_type = Type::polymorphic_integer(self.interner);
+        let expected_type = self.polymorphic_integer();
 
         self.unify(&start_range_type, &expected_type, || TypeCheckError::TypeCannotBeUsed {
             typ: start_range_type.clone(),
@@ -232,7 +232,7 @@ impl<'interner> TypeChecker<'interner> {
                 let expr_span = self.interner.expr_span(index);
 
                 index_type.unify(
-                    &Type::polymorphic_integer_or_field(self.interner),
+                    &self.polymorphic_integer_or_field(),
                     &mut self.errors,
                     || TypeCheckError::TypeMismatch {
                         expected_typ: "an integer".to_owned(),
