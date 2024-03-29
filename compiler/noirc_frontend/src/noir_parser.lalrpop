@@ -3,7 +3,7 @@ use std::str::FromStr;
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
 
-use crate::lexer::token::{Keyword, Token};
+use crate::lexer::token::{Keyword, Tok};
 use crate::lexer::lexer::IntType;
 use crate::lexer::errors::LexerErrorKind;
 
@@ -21,94 +21,94 @@ extern {
     type Error = LexerErrorKind;
 
     // NOTE: each token needs a terminal defined
-    enum Token {
-        // Str => Token::Str(<String>),
+    enum Tok {
+        // Str => Tok::Str(<String>),
 
         // symbols
-        "<" => Token::Less,
-        "<=" => Token::LessEqual,
-        ">" => Token::Greater,
-        ">=" => Token::GreaterEqual,
-        "==" => Token::Equal,
-        "!=" => Token::NotEqual,
-        "+" => Token::Plus,
-        "-" => Token::Minus,
-        "*" => Token::Star,
-        "/" => Token::Slash,
-        "%" => Token::Percent,
-        "&" => Token::Ampersand,
-        "^" => Token::Caret,
-        "<<" => Token::ShiftLeft,
-        ">>" => Token::ShiftRight,
-        "." => Token::Dot,
-        ".." => Token::DoubleDot,
-        "(" => Token::LeftParen,
-        ")" => Token::RightParen,
-        "{" => Token::LeftBrace,
-        "}" => Token::RightBrace,
-        "[" => Token::LeftBracket,
-        "]" => Token::RightBracket,
-        "->" => Token::Arrow,
-        "|" => Token::Pipe,
-        "#" => Token::Pound,
-        "," => Token::Comma,
-        ":" => Token::Colon,
-        "::" => Token::DoubleColon,
-        ";" => Token::Semicolon,
-        "!" => Token::Bang,
-        "=" => Token::Assign,
+        "<" => Tok::Less,
+        "<=" => Tok::LessEqual,
+        ">" => Tok::Greater,
+        ">=" => Tok::GreaterEqual,
+        "==" => Tok::Equal,
+        "!=" => Tok::NotEqual,
+        "+" => Tok::Plus,
+        "-" => Tok::Minus,
+        "*" => Tok::Star,
+        "/" => Tok::Slash,
+        "%" => Tok::Percent,
+        "&" => Tok::Ampersand,
+        "^" => Tok::Caret,
+        "<<" => Tok::ShiftLeft,
+        ">>" => Tok::ShiftRight,
+        "." => Tok::Dot,
+        ".." => Tok::DoubleDot,
+        "(" => Tok::LeftParen,
+        ")" => Tok::RightParen,
+        "{" => Tok::LeftBrace,
+        "}" => Tok::RightBrace,
+        "[" => Tok::LeftBracket,
+        "]" => Tok::RightBracket,
+        "->" => Tok::Arrow,
+        "|" => Tok::Pipe,
+        "#" => Tok::Pound,
+        "," => Tok::Comma,
+        ":" => Tok::Colon,
+        "::" => Tok::DoubleColon,
+        ";" => Tok::Semicolon,
+        "!" => Tok::Bang,
+        "=" => Tok::Assign,
 
         // keywords
-        "as" => Token::Keyword(Keyword::As),
-        "assert" => Token::Keyword(Keyword::Assert),
-        "assert_eq" => Token::Keyword(Keyword::AssertEq),
-        "bool" => Token::Keyword(Keyword::Bool),
-        "break" => Token::Keyword(Keyword::Break),
-        "call_data" => Token::Keyword(Keyword::CallData),
-        "char" => Token::Keyword(Keyword::Char),
-        "comptime" => Token::Keyword(Keyword::CompTime),
-        "constrain" => Token::Keyword(Keyword::Constrain),
-        "continue" => Token::Keyword(Keyword::Continue),
-        "contract" => Token::Keyword(Keyword::Contract),
-        "crate" => Token::Keyword(Keyword::Crate),
-        "dep" => Token::Keyword(Keyword::Dep),
-        "distinct" => Token::Keyword(Keyword::Distinct),
-        "else" => Token::Keyword(Keyword::Else),
-        "Field" => Token::Keyword(Keyword::Field),
-        "fn" => Token::Keyword(Keyword::Fn),
-        "for" => Token::Keyword(Keyword::For),
-        "fmtstr" => Token::Keyword(Keyword::FormatString),
-        "global" => Token::Keyword(Keyword::Global),
-        "if" => Token::Keyword(Keyword::If),
-        "impl" => Token::Keyword(Keyword::Impl),
-        "in" => Token::Keyword(Keyword::In),
-        "let" => Token::Keyword(Keyword::Let),
-        "mod" => Token::Keyword(Keyword::Mod),
-        "mut" => Token::Keyword(Keyword::Mut),
-        "pub" => Token::Keyword(Keyword::Pub),
-        "quote" => Token::Keyword(Keyword::Quote),
-        "return" => Token::Keyword(Keyword::Return),
-        "return_data" => Token::Keyword(Keyword::ReturnData),
-        "str" => Token::Keyword(Keyword::String),
-        "struct" => Token::Keyword(Keyword::Struct),
-        "trait" => Token::Keyword(Keyword::Trait),
-        "type" => Token::Keyword(Keyword::Type),
-        "unchecked" => Token::Keyword(Keyword::Unchecked),
-        "unconstrained" => Token::Keyword(Keyword::Unconstrained),
-        "use" => Token::Keyword(Keyword::Use),
-        "where" => Token::Keyword(Keyword::Where),
-        "while" => Token::Keyword(Keyword::While),
+        "as" => Tok::Keyword(Keyword::As),
+        "assert" => Tok::Keyword(Keyword::Assert),
+        "assert_eq" => Tok::Keyword(Keyword::AssertEq),
+        "bool" => Tok::Keyword(Keyword::Bool),
+        "break" => Tok::Keyword(Keyword::Break),
+        "call_data" => Tok::Keyword(Keyword::CallData),
+        "char" => Tok::Keyword(Keyword::Char),
+        "comptime" => Tok::Keyword(Keyword::CompTime),
+        "constrain" => Tok::Keyword(Keyword::Constrain),
+        "continue" => Tok::Keyword(Keyword::Continue),
+        "contract" => Tok::Keyword(Keyword::Contract),
+        "crate" => Tok::Keyword(Keyword::Crate),
+        "dep" => Tok::Keyword(Keyword::Dep),
+        "distinct" => Tok::Keyword(Keyword::Distinct),
+        "else" => Tok::Keyword(Keyword::Else),
+        "Field" => Tok::Keyword(Keyword::Field),
+        "fn" => Tok::Keyword(Keyword::Fn),
+        "for" => Tok::Keyword(Keyword::For),
+        "fmtstr" => Tok::Keyword(Keyword::FormatString),
+        "global" => Tok::Keyword(Keyword::Global),
+        "if" => Tok::Keyword(Keyword::If),
+        "impl" => Tok::Keyword(Keyword::Impl),
+        "in" => Tok::Keyword(Keyword::In),
+        "let" => Tok::Keyword(Keyword::Let),
+        "mod" => Tok::Keyword(Keyword::Mod),
+        "mut" => Tok::Keyword(Keyword::Mut),
+        "pub" => Tok::Keyword(Keyword::Pub),
+        "quote" => Tok::Keyword(Keyword::Quote),
+        "return" => Tok::Keyword(Keyword::Return),
+        "return_data" => Tok::Keyword(Keyword::ReturnData),
+        "str" => Tok::Keyword(Keyword::String),
+        "struct" => Tok::Keyword(Keyword::Struct),
+        "trait" => Tok::Keyword(Keyword::Trait),
+        "type" => Tok::Keyword(Keyword::Type),
+        "unchecked" => Tok::Keyword(Keyword::Unchecked),
+        "unconstrained" => Tok::Keyword(Keyword::Unconstrained),
+        "use" => Tok::Keyword(Keyword::Use),
+        "where" => Tok::Keyword(Keyword::Where),
+        "while" => Tok::Keyword(Keyword::While),
 
-        "true" => Token::Bool(true),
-        "false" => Token::Bool(false),
+        "true" => Tok::Bool(true),
+        "false" => Tok::Bool(false),
 
         // whitespace
-        " " => Token::Whitespace(" "),
-        "\n" => Token::Whitespace("\n"),
-        "\r" => Token::Whitespace("\r"),
-        "\t" => Token::Whitespace("\t"),
+        " " => Tok::Whitespace(" "),
+        "\n" => Tok::Whitespace("\n"),
+        "\r" => Tok::Whitespace("\r"),
+        "\t" => Tok::Whitespace("\t"),
 
-        EOF => Token::EOF,
+        EOF => Tok::EOF,
     }
 }
 
@@ -131,20 +131,20 @@ TopLevelStatement: TopLevelStatement = {
 
 
 // // TODO: rename Term
-// pub Term: Token = {
+// pub Term: Tok = {
 
 //     <b:Bool> EOF => b,
 
-//     EOF => Token::EOF,
+//     EOF => Tok::EOF,
 
-//     // <n:Num> => Token::Int(n),
+//     // <n:Num> => Tok::Int(n),
 //     // "(" <t:Term> ")" => t,
 // };
 
 
-Bool: Token = {
-    "true" => Token::Bool(true),
-    "false" => Token::Bool(false),
+Bool: Tok = {
+    "true" => Tok::Bool(true),
+    "false" => Tok::Bool(false),
 };
 
 
