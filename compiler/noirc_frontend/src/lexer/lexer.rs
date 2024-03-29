@@ -1139,10 +1139,10 @@ mod tests {
             (Some(Token::FmtStr("".to_string())), vec![format!("assert(x == y, f\"{s}\");")]),
             // expected token not found
             // (Some(Token::LineComment("".to_string(), None)), vec![
-            (None, vec![format!("//{}"), format!("// {}")]),
+            (None, vec![format!("//{s}"), format!("// {s}")]),
             // expected token not found
             // (Some(Token::BlockComment("".to_string(), None)), vec![
-            (None, vec![format!("/*{}*/"), format!("/* {} */"), format!("/*\n{}\n*/")]),
+            (None, vec![format!("/*{s}*/"), format!("/* {s} */"), format!("/*\n{s}\n*/")]),
         ]
     }
 
