@@ -72,6 +72,8 @@ elif ! earthly $EARTHLY_FLAGS $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then
     # 'failed to solve: failed to get edge: inconsistent graph state'
     echo "Got 'inconsistent graph state'. Restarting earthly. See https://github.com/earthly/earthly/issues/2454'"
     earthly $EARTHLY_FLAGS $@
+    # TODO handle
+    # could not configure satellite: failed getting org: unable to authenticate: failed to execute login request: Post 
   else
     # otherwise, propagate error
     exit 1
