@@ -30,10 +30,10 @@ check_installed wasm-opt
 self_path=$(dirname "$(readlink -f "$0")")
 pname=$(cargo read-manifest | jq -r '.name')
 
-NODE_DIR=$self_path/nodejs/
-BROWSER_DIR=$self_path/web/
+NODE_DIR=$self_path/nodejs
+BROWSER_DIR=$self_path/web
 
-# Clear out the existing build artifacts as these aren't automatically removed by wasm-pack.
+# Clear out the existing build artifacts as these aren't automatically removed by wasm-bindgen.
 if [ -d ./pkg/ ]; then
     rm -r $NODE_DIR
     rm -r $BROWSER_DIR
