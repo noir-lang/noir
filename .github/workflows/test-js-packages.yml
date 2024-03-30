@@ -73,7 +73,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm/{nodejs,web}
+          path: | 
+            ./tooling/noirc_abi_wasm/nodejs
+            ./tooling/noirc_abi_wasm/web
           retention-days: 10
 
 
@@ -139,7 +141,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: acvm-js
-          path: ./acvm-repo/acvm_js/{nodejs,web}
+          path: |
+            ./acvm-repo/acvm_js/nodejs
+            ./acvm-repo/acvm_js/web
           retention-days: 3
 
   test-acvm_js-node:
