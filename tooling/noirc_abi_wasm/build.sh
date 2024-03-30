@@ -6,13 +6,6 @@ function require_command {
         exit 1
     fi
 }
-function check_installed {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    echo "$1 is not installed. Please install it." >&2
-    return 1
-  fi
-  return 0
-}
 function run_or_fail {
   "$@"
   local status=$?
@@ -25,7 +18,7 @@ function run_or_fail {
 require_command jq
 require_command cargo
 require_command wasm-bindgen
-check_installed wasm-opt
+require_command wasm-opt
 
 self_path=$(dirname "$(readlink -f "$0")")
 pname=$(cargo read-manifest | jq -r '.name')
