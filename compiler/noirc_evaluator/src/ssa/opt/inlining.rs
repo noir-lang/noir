@@ -523,7 +523,7 @@ mod test {
         function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
-            function::{InlineType, RuntimeType},
+            function::InlineType,
             instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,

@@ -2401,7 +2401,7 @@ mod test {
         ssa::{
             function_builder::FunctionBuilder,
             ir::{
-                function::{FunctionId, InlineType, RuntimeType},
+                function::{FunctionId, InlineType},
                 instruction::BinaryOp,
                 map::Id,
                 types::Type,
@@ -2516,16 +2516,13 @@ mod test {
         check_call_opcode(&main_opcodes[0], 1, vec![Witness(0), Witness(1)], vec![Witness(2)]);
         check_call_opcode(&main_opcodes[1], 1, vec![Witness(0), Witness(1)], vec![Witness(3)]);
 
-        match &main_opcodes[2] {
-            Opcode::AssertZero(expr) => {
-                assert_eq!(expr.linear_combinations[0].0, FieldElement::from(1u128));
-                assert_eq!(expr.linear_combinations[0].1, Witness(2));
+        if let Opcode::AssertZero(expr) = &main_opcodes[2] {
+            assert_eq!(expr.linear_combinations[0].0, FieldElement::from(1u128));
+            assert_eq!(expr.linear_combinations[0].1, Witness(2));
 
-                assert_eq!(expr.linear_combinations[1].0, FieldElement::from(-1i128));
-                assert_eq!(expr.linear_combinations[1].1, Witness(3));
-                assert_eq!(expr.q_c, FieldElement::from(0u128));
-            }
-            _ => {}
+            assert_eq!(expr.linear_combinations[1].0, FieldElement::from(-1i128));
+            assert_eq!(expr.linear_combinations[1].1, Witness(3));
+            assert_eq!(expr.q_c, FieldElement::from(0u128));
         }
     }
 

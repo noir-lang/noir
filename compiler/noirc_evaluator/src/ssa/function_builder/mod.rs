@@ -500,7 +500,6 @@ mod tests {
     use acvm::FieldElement;
 
     use crate::ssa::ir::{
-        function::{InlineType, RuntimeType},
         instruction::{Endian, Intrinsic},
         map::Id,
         types::Type,
