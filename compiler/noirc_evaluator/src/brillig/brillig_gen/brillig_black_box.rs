@@ -1,7 +1,7 @@
 use acvm::acir::{brillig::BlackBoxOp, BlackBoxFunc};
 
 use crate::brillig::brillig_ir::{
-    brillig_variable::{BrilligVariable, BrilligVector},
+    brillig_variable::{BrilligVariable, BrilligVector, SingleAddrVariable},
     BrilligContext,
 };
 
@@ -56,17 +56,23 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::Keccak256 => {
             if let (
-                [message, BrilligVariable::SingleAddr(array_size)],
+                [message, BrilligVariable::SingleAddr(message_size)],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
                 let mut message_vector = convert_array_or_vector(brillig_context, message, bb_func);
-                message_vector.size = array_size.address;
+                let message_size_as_usize =
+                    SingleAddrVariable::new_usize(brillig_context.allocate_register());
+                // Message_size is not usize
+                brillig_context.cast_instruction(message_size_as_usize, *message_size);
+
+                message_vector.size = message_size_as_usize.address;
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Keccak256 {
                     message: message_vector.to_heap_vector(),
                     output: result_array.to_heap_array(),
                 });
+                brillig_context.deallocate_single_addr(message_size_as_usize);
             } else {
                 unreachable!("ICE: Keccak256 expects message, message size and result array")
             }

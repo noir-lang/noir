@@ -11,4 +11,4 @@ pub mod ssa;
 
 pub mod brillig;
 
-pub use ssa::create_circuit;
+pub use ssa::create_program;

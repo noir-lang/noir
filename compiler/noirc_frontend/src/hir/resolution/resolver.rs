@@ -252,7 +252,7 @@ impl<'a> Resolver<'a> {
                 typ: typ.clone(),
                 span: name.span(),
             }),
-            body: BlockExpression(Vec::new()),
+            body: BlockExpression { statements: Vec::new() },
             span: name.span(),
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
@@ -942,7 +942,7 @@ impl<'a> Resolver<'a> {
             });
         }
         let is_low_level_function =
-            func.attributes().function.as_ref().map_or(false, |func| func.is_low_level());
+            attributes.function.as_ref().map_or(false, |func| func.is_low_level());
         if !self.path_resolver.module_id().krate.is_stdlib() && is_low_level_function {
             let error =
                 ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() };
@@ -991,6 +991,8 @@ impl<'a> Resolver<'a> {
             .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
             .collect();
 
+        let should_fold = attributes.is_foldable();
+
         FuncMeta {
             name: name_ident,
             kind: func.kind,
@@ -1005,6 +1007,7 @@ impl<'a> Resolver<'a> {
             has_body: !func.def.body.is_empty(),
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
             is_entry_point: self.is_entry_point_function(func),
+            should_fold,
         }
     }
 
@@ -1303,18 +1306,23 @@ impl<'a> Resolver<'a> {
 
                 HirLValue::Ident(ident.0, Type::Error)
             }
-            LValue::MemberAccess { object, field_name } => {
-                let object = Box::new(self.resolve_lvalue(*object));
-                HirLValue::MemberAccess { object, field_name, field_index: None, typ: Type::Error }
-            }
-            LValue::Index { array, index } => {
+            LValue::MemberAccess { object, field_name, span } => HirLValue::MemberAccess {
+                object: Box::new(self.resolve_lvalue(*object)),
+                field_name,
+                location: Location::new(span, self.file),
+                field_index: None,
+                typ: Type::Error,
+            },
+            LValue::Index { array, index, span } => {
                 let array = Box::new(self.resolve_lvalue(*array));
                 let index = self.resolve_expression(index);
-                HirLValue::Index { array, index, typ: Type::Error }
+                let location = Location::new(span, self.file);
+                HirLValue::Index { array, index, location, typ: Type::Error }
             }
-            LValue::Dereference(lvalue) => {
+            LValue::Dereference(lvalue, span) => {
                 let lvalue = Box::new(self.resolve_lvalue(*lvalue));
-                HirLValue::Dereference { lvalue, element_type: Type::Error }
+                let location = Location::new(span, self.file);
+                HirLValue::Dereference { lvalue, location, element_type: Type::Error }
             }
         }
     }
@@ -1952,8 +1960,8 @@ impl<'a> Resolver<'a> {
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         let statements =
-            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt)));
-        HirExpression::Block(HirBlockExpression(statements))
+            self.in_new_scope(|this| vecmap(block_expr.statements, |stmt| this.intern_stmt(stmt)));
+        HirExpression::Block(HirBlockExpression { statements })
     }
 
     pub fn intern_block(&mut self, block: BlockExpression) -> ExprId {

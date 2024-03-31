@@ -347,7 +347,7 @@ fn block<'a>(
             [(LeftParen, RightParen), (LeftBracket, RightBracket)],
             |span| vec![Statement { kind: StatementKind::Error, span }],
         ))
-        .map(BlockExpression)
+        .map(|statements| BlockExpression { statements })
 }
 
 fn check_statements_require_semicolon(
@@ -526,8 +526,8 @@ fn assign_operator() -> impl NoirParser<Token> {
 }
 
 enum LValueRhs {
-    MemberAccess(Ident),
-    Index(Expression),
+    MemberAccess(Ident, Span),
+    Index(Expression, Span),
 }
 
 fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
@@ -539,23 +539,28 @@ where
 
         let dereferences = just(Token::Star)
             .ignore_then(lvalue.clone())
-            .map(|lvalue| LValue::Dereference(Box::new(lvalue)));
+            .map_with_span(|lvalue, span| LValue::Dereference(Box::new(lvalue), span));
 
         let parenthesized = lvalue.delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
         let term = choice((parenthesized, dereferences, l_ident));
 
-        let l_member_rhs = just(Token::Dot).ignore_then(field_name()).map(LValueRhs::MemberAccess);
+        let l_member_rhs =
+            just(Token::Dot).ignore_then(field_name()).map_with_span(LValueRhs::MemberAccess);
 
         let l_index = expr_parser
             .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-            .map(LValueRhs::Index);
+            .map_with_span(LValueRhs::Index);
 
         term.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
-            LValueRhs::MemberAccess(field_name) => {
-                LValue::MemberAccess { object: Box::new(lvalue), field_name }
+            LValueRhs::MemberAccess(field_name, span) => {
+                let span = lvalue.span().merge(span);
+                LValue::MemberAccess { object: Box::new(lvalue), field_name, span }
             }
-            LValueRhs::Index(index) => LValue::Index { array: Box::new(lvalue), index },
+            LValueRhs::Index(index, span) => {
+                let span = lvalue.span().merge(span);
+                LValue::Index { array: Box::new(lvalue), index, span }
+            }
         })
     })
 }
@@ -1015,10 +1020,12 @@ where
             // Wrap the inner `if` expression in a block expression.
             // i.e. rewrite the sugared form `if cond1 {} else if cond2 {}` as `if cond1 {} else { if cond2 {} }`.
             let if_expression = Expression::new(kind, span);
-            let desugared_else = BlockExpression(vec![Statement {
-                kind: StatementKind::Expression(if_expression),
-                span,
-            }]);
+            let desugared_else = BlockExpression {
+                statements: vec![Statement {
+                    kind: StatementKind::Expression(if_expression),
+                    span,
+                }],
+            };
             Expression::new(ExpressionKind::Block(desugared_else), span)
         }));
 
@@ -1399,13 +1406,13 @@ mod test {
         // Regression for #1310: this should be parsed as a block and not a function call
         let res =
             parse_with(block(fresh_statement()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
-        match unwrap_expr(&res.0.last().unwrap().kind) {
+        match unwrap_expr(&res.statements.last().unwrap().kind) {
             // The `if` followed by a tuple is currently creates a block around both in case
             // there was none to start with, so there is an extra block here.
             ExpressionKind::Block(block) => {
-                assert_eq!(block.0.len(), 2);
-                assert!(matches!(unwrap_expr(&block.0[0].kind), ExpressionKind::If(_)));
-                assert!(matches!(unwrap_expr(&block.0[1].kind), ExpressionKind::Tuple(_)));
+                assert_eq!(block.statements.len(), 2);
+                assert!(matches!(unwrap_expr(&block.statements[0].kind), ExpressionKind::If(_)));
+                assert!(matches!(unwrap_expr(&block.statements[1].kind), ExpressionKind::Tuple(_)));
             }
             _ => unreachable!(),
         }
