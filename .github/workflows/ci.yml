@@ -81,7 +81,7 @@ jobs:
         run:
           # Flags:
           # - e2e_build=true to get images from a local build, not a dockerhub registry strategy
-          earthly-cloud build arm --no-output +${{ matrix.test }} --e2e_build=true
+          earthly-cloud build arm --no-output +${{ matrix.test }} --e2e_mode=build
 
   # all the end-to-end integration tests for aztec
   e2e-x86:
@@ -123,7 +123,7 @@ jobs:
       - name: Test
         working-directory: ./yarn-project/end-to-end/
         run: |
-          earthly-cloud build x86 --no-output +${{ matrix.test }}
+          earthly-cloud build x86 --no-output +${{ matrix.test }} --e2e_mode=cache
 
   # barretenberg (prover) native tests
   bb-native-tests:
@@ -158,7 +158,7 @@ jobs:
       - name: Test
         working-directory: ./barretenberg/cpp/
         run: |
-          earthly-cloud build ${{ matrix.environment }} --no-output +test
+          earthly-cloud test ${{ matrix.environment }} --no-output +test
 
   # All benchmarks, purposefully ran sequential on a machine
   # they should use parallelism within the benchmark, but only one thing should run at a time
@@ -170,9 +170,9 @@ jobs:
       EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
-      # TODO no longer exclusive.. revisit this
-      group: ${{ github.actor }}-x86
-      cancel-in-progress: ${{ github.ref_name != 'master' }}
+      # TODO this allows NO concurrency of bench jobs
+      # TODO if this takes too long, we need to divide up into different bench machines for each pipeline step
+      group: bench-x86
     steps:
       - uses: earthly/actions-setup@v1
         with:
@@ -188,10 +188,15 @@ jobs:
         working-directory: ./scripts
         run: ./setup_env.sh ${{ secrets.DOCKERHUB_PASSWORD }} ${{ github.actor }}
 
+      - name: Build and Push Binaries
+        working-directory: ./barretenberg/cpp/
+        run: earthly-cloud build x86 --push +bench-base
+
+      # Use bench_mode=cache to read the pushed build above
       - name: Client IVC Bench
         working-directory: ./barretenberg/cpp/
-        run: earthly-cloud bench x86 --no-output +bench-client-ivc
+        run: earthly-cloud bench x86 --no-output +bench-client-ivc --bench_mode=cache
 
       - name: Ultrahonk Bench
         working-directory: ./barretenberg/cpp/
-        run: earthly-cloud bench x86 --no-output +bench-ultra-honk
+        run: earthly-cloud bench x86 --no-output +bench-ultra-honk --bench_mode=cache

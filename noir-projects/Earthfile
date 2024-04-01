@@ -6,7 +6,7 @@ COPY ../noir/+nargo/nargo /usr/bin/nargo
 # Install transpiler
 COPY ../avm-transpiler/+build/avm-transpiler /usr/bin/avm-transpiler
 
-WORKDIR /build
+WORKDIR /usr/src/noir-projects
 
 # Copy source.
 COPY --dir aztec-nr noir-contracts noir-protocol-circuits .

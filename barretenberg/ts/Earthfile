@@ -1,7 +1,7 @@
 VERSION 0.8
 
 FROM node:18.19.0
-WORKDIR /build
+WORKDIR /usr/src/barretenberg/ts-build
 
 # minimum files to download yarn packages
 # keep timestamps for incremental builds
@@ -20,28 +20,28 @@ COPY ../cpp/+preset-wasm/bin/barretenberg.wasm dest/node-cjs/barretenberg_wasm/b
 
 esm:
     RUN yarn build:esm
-    SAVE ARTIFACT /build
+    SAVE ARTIFACT /usr/src/barretenberg/ts-build build
 
 cjs:
     COPY scripts/cjs_postprocess.sh scripts/
     RUN yarn build:cjs
-    SAVE ARTIFACT /build
+    SAVE ARTIFACT /usr/src/barretenberg/ts-build build
 
 browser:
     RUN yarn build:browser
-    SAVE ARTIFACT /build
+    SAVE ARTIFACT /usr/src/barretenberg/ts-build build
 
 test-prettier-format:
     RUN yarn formatting
 
 build:
     # collect all our build types
-    COPY +esm/build /build
-    COPY +cjs/build /build
-    COPY +browser/build /build
+    COPY +esm/build /usr/src/barretenberg/ts-build
+    COPY +cjs/build /usr/src/barretenberg/ts-build
+    COPY +browser/build /usr/src/barretenberg/ts-build
     # We want to create a pure package, as would be published to npm, for consuming projects.
     RUN yarn pack && tar zxf package.tgz && rm package.tgz && mv package ../ts
-    SAVE ARTIFACT /build
+    SAVE ARTIFACT /usr/src/barretenberg/ts build
 
 test:
     BUILD +test-prettier-format

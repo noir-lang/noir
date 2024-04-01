@@ -3,14 +3,14 @@ FROM node:18.19.0
 RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
 
 # copy bb-js and noir-packages
-COPY ../barretenberg/ts/+build/build /build/barretenberg/ts
-COPY ../noir/+packages/packages /build/noir/packages
+COPY ../barretenberg/ts/+build/build /usr/src/barretenberg/ts
+COPY ../noir/+packages/packages /usr/src/noir/packages
 # install acvm binary
 COPY ../noir/+nargo/acvm /usr/bin/acvm
-COPY --dir ../noir-projects/+build/. /build/noir-projects
-COPY ../l1-contracts/+build/out /build/l1-contracts/out
+COPY --dir ../noir-projects/+build/. /usr/src/noir-projects
+COPY ../l1-contracts/+build/out /usr/src/l1-contracts/out
 
-WORKDIR /build/yarn-project
+WORKDIR /usr/src/yarn-project
 # copy source
 COPY --dir * *.json .yarn .yarnrc.yml .
 
@@ -20,24 +20,16 @@ COPY --dir * *.json .yarn .yarnrc.yml .
 # This does kind of work, but jest doesn't honor it correctly, so this seems like a neat workaround.
 # Also, --preserve-symlinks causes duplication of portalled instances such as bb.js, and breaks the singleton logic
 # by initialising the module more than once. So at present I don't see a viable alternative.
-RUN ln -s /build/yarn-project/node_modules /build/node_modules
+RUN ln -s /usr/src/yarn-project/node_modules /usr/src/node_modules
 
 # Target for main build process
 build:
     FROM +source
     ARG EARTHLY_CI
     # TODO: Replace puppeteer with puppeteer-core to avoid this.
-    # TODO encapsulate in bash script for cleanliness
     ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-    ENV YARN_CACHE_FOLDER /build/yarn-cache
-    # Use a mount for incremental builds locally.
-    RUN --mount type=cache,target=/build/node_modules_cache --mount type=cache,target=/build/yarn-cache \
-        mkdir -p node_modules_cache && \
-        mv node_modules_cache node_modules && \
-        ./bootstrap.sh && \
-        yarn workspaces focus @aztec/cli @aztec/aztec --production && \
-        cp -r node_modules node_modules_cache
-    SAVE ARTIFACT /build
+    RUN ./bootstrap.sh && yarn workspaces focus @aztec/cli @aztec/aztec --production
+    SAVE ARTIFACT /usr/src
 
 # TODO versioning flow at end before publish?
 # ENV COMMIT_TAG=$EARTHLY_BUILD_SHA
@@ -47,15 +39,15 @@ build:
 #     FROM node:18.19.1-slim
 #     ARG COMMIT_TAG=""
 #     ENV COMMIT_TAG=$COMMIT_TAG
-#     COPY --from=builder /build /build
-#     WORKDIR /build/yarn-project
+#     COPY --from=builder /usr/src /usr/src
+#     WORKDIR /usr/src/yarn-project
 #     ENTRYPOINT ["yarn"]
 
 aztec:
     FROM +build
     # ENV vars for using native ACVM simulation
     ENV ACVM_BINARY_PATH="/usr/bin/acvm" ACVM_WORKING_DIRECTORY="/tmp/acvm"
-    ENTRYPOINT ["node", "--no-warnings", "/build/yarn-project/aztec/dest/bin/index.js"]
+    ENTRYPOINT ["node", "--no-warnings", "/usr/src/yarn-project/aztec/dest/bin/index.js"]
     EXPOSE 8080
     # TODO(AD) the following are the biggest node modules bundled, should they be deleted as they are build tools?
     # 25840   @jest
@@ -77,7 +69,7 @@ end-to-end:
     # Build web bundle for browser tests
     RUN yarn workspace @aztec/end-to-end run build:web
     RUN yarn workspaces focus @aztec/end-to-end --production && yarn cache clean
-    SAVE ARTIFACT /build
+    SAVE ARTIFACT /usr/src/*
 
 end-to-end-minimal: 
     # end to end test runner
@@ -85,8 +77,8 @@ end-to-end-minimal:
     FROM node:18.19.1-slim
     RUN apt-get update && apt-get install jq chromium -y
     ENV CHROME_BIN="/usr/bin/chromium"
-    COPY +end-to-end/build /build
-    WORKDIR /build/yarn-project/end-to-end
+    COPY +end-to-end/. /usr/src
+    WORKDIR /usr/src/yarn-project/end-to-end
     ENTRYPOINT ["yarn", "test"]
 
 build-end-to-end:

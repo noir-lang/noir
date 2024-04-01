@@ -14,7 +14,7 @@ RUN foundryup
 # Install yarn and solhint.
 RUN npm install --global yarn solhint
 
-WORKDIR /build
+WORKDIR /usr/src
 COPY --dir lib scripts src terraform test *.json *.toml *.sh .
 
 build:

@@ -1,28 +1,34 @@
 VERSION 0.8
 
-FROM ubuntu:lunar
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    git \
-    cmake \
-    lsb-release \
-    wget \
-    software-properties-common \
-    gnupg \
-    ninja-build \
-    npm \
-    libssl-dev \
-    jq \
-    bash \
-    libstdc++6 \
-    clang-format \
-    clang-16
+build-base:
+    ARG TARGETARCH
+    FROM --platform=linux/$TARGETARCH ubuntu:lunar
+    RUN apt-get update && apt-get install -y \
+        build-essential \
+        curl \
+        git \
+        cmake \
+        lsb-release \
+        wget \
+        software-properties-common \
+        gnupg \
+        ninja-build \
+        npm \
+        libssl-dev \
+        jq \
+        bash \
+        libstdc++6 \
+        clang-format \
+        clang-16
 
-WORKDIR /build
-
-SAVE IMAGE --push aztecprotocol/cache:bb-ubuntu-lunar
-SAVE IMAGE --cache-hint
+    IF [ $TARGETARCH = arm64 ]
+        # publish arm after, assumes x86 already exists, becomes multiplatform image
+        SAVE IMAGE --push aztecprotocol/bb-ubuntu-lunar
+        FROM --platform=linux/amd64 aztecprotocol/bb-ubuntu-lunar:x86-latest
+        SAVE IMAGE --push aztecprotocol/bb-ubuntu-lunar
+    ELSE
+        SAVE IMAGE --push aztecprotocol/bb-ubuntu-lunar:x86-latest
+    END
 
 build-wasi-sdk-image:
     WORKDIR /
@@ -42,7 +48,7 @@ build-wasi-sdk:
     ARG TARGETARCH
     # Wrapper just exists share files.
     FROM scratch
-    WORKDIR /build
+    WORKDIR /usr/src
     COPY +get-wasi-sdk-image/wasi-sdk wasi-sdk
     SAVE ARTIFACT wasi-sdk
     SAVE IMAGE --push aztecprotocol/cache:wasi-sdk-threads-v21.0-$TARGETARCH
@@ -63,31 +69,34 @@ get-wasi-sdk:
     SAVE ARTIFACT src/wasi-sdk-20.0 wasi-sdk
 
 wasmtime:
+    FROM aztecprotocol/bb-ubuntu-lunar
     RUN curl https://wasmtime.dev/install.sh -sSf | bash
     SAVE ARTIFACT /root/.wasmtime/bin/wasmtime
 
 source:
+    FROM aztecprotocol/bb-ubuntu-lunar
+    WORKDIR /usr/src/barretenberg
     # cpp source
-    COPY --keep-ts --dir src/barretenberg src/CMakeLists.txt src
+    COPY --dir src/barretenberg src/CMakeLists.txt src
     # cmake source
-    COPY --keep-ts --dir cmake CMakeLists.txt CMakePresets.json .
+    COPY --dir cmake CMakeLists.txt CMakePresets.json .
     # for debugging rebuilds
     RUN echo CONTENT HASH $(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}') | tee .content-hash
 
-preset-release-assert-all:
-    FROM +source
-    DO +RUN_CMAKE --configure="--preset clang16-assert" --build=""
-    SAVE ARTIFACT bin
-
 preset-release:
     FROM +source
-    DO +RUN_CMAKE --configure="--preset clang16" --build="--target bb"
-    SAVE ARTIFACT bin
+    RUN cmake --preset clang16 -Bbuild && cmake --build build --target bb
+    SAVE ARTIFACT build/bin
+
+preset-release-assert:
+    FROM +source
+    RUN cmake --preset clang16 -Bbuild && cmake --build build --target bb
+    SAVE ARTIFACT build/bin
 
 preset-debug:
     FROM +source
-    DO +RUN_CMAKE --configure="--preset clang16-dbg" --build="--target bb"
-    SAVE ARTIFACT bin
+    RUN cmake --preset clang16-dbg -Bbuild && cmake --build build --target bb
+    SAVE ARTIFACT build/bin
 
 preset-wasm:
     ARG TARGETARCH
@@ -95,47 +104,105 @@ preset-wasm:
     IF [ $TARGETARCH = arm64 ]
         # Just use threads for now
         FROM +preset-wasm-threads
-        SAVE ARTIFACT bin
+        SAVE ARTIFACT build/bin
     ELSE
         COPY +get-wasi-sdk/wasi-sdk src/wasi-sdk
-        DO +RUN_CMAKE --configure="--preset wasm" --build="--target barretenberg.wasm"
-        RUN ../src/wasi-sdk/bin/llvm-strip ./bin/barretenberg.wasm
-        SAVE ARTIFACT bin
+        RUN cmake --preset wasm -Bbuild && cmake --build build --target barretenberg.wasm
+        RUN src/wasi-sdk/bin/llvm-strip ./build/bin/barretenberg.wasm
+        SAVE ARTIFACT build/bin
         SAVE IMAGE --cache-hint
     END
 
 preset-wasm-threads:
     FROM +source
     COPY +get-wasi-sdk-threads/wasi-sdk src/wasi-sdk
-    DO +RUN_CMAKE --configure="--preset wasm-threads" --build="--target barretenberg.wasm"
-    RUN ../src/wasi-sdk/bin/llvm-strip ./bin/barretenberg.wasm
-    SAVE ARTIFACT bin
-    SAVE IMAGE --cache-hint
+    RUN cmake --preset wasm-threads -Bbuild && cmake --build build --target barretenberg.wasm
+    RUN src/wasi-sdk/bin/llvm-strip ./build/bin/barretenberg.wasm
+    SAVE ARTIFACT build/bin
 
 preset-gcc:
     FROM +source
-    DO +RUN_CMAKE --configure="--preset gcc" --build=""
-    SAVE ARTIFACT bin
+    RUN cmake --preset gcc -Bbuild && cmake --build build
+    SAVE ARTIFACT build/bin
 
 preset-fuzzing:
     FROM +source
-    DO +RUN_CMAKE --configure="--preset fuzzing" --build=""
-    SAVE ARTIFACT bin
+    RUN cmake --preset fuzzing -Bbuild && cmake --build build
+    SAVE ARTIFACT build/bin
 
 preset-clang-assert:
     FROM +source
-    DO +RUN_CMAKE --configure="--preset clang16 -DCMAKE_BUILD_TYPE=RelWithAssert" --build="--target bb"
-    SAVE ARTIFACT bin
+    RUN cmake --preset clang16-assert -Bbuild && cmake --build build --target bb
+    SAVE ARTIFACT build/bin
 
-preset-op-count:
+# benchmarking images
+# these are either fresh builds just for benching (op-count and op-count-time)
+# or build the binaries we need for benchmarking
+preset-op-count-bench:
     FROM +source
-    DO +RUN_CMAKE --configure="--preset op-count -DCMAKE_BUILD_TYPE=RelWithAssert" --build="--target bb"
-    SAVE ARTIFACT bin
+    RUN cmake --preset op-count -DCMAKE_BUILD_TYPE=RelWithAssert -Bbuild && cmake --build build --target ultra_honk_bench --target client_ivc_bench
+    SAVE ARTIFACT build/bin
 
-preset-op-count-time:
+preset-op-count-time-bench:
     FROM +source
-    DO +RUN_CMAKE --configure="--preset op-count-time -DCMAKE_BUILD_TYPE=RelWithAssert" --build="--target bb"
-    SAVE ARTIFACT bin
+    RUN cmake --preset op-count-time -Bbuild && cmake --build build --target ultra_honk_bench --target client_ivc_bench
+    SAVE ARTIFACT build/bin
+
+preset-release-bench:
+    FROM +preset-release
+    RUN cmake --build build --target ultra_honk_bench --target client_ivc_bench
+    SAVE ARTIFACT build/bin
+
+preset-wasm-bench:
+    FROM +preset-wasm-threads
+    RUN cmake --build build --target ultra_honk_bench --target client_ivc_bench
+    SAVE ARTIFACT build/bin
+
+# test images
+preset-release-assert-test:
+    FROM +preset-release-assert
+    # build all targets for tests
+    RUN cmake --build build 
+    SAVE ARTIFACT build/bin
+
+# Sent to the bench runner using a earthly-cloud build x86 --push +bench-base --bench_mode=true
+# then we can run earthly-cloud bench x86 +bench-ultra-honk etc
+bench-base:
+    ARG EARTHLY_GIT_HASH
+    ARG TARGETARCH
+    ARG bench_mode=build
+    LOCALLY
+    IF [ $bench_mode = cache ]
+        FROM aztecprotocol/bb-bench-base:$TARGETARCH-$EARTHLY_GIT_HASH
+    ELSE
+        FROM +source
+        COPY +preset-op-count-time-bench/bin/*_bench op-count-time/bin/
+        COPY +preset-op-count-bench/bin/*_bench op-count/bin/
+        COPY +preset-release-bench/bin/*_bench release/bin/
+        COPY +preset-wasm-bench/bin/*_bench wasm/bin/
+        SAVE IMAGE --push aztecprotocol/bb-bench-base:$TARGETARCH-$EARTHLY_GIT_HASH
+    END
+
+# Runs on the bench image, sent from the builder runner
+bench-ultra-honk:
+    FROM +bench-base
+    # install SRS needed for proving
+    COPY --dir ./srs_db/+build/. srs_db
+    RUN cd release && ./bin/ultra_honk_bench --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
+    RUN cd op-count && ./bin/ultra_honk_bench --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
+    RUN cd op-count-time && ./bin/ultra_honk_bench --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
+    COPY +wasmtime/wasmtime /usr/bin/wasmtime
+    RUN cd wasm && wasmtime run --env HARDWARE_CONCURRENCY=16 -Wthreads=y -Sthreads=y --dir=".." ./bin/ultra_honk_bench --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
+
+bench-client-ivc:
+    FROM +bench-base
+    # install SRS needed for proving
+    COPY --dir ./srs_db/+build/. srs_db
+    RUN cd release && ./bin/client_ivc_bench --benchmark_filter="ClientIVCBench/Full/6$"
+    RUN cd op-count && ./bin/client_ivc_bench --benchmark_filter="ClientIVCBench/Full/6$"
+    RUN cd op-count-time && ./bin/client_ivc_bench --benchmark_filter="ClientIVCBench/Full/6$"
+    COPY +wasmtime/wasmtime /usr/bin/wasmtime
+    RUN cd wasm && wasmtime run --env HARDWARE_CONCURRENCY=16 -Wthreads=y -Sthreads=y --dir=".." ./bin/client_ivc_bench --benchmark_filter="ClientIVCBench/Full/6$"
 
 test-clang-format:
     FROM +source
@@ -143,78 +210,8 @@ test-clang-format:
     COPY format.sh .
     RUN ./format.sh check
 
-bench-ultra-honk:
-    DO +BENCH_RELEASE --target=ultra_honk_bench --args="--benchmark_filter=construct_proof_ultrahonk_power_of_2/20$"
-    DO +BENCH_WASM --target=ultra_honk_bench --args="--benchmark_filter=construct_proof_ultrahonk_power_of_2/20$"
-
-bench-client-ivc:
-    DO +BENCH_RELEASE --target=client_ivc_bench --args="--benchmark_filter=ClientIVCBench/Full/6$"
-    DO +BENCH_RELEASE --target=client_ivc_bench --args="--benchmark_filter=ClientIVCBench/Full/6$"
-    DO +BENCH_WASM --target=client_ivc_bench --args="--benchmark_filter=ClientIVCBench/Full/6$"
-
-build: # default target
-    BUILD +preset-release
-    BUILD +preset-wasm-threads
-
 test:
     BUILD +test-clang-format
-    FROM +preset-release-assert-all
-    COPY --dir ./srs_db/+build/. ../srs_db
-    RUN GTEST_COLOR=1 ctest -j$(nproc) --output-on-failure
-
-# Functions
-RUN_CMAKE:
-    FUNCTION
-    # Runs cmake build and leaves binary artifacts at 'bin'. Uses a mounted cache
-    # for incremental rebuilds.
-    ARG configure # cmake configure flags
-    ARG build # cmake build flags
-    WORKDIR /build
-    # Use a mount for incremental builds locally.
-    # TODO(AD): To be determined: does this get us in trouble in CI?
-    RUN --mount type=cache,id="$configure-build",target=/build/build \
-        (cmake $configure -Bbuild || (rm -f build/CMakeCache.txt && cmake $configure -Bbuild)) && \
-        cmake --build build $build && \
-        cp -r build build-tmp
-    # move the temporary build folder back
-    # this is because the cached build goes away 
-    RUN rm -rf build && mv build-tmp build
-    WORKDIR /build/build
-
-BENCH_RELEASE:
-    FUNCTION
-    ARG target
-    ARG args
-    FROM +preset-release
-    DO +RUN_CMAKE --configure="--preset clang16" --build="--target $target"
-    COPY --dir ./srs_db/+build/. ../srs_db
-    RUN ./bin/$target $args
-
-BENCH_OP_COUNT_TIME:
-    FUNCTION
-    ARG target
-    ARG args
-    FROM +preset-op-count-time
-    DO +RUN_CMAKE --configure="--preset op-count-time" --build="--target $target"
-    COPY --dir ./srs_db:+build/. ../srs_db
-    RUN ./bin/$target $args
-
-BENCH_OP_COUNT:
-    FUNCTION
-    ARG target
-    ARG args
-    FROM +preset-op-count
-    DO +RUN_CMAKE --configure="--preset op-count" --build="--target $target"
-    COPY --dir ./srs_db/+build/. ../srs_db
-    RUN ./bin/$target $args
-
-BENCH_WASM:
-    FUNCTION
-    ARG target
-    ARG args
-    FROM +preset-wasm-threads
-    DO +RUN_CMAKE --configure="--preset wasm-threads" --build="--target $target"
-    COPY --dir ./srs_db/+build/. ../srs_db
-    # install
-    COPY +wasmtime/wasmtime /usr/bin/wasmtime
-    RUN wasmtime run --env HARDWARE_CONCURRENCY=8 -Wthreads=y -Sthreads=y --dir=.. ./bin/$target $args
+    FROM +preset-release-assert-test
+    COPY --dir ./srs_db/+build/. srs_db
+    RUN cd build && GTEST_COLOR=1 ctest -j$(nproc) --output-on-failure

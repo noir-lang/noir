@@ -2,7 +2,26 @@ VERSION 0.8
 
 # requires first saving the images locally with ../+build-end-to-end
 
-# run locally, used for our mainly x86 jobs
+# run locally and build 
+E2E_TEST_LOCAL:
+  FUNCTION
+  ARG test
+  ARG compose_file=./scripts/docker-compose.yml
+  ARG enable_gas=""
+  ARG debug="aztec:*"
+  LOCALLY
+  ENV ENABLE_GAS=$enable_gas
+  ENV TEST=$test
+  ENV DEBUG="$debug"
+  WITH DOCKER \
+    --load aztecprotocol/aztec:latest=../+aztec \
+    --load aztecprotocol/end-to-end:latest=../+end-to-end-minimal \
+    --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+get
+    # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
+    RUN docker compose -f $compose_file up --exit-code-from=sandbox --force-recreate
+  END
+
+# run locally and take from cache, used for our mainly x86 jobs
 E2E_TEST_FROM_DOCKERHUB:
   FUNCTION
   ARG test
@@ -13,10 +32,10 @@ E2E_TEST_FROM_DOCKERHUB:
   ENV ENABLE_GAS=$enable_gas
   ENV TEST=$test
   ENV DEBUG="$debug"
-  # Locally, we do not use WITH DOCKER as we have had issues with earthly copying big images
+  # In CI we do not use WITH DOCKER as we have had issues with earthly copying big images
   RUN docker compose -f $compose_file up --exit-code-from=end-to-end --force-recreate
 
-# run on satellite, used for our few ARM jobs (means github runner doesn't need to be ARM)
+# run on satellite and build, used for our few ARM jobs (means github runner doesn't need to be ARM)
 E2E_TEST_FROM_BUILD:
   FUNCTION
   ARG test
@@ -42,207 +61,209 @@ E2E_TEST:
   ARG test
   ARG compose_file=./scripts/docker-compose.yml
   ARG enable_gas=""
-  ARG e2e_build=false
+  ARG e2e_mode=local
   ARG debug="aztec:*"
   LOCALLY
-  IF [ $e2e_build = true ]
-    DO +E2E_TEST_FROM_BUILD --test=$test --compose_file=$compose_file --enable_gas=$enable_gas --debug=$debug
-  ELSE
+  IF [ $e2e_mode = local ]
+    DO +E2E_TEST_LOCAL --test=$test --compose_file=$compose_file --enable_gas=$enable_gas --debug=$debug
+  ELSE IF [ $e2e_mode = cache ]
     DO +E2E_TEST_FROM_DOCKERHUB --test=$test --compose_file=$compose_file --enable_gas=$enable_gas --debug=$debug
+  ELSE
+    DO +E2E_TEST_FROM_BUILD --test=$test --compose_file=$compose_file --enable_gas=$enable_gas --debug=$debug
   END
 
 # Define e2e tests
 e2e-2-pxes:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_2_pxes.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_2_pxes.test.ts --e2e_mode=$e2e_mode
 
 e2e-note-getter:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_note_getter.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_note_getter.test.ts --e2e_mode=$e2e_mode
 
 e2e-counter:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_counter_contract.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_counter_contract.test.ts --e2e_mode=$e2e_mode
 
 e2e-private-voting:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_private_voting_contract.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_private_voting_contract.test.ts --e2e_mode=$e2e_mode
 
 e2e-max-block-number:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_max_block_number.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_max_block_number.test.ts --e2e_mode=$e2e_mode
 
 e2e-multiple-accounts-1-enc-key:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_multiple_accounts_1_enc_key.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_multiple_accounts_1_enc_key.test.ts --e2e_mode=$e2e_mode
 
 e2e-deploy-contract:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_deploy_contract.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_deploy_contract.test.ts --e2e_mode=$e2e_mode
 
 e2e-lending-contract:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_lending_contract.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_lending_contract.test.ts --e2e_mode=$e2e_mode
 
 e2e-token-contract:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_token_contract.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_token_contract.test.ts --e2e_mode=$e2e_mode
 
 e2e-authwit-test:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_authwit.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_authwit.test.ts --e2e_mode=$e2e_mode
 
 e2e-blacklist-token-contract:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_blacklist_token_contract.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_blacklist_token_contract.test.ts --e2e_mode=$e2e_mode
 
 # TODO(3458): Investigate intermittent failure
 # e2e-slow-tree:
 #   DO +E2E_TEST --test=e2e_slow_tree
 
 e2e-sandbox-example:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_sandbox_example.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_sandbox_example.test.ts --e2e_mode=$e2e_mode
 
 e2e-state-vars:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_state_vars.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_state_vars.test.ts --e2e_mode=$e2e_mode
 
 e2e-block-building:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_block_building.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_block_building.test.ts --e2e_mode=$e2e_mode
 
 e2e-nested-contract:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_nested_contract.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_nested_contract.test.ts --e2e_mode=$e2e_mode
 
 e2e-static-calls:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_static_calls.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_static_calls.test.ts --e2e_mode=$e2e_mode
 
 e2e-delegate-calls:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_delegate_calls.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_delegate_calls.test.ts --e2e_mode=$e2e_mode
 
 e2e-non-contract-account:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_non_contract_account.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_non_contract_account.test.ts --e2e_mode=$e2e_mode
 
 e2e-cross-chain-messaging:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_cross_chain_messaging.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_cross_chain_messaging.test.ts --e2e_mode=$e2e_mode
 
 e2e-crowdfunding-and-claim:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_crowdfunding_and_claim.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_crowdfunding_and_claim.test.ts --e2e_mode=$e2e_mode
 
 e2e-public-cross-chain-messaging:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_public_cross_chain_messaging.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_public_cross_chain_messaging.test.ts --e2e_mode=$e2e_mode
 
 e2e-public-to-private-messaging:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_public_to_private_messaging.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_public_to_private_messaging.test.ts --e2e_mode=$e2e_mode
 
 e2e-account-contracts:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_account_contracts.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_account_contracts.test.ts --e2e_mode=$e2e_mode
 
 e2e-escrow-contract:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_escrow_contract.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_escrow_contract.test.ts --e2e_mode=$e2e_mode
 
 e2e-inclusion-proofs-contract:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_inclusion_proofs_contract.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_inclusion_proofs_contract.test.ts --e2e_mode=$e2e_mode
 
 e2e-pending-note-hashes-contract:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_pending_note_hashes_contract.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_pending_note_hashes_contract.test.ts --e2e_mode=$e2e_mode
 
 e2e-ordering:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_ordering.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_ordering.test.ts --e2e_mode=$e2e_mode
 
 e2e-outbox:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_outbox.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_outbox.test.ts --e2e_mode=$e2e_mode
 
 uniswap-trade-on-l1-from-l2:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=uniswap_trade_on_l1_from_l2.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=uniswap_trade_on_l1_from_l2.test.ts --e2e_mode=$e2e_mode
 
 integration-l1-publisher:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=integration_l1_publisher.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=integration_l1_publisher.test.ts --e2e_mode=$e2e_mode
 
 e2e-cli:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_cli.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_cli.test.ts --e2e_mode=$e2e_mode
 
 e2e-persistence:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_persistence.test.ts --compose_file=./scripts/docker-compose-no-sandbox.yml --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_persistence.test.ts --compose_file=./scripts/docker-compose-no-sandbox.yml --e2e_mode=$e2e_mode
 
 e2e-browser:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_aztec_js_browser.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_aztec_js_browser.test.ts --e2e_mode=$e2e_mode
 
 e2e-card-game:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_card_game.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_card_game.test.ts --e2e_mode=$e2e_mode
 
 e2e-avm-simulator:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_avm_simulator.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_avm_simulator.test.ts --e2e_mode=$e2e_mode
 
 e2e-fees:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_fees.test.ts --enable_gas=1 --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_fees.test.ts --enable_gas=1 --e2e_mode=$e2e_mode
 
 e2e-dapp-subscription:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=e2e_dapp_subscription.test.ts --enable_gas=1 --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_dapp_subscription.test.ts --enable_gas=1 --e2e_mode=$e2e_mode
 
 pxe:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=pxe.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=pxe.test.ts --e2e_mode=$e2e_mode
 
 cli-docs-sandbox:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=cli_docs_sandbox.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=cli_docs_sandbox.test.ts --e2e_mode=$e2e_mode
 
 e2e-docs-examples:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=docs_examples.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=docs_examples.test.ts --e2e_mode=$e2e_mode
 
 guides-writing-an-account-contract:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=guides/writing_an_account_contract.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=guides/writing_an_account_contract.test.ts --e2e_mode=$e2e_mode
 
 guides-dapp-testing:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=guides/dapp_testing.test.ts --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=guides/dapp_testing.test.ts --e2e_mode=$e2e_mode
 
 guides-sample-dapp:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=sample-dapp --e2e_build=$e2e_build
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=sample-dapp --e2e_mode=$e2e_mode
 
 # TODO currently hangs for hour+
 # guides-up-quick-start:
-#   ARG e2e_build=false
-#   DO +E2E_TEST --test=guides/up_quick_start.test.ts --e2e_build=$e2e_build
+#   ARG e2e_mode=local
+#   DO +E2E_TEST --test=guides/up_quick_start.test.ts --e2e_mode=$e2e_mode
 
 bench-publish-rollup:
-  ARG e2e_build=false
-  DO +E2E_TEST --test=benchmarks/bench_publish_rollup.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_build=$e2e_build  --compose_file=./scripts/docker-compose-no-sandbox.yml 
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=benchmarks/bench_publish_rollup.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode  --compose_file=./scripts/docker-compose-no-sandbox.yml 
 
 # TODO need to investigate why this isn't working
 # bench-process-history:
-#   ARG e2e_build=false
-#   DO +E2E_TEST --test=benchmarks/bench_process_history.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_build=$e2e_build  --compose_file=./scripts/docker-compose-no-sandbox.yml 
+#   ARG e2e_mode=local
+#   DO +E2E_TEST --test=benchmarks/bench_process_history.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode  --compose_file=./scripts/docker-compose-no-sandbox.yml 
 
 # TODO need to investigate why this isn't working
 # bench-tx-size:
-#   ARG e2e_build=false
-#   DO +E2E_TEST --test=benchmarks/bench_tx_size_fees.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_build=$e2e_build  --compose_file=./scripts/docker-compose-no-sandbox.yml 
+#   ARG e2e_mode=local
+#   DO +E2E_TEST --test=benchmarks/bench_tx_size_fees.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode  --compose_file=./scripts/docker-compose-no-sandbox.yml 

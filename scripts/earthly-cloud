@@ -38,6 +38,9 @@ elif [ "$RUNNER_TYPE" == "bench" ] ; then
   SIZE=2xlarge
   NUMBER_OF_RUNNERS=1
   # MAX_PARALLELISM=1
+elif [ "$RUNNER_TYPE" == "test" ] ; then
+  SIZE=4xlarge
+  NUMBER_OF_RUNNERS=1
 fi
 
 # Flag to determine if -i is present

@@ -3,10 +3,10 @@ IMPORT ../noir AS noir
 # we rely on noir source, which this image has
 FROM noir+nargo
 
-# move noir contents to /build/noir
-RUN mv /build /noir && mkdir /build && mv /noir /build
+# move noir contents to /usr/src/noir
+RUN mv /usr/src /noir && mkdir /usr/src && mv /noir /usr/src
 # work in avm-transpiler
-WORKDIR /build/avm-transpiler
+WORKDIR /usr/src/avm-transpiler
 
 RUN apt-get update && apt-get install -y git
 
@@ -24,5 +24,5 @@ build:
 run: 
     #TODO needed?
     FROM ubuntu:focal
-    COPY +build/avm-transpiler /build/avm-transpiler
+    COPY +build/avm-transpiler /usr/src/avm-transpiler
     ENTRYPOINT ["sh", "-c"]

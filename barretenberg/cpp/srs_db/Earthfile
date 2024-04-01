@@ -4,7 +4,7 @@ FROM ubuntu:lunar
 RUN apt-get update && apt-get install -y curl
 
 build:
-    WORKDIR /build
+    WORKDIR /usr/src
     COPY ./*.sh .
     RUN ./download_ignition.sh 3
     RUN ./download_grumpkin.sh

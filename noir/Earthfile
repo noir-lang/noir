@@ -3,7 +3,7 @@ VERSION 0.8
 nargo:
     FROM rust:bullseye
     RUN apt update && apt install -y libc++1
-    WORKDIR /build
+    WORKDIR /usr/src
     # Relevant source (TODO finer-grained 'tooling')
     COPY --dir \
       noir-repo/acvm-repo \
@@ -21,8 +21,8 @@ nargo:
     COPY ./scripts/bootstrap_native.sh ./scripts/bootstrap_native.sh
     RUN ./scripts/bootstrap_native.sh
     RUN echo CONTENT HASH $COMMIT_HASH | tee .content-hash
-    SAVE ARTIFACT /build/noir-repo/target/release/nargo nargo
-    SAVE ARTIFACT /build/noir-repo/target/release/acvm acvm
+    SAVE ARTIFACT /usr/src/noir-repo/target/release/nargo nargo
+    SAVE ARTIFACT /usr/src/noir-repo/target/release/acvm acvm
     SAVE IMAGE aztecprotocol/nargo
 
 packages:
@@ -34,9 +34,9 @@ packages:
 
     # `noir-repo` is nested inside of `noir` so we copy `bb.js` as such to account 
     # for the extra nested folder specified in portalled package paths
-    COPY ../barretenberg/ts/+build/build /build/../barretenberg/ts
+    COPY ../barretenberg/ts/+build/build /usr/src/../barretenberg/ts
 
-    WORKDIR /build
+    WORKDIR /usr/src
 
     # Relevant source (TODO finer-grained)
     COPY --dir \
@@ -77,8 +77,8 @@ run:
     # Install Tini as nargo doesn't handle signals properly.
     # Install git as nargo needs it to clone.
     RUN apt-get update && apt-get install -y git tini && rm -rf /var/lib/apt/lists/* && apt-get clean
-    COPY +build/. /build
-    ENTRYPOINT ["/usr/bin/tini", "--", "/build/nargo"]
+    COPY +build/. /usr/src
+    ENTRYPOINT ["/usr/bin/tini", "--", "/usr/src/nargo"]
 
 build:
   BUILD +nargo
