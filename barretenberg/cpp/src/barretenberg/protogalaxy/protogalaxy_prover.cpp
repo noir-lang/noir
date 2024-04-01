@@ -50,9 +50,8 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
     std::vector<FF> lagranges{ FF(1) - challenge, challenge };
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/881): bad pattern
-    auto next_accumulator = std::make_shared<Instance>();
+    auto next_accumulator = std::move(instances[0]);
     next_accumulator->is_accumulator = true;
-    next_accumulator->proving_key = instances[0]->proving_key;
 
     // Compute the next target sum and send the next folding parameters to the verifier
     FF next_target_sum =
@@ -61,15 +60,19 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
     next_accumulator->target_sum = next_target_sum;
     next_accumulator->gate_challenges = instances.next_gate_challenges;
 
-    // Initialize prover polynomials
-    ProvingKey acc_proving_key_polys;
-    for (auto& polynomial : acc_proving_key_polys.get_all()) {
-        polynomial = typename Flavor::Polynomial(instances[0]->proving_key->circuit_size);
-    }
+    // Initialize accumulator proving key polynomials
+    auto accumulator_polys = next_accumulator->proving_key->get_all();
+    run_loop_in_parallel(Flavor::NUM_FOLDED_ENTITIES, [&](size_t start_idx, size_t end_idx) {
+        for (size_t poly_idx = start_idx; poly_idx < end_idx; poly_idx++) {
+            auto& acc_poly = accumulator_polys[poly_idx];
+            for (auto& acc_el : acc_poly) {
+                acc_el = acc_el * lagranges[0];
+            }
+        }
+    });
 
-    // Fold the prover key polynomials
-    for (size_t inst_idx = 0; inst_idx < ProverInstances::NUM; inst_idx++) {
-        auto accumulator_polys = acc_proving_key_polys.get_all();
+    // Fold the proving key polynomials
+    for (size_t inst_idx = 1; inst_idx < ProverInstances::NUM; inst_idx++) {
         auto input_polys = instances[inst_idx]->proving_key->get_all();
         run_loop_in_parallel(Flavor::NUM_FOLDED_ENTITIES, [&](size_t start_idx, size_t end_idx) {
             for (size_t poly_idx = start_idx; poly_idx < end_idx; poly_idx++) {
@@ -81,20 +84,17 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
             }
         });
     }
-    for (auto [next_acc_poly, acc_poly] :
-         zip_view(next_accumulator->proving_key->get_all(), acc_proving_key_polys.get_all())) {
-        next_acc_poly = std::move(acc_poly);
-    }
 
     // Fold public data ϕ from all instances to produce ϕ* and add it to the transcript. As part of the folding
     // verification, the verifier will produce ϕ* as well and check it against what was sent by the prover.
 
     // Fold the public inputs and send to the verifier
-    next_accumulator->proving_key->public_inputs = std::vector<FF>(instances[0]->proving_key->public_inputs.size(), 0);
     size_t el_idx = 0;
     for (auto& el : next_accumulator->proving_key->public_inputs) {
+        el = el * lagranges[0];
         size_t inst = 0;
-        for (auto& instance : instances) {
+        for (size_t inst_idx = 1; inst_idx < ProverInstances::NUM; inst_idx++) {
+            auto& instance = instances[inst_idx];
             // TODO(https://github.com/AztecProtocol/barretenberg/issues/830)
             if (instance->proving_key->num_public_inputs >= next_accumulator->proving_key->num_public_inputs) {
                 el += instance->proving_key->public_inputs[el_idx] * lagranges[inst];
