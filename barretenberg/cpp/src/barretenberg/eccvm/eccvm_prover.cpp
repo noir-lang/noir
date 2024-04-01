@@ -174,6 +174,9 @@ template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_transcript_co
     RefArray univariate_polynomials{ key->transcript_op, key->transcript_Px, key->transcript_Py,
                                      key->transcript_z1, key->transcript_z2, hack };
     std::array<FF, univariate_polynomials.size()> univariate_evaluations;
+    for (auto [eval, polynomial] : zip_view(univariate_evaluations, univariate_polynomials)) {
+        eval = polynomial.evaluate(evaluation_challenge_x);
+    }
 
     // Construct the batched polynomial and batched evaluation
     Polynomial batched_univariate{ key->circuit_size };
