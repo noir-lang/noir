@@ -93,20 +93,10 @@ step 2: Follow the [Noirup instructions](#encouraged-installation-method-noirup)
 
 ## Uninstalling Nargo
 
-### Noirup
-
-If you installed Nargo with `noirup` or through directly downloading binaries, you can uninstall Nargo by removing the files in `~/.nargo`, `~/nargo`, and `~/noir_cache`. This ensures that all installed binaries, configurations, and cache related to Nargo are fully removed from your system.
+If you installed Nargo with `noirup`, you can uninstall Nargo by removing the files in `~/.nargo`, `~/nargo`, and `~/noir_cache`. This ensures that all installed binaries, configurations, and cache related to Nargo are fully removed from your system.
 
 ```bash
 rm -r ~/.nargo
 rm -r ~/nargo
 rm -r ~/noir_cache
-```
-
-### Nix
-
-If you installed Nargo with Nix or compiled it from source, you can remove the binary located at `~/.nix-profile/bin/nargo`.
-
-```bash
-rm ~/.nix-profile/bin/nargo
 ```
