@@ -13,7 +13,6 @@
       "include-component-in-tag": false,
       "extra-files": [
         "Cargo.toml",
-        "flake.nix",
         {
           "type": "json",
           "path": "compiler/wasm/package.json",
