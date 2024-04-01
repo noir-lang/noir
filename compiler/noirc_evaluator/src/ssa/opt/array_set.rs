@@ -48,7 +48,9 @@ fn analyze_last_uses(dfg: &DataFlowGraph, block_id: BasicBlockId) -> FxHashSet<I
             Instruction::ArraySet { array, .. } => {
                 let array = dfg.resolve(*array);
 
-                array_to_last_use.insert(array, *instruction_id);
+                if let Some(existing) = array_to_last_use.insert(array, *instruction_id) {
+                    instructions_that_can_be_made_mutable.remove(&existing);
+                }
                 instructions_that_can_be_made_mutable.insert(*instruction_id);
             }
             Instruction::Call { arguments, .. } => {
