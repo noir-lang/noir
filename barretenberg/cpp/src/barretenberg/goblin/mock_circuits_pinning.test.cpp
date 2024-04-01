@@ -25,9 +25,9 @@ TEST_F(MockCircuitsPinning, FunctionSizes)
         GoblinMockCircuits::construct_mock_function_circuit(app_circuit, large);
         auto instance = std::make_shared<ProverInstance>(app_circuit);
         if (large) {
-            EXPECT_EQ(instance->proving_key->log_circuit_size, 19);
+            EXPECT_EQ(instance->proving_key.log_circuit_size, 19);
         } else {
-            EXPECT_EQ(instance->proving_key->log_circuit_size, 17);
+            EXPECT_EQ(instance->proving_key.log_circuit_size, 17);
         };
     };
     run_test(true);
@@ -51,9 +51,9 @@ TEST_F(MockCircuitsPinning, RecursionKernelSizes)
 
             auto instance = std::make_shared<ProverInstance>(kernel_circuit);
             if (large) {
-                EXPECT_EQ(instance->proving_key->log_circuit_size, 17);
+                EXPECT_EQ(instance->proving_key.log_circuit_size, 17);
             } else {
-                EXPECT_EQ(instance->proving_key->log_circuit_size, 17);
+                EXPECT_EQ(instance->proving_key.log_circuit_size, 17);
             };
         }
     };

@@ -1046,12 +1046,20 @@ class GoblinTranslatorFlavor {
         VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
             : VerificationKey_(circuit_size, num_public_inputs)
         {}
+        VerificationKey(const std::shared_ptr<ProvingKey>& proving_key)
+            : public_inputs(proving_key->public_inputs)
+        {
+            this->pcs_verification_key = std::make_shared<VerifierCommitmentKey>();
+            this->circuit_size = proving_key->circuit_size;
+            this->log_circuit_size = numeric::get_msb(this->circuit_size);
+            this->num_public_inputs = proving_key->num_public_inputs;
+            this->pub_inputs_offset = proving_key->pub_inputs_offset;
 
-        template <typename ProvingKeyPtr>
-        VerificationKey(const ProvingKeyPtr& proving_key)
-            : VerificationKey_(proving_key)
-            , public_inputs(proving_key->public_inputs)
-        {}
+            for (auto [polynomial, commitment] :
+                 zip_view(proving_key->get_precomputed_polynomials(), this->get_all())) {
+                commitment = proving_key->commitment_key->commit(polynomial);
+            }
+        }
     };
     /**
      * @brief A field element for each entity of the flavor.  These entities represent the prover polynomials

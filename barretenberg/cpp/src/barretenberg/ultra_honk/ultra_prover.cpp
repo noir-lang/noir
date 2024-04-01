@@ -1,5 +1,6 @@
 #include "ultra_prover.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
+#include "barretenberg/ultra_honk/oink_prover.hpp"
 
 namespace bb {
 
@@ -14,8 +15,7 @@ template <IsUltraFlavor Flavor>
 UltraProver_<Flavor>::UltraProver_(const std::shared_ptr<Instance>& inst, const std::shared_ptr<Transcript>& transcript)
     : instance(std::move(inst))
     , transcript(transcript)
-    , commitment_key(instance->proving_key->commitment_key)
-    , oink_prover(inst->proving_key, commitment_key, transcript, "")
+    , commitment_key(instance->proving_key.commitment_key)
 {}
 
 /**
@@ -29,8 +29,7 @@ template <IsUltraFlavor Flavor>
 UltraProver_<Flavor>::UltraProver_(Builder& circuit)
     : instance(std::make_shared<ProverInstance>(circuit))
     , transcript(std::make_shared<Transcript>())
-    , commitment_key(instance->proving_key->commitment_key)
-    , oink_prover(instance->proving_key, commitment_key, transcript, "")
+    , commitment_key(instance->proving_key.commitment_key)
 {}
 
 /**
@@ -40,7 +39,7 @@ UltraProver_<Flavor>::UltraProver_(Builder& circuit)
 template <IsUltraFlavor Flavor> void UltraProver_<Flavor>::execute_relation_check_rounds()
 {
     using Sumcheck = SumcheckProver<Flavor>;
-    auto circuit_size = instance->proving_key->circuit_size;
+    auto circuit_size = instance->proving_key.circuit_size;
     auto sumcheck = Sumcheck(circuit_size, transcript);
 
     std::vector<FF> gate_challenges(numeric::get_msb(circuit_size));
@@ -75,7 +74,9 @@ template <IsUltraFlavor Flavor> HonkProof& UltraProver_<Flavor>::export_proof()
 
 template <IsUltraFlavor Flavor> HonkProof& UltraProver_<Flavor>::construct_proof()
 {
-    auto [relation_params, alphas] = oink_prover.prove();
+    OinkProver<Flavor> oink_prover(instance->proving_key, transcript);
+    auto [proving_key, relation_params, alphas] = oink_prover.prove();
+    instance->proving_key = std::move(proving_key);
     instance->relation_parameters = std::move(relation_params);
     instance->alphas = alphas;
     instance->prover_polynomials = ProverPolynomials(instance->proving_key);

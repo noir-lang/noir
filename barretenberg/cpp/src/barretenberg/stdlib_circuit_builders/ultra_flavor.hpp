@@ -387,8 +387,26 @@ class UltraFlavor {
      * that, and split out separate PrecomputedPolynomials/Commitments data for clarity but also for portability of our
      * circuits.
      */
-    using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey>;
+    // using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey>;
+    class VerificationKey : public VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
+      public:
+        VerificationKey() = default;
+        VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
+            : VerificationKey_(circuit_size, num_public_inputs)
+        {}
+        VerificationKey(ProvingKey& proving_key)
+        {
+            this->pcs_verification_key = std::make_shared<VerifierCommitmentKey>();
+            this->circuit_size = proving_key.circuit_size;
+            this->log_circuit_size = numeric::get_msb(this->circuit_size);
+            this->num_public_inputs = proving_key.num_public_inputs;
+            this->pub_inputs_offset = proving_key.pub_inputs_offset;
 
+            for (auto [polynomial, commitment] : zip_view(proving_key.get_precomputed_polynomials(), this->get_all())) {
+                commitment = proving_key.commitment_key->commit(polynomial);
+            }
+        }
+    };
     /**
      * @brief A field element for each entity of the flavor. These entities represent the prover polynomials
      * evaluated at one point.
@@ -412,17 +430,6 @@ class UltraFlavor {
             }
             for (auto [prover_poly, key_poly] : zip_view(this->get_shifted(), proving_key.get_to_be_shifted())) {
                 ASSERT(flavor_get_label(*this, prover_poly) == (flavor_get_label(proving_key, key_poly) + "_shift"));
-                prover_poly = key_poly.shifted();
-            }
-        }
-        ProverPolynomials(std::shared_ptr<ProvingKey>& proving_key)
-        {
-            for (auto [prover_poly, key_poly] : zip_view(this->get_unshifted(), proving_key->get_all())) {
-                ASSERT(flavor_get_label(*this, prover_poly) == flavor_get_label(*proving_key, key_poly));
-                prover_poly = key_poly.share();
-            }
-            for (auto [prover_poly, key_poly] : zip_view(this->get_shifted(), proving_key->get_to_be_shifted())) {
-                ASSERT(flavor_get_label(*this, prover_poly) == (flavor_get_label(*proving_key, key_poly) + "_shift"));
                 prover_poly = key_poly.shifted();
             }
         }

@@ -3,6 +3,7 @@
 #include "barretenberg/benchmark/ultra_bench/mock_circuits.hpp"
 #include "barretenberg/common/op_count_google_bench.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
+#include "barretenberg/ultra_honk/oink_prover.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 
 using namespace benchmark;
@@ -44,15 +45,16 @@ BB_PROFILE static void test_round_inner(State& state, GoblinUltraProver& prover,
             BB_REPORT_OP_COUNT_BENCH_CANCEL();
         }
     };
-
-    time_if_index(PREAMBLE, [&] { prover.oink_prover.execute_preamble_round(); });
-    time_if_index(WIRE_COMMITMENTS, [&] { prover.oink_prover.execute_wire_commitments_round(); });
-    time_if_index(SORTED_LIST_ACCUMULATOR, [&] { prover.oink_prover.execute_sorted_list_accumulator_round(); });
-    time_if_index(LOG_DERIVATIVE_INVERSE, [&] { prover.oink_prover.execute_log_derivative_inverse_round(); });
-    time_if_index(GRAND_PRODUCT_COMPUTATION, [&] { prover.oink_prover.execute_grand_product_computation_round(); });
-    time_if_index(GENERATE_ALPHAS, [&] { prover.instance->alphas = prover.oink_prover.generate_alphas_round(); });
+    OinkProver<GoblinUltraFlavor> oink_prover(prover.instance->proving_key, prover.transcript);
+    time_if_index(PREAMBLE, [&] { oink_prover.execute_preamble_round(); });
+    time_if_index(WIRE_COMMITMENTS, [&] { oink_prover.execute_wire_commitments_round(); });
+    time_if_index(SORTED_LIST_ACCUMULATOR, [&] { oink_prover.execute_sorted_list_accumulator_round(); });
+    time_if_index(LOG_DERIVATIVE_INVERSE, [&] { oink_prover.execute_log_derivative_inverse_round(); });
+    time_if_index(GRAND_PRODUCT_COMPUTATION, [&] { oink_prover.execute_grand_product_computation_round(); });
+    time_if_index(GENERATE_ALPHAS, [&] { prover.instance->alphas = oink_prover.generate_alphas_round(); });
     // we need to get the relation_parameters and prover_polynomials from the oink_prover
-    prover.instance->relation_parameters = prover.oink_prover.relation_parameters;
+    prover.instance->proving_key = std::move(oink_prover.proving_key);
+    prover.instance->relation_parameters = oink_prover.relation_parameters;
     prover.instance->prover_polynomials = GoblinUltraFlavor::ProverPolynomials(prover.instance->proving_key);
     time_if_index(RELATION_CHECK, [&] { prover.execute_relation_check_rounds(); });
     time_if_index(ZEROMORPH, [&] { prover.execute_zeromorph_rounds(); });

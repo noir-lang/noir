@@ -262,8 +262,8 @@ TEST_F(UltraRelationCorrectnessTests, Ultra)
 
     // Create a prover (it will compute proving key and witness)
     auto instance = std::make_shared<ProverInstance_<Flavor>>(builder);
-    auto proving_key = instance->proving_key;
-    auto circuit_size = proving_key->circuit_size;
+    auto& proving_key = instance->proving_key;
+    auto circuit_size = proving_key.circuit_size;
 
     // Generate eta, beta and gamma
     instance->relation_parameters.eta = FF::random_element();
@@ -272,18 +272,18 @@ TEST_F(UltraRelationCorrectnessTests, Ultra)
     instance->relation_parameters.beta = FF::random_element();
     instance->relation_parameters.gamma = FF::random_element();
 
-    instance->proving_key->compute_sorted_accumulator_polynomials(instance->relation_parameters.eta,
-                                                                  instance->relation_parameters.eta_two,
-                                                                  instance->relation_parameters.eta_three);
-    instance->proving_key->compute_grand_product_polynomials(instance->relation_parameters);
+    instance->proving_key.compute_sorted_accumulator_polynomials(instance->relation_parameters.eta,
+                                                                 instance->relation_parameters.eta_two,
+                                                                 instance->relation_parameters.eta_three);
+    instance->proving_key.compute_grand_product_polynomials(instance->relation_parameters);
     instance->prover_polynomials = Flavor::ProverPolynomials(instance->proving_key);
 
     // Check that selectors are nonzero to ensure corresponding relation has nontrivial contribution
-    ensure_non_zero(proving_key->q_arith);
-    ensure_non_zero(proving_key->q_delta_range);
-    ensure_non_zero(proving_key->q_lookup);
-    ensure_non_zero(proving_key->q_elliptic);
-    ensure_non_zero(proving_key->q_aux);
+    ensure_non_zero(proving_key.q_arith);
+    ensure_non_zero(proving_key.q_delta_range);
+    ensure_non_zero(proving_key.q_lookup);
+    ensure_non_zero(proving_key.q_elliptic);
+    ensure_non_zero(proving_key.q_aux);
 
     // Construct the round for applying sumcheck relations and results for storing computed results
     using Relations = typename Flavor::Relations;
@@ -318,8 +318,8 @@ TEST_F(UltraRelationCorrectnessTests, GoblinUltra)
 
     // Create a prover (it will compute proving key and witness)
     auto instance = std::make_shared<ProverInstance_<Flavor>>(builder);
-    auto proving_key = instance->proving_key;
-    auto circuit_size = proving_key->circuit_size;
+    auto& proving_key = instance->proving_key;
+    auto circuit_size = proving_key.circuit_size;
 
     // Generate eta, beta and gamma
     instance->relation_parameters.eta = FF::random_element();
@@ -328,26 +328,26 @@ TEST_F(UltraRelationCorrectnessTests, GoblinUltra)
     instance->relation_parameters.beta = FF::random_element();
     instance->relation_parameters.gamma = FF::random_element();
 
-    instance->proving_key->compute_sorted_accumulator_polynomials(instance->relation_parameters.eta,
-                                                                  instance->relation_parameters.eta_two,
-                                                                  instance->relation_parameters.eta_three);
-    instance->proving_key->compute_logderivative_inverse(instance->relation_parameters);
-    instance->proving_key->compute_grand_product_polynomials(instance->relation_parameters);
+    instance->proving_key.compute_sorted_accumulator_polynomials(instance->relation_parameters.eta,
+                                                                 instance->relation_parameters.eta_two,
+                                                                 instance->relation_parameters.eta_three);
+    instance->proving_key.compute_logderivative_inverse(instance->relation_parameters);
+    instance->proving_key.compute_grand_product_polynomials(instance->relation_parameters);
     instance->prover_polynomials = Flavor::ProverPolynomials(instance->proving_key);
 
     // Check that selectors are nonzero to ensure corresponding relation has nontrivial contribution
-    ensure_non_zero(proving_key->q_arith);
-    ensure_non_zero(proving_key->q_delta_range);
-    ensure_non_zero(proving_key->q_lookup);
-    ensure_non_zero(proving_key->q_elliptic);
-    ensure_non_zero(proving_key->q_aux);
-    ensure_non_zero(proving_key->q_busread);
-    ensure_non_zero(proving_key->q_poseidon2_external);
-    ensure_non_zero(proving_key->q_poseidon2_internal);
+    ensure_non_zero(proving_key.q_arith);
+    ensure_non_zero(proving_key.q_delta_range);
+    ensure_non_zero(proving_key.q_lookup);
+    ensure_non_zero(proving_key.q_elliptic);
+    ensure_non_zero(proving_key.q_aux);
+    ensure_non_zero(proving_key.q_busread);
+    ensure_non_zero(proving_key.q_poseidon2_external);
+    ensure_non_zero(proving_key.q_poseidon2_internal);
 
-    ensure_non_zero(proving_key->calldata);
-    ensure_non_zero(proving_key->calldata_read_counts);
-    ensure_non_zero(proving_key->lookup_inverses);
+    ensure_non_zero(proving_key.calldata);
+    ensure_non_zero(proving_key.calldata_read_counts);
+    ensure_non_zero(proving_key.lookup_inverses);
 
     // Construct the round for applying sumcheck relations and results for storing computed results
     using Relations = typename Flavor::Relations;

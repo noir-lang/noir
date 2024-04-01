@@ -30,7 +30,7 @@ template <class Flavor> class ProverInstance_ {
     using Trace = ExecutionTrace_<Flavor>;
 
   public:
-    std::shared_ptr<ProvingKey> proving_key;
+    ProvingKey proving_key;
     ProverPolynomials prover_polynomials;
 
     RelationSeparator alphas;
@@ -53,7 +53,7 @@ template <class Flavor> class ProverInstance_ {
 
         dyadic_circuit_size = compute_dyadic_size(circuit);
 
-        proving_key = std::make_shared<ProvingKey>(dyadic_circuit_size, circuit.public_inputs.size());
+        proving_key = std::move(ProvingKey(dyadic_circuit_size, circuit.public_inputs.size()));
 
         // Construct and add to proving key the wire, selector and copy constraint polynomials
         Trace::populate(circuit, proving_key);
@@ -66,19 +66,19 @@ template <class Flavor> class ProverInstance_ {
         // First and last lagrange polynomials (in the full circuit size)
         const auto [lagrange_first, lagrange_last] =
             compute_first_and_last_lagrange_polynomials<FF>(dyadic_circuit_size);
-        proving_key->lagrange_first = lagrange_first;
-        proving_key->lagrange_last = lagrange_last;
+        proving_key.lagrange_first = lagrange_first;
+        proving_key.lagrange_last = lagrange_last;
 
         construct_table_polynomials(circuit, dyadic_circuit_size);
 
-        proving_key->sorted_polynomials = construct_sorted_list_polynomials<Flavor>(circuit, dyadic_circuit_size);
+        proving_key.sorted_polynomials = construct_sorted_list_polynomials<Flavor>(circuit, dyadic_circuit_size);
 
-        std::span<FF> public_wires_source = proving_key->w_r;
+        std::span<FF> public_wires_source = proving_key.w_r;
 
         // Construct the public inputs array
-        for (size_t i = 0; i < proving_key->num_public_inputs; ++i) {
-            size_t idx = i + proving_key->pub_inputs_offset;
-            proving_key->public_inputs.emplace_back(public_wires_source[idx]);
+        for (size_t i = 0; i < proving_key.num_public_inputs; ++i) {
+            size_t idx = i + proving_key.pub_inputs_offset;
+            proving_key.public_inputs.emplace_back(public_wires_source[idx]);
         }
     }
 

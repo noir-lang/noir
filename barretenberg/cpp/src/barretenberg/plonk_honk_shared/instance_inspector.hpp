@@ -49,7 +49,7 @@ void print_databus_info(auto& prover_instance)
 {
     info("\nInstance Inspector: Printing databus gate info.");
     auto& key = prover_instance->proving_key;
-    for (size_t idx = 0; idx < prover_instance->proving_key->circuit_size; ++idx) {
+    for (size_t idx = 0; idx < prover_instance->proving_key.circuit_size; ++idx) {
         if (key->q_busread[idx] == 1) {
             info("idx = ", idx);
             info("q_busread = ", key->q_busread[idx]);

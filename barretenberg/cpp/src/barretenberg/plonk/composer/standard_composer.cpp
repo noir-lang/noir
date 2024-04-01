@@ -41,7 +41,7 @@ std::shared_ptr<plonk::proving_key> StandardComposer::compute_proving_key(Circui
         subgroup_size, circuit_constructor.public_inputs.size(), crs, CircuitType::STANDARD);
 
     // Construct and add to proving key the wire, selector and copy constraint polynomials
-    Trace::populate(circuit_constructor, circuit_proving_key);
+    Trace::populate(circuit_constructor, *circuit_proving_key);
 
     // Make all selectors nonzero
     enforce_nonzero_selector_polynomials(circuit_constructor, circuit_proving_key.get());

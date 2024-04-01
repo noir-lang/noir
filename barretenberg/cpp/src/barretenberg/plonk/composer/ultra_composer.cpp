@@ -166,7 +166,7 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key(CircuitBuilder& 
         std::make_shared<plonk::proving_key>(subgroup_size, circuit.public_inputs.size(), crs, CircuitType::ULTRA);
 
     // Construct and add to proving key the wire, selector and copy constraint polynomials
-    Trace::populate(circuit, circuit_proving_key);
+    Trace::populate(circuit, *circuit_proving_key);
 
     enforce_nonzero_selector_polynomials(circuit, circuit_proving_key.get());
 

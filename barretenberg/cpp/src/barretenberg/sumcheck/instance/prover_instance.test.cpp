@@ -62,15 +62,15 @@ template <class Flavor> class InstanceTests : public testing::Test {
         auto eta_two = FF::random_element();
         auto eta_three = FF::random_element();
 
-        auto sorted_list_polynomials = instance.proving_key->sorted_polynomials;
+        auto sorted_list_polynomials = instance.proving_key.sorted_polynomials;
 
         // Method 1: computed sorted list accumulator polynomial using prover library method
-        instance.proving_key->compute_sorted_list_accumulator(eta, eta_two, eta_three);
-        auto sorted_list_accumulator = instance.proving_key->sorted_accum;
+        instance.proving_key.compute_sorted_list_accumulator(eta, eta_two, eta_three);
+        auto sorted_list_accumulator = instance.proving_key.sorted_accum;
 
         // Compute s = s_1 + η*s_2 + η²*s_3 + η³*s_4
         Polynomial sorted_list_accumulator_expected{ sorted_list_polynomials[0] };
-        for (size_t i = 0; i < instance.proving_key->circuit_size; ++i) {
+        for (size_t i = 0; i < instance.proving_key.circuit_size; ++i) {
             sorted_list_accumulator_expected[i] += sorted_list_polynomials[1][i] * eta +
                                                    sorted_list_polynomials[2][i] * eta_two +
                                                    sorted_list_polynomials[3][i] * eta_three;
