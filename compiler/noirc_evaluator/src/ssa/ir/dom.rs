@@ -252,7 +252,7 @@ mod tests {
             basic_block::BasicBlockId,
             dfg::CallStack,
             dom::DominatorTree,
-            function::{Function, RuntimeType},
+            function::{Function, InlineType, RuntimeType},
             instruction::TerminatorInstruction,
             map::Id,
             types::Type,
@@ -286,7 +286,7 @@ mod tests {
         //     return ()
         // }
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
 
         let cond = builder.add_parameter(Type::unsigned(1));
         let block1_id = builder.insert_block();
@@ -395,7 +395,7 @@ mod tests {
         //     jump block1()
         // }
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("func".into(), func_id);
         let block1_id = builder.insert_block();
         let block2_id = builder.insert_block();
 

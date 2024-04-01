@@ -12,6 +12,7 @@ pub(crate) struct Ssa {
     pub(crate) functions: BTreeMap<FunctionId, Function>,
     pub(crate) main_id: FunctionId,
     pub(crate) next_id: AtomicCounter<Function>,
+    pub(crate) id_to_index: BTreeMap<FunctionId, u32>,
 }
 
 impl Ssa {
@@ -26,7 +27,9 @@ impl Ssa {
             (f.id(), f)
         });
 
-        Self { functions, main_id, next_id: AtomicCounter::starting_after(max_id) }
+        let id_to_index = btree_map(functions.iter().enumerate(), |(i, (id, _))| (*id, i as u32));
+
+        Self { functions, main_id, next_id: AtomicCounter::starting_after(max_id), id_to_index }
     }
 
     /// Returns the entry-point function of the program
