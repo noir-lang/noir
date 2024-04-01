@@ -20,9 +20,9 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
     file_name: &str,
     format: Format,
     abi: &Abi,
-) -> Result<(InputMap, Option<InputValue>), FilesystemError> {
+) -> Result<(InputMap, Vec<InputValue>), FilesystemError> {
     if abi.is_empty() {
-        return Ok((BTreeMap::new(), None));
+        return Ok((BTreeMap::new(), vec![]));
     }
 
     let file_path = path.as_ref().join(file_name).with_extension(format.ext());
@@ -35,7 +35,7 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
     let return_value = match input_map.remove(MAIN_RETURN_NAME) {
         None => vec![],
         Some(InputValue::Vec(return_values)) => return_values,
-        _ => unreachable("Badly formed return values"),
+        _ => unreachable!("Badly formed return values"),
     };
 
     Ok((input_map, return_value))
@@ -43,7 +43,7 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
 
 pub(crate) fn write_inputs_to_file<P: AsRef<Path>>(
     input_map: &InputMap,
-    return_value: &Option<InputValue>,
+    return_value: &[InputValue],
     abi: &Abi,
     path: P,
     file_name: &str,
@@ -52,16 +52,16 @@ pub(crate) fn write_inputs_to_file<P: AsRef<Path>>(
     let file_path = path.as_ref().join(file_name).with_extension(format.ext());
 
     // We must insert the return value into the `InputMap` in order for it to be written to file.
-    let serialized_output = match return_value {
+    let serialized_output = if return_value.len() > 0 {
         // Parameters and return values are kept separate except for when they're being written to file.
         // As a result, we don't want to modify the original map and must clone it before insertion.
-        Some(return_value) => {
-            let mut input_map = input_map.clone();
-            input_map.insert(MAIN_RETURN_NAME.to_owned(), return_value.clone());
-            format.serialize(&input_map, abi)?
-        }
+
+        let mut input_map = input_map.clone();
+        input_map.insert(MAIN_RETURN_NAME.to_owned(), InputValue::Vec(return_value.to_vec()));
+        format.serialize(&input_map, abi)?
+    } else {
         // If no return value exists, then we can serialize the original map directly.
-        None => format.serialize(input_map, abi)?,
+        format.serialize(input_map, abi)?
     };
 
     write_to_file(serialized_output.as_bytes(), &file_path);

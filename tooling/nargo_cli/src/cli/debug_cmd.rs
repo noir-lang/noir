@@ -176,14 +176,14 @@ fn run_async(
 
     runtime.block_on(async {
         println!("[{}] Starting debugger", package.name);
-        let (return_value, solved_witness) =
+        let (return_values, solved_witness) =
             debug_program_and_decode(program, package, prover_name)?;
 
         if let Some(solved_witness) = solved_witness {
             println!("[{}] Circuit witness successfully solved", package.name);
 
-            if let Some(return_value) = return_value {
-                println!("[{}] Circuit output: {return_value:?}", package.name);
+            if !return_values.is_empty() {
+                println!("[{}] Circuit output: {return_values:?}", package.name);
             }
 
             if let Some(witness_name) = witness_name {
@@ -207,7 +207,7 @@ fn debug_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
-) -> Result<(Option<InputValue>, Option<WitnessMap>), CliError> {
+) -> Result<(Vec<InputValue>, Option<WitnessMap>), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
@@ -216,10 +216,10 @@ fn debug_program_and_decode(
 
     match solved_witness {
         Some(witness) => {
-            let (_, return_value) = public_abi.decode(&witness)?;
-            Ok((return_value, Some(witness)))
+            let (_, return_values) = public_abi.decode(&witness)?;
+            Ok((return_values, Some(witness)))
         }
-        None => Ok((None, None)),
+        None => Ok((vec![], None)),
     }
 }
 
@@ -229,7 +229,7 @@ pub(crate) fn debug_program(
 ) -> Result<Option<WitnessMap>, CliError> {
     let blackbox_solver = Bn254BlackBoxSolver::new();
 
-    let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
+    let initial_witness = compiled_program.abi.encode(inputs_map, vec![])?;
 
     let debug_artifact = DebugArtifact {
         debug_symbols: vec![compiled_program.debug.clone()],

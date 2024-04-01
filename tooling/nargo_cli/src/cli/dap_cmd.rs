@@ -127,7 +127,7 @@ fn load_and_compile_project(
             })?;
     let initial_witness = compiled_program
         .abi
-        .encode(&inputs_map, None)
+        .encode(&inputs_map, vec![])
         .map_err(|_| LoadError::Generic("Failed to encode inputs".into()))?;
 
     Ok((compiled_program, initial_witness))

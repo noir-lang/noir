@@ -349,8 +349,6 @@ impl Abi {
 
         // When encoding public inputs to be passed to the verifier, the user can must provide a return value
         // to be inserted into the witness map. This is not needed when generating a witness when proving the circuit.
-        assert_eq!(return_values.len(), self.return_types.len());
-        assert_eq!(return_values.len(), self.return_witnesses.len());
         for ((return_value, return_type), return_witnesses) in return_values
             .into_iter()
             .zip(self.return_types.iter())

@@ -3,13 +3,13 @@ use crate::errors::CliError;
 
 use clap::Args;
 use fm::FileManager;
-use iter_extended::btree_map;
+use iter_extended::{btree_map, vecmap};
 use nargo::{
     errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
     package::Package, parse_all, prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
+use noirc_abi::{AbiParameter, AbiReturnType, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{
     check_crate, compute_function_abi, file_manager_with_stdlib, CompileOptions,
     NOIR_ARTIFACT_VERSION_STRING,
@@ -84,20 +84,22 @@ fn check_package(
         Ok(())
     } else {
         // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-        if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
+        if let Some((parameters, return_types)) = compute_function_abi(&context, &crate_id) {
             let path_to_prover_input = package.prover_input_path();
             let path_to_verifier_input = package.verifier_input_path();
 
             // If they are not available, then create them and populate them based on the ABI
             if !path_to_prover_input.exists() {
-                let prover_toml = create_input_toml_template(parameters.clone(), None);
+                let prover_toml = create_input_toml_template(parameters.clone(), vec![]);
                 write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
             }
             if !path_to_verifier_input.exists() {
                 let public_inputs =
                     parameters.into_iter().filter(|param| param.is_public()).collect();
+                let public_returns =
+                    return_types.into_iter().filter(|ret| ret.is_public()).collect();
 
-                let verifier_toml = create_input_toml_template(public_inputs, return_type);
+                let verifier_toml = create_input_toml_template(public_inputs, public_returns);
                 write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
             }
 
@@ -111,7 +113,7 @@ fn check_package(
 /// Generates the contents of a toml file with fields for each of the passed parameters.
 fn create_input_toml_template(
     parameters: Vec<AbiParameter>,
-    return_type: Option<AbiType>,
+    return_types: Vec<AbiReturnType>,
 ) -> String {
     /// Returns a default placeholder `toml::Value` for `typ` which
     /// complies with the structure of the specified `AbiType`.
@@ -136,8 +138,11 @@ fn create_input_toml_template(
     let mut map =
         btree_map(parameters, |AbiParameter { name, typ, .. }| (name, default_value(typ)));
 
-    if let Some(typ) = return_type {
-        map.insert(MAIN_RETURN_NAME.to_owned(), default_value(typ));
+    if !return_types.is_empty() {
+        map.insert(
+            MAIN_RETURN_NAME.to_owned(),
+            toml::Value::Array(vecmap(return_types, |ret_type| default_value(ret_type.abi_type))),
+        );
     }
 
     toml::to_string(&map).unwrap()
@@ -189,7 +194,7 @@ mod tests {
             typed_param("e", AbiType::Boolean),
         ];
 
-        let toml_str = create_input_toml_template(parameters, None);
+        let toml_str = create_input_toml_template(parameters, vec![]);
 
         let expected_toml_str = r#"a = ""
 b = ""

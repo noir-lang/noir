@@ -91,7 +91,7 @@ pub(crate) fn run(
 
         let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
-        let (return_value, witness_stack) = execute_program_and_decode(
+        let (return_values, witness_stack) = execute_program_and_decode(
             compiled_program,
             package,
             &args.prover_name,
@@ -99,8 +99,8 @@ pub(crate) fn run(
         )?;
 
         println!("[{}] Circuit witness successfully solved", package.name);
-        if let Some(return_value) = return_value {
-            println!("[{}] Circuit output: {return_value:?}", package.name);
+        if !return_values.is_empty() {
+            println!("[{}] Circuit output: {return_values:?}", package.name);
         }
         if let Some(witness_name) = &args.witness_name {
             let witness_path = save_witness_to_dir(witness_stack, witness_name, target_dir)?;
@@ -116,18 +116,17 @@ fn execute_program_and_decode(
     package: &Package,
     prover_name: &str,
     foreign_call_resolver_url: Option<&str>,
-) -> Result<(Option<InputValue>, WitnessStack), CliError> {
+) -> Result<(Vec<InputValue>, WitnessStack), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
     let witness_stack = execute_program(&program, &inputs_map, foreign_call_resolver_url)?;
-    let public_abi = program.abi.public_abi();
     // Get the entry point witness for the ABI
     let main_witness =
         &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-    let (_, return_value) = public_abi.decode(main_witness)?;
+    let (_, return_values) = program.abi.decode(main_witness)?;
 
-    Ok((return_value, witness_stack))
+    Ok((return_values, witness_stack))
 }
 
 pub(crate) fn execute_program(
@@ -137,7 +136,7 @@ pub(crate) fn execute_program(
 ) -> Result<WitnessStack, CliError> {
     let blackbox_solver = Bn254BlackBoxSolver::new();
 
-    let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
+    let initial_witness = compiled_program.abi.encode(inputs_map, vec![])?;
 
     let solved_witness_stack_err = nargo::ops::execute_program(
         &compiled_program.program,

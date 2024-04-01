@@ -114,7 +114,7 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                     let call_solved_witness =
                         self.execute_circuit(acir_to_call, initial_witness)?;
                     let mut call_resolved_outputs = Vec::new();
-                    for return_witness_index in acir_to_call.return_values.indices() {
+                    for return_witness_index in acir_to_call.public_returns.indices() {
                         if let Some(return_value) =
                             call_solved_witness.get_index(return_witness_index)
                         {

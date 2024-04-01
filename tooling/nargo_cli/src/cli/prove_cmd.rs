@@ -129,11 +129,11 @@ pub(crate) fn prove_package(
     // Get the entry point witness for the ABI
     let main_witness =
         &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-    let (public_inputs, return_value) = public_abi.decode(main_witness)?;
+    let (public_inputs, public_returns) = public_abi.decode(main_witness)?;
 
     write_inputs_to_file(
         &public_inputs,
-        &return_value,
+        &public_returns,
         &public_abi,
         &package.root_dir,
         verifier_name,
@@ -143,7 +143,7 @@ pub(crate) fn prove_package(
     let proof = backend.prove(&compiled_program.program, witness_stack)?;
 
     if check_proof {
-        let public_inputs = public_abi.encode(&public_inputs, return_value)?;
+        let public_inputs = public_abi.encode(&public_inputs, public_returns)?;
         let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.program)?;
 
         if !valid_proof {

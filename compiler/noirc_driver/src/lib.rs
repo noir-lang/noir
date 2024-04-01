@@ -483,7 +483,6 @@ pub fn compile_no_check(
         info!("Program matches existing artifact, returning early");
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
-    let visibility = program.return_visibility;
 
     let (program, debug, warnings, input_witnesses, return_witnesses) = create_program(
         program,
