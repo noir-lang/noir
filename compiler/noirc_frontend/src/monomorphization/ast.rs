@@ -255,7 +255,7 @@ pub struct Program {
     /// forwarding to the next phase.
     pub return_distinctness: Distinctness,
     pub return_location: Option<Location>,
-    pub return_visibility: Visibility,
+    pub return_visibility: Vec<Visibility>,
     /// Indicates to a backend whether a SNARK-friendly prover should be used.  
     pub recursive: bool,
     pub debug_variables: DebugVariables,
@@ -271,7 +271,7 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_distinctness: Distinctness,
         return_location: Option<Location>,
-        return_visibility: Visibility,
+        return_visibility: Vec<Visibility>,
         recursive: bool,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
@@ -313,6 +313,25 @@ impl Program {
         let main = &mut self.functions[function.0 as usize];
         let replacement = Expression::Literal(Literal::Bool(false));
         std::mem::replace(&mut main.body, replacement)
+    }
+
+    pub fn returns_with_visibilities(&self) -> Vec<(Visibility, Type)> {
+        let main_return = &self.main().return_type;
+
+        if self.return_visibility.len() > 1 {
+            if let Type::Tuple(items) = main_return {
+                assert!(items.len() == self.return_visibility.len());
+                self.return_visibility
+                    .iter()
+                    .zip(items)
+                    .map(|(visibility, item)| (*visibility, item.clone()))
+                    .collect()
+            } else {
+                unreachable!("Multiple return visibilities in non-tuple return");
+            }
+        } else {
+            vec![(self.return_visibility[0], main_return.clone())]
+        }
     }
 }
 

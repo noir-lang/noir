@@ -4,9 +4,9 @@ use super::{
     parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
     self_parameter, where_clause, NoirParser,
 };
-use crate::parser::labels::ParsingRuleLabel;
 use crate::parser::spanned;
 use crate::token::{Keyword, Token};
+use crate::{parser::labels::ParsingRuleLabel, UnresolvedTypeData};
 use crate::{
     Distinctness, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility, NoirFunction,
     Param, Visibility,
@@ -26,27 +26,34 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
         .then(function_return_type())
         .then(where_clause())
         .then(spanned(block(fresh_statement())))
-        .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
-            let ((((attributes, modifiers), name), generics), parameters) = args;
+        .validate(
+            |(
+                ((args, (return_distinctness, return_visibilities, return_type)), where_clause),
+                (body, body_span),
+            ),
+             span,
+             emit| {
+                let ((((attributes, modifiers), name), generics), parameters) = args;
 
-            // Validate collected attributes, filtering them into function and secondary variants
-            let attributes = validate_attributes(attributes, span, emit);
-            FunctionDefinition {
-                span: body_span,
-                name,
-                attributes,
-                is_unconstrained: modifiers.0,
-                visibility: modifiers.1,
-                generics,
-                parameters,
-                body,
-                where_clause,
-                return_type: ret.1,
-                return_visibility: ret.0 .1,
-                return_distinctness: ret.0 .0,
-            }
-            .into()
-        })
+                // Validate collected attributes, filtering them into function and secondary variants
+                let attributes = validate_attributes(attributes, span, emit);
+                FunctionDefinition {
+                    span: body_span,
+                    name,
+                    attributes,
+                    is_unconstrained: modifiers.0,
+                    visibility: modifiers.1,
+                    generics,
+                    parameters,
+                    body,
+                    where_clause,
+                    return_type,
+                    return_visibility: return_visibilities,
+                    return_distinctness,
+                }
+                .into()
+            },
+        )
 }
 
 /// visibility_modifier: 'pub(crate)'? 'pub'? ''
@@ -89,16 +96,33 @@ pub(super) fn generics() -> impl NoirParser<Vec<Ident>> {
         .map(|opt| opt.unwrap_or_default())
 }
 
-fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
+fn function_return_type() -> impl NoirParser<(Distinctness, Vec<Visibility>, FunctionReturnType)> {
+    let multi_return_parser = parenthesized(
+        optional_visibility().then(parse_type()).separated_by(just(Token::Comma)).allow_trailing(),
+    )
+    .map_with_span(|fields, span| {
+        if fields.is_empty() {
+            (vec![Visibility::Private], UnresolvedTypeData::Unit.with_span(span))
+        } else {
+            let (visibilities, types): (Vec<_>, Vec<_>) = fields.into_iter().unzip();
+            (visibilities, UnresolvedTypeData::Tuple(types).with_span(span))
+        }
+    });
+
+    let single_return_parser =
+        optional_visibility().then(parse_type()).map(|(visibility, typ)| (vec![visibility], typ));
+
     just(Token::Arrow)
         .ignore_then(optional_distinctness())
-        .then(optional_visibility())
-        .then(spanned(parse_type()))
+        .then(single_return_parser.or(multi_return_parser))
         .or_not()
         .map_with_span(|ret, span| match ret {
-            Some((head, (ty, _))) => (head, FunctionReturnType::Ty(ty)),
+            Some((distinctness, (visibilities, ty))) => {
+                (distinctness, visibilities, FunctionReturnType::Ty(ty))
+            }
             None => (
-                (Distinctness::DuplicationAllowed, Visibility::Private),
+                (Distinctness::DuplicationAllowed),
+                vec![Visibility::Private],
                 FunctionReturnType::Default(span),
             ),
         })

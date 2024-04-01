@@ -82,7 +82,7 @@ impl From<Vec<Param>> for Parameters {
     }
 }
 
-pub type FunctionSignature = (Vec<Param>, Option<Type>);
+pub type FunctionSignature = (Vec<Param>, (Vec<Visibility>, Option<Type>));
 
 /// A FuncMeta contains the signature of the function and any associated meta data like
 /// the function's Location, FunctionKind, and attributes. If the function's body is
@@ -97,7 +97,7 @@ pub struct FuncMeta {
 
     pub return_type: FunctionReturnType,
 
-    pub return_visibility: Visibility,
+    pub return_visibility: Vec<Visibility>,
 
     pub return_distinctness: Distinctness,
 
@@ -147,7 +147,7 @@ impl FuncMeta {
             Type::Unit => None,
             typ => Some(typ.clone()),
         };
-        (self.parameters.0.clone(), return_type)
+        (self.parameters.0.clone(), (self.return_visibility.clone(), return_type))
     }
 
     /// Gives the (uninstantiated) return type of this function.

@@ -224,6 +224,13 @@ pub struct AbiReturnType {
     pub abi_type: AbiType,
     pub visibility: AbiVisibility,
 }
+
+impl AbiReturnType {
+    pub fn is_public(&self) -> bool {
+        self.visibility == AbiVisibility::Public
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Abi {
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
@@ -231,8 +238,8 @@ pub struct Abi {
     /// A map from the ABI's parameters to the indices they are written to in the [`WitnessMap`].
     /// This defines how to convert between the [`InputMap`] and [`WitnessMap`].
     pub param_witnesses: BTreeMap<String, Vec<Range<Witness>>>,
-    pub return_type: Option<AbiReturnType>,
-    pub return_witnesses: Vec<Witness>,
+    pub return_types: Vec<AbiReturnType>,
+    pub return_witnesses: Vec<Vec<Witness>>,
 }
 
 impl Abi {
@@ -251,12 +258,13 @@ impl Abi {
 
     /// Returns whether any values are needed to be made public for verification.
     pub fn has_public_inputs(&self) -> bool {
-        self.return_type.is_some() || self.parameters.iter().any(|param| param.is_public())
+        self.return_types.iter().any(|ret| ret.is_public())
+            || self.parameters.iter().any(|param| param.is_public())
     }
 
     /// Returns `true` if the ABI contains no parameters or return value.
     pub fn is_empty(&self) -> bool {
-        self.return_type.is_none() && self.parameters.is_empty()
+        self.return_types.is_empty() && self.parameters.is_empty()
     }
 
     pub fn to_btree_map(&self) -> BTreeMap<String, AbiType> {
@@ -277,19 +285,22 @@ impl Abi {
             .into_iter()
             .filter(|(param_name, _)| parameters.iter().any(|param| &param.name == param_name))
             .collect();
-        Abi {
-            parameters,
-            param_witnesses,
-            return_type: self.return_type,
-            return_witnesses: self.return_witnesses,
-        }
+
+        let (return_types, return_witnesses) = self
+            .return_types
+            .into_iter()
+            .zip(self.return_witnesses)
+            .filter(|(ret, _)| ret.is_public())
+            .unzip();
+
+        Abi { parameters, param_witnesses, return_types, return_witnesses }
     }
 
     /// Encode a set of inputs as described in the ABI into a `WitnessMap`.
     pub fn encode(
         &self,
         input_map: &InputMap,
-        return_value: Option<InputValue>,
+        return_values: Vec<InputValue>,
     ) -> Result<WitnessMap, AbiError> {
         // Check that no extra witness values have been provided.
         let param_names = self.parameter_names();
@@ -338,34 +349,29 @@ impl Abi {
 
         // When encoding public inputs to be passed to the verifier, the user can must provide a return value
         // to be inserted into the witness map. This is not needed when generating a witness when proving the circuit.
-        match (&self.return_type, return_value) {
-            (Some(AbiReturnType { abi_type: return_type, .. }), Some(return_value)) => {
-                if !return_value.matches_abi(return_type) {
-                    return Err(AbiError::ReturnTypeMismatch {
-                        return_type: return_type.clone(),
-                        value: return_value,
-                    });
-                }
-                let encoded_return_fields = Self::encode_value(return_value, return_type)?;
+        assert_eq!(return_values.len(), self.return_types.len());
+        assert_eq!(return_values.len(), self.return_witnesses.len());
+        for ((return_value, return_type), return_witnesses) in return_values
+            .into_iter()
+            .zip(self.return_types.iter())
+            .zip(self.return_witnesses.iter())
+        {
+            if !return_value.matches_abi(&return_type.abi_type) {
+                return Err(AbiError::ReturnTypeMismatch {
+                    return_type: return_type.abi_type.clone(),
+                    value: return_value,
+                });
+            }
+            let encoded_return_fields = Self::encode_value(return_value, &return_type.abi_type)?;
 
-                // We need to be more careful when writing the return value's witness values.
-                // This is as it may share witness indices with other public inputs so we must check that when
-                // this occurs the witness values are consistent with each other.
-                self.return_witnesses.iter().zip(encoded_return_fields.iter()).try_for_each(
-                    |(&witness, &field_element)| match witness_map.insert(witness, field_element) {
-                        Some(existing_value) if existing_value != field_element => {
-                            Err(AbiError::InconsistentWitnessAssignment(witness))
-                        }
-                        _ => Ok(()),
-                    },
-                )?;
-            }
-            (None, Some(return_value)) => {
-                return Err(AbiError::UnexpectedReturnValue(return_value))
-            }
-            // We allow not passing a return value despite the circuit defining one
-            // in order to generate the initial partial witness.
-            (_, None) => {}
+            return_witnesses.iter().zip(encoded_return_fields.iter()).try_for_each(
+                |(&witness, &field_element)| match witness_map.insert(witness, field_element) {
+                    Some(existing_value) if existing_value != field_element => {
+                        Err(AbiError::InconsistentWitnessAssignment(witness))
+                    }
+                    _ => Ok(()),
+                },
+            )?;
         }
 
         Ok(witness_map.into())
@@ -407,7 +413,7 @@ impl Abi {
     pub fn decode(
         &self,
         witness_map: &WitnessMap,
-    ) -> Result<(InputMap, Option<InputValue>), AbiError> {
+    ) -> Result<(InputMap, Vec<InputValue>), AbiError> {
         let public_inputs_map =
             try_btree_map(self.parameters.clone(), |AbiParameter { name, typ, .. }| {
                 let param_witness_values =
@@ -425,31 +431,27 @@ impl Abi {
                     .map(|input_value| (name.clone(), input_value))
             })?;
 
-        // We also attempt to decode the circuit's return value from `witness_map`.
-        let return_value = if let Some(return_type) = &self.return_type {
-            if let Ok(return_witness_values) =
-                try_vecmap(self.return_witnesses.clone(), |witness_index| {
-                    witness_map
-                        .get(&witness_index)
-                        .ok_or_else(|| AbiError::MissingParamWitnessValue {
-                            name: MAIN_RETURN_NAME.to_string(),
-                            witness_index,
-                        })
-                        .copied()
-                })
-            {
-                Some(decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)?)
-            } else {
-                // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
-                // This is because the user may be decoding a partial witness map for which is hasn't been calculated yet.
-                // If a return value is expected, this should be checked for by the user.
-                None
-            }
-        } else {
-            None
-        };
+        // We also attempt to decode the circuit's return values from `witness_map`.
+        assert_eq!(self.return_types.len(), self.return_witnesses.len());
+        let return_values = try_vecmap(
+            self.return_types.iter().zip(self.return_witnesses.iter()),
+            |(return_type, return_witnesses)| {
+                let return_witness_values =
+                    try_vecmap(return_witnesses.clone(), |witness_index| {
+                        witness_map
+                            .get(&witness_index)
+                            .ok_or_else(|| AbiError::MissingParamWitnessValue {
+                                name: MAIN_RETURN_NAME.to_string(),
+                                witness_index,
+                            })
+                            .copied()
+                    })?;
 
-        Ok((public_inputs_map, return_value))
+                decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)
+            },
+        )?;
+
+        Ok((public_inputs_map, return_values))
     }
 }
 
@@ -583,11 +585,11 @@ mod test {
                 ("thing1".to_string(), vec![(Witness(1)..Witness(3))]),
                 ("thing2".to_string(), vec![(Witness(3)..Witness(4))]),
             ]),
-            return_type: Some(AbiReturnType {
+            return_types: vec![AbiReturnType {
                 abi_type: AbiType::Field,
                 visibility: AbiVisibility::Public,
-            }),
-            return_witnesses: vec![Witness(3)],
+            }],
+            return_witnesses: vec![vec![Witness(3)]],
         };
 
         // Note we omit return value from inputs
@@ -602,7 +604,7 @@ mod test {
             ("thing2".to_string(), InputValue::Field(FieldElement::zero())),
         ]);
 
-        let witness_map = abi.encode(&inputs, None).unwrap();
+        let witness_map = abi.encode(&inputs, vec![]).unwrap();
         let (reconstructed_inputs, return_value) = abi.decode(&witness_map).unwrap();
 
         for (key, expected_value) in inputs {
@@ -610,6 +612,6 @@ mod test {
         }
 
         // We also decode the return value (we can do this immediately as we know it shares a witness with an input).
-        assert_eq!(return_value.unwrap(), reconstructed_inputs["thing2"]);
+        assert_eq!(return_value[0], reconstructed_inputs["thing2"]);
     }
 }

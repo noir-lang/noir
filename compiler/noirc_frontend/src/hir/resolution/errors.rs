@@ -38,8 +38,6 @@ pub enum ResolverError {
     UnnecessaryMut { first_mut: Span, second_mut: Span },
     #[error("Unneeded 'pub', function is not the main method")]
     UnnecessaryPub { ident: Ident, position: PubPosition },
-    #[error("Required 'pub', main function must return public value")]
-    NecessaryPub { ident: Ident },
     #[error("'distinct' keyword can only be used with main method")]
     DistinctNotAllowed { ident: Ident },
     #[error("Missing expression for declared constant")]
@@ -192,18 +190,6 @@ impl From<ResolverError> for Diagnostic {
                 );
 
                 diag.add_note("The `pub` keyword only has effects on arguments to the entry-point function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
-                diag
-            }
-            ResolverError::NecessaryPub { ident } => {
-                let name = &ident.0.contents;
-
-                let mut diag = Diagnostic::simple_error(
-                    format!("missing pub keyword on return type of function {name}"),
-                    "missing pub on return type".to_string(),
-                    ident.0.span(),
-                );
-
-                diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
                 diag
             }
             ResolverError::DistinctNotAllowed { ident } => {

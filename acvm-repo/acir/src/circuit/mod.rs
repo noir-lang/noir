@@ -54,8 +54,10 @@ pub struct Circuit {
     // All public inputs (parameters and return values) must be provided to the verifier at verification time.
     /// The set of public inputs provided by the prover.
     pub public_parameters: PublicInputs,
+    /// The set of private inputs calculated within the circuit.
+    pub private_returns: BTreeSet<Witness>,
     /// The set of public inputs calculated within the circuit.
-    pub return_values: PublicInputs,
+    pub public_returns: PublicInputs,
     /// Maps opcode locations to failed assertion messages.
     /// These messages are embedded in the circuit to provide useful feedback to users
     /// when a constraint in the circuit is not satisfied.
@@ -156,7 +158,7 @@ impl Circuit {
     /// computed as return values.
     pub fn public_inputs(&self) -> PublicInputs {
         let public_inputs =
-            self.public_parameters.0.union(&self.return_values.0).cloned().collect();
+            self.public_parameters.0.union(&self.public_returns.0).cloned().collect();
         PublicInputs(public_inputs)
     }
 }
@@ -234,7 +236,7 @@ impl std::fmt::Display for Circuit {
         write_public_inputs(f, &self.public_parameters)?;
 
         write!(f, "return value indices : ")?;
-        write_public_inputs(f, &self.return_values)?;
+        write_public_inputs(f, &self.public_returns)?;
 
         for opcode in &self.opcodes {
             writeln!(f, "{opcode}")?;
@@ -372,7 +374,8 @@ mod tests {
             opcodes: vec![and_opcode(), range_opcode()],
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
-            return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
+            private_returns: BTreeSet::new(),
+            public_returns: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
             assert_messages: Default::default(),
             recursive: false,
         };
@@ -405,7 +408,8 @@ mod tests {
             ],
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
-            return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
+            private_returns: BTreeSet::new(),
+            public_returns: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             assert_messages: Default::default(),
             recursive: false,
         };

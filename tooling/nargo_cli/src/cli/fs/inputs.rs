@@ -32,7 +32,11 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
 
     let input_string = std::fs::read_to_string(file_path).unwrap();
     let mut input_map = format.parse(&input_string, abi)?;
-    let return_value = input_map.remove(MAIN_RETURN_NAME);
+    let return_value = match input_map.remove(MAIN_RETURN_NAME) {
+        None => vec![],
+        Some(InputValue::Vec(return_values)) => return_values,
+        _ => unreachable("Badly formed return values"),
+    };
 
     Ok((input_map, return_value))
 }

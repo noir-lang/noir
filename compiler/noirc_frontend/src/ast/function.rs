@@ -46,8 +46,8 @@ impl NoirFunction {
         NoirFunction { kind: FunctionKind::Oracle, def }
     }
 
-    pub fn return_visibility(&self) -> Visibility {
-        self.def.return_visibility
+    pub fn return_visibility(&self) -> Vec<Visibility> {
+        self.def.return_visibility.clone()
     }
 
     pub fn return_type(&self) -> UnresolvedType {

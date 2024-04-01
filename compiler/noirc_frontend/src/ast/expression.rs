@@ -396,7 +396,7 @@ pub struct FunctionDefinition {
     pub span: Span,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
-    pub return_visibility: Visibility,
+    pub return_visibility: Vec<Visibility>,
     pub return_distinctness: Distinctness,
 }
 
@@ -690,8 +690,29 @@ impl FunctionDefinition {
             span: name.span(),
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
-            return_visibility: Visibility::Private,
+            return_visibility: vec![Visibility::Private],
             return_distinctness: Distinctness::DuplicationAllowed,
+        }
+    }
+
+    pub fn returns_with_visibilities(&self) -> Vec<(Visibility, UnresolvedType)> {
+        if self.return_visibility.len() > 1 {
+            if let FunctionReturnType::Ty(UnresolvedType {
+                typ: UnresolvedTypeData::Tuple(items),
+                ..
+            }) = &self.return_type
+            {
+                assert!(items.len() == self.return_visibility.len());
+                self.return_visibility
+                    .iter()
+                    .zip(items)
+                    .map(|(visibility, item)| (*visibility, item.clone()))
+                    .collect()
+            } else {
+                unreachable!("Multiple return visibilities in non-tuple return");
+            }
+        } else {
+            vec![(self.return_visibility[0], self.return_type.get_type().into_owned())]
         }
     }
 }

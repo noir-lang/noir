@@ -7,7 +7,7 @@ use noirc_frontend::{
     hir::Context,
     hir_def::{function::Param, stmt::HirPattern},
     node_interner::{FuncId, NodeInterner},
-    Visibility,
+    Type,
 };
 use std::ops::Range;
 
@@ -18,25 +18,41 @@ pub(super) fn gen_abi(
     func_id: &FuncId,
     input_witnesses: Vec<Witness>,
     return_witnesses: Vec<Witness>,
-    return_visibility: Visibility,
 ) -> Abi {
-    let (parameters, return_type) = compute_function_abi(context, func_id);
+    let (parameters, return_types) = compute_function_abi(context, func_id);
     let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);
-    let return_type = return_type
-        .map(|typ| AbiReturnType { abi_type: typ, visibility: return_visibility.into() });
-    Abi { parameters, return_type, param_witnesses, return_witnesses }
+    let return_witnesses = return_witnesses_from_abi_returns(&return_types, return_witnesses);
+    Abi { parameters, return_types, param_witnesses, return_witnesses }
 }
 
 pub(super) fn compute_function_abi(
     context: &Context,
     func_id: &FuncId,
-) -> (Vec<AbiParameter>, Option<AbiType>) {
+) -> (Vec<AbiParameter>, Vec<AbiReturnType>) {
     let func_meta = context.def_interner.function_meta(func_id);
 
     let (parameters, return_type) = func_meta.function_signature();
     let parameters = into_abi_params(context, parameters);
-    let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
-    (parameters, return_type)
+
+    let (visibilities, return_type) = return_type;
+
+    let return_types = match return_type {
+        None => vec![],
+        Some(Type::Tuple(types)) if visibilities.len() == types.len() => visibilities
+            .iter()
+            .copied()
+            .zip(types.iter().cloned())
+            .map(|(visibility, typ)| AbiReturnType {
+                abi_type: AbiType::from_type(context, &typ),
+                visibility: visibility.into(),
+            })
+            .collect(),
+        Some(return_type) => vec![AbiReturnType {
+            abi_type: AbiType::from_type(context, &return_type),
+            visibility: visibilities[0].into(),
+        }],
+    };
+    (parameters, return_types)
 }
 
 /// Attempts to retrieve the name of this parameter. Returns None
@@ -80,6 +96,26 @@ fn param_witnesses_from_abi_param(
         let param_witnesses = collapse_ranges(param_witnesses);
         idx += num_field_elements_needed;
         (param.name.clone(), param_witnesses)
+    })
+}
+
+// Takes each abi parameter and shallowly maps to the expected witness range in which the
+// parameter's constituent values live.
+fn return_witnesses_from_abi_returns(
+    abi_returns: &[AbiReturnType],
+    return_witnesses: Vec<Witness>,
+) -> Vec<Vec<Witness>> {
+    let mut idx = 0_usize;
+    if return_witnesses.is_empty() {
+        return vec![];
+    }
+
+    vecmap(abi_returns, |ret| {
+        let num_field_elements_needed = ret.abi_type.field_count() as usize;
+        let return_witnesses = &return_witnesses[idx..idx + num_field_elements_needed];
+
+        idx += num_field_elements_needed;
+        return_witnesses.to_vec()
     })
 }
 

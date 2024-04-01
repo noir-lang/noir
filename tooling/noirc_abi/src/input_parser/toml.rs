@@ -23,18 +23,18 @@ pub(crate) fn parse_toml(
             .map(|input_value| (arg_name, input_value))
     })?;
 
-    // If the toml file also includes a return value then we parse it as well.
-    // This isn't required as the prover calculates the return value itself.
-    if let (Some(return_type), Some(toml_return_value)) =
-        (&abi.return_type, data.get(MAIN_RETURN_NAME))
-    {
-        let return_value = InputValue::try_from_toml(
-            toml_return_value.clone(),
-            &return_type.abi_type,
-            MAIN_RETURN_NAME,
-        )?;
-        parsed_inputs.insert(MAIN_RETURN_NAME.to_owned(), return_value);
-    }
+    // // If the toml file also includes a return value then we parse it as well.
+    // // This isn't required as the prover calculates the return value itself.
+    // if let (Some(return_type), Some(toml_return_value)) =
+    //     (&abi.return_type, data.get(MAIN_RETURN_NAME))
+    // {
+    //     let return_value = InputValue::try_from_toml(
+    //         toml_return_value.clone(),
+    //         &return_type.abi_type,
+    //         MAIN_RETURN_NAME,
+    //     )?;
+    //     parsed_inputs.insert(MAIN_RETURN_NAME.to_owned(), return_value);
+    // }
 
     Ok(parsed_inputs)
 }
@@ -48,12 +48,12 @@ pub(crate) fn serialize_to_toml(
             .map(|toml_value| (key.clone(), toml_value))
     })?;
 
-    if let (Some(return_type), Some(return_value)) =
-        (&abi.return_type, input_map.get(MAIN_RETURN_NAME))
-    {
-        let return_value = TomlTypes::try_from_input_value(return_value, &return_type.abi_type)?;
-        toml_map.insert(MAIN_RETURN_NAME.to_owned(), return_value);
-    }
+    // if let (Some(return_type), Some(return_value)) =
+    //     (&abi.return_type, input_map.get(MAIN_RETURN_NAME))
+    // {
+    //     let return_value = TomlTypes::try_from_input_value(return_value, &return_type.abi_type)?;
+    //     toml_map.insert(MAIN_RETURN_NAME.to_owned(), return_value);
+    // }
 
     let toml_string = toml::to_string(&toml_map)?;
 

@@ -25,16 +25,14 @@ pub(crate) fn parse_json(
 
     // If the json file also includes a return value then we parse it as well.
     // This isn't required as the prover calculates the return value itself.
-    if let (Some(return_type), Some(json_return_value)) =
-        (&abi.return_type, data.get(MAIN_RETURN_NAME))
-    {
-        let return_value = InputValue::try_from_json(
-            json_return_value.clone(),
-            &return_type.abi_type,
-            MAIN_RETURN_NAME,
-        )?;
-        parsed_inputs.insert(MAIN_RETURN_NAME.to_owned(), return_value);
-    }
+    // if let Some(JsonTypes::Array(return_values)) = data.get(MAIN_RETURN_NAME) {
+    //     let return_values =
+    //         try_vecmap(return_values.iter().zip(abi.return_types), |(value, typ)| {
+    //             InputValue::try_from_json(value.clone(), &typ.abi_type, MAIN_RETURN_NAME)
+    //         })?;
+
+    //     parsed_inputs.insert(MAIN_RETURN_NAME.to_owned(), InputValue::Vec(return_values));
+    // }
 
     Ok(parsed_inputs)
 }
@@ -48,12 +46,12 @@ pub(crate) fn serialize_to_json(
             .map(|value| (key.to_owned(), value))
     })?;
 
-    if let (Some(return_type), Some(return_value)) =
-        (&abi.return_type, input_map.get(MAIN_RETURN_NAME))
-    {
-        let return_value = JsonTypes::try_from_input_value(return_value, &return_type.abi_type)?;
-        json_map.insert(MAIN_RETURN_NAME.to_owned(), return_value);
-    }
+    // if let (Some(return_type), Some(return_value)) =
+    //     (&abi.return_type, input_map.get(MAIN_RETURN_NAME))
+    // {
+    //     let return_value = JsonTypes::try_from_input_value(return_value, &return_type.abi_type)?;
+    //     json_map.insert(MAIN_RETURN_NAME.to_owned(), return_value);
+    // }
 
     let json_string = serde_json::to_string(&json_map)?;
 

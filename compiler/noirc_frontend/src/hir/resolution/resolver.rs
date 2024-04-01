@@ -256,7 +256,7 @@ impl<'a> Resolver<'a> {
             span: name.span(),
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
-            return_visibility: Visibility::Private,
+            return_visibility: vec![Visibility::Private],
             return_distinctness: Distinctness::DuplicationAllowed,
         };
 
@@ -935,7 +935,9 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if !self.pub_allowed(func) && func.def.return_visibility == Visibility::Public {
+        if !self.pub_allowed(func)
+            && func.def.return_visibility.iter().any(|visibility| visibility == &Visibility::Public)
+        {
             self.push_err(ResolverError::UnnecessaryPub {
                 ident: func.name_ident().clone(),
                 position: PubPosition::ReturnType,
@@ -949,13 +951,6 @@ impl<'a> Resolver<'a> {
             self.push_err(error);
         }
 
-        // 'pub' is required on return types for entry point functions
-        if self.is_entry_point_function(func)
-            && return_type.as_ref() != &Type::Unit
-            && func.def.return_visibility == Visibility::Private
-        {
-            self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
-        }
         // '#[recursive]' attribute is only allowed for entry point functions
         if !self.is_entry_point_function(func) && func.kind == FunctionKind::Recursive {
             self.push_err(ResolverError::MisplacedRecursiveAttribute {
@@ -1002,7 +997,7 @@ impl<'a> Resolver<'a> {
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             return_type: func.def.return_type.clone(),
-            return_visibility: func.def.return_visibility,
+            return_visibility: func.def.return_visibility.clone(),
             return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),

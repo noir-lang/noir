@@ -168,7 +168,8 @@ mod tests {
             opcodes,
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs::default(),
-            return_values: PublicInputs::default(),
+            private_returns: BTreeSet::new(),
+            public_returns: PublicInputs::default(),
             assert_messages: Default::default(),
             recursive: false,
         }

@@ -153,7 +153,7 @@ pub fn monomorphize_debug(
         function_sig,
         *return_distinctness,
         monomorphizer.return_location,
-        *return_visibility,
+        return_visibility.clone(),
         *kind == FunctionKind::Recursive,
         debug_variables,
         debug_functions,

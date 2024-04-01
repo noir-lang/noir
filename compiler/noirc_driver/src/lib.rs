@@ -7,7 +7,7 @@ use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
-use noirc_abi::{AbiParameter, AbiType, ContractEvent};
+use noirc_abi::{AbiParameter, AbiReturnType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
@@ -264,7 +264,7 @@ pub fn check_crate(
 pub fn compute_function_abi(
     context: &Context,
     crate_id: &CrateId,
-) -> Option<(Vec<AbiParameter>, Option<AbiType>)> {
+) -> Option<(Vec<AbiParameter>, Vec<AbiReturnType>)> {
     let main_function = context.get_main_function(crate_id)?;
 
     Some(abi_gen::compute_function_abi(context, &main_function))
@@ -493,8 +493,7 @@ pub fn compile_no_check(
         options.benchmark_codegen,
     )?;
 
-    let abi =
-        abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses, visibility);
+    let abi = abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {

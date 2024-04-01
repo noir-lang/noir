@@ -531,7 +531,7 @@ mod test {
                 (Identifier(y), Type::FieldElement, Visibility::Private),
             ]
             .into(),
-            return_visibility: Visibility::Private,
+            return_visibility: vec![Visibility::Private],
             return_distinctness: Distinctness::DuplicationAllowed,
             has_body: true,
             trait_impl: None,

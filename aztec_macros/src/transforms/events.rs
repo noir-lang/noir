@@ -72,7 +72,7 @@ pub fn generate_selector_impl(structure: &NoirStruct) -> TypeImpl {
     selector_fn_def.visibility = ItemVisibility::Public;
 
     // Seems to be necessary on contract modules
-    selector_fn_def.return_visibility = Visibility::Public;
+    selector_fn_def.return_visibility = vec![Visibility::Public];
 
     TypeImpl {
         object_type: struct_type,

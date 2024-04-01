@@ -38,7 +38,7 @@ fn addition_circuit() {
         current_witness_index: 4,
         opcodes: vec![addition],
         private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
-        return_values: PublicInputs([Witness(3)].into()),
+        public_returns: PublicInputs([Witness(3)].into()),
         ..Circuit::default()
     };
     let program = Program { functions: vec![circuit] };
@@ -69,7 +69,7 @@ fn fixed_base_scalar_mul_circuit() {
         current_witness_index: 5,
         opcodes: vec![fixed_base_scalar_mul],
         private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
-        return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(3), Witness(4)])),
+        public_returns: PublicInputs(BTreeSet::from_iter(vec![Witness(3), Witness(4)])),
         ..Circuit::default()
     };
     let program = Program { functions: vec![circuit] };
@@ -97,7 +97,7 @@ fn pedersen_circuit() {
         current_witness_index: 4,
         opcodes: vec![pedersen],
         private_parameters: BTreeSet::from([Witness(1)]),
-        return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(3)])),
+        public_returns: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(3)])),
         ..Circuit::default()
     };
     let program = Program { functions: vec![circuit] };
@@ -139,7 +139,7 @@ fn schnorr_verify_circuit() {
         current_witness_index: 100,
         opcodes: vec![schnorr],
         private_parameters: BTreeSet::from_iter((1..=last_input).map(Witness)),
-        return_values: PublicInputs(BTreeSet::from([output])),
+        public_returns: PublicInputs(BTreeSet::from([output])),
         ..Circuit::default()
     };
     let program = Program { functions: vec![circuit] };
@@ -345,7 +345,7 @@ fn memory_op_circuit() {
         current_witness_index: 5,
         opcodes: vec![memory_init, write, read],
         private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3)]),
-        return_values: PublicInputs([Witness(4)].into()),
+        public_returns: PublicInputs([Witness(4)].into()),
         ..Circuit::default()
     };
     let program = Program { functions: vec![circuit] };

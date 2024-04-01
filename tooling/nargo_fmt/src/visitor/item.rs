@@ -122,15 +122,32 @@ impl super::FmtVisitor<'_> {
                 result.push_str("distinct ");
             }
 
-            let visibility = match func.def.return_visibility {
-                Visibility::Public => "pub",
-                Visibility::DataBus => "return_data",
-                Visibility::Private => "",
-            };
-            result.push_str(&append_space_if_nonempty(visibility.into()));
+            let return_with_visibilities = func.def.returns_with_visibilities();
+            let has_multiple_visibilities = return_with_visibilities.len() > 1;
 
-            let typ = rewrite::typ(self, self.shape(), func.return_type());
-            result.push_str(&typ);
+            let return_items: Vec<_> = return_with_visibilities
+                .into_iter()
+                .map(|(visibility, return_typ)| {
+                    let mut item = String::new();
+                    let visibility = match visibility {
+                        Visibility::Public => "pub",
+                        Visibility::DataBus => "return_data",
+                        Visibility::Private => "",
+                    }
+                    .to_string();
+                    item.push_str(&append_space_if_nonempty(visibility.into()));
+                    item.push_str(&rewrite::typ(self, self.shape(), return_typ));
+                    item
+                })
+                .collect();
+
+            let return_type_with_visibility = if has_multiple_visibilities {
+                format!("({})", return_items.join(", "))
+            } else {
+                return_items.join(", ")
+            };
+
+            result.push_str(&return_type_with_visibility);
 
             let slice = self.slice(span.end()..func_span.start());
             if !slice.trim().is_empty() {

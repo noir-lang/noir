@@ -21,7 +21,7 @@ use acvm::acir::{
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 
 use noirc_frontend::{
-    hir_def::function::FunctionSignature, monomorphization::ast::Program, Visibility,
+    hir_def, hir_def::function::FunctionSignature, monomorphization::ast::Program, Visibility,
 };
 use tracing::{span, Level};
 
@@ -176,11 +176,16 @@ fn convert_generated_acir_into_circuit(
 
     let locations = locations.clone();
 
+    let arguments_with_visibilities =
+        func_sig.0.iter().map(|(_, typ, visibility)| (*visibility, typ.clone())).collect();
     let (public_parameter_witnesses, private_parameters) =
-        split_public_and_private_inputs(&func_sig, &input_witnesses);
+        split_public_and_private_inputs(arguments_with_visibilities, &input_witnesses);
+    let returns_with_visibilities = returns_with_visibilities(&func_sig);
+    let (public_return_witnesses, private_returns) =
+        split_public_and_private_inputs(returns_with_visibilities, &return_witnesses);
 
     let public_parameters = PublicInputs(public_parameter_witnesses);
-    let return_values = PublicInputs(return_witnesses.iter().copied().collect());
+    let public_returns = PublicInputs(public_return_witnesses);
 
     let circuit = Circuit {
         current_witness_index,
@@ -188,7 +193,8 @@ fn convert_generated_acir_into_circuit(
         opcodes,
         private_parameters,
         public_parameters,
-        return_values,
+        private_returns,
+        public_returns,
         assert_messages: assert_messages.clone().into_iter().collect(),
         recursive,
     };
@@ -208,28 +214,41 @@ fn convert_generated_acir_into_circuit(
     (optimized_circuit, debug_info, warnings, input_witnesses, return_witnesses)
 }
 
+fn returns_with_visibilities(
+    func_sig: &FunctionSignature,
+) -> Vec<(Visibility, hir_def::types::Type)> {
+    let (visibilities, return_type) = &func_sig.1;
+
+    match return_type {
+        None => vec![],
+        Some(hir_def::types::Type::Tuple(types)) if visibilities.len() == types.len() => {
+            visibilities.iter().copied().zip(types.iter().cloned()).collect()
+        }
+        Some(return_type) => vec![(visibilities[0].clone(), return_type.clone())],
+    }
+}
+
 // Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
 fn split_public_and_private_inputs(
-    func_sig: &FunctionSignature,
-    input_witnesses: &[Witness],
+    params: Vec<(Visibility, hir_def::types::Type)>,
+    witnesses: &[Witness],
 ) -> (BTreeSet<Witness>, BTreeSet<Witness>) {
     let mut idx = 0_usize;
-    if input_witnesses.is_empty() {
+    if witnesses.is_empty() {
         return (BTreeSet::new(), BTreeSet::new());
     }
 
-    func_sig
-        .0
-        .iter()
-        .map(|(_, typ, visibility)| {
+    params
+        .into_iter()
+        .map(|(visibility, typ)| {
             let num_field_elements_needed = typ.field_count() as usize;
-            let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
+            let witnesses = witnesses[idx..idx + num_field_elements_needed].to_vec();
             idx += num_field_elements_needed;
             (visibility, witnesses)
         })
         .fold((BTreeSet::new(), BTreeSet::new()), |mut acc, (vis, witnesses)| {
             // Split witnesses into sets based on their visibility.
-            if *vis == Visibility::Public {
+            if vis == Visibility::Public {
                 for witness in witnesses {
                     acc.0.insert(witness);
                 }

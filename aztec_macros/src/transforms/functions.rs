@@ -99,7 +99,7 @@ pub fn transform_function(
     if !is_avm {
         let return_type = create_return_type(&return_type_name);
         func.def.return_type = return_type;
-        func.def.return_visibility = Visibility::Public;
+        func.def.return_visibility = vec![Visibility::Public];
     }
 
     // Distinct return types are only required for private functions
