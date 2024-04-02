@@ -1178,7 +1178,7 @@ mod tests {
                                     .as_ref()
                                     .map(|token_discriminator| {
                                         discriminant(token_discriminator)
-                                            == discriminant(&next_token.token())
+                                            == discriminant(next_token.token())
                                     })
                                     .unwrap_or(true);
 
