@@ -62,15 +62,21 @@ source:
 
     DO rust+CARGO --args=fetch
 
-    COPY --dir +git-info/* /tmp/git/
-    ENV GIT_COMMIT=$(cat /tmp/git/commit_hash)
-    ENV GIT_DIRTY=$(cat /tmp/git/dirty)
-    RUN rm -rf /tmp/git
-    
     SAVE ARTIFACT --keep-ts ./*
 
 build:
     FROM +source
+    ARG GIT_COMMIT
+    IF [ -n "${GIT_COMMIT}" ]
+        ENV GIT_COMMIT=$GIT_COMMIT
+        ENV GIT_DIRTY="false"
+    ELSE
+        COPY --dir +git-info/* /tmp/git/
+        ENV GIT_COMMIT=$(cat /tmp/git/commit_hash)
+        ENV GIT_DIRTY=$(cat /tmp/git/dirty)
+        RUN rm -rf /tmp/git
+    END
+
     DO rust+CARGO --args="build --offline --release" --output="release/nargo"
     SAVE ARTIFACT ./target/release/nargo
 
@@ -155,12 +161,19 @@ yarn-source:
     COPY --dir --keep-ts tooling/noir_codegen tooling/noir_js tooling/noir_js_backend_barretenberg tooling/noir_js_types ./tooling
 
 yarn-build:
+    ARG GIT_COMMIT
     FROM +yarn-source
     COPY --dir --keep-ts +source/* .
-    COPY --dir +git-info/* /tmp/git/
-    ENV GIT_COMMIT=$(cat /tmp/git/commit_hash)
-    ENV GIT_DIRTY=$(cat /tmp/git/dirty)
-    RUN rm -rf /tmp/git
+    
+    IF [ -n "${GIT_COMMIT}" ]
+        ENV GIT_COMMIT=$GIT_COMMIT
+        ENV GIT_DIRTY="false"
+    ELSE
+        COPY --dir +git-info/* /tmp/git/
+        ENV GIT_COMMIT=$(cat /tmp/git/commit_hash)
+        ENV GIT_DIRTY=$(cat /tmp/git/dirty)
+        RUN rm -rf /tmp/git
+    END
 
     DO rust+SET_CACHE_MOUNTS_ENV
     RUN --mount=$EARTHLY_RUST_CARGO_HOME_CACHE --mount=$EARTHLY_RUST_TARGET_CACHE \
@@ -182,13 +195,20 @@ yarn-test:
     RUN yarn test
 
 docs-build:
+    ARG GIT_COMMIT
     FROM +yarn-source
     COPY --dir --keep-ts +source/* .
-    COPY --dir +git-info/* /tmp/git/
-    ENV GIT_COMMIT=$(cat /tmp/git/commit_hash)
-    ENV GIT_DIRTY=$(cat /tmp/git/dirty)
-    RUN rm -rf /tmp/git
     COPY ./docs ./docs
+
+    IF [ -n "${GIT_COMMIT}" ]
+        ENV GIT_COMMIT=$GIT_COMMIT
+        ENV GIT_DIRTY="false"
+    ELSE
+        COPY --dir +git-info/* /tmp/git/
+        ENV GIT_COMMIT=$(cat /tmp/git/commit_hash)
+        ENV GIT_DIRTY=$(cat /tmp/git/dirty)
+        RUN rm -rf /tmp/git
+    END
     
     DO rust+SET_CACHE_MOUNTS_ENV
     RUN --mount=$EARTHLY_RUST_CARGO_HOME_CACHE --mount=$EARTHLY_RUST_TARGET_CACHE \

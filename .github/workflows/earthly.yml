@@ -22,6 +22,6 @@ jobs:
           version: 'v0.8.5'
 
       - name: Build
-        run: earthly --ci +build
+        run: earthly --ci +build --GIT_COMMIT=${{ github.sha }}
         env:
           FORCE_COLOR: 1
