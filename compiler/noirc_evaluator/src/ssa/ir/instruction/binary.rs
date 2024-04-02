@@ -178,7 +178,7 @@ impl Binary {
                     let non_constant = if lhs.is_some() { self.rhs } else { self.lhs };
                     if let Some(constant) = constant {
                         let max_possible_value =
-                            2u128.pow(dfg.get_value_max_num_bits(non_constant)) - 1;
+                            2u128.pow(dfg.type_of_value(non_constant).bit_size()) - 1;
                         if constant > max_possible_value.into() {
                             let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                             return SimplifyResult::SimplifiedTo(zero);
