@@ -40,9 +40,19 @@ DO rust+INIT --keep_fingerprints=true
 
 # Install various tools used for building JS packages
 RUN apt-get update && apt-get install --no-install-recommends -qq jq libc++1
+
+git-info:
+    LOCALLY
+    RUN mkdir -p ./tmp
+    RUN git rev-parse --verify HEAD > ./tmp/commit_hash
+    RUN git diff --exit-code --quiet; test $? -eq 0 && echo "false" || echo "true" > ./tmp/dirty
+
+    SAVE ARTIFACT ./tmp/commit_hash commit_hash
+    SAVE ARTIFACT ./tmp/dirty dirty
+    RUN rm -rf ./tmp
    
 source:
-    # TODO: we're pulling in a lot of non-rust source here, e.g. READMEs. 
+    # TODO: we're pulling in a lot of non-rust source here, e.g. READMEs.
     WORKDIR ./project
     COPY --keep-ts Cargo.toml Cargo.lock rust-toolchain.toml .rustfmt.toml ./
     COPY --keep-ts --dir acvm-repo/acir acvm-repo/acir_field acvm-repo/acvm acvm-repo/acvm_js acvm-repo/blackbox_solver acvm-repo/bn254_blackbox_solver acvm-repo/brillig acvm-repo/brillig_vm ./acvm-repo
@@ -52,9 +62,11 @@ source:
 
     DO rust+CARGO --args=fetch
 
-    # TODO: yikes but necessary for injecting the git commit. Let's use environment variables instead.
-    COPY --keep-ts --dir .git ./.git
-
+    COPY --dir +git-info/* /tmp/git/
+    ENV GIT_COMMIT=$(cat /tmp/git/commit_hash)
+    ENV GIT_DIRTY=$(cat /tmp/git/dirty)
+    RUN rm -rf /tmp/git
+    
     SAVE ARTIFACT --keep-ts ./*
 
 build:
@@ -145,6 +157,10 @@ yarn-source:
 yarn-build:
     FROM +yarn-source
     COPY --dir --keep-ts +source/* .
+    COPY --dir +git-info/* /tmp/git/
+    ENV GIT_COMMIT=$(cat /tmp/git/commit_hash)
+    ENV GIT_DIRTY=$(cat /tmp/git/dirty)
+    RUN rm -rf /tmp/git
 
     DO rust+SET_CACHE_MOUNTS_ENV
     RUN --mount=$EARTHLY_RUST_CARGO_HOME_CACHE --mount=$EARTHLY_RUST_TARGET_CACHE \
@@ -168,6 +184,10 @@ yarn-test:
 docs-build:
     FROM +yarn-source
     COPY --dir --keep-ts +source/* .
+    COPY --dir +git-info/* /tmp/git/
+    ENV GIT_COMMIT=$(cat /tmp/git/commit_hash)
+    ENV GIT_DIRTY=$(cat /tmp/git/dirty)
+    RUN rm -rf /tmp/git
     COPY ./docs ./docs
     
     DO rust+SET_CACHE_MOUNTS_ENV
