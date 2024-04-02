@@ -5,7 +5,7 @@ Noir is a Domain Specific Language for SNARK proving systems. It has been design
 **This implementation is in early development. It has not been reviewed or audited. It is not suitable to be used in production. Expect bugs!**
 
 ## Quick Start
-
+DONT MERGE
 Read the installation section [here](https://noir-lang.org/docs/dev/getting_started/installation/).
 
 Once you have read through the documentation, you can visit [Awesome Noir](https://github.com/noir-lang/awesome-noir) to run some of the examples that others have created.
