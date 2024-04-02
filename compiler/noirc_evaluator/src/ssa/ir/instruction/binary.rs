@@ -176,7 +176,6 @@ impl Binary {
                     // values which the variable's type can take, we can assume that the equality will be false.
                     let constant = lhs.or(rhs);
                     let non_constant = if lhs.is_some() { self.rhs } else { self.lhs };
-                    
                     if let Some(constant) = constant {
                         let max_possible_value =
                             2u128.pow(dfg.get_value_max_num_bits(non_constant)) - 1;
