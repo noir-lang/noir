@@ -29,7 +29,7 @@ class Goblin {
     using GoblinUltraProverInstance = ProverInstance_<GoblinUltraFlavor>;
     using OpQueue = bb::ECCOpQueue;
     using ECCVMFlavor = bb::ECCVMFlavor;
-    using ECCVMBuilder = bb::ECCVMCircuitBuilder<ECCVMFlavor>;
+    using ECCVMBuilder = bb::ECCVMCircuitBuilder;
     using ECCVMComposer = bb::ECCVMComposer;
     using ECCVMProver = bb::ECCVMProver_<ECCVMFlavor>;
     using TranslatorBuilder = bb::GoblinTranslatorCircuitBuilder;

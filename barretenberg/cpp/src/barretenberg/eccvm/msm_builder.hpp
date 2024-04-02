@@ -7,10 +7,10 @@
 
 namespace bb {
 
-template <typename Flavor> class ECCVMMSMMBuilder {
+class ECCVMMSMMBuilder {
   public:
-    using CycleGroup = typename Flavor::CycleGroup;
-    using FF = typename Flavor::FF;
+    using CycleGroup = curve::BN254::Group;
+    using FF = curve::Grumpkin::ScalarField;
     using Element = typename CycleGroup::element;
     using AffineElement = typename CycleGroup::affine_element;
 

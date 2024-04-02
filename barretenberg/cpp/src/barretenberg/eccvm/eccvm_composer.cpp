@@ -8,7 +8,8 @@ namespace bb {
  * @brief Compute witness polynomials
  *
  */
-template <IsECCVMFlavor Flavor> void ECCVMComposer_<Flavor>::compute_witness(CircuitConstructor& circuit_constructor)
+template <IsECCVMFlavor Flavor>
+void ECCVMComposer_<Flavor>::compute_witness([[maybe_unused]] CircuitConstructor& circuit_constructor)
 {
     BB_OP_COUNT_TIME_NAME("ECCVMComposer::compute_witness");
 
@@ -16,7 +17,7 @@ template <IsECCVMFlavor Flavor> void ECCVMComposer_<Flavor>::compute_witness(Cir
         return;
     }
 
-    auto polynomials = circuit_constructor.compute_polynomials();
+    ProverPolynomials polynomials(circuit_constructor);
 
     auto key_wires = proving_key->get_wires();
     auto poly_wires = polynomials.get_wires();

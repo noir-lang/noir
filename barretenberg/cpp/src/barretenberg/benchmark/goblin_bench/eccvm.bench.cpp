@@ -7,7 +7,7 @@ using namespace benchmark;
 using namespace bb;
 
 using Flavor = ECCVMFlavor;
-using Builder = ECCVMCircuitBuilder<Flavor>;
+using Builder = ECCVMCircuitBuilder;
 using Composer = ECCVMComposer;
 
 namespace {

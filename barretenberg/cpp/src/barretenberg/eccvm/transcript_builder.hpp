@@ -4,10 +4,10 @@
 
 namespace bb {
 
-template <typename Flavor> class ECCVMTranscriptBuilder {
+class ECCVMTranscriptBuilder {
   public:
-    using CycleGroup = typename Flavor::CycleGroup;
-    using FF = typename Flavor::FF;
+    using CycleGroup = bb::g1;
+    using FF = grumpkin::fr;
     using Element = typename CycleGroup::element;
     using AffineElement = typename CycleGroup::affine_element;
 

@@ -4,7 +4,7 @@
 #include "barretenberg/stdlib_circuit_builders/standard_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 
-#include <optional>
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/928): Reorganize
 
 namespace bb {
 template <typename T>

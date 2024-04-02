@@ -11,17 +11,18 @@ namespace bb {
 template <IsECCVMFlavor Flavor> class ECCVMComposer_ {
   public:
     using FF = typename Flavor::FF;
-    using CircuitConstructor = ECCVMCircuitBuilder<Flavor>;
+    using CircuitConstructor = ECCVMCircuitBuilder;
     using ProvingKey = typename Flavor::ProvingKey;
     using VerificationKey = typename Flavor::VerificationKey;
     using PCS = typename Flavor::PCS;
     using CommitmentKey = typename Flavor::CommitmentKey;
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
+    using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Transcript = typename Flavor::Transcript;
 
     static constexpr std::string_view NAME_STRING = "ECCVM";
     static constexpr size_t NUM_RESERVED_GATES = 0; // equal to the number of multilinear evaluations leaked
-    static constexpr size_t NUM_WIRES = CircuitConstructor::NUM_WIRES;
+    static constexpr size_t NUM_WIRES = Flavor::NUM_WIRES;
     std::shared_ptr<ProvingKey> proving_key;
     std::shared_ptr<VerificationKey> verification_key;
 

@@ -33,7 +33,7 @@ TYPED_TEST_SUITE(ECCVMComposerTests, FlavorTypes);
 namespace {
 auto& engine = numeric::get_debug_randomness();
 }
-template <typename Flavor> ECCVMCircuitBuilder<Flavor> generate_circuit(numeric::RNG* engine = nullptr)
+template <typename Flavor> ECCVMCircuitBuilder generate_circuit(numeric::RNG* engine = nullptr)
 {
     std::shared_ptr<ECCOpQueue> op_queue = std::make_shared<ECCOpQueue>();
     using G1 = typename Flavor::CycleGroup;
@@ -61,7 +61,7 @@ template <typename Flavor> ECCVMCircuitBuilder<Flavor> generate_circuit(numeric:
     op_queue->mul_accumulate(a, x);
     op_queue->mul_accumulate(b, x);
     op_queue->mul_accumulate(c, x);
-    ECCVMCircuitBuilder<Flavor> builder{ op_queue };
+    ECCVMCircuitBuilder builder{ op_queue };
     return builder;
 }
 

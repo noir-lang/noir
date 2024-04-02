@@ -203,7 +203,7 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
 
         return manifest_expected;
     }
-    ECCVMCircuitBuilder<Flavor> generate_trace(numeric::RNG* engine = nullptr)
+    ECCVMCircuitBuilder generate_trace(numeric::RNG* engine = nullptr)
     {
         std::shared_ptr<ECCOpQueue> op_queue = std::make_shared<ECCOpQueue>();
         using G1 = typename Flavor::CycleGroup;
@@ -231,7 +231,7 @@ template <typename Flavor> class ECCVMTranscriptTests : public ::testing::Test {
         op_queue->mul_accumulate(a, x);
         op_queue->mul_accumulate(b, x);
         op_queue->mul_accumulate(c, x);
-        ECCVMCircuitBuilder<Flavor> builder{ op_queue };
+        ECCVMCircuitBuilder builder{ op_queue };
         return builder;
     }
 };
