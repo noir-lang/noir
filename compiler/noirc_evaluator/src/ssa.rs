@@ -63,17 +63,14 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::fold_constants, "After Constant Folding:")
         .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
         .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
+        .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
         .finish();
 
     let brillig = time("SSA to Brillig", print_timings, || ssa.to_brillig(print_brillig_trace));
 
     drop(ssa_gen_span_guard);
 
-    let last_array_uses = ssa.find_last_array_uses();
-
-    time("SSA to ACIR", print_timings, || {
-        ssa.into_acir(&brillig, abi_distinctness, &last_array_uses)
-    })
+    time("SSA to ACIR", print_timings, || ssa.into_acir(&brillig, abi_distinctness))
 }
 
 // Helper to time SSA passes
@@ -174,8 +171,6 @@ fn convert_generated_acir_into_circuit(
         ..
     } = generated_acir;
 
-    let locations = locations.clone();
-
     let (public_parameter_witnesses, private_parameters) =
         split_public_and_private_inputs(&func_sig, &input_witnesses);
 
@@ -189,7 +184,7 @@ fn convert_generated_acir_into_circuit(
         private_parameters,
         public_parameters,
         return_values,
-        assert_messages: assert_messages.clone().into_iter().collect(),
+        assert_messages: assert_messages.into_iter().collect(),
         recursive,
     };
 
