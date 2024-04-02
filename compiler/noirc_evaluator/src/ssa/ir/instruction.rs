@@ -573,12 +573,12 @@ impl Instruction {
             Instruction::IncrementRc { .. } => None,
             Instruction::DecrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
-                if let Some(numeric_constant) = dfg.get_numeric_constant(*value) {
-                    if numeric_constant.num_bits() < *max_bit_size {
-                        return Remove;
-                    }
+                let max_potential_bits = dfg.get_value_max_num_bits(*value);
+                if max_potential_bits < *max_bit_size {
+                    Remove
+                } else {
+                    None
                 }
-                None
             }
         }
     }
