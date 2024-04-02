@@ -205,12 +205,14 @@ describe('Hashing Opcodes', () => {
       const buf = Buffer.from([
         Pedersen.opcode, // opcode
         1, // indirect
+        ...Buffer.from('02345678', 'hex'), // genIndexOffset
         ...Buffer.from('12345678', 'hex'), // dstOffset
         ...Buffer.from('23456789', 'hex'), // messageOffset
         ...Buffer.from('3456789a', 'hex'), // hashSize
       ]);
       const inst = new Pedersen(
         /*indirect=*/ 1,
+        /*genIndexOffset=*/ 0x02345678,
         /*dstOffset=*/ 0x12345678,
         /*messageOffset=*/ 0x23456789,
         /*hashSizeOffset=*/ 0x3456789a,
@@ -224,15 +226,18 @@ describe('Hashing Opcodes', () => {
       const args = [new Field(1n), new Field(2n), new Field(3n)];
       const messageOffset = 0;
       const sizeOffset = 10;
+      const genIndexOffset = 20;
       const indirect = 0;
+      const genIndex = 20;
 
       context.machineState.memory.setSlice(messageOffset, args);
       context.machineState.memory.set(sizeOffset, new Uint32(args.length));
+      context.machineState.memory.set(genIndexOffset, new Uint32(genIndex));
 
       const dstOffset = 3;
 
-      const expectedHash = pedersenHash(args);
-      await new Pedersen(indirect, dstOffset, messageOffset, sizeOffset).execute(context);
+      const expectedHash = pedersenHash(args, genIndex);
+      await new Pedersen(indirect, genIndexOffset, dstOffset, messageOffset, sizeOffset).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);
       expect(result).toEqual(new Field(expectedHash));
@@ -241,6 +246,7 @@ describe('Hashing Opcodes', () => {
     it('Should hash correctly - indirect', async () => {
       const args = [new Field(1n), new Field(2n), new Field(3n)];
       const indirect = new Addressing([
+        /*genIndexOffset=*/ AddressingMode.DIRECT,
         /*dstOffset=*/ AddressingMode.DIRECT,
         /*messageOffset*/ AddressingMode.INDIRECT,
         /*messageSizeOffset*/ AddressingMode.INDIRECT,
@@ -249,16 +255,18 @@ describe('Hashing Opcodes', () => {
       const sizeOffset = 10;
       const realLocation = 4;
       const realSizeLocation = 20;
+      const genIndexOffset = 50;
 
       context.machineState.memory.set(messageOffset, new Uint32(realLocation));
       context.machineState.memory.set(sizeOffset, new Uint32(realSizeLocation));
       context.machineState.memory.setSlice(realLocation, args);
       context.machineState.memory.set(realSizeLocation, new Uint32(args.length));
+      context.machineState.memory.set(genIndexOffset, new Uint32(0));
 
       const dstOffset = 300;
 
       const expectedHash = pedersenHash(args);
-      await new Pedersen(indirect, dstOffset, messageOffset, sizeOffset).execute(context);
+      await new Pedersen(indirect, genIndexOffset, dstOffset, messageOffset, sizeOffset).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);
       expect(result).toEqual(new Field(expectedHash));

@@ -130,6 +130,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   describe.each([
     ['poseidon_hash', poseidonHash],
     ['pedersen_hash', pedersenHash],
+    ['pedersen_hash_with_index', (m: Buffer[]) => pedersenHash(m, 20)],
   ])('Hashes with field returned in noir contracts', (name: string, hashFunction: (data: Buffer[]) => Fr) => {
     it(`Should execute contract function that performs ${name} hash`, async () => {
       const calldata = [new Fr(1), new Fr(2), new Fr(3)];

@@ -880,18 +880,22 @@ fn handle_black_box_function(avm_instrs: &mut Vec<AvmInstruction>, operation: &B
     match operation {
         BlackBoxOp::PedersenHash {
             inputs,
-            domain_separator: _,
+            domain_separator,
             output,
         } => {
             let message_offset = inputs.pointer.0;
             let message_size_offset = inputs.size.0;
 
+            let index_offset = domain_separator.0;
             let dest_offset = output.0;
 
             avm_instrs.push(AvmInstruction {
                 opcode: AvmOpcode::PEDERSEN,
-                indirect: Some(FIRST_OPERAND_INDIRECT),
+                indirect: Some(SECOND_OPERAND_INDIRECT),
                 operands: vec![
+                    AvmOperand::U32 {
+                        value: index_offset as u32,
+                    },
                     AvmOperand::U32 {
                         value: dest_offset as u32,
                     },

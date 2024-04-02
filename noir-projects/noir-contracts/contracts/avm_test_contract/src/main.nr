@@ -176,6 +176,11 @@ contract AvmTest {
         dep::std::hash::pedersen_hash(data)
     }
 
+    #[aztec(public-vm)]
+    fn pedersen_hash_with_index(data: [Field; 3]) -> pub Field {
+        dep::std::hash::pedersen_hash_with_separator(data, 20)
+    }
+
     /************************************************************************
      * AvmContext functions
      ************************************************************************/
