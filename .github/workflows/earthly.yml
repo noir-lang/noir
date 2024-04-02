@@ -23,3 +23,5 @@ jobs:
 
       - name: Build
         run: earthly --ci +build
+        env:
+          FORCE_COLOR: 1
