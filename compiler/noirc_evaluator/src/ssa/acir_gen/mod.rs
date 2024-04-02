@@ -812,9 +812,22 @@ impl Context {
                     }
                     // If there is a predicate and the index is not out of range, we can directly perform the read
                     else if index < array_size && store_value.is_none() {
+                        // dbg!("got in constant read");
                         self.define_result(dfg, instruction, array[index].clone());
                         return Ok(true);
-                    }
+                    } 
+                    // else if index < array_size && store_value.is_some() {
+                    //     dbg!("got in constant write");
+                    //     let value = match store_value {
+                    //         Some(store_value) => {
+                    //             let store_value = self.convert_value(store_value, dfg);
+                    //             AcirValue::Array(array.update(index, store_value))
+                    //         }
+                    //         None => array[index].clone(),
+                    //     };
+                    //     self.define_result(dfg, instruction, value);
+                    //     return Ok(true);
+                    // }
                 }
             }
             AcirValue::DynamicArray(_) => (),
