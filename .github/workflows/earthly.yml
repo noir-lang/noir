@@ -1,0 +1,25 @@
+name: Earthly CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true  
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Earthly
+        uses: earthly/actions-setup@v1
+        with:
+          version: 'v0.8.5'
+
+      - name: Build
+        run: earthly +build
