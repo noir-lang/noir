@@ -13,25 +13,16 @@ use crate::{Ident, Path, PathKind, UseTree, UseTreeKind};
 
 use lalrpop_util::{ErrorRecovery, ParseError};
 
-// TODO: is this what we want for ErrorRecovery?
-// grammar<'err>(errors: &'err mut Vec<LexerErrorKind>);
-// grammar;
-// grammar<'input>(input: &'input str);
-// grammar<'input>(input: &'input str);
 grammar<'input, 'err>(input: &'input str, errors: &'err mut Vec<ErrorRecovery<usize, Tok<'input>, &'static str>>);
 
 extern {
     type Location = usize;
 
-    // TODO: wip error recovery
-    // type Error = Vec<LexerErrorKind>;
-    // type Error = LexerErrorKind;
     type Error = LexerErrorKind;
 
     // NOTE: each token needs a terminal defined
     enum Tok<'input> {
-        // Str => Tok::Str(<String>),
-        str => Tok::Str(<&'input str>),
+        string => Tok::Str(<&'input str>),
         ident => Tok::Ident(<&'input str>),
 
         // symbols
@@ -110,27 +101,15 @@ extern {
         // bool
         "true" => Tok::Bool(true),
         "false" => Tok::Bool(false),
-        // whitespace
-        " " => Tok::Whitespace(" "),
-        "\n" => Tok::Whitespace("\n"),
-        "\r" => Tok::Whitespace("\r"),
-        "\t" => Tok::Whitespace("\t"),
-        whitespace => Tok::Whitespace(_),
+
+        r"[\t\r\n ]+" => Tok::Whitespace(_),
 
         EOF => Tok::EOF,
     }
 }
 
 
-pub Term: Tok<'input> = {
-    <b:Bool> EOF => b,
-
-    // EOF => Tok::EOF,
-
-}
-
-
-// pub Program: &'input ParsedModule = {
+// pub(crate) Program: &'input ParsedModule = {
 //     // <m:Module> EOF => m,
 //     // EOF => (),
 
@@ -139,42 +118,120 @@ pub Term: Tok<'input> = {
 //     EOF => ParsedModule::default(),
 // }
 
-TopLevelStatement: TopLevelStatement = {
-
-    // use statement from BNF grammar
-    // use_statement ::= "use" WHITESPACE path (WHITESPACE "as" ident)? ";"
-
-    // TODO: does this allow zero-size whitespace?
-    "use" whitespace <mut prefix:Path> <alias:Alias?> => {
-
-        let ident = prefix.pop();
-        let kind = UseTreeKind::Path(ident, alias);
-        TopLevelStatement::Import(UseTree { prefix, kind })
+pub(crate) TopLevelStatement: TopLevelStatement = {
+    // TODO: move EOF to Program
+    "use" r"[\t\r\n ]+" <use_tree:UseTree> ";" <trailing_spaces:r"[\t\r\n ]+"?> EOF => {
+        TopLevelStatement::Import(use_tree)
     }
 }
 
-Alias: Ident = {
-    whitespace "as" <Ident> => <>,
+UseTree: UseTree = {
+    // // path::to::ident as SomeAlias
+    // <mut prefix:Path> <alias:Alias?> => {
+    //     let ident = prefix.pop();
+    //     let kind = UseTreeKind::Path(ident, alias);
+    //     UseTree { prefix, kind }
+    // },
+    //
+    // // path::to::{identA, further::path::{identB, identC}}
+    // <prefix:MaybeEmptyPath> "::" "{" <mut use_trees:(<UseTree> ",")*> <use_tree:(<UseTree> <","?>)> "}" => {
+    //     let kind = UseTreeKind::List;
+    //     UseTree { prefix, kind }
+    // },
+
+    <mut prefix:Path> <postfix:UseTreePostfix> => {
+        // let ident = prefix.pop();
+        // let kind = UseTreeKind::Path(ident, alias);
+        // UseTree { prefix, kind }
+        match postfix {
+            Ok(alias) => {
+                let ident = prefix.pop();
+                let kind = UseTreeKind::Path(ident, alias);
+                UseTree { prefix, kind }
+            },
+
+            Err((prefix, use_trees)) => {
+                let kind = UseTreeKind::List(use_trees);
+                UseTree { prefix, kind }
+            }
+        }
+    },
+
 }
 
-pub Path: Path = {
-    <lo:@L> <opt_crate:"crate"?> <opt_dep:"dep"?> "::" <i:Ident> <mut segments:("::" <Ident>)*> ";" <hi:@R> => {
-        segments.insert(0, i);
-        let mut kind = PathKind::Plain;
-        match (opt_crate, opt_dep) {
-            (None, None) => (),
-            (Some(_), None) => kind = PathKind::Crate,
-            (None, Some(_)) => kind = PathKind::Dep,
-            (Some(_), Some(_)) => {
-                let token = noir_token::Token::Ident("cratedep".to_string());
-                let span = Span::from(lo as u32..(lo + "cratedep".len()) as u32);
-                segments.insert(0, Ident::from_token(token, span))
-            },
-        }
+Alias: Ident = {
+    r"[\t\r\n ]+" "as" r"[\t\r\n ]+" <Ident> => <>,
+}
+
+UseTreePostfix: Result<Option<Ident>, (Path, Vec<UseTree>)> = {
+    // path::to::ident as SomeAlias
+    <alias:Alias?> => {
+        Ok(alias)
+    },
+
+    // // path::to::{identA, further::path::{identB, identC}}
+    // "::" "{" <mut use_trees:(<UseTree> ",")*> <use_tree:(<UseTree> <","?>)> "}" => {
+    //     Err((use_trees, use_tree))
+    // },
+}
+
+pub(crate) Path: Path = {
+
+    <lo:@L> "crate" "::" <segments:PathSegments> <hi:@R> => {
+        let kind = PathKind::Crate;
         let span = Span::from(lo as u32..hi as u32);
         Path { segments, kind, span }
     },
+
+    <lo:@L> "dep" "::" <segments:PathSegments> <hi:@R> => {
+        let kind = PathKind::Dep;
+        let span = Span::from(lo as u32..hi as u32);
+        Path { segments, kind, span }
+    },
+
+    <lo:@L> <segments:PathSegments> <hi:@R> => {
+
+        let kind = PathKind::Plain;
+        let span = Span::from(lo as u32..hi as u32);
+
+        // match (opt_crate, opt_dep) {
+        //     (None, None) => (),
+        //     (Some(_), None) => kind = PathKind::Crate,
+        //     (None, Some(_)) => kind = PathKind::Dep,
+        //     (Some(_), Some(_)) => {
+        //         let token = noir_token::Token::Ident("cratedep".to_string());
+        //         let span = Span::from(lo as u32..(lo + "cratedep".len()) as u32);
+        //         segments.insert(0, Ident::from_token(token, span))
+        //     },
+        // }
+
+        Path { segments, kind, span }
+    },
+
+    // <lo:@L> "crate" <hi:@R> => {
+    //     let segments = vec![];
+    //     let kind = PathKind::Crate;
+    //     let span = Span::from(lo as u32..hi as u32);
+    //     Path { segments, kind, span }
+    // },
+    // <lo:@L> "dep" <hi:@R> => {
+    //     let segments = vec![];
+    //     let kind = PathKind::Dep;
+    //     let span = Span::from(lo as u32..hi as u32);
+    //     Path { segments, kind, span }
+    // },
+
 }
+
+PathSegments: Vec<Ident> = {
+    // <lo:@L> <hi:@R> => vec![],
+    // <lo:@L> <segment:Ident> <hi:@R> => vec![segment],
+    <lo:@L> <segment:Ident> <mut segments:("::" <Ident>)*> <hi:@R> => {
+        segments.insert(0, segment);
+        segments
+    }
+}
+
 
 Ident: Ident = {
     <lo:@L> <i:ident> <hi:@R> => {
