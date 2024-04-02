@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.32.0...aztec-cli-v0.32.1) (2024-04-02)
+
+
+### Miscellaneous
+
+* Explicit type imports ([#5519](https://github.com/AztecProtocol/aztec-packages/issues/5519)) ([2a217de](https://github.com/AztecProtocol/aztec-packages/commit/2a217de4da2031a9f3913a657a4b39201f4483bf))
+
 ## [0.32.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.31.0...aztec-cli-v0.32.0) (2024-03-27)
 
 
