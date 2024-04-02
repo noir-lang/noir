@@ -45,7 +45,7 @@ git-info:
     LOCALLY
     RUN mkdir -p ./tmp
     RUN git rev-parse --verify HEAD > ./tmp/commit_hash
-    RUN git diff --exit-code --quiet; test $? -eq 0 && echo "false" || echo "true" > ./tmp/dirty
+    RUN (git diff --exit-code --quiet; test $? -eq 0 && echo "false" || echo "true") > ./tmp/dirty
 
     SAVE ARTIFACT ./tmp/commit_hash commit_hash
     SAVE ARTIFACT ./tmp/dirty dirty
