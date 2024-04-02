@@ -4,10 +4,12 @@ use acvm::FieldElement;
 use noirc_errors::{Position, Span};
 
 use crate::lexer::token::{Keyword, Tok};
+use crate::lexer::token as noir_token;
 use crate::lexer::lexer::IntType;
 use crate::lexer::errors::LexerErrorKind;
 use crate::ParsedModule;
 use crate::parser::TopLevelStatement;
+use crate::{Ident, Path, PathKind};
 
 use lalrpop_util::{ErrorRecovery, ParseError};
 
@@ -30,6 +32,7 @@ extern {
     enum Tok<'input> {
         // Str => Tok::Str(<String>),
         str => Tok::Str(<&'input str>),
+        ident => Tok::Ident(<&'input str>),
 
         // symbols
         "<" => Tok::Less,
@@ -135,10 +138,38 @@ pub Term: Tok<'input> = {
 //     EOF => ParsedModule::default(),
 // }
 
-TopLevelStatement: TopLevelStatement = {
+// TopLevelStatement: TopLevelStatement = {
 
-    // "use" => 
+//     // use statement from BNF grammar
+//     // use_statement ::= "use" WHITESPACE path (WHITESPACE "as" ident)? ";"
 
+// }
+
+Path: Path = {
+    <lo:@L> <opt_crate:"crate"?> <opt_dep:"dep"?> "::" <i:Ident> <mut segments:("::" <Ident>)*> <hi:@R> => {
+        segments.insert(0, i);
+        let mut kind = PathKind::Plain;
+        match (opt_crate, opt_dep) {
+            (None, None) => (),
+            (Some(_), None) => kind = PathKind::Crate,
+            (None, Some(_)) => kind = PathKind::Dep,
+            (Some(_), Some(_)) => {
+                let token = noir_token::Token::Ident("cratedep".to_string());
+                let span = Span::from(lo as u32..(lo + "cratedep".len()) as u32);
+                segments.insert(0, Ident::from_token(token, span))
+            },
+        }
+        let span = Span::from(lo as u32..hi as u32);
+        Path { segments, kind, span }
+    },
+}
+
+Ident: Ident = {
+    <lo:@L> <i:ident> <hi:@R> => {
+        let token = noir_token::Token::Ident(i.to_string());
+        let span = Span::from(lo as u32..hi as u32);
+        Ident::from_token(token, span)
+    },
 }
 
 Bool: Tok<'input> = {
@@ -147,13 +178,12 @@ Bool: Tok<'input> = {
 };
 
 
-// // TODO: rename Term
+
+
+
 // pub Term: Tok = {
-
 //     <b:Bool> EOF => b,
-
 //     EOF => Tok::EOF,
-
 //     // <n:Num> => Tok::Int(n),
 //     // "(" <t:Term> ")" => t,
 // };
