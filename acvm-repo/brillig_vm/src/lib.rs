@@ -16,7 +16,7 @@ use acir::brillig::{
     HeapVector, MemoryAddress, Opcode, ValueOrArray,
 };
 use acir::FieldElement;
-use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
+use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use arithmetic::{evaluate_binary_field_op, evaluate_binary_int_op, BrilligArithmeticError};
 use black_box::evaluate_black_box;
 use num_bigint::BigUint;
@@ -593,59 +593,10 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     }
 }
 
-pub(crate) struct DummyBlackBoxSolver;
-
-impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
-    fn schnorr_verify(
-        &self,
-        _public_key_x: &FieldElement,
-        _public_key_y: &FieldElement,
-        _signature: &[u8],
-        _message: &[u8],
-    ) -> Result<bool, BlackBoxResolutionError> {
-        Ok(true)
-    }
-    fn pedersen_commitment(
-        &self,
-        _inputs: &[FieldElement],
-        _domain_separator: u32,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        Ok((2_u128.into(), 3_u128.into()))
-    }
-    fn pedersen_hash(
-        &self,
-        _inputs: &[FieldElement],
-        _domain_separator: u32,
-    ) -> Result<FieldElement, BlackBoxResolutionError> {
-        Ok(6_u128.into())
-    }
-    fn fixed_base_scalar_mul(
-        &self,
-        _low: &FieldElement,
-        _high: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        Ok((4_u128.into(), 5_u128.into()))
-    }
-    fn ec_add(
-        &self,
-        _input1_x: &FieldElement,
-        _input1_y: &FieldElement,
-        _input2_x: &FieldElement,
-        _input2_y: &FieldElement,
-    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-        Ok((5_u128.into(), 6_u128.into()))
-    }
-    fn poseidon2_permutation(
-        &self,
-        _input: &[FieldElement],
-        len: u32,
-    ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
-        Ok(vec![0_u128.into(); len as usize])
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use acvm_blackbox_solver::StubbedBlackBoxSolver;
+
     use super::*;
 
     #[test]
@@ -662,7 +613,7 @@ mod tests {
 
         // Start VM
         let opcodes = [calldata_copy];
-        let mut vm = VM::new(calldata, &opcodes, vec![], &DummyBlackBoxSolver);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
 
         // Process a single VM opcode
         //
@@ -706,7 +657,7 @@ mod tests {
         opcodes.push(Opcode::Jump { location: 3 });
         opcodes.push(Opcode::JumpIf { condition: destination, location: 4 });
 
-        let mut vm = VM::new(calldata, &opcodes, vec![], &DummyBlackBoxSolver);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -763,7 +714,7 @@ mod tests {
             jump_if_not_opcode,
             add_opcode,
         ];
-        let mut vm = VM::new(calldata, &opcodes, vec![], &DummyBlackBoxSolver);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
 
@@ -811,7 +762,7 @@ mod tests {
             },
             Opcode::Stop { return_data_offset: 1, return_data_size: 1 },
         ];
-        let mut vm = VM::new(calldata, opcodes, vec![], &DummyBlackBoxSolver);
+        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -842,7 +793,7 @@ mod tests {
             Opcode::Mov { destination: MemoryAddress::from(2), source: MemoryAddress::from(0) };
 
         let opcodes = &[calldata_copy, mov_opcode];
-        let mut vm = VM::new(calldata, opcodes, vec![], &DummyBlackBoxSolver);
+        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -898,7 +849,7 @@ mod tests {
                 condition: MemoryAddress(1),
             },
         ];
-        let mut vm = VM::new(calldata, opcodes, vec![], &DummyBlackBoxSolver);
+        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -981,7 +932,7 @@ mod tests {
             .chain(cast_opcodes)
             .chain([equal_opcode, not_equal_opcode, less_than_opcode, less_than_equal_opcode])
             .collect();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &DummyBlackBoxSolver);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &StubbedBlackBoxSolver);
 
         // Calldata copy
         let status = vm.process_opcode();
@@ -1276,14 +1227,14 @@ mod tests {
     fn brillig_execute_and_get_vm(
         calldata: Vec<FieldElement>,
         opcodes: &[Opcode],
-    ) -> VM<'_, DummyBlackBoxSolver> {
-        let mut vm = VM::new(calldata, opcodes, vec![], &DummyBlackBoxSolver);
+    ) -> VM<'_, StubbedBlackBoxSolver> {
+        let mut vm = VM::new(calldata, opcodes, vec![], &StubbedBlackBoxSolver);
         brillig_execute(&mut vm);
         assert_eq!(vm.call_stack, vec![]);
         vm
     }
 
-    fn brillig_execute(vm: &mut VM<DummyBlackBoxSolver>) {
+    fn brillig_execute(vm: &mut VM<StubbedBlackBoxSolver>) {
         loop {
             let status = vm.process_opcode();
             if matches!(status, VMStatus::Finished { .. } | VMStatus::ForeignCallWait { .. }) {

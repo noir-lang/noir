@@ -414,7 +414,6 @@ mod tests {
         ir::{
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,
-            function::{InlineType, RuntimeType},
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
