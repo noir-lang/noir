@@ -247,7 +247,7 @@ template <typename FF_> class AuxiliaryRelationImpl {
 
         auto index_is_monotonically_increasing = index_delta * index_delta - index_delta; // deg 2
 
-        auto adjacent_values_match_if_adjacent_indices_match = (index_delta * FF(-1) + FF(1)) * record_delta; // deg 2
+        auto adjacent_values_match_if_adjacent_indices_match = (-index_delta + FF(1)) * record_delta; // deg 2
 
         std::get<1>(accumulators) +=
             adjacent_values_match_if_adjacent_indices_match * (q_1 * q_2) * (q_aux * scaling_factor); // deg 5
@@ -286,7 +286,7 @@ template <typename FF_> class AuxiliaryRelationImpl {
 
         auto value_delta = w_3_shift - w_3;
         auto adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation =
-            (index_delta * FF(-1) + FF(1)) * value_delta * (next_gate_access_type * FF(-1) + FF(1)); // deg 3 or 4
+            (-index_delta + FF(1)) * value_delta * (-next_gate_access_type + FF(1)); // deg 3 or 4
 
         // We can't apply the RAM consistency check identity on the final entry in the sorted list (the wires in the
         // next gate would make the identity fail).  We need to validate that its 'access type' bool is correct. Can't
@@ -316,7 +316,7 @@ template <typename FF_> class AuxiliaryRelationImpl {
          * Else timestamp_check = 0
          */
         auto timestamp_delta = w_2_shift - w_2;
-        auto RAM_timestamp_check_identity = (index_delta * FF(-1) + FF(1)) * timestamp_delta - w_3; // deg 3
+        auto RAM_timestamp_check_identity = (-index_delta + FF(1)) * timestamp_delta - w_3; // deg 3
 
         /**
          * The complete RAM/ROM memory identity
