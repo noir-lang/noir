@@ -96,7 +96,6 @@ dependencies = [
  "cfg-if 1.0.0",
  "console_error_panic_hook",
  "const-str",
- "futures 0.3.30",
  "gloo-utils",
  "js-sys",
  "pkg-config",

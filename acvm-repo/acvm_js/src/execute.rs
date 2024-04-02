@@ -14,7 +14,7 @@ use crate::{
     JsExecutionError, JsWitnessMap, JsWitnessStack,
 };
 use core::pin::Pin;
-use futures::future::Future;
+
 #[wasm_bindgen]
 pub struct WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver);
 
