@@ -778,6 +778,8 @@ mod test {
                 HirStatement::Semi(semi_expr) => semi_expr,
                 HirStatement::For(for_loop) => for_loop.block,
                 HirStatement::Error => panic!("Invalid HirStatement!"),
+                HirStatement::Break => panic!("Unexpected break"),
+                HirStatement::Continue => panic!("Unexpected continue"),
             };
             let expr = interner.expression(&expr_id);
 
@@ -1031,19 +1033,19 @@ mod test {
     fn resolve_complex_closures() {
         let src = r#"
             fn main(x: Field) -> pub Field {
-                let closure_without_captures = |x| x + x;
+                let closure_without_captures = |x: Field| -> Field { x + x };
                 let a = closure_without_captures(1);
 
-                let closure_capturing_a_param = |y| y + x;
+                let closure_capturing_a_param = |y: Field| -> Field { y + x };
                 let b = closure_capturing_a_param(2);
 
-                let closure_capturing_a_local_var = |y| y + b;
+                let closure_capturing_a_local_var = |y: Field| -> Field { y + b };
                 let c = closure_capturing_a_local_var(3);
 
-                let closure_with_transitive_captures = |y| {
+                let closure_with_transitive_captures = |y: Field| -> Field {
                     let d = 5;
-                    let nested_closure = |z| {
-                        let doubly_nested_closure = |w| w + x + b;
+                    let nested_closure = |z: Field| -> Field {
+                        let doubly_nested_closure = |w: Field| -> Field { w + x + b };
                         a + z + y + d + x + doubly_nested_closure(4) + x + y
                     };
                     let res = nested_closure(5);
@@ -1221,6 +1223,50 @@ fn lambda$f1(mut env$l1: (Field)) -> Field {
             global COUNT = ONE + 2;
             fn main() {
                 let _array: [Field; COUNT] = [1, 2, 3];
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 0);
+    }
+
+    #[test]
+    fn break_and_continue_in_constrained_fn() {
+        let src = r#"
+            fn main() {
+                for i in 0 .. 10 {
+                    if i == 2 {
+                        continue;
+                    }
+                    if i == 5 {
+                        break;
+                    }
+                }
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 2);
+    }
+
+    #[test]
+    fn break_and_continue_outside_loop() {
+        let src = r#"
+            unconstrained fn main() {
+                continue;
+                break;
+            }
+        "#;
+        assert_eq!(get_program_errors(src).len(), 2);
+    }
+
+    // Regression for #2540
+    #[test]
+    fn for_loop_over_array() {
+        let src = r#"
+            fn hello<N>(_array: [u1; N]) {
+                for _ in 0..N {}
+            }
+
+            fn main() {
+                let array: [u1; 2] = [0, 1];
+                hello(array);
             }
         "#;
         assert_eq!(get_program_errors(src).len(), 0);

@@ -171,7 +171,7 @@ impl Hasher for PoseidonHasher {
 impl Default for PoseidonHasher{
     fn default() -> Self{
         PoseidonHasher{
-            _state: [],
+            _state: &[],
             _len: 0,
         }
     }

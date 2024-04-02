@@ -63,5 +63,5 @@ pub fn resolve_path(
     let id =
         namespace.values.or(namespace.types).map(|(id, _, _)| id).expect("Found empty namespace");
 
-    Ok(PathResolution { module_def_id: id, warning: resolved_import.warning })
+    Ok(PathResolution { module_def_id: id, error: resolved_import.error })
 }

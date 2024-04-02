@@ -27,6 +27,9 @@ pub enum Type {
     /// is either a type variable of some kind or a Type::Constant.
     Array(Box<Type>, Box<Type>),
 
+    /// Slice(E) is a slice of elements of type E.
+    Slice(Box<Type>),
+
     /// A primitive integer type with the given sign and bit count.
     /// E.g. `u32` would be `Integer(Unsigned, ThirtyTwo)`
     Integer(Signedness, IntegerBitSize),
@@ -98,10 +101,8 @@ pub enum Type {
     /// bind to an integer without special checks to bind it to a non-type.
     Constant(u64),
 
-    /// The type of a slice is an array of size NotConstant.
-    /// The size of an array literal is resolved to this if it ever uses operations
-    /// involving slices.
-    NotConstant,
+    /// The type of quoted code in macros. This is always a comptime-only type
+    Code,
 
     /// The result of some type error. Remembering type errors as their own type variant lets
     /// us avoid issuing repeat type errors for the same item. For example, a lambda with
@@ -146,27 +147,24 @@ impl Type {
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Constant(_)
-            | Type::NotConstant
+            | Type::Code
+            | Type::Slice(_)
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
     }
 
     pub(crate) fn is_nested_slice(&self) -> bool {
         match self {
-            Type::Array(size, elem) => {
-                if let Type::NotConstant = size.as_ref() {
-                    elem.as_ref().contains_slice()
-                } else {
-                    false
-                }
-            }
+            Type::Slice(elem) => elem.as_ref().contains_slice(),
+            Type::Array(_, elem) => elem.as_ref().contains_slice(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
             _ => false,
         }
     }
 
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
-            Type::Array(size, _) => matches!(size.as_ref(), Type::NotConstant),
+            Type::Slice(_) => true,
             Type::Struct(struct_typ, generics) => {
                 let fields = struct_typ.borrow().get_fields(generics);
                 for field in fields.iter() {
@@ -453,7 +451,7 @@ pub enum TypeVariableKind {
     /// that can only be bound to Type::Integer, or other polymorphic integers.
     Integer,
 
-    /// A potentially constant array size. This will only bind to itself, Type::NotConstant, or
+    /// A potentially constant array size. This will only bind to itself or
     /// Type::Constant(n) with a matching size. This defaults to Type::Constant(n) if still unbound
     /// during monomorphization.
     Constant(u64),
@@ -545,11 +543,11 @@ impl TypeBinding {
 pub struct TypeVariableId(pub usize);
 
 impl Type {
-    pub fn default_int_type() -> Type {
+    pub fn default_int_or_field_type() -> Type {
         Type::FieldElement
     }
 
-    pub fn default_range_loop_type() -> Type {
+    pub fn default_int_type() -> Type {
         Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour)
     }
 
@@ -591,6 +589,7 @@ impl Type {
                 TypeBinding::Bound(binding) => binding.is_bindable(),
                 TypeBinding::Unbound(_) => true,
             },
+            Type::Alias(alias, args) => alias.borrow().get_type(args).is_bindable(),
             _ => false,
         }
     }
@@ -605,6 +604,15 @@ impl Type {
 
     pub fn is_unsigned(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
+    }
+
+    pub fn is_numeric(&self) -> bool {
+        use Type::*;
+        use TypeVariableKind as K;
+        matches!(
+            self.follow_bindings(),
+            FieldElement | Integer(..) | Bool | TypeVariable(_, K::Integer | K::IntegerOrField)
+        )
     }
 
     fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
@@ -631,14 +639,14 @@ impl Type {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
-            | Type::NotConstant
             | Type::Forall(_, _)
+            | Type::Code
             | Type::TraitAsType(..) => false,
 
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
             }
-
+            Type::Slice(elem) => elem.contains_numeric_typevar(target_id),
             Type::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_numeric_typevar(target_id))
             }
@@ -696,8 +704,9 @@ impl Type {
             | Type::Function(_, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
-            | Type::TraitAsType(..)
-            | Type::NotConstant => false,
+            | Type::Code
+            | Type::Slice(_)
+            | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
@@ -766,11 +775,10 @@ impl std::fmt::Display for Type {
                 write!(f, "Field")
             }
             Type::Array(len, typ) => {
-                if matches!(len.follow_bindings(), Type::NotConstant) {
-                    write!(f, "[{typ}]")
-                } else {
-                    write!(f, "[{typ}; {len}]")
-                }
+                write!(f, "[{typ}; {len}]")
+            }
+            Type::Slice(typ) => {
+                write!(f, "[{typ}]")
             }
             Type::Integer(sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "i{num_bits}"),
@@ -779,7 +787,7 @@ impl std::fmt::Display for Type {
             Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{}", var.borrow()),
             Type::TypeVariable(binding, TypeVariableKind::Integer) => {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    write!(f, "{}", TypeVariableKind::Integer.default_type())
+                    write!(f, "{}", Type::default_int_type())
                 } else {
                     write!(f, "{}", binding.borrow())
                 }
@@ -860,7 +868,7 @@ impl std::fmt::Display for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
             }
-            Type::NotConstant => write!(f, "_"),
+            Type::Code => write!(f, "Code"),
         }
     }
 }
@@ -916,10 +924,6 @@ impl Type {
                 bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
-            Type::NotConstant => {
-                bindings.insert(target_id, (var.clone(), Type::NotConstant));
-                Ok(())
-            }
             // A TypeVariable is less specific than a MaybeConstant, so we bind
             // to the other type variable instead.
             Type::TypeVariable(new_var, kind) => {
@@ -947,14 +951,8 @@ impl Type {
                             bindings.insert(*new_target_id, (new_var.clone(), clone));
                             Ok(())
                         }
-                        // The lengths don't match, but neither are set in stone so we can
-                        // just set them both to NotConstant. See issue 2370
-                        TypeVariableKind::Constant(_) => {
-                            // *length != target_length
-                            bindings.insert(target_id, (var.clone(), Type::NotConstant));
-                            bindings.insert(*new_target_id, (new_var.clone(), Type::NotConstant));
-                            Ok(())
-                        }
+                        // *length != target_length
+                        TypeVariableKind::Constant(_) => Err(UnificationError),
                         TypeVariableKind::IntegerOrField => Err(UnificationError),
                         TypeVariableKind::Integer => Err(UnificationError),
                     },
@@ -1164,6 +1162,8 @@ impl Type {
                 elem_a.try_unify(elem_b, bindings)
             }
 
+            (Slice(elem_a), Slice(elem_b)) => elem_a.try_unify(elem_b, bindings),
+
             (String(len_a), String(len_b)) => len_a.try_unify(len_b, bindings),
 
             (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
@@ -1308,20 +1308,14 @@ impl Type {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
 
-        if let (Type::Array(size1, element1), Type::Array(size2, element2)) = (&this, &target) {
-            let size1 = size1.follow_bindings();
-            let size2 = size2.follow_bindings();
-
-            // If we have an array and our target is a slice
-            if matches!(size1, Type::Constant(_)) && matches!(size2, Type::NotConstant) {
-                // Still have to ensure the element types match.
-                // Don't need to issue an error here if not, it will be done in unify_with_coercions
-                let mut bindings = TypeBindings::new();
-                if element1.try_unify(element2, &mut bindings).is_ok() {
-                    convert_array_expression_to_slice(expression, this, target, interner);
-                    Self::apply_type_bindings(bindings);
-                    return true;
-                }
+        if let (Type::Array(_size, element1), Type::Slice(element2)) = (&this, &target) {
+            // Still have to ensure the element types match.
+            // Don't need to issue an error here if not, it will be done in unify_with_coercions
+            let mut bindings = TypeBindings::new();
+            if element1.try_unify(element2, &mut bindings).is_ok() {
+                convert_array_expression_to_slice(expression, this, target, interner);
+                Self::apply_type_bindings(bindings);
+                return true;
             }
         }
         false
@@ -1489,6 +1483,10 @@ impl Type {
                 let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::Array(Box::new(size), Box::new(element))
             }
+            Type::Slice(element) => {
+                let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
+                Type::Slice(Box::new(element))
+            }
             Type::String(size) => {
                 let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::String(Box::new(size))
@@ -1548,7 +1546,7 @@ impl Type {
             | Type::Constant(_)
             | Type::TraitAsType(..)
             | Type::Error
-            | Type::NotConstant
+            | Type::Code
             | Type::Unit => self.clone(),
         }
     }
@@ -1557,6 +1555,7 @@ impl Type {
     pub fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
+            Type::Slice(elem) => elem.occurs(target_id),
             Type::String(len) => len.occurs(target_id),
             Type::FmtString(len, fields) => {
                 let len_occurs = len.occurs(target_id);
@@ -1589,7 +1588,7 @@ impl Type {
             | Type::Constant(_)
             | Type::TraitAsType(..)
             | Type::Error
-            | Type::NotConstant
+            | Type::Code
             | Type::Unit => false,
         }
     }
@@ -1606,6 +1605,7 @@ impl Type {
             Array(size, elem) => {
                 Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
             }
+            Slice(elem) => Slice(Box::new(elem.follow_bindings())),
             String(size) => String(Box::new(size.follow_bindings())),
             FmtString(size, args) => {
                 let size = Box::new(size.follow_bindings());
@@ -1646,8 +1646,8 @@ impl Type {
             | Bool
             | Constant(_)
             | Unit
-            | Error
-            | NotConstant => self.clone(),
+            | Code
+            | Error => self.clone(),
         }
     }
 
@@ -1672,14 +1672,19 @@ fn convert_array_expression_to_slice(
     let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location));
     let func = interner.push_expr(as_slice);
 
-    let arguments = vec![expression];
+    // Copy the expression and give it a new ExprId. The old one
+    // will be mutated in place into a Call expression.
+    let argument = interner.expression(&expression);
+    let argument = interner.push_expr(argument);
+    interner.push_expr_type(argument, array_type.clone());
+    interner.push_expr_location(argument, location.span, location.file);
+
+    let arguments = vec![argument];
     let call = HirExpression::Call(HirCallExpression { func, arguments, location });
-    let call = interner.push_expr(call);
+    interner.replace_expr(&expression, call);
 
-    interner.push_expr_location(call, location.span, location.file);
     interner.push_expr_location(func, location.span, location.file);
-
-    interner.push_expr_type(call, target_type.clone());
+    interner.push_expr_type(expression, target_type.clone());
 
     let func_type = Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit));
     interner.push_expr_type(func, func_type);
@@ -1701,11 +1706,12 @@ impl BinaryTypeOperator {
 impl TypeVariableKind {
     /// Returns the default type this type variable should be bound to if it is still unbound
     /// during monomorphization.
-    pub(crate) fn default_type(&self) -> Type {
+    pub(crate) fn default_type(&self) -> Option<Type> {
         match self {
-            TypeVariableKind::IntegerOrField | TypeVariableKind::Normal => Type::default_int_type(),
-            TypeVariableKind::Integer => Type::default_range_loop_type(),
-            TypeVariableKind::Constant(length) => Type::Constant(*length),
+            TypeVariableKind::IntegerOrField => Some(Type::default_int_or_field_type()),
+            TypeVariableKind::Integer => Some(Type::default_int_type()),
+            TypeVariableKind::Constant(length) => Some(Type::Constant(*length)),
+            TypeVariableKind::Normal => None,
         }
     }
 }
@@ -1727,6 +1733,10 @@ impl From<&Type> for PrintableType {
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
+            Type::Slice(typ) => {
+                let typ = typ.as_ref();
+                PrintableType::Slice { typ: Box::new(typ.into()) }
+            }
             Type::Integer(sign, bit_width) => match sign {
                 Signedness::Unsigned => {
                     PrintableType::UnsignedInteger { width: (*bit_width).into() }
@@ -1735,12 +1745,12 @@ impl From<&Type> for PrintableType {
             },
             Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.into(),
-                TypeBinding::Unbound(_) => Type::default_range_loop_type().into(),
+                TypeBinding::Unbound(_) => Type::default_int_type().into(),
             },
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
                 match &*binding.borrow() {
                     TypeBinding::Bound(typ) => typ.into(),
-                    TypeBinding::Unbound(_) => Type::default_int_type().into(),
+                    TypeBinding::Unbound(_) => Type::default_int_or_field_type().into(),
                 }
             }
             Type::Bool => PrintableType::Boolean,
@@ -1772,7 +1782,7 @@ impl From<&Type> for PrintableType {
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }
-            Type::NotConstant => unreachable!(),
+            Type::Code => unreachable!(),
         }
     }
 }
@@ -1784,11 +1794,10 @@ impl std::fmt::Debug for Type {
                 write!(f, "Field")
             }
             Type::Array(len, typ) => {
-                if matches!(len.follow_bindings(), Type::NotConstant) {
-                    write!(f, "[{typ:?}]")
-                } else {
-                    write!(f, "[{typ:?}; {len:?}]")
-                }
+                write!(f, "[{typ:?}; {len:?}]")
+            }
+            Type::Slice(typ) => {
+                write!(f, "[{typ:?}]")
             }
             Type::Integer(sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "i{num_bits}"),
@@ -1858,7 +1867,7 @@ impl std::fmt::Debug for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element:?}")
             }
-            Type::NotConstant => write!(f, "NotConstant"),
+            Type::Code => write!(f, "Code"),
         }
     }
 }

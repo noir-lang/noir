@@ -375,8 +375,8 @@ pub(crate) fn resolve_trait_by_path(
     let path_resolver = StandardPathResolver::new(module);
 
     match path_resolver.resolve(def_maps, path.clone()) {
-        Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), warning }) => {
-            Ok((trait_id, warning))
+        Ok(PathResolution { module_def_id: ModuleDefId::TraitId(trait_id), error }) => {
+            Ok((trait_id, error))
         }
         Ok(_) => Err(DefCollectorErrorKind::NotATrait { not_a_trait_name: path }),
         Err(_) => Err(DefCollectorErrorKind::TraitNotFound { trait_path: path }),

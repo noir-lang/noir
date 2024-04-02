@@ -9,12 +9,12 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
     match typ.typ {
         UnresolvedTypeData::Array(length, element) => {
             let typ = rewrite(visitor, _shape, *element);
-            if let Some(length) = length {
-                let length = visitor.slice(length.span());
-                format!("[{typ}; {length}]")
-            } else {
-                format!("[{typ}]")
-            }
+            let length = visitor.slice(length.span());
+            format!("[{typ}; {length}]")
+        }
+        UnresolvedTypeData::Slice(element) => {
+            let typ = rewrite(visitor, _shape, *element);
+            format!("[{typ}]")
         }
         UnresolvedTypeData::Parenthesized(typ) => {
             let typ = rewrite(visitor, _shape, *typ);

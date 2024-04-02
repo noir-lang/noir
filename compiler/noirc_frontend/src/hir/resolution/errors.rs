@@ -72,10 +72,6 @@ pub enum ResolverError {
     NumericConstantInFormatString { name: String, span: Span },
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, span: Span },
-    #[error("{name} is private and not visible from the current module")]
-    PrivateFunctionCalled { name: String, span: Span },
-    #[error("{name} is not visible from the current crate")]
-    NonCrateFunctionCalled { name: String, span: Span },
     #[error("Nested slices are not supported")]
     NestedSlices { span: Span },
     #[error("#[recursive] attribute is only allowed on entry points to a program")]
@@ -84,6 +80,10 @@ pub enum ResolverError {
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { span: Span, item: String, cycle: String },
+    #[error("break/continue are only allowed in unconstrained functions")]
+    JumpInConstrainedFn { is_break: bool, span: Span },
+    #[error("break/continue are only allowed within loops")]
+    JumpOutsideLoop { is_break: bool, span: Span },
 }
 
 impl ResolverError {
@@ -286,13 +286,6 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::InvalidClosureEnvironment { span, typ } => Diagnostic::simple_error(
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), span),
-            // This will be upgraded to an error in future versions
-            ResolverError::PrivateFunctionCalled { span, name } => Diagnostic::simple_warning(
-                format!("{name} is private and not visible from the current module"),
-                format!("{name} is private"), span),
-            ResolverError::NonCrateFunctionCalled { span, name } => Diagnostic::simple_warning(
-                    format!("{name} is not visible from the current crate"),
-                    format!("{name} is only visible within its crate"), span),
             ResolverError::NestedSlices { span } => Diagnostic::simple_error(
                 "Nested slices are not supported".into(),
                 "Try to use a constant sized array instead".into(),
@@ -319,6 +312,22 @@ impl From<ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Dependency cycle found".into(),
                     format!("'{item}' recursively depends on itself: {cycle}"),
+                    span,
+                )
+            },
+            ResolverError::JumpInConstrainedFn { is_break, span } => {
+                let item = if is_break { "break" } else { "continue" };
+                Diagnostic::simple_error(
+                    format!("{item} is only allowed in unconstrained functions"),
+                    "Constrained code must always have a known number of loop iterations".into(),
+                    span,
+                )
+            },
+            ResolverError::JumpOutsideLoop { is_break, span } => {
+                let item = if is_break { "break" } else { "continue" };
+                Diagnostic::simple_error(
+                    format!("{item} is only allowed within loops"),
+                    "".into(),
                     span,
                 )
             },

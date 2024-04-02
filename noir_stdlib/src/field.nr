@@ -97,7 +97,7 @@ pub fn modulus_be_bytes() -> [u8] {}
 
 #[builtin(modulus_le_bytes)]
 pub fn modulus_le_bytes() -> [u8] {}
-// Convert a 32 byte array to a field element
+// Convert a 32 byte array to a field element by modding
 pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
     // Convert it to a field element
     let mut v = 1;

@@ -1,5 +1,5 @@
 use acvm::{
-    acir::circuit::Circuit,
+    acir::circuit::Program,
     pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM},
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -34,7 +34,7 @@ pub async fn create_black_box_solver() -> WasmBlackBoxFunctionSolver {
 /// @returns {WitnessMap} The solved witness calculated by executing the circuit on the provided inputs.
 #[wasm_bindgen(js_name = executeCircuit, skip_jsdoc)]
 pub async fn execute_circuit(
-    circuit: Vec<u8>,
+    program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsWitnessMap, Error> {
@@ -42,7 +42,7 @@ pub async fn execute_circuit(
 
     let solver = WasmBlackBoxFunctionSolver::initialize().await;
 
-    execute_circuit_with_black_box_solver(&solver, circuit, initial_witness, foreign_call_handler)
+    execute_circuit_with_black_box_solver(&solver, program, initial_witness, foreign_call_handler)
         .await
 }
 
@@ -56,13 +56,21 @@ pub async fn execute_circuit(
 #[wasm_bindgen(js_name = executeCircuitWithBlackBoxSolver, skip_jsdoc)]
 pub async fn execute_circuit_with_black_box_solver(
     solver: &WasmBlackBoxFunctionSolver,
-    circuit: Vec<u8>,
+    // TODO(https://github.com/noir-lang/noir/issues/4428): These need to be updated to match the same interfaces
+    // as the native ACVM executor. Right now native execution still only handles one circuit so I do not feel the need
+    // to break the JS interface just yet.
+    program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsWitnessMap, Error> {
     console_error_panic_hook::set_once();
-    let circuit: Circuit = Circuit::deserialize_circuit(&circuit)
+    let program: Program = Program::deserialize_program(&program)
         .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None))?;
+    let circuit = match program.functions.len() {
+        0 => return Ok(initial_witness),
+        1 => &program.functions[0],
+        _ => return Err(JsExecutionError::new("Program contains multiple circuits however ACVM currently only supports programs containing a single circuit".to_string(), None).into())
+    };
 
     let mut acvm = ACVM::new(&solver.0, &circuit.opcodes, initial_witness.into());
 
@@ -104,6 +112,9 @@ pub async fn execute_circuit_with_black_box_solver(
                 let result = resolve_brillig(&foreign_call_handler, &foreign_call).await?;
 
                 acvm.resolve_pending_foreign_call(result);
+            }
+            ACVMStatus::RequiresAcirCall(_) => {
+                todo!("Handle acir calls in acvm JS");
             }
         }
     }

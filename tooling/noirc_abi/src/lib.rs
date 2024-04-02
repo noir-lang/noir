@@ -147,7 +147,9 @@ impl AbiType {
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
             | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => Self::from_type(context, typ),
-                TypeBinding::Unbound(_) => Self::from_type(context, &Type::default_int_type()),
+                TypeBinding::Unbound(_) => {
+                    Self::from_type(context, &Type::default_int_or_field_type())
+                }
             },
             Type::Bool => Self::Boolean,
             Type::String(size) => {
@@ -178,8 +180,9 @@ impl AbiType {
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(..)
             | Type::Forall(..)
-            | Type::NotConstant
-            | Type::Function(_, _, _) => unreachable!("Type cannot be used in the abi"),
+            | Type::Code
+            | Type::Slice(_)
+            | Type::Function(_, _, _) => unreachable!("{typ} cannot be used in the abi"),
             Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
             Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
         }

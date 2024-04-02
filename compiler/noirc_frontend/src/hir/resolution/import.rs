@@ -18,7 +18,7 @@ pub struct ImportDirective {
 struct NamespaceResolution {
     module_id: ModuleId,
     namespace: PerNs,
-    warning: Option<PathResolutionError>,
+    error: Option<PathResolutionError>,
 }
 
 type NamespaceResolutionResult = Result<NamespaceResolution, PathResolutionError>;
@@ -26,7 +26,7 @@ type NamespaceResolutionResult = Result<NamespaceResolution, PathResolutionError
 pub struct PathResolution {
     pub module_def_id: ModuleDefId,
 
-    pub warning: Option<PathResolutionError>,
+    pub error: Option<PathResolutionError>,
 }
 
 pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
@@ -50,7 +50,7 @@ pub struct ResolvedImport {
     // The module which we must add the resolved namespace to
     pub module_scope: LocalModuleId,
     pub is_prelude: bool,
-    pub warning: Option<PathResolutionError>,
+    pub error: Option<PathResolutionError>,
 }
 
 impl From<PathResolutionError> for CustomDiagnostic {
@@ -64,6 +64,7 @@ impl From<PathResolutionError> for CustomDiagnostic {
                 "Contracts may only be referenced from within a contract".to_string(),
                 ident.span(),
             ),
+            // This will be upgraded to an error in future versions
             PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
                 error.to_string(),
                 format!("{ident} is private"),
@@ -85,7 +86,7 @@ pub fn resolve_import(
     let NamespaceResolution {
         module_id: resolved_module,
         namespace: resolved_namespace,
-        mut warning,
+        mut error,
     } = resolve_path_to_ns(import_directive, crate_id, crate_id, def_maps, allow_contracts)?;
 
     let name = resolve_path_name(import_directive);
@@ -96,7 +97,7 @@ pub fn resolve_import(
         .map(|(_, visibility, _)| visibility)
         .expect("Found empty namespace");
 
-    warning = warning.or_else(|| {
+    error = error.or_else(|| {
         if can_reference_module_id(
             def_maps,
             crate_id,
@@ -115,7 +116,7 @@ pub fn resolve_import(
         resolved_namespace,
         module_scope,
         is_prelude: import_directive.is_prelude,
-        warning,
+        error,
     })
 }
 
@@ -206,7 +207,7 @@ fn resolve_name_in_module(
         return Ok(NamespaceResolution {
             module_id: current_mod_id,
             namespace: PerNs::types(current_mod_id.into()),
-            warning: None,
+            error: None,
         });
     }
 
@@ -264,7 +265,7 @@ fn resolve_name_in_module(
         current_ns = found_ns;
     }
 
-    Ok(NamespaceResolution { module_id: current_mod_id, namespace: current_ns, warning })
+    Ok(NamespaceResolution { module_id: current_mod_id, namespace: current_ns, error: warning })
 }
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {

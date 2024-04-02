@@ -58,10 +58,10 @@ fn format_{test_name}() {{
     let expected_output = r#"{output_source}"#;
 
 
-    let (parsed_module, _errors) = noirc_frontend::parse_program(&input);
+    let (parsed_module, _errors) = noirc_frontend::parse_program(input);
 
     let config = nargo_fmt::Config::of("{config}").unwrap();
-    let fmt_text = nargo_fmt::format(&input, parsed_module, &config);
+    let fmt_text = nargo_fmt::format(input, parsed_module, &config);
 
     if std::env::var("UPDATE_EXPECT").is_ok() {{
         std::fs::write("{output_source_path}", fmt_text.clone()).unwrap();

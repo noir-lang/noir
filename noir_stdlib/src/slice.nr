@@ -1,4 +1,7 @@
 impl<T> [T] {
+    #[builtin(array_len)]
+    pub fn len(self) -> u64 {}
+
     /// Push a new element to the end of the slice, returning a
     /// new slice with a length one greater than the
     /// original unmodified slice.

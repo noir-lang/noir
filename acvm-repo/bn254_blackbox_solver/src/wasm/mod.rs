@@ -45,7 +45,7 @@ pub(crate) struct BackendError(#[from] Error);
 
 impl From<FeatureError> for BackendError {
     fn from(value: FeatureError) -> Self {
-        value.into()
+        BackendError(Error::FromFeature(value))
     }
 }
 

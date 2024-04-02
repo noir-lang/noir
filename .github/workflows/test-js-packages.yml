@@ -66,9 +66,6 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
-
       - name: Build noirc_abi
         run: ./.github/scripts/noirc-abi-build.sh
 
@@ -76,7 +73,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
+          path: | 
+            ./tooling/noirc_abi_wasm/nodejs
+            ./tooling/noirc_abi_wasm/web
           retention-days: 10
 
 
@@ -99,9 +98,6 @@ jobs:
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
-
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
 
       - name: Build noir_js_types
         run: yarn workspace @noir-lang/types build
@@ -138,9 +134,6 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
-
       - name: Build acvm_js
         run: ./.github/scripts/acvm_js-build.sh
 
@@ -148,7 +141,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: acvm-js
-          path: ./acvm-repo/acvm_js/outputs/out/acvm_js
+          path: |
+            ./acvm-repo/acvm_js/nodejs
+            ./acvm-repo/acvm_js/web
           retention-days: 3
 
   test-acvm_js-node:
