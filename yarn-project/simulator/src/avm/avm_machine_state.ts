@@ -1,6 +1,6 @@
-import { Fr } from '@aztec/circuits.js';
+import { type Fr } from '@aztec/circuits.js';
 
-import { GasCost, GasDimensions } from './avm_gas_cost.js';
+import { type GasCost, GasDimensions } from './avm_gas_cost.js';
 import { TaggedMemory } from './avm_memory_types.js';
 import { AvmContractCallResults } from './avm_message_call_result.js';
 import { OutOfGasError } from './errors.js';

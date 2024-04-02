@@ -1,4 +1,4 @@
-import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
+import { type AztecAddress, type EthAddress, type Fr } from '@aztec/circuits.js';
 
 /**
  * The sequencer configuration.

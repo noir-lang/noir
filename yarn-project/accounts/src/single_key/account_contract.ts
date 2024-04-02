@@ -1,10 +1,10 @@
 import { generatePublicKey } from '@aztec/aztec.js';
-import { AuthWitnessProvider } from '@aztec/aztec.js/account';
-import { AuthWitness, CompleteAddress, GrumpkinPrivateKey } from '@aztec/circuit-types';
-import { PartialAddress } from '@aztec/circuits.js';
+import { type AuthWitnessProvider } from '@aztec/aztec.js/account';
+import { AuthWitness, type CompleteAddress, type GrumpkinPrivateKey } from '@aztec/circuit-types';
+import { type PartialAddress } from '@aztec/circuits.js';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
-import { ContractArtifact } from '@aztec/foundation/abi';
-import { Fr } from '@aztec/foundation/fields';
+import { type ContractArtifact } from '@aztec/foundation/abi';
+import { type Fr } from '@aztec/foundation/fields';
 
 import { DefaultAccountContract } from '../defaults/account_contract.js';
 import { SchnorrSingleKeyAccountContractArtifact } from './artifact.js';

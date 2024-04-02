@@ -1,7 +1,7 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
-import { ContractDeployer, EthAddress, Fq, Fr, Point } from '@aztec/aztec.js';
+import { ContractDeployer, type EthAddress, type Fq, Fr, type Point } from '@aztec/aztec.js';
 import { getInitializer } from '@aztec/foundation/abi';
-import { DebugLogger, LogFn } from '@aztec/foundation/log';
+import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
 import { encodeArgs } from '../encoding.js';

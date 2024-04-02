@@ -1,4 +1,4 @@
-import { AccountWallet, AztecAddress, CompleteAddress, DebugLogger } from '@aztec/aztec.js';
+import { type AccountWallet, type AztecAddress, type CompleteAddress, type DebugLogger } from '@aztec/aztec.js';
 import { CounterContract } from '@aztec/noir-contracts.js/Counter';
 
 import { setup } from './fixtures/utils.js';

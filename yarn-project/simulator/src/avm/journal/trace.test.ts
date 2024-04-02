@@ -1,7 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 
 import { WorldStateAccessTrace } from './trace.js';
-import { TracedL1toL2MessageCheck, TracedNullifierCheck } from './trace_types.js';
+import { type TracedL1toL2MessageCheck, type TracedNullifierCheck } from './trace_types.js';
 
 describe('world state access trace', () => {
   let trace: WorldStateAccessTrace;

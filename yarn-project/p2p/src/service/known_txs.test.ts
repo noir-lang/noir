@@ -1,7 +1,7 @@
 import { randomTxHash } from '@aztec/circuit-types';
 
 import { expect } from '@jest/globals';
-import { Ed25519PeerId, PeerId } from '@libp2p/interface-peer-id';
+import { type Ed25519PeerId, type PeerId } from '@libp2p/interface-peer-id';
 import { mock } from 'jest-mock-extended';
 
 import { KnownTxLookup } from './known_txs.js';

@@ -1,16 +1,16 @@
-import { NullifierMembershipWitness } from '@aztec/circuit-types';
+import { type NullifierMembershipWitness } from '@aztec/circuit-types';
 import {
-  FUNCTION_TREE_HEIGHT,
-  Fr,
-  FunctionSelector,
-  GrumpkinPrivateKey,
-  MembershipWitness,
-  NOTE_HASH_TREE_HEIGHT,
-  Point,
-  VK_TREE_HEIGHT,
-  VerificationKey,
+  type FUNCTION_TREE_HEIGHT,
+  type Fr,
+  type FunctionSelector,
+  type GrumpkinPrivateKey,
+  type MembershipWitness,
+  type NOTE_HASH_TREE_HEIGHT,
+  type Point,
+  type VK_TREE_HEIGHT,
+  type VerificationKey,
 } from '@aztec/circuits.js';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
 
 /**
  * Provides functionality to fetch membership witnesses for verification keys,

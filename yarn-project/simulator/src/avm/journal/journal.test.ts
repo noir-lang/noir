@@ -3,12 +3,12 @@ import { AztecAddress, EthAddress } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 
-import { MockProxy, mock } from 'jest-mock-extended';
+import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { CommitmentsDB, PublicContractsDB, PublicStateDB } from '../../index.js';
+import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from '../../index.js';
 import { initL1ToL2MessageOracleInput } from '../fixtures/index.js';
 import { HostStorage } from './host_storage.js';
-import { AvmPersistableStateManager, JournalData } from './journal.js';
+import { AvmPersistableStateManager, type JournalData } from './journal.js';
 
 describe('journal', () => {
   let publicDb: MockProxy<PublicStateDB>;

@@ -1,9 +1,9 @@
-import { AztecAddress, FunctionSelector } from '@aztec/circuits.js';
-import { Fr } from '@aztec/foundation/fields';
+import { type AztecAddress, FunctionSelector } from '@aztec/circuits.js';
+import { type Fr } from '@aztec/foundation/fields';
 
-import { AvmExecutionEnvironment } from './avm_execution_environment.js';
+import { type AvmExecutionEnvironment } from './avm_execution_environment.js';
 import { AvmMachineState } from './avm_machine_state.js';
-import { AvmPersistableStateManager } from './journal/journal.js';
+import { type AvmPersistableStateManager } from './journal/journal.js';
 
 /**
  * An execution context includes the information necessary to initiate AVM

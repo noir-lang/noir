@@ -1,10 +1,10 @@
-import { ContractArtifact, FunctionArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { type ContractArtifact, type FunctionArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
-import { ContractClass } from '@aztec/types/contracts';
+import { type ContractClass } from '@aztec/types/contracts';
 
 import { getTestContractArtifact } from '../tests/fixtures.js';
 import { getContractClassFromArtifact } from './contract_class.js';
-import { ContractClassIdPreimage } from './contract_class_id.js';
+import { type ContractClassIdPreimage } from './contract_class_id.js';
 import {
   createUnconstrainedFunctionMembershipProof,
   isValidUnconstrainedFunctionMembershipProof,

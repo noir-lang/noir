@@ -1,14 +1,22 @@
-import { Body, EncryptedL2BlockL2Logs, L2Block, LogType, UnencryptedL2BlockL2Logs } from '@aztec/circuit-types';
+import { type Body, EncryptedL2BlockL2Logs, L2Block, LogType, UnencryptedL2BlockL2Logs } from '@aztec/circuit-types';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { sleep } from '@aztec/foundation/sleep';
-import { AvailabilityOracleAbi, InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
+import { AvailabilityOracleAbi, type InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 
-import { MockProxy, mock } from 'jest-mock-extended';
-import { Chain, HttpTransport, Log, PublicClient, Transaction, encodeFunctionData, toHex } from 'viem';
+import { type MockProxy, mock } from 'jest-mock-extended';
+import {
+  type Chain,
+  type HttpTransport,
+  type Log,
+  type PublicClient,
+  type Transaction,
+  encodeFunctionData,
+  toHex,
+} from 'viem';
 
 import { Archiver } from './archiver.js';
-import { ArchiverDataStore } from './archiver_store.js';
+import { type ArchiverDataStore } from './archiver_store.js';
 import { MemoryArchiverStore } from './memory_archiver_store/memory_archiver_store.js';
 
 describe('Archiver', () => {

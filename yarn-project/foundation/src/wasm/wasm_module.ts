@@ -2,7 +2,7 @@ import { Buffer } from 'buffer';
 
 import { randomBytes } from '../crypto/index.js';
 import { MemoryFifo } from '../fifo/index.js';
-import { LogFn, createDebugOnlyLogger } from '../log/index.js';
+import { type LogFn, createDebugOnlyLogger } from '../log/index.js';
 import { getEmptyWasiSdk } from './empty_wasi_sdk.js';
 
 /**

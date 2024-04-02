@@ -1,4 +1,4 @@
-import { Tx, TxHash } from '@aztec/circuit-types';
+import { type Tx, type TxHash } from '@aztec/circuit-types';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 
@@ -6,20 +6,20 @@ import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { bootstrap } from '@libp2p/bootstrap';
 import type { ServiceMap } from '@libp2p/interface-libp2p';
-import { PeerId } from '@libp2p/interface-peer-id';
-import { IncomingStreamData } from '@libp2p/interface/stream-handler';
-import { DualKadDHT, kadDHT } from '@libp2p/kad-dht';
+import { type PeerId } from '@libp2p/interface-peer-id';
+import { type IncomingStreamData } from '@libp2p/interface/stream-handler';
+import { type DualKadDHT, kadDHT } from '@libp2p/kad-dht';
 import { mplex } from '@libp2p/mplex';
 import { createFromJSON, createSecp256k1PeerId, exportToProtobuf } from '@libp2p/peer-id-factory';
 import { tcp } from '@libp2p/tcp';
 import { pipe } from 'it-pipe';
-import { Libp2p, Libp2pOptions, ServiceFactoryMap, createLibp2p } from 'libp2p';
+import { type Libp2p, type Libp2pOptions, type ServiceFactoryMap, createLibp2p } from 'libp2p';
 import { identifyService } from 'libp2p/identify';
 
-import { P2PConfig } from '../config.js';
-import { TxPool } from '../tx_pool/index.js';
+import { type P2PConfig } from '../config.js';
+import { type TxPool } from '../tx_pool/index.js';
 import { KnownTxLookup } from './known_txs.js';
-import { P2PService } from './service.js';
+import { type P2PService } from './service.js';
 import {
   Messages,
   createGetTransactionsRequestMessage,

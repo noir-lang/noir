@@ -1,4 +1,4 @@
-import { ContractArtifact } from '@aztec/foundation/abi';
+import { type ContractArtifact } from '@aztec/foundation/abi';
 
 /**
  * Checks if the given input looks like a valid ContractArtifact. The check is not exhaustive,

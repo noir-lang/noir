@@ -1,6 +1,6 @@
 /* eslint-disable jsdoc/require-jsdoc */
-import { AztecAddress, DebugLogger } from '@aztec/aztec.js';
-import { TokenContract } from '@aztec/noir-contracts.js/Token';
+import { type AztecAddress, type DebugLogger } from '@aztec/aztec.js';
+import { type TokenContract } from '@aztec/noir-contracts.js/Token';
 
 export class TokenSimulator {
   private balancesPrivate: Map<AztecAddress, bigint> = new Map();

@@ -1,5 +1,5 @@
 import { Fr } from '../fields/fields.js';
-import { Tuple } from './types.js';
+import { type Tuple } from './types.js';
 
 /**
  * Convert a boolean value to its corresponding byte representation in a Buffer of size 1.

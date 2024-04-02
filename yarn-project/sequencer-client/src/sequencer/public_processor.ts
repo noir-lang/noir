@@ -1,7 +1,7 @@
 import {
-  FailedTx,
-  ProcessedTx,
-  SimulationError,
+  type FailedTx,
+  type ProcessedTx,
+  type SimulationError,
   Tx,
   getPreviousOutputAndProof,
   makeEmptyProcessedTx,
@@ -9,18 +9,18 @@ import {
   toTxEffect,
   validateProcessedTx,
 } from '@aztec/circuit-types';
-import { TxSequencerProcessingStats } from '@aztec/circuit-types/stats';
-import { GlobalVariables, Header } from '@aztec/circuits.js';
+import { type TxSequencerProcessingStats } from '@aztec/circuit-types/stats';
+import { type GlobalVariables, type Header } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
-import { PublicExecutor, PublicStateDB, SimulationProvider } from '@aztec/simulator';
-import { ContractDataSource } from '@aztec/types/contracts';
-import { MerkleTreeOperations } from '@aztec/world-state';
+import { PublicExecutor, type PublicStateDB, type SimulationProvider } from '@aztec/simulator';
+import { type ContractDataSource } from '@aztec/types/contracts';
+import { type MerkleTreeOperations } from '@aztec/world-state';
 
-import { PublicKernelCircuitSimulator } from '../simulator/index.js';
+import { type PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from '../simulator/public_executor.js';
 import { RealPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
-import { AbstractPhaseManager } from './abstract_phase_manager.js';
+import { type AbstractPhaseManager } from './abstract_phase_manager.js';
 import { PhaseManagerFactory } from './phase_manager_factory.js';
 
 /**

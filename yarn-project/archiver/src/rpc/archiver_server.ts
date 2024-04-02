@@ -10,7 +10,7 @@ import {
 import { EthAddress, Fr } from '@aztec/circuits.js';
 import { JsonRpcServer } from '@aztec/foundation/json-rpc/server';
 
-import { Archiver } from '../archiver/archiver.js';
+import { type Archiver } from '../archiver/archiver.js';
 
 /**
  * Wrap an Archiver instance with a JSON RPC HTTP server.

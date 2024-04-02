@@ -1,18 +1,18 @@
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { Fr } from '@aztec/foundation/fields';
-import { Tuple } from '@aztec/foundation/serialize';
-import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { type Fr } from '@aztec/foundation/fields';
+import { type Tuple } from '@aztec/foundation/serialize';
+import { type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
 import {
   MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
-  MAX_NULLIFIER_READ_REQUESTS_PER_TX,
-  NULLIFIER_TREE_HEIGHT,
+  type MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
+  type MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+  type NULLIFIER_TREE_HEIGHT,
 } from '../constants.gen.js';
 import { siloNullifier } from '../hash/index.js';
-import { MembershipWitness } from '../structs/membership_witness.js';
+import { type MembershipWitness } from '../structs/membership_witness.js';
 import { NullifierNonExistentReadRequestHintsBuilder } from '../structs/non_existent_read_request_hints.js';
-import { ReadRequestContext } from '../structs/read_request.js';
+import { type ReadRequestContext } from '../structs/read_request.js';
 import { NullifierReadRequestHintsBuilder } from '../structs/read_request_hints.js';
 import { SideEffectLinkedToNoteHash } from '../structs/side_effects.js';
 import { countAccumulatedItems } from './utils.js';

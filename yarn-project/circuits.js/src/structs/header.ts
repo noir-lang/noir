@@ -1,5 +1,5 @@
 import { pedersenHash } from '@aztec/foundation/crypto';
-import { Fr } from '@aztec/foundation/fields';
+import { type Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { GeneratorIndex, HEADER_LENGTH } from '../constants.gen.js';

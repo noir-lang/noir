@@ -1,15 +1,15 @@
 import {
   MerkleTreeId,
   PROVING_STATUS,
-  ProcessedTx,
-  ProvingSuccess,
+  type ProcessedTx,
+  type ProvingSuccess,
   makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricalTreeRoots,
   makeProcessedTx,
   mockTx,
 } from '@aztec/circuit-types';
 import {
   AztecAddress,
-  BaseOrMergeRollupPublicInputs,
+  type BaseOrMergeRollupPublicInputs,
   EthAddress,
   Fr,
   GlobalVariables,
@@ -29,7 +29,7 @@ import {
   PublicDataTreeLeaf,
   PublicDataUpdateRequest,
   PublicKernelCircuitPublicInputs,
-  RootRollupPublicInputs,
+  type RootRollupPublicInputs,
   SideEffect,
   SideEffectLinkedToNoteHash,
   sideEffectCmp,
@@ -48,14 +48,14 @@ import { padArrayEnd, times } from '@aztec/foundation/collection';
 import { sleep } from '@aztec/foundation/sleep';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { WASMSimulator } from '@aztec/simulator';
-import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
+import { type MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
-import { MockProxy, mock } from 'jest-mock-extended';
+import { type MockProxy, mock } from 'jest-mock-extended';
 import { type MemDown, default as memdown } from 'memdown';
 
 import { getVerificationKeys } from '../mocks/verification_keys.js';
-import { RollupProver } from '../prover/index.js';
-import { RollupSimulator } from '../simulator/rollup.js';
+import { type RollupProver } from '../prover/index.js';
+import { type RollupSimulator } from '../simulator/rollup.js';
 import { ProvingOrchestrator } from './orchestrator.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;

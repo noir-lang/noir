@@ -1,4 +1,4 @@
-import { Socket } from '../interface/socket.js';
+import { type Socket } from '../interface/socket.js';
 
 /**
  * An implementation of a TransportSocket using MessagePorts.

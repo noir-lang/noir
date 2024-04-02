@@ -1,4 +1,4 @@
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
 import { strict as assert } from 'assert';
 

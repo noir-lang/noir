@@ -1,4 +1,4 @@
-import { AccountWallet, AztecAddress, CompleteAddress, DebugLogger, Fr } from '@aztec/aztec.js';
+import { type AccountWallet, type AztecAddress, type CompleteAddress, type DebugLogger, Fr } from '@aztec/aztec.js';
 import { EasyPrivateVotingContract } from '@aztec/noir-contracts.js/EasyPrivateVoting';
 
 import { setup } from './fixtures/utils.js';

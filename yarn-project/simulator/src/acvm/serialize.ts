@@ -1,9 +1,9 @@
-import { ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH, PublicCallRequest } from '@aztec/circuits.js';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
+import { ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH, type PublicCallRequest } from '@aztec/circuits.js';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
+import { type EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 
-import { ACVMField } from './acvm_types.js';
+import { type ACVMField } from './acvm_types.js';
 
 /**
  * Adapts the buffer to the field size.

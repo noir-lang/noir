@@ -1,9 +1,9 @@
-import { FunctionSelector } from '@aztec/foundation/abi';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr } from '@aztec/foundation/fields';
+import { type FunctionSelector } from '@aztec/foundation/abi';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
+import { type Fr } from '@aztec/foundation/fields';
 
-import { ContractClassPublic, PublicFunction } from './contract_class.js';
-import { ContractInstanceWithAddress } from './contract_instance.js';
+import { type ContractClassPublic, type PublicFunction } from './contract_class.js';
+import { type ContractInstanceWithAddress } from './contract_instance.js';
 
 export interface ContractDataSource {
   /**

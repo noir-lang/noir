@@ -7,12 +7,12 @@ import {
   PublicDataTreeLeafPreimage,
 } from '@aztec/circuits.js';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { FromBuffer } from '@aztec/foundation/serialize';
-import { AztecKVStore } from '@aztec/kv-store';
+import { type FromBuffer } from '@aztec/foundation/serialize';
+import { type AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
-import { Hasher } from '@aztec/types/interfaces';
+import { type Hasher } from '@aztec/types/interfaces';
 
-import { INITIAL_LEAF, MerkleTree, Pedersen, loadTree, newTree } from '../../index.js';
+import { INITIAL_LEAF, type MerkleTree, Pedersen, loadTree, newTree } from '../../index.js';
 import { treeTestSuite } from '../../test/test_suite.js';
 import { StandardIndexedTreeWithAppend } from './standard_indexed_tree_with_append.js';
 

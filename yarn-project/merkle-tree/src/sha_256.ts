@@ -1,6 +1,6 @@
 import { sha256 } from '@aztec/foundation/crypto';
 import { truncateAndPad } from '@aztec/foundation/serialize';
-import { Hasher } from '@aztec/types/interfaces';
+import { type Hasher } from '@aztec/types/interfaces';
 
 /**
  * A helper class encapsulating SHA256 hash functionality.

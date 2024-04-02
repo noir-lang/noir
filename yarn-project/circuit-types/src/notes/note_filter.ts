@@ -1,6 +1,6 @@
-import { AztecAddress, Fr } from '@aztec/circuits.js';
+import { type AztecAddress, type Fr } from '@aztec/circuits.js';
 
-import { TxHash } from '../tx/tx_hash.js';
+import { type TxHash } from '../tx/tx_hash.js';
 
 /**
  * The status of notes to retrieve.

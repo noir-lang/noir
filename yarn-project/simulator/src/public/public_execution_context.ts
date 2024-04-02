@@ -1,15 +1,25 @@
-import { NullifierMembershipWitness, UnencryptedFunctionL2Logs, UnencryptedL2Log } from '@aztec/circuit-types';
-import { CallContext, FunctionData, FunctionSelector, GlobalVariables, Header } from '@aztec/circuits.js';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
+import {
+  type NullifierMembershipWitness,
+  UnencryptedFunctionL2Logs,
+  type UnencryptedL2Log,
+} from '@aztec/circuit-types';
+import {
+  CallContext,
+  FunctionData,
+  type FunctionSelector,
+  type GlobalVariables,
+  type Header,
+} from '@aztec/circuits.js';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { ContractInstance } from '@aztec/types/contracts';
+import { type ContractInstance } from '@aztec/types/contracts';
 
 import { TypedOracle, toACVMWitness } from '../acvm/index.js';
-import { PackedArgsCache, SideEffectCounter } from '../common/index.js';
-import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
-import { PublicExecution, PublicExecutionResult, checkValidStaticCall } from './execution.js';
+import { type PackedArgsCache, type SideEffectCounter } from '../common/index.js';
+import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db.js';
+import { type PublicExecution, type PublicExecutionResult, checkValidStaticCall } from './execution.js';
 import { executePublicFunction } from './executor.js';
 import { ContractStorageActionsCollector } from './state_actions.js';
 

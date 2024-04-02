@@ -1,6 +1,6 @@
 import { createEthereumChain } from '@aztec/ethereum';
 
-import { AztecNodeConfig, AztecNodeService } from '../index.js';
+import { type AztecNodeConfig, AztecNodeService } from '../index.js';
 
 describe('aztec node service', () => {
   it('fails to create Aztec Node if given incorrect chain id', async () => {

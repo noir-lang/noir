@@ -1,7 +1,7 @@
-import { EntrypointInterface } from '@aztec/aztec.js/entrypoint';
-import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
-import { AztecAddress, FunctionData, TxContext } from '@aztec/circuits.js';
-import { FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
+import { type EntrypointInterface } from '@aztec/aztec.js/entrypoint';
+import { type FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
+import { type AztecAddress, FunctionData, TxContext } from '@aztec/circuits.js';
+import { type FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
 import { getCanonicalMultiCallEntrypointAddress } from '@aztec/protocol-contracts/multi-call-entrypoint';
 
 import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from './constants.js';

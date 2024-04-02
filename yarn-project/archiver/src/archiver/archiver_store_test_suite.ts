@@ -8,10 +8,14 @@ import {
 } from '@aztec/circuits.js/testing';
 import { times } from '@aztec/foundation/collection';
 import { randomBytes, randomInt } from '@aztec/foundation/crypto';
-import { ContractClassPublic, ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
+import {
+  type ContractClassPublic,
+  type ContractInstanceWithAddress,
+  SerializableContractInstance,
+} from '@aztec/types/contracts';
 
-import { ArchiverDataStore } from './archiver_store.js';
-import { DataRetrieval } from './data_retrieval.js';
+import { type ArchiverDataStore } from './archiver_store.js';
+import { type DataRetrieval } from './data_retrieval.js';
 
 /**
  * @param testName - The name of the test suite.

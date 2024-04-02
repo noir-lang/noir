@@ -1,6 +1,6 @@
 import { AztecAddress, DEPLOYER_CONTRACT_ADDRESS } from '@aztec/circuits.js';
 
-import { ProtocolContract, getCanonicalProtocolContract } from '../protocol_contract.js';
+import { type ProtocolContract, getCanonicalProtocolContract } from '../protocol_contract.js';
 import { ContractInstanceDeployerArtifact } from './artifact.js';
 
 /** Returns the canonical deployment of the instance deployer contract. */

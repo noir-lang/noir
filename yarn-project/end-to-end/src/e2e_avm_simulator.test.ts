@@ -1,4 +1,4 @@
-import { AztecAddress, Wallet } from '@aztec/aztec.js';
+import { AztecAddress, type Wallet } from '@aztec/aztec.js';
 import { AvmTestContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';

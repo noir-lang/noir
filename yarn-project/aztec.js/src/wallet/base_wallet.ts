@@ -1,27 +1,33 @@
 import {
-  AuthWitness,
-  ExtendedNote,
-  FunctionCall,
-  GetUnencryptedLogsResponse,
-  L2Block,
-  LogFilter,
-  NoteFilter,
-  PXE,
-  SyncStatus,
-  Tx,
-  TxEffect,
-  TxExecutionRequest,
-  TxHash,
-  TxReceipt,
+  type AuthWitness,
+  type ExtendedNote,
+  type FunctionCall,
+  type GetUnencryptedLogsResponse,
+  type L2Block,
+  type LogFilter,
+  type NoteFilter,
+  type PXE,
+  type SyncStatus,
+  type Tx,
+  type TxEffect,
+  type TxExecutionRequest,
+  type TxHash,
+  type TxReceipt,
 } from '@aztec/circuit-types';
-import { AztecAddress, CompleteAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
-import { ContractArtifact } from '@aztec/foundation/abi';
-import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
-import { NodeInfo } from '@aztec/types/interfaces';
+import {
+  type AztecAddress,
+  type CompleteAddress,
+  type Fr,
+  type GrumpkinPrivateKey,
+  type PartialAddress,
+} from '@aztec/circuits.js';
+import { type ContractArtifact } from '@aztec/foundation/abi';
+import { type ContractClassWithId, type ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { type NodeInfo } from '@aztec/types/interfaces';
 
-import { Wallet } from '../account/wallet.js';
-import { ContractFunctionInteraction } from '../contract/contract_function_interaction.js';
-import { FeeOptions } from '../entrypoint/entrypoint.js';
+import { type Wallet } from '../account/wallet.js';
+import { type ContractFunctionInteraction } from '../contract/contract_function_interaction.js';
+import { type FeeOptions } from '../entrypoint/entrypoint.js';
 
 /**
  * A base class for Wallet implementations

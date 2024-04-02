@@ -1,4 +1,4 @@
-import { L1ContractAddresses } from '@aztec/ethereum';
+import { type L1ContractAddresses } from '@aztec/ethereum';
 
 /**
  * The configuration of the rollup transaction publisher.

@@ -1,7 +1,7 @@
-import { FunctionCall, TxExecutionRequest } from '@aztec/circuit-types';
-import { Fr } from '@aztec/foundation/fields';
+import { type FunctionCall, type TxExecutionRequest } from '@aztec/circuit-types';
+import { type Fr } from '@aztec/foundation/fields';
 
-import { FeePaymentMethod } from '../fee/fee_payment_method.js';
+import { type FeePaymentMethod } from '../fee/fee_payment_method.js';
 
 /**
  * Fee payment options for a transaction.

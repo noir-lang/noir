@@ -2,8 +2,8 @@ import { BarretenbergSync } from '@aztec/bb.js';
 import { Point } from '@aztec/foundation/fields';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
 
-import { GrumpkinPrivateKey } from '../../../types/grumpkin_private_key.js';
-import { PublicKey } from '../../../types/public_key.js';
+import { type GrumpkinPrivateKey } from '../../../types/grumpkin_private_key.js';
+import { type PublicKey } from '../../../types/public_key.js';
 import { SchnorrSignature } from './signature.js';
 
 export * from './signature.js';

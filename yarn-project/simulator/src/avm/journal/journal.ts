@@ -3,11 +3,11 @@ import { AztecAddress, EthAddress, L2ToL1Message } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 
-import { HostStorage } from './host_storage.js';
+import { type HostStorage } from './host_storage.js';
 import { Nullifiers } from './nullifiers.js';
 import { PublicStorage } from './public_storage.js';
 import { WorldStateAccessTrace } from './trace.js';
-import { TracedL1toL2MessageCheck, TracedNoteHashCheck, TracedNullifierCheck } from './trace_types.js';
+import { type TracedL1toL2MessageCheck, type TracedNoteHashCheck, type TracedNullifierCheck } from './trace_types.js';
 
 /**
  * Data held within the journal

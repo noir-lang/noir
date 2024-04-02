@@ -1,13 +1,13 @@
 import {
   L2Block,
   PROVING_STATUS,
-  ProcessedTx,
-  ProverClient,
-  ProvingSuccess,
-  ProvingTicket,
+  type ProcessedTx,
+  type ProverClient,
+  type ProvingSuccess,
+  type ProvingTicket,
 } from '@aztec/circuit-types';
-import { GlobalVariables, makeEmptyProof } from '@aztec/circuits.js';
-import { Fr } from '@aztec/foundation/fields';
+import { type GlobalVariables, makeEmptyProof } from '@aztec/circuits.js';
+import { type Fr } from '@aztec/foundation/fields';
 
 export class DummyProver implements ProverClient {
   public start(): Promise<void> {

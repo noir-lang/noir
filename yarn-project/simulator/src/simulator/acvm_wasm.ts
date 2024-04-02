@@ -1,9 +1,13 @@
-import { NoirCompiledCircuit } from '@aztec/types/noir';
+import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
-import { WasmBlackBoxFunctionSolver, createBlackBoxSolver, executeCircuitWithBlackBoxSolver } from '@noir-lang/acvm_js';
-import { WitnessMap } from '@noir-lang/types';
+import {
+  type WasmBlackBoxFunctionSolver,
+  createBlackBoxSolver,
+  executeCircuitWithBlackBoxSolver,
+} from '@noir-lang/acvm_js';
+import { type WitnessMap } from '@noir-lang/types';
 
-import { SimulationProvider } from './simulation_provider.js';
+import { type SimulationProvider } from './simulation_provider.js';
 
 let solver: Promise<WasmBlackBoxFunctionSolver>;
 

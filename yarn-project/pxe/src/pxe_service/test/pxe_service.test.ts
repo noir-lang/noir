@@ -1,16 +1,16 @@
-import { AztecNode, PXE, TxEffect, mockTx } from '@aztec/circuit-types';
+import { type AztecNode, type PXE, TxEffect, mockTx } from '@aztec/circuit-types';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js/constants';
-import { L1ContractAddresses } from '@aztec/ethereum';
+import { type L1ContractAddresses } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { TestKeyStore } from '@aztec/key-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 
-import { MockProxy, mock } from 'jest-mock-extended';
+import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { KVPxeDatabase } from '../../database/kv_pxe_database.js';
-import { PxeDatabase } from '../../database/pxe_database.js';
-import { PXEServiceConfig } from '../../index.js';
+import { type PxeDatabase } from '../../database/pxe_database.js';
+import { type PXEServiceConfig } from '../../index.js';
 import { PXEService } from '../pxe_service.js';
 import { pxeTestSuite } from './pxe_test_suite.js';
 

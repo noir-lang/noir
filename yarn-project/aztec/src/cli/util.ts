@@ -1,11 +1,11 @@
-import { ArchiverConfig } from '@aztec/archiver';
-import { AztecNodeConfig } from '@aztec/aztec-node';
-import { AccountManager } from '@aztec/aztec.js';
-import { L1ContractAddresses, l1ContractsNames } from '@aztec/ethereum';
+import { type ArchiverConfig } from '@aztec/archiver';
+import { type AztecNodeConfig } from '@aztec/aztec-node';
+import { type AccountManager } from '@aztec/aztec.js';
+import { type L1ContractAddresses, l1ContractsNames } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { LogFn, createConsoleLogger } from '@aztec/foundation/log';
-import { P2PConfig } from '@aztec/p2p';
-import { GrumpkinScalar, PXEService, PXEServiceConfig } from '@aztec/pxe';
+import { type LogFn, createConsoleLogger } from '@aztec/foundation/log';
+import { type P2PConfig } from '@aztec/p2p';
+import { type GrumpkinScalar, type PXEService, type PXEServiceConfig } from '@aztec/pxe';
 
 /**
  * Checks if the object has l1Contracts property

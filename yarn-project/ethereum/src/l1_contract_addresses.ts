@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/foundation/eth-address';
+import { type EthAddress } from '@aztec/foundation/eth-address';
 
 export const l1ContractsNames = [
   'availabilityOracleAddress',

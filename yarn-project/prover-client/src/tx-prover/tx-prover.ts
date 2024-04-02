@@ -1,11 +1,11 @@
-import { ProcessedTx } from '@aztec/circuit-types';
-import { ProverClient, ProvingTicket } from '@aztec/circuit-types/interfaces';
-import { Fr, GlobalVariables } from '@aztec/circuits.js';
-import { SimulationProvider } from '@aztec/simulator';
-import { WorldStateSynchronizer } from '@aztec/world-state';
+import { type ProcessedTx } from '@aztec/circuit-types';
+import { type ProverClient, type ProvingTicket } from '@aztec/circuit-types/interfaces';
+import { type Fr, type GlobalVariables } from '@aztec/circuits.js';
+import { type SimulationProvider } from '@aztec/simulator';
+import { type WorldStateSynchronizer } from '@aztec/world-state';
 
-import { ProverConfig } from '../config.js';
-import { VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
+import { type ProverConfig } from '../config.js';
+import { type VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
 import { ProvingOrchestrator } from '../orchestrator/orchestrator.js';
 import { EmptyRollupProver } from '../prover/empty.js';
 

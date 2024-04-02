@@ -5,7 +5,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createJsonRpcClient, defaultFetch } from '@aztec/foundation/json-rpc/client';
 
-import { AztecNode } from '../../interfaces/aztec-node.js';
+import { type AztecNode } from '../../interfaces/aztec-node.js';
 import { NullifierMembershipWitness } from '../../interfaces/nullifier_tree.js';
 import { L2Block } from '../../l2_block.js';
 import { EncryptedL2BlockL2Logs, ExtendedUnencryptedL2Log, LogId, UnencryptedL2BlockL2Logs } from '../../logs/index.js';

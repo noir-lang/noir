@@ -3,7 +3,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
-import { FieldsOf } from '@aztec/foundation/types';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 import { CALL_CONTEXT_LENGTH } from '../constants.gen.js';
 

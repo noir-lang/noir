@@ -1,9 +1,25 @@
-import { AztecAddress, DebugLogger, EthAddress, Fr, PXE, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
+import {
+  type AztecAddress,
+  type DebugLogger,
+  EthAddress,
+  Fr,
+  type PXE,
+  type Wallet,
+  computeMessageSecretHash,
+} from '@aztec/aztec.js';
 import { GasPortalAbi, OutboxAbi, PortalERC20Abi } from '@aztec/l1-artifacts';
 import { GasTokenContract } from '@aztec/noir-contracts.js';
 import { getCanonicalGasToken, getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
-import { Account, Chain, GetContractReturnType, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
+import {
+  type Account,
+  type Chain,
+  type GetContractReturnType,
+  type HttpTransport,
+  type PublicClient,
+  type WalletClient,
+  getContract,
+} from 'viem';
 
 export interface IGasBridgingTestHarness {
   bridgeFromL1ToL2(l1TokenBalance: bigint, bridgeAmount: bigint, owner: AztecAddress): Promise<void>;

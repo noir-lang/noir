@@ -1,5 +1,5 @@
-import { Note, PXE } from '@aztec/circuit-types';
-import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
+import { type Note, type PXE } from '@aztec/circuit-types';
+import { type AztecAddress, type EthAddress, Fr } from '@aztec/circuits.js';
 import { toBigIntBE, toHex } from '@aztec/foundation/bigint-buffer';
 import { keccak, pedersenHash } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';

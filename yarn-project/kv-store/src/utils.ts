@@ -1,7 +1,7 @@
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { Logger } from '@aztec/foundation/log';
+import { type EthAddress } from '@aztec/foundation/eth-address';
+import { type Logger } from '@aztec/foundation/log';
 
-import { AztecKVStore } from './interfaces/store.js';
+import { type AztecKVStore } from './interfaces/store.js';
 import { AztecLmdbStore } from './lmdb/store.js';
 
 /**

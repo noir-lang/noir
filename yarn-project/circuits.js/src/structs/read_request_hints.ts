@@ -1,6 +1,6 @@
 import { makeTuple } from '@aztec/foundation/array';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
-import { TreeLeafPreimage } from '@aztec/foundation/trees';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { type TreeLeafPreimage } from '@aztec/foundation/trees';
 
 import { MAX_NULLIFIER_READ_REQUESTS_PER_TX, NULLIFIER_TREE_HEIGHT } from '../constants.gen.js';
 import { MembershipWitness } from './membership_witness.js';

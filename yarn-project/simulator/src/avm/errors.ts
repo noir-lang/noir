@@ -1,4 +1,4 @@
-import { AztecAddress } from '@aztec/circuits.js';
+import { type AztecAddress } from '@aztec/circuits.js';
 
 /**
  * Avm-specific errors should derive from this

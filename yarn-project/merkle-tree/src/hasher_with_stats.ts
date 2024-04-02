@@ -1,4 +1,4 @@
-import { Hasher } from '@aztec/types/interfaces';
+import { type Hasher } from '@aztec/types/interfaces';
 
 import { createHistogram, performance } from 'perf_hooks';
 

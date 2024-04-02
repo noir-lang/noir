@@ -1,7 +1,7 @@
 import { Fr, NullifierLeaf, NullifierLeafPreimage } from '@aztec/circuits.js';
-import { AztecKVStore } from '@aztec/kv-store';
+import { type AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
-import { Hasher } from '@aztec/types/interfaces';
+import { type Hasher } from '@aztec/types/interfaces';
 
 import { Pedersen, newTree } from '../index.js';
 import { StandardIndexedTreeWithAppend } from '../standard_indexed_tree/test/standard_indexed_tree_with_append.js';

@@ -8,7 +8,7 @@ import {
   LogId,
   Note,
   NullifierMembershipWitness,
-  PXE,
+  type PXE,
   Tx,
   TxEffect,
   TxExecutionRequest,

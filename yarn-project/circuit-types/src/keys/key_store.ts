@@ -1,4 +1,4 @@
-import { AztecAddress, GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
+import { type AztecAddress, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
 
 /**
  * Represents a secure storage for managing keys.

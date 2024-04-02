@@ -1,8 +1,8 @@
 import { Note, TxHash } from '@aztec/circuit-types';
-import { AztecAddress, Fr, Point, PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, Fr, Point, type PublicKey } from '@aztec/circuits.js';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
-import { NoteData } from '@aztec/simulator';
+import { type NoteData } from '@aztec/simulator';
 
 /**
  * A note with contextual data.

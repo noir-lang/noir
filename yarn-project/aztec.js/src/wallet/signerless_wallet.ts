@@ -1,8 +1,8 @@
-import { AuthWitness, FunctionCall, PXE, TxExecutionRequest } from '@aztec/circuit-types';
-import { CompleteAddress, Fr } from '@aztec/circuits.js';
+import { type AuthWitness, type FunctionCall, type PXE, type TxExecutionRequest } from '@aztec/circuit-types';
+import { type CompleteAddress, type Fr } from '@aztec/circuits.js';
 
 import { DefaultEntrypoint } from '../entrypoint/default_entrypoint.js';
-import { EntrypointInterface } from '../entrypoint/entrypoint.js';
+import { type EntrypointInterface } from '../entrypoint/entrypoint.js';
 import { BaseWallet } from './base_wallet.js';
 
 /**

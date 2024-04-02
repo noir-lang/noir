@@ -1,19 +1,19 @@
 import {
-  FromLogType,
-  GetUnencryptedLogsResponse,
-  L1ToL2MessageSource,
+  type FromLogType,
+  type GetUnencryptedLogsResponse,
+  type L1ToL2MessageSource,
   L2Block,
-  L2BlockL2Logs,
-  L2BlockSource,
-  L2LogsSource,
-  LogFilter,
-  LogType,
-  TxEffect,
-  TxHash,
-  TxReceipt,
-  UnencryptedL2Log,
+  type L2BlockL2Logs,
+  type L2BlockSource,
+  type L2LogsSource,
+  type LogFilter,
+  type LogType,
+  type TxEffect,
+  type TxHash,
+  type TxReceipt,
+  type UnencryptedL2Log,
 } from '@aztec/circuit-types';
-import { ContractClassRegisteredEvent, FunctionSelector } from '@aztec/circuits.js';
+import { ContractClassRegisteredEvent, type FunctionSelector } from '@aztec/circuits.js';
 import {
   ContractInstanceDeployedEvent,
   PrivateFunctionBroadcastedEvent,
@@ -22,28 +22,28 @@ import {
   isValidUnconstrainedFunctionMembershipProof,
 } from '@aztec/circuits.js/contract';
 import { createEthereumChain } from '@aztec/ethereum';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
+import { type EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { getCanonicalClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
 import {
-  ContractClassPublic,
-  ContractDataSource,
-  ContractInstanceWithAddress,
-  ExecutablePrivateFunctionWithMembershipProof,
-  PublicFunction,
-  UnconstrainedFunctionWithMembershipProof,
+  type ContractClassPublic,
+  type ContractDataSource,
+  type ContractInstanceWithAddress,
+  type ExecutablePrivateFunctionWithMembershipProof,
+  type PublicFunction,
+  type UnconstrainedFunctionWithMembershipProof,
 } from '@aztec/types/contracts';
 
 import groupBy from 'lodash.groupby';
-import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
+import { type Chain, type HttpTransport, type PublicClient, createPublicClient, http } from 'viem';
 
-import { ArchiverDataStore } from './archiver_store.js';
-import { ArchiverConfig } from './config.js';
+import { type ArchiverDataStore } from './archiver_store.js';
+import { type ArchiverConfig } from './config.js';
 import {
-  DataRetrieval,
+  type DataRetrieval,
   retrieveBlockBodiesFromAvailabilityOracle,
   retrieveBlockMetadataFromRollup,
   retrieveL1ToL2Messages,

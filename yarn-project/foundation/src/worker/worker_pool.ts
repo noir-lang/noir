@@ -1,5 +1,5 @@
 import { createDebugLogger } from '../log/index.js';
-import { WasmWorker } from './wasm_worker.js';
+import { type WasmWorker } from './wasm_worker.js';
 
 const debug = createDebugLogger('bb:worker_pool');
 

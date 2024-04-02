@@ -1,7 +1,7 @@
 import {
-  AccountWalletWithPrivateKey,
-  AztecAddress,
-  FeePaymentMethod,
+  type AccountWalletWithPrivateKey,
+  type AztecAddress,
+  type FeePaymentMethod,
   Fr,
   PrivateFeePaymentMethod,
   PublicFeePaymentMethod,
@@ -21,8 +21,8 @@ import { getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token
 import { jest } from '@jest/globals';
 
 import {
-  BalancesFn,
-  EndToEndContext,
+  type BalancesFn,
+  type EndToEndContext,
   expectMapping,
   getBalancesFn,
   publicDeployAccounts,

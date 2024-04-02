@@ -1,14 +1,14 @@
-import { L2Block } from '@aztec/circuit-types';
+import { type L2Block } from '@aztec/circuit-types';
 import { createEthereumChain } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AvailabilityOracleAbi, RollupAbi } from '@aztec/l1-artifacts';
 
 import {
-  GetContractReturnType,
-  Hex,
-  HttpTransport,
-  PublicClient,
-  WalletClient,
+  type GetContractReturnType,
+  type Hex,
+  type HttpTransport,
+  type PublicClient,
+  type WalletClient,
   createPublicClient,
   createWalletClient,
   getAddress,
@@ -16,15 +16,15 @@ import {
   hexToBytes,
   http,
 } from 'viem';
-import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
+import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import * as chains from 'viem/chains';
 
-import { TxSenderConfig } from './config.js';
+import { type TxSenderConfig } from './config.js';
 import {
-  L1PublisherTxSender,
-  MinimalTransactionReceipt,
-  L1ProcessArgs as ProcessTxArgs,
-  TransactionStats,
+  type L1PublisherTxSender,
+  type MinimalTransactionReceipt,
+  type L1ProcessArgs as ProcessTxArgs,
+  type TransactionStats,
 } from './l1-publisher.js';
 
 /**

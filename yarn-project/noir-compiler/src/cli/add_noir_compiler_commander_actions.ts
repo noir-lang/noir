@@ -1,6 +1,6 @@
-import { LogFn } from '@aztec/foundation/log';
+import { type LogFn } from '@aztec/foundation/log';
 
-import { Command } from 'commander';
+import { type Command } from 'commander';
 import { dirname } from 'path';
 
 export function addNoirCompilerCommanderActions(program: Command, log: LogFn = () => {}) {

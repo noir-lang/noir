@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/circuits.js';
-import { DebugLogger, LogFn } from '@aztec/foundation/log';
+import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
 import { addCodegenCommanderAction } from '@aztec/noir-compiler/cli';
 

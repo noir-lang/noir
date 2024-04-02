@@ -1,4 +1,4 @@
-import { MutexDatabase } from './mutex_database.js';
+import { type MutexDatabase } from './mutex_database.js';
 
 export * from './mutex_database.js';
 

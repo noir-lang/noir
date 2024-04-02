@@ -1,8 +1,8 @@
-import { Bufferable, serializeToBuffer } from '@aztec/foundation/serialize';
+import { type Bufferable, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { UpdateOnlyTree } from '../interfaces/update_only_tree.js';
+import { type UpdateOnlyTree } from '../interfaces/update_only_tree.js';
 import { FullTreeSnapshotBuilder } from '../snapshots/full_snapshot.js';
-import { TreeSnapshot } from '../snapshots/snapshot_builder.js';
+import { type TreeSnapshot } from '../snapshots/snapshot_builder.js';
 import { INITIAL_LEAF, TreeBase } from '../tree_base.js';
 
 /**

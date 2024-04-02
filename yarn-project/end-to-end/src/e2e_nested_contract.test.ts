@@ -1,4 +1,4 @@
-import { AztecAddress, BatchCall, DebugLogger, Fr, PXE, Wallet, toBigIntBE } from '@aztec/aztec.js';
+import { type AztecAddress, BatchCall, type DebugLogger, Fr, type PXE, type Wallet, toBigIntBE } from '@aztec/aztec.js';
 import { getTestData, isGenerateTestDataEnabled } from '@aztec/foundation/testing';
 import { ChildContract, ImportTestContract, ParentContract, TestContract } from '@aztec/noir-contracts.js';
 

@@ -1,7 +1,7 @@
 import {
-  ABIParameter,
-  ContractArtifact,
-  FunctionArtifact,
+  type ABIParameter,
+  type ContractArtifact,
+  type FunctionArtifact,
   getDefaultInitializer,
   isAztecAddressStruct,
   isEthAddressStruct,

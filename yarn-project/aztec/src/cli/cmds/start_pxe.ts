@@ -1,7 +1,7 @@
 import { createAztecNodeClient } from '@aztec/circuit-types';
-import { ServerList } from '@aztec/foundation/json-rpc/server';
-import { LogFn } from '@aztec/foundation/log';
-import { PXEServiceConfig, createPXERpcServer, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
+import { type ServerList } from '@aztec/foundation/json-rpc/server';
+import { type LogFn } from '@aztec/foundation/log';
+import { type PXEServiceConfig, createPXERpcServer, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 
 import { mergeEnvVarsAndCliOptions, parseModuleOptions } from '../util.js';
 

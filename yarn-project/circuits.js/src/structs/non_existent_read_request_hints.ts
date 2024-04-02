@@ -1,6 +1,6 @@
 import { makeTuple } from '@aztec/foundation/array';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
-import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
 import {
   MAX_NEW_NULLIFIERS_PER_TX,
@@ -9,7 +9,7 @@ import {
 } from '../constants.gen.js';
 import { MembershipWitness } from './membership_witness.js';
 import { NullifierLeafPreimage } from './rollup/nullifier_leaf/index.js';
-import { SideEffectLinkedToNoteHash, SideEffectType } from './side_effects.js';
+import { SideEffectLinkedToNoteHash, type SideEffectType } from './side_effects.js';
 
 export class NonMembershipHint<TREE_HEIGHT extends number, LEAF_PREIMAGE extends IndexedTreeLeafPreimage> {
   constructor(public membershipWitness: MembershipWitness<TREE_HEIGHT>, public leafPreimage: LEAF_PREIMAGE) {}

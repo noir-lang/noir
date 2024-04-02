@@ -1,9 +1,9 @@
 import { computeInnerAuthWitHash, computeOuterAuthWitHash } from '@aztec/aztec.js';
-import { AuthWitnessProvider } from '@aztec/aztec.js/account';
-import { EntrypointInterface } from '@aztec/aztec.js/entrypoint';
-import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
-import { AztecAddress, Fr, FunctionData, TxContext } from '@aztec/circuits.js';
-import { FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
+import { type AuthWitnessProvider } from '@aztec/aztec.js/account';
+import { type EntrypointInterface } from '@aztec/aztec.js/entrypoint';
+import { type FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
+import { type AztecAddress, Fr, FunctionData, TxContext } from '@aztec/circuits.js';
+import { type FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
 
 import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from './constants.js';
 import { buildDappPayload } from './entrypoint_payload.js';

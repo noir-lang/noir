@@ -1,12 +1,12 @@
 import { AztecAddress, Fr } from '@aztec/circuits.js';
-import { L1ContractAddresses, NULL_KEY } from '@aztec/ethereum';
+import { type L1ContractAddresses, NULL_KEY } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 
-import { Hex } from 'viem';
+import { type Hex } from 'viem';
 
-import { GlobalReaderConfig } from './global_variable_builder/index.js';
-import { PublisherConfig, TxSenderConfig } from './publisher/config.js';
-import { SequencerConfig } from './sequencer/config.js';
+import { type GlobalReaderConfig } from './global_variable_builder/index.js';
+import { type PublisherConfig, type TxSenderConfig } from './publisher/config.js';
+import { type SequencerConfig } from './sequencer/config.js';
 
 /** Chain configuration. */
 type ChainConfig = {

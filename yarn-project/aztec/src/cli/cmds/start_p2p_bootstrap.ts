@@ -1,6 +1,6 @@
-import { DebugLogger } from '@aztec/aztec.js';
-import { LogFn } from '@aztec/foundation/log';
-import { BootstrapNode, P2PConfig, getP2PConfigEnvVars } from '@aztec/p2p';
+import { type DebugLogger } from '@aztec/aztec.js';
+import { type LogFn } from '@aztec/foundation/log';
+import { BootstrapNode, type P2PConfig, getP2PConfigEnvVars } from '@aztec/p2p';
 
 import { mergeEnvVarsAndCliOptions, parseModuleOptions } from '../util.js';
 

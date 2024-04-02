@@ -1,5 +1,5 @@
 import type { AvmContext } from '../avm_context.js';
-import { GasCost, GasCostConstants, getGasCostMultiplierFromTypeTag, makeGasCost } from '../avm_gas_cost.js';
+import { type GasCost, GasCostConstants, getGasCostMultiplierFromTypeTag, makeGasCost } from '../avm_gas_cost.js';
 import { Field, TaggedMemory, TypeTag } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { BufferCursor } from '../serialization/buffer_cursor.js';

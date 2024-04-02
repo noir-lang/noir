@@ -7,7 +7,7 @@ import {
 import { AztecAddress, PrivateCallStackItem } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
 
-import { ExecutionResult, collectEncryptedLogs, collectUnencryptedLogs } from './execution_result.js';
+import { type ExecutionResult, collectEncryptedLogs, collectUnencryptedLogs } from './execution_result.js';
 
 function emptyExecutionResult(): ExecutionResult {
   return {

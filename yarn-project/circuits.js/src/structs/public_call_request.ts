@@ -1,7 +1,7 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
-import { FieldsOf } from '@aztec/foundation/types';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 import { computeVarArgsHash } from '../hash/hash.js';
 import { CallContext } from './call_context.js';

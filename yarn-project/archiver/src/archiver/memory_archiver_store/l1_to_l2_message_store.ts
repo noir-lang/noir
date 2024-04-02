@@ -1,10 +1,10 @@
-import { InboxLeaf } from '@aztec/circuit-types';
+import { type InboxLeaf } from '@aztec/circuit-types';
 import {
   INITIAL_L2_BLOCK_NUM,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
 } from '@aztec/circuits.js/constants';
-import { Fr } from '@aztec/foundation/fields';
+import { type Fr } from '@aztec/foundation/fields';
 
 /**
  * A simple in-memory implementation of an L1 to L2 message store.

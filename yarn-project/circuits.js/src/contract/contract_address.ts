@@ -1,12 +1,12 @@
-import { FunctionAbi, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
+import { type FunctionAbi, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { ContractInstance } from '@aztec/types/contracts';
+import { type ContractInstance } from '@aztec/types/contracts';
 
 import { GeneratorIndex } from '../constants.gen.js';
 import { computeVarArgsHash } from '../hash/hash.js';
-import { PublicKey } from '../types/public_key.js';
+import { type PublicKey } from '../types/public_key.js';
 
 // TODO(@spalladino): Review all generator indices in this file
 

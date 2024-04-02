@@ -1,28 +1,28 @@
 import {
-  Body,
-  EncryptedL2BlockL2Logs,
-  FromLogType,
-  GetUnencryptedLogsResponse,
-  InboxLeaf,
-  L2Block,
-  L2BlockL2Logs,
-  LogFilter,
-  LogType,
-  TxEffect,
-  TxHash,
-  TxReceipt,
-  UnencryptedL2BlockL2Logs,
+  type Body,
+  type EncryptedL2BlockL2Logs,
+  type FromLogType,
+  type GetUnencryptedLogsResponse,
+  type InboxLeaf,
+  type L2Block,
+  type L2BlockL2Logs,
+  type LogFilter,
+  type LogType,
+  type TxEffect,
+  type TxHash,
+  type TxReceipt,
+  type UnencryptedL2BlockL2Logs,
 } from '@aztec/circuit-types';
-import { Fr } from '@aztec/circuits.js';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { type Fr } from '@aztec/circuits.js';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import {
-  ContractClassPublic,
-  ContractInstanceWithAddress,
-  ExecutablePrivateFunctionWithMembershipProof,
-  UnconstrainedFunctionWithMembershipProof,
+  type ContractClassPublic,
+  type ContractInstanceWithAddress,
+  type ExecutablePrivateFunctionWithMembershipProof,
+  type UnconstrainedFunctionWithMembershipProof,
 } from '@aztec/types/contracts';
 
-import { DataRetrieval } from './data_retrieval.js';
+import { type DataRetrieval } from './data_retrieval.js';
 
 /**
  * Represents the latest L1 block processed by the archiver for various objects in L2.

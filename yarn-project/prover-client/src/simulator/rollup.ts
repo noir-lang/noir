@@ -1,13 +1,13 @@
-import { CircuitSimulationStats } from '@aztec/circuit-types/stats';
+import { type CircuitSimulationStats } from '@aztec/circuit-types/stats';
 import {
-  BaseOrMergeRollupPublicInputs,
-  BaseParityInputs,
-  BaseRollupInputs,
-  MergeRollupInputs,
-  ParityPublicInputs,
-  RootParityInputs,
-  RootRollupInputs,
-  RootRollupPublicInputs,
+  type BaseOrMergeRollupPublicInputs,
+  type BaseParityInputs,
+  type BaseRollupInputs,
+  type MergeRollupInputs,
+  type ParityPublicInputs,
+  type RootParityInputs,
+  type RootRollupInputs,
+  type RootRollupPublicInputs,
 } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
@@ -28,7 +28,7 @@ import {
   convertRootRollupInputsToWitnessMap,
   convertRootRollupOutputsFromWitnessMap,
 } from '@aztec/noir-protocol-circuits-types';
-import { SimulationProvider, WASMSimulator } from '@aztec/simulator';
+import { type SimulationProvider, WASMSimulator } from '@aztec/simulator';
 
 /**
  * Circuit simulator for the rollup circuits.

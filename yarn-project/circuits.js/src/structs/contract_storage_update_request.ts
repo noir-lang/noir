@@ -1,6 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
-import { FieldsOf } from '@aztec/foundation/types';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 import { CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH } from '../constants.gen.js';
 

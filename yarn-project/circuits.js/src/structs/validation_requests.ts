@@ -1,5 +1,5 @@
 import { makeTuple } from '@aztec/foundation/array';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import {
   MAX_NOTE_HASH_READ_REQUESTS_PER_TX,

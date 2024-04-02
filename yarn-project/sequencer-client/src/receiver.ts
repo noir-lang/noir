@@ -1,4 +1,4 @@
-import { L2Block } from '@aztec/circuit-types';
+import { type L2Block } from '@aztec/circuit-types';
 
 /**
  * Given the necessary rollup data, verifies it, and updates the underlying state accordingly to advance the state of the system.

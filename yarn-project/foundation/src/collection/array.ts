@@ -1,4 +1,4 @@
-import { Tuple } from '../serialize/types.js';
+import { type Tuple } from '../serialize/types.js';
 
 /**
  * Pads an array to the target length by appending an element to its end. Throws if target length exceeds the input array length. Does not modify the input array.

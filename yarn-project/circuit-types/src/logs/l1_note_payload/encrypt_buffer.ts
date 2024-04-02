@@ -1,5 +1,5 @@
-import { GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
+import { type Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { sha256 } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
 import { numToUInt8 } from '@aztec/foundation/serialize';

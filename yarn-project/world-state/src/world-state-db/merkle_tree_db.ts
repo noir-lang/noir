@@ -1,8 +1,8 @@
-import { MerkleTreeId } from '@aztec/circuit-types';
-import { Fr, MAX_NEW_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX } from '@aztec/circuits.js';
-import { IndexedTreeSnapshot, TreeSnapshot } from '@aztec/merkle-tree';
+import { type MerkleTreeId } from '@aztec/circuit-types';
+import { type Fr, MAX_NEW_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX } from '@aztec/circuits.js';
+import { type IndexedTreeSnapshot, type TreeSnapshot } from '@aztec/merkle-tree';
 
-import { MerkleTreeOperations } from './merkle_tree_operations.js';
+import { type MerkleTreeOperations } from './merkle_tree_operations.js';
 
 /**
  *

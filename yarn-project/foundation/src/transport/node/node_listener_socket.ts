@@ -1,6 +1,6 @@
-import { MessagePort, TransferListItem } from 'worker_threads';
+import { type MessagePort, type TransferListItem } from 'worker_threads';
 
-import { Socket } from '../interface/socket.js';
+import { type Socket } from '../interface/socket.js';
 
 /**
  * An implementation of a TransportSocket using MessagePorts.

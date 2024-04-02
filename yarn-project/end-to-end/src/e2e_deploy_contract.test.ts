@@ -1,20 +1,20 @@
 import {
   AztecAddress,
-  AztecNode,
+  type AztecNode,
   BatchCall,
   CompleteAddress,
-  ContractArtifact,
-  ContractBase,
-  ContractClassWithId,
+  type ContractArtifact,
+  type ContractBase,
+  type ContractClassWithId,
   ContractDeployer,
-  ContractInstanceWithAddress,
-  DebugLogger,
+  type ContractInstanceWithAddress,
+  type DebugLogger,
   EthAddress,
   Fr,
-  PXE,
+  type PXE,
   SignerlessWallet,
   TxStatus,
-  Wallet,
+  type Wallet,
   getContractClassFromArtifact,
   getContractInstanceFromDeployParams,
 } from '@aztec/aztec.js';
@@ -24,14 +24,14 @@ import {
   deployInstance,
   registerContractClass,
 } from '@aztec/aztec.js/deployment';
-import { ContractClassIdPreimage, Point } from '@aztec/circuits.js';
+import { type ContractClassIdPreimage, Point } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/hash';
 import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { writeTestData } from '@aztec/foundation/testing';
 import { CounterContract, StatefulTestContract } from '@aztec/noir-contracts.js';
 import { TestContract, TestContractArtifact } from '@aztec/noir-contracts.js/Test';
 import { TokenContract, TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
-import { SequencerClient } from '@aztec/sequencer-client';
+import { type SequencerClient } from '@aztec/sequencer-client';
 
 import { setup } from './fixtures/utils.js';
 

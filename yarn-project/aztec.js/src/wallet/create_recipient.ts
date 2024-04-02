@@ -1,4 +1,4 @@
-import { PXE } from '@aztec/circuit-types';
+import { type PXE } from '@aztec/circuit-types';
 import { CompleteAddress } from '@aztec/circuits.js';
 
 /**

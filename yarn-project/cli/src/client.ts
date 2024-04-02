@@ -1,5 +1,5 @@
-import { PXE, createPXEClient } from '@aztec/aztec.js';
-import { DebugLogger } from '@aztec/foundation/log';
+import { type PXE, createPXEClient } from '@aztec/aztec.js';
+import { type DebugLogger } from '@aztec/foundation/log';
 import { fileURLToPath } from '@aztec/foundation/url';
 
 import { readFileSync } from 'fs';

@@ -1,4 +1,11 @@
-import { AztecAddress, AztecNode, CompleteAddress, DebugLogger, Fr, Wallet } from '@aztec/aztec.js';
+import {
+  type AztecAddress,
+  type AztecNode,
+  type CompleteAddress,
+  type DebugLogger,
+  Fr,
+  type Wallet,
+} from '@aztec/aztec.js';
 import { PendingNoteHashesContract } from '@aztec/noir-contracts.js/PendingNoteHashes';
 
 import { setup } from './fixtures/utils.js';

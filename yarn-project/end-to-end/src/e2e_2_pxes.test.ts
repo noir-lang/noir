@@ -1,15 +1,15 @@
 import { getUnsafeSchnorrAccount } from '@aztec/accounts/single_key';
 import {
-  AztecAddress,
-  AztecNode,
-  CompleteAddress,
-  DebugLogger,
+  type AztecAddress,
+  type AztecNode,
+  type CompleteAddress,
+  type DebugLogger,
   ExtendedNote,
   Fr,
   GrumpkinScalar,
   Note,
-  PXE,
-  Wallet,
+  type PXE,
+  type Wallet,
   computeMessageSecretHash,
   retryUntil,
 } from '@aztec/aztec.js';

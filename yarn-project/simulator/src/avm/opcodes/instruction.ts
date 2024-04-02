@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
 
 import type { AvmContext } from '../avm_context.js';
-import { DynamicGasCost, GasCost, GasCosts } from '../avm_gas_cost.js';
-import { BufferCursor } from '../serialization/buffer_cursor.js';
-import { Opcode, OperandType, deserialize, serialize } from '../serialization/instruction_serialization.js';
+import { DynamicGasCost, type GasCost, GasCosts } from '../avm_gas_cost.js';
+import { type BufferCursor } from '../serialization/buffer_cursor.js';
+import { Opcode, type OperandType, deserialize, serialize } from '../serialization/instruction_serialization.js';
 
 type InstructionConstructor = {
   new (...args: any[]): Instruction;

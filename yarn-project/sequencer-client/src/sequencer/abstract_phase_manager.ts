@@ -1,12 +1,12 @@
-import { MerkleTreeId, SimulationError, Tx, UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
+import { MerkleTreeId, type SimulationError, type Tx, type UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
 import {
   AztecAddress,
   CallRequest,
   ContractStorageRead,
   ContractStorageUpdateRequest,
   Fr,
-  GlobalVariables,
-  Header,
+  type GlobalVariables,
+  type Header,
   L2ToL1Message,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NOTE_HASHES_PER_CALL,
@@ -20,16 +20,16 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
   MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MembershipWitness,
-  PrivateKernelTailCircuitPublicInputs,
-  Proof,
+  type PrivateKernelTailCircuitPublicInputs,
+  type Proof,
   PublicCallData,
-  PublicCallRequest,
+  type PublicCallRequest,
   PublicCallStackItem,
   PublicCircuitPublicInputs,
   PublicDataRead,
   PublicDataUpdateRequest,
   PublicKernelCircuitPrivateInputs,
-  PublicKernelCircuitPublicInputs,
+  type PublicKernelCircuitPublicInputs,
   PublicKernelData,
   PublicKernelTailCircuitPrivateInputs,
   RETURN_VALUES_LENGTH,
@@ -43,19 +43,19 @@ import {
 } from '@aztec/circuits.js';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { Tuple } from '@aztec/foundation/serialize';
+import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { type Tuple } from '@aztec/foundation/serialize';
 import {
-  PublicExecution,
-  PublicExecutionResult,
-  PublicExecutor,
+  type PublicExecution,
+  type PublicExecutionResult,
+  type PublicExecutor,
   collectPublicDataReads,
   collectPublicDataUpdateRequests,
   isPublicExecutionResult,
 } from '@aztec/simulator';
-import { MerkleTreeOperations } from '@aztec/world-state';
+import { type MerkleTreeOperations } from '@aztec/world-state';
 
-import { PublicKernelCircuitSimulator } from '../simulator/index.js';
+import { type PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { HintsBuilder } from './hints_builder.js';
 import { lastSideEffectCounter } from './utils.js';
 

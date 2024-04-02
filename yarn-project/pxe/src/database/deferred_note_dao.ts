@@ -1,5 +1,5 @@
 import { Note, TxHash } from '@aztec/circuit-types';
-import { AztecAddress, Fr, Point, PublicKey, Vector } from '@aztec/circuits.js';
+import { AztecAddress, Fr, Point, type PublicKey, Vector } from '@aztec/circuits.js';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 /**

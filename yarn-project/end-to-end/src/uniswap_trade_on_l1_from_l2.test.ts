@@ -1,5 +1,5 @@
 import { setup as e2eSetup } from './fixtures/utils.js';
-import { UniswapSetupContext, uniswapL1L2TestSuite } from './shared/uniswap_l1_l2.js';
+import { type UniswapSetupContext, uniswapL1L2TestSuite } from './shared/uniswap_l1_l2.js';
 
 // This tests works on forked mainnet. There is a dump of the data in `dumpedState` such that we
 // don't need to burn through RPC requests.

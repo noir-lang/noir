@@ -1,26 +1,26 @@
 import {
-  AccountWallet,
-  AztecAddress,
-  AztecNode,
-  CompleteAddress,
-  DebugLogger,
-  DeployL1Contracts,
+  type AccountWallet,
+  type AztecAddress,
+  type AztecNode,
+  type CompleteAddress,
+  type DebugLogger,
+  type DeployL1Contracts,
   EthAddress,
   Fr,
   L1Actor,
   L1ToL2Message,
   L2Actor,
-  PXE,
+  type PXE,
   computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { sha256ToField } from '@aztec/foundation/crypto';
 import { InboxAbi, OutboxAbi } from '@aztec/l1-artifacts';
 import { TestContract } from '@aztec/noir-contracts.js';
-import { TokenContract } from '@aztec/noir-contracts.js/Token';
-import { TokenBridgeContract } from '@aztec/noir-contracts.js/TokenBridge';
+import { type TokenContract } from '@aztec/noir-contracts.js/Token';
+import { type TokenBridgeContract } from '@aztec/noir-contracts.js/TokenBridge';
 
-import { Chain, GetContractReturnType, Hex, HttpTransport, PublicClient } from 'viem';
+import { type Chain, type GetContractReturnType, type Hex, type HttpTransport, type PublicClient } from 'viem';
 import { decodeEventLog, toFunctionSelector } from 'viem/utils';
 
 import { publicDeployAccounts, setup } from './fixtures/utils.js';

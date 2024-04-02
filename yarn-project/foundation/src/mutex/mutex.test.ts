@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 
 import { Mutex } from './index.js';
-import { MutexDatabase } from './mutex_database.js';
+import { type MutexDatabase } from './mutex_database.js';
 
 /**
  * Sleep function for introducing a delay in the execution of code.

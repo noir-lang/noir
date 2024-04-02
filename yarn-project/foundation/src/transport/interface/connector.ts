@@ -1,4 +1,4 @@
-import { Socket } from './socket.js';
+import { type Socket } from './socket.js';
 
 /**
  * Opens a socket with corresponding TransportListener.

@@ -1,8 +1,8 @@
-import { CompleteAddress } from '@aztec/circuit-types';
-import { ContractArtifact } from '@aztec/foundation/abi';
-import { NodeInfo } from '@aztec/types/interfaces';
+import { type CompleteAddress } from '@aztec/circuit-types';
+import { type ContractArtifact } from '@aztec/foundation/abi';
+import { type NodeInfo } from '@aztec/types/interfaces';
 
-import { AccountInterface } from './interface.js';
+import { type AccountInterface } from './interface.js';
 
 // docs:start:account-contract-interface
 /**

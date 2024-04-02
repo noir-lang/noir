@@ -1,8 +1,8 @@
 import { Tx, TxHash } from '@aztec/circuit-types';
-import { TxAddedToPoolStats } from '@aztec/circuit-types/stats';
+import { type TxAddedToPoolStats } from '@aztec/circuit-types/stats';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { TxPool } from './tx_pool.js';
+import { type TxPool } from './tx_pool.js';
 
 /**
  * In-memory implementation of the Transaction Pool.

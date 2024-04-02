@@ -1,6 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
-import { FieldsOf } from '@aztec/foundation/types';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 import { AggregationObject } from '../aggregation_object.js';
 

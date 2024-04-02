@@ -1,4 +1,4 @@
-import { NoteFilter, NoteStatus, randomTxHash } from '@aztec/circuit-types';
+import { type NoteFilter, NoteStatus, randomTxHash } from '@aztec/circuit-types';
 import { AztecAddress, CompleteAddress, INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/testing';
 import { randomInt } from '@aztec/foundation/crypto';
@@ -6,9 +6,9 @@ import { Fr, Point } from '@aztec/foundation/fields';
 import { BenchmarkingContractArtifact } from '@aztec/noir-contracts.js/Benchmarking';
 import { SerializableContractInstance } from '@aztec/types/contracts';
 
-import { NoteDao } from './note_dao.js';
+import { type NoteDao } from './note_dao.js';
 import { randomNoteDao } from './note_dao.test.js';
-import { PxeDatabase } from './pxe_database.js';
+import { type PxeDatabase } from './pxe_database.js';
 
 /**
  * A common test suite for a PXE database.

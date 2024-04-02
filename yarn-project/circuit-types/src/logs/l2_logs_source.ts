@@ -1,7 +1,7 @@
-import { GetUnencryptedLogsResponse } from './get_unencrypted_logs_response.js';
-import { L2BlockL2Logs } from './l2_block_l2_logs.js';
-import { LogFilter } from './log_filter.js';
-import { FromLogType, LogType } from './log_type.js';
+import { type GetUnencryptedLogsResponse } from './get_unencrypted_logs_response.js';
+import { type L2BlockL2Logs } from './l2_block_l2_logs.js';
+import { type LogFilter } from './log_filter.js';
+import { type FromLogType, type LogType } from './log_type.js';
 
 /**
  * Interface of classes allowing for the retrieval of logs.

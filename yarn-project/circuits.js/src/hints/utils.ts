@@ -1,4 +1,4 @@
-import { Tuple } from '@aztec/foundation/serialize';
+import { type Tuple } from '@aztec/foundation/serialize';
 
 export interface IsEmpty {
   isEmpty: () => boolean;

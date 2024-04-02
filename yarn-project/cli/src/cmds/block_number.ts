@@ -1,4 +1,4 @@
-import { DebugLogger, LogFn } from '@aztec/foundation/log';
+import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
 

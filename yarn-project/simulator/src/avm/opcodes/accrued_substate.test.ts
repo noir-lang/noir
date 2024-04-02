@@ -4,8 +4,8 @@ import { EventSelector } from '@aztec/foundation/abi';
 
 import { mock } from 'jest-mock-extended';
 
-import { CommitmentsDB } from '../../index.js';
-import { AvmContext } from '../avm_context.js';
+import { type CommitmentsDB } from '../../index.js';
+import { type AvmContext } from '../avm_context.js';
 import { Field, Uint8 } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import {

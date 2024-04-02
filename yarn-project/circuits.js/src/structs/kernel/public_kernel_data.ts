@@ -1,10 +1,10 @@
 import { makeTuple } from '@aztec/foundation/array';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { VK_TREE_HEIGHT } from '../../constants.gen.js';
 import { Proof, makeEmptyProof } from '../proof.js';
-import { UInt32 } from '../shared.js';
+import { type UInt32 } from '../shared.js';
 import { VerificationKey } from '../verification_key.js';
 import { PublicKernelCircuitPublicInputs } from './public_kernel_circuit_public_inputs.js';
 

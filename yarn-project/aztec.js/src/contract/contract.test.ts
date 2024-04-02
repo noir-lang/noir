@@ -1,13 +1,13 @@
-import { Tx, TxExecutionRequest, TxHash, TxReceipt } from '@aztec/circuit-types';
+import { type Tx, type TxExecutionRequest, type TxHash, type TxReceipt } from '@aztec/circuit-types';
 import { AztecAddress, CompleteAddress, EthAddress } from '@aztec/circuits.js';
-import { L1ContractAddresses } from '@aztec/ethereum';
-import { ABIParameterVisibility, ContractArtifact, FunctionType } from '@aztec/foundation/abi';
-import { NodeInfo } from '@aztec/types/interfaces';
+import { type L1ContractAddresses } from '@aztec/ethereum';
+import { ABIParameterVisibility, type ContractArtifact, FunctionType } from '@aztec/foundation/abi';
+import { type NodeInfo } from '@aztec/types/interfaces';
 
-import { MockProxy, mock } from 'jest-mock-extended';
+import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { ContractInstanceWithAddress } from '../index.js';
-import { Wallet } from '../wallet/index.js';
+import { type ContractInstanceWithAddress } from '../index.js';
+import { type Wallet } from '../wallet/index.js';
 import { Contract } from './contract.js';
 
 describe('Contract Class', () => {

@@ -1,7 +1,7 @@
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
-import { IndexedTreeLeaf, IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { type IndexedTreeLeaf, type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
 /**
  * Class containing the data of a preimage of a single leaf in the public data tree.

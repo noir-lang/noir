@@ -1,24 +1,24 @@
 import { SchnorrAccountContractArtifact } from '@aztec/accounts/schnorr';
 import { createAccounts, getDeployedTestAccountsWallets } from '@aztec/accounts/testing';
-import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
+import { type AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import {
-  AccountWalletWithPrivateKey,
-  AztecAddress,
-  AztecNode,
+  type AccountWalletWithPrivateKey,
+  type AztecAddress,
+  type AztecNode,
   BatchCall,
   CheatCodes,
-  CompleteAddress,
-  ContractMethod,
-  DebugLogger,
-  DeployL1Contracts,
+  type CompleteAddress,
+  type ContractMethod,
+  type DebugLogger,
+  type DeployL1Contracts,
   EncryptedL2BlockL2Logs,
   EthCheatCodes,
-  L1ContractArtifactsForDeployment,
+  type L1ContractArtifactsForDeployment,
   LogType,
-  PXE,
-  SentTx,
+  type PXE,
+  type SentTx,
   SignerlessWallet,
-  Wallet,
+  type Wallet,
   createAztecNodeClient,
   createDebugLogger,
   createPXEClient,
@@ -47,17 +47,17 @@ import {
   RollupBytecode,
 } from '@aztec/l1-artifacts';
 import { getCanonicalGasToken, getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
-import { PXEService, PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
-import { SequencerClient } from '@aztec/sequencer-client';
+import { PXEService, type PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
+import { type SequencerClient } from '@aztec/sequencer-client';
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import {
-  Account,
-  Chain,
-  HDAccount,
-  HttpTransport,
-  PrivateKeyAccount,
+  type Account,
+  type Chain,
+  type HDAccount,
+  type HttpTransport,
+  type PrivateKeyAccount,
   createPublicClient,
   createWalletClient,
   getContract,

@@ -4,11 +4,11 @@ import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
 import {
-  ContractClassPublic,
-  ExecutablePrivateFunctionWithMembershipProof,
-  PrivateFunction,
-  PublicFunction,
-  UnconstrainedFunctionWithMembershipProof,
+  type ContractClassPublic,
+  type ExecutablePrivateFunctionWithMembershipProof,
+  type PrivateFunction,
+  type PublicFunction,
+  type UnconstrainedFunctionWithMembershipProof,
 } from '@aztec/types/contracts';
 
 import { SchnorrSignature } from '../barretenberg/index.js';
@@ -35,7 +35,7 @@ import {
   FunctionData,
   FunctionSelector,
   G1AffineElement,
-  GrumpkinPrivateKey,
+  type GrumpkinPrivateKey,
   GrumpkinScalar,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   L2ToL1Message,

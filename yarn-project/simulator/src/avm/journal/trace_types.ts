@@ -1,4 +1,4 @@
-import { Fr } from '@aztec/foundation/fields';
+import { type Fr } from '@aztec/foundation/fields';
 
 //export type TracedContractCall = {
 //  callPointer: Fr;

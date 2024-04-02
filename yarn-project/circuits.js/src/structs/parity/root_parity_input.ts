@@ -1,5 +1,5 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
-import { FieldsOf } from '@aztec/foundation/types';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 import { Proof } from '../proof.js';
 import { ParityPublicInputs } from './parity_public_inputs.js';

@@ -1,13 +1,13 @@
-import { CompleteAddress, GrumpkinPrivateKey, PXE } from '@aztec/circuit-types';
-import { PublicKey, getContractInstanceFromDeployParams } from '@aztec/circuits.js';
+import { CompleteAddress, type GrumpkinPrivateKey, type PXE } from '@aztec/circuit-types';
+import { type PublicKey, getContractInstanceFromDeployParams } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
-import { ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
 
-import { AccountContract } from '../account/contract.js';
-import { Salt } from '../account/index.js';
-import { AccountInterface } from '../account/interface.js';
-import { DeployMethod } from '../contract/deploy_method.js';
-import { DefaultWaitOpts, WaitOpts } from '../contract/sent_tx.js';
+import { type AccountContract } from '../account/contract.js';
+import { type Salt } from '../account/index.js';
+import { type AccountInterface } from '../account/interface.js';
+import { type DeployMethod } from '../contract/deploy_method.js';
+import { DefaultWaitOpts, type WaitOpts } from '../contract/sent_tx.js';
 import { ContractDeployer } from '../deployment/contract_deployer.js';
 import { waitForAccountSynch } from '../utils/account.js';
 import { generatePublicKey } from '../utils/index.js';

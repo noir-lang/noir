@@ -1,9 +1,15 @@
-import { ProcessedTx, Tx } from '@aztec/circuit-types';
-import { AztecAddress, EthAddress, Fr, GlobalVariables, PublicCallRequest } from '@aztec/circuits.js';
+import { type ProcessedTx, Tx } from '@aztec/circuit-types';
+import {
+  type AztecAddress,
+  type EthAddress,
+  Fr,
+  type GlobalVariables,
+  type PublicCallRequest,
+} from '@aztec/circuits.js';
 import { pedersenHash } from '@aztec/foundation/crypto';
-import { Logger, createDebugLogger } from '@aztec/foundation/log';
+import { type Logger, createDebugLogger } from '@aztec/foundation/log';
 import { getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
-import { ContractDataSource } from '@aztec/types/contracts';
+import { type ContractDataSource } from '@aztec/types/contracts';
 
 import { AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
 

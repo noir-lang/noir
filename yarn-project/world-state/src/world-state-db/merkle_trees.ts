@@ -1,4 +1,4 @@
-import { L2Block, MerkleTreeId, SiblingPath } from '@aztec/circuit-types';
+import { type L2Block, MerkleTreeId, type SiblingPath } from '@aztec/circuit-types';
 import {
   ARCHIVE_HEIGHT,
   AppendOnlyTreeSnapshot,
@@ -23,36 +23,36 @@ import {
 } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { SerialQueue } from '@aztec/foundation/fifo';
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
-import { AztecKVStore } from '@aztec/kv-store';
+import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { type AztecKVStore } from '@aztec/kv-store';
 import {
-  AppendOnlyTree,
-  BatchInsertionResult,
-  IndexedTree,
+  type AppendOnlyTree,
+  type BatchInsertionResult,
+  type IndexedTree,
   Pedersen,
   StandardIndexedTree,
   StandardTree,
-  UpdateOnlyTree,
+  type UpdateOnlyTree,
   getTreeMeta,
   loadTree,
   newTree,
 } from '@aztec/merkle-tree';
-import { Hasher } from '@aztec/types/interfaces';
+import { type Hasher } from '@aztec/types/interfaces';
 
 import {
   INITIAL_NULLIFIER_TREE_SIZE,
   INITIAL_PUBLIC_DATA_TREE_SIZE,
-  MerkleTreeDb,
-  TreeSnapshots,
+  type MerkleTreeDb,
+  type TreeSnapshots,
 } from './merkle_tree_db.js';
 import {
-  HandleL2BlockAndMessagesResult,
-  IndexedTreeId,
-  MerkleTreeLeafType,
-  MerkleTreeMap,
-  MerkleTreeOperations,
-  TreeInfo,
+  type HandleL2BlockAndMessagesResult,
+  type IndexedTreeId,
+  type MerkleTreeLeafType,
+  type MerkleTreeMap,
+  type MerkleTreeOperations,
+  type TreeInfo,
 } from './merkle_tree_operations.js';
 import { MerkleTreeOperationsFacade } from './merkle_tree_operations_facade.js';
 

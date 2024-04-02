@@ -1,21 +1,21 @@
 import {
-  AuthWitness,
-  AztecNode,
-  CompleteAddress,
+  type AuthWitness,
+  type AztecNode,
+  type CompleteAddress,
   MerkleTreeId,
-  NoteStatus,
-  NullifierMembershipWitness,
-  PublicDataWitness,
+  type NoteStatus,
+  type NullifierMembershipWitness,
+  type PublicDataWitness,
 } from '@aztec/circuit-types';
-import { Header } from '@aztec/circuits.js';
+import { type Header } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/hash';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { ContractInstance } from '@aztec/types/contracts';
+import { type ContractInstance } from '@aztec/types/contracts';
 
-import { NoteData, TypedOracle } from '../acvm/index.js';
-import { DBOracle } from './db_oracle.js';
+import { type NoteData, TypedOracle } from '../acvm/index.js';
+import { type DBOracle } from './db_oracle.js';
 import { pickNotes } from './pick_notes.js';
 
 /**

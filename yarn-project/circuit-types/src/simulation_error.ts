@@ -1,5 +1,5 @@
-import { AztecAddress, FunctionSelector } from '@aztec/circuits.js';
-import { OpcodeLocation } from '@aztec/foundation/abi';
+import { type AztecAddress, type FunctionSelector } from '@aztec/circuits.js';
+import { type OpcodeLocation } from '@aztec/foundation/abi';
 
 /**
  * Address and selector of a function that failed during simulation.

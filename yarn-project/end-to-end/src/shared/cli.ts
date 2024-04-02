@@ -1,4 +1,11 @@
-import { AztecAddress, CompleteAddress, DebugLogger, Fr, PXE, computeMessageSecretHash } from '@aztec/aztec.js';
+import {
+  AztecAddress,
+  type CompleteAddress,
+  type DebugLogger,
+  Fr,
+  type PXE,
+  computeMessageSecretHash,
+} from '@aztec/aztec.js';
 import { getProgram } from '@aztec/cli';
 
 import stringArgv from 'string-argv';

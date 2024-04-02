@@ -1,7 +1,7 @@
 import { assertMemberLength } from '@aztec/foundation/array';
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 /**
  * Contains information which can be used to prove that a leaf is a member of a Merkle tree.

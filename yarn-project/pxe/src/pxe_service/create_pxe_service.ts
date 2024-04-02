@@ -1,4 +1,4 @@
-import { AztecNode } from '@aztec/circuit-types';
+import { type AztecNode } from '@aztec/circuit-types';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { TestKeyStore } from '@aztec/key-store';
@@ -11,7 +11,7 @@ import { getCanonicalMultiCallEntrypointContract } from '@aztec/protocol-contrac
 
 import { join } from 'path';
 
-import { PXEServiceConfig } from '../config/index.js';
+import { type PXEServiceConfig } from '../config/index.js';
 import { KVPxeDatabase } from '../database/kv_pxe_database.js';
 import { PXEService } from './pxe_service.js';
 

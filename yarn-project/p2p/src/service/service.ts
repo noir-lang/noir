@@ -1,4 +1,4 @@
-import { Tx, TxHash } from '@aztec/circuit-types';
+import { type Tx, type TxHash } from '@aztec/circuit-types';
 
 /**
  * The interface for a P2P service implementation.

@@ -1,37 +1,37 @@
 import {
-  AuthWitness,
-  AztecNode,
+  type AuthWitness,
+  type AztecNode,
   EncryptedFunctionL2Logs,
   EncryptedL2Log,
   L1NotePayload,
   Note,
-  NoteStatus,
+  type NoteStatus,
   TaggedNote,
   UnencryptedFunctionL2Logs,
-  UnencryptedL2Log,
+  type UnencryptedL2Log,
 } from '@aztec/circuit-types';
 import {
   CallContext,
   FunctionData,
   FunctionSelector,
-  Header,
+  type Header,
   NoteHashReadRequestMembershipWitness,
   PublicCallRequest,
-  SideEffect,
+  type SideEffect,
   TxContext,
 } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { type Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { computePublicDataTreeLeafSlot, computeUniqueCommitment, siloNoteHash } from '@aztec/circuits.js/hash';
-import { FunctionAbi, FunctionArtifact, countArgumentsSize } from '@aztec/foundation/abi';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { type FunctionAbi, type FunctionArtifact, countArgumentsSize } from '@aztec/foundation/abi';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
+import { Fr, type Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { NoteData, toACVMWitness } from '../acvm/index.js';
-import { PackedArgsCache } from '../common/packed_args_cache.js';
-import { DBOracle } from './db_oracle.js';
-import { ExecutionNoteCache } from './execution_note_cache.js';
-import { ExecutionResult, NoteAndSlot } from './execution_result.js';
+import { type NoteData, toACVMWitness } from '../acvm/index.js';
+import { type PackedArgsCache } from '../common/packed_args_cache.js';
+import { type DBOracle } from './db_oracle.js';
+import { type ExecutionNoteCache } from './execution_note_cache.js';
+import { type ExecutionResult, type NoteAndSlot } from './execution_result.js';
 import { pickNotes } from './pick_notes.js';
 import { executePrivateFunction } from './private_execution.js';
 import { ViewDataOracle } from './view_data_oracle.js';

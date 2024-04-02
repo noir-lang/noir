@@ -2,7 +2,7 @@ import { default as hash } from 'hash.js';
 
 import { Fr } from '../../fields/fields.js';
 import { truncateAndPad } from '../../serialize/free_funcs.js';
-import { Bufferable, serializeToBuffer } from '../../serialize/serialize.js';
+import { type Bufferable, serializeToBuffer } from '../../serialize/serialize.js';
 
 export const sha256 = (data: Buffer) => Buffer.from(hash.sha256().update(data).digest());
 

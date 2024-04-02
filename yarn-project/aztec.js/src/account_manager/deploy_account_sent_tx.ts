@@ -1,8 +1,8 @@
-import { TxHash, TxReceipt } from '@aztec/circuit-types';
-import { FieldsOf } from '@aztec/foundation/types';
+import { type TxHash, type TxReceipt } from '@aztec/circuit-types';
+import { type FieldsOf } from '@aztec/foundation/types';
 
-import { Wallet } from '../account/index.js';
-import { DefaultWaitOpts, SentTx, WaitOpts } from '../contract/index.js';
+import { type Wallet } from '../account/index.js';
+import { DefaultWaitOpts, SentTx, type WaitOpts } from '../contract/index.js';
 import { waitForAccountSynch } from '../utils/account.js';
 
 /** Extends a transaction receipt with a wallet instance for the newly deployed contract. */

@@ -1,6 +1,6 @@
-import { FunctionCall } from '@aztec/circuit-types';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr } from '@aztec/foundation/fields';
+import { type FunctionCall } from '@aztec/circuit-types';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
+import { type Fr } from '@aztec/foundation/fields';
 
 /**
  * Holds information about how the fee for a transaction is to be paid.

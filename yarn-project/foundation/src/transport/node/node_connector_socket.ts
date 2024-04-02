@@ -1,6 +1,6 @@
-import { TransferListItem, Worker } from 'worker_threads';
+import { type TransferListItem, type Worker } from 'worker_threads';
 
-import { Socket } from '../interface/socket.js';
+import { type Socket } from '../interface/socket.js';
 
 /**
  * NodeConnectorSocket is a wrapper class that implements the Socket interface for messaging between

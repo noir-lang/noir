@@ -1,5 +1,5 @@
-import { AztecAddress, GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { AztecAddress, type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
+import { type Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 

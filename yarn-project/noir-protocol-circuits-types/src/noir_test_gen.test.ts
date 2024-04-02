@@ -16,7 +16,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { Pedersen, StandardTree } from '@aztec/merkle-tree';
-import { ContractClass, ContractInstance } from '@aztec/types/contracts';
+import { type ContractClass, type ContractInstance } from '@aztec/types/contracts';
 
 describe('Data generation for noir tests', () => {
   setupCustomSnapshotSerializers(expect);

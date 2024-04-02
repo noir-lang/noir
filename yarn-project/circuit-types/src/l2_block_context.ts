@@ -1,5 +1,5 @@
-import { L2Block } from './l2_block.js';
-import { TxHash } from './tx/tx_hash.js';
+import { type L2Block } from './l2_block.js';
+import { type TxHash } from './tx/tx_hash.js';
 
 /**
  * A wrapper around L2 block used to cache results of expensive operations.

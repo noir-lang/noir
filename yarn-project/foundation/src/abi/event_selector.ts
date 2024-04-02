@@ -1,6 +1,6 @@
 import { fromHex, toBigIntBE } from '../bigint-buffer/index.js';
 import { keccak, randomBytes } from '../crypto/index.js';
-import { Fr } from '../fields/fields.js';
+import { type Fr } from '../fields/fields.js';
 import { BufferReader } from '../serialize/buffer_reader.js';
 import { Selector } from './selector.js';
 

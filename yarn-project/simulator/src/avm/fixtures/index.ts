@@ -8,7 +8,12 @@ import { Fr } from '@aztec/foundation/fields';
 import { mock } from 'jest-mock-extended';
 import merge from 'lodash.merge';
 
-import { CommitmentsDB, MessageLoadOracleInputs, PublicContractsDB, PublicStateDB } from '../../index.js';
+import {
+  type CommitmentsDB,
+  MessageLoadOracleInputs,
+  type PublicContractsDB,
+  type PublicStateDB,
+} from '../../index.js';
 import { AvmContext } from '../avm_context.js';
 import { AvmContextInputs, AvmExecutionEnvironment } from '../avm_execution_environment.js';
 import { AvmMachineState } from '../avm_machine_state.js';

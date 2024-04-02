@@ -1,4 +1,4 @@
-import { GrumpkinPrivateKey, PublicKey } from '@aztec/circuits.js';
+import { type GrumpkinPrivateKey, type PublicKey } from '@aztec/circuits.js';
 
 /**
  * Represents a cryptographic public-private key pair.

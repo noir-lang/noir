@@ -1,4 +1,4 @@
-import { AvmContext } from '../avm_context.js';
+import { type AvmContext } from '../avm_context.js';
 import { Field, TypeTag, Uint8, Uint16, Uint32 } from '../avm_memory_types.js';
 import { TagCheckError } from '../errors.js';
 import { initContext } from '../fixtures/index.js';

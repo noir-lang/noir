@@ -1,5 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
-import { ContractClass } from '@aztec/types/contracts';
+import { type ContractClass } from '@aztec/types/contracts';
 
 import { FunctionSelector, computeContractClassId } from '../index.js';
 

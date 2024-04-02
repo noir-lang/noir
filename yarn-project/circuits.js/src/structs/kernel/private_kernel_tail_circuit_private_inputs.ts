@@ -1,4 +1,4 @@
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import {
   MAX_NEW_NOTE_HASHES_PER_TX,
@@ -6,9 +6,9 @@ import {
   MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
 } from '../../constants.gen.js';
-import { GrumpkinPrivateKey } from '../../index.js';
+import { type GrumpkinPrivateKey } from '../../index.js';
 import { Fr, GrumpkinScalar } from '../index.js';
-import { NullifierReadRequestHints, nullifierReadRequestHintsFromBuffer } from '../read_request_hints.js';
+import { type NullifierReadRequestHints, nullifierReadRequestHintsFromBuffer } from '../read_request_hints.js';
 import { SideEffect, SideEffectLinkedToNoteHash } from '../side_effects.js';
 import { PrivateKernelInnerData } from './private_kernel_inner_data.js';
 

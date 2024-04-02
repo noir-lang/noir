@@ -1,5 +1,5 @@
 declare module 'browserify-cipher' {
-  import { Cipher } from 'crypto';
+  import { type Cipher } from 'crypto';
 
   /**
    * Type representing supported cipher algorithms for encryption and decryption.

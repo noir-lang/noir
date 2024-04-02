@@ -1,5 +1,5 @@
 import { Body } from '@aztec/circuit-types';
-import { AztecKVStore, AztecMap } from '@aztec/kv-store';
+import { type AztecKVStore, type AztecMap } from '@aztec/kv-store';
 
 export class BlockBodyStore {
   /** Map block body hash to block body */

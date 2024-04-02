@@ -1,6 +1,6 @@
 import { keccak, pedersenHash, poseidonHash, sha256 } from '@aztec/foundation/crypto';
 
-import { AvmContext } from '../avm_context.js';
+import { type AvmContext } from '../avm_context.js';
 import { Field, Uint32 } from '../avm_memory_types.js';
 import { initContext } from '../fixtures/index.js';
 import { Addressing, AddressingMode } from './addressing_mode.js';

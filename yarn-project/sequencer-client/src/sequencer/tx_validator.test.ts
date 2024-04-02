@@ -1,13 +1,13 @@
 import { mockTx as baseMockTx } from '@aztec/circuit-types';
 import {
-  AztecAddress,
+  type AztecAddress,
   CallContext,
   CallRequest,
   EthAddress,
   Fr,
   FunctionData,
   FunctionSelector,
-  GlobalVariables,
+  type GlobalVariables,
   MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   PublicCallRequest,
@@ -16,11 +16,11 @@ import { makeAztecAddress, makeGlobalVariables } from '@aztec/circuits.js/testin
 import { makeTuple } from '@aztec/foundation/array';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
-import { ContractDataSource } from '@aztec/types/contracts';
+import { type ContractDataSource } from '@aztec/types/contracts';
 
-import { MockProxy, mock, mockFn } from 'jest-mock-extended';
+import { type MockProxy, mock, mockFn } from 'jest-mock-extended';
 
-import { NullifierSource, PublicStateSource, TxValidator } from './tx_validator.js';
+import { type NullifierSource, type PublicStateSource, TxValidator } from './tx_validator.js';
 
 describe('TxValidator', () => {
   let validator: TxValidator;

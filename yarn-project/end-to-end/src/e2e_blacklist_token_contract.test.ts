@@ -1,21 +1,21 @@
 import {
-  AccountWallet,
+  type AccountWallet,
   AztecAddress,
-  CheatCodes,
-  CompleteAddress,
-  DebugLogger,
+  type CheatCodes,
+  type CompleteAddress,
+  type DebugLogger,
   ExtendedNote,
   Fr,
   FunctionSelector,
   Note,
-  TxHash,
-  Wallet,
+  type TxHash,
+  type Wallet,
   computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { Pedersen, SparseTree, newTree } from '@aztec/merkle-tree';
-import { SlowTreeContract, TokenBlacklistContract, TokenContract } from '@aztec/noir-contracts.js';
+import { SlowTreeContract, TokenBlacklistContract, type TokenContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
 

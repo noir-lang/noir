@@ -1,7 +1,7 @@
-import { Fr, GlobalVariables, Proof } from '@aztec/circuits.js';
+import { type Fr, type GlobalVariables, type Proof } from '@aztec/circuits.js';
 
-import { L2Block } from '../l2_block.js';
-import { ProcessedTx } from '../tx/processed_tx.js';
+import { type L2Block } from '../l2_block.js';
+import { type ProcessedTx } from '../tx/processed_tx.js';
 
 export enum PROVING_STATUS {
   SUCCESS,

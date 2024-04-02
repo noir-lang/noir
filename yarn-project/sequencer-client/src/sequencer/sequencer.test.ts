@@ -1,12 +1,12 @@
 import {
-  L1ToL2MessageSource,
+  type L1ToL2MessageSource,
   L2Block,
-  L2BlockSource,
+  type L2BlockSource,
   MerkleTreeId,
   PROVING_STATUS,
-  ProverClient,
-  ProvingSuccess,
-  ProvingTicket,
+  type ProverClient,
+  type ProvingSuccess,
+  type ProvingTicket,
   makeEmptyProcessedTx,
   makeProcessedTx,
   mockTx,
@@ -20,15 +20,15 @@ import {
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { P2P, P2PClientState } from '@aztec/p2p';
-import { ContractDataSource } from '@aztec/types/contracts';
-import { MerkleTreeOperations, WorldStateRunningState, WorldStateSynchronizer } from '@aztec/world-state';
+import { type P2P, P2PClientState } from '@aztec/p2p';
+import { type ContractDataSource } from '@aztec/types/contracts';
+import { type MerkleTreeOperations, WorldStateRunningState, type WorldStateSynchronizer } from '@aztec/world-state';
 
-import { MockProxy, mock, mockFn } from 'jest-mock-extended';
+import { type MockProxy, mock, mockFn } from 'jest-mock-extended';
 
-import { GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
-import { L1Publisher } from '../index.js';
-import { PublicProcessor, PublicProcessorFactory } from './public_processor.js';
+import { type GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
+import { type L1Publisher } from '../index.js';
+import { type PublicProcessor, type PublicProcessorFactory } from './public_processor.js';
 import { Sequencer } from './sequencer.js';
 import { TxValidatorFactory } from './tx_validator_factory.js';
 

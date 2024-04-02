@@ -1,4 +1,4 @@
-import { L2Block, L2BlockSource, TxEffect, TxHash, TxReceipt, TxStatus } from '@aztec/circuit-types';
+import { L2Block, type L2BlockSource, type TxEffect, type TxHash, TxReceipt, TxStatus } from '@aztec/circuit-types';
 import { EthAddress } from '@aztec/circuits.js';
 
 /**

@@ -1,4 +1,4 @@
-import { Tx } from '@aztec/circuit-types';
+import { type Tx } from '@aztec/circuit-types';
 import { CallRequest } from '@aztec/circuits.js';
 
 /**

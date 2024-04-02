@@ -1,6 +1,6 @@
-import { AztecAddress } from '@aztec/circuits.js';
+import { type AztecAddress } from '@aztec/circuits.js';
 
-import { ProtocolContract, getCanonicalProtocolContract } from '../protocol_contract.js';
+import { type ProtocolContract, getCanonicalProtocolContract } from '../protocol_contract.js';
 import { ContractClassRegistererArtifact } from './artifact.js';
 
 /** Returns the canonical deployment of the class registerer contract. */

@@ -1,7 +1,7 @@
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { Tuple } from '@aztec/foundation/serialize';
+import { type Tuple } from '@aztec/foundation/serialize';
 import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 
 import { getSampleUnconstrainedFunctionBroadcastedEventPayload } from '../../tests/fixtures.js';

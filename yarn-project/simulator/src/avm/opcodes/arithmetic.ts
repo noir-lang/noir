@@ -1,6 +1,6 @@
 import type { AvmContext } from '../avm_context.js';
-import { GasCost, GasCostConstants, getGasCostMultiplierFromTypeTag, makeGasCost } from '../avm_gas_cost.js';
-import { Field, MemoryValue, TypeTag } from '../avm_memory_types.js';
+import { type GasCost, GasCostConstants, getGasCostMultiplierFromTypeTag, makeGasCost } from '../avm_gas_cost.js';
+import { type Field, type MemoryValue, TypeTag } from '../avm_memory_types.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing, AddressingMode } from './addressing_mode.js';
 import { Instruction } from './instruction.js';

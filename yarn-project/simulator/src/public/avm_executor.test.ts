@@ -1,13 +1,13 @@
-import { AztecAddress, CallContext, EthAddress, FunctionData, FunctionSelector, Header } from '@aztec/circuits.js';
+import { AztecAddress, CallContext, EthAddress, FunctionData, FunctionSelector, type Header } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/testing';
 import { randomInt } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { AvmTestContractArtifact } from '@aztec/noir-contracts.js';
 
-import { MockProxy, mock } from 'jest-mock-extended';
+import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
-import { PublicExecution } from './execution.js';
+import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db.js';
+import { type PublicExecution } from './execution.js';
 import { PublicExecutor } from './executor.js';
 
 describe('AVM WitGen and Proof Generation', () => {

@@ -1,5 +1,5 @@
-import { GlobalReaderConfig } from './config.js';
-import { GlobalVariableBuilder, SimpleTestGlobalVariableBuilder } from './global_builder.js';
+import { type GlobalReaderConfig } from './config.js';
+import { type GlobalVariableBuilder, SimpleTestGlobalVariableBuilder } from './global_builder.js';
 import { ViemReader } from './viem-reader.js';
 
 export { SimpleTestGlobalVariableBuilder as SimpleGlobalVariableBuilder } from './global_builder.js';

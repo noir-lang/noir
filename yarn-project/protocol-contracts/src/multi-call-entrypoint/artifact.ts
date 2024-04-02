@@ -1,5 +1,5 @@
 import { loadContractArtifact } from '@aztec/types/abi';
-import { NoirCompiledContract } from '@aztec/types/noir';
+import { type NoirCompiledContract } from '@aztec/types/noir';
 
 import MultiCallEntrypoint from '../artifacts/MultiCallEntrypoint.json' assert { type: 'json' };
 

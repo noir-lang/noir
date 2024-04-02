@@ -3,15 +3,15 @@ import { Fr } from '@aztec/foundation/fields';
 import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
 
-import { CommitmentsDB, PublicContractsDB, PublicStateDB } from '../../index.js';
-import { AvmContext } from '../avm_context.js';
+import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from '../../index.js';
+import { type AvmContext } from '../avm_context.js';
 import { Field, Uint8 } from '../avm_memory_types.js';
 import { adjustCalldataIndex, initContext } from '../fixtures/index.js';
 import { HostStorage } from '../journal/host_storage.js';
 import { AvmPersistableStateManager } from '../journal/journal.js';
 import { encodeToBytecode } from '../serialization/bytecode_serialization.js';
 import { Call, Return, Revert, StaticCall } from './external_calls.js';
-import { Instruction } from './instruction.js';
+import { type Instruction } from './instruction.js';
 import { CalldataCopy } from './memory.js';
 import { SStore } from './storage.js';
 

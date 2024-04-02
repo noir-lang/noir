@@ -6,7 +6,7 @@ import {
   Fr,
   GrumpkinScalar,
   Note,
-  PXE,
+  type PXE,
   computeMessageSecretHash,
   createDebugLogger,
   createPXEClient,

@@ -1,9 +1,9 @@
-import { ContractArtifact, FunctionArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { type ContractArtifact, type FunctionArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
-import { ContractClass, ContractClassWithId } from '@aztec/types/contracts';
+import { type ContractClass, type ContractClassWithId } from '@aztec/types/contracts';
 
 import { computeArtifactHash } from './artifact_hash.js';
-import { ContractClassIdPreimage, computeContractClassIdWithPreimage } from './contract_class_id.js';
+import { type ContractClassIdPreimage, computeContractClassIdWithPreimage } from './contract_class_id.js';
 import { packBytecode } from './public_bytecode.js';
 
 /** Contract artifact including its artifact hash */

@@ -1,30 +1,30 @@
 import {
-  AztecNode,
-  KeyStore,
-  L2Block,
+  type AztecNode,
+  type KeyStore,
+  type L2Block,
   MerkleTreeId,
-  NoteStatus,
-  NullifierMembershipWitness,
-  PublicDataWitness,
-  SiblingPath,
+  type NoteStatus,
+  type NullifierMembershipWitness,
+  type PublicDataWitness,
+  type SiblingPath,
 } from '@aztec/circuit-types';
 import {
-  AztecAddress,
-  CompleteAddress,
-  EthAddress,
-  Fr,
-  FunctionSelector,
-  Header,
-  L1_TO_L2_MSG_TREE_HEIGHT,
+  type AztecAddress,
+  type CompleteAddress,
+  type EthAddress,
+  type Fr,
+  type FunctionSelector,
+  type Header,
+  type L1_TO_L2_MSG_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { computeL1ToL2MessageNullifier } from '@aztec/circuits.js/hash';
-import { FunctionArtifactWithDebugMetadata, getFunctionArtifactWithDebugMetadata } from '@aztec/foundation/abi';
+import { type FunctionArtifactWithDebugMetadata, getFunctionArtifactWithDebugMetadata } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { DBOracle, KeyPair, MessageLoadOracleInputs } from '@aztec/simulator';
-import { ContractInstance } from '@aztec/types/contracts';
+import { type DBOracle, type KeyPair, MessageLoadOracleInputs } from '@aztec/simulator';
+import { type ContractInstance } from '@aztec/types/contracts';
 
-import { ContractDataOracle } from '../contract_data_oracle/index.js';
-import { PxeDatabase } from '../database/index.js';
+import { type ContractDataOracle } from '../contract_data_oracle/index.js';
+import { type PxeDatabase } from '../database/index.js';
 
 /**
  * A data oracle that provides information needed for simulating a transaction.

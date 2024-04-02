@@ -1,4 +1,4 @@
-import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { pedersenHash, pedersenHashBuffer } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';

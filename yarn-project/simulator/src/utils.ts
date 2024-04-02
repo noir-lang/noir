@@ -1,5 +1,5 @@
 import { pedersenHash } from '@aztec/foundation/crypto';
-import { Fr } from '@aztec/foundation/fields';
+import { type Fr } from '@aztec/foundation/fields';
 
 /**
  * Computes the resulting storage slot for an entry in a mapping.

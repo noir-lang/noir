@@ -1,5 +1,5 @@
-import { AccountWalletWithPrivateKey } from '@aztec/aztec.js/wallet';
-import { PXE } from '@aztec/circuit-types';
+import { type AccountWalletWithPrivateKey } from '@aztec/aztec.js/wallet';
+import { type PXE } from '@aztec/circuit-types';
 import { GrumpkinScalar } from '@aztec/circuits.js';
 
 import { getSchnorrAccount } from '../schnorr/index.js';

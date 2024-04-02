@@ -1,6 +1,13 @@
-import { ExtendedNote, GetUnencryptedLogsResponse, PXE, TxHash, TxReceipt, TxStatus } from '@aztec/circuit-types';
+import {
+  type ExtendedNote,
+  type GetUnencryptedLogsResponse,
+  type PXE,
+  type TxHash,
+  type TxReceipt,
+  TxStatus,
+} from '@aztec/circuit-types';
 import { retryUntil } from '@aztec/foundation/retry';
-import { FieldsOf } from '@aztec/foundation/types';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 /** Options related to waiting for a tx. */
 export type WaitOpts = {

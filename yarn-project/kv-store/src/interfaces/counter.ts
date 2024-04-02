@@ -1,4 +1,4 @@
-import { Key, Range } from './common.js';
+import { type Key, type Range } from './common.js';
 
 /**
  * A map that counts how many times it sees a key. Once 0 is reached,  that key is removed from the map.

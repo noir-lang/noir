@@ -1,9 +1,9 @@
 import { L2Block } from '@aztec/circuit-types';
 
-import { MockProxy, mock } from 'jest-mock-extended';
+import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { sleep } from '../utils.js';
-import { L1Publisher, L1PublisherTxSender, MinimalTransactionReceipt } from './l1-publisher.js';
+import { L1Publisher, type L1PublisherTxSender, type MinimalTransactionReceipt } from './l1-publisher.js';
 
 describe('L1Publisher', () => {
   let txSender: MockProxy<L1PublisherTxSender>;

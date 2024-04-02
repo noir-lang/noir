@@ -1,9 +1,9 @@
-import { DebugLogger } from '@aztec/foundation/log';
-import { NativeACVMSimulator, SimulationProvider, WASMSimulator } from '@aztec/simulator';
+import { type DebugLogger } from '@aztec/foundation/log';
+import { NativeACVMSimulator, type SimulationProvider, WASMSimulator } from '@aztec/simulator';
 
 import * as fs from 'fs/promises';
 
-import { AztecNodeConfig } from './config.js';
+import { type AztecNodeConfig } from './config.js';
 
 export async function getSimulationProvider(
   config: AztecNodeConfig,

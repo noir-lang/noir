@@ -1,6 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { AvmContext } from '../avm_context.js';
+import { type AvmContext } from '../avm_context.js';
 import { Field, TypeTag, Uint8, Uint16, Uint32, Uint64, Uint128 } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { adjustCalldataIndex, initContext, initExecutionEnvironment } from '../fixtures/index.js';

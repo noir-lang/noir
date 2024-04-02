@@ -1,7 +1,7 @@
-import { L1NotePayload, TxHash } from '@aztec/circuit-types';
-import { Fr, PublicKey } from '@aztec/circuits.js';
+import { type L1NotePayload, type TxHash } from '@aztec/circuit-types';
+import { Fr, type PublicKey } from '@aztec/circuits.js';
 import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/hash';
-import { AcirSimulator } from '@aztec/simulator';
+import { type AcirSimulator } from '@aztec/simulator';
 
 import { NoteDao } from '../database/note_dao.js';
 

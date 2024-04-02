@@ -1,11 +1,11 @@
-import { L2BlockSource } from '@aztec/circuit-types';
-import { AztecKVStore } from '@aztec/kv-store';
+import { type L2BlockSource } from '@aztec/circuit-types';
+import { type AztecKVStore } from '@aztec/kv-store';
 
 import { P2PClient } from '../client/p2p_client.js';
-import { P2PConfig } from '../config.js';
+import { type P2PConfig } from '../config.js';
 import { DummyP2PService } from '../service/dummy_service.js';
 import { LibP2PService } from '../service/index.js';
-import { TxPool } from '../tx_pool/index.js';
+import { type TxPool } from '../tx_pool/index.js';
 
 export * from './p2p_client.js';
 

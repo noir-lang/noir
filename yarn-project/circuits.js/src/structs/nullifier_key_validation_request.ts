@@ -1,12 +1,12 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
+import { type Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import {
   NULLIFIER_KEY_VALIDATION_REQUEST_CONTEXT_LENGTH,
   NULLIFIER_KEY_VALIDATION_REQUEST_LENGTH,
 } from '../constants.gen.js';
-import { GrumpkinPrivateKey } from '../types/grumpkin_private_key.js';
+import { type GrumpkinPrivateKey } from '../types/grumpkin_private_key.js';
 
 /**
  * Request for validating a nullifier key pair used in the app.

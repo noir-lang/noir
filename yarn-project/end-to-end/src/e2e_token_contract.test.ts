@@ -1,12 +1,12 @@
 import {
-  AccountWallet,
-  CompleteAddress,
-  DebugLogger,
+  type AccountWallet,
+  type CompleteAddress,
+  type DebugLogger,
   ExtendedNote,
   Fr,
   FunctionSelector,
   Note,
-  TxHash,
+  type TxHash,
   computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';

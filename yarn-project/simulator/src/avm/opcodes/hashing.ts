@@ -1,7 +1,7 @@
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { keccak, pedersenHash, poseidonHash, sha256 } from '@aztec/foundation/crypto';
 
-import { AvmContext } from '../avm_context.js';
+import { type AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing } from './addressing_mode.js';

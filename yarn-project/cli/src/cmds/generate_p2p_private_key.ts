@@ -1,4 +1,4 @@
-import { LogFn } from '@aztec/foundation/log';
+import { type LogFn } from '@aztec/foundation/log';
 
 import { createSecp256k1PeerId } from '@libp2p/peer-id-factory';
 

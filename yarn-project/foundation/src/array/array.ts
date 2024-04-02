@@ -1,4 +1,4 @@
-import { Tuple } from '../serialize/index.js';
+import { type Tuple } from '../serialize/index.js';
 
 export type { FieldsOf } from '../types/index.js';
 

@@ -1,4 +1,4 @@
-import { Body, TxEffect, TxHash } from '@aztec/circuit-types';
+import { Body, type TxEffect, TxHash } from '@aztec/circuit-types';
 import { AppendOnlyTreeSnapshot, Header, STRING_ENCODING } from '@aztec/circuits.js';
 import { sha256, sha256ToField } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';

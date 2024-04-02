@@ -1,11 +1,11 @@
 import { createAccount, getDeployedTestAccountsWallets } from '@aztec/accounts/testing';
 import {
-  AccountWallet,
+  type AccountWallet,
   CheatCodes,
   ExtendedNote,
   Fr,
   Note,
-  PXE,
+  type PXE,
   TxStatus,
   computeMessageSecretHash,
   createPXEClient,

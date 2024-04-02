@@ -2,7 +2,7 @@ import debug from 'debug';
 import isNode from 'detect-node';
 import { isatty } from 'tty';
 
-import { LogData, LogFn } from './log_fn.js';
+import { type LogData, type LogFn } from './log_fn.js';
 
 // Matches a subset of Winston log levels
 const LogLevels = ['silent', 'error', 'warn', 'info', 'verbose', 'debug', 'trace'] as const;

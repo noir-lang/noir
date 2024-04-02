@@ -1,4 +1,4 @@
-import { AztecAddress, DebugLogger, EthAddress } from '@aztec/aztec.js';
+import { type AztecAddress, type DebugLogger, type EthAddress } from '@aztec/aztec.js';
 
 import { setup } from './fixtures/utils.js';
 import { CrossChainTestHarness } from './shared/cross_chain_test_harness.js';

@@ -1,9 +1,13 @@
-import { EncryptedFunctionL2Logs, Note, UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
-import { NoteHashReadRequestMembershipWitness, PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
-import { DecodedReturn } from '@aztec/foundation/abi';
-import { Fr } from '@aztec/foundation/fields';
+import { type EncryptedFunctionL2Logs, type Note, type UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
+import {
+  type NoteHashReadRequestMembershipWitness,
+  type PrivateCallStackItem,
+  type PublicCallRequest,
+} from '@aztec/circuits.js';
+import { type DecodedReturn } from '@aztec/foundation/abi';
+import { type Fr } from '@aztec/foundation/fields';
 
-import { ACVMField } from '../acvm/index.js';
+import { type ACVMField } from '../acvm/index.js';
 
 /**
  * The contents of a new note.

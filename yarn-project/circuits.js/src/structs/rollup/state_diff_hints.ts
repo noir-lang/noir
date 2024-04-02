@@ -1,16 +1,16 @@
-import { Fr } from '@aztec/foundation/fields';
-import { Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
-import { FieldsOf } from '@aztec/foundation/types';
+import { type Fr } from '@aztec/foundation/fields';
+import { type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 import {
-  MAX_NEW_NULLIFIERS_PER_TX,
-  NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
-  NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
-  NULLIFIER_TREE_HEIGHT,
-  PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
+  type MAX_NEW_NULLIFIERS_PER_TX,
+  type NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH,
+  type NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
+  type NULLIFIER_TREE_HEIGHT,
+  type PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
 } from '../../constants.gen.js';
-import { MembershipWitness } from '../membership_witness.js';
-import { NullifierLeafPreimage } from './nullifier_leaf/index.js';
+import { type MembershipWitness } from '../membership_witness.js';
+import { type NullifierLeafPreimage } from './nullifier_leaf/index.js';
 
 /**
  * Hints used while proving state diff validity.

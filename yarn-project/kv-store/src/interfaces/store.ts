@@ -1,8 +1,8 @@
-import { AztecArray } from './array.js';
-import { Key } from './common.js';
-import { AztecCounter } from './counter.js';
-import { AztecMap, AztecMultiMap } from './map.js';
-import { AztecSingleton } from './singleton.js';
+import { type AztecArray } from './array.js';
+import { type Key } from './common.js';
+import { type AztecCounter } from './counter.js';
+import { type AztecMap, type AztecMultiMap } from './map.js';
+import { type AztecSingleton } from './singleton.js';
 
 /** A key-value store */
 export interface AztecKVStore {

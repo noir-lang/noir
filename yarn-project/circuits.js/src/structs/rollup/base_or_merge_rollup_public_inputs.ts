@@ -3,7 +3,7 @@ import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { AggregationObject } from '../aggregation_object.js';
 import { PartialStateReference } from '../partial_state_reference.js';
-import { RollupTypes } from '../shared.js';
+import { type RollupTypes } from '../shared.js';
 import { ConstantRollupData } from './base_rollup.js';
 
 /**

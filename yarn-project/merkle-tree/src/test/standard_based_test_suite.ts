@@ -1,12 +1,12 @@
 import { SiblingPath } from '@aztec/circuit-types';
 import { randomBytes } from '@aztec/foundation/crypto';
-import { AztecKVStore } from '@aztec/kv-store';
+import { type AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
-import { Hasher } from '@aztec/types/interfaces';
+import { type Hasher } from '@aztec/types/interfaces';
 
 import { INITIAL_LEAF, Pedersen } from '../index.js';
-import { AppendOnlyTree } from '../interfaces/append_only_tree.js';
-import { UpdateOnlyTree } from '../interfaces/update_only_tree.js';
+import { type AppendOnlyTree } from '../interfaces/append_only_tree.js';
+import { type UpdateOnlyTree } from '../interfaces/update_only_tree.js';
 import { appendLeaves } from './utils/append_leaves.js';
 
 const TEST_TREE_DEPTH = 2;

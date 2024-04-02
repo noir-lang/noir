@@ -6,7 +6,7 @@
  *
  * @packageDocumentation
  */
-import { Fr } from '@aztec/circuits.js';
+import { type Fr } from '@aztec/circuits.js';
 
 export { AccountContract } from './contract.js';
 export { AccountInterface, AuthWitnessProvider } from './interface.js';

@@ -1,6 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { TracedL1toL2MessageCheck, TracedNoteHashCheck, TracedNullifierCheck } from './trace_types.js';
+import { type TracedL1toL2MessageCheck, type TracedNoteHashCheck, type TracedNullifierCheck } from './trace_types.js';
 
 export class WorldStateAccessTrace {
   public accessCounter: number;

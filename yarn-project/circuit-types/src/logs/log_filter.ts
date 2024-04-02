@@ -1,8 +1,8 @@
-import { AztecAddress } from '@aztec/circuits.js';
-import { EventSelector } from '@aztec/foundation/abi';
+import { type AztecAddress } from '@aztec/circuits.js';
+import { type EventSelector } from '@aztec/foundation/abi';
 
-import { TxHash } from '../tx/tx_hash.js';
-import { LogId } from './log_id.js';
+import { type TxHash } from '../tx/tx_hash.js';
+import { type LogId } from './log_id.js';
 
 /**
  * Log filter used to fetch L2 logs.

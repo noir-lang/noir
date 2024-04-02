@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 
-import { TaggedMemory } from '../avm_memory_types.js';
+import { type TaggedMemory } from '../avm_memory_types.js';
 
 export enum AddressingMode {
   DIRECT,

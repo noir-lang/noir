@@ -2,9 +2,9 @@ import { BufferReader, prefixBufferWithLength } from '@aztec/foundation/serializ
 
 import isEqual from 'lodash.isequal';
 
-import { EncryptedL2Log } from './encrypted_l2_log.js';
-import { EncryptedTxL2Logs, TxL2Logs, UnencryptedTxL2Logs } from './tx_l2_logs.js';
-import { UnencryptedL2Log } from './unencrypted_l2_log.js';
+import { type EncryptedL2Log } from './encrypted_l2_log.js';
+import { EncryptedTxL2Logs, type TxL2Logs, UnencryptedTxL2Logs } from './tx_l2_logs.js';
+import { type UnencryptedL2Log } from './unencrypted_l2_log.js';
 
 /**
  * Data container of logs emitted in all txs in a given L2 block.

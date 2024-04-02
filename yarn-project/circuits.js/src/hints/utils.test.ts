@@ -1,6 +1,6 @@
-import { IsEmpty } from '@aztec/circuits.js';
+import { type IsEmpty } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
-import { Tuple } from '@aztec/foundation/serialize';
+import { type Tuple } from '@aztec/foundation/serialize';
 
 import { concatAccumulatedData, countAccumulatedItems, mergeAccumulatedData } from './utils.js';
 

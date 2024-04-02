@@ -1,8 +1,8 @@
-import { FunctionCall, TxExecutionRequest } from '@aztec/circuit-types';
-import { AztecAddress, FunctionData } from '@aztec/circuits.js';
-import { FunctionAbi, FunctionType, encodeArguments } from '@aztec/foundation/abi';
+import { type FunctionCall, type TxExecutionRequest } from '@aztec/circuit-types';
+import { type AztecAddress, FunctionData } from '@aztec/circuits.js';
+import { type FunctionAbi, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 
-import { Wallet } from '../account/wallet.js';
+import { type Wallet } from '../account/wallet.js';
 import { BaseContractInteraction, SendMethodOptions } from './base_contract_interaction.js';
 
 export { SendMethodOptions };

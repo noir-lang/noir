@@ -1,15 +1,20 @@
 import { SiblingPath } from '@aztec/circuit-types';
-import { TreeInsertionStats } from '@aztec/circuit-types/stats';
+import { type TreeInsertionStats } from '@aztec/circuit-types/stats';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { FromBuffer } from '@aztec/foundation/serialize';
+import { type FromBuffer } from '@aztec/foundation/serialize';
 import { Timer } from '@aztec/foundation/timer';
-import { IndexedTreeLeaf, IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
-import { AztecKVStore, AztecMap } from '@aztec/kv-store';
-import { Hasher } from '@aztec/types/interfaces';
+import { type IndexedTreeLeaf, type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { type AztecKVStore, type AztecMap } from '@aztec/kv-store';
+import { type Hasher } from '@aztec/types/interfaces';
 
-import { BatchInsertionResult, IndexedTree, LowLeafWitnessData, PreimageFactory } from '../interfaces/indexed_tree.js';
+import {
+  type BatchInsertionResult,
+  type IndexedTree,
+  type LowLeafWitnessData,
+  type PreimageFactory,
+} from '../interfaces/indexed_tree.js';
 import { IndexedTreeSnapshotBuilder } from '../snapshots/indexed_tree_snapshot.js';
-import { IndexedTreeSnapshot } from '../snapshots/snapshot_builder.js';
+import { type IndexedTreeSnapshot } from '../snapshots/snapshot_builder.js';
 import { TreeBase } from '../tree_base.js';
 
 export const buildDbKeyForPreimage = (name: string, index: bigint) => {

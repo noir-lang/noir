@@ -1,4 +1,4 @@
-import { StatsEventName } from './stats.js';
+import { type StatsEventName } from './stats.js';
 
 /** How a metric is grouped in benchmarks: by block size, by length of chain processed, or by circuit name. */
 export type MetricGroupBy =

@@ -1,4 +1,4 @@
-import { Fr } from '@aztec/circuits.js';
+import { type Fr } from '@aztec/circuits.js';
 
 import type { AvmContext } from '../avm_context.js';
 import type { AvmExecutionEnvironment } from '../avm_execution_environment.js';

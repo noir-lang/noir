@@ -1,11 +1,11 @@
 import {
-  AccountWallet,
+  type AccountWallet,
   AztecAddress,
-  AztecNode,
-  DebugLogger,
+  type AztecNode,
+  type DebugLogger,
   EthAddress,
   Fr,
-  PXE,
+  type PXE,
   computeAuthWitMessageHash,
 } from '@aztec/aztec.js';
 import { deployL1Contract } from '@aztec/ethereum';
@@ -15,12 +15,12 @@ import { UniswapContract } from '@aztec/noir-contracts.js/Uniswap';
 
 import { jest } from '@jest/globals';
 import {
-  Account,
-  Chain,
-  GetContractReturnType,
-  HttpTransport,
-  PublicClient,
-  WalletClient,
+  type Account,
+  type Chain,
+  type GetContractReturnType,
+  type HttpTransport,
+  type PublicClient,
+  type WalletClient,
   decodeEventLog,
   getContract,
   parseEther,

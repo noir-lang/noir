@@ -2,12 +2,12 @@ import { makeTuple } from '@aztec/foundation/array';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugOnlyLogger } from '@aztec/foundation/log';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { inspect } from 'util';
 
 import {
-  MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+  type MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,

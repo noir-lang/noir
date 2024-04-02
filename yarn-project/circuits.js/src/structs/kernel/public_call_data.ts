@@ -1,10 +1,10 @@
-import { Fr } from '@aztec/foundation/fields';
-import { Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { type Fr } from '@aztec/foundation/fields';
+import { type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL } from '../../constants.gen.js';
-import { CallRequest } from '../call_request.js';
-import { Proof } from '../proof.js';
-import { PublicCallStackItem } from '../public_call_stack_item.js';
+import { type MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL } from '../../constants.gen.js';
+import { type CallRequest } from '../call_request.js';
+import { type Proof } from '../proof.js';
+import { type PublicCallStackItem } from '../public_call_stack_item.js';
 
 /**
  * Public calldata assembled from the kernel execution result and proof.

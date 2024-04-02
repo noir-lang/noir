@@ -1,4 +1,4 @@
-import { Database, open } from 'lmdb';
+import { type Database, open } from 'lmdb';
 
 import { LmdbAztecArray } from './array.js';
 

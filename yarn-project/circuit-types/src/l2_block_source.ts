@@ -1,9 +1,9 @@
-import { EthAddress } from '@aztec/circuits.js';
+import { type EthAddress } from '@aztec/circuits.js';
 
-import { L2Block } from './l2_block.js';
-import { TxHash } from './tx/tx_hash.js';
-import { TxReceipt } from './tx/tx_receipt.js';
-import { TxEffect } from './tx_effect.js';
+import { type L2Block } from './l2_block.js';
+import { type TxHash } from './tx/tx_hash.js';
+import { type TxReceipt } from './tx/tx_receipt.js';
+import { type TxEffect } from './tx_effect.js';
 
 /**
  * Interface of classes allowing for the retrieval of L2 blocks.

@@ -1,4 +1,4 @@
-import { WitnessMap } from '@noir-lang/acvm_js';
+import { type WitnessMap } from '@noir-lang/acvm_js';
 
 /**
  * ACVMField

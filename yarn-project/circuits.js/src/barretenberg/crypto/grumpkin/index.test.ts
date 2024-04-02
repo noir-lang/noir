@@ -1,6 +1,6 @@
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { GrumpkinScalar, Point } from '../../../index.js';
+import { GrumpkinScalar, type Point } from '../../../index.js';
 import { Grumpkin } from './index.js';
 
 const debug = createDebugLogger('bb:grumpkin_test');

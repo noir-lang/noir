@@ -1,4 +1,13 @@
-import { DebugLogger, ExtendedNote, Fr, Note, PXE, SignerlessWallet, Wallet, toBigInt } from '@aztec/aztec.js';
+import {
+  type DebugLogger,
+  ExtendedNote,
+  Fr,
+  Note,
+  type PXE,
+  SignerlessWallet,
+  type Wallet,
+  toBigInt,
+} from '@aztec/aztec.js';
 import { siloNullifier } from '@aztec/circuits.js/hash';
 import { TestContract } from '@aztec/noir-contracts.js/Test';
 

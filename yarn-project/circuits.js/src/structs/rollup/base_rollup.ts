@@ -1,22 +1,22 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
-import { FieldsOf } from '@aztec/foundation/types';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 import {
-  ARCHIVE_HEIGHT,
-  MAX_PUBLIC_DATA_READS_PER_TX,
-  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  PUBLIC_DATA_TREE_HEIGHT,
+  type ARCHIVE_HEIGHT,
+  type MAX_PUBLIC_DATA_READS_PER_TX,
+  type MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  type PUBLIC_DATA_TREE_HEIGHT,
 } from '../../constants.gen.js';
 import { GlobalVariables } from '../global_variables.js';
-import { RollupKernelData } from '../kernel/rollup_kernel_data.js';
-import { MembershipWitness } from '../membership_witness.js';
-import { PartialStateReference } from '../partial_state_reference.js';
-import { UInt32 } from '../shared.js';
+import { type RollupKernelData } from '../kernel/rollup_kernel_data.js';
+import { type MembershipWitness } from '../membership_witness.js';
+import { type PartialStateReference } from '../partial_state_reference.js';
+import { type UInt32 } from '../shared.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
 import { NullifierLeaf, NullifierLeafPreimage } from './nullifier_leaf/index.js';
 import { PublicDataTreeLeaf, PublicDataTreeLeafPreimage } from './public_data_leaf/index.js';
-import { StateDiffHints } from './state_diff_hints.js';
+import { type StateDiffHints } from './state_diff_hints.js';
 
 export { NullifierLeaf, NullifierLeafPreimage, PublicDataTreeLeaf, PublicDataTreeLeafPreimage };
 

@@ -1,6 +1,6 @@
-import EventEmitter from 'events';
+import type EventEmitter from 'events';
 
-import { Socket } from './socket.js';
+import { type Socket } from './socket.js';
 
 /**
  * Once opened, an implementation of a TransportListener will emit `new_socket` events as new clients connect.

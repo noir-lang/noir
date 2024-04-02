@@ -1,7 +1,7 @@
-import { AccountContract, AccountInterface, AuthWitnessProvider } from '@aztec/aztec.js/account';
-import { CompleteAddress } from '@aztec/circuit-types';
-import { ContractArtifact } from '@aztec/foundation/abi';
-import { NodeInfo } from '@aztec/types/interfaces';
+import { type AccountContract, type AccountInterface, type AuthWitnessProvider } from '@aztec/aztec.js/account';
+import { type CompleteAddress } from '@aztec/circuit-types';
+import { type ContractArtifact } from '@aztec/foundation/abi';
+import { type NodeInfo } from '@aztec/types/interfaces';
 
 import { DefaultAccountInterface } from '../defaults/account_interface.js';
 

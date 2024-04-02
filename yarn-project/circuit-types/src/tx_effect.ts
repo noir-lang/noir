@@ -12,7 +12,7 @@ import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';
 import {
   BufferReader,
-  Tuple,
+  type Tuple,
   assertLength,
   serializeArrayOfBufferableToVector,
   truncateAndPad,

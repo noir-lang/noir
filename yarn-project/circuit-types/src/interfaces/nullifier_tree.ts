@@ -1,4 +1,4 @@
-import { Fr, NULLIFIER_TREE_HEIGHT, NullifierLeafPreimage } from '@aztec/circuits.js';
+import { Fr, type NULLIFIER_TREE_HEIGHT, NullifierLeafPreimage } from '@aztec/circuits.js';
 
 import { SiblingPath } from '../sibling_path/index.js';
 

@@ -1,9 +1,9 @@
 // Convenience struct to hold an account's address and secret that can easily be passed around.
-import { AztecAddress, CheatCodes, Fr } from '@aztec/aztec.js';
+import { type AztecAddress, type CheatCodes, Fr } from '@aztec/aztec.js';
 import { pedersenHash } from '@aztec/foundation/crypto';
-import { LendingContract } from '@aztec/noir-contracts.js/Lending';
+import { type LendingContract } from '@aztec/noir-contracts.js/Lending';
 
-import { TokenSimulator } from './token_simulator.js';
+import { type TokenSimulator } from './token_simulator.js';
 
 /**
  * Contains utilities to compute the "key" for private holdings in the public state.

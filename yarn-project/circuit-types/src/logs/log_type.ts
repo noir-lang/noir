@@ -1,5 +1,5 @@
-import { EncryptedL2Log } from './encrypted_l2_log.js';
-import { UnencryptedL2Log } from './unencrypted_l2_log.js';
+import { type EncryptedL2Log } from './encrypted_l2_log.js';
+import { type UnencryptedL2Log } from './unencrypted_l2_log.js';
 
 /**
  * Defines possible log types.

@@ -1,9 +1,9 @@
-import { Bufferable, FromBuffer } from '@aztec/foundation/serialize';
-import { AztecKVStore } from '@aztec/kv-store';
+import { type Bufferable, type FromBuffer } from '@aztec/foundation/serialize';
+import { type AztecKVStore } from '@aztec/kv-store';
 
-import { TreeBase } from '../tree_base.js';
+import { type TreeBase } from '../tree_base.js';
 import { BaseFullTreeSnapshot, BaseFullTreeSnapshotBuilder } from './base_full_snapshot.js';
-import { TreeSnapshot, TreeSnapshotBuilder } from './snapshot_builder.js';
+import { type TreeSnapshot, type TreeSnapshotBuilder } from './snapshot_builder.js';
 
 /**
  * Builds a full snapshot of a tree. This implementation works for any Merkle tree and stores

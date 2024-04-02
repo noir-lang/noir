@@ -1,7 +1,7 @@
-import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
+import { type FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
 import { TxContext } from '@aztec/circuits.js';
 
-import { EntrypointInterface } from './entrypoint.js';
+import { type EntrypointInterface } from './entrypoint.js';
 
 /**
  * Default implementation of the entrypoint interface. It calls a function on a contract directly

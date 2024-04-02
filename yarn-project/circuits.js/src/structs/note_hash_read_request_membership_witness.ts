@@ -1,10 +1,10 @@
 import { makeTuple, range } from '@aztec/foundation/array';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { MAX_NEW_NOTE_HASHES_PER_CALL, NOTE_HASH_TREE_HEIGHT } from '../constants.gen.js';
-import { MembershipWitness } from './membership_witness.js';
+import { type MembershipWitness } from './membership_witness.js';
 
 /**
  * A ReadRequestMembershipWitness is similar to a MembershipWitness but includes

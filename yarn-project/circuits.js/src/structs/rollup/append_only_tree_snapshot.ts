@@ -1,7 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { STRING_ENCODING, UInt32 } from '../shared.js';
+import { STRING_ENCODING, type UInt32 } from '../shared.js';
 
 /**
  * Snapshot of an append only tree.

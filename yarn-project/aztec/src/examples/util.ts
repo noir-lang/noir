@@ -1,7 +1,7 @@
 import { EthAddress } from '@aztec/aztec.js';
 
 import type { Abi, Narrow } from 'abitype';
-import { Account, Chain, Hex, HttpTransport, PublicClient, WalletClient } from 'viem';
+import { type Account, type Chain, type Hex, type HttpTransport, type PublicClient, type WalletClient } from 'viem';
 
 /**
  * Helper function to deploy ETH contracts.

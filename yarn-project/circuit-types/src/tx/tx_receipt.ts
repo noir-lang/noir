@@ -1,7 +1,7 @@
-import { Fr } from '@aztec/foundation/fields';
+import { type Fr } from '@aztec/foundation/fields';
 
-import { ExtendedNote } from '../notes/extended_note.js';
-import { PublicDataWrite } from '../public_data_write.js';
+import { type ExtendedNote } from '../notes/extended_note.js';
+import { type PublicDataWrite } from '../public_data_write.js';
 import { TxHash } from './tx_hash.js';
 
 /**

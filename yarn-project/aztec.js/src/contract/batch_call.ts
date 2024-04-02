@@ -1,7 +1,7 @@
-import { FunctionCall, TxExecutionRequest } from '@aztec/circuit-types';
+import { type FunctionCall, type TxExecutionRequest } from '@aztec/circuit-types';
 
-import { Wallet } from '../account/index.js';
-import { BaseContractInteraction, SendMethodOptions } from './base_contract_interaction.js';
+import { type Wallet } from '../account/index.js';
+import { BaseContractInteraction, type SendMethodOptions } from './base_contract_interaction.js';
 
 /** A batch of function calls to be sent as a single transaction through a wallet. */
 export class BatchCall extends BaseContractInteraction {

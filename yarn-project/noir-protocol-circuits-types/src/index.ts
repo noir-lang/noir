@@ -1,26 +1,30 @@
 import {
-  BaseOrMergeRollupPublicInputs,
-  BaseParityInputs,
-  BaseRollupInputs,
-  MergeRollupInputs,
-  ParityPublicInputs,
-  PrivateKernelInitCircuitPrivateInputs,
-  PrivateKernelInnerCircuitPrivateInputs,
-  PrivateKernelInnerCircuitPublicInputs,
-  PrivateKernelTailCircuitPrivateInputs,
-  PrivateKernelTailCircuitPublicInputs,
-  PublicKernelCircuitPrivateInputs,
-  PublicKernelCircuitPublicInputs,
-  PublicKernelTailCircuitPrivateInputs,
-  RootParityInputs,
-  RootRollupInputs,
-  RootRollupPublicInputs,
+  type BaseOrMergeRollupPublicInputs,
+  type BaseParityInputs,
+  type BaseRollupInputs,
+  type MergeRollupInputs,
+  type ParityPublicInputs,
+  type PrivateKernelInitCircuitPrivateInputs,
+  type PrivateKernelInnerCircuitPrivateInputs,
+  type PrivateKernelInnerCircuitPublicInputs,
+  type PrivateKernelTailCircuitPrivateInputs,
+  type PrivateKernelTailCircuitPublicInputs,
+  type PublicKernelCircuitPrivateInputs,
+  type PublicKernelCircuitPublicInputs,
+  type PublicKernelTailCircuitPrivateInputs,
+  type RootParityInputs,
+  type RootRollupInputs,
+  type RootRollupPublicInputs,
 } from '@aztec/circuits.js';
-import { NoirCompiledCircuit } from '@aztec/types/noir';
+import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
-import { WasmBlackBoxFunctionSolver, createBlackBoxSolver, executeCircuitWithBlackBoxSolver } from '@noir-lang/acvm_js';
-import { Abi, abiDecode, abiEncode } from '@noir-lang/noirc_abi';
-import { WitnessMap } from '@noir-lang/types';
+import {
+  type WasmBlackBoxFunctionSolver,
+  createBlackBoxSolver,
+  executeCircuitWithBlackBoxSolver,
+} from '@noir-lang/acvm_js';
+import { type Abi, abiDecode, abiEncode } from '@noir-lang/noirc_abi';
+import { type WitnessMap } from '@noir-lang/types';
 
 import BaseParityJson from './target/parity_base.json' assert { type: 'json' };
 import RootParityJson from './target/parity_root.json' assert { type: 'json' };
@@ -55,16 +59,25 @@ import {
   mapRootRollupInputsToNoir,
   mapRootRollupPublicInputsFromNoir,
 } from './type_conversion.js';
-import { ReturnType as BaseParityReturnType } from './types/parity_base_types.js';
-import { ReturnType as RootParityReturnType } from './types/parity_root_types.js';
-import { InputType as InitInputType, ReturnType as InitReturnType } from './types/private_kernel_init_types.js';
-import { InputType as InnerInputType, ReturnType as InnerReturnType } from './types/private_kernel_inner_types.js';
-import { InputType as TailInputType, ReturnType as TailReturnType } from './types/private_kernel_tail_types.js';
-import { ReturnType as PublicPublicPreviousReturnType } from './types/public_kernel_app_logic_types.js';
-import { ReturnType as PublicSetupReturnType } from './types/public_kernel_setup_types.js';
-import { ReturnType as BaseRollupReturnType } from './types/rollup_base_types.js';
-import { ReturnType as MergeRollupReturnType } from './types/rollup_merge_types.js';
-import { ReturnType as RootRollupReturnType } from './types/rollup_root_types.js';
+import { type ReturnType as BaseParityReturnType } from './types/parity_base_types.js';
+import { type ReturnType as RootParityReturnType } from './types/parity_root_types.js';
+import {
+  type InputType as InitInputType,
+  type ReturnType as InitReturnType,
+} from './types/private_kernel_init_types.js';
+import {
+  type InputType as InnerInputType,
+  type ReturnType as InnerReturnType,
+} from './types/private_kernel_inner_types.js';
+import {
+  type InputType as TailInputType,
+  type ReturnType as TailReturnType,
+} from './types/private_kernel_tail_types.js';
+import { type ReturnType as PublicPublicPreviousReturnType } from './types/public_kernel_app_logic_types.js';
+import { type ReturnType as PublicSetupReturnType } from './types/public_kernel_setup_types.js';
+import { type ReturnType as BaseRollupReturnType } from './types/rollup_base_types.js';
+import { type ReturnType as MergeRollupReturnType } from './types/rollup_merge_types.js';
+import { type ReturnType as RootRollupReturnType } from './types/rollup_root_types.js';
 
 // TODO(Tom): This should be exported from noirc_abi
 /**

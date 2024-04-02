@@ -1,17 +1,17 @@
-import { L1ToL2MessageSource, L2Block, L2BlockSource, MerkleTreeId, SiblingPath } from '@aztec/circuit-types';
+import { type L1ToL2MessageSource, L2Block, type L2BlockSource, MerkleTreeId, SiblingPath } from '@aztec/circuit-types';
 import { Fr } from '@aztec/circuits.js';
 import { L1_TO_L2_MSG_SUBTREE_HEIGHT } from '@aztec/circuits.js/constants';
 import { randomInt } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { sleep } from '@aztec/foundation/sleep';
-import { AztecKVStore } from '@aztec/kv-store';
+import { type AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { INITIAL_LEAF, Pedersen, SHA256Trunc, StandardTree } from '@aztec/merkle-tree';
 
 import { jest } from '@jest/globals';
 import { mock } from 'jest-mock-extended';
 
-import { MerkleTreeDb, MerkleTrees, WorldStateConfig } from '../index.js';
+import { type MerkleTreeDb, type MerkleTrees, type WorldStateConfig } from '../index.js';
 import { ServerWorldStateSynchronizer } from './server_world_state_synchronizer.js';
 import { WorldStateRunningState } from './world_state_synchronizer.js';
 

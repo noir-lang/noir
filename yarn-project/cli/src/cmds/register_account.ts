@@ -1,5 +1,5 @@
-import { Fq, Fr } from '@aztec/foundation/fields';
-import { DebugLogger, LogFn } from '@aztec/foundation/log';
+import { type Fq, type Fr } from '@aztec/foundation/fields';
+import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
 

@@ -1,4 +1,4 @@
-import { L1ContractAddresses } from '@aztec/ethereum';
+import { type L1ContractAddresses } from '@aztec/ethereum';
 import { retryUntil } from '@aztec/foundation/retry';
 
 import { createPXEClient } from '../rpc_clients/index.js';

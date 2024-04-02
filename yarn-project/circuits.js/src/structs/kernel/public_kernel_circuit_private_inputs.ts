@@ -1,7 +1,7 @@
 import { serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { PublicCallData } from './public_call_data.js';
-import { PublicKernelData } from './public_kernel_data.js';
+import { type PublicCallData } from './public_call_data.js';
+import { type PublicKernelData } from './public_kernel_data.js';
 
 /**
  * Inputs to the public kernel circuit.

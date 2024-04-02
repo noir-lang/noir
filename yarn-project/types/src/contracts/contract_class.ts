@@ -1,5 +1,5 @@
-import { FunctionSelector } from '@aztec/foundation/abi';
-import { Fr } from '@aztec/foundation/fields';
+import { type FunctionSelector } from '@aztec/foundation/abi';
+import { type Fr } from '@aztec/foundation/fields';
 
 const VERSION = 1 as const;
 

@@ -1,12 +1,12 @@
 import { SiblingPath } from '@aztec/circuit-types';
 import { toBigIntLE, toBufferLE } from '@aztec/foundation/bigint-buffer';
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { Bufferable, FromBuffer, serializeToBuffer } from '@aztec/foundation/serialize';
-import { AztecKVStore, AztecMap, AztecSingleton } from '@aztec/kv-store';
-import { Hasher } from '@aztec/types/interfaces';
+import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { type Bufferable, type FromBuffer, serializeToBuffer } from '@aztec/foundation/serialize';
+import { type AztecKVStore, type AztecMap, type AztecSingleton } from '@aztec/kv-store';
+import { type Hasher } from '@aztec/types/interfaces';
 
 import { HasherWithStats } from './hasher_with_stats.js';
-import { MerkleTree } from './interfaces/merkle_tree.js';
+import { type MerkleTree } from './interfaces/merkle_tree.js';
 
 const MAX_DEPTH = 254;
 

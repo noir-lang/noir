@@ -41,6 +41,7 @@ module.exports = {
     '@typescript-eslint/await-thenable': 'error',
     '@typescript-eslint/no-floating-promises': 2,
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
     'require-await': 2,
     'no-console': 'error',
     'no-constant-condition': 'off',

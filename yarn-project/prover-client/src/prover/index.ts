@@ -1,15 +1,15 @@
 import {
-  BaseOrMergeRollupPublicInputs,
-  BaseParityInputs,
-  BaseRollupInputs,
-  MergeRollupInputs,
-  ParityPublicInputs,
-  Proof,
-  PublicCircuitPublicInputs,
-  PublicKernelCircuitPublicInputs,
-  RootParityInputs,
-  RootRollupInputs,
-  RootRollupPublicInputs,
+  type BaseOrMergeRollupPublicInputs,
+  type BaseParityInputs,
+  type BaseRollupInputs,
+  type MergeRollupInputs,
+  type ParityPublicInputs,
+  type Proof,
+  type PublicCircuitPublicInputs,
+  type PublicKernelCircuitPublicInputs,
+  type RootParityInputs,
+  type RootRollupInputs,
+  type RootRollupPublicInputs,
 } from '@aztec/circuits.js';
 
 /**

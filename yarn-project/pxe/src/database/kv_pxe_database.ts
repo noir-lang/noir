@@ -1,15 +1,21 @@
-import { MerkleTreeId, NoteFilter, NoteStatus, PublicKey } from '@aztec/circuit-types';
+import { MerkleTreeId, type NoteFilter, NoteStatus, type PublicKey } from '@aztec/circuit-types';
 import { AztecAddress, CompleteAddress, Header } from '@aztec/circuits.js';
-import { ContractArtifact } from '@aztec/foundation/abi';
+import { type ContractArtifact } from '@aztec/foundation/abi';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { Fr, Point } from '@aztec/foundation/fields';
-import { AztecArray, AztecKVStore, AztecMap, AztecMultiMap, AztecSingleton } from '@aztec/kv-store';
+import { Fr, type Point } from '@aztec/foundation/fields';
+import {
+  type AztecArray,
+  type AztecKVStore,
+  type AztecMap,
+  type AztecMultiMap,
+  type AztecSingleton,
+} from '@aztec/kv-store';
 import { contractArtifactFromBuffer, contractArtifactToBuffer } from '@aztec/types/abi';
-import { ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
+import { type ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
 
 import { DeferredNoteDao } from './deferred_note_dao.js';
 import { NoteDao } from './note_dao.js';
-import { PxeDatabase } from './pxe_database.js';
+import { type PxeDatabase } from './pxe_database.js';
 
 /**
  * A PXE database backed by LMDB.

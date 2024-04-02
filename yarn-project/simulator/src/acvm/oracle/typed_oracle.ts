@@ -1,26 +1,26 @@
 import {
-  CompleteAddress,
-  MerkleTreeId,
-  Note,
-  NoteStatus,
-  NullifierMembershipWitness,
-  PublicDataWitness,
-  PublicKey,
-  SiblingPath,
-  UnencryptedL2Log,
+  type CompleteAddress,
+  type MerkleTreeId,
+  type Note,
+  type NoteStatus,
+  type NullifierMembershipWitness,
+  type PublicDataWitness,
+  type PublicKey,
+  type SiblingPath,
+  type UnencryptedL2Log,
 } from '@aztec/circuit-types';
 import {
-  GrumpkinPrivateKey,
-  Header,
-  L1_TO_L2_MSG_TREE_HEIGHT,
-  PrivateCallStackItem,
-  PublicCallRequest,
+  type GrumpkinPrivateKey,
+  type Header,
+  type L1_TO_L2_MSG_TREE_HEIGHT,
+  type PrivateCallStackItem,
+  type PublicCallRequest,
 } from '@aztec/circuits.js';
-import { FunctionSelector } from '@aztec/foundation/abi';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
+import { type FunctionSelector } from '@aztec/foundation/abi';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
+import { type EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { ContractInstance } from '@aztec/types/contracts';
+import { type ContractInstance } from '@aztec/types/contracts';
 
 /**
  * A pair of public key and secret key.

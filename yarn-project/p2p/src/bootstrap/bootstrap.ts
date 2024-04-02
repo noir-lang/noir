@@ -6,11 +6,11 @@ import type { ServiceMap } from '@libp2p/interface-libp2p';
 import { kadDHT } from '@libp2p/kad-dht';
 import { mplex } from '@libp2p/mplex';
 import { tcp } from '@libp2p/tcp';
-import { Libp2p, Libp2pOptions, ServiceFactoryMap, createLibp2p } from 'libp2p';
+import { type Libp2p, type Libp2pOptions, type ServiceFactoryMap, createLibp2p } from 'libp2p';
 import { identifyService } from 'libp2p/identify';
 import { format } from 'util';
 
-import { P2PConfig } from '../config.js';
+import { type P2PConfig } from '../config.js';
 import { createLibP2PPeerId } from '../service/index.js';
 
 /**

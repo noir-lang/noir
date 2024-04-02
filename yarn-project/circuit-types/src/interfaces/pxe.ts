@@ -1,17 +1,23 @@
-import { AztecAddress, CompleteAddress, Fr, GrumpkinPrivateKey, PartialAddress } from '@aztec/circuits.js';
-import { ContractArtifact } from '@aztec/foundation/abi';
-import { ContractClassWithId, ContractInstanceWithAddress } from '@aztec/types/contracts';
-import { NodeInfo } from '@aztec/types/interfaces';
+import {
+  type AztecAddress,
+  type CompleteAddress,
+  type Fr,
+  type GrumpkinPrivateKey,
+  type PartialAddress,
+} from '@aztec/circuits.js';
+import { type ContractArtifact } from '@aztec/foundation/abi';
+import { type ContractClassWithId, type ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { type NodeInfo } from '@aztec/types/interfaces';
 
-import { AuthWitness } from '../auth_witness.js';
-import { L2Block } from '../l2_block.js';
-import { GetUnencryptedLogsResponse, LogFilter } from '../logs/index.js';
-import { ExtendedNote } from '../notes/index.js';
-import { NoteFilter } from '../notes/note_filter.js';
-import { Tx, TxHash, TxReceipt } from '../tx/index.js';
-import { TxEffect } from '../tx_effect.js';
-import { TxExecutionRequest } from '../tx_execution_request.js';
-import { SyncStatus } from './sync-status.js';
+import { type AuthWitness } from '../auth_witness.js';
+import { type L2Block } from '../l2_block.js';
+import { type GetUnencryptedLogsResponse, type LogFilter } from '../logs/index.js';
+import { type ExtendedNote } from '../notes/index.js';
+import { type NoteFilter } from '../notes/note_filter.js';
+import { type Tx, type TxHash, type TxReceipt } from '../tx/index.js';
+import { type TxEffect } from '../tx_effect.js';
+import { type TxExecutionRequest } from '../tx_execution_request.js';
+import { type SyncStatus } from './sync-status.js';
 
 // docs:start:pxe-interface
 /**

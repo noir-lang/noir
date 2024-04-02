@@ -1,4 +1,4 @@
-import { AvmContext } from '../avm_context.js';
+import { type AvmContext } from '../avm_context.js';
 import { TypeTag, Uint16, Uint32 } from '../avm_memory_types.js';
 import { initContext } from '../fixtures/index.js';
 import { And, Not, Or, Shl, Shr, Xor } from './bitwise.js';

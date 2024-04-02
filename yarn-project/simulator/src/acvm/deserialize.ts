@@ -2,7 +2,7 @@ import { Fr } from '@aztec/foundation/fields';
 
 import { getReturnWitness } from '@noir-lang/acvm_js';
 
-import { ACVMField, ACVMWitness } from './acvm_types.js';
+import { type ACVMField, type ACVMWitness } from './acvm_types.js';
 
 /**
  * Converts an ACVM field to a Fr.

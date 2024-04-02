@@ -1,10 +1,10 @@
 import { randomBigInt } from '@aztec/foundation/crypto';
-import { Bufferable } from '@aztec/foundation/serialize';
+import { type Bufferable } from '@aztec/foundation/serialize';
 
 import { jest } from '@jest/globals';
 
-import { TreeBase } from '../tree_base.js';
-import { TreeSnapshot, TreeSnapshotBuilder } from './snapshot_builder.js';
+import { type TreeBase } from '../tree_base.js';
+import { type TreeSnapshot, type TreeSnapshotBuilder } from './snapshot_builder.js';
 
 jest.setTimeout(50_000);
 

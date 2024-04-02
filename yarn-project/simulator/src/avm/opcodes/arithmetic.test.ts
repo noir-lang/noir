@@ -1,4 +1,4 @@
-import { AvmContext } from '../avm_context.js';
+import { type AvmContext } from '../avm_context.js';
 import { Field, TypeTag, Uint8, Uint16, Uint32, Uint64, Uint128 } from '../avm_memory_types.js';
 import { initContext } from '../fixtures/index.js';
 import { Add, Div, FieldDiv, Mul, Sub } from './arithmetic.js';

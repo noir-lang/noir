@@ -1,26 +1,26 @@
-import { AztecNode, FunctionCall, Note, TxExecutionRequest } from '@aztec/circuit-types';
+import { type AztecNode, type FunctionCall, type Note, type TxExecutionRequest } from '@aztec/circuit-types';
 import { CallContext, FunctionData } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import {
-  ArrayType,
-  FunctionArtifactWithDebugMetadata,
+  type ArrayType,
+  type FunctionArtifactWithDebugMetadata,
   FunctionSelector,
   FunctionType,
   encodeArguments,
 } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
+import { type EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
-import { WasmBlackBoxFunctionSolver, createBlackBoxSolver } from '@noir-lang/acvm_js';
+import { type WasmBlackBoxFunctionSolver, createBlackBoxSolver } from '@noir-lang/acvm_js';
 
 import { createSimulationError } from '../common/errors.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
 import { ClientExecutionContext } from './client_execution_context.js';
-import { DBOracle } from './db_oracle.js';
+import { type DBOracle } from './db_oracle.js';
 import { ExecutionNoteCache } from './execution_note_cache.js';
-import { ExecutionResult } from './execution_result.js';
+import { type ExecutionResult } from './execution_result.js';
 import { executePrivateFunction } from './private_execution.js';
 import { executeUnconstrainedFunction } from './unconstrained_execution.js';
 import { ViewDataOracle } from './view_data_oracle.js';

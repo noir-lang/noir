@@ -1,7 +1,7 @@
 import { Buffer } from 'buffer';
 import cloneDeepWith from 'lodash.clonedeepwith';
 
-import { ClassConverter } from './class_converter.js';
+import { type ClassConverter } from './class_converter.js';
 
 /**
  * Check prototype chain to determine if an object is 'plain' (not a class instance).

@@ -1,12 +1,12 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
-import { MockProxy, mock } from 'jest-mock-extended';
+import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { AvmContext } from '../avm_context.js';
+import { type AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
 import { initContext, initExecutionEnvironment } from '../fixtures/index.js';
-import { AvmPersistableStateManager } from '../journal/journal.js';
+import { type AvmPersistableStateManager } from '../journal/journal.js';
 import { SLoad, SStore, StaticCallStorageAlterError } from './storage.js';
 
 describe('Storage Instructions', () => {

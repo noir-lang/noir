@@ -1,11 +1,11 @@
 import { serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { ROLLUP_VK_TREE_HEIGHT } from '../../constants.gen.js';
-import { MembershipWitness } from '../membership_witness.js';
-import { Proof } from '../proof.js';
-import { UInt32 } from '../shared.js';
-import { VerificationKey } from '../verification_key.js';
-import { BaseOrMergeRollupPublicInputs } from './base_or_merge_rollup_public_inputs.js';
+import { type ROLLUP_VK_TREE_HEIGHT } from '../../constants.gen.js';
+import { type MembershipWitness } from '../membership_witness.js';
+import { type Proof } from '../proof.js';
+import { type UInt32 } from '../shared.js';
+import { type VerificationKey } from '../verification_key.js';
+import { type BaseOrMergeRollupPublicInputs } from './base_or_merge_rollup_public_inputs.js';
 
 /**
  * Represents the data of a previous merge or base rollup circuit.

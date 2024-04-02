@@ -1,6 +1,6 @@
 import { AztecAddress } from '../aztec-address/index.js';
-import { Fr } from '../fields/index.js';
-import { ABIParameter, type ABIType, ABIVariable, FunctionArtifact } from './abi.js';
+import { type Fr } from '../fields/index.js';
+import { type ABIParameter, type ABIType, type ABIVariable, type FunctionArtifact } from './abi.js';
 import { isAztecAddressStruct } from './utils.js';
 
 /**

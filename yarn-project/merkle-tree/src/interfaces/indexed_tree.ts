@@ -1,9 +1,13 @@
-import { SiblingPath } from '@aztec/circuit-types';
-import { IndexedTreeLeaf, IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { type SiblingPath } from '@aztec/circuit-types';
+import { type IndexedTreeLeaf, type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
-import { IndexedTreeSnapshot, TreeSnapshot, TreeSnapshotBuilder } from '../snapshots/snapshot_builder.js';
-import { AppendOnlyTree } from './append_only_tree.js';
-import { MerkleTree } from './merkle_tree.js';
+import {
+  type IndexedTreeSnapshot,
+  type TreeSnapshot,
+  type TreeSnapshotBuilder,
+} from '../snapshots/snapshot_builder.js';
+import { type AppendOnlyTree } from './append_only_tree.js';
+import { type MerkleTree } from './merkle_tree.js';
 
 /**
  * Factory for creating leaf preimages.

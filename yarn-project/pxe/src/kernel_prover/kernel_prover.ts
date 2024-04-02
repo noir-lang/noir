@@ -1,9 +1,9 @@
 import {
-  AztecAddress,
+  type AztecAddress,
   CallRequest,
   Fr,
-  MAX_NEW_NOTE_HASHES_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_TX,
+  type MAX_NEW_NOTE_HASHES_PER_TX,
+  type MAX_NEW_NULLIFIERS_PER_TX,
   MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
@@ -14,9 +14,9 @@ import {
   PrivateKernelInnerCircuitPublicInputs,
   PrivateKernelInnerData,
   PrivateKernelTailCircuitPrivateInputs,
-  SideEffect,
-  SideEffectLinkedToNoteHash,
-  TxRequest,
+  type SideEffect,
+  type SideEffectLinkedToNoteHash,
+  type TxRequest,
   VK_TREE_HEIGHT,
   VerificationKey,
   makeEmptyProof,
@@ -26,11 +26,11 @@ import { padArrayEnd } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { assertLength, mapTuple } from '@aztec/foundation/serialize';
 import { pushTestData } from '@aztec/foundation/testing';
-import { ExecutionResult, NoteAndSlot } from '@aztec/simulator';
+import { type ExecutionResult, type NoteAndSlot } from '@aztec/simulator';
 
 import { HintsBuilder } from './hints_builder.js';
-import { KernelProofCreator, ProofCreator, ProofOutput, ProofOutputFinal } from './proof_creator.js';
-import { ProvingDataOracle } from './proving_data_oracle.js';
+import { KernelProofCreator, type ProofCreator, type ProofOutput, type ProofOutputFinal } from './proof_creator.js';
+import { type ProvingDataOracle } from './proving_data_oracle.js';
 
 /**
  * Represents an output note data object.

@@ -1,6 +1,6 @@
-import { RequestMessage, ResponseMessage } from './dispatch/messages.js';
-import { Listener } from './interface/listener.js';
-import { Socket } from './interface/socket.js';
+import { type RequestMessage, type ResponseMessage } from './dispatch/messages.js';
+import { type Listener } from './interface/listener.js';
+import { type Socket } from './interface/socket.js';
 import { isTransferDescriptor } from './interface/transferable.js';
 
 /**

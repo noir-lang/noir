@@ -1,9 +1,9 @@
 import { strict as assert } from 'assert';
 
 import { Add, Address, Call, StaticCall, Sub } from '../opcodes/index.js';
-import { BufferCursor } from './buffer_cursor.js';
-import { InstructionSet, decodeFromBytecode, encodeToBytecode } from './bytecode_serialization.js';
-import { Opcode } from './instruction_serialization.js';
+import { type BufferCursor } from './buffer_cursor.js';
+import { type InstructionSet, decodeFromBytecode, encodeToBytecode } from './bytecode_serialization.js';
+import { type Opcode } from './instruction_serialization.js';
 
 class InstA {
   constructor(private n: number) {}

@@ -1,10 +1,10 @@
 import {
-  ABIParameter,
-  ABIParameterVisibility,
-  ABIType,
-  DebugFileMap,
-  DebugInfo,
-  EventAbi,
+  type ABIParameter,
+  type ABIParameterVisibility,
+  type ABIType,
+  type DebugFileMap,
+  type DebugInfo,
+  type EventAbi,
 } from '@aztec/foundation/abi';
 
 export const AZTEC_PRIVATE_ATTRIBUTE = 'aztec(private)';

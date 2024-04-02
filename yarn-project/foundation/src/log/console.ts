@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { LogFn } from './log_fn.js';
+import { type LogFn } from './log_fn.js';
 
 /**
  * ConsoleLogger is a utility class that provides customizable console logging functionality.

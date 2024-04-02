@@ -1,4 +1,4 @@
-import { ExtendedUnencryptedL2Log } from './extended_unencrypted_l2_log.js';
+import { type ExtendedUnencryptedL2Log } from './extended_unencrypted_l2_log.js';
 
 /**
  * It provides documentation for the GetUnencryptedLogsResponse type.

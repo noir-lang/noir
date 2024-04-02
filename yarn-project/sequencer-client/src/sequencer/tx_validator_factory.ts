@@ -1,6 +1,6 @@
-import { AztecAddress, EthAddress, Fr, GlobalVariables } from '@aztec/circuits.js';
-import { ContractDataSource } from '@aztec/types/contracts';
-import { MerkleTreeOperations } from '@aztec/world-state';
+import { type AztecAddress, type EthAddress, type Fr, type GlobalVariables } from '@aztec/circuits.js';
+import { type ContractDataSource } from '@aztec/types/contracts';
+import { type MerkleTreeOperations } from '@aztec/world-state';
 
 import { WorldStateDB, WorldStatePublicDB } from '../simulator/public_executor.js';
 import { TxValidator } from './tx_validator.js';

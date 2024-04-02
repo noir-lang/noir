@@ -1,7 +1,7 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import { GrumpkinScalar } from '@aztec/aztec.js';
-import { Fq, Fr } from '@aztec/foundation/fields';
-import { DebugLogger, LogFn } from '@aztec/foundation/log';
+import { type Fq, Fr } from '@aztec/foundation/fields';
+import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
 

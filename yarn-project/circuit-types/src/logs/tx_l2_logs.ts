@@ -3,9 +3,9 @@ import { BufferReader, prefixBufferWithLength, truncateAndPad } from '@aztec/fou
 
 import isEqual from 'lodash.isequal';
 
-import { EncryptedL2Log } from './encrypted_l2_log.js';
-import { EncryptedFunctionL2Logs, FunctionL2Logs, UnencryptedFunctionL2Logs } from './function_l2_logs.js';
-import { UnencryptedL2Log } from './unencrypted_l2_log.js';
+import { type EncryptedL2Log } from './encrypted_l2_log.js';
+import { EncryptedFunctionL2Logs, type FunctionL2Logs, UnencryptedFunctionL2Logs } from './function_l2_logs.js';
+import { type UnencryptedL2Log } from './unencrypted_l2_log.js';
 
 /**
  * Data container of logs emitted in 1 tx.

@@ -7,13 +7,13 @@ import {
   computeContractClassId,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
-import { ContractArtifact } from '@aztec/foundation/abi';
+import { type ContractArtifact } from '@aztec/foundation/abi';
 import { makeTuple } from '@aztec/foundation/array';
 import { times } from '@aztec/foundation/collection';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
-import { Tuple } from '@aztec/foundation/serialize';
-import { ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
+import { type Tuple } from '@aztec/foundation/serialize';
+import { type ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
 
 import { EncryptedL2Log } from './logs/encrypted_l2_log.js';
 import { EncryptedFunctionL2Logs, EncryptedTxL2Logs, Note, UnencryptedTxL2Logs } from './logs/index.js';

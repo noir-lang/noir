@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, FunctionData } from '@aztec/circuits.js';
+import { AztecAddress, type Fr, FunctionData } from '@aztec/circuits.js';
 
 /** A request to call a function on a contract from a given address. */
 export type FunctionCall = {

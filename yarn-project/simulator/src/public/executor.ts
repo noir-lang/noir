@@ -1,5 +1,5 @@
 import { UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
-import { Fr, GlobalVariables, Header, PublicCircuitPublicInputs } from '@aztec/circuits.js';
+import { Fr, type GlobalVariables, type Header, PublicCircuitPublicInputs } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { spawn } from 'child_process';
@@ -20,8 +20,8 @@ import { AcirSimulator } from '../client/simulator.js';
 import { ExecutionError, createSimulationError } from '../common/errors.js';
 import { SideEffectCounter } from '../common/index.js';
 import { PackedArgsCache } from '../common/packed_args_cache.js';
-import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
-import { PublicExecution, PublicExecutionResult, checkValidStaticCall } from './execution.js';
+import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db.js';
+import { type PublicExecution, type PublicExecutionResult, checkValidStaticCall } from './execution.js';
 import { PublicExecutionContext } from './public_execution_context.js';
 
 /**

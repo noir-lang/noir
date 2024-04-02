@@ -1,5 +1,5 @@
 import { Fr } from '../fields/index.js';
-import { ABIType, FunctionAbi } from './abi.js';
+import { type ABIType, type FunctionAbi } from './abi.js';
 import { isAddressStruct, isFunctionSelectorStruct, isWrappedFieldStruct } from './utils.js';
 
 /**

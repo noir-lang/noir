@@ -1,4 +1,4 @@
-import { Fr } from '@aztec/foundation/fields';
+import { type Fr } from '@aztec/foundation/fields';
 
 /**
  * Interface of classes allowing for the retrieval of L1 to L2 messages.

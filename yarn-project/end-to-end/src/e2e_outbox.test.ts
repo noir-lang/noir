@@ -1,11 +1,11 @@
 import {
-  AccountWalletWithPrivateKey,
-  AztecNode,
+  type AccountWalletWithPrivateKey,
+  type AztecNode,
   BatchCall,
-  DeployL1Contracts,
+  type DeployL1Contracts,
   EthAddress,
   Fr,
-  SiblingPath,
+  type SiblingPath,
 } from '@aztec/aztec.js';
 import { sha256ToField } from '@aztec/foundation/crypto';
 import { truncateAndPad } from '@aztec/foundation/serialize';

@@ -1,5 +1,5 @@
-import { FunctionCall, PackedArguments } from '@aztec/circuit-types';
-import { AztecAddress, Fr, GeneratorIndex } from '@aztec/circuits.js';
+import { type FunctionCall, PackedArguments } from '@aztec/circuit-types';
+import { type AztecAddress, type Fr, GeneratorIndex } from '@aztec/circuits.js';
 import { pedersenHash } from '@aztec/foundation/crypto';
 
 // docs:start:authwit_computeAuthWitMessageHash

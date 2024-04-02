@@ -1,33 +1,33 @@
-import { Body, L2Block, MerkleTreeId, ProcessedTx, TxEffect, toTxEffect } from '@aztec/circuit-types';
-import { PROVING_STATUS, ProvingResult, ProvingTicket } from '@aztec/circuit-types/interfaces';
-import { CircuitSimulationStats } from '@aztec/circuit-types/stats';
+import { Body, L2Block, MerkleTreeId, type ProcessedTx, type TxEffect, toTxEffect } from '@aztec/circuit-types';
+import { PROVING_STATUS, type ProvingResult, type ProvingTicket } from '@aztec/circuit-types/interfaces';
+import { type CircuitSimulationStats } from '@aztec/circuit-types/stats';
 import {
-  AppendOnlyTreeSnapshot,
-  BaseOrMergeRollupPublicInputs,
+  type AppendOnlyTreeSnapshot,
+  type BaseOrMergeRollupPublicInputs,
   BaseParityInputs,
-  BaseRollupInputs,
+  type BaseRollupInputs,
   Fr,
-  GlobalVariables,
+  type GlobalVariables,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   NUM_BASE_PARITY_PER_ROOT_PARITY,
-  Proof,
-  RootParityInput,
+  type Proof,
+  type RootParityInput,
   RootParityInputs,
 } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { MemoryFifo } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { Tuple } from '@aztec/foundation/serialize';
+import { type Tuple } from '@aztec/foundation/serialize';
 import { sleep } from '@aztec/foundation/sleep';
 import { elapsed } from '@aztec/foundation/timer';
-import { SimulationProvider } from '@aztec/simulator';
-import { MerkleTreeOperations } from '@aztec/world-state';
+import { type SimulationProvider } from '@aztec/simulator';
+import { type MerkleTreeOperations } from '@aztec/world-state';
 
 import { inspect } from 'util';
 
-import { VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
-import { RollupProver } from '../prover/index.js';
-import { RealRollupCircuitSimulator, RollupSimulator } from '../simulator/rollup.js';
+import { type VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
+import { type RollupProver } from '../prover/index.js';
+import { RealRollupCircuitSimulator, type RollupSimulator } from '../simulator/rollup.js';
 import {
   buildBaseRollupInput,
   createMergeRollupInputs,
@@ -39,7 +39,7 @@ import {
   getTreeSnapshot,
   validateTx,
 } from './block-building-helpers.js';
-import { MergeRollupInputData, PROVING_JOB_TYPE, ProvingJob, ProvingState } from './proving-state.js';
+import { type MergeRollupInputData, PROVING_JOB_TYPE, type ProvingJob, ProvingState } from './proving-state.js';
 
 const logger = createDebugLogger('aztec:prover:proving-orchestrator');
 

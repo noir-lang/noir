@@ -1,6 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
-import { FieldsOf } from '@aztec/foundation/types';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 import {
   FUNCTION_TREE_HEIGHT,

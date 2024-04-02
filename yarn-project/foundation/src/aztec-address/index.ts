@@ -1,7 +1,7 @@
 import { inspect } from 'util';
 
 import { Fr, fromBuffer } from '../fields/index.js';
-import { BufferReader, FieldReader } from '../serialize/index.js';
+import { type BufferReader, FieldReader } from '../serialize/index.js';
 
 /**
  * AztecAddress represents a 32-byte address in the Aztec Protocol.

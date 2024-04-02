@@ -1,16 +1,16 @@
-import { SimulationError, UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
+import { type SimulationError, type UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
 import {
-  AztecAddress,
-  ContractStorageRead,
-  ContractStorageUpdateRequest,
-  Fr,
-  L2ToL1Message,
-  PublicCallRequest,
+  type AztecAddress,
+  type ContractStorageRead,
+  type ContractStorageUpdateRequest,
+  type Fr,
+  type L2ToL1Message,
+  type PublicCallRequest,
   PublicDataRead,
   PublicDataUpdateRequest,
-  ReadRequest,
-  SideEffect,
-  SideEffectLinkedToNoteHash,
+  type ReadRequest,
+  type SideEffect,
+  type SideEffectLinkedToNoteHash,
 } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot, computePublicDataTreeValue } from '@aztec/circuits.js/hash';
 

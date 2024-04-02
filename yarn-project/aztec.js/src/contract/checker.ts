@@ -1,4 +1,4 @@
-import { ABIType, BasicType, ContractArtifact, StructType } from '@aztec/foundation/abi';
+import { type ABIType, type BasicType, type ContractArtifact, type StructType } from '@aztec/foundation/abi';
 
 /**
  * Represents a type derived from input type T with the 'kind' property removed.

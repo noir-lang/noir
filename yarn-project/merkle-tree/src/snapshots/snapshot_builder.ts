@@ -1,6 +1,6 @@
-import { SiblingPath } from '@aztec/circuit-types';
-import { Bufferable } from '@aztec/foundation/serialize';
-import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { type SiblingPath } from '@aztec/circuit-types';
+import { type Bufferable } from '@aztec/foundation/serialize';
+import { type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
 /**
  * An interface for a tree that can record snapshots of its contents.

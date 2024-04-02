@@ -1,10 +1,10 @@
-import { ContractArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { type ContractArtifact, type FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import {
-  ContractClassPublic,
-  ExecutablePrivateFunctionWithMembershipProof,
-  PrivateFunctionMembershipProof,
+  type ContractClassPublic,
+  type ExecutablePrivateFunctionWithMembershipProof,
+  type PrivateFunctionMembershipProof,
 } from '@aztec/types/contracts';
 
 import { computeRootFromSiblingPath } from '../merkle/index.js';

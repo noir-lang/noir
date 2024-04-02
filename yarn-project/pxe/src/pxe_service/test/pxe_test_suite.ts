@@ -1,5 +1,5 @@
 import {
-  PXE,
+  type PXE,
   TxExecutionRequest,
   randomContractArtifact,
   randomContractInstanceWithAddress,

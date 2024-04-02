@@ -1,6 +1,6 @@
-import { Worker } from 'worker_threads';
+import { type Worker } from 'worker_threads';
 
-import { Connector } from '../interface/connector.js';
+import { type Connector } from '../interface/connector.js';
 import { NodeConnectorSocket } from './node_connector_socket.js';
 
 /**

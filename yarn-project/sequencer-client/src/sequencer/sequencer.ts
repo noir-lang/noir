@@ -1,20 +1,20 @@
-import { L1ToL2MessageSource, L2Block, L2BlockSource, ProcessedTx, Tx } from '@aztec/circuit-types';
-import { BlockProver, PROVING_STATUS } from '@aztec/circuit-types/interfaces';
-import { L2BlockBuiltStats } from '@aztec/circuit-types/stats';
-import { AztecAddress, EthAddress, GlobalVariables } from '@aztec/circuits.js';
+import { type L1ToL2MessageSource, type L2Block, type L2BlockSource, type ProcessedTx, Tx } from '@aztec/circuit-types';
+import { type BlockProver, PROVING_STATUS } from '@aztec/circuit-types/interfaces';
+import { type L2BlockBuiltStats } from '@aztec/circuit-types/stats';
+import { AztecAddress, EthAddress, type GlobalVariables } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { Timer, elapsed } from '@aztec/foundation/timer';
-import { P2P } from '@aztec/p2p';
-import { WorldStateStatus, WorldStateSynchronizer } from '@aztec/world-state';
+import { type P2P } from '@aztec/p2p';
+import { type WorldStateStatus, type WorldStateSynchronizer } from '@aztec/world-state';
 
-import { GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
-import { L1Publisher } from '../publisher/l1-publisher.js';
-import { SequencerConfig } from './config.js';
-import { PublicProcessorFactory } from './public_processor.js';
-import { TxValidator } from './tx_validator.js';
-import { TxValidatorFactory } from './tx_validator_factory.js';
+import { type GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
+import { type L1Publisher } from '../publisher/l1-publisher.js';
+import { type SequencerConfig } from './config.js';
+import { type PublicProcessorFactory } from './public_processor.js';
+import { type TxValidator } from './tx_validator.js';
+import { type TxValidatorFactory } from './tx_validator_factory.js';
 
 /**
  * Sequencer client

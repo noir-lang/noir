@@ -1,15 +1,15 @@
-import { KeyPair, KeyStore, PublicKey } from '@aztec/circuit-types';
+import { type KeyPair, type KeyStore, type PublicKey } from '@aztec/circuit-types';
 import {
-  AztecAddress,
-  GrumpkinPrivateKey,
+  type AztecAddress,
+  type GrumpkinPrivateKey,
   GrumpkinScalar,
   Point,
   computeNullifierSecretKey,
   computeSiloedNullifierSecretKey,
   derivePublicKey,
 } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { AztecKVStore, AztecMap } from '@aztec/kv-store';
+import { type Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { type AztecKVStore, type AztecMap } from '@aztec/kv-store';
 
 import { ConstantKeyPair } from './key_pair.js';
 

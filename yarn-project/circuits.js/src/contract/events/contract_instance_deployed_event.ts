@@ -3,7 +3,7 @@ import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
-import { ContractInstanceWithAddress } from '@aztec/types/contracts';
+import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
 
 import { DEPLOYER_CONTRACT_ADDRESS, DEPLOYER_CONTRACT_INSTANCE_DEPLOYED_MAGIC_VALUE } from '../../constants.gen.js';
 

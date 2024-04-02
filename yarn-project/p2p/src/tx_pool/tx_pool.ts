@@ -1,4 +1,4 @@
-import { Tx, TxHash } from '@aztec/circuit-types';
+import { type Tx, type TxHash } from '@aztec/circuit-types';
 
 /**
  * Interface of a transaction pool. The pool includes tx requests and is kept up-to-date by a P2P client.

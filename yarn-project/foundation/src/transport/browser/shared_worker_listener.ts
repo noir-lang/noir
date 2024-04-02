@@ -1,6 +1,6 @@
 import EventEmitter from 'events';
 
-import { Listener } from '../interface/listener.js';
+import { type Listener } from '../interface/listener.js';
 import { MessagePortSocket } from './message_port_socket.js';
 
 /**

@@ -1,14 +1,14 @@
-import { ProcessedTx, ProvingResult } from '@aztec/circuit-types';
+import { type ProcessedTx, type ProvingResult } from '@aztec/circuit-types';
 import {
-  BaseOrMergeRollupPublicInputs,
-  Fr,
-  GlobalVariables,
-  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-  Proof,
-  RootParityInput,
+  type BaseOrMergeRollupPublicInputs,
+  type Fr,
+  type GlobalVariables,
+  type NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  type Proof,
+  type RootParityInput,
 } from '@aztec/circuits.js';
 import { randomBytes } from '@aztec/foundation/crypto';
-import { Tuple } from '@aztec/foundation/serialize';
+import { type Tuple } from '@aztec/foundation/serialize';
 
 /**
  * Enums and structs to communicate the type of work required in each request.

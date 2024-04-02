@@ -1,6 +1,6 @@
-import { AztecAddress, Fr, Point } from '@aztec/aztec.js';
+import { type AztecAddress, type Fr, type Point } from '@aztec/aztec.js';
 import { CompleteAddress } from '@aztec/circuit-types';
-import { DebugLogger, LogFn } from '@aztec/foundation/log';
+import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../client.js';
 

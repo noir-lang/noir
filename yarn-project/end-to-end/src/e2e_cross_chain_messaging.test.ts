@@ -1,8 +1,8 @@
 import {
-  AccountWallet,
-  AztecAddress,
-  AztecNode,
-  DebugLogger,
+  type AccountWallet,
+  type AztecAddress,
+  type AztecNode,
+  type DebugLogger,
   EthAddress,
   Fr,
   L1Actor,
@@ -11,7 +11,7 @@ import {
   computeAuthWitMessageHash,
 } from '@aztec/aztec.js';
 import { sha256ToField } from '@aztec/foundation/crypto';
-import { TokenBridgeContract, TokenContract } from '@aztec/noir-contracts.js';
+import { type TokenBridgeContract, type TokenContract } from '@aztec/noir-contracts.js';
 
 import { toFunctionSelector } from 'viem/utils';
 

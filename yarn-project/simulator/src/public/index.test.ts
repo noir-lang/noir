@@ -1,10 +1,10 @@
-import { L1ToL2Message, NullifierMembershipWitness, SiblingPath } from '@aztec/circuit-types';
+import { type L1ToL2Message, NullifierMembershipWitness, SiblingPath } from '@aztec/circuit-types';
 import {
   AppendOnlyTreeSnapshot,
   CallContext,
   FunctionData,
   GlobalVariables,
-  Header,
+  type Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
   L2ToL1Message,
   NULLIFIER_TREE_HEIGHT,
@@ -13,7 +13,7 @@ import {
 } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/hash';
 import { makeHeader } from '@aztec/circuits.js/testing';
-import { FunctionArtifact, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
+import { type FunctionArtifact, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash, randomInt } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -25,15 +25,15 @@ import { ParentContractArtifact } from '@aztec/noir-contracts.js/Parent';
 import { TestContractArtifact } from '@aztec/noir-contracts.js/Test';
 import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 
-import { MockProxy, mock } from 'jest-mock-extended';
+import { type MockProxy, mock } from 'jest-mock-extended';
 import { type MemDown, default as memdown } from 'memdown';
 import { toFunctionSelector } from 'viem';
 
 import { MessageLoadOracleInputs } from '../index.js';
 import { buildL1ToL2Message } from '../test/utils.js';
 import { computeSlotForMapping } from '../utils.js';
-import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
-import { PublicExecution } from './execution.js';
+import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db.js';
+import { type PublicExecution } from './execution.js';
 import { PublicExecutor } from './executor.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;

@@ -1,4 +1,4 @@
-import { Connector } from '../interface/connector.js';
+import { type Connector } from '../interface/connector.js';
 import { MessagePortSocket } from './message_port_socket.js';
 
 /**

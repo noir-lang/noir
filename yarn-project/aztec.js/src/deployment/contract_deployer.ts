@@ -1,9 +1,9 @@
-import { PublicKey } from '@aztec/circuit-types';
-import { AztecAddress } from '@aztec/circuits.js';
-import { ContractArtifact } from '@aztec/foundation/abi';
+import { type PublicKey } from '@aztec/circuit-types';
+import { type AztecAddress } from '@aztec/circuits.js';
+import { type ContractArtifact } from '@aztec/foundation/abi';
 import { Point } from '@aztec/foundation/fields';
 
-import { Wallet } from '../account/wallet.js';
+import { type Wallet } from '../account/wallet.js';
 import { DeployMethod } from '../contract/deploy_method.js';
 import { Contract } from '../contract/index.js';
 

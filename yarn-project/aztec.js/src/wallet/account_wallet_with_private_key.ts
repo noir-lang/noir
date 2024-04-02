@@ -1,8 +1,8 @@
-import { PXE } from '@aztec/circuit-types';
-import { GrumpkinPrivateKey } from '@aztec/circuits.js';
+import { type PXE } from '@aztec/circuit-types';
+import { type GrumpkinPrivateKey } from '@aztec/circuits.js';
 
-import { Salt } from '../account/index.js';
-import { AccountInterface } from '../account/interface.js';
+import { type Salt } from '../account/index.js';
+import { type AccountInterface } from '../account/interface.js';
 import { AccountWallet } from './account_wallet.js';
 
 /**

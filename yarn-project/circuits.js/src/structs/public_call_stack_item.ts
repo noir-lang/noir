@@ -2,10 +2,10 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
-import { FieldsOf } from '@aztec/foundation/types';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 import { GeneratorIndex } from '../constants.gen.js';
-import { CallContext } from './call_context.js';
+import { type CallContext } from './call_context.js';
 import { CallRequest, CallerContext } from './call_request.js';
 import { FunctionData } from './function_data.js';
 import { PublicCircuitPublicInputs } from './public_circuit_public_inputs.js';

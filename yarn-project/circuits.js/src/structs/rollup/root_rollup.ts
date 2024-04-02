@@ -1,17 +1,17 @@
-import { Fr } from '@aztec/foundation/fields';
-import { BufferReader, Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
-import { FieldsOf } from '@aztec/foundation/types';
+import { type Fr } from '@aztec/foundation/fields';
+import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { type FieldsOf } from '@aztec/foundation/types';
 
 import {
-  ARCHIVE_HEIGHT,
-  L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
-  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
+  type ARCHIVE_HEIGHT,
+  type L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
+  type NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
 } from '../../constants.gen.js';
 import { AggregationObject } from '../aggregation_object.js';
 import { Header } from '../header.js';
-import { RootParityInput } from '../parity/root_parity_input.js';
+import { type RootParityInput } from '../parity/root_parity_input.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
-import { PreviousRollupData } from './previous_rollup_data.js';
+import { type PreviousRollupData } from './previous_rollup_data.js';
 
 /**
  * Represents inputs of the root rollup circuit.

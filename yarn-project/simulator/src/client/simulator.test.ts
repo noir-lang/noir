@@ -1,15 +1,19 @@
-import { AztecNode, Note } from '@aztec/circuit-types';
+import { type AztecNode, Note } from '@aztec/circuit-types';
 import { CompleteAddress } from '@aztec/circuits.js';
 import { computeUniqueCommitment, siloNoteHash } from '@aztec/circuits.js/hash';
-import { ABIParameterVisibility, FunctionArtifactWithDebugMetadata, getFunctionArtifact } from '@aztec/foundation/abi';
+import {
+  ABIParameterVisibility,
+  type FunctionArtifactWithDebugMetadata,
+  getFunctionArtifact,
+} from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { Fr, GrumpkinScalar, Point } from '@aztec/foundation/fields';
 import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 
-import { MockProxy, mock } from 'jest-mock-extended';
+import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { DBOracle } from './db_oracle.js';
+import { type DBOracle } from './db_oracle.js';
 import { AcirSimulator } from './simulator.js';
 
 describe('Simulator', () => {

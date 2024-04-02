@@ -2,18 +2,18 @@ import { createEthereumChain } from '@aztec/ethereum';
 import { RollupAbi } from '@aztec/l1-artifacts';
 
 import {
-  GetContractReturnType,
-  HttpTransport,
-  PublicClient,
+  type GetContractReturnType,
+  type HttpTransport,
+  type PublicClient,
   createPublicClient,
   getAddress,
   getContract,
   http,
 } from 'viem';
-import * as chains from 'viem/chains';
+import type * as chains from 'viem/chains';
 
-import { GlobalReaderConfig } from './config.js';
-import { L1GlobalReader } from './global_builder.js';
+import { type GlobalReaderConfig } from './config.js';
+import { type L1GlobalReader } from './global_builder.js';
 
 /**
  * Reads values from L1 state using viem.

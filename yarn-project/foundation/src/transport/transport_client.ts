@@ -2,9 +2,9 @@ import EventEmitter from 'events';
 import { format } from 'util';
 
 import { createDebugLogger } from '../log/index.js';
-import { EventMessage, ResponseMessage, isEventMessage } from './dispatch/messages.js';
-import { Connector } from './interface/connector.js';
-import { Socket } from './interface/socket.js';
+import { type EventMessage, type ResponseMessage, isEventMessage } from './dispatch/messages.js';
+import { type Connector } from './interface/connector.js';
+import { type Socket } from './interface/socket.js';
 
 const debug = createDebugLogger('aztec:transport_client');
 

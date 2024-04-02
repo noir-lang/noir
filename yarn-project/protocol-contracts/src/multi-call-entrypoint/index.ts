@@ -1,6 +1,6 @@
-import { AztecAddress, EthAddress, Point } from '@aztec/circuits.js';
+import { type AztecAddress, EthAddress, Point } from '@aztec/circuits.js';
 
-import { ProtocolContract, getCanonicalProtocolContract } from '../protocol_contract.js';
+import { type ProtocolContract, getCanonicalProtocolContract } from '../protocol_contract.js';
 import { MultiCallEntrypointArtifact } from './artifact.js';
 
 export function getCanonicalMultiCallEntrypointContract(): ProtocolContract {

@@ -1,6 +1,6 @@
 import { serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { PreviousRollupData } from './previous_rollup_data.js';
+import { type PreviousRollupData } from './previous_rollup_data.js';
 
 /**
  * Represents inputs of the merge rollup circuit.

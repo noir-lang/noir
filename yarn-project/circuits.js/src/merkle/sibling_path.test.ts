@@ -1,6 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { MerkleTree } from './merkle_tree.js';
+import { type MerkleTree } from './merkle_tree.js';
 import { MerkleTreeCalculator } from './merkle_tree_calculator.js';
 import { computeRootFromSiblingPath } from './sibling_path.js';
 

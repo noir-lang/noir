@@ -1,4 +1,4 @@
-import { NoirCompiledContract, loadContractArtifact } from '@aztec/aztec.js';
+import { type NoirCompiledContract, loadContractArtifact } from '@aztec/aztec.js';
 
 import SchnorrAccountContractJson from '../artifacts/SchnorrAccount.json' assert { type: 'json' };
 

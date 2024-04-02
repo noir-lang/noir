@@ -1,5 +1,5 @@
 import type { AvmContext } from '../avm_context.js';
-import { IntegralValue } from '../avm_memory_types.js';
+import { type IntegralValue } from '../avm_memory_types.js';
 import { Opcode } from '../serialization/instruction_serialization.js';
 import { ThreeOperandInstruction, TwoOperandInstruction } from './instruction_impl.js';
 

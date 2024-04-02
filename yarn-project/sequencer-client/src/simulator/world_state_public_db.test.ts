@@ -1,10 +1,10 @@
 import { MerkleTreeId } from '@aztec/circuit-types';
 import { AztecAddress, Fr, PublicDataTreeLeafPreimage } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
-import { IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
-import { MerkleTreeOperations } from '@aztec/world-state';
+import { type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
+import { type MerkleTreeOperations } from '@aztec/world-state';
 
-import { MockProxy, mock } from 'jest-mock-extended';
+import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { WorldStatePublicDB } from './public_executor.js';
 

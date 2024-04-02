@@ -1,8 +1,8 @@
-import { FunctionSelector, GlobalVariables } from '@aztec/circuits.js';
+import { FunctionSelector, type GlobalVariables } from '@aztec/circuits.js';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
+import { type EthAddress } from '@aztec/foundation/eth-address';
+import { type Fr } from '@aztec/foundation/fields';
 
 export class AvmContextInputs {
   static readonly SIZE = 2;

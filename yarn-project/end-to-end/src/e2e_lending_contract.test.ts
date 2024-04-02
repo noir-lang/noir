@@ -1,8 +1,8 @@
 import {
-  AccountWallet,
-  CheatCodes,
-  CompleteAddress,
-  DebugLogger,
+  type AccountWallet,
+  type CheatCodes,
+  type CompleteAddress,
+  type DebugLogger,
   ExtendedNote,
   Fr,
   Note,

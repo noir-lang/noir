@@ -1,14 +1,14 @@
-import { FunctionData } from '@aztec/circuits.js';
-import { DecodedReturn, FunctionArtifactWithDebugMetadata, decodeReturnValues } from '@aztec/foundation/abi';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr } from '@aztec/foundation/fields';
+import { type FunctionData } from '@aztec/circuits.js';
+import { type DecodedReturn, type FunctionArtifactWithDebugMetadata, decodeReturnValues } from '@aztec/foundation/abi';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
+import { type Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import { extractReturnWitness } from '../acvm/deserialize.js';
 import { Oracle, acvm, extractCallStack, toACVMWitness } from '../acvm/index.js';
 import { ExecutionError } from '../common/errors.js';
 import { AcirSimulator } from './simulator.js';
-import { ViewDataOracle } from './view_data_oracle.js';
+import { type ViewDataOracle } from './view_data_oracle.js';
 
 // docs:start:execute_unconstrained_function
 /**

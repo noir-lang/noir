@@ -1,4 +1,4 @@
-import { PXE, createDebugLogger } from '@aztec/aztec.js';
+import { type PXE, createDebugLogger } from '@aztec/aztec.js';
 import { startHttpRpcServer } from '@aztec/foundation/json-rpc/server';
 import { createPXERpcServer } from '@aztec/pxe';
 

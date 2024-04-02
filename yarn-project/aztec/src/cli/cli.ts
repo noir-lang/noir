@@ -1,6 +1,6 @@
 import { fileURLToPath } from '@aztec/aztec.js';
-import { ServerList, createNamespacedJsonRpcServer, createStatusRouter } from '@aztec/foundation/json-rpc/server';
-import { DebugLogger, LogFn } from '@aztec/foundation/log';
+import { type ServerList, createNamespacedJsonRpcServer, createStatusRouter } from '@aztec/foundation/json-rpc/server';
+import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { Command } from 'commander';
 import { readFileSync } from 'fs';

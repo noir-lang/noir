@@ -1,10 +1,10 @@
-import { ContractArtifact, FunctionArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { type ContractArtifact, type FunctionArtifact, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { sha256 } from '@aztec/foundation/crypto';
 import { Fr, reduceFn } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { numToUInt8 } from '@aztec/foundation/serialize';
 
-import { MerkleTree } from '../merkle/merkle_tree.js';
+import { type MerkleTree } from '../merkle/merkle_tree.js';
 import { MerkleTreeCalculator } from '../merkle/merkle_tree_calculator.js';
 
 const VERSION = 1;
