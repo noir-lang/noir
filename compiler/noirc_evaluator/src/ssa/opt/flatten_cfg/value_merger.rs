@@ -65,6 +65,11 @@ impl<'a> ValueMerger<'a> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
+        if self.dfg.resolve(then_value) == self.dfg.resolve(else_value) {
+            // We assume here that `then_condition + else_condition == 1` which is reasonable.
+            return then_value;
+        }
+
         let then_type = self.dfg.type_of_value(then_value);
         let else_type = self.dfg.type_of_value(else_value);
         assert_eq!(

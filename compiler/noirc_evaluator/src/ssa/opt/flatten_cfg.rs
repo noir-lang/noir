@@ -360,7 +360,7 @@ impl<'f> Context<'f> {
                 self.if_start(condition, then_destination, else_destination, &block)
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
+                let arguments = vecmap(arguments, |value| self.inserter.resolve(*value));
                 self.arguments_stack.push(arguments);
                 if work_list.contains(destination) {
                     if work_list.last() == Some(destination) {
@@ -374,8 +374,7 @@ impl<'f> Context<'f> {
             }
             TerminatorInstruction::Return { return_values, call_stack } => {
                 let call_stack = call_stack.clone();
-                let return_values =
-                    vecmap(return_values.clone(), |value| self.inserter.resolve(value));
+                let return_values = vecmap(return_values, |value| self.inserter.resolve(*value));
                 let new_return = TerminatorInstruction::Return { return_values, call_stack };
                 let entry = self.inserter.function.entry_block();
 
@@ -527,7 +526,7 @@ impl<'f> Context<'f> {
         let last_then = cond_context.then_branch.last_block;
         let mut else_args = Vec::new();
         if cond_context.else_branch.is_some() {
-            let last_else = cond_context.else_branch.clone().unwrap().last_block;
+            let last_else = cond_context.else_branch.as_ref().unwrap().last_block;
             else_args = self.inserter.function.dfg[last_else].terminator_arguments().to_vec();
         }
 
@@ -557,7 +556,7 @@ impl<'f> Context<'f> {
         let args = vecmap(args, |(then_arg, else_arg)| {
             value_merger.merge_values(
                 cond_context.then_branch.condition,
-                cond_context.else_branch.clone().unwrap().condition,
+                cond_context.else_branch.as_ref().unwrap().condition,
                 then_arg,
                 else_arg,
             )
@@ -634,11 +633,11 @@ impl<'f> Context<'f> {
         }
 
         if else_branch.is_some() {
-            for (address, store) in else_branch.clone().unwrap().store_values {
-                if let Some(entry) = new_map.get_mut(&address) {
+            for (address, store) in &else_branch.as_ref().unwrap().store_values {
+                if let Some(entry) = new_map.get_mut(address) {
                     entry.1 = store.new_value;
                 } else {
-                    new_map.insert(address, (store.old_value, store.new_value, store.old_value));
+                    new_map.insert(*address, (store.old_value, store.new_value, store.old_value));
                 }
             }
         }
