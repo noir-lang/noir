@@ -3,7 +3,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         instruction::{Instruction, InstructionId},
-        value::Value,
+        types::Type::{Array, Slice},
     },
     ssa_gen::Ssa,
 };
@@ -55,9 +55,9 @@ fn analyze_last_uses(dfg: &DataFlowGraph, block_id: BasicBlockId) -> FxHashSet<I
             }
             Instruction::Call { arguments, .. } => {
                 for argument in arguments {
-                    let argument = dfg.resolve(*argument);
+                    if matches!(dfg.type_of_value(*argument), Array { .. } | Slice { .. }) {
+                        let argument = dfg.resolve(*argument);
 
-                    if matches!(dfg[argument], Value::Array { .. }) {
                         if let Some(existing) = array_to_last_use.insert(argument, *instruction_id)
                         {
                             instructions_that_can_be_made_mutable.remove(&existing);
@@ -65,9 +65,7 @@ fn analyze_last_uses(dfg: &DataFlowGraph, block_id: BasicBlockId) -> FxHashSet<I
                     }
                 }
             }
-            _ => {
-                // Nothing to do
-            }
+            _ => (),
         }
     }
 
