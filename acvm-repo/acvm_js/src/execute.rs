@@ -13,8 +13,8 @@ use crate::{
     foreign_call::{resolve_brillig, ForeignCallHandler},
     JsExecutionError, JsWitnessMap, JsWitnessStack,
 };
-use core::pin::Pin;
 use core::future::Future;
+use core::pin::Pin;
 
 #[wasm_bindgen]
 pub struct WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver);
