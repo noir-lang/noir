@@ -15,6 +15,7 @@ pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
     let witness_path = witness_dir.as_ref().join(witness_name).with_extension(WITNESS_EXT);
 
     let buf: Vec<u8> = witness_stack.try_into()?;
+    
     write_to_file(buf.as_slice(), &witness_path);
 
     Ok(witness_path)
