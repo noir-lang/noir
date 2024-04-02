@@ -131,8 +131,8 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use fxhash::FxHashMap as HashMap;
-use std::collections::{BTreeMap, HashSet};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::collections::BTreeMap;
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -142,7 +142,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::{CallStack, InsertInstructionResult},
-        function::Function,
+        function::{Function, RuntimeType},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::Type,
@@ -213,6 +213,8 @@ struct Context<'f> {
     arguments_stack: Vec<Vec<ValueId>>,
 }
 
+pub(crate) type ModifiedArrayIndices = HashMap<Type, HashSet<ValueId>>;
+
 #[derive(Clone)]
 pub(crate) struct Store {
     old_value: ValueId,
@@ -231,6 +233,9 @@ struct ConditionalBranch {
     store_values: HashMap<ValueId, Store>,
     // The allocations accumulated when processing the branch
     local_allocations: HashSet<ValueId>,
+
+    // Each array index that was stored to an array of a given type within this block.
+    array_indexes_set: ModifiedArrayIndices,
 }
 
 struct ConditionalContext {
@@ -248,7 +253,7 @@ fn flatten_function_cfg(function: &mut Function) {
     // This pass may run forever on a brillig function.
     // Analyze will check if the predecessors have been processed and push the block to the back of
     // the queue. This loops forever if there are still any loops present in the program.
-    if let crate::ssa::ir::function::RuntimeType::Brillig = function.runtime() {
+    if let RuntimeType::Brillig = function.runtime() {
         return;
     }
     let cfg = ControlFlowGraph::with_function(function);
@@ -258,7 +263,7 @@ fn flatten_function_cfg(function: &mut Function) {
         inserter: FunctionInserter::new(function),
         cfg,
         store_values: HashMap::default(),
-        local_allocations: HashSet::new(),
+        local_allocations: HashSet::default(),
         branch_ends,
         slice_sizes: HashMap::default(),
         condition_stack: Vec::new(),
@@ -400,12 +405,14 @@ impl<'f> Context<'f> {
         let one = FieldElement::one();
         let old_stores = std::mem::take(&mut self.store_values);
         let old_allocations = std::mem::take(&mut self.local_allocations);
+
         let branch = ConditionalBranch {
             old_condition,
             condition: self.link_condition(then_condition),
             store_values: old_stores,
             local_allocations: old_allocations,
             last_block: *then_destination,
+            array_indexes_set: HashMap::default(),
         };
         let cond_context = ConditionalContext {
             condition: then_condition,
@@ -449,6 +456,7 @@ impl<'f> Context<'f> {
             condition: else_condition,
             store_values: old_stores,
             local_allocations: old_allocations,
+            array_indexes_set: HashMap::default(),
             last_block: *block,
         };
         let old_condition = else_branch.old_condition;
@@ -521,7 +529,7 @@ impl<'f> Context<'f> {
     fn inline_branch_end(
         &mut self,
         destination: BasicBlockId,
-        cond_context: ConditionalContext,
+        mut cond_context: ConditionalContext,
     ) -> BasicBlockId {
         assert_eq!(self.cfg.predecessors(destination).len(), 2);
         let last_then = cond_context.then_branch.last_block;
@@ -550,8 +558,14 @@ impl<'f> Context<'f> {
             capacity_tracker.compute_slice_capacity(*else_arg, &mut self.slice_sizes);
         }
 
-        let mut value_merger =
-            ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
+        let array_indices_modified = self.pop_array_indices_set(&mut cond_context);
+
+        let mut value_merger = ValueMerger::new(
+            &mut self.inserter.function.dfg,
+            block,
+            &mut self.slice_sizes,
+            &array_indices_modified,
+        );
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
@@ -563,7 +577,11 @@ impl<'f> Context<'f> {
             )
         });
 
-        self.merge_stores(cond_context.then_branch, cond_context.else_branch);
+        self.merge_stores(
+            cond_context.then_branch,
+            cond_context.else_branch,
+            &array_indices_modified,
+        );
         self.arguments_stack.pop();
         self.arguments_stack.pop();
         self.arguments_stack.push(args);
@@ -625,6 +643,7 @@ impl<'f> Context<'f> {
         &mut self,
         then_branch: ConditionalBranch,
         else_branch: Option<ConditionalBranch>,
+        modified_array_indices: &ModifiedArrayIndices,
     ) {
         // Address -> (then_value, else_value, value_before_the_if)
         let mut new_map = BTreeMap::new();
@@ -660,8 +679,13 @@ impl<'f> Context<'f> {
         };
         let block = self.inserter.function.entry_block();
 
-        let mut value_merger =
-            ValueMerger::new(&mut self.inserter.function.dfg, block, &mut self.slice_sizes);
+        let mut value_merger = ValueMerger::new(
+            &mut self.inserter.function.dfg,
+            block,
+            &mut self.slice_sizes,
+            modified_array_indices,
+        );
+
         // Merging must occur in a separate loop as we cannot borrow `self` as mutable while `value_merger` does
         let mut new_values = HashMap::default();
         for (address, (then_case, else_case, _)) in &new_map {
@@ -817,6 +841,16 @@ impl<'f> Context<'f> {
 
                     _ => Instruction::Call { func, arguments },
                 },
+                Instruction::ArraySet { array, index, value, mutable } => {
+                    if let Some(condition) = self.condition_stack.last_mut() {
+                        let branch =
+                            condition.else_branch.as_mut().unwrap_or(&mut condition.then_branch);
+
+                        let typ = self.inserter.function.dfg.type_of_value(array);
+                        branch.array_indexes_set.entry(typ).or_default().insert(index);
+                    }
+                    Instruction::ArraySet { array, index, value, mutable }
+                }
                 other => other,
             }
         } else {
@@ -831,6 +865,34 @@ impl<'f> Context<'f> {
             self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
         }
     }
+
+    fn pop_array_indices_set(
+        &mut self,
+        cond_context: &mut ConditionalContext,
+    ) -> ModifiedArrayIndices {
+        let mut modified = std::mem::take(&mut cond_context.then_branch.array_indexes_set);
+
+        if let Some(else_branch) = cond_context.else_branch.as_mut() {
+            let else_indices = std::mem::take(&mut else_branch.array_indexes_set);
+            modified.extend(else_indices);
+        }
+
+        // Remember all the indices changed in the now finished if branches as also
+        // being changed for any conditions that encompass the whole if. E.g.
+        // if foo {
+        //     if a {  array[1] = 2;  } else {  array[3] = 4;  }
+        // }
+        // This check will ensure the outer if sees the array modifications as well.
+        if let Some(current_condition) = self.condition_stack.last_mut() {
+            let branch = current_condition
+                .else_branch
+                .as_mut()
+                .unwrap_or(&mut current_condition.then_branch);
+            branch.array_indexes_set.extend(modified.clone());
+        }
+
+        modified
+    }
 }
 
 #[cfg(test)]
@@ -841,7 +903,7 @@ mod test {
         function_builder::FunctionBuilder,
         ir::{
             dfg::DataFlowGraph,
-            function::{Function, InlineType, RuntimeType},
+            function::Function,
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,

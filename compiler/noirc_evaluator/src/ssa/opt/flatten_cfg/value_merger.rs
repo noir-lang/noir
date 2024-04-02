@@ -1,5 +1,5 @@
 use acvm::FieldElement;
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -9,12 +9,17 @@ use crate::ssa::ir::{
     value::ValueId,
 };
 
+use super::ModifiedArrayIndices;
+
 pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
+
     // Maps SSA array values with a slice type to their size.
     // This must be computed before merging values.
     slice_sizes: &'a mut HashMap<ValueId, usize>,
+
+    modified_array_indices: &'a ModifiedArrayIndices,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -22,8 +27,9 @@ impl<'a> ValueMerger<'a> {
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
         slice_sizes: &'a mut HashMap<ValueId, usize>,
+        modified_array_indices: &'a ModifiedArrayIndices,
     ) -> Self {
-        ValueMerger { dfg, block, slice_sizes }
+        ValueMerger { dfg, block, slice_sizes, modified_array_indices }
     }
 
     /// Merge two values a and b from separate basic blocks to a single value.
@@ -76,41 +82,27 @@ impl<'a> ValueMerger<'a> {
         let else_call_stack = self.dfg.get_value_call_stack(else_value);
 
         let call_stack = if then_call_stack.is_empty() { else_call_stack } else { then_call_stack };
+        let dfg = &mut self.dfg;
 
         // We must cast the bool conditions to the actual numeric type used by each value.
-        let then_condition = self
-            .dfg
-            .insert_instruction_and_results(
-                Instruction::Cast(then_condition, then_type),
-                self.block,
-                None,
-                call_stack.clone(),
-            )
-            .first();
-        let else_condition = self
-            .dfg
-            .insert_instruction_and_results(
-                Instruction::Cast(else_condition, else_type),
-                self.block,
-                None,
-                call_stack.clone(),
-            )
-            .first();
+        let cast = Instruction::Cast(then_condition, then_type);
+        let then_condition =
+            dfg.insert_instruction_and_results(cast, self.block, None, call_stack.clone()).first();
+
+        let cast = Instruction::Cast(else_condition, else_type);
+        let else_condition =
+            dfg.insert_instruction_and_results(cast, self.block, None, call_stack.clone()).first();
 
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
-        let then_value = self
-            .dfg
-            .insert_instruction_and_results(mul, self.block, None, call_stack.clone())
-            .first();
+        let then_value =
+            dfg.insert_instruction_and_results(mul, self.block, None, call_stack.clone()).first();
 
         let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
-        let else_value = self
-            .dfg
-            .insert_instruction_and_results(mul, self.block, None, call_stack.clone())
-            .first();
+        let else_value =
+            dfg.insert_instruction_and_results(mul, self.block, None, call_stack.clone()).first();
 
         let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
-        self.dfg.insert_instruction_and_results(add, self.block, None, call_stack).first()
+        dfg.insert_instruction_and_results(add, self.block, None, call_stack).first()
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -130,6 +122,19 @@ impl<'a> ValueMerger<'a> {
             Type::Array(elements, len) => (elements, *len),
             _ => panic!("Expected array type"),
         };
+
+        if let Some(modified_indices) = self.modified_array_indices.get(&typ) {
+            if modified_indices.len() < len {
+                return self.merge_only_modified_indices(
+                    &typ,
+                    then_condition,
+                    else_condition,
+                    then_value,
+                    else_value,
+                    modified_indices,
+                );
+            }
+        }
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
@@ -259,5 +264,48 @@ impl<'a> ValueMerger<'a> {
                 unreachable!("ICE: Merging functions is unsupported")
             }
         }
+    }
+
+    fn merge_only_modified_indices(
+        &mut self,
+        typ: &Type,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        then_value: ValueId,
+        else_value: ValueId,
+        modified_indices: &HashSet<ValueId>,
+    ) -> ValueId {
+        let mut merged = im::Vector::new();
+
+        let (element_types, _) = match &typ {
+            Type::Array(elements, len) => (elements, *len),
+            _ => panic!("Expected array type"),
+        };
+
+        for index in modified_indices {
+            let index = *index;
+            for (_, element_type) in element_types.iter().enumerate() {
+                let typevars = Some(vec![element_type.clone()]);
+
+                let mut get_element = |array, typevars| {
+                    let get = Instruction::ArrayGet { array, index };
+                    self.dfg
+                        .insert_instruction_and_results(get, self.block, typevars, CallStack::new())
+                        .first()
+                };
+
+                let then_element = get_element(then_value, typevars.clone());
+                let else_element = get_element(else_value, typevars);
+
+                merged.push_back(self.merge_values(
+                    then_condition,
+                    else_condition,
+                    then_element,
+                    else_element,
+                ));
+            }
+        }
+
+        self.dfg.make_array(merged, typ.clone())
     }
 }
