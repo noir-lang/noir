@@ -133,6 +133,7 @@ impl Binary {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs)
                     && dfg.get_value_max_num_bits(self.lhs) == 1
                 {
+                    // Squaring a boolean value is a noop.
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
