@@ -1184,6 +1184,35 @@ mod tests {
         // assert!(calculated.is_ok(), "{:?}", calculated);
         assert_eq!(calculated, Ok(Tok::Bool(true)), "{:?}", calculated);
 
+
+        // use statement tests
+        let use_statement_inputs = vec![
+            "use dep::std::compat;",
+            "use dep::std::ec::consts::te::baby_jubjub;",
+            "use dep::std::ec::tecurve::affine::Point as TEPoint;",
+            "use dep::std::hash;",
+            "use dep::std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify, eddsa_verify_with_hasher};",
+            "use dep::std::hash::poseidon2::Poseidon2Hasher;",
+            "use dep::std::hash::pedersen::PedersenHasher;",
+        ];
+
+        for use_statement_input in use_statement_inputs {
+            let mut lexer = Lexer::new(use_statement_input);
+            let mut errors = Vec::new();
+
+            // TODO: this is a hack to get the references working
+            // -> this likely means that we'll want to propagate the <'input> lifetime further into Token
+            let lexer_result = lexer.into_iter().collect::<Vec<_>>();
+            let referenced_lexer_result = lexer_result.iter().map(|token_result| {
+                token_result.as_ref().map(|(start, ref token, end)| {
+                    (*start, token_to_tok(token), *end)
+                }).map_err(|x| x.clone())
+            });
+
+            let calculated = noir_parser::PathParser::new().parse(use_statement_input, &mut errors, referenced_lexer_result);
+            assert!(calculated.is_ok(), "{:?}", calculated);
+        }
+
     }
 
 }

@@ -9,7 +9,7 @@ use crate::lexer::lexer::IntType;
 use crate::lexer::errors::LexerErrorKind;
 use crate::ParsedModule;
 use crate::parser::TopLevelStatement;
-use crate::{Ident, Path, PathKind};
+use crate::{Ident, Path, PathKind, UseTree, UseTreeKind};
 
 use lalrpop_util::{ErrorRecovery, ParseError};
 
@@ -115,6 +115,7 @@ extern {
         "\n" => Tok::Whitespace("\n"),
         "\r" => Tok::Whitespace("\r"),
         "\t" => Tok::Whitespace("\t"),
+        whitespace => Tok::Whitespace(_),
 
         EOF => Tok::EOF,
     }
@@ -138,15 +139,26 @@ pub Term: Tok<'input> = {
 //     EOF => ParsedModule::default(),
 // }
 
-// TopLevelStatement: TopLevelStatement = {
+TopLevelStatement: TopLevelStatement = {
 
-//     // use statement from BNF grammar
-//     // use_statement ::= "use" WHITESPACE path (WHITESPACE "as" ident)? ";"
+    // use statement from BNF grammar
+    // use_statement ::= "use" WHITESPACE path (WHITESPACE "as" ident)? ";"
 
-// }
+    // TODO: does this allow zero-size whitespace?
+    "use" whitespace <mut prefix:Path> <alias:Alias?> => {
 
-Path: Path = {
-    <lo:@L> <opt_crate:"crate"?> <opt_dep:"dep"?> "::" <i:Ident> <mut segments:("::" <Ident>)*> <hi:@R> => {
+        let ident = prefix.pop();
+        let kind = UseTreeKind::Path(ident, alias);
+        TopLevelStatement::Import(UseTree { prefix, kind })
+    }
+}
+
+Alias: Ident = {
+    whitespace "as" <Ident> => <>,
+}
+
+pub Path: Path = {
+    <lo:@L> <opt_crate:"crate"?> <opt_dep:"dep"?> "::" <i:Ident> <mut segments:("::" <Ident>)*> ";" <hi:@R> => {
         segments.insert(0, i);
         let mut kind = PathKind::Plain;
         match (opt_crate, opt_dep) {
