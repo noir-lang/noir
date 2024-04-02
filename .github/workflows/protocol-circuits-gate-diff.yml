@@ -8,10 +8,9 @@ on:
 
 jobs:
   compare_protocol_circuits_gates:
-    # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-      cancel-in-progress: ${{ github.ref_name != 'master' }}
+      group: compare_protocol_circuits_gates-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}
+      cancel-in-progress: true
     if: "!startsWith(github.head_ref, 'release-please--')"
     runs-on: ubuntu-20.04
     steps:

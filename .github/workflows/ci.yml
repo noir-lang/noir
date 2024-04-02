@@ -15,24 +15,22 @@ jobs:
       EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
-      group: build-${{ github.event.pull_request.number || github.ref_name }}-x86
-      cancel-in-progress: ${{ github.ref_name != 'master' }}
+      group: build-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}-x86
+      cancel-in-progress: true
     steps:
-      - uses: earthly/actions-setup@v1
-        with:
-          version: v0.8.5
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # we check out submodules in ci-setup-action
           ref: ${{ github.event.pull_request.head.sha }}
-          submodules: recursive
 
       - name: Setup
-        working-directory: ./scripts
-        run: ./setup_env.sh ${{ secrets.DOCKERHUB_PASSWORD }} ${{ github.actor }}
+        uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          github_actor: ${{ github.actor }} 
 
-      - name: Test
+      - name: Build
         working-directory: ./yarn-project
         run: |
           # push to registry
@@ -58,29 +56,27 @@ jobs:
           - e2e-crowdfunding-and-claim
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
-      group: ${{ matrix.test }}-${{ github.event.pull_request.number || github.ref_name }}-arm
-      cancel-in-progress: ${{ github.ref_name != 'master' }}
+      group: ${{ matrix.test }}-${{ github.ref_name == 'master' && github.run_id|| github.ref_name }}-arm
+      cancel-in-progress: true
     steps:
-      - uses: earthly/actions-setup@v1
-        with:
-          version: v0.8.5
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # we check out submodules in ci-setup-action
           ref: ${{ github.event.pull_request.head.sha }}
-          submodules: recursive
 
       - name: Setup
-        working-directory: ./scripts
-        run: ./setup_env.sh ${{ secrets.DOCKERHUB_PASSWORD }} ${{ github.actor }}
+        uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          github_actor: ${{ github.actor }}
 
-      - name: Test
+      - name: Build
         working-directory: ./yarn-project/end-to-end/
         # We don't do much on arm, just run it on their builder
         run:
           # Flags:
-          # - e2e_build=true to get images from a local build, not a dockerhub registry strategy
+          # - e2e_mode=build to get images from a local build, not a dockerhub registry strategy
           earthly-cloud build arm --no-output +${{ matrix.test }} --e2e_mode=build
 
   # all the end-to-end integration tests for aztec
@@ -95,22 +91,20 @@ jobs:
         test: ${{ fromJson( needs.build-x86.outputs.e2e_list )}}
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
-      group: ${{ matrix.test }}-${{ github.event.pull_request.number || github.ref_name }}-x86
-      cancel-in-progress: ${{ github.ref_name != 'master' }}
+      group: ${{ matrix.test }}-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}-x86
+      cancel-in-progress: true
     steps:
-      - uses: earthly/actions-setup@v1
-        with:
-          version: v0.8.5
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # we check out submodules in ci-setup-action
           ref: ${{ github.event.pull_request.head.sha }}
-          submodules: recursive
 
       - name: Setup
-        working-directory: ./scripts
-        run: ./setup_env.sh ${{ secrets.DOCKERHUB_PASSWORD }} ${{ github.actor }}
+        uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          github_actor: ${{ github.actor }} 
 
       - name: Pull E2E Images
         working-directory: ./barretenberg/cpp/
@@ -123,7 +117,8 @@ jobs:
       - name: Test
         working-directory: ./yarn-project/end-to-end/
         run: |
-          earthly-cloud build x86 --no-output +${{ matrix.test }} --e2e_mode=cache
+          # we blank earthly token just to be sure this is a pure local run
+          EARTHLY_TOKEN="" earthly -P --no-output +${{ matrix.test }} --e2e_mode=cache
 
   # barretenberg (prover) native tests
   bb-native-tests:
@@ -134,26 +129,24 @@ jobs:
       fail-fast: false
       matrix:
         environment: [x86]
-        # pending fix fot intermittent test
+        # pending fix for intermittent test
         # environment: [x86, arm]
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
-      group: bb-native-tests-${{ github.event.pull_request.number || github.ref_name }}-${{ matrix.environment }}
-      cancel-in-progress: ${{ github.ref_name != 'master' }}
+      group: bb-native-tests-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}-${{ matrix.environment }}
+      cancel-in-progress: true
     steps:
-      - uses: earthly/actions-setup@v1
-        with:
-          version: v0.8.5
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # we check out submodules in ci-setup-action
           ref: ${{ github.event.pull_request.head.sha }}
-          submodules: recursive
 
       - name: Setup
-        working-directory: ./scripts
-        run: ./setup_env.sh ${{ secrets.DOCKERHUB_PASSWORD }} ${{ github.actor }}
+        uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          github_actor: ${{ github.actor }} 
 
       - name: Test
         working-directory: ./barretenberg/cpp/
@@ -170,27 +163,34 @@ jobs:
       EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
     # cancel if reran on same PR if exists, otherwise if on same commit
     concurrency:
-      # TODO this allows NO concurrency of bench jobs
-      # TODO if this takes too long, we need to divide up into different bench machines for each pipeline step
-      group: bench-x86
+      # We use a looser concurrency limit here, but we place a lock 
+      # in the actual step action so that only one bench takes place
+      group: bench-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}-x86
+      cancel-in-progress: true
     steps:
-      - uses: earthly/actions-setup@v1
-        with:
-          version: v0.8.5
-          
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # we check out submodules in ci-setup-action
           ref: ${{ github.event.pull_request.head.sha }}
-          submodules: recursive
 
       - name: Setup
-        working-directory: ./scripts
-        run: ./setup_env.sh ${{ secrets.DOCKERHUB_PASSWORD }} ${{ github.actor }}
+        uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          github_actor: ${{ github.actor }} 
 
       - name: Build and Push Binaries
         working-directory: ./barretenberg/cpp/
         run: earthly-cloud build x86 --push +bench-base
+
+      # Only allow one person to use this runner
+      # The reason is that as detailed in https://github.com/ben-z/gh-action-mutex
+      # things do not become 'pending' in github actions, and instead just cancel one another
+      - name: Set up mutex
+        uses: ben-z/gh-action-mutex@v1.0.0-alpha.9
+        with:
+          branch: gh-action-mutex-bench
 
       # Use bench_mode=cache to read the pushed build above
       - name: Client IVC Bench

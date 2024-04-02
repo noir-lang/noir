@@ -1,0 +1,35 @@
+# Reusable setup workflow for CI tasks
+name: Setup Workflow
+description: 'Reusable setup steps'
+
+inputs:
+  dockerhub_password:
+    required: true
+    description: 'DockerHub Password'
+  github_actor:
+    required: true
+    description: 'GitHub Actor'
+
+runs:
+  # define an action, runs in OS of caller
+  using: composite
+  steps:
+    - name: Cache Submodules
+      id: cache-submodules
+      uses: actions/cache@v3
+      with:
+        path: .git
+        key: submodules-${{ hashFiles('.gitmodules') }}
+
+    - name: Checkout Submodules
+      shell: bash
+      run: git submodule sync --recursive && git submodule update --init --recursive
+
+    - name: Setup Earthly
+      uses: earthly/actions-setup@v1
+      with:
+        version: 'v0.8.5'
+
+    - name: Setup Env
+      shell: bash
+      run: ./scripts/setup_env.sh ${{ inputs.dockerhub_password }} ${{ inputs.github_actor }}
