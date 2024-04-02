@@ -171,13 +171,10 @@ it('executeProgram: successfully executes program and extracts return value', as
   const witnessStack: WitnessStack = await executeProgram(bytecode, initialWitnessMap, () => {
     throw Error('unexpected oracle');
   });
-  console.log('witness stack: ', witnessStack);
-  const solvedStackItem: StackItem = witnessStack[0];
-  console.log('solvedStackItem: ', solvedStackItem);
 
+  const solvedStackItem: StackItem = witnessStack[0];
   expect(solvedStackItem.index).to.be.eq(0);
   const solvedWitnessMap: WitnessMap = solvedStackItem.witness;
-  console.log('solvedWitnessMap: ', solvedWitnessMap);
 
   // Witness stack should be consistent with initial witness
   initialWitnessMap.forEach((value, key) => {
@@ -188,70 +185,12 @@ it('executeProgram: successfully executes program and extracts return value', as
   expect(solvedWitnessMap.get(resultWitness)).to.be.eq(expectedResult);
 });
 
-it('executeProgram: successfully processes simple brillig foreign call opcodes', async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessMap, oracleResponse, oracleCallName, oracleCallInputs } =
-    await import('../shared/foreign_call');
+it('executeProgram: successfully process a program of acir functions with a nested call', async () => {
+  const { bytecode, initialWitnessMap, expectedWitnessStack } = await import('../shared/nested_acir_call');
 
-  let observedName = '';
-  let observedInputs: string[][] = [];
-  const foreignCallHandler: ForeignCallHandler = async (name: string, inputs: string[][]) => {
-    // Throwing inside the oracle callback causes a timeout so we log the observed values
-    // and defer the check against expected values until after the execution is complete.
-    observedName = name;
-    observedInputs = inputs;
+  const witnessStack: WitnessStack = await executeProgram(bytecode, initialWitnessMap, () => {
+    throw Error('unexpected oracle');
+  });
 
-    return oracleResponse;
-  };
-
-  const witnessStack: WitnessStack = await executeProgram(bytecode, initialWitnessMap, foreignCallHandler);
-
-  console.log('witness stack: ', witnessStack);
-  const solvedStackItem: StackItem = witnessStack[0];
-  console.log('solvedStackItem: ', solvedStackItem);
-
-  expect(solvedStackItem.index).to.be.eq(0);
-  const solvedWitnessMap: WitnessMap = solvedStackItem.witness;
-  console.log('solvedWitnessMap: ', solvedWitnessMap);
-
-  // Check that expected values were passed to oracle callback.
-  expect(observedName).to.be.eq(oracleCallName);
-  expect(observedInputs).to.be.deep.eq(oracleCallInputs);
-
-  // If incorrect value is written into circuit then execution should halt due to unsatisfied constraint in
-  // assert-zero opcode. Nevertheless, check that returned value was inserted correctly.
-  expect(solvedWitnessMap).to.be.deep.eq(expectedWitnessMap);
-});
-
-it('executeProgram: successfully processes complex brillig foreign call opcodes', async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessMap, oracleResponse, oracleCallName, oracleCallInputs } =
-    await import('../shared/complex_foreign_call');
-
-  let observedName = '';
-  let observedInputs: string[][] = [];
-  const foreignCallHandler: ForeignCallHandler = async (name: string, inputs: string[][]) => {
-    // Throwing inside the oracle callback causes a timeout so we log the observed values
-    // and defer the check against expected values until after the execution is complete.
-    observedName = name;
-    observedInputs = inputs;
-
-    return oracleResponse;
-  };
-
-  const witnessStack: WitnessStack = await executeProgram(bytecode, initialWitnessMap, foreignCallHandler);
-
-  console.log('witness stack: ', witnessStack);
-  const solvedStackItem: StackItem = witnessStack[0];
-  console.log('solvedStackItem: ', solvedStackItem);
-
-  expect(solvedStackItem.index).to.be.eq(0);
-  const solvedWitnessMap: WitnessMap = solvedStackItem.witness;
-  console.log('solvedWitnessMap: ', solvedWitnessMap);
-
-  // Check that expected values were passed to oracle callback.
-  expect(observedName).to.be.eq(oracleCallName);
-  expect(observedInputs).to.be.deep.eq(oracleCallInputs);
-
-  // If incorrect value is written into circuit then execution should halt due to unsatisfied constraint in
-  // assert-zero opcode. Nevertheless, check that returned value was inserted correctly.
-  expect(solvedWitnessMap).to.be.deep.eq(expectedWitnessMap);
+  expect(witnessStack).to.be.deep.eq(expectedWitnessStack);
 });

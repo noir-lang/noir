@@ -1,10 +1,8 @@
-use acvm::{acir::native_types::WitnessStack, FieldElement};
+use acvm::acir::native_types::WitnessStack;
 use js_sys::{Array, JsString, Map, Object};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
 use crate::JsWitnessMap;
-
-// witness_map: Map<number, string>;
 
 #[wasm_bindgen(typescript_custom_section)]
 const WITNESS_MAP: &'static str = r#"
@@ -44,9 +42,6 @@ impl From<WitnessStack> for JsWitnessStack {
     fn from(mut witness_stack: WitnessStack) -> Self {
         let js_witness_stack = JsWitnessStack::new();
         while let Some(stack_item) = witness_stack.pop() {
-            let witness_entry_name = JsString::from("witness");
-            let index_entry_name = JsString::from("index");
-
             let js_map = JsWitnessMap::from(stack_item.witness);
             let js_index = JsValue::from_f64(stack_item.index.into());
 
@@ -57,7 +52,8 @@ impl From<WitnessStack> for JsWitnessStack {
 
             js_witness_stack.push(&stack_item);
         }
-        js_witness_stack
+        // `reverse()` returns an `Array` so we have to wrap it
+        JsWitnessStack { obj: js_witness_stack.reverse() }
     }
 }
 

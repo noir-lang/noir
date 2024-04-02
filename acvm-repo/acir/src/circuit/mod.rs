@@ -216,25 +216,33 @@ impl std::fmt::Display for Circuit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "current witness index : {}", self.current_witness_index)?;
 
-        let write_public_inputs = |f: &mut std::fmt::Formatter<'_>,
-                                   public_inputs: &PublicInputs|
-         -> Result<(), std::fmt::Error> {
-            write!(f, "[")?;
-            let public_input_indices = public_inputs.indices();
-            for (index, public_input) in public_input_indices.iter().enumerate() {
-                write!(f, "{public_input}")?;
-                if index != public_input_indices.len() - 1 {
-                    write!(f, ", ")?;
+        let write_witness_indices =
+            |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
+                write!(f, "[")?;
+                for (index, witness_index) in indices.iter().enumerate() {
+                    write!(f, "{witness_index}")?;
+                    if index != indices.len() - 1 {
+                        write!(f, ", ")?;
+                    }
                 }
-            }
-            writeln!(f, "]")
-        };
+                writeln!(f, "]")
+            };
+
+        write!(f, "private parameters indices : ")?;
+        write_witness_indices(
+            f,
+            &self
+                .private_parameters
+                .iter()
+                .map(|witness| witness.witness_index())
+                .collect::<Vec<_>>(),
+        )?;
 
         write!(f, "public parameters indices : ")?;
-        write_public_inputs(f, &self.public_parameters)?;
+        write_witness_indices(f, &self.public_parameters.indices())?;
 
         write!(f, "return value indices : ")?;
-        write_public_inputs(f, &self.return_values)?;
+        write_witness_indices(f, &self.return_values.indices())?;
 
         for opcode in &self.opcodes {
             writeln!(f, "{opcode}")?;
