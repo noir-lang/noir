@@ -130,6 +130,11 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs)
+                    && dfg.get_value_max_num_bits(self.lhs) == 1
+                {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
             }
             BinaryOp::Div => {
                 if rhs_is_one {
@@ -164,6 +169,36 @@ impl Binary {
                     let one = dfg.make_constant(FieldElement::one(), Type::bool());
                     return SimplifyResult::SimplifiedTo(one);
                 }
+
+                if operand_type.is_unsigned() {
+                    // If we're comparing a variable against a constant value which lies outside of the range of
+                    // values which the variable's type can take, we can assume that the equality will be false.
+                    match (lhs, rhs) {
+                        (Some(lhs), None) => {
+                            let max_possible_value =
+                                2u128.pow(dfg.get_value_max_num_bits(self.rhs)) - 1;
+                            if lhs > max_possible_value.into() {
+                                let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                                return SimplifyResult::SimplifiedTo(zero);
+                            }
+                        }
+
+                        (None, Some(rhs)) => {
+                            let max_possible_value =
+                                2u128.pow(dfg.get_value_max_num_bits(self.lhs)) - 1;
+                            if rhs > max_possible_value.into() {
+                                let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                                return SimplifyResult::SimplifiedTo(zero);
+                            }
+                        }
+
+                        (None, None) => (),
+                        (Some(_), Some(_)) => {
+                            unreachable!("Constant binary instructions should be handled above")
+                        }
+                    }
+                }
+
                 if operand_type == Type::bool() {
                     // Simplify forms of `(boolean == true)` into `boolean`
                     if lhs_is_one {
