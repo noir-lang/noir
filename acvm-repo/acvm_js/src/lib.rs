@@ -14,6 +14,7 @@ cfg_if::cfg_if! {
         mod execute;
         mod foreign_call;
         mod js_witness_map;
+        mod js_witness_stack;
         mod logging;
         mod public_witness;
         mod js_execution_error;
@@ -24,6 +25,7 @@ cfg_if::cfg_if! {
         pub use compression::{compress_witness, decompress_witness};
         pub use execute::{execute_circuit, execute_circuit_with_black_box_solver, create_black_box_solver};
         pub use js_witness_map::JsWitnessMap;
+        pub use js_witness_stack::JsWitnessStack;
         pub use logging::init_log_level;
         pub use public_witness::{get_public_parameters_witness, get_public_witness, get_return_witness};
         pub use js_execution_error::JsExecutionError;

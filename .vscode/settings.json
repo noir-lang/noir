@@ -18,5 +18,8 @@
     },
     "[javascript]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
-    }
+    },
+    "rust-analyzer.linkedProjects": [
+        "acvm-repo/acvm_js/Cargo.toml",
+    ]
 }

@@ -28,8 +28,10 @@ pub fn compress_witness(witness_map: JsWitnessMap) -> Result<Vec<u8>, JsString> 
 pub fn decompress_witness(compressed_witness: Vec<u8>) -> Result<JsWitnessMap, JsString> {
     console_error_panic_hook::set_once();
 
-    let witness_stack =
+    let mut witness_stack =
         WitnessStack::try_from(compressed_witness.as_slice()).map_err(|err| err.to_string())?;
 
-    Ok(witness_stack.stack[0].witness.clone().into())
+    let witness =
+        witness_stack.pop().expect("Should have at least one witness on the stack").witness;
+    Ok(witness.into())
 }

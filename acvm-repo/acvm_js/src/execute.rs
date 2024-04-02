@@ -1,5 +1,7 @@
+use acvm::BlackBoxFunctionSolver;
 use acvm::{
-    acir::circuit::Program,
+    acir::circuit::{Circuit, Program},
+    acir::native_types::{WitnessMap, WitnessStack},
     pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM},
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -9,9 +11,10 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{
     foreign_call::{resolve_brillig, ForeignCallHandler},
-    JsExecutionError, JsWitnessMap,
+    JsExecutionError, JsWitnessMap, JsWitnessStack,
 };
-
+use core::pin::Pin;
+use futures::future::Future;
 #[wasm_bindgen]
 pub struct WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver);
 
@@ -42,8 +45,16 @@ pub async fn execute_circuit(
 
     let solver = WasmBlackBoxFunctionSolver::initialize().await;
 
-    execute_circuit_with_black_box_solver(&solver, program, initial_witness, foreign_call_handler)
-        .await
+    let mut witness_stack = execute_program_with_native_type_return(
+        &solver,
+        program,
+        initial_witness,
+        &foreign_call_handler,
+    )
+    .await?;
+    let witness_map =
+        witness_stack.pop().expect("Should have at least one witness on the stack").witness;
+    Ok(witness_map.into())
 }
 
 /// Executes an ACIR circuit to generate the solved witness from the initial witness.
@@ -56,69 +67,174 @@ pub async fn execute_circuit(
 #[wasm_bindgen(js_name = executeCircuitWithBlackBoxSolver, skip_jsdoc)]
 pub async fn execute_circuit_with_black_box_solver(
     solver: &WasmBlackBoxFunctionSolver,
-    // TODO(https://github.com/noir-lang/noir/issues/4428): These need to be updated to match the same interfaces
-    // as the native ACVM executor. Right now native execution still only handles one circuit so I do not feel the need
-    // to break the JS interface just yet.
     program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsWitnessMap, Error> {
     console_error_panic_hook::set_once();
+
+    let mut witness_stack = execute_program_with_native_type_return(
+        &solver,
+        program,
+        initial_witness,
+        &foreign_call_handler,
+    )
+    .await?;
+    let witness_map =
+        witness_stack.pop().expect("Should have at least one witness on the stack").witness;
+    Ok(witness_map.into())
+}
+
+#[wasm_bindgen(js_name = executeProgram, skip_jsdoc)]
+pub async fn execute_program(
+    program: Vec<u8>,
+    initial_witness: JsWitnessMap,
+    foreign_call_handler: ForeignCallHandler,
+) -> Result<JsWitnessStack, Error> {
+    console_error_panic_hook::set_once();
+
+    let solver = WasmBlackBoxFunctionSolver::initialize().await;
+
+    execute_program_with_black_box_solver(&solver, program, initial_witness, &foreign_call_handler)
+        .await
+}
+
+#[wasm_bindgen(js_name = executeProgramWithBlackBoxSolver, skip_jsdoc)]
+pub async fn execute_program_with_black_box_solver(
+    solver: &WasmBlackBoxFunctionSolver,
+    program: Vec<u8>,
+    initial_witness: JsWitnessMap,
+    foreign_call_executor: &ForeignCallHandler,
+) -> Result<JsWitnessStack, Error> {
+    let witness_stack = execute_program_with_native_type_return(
+        solver,
+        program,
+        initial_witness,
+        foreign_call_executor,
+    )
+    .await?;
+
+    Ok(witness_stack.into())
+}
+
+async fn execute_program_with_native_type_return(
+    solver: &WasmBlackBoxFunctionSolver,
+    program: Vec<u8>,
+    initial_witness: JsWitnessMap,
+    foreign_call_executor: &ForeignCallHandler,
+) -> Result<WitnessStack, Error> {
     let program: Program = Program::deserialize_program(&program)
-        .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None))?;
-    let circuit = match program.functions.len() {
-        0 => return Ok(initial_witness),
-        1 => &program.functions[0],
-        _ => return Err(JsExecutionError::new("Program contains multiple circuits however ACVM currently only supports programs containing a single circuit".to_string(), None).into())
-    };
+    .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None))?;
 
-    let mut acvm = ACVM::new(&solver.0, &circuit.opcodes, initial_witness.into());
+    let main = &program.functions[0];
 
-    loop {
-        let solver_status = acvm.solve();
+    let executor = ProgramExecutor::new(&program.functions, &solver.0, &foreign_call_executor);
 
-        match solver_status {
-            ACVMStatus::Solved => break,
-            ACVMStatus::InProgress => {
-                unreachable!("Execution should not stop while in `InProgress` state.")
-            }
-            ACVMStatus::Failure(error) => {
-                let (assert_message, call_stack) = match &error {
-                    OpcodeResolutionError::UnsatisfiedConstrain {
-                        opcode_location: ErrorLocation::Resolved(opcode_location),
-                    }
-                    | OpcodeResolutionError::IndexOutOfBounds {
-                        opcode_location: ErrorLocation::Resolved(opcode_location),
-                        ..
-                    } => {
-                        (circuit.get_assert_message(*opcode_location), Some(vec![*opcode_location]))
-                    }
-                    OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
-                        let failing_opcode =
-                            call_stack.last().expect("Brillig error call stacks cannot be empty");
-                        (circuit.get_assert_message(*failing_opcode), Some(call_stack.clone()))
-                    }
-                    _ => (None, None),
-                };
+    let mut witness_stack = WitnessStack::default();
+    let main_witness =
+        executor.execute_circuit(main, initial_witness.into(), &mut witness_stack).await?;
+    witness_stack.push(0, main_witness);
 
-                let error_string = match &assert_message {
-                    Some(assert_message) => format!("Assertion failed: {}", assert_message),
-                    None => error.to_string(),
-                };
+    Ok(witness_stack)
+}
 
-                return Err(JsExecutionError::new(error_string.into(), call_stack).into());
-            }
-            ACVMStatus::RequiresForeignCall(foreign_call) => {
-                let result = resolve_brillig(&foreign_call_handler, &foreign_call).await?;
+struct ProgramExecutor<'a, B: BlackBoxFunctionSolver> {
+    functions: &'a [Circuit],
 
-                acvm.resolve_pending_foreign_call(result);
-            }
-            ACVMStatus::RequiresAcirCall(_) => {
-                todo!("Handle acir calls in acvm JS");
-            }
-        }
+    blackbox_solver: &'a B,
+
+    foreign_call_handler: &'a ForeignCallHandler,
+}
+
+impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
+    fn new(
+        functions: &'a [Circuit],
+        blackbox_solver: &'a B,
+        foreign_call_handler: &'a ForeignCallHandler,
+    ) -> Self {
+        ProgramExecutor { functions, blackbox_solver, foreign_call_handler }
     }
 
-    let witness_map = acvm.finalize();
-    Ok(witness_map.into())
+    fn execute_circuit(
+        &'a self,
+        circuit: &'a Circuit,
+        initial_witness: WitnessMap,
+        witness_stack: &'a mut WitnessStack,
+    ) -> Pin<Box<dyn Future<Output = Result<WitnessMap, Error>> + 'a>> {
+        Box::pin(async {
+            let mut acvm = ACVM::new(self.blackbox_solver, &circuit.opcodes, initial_witness);
+
+            // This message should be resolved by a nargo foreign call only when we have an unsatisfied assertion.
+            let mut assert_message: Option<String> = None;
+            loop {
+                let solver_status = acvm.solve();
+
+                match solver_status {
+                    ACVMStatus::Solved => break,
+                    ACVMStatus::InProgress => {
+                        unreachable!("Execution should not stop while in `InProgress` state.")
+                    }
+                    ACVMStatus::Failure(error) => {
+                        let (assert_message, call_stack) = match &error {
+                            OpcodeResolutionError::UnsatisfiedConstrain {
+                                opcode_location: ErrorLocation::Resolved(opcode_location),
+                            }
+                            | OpcodeResolutionError::IndexOutOfBounds {
+                                opcode_location: ErrorLocation::Resolved(opcode_location),
+                                ..
+                            } => (
+                                circuit.get_assert_message(*opcode_location),
+                                Some(vec![*opcode_location]),
+                            ),
+                            OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
+                                let failing_opcode = call_stack
+                                    .last()
+                                    .expect("Brillig error call stacks cannot be empty");
+                                (
+                                    circuit.get_assert_message(*failing_opcode),
+                                    Some(call_stack.clone()),
+                                )
+                            }
+                            _ => (None, None),
+                        };
+
+                        let error_string = match &assert_message {
+                            Some(assert_message) => format!("Assertion failed: {}", assert_message),
+                            None => error.to_string(),
+                        };
+
+                        return Err(JsExecutionError::new(error_string.into(), call_stack).into());
+                    }
+                    ACVMStatus::RequiresForeignCall(foreign_call) => {
+                        let result =
+                            resolve_brillig(self.foreign_call_handler, &foreign_call).await?;
+
+                        acvm.resolve_pending_foreign_call(result);
+                    }
+                    ACVMStatus::RequiresAcirCall(call_info) => {
+                        let acir_to_call = &self.functions[call_info.id as usize];
+                        let initial_witness = call_info.initial_witness;
+                        let call_solved_witness = self
+                            .execute_circuit(acir_to_call, initial_witness, witness_stack)
+                            .await?;
+                        let mut call_resolved_outputs = Vec::new();
+                        for return_witness_index in acir_to_call.return_values.indices() {
+                            if let Some(return_value) =
+                                call_solved_witness.get_index(return_witness_index)
+                            {
+                                call_resolved_outputs.push(*return_value);
+                            } else {
+                                // TODO: look at changing this call stack from None
+                                return Err(JsExecutionError::new(format!("Failed to read from solved witness of ACIR call at witness {}", return_witness_index), None).into());
+                            }
+                        }
+                        acvm.resolve_pending_acir_call(call_resolved_outputs);
+                        witness_stack.push(call_info.id, call_solved_witness.clone());
+                    }
+                }
+            }
+
+            Ok(acvm.finalize())
+        })
+    }
 }
