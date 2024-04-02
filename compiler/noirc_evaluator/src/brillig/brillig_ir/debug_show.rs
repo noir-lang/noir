@@ -2,7 +2,10 @@
 
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::ReservedRegisters;
-use acvm::acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, Value, ValueOrArray};
+use acvm::{
+    acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
+    FieldElement,
+};
 
 /// Trait for converting values into debug-friendly strings.
 trait DebugToString {
@@ -66,9 +69,9 @@ impl DebugToString for BrilligBinaryOp {
     }
 }
 
-impl DebugToString for Value {
+impl DebugToString for FieldElement {
     fn debug_to_string(&self) -> String {
-        self.to_usize().to_string()
+        self.to_string()
     }
 }
 
@@ -167,7 +170,7 @@ impl DebugShow {
     }
 
     /// Stores the value of `constant` in the `result` register
-    pub(crate) fn const_instruction(&self, result: MemoryAddress, constant: Value) {
+    pub(crate) fn const_instruction(&self, result: MemoryAddress, constant: FieldElement) {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
     }
 

@@ -114,7 +114,12 @@ mod test {
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{cfg::ControlFlowGraph, function::RuntimeType, map::Id, types::Type},
+        ir::{
+            cfg::ControlFlowGraph,
+            function::{InlineType, RuntimeType},
+            map::Id,
+            types::Type,
+        },
         opt::flatten_cfg::branch_analysis::find_branch_ends,
     };
 
@@ -134,7 +139,7 @@ mod test {
         //      ↘   ↙
         //       b9
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
@@ -195,7 +200,7 @@ mod test {
         //        ↘    ↙
         //          b15
         let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();

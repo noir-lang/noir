@@ -4,7 +4,7 @@ mod utils;
 use transforms::{
     compute_note_hash_and_nullifier::inject_compute_note_hash_and_nullifier,
     events::{generate_selector_impl, transform_events},
-    functions::{transform_function, transform_unconstrained, transform_vm_function},
+    functions::{transform_function, transform_unconstrained},
     note_interface::generate_note_interface_impl,
     storage::{
         assign_storage_slots, check_for_storage_definition, check_for_storage_implementation,
@@ -138,18 +138,21 @@ fn transform_module(module: &mut SortedModule) -> Result<bool, AztecMacroError> 
         }
 
         // Apply transformations to the function based on collected attributes
-        if is_private || is_public {
+        if is_private || is_public || is_public_vm {
             transform_function(
-                if is_private { "Private" } else { "Public" },
+                if is_private {
+                    "Private"
+                } else if is_public_vm {
+                    "Avm"
+                } else {
+                    "Public"
+                },
                 func,
                 storage_defined,
                 is_initializer,
                 insert_init_check,
                 is_internal,
             )?;
-            has_transformed_module = true;
-        } else if is_public_vm {
-            transform_vm_function(func, storage_defined)?;
             has_transformed_module = true;
         } else if storage_defined && func.def.is_unconstrained {
             transform_unconstrained(func);
