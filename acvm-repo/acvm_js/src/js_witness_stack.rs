@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 use crate::JsWitnessMap;
 
 #[wasm_bindgen(typescript_custom_section)]
-const WITNESS_MAP: &'static str = r#"
+const WITNESS_STACK: &'static str = r#"
 export type StackItem = {
     index: number;
     witness: WitnessMap;
@@ -29,7 +29,7 @@ extern "C" {
     pub type JsStackItem;
 
     #[wasm_bindgen(constructor, js_class = "Object")]
-    pub fn new(index: JsValue, witness: JsWitnessMap) -> JsStackItem;
+    pub fn new() -> JsStackItem;
 }
 
 impl Default for JsWitnessStack {
