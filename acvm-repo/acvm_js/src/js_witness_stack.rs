@@ -1,5 +1,5 @@
 use acvm::acir::native_types::WitnessStack;
-use js_sys::{Array, JsString, Map, Object};
+use js_sys::{Array, Map, Object};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
 use crate::JsWitnessMap;
