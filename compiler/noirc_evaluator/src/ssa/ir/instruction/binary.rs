@@ -174,28 +174,15 @@ impl Binary {
                 if operand_type.is_unsigned() {
                     // If we're comparing a variable against a constant value which lies outside of the range of
                     // values which the variable's type can take, we can assume that the equality will be false.
-                    match (lhs, rhs) {
-                        (Some(lhs), None) => {
-                            let max_possible_value =
-                                2u128.pow(dfg.get_value_max_num_bits(self.rhs)) - 1;
-                            if lhs > max_possible_value.into() {
-                                let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
-                                return SimplifyResult::SimplifiedTo(zero);
-                            }
-                        }
-
-                        (None, Some(rhs)) => {
-                            let max_possible_value =
-                                2u128.pow(dfg.get_value_max_num_bits(self.lhs)) - 1;
-                            if rhs > max_possible_value.into() {
-                                let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
-                                return SimplifyResult::SimplifiedTo(zero);
-                            }
-                        }
-
-                        (None, None) => (),
-                        (Some(_), Some(_)) => {
-                            unreachable!("Constant binary instructions should be handled above")
+                    let constant = lhs.or(rhs);
+                    let non_constant = if lhs.is_some() { self.rhs } else { self.lhs };
+                    
+                    if let Some(constant) = constant {
+                        let max_possible_value =
+                            2u128.pow(dfg.get_value_max_num_bits(non_constant)) - 1;
+                        if constant > max_possible_value.into() {
+                            let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                            return SimplifyResult::SimplifiedTo(zero);
                         }
                     }
                 }
