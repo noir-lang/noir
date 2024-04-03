@@ -65,7 +65,7 @@ impl DefaultDebugForeignCallExecutor {
     pub fn load_artifact(&mut self, artifact: &DebugArtifact) {
         // TODO: handle loading from the correct DebugInfo when we support
         // debugging contracts
-        let Some(info) = artifact.debug_symbols.get(0) else {
+        let Some(info) = artifact.debug_symbols.first() else {
             return;
         };
         self.debug_vars.insert_debug_info(info);

@@ -434,7 +434,9 @@ mod test {
 
     use crate::graph::CrateId;
     use crate::hir::def_map::{ModuleData, ModuleId};
-    use crate::hir::resolution::import::PathResolutionError;
+    use crate::hir::resolution::import::{
+        PathResolution, PathResolutionError, PathResolutionResult,
+    };
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
@@ -644,12 +646,13 @@ mod test {
             &self,
             _def_maps: &BTreeMap<CrateId, CrateDefMap>,
             path: Path,
-        ) -> Result<ModuleDefId, PathResolutionError> {
+        ) -> PathResolutionResult {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
             self.0
                 .get(&name.0.contents)
                 .cloned()
+                .map(|module_def_id| PathResolution { module_def_id, error: None })
                 .ok_or_else(move || PathResolutionError::Unresolved(name.clone()))
         }
 

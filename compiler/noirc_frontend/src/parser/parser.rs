@@ -1242,7 +1242,7 @@ where
 mod test {
     use super::test_helpers::*;
     use super::*;
-    use crate::{ArrayLiteral, Literal};
+    use crate::ArrayLiteral;
 
     #[test]
     fn parse_infix() {
