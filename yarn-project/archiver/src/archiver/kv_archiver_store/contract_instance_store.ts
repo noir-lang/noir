@@ -12,7 +12,7 @@ export class ContractInstanceStore {
     this.#contractInstances = db.openMap('archiver_contract_instances');
   }
 
-  addContractInstance(contractInstance: ContractInstanceWithAddress): Promise<boolean> {
+  addContractInstance(contractInstance: ContractInstanceWithAddress): Promise<void> {
     return this.#contractInstances.set(
       contractInstance.address.toString(),
       new SerializableContractInstance(contractInstance).toBuffer(),

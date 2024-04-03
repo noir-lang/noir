@@ -17,7 +17,7 @@ export class ContractClassStore {
     this.#contractClasses = db.openMap('archiver_contract_classes');
   }
 
-  addContractClass(contractClass: ContractClassPublic): Promise<boolean> {
+  addContractClass(contractClass: ContractClassPublic): Promise<void> {
     return this.#contractClasses.set(contractClass.id.toString(), serializeContractClassPublic(contractClass));
   }
 

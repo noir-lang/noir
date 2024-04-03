@@ -397,7 +397,7 @@ export class KVPxeDatabase implements PxeDatabase {
     return this.#syncedBlockPerPublicKey.get(publicKey.toString());
   }
 
-  setSynchedBlockNumberForPublicKey(publicKey: Point, blockNumber: number): Promise<boolean> {
+  setSynchedBlockNumberForPublicKey(publicKey: Point, blockNumber: number): Promise<void> {
     return this.#syncedBlockPerPublicKey.set(publicKey.toString(), blockNumber);
   }
 

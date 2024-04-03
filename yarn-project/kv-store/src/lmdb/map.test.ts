@@ -31,7 +31,7 @@ describe('LmdbAztecMap', () => {
     await map.set('foo', 'bar');
     await map.set('baz', 'qux');
 
-    expect(await map.delete('foo')).toEqual(true);
+    await map.delete('foo');
 
     expect(map.get('foo')).toEqual(undefined);
     expect(map.get('baz')).toEqual('qux');

@@ -22,14 +22,14 @@ export interface AztecMap<K extends Key, V> {
    * @param key - The key to set the value at
    * @param val - The value to set
    */
-  set(key: K, val: V): Promise<boolean>;
+  set(key: K, val: V): Promise<void>;
 
   /**
    * Atomically swap the value at the given key
    * @param key - The key to swap the value at
    * @param fn - The function to swap the value with
    */
-  swap(key: K, fn: (val: V | undefined) => V): Promise<boolean>;
+  swap(key: K, fn: (val: V | undefined) => V): Promise<void>;
 
   /**
    * Sets the value at the given key if it does not already exist.
@@ -42,7 +42,7 @@ export interface AztecMap<K extends Key, V> {
    * Deletes the value at the given key.
    * @param key - The key to delete the value at
    */
-  delete(key: K): Promise<boolean>;
+  delete(key: K): Promise<void>;
 
   /**
    * Iterates over the map's key-value entries in the key's natural order

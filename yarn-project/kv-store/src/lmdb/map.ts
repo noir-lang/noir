@@ -46,17 +46,15 @@ export class LmdbAztecMap<K extends Key, V> implements AztecMultiMap<K, V> {
     return this.db.doesExist(this.#slot(key));
   }
 
-  set(key: K, val: V): Promise<boolean> {
-    return this.db.put(this.#slot(key), [key, val]);
+  async set(key: K, val: V): Promise<void> {
+    await this.db.put(this.#slot(key), [key, val]);
   }
 
-  swap(key: K, fn: (val: V | undefined) => V): Promise<boolean> {
+  swap(key: K, fn: (val: V | undefined) => V): Promise<void> {
     return this.db.childTransaction(() => {
       const slot = this.#slot(key);
       const entry = this.db.get(slot);
       void this.db.put(slot, [key, fn(entry?.[1])]);
-
-      return true;
     });
   }
 
@@ -67,8 +65,8 @@ export class LmdbAztecMap<K extends Key, V> implements AztecMultiMap<K, V> {
     });
   }
 
-  delete(key: K): Promise<boolean> {
-    return this.db.remove(this.#slot(key));
+  async delete(key: K): Promise<void> {
+    await this.db.remove(this.#slot(key));
   }
 
   async deleteValue(key: K, val: V): Promise<void> {

@@ -150,7 +150,7 @@ export interface PxeDatabase extends ContractArtifactDatabase, ContractInstanceD
    * @param publicKey - The public key to set the synched block number for.
    * @param blockNumber - The block number to set.
    */
-  setSynchedBlockNumberForPublicKey(publicKey: PublicKey, blockNumber: number): Promise<boolean>;
+  setSynchedBlockNumberForPublicKey(publicKey: PublicKey, blockNumber: number): Promise<void>;
 
   /**
    * Get the synched block number for a given public key.
