@@ -304,7 +304,7 @@ async fn instance_load() -> (Instance, Memory, Store) {
     let js_instance_promise =
         WebAssembly::instantiate_module(&js_module, &custom_imports.as_jsvalue(&store).into());
     let js_instance = wasm_bindgen_futures::JsFuture::from(js_instance_promise).await.unwrap();
-    let module: wasmer::Module = (js_module, WASM_BIN).into();
+    let module = wasmer::Module::from((js_module, WASM_BIN));
     let instance: wasmer::Instance = Instance::from_jsvalue(&mut store, &module, &js_instance)
         .map_err(|_| "Error while creating BlackBox Functions vendor instance")
         .unwrap();
