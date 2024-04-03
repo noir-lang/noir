@@ -154,8 +154,7 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
         let main = &self.functions[0];
 
         let mut witness_stack = WitnessStack::default();
-        let main_witness =
-            self.execute_circuit(main, initial_witness, &mut witness_stack).await?;
+        let main_witness = self.execute_circuit(main, initial_witness, &mut witness_stack).await?;
         witness_stack.push(0, main_witness);
         Ok(witness_stack)
     }
