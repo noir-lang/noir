@@ -1191,7 +1191,7 @@ mod tests {
     fn test_big_list_of_naughty_strings() {
         use std::mem::discriminant;
 
-        let blns_contents = include_str!(env!("BLNS_JSON_PATH"));
+        let blns_contents = include_str!("./blns/blns.base64.json");
         let blns_base64: Vec<String> =
             serde_json::from_str(blns_contents).expect("BLNS json invalid");
         for blns_base64_str in blns_base64 {
@@ -1209,7 +1209,7 @@ mod tests {
                                     .as_ref()
                                     .map(|token_discriminator| {
                                         discriminant(token_discriminator)
-                                            == discriminant(&next_token.token())
+                                            == discriminant(next_token.token())
                                     })
                                     .unwrap_or(true);
 

@@ -166,12 +166,8 @@ mod test {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            basic_block::BasicBlockId,
-            dfg::DataFlowGraph,
-            function::{InlineType, RuntimeType},
-            instruction::Instruction,
-            map::Id,
-            types::Type,
+            basic_block::BasicBlockId, dfg::DataFlowGraph, function::RuntimeType,
+            instruction::Instruction, map::Id, types::Type,
         },
     };
 

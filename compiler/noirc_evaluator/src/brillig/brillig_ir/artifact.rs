@@ -108,7 +108,7 @@ impl BrilligArtifact {
         self.byte_code.append(&mut byte_code);
 
         // Remove all resolved external calls and transform them to jumps
-        let is_resolved = |label: &Label| self.labels.get(label).is_some();
+        let is_resolved = |label: &Label| self.labels.contains_key(label);
 
         let resolved_external_calls = self
             .unresolved_external_call_labels

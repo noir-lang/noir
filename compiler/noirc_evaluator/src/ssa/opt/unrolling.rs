@@ -464,12 +464,7 @@ impl<'f> LoopIteration<'f> {
 mod tests {
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{
-            function::{InlineType, RuntimeType},
-            instruction::BinaryOp,
-            map::Id,
-            types::Type,
-        },
+        ir::{instruction::BinaryOp, map::Id, types::Type},
     };
 
     #[test]
