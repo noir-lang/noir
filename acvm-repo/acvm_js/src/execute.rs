@@ -75,7 +75,7 @@ pub async fn execute_circuit_with_black_box_solver(
     console_error_panic_hook::set_once();
 
     let mut witness_stack = execute_program_with_native_type_return(
-        &solver,
+        solver,
         program,
         initial_witness,
         &foreign_call_handler,
@@ -127,7 +127,7 @@ async fn execute_program_with_native_type_return(
     let program: Program = Program::deserialize_program(&program)
     .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None))?;
 
-    let executor = ProgramExecutor::new(&program.functions, &solver.0, &foreign_call_executor);
+    let executor = ProgramExecutor::new(&program.functions, &solver.0, foreign_call_executor);
     let witness_stack = executor.execute(initial_witness.into()).await?;
 
     Ok(witness_stack)
@@ -155,7 +155,7 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
 
         let mut witness_stack = WitnessStack::default();
         let main_witness =
-            self.execute_circuit(main, initial_witness.into(), &mut witness_stack).await?;
+            self.execute_circuit(main, initial_witness, &mut witness_stack).await?;
         witness_stack.push(0, main_witness);
         Ok(witness_stack)
     }
