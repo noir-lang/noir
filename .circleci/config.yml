@@ -1216,7 +1216,7 @@ jobs:
           name: "Deploy mainnet fork"
           command: |
             should_deploy || exit 0
-            deploy_terraform_services iac/mainnet-fork
+            deploy_terraform_services iac/mainnet-fork mainnet-fork mainnet-fork aws_efs_file_system.aztec_mainnet_fork_data_store
       - run:
           name: "Deploy L1 contracts to mainnet fork"
           working_directory: l1-contracts
