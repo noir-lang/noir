@@ -208,7 +208,7 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
                             None => error.to_string(),
                         };
 
-                        return Err(JsExecutionError::new(error_string.into(), call_stack).into());
+                        return Err(JsExecutionError::new(error_string, call_stack).into());
                     }
                     ACVMStatus::RequiresForeignCall(foreign_call) => {
                         let result =
