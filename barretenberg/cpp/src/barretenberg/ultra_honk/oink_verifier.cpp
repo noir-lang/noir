@@ -74,6 +74,10 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_wire_commitme
             transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.calldata);
         witness_comms.calldata_read_counts =
             transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.calldata_read_counts);
+        witness_comms.return_data =
+            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.return_data);
+        witness_comms.return_data_read_counts = transcript->template receive_from_prover<Commitment>(
+            domain_separator + comm_labels.return_data_read_counts);
     }
 }
 
@@ -105,10 +109,12 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_log_derivativ
     auto [beta, gamma] = transcript->template get_challenges<FF>(domain_separator + "beta", domain_separator + "gamma");
     relation_parameters.beta = beta;
     relation_parameters.gamma = gamma;
-    // If Goblin (i.e. using DataBus) receive commitments to log-deriv inverses polynomial
+    // If Goblin (i.e. using DataBus) receive commitments to log-deriv inverses polynomials
     if constexpr (IsGoblinFlavor<Flavor>) {
-        witness_comms.lookup_inverses =
-            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.lookup_inverses);
+        witness_comms.calldata_inverses =
+            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.calldata_inverses);
+        witness_comms.return_data_inverses =
+            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.return_data_inverses);
     }
 }
 

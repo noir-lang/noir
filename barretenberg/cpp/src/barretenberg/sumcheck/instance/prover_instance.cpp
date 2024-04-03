@@ -43,14 +43,20 @@ void ProverInstance_<Flavor>::construct_databus_polynomials(Circuit& circuit)
 {
     Polynomial public_calldata{ dyadic_circuit_size };
     Polynomial calldata_read_counts{ dyadic_circuit_size };
-    Polynomial databus_id{ dyadic_circuit_size };
+    Polynomial public_return_data{ dyadic_circuit_size };
+    Polynomial return_data_read_counts{ dyadic_circuit_size };
 
     // Note: We do not utilize a zero row for databus columns
-    for (size_t idx = 0; idx < circuit.public_calldata.size(); ++idx) {
-        public_calldata[idx] = circuit.get_variable(circuit.public_calldata[idx]);
-        calldata_read_counts[idx] = circuit.calldata_read_counts[idx];
+    for (size_t idx = 0; idx < circuit.databus.calldata.size(); ++idx) {
+        public_calldata[idx] = circuit.get_variable(circuit.databus.calldata[idx]);
+        calldata_read_counts[idx] = circuit.databus.calldata.get_read_count(idx);
+    }
+    for (size_t idx = 0; idx < circuit.databus.return_data.size(); ++idx) {
+        public_return_data[idx] = circuit.get_variable(circuit.databus.return_data[idx]);
+        return_data_read_counts[idx] = circuit.databus.return_data.get_read_count(idx);
     }
 
+    Polynomial databus_id{ dyadic_circuit_size };
     // Compute a simple identity polynomial for use in the databus lookup argument
     for (size_t i = 0; i < databus_id.size(); ++i) {
         databus_id[i] = i;
@@ -58,6 +64,8 @@ void ProverInstance_<Flavor>::construct_databus_polynomials(Circuit& circuit)
 
     proving_key.calldata = public_calldata.share();
     proving_key.calldata_read_counts = calldata_read_counts.share();
+    proving_key.return_data = public_return_data.share();
+    proving_key.return_data_read_counts = return_data_read_counts.share();
     proving_key.databus_id = databus_id.share();
 }
 

@@ -68,6 +68,9 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
         commitments.calldata = transcript->template receive_from_prover<Commitment>(commitment_labels.calldata);
         commitments.calldata_read_counts =
             transcript->template receive_from_prover<Commitment>(commitment_labels.calldata_read_counts);
+        commitments.return_data = transcript->template receive_from_prover<Commitment>(commitment_labels.return_data);
+        commitments.return_data_read_counts =
+            transcript->template receive_from_prover<Commitment>(commitment_labels.return_data_read_counts);
     }
 
     // Get challenge for sorted list batching and wire four memory records
@@ -85,8 +88,10 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
 
     // If Goblin (i.e. using DataBus) receive commitments to log-deriv inverses polynomial
     if constexpr (IsGoblinFlavor<Flavor>) {
-        commitments.lookup_inverses =
-            transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_inverses);
+        commitments.calldata_inverses =
+            transcript->template receive_from_prover<Commitment>(commitment_labels.calldata_inverses);
+        commitments.return_data_inverses =
+            transcript->template receive_from_prover<Commitment>(commitment_labels.return_data_inverses);
     }
 
     const FF public_input_delta = compute_public_input_delta<Flavor>(

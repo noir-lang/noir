@@ -347,7 +347,10 @@ TEST_F(UltraRelationCorrectnessTests, GoblinUltra)
 
     ensure_non_zero(proving_key.calldata);
     ensure_non_zero(proving_key.calldata_read_counts);
-    ensure_non_zero(proving_key.lookup_inverses);
+    ensure_non_zero(proving_key.calldata_inverses);
+    ensure_non_zero(proving_key.return_data);
+    ensure_non_zero(proving_key.return_data_read_counts);
+    ensure_non_zero(proving_key.return_data_inverses);
 
     // Construct the round for applying sumcheck relations and results for storing computed results
     using Relations = typename Flavor::Relations;
