@@ -96,8 +96,11 @@ fn on_profile_run_request_inner(
                 let compiled_contract =
                     nargo::ops::transform_contract(compiled_contract, expression_width);
 
-                let function_debug_info =
-                    compiled_contract.functions.iter().flat_map(|func| &func.debug).collect::<Vec<_>>();
+                let function_debug_info = compiled_contract
+                    .functions
+                    .iter()
+                    .flat_map(|func| &func.debug)
+                    .collect::<Vec<_>>();
                 for contract_function_debug in function_debug_info {
                     let span_opcodes = contract_function_debug.count_span_opcodes();
                     opcodes_counts.extend(span_opcodes);

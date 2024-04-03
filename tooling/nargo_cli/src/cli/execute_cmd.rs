@@ -155,7 +155,7 @@ pub(crate) fn execute_program(
             };
 
             // TODO: update this to handle multiple debug infos
-            if let Some(diagnostic) = try_to_diagnose_runtime_error(&err, &compiled_program.debug[0]) {
+            if let Some(diagnostic) = try_to_diagnose_runtime_error(&err, &compiled_program.debug) {
                 diagnostic.report(&debug_artifact, false);
             }
 

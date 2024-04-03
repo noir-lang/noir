@@ -427,7 +427,8 @@ fn compile_contract_inner(
     }
 
     if errors.is_empty() {
-        let debug_infos: Vec<_> = functions.iter().flat_map(|function| function.debug.clone()).collect();
+        let debug_infos: Vec<_> =
+            functions.iter().flat_map(|function| function.debug.clone()).collect();
         let file_map = filter_relevant_files(&debug_infos, &context.file_manager);
 
         Ok(CompiledContract {

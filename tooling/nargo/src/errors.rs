@@ -45,6 +45,9 @@ pub enum NargoError {
     /// Oracle handling error
     #[error(transparent)]
     ForeignCallError(#[from] ForeignCallError),
+
+    #[error("Failed to solve ACIR function")]
+    AcirCallError { id: u32, error: Box<NargoError>, location: OpcodeLocation },
 }
 
 impl NargoError {
@@ -74,7 +77,7 @@ impl NargoError {
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone)]
 pub enum ExecutionError {
     #[error("Failed assertion: '{}'", .0)]
     AssertionFailed(String, Vec<OpcodeLocation>),
@@ -124,20 +127,56 @@ fn extract_locations_from_error(
 /// Tries to generate a runtime diagnostic from a nargo error. It will successfully do so if it's a runtime error with a call stack.
 pub fn try_to_diagnose_runtime_error(
     nargo_err: &NargoError,
-    debug: &DebugInfo,
+    debug: &[DebugInfo],
 ) -> Option<FileDiagnostic> {
-    let execution_error = match nargo_err {
-        NargoError::ExecutionError(execution_error) => execution_error,
-        _ => return None,
-    };
-
-    let source_locations = extract_locations_from_error(execution_error, debug)?;
+    let source_locations = try_extract_locations_from_error(nargo_err, debug, 0)?;
 
     // The location of the error itself will be the location at the top
     // of the call stack (the last item in the Vec).
     let location = source_locations.last()?;
 
-    let message = match nargo_err {
+    let message = extract_message_from_error(nargo_err);
+
+    Some(
+        CustomDiagnostic::simple_error(message, String::new(), location.span)
+            .in_file(location.file)
+            .with_call_stack(source_locations),
+    )
+}
+
+/// We can have a recursive `NargoError` if there is an error inside of an ACIR call.
+/// Thus we need a method that lets us recursively inspect a `NargoError` to fetch its full call stack
+/// across ACIR functions.
+pub fn try_extract_locations_from_error(
+    nargo_err: &NargoError,
+    debug: &[DebugInfo],
+    current_func_id: u32,
+) -> Option<Vec<Location>> {
+    match nargo_err {
+        NargoError::ExecutionError(execution_error) => {
+            let extracted_locations =
+                extract_locations_from_error(execution_error, &debug[current_func_id as usize])?;
+            Some(extracted_locations)
+        }
+        NargoError::AcirCallError { id, error, location } => {
+            let mut acir_call_locations =
+                debug[current_func_id as usize].opcode_location(location).unwrap_or_default();
+            let mut extracted_locations =
+                try_extract_locations_from_error(error.as_ref(), debug, *id)?;
+            acir_call_locations.append(&mut extracted_locations);
+            Some(acir_call_locations)
+        }
+        _ => None,
+    }
+}
+
+/// In the case of a recursive `NargoError` we need to search for the true error message
+/// that we want to display to the user.
+///
+/// e.g. If we call an Acir function and we hit an unsatisfied constrain inside that function,
+/// we want to display "Failed constraint" and not the error message for `NargoError::AcirCallError`
+pub fn extract_message_from_error(nargo_err: &NargoError) -> String {
+    match nargo_err {
         NargoError::ExecutionError(ExecutionError::AssertionFailed(message, _)) => {
             format!("Assertion failed: '{message}'")
         }
@@ -149,12 +188,7 @@ pub fn try_to_diagnose_runtime_error(
         NargoError::ExecutionError(ExecutionError::SolvingError(
             OpcodeResolutionError::UnsatisfiedConstrain { .. },
         )) => "Failed constraint".into(),
+        NargoError::AcirCallError { error, .. } => extract_message_from_error(error.as_ref()),
         _ => nargo_err.to_string(),
-    };
-
-    Some(
-        CustomDiagnostic::simple_error(message, String::new(), location.span)
-            .in_file(location.file)
-            .with_call_stack(source_locations),
-    )
+    }
 }

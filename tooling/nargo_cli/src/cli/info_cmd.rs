@@ -111,7 +111,7 @@ pub(crate) fn run(
         for compiled_contract in &compiled_contracts {
             let debug_artifact = DebugArtifact::from(compiled_contract.clone());
             // let function_debug_info =
-                // compiled_contract.functions.iter().flat_map(|func| &func.debug).collect::<Vec<_>>();
+            // compiled_contract.functions.iter().flat_map(|func| &func.debug).collect::<Vec<_>>();
             let functions = &compiled_contract.functions;
             for contract_function in functions {
                 for function_debug in contract_function.debug.iter() {

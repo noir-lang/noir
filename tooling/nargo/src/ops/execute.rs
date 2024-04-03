@@ -111,8 +111,15 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                 ACVMStatus::RequiresAcirCall(call_info) => {
                     let acir_to_call = &self.functions[call_info.id as usize];
                     let initial_witness = call_info.initial_witness;
-                    let call_solved_witness =
-                        self.execute_circuit(acir_to_call, initial_witness)?;
+                    let call_solved_witness = self
+                        .execute_circuit(acir_to_call, initial_witness)
+                        .map_err(|err| NargoError::AcirCallError {
+                        id: call_info.id,
+                        error: Box::new(err),
+                        location: acvm::acir::circuit::OpcodeLocation::Acir(
+                            acvm.instruction_pointer(),
+                        ),
+                    })?;
                     let mut call_resolved_outputs = Vec::new();
                     for return_witness_index in acir_to_call.return_values.indices() {
                         if let Some(return_value) =
