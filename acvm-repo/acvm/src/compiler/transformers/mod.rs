@@ -146,6 +146,7 @@ pub(super) fn transform_internal(
                 for witness in outputs {
                     transformer.mark_solvable(*witness);
                 }
+
                 // `Call` does not write values to the `WitnessMap`
                 // A separate ACIR function should have its own respective `WitnessMap`
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
