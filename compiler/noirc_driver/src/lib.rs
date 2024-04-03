@@ -16,9 +16,7 @@ use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::macros_api::MacroProcessor;
-use noirc_frontend::monomorphization::{
-    errors::MonomorphizationError, monomorphize, monomorphize_debug,
-};
+use noirc_frontend::monomorphization::{monomorphize, monomorphize_debug, MonomorphizationError};
 use noirc_frontend::node_interner::FuncId;
 use noirc_frontend::token::SecondaryAttribute;
 use std::path::Path;
@@ -69,10 +67,6 @@ pub struct CompileOptions {
     /// Display the ACIR for compiled circuit
     #[arg(long)]
     pub print_acir: bool,
-
-    /// Pretty print benchmark times of each code generation pass
-    #[arg(long, hide = true)]
-    pub benchmark_codegen: bool,
 
     /// Treat all warnings as errors
     #[arg(long, conflicts_with = "silence_warnings")]
@@ -485,13 +479,8 @@ pub fn compile_no_check(
     }
     let visibility = program.return_visibility;
 
-    let (program, debug, warnings, input_witnesses, return_witnesses) = create_program(
-        program,
-        options.show_ssa,
-        options.show_brillig,
-        options.force_brillig,
-        options.benchmark_codegen,
-    )?;
+    let (program, debug, warnings, input_witnesses, return_witnesses) =
+        create_program(program, options.show_ssa, options.show_brillig, options.force_brillig)?;
 
     let abi =
         abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses, visibility);

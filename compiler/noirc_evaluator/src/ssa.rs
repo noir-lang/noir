@@ -38,16 +38,15 @@ pub mod ssa_gen;
 /// convert the final SSA into ACIR and return it.
 pub(crate) fn optimize_into_acir(
     program: Program,
-    print_passes: bool,
+    print_ssa_passes: bool,
     print_brillig_trace: bool,
     force_brillig_output: bool,
-    print_timings: bool,
 ) -> Result<Vec<GeneratedAcir>, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let ssa = SsaBuilder::new(program, print_passes, force_brillig_output, print_timings)?
+    let ssa = SsaBuilder::new(program, print_ssa_passes, force_brillig_output)?
         .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
         .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
         .run_pass(Ssa::inline_functions, "After Inlining:")
@@ -65,28 +64,13 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
         .finish();
 
-    let brillig = time("SSA to Brillig", print_timings, || ssa.to_brillig(print_brillig_trace));
+    let brillig = ssa.to_brillig(print_brillig_trace);
 
     drop(ssa_gen_span_guard);
 
     let last_array_uses = ssa.find_last_array_uses();
 
-    time("SSA to ACIR", print_timings, || {
-        ssa.into_acir(&brillig, abi_distinctness, &last_array_uses)
-    })
-}
-
-// Helper to time SSA passes
-fn time<T>(name: &str, print_timings: bool, f: impl FnOnce() -> T) -> T {
-    let start_time = chrono::Utc::now().time();
-    let result = f();
-
-    if print_timings {
-        let end_time = chrono::Utc::now().time();
-        println!("{name}: {} ms", (end_time - start_time).num_milliseconds());
-    }
-
-    result
+    ssa.into_acir(&brillig, abi_distinctness, &last_array_uses)
 }
 
 /// Compiles the [`Program`] into [`ACIR``][acvm::acir::circuit::Program].
@@ -99,7 +83,6 @@ pub fn create_program(
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
     force_brillig_output: bool,
-    print_codegen_timings: bool,
 ) -> Result<(AcirProgram, Vec<DebugInfo>, Vec<SsaReport>, Vec<Witness>, Vec<Witness>), RuntimeError>
 {
     let debug_variables = program.debug_variables.clone();
@@ -114,7 +97,6 @@ pub fn create_program(
         enable_ssa_logging,
         enable_brillig_logging,
         force_brillig_output,
-        print_codegen_timings,
     )?;
     assert_eq!(
         generated_acirs.len(),
@@ -144,6 +126,7 @@ pub fn create_program(
         debug_infos.push(debug_info);
         warning_infos.extend(warnings);
         if is_main {
+            // main_input_witness = circuit.re
             main_input_witnesses = input_witnesses;
             main_return_witnesses = return_witnesses;
         }
@@ -246,7 +229,6 @@ fn split_public_and_private_inputs(
 struct SsaBuilder {
     ssa: Ssa,
     print_ssa_passes: bool,
-    print_codegen_timings: bool,
 }
 
 impl SsaBuilder {
@@ -254,10 +236,9 @@ impl SsaBuilder {
         program: Program,
         print_ssa_passes: bool,
         force_brillig_runtime: bool,
-        print_codegen_timings: bool,
     ) -> Result<SsaBuilder, RuntimeError> {
         let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
-        Ok(SsaBuilder { print_ssa_passes, print_codegen_timings, ssa }.print("Initial SSA:"))
+        Ok(SsaBuilder { print_ssa_passes, ssa }.print("Initial SSA:"))
     }
 
     fn finish(self) -> Ssa {
@@ -266,7 +247,7 @@ impl SsaBuilder {
 
     /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
     fn run_pass(mut self, pass: fn(Ssa) -> Ssa, msg: &str) -> Self {
-        self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa));
+        self.ssa = pass(self.ssa);
         self.print(msg)
     }
 
@@ -276,7 +257,7 @@ impl SsaBuilder {
         pass: fn(Ssa) -> Result<Ssa, RuntimeError>,
         msg: &str,
     ) -> Result<Self, RuntimeError> {
-        self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa))?;
+        self.ssa = pass(self.ssa)?;
         Ok(self.print(msg))
     }
 

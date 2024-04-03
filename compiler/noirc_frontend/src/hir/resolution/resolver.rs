@@ -1306,23 +1306,18 @@ impl<'a> Resolver<'a> {
 
                 HirLValue::Ident(ident.0, Type::Error)
             }
-            LValue::MemberAccess { object, field_name, span } => HirLValue::MemberAccess {
-                object: Box::new(self.resolve_lvalue(*object)),
-                field_name,
-                location: Location::new(span, self.file),
-                field_index: None,
-                typ: Type::Error,
-            },
-            LValue::Index { array, index, span } => {
+            LValue::MemberAccess { object, field_name } => {
+                let object = Box::new(self.resolve_lvalue(*object));
+                HirLValue::MemberAccess { object, field_name, field_index: None, typ: Type::Error }
+            }
+            LValue::Index { array, index } => {
                 let array = Box::new(self.resolve_lvalue(*array));
                 let index = self.resolve_expression(index);
-                let location = Location::new(span, self.file);
-                HirLValue::Index { array, index, location, typ: Type::Error }
+                HirLValue::Index { array, index, typ: Type::Error }
             }
-            LValue::Dereference(lvalue, span) => {
+            LValue::Dereference(lvalue) => {
                 let lvalue = Box::new(self.resolve_lvalue(*lvalue));
-                let location = Location::new(span, self.file);
-                HirLValue::Dereference { lvalue, location, element_type: Type::Error }
+                HirLValue::Dereference { lvalue, element_type: Type::Error }
             }
         }
     }
