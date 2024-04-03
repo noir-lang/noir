@@ -2,7 +2,7 @@ use crate::token::{Attribute, DocStyle};
 
 use super::{
     errors::LexerErrorKind,
-    token::{token_to_tok, IntType, Keyword, SpannedToken, Tok, Token, Tokens},
+    token::{IntType, Keyword, SpannedToken, Token, Tokens},
 };
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
@@ -29,7 +29,7 @@ impl<'a> Lexer<'a> {
         let mut tokens = vec![];
         let mut errors = vec![];
         for result in lexer {
-            match to_spanned_token_result(result) {
+            match result {
                 Ok(token) => tokens.push(token),
                 Err(error) => errors.push(error),
             }
@@ -572,34 +572,35 @@ impl<'a> Lexer<'a> {
     }
 }
 
-// TODO: are these needed? if not, cleanup
-fn to_spanned_token_result(x: Result<(usize, Token, usize), LexerErrorKind>) -> SpannedTokenResult {
-    x.map(|(start, token, end)| {
-        let span: Span = (start as u32..end as u32).into();
-        SpannedToken::new(token, span)
-    })
-}
-fn from_spanned_token_result(
-    x: SpannedTokenResult,
-) -> Result<(usize, Token, usize), LexerErrorKind> {
-    x.map(|spanned_token| {
-        (
-            spanned_token.to_span().start() as usize,
-            spanned_token.clone().into(),
-            spanned_token.to_span().end() as usize,
-        )
-    })
+// // TODO: are these needed? if not, cleanup
+// fn to_spanned_token_result(x: Result<(usize, Token, usize), LexerErrorKind>) -> SpannedTokenResult {
+//     x.map(|(start, token, end)| {
+//         let span: Span = (start as u32..end as u32).into();
+//         SpannedToken::new(token, span)
+//     })
+// }
+pub(crate) fn from_spanned_token_result(
+    x: &SpannedTokenResult,
+) -> Result<(usize, &Token, usize), LexerErrorKind> {
+    x.as_ref()
+        .map(|spanned_token| {
+            (
+                spanned_token.to_span().start() as usize,
+                spanned_token.into(),
+                spanned_token.to_span().end() as usize,
+            )
+        })
+        .map_err(Clone::clone)
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    // type Item = SpannedTokenResult;
-    type Item = Result<(usize, Token, usize), LexerErrorKind>;
+    type Item = SpannedTokenResult;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
             None
         } else {
-            Some(from_spanned_token_result(self.next_token()))
+            Some(self.next_token())
         }
     }
 }
@@ -610,7 +611,7 @@ mod tests {
     use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 
     // TODO: cleanup imports
-    use crate::token::{token_to_tok, Tok};
+    use crate::token::token_to_tok;
 
     #[test]
     fn test_single_double_char() {
@@ -1299,12 +1300,13 @@ mod tests {
             // TODO: this is a hack to get the references working
             // -> this likely means that we'll want to propagate the <'input> lifetime further into Token
             let lexer_result = lexer.into_iter().collect::<Vec<_>>();
-            let referenced_lexer_result = lexer_result.iter().map(|token_result| {
-                token_result
-                    .as_ref()
-                    .map(|(start, ref token, end)| (*start, token_to_tok(token), *end))
-                    .map_err(|x| x.clone())
-            });
+            let referenced_lexer_result =
+                lexer_result.iter().map(from_spanned_token_result).map(|token_result| {
+                    token_result
+                        .as_ref()
+                        .map(|(start, ref token, end)| (*start, token_to_tok(token), *end))
+                        .map_err(|x| x.clone())
+                });
 
             let calculated = noir_parser::TopLevelStatementParser::new().parse(
                 use_statement_input,

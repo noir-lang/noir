@@ -1,19 +1,14 @@
-use std::str::FromStr;
-
-use acvm::FieldElement;
-use noirc_errors::{Position, Span};
+use noirc_errors::Span;
 
 use crate::lexer::token::{Keyword, Tok};
 use crate::lexer::token as noir_token;
-// use crate::lexer::lexer::IntType;
 use crate::lexer::errors::LexerErrorKind;
-use crate::ParsedModule;
 use crate::parser::TopLevelStatement;
 use crate::{Ident, Path, PathKind, UseTree, UseTreeKind};
 
-use lalrpop_util::{ErrorRecovery, ParseError};
+use lalrpop_util::ErrorRecovery;
 
-grammar<'input, 'err>(input: &'input str, errors: &'err mut Vec<ErrorRecovery<usize, Tok<'input>, &'static str>>);
+grammar<'input, 'err>(input: &'input str, errors: &'err mut [ErrorRecovery<usize, Tok<'input>, &'static str>]);
 
 extern {
     type Location = usize;
@@ -126,13 +121,14 @@ pub(crate) TopLevelStatement: TopLevelStatement = {
 }
 
 UseTree: UseTree = {
-    // // path::to::ident as SomeAlias
-    // <mut prefix:Path> <alias:Alias?> => {
-    //     let ident = prefix.pop();
-    //     let kind = UseTreeKind::Path(ident, alias);
-    //     UseTree { prefix, kind }
-    // },
-    //
+
+    // path::to::ident as SomeAlias
+    <mut prefix:Path> <alias:Alias?> => {
+        let ident = prefix.pop();
+        let kind = UseTreeKind::Path(ident, alias);
+        UseTree { prefix, kind }
+    },
+
     // // path::to::{identA, further::path::{identB, identC}}
     // <prefix:MaybeEmptyPath> "::" "{" <mut use_trees:(<UseTree> ",")*> <use_tree:(<UseTree> <","?>)> "}" => {
     //     let kind = UseTreeKind::List;
@@ -157,30 +153,20 @@ UseTree: UseTree = {
     //     }
     // },
 
-    // TODO: this is the new approach:
-    // inlining what's needed to distinguish the case we're in
-    "crate" <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
-        todo!()
-    },
+    // // TODO: this is the new approach:
+    // // inlining what's needed to distinguish the case we're in
+    // "crate" <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
+    //     todo!()
+    // },
+    //
+    // "dep" <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
+    //     todo!()
+    // },
+    //
+    // <head:Ident> <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
+    //     todo!()
+    // },
 
-    "dep" <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
-        todo!()
-    },
-
-    <head:Ident> <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
-        todo!()
-    },
-
-}
-
-PathSegments: Vec<Ident> = {
-    // <lo:@L> <hi:@R> => vec![],
-    // <lo:@L> <segment:Ident> <hi:@R> => vec![segment],
-    // <lo:@L> <segment:Ident> <mut segments:("::" <Ident>)*> <hi:@R> => {
-    <lo:@L> <mut segments:("::" <Ident>)+> <hi:@R> => {
-        // segments.insert(0, segment);
-        segments
-    }
 }
 
 // TODO: path adadapted from lalrpop's self parsing approach
@@ -207,11 +193,10 @@ pub(crate) Path: Path = {
         Path { segments, kind, span }
     },
 
-    <lo:@L> <segments:PathSegments> <hi:@R> => {
-
+    <lo:@L> <id:Ident> <mut segments:PathSegments> <hi:@R> => {
+        segments.insert(0, id);
         let kind = PathKind::Plain;
         let span = Span::from(lo as u32..hi as u32);
-
         // match (opt_crate, opt_dep) {
         //     (None, None) => (),
         //     (Some(_), None) => kind = PathKind::Crate,
@@ -229,12 +214,22 @@ pub(crate) Path: Path = {
 }
 
 
+PathSegments: Vec<Ident> = {
+    // <lo:@L> <hi:@R> => vec![],
+    // <lo:@L> <segment:Ident> <hi:@R> => vec![segment],
+    // <lo:@L> <segment:Ident> <mut segments:("::" <Ident>)*> <hi:@R> => {
+    <lo:@L> <segments:("::" <Ident>)*> <hi:@R> => {
+        // segments.insert(0, segment);
+        segments
+    }
+}
 
 
-// Alias: Ident = {
-//     r"[\t\r\n ]+" "as" r"[\t\r\n ]+" <Ident> => <>,
-// }
-//
+
+Alias: Ident = {
+    r"[\t\r\n ]+" "as" r"[\t\r\n ]+" <Ident> => <>,
+}
+
 // UseTreePostfix: Result<(Ident, Option<Ident>), (Path, Vec<UseTree>)> = {
 //     // path::to::ident as SomeAlias
 //     <id:Ident> <alias:Alias?> => {

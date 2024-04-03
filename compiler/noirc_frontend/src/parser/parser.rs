@@ -35,7 +35,7 @@ use super::{spanned, Item, ItemKind};
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
 };
-use crate::lexer::Lexer;
+use crate::lexer::{lexer::from_spanned_token_result, Lexer};
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{token_to_tok, Keyword, Token, TokenKind};
 use crate::{
@@ -86,37 +86,54 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     if cfg!(feature = "experimental_parser") {
         for parsed_item in &parsed_module.items {
             if lalrpop_parser_supports_kind(&parsed_item.kind) {
-                let input = &source_program[std::ops::Range::<usize>::from(parsed_item.span)];
-                let mut lexer = Lexer::new(input);
-                lexer = lexer.skip_whitespaces(false);
-                let mut errors = Vec::new();
-
-                // TODO: this is a hack to get the references working
-                // -> this likely means that we'll want to propagate the <'input> lifetime further into Token
-                let lexer_result = lexer.collect::<Vec<_>>();
-                let referenced_lexer_result = lexer_result.iter().map(|token_result| {
-                    token_result
-                        .as_ref()
-                        .map(|(start, ref token, end)| (*start, token_to_tok(token), *end))
-                        .map_err(|x| x.clone())
-                });
-
-                let calculated = noir_parser::TopLevelStatementParser::new().parse(
-                    input,
-                    &mut errors,
-                    referenced_lexer_result,
-                );
-                assert!(
-                    calculated.is_ok(),
-                    "{:?}\n\n{:?}\n\n{:?}",
-                    calculated,
-                    lexer_result,
-                    input
-                );
+                match &parsed_item.kind {
+                    ItemKind::Import(parsed_use_tree) => {
+                        prototype_parse_use_tree(parsed_use_tree, source_program);
+                    }
+                    _ => unreachable!(),
+                }
             }
         }
     }
     (parsed_module, parsing_errors)
+}
+
+fn prototype_parse_use_tree(expected_use_tree: &UseTree, input: &str) {
+    // TODO: currently skipping recursive use trees, e.g. "use std::{foo, bar}"
+    if input.contains('{') {
+        return;
+    }
+
+    let mut lexer = Lexer::new(input);
+    lexer = lexer.skip_whitespaces(false);
+    let mut errors = Vec::new();
+
+    // TODO: this is a hack to get the references working
+    // -> this likely means that we'll want to propagate the <'input> lifetime further into Token
+    let lexer_result = lexer.collect::<Vec<_>>();
+    let referenced_lexer_result =
+        lexer_result.iter().map(from_spanned_token_result).map(|token_result| {
+            token_result
+                .as_ref()
+                .map(|(start, token, end)| (*start, token_to_tok(token), *end))
+                .map_err(|x| x.clone())
+        });
+
+    let calculated = noir_parser::TopLevelStatementParser::new().parse(
+        input,
+        &mut errors,
+        referenced_lexer_result,
+    );
+    assert!(calculated.is_ok(), "{:?}\n\n{:?}\n\n{:?}", calculated, lexer_result, input,);
+
+    match calculated.unwrap() {
+        TopLevelStatement::Import(parsed_use_tree) => {
+            assert_eq!(expected_use_tree, &parsed_use_tree);
+        }
+        unexpected_calculated => {
+            panic!("expected a TopLevelStatement::Import, but found: {:?}", unexpected_calculated)
+        }
+    }
 }
 
 fn lalrpop_parser_supports_kind(kind: &ItemKind) -> bool {
@@ -1551,33 +1568,43 @@ mod test {
 
     #[test]
     fn parse_use() {
-        parse_all(
-            use_statement(),
-            vec![
-                "use std::hash",
-                "use std",
-                "use foo::bar as hello",
-                "use bar as bar",
-                "use foo::{}",
-                "use foo::{bar,}",
-                "use foo::{bar, hello}",
-                "use foo::{bar as bar2, hello}",
-                "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
-                "use dep::{std::println, bar::baz}",
-            ],
-        );
+        let mut valid_use_statements = vec![
+            "use std::hash",
+            "use std",
+            "use foo::bar as hello",
+            "use bar as bar",
+            "use foo::{}",
+            "use foo::{bar,}",
+            "use foo::{bar, hello}",
+            "use foo::{bar as bar2, hello}",
+            "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
+            "use dep::{std::println, bar::baz}",
+        ];
 
-        parse_all_failing(
-            use_statement(),
-            vec![
-                "use std as ;",
-                "use foobar as as;",
-                "use hello:: as foo;",
-                "use foo bar::baz",
-                "use foo bar::{baz}",
-                "use foo::{,}",
-            ],
-        );
+        let invalid_use_statements = vec![
+            "use std as ;",
+            "use foobar as as;",
+            "use hello:: as foo;",
+            "use foo bar::baz",
+            "use foo bar::{baz}",
+            "use foo::{,}",
+        ];
+
+        parse_all(use_statement(), valid_use_statements.clone());
+
+        parse_all_failing(use_statement(), invalid_use_statements);
+
+        for use_statement_str in valid_use_statements.iter_mut() {
+            let mut use_statement_str = use_statement_str.to_string();
+            use_statement_str.push(';');
+            let (result_opt, _diagnostics) = parse_recover(&use_statement(), &use_statement_str);
+            let expected_use_statement = match result_opt.unwrap() {
+                TopLevelStatement::Import(expected_use_statement) => expected_use_statement,
+                _ => unreachable!(),
+            };
+
+            prototype_parse_use_tree(&expected_use_statement, &use_statement_str)
+        }
     }
 
     #[test]
