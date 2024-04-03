@@ -17,9 +17,10 @@ pub use black_box_solvers::{
     and, blake2s256, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, sha256, xor,
 };
 pub use build_info::build_info;
-pub use compression::{compress_witness, decompress_witness};
+pub use compression::{compress_witness, decompress_witness, compress_witness_stack, decompress_witness_stack};
 pub use execute::{
     create_black_box_solver, execute_circuit, execute_circuit_with_black_box_solver,
+    execute_program, execute_program_with_black_box_solver
 };
 pub use js_execution_error::JsExecutionError;
 pub use js_witness_map::JsWitnessMap;

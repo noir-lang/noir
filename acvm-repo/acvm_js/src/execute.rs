@@ -169,8 +169,6 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
         Box::pin(async {
             let mut acvm = ACVM::new(self.blackbox_solver, &circuit.opcodes, initial_witness);
 
-            // This message should be resolved by a nargo foreign call only when we have an unsatisfied assertion.
-            let mut assert_message: Option<String> = None;
             loop {
                 let solver_status = acvm.solve();
 
