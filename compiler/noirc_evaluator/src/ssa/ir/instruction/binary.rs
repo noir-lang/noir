@@ -174,11 +174,13 @@ impl Binary {
                 if operand_type.is_unsigned() {
                     // If we're comparing a variable against a constant value which lies outside of the range of
                     // values which the variable's type can take, we can assume that the equality will be false.
+                    // When checking the variable's max range we want to make sure to include type information
+                    // from previous casts which tell us whether the variable was cast up from a smaller type.
                     let constant = lhs.or(rhs);
                     let non_constant = if lhs.is_some() { self.rhs } else { self.lhs };
                     if let Some(constant) = constant {
                         let max_possible_value =
-                            2u128.pow(dfg.type_of_value(non_constant).bit_size()) - 1;
+                            2u128.pow(dfg.get_value_max_num_bits(non_constant)) - 1;
                         if constant > max_possible_value.into() {
                             let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                             return SimplifyResult::SimplifiedTo(zero);
