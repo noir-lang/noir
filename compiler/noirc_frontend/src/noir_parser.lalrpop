@@ -1,5 +1,9 @@
 use noirc_errors::Span;
 
+// NOTE: this warning is incorrect. Keyword is used, but appears to be
+// undetected due to macro usage:
+// 4 | use crate::lexer::token::{Keyword, Tok};
+//   |                           ^^^^^^^
 use crate::lexer::token::{Keyword, Tok};
 use crate::lexer::token as noir_token;
 use crate::lexer::errors::LexerErrorKind;

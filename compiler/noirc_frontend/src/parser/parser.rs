@@ -88,7 +88,8 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
             if lalrpop_parser_supports_kind(&parsed_item.kind) {
                 match &parsed_item.kind {
                     ItemKind::Import(parsed_use_tree) => {
-                        prototype_parse_use_tree(parsed_use_tree, source_program);
+                        let expect_valid = true;
+                        prototype_parse_use_tree(parsed_use_tree, source_program, expect_valid);
                     }
                     _ => unreachable!(),
                 }
@@ -98,7 +99,7 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     (parsed_module, parsing_errors)
 }
 
-fn prototype_parse_use_tree(expected_use_tree: &UseTree, input: &str) {
+fn prototype_parse_use_tree(expected_use_tree: &UseTree, input: &str, expect_valid: bool) {
     // TODO: currently skipping recursive use trees, e.g. "use std::{foo, bar}"
     if input.contains('{') {
         return;
@@ -124,15 +125,20 @@ fn prototype_parse_use_tree(expected_use_tree: &UseTree, input: &str) {
         &mut errors,
         referenced_lexer_result,
     );
-    assert!(calculated.is_ok(), "{:?}\n\n{:?}\n\n{:?}", calculated, lexer_result, input,);
 
-    match calculated.unwrap() {
-        TopLevelStatement::Import(parsed_use_tree) => {
-            assert_eq!(expected_use_tree, &parsed_use_tree);
+    if expect_valid {
+        assert!(calculated.is_ok(), "{:?}\n\n{:?}\n\n{:?}", calculated, lexer_result, input);
+
+        match calculated.unwrap() {
+            TopLevelStatement::Import(parsed_use_tree) => {
+                assert_eq!(expected_use_tree, &parsed_use_tree);
+            }
+            unexpected_calculated => {
+                panic!("expected a TopLevelStatement::Import, but found: {:?}", unexpected_calculated)
+            }
         }
-        unexpected_calculated => {
-            panic!("expected a TopLevelStatement::Import, but found: {:?}", unexpected_calculated)
-        }
+    } else {
+        assert!(calculated.is_err(), "{:?}\n\n{:?}\n\n{:?}", calculated, lexer_result, input);
     }
 }
 
@@ -1581,7 +1587,7 @@ mod test {
             "use dep::{std::println, bar::baz}",
         ];
 
-        let invalid_use_statements = vec![
+        let mut invalid_use_statements = vec![
             "use std as ;",
             "use foobar as as;",
             "use hello:: as foo;",
@@ -1592,9 +1598,13 @@ mod test {
 
         parse_all(use_statement(), valid_use_statements.clone());
 
-        parse_all_failing(use_statement(), invalid_use_statements);
+        parse_all_failing(use_statement(), invalid_use_statements.clone());
 
-        for use_statement_str in valid_use_statements.iter_mut() {
+        let use_statements = valid_use_statements.iter_mut()
+            .map(|x| (x, true))
+            .chain(invalid_use_statements.iter_mut().map(|x| (x, false)));
+
+        for (use_statement_str, expect_valid) in use_statements {
             let mut use_statement_str = use_statement_str.to_string();
             use_statement_str.push(';');
             let (result_opt, _diagnostics) = parse_recover(&use_statement(), &use_statement_str);
@@ -1603,7 +1613,7 @@ mod test {
                 _ => unreachable!(),
             };
 
-            prototype_parse_use_tree(&expected_use_statement, &use_statement_str)
+            prototype_parse_use_tree(&expected_use_statement, &use_statement_str, expect_valid);
         }
     }
 
