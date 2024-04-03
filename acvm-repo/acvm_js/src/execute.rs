@@ -1,3 +1,5 @@
+use std::{future::Future, pin::Pin};
+
 use acvm::BlackBoxFunctionSolver;
 use acvm::{
     acir::circuit::{Circuit, Program},
@@ -13,8 +15,6 @@ use crate::{
     foreign_call::{resolve_brillig, ForeignCallHandler},
     JsExecutionError, JsWitnessMap, JsWitnessStack,
 };
-use core::future::Future;
-use core::pin::Pin;
 
 #[wasm_bindgen]
 pub struct WasmBlackBoxFunctionSolver(Bn254BlackBoxSolver);
@@ -127,14 +127,8 @@ async fn execute_program_with_native_type_return(
     let program: Program = Program::deserialize_program(&program)
     .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None))?;
 
-    let main = &program.functions[0];
-
     let executor = ProgramExecutor::new(&program.functions, &solver.0, &foreign_call_executor);
-
-    let mut witness_stack = WitnessStack::default();
-    let main_witness =
-        executor.execute_circuit(main, initial_witness.into(), &mut witness_stack).await?;
-    witness_stack.push(0, main_witness);
+    let witness_stack = executor.execute(initial_witness.into()).await?;
 
     Ok(witness_stack)
 }
@@ -154,6 +148,16 @@ impl<'a, B: BlackBoxFunctionSolver> ProgramExecutor<'a, B> {
         foreign_call_handler: &'a ForeignCallHandler,
     ) -> Self {
         ProgramExecutor { functions, blackbox_solver, foreign_call_handler }
+    }
+
+    async fn execute(&self, initial_witness: WitnessMap) -> Result<WitnessStack, Error> {
+        let main = &self.functions[0];
+
+        let mut witness_stack = WitnessStack::default();
+        let main_witness =
+            self.execute_circuit(main, initial_witness.into(), &mut witness_stack).await?;
+        witness_stack.push(0, main_witness);
+        Ok(witness_stack)
     }
 
     fn execute_circuit(
