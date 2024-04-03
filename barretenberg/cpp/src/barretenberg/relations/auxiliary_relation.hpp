@@ -249,11 +249,14 @@ template <typename FF_> class AuxiliaryRelationImpl {
 
         auto adjacent_values_match_if_adjacent_indices_match = (-index_delta + FF(1)) * record_delta; // deg 2
 
+        auto q_aux_by_scaling = q_aux * scaling_factor;
+        auto q_one_by_two = q_1 * q_2;
+        auto q_one_by_two_by_aux_by_scaling = q_one_by_two * q_aux_by_scaling;
+
         std::get<1>(accumulators) +=
-            adjacent_values_match_if_adjacent_indices_match * (q_1 * q_2) * (q_aux * scaling_factor); // deg 5
-        std::get<2>(accumulators) +=
-            index_is_monotonically_increasing * (q_1 * q_2) * (q_aux * scaling_factor); // deg 5
-        auto ROM_consistency_check_identity = memory_record_check * (q_1 * q_2);        // deg 3 or 4
+            adjacent_values_match_if_adjacent_indices_match * q_one_by_two_by_aux_by_scaling;            // deg 5
+        std::get<2>(accumulators) += index_is_monotonically_increasing * q_one_by_two_by_aux_by_scaling; // deg 5
+        auto ROM_consistency_check_identity = memory_record_check * q_one_by_two;                        // deg 3 or 4
 
         /**
          * RAM Consistency Check
@@ -295,14 +298,14 @@ template <typename FF_> class AuxiliaryRelationImpl {
         // deg 2 or 4
         auto next_gate_access_type_is_boolean = next_gate_access_type * next_gate_access_type - next_gate_access_type;
 
+        auto q_arith_by_aux_and_scaling = q_arith * q_aux_by_scaling;
         // Putting it all together...
         std::get<3>(accumulators) +=
-            adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation * (q_arith) *
-            (q_aux * scaling_factor); // deg 5 or 6
-        std::get<4>(accumulators) += index_is_monotonically_increasing * (q_arith) * (q_aux * scaling_factor); // deg 4
-        std::get<5>(accumulators) +=
-            next_gate_access_type_is_boolean * (q_arith) * (q_aux * scaling_factor); // deg 4 or 6
-        auto RAM_consistency_check_identity = access_check * (q_arith);              // deg 3 or 5
+            adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation *
+            q_arith_by_aux_and_scaling;                                                              // deg 5 or 6
+        std::get<4>(accumulators) += index_is_monotonically_increasing * q_arith_by_aux_and_scaling; // deg 4
+        std::get<5>(accumulators) += next_gate_access_type_is_boolean * q_arith_by_aux_and_scaling;  // deg 4 or 6
+        auto RAM_consistency_check_identity = access_check * (q_arith);                              // deg 3 or 5
 
         /**
          * RAM Timestamp Consistency Check
@@ -329,7 +332,7 @@ template <typename FF_> class AuxiliaryRelationImpl {
 
         // (deg 3 or 5) + (deg 4) + (deg 3)
         auto auxiliary_identity = memory_identity + non_native_field_identity + limb_accumulator_identity;
-        auxiliary_identity *= (q_aux * scaling_factor); // deg 5 or 6
+        auxiliary_identity *= q_aux_by_scaling; // deg 5 or 6
         std::get<0>(accumulators) += auxiliary_identity;
     };
 };

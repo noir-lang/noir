@@ -57,7 +57,7 @@ template <typename FF_> class EccOpQueueRelationImpl {
         auto lagrange_ecc_op = View(in.lagrange_ecc_op);
 
         // If lagrange_ecc_op is the indicator for ecc_op_gates, this is the indicator for the complement
-        auto complement_ecc_op = lagrange_ecc_op * FF(-1) + FF(1);
+        auto complement_ecc_op = -lagrange_ecc_op + FF(1);
 
         // Contribution (1)
         auto tmp = op_wire_1 - w_1;
