@@ -145,7 +145,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   public addBlocks(blocks: DataRetrieval<L2Block>): Promise<boolean> {
     this.lastL1BlockNewBlocks = blocks.lastProcessedL1BlockNumber;
     this.l2BlockContexts.push(...blocks.retrievedData.map(block => new L2BlockContext(block)));
-    this.txEffects.push(...blocks.retrievedData.flatMap(b => b.getTxs()));
+    this.txEffects.push(...blocks.retrievedData.flatMap(b => b.body.txEffects));
     return Promise.resolve(true);
   }
 

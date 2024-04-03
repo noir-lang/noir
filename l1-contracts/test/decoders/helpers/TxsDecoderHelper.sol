@@ -17,4 +17,8 @@ contract TxsDecoderHelper {
   {
     return TxsDecoder.computeKernelLogsHash(0, _kernelLogs);
   }
+
+  function computeNumTxEffectsToPad(uint32 _numTxEffects) external pure returns (uint32) {
+    return TxsDecoder.computeNumTxEffectsToPad(_numTxEffects);
+  }
 }

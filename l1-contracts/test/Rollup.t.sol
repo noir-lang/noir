@@ -5,6 +5,7 @@ pragma solidity >=0.8.18;
 import {DecoderBase} from "./decoders/Base.sol";
 
 import {DataStructures} from "../src/core/libraries/DataStructures.sol";
+import {Constants} from "../src/core/libraries/ConstantsGen.sol";
 
 import {Registry} from "../src/core/messagebridge/Registry.sol";
 import {Inbox} from "../src/core/messagebridge/Inbox.sol";
@@ -14,6 +15,8 @@ import {Rollup} from "../src/core/Rollup.sol";
 import {AvailabilityOracle} from "../src/core/availability_oracle/AvailabilityOracle.sol";
 import {NaiveMerkle} from "./merkle/Naive.sol";
 import {MerkleTestUtil} from "./merkle/TestUtil.sol";
+
+import {TxsDecoderHelper} from "./decoders/helpers/TxsDecoderHelper.sol";
 
 /**
  * Blocks are generated using the `integration_l1_publisher.test.ts` tests.
@@ -25,6 +28,7 @@ contract RollupTest is DecoderBase {
   Outbox internal outbox;
   Rollup internal rollup;
   MerkleTestUtil internal merkleTestUtil;
+  TxsDecoderHelper internal txsHelper;
 
   AvailabilityOracle internal availabilityOracle;
 
@@ -38,6 +42,7 @@ contract RollupTest is DecoderBase {
     registry.upgrade(address(rollup), address(inbox), address(outbox));
 
     merkleTestUtil = new MerkleTestUtil();
+    txsHelper = new TxsDecoderHelper();
   }
 
   function testMixedBlock() public {
@@ -128,6 +133,7 @@ contract RollupTest is DecoderBase {
     bytes memory header = full.block.header;
     bytes32 archive = full.block.archive;
     bytes memory body = full.block.body;
+    uint32 numTxs = full.block.numTxs;
 
     // We jump to the time of the block.
     vm.warp(full.block.decodedHeader.globalVariables.timestamp);
@@ -145,11 +151,17 @@ contract RollupTest is DecoderBase {
 
     bytes32 l2ToL1MessageTreeRoot;
     {
-      uint256 treeHeight =
-        merkleTestUtil.calculateTreeHeightFromSize(full.messages.l2ToL1Messages.length);
+      uint256 numTxsWithPadding = txsHelper.computeNumTxEffectsToPad(numTxs) + numTxs;
+      uint256 numMessagesWithPadding = numTxsWithPadding * Constants.MAX_NEW_L2_TO_L1_MSGS_PER_TX;
+
+      uint256 treeHeight = merkleTestUtil.calculateTreeHeightFromSize(numMessagesWithPadding);
       NaiveMerkle tree = new NaiveMerkle(treeHeight);
-      for (uint256 i = 0; i < full.messages.l2ToL1Messages.length; i++) {
-        tree.insertLeaf(full.messages.l2ToL1Messages[i]);
+      for (uint256 i = 0; i < numMessagesWithPadding; i++) {
+        if (i < full.messages.l2ToL1Messages.length) {
+          tree.insertLeaf(full.messages.l2ToL1Messages[i]);
+        } else {
+          tree.insertLeaf(bytes32(0));
+        }
       }
 
       l2ToL1MessageTreeRoot = tree.computeRoot();
@@ -157,7 +169,7 @@ contract RollupTest is DecoderBase {
 
     (bytes32 root,) = outbox.roots(full.block.decodedHeader.globalVariables.blockNumber);
 
-    assertEq(l2ToL1MessageTreeRoot, root);
+    assertEq(l2ToL1MessageTreeRoot, root, "Invalid l2 to l1 message tree root");
 
     assertEq(rollup.archive(), archive, "Invalid archive");
   }

@@ -371,11 +371,11 @@ describe('prover/tx-prover', () => {
     };
 
     it.each([
-      [0, 4],
-      [1, 4],
+      [0, 2],
+      [1, 2],
       [4, 4],
-      [0, 16],
-      [4, 16],
+      [5, 8],
+      [9, 16],
     ] as const)(
       'builds an L2 block with %i bloated txs and %i txs total',
       async (bloatedCount: number, totalCount: number) => {
@@ -415,12 +415,7 @@ describe('prover/tx-prover', () => {
     );
 
     it('builds an empty L2 block', async () => {
-      const txs = await Promise.all([
-        makeEmptyProcessedTx(),
-        makeEmptyProcessedTx(),
-        makeEmptyProcessedTx(),
-        makeEmptyProcessedTx(),
-      ]);
+      const txs = await Promise.all([makeEmptyProcessedTx(), makeEmptyProcessedTx()]);
 
       const blockTicket = await builder.startNewBlock(txs.length, globalVariables, [], await makeEmptyProcessedTx());
 
@@ -535,7 +530,7 @@ describe('prover/tx-prover', () => {
     // }, 200_000);
 
     it('builds an unbalanced L2 block', async () => {
-      const txs = await Promise.all([makeEmptyProcessedTx(), makeEmptyProcessedTx(), makeEmptyProcessedTx()]);
+      const txs = await Promise.all([makeBloatedProcessedTx(1), makeBloatedProcessedTx(2), makeBloatedProcessedTx(3)]);
 
       const l1ToL2Messages = range(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, 1 + 0x400).map(fr);
 
@@ -557,10 +552,10 @@ describe('prover/tx-prover', () => {
 
     it('throws if adding too many transactions', async () => {
       const txs = await Promise.all([
-        makeEmptyProcessedTx(),
-        makeEmptyProcessedTx(),
-        makeEmptyProcessedTx(),
-        makeEmptyProcessedTx(),
+        makeBloatedProcessedTx(1),
+        makeBloatedProcessedTx(2),
+        makeBloatedProcessedTx(3),
+        makeBloatedProcessedTx(4),
       ]);
 
       const blockTicket = await builder.startNewBlock(txs.length, globalVariables, [], await makeEmptyProcessedTx());

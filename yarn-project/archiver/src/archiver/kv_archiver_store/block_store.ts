@@ -54,7 +54,7 @@ export class BlockStore {
           archive: block.archive.toBuffer(),
         });
 
-        block.getTxs().forEach((tx, i) => {
+        block.body.txEffects.forEach((tx, i) => {
           void this.#txIndex.set(tx.txHash.toString(), [block.number, i]);
         });
       }
@@ -119,7 +119,7 @@ export class BlockStore {
     }
 
     const block = this.getBlock(blockNumber);
-    return block?.getTx(txIndex);
+    return block?.body.txEffects[txIndex];
   }
 
   /**
@@ -134,7 +134,7 @@ export class BlockStore {
     }
 
     const block = this.getBlock(blockNumber)!;
-    const tx = block.getTx(txIndex);
+    const tx = block.body.txEffects[txIndex];
 
     return new TxReceipt(
       txHash,

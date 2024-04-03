@@ -32,6 +32,7 @@ import {
   INITIAL_L2_BLOCK_NUM,
   type L1_TO_L2_MSG_TREE_HEIGHT,
   L2_TO_L1_MESSAGE_LENGTH,
+  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   type NOTE_HASH_TREE_HEIGHT,
   type NULLIFIER_TREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
@@ -42,6 +43,7 @@ import {
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
 import { type L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { padArrayEnd } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type AztecKVStore } from '@aztec/kv-store';
 import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
@@ -451,11 +453,11 @@ export class AztecNodeService implements AztecNode {
       throw new Error('Block is not defined');
     }
 
-    const l2ToL1Messages = block.body.txEffects.flatMap(txEffect => txEffect.l2ToL1Msgs);
-
-    if (l2ToL1Messages.length !== L2_TO_L1_MESSAGE_LENGTH * block.body.txEffects.length) {
-      throw new Error('L2 to L1 Messages are not padded');
-    }
+    // We multiply the number of messages per block by the length of each message because each message occupies
+    // 2 leaves in the tree!
+    const l2ToL1Messages = block.body.txEffects.flatMap(txEffect =>
+      padArrayEnd(txEffect.l2ToL1Msgs, Fr.ZERO, MAX_NEW_L2_TO_L1_MSGS_PER_TX * L2_TO_L1_MESSAGE_LENGTH),
+    );
 
     const indexOfL2ToL1Message = BigInt(
       l2ToL1Messages.findIndex(l2ToL1MessageInBlock => l2ToL1MessageInBlock.equals(l2ToL1Message)),

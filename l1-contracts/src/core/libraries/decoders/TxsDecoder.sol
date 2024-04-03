@@ -14,7 +14,7 @@ import {Hash} from "../Hash.sol";
  * @dev Assumes the input trees to be padded.
  *
  * -------------------
- * You can use scripts/l2_block_data_specification_comment.py to generate the below outline.
+ * You can use scripts/l2_block_data_specification_comment.py to generate the below outline. --> SCRIPT STALE NOW!
  * -------------------
  * L2 Body Data Specification
  * -------------------
@@ -68,9 +68,9 @@ library TxsDecoder {
   }
 
   /**
-   * @notice Computes consumables for the block
-   * @param _body - The L2 block calldata.
-   * @return diffRoot - The root of the diff tree (new note hashes, nullifiers etc)
+   * @notice Computes txs effects hash
+   * @param _body - The L2 block body calldata.
+   * @return The txs effects hash.
    */
   function decode(bytes calldata _body) internal pure returns (bytes32) {
     ArrayOffsets memory offsets;
@@ -78,15 +78,15 @@ library TxsDecoder {
     ConsumablesVars memory vars;
     uint256 offset = 0;
 
-    {
-      uint256 count = read4(_body, offset); // number of tx effects
-      offset += 0x4;
-      vars.baseLeaves = new bytes32[](count);
-    }
+    uint32 numTxEffects = uint32(read4(_body, offset));
+    uint256 numTxEffectsToPad = computeNumTxEffectsToPad(numTxEffects);
+
+    offset += 0x4;
+    vars.baseLeaves = new bytes32[](numTxEffects + numTxEffectsToPad);
 
     // Data starts after header. Look at L2 Block Data specification at the top of this file.
     {
-      for (uint256 i = 0; i < vars.baseLeaves.length; i++) {
+      for (uint256 i = 0; i < numTxEffects; i++) {
         /*
          * Compute the leaf to insert.
          * Leaf_i = (
@@ -178,6 +178,12 @@ library TxsDecoder {
         );
 
         vars.baseLeaves[i] = Hash.sha256ToField(vars.baseLeaf);
+      }
+
+      // We pad base leaves with hashes of empty tx effect.
+      for (uint256 i = numTxEffects; i < vars.baseLeaves.length; i++) {
+        // Value taken from tx_effect.test.ts "hash of empty tx effect matches snapshot" test case
+        vars.baseLeaves[i] = hex"0071f7630d28ce02cc1ca8b15c44953f84a39e1478445395247ae04dfa213c0e";
       }
     }
 
@@ -343,5 +349,27 @@ library TxsDecoder {
    */
   function read4(bytes calldata _data, uint256 _offset) internal pure returns (uint256) {
     return uint256(uint32(bytes4(slice(_data, _offset, 4))));
+  }
+
+  function computeNumTxEffectsToPad(uint32 _numTxEffects) internal pure returns (uint32) {
+    // 2 is the minimum number of tx effects so we have to handle the following 2 cases separately
+    if (_numTxEffects == 0) {
+      return 2;
+    } else if (_numTxEffects == 1) {
+      return 1;
+    }
+
+    uint32 v = _numTxEffects;
+
+    // the following rounds _numTxEffects up to the next power of 2 (works only for 4 bytes value!)
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+
+    return v - _numTxEffects;
   }
 }

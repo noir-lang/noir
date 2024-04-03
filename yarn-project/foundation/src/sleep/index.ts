@@ -67,8 +67,9 @@ export class InterruptibleSleep {
  * The sleep function can be interrupted by the 'interrupt' method of the InterruptibleSleep class.
  *
  * @param ms - The duration in milliseconds for which the sleep operation should last.
+ * @param returnValue - The return value of the promise.
  * @returns A Promise that resolves after the specified duration, allowing the use of 'await' to pause execution.
  */
-export function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+export function sleep<T>(ms: number, returnValue?: T): Promise<T | undefined> {
+  return new Promise(resolve => setTimeout(() => resolve(returnValue), ms));
 }

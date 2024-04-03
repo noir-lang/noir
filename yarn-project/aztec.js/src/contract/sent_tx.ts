@@ -82,10 +82,10 @@ export class SentTx {
       const tx = (await this.pxe.getTxEffect(txHash))!;
       const visibleNotes = await this.pxe.getNotes({ txHash });
       receipt.debugInfo = {
-        noteHashes: tx.noteHashes.filter(n => !n.isZero()),
-        nullifiers: tx.nullifiers.filter(n => !n.isZero()),
-        publicDataWrites: tx.publicDataWrites.filter(p => !p.isEmpty()),
-        l2ToL1Msgs: tx.l2ToL1Msgs.filter(l => !l.isZero()),
+        noteHashes: tx.noteHashes,
+        nullifiers: tx.nullifiers,
+        publicDataWrites: tx.publicDataWrites,
+        l2ToL1Msgs: tx.l2ToL1Msgs,
         visibleNotes,
       };
     }

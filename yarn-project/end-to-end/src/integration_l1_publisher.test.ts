@@ -305,6 +305,7 @@ describe('L1Publisher integration', () => {
         },
         header: `0x${block.header.toBuffer().toString('hex')}`,
         publicInputsHash: `0x${block.getPublicInputsHash().toBuffer().toString('hex').padStart(64, '0')}`,
+        numTxs: block.body.txEffects.length,
       },
     };
 
@@ -460,7 +461,7 @@ describe('L1Publisher integration', () => {
     }
   }, 360_000);
 
-  it(`Build ${numberOfConsecutiveBlocks} blocks of 4 empty txs building on each other`, async () => {
+  it(`Build ${numberOfConsecutiveBlocks} blocks of 2 empty txs building on each other`, async () => {
     const archiveInRollup_ = await rollup.read.archive();
     expect(hexStringToBuffer(archiveInRollup_.toString())).toEqual(Buffer.alloc(32, 0));
 
@@ -468,7 +469,7 @@ describe('L1Publisher integration', () => {
 
     for (let i = 0; i < numberOfConsecutiveBlocks; i++) {
       const l1ToL2Messages = new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
-      const txs = [makeEmptyProcessedTx(), makeEmptyProcessedTx(), makeEmptyProcessedTx(), makeEmptyProcessedTx()];
+      const txs = [makeEmptyProcessedTx(), makeEmptyProcessedTx()];
 
       const globalVariables = new GlobalVariables(
         new Fr(chainId),

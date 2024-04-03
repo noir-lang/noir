@@ -58,8 +58,8 @@ describe('E2E Outbox Tests', () => {
     const l2ToL1Messages = block?.body.txEffects.flatMap(txEffect => txEffect.l2ToL1Msgs);
 
     expect(l2ToL1Messages?.map(l2ToL1Message => l2ToL1Message.toString())).toStrictEqual(
-      [makeL2ToL1Message(recipient2, content2), makeL2ToL1Message(recipient1, content1), Fr.ZERO, Fr.ZERO].map(
-        expectedL2ToL1Message => expectedL2ToL1Message.toString(),
+      [makeL2ToL1Message(recipient2, content2), makeL2ToL1Message(recipient1, content1)].map(expectedL2ToL1Message =>
+        expectedL2ToL1Message.toString(),
       ),
     );
 

@@ -20,7 +20,7 @@ export class L2BlockContext {
    * @returns The tx's hash.
    */
   public getTxHash(txIndex: number): TxHash {
-    return this.txHashes ? this.txHashes[txIndex] : this.block.getTxHash(txIndex);
+    return this.txHashes ? this.txHashes[txIndex] : this.block.body.txEffects[txIndex].txHash;
   }
 
   /**
@@ -30,7 +30,7 @@ export class L2BlockContext {
   public getTxHashes(): TxHash[] {
     // First ensure that all tx hashes are calculated
     if (!this.txHashes) {
-      this.txHashes = this.block.getTxs().map(tx => tx.txHash);
+      this.txHashes = this.block.body.txEffects.map(tx => tx.txHash);
     }
     return this.txHashes;
   }

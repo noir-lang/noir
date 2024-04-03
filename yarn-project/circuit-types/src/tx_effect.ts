@@ -7,14 +7,12 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   RevertCode,
 } from '@aztec/circuits.js';
-import { assertRightPadded, makeTuple } from '@aztec/foundation/array';
-import { padArrayEnd } from '@aztec/foundation/collection';
+import { makeTuple } from '@aztec/foundation/array';
 import { sha256 } from '@aztec/foundation/crypto';
 import {
   BufferReader,
-  type Tuple,
-  assertLength,
   serializeArrayOfBufferableToVector,
+  serializeToBuffer,
   truncateAndPad,
 } from '@aztec/foundation/serialize';
 
@@ -29,40 +27,75 @@ export class TxEffect {
     /**
      * The note hashes to be inserted into the note hash tree.
      */
-    public noteHashes: Tuple<Fr, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
+    public noteHashes: Fr[],
     /**
      * The nullifiers to be inserted into the nullifier tree.
      */
-    public nullifiers: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    public nullifiers: Fr[],
     /**
      * The L2 to L1 messages to be inserted into the messagebox on L1.
      */
-    public l2ToL1Msgs: Tuple<Fr, typeof MAX_NEW_L2_TO_L1_MSGS_PER_TX>,
+    public l2ToL1Msgs: Fr[],
     /**
      * The public data writes to be inserted into the public data tree.
      */
-    public publicDataWrites: Tuple<PublicDataWrite, typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
+    public publicDataWrites: PublicDataWrite[],
     /**
      * The logs of the txEffect
      */
     public encryptedLogs: EncryptedTxL2Logs,
     public unencryptedLogs: UnencryptedTxL2Logs,
-  ) {}
+  ) {
+    // TODO(#4638): Clean this up once we have isDefault() everywhere --> then we don't have to deal with 2 different
+    // functions (isZero and isEmpty)
+    if (noteHashes.length > MAX_NEW_NOTE_HASHES_PER_TX) {
+      throw new Error(`Too many note hashes: ${noteHashes.length}, max: ${MAX_NEW_NOTE_HASHES_PER_TX}`);
+    }
+    noteHashes.forEach(h => {
+      if (h.isZero()) {
+        throw new Error('Note hash is zero');
+      }
+    });
+
+    if (nullifiers.length > MAX_NEW_NULLIFIERS_PER_TX) {
+      throw new Error(`Too many nullifiers: ${nullifiers.length}, max: ${MAX_NEW_NULLIFIERS_PER_TX}`);
+    }
+    nullifiers.forEach(h => {
+      if (h.isZero()) {
+        throw new Error('Nullifier is zero');
+      }
+    });
+
+    if (l2ToL1Msgs.length > MAX_NEW_L2_TO_L1_MSGS_PER_TX) {
+      throw new Error(`Too many L2 to L1 messages: ${l2ToL1Msgs.length}, max: ${MAX_NEW_L2_TO_L1_MSGS_PER_TX}`);
+    }
+    l2ToL1Msgs.forEach(h => {
+      if (h.isZero()) {
+        throw new Error('L2 to L1 message is zero');
+      }
+    });
+
+    if (publicDataWrites.length > MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX) {
+      throw new Error(
+        `Too many public data writes: ${publicDataWrites.length}, max: ${MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX}`,
+      );
+    }
+    publicDataWrites.forEach(h => {
+      if (h.isEmpty()) {
+        throw new Error('Public data write is empty');
+      }
+    });
+  }
 
   toBuffer(): Buffer {
-    const nonZeroNoteHashes = this.noteHashes.filter(h => !h.isZero());
-    const nonZeroNullifiers = this.nullifiers.filter(h => !h.isZero());
-    const nonZeroL2ToL1Msgs = this.l2ToL1Msgs.filter(h => !h.isZero());
-    const nonZeroPublicDataWrites = this.publicDataWrites.filter(h => !h.isEmpty());
-
-    return Buffer.concat([
-      this.revertCode.toBuffer(),
-      serializeArrayOfBufferableToVector(nonZeroNoteHashes, 1),
-      serializeArrayOfBufferableToVector(nonZeroNullifiers, 1),
-      serializeArrayOfBufferableToVector(nonZeroL2ToL1Msgs, 1),
-      serializeArrayOfBufferableToVector(nonZeroPublicDataWrites, 1),
-      this.encryptedLogs.toBuffer(),
-      this.unencryptedLogs.toBuffer(),
+    return serializeToBuffer([
+      this.revertCode,
+      serializeArrayOfBufferableToVector(this.noteHashes, 1),
+      serializeArrayOfBufferableToVector(this.nullifiers, 1),
+      serializeArrayOfBufferableToVector(this.l2ToL1Msgs, 1),
+      serializeArrayOfBufferableToVector(this.publicDataWrites, 1),
+      this.encryptedLogs,
+      this.unencryptedLogs,
     ]);
   }
 
@@ -74,41 +107,42 @@ export class TxEffect {
   static fromBuffer(buffer: Buffer | BufferReader): TxEffect {
     const reader = BufferReader.asReader(buffer);
 
-    const revertCode = RevertCode.fromBuffer(reader);
-    const nonZeroNoteHashes = reader.readVectorUint8Prefix(Fr);
-    const nonZeroNullifiers = reader.readVectorUint8Prefix(Fr);
-    const nonZeroL2ToL1Msgs = reader.readVectorUint8Prefix(Fr);
-    const nonZeroPublicDataWrites = reader.readVectorUint8Prefix(PublicDataWrite);
-
     return new TxEffect(
-      revertCode,
-      padArrayEnd(nonZeroNoteHashes, Fr.ZERO, MAX_NEW_NOTE_HASHES_PER_TX),
-      padArrayEnd(nonZeroNullifiers, Fr.ZERO, MAX_NEW_NULLIFIERS_PER_TX),
-      padArrayEnd(nonZeroL2ToL1Msgs, Fr.ZERO, MAX_NEW_L2_TO_L1_MSGS_PER_TX),
-      padArrayEnd(nonZeroPublicDataWrites, PublicDataWrite.empty(), MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX),
-      EncryptedTxL2Logs.fromBuffer(reader),
-      UnencryptedTxL2Logs.fromBuffer(reader),
+      RevertCode.fromBuffer(reader),
+      reader.readVectorUint8Prefix(Fr),
+      reader.readVectorUint8Prefix(Fr),
+      reader.readVectorUint8Prefix(Fr),
+      reader.readVectorUint8Prefix(PublicDataWrite),
+      reader.readObject(EncryptedTxL2Logs),
+      reader.readObject(UnencryptedTxL2Logs),
     );
   }
 
+  /**
+   * Computes the hash of the TxEffect object.
+   * @returns The hash of the TxEffect object.
+   * @dev This function must correspond with compute_tx_effects_hash() in Noir and TxsDecoder.sol decode().
+   */
   hash() {
-    // must correspond with compute_tx_effects_hash() in nr
-    // and TxsDecoder.sol decode()
-    assertLength(this.noteHashes, MAX_NEW_NOTE_HASHES_PER_TX);
-    assertRightPadded(this.noteHashes, Fr.isZero);
-    const noteHashesBuffer = Buffer.concat(this.noteHashes.map(x => x.toBuffer()));
+    const padBuffer = (buf: Buffer, length: number) => Buffer.concat([buf, Buffer.alloc(length - buf.length)]);
 
-    assertLength(this.nullifiers, MAX_NEW_NULLIFIERS_PER_TX);
-    assertRightPadded(this.nullifiers, Fr.isZero);
-    const nullifiersBuffer = Buffer.concat(this.nullifiers.map(x => x.toBuffer()));
+    const noteHashesBuffer = padBuffer(
+      serializeToBuffer(this.noteHashes),
+      Fr.SIZE_IN_BYTES * MAX_NEW_NOTE_HASHES_PER_TX,
+    );
+    const nullifiersBuffer = padBuffer(
+      serializeToBuffer(this.nullifiers),
+      Fr.SIZE_IN_BYTES * MAX_NEW_NULLIFIERS_PER_TX,
+    );
+    const l2ToL1MsgsBuffer = padBuffer(
+      serializeToBuffer(this.l2ToL1Msgs),
+      Fr.SIZE_IN_BYTES * MAX_NEW_L2_TO_L1_MSGS_PER_TX,
+    );
+    const publicDataWritesBuffer = padBuffer(
+      serializeToBuffer(this.publicDataWrites),
+      PublicDataWrite.SIZE_IN_BYTES * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    );
 
-    assertLength(this.l2ToL1Msgs, MAX_NEW_L2_TO_L1_MSGS_PER_TX);
-    assertRightPadded(this.l2ToL1Msgs, Fr.isZero);
-    const newL2ToL1MsgsBuffer = Buffer.concat(this.l2ToL1Msgs.map(x => x.toBuffer()));
-
-    assertLength(this.publicDataWrites, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX);
-    assertRightPadded(this.publicDataWrites, PublicDataWrite.isEmpty);
-    const publicDataUpdateRequestsBuffer = Buffer.concat(this.publicDataWrites.map(x => x.toBuffer()));
     const encryptedLogsHashKernel0 = this.encryptedLogs.hash();
     const unencryptedLogsHashKernel0 = this.unencryptedLogs.hash();
 
@@ -116,8 +150,8 @@ export class TxEffect {
       this.revertCode.toHashPreimage(),
       noteHashesBuffer,
       nullifiersBuffer,
-      newL2ToL1MsgsBuffer,
-      publicDataUpdateRequestsBuffer,
+      l2ToL1MsgsBuffer,
+      publicDataWritesBuffer,
       encryptedLogsHashKernel0,
       unencryptedLogsHashKernel0,
     ]);
@@ -143,15 +177,11 @@ export class TxEffect {
   }
 
   static empty(): TxEffect {
-    return new TxEffect(
-      RevertCode.OK,
-      makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, Fr.zero),
-      makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
-      makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.zero),
-      makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataWrite.empty),
-      EncryptedTxL2Logs.empty(),
-      UnencryptedTxL2Logs.empty(),
-    );
+    return new TxEffect(RevertCode.OK, [], [], [], [], EncryptedTxL2Logs.empty(), UnencryptedTxL2Logs.empty());
+  }
+
+  isEmpty(): boolean {
+    return this.nullifiers.length === 0;
   }
 
   /**

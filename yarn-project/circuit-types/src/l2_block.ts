@@ -1,4 +1,4 @@
-import { Body, type TxEffect, TxHash } from '@aztec/circuit-types';
+import { Body } from '@aztec/circuit-types';
 import { AppendOnlyTreeSnapshot, Header, STRING_ENCODING } from '@aztec/circuits.js';
 import { sha256, sha256ToField } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
@@ -198,40 +198,6 @@ export class L2Block {
   }
 
   /**
-   * Get the ith transaction in an L2 block.
-   * @param txIndex - The index of the tx in the block.
-   * @returns The tx.
-   */
-  getTx(txIndex: number): TxEffect {
-    this.assertIndexInRange(txIndex);
-    return this.body.txEffects[txIndex];
-  }
-
-  /**
-   * A lightweight method to get the tx hash of a tx in the block.
-   * @param txIndex - the index of the tx in the block
-   * @returns a hash of the tx, which is the first nullifier in the tx
-   */
-  getTxHash(txIndex: number): TxHash {
-    this.assertIndexInRange(txIndex);
-
-    // Gets the first nullifier of the tx specified by txIndex
-    const firstNullifier = this.body.txEffects[txIndex].nullifiers[0];
-
-    return new TxHash(firstNullifier.toBuffer());
-  }
-
-  /**
-   * Get all the transaction in an L2 block.
-   * @returns The tx.
-   */
-  getTxs() {
-    return Array(this.body.numberOfTxs)
-      .fill(0)
-      .map((_, i) => this.getTx(i));
-  }
-
-  /**
    * Returns stats used for logging.
    * @returns Stats on tx count, number, and log size and count.
    */
@@ -256,45 +222,9 @@ export class L2Block {
     };
 
     return {
-      txCount: this.body.numberOfTxs,
+      txCount: this.body.txEffects.length,
       blockNumber: this.number,
       ...logsStats,
     };
-  }
-
-  assertIndexInRange(txIndex: number) {
-    if (txIndex < 0 || txIndex >= this.body.numberOfTxs) {
-      throw new IndexOutOfRangeError({
-        txIndex,
-        numberOfTxs: this.body.numberOfTxs,
-        blockNumber: this.number,
-      });
-    }
-  }
-}
-
-/**
- * Custom error class for when a requested tx index is out of range.
- */
-export class IndexOutOfRangeError extends Error {
-  constructor({
-    txIndex,
-    numberOfTxs,
-    blockNumber,
-  }: {
-    /**
-     * The requested index of the tx in the block.
-     */
-    txIndex: number;
-    /**
-     * The number of txs in the block.
-     */
-    numberOfTxs: number;
-    /**
-     * The number of the block.
-     */
-    blockNumber: number;
-  }) {
-    super(`IndexOutOfRangeError: Failed to get tx at index ${txIndex}. Block ${blockNumber} has ${numberOfTxs} txs.`);
   }
 }

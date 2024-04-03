@@ -1,4 +1,4 @@
-import { type L2Block, MerkleTreeId, type SiblingPath } from '@aztec/circuit-types';
+import { type L2Block, MerkleTreeId, PublicDataWrite, type SiblingPath, TxEffect } from '@aztec/circuit-types';
 import {
   ARCHIVE_HEIGHT,
   AppendOnlyTreeSnapshot,
@@ -7,6 +7,8 @@ import {
   GlobalVariables,
   Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
+  MAX_NEW_NOTE_HASHES_PER_TX,
+  MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NOTE_HASH_TREE_HEIGHT,
   NULLIFIER_SUBTREE_HEIGHT,
@@ -572,36 +574,50 @@ export class MerkleTrees implements MerkleTreeDb {
       this.log(`Block ${l2Block.number} is not ours, rolling back world state and committing state from chain`);
       await this.#rollback();
 
-      // We pad the messages because always a fixed number of messages is inserted and we need
-      // the `nextAvailableLeafIndex` to correctly progress.
-      const l1ToL2MessagesPadded = padArrayEnd(l1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
+      // We have to pad both the tx effects and the values within tx effects because that's how the trees are built
+      // by circuits.
+      const paddedTxEffects = padArrayEnd(
+        l2Block.body.txEffects,
+        TxEffect.empty(),
+        l2Block.body.numberOfTxsIncludingPadded,
+      );
 
       // Sync the append only trees
-      for (const [tree, leaves] of [
-        [MerkleTreeId.NOTE_HASH_TREE, l2Block.body.txEffects.flatMap(txEffect => txEffect.noteHashes)],
-        [MerkleTreeId.L1_TO_L2_MESSAGE_TREE, l1ToL2MessagesPadded],
-      ] as const) {
-        await this.#appendLeaves(tree, leaves);
+      {
+        const noteHashesPadded = paddedTxEffects.flatMap(txEffect =>
+          padArrayEnd(txEffect.noteHashes, Fr.ZERO, MAX_NEW_NOTE_HASHES_PER_TX),
+        );
+        await this.#appendLeaves(MerkleTreeId.NOTE_HASH_TREE, noteHashesPadded);
+
+        const l1ToL2MessagesPadded = padArrayEnd(l1ToL2Messages, Fr.ZERO, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
+        await this.#appendLeaves(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, l1ToL2MessagesPadded);
       }
 
       // Sync the indexed trees
-      await (this.trees[MerkleTreeId.NULLIFIER_TREE] as StandardIndexedTree).batchInsert(
-        l2Block.body.txEffects.flatMap(txEffect => txEffect.nullifiers.map(nullifier => nullifier.toBuffer())),
-        NULLIFIER_SUBTREE_HEIGHT,
-      );
-
-      const publicDataTree = this.trees[MerkleTreeId.PUBLIC_DATA_TREE] as StandardIndexedTree;
-
-      const publicDataWrites = l2Block.body.txEffects.flatMap(txEffect => txEffect.publicDataWrites);
-
-      // We insert the public data tree leaves with one batch per tx to avoid updating the same key twice
-      for (let i = 0; i < publicDataWrites.length / MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX; i++) {
-        await publicDataTree.batchInsert(
-          publicDataWrites
-            .slice(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * i, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * (i + 1))
-            .map(write => new PublicDataTreeLeaf(write.leafIndex, write.newValue).toBuffer()),
-          PUBLIC_DATA_SUBTREE_HEIGHT,
+      {
+        const nullifiersPadded = paddedTxEffects.flatMap(txEffect =>
+          padArrayEnd(txEffect.nullifiers, Fr.ZERO, MAX_NEW_NULLIFIERS_PER_TX),
         );
+        await (this.trees[MerkleTreeId.NULLIFIER_TREE] as StandardIndexedTree).batchInsert(
+          nullifiersPadded.map(nullifier => nullifier.toBuffer()),
+          NULLIFIER_SUBTREE_HEIGHT,
+        );
+
+        const publicDataTree = this.trees[MerkleTreeId.PUBLIC_DATA_TREE] as StandardIndexedTree;
+
+        // We insert the public data tree leaves with one batch per tx to avoid updating the same key twice
+        for (const txEffect of paddedTxEffects) {
+          const publicDataWrites = padArrayEnd(
+            txEffect.publicDataWrites,
+            PublicDataWrite.empty(),
+            MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+          );
+
+          await publicDataTree.batchInsert(
+            publicDataWrites.map(write => new PublicDataTreeLeaf(write.leafIndex, write.newValue).toBuffer()),
+            PUBLIC_DATA_SUBTREE_HEIGHT,
+          );
+        }
       }
 
       // The last thing remaining is to update the archive

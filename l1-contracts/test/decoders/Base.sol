@@ -37,6 +37,9 @@ contract DecoderBase is Test {
     bytes body;
     DecodedHeader decodedHeader;
     bytes header;
+    // Note: The following could be decoded from body but having it explicitaly here makes tests more robust against
+    // decoder changes
+    uint32 numTxs;
     bytes32 publicInputsHash;
     bytes32 txsEffectsHash;
   }

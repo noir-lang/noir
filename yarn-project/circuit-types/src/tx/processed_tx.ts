@@ -10,9 +10,6 @@ import {
 import {
   Fr,
   type Header,
-  type MAX_NEW_NOTE_HASHES_PER_TX,
-  type MAX_NEW_NULLIFIERS_PER_TX,
-  type MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   type Proof,
   PublicAccumulatedNonRevertibleData,
   PublicAccumulatedRevertibleData,
@@ -22,7 +19,6 @@ import {
   ValidationRequests,
   makeEmptyProof,
 } from '@aztec/circuits.js';
-import { type Tuple } from '@aztec/foundation/serialize';
 
 /**
  * Represents a tx that has been processed by the sequencer public processor,
@@ -184,16 +180,12 @@ export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr): 
 export function toTxEffect(tx: ProcessedTx): TxEffect {
   return new TxEffect(
     tx.data.combinedData.revertCode,
-    tx.data.combinedData.newNoteHashes.map((c: SideEffect) => c.value) as Tuple<Fr, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
-    tx.data.combinedData.newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value) as Tuple<
-      Fr,
-      typeof MAX_NEW_NULLIFIERS_PER_TX
-    >,
-    tx.data.combinedData.newL2ToL1Msgs,
-    tx.data.combinedData.publicDataUpdateRequests.map(t => new PublicDataWrite(t.leafSlot, t.newValue)) as Tuple<
-      PublicDataWrite,
-      typeof MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
-    >,
+    tx.data.combinedData.newNoteHashes.map((c: SideEffect) => c.value).filter(h => !h.isZero()),
+    tx.data.combinedData.newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value).filter(h => !h.isZero()),
+    tx.data.combinedData.newL2ToL1Msgs.filter(h => !h.isZero()),
+    tx.data.combinedData.publicDataUpdateRequests
+      .map(t => new PublicDataWrite(t.leafSlot, t.newValue))
+      .filter(h => !h.isEmpty()),
     tx.encryptedLogs || EncryptedTxL2Logs.empty(),
     tx.unencryptedLogs || UnencryptedTxL2Logs.empty(),
   );

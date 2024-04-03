@@ -6,6 +6,8 @@ import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
  * Write operations on the public state tree.
  */
 export class PublicDataWrite {
+  static SIZE_IN_BYTES = Fr.SIZE_IN_BYTES * 2;
+
   constructor(
     /**
      * Index of the updated leaf.
