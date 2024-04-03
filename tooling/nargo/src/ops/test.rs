@@ -44,7 +44,8 @@ pub fn run_test<B: BlackBoxFunctionSolver>(
             );
             test_status_program_compile_pass(
                 test_function,
-                compiled_program.debug,
+                // TODO: Need to add handling for running tests with foldable calls
+                compiled_program.debug[0].clone(),
                 circuit_execution,
             )
         }

@@ -70,7 +70,8 @@ impl From<ContractFunction> for ContractFunctionArtifact {
             custom_attributes: func.custom_attributes,
             abi: func.abi,
             bytecode: func.bytecode,
-            debug_symbols: func.debug,
+            // TODO: update this
+            debug_symbols: func.debug[0].clone(),
         }
     }
 }

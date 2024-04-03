@@ -50,5 +50,5 @@ pub struct ContractFunction {
     )]
     pub bytecode: Program,
 
-    pub debug: DebugInfo,
+    pub debug: Vec<DebugInfo>,
 }

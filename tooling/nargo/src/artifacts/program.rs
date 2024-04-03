@@ -43,7 +43,8 @@ impl From<CompiledProgram> for ProgramArtifact {
             abi: compiled_program.abi,
             noir_version: compiled_program.noir_version,
             bytecode: compiled_program.program,
-            debug_symbols: compiled_program.debug,
+            // TODO: update program artifact for multiple debug
+            debug_symbols: compiled_program.debug[0].clone(),
             file_map: compiled_program.file_map,
         }
     }
@@ -56,7 +57,8 @@ impl From<ProgramArtifact> for CompiledProgram {
             abi: program.abi,
             noir_version: program.noir_version,
             program: program.bytecode,
-            debug: program.debug_symbols,
+            // TODO: update program artifact for multiple debug
+            debug: vec![program.debug_symbols],
             file_map: program.file_map,
             warnings: vec![],
         }
