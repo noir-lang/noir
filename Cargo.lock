@@ -605,6 +605,7 @@ dependencies = [
  "acvm_blackbox_solver",
  "ark-ec",
  "ark-ff",
+ "cfg-if 1.0.0",
  "getrandom 0.2.10",
  "js-sys",
  "noir_grumpkin",
