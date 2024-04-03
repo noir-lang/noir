@@ -4,4 +4,4 @@ exports[`PublicCallStackItem Computes a callstack item hash 1`] = `"0x1fe20dd657
 
 exports[`PublicCallStackItem Computes a callstack item request hash 1`] = `"0x09bd19d3ebcda705ab1ed598db287340aed3efda0ad3bbbf3296737bda731fa9"`;
 
-exports[`PublicCallStackItem computes hash 1`] = `Fr<0x131efdeaaf1e936042e5e5a24a8546863bbddfc70b8e6bdd6df457595df30577>`;
+exports[`PublicCallStackItem computes hash 1`] = `Fr<0x199dfba7eaee0977e755d4b7b575845e94f37b94bffe27b03ad45dfafe53177c>`;

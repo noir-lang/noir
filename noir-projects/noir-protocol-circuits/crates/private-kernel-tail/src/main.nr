@@ -1,6 +1,6 @@
 use dep::private_kernel_lib::PrivateKernelTailCircuitPrivateInputs;
-use dep::types::PrivateKernelTailCircuitPublicInputs;
+use dep::types::KernelCircuitPublicInputs;
 
-fn main(input: PrivateKernelTailCircuitPrivateInputs) -> distinct pub PrivateKernelTailCircuitPublicInputs {
+fn main(input: PrivateKernelTailCircuitPrivateInputs) -> distinct pub KernelCircuitPublicInputs {
     input.native_private_kernel_circuit_tail()
 }

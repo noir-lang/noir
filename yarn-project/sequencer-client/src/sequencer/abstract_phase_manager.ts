@@ -7,18 +7,18 @@ import {
   Fr,
   type GlobalVariables,
   type Header,
+  type KernelCircuitPublicInputs,
   L2ToL1Message,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NOTE_HASHES_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
-  MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
   MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
-  MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MembershipWitness,
   type PrivateKernelTailCircuitPublicInputs,
   type Proof,
@@ -31,7 +31,6 @@ import {
   PublicKernelCircuitPrivateInputs,
   type PublicKernelCircuitPublicInputs,
   PublicKernelData,
-  PublicKernelTailCircuitPrivateInputs,
   RETURN_VALUES_LENGTH,
   ReadRequest,
   RevertCode,
@@ -110,6 +109,10 @@ export abstract class AbstractPhaseManager {
      */
     publicKernelOutput: PublicKernelCircuitPublicInputs;
     /**
+     * the final output of the public kernel circuit for this phase
+     */
+    finalKernelOutput?: KernelCircuitPublicInputs;
+    /**
      * the proof of the public kernel circuit for this phase
      */
     publicKernelProof: Proof;
@@ -125,8 +128,10 @@ export abstract class AbstractPhaseManager {
     enqueuedPublicFunctionCalls: PublicCallRequest[],
   ): Record<PublicKernelPhase, PublicCallRequest[]> {
     const publicCallsStack = enqueuedPublicFunctionCalls.slice().reverse();
-    const nonRevertibleCallStack = publicInputs.endNonRevertibleData.publicCallStack.filter(i => !i.isEmpty());
-    const revertibleCallStack = publicInputs.end.publicCallStack.filter(i => !i.isEmpty());
+    const nonRevertibleCallStack = publicInputs.forPublic!.endNonRevertibleData.publicCallStack.filter(
+      i => !i.isEmpty(),
+    );
+    const revertibleCallStack = publicInputs.forPublic!.end.publicCallStack.filter(i => !i.isEmpty());
 
     const callRequestsStack = publicCallsStack
       .map(call => call.toCallRequest())
@@ -258,7 +263,7 @@ export abstract class AbstractPhaseManager {
         // sanity check. Note we can't expect them to just be equal, because e.g.
         // if the simulator reverts in app logic, it "resets" and result.reverted will be false when we run teardown,
         // but the kernel carries the reverted flag forward. But if the simulator reverts, so should the kernel.
-        if (result.reverted && kernelOutput.endNonRevertibleData.revertCode.isOK()) {
+        if (result.reverted && kernelOutput.revertCode.isOK()) {
           throw new Error(
             `Public kernel circuit did not revert on ${result.execution.contractAddress.toString()}:${functionSelector}, but simulator did.`,
           );
@@ -297,7 +302,7 @@ export abstract class AbstractPhaseManager {
     }
 
     // TODO(#3675): This should be done in a public kernel circuit
-    removeRedundantPublicDataWrites(kernelOutput);
+    removeRedundantPublicDataWrites(kernelOutput, this.phase);
 
     return [kernelOutput, kernelProof, newUnencryptedFunctionLogs, undefined, returns];
   }
@@ -305,42 +310,18 @@ export abstract class AbstractPhaseManager {
   protected async runKernelCircuit(
     previousOutput: PublicKernelCircuitPublicInputs,
     previousProof: Proof,
-    callData?: PublicCallData,
+    callData: PublicCallData,
   ): Promise<[PublicKernelCircuitPublicInputs, Proof]> {
     const output = await this.getKernelCircuitOutput(previousOutput, previousProof, callData);
     return [output, makeEmptyProof()];
   }
 
-  protected async getKernelCircuitOutput(
+  protected getKernelCircuitOutput(
     previousOutput: PublicKernelCircuitPublicInputs,
     previousProof: Proof,
-    callData?: PublicCallData,
+    callData: PublicCallData,
   ): Promise<PublicKernelCircuitPublicInputs> {
     const previousKernel = this.getPreviousKernelData(previousOutput, previousProof);
-
-    if (this.phase === PublicKernelPhase.TAIL) {
-      const { validationRequests, endNonRevertibleData, end } = previousOutput;
-      const nullifierReadRequestHints = await this.hintsBuilder.getNullifierReadRequestHints(
-        validationRequests.nullifierReadRequests,
-        endNonRevertibleData.newNullifiers,
-        end.newNullifiers,
-      );
-      const nullifierNonExistentReadRequestHints = await this.hintsBuilder.getNullifierNonExistentReadRequestHints(
-        validationRequests.nullifierNonExistentReadRequests,
-        endNonRevertibleData.newNullifiers,
-        end.newNullifiers,
-      );
-      const inputs = new PublicKernelTailCircuitPrivateInputs(
-        previousKernel,
-        nullifierReadRequestHints,
-        nullifierNonExistentReadRequestHints,
-      );
-      return this.publicKernel.publicKernelCircuitTail(inputs);
-    }
-
-    if (!callData) {
-      throw new Error(`Cannot run public kernel circuit without call data for phase '${this.phase}'.`);
-    }
 
     const inputs = new PublicKernelCircuitPrivateInputs(previousKernel, callData);
     switch (this.phase) {
@@ -467,26 +448,30 @@ export abstract class AbstractPhaseManager {
   }
 }
 
-function removeRedundantPublicDataWrites(publicInputs: PublicKernelCircuitPublicInputs) {
-  const patch = <N extends number>(requests: Tuple<PublicDataUpdateRequest, N>) => {
-    const lastWritesMap = new Map<string, PublicDataUpdateRequest>();
-    for (const write of requests) {
-      const key = write.leafSlot.toString();
-      lastWritesMap.set(key, write);
-    }
-    return requests.filter(write => lastWritesMap.get(write.leafSlot.toString())?.equals(write));
-  };
+function removeRedundantPublicDataWrites(publicInputs: PublicKernelCircuitPublicInputs, phase: PublicKernelPhase) {
+  const lastWritesMap = new Map<string, boolean>();
+  const patch = <N extends number>(requests: Tuple<PublicDataUpdateRequest, N>) =>
+    requests.filter(write => {
+      const leafSlot = write.leafSlot.toString();
+      const exists = lastWritesMap.get(leafSlot);
+      lastWritesMap.set(leafSlot, true);
+      return !exists;
+    });
 
-  publicInputs.end.publicDataUpdateRequests = padArrayEnd(
-    patch(publicInputs.end.publicDataUpdateRequests),
+  const [prev, curr] = PhaseIsRevertible[phase]
+    ? [publicInputs.endNonRevertibleData, publicInputs.end]
+    : [publicInputs.end, publicInputs.endNonRevertibleData];
+
+  curr.publicDataUpdateRequests = padArrayEnd(
+    patch(curr.publicDataUpdateRequests.reverse()).reverse(),
     PublicDataUpdateRequest.empty(),
-    MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   );
 
-  publicInputs.endNonRevertibleData.publicDataUpdateRequests = padArrayEnd(
-    patch(publicInputs.endNonRevertibleData.publicDataUpdateRequests),
+  prev.publicDataUpdateRequests = padArrayEnd(
+    patch(prev.publicDataUpdateRequests.reverse()),
     PublicDataUpdateRequest.empty(),
-    MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   );
 }
 
@@ -563,8 +548,6 @@ function patchPublicStorageActionOrdering(
       ...simPublicDataUpdateRequests,
     ],
     PublicDataUpdateRequest.empty(),
-    PhaseIsRevertible[phase]
-      ? MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
-      : MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   );
 }

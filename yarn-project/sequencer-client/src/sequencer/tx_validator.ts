@@ -138,9 +138,7 @@ export class TxValidator {
    * @returns Whether this is a problematic double spend that the L1 contract would reject.
    */
   async #validateNullifiers(tx: Tx | ProcessedTx, thisBlockNullifiers: Set<bigint>): Promise<TxValidationStatus> {
-    const newNullifiers = [...tx.data.endNonRevertibleData.newNullifiers, ...tx.data.end.newNullifiers]
-      .filter(x => !x.isEmpty())
-      .map(x => x.value.toBigInt());
+    const newNullifiers = tx.data.getNonEmptyNullifiers().map(x => x.value.toBigInt());
 
     // Ditch this tx if it has repeated nullifiers
     const uniqueNullifiers = new Set(newNullifiers);
@@ -172,7 +170,7 @@ export class TxValidator {
   }
 
   async #validateGasBalance(tx: Tx): Promise<TxValidationStatus> {
-    if (!tx.data.needsTeardown) {
+    if (!tx.data.forPublic || !tx.data.forPublic.needsTeardown) {
       return VALID_TX;
     }
 
@@ -200,7 +198,11 @@ export class TxValidator {
   }
 
   #validateMaxBlockNumber(tx: Tx | ProcessedTx): TxValidationStatus {
-    const maxBlockNumber = tx.data.rollupValidationRequests.maxBlockNumber;
+    const target =
+      tx instanceof Tx
+        ? tx.data.forRollup?.rollupValidationRequests || tx.data.forPublic!.validationRequests.forRollup
+        : tx.data.rollupValidationRequests;
+    const maxBlockNumber = target.maxBlockNumber;
 
     if (maxBlockNumber.isSome && maxBlockNumber.value < this.#globalVariables.blockNumber) {
       this.#log.warn(`Rejecting tx ${Tx.getHash(tx)} for low max block number`);
@@ -211,7 +213,7 @@ export class TxValidator {
   }
 
   async #validateFee(tx: Tx): Promise<TxValidationStatus> {
-    if (!tx.data.needsTeardown) {
+    if (!tx.data.forPublic || !tx.data.forPublic.needsTeardown) {
       // TODO check if fees are mandatory and reject this tx
       this.#log.debug(`Tx ${Tx.getHash(tx)} doesn't pay for gas`);
       return VALID_TX;

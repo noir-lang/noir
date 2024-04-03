@@ -2,18 +2,21 @@ import { MerkleTreeId } from '@aztec/circuit-types';
 import {
   type Fr,
   MAX_NEW_NULLIFIERS_PER_TX,
-  type MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
   type MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
   type MAX_NULLIFIER_READ_REQUESTS_PER_TX,
-  type MAX_REVERTIBLE_NULLIFIERS_PER_TX,
+  MAX_PUBLIC_DATA_READS_PER_TX,
   MembershipWitness,
   NULLIFIER_TREE_HEIGHT,
+  PUBLIC_DATA_TREE_HEIGHT,
+  type PublicDataRead,
+  PublicDataTreeLeafPreimage,
   type ReadRequestContext,
   type SideEffectLinkedToNoteHash,
   buildNullifierNonExistentReadRequestHints,
   buildNullifierReadRequestHints,
-  concatAccumulatedData,
+  mergeAccumulatedData,
 } from '@aztec/circuits.js';
+import { makeTuple } from '@aztec/foundation/array';
 import { type Tuple } from '@aztec/foundation/serialize';
 import { type MerkleTreeOperations } from '@aztec/world-state';
 
@@ -22,22 +25,22 @@ export class HintsBuilder {
 
   getNullifierReadRequestHints(
     nullifierReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
-    nullifiersNonRevertible: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX>,
-    nullifiersRevertible: Tuple<SideEffectLinkedToNoteHash, typeof MAX_REVERTIBLE_NULLIFIERS_PER_TX>,
+    nullifiersNonRevertible: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    nullifiersRevertible: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
   ) {
     return buildNullifierReadRequestHints(
       this,
       nullifierReadRequests,
-      concatAccumulatedData(MAX_NEW_NULLIFIERS_PER_TX, nullifiersNonRevertible, nullifiersRevertible),
+      mergeAccumulatedData(MAX_NEW_NULLIFIERS_PER_TX, nullifiersNonRevertible, nullifiersRevertible),
     );
   }
 
   getNullifierNonExistentReadRequestHints(
     nullifierNonExistentReadRequests: Tuple<ReadRequestContext, typeof MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
-    nullifiersNonRevertible: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX>,
-    nullifiersRevertible: Tuple<SideEffectLinkedToNoteHash, typeof MAX_REVERTIBLE_NULLIFIERS_PER_TX>,
+    nullifiersNonRevertible: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    nullifiersRevertible: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
   ) {
-    const pendingNullifiers = concatAccumulatedData(
+    const pendingNullifiers = mergeAccumulatedData(
       MAX_NEW_NULLIFIERS_PER_TX,
       nullifiersNonRevertible,
       nullifiersRevertible,
@@ -82,5 +85,35 @@ export class HintsBuilder {
     }
 
     return { membershipWitness, leafPreimage };
+  }
+
+  async getPublicDataReadsInfo(publicDataReads: PublicDataRead[]) {
+    const newPublicDataReadsWitnesses: Tuple<
+      MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>,
+      typeof MAX_PUBLIC_DATA_READS_PER_TX
+    > = makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, () => MembershipWitness.empty(PUBLIC_DATA_TREE_HEIGHT, 0n));
+
+    const newPublicDataReadsPreimages: Tuple<PublicDataTreeLeafPreimage, typeof MAX_PUBLIC_DATA_READS_PER_TX> =
+      makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, () => PublicDataTreeLeafPreimage.empty());
+
+    for (const i in publicDataReads) {
+      const leafSlot = publicDataReads[i].leafSlot.value;
+      const lowLeafResult = await this.db.getPreviousValueIndex(MerkleTreeId.PUBLIC_DATA_TREE, leafSlot);
+      if (!lowLeafResult) {
+        throw new Error(`Public data tree should have one initial leaf`);
+      }
+      const preimage = await this.db.getLeafPreimage(MerkleTreeId.PUBLIC_DATA_TREE, lowLeafResult.index);
+      const path = await this.db.getSiblingPath(MerkleTreeId.PUBLIC_DATA_TREE, lowLeafResult.index);
+      newPublicDataReadsWitnesses[i] = new MembershipWitness(
+        PUBLIC_DATA_TREE_HEIGHT,
+        BigInt(lowLeafResult.index),
+        path.toTuple<typeof PUBLIC_DATA_TREE_HEIGHT>(),
+      );
+      newPublicDataReadsPreimages[i] = preimage! as PublicDataTreeLeafPreimage;
+    }
+    return {
+      newPublicDataReadsWitnesses,
+      newPublicDataReadsPreimages,
+    };
   }
 }

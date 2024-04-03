@@ -6,17 +6,17 @@ import { VK_TREE_HEIGHT } from '../../constants.gen.js';
 import { Proof, makeEmptyProof } from '../proof.js';
 import { type UInt32 } from '../shared.js';
 import { VerificationKey } from '../verification_key.js';
-import { PrivateKernelInnerCircuitPublicInputs } from './private_kernel_inner_circuit_public_inputs.js';
+import { PrivateKernelCircuitPublicInputs } from './private_kernel_circuit_public_inputs.js';
 
 /**
  * Data of the previous kernel iteration in the chain of kernels.
  */
-export class PrivateKernelInnerData {
+export class PrivateKernelData {
   constructor(
     /**
      * Public inputs of the previous kernel.
      */
-    public publicInputs: PrivateKernelInnerCircuitPublicInputs,
+    public publicInputs: PrivateKernelCircuitPublicInputs,
     /**
      * Proof of the previous kernel.
      */
@@ -43,10 +43,10 @@ export class PrivateKernelInnerData {
     return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkPath);
   }
 
-  static fromBuffer(buffer: Buffer | BufferReader): PrivateKernelInnerData {
+  static fromBuffer(buffer: Buffer | BufferReader): PrivateKernelData {
     const reader = BufferReader.asReader(buffer);
     return new this(
-      reader.readObject(PrivateKernelInnerCircuitPublicInputs),
+      reader.readObject(PrivateKernelCircuitPublicInputs),
       reader.readObject(Proof),
       reader.readObject(VerificationKey),
       reader.readNumber(),
@@ -54,9 +54,9 @@ export class PrivateKernelInnerData {
     );
   }
 
-  static empty(): PrivateKernelInnerData {
-    return new PrivateKernelInnerData(
-      PrivateKernelInnerCircuitPublicInputs.empty(),
+  static empty(): PrivateKernelData {
+    return new PrivateKernelData(
+      PrivateKernelCircuitPublicInputs.empty(),
       makeEmptyProof(),
       VerificationKey.makeFake(),
       0,

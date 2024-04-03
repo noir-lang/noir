@@ -7,13 +7,14 @@ import { CallRequest } from '@aztec/circuits.js';
  * @returns The highest side effect counter in the transaction so far
  */
 export function lastSideEffectCounter(tx: Tx): number {
+  const data = tx.data.forPublic!;
   const sideEffectCounters = [
-    ...tx.data.endNonRevertibleData.newNoteHashes,
-    ...tx.data.endNonRevertibleData.newNullifiers,
-    ...tx.data.endNonRevertibleData.publicCallStack,
-    ...tx.data.end.newNoteHashes,
-    ...tx.data.end.newNullifiers,
-    ...tx.data.end.publicCallStack,
+    ...data.endNonRevertibleData.newNoteHashes,
+    ...data.endNonRevertibleData.newNullifiers,
+    ...data.endNonRevertibleData.publicCallStack,
+    ...data.end.newNoteHashes,
+    ...data.end.newNullifiers,
+    ...data.end.publicCallStack,
   ];
 
   let max = 0;

@@ -1,46 +1,54 @@
 use crate::abis::{
-    accumulated_data::CombinedAccumulatedDataBuilder, combined_constant_data::CombinedConstantData,
+    accumulated_data::PrivateAccumulatedDataBuilder, combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{
-    private_kernel_inner_circuit_public_inputs::PrivateKernelInnerCircuitPublicInputs,
-    private_kernel_tail_circuit_public_inputs::PrivateKernelTailCircuitPublicInputs
+    kernel_circuit_public_inputs::KernelCircuitPublicInputs,
+    private_kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
+    public_kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs
 },
     validation_requests::validation_requests_builder::ValidationRequestsBuilder
 };
-
 use crate::mocked::AggregationObject;
+use dep::std::unsafe;
 
 struct PrivateKernelCircuitPublicInputsBuilder {
     aggregation_object: AggregationObject,
     min_revertible_side_effect_counter: u32,
     validation_requests: ValidationRequestsBuilder,
-    end: CombinedAccumulatedDataBuilder,
+    end: PrivateAccumulatedDataBuilder,
     constants: CombinedConstantData,
-    is_private: bool,
 }
 
 impl PrivateKernelCircuitPublicInputsBuilder {
-    pub fn to_inner(self) -> PrivateKernelInnerCircuitPublicInputs {
-        PrivateKernelInnerCircuitPublicInputs {
+    pub fn finish(self) -> PrivateKernelCircuitPublicInputs {
+        PrivateKernelCircuitPublicInputs {
             aggregation_object: self.aggregation_object,
             min_revertible_side_effect_counter: self.min_revertible_side_effect_counter,
             validation_requests: self.validation_requests.finish(),
             end: self.end.finish(),
-            constants: self.constants,
-            is_private: self.is_private
+            constants: self.constants
         }
     }
 
-    pub fn to_tail(self) -> PrivateKernelTailCircuitPublicInputs {
-        let (end_non_revertible, end) = self.end.split(self.min_revertible_side_effect_counter);
-        PrivateKernelTailCircuitPublicInputs {
+    pub fn finish_tail(self) -> KernelCircuitPublicInputs {
+        KernelCircuitPublicInputs {
             aggregation_object: self.aggregation_object,
+            rollup_validation_requests: self.validation_requests.to_rollup(),
+            end: self.end.to_combined(),
+            constants: self.constants,
+            revert_code: 0
+        }
+    }
+
+    pub fn finish_to_public(self, min_revertible_side_effect_counter: u32) -> PublicKernelCircuitPublicInputs {
+        let (end_non_revertible, end) = self.end.split_to_public(min_revertible_side_effect_counter);
+
+        PublicKernelCircuitPublicInputs {
+            aggregation_object: self.aggregation_object,
+            validation_requests: self.validation_requests.finish(),
             end_non_revertible,
             end,
             constants: self.constants,
-            rollup_validation_requests: self.validation_requests.to_rollup(),
-            needs_setup: end_non_revertible.needs_setup(),
-            needs_app_logic: end.needs_app_logic(),
-            needs_teardown: end_non_revertible.needs_teardown()
+            revert_code: 0
         }
     }
 }

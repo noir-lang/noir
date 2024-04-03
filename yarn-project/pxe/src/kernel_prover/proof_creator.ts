@@ -1,9 +1,9 @@
 import { type CircuitSimulationStats } from '@aztec/circuit-types/stats';
 import {
   type PrivateCircuitPublicInputs,
+  type PrivateKernelCircuitPublicInputs,
   type PrivateKernelInitCircuitPrivateInputs,
   type PrivateKernelInnerCircuitPrivateInputs,
-  type PrivateKernelInnerCircuitPublicInputs,
   type PrivateKernelTailCircuitPrivateInputs,
   type PrivateKernelTailCircuitPublicInputs,
   type Proof,
@@ -13,7 +13,7 @@ import { siloNoteHash } from '@aztec/circuits.js/hash';
 import { type Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { elapsed } from '@aztec/foundation/timer';
-import { executeInit, executeInner, executeTail } from '@aztec/noir-protocol-circuits-types';
+import { executeInit, executeInner, executeTail, executeTailForPublic } from '@aztec/noir-protocol-circuits-types';
 
 /**
  * Represents the output of the proof creation process for init and inner private kernel circuit.
@@ -23,7 +23,7 @@ export interface ProofOutput {
   /**
    * The public inputs required for the proof generation process.
    */
-  publicInputs: PrivateKernelInnerCircuitPublicInputs;
+  publicInputs: PrivateKernelCircuitPublicInputs;
   /**
    * The zk-SNARK proof for the kernel execution.
    */
@@ -138,7 +138,10 @@ export class KernelProofCreator implements ProofCreator {
   }
 
   public async createProofTail(privateInputs: PrivateKernelTailCircuitPrivateInputs): Promise<ProofOutputFinal> {
-    const [duration, result] = await elapsed(() => executeTail(privateInputs));
+    const isForPublic = privateInputs.isForPublic();
+    const [duration, result] = await elapsed(() =>
+      isForPublic ? executeTailForPublic(privateInputs) : executeTail(privateInputs),
+    );
     this.log(`Simulated private kernel ordering`, {
       eventName: 'circuit-simulation',
       circuitName: 'private-kernel-ordering',

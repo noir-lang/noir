@@ -14,9 +14,9 @@ struct PublicKernelAppLogicCircuitPrivateInputs {
 impl PublicKernelAppLogicCircuitPrivateInputs {
 
     fn validate_inputs(self) {
-        let needs_setup = self.previous_kernel.public_inputs.needs_setup;
+        let needs_setup = self.previous_kernel.public_inputs.needs_setup();
         assert(needs_setup == false, "Cannot run app logic circuit before setup circuit");
-        let needs_app_logic = self.previous_kernel.public_inputs.needs_app_logic;
+        let needs_app_logic = self.previous_kernel.public_inputs.needs_app_logic();
         assert(needs_app_logic == true, "Cannot run unnecessary app logic circuit");
     }
 
@@ -36,7 +36,7 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
 
         common::update_validation_requests(self.public_call, &mut public_inputs);
 
-        if public_inputs.end_non_revertible.revert_code == 0 {
+        if public_inputs.revert_code == 0 {
             // Pops the item from the call stack and validates it against the current execution.
             let call_request = public_inputs.end.public_call_stack.pop();
             common::validate_call_against_request(self.public_call, call_request);
@@ -62,7 +62,7 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
             );
         }
 
-        public_inputs.to_inner()
+        public_inputs.finish()
     }
 }
 
@@ -83,19 +83,19 @@ mod tests {
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
         hash::{compute_l2_to_l1_hash, compute_logs_hash, silo_note_hash, silo_nullifier},
         messaging::l2_to_l1_message::L2ToL1Message,
-        tests::{kernel_data_builder::PreviousKernelDataBuilder, public_call_data_builder::PublicCallDataBuilder},
+        tests::{fixture_builder::FixtureBuilder, public_call_data_builder::PublicCallDataBuilder},
         utils::arrays::{array_eq, array_length}
     };
     use dep::types::constants::{MAX_PUBLIC_DATA_READS_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL};
 
     struct PublicKernelAppLogicCircuitPrivateInputsBuilder {
-        previous_kernel: PreviousKernelDataBuilder,
+        previous_kernel: FixtureBuilder,
         public_call: PublicCallDataBuilder,
     }
 
     impl PublicKernelAppLogicCircuitPrivateInputsBuilder {
         pub fn new() -> Self {
-            let previous_kernel = PreviousKernelDataBuilder::new(true).is_public();
+            let previous_kernel = FixtureBuilder::new();
             let public_call = PublicCallDataBuilder::new();
 
             PublicKernelAppLogicCircuitPrivateInputsBuilder { previous_kernel, public_call }
@@ -124,7 +124,7 @@ mod tests {
             let hash = public_call.call_stack_item.hash();
             let is_delegate_call = public_call.call_stack_item.public_inputs.call_context.is_delegate_call;
             self.previous_kernel.push_public_call_request(hash, is_delegate_call);
-            let previous_kernel = self.previous_kernel.to_public_kernel_data();
+            let previous_kernel = self.previous_kernel.to_public_kernel_data(true);
 
             let kernel = PublicKernelAppLogicCircuitPrivateInputs { previous_kernel, public_call };
 
@@ -164,7 +164,7 @@ mod tests {
     #[test(should_fail_with="Cannot run unnecessary app logic circuit")]
     fn public_previous_kernel_private_previous_kernel_should_fail() {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
-        builder.previous_kernel = PreviousKernelDataBuilder::new(true);
+        builder.previous_kernel = FixtureBuilder::new();
         let public_call = builder.public_call.finish();
 
         // the key difference in this test versus those that use builder.execute()
@@ -172,7 +172,7 @@ mod tests {
         // this means that when we call `to_public_kernel_data` below, 
         // it will say needs_app_logic is false
 
-        let previous_kernel = builder.previous_kernel.to_public_kernel_data();
+        let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
 
         let kernel = PublicKernelAppLogicCircuitPrivateInputs { previous_kernel, public_call };
 
@@ -185,7 +185,7 @@ mod tests {
         let contract_address = builder.public_call.contract_address;
         // Setup 2 new note hashes on the previous kernel.
         builder.previous_kernel.append_new_note_hashes(2);
-        let previous = builder.previous_kernel.end.new_note_hashes.storage;
+        let previous = builder.previous_kernel.new_note_hashes.storage;
         // Setup 2 new note hashes on the current public inputs.
         let current = [
             SideEffect { value: previous[1].value + 1, counter: 3 },
@@ -207,7 +207,7 @@ mod tests {
         let mut builder = PublicKernelAppLogicCircuitPrivateInputsBuilder::new();
         // Setup 2 data writes on the previous kernel.
         builder.previous_kernel.append_public_data_update_requests(2);
-        let previous = builder.previous_kernel.end.public_data_update_requests.storage;
+        let previous = builder.previous_kernel.public_data_update_requests.storage;
         // Setup 2 data writes on the current public inputs.
         builder.public_call.append_update_requests(2);
         let current = builder.get_current_public_data_update_requests();
@@ -226,7 +226,7 @@ mod tests {
 
         // Setup 2 data reads on the previous kernel.
         builder.previous_kernel.append_public_data_read_requests(2);
-        let previous = builder.previous_kernel.validation_requests.public_data_reads.storage;
+        let previous = builder.previous_kernel.public_data_reads.storage;
         // Setup 2 data reads on the current public inputs.
         builder.public_call.append_public_data_read_requests(2);
         let current = builder.get_current_public_data_reads();
@@ -245,8 +245,8 @@ mod tests {
         let contract_address = builder.public_call.contract_address;
 
         // Setup 2 new nullifiers on the previous kernel.
-        builder.previous_kernel.append_new_nullifiers_from_public(2);
-        let previous = builder.previous_kernel.end.new_nullifiers.storage;
+        builder.previous_kernel.append_new_nullifiers(2);
+        let previous = builder.previous_kernel.new_nullifiers.storage;
         // Setup 2 new note hashes on the current public inputs.
 
         let current = [
@@ -277,7 +277,7 @@ mod tests {
         // Setup 1 new l2 to l1 message on the previous kernel.
         let previous = [12345];
 
-        builder.previous_kernel.end.new_l2_to_l1_msgs.extend_from_array(previous);
+        builder.previous_kernel.new_l2_to_l1_msgs.extend_from_array(previous);
         // Setup 1 new l2 to l1 message on the current public inputs.
         let current = [L2ToL1Message { recipient: portal_contract_address, content: 67890 }];
         builder.public_call.public_inputs.new_l2_to_l1_msgs.extend_from_array(current);
@@ -413,7 +413,6 @@ mod tests {
 
         let public_inputs = builder.execute();
 
-        assert_eq_call_requests(public_inputs.end.private_call_stack, []);
         assert_eq_call_requests(public_inputs.end.public_call_stack, public_call_stack);
         assert_eq_public_data_update_requests(
             public_inputs.end.public_data_update_requests,

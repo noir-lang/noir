@@ -1,8 +1,8 @@
-import { type IsEmpty } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
+import { type IsEmpty } from '@aztec/foundation/interfaces';
 import { type Tuple } from '@aztec/foundation/serialize';
 
-import { concatAccumulatedData, countAccumulatedItems, mergeAccumulatedData } from './utils.js';
+import { concatAccumulatedData, countAccumulatedItems, mergeAccumulatedData } from './index.js';
 
 class TestItem {
   constructor(public value: number) {}

@@ -203,6 +203,7 @@ const circuits = [
   'private_kernel_init',
   'private_kernel_inner',
   'private_kernel_tail',
+  'private_kernel_tail_to_public',
   'public_kernel_setup',
   'public_kernel_app_logic',
   'public_kernel_teardown',

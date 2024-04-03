@@ -1,28 +1,25 @@
-import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { AggregationObject } from '../aggregation_object.js';
-import { ValidationRequests } from '../validation_requests.js';
+import { RevertCode } from '../revert_code.js';
+import { RollupValidationRequests } from '../rollup_validation_requests.js';
 import { CombinedAccumulatedData } from './combined_accumulated_data.js';
 import { CombinedConstantData } from './combined_constant_data.js';
 
 /**
- * Public inputs to the inner private kernel circuit
+ * Outputs from the public kernel circuits.
+ * All Public kernels use this shape for outputs.
  */
-export class PrivateKernelInnerCircuitPublicInputs {
+export class KernelCircuitPublicInputs {
   constructor(
     /**
      * Aggregated proof of all the previous kernel iterations.
      */
     public aggregationObject: AggregationObject, // Contains the aggregated proof of all previous kernel iterations
     /**
-     * The side effect counter that non-revertible side effects are all beneath.
+     * Validation requests accumulated from private and public execution to be completed by the rollup.
      */
-    public minRevertibleSideEffectCounter: Fr,
-    /**
-     * Validation requests accumulated from public functions.
-     */
-    public validationRequests: ValidationRequests,
+    public rollupValidationRequests: RollupValidationRequests,
     /**
      * Data accumulated from both public and private circuits.
      */
@@ -32,47 +29,48 @@ export class PrivateKernelInnerCircuitPublicInputs {
      */
     public constants: CombinedConstantData,
     /**
-     * Indicates whether the input is for a private or public kernel.
+     * Flag indicating whether the transaction reverted.
      */
-    public isPrivate: boolean,
+    public revertCode: RevertCode,
   ) {}
+
+  getNonEmptyNullifiers() {
+    return this.end.newNullifiers.filter(n => !n.isEmpty());
+  }
 
   toBuffer() {
     return serializeToBuffer(
       this.aggregationObject,
-      this.minRevertibleSideEffectCounter,
-      this.validationRequests,
+      this.rollupValidationRequests,
       this.end,
       this.constants,
-      this.isPrivate,
+      this.revertCode,
     );
   }
 
   /**
    * Deserializes from a buffer or reader, corresponding to a write in cpp.
    * @param buffer - Buffer or reader to read from.
-   * @returns A new instance of PrivateKernelInnerCircuitPublicInputs.
+   * @returns A new instance of KernelCircuitPublicInputs.
    */
-  static fromBuffer(buffer: Buffer | BufferReader): PrivateKernelInnerCircuitPublicInputs {
+  static fromBuffer(buffer: Buffer | BufferReader): KernelCircuitPublicInputs {
     const reader = BufferReader.asReader(buffer);
-    return new PrivateKernelInnerCircuitPublicInputs(
+    return new KernelCircuitPublicInputs(
       reader.readObject(AggregationObject),
-      reader.readObject(Fr),
-      reader.readObject(ValidationRequests),
+      reader.readObject(RollupValidationRequests),
       reader.readObject(CombinedAccumulatedData),
       reader.readObject(CombinedConstantData),
-      reader.readBoolean(),
+      reader.readObject(RevertCode),
     );
   }
 
   static empty() {
-    return new PrivateKernelInnerCircuitPublicInputs(
+    return new KernelCircuitPublicInputs(
       AggregationObject.makeFake(),
-      Fr.zero(),
-      ValidationRequests.empty(),
+      RollupValidationRequests.empty(),
       CombinedAccumulatedData.empty(),
       CombinedConstantData.empty(),
-      true,
+      RevertCode.OK,
     );
   }
 }

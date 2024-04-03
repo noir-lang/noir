@@ -8,10 +8,10 @@ import {
   ConstantRollupData,
   Fr,
   type GlobalVariables,
+  KernelData,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MembershipWitness,
   MergeRollupInputs,
@@ -29,10 +29,8 @@ import {
   PreviousRollupData,
   type Proof,
   PublicDataTreeLeaf,
-  PublicDataTreeLeafPreimage,
+  type PublicDataTreeLeafPreimage,
   ROLLUP_VK_TREE_HEIGHT,
-  RollupKernelCircuitPublicInputs,
-  RollupKernelData,
   RollupTypes,
   RootParityInput,
   type RootParityInputs,
@@ -94,12 +92,11 @@ export async function buildBaseRollupInput(
 
   // Update the note hash trees with the new items being inserted to get the new roots
   // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
-  const newNoteHashes = tx.data.combinedData.newNoteHashes.map(x => x.value);
+  const newNoteHashes = tx.data.end.newNoteHashes.map(x => x.value);
   await db.appendLeaves(MerkleTreeId.NOTE_HASH_TREE, newNoteHashes);
 
   // The read witnesses for a given TX should be generated before the writes of the same TX are applied.
   // All reads that refer to writes in the same tx are transient and can be simplified out.
-  const txPublicDataReadsInfo = await getPublicDataReadsInfo(tx, db);
   const txPublicDataUpdateRequestInfo = await processPublicDataUpdateRequests(tx, db);
 
   // Update the nullifier tree, capturing the low nullifier info for each individual operation
@@ -110,7 +107,7 @@ export async function buildBaseRollupInput(
     sortedNewLeavesIndexes,
   } = await db.batchInsert(
     MerkleTreeId.NULLIFIER_TREE,
-    tx.data.combinedData.newNullifiers.map(sideEffectLinkedToNoteHash => sideEffectLinkedToNoteHash.value.toBuffer()),
+    tx.data.end.newNullifiers.map(sideEffectLinkedToNoteHash => sideEffectLinkedToNoteHash.value.toBuffer()),
     NULLIFIER_SUBTREE_HEIGHT,
   );
   if (nullifierWitnessLeaves === undefined) {
@@ -166,8 +163,6 @@ export async function buildBaseRollupInput(
     sortedPublicDataWritesIndexes: txPublicDataUpdateRequestInfo.sortedPublicDataWritesIndexes,
     lowPublicDataWritesPreimages: txPublicDataUpdateRequestInfo.lowPublicDataWritesPreimages,
     lowPublicDataWritesMembershipWitnesses: txPublicDataUpdateRequestInfo.lowPublicDataWritesMembershipWitnesses,
-    publicDataReadsPreimages: txPublicDataReadsInfo.newPublicDataReadsPreimages,
-    publicDataReadsMembershipWitnesses: txPublicDataReadsInfo.newPublicDataReadsWitnesses,
 
     archiveRootMembershipWitness,
 
@@ -354,15 +349,9 @@ export async function getTreeSnapshot(id: MerkleTreeId, db: MerkleTreeOperations
   return new AppendOnlyTreeSnapshot(Fr.fromBuffer(treeInfo.root), Number(treeInfo.size));
 }
 
-export function getKernelDataFor(tx: ProcessedTx, vks: VerificationKeys): RollupKernelData {
-  const inputs = new RollupKernelCircuitPublicInputs(
-    tx.data.aggregationObject,
-    tx.data.combinedData,
-    tx.data.constants,
-    tx.data.rollupValidationRequests,
-  );
-  return new RollupKernelData(
-    inputs,
+export function getKernelDataFor(tx: ProcessedTx, vks: VerificationKeys): KernelData {
+  return new KernelData(
+    tx.data,
     tx.proof,
 
     // VK for the kernel circuit
@@ -382,40 +371,8 @@ export function makeEmptyMembershipWitness<N extends number>(height: N) {
   );
 }
 
-export async function getPublicDataReadsInfo(tx: ProcessedTx, db: MerkleTreeOperations) {
-  const newPublicDataReadsWitnesses: Tuple<
-    MembershipWitness<typeof PUBLIC_DATA_TREE_HEIGHT>,
-    typeof MAX_PUBLIC_DATA_READS_PER_TX
-  > = makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, () => MembershipWitness.empty(PUBLIC_DATA_TREE_HEIGHT, 0n));
-
-  const newPublicDataReadsPreimages: Tuple<PublicDataTreeLeafPreimage, typeof MAX_PUBLIC_DATA_READS_PER_TX> = makeTuple(
-    MAX_PUBLIC_DATA_READS_PER_TX,
-    () => PublicDataTreeLeafPreimage.empty(),
-  );
-
-  for (const i in tx.data.validationRequests.publicDataReads) {
-    const leafSlot = tx.data.validationRequests.publicDataReads[i].leafSlot.value;
-    const lowLeafResult = await db.getPreviousValueIndex(MerkleTreeId.PUBLIC_DATA_TREE, leafSlot);
-    if (!lowLeafResult) {
-      throw new Error(`Public data tree should have one initial leaf`);
-    }
-    const preimage = await db.getLeafPreimage(MerkleTreeId.PUBLIC_DATA_TREE, lowLeafResult.index);
-    const path = await db.getSiblingPath(MerkleTreeId.PUBLIC_DATA_TREE, lowLeafResult.index);
-    newPublicDataReadsWitnesses[i] = new MembershipWitness(
-      PUBLIC_DATA_TREE_HEIGHT,
-      BigInt(lowLeafResult.index),
-      path.toTuple<typeof PUBLIC_DATA_TREE_HEIGHT>(),
-    );
-    newPublicDataReadsPreimages[i] = preimage! as PublicDataTreeLeafPreimage;
-  }
-  return {
-    newPublicDataReadsWitnesses,
-    newPublicDataReadsPreimages,
-  };
-}
-
 export async function processPublicDataUpdateRequests(tx: ProcessedTx, db: MerkleTreeOperations) {
-  const combinedPublicDataUpdateRequests = tx.data.combinedData.publicDataUpdateRequests.map(updateRequest => {
+  const combinedPublicDataUpdateRequests = tx.data.end.publicDataUpdateRequests.map(updateRequest => {
     return new PublicDataTreeLeaf(updateRequest.leafSlot, updateRequest.newValue);
   });
   const { lowLeavesWitnessData, newSubtreeSiblingPath, sortedNewLeaves, sortedNewLeavesIndexes } = await db.batchInsert(

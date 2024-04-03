@@ -6,17 +6,14 @@ import { VK_TREE_HEIGHT } from '../../constants.gen.js';
 import { Proof, makeEmptyProof } from '../proof.js';
 import { type UInt32 } from '../shared.js';
 import { VerificationKey } from '../verification_key.js';
-import { RollupKernelCircuitPublicInputs } from './rollup_kernel_circuit_public_inputs.js';
+import { KernelCircuitPublicInputs } from './kernel_circuit_public_inputs.js';
 
-/**
- * Data of the previous public kernel iteration in the chain of kernels.
- */
-export class RollupKernelData {
+export class KernelData {
   constructor(
     /**
      * Public inputs of the previous kernel.
      */
-    public publicInputs: RollupKernelCircuitPublicInputs,
+    public publicInputs: KernelCircuitPublicInputs,
     /**
      * Proof of the previous kernel.
      */
@@ -35,20 +32,9 @@ export class RollupKernelData {
     public vkPath: Tuple<Fr, typeof VK_TREE_HEIGHT>,
   ) {}
 
-  static fromBuffer(buffer: Buffer | BufferReader): RollupKernelData {
-    const reader = BufferReader.asReader(buffer);
+  static empty(): KernelData {
     return new this(
-      reader.readObject(RollupKernelCircuitPublicInputs),
-      reader.readObject(Proof),
-      reader.readObject(VerificationKey),
-      reader.readNumber(),
-      reader.readArray(VK_TREE_HEIGHT, Fr),
-    );
-  }
-
-  static empty(): RollupKernelData {
-    return new this(
-      RollupKernelCircuitPublicInputs.empty(),
+      KernelCircuitPublicInputs.empty(),
       makeEmptyProof(),
       VerificationKey.makeFake(),
       0,
@@ -56,10 +42,17 @@ export class RollupKernelData {
     );
   }
 
-  /**
-   * Serialize this as a buffer.
-   * @returns The buffer.
-   */
+  static fromBuffer(buffer: Buffer | BufferReader): KernelData {
+    const reader = BufferReader.asReader(buffer);
+    return new this(
+      reader.readObject(KernelCircuitPublicInputs),
+      reader.readObject(Proof),
+      reader.readObject(VerificationKey),
+      reader.readNumber(),
+      reader.readArray(VK_TREE_HEIGHT, Fr),
+    );
+  }
+
   toBuffer() {
     return serializeToBuffer(this.publicInputs, this.proof, this.vk, this.vkIndex, this.vkPath);
   }

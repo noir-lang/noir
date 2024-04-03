@@ -15,7 +15,7 @@ import { NullifierNonExistentReadRequestHintsBuilder } from '../structs/non_exis
 import { type ReadRequestContext } from '../structs/read_request.js';
 import { NullifierReadRequestHintsBuilder } from '../structs/read_request_hints.js';
 import { SideEffectLinkedToNoteHash } from '../structs/side_effects.js';
-import { countAccumulatedItems } from './utils.js';
+import { countAccumulatedItems } from '../utils/index.js';
 
 export interface NullifierMembershipWitnessWithPreimage {
   membershipWitness: MembershipWitness<typeof NULLIFIER_TREE_HEIGHT>;

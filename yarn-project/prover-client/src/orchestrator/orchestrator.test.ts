@@ -13,22 +13,17 @@ import {
   EthAddress,
   Fr,
   GlobalVariables,
+  KernelCircuitPublicInputs,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NOTE_HASHES_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX,
-  MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
-  MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
-  MAX_REVERTIBLE_NULLIFIERS_PER_TX,
-  MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NULLIFIER_SUBTREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   PUBLIC_DATA_SUBTREE_HEIGHT,
   Proof,
   PublicDataTreeLeaf,
   PublicDataUpdateRequest,
-  PublicKernelCircuitPublicInputs,
   type RootRollupPublicInputs,
   SideEffect,
   SideEffectLinkedToNoteHash,
@@ -131,9 +126,7 @@ describe('prover/tx-prover', () => {
       MerkleTreeId.NOTE_HASH_TREE,
       txs.flatMap(tx =>
         padArrayEnd(
-          [...tx.data.endNonRevertibleData.newNoteHashes, ...tx.data.end.newNoteHashes]
-            .filter(x => !x.isEmpty())
-            .sort(sideEffectCmp),
+          tx.data.end.newNoteHashes.filter(x => !x.isEmpty()).sort(sideEffectCmp),
           SideEffect.empty(),
           MAX_NEW_NOTE_HASHES_PER_TX,
         ).map(l => l.value),
@@ -143,9 +136,7 @@ describe('prover/tx-prover', () => {
       MerkleTreeId.NULLIFIER_TREE,
       txs.flatMap(tx =>
         padArrayEnd(
-          [...tx.data.endNonRevertibleData.newNullifiers, ...tx.data.end.newNullifiers]
-            .filter(x => !x.isEmpty())
-            .sort(sideEffectCmp),
+          tx.data.end.newNullifiers.filter(x => !x.isEmpty()).sort(sideEffectCmp),
           SideEffectLinkedToNoteHash.empty(),
           MAX_NEW_NULLIFIERS_PER_TX,
         ).map(x => x.value.toBuffer()),
@@ -155,11 +146,9 @@ describe('prover/tx-prover', () => {
     for (const tx of txs) {
       await expectsDb.batchInsert(
         MerkleTreeId.PUBLIC_DATA_TREE,
-        [...tx.data.endNonRevertibleData.publicDataUpdateRequests, ...tx.data.end.publicDataUpdateRequests].map(
-          write => {
-            return new PublicDataTreeLeaf(write.leafSlot, write.newValue).toBuffer();
-          },
-        ),
+        tx.data.end.publicDataUpdateRequests.map(write => {
+          return new PublicDataTreeLeaf(write.leafSlot, write.newValue).toBuffer();
+        }),
         PUBLIC_DATA_SUBTREE_HEIGHT,
       );
     }
@@ -324,44 +313,30 @@ describe('prover/tx-prover', () => {
     const makeBloatedProcessedTx = async (seed = 0x1) => {
       seed *= MAX_NEW_NULLIFIERS_PER_TX; // Ensure no clashing given incremental seeds
       const tx = mockTx(seed);
-      const kernelOutput = PublicKernelCircuitPublicInputs.empty();
+      const kernelOutput = KernelCircuitPublicInputs.empty();
       kernelOutput.constants.historicalHeader = await builderDb.buildInitialHeader();
       kernelOutput.end.publicDataUpdateRequests = makeTuple(
-        MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
         i => new PublicDataUpdateRequest(fr(i), fr(i + 10)),
         seed + 0x500,
       );
-      kernelOutput.endNonRevertibleData.publicDataUpdateRequests = makeTuple(
-        MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+      kernelOutput.end.publicDataUpdateRequests = makeTuple(
+        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
         i => new PublicDataUpdateRequest(fr(i), fr(i + 10)),
         seed + 0x600,
       );
 
       const processedTx = makeProcessedTx(tx, kernelOutput, makeProof());
 
-      processedTx.data.end.newNoteHashes = makeTuple(
-        MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
-        makeNewSideEffect,
-        seed + 0x100,
-      );
-      processedTx.data.endNonRevertibleData.newNoteHashes = makeTuple(
-        MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX,
-        makeNewSideEffect,
-        seed + 0x100,
-      );
+      processedTx.data.end.newNoteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, makeNewSideEffect, seed + 0x100);
       processedTx.data.end.newNullifiers = makeTuple(
-        MAX_REVERTIBLE_NULLIFIERS_PER_TX,
+        MAX_NEW_NULLIFIERS_PER_TX,
         makeNewSideEffectLinkedToNoteHash,
         seed + 0x100000,
       );
 
-      processedTx.data.endNonRevertibleData.newNullifiers = makeTuple(
-        MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX,
-        makeNewSideEffectLinkedToNoteHash,
-        seed + 0x100000 + MAX_REVERTIBLE_NULLIFIERS_PER_TX,
-      );
-
-      processedTx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1] = SideEffectLinkedToNoteHash.empty();
+      processedTx.data.end.newNullifiers[tx.data.forPublic!.end.newNullifiers.length - 1] =
+        SideEffectLinkedToNoteHash.empty();
 
       processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
       processedTx.data.end.encryptedLogsHash = Fr.fromBuffer(processedTx.encryptedLogs.hash());

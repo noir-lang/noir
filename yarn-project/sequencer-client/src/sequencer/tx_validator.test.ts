@@ -1,19 +1,15 @@
-import { mockTx as baseMockTx } from '@aztec/circuit-types';
+import { mockTx, mockTxForRollup } from '@aztec/circuit-types';
 import {
   type AztecAddress,
   CallContext,
-  CallRequest,
   EthAddress,
   Fr,
   FunctionData,
   FunctionSelector,
   type GlobalVariables,
-  MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-  MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   PublicCallRequest,
 } from '@aztec/circuits.js';
 import { makeAztecAddress, makeGlobalVariables } from '@aztec/circuits.js/testing';
-import { makeTuple } from '@aztec/foundation/array';
 import { pedersenHash } from '@aztec/foundation/crypto';
 import { getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 import { type ContractDataSource } from '@aztec/types/contracts';
@@ -82,26 +78,26 @@ describe('TxValidator', () => {
   describe('inspects tx nullifiers', () => {
     it('rejects duplicates in non revertible data', async () => {
       const badTx = nonFeePayingTx();
-      badTx.data.endNonRevertibleData.newNullifiers[1] = badTx.data.endNonRevertibleData.newNullifiers[0];
+      badTx.data.forRollup!.end.newNullifiers[1] = badTx.data.forRollup!.end.newNullifiers[0];
       await expect(validator.validateTxs([badTx])).resolves.toEqual([[], [badTx]]);
     });
 
     it('rejects duplicates in revertible data', async () => {
       const badTx = nonFeePayingTx();
-      badTx.data.end.newNullifiers[1] = badTx.data.end.newNullifiers[0];
+      badTx.data.forRollup!.end.newNullifiers[1] = badTx.data.forRollup!.end.newNullifiers[0];
       await expect(validator.validateTxs([badTx])).resolves.toEqual([[], [badTx]]);
     });
 
     it('rejects duplicates across phases', async () => {
-      const badTx = nonFeePayingTx();
-      badTx.data.end.newNullifiers[0] = badTx.data.endNonRevertibleData.newNullifiers[0];
+      const badTx = nativeFeePayingTx(makeAztecAddress());
+      badTx.data.forPublic!.end.newNullifiers[0] = badTx.data.forPublic!.endNonRevertibleData.newNullifiers[0];
       await expect(validator.validateTxs([badTx])).resolves.toEqual([[], [badTx]]);
     });
 
     it('rejects duplicates across txs', async () => {
       const firstTx = nonFeePayingTx();
       const secondTx = nonFeePayingTx();
-      secondTx.data.end.newNullifiers[0] = firstTx.data.end.newNullifiers[0];
+      secondTx.data.forRollup!.end.newNullifiers[0] = firstTx.data.forRollup!.end.newNullifiers[0];
       await expect(validator.validateTxs([firstTx, secondTx])).resolves.toEqual([[firstTx], [secondTx]]);
     });
 
@@ -252,33 +248,24 @@ describe('TxValidator', () => {
 
   // get unique txs that are also stable across test runs
   let txSeed = 1;
-  /** Creates a mock tx for the current chain */
-  function nonFeePayingTx() {
-    const tx = baseMockTx(txSeed++, false);
 
+  function mockValidTx(forRollup = true, numberOfNonRevertiblePublicCallRequests = 0) {
+    const tx = forRollup
+      ? mockTxForRollup(txSeed++)
+      : mockTx(txSeed++, { numberOfNonRevertiblePublicCallRequests, numberOfRevertiblePublicCallRequests: 0 });
     tx.data.constants.txContext.chainId = globalVariables.chainId;
     tx.data.constants.txContext.version = globalVariables.version;
-
-    // clear public call stacks as it's mocked data but the arrays are not correlated
-    tx.data.endNonRevertibleData.publicCallStack = makeTuple(
-      MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-      CallRequest.empty,
-    );
-    tx.data.end.publicCallStack = makeTuple(MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty);
-    // use splice because it's a readonly property
-    tx.enqueuedPublicFunctionCalls.splice(0, tx.enqueuedPublicFunctionCalls.length);
-
-    // clear these flags because the call stack is empty now
-    tx.data.needsSetup = false;
-    tx.data.needsAppLogic = false;
-    tx.data.needsTeardown = false;
-
     return tx;
+  }
+
+  /** Creates a mock tx for the current chain */
+  function nonFeePayingTx() {
+    return mockValidTx();
   }
 
   /** Create a tx that pays for its cost natively */
   function nativeFeePayingTx(feePayer: AztecAddress) {
-    const tx = nonFeePayingTx();
+    const tx = mockValidTx(false, 1);
     const gasTokenAddress = getCanonicalGasTokenAddress(gasPortalAddress);
     const signature = FunctionSelector.random();
 
@@ -290,16 +277,15 @@ describe('TxValidator', () => {
       [],
     );
 
-    tx.data.endNonRevertibleData.publicCallStack[0] = feeExecutionFn.toCallRequest();
+    tx.data.forPublic!.endNonRevertibleData.publicCallStack[0] = feeExecutionFn.toCallRequest();
     tx.enqueuedPublicFunctionCalls[0] = feeExecutionFn;
-    tx.data.needsTeardown = true;
 
     return tx;
   }
 
   /** Create a tx that uses fee abstraction to pay for its cost */
   function fxFeePayingTx(feePaymentContract: AztecAddress) {
-    const tx = nonFeePayingTx();
+    const tx = mockValidTx(false, 2);
 
     // the contract calls itself. Both functions are internal
     const feeSetupSelector = FunctionSelector.random();
@@ -310,9 +296,8 @@ describe('TxValidator', () => {
       CallContext.empty(),
       [],
     );
-    tx.data.endNonRevertibleData.publicCallStack[0] = feeSetupFn.toCallRequest();
+    tx.data.forPublic!.endNonRevertibleData.publicCallStack[0] = feeSetupFn.toCallRequest();
     tx.enqueuedPublicFunctionCalls[0] = feeSetupFn;
-    tx.data.needsSetup = true;
 
     const feeExecutionSelector = FunctionSelector.random();
     const feeExecutionFn = new PublicCallRequest(
@@ -322,9 +307,8 @@ describe('TxValidator', () => {
       CallContext.empty(),
       [],
     );
-    tx.data.endNonRevertibleData.publicCallStack[1] = feeExecutionFn.toCallRequest();
+    tx.data.forPublic!.endNonRevertibleData.publicCallStack[1] = feeExecutionFn.toCallRequest();
     tx.enqueuedPublicFunctionCalls[1] = feeExecutionFn;
-    tx.data.needsTeardown = true;
 
     return tx;
   }
@@ -333,8 +317,8 @@ describe('TxValidator', () => {
   function maxBlockNumberTx(maxBlockNumber: Fr) {
     const tx = nonFeePayingTx();
 
-    tx.data.rollupValidationRequests.maxBlockNumber.isSome = true;
-    tx.data.rollupValidationRequests.maxBlockNumber.value = maxBlockNumber;
+    tx.data.forRollup!.rollupValidationRequests.maxBlockNumber.isSome = true;
+    tx.data.forRollup!.rollupValidationRequests.maxBlockNumber.value = maxBlockNumber;
 
     return tx;
   }

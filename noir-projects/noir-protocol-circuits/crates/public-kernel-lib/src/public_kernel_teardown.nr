@@ -1,9 +1,6 @@
 use crate::common;
 use dep::types::abis::{
-    kernel_circuit_public_inputs::{
-    PrivateKernelTailCircuitPublicInputs, PublicKernelCircuitPublicInputs,
-    PublicKernelCircuitPublicInputsBuilder
-},
+    kernel_circuit_public_inputs::{PublicKernelCircuitPublicInputs, PublicKernelCircuitPublicInputsBuilder},
     kernel_data::PublicKernelData, public_call_data::PublicCallData
 };
 use dep::std::unsafe;
@@ -15,11 +12,14 @@ struct PublicKernelTeardownCircuitPrivateInputs {
 
 impl PublicKernelTeardownCircuitPrivateInputs {
     fn validate_inputs(self) {
-        let needs_setup = self.previous_kernel.public_inputs.needs_setup;
-        assert(needs_setup == false, "Cannot run teardown circuit before setup circuit");
-        let needs_app_logic = self.previous_kernel.public_inputs.needs_app_logic;
+        // Currently the nested calls will be pushed to the public call stack and need_setup will return true.
+        // This should not be the case when nested calls are handled in avm.
+        // But we should also consider merging this and the setup circuit and have one circuit that deals with non-revertibles.
+        // let needs_setup = self.previous_kernel.public_inputs.needs_setup();
+        // assert(needs_setup == false, "Cannot run teardown circuit before setup circuit");
+        let needs_app_logic = self.previous_kernel.public_inputs.needs_app_logic();
         assert(needs_app_logic == false, "Cannot run teardown circuit before app logic circuit");
-        let needs_teardown = self.previous_kernel.public_inputs.needs_teardown;
+        let needs_teardown = self.previous_kernel.public_inputs.needs_teardown();
         assert(needs_teardown == true, "Cannot run unnecessary teardown circuit");
     }
 
@@ -47,7 +47,7 @@ impl PublicKernelTeardownCircuitPrivateInputs {
 
         common::update_public_end_non_revertible_values(self.public_call, &mut public_inputs);
 
-        if public_inputs.end_non_revertible.revert_code == 0 {
+        if public_inputs.revert_code == 0 {
             common::accumulate_unencrypted_logs(
                 self.public_call,
                 self.previous_kernel.public_inputs.end.unencrypted_logs_hash,
@@ -56,13 +56,7 @@ impl PublicKernelTeardownCircuitPrivateInputs {
             );
         }
 
-        let mut output = public_inputs.to_inner();
-
-        // If we enqueued multiple public functions as part of executing the teardown circuit,
-        // continue to treat them as part of teardown.
-        output.needs_setup = false;
-
-        output
+        public_inputs.finish()
     }
 }
 
@@ -82,7 +76,7 @@ mod tests {
     },
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
         contrakt::storage_read::StorageRead, hash::compute_logs_hash,
-        tests::{kernel_data_builder::PreviousKernelDataBuilder, public_call_data_builder::PublicCallDataBuilder},
+        tests::{fixture_builder::FixtureBuilder, public_call_data_builder::PublicCallDataBuilder},
         utils::{arrays::{array_eq, array_length}}
     };
     use dep::types::constants::{
@@ -91,16 +85,18 @@ mod tests {
     };
 
     struct PublicKernelTeardownCircuitPrivateInputsBuilder {
-        previous_kernel: PreviousKernelDataBuilder,
+        previous_kernel: FixtureBuilder,
+        previous_revertible: FixtureBuilder,
         public_call: PublicCallDataBuilder,
     }
 
     impl PublicKernelTeardownCircuitPrivateInputsBuilder {
         pub fn new() -> Self {
-            let previous_kernel = PreviousKernelDataBuilder::new(true);
+            let previous_kernel = FixtureBuilder::new();
+            let previous_revertible = FixtureBuilder::new();
             let public_call = PublicCallDataBuilder::new();
 
-            PublicKernelTeardownCircuitPrivateInputsBuilder { previous_kernel, public_call }
+            PublicKernelTeardownCircuitPrivateInputsBuilder { previous_kernel, previous_revertible, public_call }
         }
 
         pub fn is_delegate_call(&mut self) -> Self {
@@ -125,8 +121,9 @@ mod tests {
             // Adjust the call stack item hash for the current call in the previous iteration.
             let hash = public_call.call_stack_item.hash();
             let is_delegate_call = public_call.call_stack_item.public_inputs.call_context.is_delegate_call;
-            self.previous_kernel.push_public_call_request_non_revertible(hash, is_delegate_call);
-            let previous_kernel = self.previous_kernel.to_public_kernel_data();
+            self.previous_kernel.push_public_call_request(hash, is_delegate_call);
+            let mut previous_kernel = self.previous_kernel.to_public_kernel_data(false);
+            previous_kernel.public_inputs.end = self.previous_revertible.to_public_accumulated_data();
 
             let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
@@ -181,8 +178,8 @@ mod tests {
 
         let hash = public_call.call_stack_item.hash();
         // Tweak the call stack item hash.
-        builder.previous_kernel.push_public_call_request_non_revertible(hash + 1, false);
-        let previous_kernel = builder.previous_kernel.to_public_kernel_data();
+        builder.previous_kernel.push_public_call_request(hash + 1, false);
+        let previous_kernel = builder.previous_kernel.to_public_kernel_data(false);
 
         let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
@@ -223,8 +220,8 @@ mod tests {
         let hash = public_call.call_stack_item.hash();
         // Caller context is empty for regular calls.
         let is_delegate_call = false;
-        builder.previous_kernel.push_public_call_request_non_revertible(hash, is_delegate_call);
-        let previous_kernel = builder.previous_kernel.to_public_kernel_data();
+        builder.previous_kernel.push_public_call_request(hash, is_delegate_call);
+        let previous_kernel = builder.previous_kernel.to_public_kernel_data(false);
 
         let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
@@ -322,7 +319,7 @@ mod tests {
 
         let public_call = builder.public_call.finish();
         // Don't push a call for teardown
-        let previous_kernel = builder.previous_kernel.to_public_kernel_data();
+        let previous_kernel = builder.previous_kernel.to_public_kernel_data(false);
 
         let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
@@ -352,8 +349,8 @@ mod tests {
         let prev_encrypted_log_preimages_length = 13;
         let prev_unencrypted_logs_hash = 956;
         let prev_unencrypted_log_preimages_length = 24;
-        builder.previous_kernel.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
-        builder.previous_kernel.set_unencrypted_logs(
+        builder.previous_revertible.set_encrypted_logs(prev_encrypted_logs_hash, prev_encrypted_log_preimages_length);
+        builder.previous_revertible.set_unencrypted_logs(
             prev_unencrypted_logs_hash,
             prev_unencrypted_log_preimages_length
         );

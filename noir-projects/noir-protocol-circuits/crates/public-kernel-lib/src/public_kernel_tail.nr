@@ -5,11 +5,11 @@ use dep::reset_kernel_lib::{
 };
 use dep::types::{
     abis::{
-    kernel_circuit_public_inputs::{PublicKernelCircuitPublicInputs, PublicKernelCircuitPublicInputsBuilder},
+    kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PublicKernelCircuitPublicInputsBuilder},
     kernel_data::PublicKernelData, side_effect::SideEffectLinkedToNoteHash
 },
     constants::MAX_NEW_NULLIFIERS_PER_TX,
-    utils::{arrays::{array_length, array_merge, array_concat, array_to_bounded_vec, assert_sorted_array}},
+    utils::{arrays::{array_length, array_merge, array_to_bounded_vec, assert_sorted_array}},
     hash::silo_nullifier, traits::is_empty
 };
 use dep::std::unsafe;
@@ -22,14 +22,14 @@ struct PublicKernelTailCircuitPrivateInputs {
 
 impl PublicKernelTailCircuitPrivateInputs {
     fn propagate_revert_code(self, public_inputs: &mut PublicKernelCircuitPublicInputsBuilder) {
-        public_inputs.end_non_revertible.revert_code = self.previous_kernel.public_inputs.end_non_revertible.revert_code;
+        public_inputs.revert_code = self.previous_kernel.public_inputs.revert_code;
     }
 
     fn validate_inputs(self) {
         let previous_public_inputs = self.previous_kernel.public_inputs;
-        assert(previous_public_inputs.needs_setup == false, "Previous kernel needs setup");
-        assert(previous_public_inputs.needs_app_logic == false, "Previous kernel needs app logic");
-        assert(previous_public_inputs.needs_teardown == false, "Previous kernel needs teardown");
+        assert(previous_public_inputs.needs_setup() == false, "Previous kernel needs setup");
+        assert(previous_public_inputs.needs_app_logic() == false, "Previous kernel needs app logic");
+        assert(previous_public_inputs.needs_teardown() == false, "Previous kernel needs teardown");
         assert_eq(
             array_length(previous_public_inputs.end.public_call_stack), 0, "Public call stack must be empty when executing the tail circuit"
         );
@@ -44,7 +44,7 @@ impl PublicKernelTailCircuitPrivateInputs {
 
         let requests = self.previous_kernel.public_inputs.validation_requests.nullifier_read_requests;
 
-        let pending_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX] = array_concat(end_non_revertible.new_nullifiers, end.new_nullifiers);
+        let pending_nullifiers = array_merge(end_non_revertible.new_nullifiers, end.new_nullifiers);
 
         let hints = self.nullifier_read_request_hints;
 
@@ -82,7 +82,7 @@ impl PublicKernelTailCircuitPrivateInputs {
 
         let hints = self.nullifier_non_existent_read_request_hints;
 
-        let pending_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX] = array_concat(end_non_revertible.new_nullifiers, end.new_nullifiers);
+        let pending_nullifiers = array_merge(end_non_revertible.new_nullifiers, end.new_nullifiers);
         assert_sorted_array(
             pending_nullifiers,
             hints.sorted_pending_values,
@@ -100,7 +100,7 @@ impl PublicKernelTailCircuitPrivateInputs {
         );
     }
 
-    pub fn public_kernel_tail(self) -> PublicKernelCircuitPublicInputs {
+    pub fn public_kernel_tail(self) -> KernelCircuitPublicInputs {
         let mut public_inputs: PublicKernelCircuitPublicInputsBuilder = unsafe::zeroed();
 
         self.validate_inputs();
@@ -113,7 +113,7 @@ impl PublicKernelTailCircuitPrivateInputs {
 
         self.validate_nullifier_non_existent_read_requests(&mut public_inputs);
 
-        public_inputs.to_inner()
+        public_inputs.finish_tail()
     }
 }
 
@@ -128,7 +128,7 @@ mod tests {
     };
     use dep::types::{
         abis::{
-        kernel_circuit_public_inputs::{PublicKernelCircuitPublicInputs, PublicKernelCircuitPublicInputsBuilder},
+        kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PublicKernelCircuitPublicInputsBuilder},
         kernel_data::PublicKernelData, nullifier_leaf_preimage::NullifierLeafPreimage
     },
         constants::{
@@ -136,8 +136,8 @@ mod tests {
         NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT
     },
         hash::silo_nullifier,
-        tests::{kernel_data_builder::PreviousKernelDataBuilder, merkle_tree_utils::NonEmptyMerkleTree},
-        utils::arrays::array_concat
+        tests::{fixture_builder::FixtureBuilder, merkle_tree_utils::NonEmptyMerkleTree},
+        utils::arrays::array_merge
     };
 
     fn build_nullifier_tree<N>() -> NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT> {
@@ -153,18 +153,21 @@ mod tests {
     }
 
     struct PublicKernelTailCircuitPrivateInputsBuilder {
-        previous_kernel: PreviousKernelDataBuilder,
+        previous_kernel: FixtureBuilder,
+        previous_revertible: FixtureBuilder,
         nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder,
         nullifier_non_existent_read_request_hints_builder: NullifierNonExistentReadRequestHintsBuilder,
     }
 
     impl PublicKernelTailCircuitPrivateInputsBuilder {
         pub fn new() -> Self {
-            let previous_kernel = PreviousKernelDataBuilder::new(true);
-            let mut nullifier_non_existent_read_request_hints_builder = NullifierNonExistentReadRequestHintsBuilder::new();
+            let previous_kernel = FixtureBuilder::new();
+            let previous_revertible = FixtureBuilder::new();
+            let nullifier_non_existent_read_request_hints_builder = NullifierNonExistentReadRequestHintsBuilder::new();
 
             let mut builder = PublicKernelTailCircuitPrivateInputsBuilder {
                 previous_kernel,
+                previous_revertible,
                 nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder::new(MAX_NULLIFIER_READ_REQUESTS_PER_TX),
                 nullifier_non_existent_read_request_hints_builder
             };
@@ -181,40 +184,43 @@ mod tests {
 
         pub fn add_nullifier(&mut self, unsiloed_nullifier: Field) {
             self.previous_kernel.add_nullifier(unsiloed_nullifier);
+            self.sync_counters();
             self.set_nullifiers_for_non_existent_read_request_hints();
         }
 
-        pub fn append_nullifiers(&mut self, num_nullifiers: u64) {
-            self.previous_kernel.append_new_nullifiers_from_public(num_nullifiers);
+        pub fn append_nullifiers_revertible(&mut self, num_nullifiers: u64) {
+            self.previous_revertible.append_new_nullifiers(num_nullifiers);
+            self.sync_counters();
             self.set_nullifiers_for_non_existent_read_request_hints();
         }
 
         pub fn append_nullifiers_non_revertible(&mut self, num_nullifiers: u64) {
-            self.previous_kernel.append_new_nullifiers_non_revertible_from_public(num_nullifiers);
+            self.previous_kernel.append_new_nullifiers(num_nullifiers);
+            self.sync_counters();
             self.set_nullifiers_for_non_existent_read_request_hints();
         }
 
         fn set_nullifiers_for_non_existent_read_request_hints(&mut self) {
-            let previous_kernel_public_inputs = self.previous_kernel.to_public_kernel_data().public_inputs;
-            let nullifiers = array_concat(
-                previous_kernel_public_inputs.end_non_revertible.new_nullifiers,
-                previous_kernel_public_inputs.end.new_nullifiers
+            let nullifiers = array_merge(
+                self.previous_kernel.new_nullifiers.storage,
+                self.previous_revertible.new_nullifiers.storage
             );
             self.nullifier_non_existent_read_request_hints_builder.set_nullifiers(nullifiers);
         }
 
-        pub fn add_nullifier_pending_read(&mut self, nullifier_index: u64) {
+        pub fn add_pending_revertible_nullifier_read_request(&mut self, nullifier_index: u64) {
             let read_request_index = self.previous_kernel.add_read_request_for_pending_nullifier(nullifier_index);
+            self.sync_counters();
             let hint_index = self.nullifier_read_request_hints_builder.pending_read_hints.len();
-            let pending_value_index = nullifier_index + self.previous_kernel.end_non_revertible.new_nullifiers.len();
+            let pending_value_index = nullifier_index + self.previous_kernel.new_nullifiers.len();
             let hint = PendingReadHint { read_request_index, pending_value_index };
             self.nullifier_read_request_hints_builder.pending_read_hints.push(hint);
             self.nullifier_read_request_hints_builder.read_request_statuses[read_request_index] = ReadRequestStatus { state: ReadRequestState.PENDING, hint_index };
         }
 
-        pub fn add_non_revertible_nullifier_pending_read(&mut self, nullifier_index_offset_one: u64) {
-            let nullifier_index = nullifier_index_offset_one + 1; // + 1 is for the first nullifier
-            let read_request_index = self.previous_kernel.add_read_request_for_pending_non_revertible_nullifier(nullifier_index);
+        pub fn add_pending_non_revertible_nullifier_read_request(&mut self, nullifier_index: u64) {
+            let read_request_index = self.previous_kernel.add_read_request_for_pending_nullifier(nullifier_index);
+            self.sync_counters();
             let hint_index = self.nullifier_read_request_hints_builder.pending_read_hints.len();
             let hint = PendingReadHint { read_request_index, pending_value_index: nullifier_index };
             self.nullifier_read_request_hints_builder.pending_read_hints.push(hint);
@@ -223,6 +229,7 @@ mod tests {
 
         pub fn read_non_existent_nullifier(&mut self, unsiloed_nullifier: Field) {
             self.previous_kernel.add_non_existent_read_request_for_nullifier(unsiloed_nullifier);
+            self.sync_counters();
             let siloed_nullifier = silo_nullifier(
                 self.previous_kernel.storage_contract_address,
                 unsiloed_nullifier
@@ -230,8 +237,19 @@ mod tests {
             self.nullifier_non_existent_read_request_hints_builder.add_value_read(siloed_nullifier);
         }
 
-        pub fn execute(&mut self) -> PublicKernelCircuitPublicInputs {
-            let previous_kernel = self.previous_kernel.to_public_kernel_data();
+        fn sync_counters(&mut self) {
+            let counter_non_revertible = self.previous_kernel.counter;
+            let counter_revertible = self.previous_revertible.counter;
+            if counter_non_revertible > counter_revertible {
+                self.previous_revertible.counter = counter_non_revertible;
+            } else {
+                self.previous_kernel.counter = counter_revertible;
+            }
+        }
+
+        pub fn execute(&mut self) -> KernelCircuitPublicInputs {
+            let mut previous_kernel = self.previous_kernel.to_public_kernel_data(false);
+            previous_kernel.public_inputs.end = self.previous_revertible.to_public_accumulated_data();
 
             let kernel = PublicKernelTailCircuitPrivateInputs {
                 previous_kernel,
@@ -262,8 +280,8 @@ mod tests {
     unconstrained fn one_pending_nullifier_read_request() {
         let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
 
-        builder.append_nullifiers(3);
-        builder.add_nullifier_pending_read(1);
+        builder.append_nullifiers_revertible(3);
+        builder.add_pending_revertible_nullifier_read_request(1);
         builder.succeeded();
     }
 
@@ -271,9 +289,9 @@ mod tests {
     unconstrained fn two_pending_nullifier_read_requests() {
         let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
 
-        builder.append_nullifiers(3);
-        builder.add_nullifier_pending_read(1);
-        builder.add_nullifier_pending_read(0);
+        builder.append_nullifiers_revertible(3);
+        builder.add_pending_revertible_nullifier_read_request(1);
+        builder.add_pending_revertible_nullifier_read_request(0);
 
         builder.succeeded();
     }
@@ -283,7 +301,7 @@ mod tests {
         let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
 
         builder.append_nullifiers_non_revertible(3);
-        builder.add_non_revertible_nullifier_pending_read(1);
+        builder.add_pending_non_revertible_nullifier_read_request(1);
         builder.succeeded();
     }
 
@@ -291,8 +309,8 @@ mod tests {
     unconstrained fn pending_nullifier_read_request_wrong_hint_fails() {
         let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
 
-        builder.append_nullifiers(3);
-        builder.add_nullifier_pending_read(1);
+        builder.append_nullifiers_revertible(3);
+        builder.add_pending_revertible_nullifier_read_request(1);
         let mut hint = builder.nullifier_read_request_hints_builder.pending_read_hints.pop();
         hint.pending_value_index -= 1;
         builder.nullifier_read_request_hints_builder.pending_read_hints.push(hint);
@@ -304,12 +322,12 @@ mod tests {
     unconstrained fn pending_nullifier_read_request_reads_before_value_fails() {
         let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
 
-        builder.append_nullifiers(3);
-        builder.add_nullifier_pending_read(1);
-        let nullifier_being_read = builder.previous_kernel.end.new_nullifiers.get(1);
-        let mut read_request = builder.previous_kernel.validation_requests.nullifier_read_requests.pop();
+        builder.append_nullifiers_revertible(3);
+        builder.add_pending_revertible_nullifier_read_request(1);
+        let nullifier_being_read = builder.previous_revertible.new_nullifiers.get(1);
+        let mut read_request = builder.previous_kernel.nullifier_read_requests.pop();
         read_request.counter = nullifier_being_read.counter - 1;
-        builder.previous_kernel.validation_requests.nullifier_read_requests.push(read_request);
+        builder.previous_kernel.nullifier_read_requests.push(read_request);
 
         builder.failed();
     }

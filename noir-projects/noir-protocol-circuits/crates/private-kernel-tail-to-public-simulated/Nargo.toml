@@ -1,0 +1,9 @@
+[package]
+name = "private_kernel_tail_to_public_simulated"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.18.0"
+
+[dependencies]
+private_kernel_lib = { path = "../private-kernel-lib" }
+types = { path = "../types" }

@@ -1,6 +1,6 @@
 mod testing_harness;
+mod fixture_builder;
 mod fixtures;
-mod kernel_data_builder;
 mod merkle_tree_utils;
 mod private_call_data_builder;
 mod private_circuit_public_inputs_builder;

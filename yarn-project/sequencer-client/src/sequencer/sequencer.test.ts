@@ -9,7 +9,7 @@ import {
   type ProvingTicket,
   makeEmptyProcessedTx,
   makeProcessedTx,
-  mockTx,
+  mockTxForRollup,
 } from '@aztec/circuit-types';
 import {
   AztecAddress,
@@ -20,6 +20,7 @@ import {
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   makeEmptyProof,
 } from '@aztec/circuits.js';
+import { makeProof } from '@aztec/circuits.js/testing';
 import { type P2P, P2PClientState } from '@aztec/p2p';
 import { type ContractDataSource } from '@aztec/types/contracts';
 import { type MerkleTreeOperations, WorldStateRunningState, type WorldStateSynchronizer } from '@aztec/world-state';
@@ -71,7 +72,11 @@ describe('sequencer', () => {
     });
 
     publicProcessor = mock<PublicProcessor>({
-      process: async txs => [await Promise.all(txs.map(tx => makeProcessedTx(tx))), [], []],
+      process: async txs => [
+        await Promise.all(txs.map(tx => makeProcessedTx(tx, tx.data.toKernelCircuitPublicInputs(), makeProof()))),
+        [],
+        [],
+      ],
       makeEmptyProcessedTx: () => makeEmptyProcessedTx(Header.empty(), chainId, version),
     });
 
@@ -111,10 +116,8 @@ describe('sequencer', () => {
   });
 
   it('builds a block out of a single tx', async () => {
-    const tx = mockTx();
+    const tx = mockTxForRollup();
     tx.data.constants.txContext.chainId = chainId;
-    tx.data.needsSetup = false;
-    tx.data.needsTeardown = false;
     const block = L2Block.random(lastBlockNumber + 1);
     const proof = makeEmptyProof();
     const result: ProvingSuccess = {
@@ -147,11 +150,9 @@ describe('sequencer', () => {
   });
 
   it('builds a block out of several txs rejecting double spends', async () => {
-    const txs = [mockTx(0x10000), mockTx(0x20000), mockTx(0x30000)];
+    const txs = [mockTxForRollup(0x10000), mockTxForRollup(0x20000), mockTxForRollup(0x30000)];
     txs.forEach(tx => {
       tx.data.constants.txContext.chainId = chainId;
-      tx.data.needsSetup = false;
-      tx.data.needsTeardown = false;
     });
     const doubleSpendTx = txs[1];
     const block = L2Block.random(lastBlockNumber + 1);
@@ -173,7 +174,7 @@ describe('sequencer', () => {
     );
 
     // We make a nullifier from tx1 a part of the nullifier tree, so it gets rejected as double spend
-    const doubleSpendNullifier = doubleSpendTx.data.end.newNullifiers[0].value.toBuffer();
+    const doubleSpendNullifier = doubleSpendTx.data.forRollup!.end.newNullifiers[0].value.toBuffer();
     merkleTreeOps.findLeafIndex.mockImplementation((treeId: MerkleTreeId, value: any) => {
       return Promise.resolve(
         treeId === MerkleTreeId.NULLIFIER_TREE && value.equals(doubleSpendNullifier) ? 1n : undefined,
@@ -196,11 +197,9 @@ describe('sequencer', () => {
   });
 
   it('builds a block out of several txs rejecting incorrect chain ids', async () => {
-    const txs = [mockTx(0x10000), mockTx(0x20000), mockTx(0x30000)];
+    const txs = [mockTxForRollup(0x10000), mockTxForRollup(0x20000), mockTxForRollup(0x30000)];
     txs.forEach(tx => {
       tx.data.constants.txContext.chainId = chainId;
-      tx.data.needsSetup = false;
-      tx.data.needsTeardown = false;
     });
     const invalidChainTx = txs[1];
     const block = L2Block.random(lastBlockNumber + 1);
@@ -240,7 +239,7 @@ describe('sequencer', () => {
   });
 
   it('aborts building a block if the chain moves underneath it', async () => {
-    const tx = mockTx();
+    const tx = mockTxForRollup();
     tx.data.constants.txContext.chainId = chainId;
     const block = L2Block.random(lastBlockNumber + 1);
     const proof = makeEmptyProof();

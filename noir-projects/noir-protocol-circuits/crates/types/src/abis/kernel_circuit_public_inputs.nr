@@ -1,17 +1,13 @@
+mod kernel_circuit_public_inputs;
+mod private_kernel_circuit_public_inputs;
 mod private_kernel_circuit_public_inputs_builder;
-mod private_kernel_inner_circuit_public_inputs;
-mod private_kernel_tail_circuit_public_inputs;
 mod public_kernel_circuit_public_inputs;
 mod public_kernel_circuit_public_inputs_builder;
-mod rollup_kernel_circuit_public_inputs;
-mod rollup_kernel_circuit_public_inputs_builder;
 
 use crate::abis::kernel_circuit_public_inputs::{
+    kernel_circuit_public_inputs::KernelCircuitPublicInputs,
+    private_kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
     private_kernel_circuit_public_inputs_builder::PrivateKernelCircuitPublicInputsBuilder,
-    private_kernel_inner_circuit_public_inputs::PrivateKernelInnerCircuitPublicInputs,
-    private_kernel_tail_circuit_public_inputs::PrivateKernelTailCircuitPublicInputs,
     public_kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs,
-    public_kernel_circuit_public_inputs_builder::PublicKernelCircuitPublicInputsBuilder,
-    rollup_kernel_circuit_public_inputs::RollupKernelCircuitPublicInputs,
-    rollup_kernel_circuit_public_inputs_builder::RollupKernelCircuitPublicInputsBuilder
+    public_kernel_circuit_public_inputs_builder::PublicKernelCircuitPublicInputsBuilder
 };

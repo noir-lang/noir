@@ -12,6 +12,7 @@ mod constants;
 mod contract_class_id;
 mod merkle_tree;
 mod contract_instance;
+mod keys;
 
 mod messaging;
 mod mocked;
@@ -29,7 +30,4 @@ mod partial_state_reference;
 mod public_data_tree_leaf;
 mod public_data_tree_leaf_preimage;
 
-use abis::kernel_circuit_public_inputs::{
-    PrivateKernelInnerCircuitPublicInputs, PrivateKernelTailCircuitPublicInputs,
-    PublicKernelCircuitPublicInputs, RollupKernelCircuitPublicInputs
-};
+use abis::kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKernelCircuitPublicInputs, PublicKernelCircuitPublicInputs};

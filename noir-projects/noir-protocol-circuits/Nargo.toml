@@ -11,6 +11,8 @@ members = [
     "crates/private-kernel-inner-simulated",
     "crates/private-kernel-tail",
     "crates/private-kernel-tail-simulated",
+    "crates/private-kernel-tail-to-public",
+    "crates/private-kernel-tail-to-public-simulated",
     "crates/public-kernel-lib",
     "crates/public-kernel-setup",
     "crates/public-kernel-setup-simulated",

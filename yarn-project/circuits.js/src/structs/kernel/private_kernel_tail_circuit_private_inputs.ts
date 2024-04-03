@@ -1,3 +1,4 @@
+import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import {
@@ -6,11 +7,11 @@ import {
   MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
   MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
 } from '../../constants.gen.js';
-import { type GrumpkinPrivateKey } from '../../index.js';
-import { Fr, GrumpkinScalar } from '../index.js';
+import { type GrumpkinPrivateKey } from '../../types/grumpkin_private_key.js';
+import { countAccumulatedItems } from '../../utils/index.js';
 import { type NullifierReadRequestHints, nullifierReadRequestHintsFromBuffer } from '../read_request_hints.js';
 import { SideEffect, SideEffectLinkedToNoteHash } from '../side_effects.js';
-import { PrivateKernelInnerData } from './private_kernel_inner_data.js';
+import { PrivateKernelData } from './private_kernel_data.js';
 
 /**
  * Input to the private kernel circuit - tail call.
@@ -20,7 +21,7 @@ export class PrivateKernelTailCircuitPrivateInputs {
     /**
      * The previous kernel data
      */
-    public previousKernel: PrivateKernelInnerData,
+    public previousKernel: PrivateKernelData,
     /**
      * The sorted new note hashes.
      */
@@ -55,6 +56,10 @@ export class PrivateKernelTailCircuitPrivateInputs {
     public masterNullifierSecretKeys: Tuple<GrumpkinPrivateKey, typeof MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX>,
   ) {}
 
+  isForPublic() {
+    return countAccumulatedItems(this.previousKernel.publicInputs.end.publicCallStack) > 0;
+  }
+
   /**
    * Serialize this as a buffer.
    * @returns The buffer.
@@ -81,7 +86,7 @@ export class PrivateKernelTailCircuitPrivateInputs {
   static fromBuffer(buffer: Buffer | BufferReader): PrivateKernelTailCircuitPrivateInputs {
     const reader = BufferReader.asReader(buffer);
     return new PrivateKernelTailCircuitPrivateInputs(
-      reader.readObject(PrivateKernelInnerData),
+      reader.readObject(PrivateKernelData),
       reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, SideEffect),
       reader.readNumbers(MAX_NEW_NOTE_HASHES_PER_TX),
       reader.readArray(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, Fr),

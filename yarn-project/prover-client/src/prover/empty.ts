@@ -4,6 +4,7 @@ import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
+  type KernelCircuitPublicInputs,
   type MergeRollupInputs,
   type ParityPublicInputs,
   Proof,
@@ -92,6 +93,10 @@ export class EmptyPublicProver implements PublicProver {
    * @param _publicInputs - Public inputs obtained via simulation.
    */
   async getPublicKernelCircuitProof(_publicInputs: PublicKernelCircuitPublicInputs): Promise<Proof> {
+    return new Proof(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
+  }
+
+  async getPublicTailKernelCircuitProof(_publicInputs: KernelCircuitPublicInputs): Promise<Proof> {
     return new Proof(Buffer.alloc(EMPTY_PROOF_SIZE, 0));
   }
 }

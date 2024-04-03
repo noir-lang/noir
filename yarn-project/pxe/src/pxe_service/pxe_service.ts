@@ -28,8 +28,7 @@ import {
   CompleteAddress,
   FunctionData,
   type GrumpkinPrivateKey,
-  MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-  MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   type PartialAddress,
   type PrivateKernelTailCircuitPublicInputs,
   type PublicCallRequest,
@@ -637,9 +636,6 @@ export class PXEService implements PXE {
     const kernelProver = new KernelProver(kernelOracle);
     this.log(`Executing kernel prover...`);
     const { proof, publicInputs } = await kernelProver.prove(txExecutionRequest.toTxRequest(), executionResult);
-    this.log(
-      `Needs setup: ${publicInputs.needsSetup}, needs app logic: ${publicInputs.needsAppLogic}, needs teardown: ${publicInputs.needsTeardown}`,
-    );
 
     const encryptedLogs = new EncryptedTxL2Logs(collectEncryptedLogs(executionResult));
     const unencryptedLogs = new UnencryptedTxL2Logs(collectUnencryptedLogs(executionResult));
@@ -701,55 +697,62 @@ export class PXEService implements PXE {
     publicInputs: PrivateKernelTailCircuitPublicInputs,
     enqueuedPublicCalls: PublicCallRequest[],
   ) {
+    if (!publicInputs.forPublic) {
+      return;
+    }
+
     const enqueuedPublicCallStackItems = await Promise.all(enqueuedPublicCalls.map(c => c.toCallRequest()));
 
     // Validate all items in enqueued public calls are in the kernel emitted stack
     const enqueuedRevertiblePublicCallStackItems = enqueuedPublicCallStackItems.filter(enqueued =>
-      publicInputs.end.publicCallStack.find(item => item.equals(enqueued)),
+      publicInputs.forPublic!.end.publicCallStack.find(item => item.equals(enqueued)),
     );
 
-    const revertibleStackSize = arrayNonEmptyLength(publicInputs.end.publicCallStack, item => item.isEmpty());
+    const revertibleStackSize = arrayNonEmptyLength(publicInputs.forPublic.end.publicCallStack, item => item.isEmpty());
 
     if (enqueuedRevertiblePublicCallStackItems.length !== revertibleStackSize) {
       throw new Error(
         `Enqueued revertible public function calls and revertible public call stack do not match.\nEnqueued calls: ${enqueuedRevertiblePublicCallStackItems
           .map(h => h.hash.toString())
-          .join(', ')}\nPublic call stack: ${publicInputs.end.publicCallStack.map(i => i.toString()).join(', ')}`,
-      );
-    }
-
-    // Override kernel output
-    publicInputs.end.publicCallStack = padArrayEnd(
-      enqueuedRevertiblePublicCallStackItems,
-      CallRequest.empty(),
-      MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-    );
-
-    // Do the same for non-revertible
-
-    const enqueuedNonRevertiblePublicCallStackItems = enqueuedPublicCallStackItems.filter(enqueued =>
-      publicInputs.endNonRevertibleData.publicCallStack.find(item => item.equals(enqueued)),
-    );
-
-    const nonRevertibleStackSize = arrayNonEmptyLength(publicInputs.endNonRevertibleData.publicCallStack, item =>
-      item.isEmpty(),
-    );
-
-    if (enqueuedNonRevertiblePublicCallStackItems.length !== nonRevertibleStackSize) {
-      throw new Error(
-        `Enqueued non-revertible public function calls and non-revertible public call stack do not match.\nEnqueued calls: ${enqueuedNonRevertiblePublicCallStackItems
-          .map(h => h.hash.toString())
-          .join(', ')}\nPublic call stack: ${publicInputs.endNonRevertibleData.publicCallStack
+          .join(', ')}\nPublic call stack: ${publicInputs.forPublic.end.publicCallStack
           .map(i => i.toString())
           .join(', ')}`,
       );
     }
 
     // Override kernel output
-    publicInputs.endNonRevertibleData.publicCallStack = padArrayEnd(
+    publicInputs.forPublic.end.publicCallStack = padArrayEnd(
+      enqueuedRevertiblePublicCallStackItems,
+      CallRequest.empty(),
+      MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+    );
+
+    // Do the same for non-revertible
+
+    const enqueuedNonRevertiblePublicCallStackItems = enqueuedPublicCallStackItems.filter(enqueued =>
+      publicInputs.forPublic!.endNonRevertibleData.publicCallStack.find(item => item.equals(enqueued)),
+    );
+
+    const nonRevertibleStackSize = arrayNonEmptyLength(
+      publicInputs.forPublic.endNonRevertibleData.publicCallStack,
+      item => item.isEmpty(),
+    );
+
+    if (enqueuedNonRevertiblePublicCallStackItems.length !== nonRevertibleStackSize) {
+      throw new Error(
+        `Enqueued non-revertible public function calls and non-revertible public call stack do not match.\nEnqueued calls: ${enqueuedNonRevertiblePublicCallStackItems
+          .map(h => h.hash.toString())
+          .join(', ')}\nPublic call stack: ${publicInputs.forPublic.endNonRevertibleData.publicCallStack
+          .map(i => i.toString())
+          .join(', ')}`,
+      );
+    }
+
+    // Override kernel output
+    publicInputs.forPublic.endNonRevertibleData.publicCallStack = padArrayEnd(
       enqueuedNonRevertiblePublicCallStackItems,
       CallRequest.empty(),
-      MAX_NON_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+      MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     );
   }
 

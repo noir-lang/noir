@@ -11,10 +11,8 @@ use dep::types::{
     constants::{
     MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
-    MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_CALL,
-    MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
+    MAX_PUBLIC_DATA_READS_PER_CALL
 },
     hash::{silo_note_hash, silo_nullifier, compute_l2_to_l1_hash, accumulate_sha256},
     utils::{arrays::{array_length, array_to_bounded_vec}}, traits::{is_empty, is_empty_array}
@@ -44,10 +42,10 @@ pub fn initialize_revert_code(
     public_call: PublicCallData,
     circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder
 ) {
-    if previous_kernel.public_inputs.end_non_revertible.revert_code != 0 {
-        circuit_outputs.end_non_revertible.revert_code = previous_kernel.public_inputs.end_non_revertible.revert_code;
+    if previous_kernel.public_inputs.revert_code != 0 {
+        circuit_outputs.revert_code = previous_kernel.public_inputs.revert_code;
     } else if public_call.call_stack_item.public_inputs.revert_code != 0 {
-        circuit_outputs.end_non_revertible.revert_code = public_call.call_stack_item.public_inputs.revert_code;
+        circuit_outputs.revert_code = public_call.call_stack_item.public_inputs.revert_code;
     }
 }
 
@@ -59,7 +57,7 @@ pub fn initialize_emitted_end_values(
 ) {
     circuit_outputs.constants = previous_kernel.public_inputs.constants;
 
-    if circuit_outputs.end_non_revertible.revert_code == 0 {
+    if circuit_outputs.revert_code == 0 {
         let start = previous_kernel.public_inputs.end;
         circuit_outputs.end.new_note_hashes = array_to_bounded_vec(start.new_note_hashes);
         circuit_outputs.end.new_nullifiers = array_to_bounded_vec(start.new_nullifiers);
@@ -74,7 +72,12 @@ pub fn initialize_emitted_end_values(
     let start_non_revertible = previous_kernel.public_inputs.end_non_revertible;
     circuit_outputs.end_non_revertible.new_note_hashes = array_to_bounded_vec(start_non_revertible.new_note_hashes);
     circuit_outputs.end_non_revertible.new_nullifiers = array_to_bounded_vec(start_non_revertible.new_nullifiers);
+    circuit_outputs.end_non_revertible.new_l2_to_l1_msgs = array_to_bounded_vec(start_non_revertible.new_l2_to_l1_msgs);
     circuit_outputs.end_non_revertible.public_data_update_requests = array_to_bounded_vec(start_non_revertible.public_data_update_requests);
+    circuit_outputs.end_non_revertible.unencrypted_logs_hash = start_non_revertible.unencrypted_logs_hash;
+    circuit_outputs.end_non_revertible.unencrypted_log_preimages_length = start_non_revertible.unencrypted_log_preimages_length;
+    circuit_outputs.end_non_revertible.encrypted_logs_hash = start_non_revertible.encrypted_logs_hash;
+    circuit_outputs.end_non_revertible.encrypted_log_preimages_length = start_non_revertible.encrypted_log_preimages_length;
 
     // TODO - should be propagated only in initialize_end_values() and clear them in the tail circuit. The 
     // max_block_number must be propagated to the rollup however as a RollupValidationRequest.
@@ -91,9 +94,8 @@ pub fn initialize_end_values(
 ) {
     initialize_emitted_end_values(previous_kernel, circuit_outputs);
 
-    if circuit_outputs.end_non_revertible.revert_code == 0 {
+    if circuit_outputs.revert_code == 0 {
         let start = previous_kernel.public_inputs.end;
-        // circuit_outputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack); // This is enforced in the private tail to always be empty.
         circuit_outputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
     }
 
@@ -184,9 +186,8 @@ pub fn update_public_end_non_revertible_values(
 
     propagate_new_nullifiers_non_revertible(public_call, circuit_outputs);
     propagate_new_note_hashes_non_revertible(public_call, circuit_outputs);
+    propagate_new_l2_to_l1_messages(public_call, circuit_outputs);
     propagate_valid_non_revertible_public_data_update_requests(public_call, circuit_outputs);
-    // TODO(fees) propagate the following to non-revertible
-    // propagate_new_l2_to_l1_messages(public_call, circuit_outputs);
 }
 
 pub fn update_public_end_values(public_call: PublicCallData, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
@@ -248,10 +249,9 @@ fn propagate_valid_public_data_update_requests(
     let contract_address = public_call.call_stack_item.public_inputs.call_context.storage_contract_address;
     let update_requests = public_call.call_stack_item.public_inputs.contract_storage_update_requests;
 
-    // TODO(fees) should we have a MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL
-    let mut public_data_update_requests : BoundedVec<PublicDataUpdateRequest, MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> = BoundedVec::new();
+    let mut public_data_update_requests : BoundedVec<PublicDataUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL> = BoundedVec::new();
 
-    for i in 0..MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
+    for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
         let update_request = update_requests[i];
         if (!update_request.is_empty()) {
             let public_data_update_request = PublicDataUpdateRequest {
@@ -272,10 +272,9 @@ fn propagate_valid_non_revertible_public_data_update_requests(
     let contract_address = public_call.call_stack_item.contract_address;
     let update_requests = public_call.call_stack_item.public_inputs.contract_storage_update_requests;
 
-    // TODO(fees) should we have a MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL ?
-    let mut public_data_update_requests : BoundedVec<PublicDataUpdateRequest, MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> = BoundedVec::new();
+    let mut public_data_update_requests : BoundedVec<PublicDataUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL> = BoundedVec::new();
 
-    for i in 0..MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
+    for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
         let update_request = update_requests[i];
         if (!update_request.is_empty()) {
             let public_data_update_request = PublicDataUpdateRequest {

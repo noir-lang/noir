@@ -17,6 +17,7 @@
     "./error": "./dest/error/index.js",
     "./eth-address": "./dest/eth-address/index.js",
     "./fifo": "./dest/fifo/index.js",
+    "./interfaces": "./dest/interfaces/index.js",
     "./json-rpc": "./dest/json-rpc/index.js",
     "./json-rpc/server": "./dest/json-rpc/server/index.js",
     "./json-rpc/client": "./dest/json-rpc/client/index.js",

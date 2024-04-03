@@ -2,15 +2,15 @@ use crate::common;
 use dep::std::unsafe;
 use dep::types::{
     abis::{
-    kernel_data::PrivateKernelInnerData, private_kernel::private_call_data::PrivateCallData,
-    kernel_circuit_public_inputs::{PrivateKernelInnerCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder},
+    kernel_data::PrivateKernelData, private_kernel::private_call_data::PrivateCallData,
+    kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder},
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
     mocked::verify_previous_kernel_state
 };
 
 struct PrivateKernelInnerCircuitPrivateInputs {
-    previous_kernel: PrivateKernelInnerData,
+    previous_kernel: PrivateKernelData,
     private_call: PrivateCallData,
 }
 
@@ -24,14 +24,10 @@ impl PrivateKernelInnerCircuitPrivateInputs {
         let this_call_stack_item = self.private_call.call_stack_item;
         let function_data = this_call_stack_item.function_data;
         assert(function_data.is_private, "Private kernel circuit can only execute a private function");
-        assert(
-            self.previous_kernel.public_inputs.is_private, "Can only verify a private kernel snark in the private kernel circuit"
-        );
     }
 
-    pub fn native_private_kernel_circuit_inner(self) -> PrivateKernelInnerCircuitPublicInputs {
+    pub fn native_private_kernel_circuit_inner(self) -> PrivateKernelCircuitPublicInputs {
         let mut public_inputs : PrivateKernelCircuitPublicInputsBuilder = unsafe::zeroed();
-        public_inputs.is_private = true;
 
         common::validate_previous_kernel_values(self.previous_kernel.public_inputs.end);
 
@@ -61,7 +57,7 @@ impl PrivateKernelInnerCircuitPrivateInputs {
 
         public_inputs.aggregation_object = updated_aggregation_object;
 
-        public_inputs.to_inner()
+        public_inputs.finish()
     }
 }
 
@@ -70,23 +66,27 @@ mod tests {
     use dep::types::constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_TX};
     use dep::types::{
         abis::{
-        kernel_circuit_public_inputs::PrivateKernelInnerCircuitPublicInputs,
+        kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
         max_block_number::MaxBlockNumber, side_effect::{SideEffect, SideEffectLinkedToNoteHash}
     },
         address::{AztecAddress, EthAddress}, hash::compute_logs_hash,
         messaging::l2_to_l1_message::L2ToL1Message, utils::{arrays::array_length},
-        tests::{kernel_data_builder::PreviousKernelDataBuilder, private_call_data_builder::PrivateCallDataBuilder}
+        tests::{private_call_data_builder::PrivateCallDataBuilder, fixture_builder::FixtureBuilder}
     };
+    use dep::std::unsafe;
 
     struct PrivateKernelInnerInputsBuilder {
-        previous_kernel: PreviousKernelDataBuilder,
+        previous_kernel: FixtureBuilder,
         private_call: PrivateCallDataBuilder,
     }
 
     impl PrivateKernelInnerInputsBuilder {
         pub fn new() -> Self {
-            let previous_kernel = PreviousKernelDataBuilder::new(false);
+            let mut previous_kernel = FixtureBuilder::new();
             let private_call = PrivateCallDataBuilder::new();
+
+            // 0th nullifier must be non-zero.
+            previous_kernel.append_new_nullifiers(1);
 
             PrivateKernelInnerInputsBuilder { previous_kernel, private_call }
         }
@@ -101,13 +101,13 @@ mod tests {
             *self
         }
 
-        pub fn execute(&mut self) -> PrivateKernelInnerCircuitPublicInputs {
+        pub fn execute(&mut self) -> PrivateKernelCircuitPublicInputs {
             let private_call = self.private_call.finish();
             // Update the previous_kernel's private_call_stack with the current call_stack_item.
             let hash = private_call.call_stack_item.hash();
             let is_delegate_call = private_call.call_stack_item.public_inputs.call_context.is_delegate_call;
             self.previous_kernel.push_private_call_request(hash, is_delegate_call);
-            let previous_kernel = self.previous_kernel.to_private_kernel_inner_data();
+            let previous_kernel = self.previous_kernel.to_private_kernel_data();
 
             let kernel = PrivateKernelInnerCircuitPrivateInputs { previous_kernel, private_call };
 
@@ -185,7 +185,7 @@ mod tests {
         let hash = private_call.call_stack_item.hash();
         // Set the first call stack hash to a wrong value (the correct hash + 1).
         builder.previous_kernel.push_private_call_request(hash + 1, false);
-        let previous_kernel = builder.previous_kernel.to_private_kernel_inner_data();
+        let previous_kernel = builder.previous_kernel.to_private_kernel_data();
 
         let kernel = PrivateKernelInnerCircuitPrivateInputs { previous_kernel, private_call };
 
@@ -227,7 +227,7 @@ mod tests {
         // Caller context is empty for regular calls.
         let is_delegate_call = false;
         builder.previous_kernel.push_private_call_request(hash, is_delegate_call);
-        let previous_kernel = builder.previous_kernel.to_private_kernel_inner_data();
+        let previous_kernel = builder.previous_kernel.to_private_kernel_data();
 
         let kernel = PrivateKernelInnerCircuitPrivateInputs { previous_kernel, private_call };
 
@@ -466,14 +466,7 @@ mod tests {
         builder.private_call.public_inputs.new_note_hashes.push(SideEffect { value: 4321, counter: 0 });
 
         // Mock the previous new note hashes to be full, therefore no more commitments can be added.
-        let mut full_new_note_hashes = [SideEffect::empty(); MAX_NEW_NOTE_HASHES_PER_TX];
-        for i in 0..MAX_NEW_NOTE_HASHES_PER_TX {
-            full_new_note_hashes[i] = SideEffect {
-                value: i as Field + 1,
-                counter: i as u32,
-            };
-        }
-        builder.previous_kernel.end.new_note_hashes.extend_from_array(full_new_note_hashes);
+        builder.previous_kernel.append_new_note_hashes(MAX_NEW_NOTE_HASHES_PER_TX);
 
         builder.failed();
     }
@@ -483,15 +476,6 @@ mod tests {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
         builder.private_call.function_data.is_private = false;
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with="Can only verify a private kernel snark in the private kernel circuit")]
-    fn previous_kernel_is_private_false_fails() {
-        let mut builder = PrivateKernelInnerInputsBuilder::new();
-
-        builder.previous_kernel.is_private = false;
 
         builder.failed();
     }
@@ -553,7 +537,7 @@ mod tests {
     #[test]
     fn propagate_previous_kernel_max_block_number() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
-        builder.previous_kernel.validation_requests.max_block_number = MaxBlockNumber::new(13);
+        builder.previous_kernel.max_block_number = MaxBlockNumber::new(13);
         let public_inputs = builder.execute();
 
         assert_eq(public_inputs.validation_requests.for_rollup.max_block_number.unwrap(), 13);
@@ -571,7 +555,7 @@ mod tests {
     #[test]
     fn ignore_larger_max_block_number() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
-        builder.previous_kernel.validation_requests.max_block_number = MaxBlockNumber::new(13);
+        builder.previous_kernel.max_block_number = MaxBlockNumber::new(13);
         // A private call requesting a larger max_block_number should not change the current one as that constraint is
         // already satisfied.
         builder.private_call.request_max_block_number(42);
@@ -729,7 +713,7 @@ mod tests {
     fn zero_0th_nullifier_fails() {
         let mut builder = PrivateKernelInnerInputsBuilder::new();
 
-        builder.previous_kernel.end.new_nullifiers = BoundedVec::new();
+        builder.previous_kernel.new_nullifiers = BoundedVec::new();
 
         builder.failed();
     }

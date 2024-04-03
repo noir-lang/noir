@@ -34,8 +34,13 @@ export function makeTuple<T, N extends number>(length: N, fn: (i: number) => T, 
  * @param fn - The generator function.
  * @returns The array of numbers.
  */
-export function makeHalfFullTuple<T, N extends number>(length: N, fn: (i: number) => T, offset = 0) {
-  return Array.from({ length }, (v: any, i: number) => (i < length / 2 ? fn(i + offset) : fn(0))) as Tuple<T, N>;
+export function makeHalfFullTuple<T, N extends number>(
+  length: N,
+  fn: (i: number) => T,
+  offset = 0,
+  makeEmpty: () => T,
+) {
+  return Array.from({ length }, (v: any, i: number) => (i < length / 2 ? fn(i + offset) : makeEmpty())) as Tuple<T, N>;
 }
 
 /**

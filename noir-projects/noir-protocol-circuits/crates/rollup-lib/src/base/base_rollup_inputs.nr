@@ -12,7 +12,7 @@ use dep::types::{
     append_only_tree_snapshot::AppendOnlyTreeSnapshot,
     membership_witness::{ArchiveRootMembershipWitness, NullifierMembershipWitness, PublicDataMembershipWitness},
     nullifier_leaf_preimage::NullifierLeafPreimage, public_data_update_request::PublicDataUpdateRequest,
-    public_data_read::PublicDataRead, kernel_data::RollupKernelData,
+    public_data_read::PublicDataRead, kernel_data::KernelData,
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}, accumulated_data::CombinedAccumulatedData
 },
     constants::{
@@ -21,10 +21,7 @@ use dep::types::{
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX,
     NUM_ENCRYPTED_LOGS_HASHES_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX, NUM_UNENCRYPTED_LOGS_HASHES_PER_TX,
     NULLIFIER_SUBTREE_HEIGHT, NULLIFIER_TREE_HEIGHT, PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
-    PUBLIC_DATA_SUBTREE_HEIGHT, MAX_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-    MAX_NON_REVERTIBLE_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_REVERTIBLE_NOTE_HASHES_PER_TX,
-    MAX_NON_REVERTIBLE_NOTE_HASHES_PER_TX, MAX_REVERTIBLE_NULLIFIERS_PER_TX,
-    MAX_NON_REVERTIBLE_NULLIFIERS_PER_TX
+    PUBLIC_DATA_SUBTREE_HEIGHT
 },
     merkle_tree::{
     append_only_tree, assert_check_membership, calculate_empty_tree_root, calculate_subtree_root,
@@ -37,7 +34,7 @@ use dep::types::{
 };
 
 struct BaseRollupInputs {
-    kernel_data: RollupKernelData,
+    kernel_data: KernelData,
     start: PartialStateReference,
 
     state_diff_hints: StateDiffHints,
@@ -48,8 +45,6 @@ struct BaseRollupInputs {
     sorted_public_data_writes_indexes: [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     low_public_data_writes_preimages: [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     low_public_data_writes_witnesses: [PublicDataMembershipWitness; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    public_data_reads_preimages: [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_READS_PER_TX],
-    public_data_reads_witnesses: [PublicDataMembershipWitness; MAX_PUBLIC_DATA_READS_PER_TX],
 
     archive_root_membership_witness: ArchiveRootMembershipWitness,
 
@@ -101,7 +96,10 @@ impl BaseRollupInputs {
         let end_public_data_tree_snapshot = self.validate_and_process_public_state();
 
         // Calculate the tx effects hash of the transaction
-        let tx_effects_hash = compute_tx_effects_hash(self.kernel_data.public_inputs.end);
+        let tx_effects_hash = compute_tx_effects_hash(
+            self.kernel_data.public_inputs.end,
+            self.kernel_data.public_inputs.revert_code
+        );
         let out_hash = compute_kernel_out_hash(self.kernel_data.public_inputs.end);
 
         // Perform membership checks that the notes provided exist within the historical trees data
@@ -396,9 +394,8 @@ mod tests {
         append_only_tree_snapshot::AppendOnlyTreeSnapshot,
         membership_witness::{ArchiveRootMembershipWitness, NullifierMembershipWitness, PublicDataMembershipWitness},
         nullifier_leaf_preimage::NullifierLeafPreimage, public_data_read::PublicDataRead,
-        public_data_update_request::PublicDataUpdateRequest,
-        kernel_data::{PublicKernelData, RollupKernelData}, side_effect::SideEffect,
-        accumulated_data::CombinedAccumulatedData
+        public_data_update_request::PublicDataUpdateRequest, kernel_data::KernelData,
+        side_effect::SideEffect, accumulated_data::CombinedAccumulatedData
     },
         address::{AztecAddress, EthAddress},
         constants::{
@@ -413,8 +410,8 @@ mod tests {
         public_data_tree_leaf::PublicDataTreeLeaf,
         public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
         tests::{
-        kernel_data_builder::PreviousKernelDataBuilder,
-        merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes}, sort::sort_high_to_low
+        fixture_builder::FixtureBuilder, merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes},
+        sort::sort_high_to_low
     },
         utils::{field::{full_field_less_than, field_from_bytes_32_trunc, field_from_bytes}, uint256::U256}
     };
@@ -430,18 +427,16 @@ mod tests {
 
     fn update_public_data_tree<EXISTING_LEAVES, SUBTREE_SIBLING_PATH_LENGTH, SUBTREE_HEIGHT>(
         public_data_tree: &mut NonEmptyMerkleTree<EXISTING_LEAVES, PUBLIC_DATA_TREE_HEIGHT, SUBTREE_SIBLING_PATH_LENGTH, SUBTREE_HEIGHT>,
-        kernel_data: &mut RollupKernelData,
+        kernel_data: &mut KernelData,
         snapshot: AppendOnlyTreeSnapshot,
         public_data_writes: BoundedVec<(u64, PublicDataTreeLeaf), 2>,
         mut pre_existing_public_data: [PublicDataTreeLeafPreimage; EXISTING_LEAVES]
-    ) -> ([Field; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH], [PublicDataTreeLeaf; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataMembershipWitness; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_READS_PER_TX], [PublicDataMembershipWitness; MAX_PUBLIC_DATA_READS_PER_TX], [PublicDataTreeLeafPreimage; EXISTING_LEAVES]) {
+    ) -> ([Field; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH], [PublicDataTreeLeaf; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataMembershipWitness; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataTreeLeafPreimage; EXISTING_LEAVES]) {
         let mut subtree_path: [Field; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH] = dep::std::unsafe::zeroed();
         let mut sorted_public_data_writes: [PublicDataTreeLeaf; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] = dep::std::unsafe::zeroed();
         let mut sorted_public_data_writes_indexes: [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] = dep::std::unsafe::zeroed();
         let mut low_public_data_writes_preimages: [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] = dep::std::unsafe::zeroed();
         let mut low_public_data_writes_witnesses: [PublicDataMembershipWitness; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] = dep::std::unsafe::zeroed();
-        let mut public_data_reads_preimages: [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_READS_PER_TX] = dep::std::unsafe::zeroed();
-        let mut public_data_reads_witnesses: [PublicDataMembershipWitness; MAX_PUBLIC_DATA_READS_PER_TX] = dep::std::unsafe::zeroed();
         let mut new_subtree: [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] = dep::std::unsafe::zeroed();
 
         for i in 0..MAX_PUBLIC_DATA_WRITES_PER_TEST {
@@ -504,12 +499,12 @@ mod tests {
         subtree_path = BaseRollupInputsBuilder::extract_subtree_sibling_path(public_data_tree.get_sibling_path(snapshot.next_available_leaf_index as u64), [0; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH]);
 
         (
-            subtree_path, sorted_public_data_writes, sorted_public_data_writes_indexes, low_public_data_writes_preimages, low_public_data_writes_witnesses, public_data_reads_preimages, public_data_reads_witnesses, pre_existing_public_data
+            subtree_path, sorted_public_data_writes, sorted_public_data_writes_indexes, low_public_data_writes_preimages, low_public_data_writes_witnesses, pre_existing_public_data
         )
     }
 
     struct BaseRollupInputsBuilder {
-        kernel_data: PreviousKernelDataBuilder,
+        kernel_data: FixtureBuilder,
         pre_existing_notes: [Field; MAX_NEW_NOTE_HASHES_PER_TX],
         pre_existing_nullifiers: [NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX],
         pre_existing_contracts: [Field; 2],
@@ -528,12 +523,9 @@ mod tests {
     impl BaseRollupInputsBuilder {
         fn new() -> Self {
             let mut inputs: BaseRollupInputsBuilder = dep::std::unsafe::zeroed();
+            inputs.kernel_data = FixtureBuilder::new();
             inputs.constants.global_variables.chain_id = 1;
             inputs.constants.global_variables.version = 0;
-
-            let mut builder = PreviousKernelDataBuilder::new(true);
-            let _nullifier = builder.end_non_revertible.new_nullifiers.pop();
-            inputs.kernel_data = builder.is_public();
 
             inputs.pre_existing_blocks[0] = inputs.kernel_data.historical_header.hash();
 
@@ -554,7 +546,7 @@ mod tests {
         fn update_nullifier_tree_with_new_leaves(
             mut self,
             nullifier_tree: &mut NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT>,
-            kernel_data: &mut RollupKernelData,
+            kernel_data: &mut KernelData,
             start_nullifier_tree_snapshot: AppendOnlyTreeSnapshot
         ) -> ([NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX], [NullifierMembershipWitness; MAX_NEW_NULLIFIERS_PER_TX], [Field; MAX_NEW_NULLIFIERS_PER_TX], [u64; MAX_NEW_NULLIFIERS_PER_TX]) {
             let mut nullifier_predecessor_preimages: [NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX] = dep::std::unsafe::zeroed();
@@ -611,7 +603,7 @@ mod tests {
         }
 
         fn build_inputs(mut self) -> BaseRollupInputs {
-            let mut kernel_data = self.kernel_data.to_rollup_kernel_data();
+            let mut kernel_data = self.kernel_data.to_kernel_data();
 
             let start_note_hash_tree = NonEmptyMerkleTree::new(
                 self.pre_existing_notes,
@@ -684,8 +676,6 @@ mod tests {
                 sorted_public_data_writes_indexes,
                 low_public_data_writes_preimages,
                 low_public_data_writes_witnesses,
-                public_data_reads_preimages,
-                public_data_reads_witnesses,
                 _new_subtree
             ) = update_public_data_tree(
                 &mut start_public_data_tree,
@@ -719,8 +709,6 @@ mod tests {
                 sorted_public_data_writes_indexes,
                 low_public_data_writes_preimages,
                 low_public_data_writes_witnesses,
-                public_data_reads_preimages,
-                public_data_reads_witnesses,
                 archive_root_membership_witness: ArchiveRootMembershipWitness { leaf_index: 0, sibling_path: start_archive.get_sibling_path(0) },
                 constants: self.constants
             }
@@ -744,11 +732,11 @@ mod tests {
         let mut builder = BaseRollupInputsBuilder::new();
 
         let new_note_hashes = [27, 28, 29, 30, 31, 32];
-        let mut new_note_hashes_vec = builder.kernel_data.end.new_note_hashes;
+        let mut new_note_hashes_vec = builder.kernel_data.new_note_hashes;
         for i in 0..new_note_hashes.len() {
             new_note_hashes_vec.push(SideEffect { value: new_note_hashes[i], counter: 0 });
         }
-        builder.kernel_data.end.new_note_hashes = new_note_hashes_vec;
+        builder.kernel_data.new_note_hashes = new_note_hashes_vec;
         let mut expected_commitments_tree = NonEmptyMerkleTree::new(
             [0; MAX_NEW_NOTE_HASHES_PER_TX * 2],
             [0; NOTE_HASH_TREE_HEIGHT],
@@ -1037,21 +1025,6 @@ mod tests {
         let outputs = BaseRollupInputsBuilder::new().execute();
 
         assert_eq(outputs.height_in_block_tree, 0);
-    }
-
-    #[test]
-    unconstrained fn single_public_state_read() {
-        let mut builder = BaseRollupInputsBuilder::new();
-
-        builder.pre_existing_public_data[0] = PublicDataTreeLeafPreimage {
-            slot: 27,
-            value: 28,
-            next_slot: 0,
-            next_index: 0,
-        };
-        builder.public_data_reads.push(0);
-
-        builder.succeeds();
     }
 
     #[test]

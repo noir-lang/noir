@@ -1,7 +1,7 @@
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { PrivateCallData } from './private_call_data.js';
-import { PrivateKernelInnerData } from './private_kernel_inner_data.js';
+import { PrivateKernelData } from './private_kernel_data.js';
 
 /**
  * Input to the private kernel circuit - Inner call.
@@ -11,7 +11,7 @@ export class PrivateKernelInnerCircuitPrivateInputs {
     /**
      * The previous kernel data
      */
-    public previousKernel: PrivateKernelInnerData,
+    public previousKernel: PrivateKernelData,
     /**
      * Private calldata corresponding to this iteration of the kernel.
      */
@@ -34,7 +34,7 @@ export class PrivateKernelInnerCircuitPrivateInputs {
   static fromBuffer(buffer: Buffer | BufferReader): PrivateKernelInnerCircuitPrivateInputs {
     const reader = BufferReader.asReader(buffer);
     return new PrivateKernelInnerCircuitPrivateInputs(
-      reader.readObject(PrivateKernelInnerData),
+      reader.readObject(PrivateKernelData),
       reader.readObject(PrivateCallData),
     );
   }
