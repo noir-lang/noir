@@ -114,16 +114,11 @@ pub(crate) fn run(
 
     let binary_packages =
         workspace.into_iter().filter(|package| package.is_binary()).zip(compiled_programs);
-    // let program_info = binary_packages
-    //     .par_bridge()
-    //     .map(|(package, program)| {
-    //         count_opcodes_and_gates_in_program(backend, program, package, expression_width)
-    //     })
-    //     .collect::<Result<_, _>>()?;
-    let mut new_program_info = binary_packages
+
+    let program_info = binary_packages
     .par_bridge()
     .map(|(package, program)| {
-        count_opcodes_and_gates_in_program_full(backend, program, package, expression_width)
+        count_opcodes_and_gates_in_program(backend, program, package, expression_width)
     })
     .collect::<Result<_, _>>()?;
 
@@ -132,17 +127,7 @@ pub(crate) fn run(
         .map(|contract| count_opcodes_and_gates_in_contract(backend, contract, expression_width))
         .collect::<Result<_, _>>()?;
 
-    // let contract_info = binar
-    //     .into_par_iter()
-    //     .map(|contract| count_opcodes_and_gates_in_contract(backend, contract, expression_width))
-    //     .collect::<Result<_, _>>()?;
-
-    // let mut new_program_info = binary_packages.flat_map(|(package, program)| {
-    //     count_opcodes_and_gates_in_program_full(backend, program, package, expression_width)
-    // }).collect::<Result<_, _>>()?;
-    // program_info.append(&mut new_program_info);
-
-    let info_report = InfoReport { contracts: contract_info, programs: new_program_info };
+    let info_report = InfoReport { programs: program_info, contracts: contract_info };
 
     if args.json {
         // Expose machine-readable JSON data.
@@ -152,9 +137,6 @@ pub(crate) fn run(
         if !info_report.programs.is_empty() {
             let mut program_table = table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes", Fm->"Backend Circuit Size"]);
 
-            // for program in info_report.new_programs {
-                // program_table.add_row(program.into());
-            // }
             for program_info in info_report.programs {
                 let program_rows: Vec<Row> = program_info.into();
                 for row in program_rows {
@@ -316,37 +298,6 @@ fn count_opcodes_and_gates_in_program(
     compiled_program: CompiledProgram,
     package: &Package,
     expression_width: ExpressionWidth,
-) -> Result<CircuitInfo, CliError> {
-    Ok(CircuitInfo {
-        name: package.name.to_string(),
-        expression_width,
-        // TODO(https://github.com/noir-lang/noir/issues/4428)
-        acir_opcodes: compiled_program.program.functions[0].opcodes.len(),
-        circuit_size: backend.get_exact_circuit_size(&compiled_program.program)?,
-    })
-}
-
-fn count_opcodes_and_gates_in_circuit(
-    backend: &Backend,
-    circuit: &Circuit,
-    program: &Program,
-    // compiled_program: CompiledProgram,
-    package: &Package,
-    expression_width: ExpressionWidth,
-) -> Result<CircuitInfo, CliError> {
-    Ok(CircuitInfo {
-        name: package.name.to_string(),
-        expression_width,
-        acir_opcodes: circuit.opcodes.len(),
-        circuit_size: backend.get_exact_circuit_size(program)?,
-    })
-}
-
-fn count_opcodes_and_gates_in_program_full(
-    backend: &Backend,
-    compiled_program: CompiledProgram,
-    package: &Package,
-    expression_width: ExpressionWidth,
 ) -> Result<ProgramInfo, CliError> {
     let functions = compiled_program.program
         .functions
@@ -359,7 +310,7 @@ fn count_opcodes_and_gates_in_program_full(
             })
         })
         .collect::<Result<_, _>>()?;
-    // Ok(functions)
+
     Ok(ProgramInfo { name: package.name.to_string(), expression_width, functions })
 }
 

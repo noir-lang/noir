@@ -643,12 +643,6 @@ impl<'f> Context<'f> {
             }
         }
 
-        // dbg!(new_map.len());
-        // for (address, (then_case, else_case, _)) in &new_map {
-        //     dbg!(&self.inserter.function.dfg[*then_case]);
-        //     dbg!(&self.inserter.function.dfg[*else_case]);
-        // }
-
         // Most slice information is collected when instructions are inlined.
         // We need to collect information on slice values here as we may possibly merge stores
         // before any inlining occurs.
