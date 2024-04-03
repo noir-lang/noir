@@ -37,7 +37,7 @@ use crate::ast::{
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Keyword, Token, TokenKind};
+use crate::token::{token_to_tok, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Literal, ModuleDeclaration,
@@ -47,6 +47,7 @@ use crate::{
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
+use lalrpop_util::lalrpop_mod;
 use noirc_errors::{Span, Spanned};
 
 mod assertion;
@@ -58,6 +59,9 @@ mod path;
 mod primitives;
 mod structs;
 mod traits;
+
+// synthesized by LALRPOP
+lalrpop_mod!(pub noir_parser);
 
 #[cfg(test)]
 mod test_helpers;
@@ -77,8 +81,46 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     let (module, mut parsing_errors) = program().parse_recovery_verbose(tokens);
 
     parsing_errors.extend(lexing_errors.into_iter().map(Into::into));
+    let parsed_module = module.unwrap_or(ParsedModule { items: vec![] });
 
-    (module.unwrap_or(ParsedModule { items: vec![] }), parsing_errors)
+    if cfg!(feature = "experimental_parser") {
+        for parsed_item in &parsed_module.items {
+            if lalrpop_parser_supports_kind(&parsed_item.kind) {
+                let input = &source_program[std::ops::Range::<usize>::from(parsed_item.span)];
+                let mut lexer = Lexer::new(input);
+                lexer = lexer.skip_whitespaces(false);
+                let mut errors = Vec::new();
+
+                // TODO: this is a hack to get the references working
+                // -> this likely means that we'll want to propagate the <'input> lifetime further into Token
+                let lexer_result = lexer.collect::<Vec<_>>();
+                let referenced_lexer_result = lexer_result.iter().map(|token_result| {
+                    token_result
+                        .as_ref()
+                        .map(|(start, ref token, end)| (*start, token_to_tok(token), *end))
+                        .map_err(|x| x.clone())
+                });
+
+                let calculated = noir_parser::TopLevelStatementParser::new().parse(
+                    input,
+                    &mut errors,
+                    referenced_lexer_result,
+                );
+                assert!(
+                    calculated.is_ok(),
+                    "{:?}\n\n{:?}\n\n{:?}",
+                    calculated,
+                    lexer_result,
+                    input
+                );
+            }
+        }
+    }
+    (parsed_module, parsing_errors)
+}
+
+fn lalrpop_parser_supports_kind(kind: &ItemKind) -> bool {
+    matches!(kind, ItemKind::Import(_))
 }
 
 /// program: module EOF

@@ -5,7 +5,7 @@ use noirc_errors::{Position, Span};
 
 use crate::lexer::token::{Keyword, Tok};
 use crate::lexer::token as noir_token;
-use crate::lexer::lexer::IntType;
+// use crate::lexer::lexer::IntType;
 use crate::lexer::errors::LexerErrorKind;
 use crate::ParsedModule;
 use crate::parser::TopLevelStatement;
@@ -139,42 +139,60 @@ UseTree: UseTree = {
     //     UseTree { prefix, kind }
     // },
 
-    <mut prefix:Path> <postfix:UseTreePostfix> => {
-        // let ident = prefix.pop();
-        // let kind = UseTreeKind::Path(ident, alias);
-        // UseTree { prefix, kind }
-        match postfix {
-            Ok(alias) => {
-                let ident = prefix.pop();
-                let kind = UseTreeKind::Path(ident, alias);
-                UseTree { prefix, kind }
-            },
-
-            Err((prefix, use_trees)) => {
-                let kind = UseTreeKind::List(use_trees);
-                UseTree { prefix, kind }
-            }
-        }
-    },
-
-}
-
-Alias: Ident = {
-    r"[\t\r\n ]+" "as" r"[\t\r\n ]+" <Ident> => <>,
-}
-
-UseTreePostfix: Result<Option<Ident>, (Path, Vec<UseTree>)> = {
-    // path::to::ident as SomeAlias
-    <alias:Alias?> => {
-        Ok(alias)
-    },
-
-    // // path::to::{identA, further::path::{identB, identC}}
-    // "::" "{" <mut use_trees:(<UseTree> ",")*> <use_tree:(<UseTree> <","?>)> "}" => {
-    //     Err((use_trees, use_tree))
+    // <mut prefix:Path> "::" <postfix:UseTreePostfix> => {
+    //     // let ident = prefix.pop();
+    //     // let kind = UseTreeKind::Path(ident, alias);
+    //     // UseTree { prefix, kind }
+    //     match postfix {
+    //         Ok((ident, alias)) => {
+    //             // let ident = prefix.pop();
+    //             let kind = UseTreeKind::Path(ident, alias);
+    //             UseTree { prefix, kind }
+    //         },
+    //
+    //         Err((prefix, use_trees)) => {
+    //             let kind = UseTreeKind::List(use_trees);
+    //             UseTree { prefix, kind }
+    //         }
+    //     }
     // },
+
+    // TODO: this is the new approach:
+    // inlining what's needed to distinguish the case we're in
+    "crate" <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
+        todo!()
+    },
+
+    "dep" <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
+        todo!()
+    },
+
+    <head:Ident> <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
+        todo!()
+    },
+
 }
 
+PathSegments: Vec<Ident> = {
+    // <lo:@L> <hi:@R> => vec![],
+    // <lo:@L> <segment:Ident> <hi:@R> => vec![segment],
+    // <lo:@L> <segment:Ident> <mut segments:("::" <Ident>)*> <hi:@R> => {
+    <lo:@L> <mut segments:("::" <Ident>)+> <hi:@R> => {
+        // segments.insert(0, segment);
+        segments
+    }
+}
+
+// TODO: path adadapted from lalrpop's self parsing approach
+// Path: Path = {
+//     <lo:@L> <a:"::"?> <h:(<Ident> "::")*> <t:Ident> <hi:@R> => {
+//         let segments = h.into_iter().chain(once(t)).collect();
+//         let kind = PathKind::Plain;
+//         let span = Span::from(lo as u32..hi as u32);
+//
+//         Path { segments, kind, span }
+//     },
+// };
 pub(crate) Path: Path = {
 
     <lo:@L> "crate" "::" <segments:PathSegments> <hi:@R> => {
@@ -208,30 +226,26 @@ pub(crate) Path: Path = {
         Path { segments, kind, span }
     },
 
-    // <lo:@L> "crate" <hi:@R> => {
-    //     let segments = vec![];
-    //     let kind = PathKind::Crate;
-    //     let span = Span::from(lo as u32..hi as u32);
-    //     Path { segments, kind, span }
-    // },
-    // <lo:@L> "dep" <hi:@R> => {
-    //     let segments = vec![];
-    //     let kind = PathKind::Dep;
-    //     let span = Span::from(lo as u32..hi as u32);
-    //     Path { segments, kind, span }
-    // },
-
 }
 
-PathSegments: Vec<Ident> = {
-    // <lo:@L> <hi:@R> => vec![],
-    // <lo:@L> <segment:Ident> <hi:@R> => vec![segment],
-    <lo:@L> <segment:Ident> <mut segments:("::" <Ident>)*> <hi:@R> => {
-        segments.insert(0, segment);
-        segments
-    }
-}
 
+
+
+// Alias: Ident = {
+//     r"[\t\r\n ]+" "as" r"[\t\r\n ]+" <Ident> => <>,
+// }
+//
+// UseTreePostfix: Result<(Ident, Option<Ident>), (Path, Vec<UseTree>)> = {
+//     // path::to::ident as SomeAlias
+//     <id:Ident> <alias:Alias?> => {
+//         Ok((ident, alias))
+//     },
+//
+//     // path::to::{identA, further::path::{identB, identC}}
+//     "::" "{" <mut use_trees:(<UseTree> ",")*> <use_tree:(<UseTree> <","?>)> "}" => {
+//         Err((use_trees, use_tree))
+//     },
+// }
 
 Ident: Ident = {
     <lo:@L> <i:ident> <hi:@R> => {

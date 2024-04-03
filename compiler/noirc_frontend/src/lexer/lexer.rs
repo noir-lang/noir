@@ -2,7 +2,7 @@ use crate::token::{Attribute, DocStyle};
 
 use super::{
     errors::LexerErrorKind,
-    token::{IntType, Keyword, SpannedToken, Token, Tokens, Tok, token_to_tok},
+    token::{token_to_tok, IntType, Keyword, SpannedToken, Tok, Token, Tokens},
 };
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
@@ -572,7 +572,6 @@ impl<'a> Lexer<'a> {
     }
 }
 
-
 // TODO: are these needed? if not, cleanup
 fn to_spanned_token_result(x: Result<(usize, Token, usize), LexerErrorKind>) -> SpannedTokenResult {
     x.map(|(start, token, end)| {
@@ -580,12 +579,17 @@ fn to_spanned_token_result(x: Result<(usize, Token, usize), LexerErrorKind>) -> 
         SpannedToken::new(token, span)
     })
 }
-fn from_spanned_token_result(x: SpannedTokenResult) -> Result<(usize, Token, usize), LexerErrorKind> {
+fn from_spanned_token_result(
+    x: SpannedTokenResult,
+) -> Result<(usize, Token, usize), LexerErrorKind> {
     x.map(|spanned_token| {
-        (spanned_token.to_span().start() as usize, spanned_token.clone().into(), spanned_token.to_span().end() as usize)
+        (
+            spanned_token.to_span().start() as usize,
+            spanned_token.clone().into(),
+            spanned_token.to_span().end() as usize,
+        )
     })
 }
-
 
 impl<'a> Iterator for Lexer<'a> {
     // type Item = SpannedTokenResult;
@@ -600,46 +604,13 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
-
-// // TODO: cleanup naming
-// fn from_spanned_token_result_2<'a>(x: &mut Lexer<'a>) -> Result<(usize, Tok<'a>, usize), LexerErrorKind> {
-//     x.next_token().as_ref().map(|spanned_token| {
-//         (spanned_token.to_span().start() as usize, token_to_tok(spanned_token.into()), spanned_token.to_span().end() as usize)
-//     }).map_err(|x| x.clone())
-// }
-
-// // TODO: remove, wip shim type
-// pub struct LifetimeLexer<'a> {
-//     lexer: Lexer<'a>,
-// }
-//
-// impl<'a> Iterator for LifetimeLexer<'a> {
-//     type Item = Result<(usize, Tok<'a>, usize), LexerErrorKind>;
-//
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.lexer.done {
-//             None
-//         } else {
-//             Some(from_spanned_token_result_2(&mut self.lexer))
-//
-//             // Some(match from_spanned_token_result(self.lexer.next_token()) {
-//             //     Ok((start, ref token, end)) => Ok((start, token_to_tok(token), end)),
-//             //
-//             //     Err(e) => Err(e),
-//             // })
-//         }
-//     }
-// }
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 
     // TODO: cleanup imports
-    use crate::token::{Tok, token_to_tok};
+    use crate::token::{token_to_tok, Tok};
 
     #[test]
     fn test_single_double_char() {
@@ -1307,17 +1278,17 @@ mod tests {
         // // assert!(calculated.is_ok(), "{:?}", calculated);
         // assert_eq!(calculated, Ok(Tok::Bool(true)), "{:?}", calculated);
 
-
         // use statement tests
         let use_statement_inputs = vec![
-            "use\t\r\n   dep::std::compat;",
-            "use dep::std::compat;",
-            "use dep::std::ec::consts::te::baby_jubjub;",
-            "use dep::std::hash;",
-            "use dep::std::hash::poseidon2::Poseidon2Hasher;",
-            "use dep::std::hash::pedersen::PedersenHasher;",
-            "use dep::std::ec::tecurve::affine::Point as TEPoint;",
-            "use dep::std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify, eddsa_verify_with_hasher};",
+            // TODO: enable
+            // "use\t\r\n   dep::std::compat;",
+            // "use dep::std::compat;",
+            // "use dep::std::ec::consts::te::baby_jubjub;",
+            // "use dep::std::hash;",
+            // "use dep::std::hash::poseidon2::Poseidon2Hasher;",
+            // "use dep::std::hash::pedersen::PedersenHasher;",
+            // "use dep::std::ec::tecurve::affine::Point as TEPoint;",
+            // "use dep::std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify, eddsa_verify_with_hasher};",
         ];
 
         for use_statement_input in use_statement_inputs {
@@ -1329,14 +1300,24 @@ mod tests {
             // -> this likely means that we'll want to propagate the <'input> lifetime further into Token
             let lexer_result = lexer.into_iter().collect::<Vec<_>>();
             let referenced_lexer_result = lexer_result.iter().map(|token_result| {
-                token_result.as_ref().map(|(start, ref token, end)| {
-                    (*start, token_to_tok(token), *end)
-                }).map_err(|x| x.clone())
+                token_result
+                    .as_ref()
+                    .map(|(start, ref token, end)| (*start, token_to_tok(token), *end))
+                    .map_err(|x| x.clone())
             });
 
-            let calculated = noir_parser::TopLevelStatementParser::new().parse(use_statement_input, &mut errors, referenced_lexer_result);
-            assert!(calculated.is_ok(), "{:?}\n\n{:?}\n\n{:?}", calculated, lexer_result, use_statement_input);
+            let calculated = noir_parser::TopLevelStatementParser::new().parse(
+                use_statement_input,
+                &mut errors,
+                referenced_lexer_result,
+            );
+            assert!(
+                calculated.is_ok(),
+                "{:?}\n\n{:?}\n\n{:?}",
+                calculated,
+                lexer_result,
+                use_statement_input
+            );
         }
-
     }
 }

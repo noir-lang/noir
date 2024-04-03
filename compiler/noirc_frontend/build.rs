@@ -10,13 +10,14 @@ fn main() -> Result<(), String> {
 
     println!("cargo:rustc-env={BLNS_JSON_PATH}={dest_path_str}");
     std::fs::copy("./src/blns/blns.base64.json", dest_path).unwrap();
-  
+
     lalrpop::Configuration::new()
-      .emit_rerun_directives(true)
-      .use_cargo_dir_conventions()
-      // TODO: disable
-      .emit_report(true)
-      .process().unwrap();
+        .emit_rerun_directives(true)
+        .use_cargo_dir_conventions()
+        // TODO: disable
+        .emit_report(true)
+        .process()
+        .unwrap();
 
     Ok(())
 }

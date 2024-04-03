@@ -34,3 +34,6 @@ tempfile.workspace = true
 
 [build-dependencies]
 lalrpop = "0.20.2"
+
+[features]
+experimental_parser = []
