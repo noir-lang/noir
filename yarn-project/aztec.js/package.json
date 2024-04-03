@@ -35,19 +35,26 @@
     "clean": "rm -rf ./dest .tsbuildinfo ./src/account_contract/artifacts",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests"
   },
   "inherits": [
     "../package.common.json",
     "./package.local.json"
   ],
   "jest": {
-    "preset": "ts-jest/presets/default-esm",
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
     },
     "testRegex": "./src/.*\\.test\\.(js|mjs|ts)$",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "transform": {
+      "^.+\\.tsx?$": [
+        "@swc/jest"
+      ]
+    },
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ]
   },
   "dependencies": {
     "@aztec/circuit-types": "workspace:^",
@@ -69,7 +76,6 @@
     "process": "^0.11.10",
     "resolve-typescript-plugin": "^2.0.1",
     "stream-browserify": "^3.0.0",
-    "ts-jest": "^29.1.0",
     "ts-loader": "^9.4.4",
     "ts-node": "^10.9.1",
     "tty-browserify": "^0.0.1",

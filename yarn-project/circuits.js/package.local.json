@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "build": "yarn clean && yarn generate && tsc -b"
+  }
+}

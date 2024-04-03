@@ -3,7 +3,7 @@ import { type AztecAddress, FunctionData, TxContext } from '@aztec/circuits.js';
 import { type FunctionAbi, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 
 import { type Wallet } from '../account/wallet.js';
-import { BaseContractInteraction, SendMethodOptions } from './base_contract_interaction.js';
+import { BaseContractInteraction, type SendMethodOptions } from './base_contract_interaction.js';
 
 export { SendMethodOptions };
 

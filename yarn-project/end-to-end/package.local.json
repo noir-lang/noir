@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "build": "yarn clean && tsc -b && webpack",
+    "formatting": "run -T prettier --check ./src \"!src/web/main.js\" && run -T eslint ./src",
+    "test": "DEBUG='aztec:*' NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --runInBand --testTimeout=60000 --forceExit"
+  }
+}

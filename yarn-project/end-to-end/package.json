@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "type": "module",
   "exports": "./dest/index.js",
+  "inherits": [
+    "../package.common.json",
+    "./package.local.json"
+  ],
   "scripts": {
     "build": "yarn clean && tsc -b && webpack",
     "build:e2e": "yarn clean && tsc -b",
@@ -11,9 +15,9 @@
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src \"!src/web/main.js\" && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
-    "test": "DEBUG='aztec:*' NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand --testTimeout=60000 --forceExit",
+    "test": "DEBUG='aztec:*' NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --runInBand --testTimeout=60000 --forceExit",
     "test:integration": "concurrently -k -s first -c reset,dim -n test,anvil \"yarn test:integration:run\" \"anvil\"",
-    "test:integration:run": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --runInBand --config jest.integration.config.json"
+    "test:integration:run": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --no-cache --runInBand --config jest.integration.config.json"
   },
   "dependencies": {
     "@aztec/accounts": "workspace:^",
@@ -40,6 +44,8 @@
     "@aztec/world-state": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@noble/curves": "^1.0.0",
+    "@swc/core": "^1.4.11",
+    "@swc/jest": "^0.2.36",
     "@types/fs-extra": "^11.0.2",
     "@types/jest": "^29.5.0",
     "@types/koa": "^2.13.9",
@@ -64,7 +70,6 @@
     "resolve-typescript-plugin": "^2.0.1",
     "stream-browserify": "^3.0.0",
     "string-argv": "^0.3.2",
-    "ts-jest": "^29.1.0",
     "ts-loader": "^9.4.4",
     "ts-node": "^10.9.1",
     "tslib": "^2.4.0",
@@ -77,12 +82,35 @@
     "winston": "^3.10.0"
   },
   "devDependencies": {
-    "concurrently": "^7.6.0"
+    "@jest/globals": "^29.5.0",
+    "@types/jest": "^29.5.0",
+    "concurrently": "^7.6.0",
+    "jest": "^29.5.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
   },
   "files": [
     "dest",
     "src",
     "!*.test.*"
   ],
-  "types": "./dest/index.d.ts"
+  "types": "./dest/index.d.ts",
+  "engines": {
+    "node": ">=18"
+  },
+  "jest": {
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
+    "transform": {
+      "^.+\\.tsx?$": [
+        "@swc/jest"
+      ]
+    },
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
+    },
+    "testRegex": "./src/.*\\.test\\.(js|mjs|ts)$",
+    "rootDir": "./src"
+  }
 }

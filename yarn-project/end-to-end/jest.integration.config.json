@@ -1,10 +1,8 @@
 {
-  "preset": "ts-jest/presets/default-esm",
-  "globals": {
-    "ts-jest": {
-      "useESM": true
-    }
+  "transform": {
+    "^.+\\.tsx?$": ["@swc/jest"]
   },
+  "extensionsToTreatAsEsm": [".ts"],
   "moduleNameMapper": {
     "^(\\.{1,2}/.*)\\.js$": "$1"
   },

@@ -15,7 +15,7 @@
     "build:fast": "yarn generate && tsc -b",
     "build:dev": "./watch.sh",
     "generate": "FORCE_COLOR=true yarn workspaces foreach --parallel --topological-dev --verbose run generate",
-    "clean": "yarn workspaces foreach -p -v run clean  "
+    "clean": "yarn workspaces foreach -p -v run clean"
   },
   "workspaces": [
     "accounts",
@@ -55,6 +55,8 @@
   "prettier": "@aztec/foundation/prettier",
   "devDependencies": {
     "@monorepo-utils/workspaces-to-typescript-project-references": "^2.9.0",
+    "@swc/core": "^1.4.11",
+    "@swc/jest": "^0.2.36",
     "@trivago/prettier-plugin-sort-imports": "^4.1.1",
     "eslint": "^8.21.0",
     "eslint-import-resolver-typescript": "^3.5.5",
@@ -65,8 +67,6 @@
     "typescript": "^5.0.4"
   },
   "resolutions": {
-    "ts-jest@^29.1.0": "patch:ts-jest@npm%3A29.1.1#./.yarn/patches/ts-jest-npm-29.1.1-04e888e48e.patch",
-    "ts-jest@^29.1.1": "patch:ts-jest@npm%3A29.1.1#./.yarn/patches/ts-jest-npm-29.1.1-04e888e48e.patch",
     "@aztec/bb.js": "portal:../barretenberg/ts",
     "@noir-lang/acvm_js": "portal:../noir/packages/acvm_js",
     "@noir-lang/types": "portal:../noir/packages/types",

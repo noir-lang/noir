@@ -2,6 +2,10 @@
   "name": "@aztec/circuits.js",
   "version": "0.1.0",
   "type": "module",
+  "inherits": [
+    "../package.common.json",
+    "./package.local.json"
+  ],
   "exports": {
     ".": "./dest/index.js",
     "./hash": "./dest/hash/index.js",
@@ -29,7 +33,7 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "remake-constants": "node --loader ts-node/esm src/scripts/constants.in.ts && prettier -w src/constants.gen.ts && cd ../../l1-contracts && ./.foundry/bin/forge fmt",
-    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
+    "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests"
   },
   "dependencies": {
     "@aztec/bb.js": "portal:../../barretenberg/ts",
@@ -46,7 +50,6 @@
     "@types/node": "^18.7.23",
     "jest": "^29.5.0",
     "prettier": "^2.8.4",
-    "ts-jest": "^29.1.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4"
   },
@@ -58,5 +61,20 @@
   "types": "./dest/index.d.ts",
   "engines": {
     "node": ">=18"
+  },
+  "jest": {
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
+    "transform": {
+      "^.+\\.tsx?$": [
+        "@swc/jest"
+      ]
+    },
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.[cm]?js$": "$1"
+    },
+    "testRegex": "./src/.*\\.test\\.(js|mjs|ts)$",
+    "rootDir": "./src"
   }
 }

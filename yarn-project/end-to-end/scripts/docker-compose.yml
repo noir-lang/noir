@@ -38,7 +38,11 @@ services:
       ETHEREUM_HOST: http://fork:8545
       CHAIN_ID: 31337
       PXE_URL: http://sandbox:8080
-    command: ${TEST:-./src/e2e_deploy_contract.test.ts}
+    entrypoint: >
+      sh -c '
+        while ! nc -z sandbox 8080; do sleep 1; done;
+        yarn test ${TEST:-./src/e2e_deploy_contract.test.ts}
+      '
     volumes:
       # TODO(AD) currently earthly uses /build instead of /usr/src
       - ../log:/usr/src/yarn-project/end-to-end/log:rw

@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "build": "yarn clean && yarn generate && tsc -b",
+    "clean": "rm -rf ./dest .tsbuildinfo src/types src/target"
+  }
+}

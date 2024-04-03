@@ -1,7 +1,7 @@
 export * from './db.js';
 export {
-  PublicExecution,
-  PublicExecutionResult,
+  type PublicExecution,
+  type PublicExecutionResult,
   isPublicExecutionResult,
   collectPublicDataReads,
   collectPublicDataUpdateRequests,
