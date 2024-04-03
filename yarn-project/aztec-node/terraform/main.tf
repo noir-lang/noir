@@ -237,6 +237,14 @@ resource "aws_ecs_task_definition" "aztec-node" {
         "value": "${data.terraform_remote_state.l1_contracts.outputs.availability_oracle_contract_address}"
       },
       {
+        "name": "GAS_TOKEN_CONTRACT_ADDRESS",
+        "value": "${data.terraform_remote_state.l1_contracts.outputs.gas_token_contract_address}"
+      },
+      {
+        "name": "GAS_PORTAL_CONTRACT_ADDRESS",
+        "value": "${data.terraform_remote_state.l1_contracts.outputs.gas_portal_contract_address}"
+      },
+      {
         "name": "API_KEY",
         "value": "${var.API_KEY}"
       },

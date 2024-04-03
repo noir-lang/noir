@@ -55,3 +55,22 @@ variable "OUTBOX_CONTRACT_ADDRESS" {
 output "outbox_contract_address" {
   value = var.OUTBOX_CONTRACT_ADDRESS
 }
+
+
+variable "GAS_TOKEN_CONTRACT_ADDRESS" {
+  type    = string
+  default = ""
+}
+
+output "gas_token_contract_address" {
+  value = var.GAS_TOKEN_CONTRACT_ADDRESS
+}
+
+variable "GAS_PORTAL_CONTRACT_ADDRESS" {
+  type    = string
+  default = ""
+}
+
+output "gas_portal_contract_address" {
+  value = var.GAS_PORTAL_CONTRACT_ADDRESS
+}
