@@ -42,7 +42,7 @@ After declaring a Field, you can use these common methods on it:
 Transforms the field into an array of bits, Little Endian.
 
 ```rust
-fn to_le_bits<N>(_x : Field, _bit_size: u32) -> [u1; N]
+fn to_le_bits(_x : Field, _bit_size: u32) -> [u1]
 ```
 
 example:
@@ -59,7 +59,7 @@ fn main() {
 Transforms the field into an array of bits, Big Endian.
 
 ```rust
-fn to_be_bits<N>(_x : Field, _bit_size: u32) -> [u1; N]
+fn to_be_bits(_x : Field, _bit_size: u32) -> [u1]
 ```
 
 example:

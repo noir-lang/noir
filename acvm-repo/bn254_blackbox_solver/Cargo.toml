@@ -2,7 +2,7 @@
 name = "bn254_blackbox_solver"
 description = "Solvers for black box functions which are specific for the bn254 curve"
 # x-release-please-start-version
-version = "0.39.0"
+version = "0.42.0"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -16,6 +16,8 @@ repository.workspace = true
 acir.workspace = true
 acvm_blackbox_solver.workspace = true
 thiserror.workspace = true
+num-traits.workspace = true
+cfg-if = "1.0.0"
 
 rust-embed = { version = "6.6.0", features = [
     "debug-embed",
@@ -31,7 +33,7 @@ ark-ff = { version = "^0.4.0", default-features = false }
 num-bigint.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasmer = { version = "4.2.3", default-features = false, features = [
+wasmer = { version = "4.2.6", default-features = false, features = [
     "js-default",
 ] }
 
@@ -41,7 +43,7 @@ js-sys.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 getrandom.workspace = true
-wasmer = "4.2.3"
+wasmer = "4.2.6"
 
 [build-dependencies]
 pkg-config = "0.3"

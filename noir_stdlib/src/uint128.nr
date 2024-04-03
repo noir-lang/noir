@@ -13,14 +13,11 @@ impl U128 {
     pub fn from_u64s_le(lo: u64, hi: u64) -> U128 {
         // in order to handle multiplication, we need to represent the product of two u64 without overflow
         assert(crate::field::modulus_num_bits() as u32 > 128);
-        U128 {
-            lo: lo as Field,
-            hi: hi as Field,
-        }
+        U128 { lo: lo as Field, hi: hi as Field }
     }
 
     pub fn from_u64s_be(hi: u64, lo: u64) -> U128 {
-        U128::from_u64s_le(lo,hi)
+        U128::from_u64s_le(lo, hi)
     }
 
     pub fn from_le_bytes(bytes: [u8; 16]) -> U128 {
@@ -36,16 +33,13 @@ impl U128 {
             hi += (bytes[i] as Field)*base;
             base *= 256;
         }
-        U128 {
-            lo,
-            hi,
-        }
+        U128 { lo, hi }
     }
 
     pub fn to_be_bytes(self: Self) -> [u8; 16] {
         let lo = self.lo.to_be_bytes(8);
         let hi = self.hi.to_be_bytes(8);
-        let mut bytes = [0;16];
+        let mut bytes = [0; 16];
         for i in 0..8 {
             bytes[i] = hi[i];
             bytes[i+8] = lo[i];
@@ -56,7 +50,7 @@ impl U128 {
     pub fn to_le_bytes(self: Self) -> [u8; 16] {
         let lo = self.lo.to_le_bytes(8);
         let hi = self.hi.to_le_bytes(8);
-        let mut bytes = [0;16];
+        let mut bytes = [0; 16];
         for i in 0..8 {
             bytes[i] = lo[i];
             bytes[i+8] = hi[i];
@@ -73,9 +67,9 @@ impl U128 {
 
         let mut lo = 0;
         let mut hi = 0;
-        let mut base = 1; 
+        let mut base = 1;
         if N <= 18 {
-            for i in 0..N-2 {
+            for i in 0..N - 2 {
                 lo += U128::decode_ascii(bytes[N-i-1])*base;
                 base = base*16;
             }
@@ -85,27 +79,21 @@ impl U128 {
                 base = base*16;
             }
             base = 1;
-            for i in 17..N-1 {           
+            for i in 17..N - 1 {
                 hi += U128::decode_ascii(bytes[N-i])*base;
                 base = base*16;
             }
         }
-        U128 {
-            lo: lo as Field,
-            hi: hi as Field,
-        }
+        U128 { lo: lo as Field, hi: hi as Field }
     }
 
     fn decode_ascii(ascii: u8) -> Field {
         if ascii < 58 {
             ascii - 48
+        } else if ascii < 71 {
+            ascii - 55
         } else {
-            if ascii < 71 {
-                ascii - 55
-            } else {
-                ascii - 87
-            }
-            
+            ascii - 87
         } as Field
     }
 
@@ -114,15 +102,14 @@ impl U128 {
             (U128::from_u64s_le(0, 0), self)
         } else {
             //TODO check if this can overflow?
-            let (q,r) = self.unconstrained_div(b * U128::from_u64s_le(2,0));
-            let q_mul_2 = q * U128::from_u64s_le(2,0);
+            let (q,r) = self.unconstrained_div(b * U128::from_u64s_le(2, 0));
+            let q_mul_2 = q * U128::from_u64s_le(2, 0);
             if r < b {
                 (q_mul_2, r)
             } else {
-                (q_mul_2 + U128::from_u64s_le(1,0), r - b)
+                (q_mul_2 + U128::from_u64s_le(1, 0), r - b)
             }
-
-        }  
+        }
     }
 
     pub fn from_integer<T>(i: T) -> U128 {
@@ -130,31 +117,25 @@ impl U128 {
         // Reject values which would overflow a u128
         f.assert_max_bit_size(128);
         let lo = f as u64 as Field;
-        let hi = (f-lo) / pow64;
-        U128 {
-            lo,
-            hi,
-        }
+        let hi = (f - lo) / pow64;
+        U128 { lo, hi }
     }
 
     pub fn to_integer<T>(self) -> T {
-        crate::from_field(self.lo+self.hi*pow64)
+        crate::from_field(self.lo + self.hi * pow64)
     }
 
     fn wrapping_mul(self: Self, b: U128) -> U128 {
-        let low = self.lo*b.lo;
+        let low = self.lo * b.lo;
         let lo = low as u64 as Field;
         let carry = (low - lo) / pow64;
         let high = if crate::field::modulus_num_bits() as u32 > 196 {
-            (self.lo+self.hi)*(b.lo+b.hi) - low + carry
+            (self.lo + self.hi) * (b.lo + b.hi) - low + carry
         } else {
-            self.lo*b.hi + self.hi*b.lo + carry
+            self.lo * b.hi + self.hi * b.lo + carry
         };
         let hi = high as u64 as Field;
-        U128 {
-            lo,
-            hi,
-        }
+        U128 { lo, hi }
     }
 }
 
@@ -180,7 +161,7 @@ impl Sub for U128 {
         let borrow = (low == lo) as Field;
         let high = self.hi - b.hi - borrow;
         let hi = high as u64 as Field;
-        assert(hi == high, "attempt to subtract with overflow");
+        assert(hi == high, "attempt to subtract with underflow");
         U128 {
             lo,
             hi,

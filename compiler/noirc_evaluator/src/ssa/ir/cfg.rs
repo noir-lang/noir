@@ -95,10 +95,6 @@ impl ControlFlowGraph {
         );
         predecessor_node.successors.insert(to);
         let successor_node = self.data.entry(to).or_default();
-        assert!(
-            successor_node.predecessors.len() < 2,
-            "ICE: A cfg node cannot have more than two predecessors"
-        );
         successor_node.predecessors.insert(from);
     }
 

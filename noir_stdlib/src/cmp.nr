@@ -6,10 +6,10 @@ trait Eq {
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
 
-impl Eq for u1 { fn eq(self, other: u1) -> bool { self == other } }
-impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
-impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
 impl Eq for u64 { fn eq(self, other: u64) -> bool { self == other } }
+impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
+impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
+impl Eq for u1 { fn eq(self, other: u1) -> bool { self == other } }
 
 impl Eq for i8 { fn eq(self, other: i8) -> bool { self == other } }
 impl Eq for i32 { fn eq(self, other: i32) -> bool { self == other } }
@@ -21,6 +21,16 @@ impl Eq for bool { fn eq(self, other: bool) -> bool { self == other } }
 impl<T, N> Eq for [T; N] where T: Eq {
     fn eq(self, other: [T; N]) -> bool {
         let mut result = true;
+        for i in 0 .. self.len() {
+            result &= self[i].eq(other[i]);
+        }
+        result
+    }
+}
+
+impl<T> Eq for [T] where T: Eq {
+    fn eq(self, other: [T]) -> bool {
+        let mut result = self.len() == other.len();
         for i in 0 .. self.len() {
             result &= self[i].eq(other[i]);
         }
@@ -97,8 +107,8 @@ trait Ord {
 
 // Note: Field deliberately does not implement Ord
 
-impl Ord for u8 {
-    fn cmp(self, other: u8) -> Ordering {
+impl Ord for u64 {
+    fn cmp(self, other: u64) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {
@@ -121,8 +131,8 @@ impl Ord for u32 {
     }
 }
 
-impl Ord for u64 {
-    fn cmp(self, other: u64) -> Ordering {
+impl Ord for u8 {
+    fn cmp(self, other: u8) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {
@@ -198,6 +208,26 @@ impl<T, N> Ord for [T; N] where T: Ord {
     // the ordering for the whole array.
     fn cmp(self, other: [T; N]) -> Ordering {
         let mut result = Ordering::equal();
+        for i in 0 .. self.len() {
+            if result == Ordering::equal() {
+                let result_i = self[i].cmp(other[i]);
+
+                if result_i == Ordering::less() {
+                    result = result_i;
+                } else if result_i == Ordering::greater() {
+                    result = result_i;
+                }
+            }
+        }
+        result
+    }
+}
+
+impl<T> Ord for [T] where T: Ord {
+    // The first non-equal element of both arrays determines
+    // the ordering for the whole array.
+    fn cmp(self, other: [T]) -> Ordering {
+        let mut result = self.len().cmp(other.len());
         for i in 0 .. self.len() {
             if result == Ordering::equal() {
                 let result_i = self[i].cmp(other[i]);

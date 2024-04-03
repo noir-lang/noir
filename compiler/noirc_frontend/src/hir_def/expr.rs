@@ -31,12 +31,13 @@ pub enum HirExpression {
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
     Error,
+    Quote(crate::BlockExpression),
 }
 
 impl HirExpression {
     /// Returns an empty block expression
     pub const fn empty_block() -> HirExpression {
-        HirExpression::Block(HirBlockExpression(vec![]))
+        HirExpression::Block(HirBlockExpression { statements: vec![] })
     }
 }
 
@@ -99,6 +100,7 @@ impl HirBinaryOp {
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
     Array(HirArrayLiteral),
+    Slice(HirArrayLiteral),
     Bool(bool),
     Integer(FieldElement, bool), //true for negative integer and false for positive
     Str(String),
@@ -247,11 +249,13 @@ pub struct HirIndexExpression {
 }
 
 #[derive(Debug, Clone)]
-pub struct HirBlockExpression(pub Vec<StmtId>);
+pub struct HirBlockExpression {
+    pub statements: Vec<StmtId>,
+}
 
 impl HirBlockExpression {
     pub fn statements(&self) -> &[StmtId] {
-        &self.0
+        &self.statements
     }
 }
 

@@ -1,12 +1,12 @@
 struct BoundedVec<T, MaxLen> {
     storage: [T; MaxLen],
     len: u64,
-    empty_value: T,
 }
 
 impl<T, MaxLen> BoundedVec<T, MaxLen> {
-    pub fn new(initial_value: T) -> Self {
-        BoundedVec { storage: [initial_value; MaxLen], len: 0, empty_value: initial_value }
+    pub fn new() -> Self {
+        let zeroed = crate::unsafe::zeroed();
+        BoundedVec { storage: [zeroed; MaxLen], len: 0 }
     }
 
     pub fn get(mut self: Self, index: u64) -> T {
@@ -29,7 +29,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len
     }
 
-    pub fn max_len(_self: BoundedVec<T, MaxLen>) -> u64{
+    pub fn max_len(_self: BoundedVec<T, MaxLen>) -> u64 {
         MaxLen
     }
 
@@ -44,6 +44,15 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         assert(new_len as u64 <= MaxLen as u64, "extend_from_array out of bounds");
         for i in 0..array.len() {
             self.storage[self.len + i] = array[i];
+        }
+        self.len = new_len;
+    }
+
+    pub fn extend_from_slice(&mut self, slice: [T]) {
+        let new_len = self.len + slice.len();
+        assert(new_len as u64 <= MaxLen as u64, "extend_from_slice out of bounds");
+        for i in 0..slice.len() {
+            self.storage[self.len + i] = slice[i];
         }
         self.len = new_len;
     }
@@ -68,7 +77,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.len -= 1;
 
         let elem = self.storage[self.len];
-        self.storage[self.len] = self.empty_value;
+        self.storage[self.len] = crate::unsafe::zeroed();
         elem
     }
 
@@ -77,7 +86,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         let mut exceeded_len = false;
         for i in 0..MaxLen {
             exceeded_len |= i == self.len;
-            if (!exceeded_len) {
+            if !exceeded_len {
                 ret |= predicate(self.storage[i]);
             }
         }

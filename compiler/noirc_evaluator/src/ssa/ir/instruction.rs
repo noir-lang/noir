@@ -37,6 +37,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Intrinsic {
     ArrayLen,
+    AsSlice,
     AssertConstant,
     SlicePushBack,
     SlicePushFront,
@@ -57,6 +58,7 @@ impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::AsSlice => write!(f, "as_slice"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
@@ -89,6 +91,7 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             Intrinsic::ArrayLen
+            | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
             | Intrinsic::SlicePopBack
@@ -109,6 +112,7 @@ impl Intrinsic {
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),
+            "as_slice" => Some(Intrinsic::AsSlice),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
@@ -185,8 +189,9 @@ pub(crate) enum Instruction {
     ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
-    /// to those in the given array. This will not modify the original array.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId },
+    /// to those in the given array. This will not modify the original array unless `mutable` is
+    /// set. This flag is off by default and only enabled when optimizations determine it is safe.
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
@@ -194,6 +199,13 @@ pub(crate) enum Instruction {
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// IncrementRc instructions are ignored.
     IncrementRc { value: ValueId },
+
+    /// An instruction to decrement the reference count of a value.
+    ///
+    /// This currently only has an effect in Brillig code where array sharing and copy on write is
+    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
+    /// DecrementRc instructions are ignored.
+    DecrementRc { value: ValueId },
 }
 
 impl Instruction {
@@ -214,6 +226,7 @@ impl Instruction {
             Instruction::Constrain(..)
             | Instruction::Store { .. }
             | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. }
             | Instruction::RangeCheck { .. }
             | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
             Instruction::Allocate { .. }
@@ -250,6 +263,7 @@ impl Instruction {
             | Load { .. }
             | Store { .. }
             | IncrementRc { .. }
+            | DecrementRc { .. }
             | RangeCheck { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
@@ -285,6 +299,7 @@ impl Instruction {
             | Store { .. }
             | EnableSideEffects { .. }
             | IncrementRc { .. }
+            | DecrementRc { .. }
             | RangeCheck { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
@@ -349,10 +364,14 @@ impl Instruction {
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
-            Instruction::ArraySet { array, index, value } => {
-                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
-            }
+            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
+                array: f(*array),
+                index: f(*index),
+                value: f(*value),
+                mutable: *mutable,
+            },
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
+            Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 Instruction::RangeCheck {
                     value: f(*value),
@@ -401,7 +420,7 @@ impl Instruction {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 f(*array);
                 f(*index);
                 f(*value);
@@ -409,7 +428,9 @@ impl Instruction {
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
             }
-            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } => {
+            Instruction::IncrementRc { value }
+            | Instruction::DecrementRc { value }
+            | Instruction::RangeCheck { value, .. } => {
                 f(*value);
             }
         }
@@ -554,13 +575,14 @@ impl Instruction {
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
             Instruction::IncrementRc { .. } => None,
+            Instruction::DecrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
-                if let Some(numeric_constant) = dfg.get_numeric_constant(*value) {
-                    if numeric_constant.num_bits() < *max_bit_size {
-                        return Remove;
-                    }
+                let max_potential_bits = dfg.get_value_max_num_bits(*value);
+                if max_potential_bits < *max_bit_size {
+                    Remove
+                } else {
+                    None
                 }
-                None
             }
         }
     }

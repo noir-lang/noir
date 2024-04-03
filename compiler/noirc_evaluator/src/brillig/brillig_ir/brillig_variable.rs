@@ -1,14 +1,31 @@
-use acvm::brillig_vm::brillig::{
-    HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray,
+use acvm::{
+    brillig_vm::brillig::{HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray},
+    FieldElement,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::ssa::ir::types::Type;
 
+use super::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct SingleAddrVariable {
     pub(crate) address: MemoryAddress,
     pub(crate) bit_size: u32,
+}
+
+impl SingleAddrVariable {
+    pub(crate) fn new(address: MemoryAddress, bit_size: u32) -> Self {
+        SingleAddrVariable { address, bit_size }
+    }
+
+    pub(crate) fn new_usize(address: MemoryAddress) -> Self {
+        SingleAddrVariable { address, bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE }
+    }
+
+    pub(crate) fn new_field(address: MemoryAddress) -> Self {
+        SingleAddrVariable { address, bit_size: FieldElement::max_num_bits() }
+    }
 }
 
 /// The representation of a noir array in the Brillig IR
@@ -108,7 +125,9 @@ impl BrilligVariable {
 
 pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
     match typ {
-        Type::Numeric(_) | Type::Reference(_) | Type::Function => HeapValueType::Simple,
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
+            HeapValueType::Simple(get_bit_size_from_ssa_type(typ))
+        }
         Type::Array(elem_type, size) => HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
             size: typ.element_size() * size,
@@ -116,5 +135,16 @@ pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
         Type::Slice(elem_type) => HeapValueType::Vector {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
         },
+    }
+}
+
+pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
+    match typ {
+        Type::Reference(_) => BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        // NB. function references are converted to a constant when
+        // translating from SSA to Brillig (to allow for debugger
+        // instrumentation to work properly)
+        Type::Function => 32,
+        typ => typ.bit_size(),
     }
 }

@@ -5,7 +5,6 @@ use std::str::FromStr;
 use acvm::acir::circuit::{Circuit, OpcodeLocation};
 use acvm::acir::native_types::WitnessMap;
 use acvm::BlackBoxFunctionSolver;
-use codespan_reporting::files::{Files, SimpleFile};
 
 use crate::context::DebugCommandResult;
 use crate::context::DebugContext;
@@ -30,15 +29,16 @@ use nargo::artifacts::debug::DebugArtifact;
 use fm::FileId;
 use noirc_driver::CompiledProgram;
 
+type BreakpointId = i64;
+
 pub struct DapSession<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> {
     server: Server<R, W>,
     context: DebugContext<'a, B>,
     debug_artifact: &'a DebugArtifact,
     running: bool,
-    source_to_opcodes: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>>,
-    next_breakpoint_id: i64,
-    instruction_breakpoints: Vec<(OpcodeLocation, i64)>,
-    source_breakpoints: BTreeMap<FileId, Vec<(OpcodeLocation, i64)>>,
+    next_breakpoint_id: BreakpointId,
+    instruction_breakpoints: Vec<(OpcodeLocation, BreakpointId)>,
+    source_breakpoints: BTreeMap<FileId, Vec<(OpcodeLocation, BreakpointId)>>,
 }
 
 enum ScopeReferences {
@@ -57,8 +57,6 @@ impl From<i64> for ScopeReferences {
     }
 }
 
-// BTreeMap<FileId, Vec<(usize, OpcodeLocation)>
-
 impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     pub fn new(
         server: Server<R, W>,
@@ -67,7 +65,6 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap,
     ) -> Self {
-        let source_to_opcodes = Self::build_source_to_opcode_debug_mappings(debug_artifact);
         let context = DebugContext::new(
             solver,
             circuit,
@@ -79,52 +76,11 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             server,
             context,
             debug_artifact,
-            source_to_opcodes,
             running: false,
             next_breakpoint_id: 1,
             instruction_breakpoints: vec![],
             source_breakpoints: BTreeMap::new(),
         }
-    }
-
-    /// Builds a map from FileId to an ordered vector of tuples with line
-    /// numbers and opcode locations corresponding to those line numbers
-    fn build_source_to_opcode_debug_mappings(
-        debug_artifact: &'a DebugArtifact,
-    ) -> BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> {
-        if debug_artifact.debug_symbols.is_empty() {
-            return BTreeMap::new();
-        }
-        let locations = &debug_artifact.debug_symbols[0].locations;
-        let simple_files: BTreeMap<_, _> = debug_artifact
-            .file_map
-            .iter()
-            .map(|(file_id, debug_file)| {
-                (
-                    file_id,
-                    SimpleFile::new(debug_file.path.to_str().unwrap(), debug_file.source.as_str()),
-                )
-            })
-            .collect();
-
-        let mut result: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> = BTreeMap::new();
-        locations.iter().for_each(|(opcode_location, source_locations)| {
-            if source_locations.is_empty() {
-                return;
-            }
-            let source_location = source_locations[0];
-            let span = source_location.span;
-            let file_id = source_location.file;
-            let Ok(line_index) = &simple_files[&file_id].line_index((), span.start() as usize)
-            else {
-                return;
-            };
-            let line_number = line_index + 1;
-
-            result.entry(file_id).or_default().push((line_number, *opcode_location));
-        });
-        result.iter_mut().for_each(|(_, file_locations)| file_locations.sort_by_key(|x| x.0));
-        result
     }
 
     fn send_stopped_event(&mut self, reason: StoppedEventReason) -> Result<(), ServerError> {
@@ -230,6 +186,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 
     fn build_stack_trace(&self) -> Vec<StackFrame> {
+        let stack_frames = self.context.get_variables();
+
         self.context
             .get_source_call_stack()
             .iter()
@@ -239,9 +197,15 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
                     self.debug_artifact.location_line_number(*source_location).unwrap();
                 let column_number =
                     self.debug_artifact.location_column_number(*source_location).unwrap();
+
+                let name = match stack_frames.get(index) {
+                    Some(frame) => format!("{} {}", frame.function_name, index),
+                    None => format!("frame #{index}"),
+                };
+
                 StackFrame {
                     id: index as i64,
-                    name: format!("frame #{index}"),
+                    name,
                     source: Some(Source {
                         path: self.debug_artifact.file_map[&source_location.file]
                             .path
@@ -422,7 +386,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         Ok(())
     }
 
-    fn get_next_breakpoint_id(&mut self) -> i64 {
+    fn get_next_breakpoint_id(&mut self) -> BreakpointId {
         let id = self.next_breakpoint_id;
         self.next_breakpoint_id += 1;
         id
@@ -493,36 +457,6 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
         found.map(|iter| *iter.0)
     }
 
-    // TODO: there are four possibilities for the return value of this function:
-    // 1. the source location is not found -> None
-    // 2. an exact unique location is found -> Some(opcode_location)
-    // 3. an exact but not unique location is found (ie. a source location may
-    //    be mapped to multiple opcodes, and those may be disjoint, for example for
-    //    functions called multiple times throughout the program)
-    // 4. exact location is not found, so an opcode for a nearby source location
-    //    is returned (this again could actually be more than one opcodes)
-    // Case 3 is not supported yet, and 4 is not correctly handled.
-    fn find_opcode_for_source_location(
-        &self,
-        file_id: &FileId,
-        line: i64,
-    ) -> Option<OpcodeLocation> {
-        let line = line as usize;
-        let Some(line_to_opcodes) = self.source_to_opcodes.get(file_id) else {
-            return None;
-        };
-        let found_index = match line_to_opcodes.binary_search_by(|x| x.0.cmp(&line)) {
-            Ok(index) => line_to_opcodes[index].1,
-            Err(index) => {
-                if index >= line_to_opcodes.len() {
-                    return None;
-                }
-                line_to_opcodes[index].1
-            }
-        };
-        Some(found_index)
-    }
-
     fn map_source_breakpoints(&mut self, args: &SetBreakpointsArguments) -> Vec<Breakpoint> {
         let Some(ref source) = &args.source.path else {
             return vec![];
@@ -539,7 +473,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
             .iter()
             .map(|breakpoint| {
                 let line = breakpoint.line;
-                let Some(location) = self.find_opcode_for_source_location(&file_id, line) else {
+                let Some(location) = self.context.find_opcode_for_source_location(&file_id, line)
+                else {
                     return Breakpoint {
                         verified: false,
                         message: Some(String::from(
@@ -608,16 +543,20 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver> DapSession<'a, R, W, B> {
     }
 
     fn build_local_variables(&self) -> Vec<Variable> {
-        let mut variables: Vec<_> = self
-            .context
-            .get_variables()
+        let Some(current_stack_frame) = self.context.current_stack_frame() else {
+            return vec![];
+        };
+
+        let mut variables = current_stack_frame
+            .variables
             .iter()
             .map(|(name, value, _var_type)| Variable {
                 name: String::from(*name),
                 value: format!("{:?}", *value),
                 ..Variable::default()
             })
-            .collect();
+            .collect::<Vec<Variable>>();
+
         variables.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
         variables
     }
@@ -668,8 +607,13 @@ pub fn run_session<R: Read, W: Write, B: BlackBoxFunctionSolver>(
         file_map: program.file_map,
         warnings: program.warnings,
     };
-    let mut session =
-        DapSession::new(server, solver, &program.circuit, &debug_artifact, initial_witness);
+    let mut session = DapSession::new(
+        server,
+        solver,
+        &program.program.functions[0],
+        &debug_artifact,
+        initial_witness,
+    );
 
     session.run_loop()
 }
