@@ -13,6 +13,7 @@ import { AvmSimulator } from '../avm/avm_simulator.js';
 import { HostStorage } from '../avm/journal/host_storage.js';
 import { AvmPersistableStateManager } from '../avm/journal/index.js';
 import {
+  isAvmBytecode,
   temporaryConvertAvmResults,
   temporaryCreateAvmExecutionEnvironment,
 } from '../avm/temporary_executor_migration.js';
@@ -178,6 +179,30 @@ export class PublicExecutor {
     sideEffectCounter: number = 0,
   ): Promise<PublicExecutionResult> {
     const selector = execution.functionData.selector;
+    const bytecode = await this.contractsDb.getBytecode(execution.contractAddress, selector);
+    if (!bytecode) {
+      throw new Error(`Bytecode not found for ${execution.contractAddress}:${selector}`);
+    }
+
+    if (isAvmBytecode(bytecode)) {
+      return await this.simulateAvm(execution, globalVariables, sideEffectCounter);
+    } else {
+      return await this.simulateAcvm(execution, globalVariables, sideEffectCounter);
+    }
+  }
+
+  /**
+   * Executes a public execution request with the ACVM.
+   * @param execution - The execution to run.
+   * @param globalVariables - The global variables to use.
+   * @returns The result of the run plus all nested runs.
+   */
+  private async simulateAcvm(
+    execution: PublicExecution,
+    globalVariables: GlobalVariables,
+    sideEffectCounter: number = 0,
+  ): Promise<PublicExecutionResult> {
+    const selector = execution.functionData.selector;
     const acir = await this.contractsDb.getBytecode(execution.contractAddress, selector);
     if (!acir) {
       throw new Error(`Bytecode not found for ${execution.contractAddress}:${selector}`);
@@ -214,12 +239,12 @@ export class PublicExecutor {
   }
 
   /**
-   * Executes a public execution request in the avm.
+   * Executes a public execution request in the AVM.
    * @param execution - The execution to run.
    * @param globalVariables - The global variables to use.
    * @returns The result of the run plus all nested runs.
    */
-  public async simulateAvm(
+  private async simulateAvm(
     execution: PublicExecution,
     globalVariables: GlobalVariables,
     _sideEffectCounter = 0,

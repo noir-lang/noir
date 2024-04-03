@@ -156,10 +156,6 @@ export interface FunctionAbi {
    * Whether the function is flagged as an initializer.
    */
   isInitializer: boolean;
-  /**
-   * Transitional: whether the function is an AVM function.
-   */
-  isTranspiled?: boolean;
 }
 
 /**

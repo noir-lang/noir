@@ -232,13 +232,9 @@ export abstract class AbstractPhaseManager {
         const isExecutionRequest = !isPublicExecutionResult(current);
 
         const sideEffectCounter = lastSideEffectCounter(tx) + 1;
-        // NOTE: temporary glue to incorporate avm execution calls.
-        const simulator = (execution: PublicExecution, globalVariables: GlobalVariables) =>
-          execution.functionData.isTranspiled
-            ? this.publicExecutor.simulateAvm(execution, globalVariables, sideEffectCounter)
-            : this.publicExecutor.simulate(execution, globalVariables, sideEffectCounter);
-
-        const result = isExecutionRequest ? await simulator(current, this.globalVariables) : current;
+        const result = isExecutionRequest
+          ? await this.publicExecutor.simulate(current, this.globalVariables, sideEffectCounter)
+          : current;
 
         const functionSelector = result.execution.functionData.selector.toString();
         if (result.reverted && !PhaseIsRevertible[this.phase]) {

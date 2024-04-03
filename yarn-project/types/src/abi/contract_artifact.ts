@@ -145,7 +145,6 @@ function generateFunctionArtifact(fn: NoirCompiledContractFunction): FunctionArt
     functionType,
     isInternal,
     isInitializer: fn.custom_attributes.includes(AZTEC_INITIALIZER_ATTRIBUTE),
-    isTranspiled: fn.custom_attributes.includes(AZTEC_PUBLIC_VM_ATTRIBUTE),
     parameters,
     returnTypes,
     bytecode: Buffer.from(fn.bytecode, 'base64'),

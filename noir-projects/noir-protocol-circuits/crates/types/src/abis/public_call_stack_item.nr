@@ -58,7 +58,7 @@ mod tests {
     #[test]
     fn compute_call_stack_item_request_hash() {
         let contract_address = AztecAddress::from_field(1);
-        let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_private: false, is_transpiled: false };
+        let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_private: false };
 
         let mut public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
         public_inputs.new_note_hashes[0] = SideEffect{
@@ -69,14 +69,14 @@ mod tests {
         let call_stack_item = PublicCallStackItem { contract_address, public_inputs, is_execution_request: true, function_data };
 
         // Value from public_call_stack_item.test.ts "Computes a callstack item request hash" test
-        let test_data_call_stack_item_request_hash = 0x09bd19d3ebcda705ab1ed598db287340aed3efda0ad3bbbf3296737bda731fa9;
+        let test_data_call_stack_item_request_hash = 0x141bbf6bc30f0a19640983354528288239b68edd5c1edd9955a007801230d7b6;
         assert_eq(call_stack_item.hash(), test_data_call_stack_item_request_hash);
     }
 
     #[test]
     fn compute_call_stack_item_hash() {
         let contract_address = AztecAddress::from_field(1);
-        let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_private: false, is_transpiled: false };
+        let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_private: false };
 
         let mut public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
         public_inputs.new_note_hashes[0] = SideEffect{
@@ -87,7 +87,7 @@ mod tests {
         let call_stack_item = PublicCallStackItem { contract_address, public_inputs, is_execution_request: false, function_data };
 
         // Value from public_call_stack_item.test.ts "Computes a callstack item hash" test
-        let test_data_call_stack_item_hash = 0x1fe20dd657d73941763bf8437471ac000be6efcb046895014b1a84b5aaf55905;
+        let test_data_call_stack_item_hash = 0x05e9e448563aa811c209cc557136ac56b55f9f2f31ee54d41b697389fd45dc1c;
         assert_eq(call_stack_item.hash(), test_data_call_stack_item_hash);
     }
 }

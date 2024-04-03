@@ -13,18 +13,12 @@ export class FunctionData {
     public selector: FunctionSelector,
     /** Indicates whether the function is private or public. */
     public isPrivate: boolean,
-    /**
-     * Transitional: whether the function is an AVM function.
-     * Remove when the AVM is fully operational.
-     */
-    public isTranspiled: boolean = false,
   ) {}
 
   static fromAbi(abi: FunctionAbi | ContractFunctionDao): FunctionData {
     return new FunctionData(
       FunctionSelector.fromNameAndParameters(abi.name, abi.parameters),
       abi.functionType === FunctionType.SECRET,
-      abi.isTranspiled ?? false,
     );
   }
 
@@ -33,11 +27,11 @@ export class FunctionData {
    * @returns The buffer.
    */
   toBuffer(): Buffer {
-    return serializeToBuffer(this.selector, this.isPrivate, this.isTranspiled);
+    return serializeToBuffer(this.selector, this.isPrivate);
   }
 
   toFields(): Fr[] {
-    const fields = [this.selector.toField(), new Fr(this.isPrivate), new Fr(this.isTranspiled)];
+    const fields = [this.selector.toField(), new Fr(this.isPrivate)];
     if (fields.length !== FUNCTION_DATA_LENGTH) {
       throw new Error(
         `Invalid number of fields for FunctionData. Expected ${FUNCTION_DATA_LENGTH}, got ${fields.length}`,
@@ -73,7 +67,7 @@ export class FunctionData {
    */
   static fromBuffer(buffer: Buffer | BufferReader): FunctionData {
     const reader = BufferReader.asReader(buffer);
-    return new FunctionData(reader.readObject(FunctionSelector), reader.readBoolean(), reader.readBoolean());
+    return new FunctionData(reader.readObject(FunctionSelector), reader.readBoolean());
   }
 
   static fromFields(fields: Fr[] | FieldReader): FunctionData {
@@ -81,9 +75,8 @@ export class FunctionData {
 
     const selector = FunctionSelector.fromFields(reader);
     const isPrivate = reader.readBoolean();
-    const isTranspiled = reader.readBoolean();
 
-    return new FunctionData(selector, isPrivate, isTranspiled);
+    return new FunctionData(selector, isPrivate);
   }
 
   hash(): Fr {

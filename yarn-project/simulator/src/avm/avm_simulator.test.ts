@@ -23,6 +23,7 @@ import {
 } from './fixtures/index.js';
 import { Add, CalldataCopy, Return } from './opcodes/index.js';
 import { encodeToBytecode } from './serialization/bytecode_serialization.js';
+import { isAvmBytecode } from './temporary_executor_migration.js';
 
 describe('AVM simulator: injected bytecode', () => {
   let calldata: Fr[];
@@ -35,6 +36,10 @@ describe('AVM simulator: injected bytecode', () => {
       new Add(/*indirect=*/ 0, TypeTag.FIELD, /*aOffset=*/ 0, /*bOffset=*/ 1, /*dstOffset=*/ 2),
       new Return(/*indirect=*/ 0, /*returnOffset=*/ 2, /*copySize=*/ 1),
     ]);
+  });
+
+  it('Should not be recognized as AVM bytecode (magic missing)', () => {
+    expect(!isAvmBytecode(bytecode));
   });
 
   it('Should execute bytecode that performs basic addition', async () => {
@@ -73,6 +78,11 @@ describe('AVM simulator: transpiled Noir contracts', () => {
 
     expect(results.reverted).toBe(false);
     expect(results.output).toEqual([new Fr(3)]);
+  });
+
+  it('Should be recognized as AVM bytecode (magic present)', () => {
+    const bytecode = getAvmTestContractBytecode('add_args_return');
+    expect(isAvmBytecode(bytecode));
   });
 
   it('U128 addition', async () => {

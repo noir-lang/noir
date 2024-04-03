@@ -15,7 +15,6 @@ global default_private_function = ContractFunction {
     data: FunctionData {
         selector: FunctionSelector { inner: 1010101 },
         is_private: true,
-        is_transpiled: false,
     },
     vk_hash: 0,
     acir_hash: 1111,
@@ -35,7 +34,6 @@ global default_public_function = ContractFunction {
     data: FunctionData {
         selector: FunctionSelector { inner: 3030303 },
         is_private: false,
-        is_transpiled: false,
     },
     vk_hash: 0,
     acir_hash: 3333,

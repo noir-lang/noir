@@ -1,3 +1,3 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`FunctionData computes empty inputs hash 1`] = `Fr<0x066e6cdc4a6ba5e4781deda650b0be6c12f975f064fc38df72c1060716759b17>`;
+exports[`FunctionData computes empty inputs hash 1`] = `Fr<0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed>`;
