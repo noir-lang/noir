@@ -123,10 +123,9 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected array type"),
         };
 
-        if let Some(modified_indices) = self.modified_array_indices.get(&typ) {
-            if modified_indices.len() < len {
+        if let Some((invalid, modified_indices)) = self.modified_array_indices.get(&typ) {
+            if !*invalid && modified_indices.len() < len {
                 return self.merge_only_modified_indices(
-                    &typ,
                     then_condition,
                     else_condition,
                     then_value,
@@ -268,44 +267,41 @@ impl<'a> ValueMerger<'a> {
 
     fn merge_only_modified_indices(
         &mut self,
-        typ: &Type,
         then_condition: ValueId,
         else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
-        modified_indices: &HashSet<ValueId>,
+        modified_indices: &HashSet<(ValueId, Type)>,
     ) -> ValueId {
-        let mut merged = im::Vector::new();
+        // We're going to merge all potentially modified indices, so the choice
+        // to start with the then or else value is arbitrary.
+        let mut new_array = then_value;
 
-        let (element_types, _) = match &typ {
-            Type::Array(elements, len) => (elements, *len),
-            _ => panic!("Expected array type"),
-        };
-
-        for index in modified_indices {
+        for (index, element_type) in modified_indices {
             let index = *index;
-            for (_, element_type) in element_types.iter().enumerate() {
-                let typevars = Some(vec![element_type.clone()]);
+            let typevars = Some(vec![element_type.clone()]);
 
-                let mut get_element = |array, typevars| {
-                    let get = Instruction::ArrayGet { array, index };
-                    self.dfg
-                        .insert_instruction_and_results(get, self.block, typevars, CallStack::new())
-                        .first()
-                };
+            let mut get_element = |array, typevars| {
+                let get = Instruction::ArrayGet { array, index };
+                self.dfg
+                    .insert_instruction_and_results(get, self.block, typevars, CallStack::new())
+                    .first()
+            };
 
-                let then_element = get_element(then_value, typevars.clone());
-                let else_element = get_element(else_value, typevars);
+            let then_element = get_element(then_value, typevars.clone());
+            let else_element = get_element(else_value, typevars);
 
-                merged.push_back(self.merge_values(
-                    then_condition,
-                    else_condition,
-                    then_element,
-                    else_element,
-                ));
-            }
+            let value =
+                self.merge_values(then_condition, else_condition, then_element, else_element);
+
+            let array_set =
+                Instruction::ArraySet { array: new_array, index, value, mutable: false };
+            new_array = self
+                .dfg
+                .insert_instruction_and_results(array_set, self.block, None, CallStack::new())
+                .first();
         }
 
-        self.dfg.make_array(merged, typ.clone())
+        new_array
     }
 }

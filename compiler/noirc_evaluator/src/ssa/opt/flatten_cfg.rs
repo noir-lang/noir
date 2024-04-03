@@ -213,7 +213,7 @@ struct Context<'f> {
     arguments_stack: Vec<Vec<ValueId>>,
 }
 
-pub(crate) type ModifiedArrayIndices = HashMap<Type, HashSet<ValueId>>;
+pub(crate) type ModifiedArrayIndices = HashMap<Type, (bool, HashSet<(ValueId, Type)>)>;
 
 #[derive(Clone)]
 pub(crate) struct Store {
@@ -847,7 +847,13 @@ impl<'f> Context<'f> {
                             condition.else_branch.as_mut().unwrap_or(&mut condition.then_branch);
 
                         let typ = self.inserter.function.dfg.type_of_value(array);
-                        branch.array_indexes_set.entry(typ).or_default().insert(index);
+                        let foo = branch.array_indexes_set.entry(typ).or_default();
+
+                        foo.0 = foo.0
+                            || self.inserter.function.dfg.get_numeric_constant(index).is_none();
+
+                        let element_type = self.inserter.function.dfg.type_of_value(value);
+                        foo.1.insert((index, element_type));
                     }
                     Instruction::ArraySet { array, index, value, mutable }
                 }
