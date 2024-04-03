@@ -122,7 +122,12 @@ impl Context {
             | IncrementRc { .. }
             | DecrementRc { .. } => false,
 
-            EnableSideEffects { .. } | ArrayGet { .. } | ArraySet { .. } | Allocate => true,
+            EnableSideEffects { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. }
+            | Allocate
+            | Store { .. }
+            | Load { .. } => true,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
@@ -151,10 +156,6 @@ impl Context {
 
                 _ => false,
             },
-
-            Store { .. } | Load { .. } => {
-                unreachable!("Instructions of type {instruction:?} expected to be removed")
-            }
         }
     }
 }
