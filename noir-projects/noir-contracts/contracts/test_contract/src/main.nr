@@ -7,7 +7,7 @@ contract Test {
 
     use dep::aztec::protocol_types::{
         abis::private_circuit_public_inputs::PrivateCircuitPublicInputs,
-        constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTES_PER_PAGE}, hash::hash_args
+        constants::{MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTES_PER_PAGE}
     };
     // docs:start:unencrypted_import
     use dep::aztec::prelude::emit_unencrypted_log;
@@ -15,7 +15,7 @@ contract Test {
 
     use dep::aztec::{
         context::{Context, inputs::private_context_inputs::PrivateContextInputs},
-        hash::{pedersen_hash, compute_secret_hash},
+        hash::{pedersen_hash, compute_secret_hash, ArgsHasher},
         note::{
         lifecycle::{create_note, destroy_note}, note_getter::{get_notes, view_notes},
         note_getter_options::NoteStatus
@@ -192,22 +192,22 @@ contract Test {
         a_struct: DummyNote,
         a_deep_struct: DeepStruct
     ) -> distinct pub PrivateCircuitPublicInputs {
-        let mut args = BoundedVec::new();
-        args.push(a_field);
-        args.push(a_bool as Field);
-        args.push(a_number as Field);
-        args.extend_from_array(an_array);
-        args.push(a_struct.amount);
-        args.push(a_struct.secret_hash);
-        args.push(a_deep_struct.a_field);
-        args.push(a_deep_struct.a_bool as Field);
-        args.push(a_deep_struct.a_note.amount);
-        args.push(a_deep_struct.a_note.secret_hash);
+        let mut args = ArgsHasher::new();
+        args.add(a_field);
+        args.add(a_bool as Field);
+        args.add(a_number as Field);
+        args.add_multiple(an_array);
+        args.add(a_struct.amount);
+        args.add(a_struct.secret_hash);
+        args.add(a_deep_struct.a_field);
+        args.add(a_deep_struct.a_bool as Field);
+        args.add(a_deep_struct.a_note.amount);
+        args.add(a_deep_struct.a_note.secret_hash);
         for note in a_deep_struct.many_notes {
-            args.push(note.amount);
-            args.push(note.secret_hash);
+            args.add(note.amount);
+            args.add(note.secret_hash);
         }
-        let args_hash = hash_args(args);
+        let args_hash = args.hash();
         let mut context = PrivateContext::new(inputs, args_hash);
         context.return_values.push(args_hash);
         context.finish()

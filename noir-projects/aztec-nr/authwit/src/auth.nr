@@ -1,9 +1,8 @@
 use dep::aztec::protocol_types::{
     abis::function_selector::FunctionSelector, address::AztecAddress,
-    constants::{GENERATOR_INDEX__AUTHWIT_INNER, GENERATOR_INDEX__AUTHWIT_OUTER},
-    hash::{hash_args_array, pedersen_hash}
+    constants::{GENERATOR_INDEX__AUTHWIT_INNER, GENERATOR_INDEX__AUTHWIT_OUTER}, hash::pedersen_hash
 };
-use dep::aztec::context::{PrivateContext, PublicContext, Context};
+use dep::aztec::{context::{PrivateContext, PublicContext, Context}, hash::hash_args_array};
 
 global IS_VALID_SELECTOR = 0xabf64ad4; // 4 first bytes of keccak256("IS_VALID()")
 

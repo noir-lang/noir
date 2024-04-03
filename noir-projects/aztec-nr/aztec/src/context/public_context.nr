@@ -1,6 +1,7 @@
 use crate::{
     context::{inputs::PublicContextInputs, interface::ContextInterface, interface::PublicContextInterface},
-    messaging::process_l1_to_l2_message, oracle::{arguments, public_call::call_public_function_internal}
+    messaging::process_l1_to_l2_message,
+    oracle::{arguments, public_call::call_public_function_internal}, hash::hash_args_array
 };
 use dep::protocol_types::{
     abis::{
@@ -18,9 +19,8 @@ use dep::protocol_types::{
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
     RETURN_VALUES_LENGTH
 },
-    contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
-    hash::hash_args_array, header::Header, messaging::l2_to_l1_message::L2ToL1Message,
-    utils::reader::Reader
+    contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, header::Header,
+    messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader
 };
 
 struct PublicContext {

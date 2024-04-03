@@ -6,14 +6,14 @@ use crate::contract_class_id::ContractClassId;
 use crate::abis::side_effect::SideEffect;
 use crate::utils::{uint256::U256, field::field_from_bytes_32_trunc};
 use crate::constants::{
-    ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, MAX_ARGS_LENGTH, FUNCTION_TREE_HEIGHT,
-    GENERATOR_INDEX__SILOED_NOTE_HASH, GENERATOR_INDEX__OUTER_NULLIFIER, GENERATOR_INDEX__VK,
-    GENERATOR_INDEX__CONSTRUCTOR, GENERATOR_INDEX__PARTIAL_ADDRESS, GENERATOR_INDEX__CONTRACT_ADDRESS,
-    GENERATOR_INDEX__NOTE_HASH_NONCE, GENERATOR_INDEX__UNIQUE_NOTE_HASH, GENERATOR_INDEX__FUNCTION_ARGS
+    FUNCTION_TREE_HEIGHT, GENERATOR_INDEX__SILOED_NOTE_HASH, GENERATOR_INDEX__OUTER_NULLIFIER,
+    GENERATOR_INDEX__VK, GENERATOR_INDEX__CONSTRUCTOR, GENERATOR_INDEX__PARTIAL_ADDRESS,
+    GENERATOR_INDEX__CONTRACT_ADDRESS, GENERATOR_INDEX__NOTE_HASH_NONCE,
+    GENERATOR_INDEX__UNIQUE_NOTE_HASH
 };
+use crate::traits::Hash;
 use crate::messaging::l2_to_l1_message::L2ToL1Message;
 use crate::merkle_tree::root::root_from_sibling_path;
-
 use dep::std::hash::{pedersen_hash_with_separator, sha256};
 
 pub fn sha256_to_field<N>(bytes_to_hash: [u8; N]) -> Field {
@@ -21,36 +21,6 @@ pub fn sha256_to_field<N>(bytes_to_hash: [u8; N]) -> Field {
     let hash_in_a_field = field_from_bytes_32_trunc(sha256_hashed);
 
     hash_in_a_field
-}
-
-pub fn hash_args_array<N>(args: [Field; N]) -> Field {
-    let mut args_vec = BoundedVec::new();
-    args_vec.extend_from_array(args);
-    hash_args(args_vec)
-}
-
-pub fn hash_args(args: BoundedVec<Field, MAX_ARGS_LENGTH>) -> Field {
-    if args.len() == 0 {
-        0
-    } else {
-        let mut chunks_hashes = [0; ARGS_HASH_CHUNK_COUNT];
-        for i in 0..ARGS_HASH_CHUNK_COUNT {
-            let mut chunk_hash = 0;
-            let start_chunk_index = i * ARGS_HASH_CHUNK_LENGTH;
-            if start_chunk_index < args.len() {
-                let mut chunk_args = [0; ARGS_HASH_CHUNK_LENGTH];
-                for j in 0..ARGS_HASH_CHUNK_LENGTH {
-                    let item_index = i * ARGS_HASH_CHUNK_LENGTH + j;
-                    if item_index < args.len() {
-                        chunk_args[j] = args.get_unchecked(item_index);
-                    }
-                }
-                chunk_hash = pedersen_hash(chunk_args, GENERATOR_INDEX__FUNCTION_ARGS);
-            }
-            chunks_hashes[i] = chunk_hash;
-        }
-        pedersen_hash(chunks_hashes, GENERATOR_INDEX__FUNCTION_ARGS)
-    }
 }
 
 pub fn private_functions_root_from_siblings(
@@ -222,16 +192,6 @@ fn smoke_sha256_to_field() {
     assert(truncated_field == result);
     let mod_res = result + (result_bytes[31] as Field);
     assert(mod_res == 0x448ebbc9e1a31220a2f3830c18eef61b9bd070e5084b7fa2a359fe729184e0);
-}
-
-#[test]
-fn compute_var_args_hash() {
-    let mut input = BoundedVec::new();
-    for i in 0..800 {
-        input.push(i as Field);
-    }
-    let hash = hash_args(input);
-    assert(hash == 0x05a1023fef839ac88731f49ae983e172c1b600a3c8f3393ad0ac25d819ac0f0f);
 }
 
 #[test]

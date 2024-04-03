@@ -281,14 +281,14 @@ contract DocsExample {
         // ************************************************************
         // The hasher is a structure used to generate a hash of the circuits inputs. 
         // docs:start:context-example-hasher
-        let mut serialized_args = BoundedVec::new();
-        serialized_args.push(a);
-        serialized_args.push(b);
+        let mut args_hasher = dep::aztec::hash::ArgsHasher::new();
+        args_hasher.add(a);
+        args_hasher.add(b);
         // docs:end:context-example-hasher
 
         // The context object is created with the inputs and the hash of the inputs
         // docs:start:context-example-context
-        let mut context = PrivateContext::new(inputs, hash_args(serialized_args));
+        let mut context = PrivateContext::new(inputs, args_hasher.hash());
         // docs:end:context-example-context
 
         // docs:start:storage-example-context

@@ -5,7 +5,7 @@ use crate::{
     private_circuit_public_inputs::PrivateCircuitPublicInputs, read_request::ReadRequest,
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
-    address::{AztecAddress, compute_initialization_hash}, hash::hash_args_array, header::Header,
+    address::{AztecAddress, compute_initialization_hash}, header::Header,
     messaging::l2_to_l1_message::L2ToL1Message, tests::fixtures
 };
 use crate::constants::{
@@ -52,7 +52,7 @@ impl PrivateCircuitPublicInputsBuilder {
     pub fn new() -> Self {
         let mut public_inputs: PrivateCircuitPublicInputsBuilder = dep::std::unsafe::zeroed();
 
-        let args_hash = hash_args_array([]);
+        let args_hash = 0;
 
         let contract_data = fixtures::contracts::default_contract;
         let portal_contract_address = contract_data.portal_contract_address;

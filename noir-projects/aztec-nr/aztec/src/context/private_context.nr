@@ -1,6 +1,7 @@
 use crate::{
     context::{inputs::PrivateContextInputs, interface::ContextInterface},
     key::nullifier_key::validate_nullifier_key_against_address, messaging::process_l1_to_l2_message,
+    hash::hash_args_array,
     oracle::{
     arguments, call_private_function::call_private_function_internal,
     enqueue_public_function_call::enqueue_public_function_call_internal, context::get_portal_address,
@@ -27,7 +28,7 @@ use dep::protocol_types::{
     RETURN_VALUES_LENGTH
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
-    grumpkin_private_key::GrumpkinPrivateKey, hash::hash_args_array, header::Header,
+    grumpkin_private_key::GrumpkinPrivateKey, header::Header,
     messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader, traits::is_empty
 };
 
