@@ -64,7 +64,7 @@
   },
   "dependencies": {
     "@aztec/bb.js": "portal:../../barretenberg/ts",
-    "@koa/cors": "^4.0.0",
+    "@koa/cors": "^5.0.0",
     "@noble/curves": "^1.2.0",
     "bn.js": "^5.2.1",
     "debug": "^4.3.4",
