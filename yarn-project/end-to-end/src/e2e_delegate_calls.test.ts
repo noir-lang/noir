@@ -34,11 +34,11 @@ describe('e2e_delegate_calls', () => {
 
       const delegatorValue = await delegatorContract.methods
         .view_private_value(sentValue, wallet.getCompleteAddress().address)
-        .view();
+        .simulate();
 
       const delegatedOnValue = await delegatedOnContract.methods
         .view_private_value(sentValue, wallet.getCompleteAddress().address)
-        .view();
+        .simulate();
 
       expect(delegatedOnValue).toEqual(0n);
       expect(delegatorValue).toEqual(sentValue);
@@ -55,8 +55,8 @@ describe('e2e_delegate_calls', () => {
         .send()
         .wait();
 
-      const delegatorValue = await delegatorContract.methods.view_public_value().view();
-      const delegatedOnValue = await delegatedOnContract.methods.view_public_value().view();
+      const delegatorValue = await delegatorContract.methods.view_public_value().simulate();
+      const delegatedOnValue = await delegatedOnContract.methods.view_public_value().simulate();
 
       expect(delegatedOnValue).toEqual(0n);
       expect(delegatorValue).toEqual(sentValue);
@@ -71,8 +71,8 @@ describe('e2e_delegate_calls', () => {
         .send()
         .wait();
 
-      const delegatorValue = await delegatorContract.methods.view_public_value().view();
-      const delegatedOnValue = await delegatedOnContract.methods.view_public_value().view();
+      const delegatorValue = await delegatorContract.methods.view_public_value().simulate();
+      const delegatedOnValue = await delegatedOnContract.methods.view_public_value().simulate();
 
       expect(delegatedOnValue).toEqual(0n);
       expect(delegatorValue).toEqual(sentValue);

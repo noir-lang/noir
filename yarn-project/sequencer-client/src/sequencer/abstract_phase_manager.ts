@@ -42,6 +42,13 @@ import {
   makeEmptyProof,
 } from '@aztec/circuits.js';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
+import {
+  type ABIType,
+  type DecodedReturn,
+  type FunctionArtifact,
+  type ProcessReturnValues,
+  decodeReturnValues,
+} from '@aztec/foundation/abi';
 import { arrayNonEmptyLength, padArrayEnd } from '@aztec/foundation/collection';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { type Tuple } from '@aztec/foundation/serialize';
@@ -110,6 +117,7 @@ export abstract class AbstractPhaseManager {
      * revert reason, if any
      */
     revertReason: SimulationError | undefined;
+    returnValues: ProcessReturnValues;
   }>;
 
   public static extractEnqueuedPublicCallsByPhase(
@@ -180,14 +188,22 @@ export abstract class AbstractPhaseManager {
     tx: Tx,
     previousPublicKernelOutput: PublicKernelCircuitPublicInputs,
     previousPublicKernelProof: Proof,
-  ): Promise<[PublicKernelCircuitPublicInputs, Proof, UnencryptedFunctionL2Logs[], SimulationError | undefined]> {
+  ): Promise<
+    [
+      PublicKernelCircuitPublicInputs,
+      Proof,
+      UnencryptedFunctionL2Logs[],
+      SimulationError | undefined,
+      ProcessReturnValues,
+    ]
+  > {
     let kernelOutput = previousPublicKernelOutput;
     let kernelProof = previousPublicKernelProof;
 
     const enqueuedCalls = this.extractEnqueuedPublicCalls(tx);
 
     if (!enqueuedCalls || !enqueuedCalls.length) {
-      return [kernelOutput, kernelProof, [], undefined];
+      return [kernelOutput, kernelProof, [], undefined, undefined];
     }
 
     const newUnencryptedFunctionLogs: UnencryptedFunctionL2Logs[] = [];
@@ -196,8 +212,12 @@ export abstract class AbstractPhaseManager {
     // separate public callstacks to be proven by separate public kernel sequences
     // and submitted separately to the base rollup?
 
+    const returns = [];
+
     for (const enqueuedCall of enqueuedCalls) {
       const executionStack: (PublicExecution | PublicExecutionResult)[] = [enqueuedCall];
+
+      let currentReturn: DecodedReturn | undefined = undefined;
 
       // Keep track of which result is for the top/enqueued call
       let enqueuedExecutionResult: PublicExecutionResult | undefined;
@@ -252,22 +272,34 @@ export abstract class AbstractPhaseManager {
               result.revertReason
             }`,
           );
-          return [kernelOutput, kernelProof, [], result.revertReason];
+          return [kernelOutput, kernelProof, [], result.revertReason, undefined];
         }
 
         if (!enqueuedExecutionResult) {
           enqueuedExecutionResult = result;
+
+          // Padding as the AVM is not always returning the expected return size (4)
+          // which is expected by the kernel.
+          const paddedReturn = padArrayEnd(result.returnValues, Fr.ZERO, RETURN_VALUES_LENGTH);
+
+          // TODO(#5450) Need to use the proper return values here
+          const returnTypes: ABIType[] = [{ kind: 'array', length: 4, type: { kind: 'field' } }];
+          const mockArtifact = { returnTypes } as any as FunctionArtifact;
+
+          currentReturn = decodeReturnValues(mockArtifact, paddedReturn);
         }
       }
       // HACK(#1622): Manually patches the ordering of public state actions
       // TODO(#757): Enforce proper ordering of public state actions
       patchPublicStorageActionOrdering(kernelOutput, enqueuedExecutionResult!, this.phase);
+
+      returns.push(currentReturn);
     }
 
     // TODO(#3675): This should be done in a public kernel circuit
     removeRedundantPublicDataWrites(kernelOutput);
 
-    return [kernelOutput, kernelProof, newUnencryptedFunctionLogs, undefined];
+    return [kernelOutput, kernelProof, newUnencryptedFunctionLogs, undefined, returns];
   }
 
   protected async runKernelCircuit(

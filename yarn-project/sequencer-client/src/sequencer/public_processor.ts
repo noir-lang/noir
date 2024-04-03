@@ -11,6 +11,7 @@ import {
 } from '@aztec/circuit-types';
 import { type TxSequencerProcessingStats } from '@aztec/circuit-types/stats';
 import { type GlobalVariables, type Header } from '@aztec/circuits.js';
+import { type ProcessReturnValues } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import { PublicExecutor, type PublicStateDB, type SimulationProvider } from '@aztec/simulator';
@@ -20,7 +21,7 @@ import { type MerkleTreeOperations } from '@aztec/world-state';
 import { type PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from '../simulator/public_executor.js';
 import { RealPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
-import { type AbstractPhaseManager } from './abstract_phase_manager.js';
+import { type AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
 import { PhaseManagerFactory } from './phase_manager_factory.js';
 
 /**
@@ -84,13 +85,15 @@ export class PublicProcessor {
    * @param txs - Txs to process.
    * @returns The list of processed txs with their circuit simulation outputs.
    */
-  public async process(txs: Tx[]): Promise<[ProcessedTx[], FailedTx[]]> {
+  public async process(txs: Tx[]): Promise<[ProcessedTx[], FailedTx[], ProcessReturnValues[]]> {
     // The processor modifies the tx objects in place, so we need to clone them.
     txs = txs.map(tx => Tx.clone(tx));
     const result: ProcessedTx[] = [];
     const failed: FailedTx[] = [];
+    const returns: ProcessReturnValues[] = [];
 
     for (const tx of txs) {
+      let returnValues: ProcessReturnValues = undefined;
       let phase: AbstractPhaseManager | undefined = PhaseManagerFactory.phaseFromTx(
         tx,
         this.db,
@@ -108,6 +111,9 @@ export class PublicProcessor {
       try {
         while (phase) {
           const output = await phase.handle(tx, publicKernelPublicInput, proof);
+          if (phase.phase === PublicKernelPhase.APP_LOGIC) {
+            returnValues = output.returnValues;
+          }
           publicKernelPublicInput = output.publicKernelOutput;
           proof = output.publicKernelProof;
           revertReason ??= output.revertReason;
@@ -128,6 +134,7 @@ export class PublicProcessor {
         validateProcessedTx(processedTransaction);
 
         result.push(processedTransaction);
+        returns.push(returnValues);
 
         this.log(`Processed public part of ${tx.data.endNonRevertibleData.newNullifiers[0].value}`, {
           eventName: 'tx-sequencer-processing',
@@ -146,10 +153,11 @@ export class PublicProcessor {
           tx,
           error: err instanceof Error ? err : new Error(errorMessage),
         });
+        returns.push([]);
       }
     }
 
-    return [result, failed];
+    return [result, failed, returns];
   }
 
   /**

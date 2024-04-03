@@ -814,7 +814,7 @@ class PublicExecutionResultBuilder {
       nullifierReadRequests: [],
       nullifierNonExistentReadRequests: [],
       contractStorageUpdateRequests: this._contractStorageUpdateRequests,
-      returnValues: this._returnValues,
+      returnValues: padArrayEnd(this._returnValues, Fr.ZERO, 4), // TODO(#5450) Need to use the proper return values here
       newNoteHashes: [],
       newNullifiers: [],
       newL2ToL1Messages: [],

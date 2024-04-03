@@ -32,7 +32,7 @@ describe('e2e_counter_contract', () => {
   describe('increments', () => {
     it('counts', async () => {
       await counterContract.methods.increment(owner).send().wait();
-      expect(await counterContract.methods.get_counter(owner).view()).toBe(1n);
+      expect(await counterContract.methods.get_counter(owner).simulate()).toBe(1n);
     });
   });
 });

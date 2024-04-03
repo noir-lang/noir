@@ -208,7 +208,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
   }
 
   async getL2PublicBalanceOf(owner: AztecAddress) {
-    return await this.l2Token.methods.balance_of_public(owner).view();
+    return await this.l2Token.methods.balance_of_public(owner).simulate();
   }
 
   async expectPublicBalanceOnL2(owner: AztecAddress, expectedBalance: bigint) {

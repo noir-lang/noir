@@ -57,7 +57,7 @@ describe('e2e_block_building', () => {
           skipClassRegistration: true,
           skipPublicDeployment: true,
         });
-        await methods[i].simulate({});
+        await methods[i].prove({});
       }
 
       // Send them simultaneously to be picked up by the sequencer
@@ -95,8 +95,8 @@ describe('e2e_block_building', () => {
         [minter.getCompleteAddress(), true],
       );
 
-      await deployer.simulate({});
-      await callInteraction.simulate({
+      await deployer.prove({});
+      await callInteraction.prove({
         // we have to skip simulation of public calls simulation is done on individual transactions
         // and the tx deploying the contract might go in the same block as this one
         skipPublicSimulation: true,
@@ -129,7 +129,7 @@ describe('e2e_block_building', () => {
         const nullifier = Fr.random();
         const calls = times(2, () => contract.methods.emit_nullifier(nullifier));
         for (const call of calls) {
-          await call.simulate();
+          await call.prove();
         }
         const [tx1, tx2] = calls.map(call => call.send());
         await expectXorTx(tx1, tx2);
@@ -139,7 +139,7 @@ describe('e2e_block_building', () => {
         const secret = Fr.random();
         const calls = times(2, () => contract.methods.create_nullifier_public(140n, secret));
         for (const call of calls) {
-          await call.simulate();
+          await call.prove();
         }
         const [tx1, tx2] = calls.map(call => call.send());
         await expectXorTx(tx1, tx2);
@@ -162,7 +162,7 @@ describe('e2e_block_building', () => {
         ];
 
         for (const call of calls) {
-          await call.simulate();
+          await call.prove();
         }
         const [tx1, tx2] = calls.map(call => call.send());
         await expectXorTx(tx1, tx2);

@@ -7,6 +7,7 @@ import {
   type LogFilter,
   type NoteFilter,
   type PXE,
+  type SimulatedTx,
   type SyncStatus,
   type Tx,
   type TxEffect,
@@ -101,8 +102,11 @@ export abstract class BaseWallet implements Wallet {
   getContracts(): Promise<AztecAddress[]> {
     return this.pxe.getContracts();
   }
-  simulateTx(txRequest: TxExecutionRequest, simulatePublic: boolean): Promise<Tx> {
-    return this.pxe.simulateTx(txRequest, simulatePublic);
+  proveTx(txRequest: TxExecutionRequest, simulatePublic: boolean): Promise<Tx> {
+    return this.pxe.proveTx(txRequest, simulatePublic);
+  }
+  simulateTx(txRequest: TxExecutionRequest, simulatePublic: boolean, msgSender: AztecAddress): Promise<SimulatedTx> {
+    return this.pxe.simulateTx(txRequest, simulatePublic, msgSender);
   }
   sendTx(tx: Tx): Promise<TxHash> {
     return this.pxe.sendTx(tx);

@@ -1,5 +1,5 @@
-import { type FunctionCall, type TxExecutionRequest } from '@aztec/circuit-types';
-import { type AztecAddress, FunctionData } from '@aztec/circuits.js';
+import { type FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
+import { type AztecAddress, FunctionData, TxContext } from '@aztec/circuits.js';
 import { type FunctionAbi, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 
 import { type Wallet } from '../account/wallet.js';
@@ -8,10 +8,11 @@ import { BaseContractInteraction, SendMethodOptions } from './base_contract_inte
 export { SendMethodOptions };
 
 /**
- * Represents the options for a view method in a contract function interaction.
+ * Represents the options for simulating a contract function interaction.
  * Allows specifying the address from which the view method should be called.
+ * Disregarded for simulation of public functions
  */
-export type ViewMethodOptions = {
+export type SimulateMethodOptions = {
   /**
    * The sender's Aztec address.
    */
@@ -63,18 +64,48 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
   }
 
   /**
-   * Execute a view (read-only) transaction on an unconstrained function.
-   * This method is used to call functions that do not modify the contract state and only return data.
-   * Throws an error if called on a non-unconstrained function.
+   * Simulate a transaction and get its return values
+   * Differs from prove in a few important ways:
+   * 1. It returns the values of the function execution
+   * 2. It supports `unconstrained`, `private` and `public` functions
+   * 3. For `private` execution it:
+   * 3.a SKIPS the entrypoint and starts directly at the function
+   * 3.b SKIPS public execution entirely
+   * 4. For `public` execution it:
+   * 4.a Removes the `txRequest` value after ended simulation
+   * 4.b Ignores the `from` in the options
+   *
    * @param options - An optional object containing additional configuration for the transaction.
-   * @returns The result of the view transaction as returned by the contract function.
+   * @returns The result of the transaction as returned by the contract function.
    */
-  public view(options: ViewMethodOptions = {}) {
-    if (this.functionDao.functionType !== FunctionType.UNCONSTRAINED) {
-      throw new Error('Can only call `view` on an unconstrained function.');
+  public async simulate(options: SimulateMethodOptions = {}): Promise<any> {
+    if (this.functionDao.functionType == FunctionType.UNCONSTRAINED) {
+      return this.wallet.viewTx(this.functionDao.name, this.args, this.contractAddress, options.from);
     }
 
-    const { from } = options;
-    return this.wallet.viewTx(this.functionDao.name, this.args, this.contractAddress, from);
+    // TODO: If not unconstrained, we return a size 4 array of fields.
+    // TODO: It should instead return the correctly decoded value
+    // TODO: The return type here needs to be fixed! @LHerskind
+
+    if (this.functionDao.functionType == FunctionType.SECRET) {
+      const nodeInfo = await this.wallet.getNodeInfo();
+      const packedArgs = PackedArguments.fromArgs(encodeArguments(this.functionDao, this.args));
+
+      const txRequest = TxExecutionRequest.from({
+        argsHash: packedArgs.hash,
+        origin: this.contractAddress,
+        functionData: FunctionData.fromAbi(this.functionDao),
+        txContext: TxContext.empty(nodeInfo.chainId, nodeInfo.protocolVersion),
+        packedArguments: [packedArgs],
+        authWitnesses: [],
+      });
+      const simulatedTx = await this.pxe.simulateTx(txRequest, false, options.from ?? this.wallet.getAddress());
+      return simulatedTx.privateReturnValues?.[0];
+    } else {
+      const txRequest = await this.create();
+      const simulatedTx = await this.pxe.simulateTx(txRequest, true);
+      this.txRequest = undefined;
+      return simulatedTx.publicReturnValues?.[0];
+    }
   }
 }

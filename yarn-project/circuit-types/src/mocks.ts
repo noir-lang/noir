@@ -7,7 +7,7 @@ import {
   computeContractClassId,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
-import { type ContractArtifact } from '@aztec/foundation/abi';
+import { type ContractArtifact, type DecodedReturn } from '@aztec/foundation/abi';
 import { makeTuple } from '@aztec/foundation/array';
 import { times } from '@aztec/foundation/collection';
 import { randomBytes } from '@aztec/foundation/crypto';
@@ -19,7 +19,7 @@ import { EncryptedL2Log } from './logs/encrypted_l2_log.js';
 import { EncryptedFunctionL2Logs, EncryptedTxL2Logs, Note, UnencryptedTxL2Logs } from './logs/index.js';
 import { makePrivateKernelTailCircuitPublicInputs, makePublicCallRequest } from './mocks_to_purge.js';
 import { ExtendedNote } from './notes/index.js';
-import { Tx, TxHash } from './tx/index.js';
+import { SimulatedTx, Tx, TxHash } from './tx/index.js';
 
 /**
  * Testing utility to create empty logs composed from a single empty log.
@@ -52,6 +52,12 @@ export const mockTx = (seed = 1, logs = true) => {
   ).reverse() as Tuple<CallRequest, typeof MAX_REVERTIBLE_PUBLIC_CALL_STACK_LENGTH_PER_TX>;
 
   return tx;
+};
+
+export const mockSimulatedTx = (seed = 1, logs = true) => {
+  const tx = mockTx(seed, logs);
+  const dec: DecodedReturn = [1n, 2n, 3n, 4n];
+  return new SimulatedTx(tx, dec, dec);
 };
 
 export const randomContractArtifact = (): ContractArtifact => ({

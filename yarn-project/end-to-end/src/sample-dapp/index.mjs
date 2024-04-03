@@ -20,7 +20,7 @@ async function showPrivateBalances(pxe) {
 
   for (const account of accounts) {
     // highlight-next-line:showPrivateBalances
-    const balance = await token.methods.balance_of_private(account.address).view();
+    const balance = await token.methods.balance_of_private(account.address).simulate();
     console.log(`Balance of ${account.address}: ${balance}`);
   }
   // docs:end:showPrivateBalances
@@ -79,7 +79,7 @@ async function showPublicBalances(pxe) {
 
   for (const account of accounts) {
     // highlight-next-line:showPublicBalances
-    const balance = await token.methods.balance_of_public(account.address).view();
+    const balance = await token.methods.balance_of_public(account.address).simulate();
     console.log(`Balance of ${account.address}: ${balance}`);
   }
   // docs:end:showPublicBalances

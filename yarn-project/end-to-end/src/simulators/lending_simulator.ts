@@ -165,7 +165,7 @@ export class LendingSimulator {
 
     expect(this.borrowed).toEqual(this.stableCoin.totalSupply - this.mintedOutside);
 
-    const asset = await this.lendingContract.methods.get_asset(0).view();
+    const asset = await this.lendingContract.methods.get_asset(0).simulate();
 
     const interestAccumulator = asset['interest_accumulator'];
     const interestAccumulatorBigint = BigInt(interestAccumulator.lo + interestAccumulator.hi * 2n ** 64n);
@@ -173,7 +173,7 @@ export class LendingSimulator {
     expect(asset['last_updated_ts']).toEqual(BigInt(this.time));
 
     for (const key of [this.account.address, this.account.key()]) {
-      const privatePos = await this.lendingContract.methods.get_position(key).view();
+      const privatePos = await this.lendingContract.methods.get_position(key).simulate();
       expect(new Fr(privatePos['collateral'])).toEqual(this.collateral[key.toString()] ?? Fr.ZERO);
       expect(new Fr(privatePos['static_debt'])).toEqual(this.staticDebt[key.toString()] ?? Fr.ZERO);
       expect(privatePos['debt']).toEqual(

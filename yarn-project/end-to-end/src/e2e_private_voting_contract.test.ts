@@ -33,7 +33,7 @@ describe('e2e_voting_contract', () => {
     it('votes', async () => {
       const candidate = new Fr(1);
       await votingContract.methods.cast_vote(candidate).send().wait();
-      expect(await votingContract.methods.get_vote(candidate).view()).toBe(1n);
+      expect(await votingContract.methods.get_vote(candidate).simulate()).toBe(1n);
     });
   });
 });

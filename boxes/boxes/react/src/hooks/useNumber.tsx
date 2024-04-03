@@ -11,7 +11,7 @@ export function useNumber({ contract }: { contract: Contract }) {
 
     setWait(true);
     const deployerWallet = await deployerEnv.getWallet();
-    const viewTxReceipt = await contract!.methods.getNumber(deployerWallet.getCompleteAddress()).view();
+    const viewTxReceipt = await contract!.methods.getNumber(deployerWallet.getCompleteAddress()).simulate();
     toast(`Number is: ${viewTxReceipt.value}`);
     setWait(false);
   };

@@ -193,12 +193,12 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
   }
 
   /**
-   * Simulate the request.
+   * Prove the request.
    * @param options - Deployment options.
-   * @returns The simulated tx.
+   * @returns The proven tx.
    */
-  public simulate(options: DeployOptions): Promise<Tx> {
-    return super.simulate(options);
+  public prove(options: DeployOptions): Promise<Tx> {
+    return super.prove(options);
   }
 
   /** Return this deployment address. */

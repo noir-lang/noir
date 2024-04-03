@@ -43,9 +43,9 @@ describe('docs_examples', () => {
     const _tx = await contract.methods.mint_public(wallet.getAddress(), 1).send().wait();
     // docs:end:send_transaction
 
-    // docs:start:call_view_function
-    const balance = await contract.methods.balance_of_public(wallet.getAddress()).view();
+    // docs:start:simulate_function
+    const balance = await contract.methods.balance_of_public(wallet.getAddress()).simulate();
     expect(balance).toEqual(1n);
-    // docs:end:call_view_function
+    // docs:end:simulate_function
   }, 120_000);
 });

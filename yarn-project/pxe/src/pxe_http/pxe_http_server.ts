@@ -9,6 +9,7 @@ import {
   Note,
   NullifierMembershipWitness,
   type PXE,
+  SimulatedTx,
   Tx,
   TxEffect,
   TxExecutionRequest,
@@ -49,7 +50,7 @@ export function createPXERpcServer(pxeService: PXE): JsonRpcServer {
       TxEffect,
       LogId,
     },
-    { Tx, TxReceipt, EncryptedL2BlockL2Logs, UnencryptedL2BlockL2Logs, NullifierMembershipWitness },
+    { SimulatedTx, Tx, TxReceipt, EncryptedL2BlockL2Logs, UnencryptedL2BlockL2Logs, NullifierMembershipWitness },
     ['start', 'stop'],
   );
 }

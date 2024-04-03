@@ -11,6 +11,7 @@ import {
   MerkleTreeId,
   type NoteFilter,
   type PXE,
+  SimulatedTx,
   SimulationError,
   Tx,
   type TxEffect,
@@ -71,7 +72,7 @@ export class PXEService implements PXE {
   private simulator: AcirSimulator;
   private log: DebugLogger;
   private nodeVersion: string;
-  // serialize synchronizer and calls to simulateTx.
+  // serialize synchronizer and calls to proveTx.
   // ensures that state is not changed while simulating
   private jobQueue = new SerialQueue();
 
@@ -388,26 +389,43 @@ export class PXEService implements PXE {
     return await this.node.getBlock(blockNumber);
   }
 
-  public async simulateTx(txRequest: TxExecutionRequest, simulatePublic: boolean) {
+  public async proveTx(txRequest: TxExecutionRequest, simulatePublic: boolean) {
+    return (await this.simulateTx(txRequest, simulatePublic)).tx;
+  }
+
+  public async simulateTx(
+    txRequest: TxExecutionRequest,
+    simulatePublic: boolean,
+    msgSender: AztecAddress | undefined = undefined,
+  ) {
     if (!txRequest.functionData.isPrivate) {
       throw new Error(`Public entrypoints are not allowed`);
     }
-
-    // all simulations must be serialized w.r.t. the synchronizer
     return await this.jobQueue.put(async () => {
       const timer = new Timer();
-      const tx = await this.#simulateAndProve(txRequest);
-      this.log(`Processed private part of ${tx.getTxHash()}`, {
-        eventName: 'tx-pxe-processing',
-        duration: timer.ms(),
-        ...tx.getStats(),
-      } satisfies TxPXEProcessingStats);
-      if (simulatePublic) {
-        await this.#simulatePublicCalls(tx);
-      }
-      this.log.info(`Executed local simulation for ${tx.getTxHash()}`);
+      const simulatedTx = await this.#simulateAndProve(txRequest, msgSender);
+      // We log only if the msgSender is undefined, as simulating with a different msgSender
+      // is unlikely to be a real transaction, and likely to be only used to read data.
+      // Meaning that it will not necessarily have produced a nullifier (and thus have no TxHash)
+      // If we log, the `getTxHash` function will throw.
 
-      return tx;
+      if (!msgSender) {
+        this.log(`Processed private part of ${simulatedTx.tx.getTxHash()}`, {
+          eventName: 'tx-pxe-processing',
+          duration: timer.ms(),
+          ...simulatedTx.tx.getStats(),
+        } satisfies TxPXEProcessingStats);
+      }
+
+      if (simulatePublic) {
+        // Only one transaction, so we can take index 0.
+        simulatedTx.publicReturnValues = (await this.#simulatePublicCalls(simulatedTx.tx))[0];
+      }
+
+      if (!msgSender) {
+        this.log.info(`Executed local simulation for ${simulatedTx.tx.getTxHash()}`);
+      }
+      return simulatedTx;
     });
   }
 
@@ -524,14 +542,14 @@ export class PXEService implements PXE {
     };
   }
 
-  async #simulate(txRequest: TxExecutionRequest): Promise<ExecutionResult> {
+  async #simulate(txRequest: TxExecutionRequest, msgSender?: AztecAddress): Promise<ExecutionResult> {
     // TODO - Pause syncing while simulating.
 
     const { contractAddress, functionArtifact, portalContract } = await this.#getSimulationParameters(txRequest);
 
     this.log('Executing simulator...');
     try {
-      const result = await this.simulator.run(txRequest, functionArtifact, contractAddress, portalContract);
+      const result = await this.simulator.run(txRequest, functionArtifact, contractAddress, portalContract, msgSender);
       this.log('Simulation completed!');
       return result;
     } catch (err) {
@@ -575,7 +593,7 @@ export class PXEService implements PXE {
    */
   async #simulatePublicCalls(tx: Tx) {
     try {
-      await this.node.simulatePublicCalls(tx);
+      return await this.node.simulatePublicCalls(tx);
     } catch (err) {
       // Try to fill in the noir call stack since the PXE may have access to the debug metadata
       if (err instanceof SimulationError) {
@@ -599,20 +617,21 @@ export class PXEService implements PXE {
 
   /**
    * Simulate a transaction, generate a kernel proof, and create a private transaction object.
-   * The function takes in a transaction request and an ECDSA signature. It simulates the transaction,
-   * then generates a kernel proof using the simulation result. Finally, it creates a private
+   * The function takes in a transaction request, simulates it, and then generates a kernel proof
+   * using the simulation result. Finally, it creates a private
    * transaction object with the generated proof and public inputs. If a new contract address is provided,
    * the function will also include the new contract's public functions in the transaction object.
    *
    * @param txExecutionRequest - The transaction request to be simulated and proved.
    * @param signature - The ECDSA signature for the transaction request.
-   * @returns A private transaction object containing the proof, public inputs, and encrypted logs.
+   * @param msgSender - (Optional) The message sender to use for the simulation.
+   * @returns An object tract contains:
+   * A private transaction object containing the proof, public inputs, and encrypted logs.
+   * The return values of the private execution
    */
-  async #simulateAndProve(txExecutionRequest: TxExecutionRequest) {
-    // TODO - Pause syncing while simulating.
-
+  async #simulateAndProve(txExecutionRequest: TxExecutionRequest, msgSender?: AztecAddress) {
     // Get values that allow us to reconstruct the block hash
-    const executionResult = await this.#simulate(txExecutionRequest);
+    const executionResult = await this.#simulate(txExecutionRequest, msgSender);
 
     const kernelOracle = new KernelOracle(this.contractDataOracle, this.keyStore, this.node);
     const kernelProver = new KernelProver(kernelOracle);
@@ -630,7 +649,8 @@ export class PXEService implements PXE {
     // TODO(#757): Enforce proper ordering of enqueued public calls
     await this.patchPublicCallStackOrdering(publicInputs, enqueuedPublicFunctions);
 
-    return new Tx(publicInputs, proof, encryptedLogs, unencryptedLogs, enqueuedPublicFunctions);
+    const tx = new Tx(publicInputs, proof, encryptedLogs, unencryptedLogs, enqueuedPublicFunctions);
+    return new SimulatedTx(tx, [executionResult.returnValues]);
   }
 
   /**

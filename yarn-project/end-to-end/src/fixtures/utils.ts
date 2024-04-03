@@ -514,7 +514,7 @@ export function getBalancesFn(
   logger: any,
 ): (...addresses: AztecAddress[]) => Promise<bigint[]> {
   const balances = async (...addresses: AztecAddress[]) => {
-    const b = await Promise.all(addresses.map(address => method(address).view()));
+    const b = await Promise.all(addresses.map(address => method(address).simulate()));
     const debugString = `${symbol} balances: ${addresses.map((address, i) => `${address}: ${b[i]}`).join(', ')}`;
     logger(debugString);
     return b;

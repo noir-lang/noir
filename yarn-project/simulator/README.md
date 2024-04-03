@@ -28,13 +28,15 @@ They are run with the assistance of an oracle that provides any value read from 
 
 Public functions can call other public function, but no private functions.
 
-### Unconstrained (view) Functions
+### Unconstrained Functions
 
-Unconstrained functions are used to extract useful data for users, such as the user balance. They are not proved, and are simulated client-side.
+Unconstrained functions are useful to extract useful data for users that could produce very large execution traces - such as the summed balance of all a users notes
+They are not proved, and are simulated client-side.
 
 They are run with the assistance of a DB oracle that provides any private data requested by the function.
 
-At the moment, unconstrained functions cannot call any other function. It would be possible to allow them to call other unconstrained functions.
+At the moment, unconstrained functions cannot call any other function. 
+It would be possible to allow them to call other unconstrained functions.
 
 ## Usage
 

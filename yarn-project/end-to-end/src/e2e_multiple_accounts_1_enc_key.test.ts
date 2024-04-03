@@ -88,7 +88,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
 
     // Then check the balance
     const contractWithWallet = await TokenContract.at(tokenAddress, wallet);
-    const balance = await contractWithWallet.methods.balance_of_private(owner).view({ from: owner.address });
+    const balance = await contractWithWallet.methods.balance_of_private(owner).simulate({ from: owner.address });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };

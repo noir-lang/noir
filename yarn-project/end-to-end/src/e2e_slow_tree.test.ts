@@ -73,8 +73,8 @@ describe('e2e_slow_tree', () => {
       _root: { before: bigint; after: bigint; next_change: bigint },
       _leaf: { before: bigint; after: bigint; next_change: bigint },
     ) => {
-      const root = await contract.methods.un_read_root(owner).view();
-      const leaf = await contract.methods.un_read_leaf_at(owner, key).view();
+      const root = await contract.methods.un_read_root(owner).simulate();
+      const leaf = await contract.methods.un_read_leaf_at(owner, key).simulate();
       expect(root).toEqual(_root);
       expect(leaf).toEqual(_leaf);
     };
@@ -128,7 +128,7 @@ describe('e2e_slow_tree', () => {
       `Tries to "read" tree[${zeroProof.index}] from the tree, but is rejected as value is not ${zeroProof.value}`,
     );
     await wallet.addCapsule(getMembershipCapsule({ ...zeroProof, value: new Fr(0) }));
-    await expect(contract.methods.read_at(key).simulate()).rejects.toThrow(
+    await expect(contract.methods.read_at(key).prove()).rejects.toThrow(
       /Assertion failed: Root does not match expected/,
     );
 

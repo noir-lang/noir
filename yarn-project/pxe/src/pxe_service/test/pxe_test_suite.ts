@@ -135,12 +135,12 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
         authWitnesses: [],
       });
 
-      await expect(async () => await pxe.simulateTx(txExecutionRequest, false)).rejects.toThrow(
+      await expect(async () => await pxe.proveTx(txExecutionRequest, false)).rejects.toThrow(
         'Public entrypoints are not allowed',
       );
     });
 
-    // Note: Not testing a successful run of `simulateTx`, `sendTx`, `getTxReceipt` and `viewTx` here as it requires
+    // Note: Not testing a successful run of `proveTx`, `sendTx`, `getTxReceipt` and `viewTx` here as it requires
     //       a larger setup and it's sufficiently tested in the e2e tests.
 
     it('throws when getting public storage for non-existent contract', async () => {

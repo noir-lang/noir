@@ -665,7 +665,7 @@ export class AztecNodeService implements AztecNode {
       new WASMSimulator(),
     );
     const processor = await publicProcessorFactory.create(prevHeader, newGlobalVariables);
-    const [processedTxs, failedTxs] = await processor.process([tx]);
+    const [processedTxs, failedTxs, returns] = await processor.process([tx]);
     if (failedTxs.length) {
       this.log.warn(`Simulated tx ${tx.getTxHash()} fails: ${failedTxs[0].error}`);
       throw failedTxs[0].error;
@@ -676,6 +676,7 @@ export class AztecNodeService implements AztecNode {
       throw reverted[0].revertReason;
     }
     this.log.info(`Simulated tx ${tx.getTxHash()} succeeds`);
+    return returns;
   }
 
   public setConfig(config: Partial<SequencerConfig>): Promise<void> {

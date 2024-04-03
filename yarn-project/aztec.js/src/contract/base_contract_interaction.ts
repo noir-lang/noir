@@ -37,13 +37,13 @@ export abstract class BaseContractInteraction {
   public abstract create(options?: SendMethodOptions): Promise<TxExecutionRequest>;
 
   /**
-   * Simulates a transaction execution request and returns a tx object ready to be sent.
+   * Proves a transaction execution request and returns a tx object ready to be sent.
    * @param options - optional arguments to be used in the creation of the transaction
    * @returns The resulting transaction
    */
-  public async simulate(options: SendMethodOptions = {}): Promise<Tx> {
+  public async prove(options: SendMethodOptions = {}): Promise<Tx> {
     const txRequest = this.txRequest ?? (await this.create(options));
-    this.tx = await this.pxe.simulateTx(txRequest, !options.skipPublicSimulation);
+    this.tx = await this.pxe.proveTx(txRequest, !options.skipPublicSimulation);
     return this.tx;
   }
 
@@ -58,7 +58,7 @@ export abstract class BaseContractInteraction {
    */
   public send(options: SendMethodOptions = {}) {
     const promise = (async () => {
-      const tx = this.tx ?? (await this.simulate(options));
+      const tx = this.tx ?? (await this.prove(options));
       return this.pxe.sendTx(tx);
     })();
 

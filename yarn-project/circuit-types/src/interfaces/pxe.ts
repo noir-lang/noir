@@ -14,7 +14,7 @@ import { type L2Block } from '../l2_block.js';
 import { type GetUnencryptedLogsResponse, type LogFilter } from '../logs/index.js';
 import { type ExtendedNote } from '../notes/index.js';
 import { type NoteFilter } from '../notes/note_filter.js';
-import { type Tx, type TxHash, type TxReceipt } from '../tx/index.js';
+import { type SimulatedTx, type Tx, type TxHash, type TxReceipt } from '../tx/index.js';
 import { type TxEffect } from '../tx_effect.js';
 import { type TxExecutionRequest } from '../tx_execution_request.js';
 import { type SyncStatus } from './sync-status.js';
@@ -145,11 +145,32 @@ export interface PXE {
    * @throws If the code for the functions executed in this transaction has not been made available via `addContracts`.
    * Also throws if simulatePublic is true and public simulation reverts.
    */
-  simulateTx(txRequest: TxExecutionRequest, simulatePublic: boolean): Promise<Tx>;
+  proveTx(txRequest: TxExecutionRequest, simulatePublic: boolean): Promise<Tx>;
+
+  /**
+   * Simulates a transaction based on the provided preauthenticated execution request.
+   * This will run a local simulation of private execution (and optionally of public as well), assemble
+   * the zero-knowledge proof for the private execution, and return the transaction object along
+   * with simulation results (return values).
+   *
+   *
+   * Note that this is used with `ContractFunctionInteraction::simulateTx` to bypass certain checks.
+   * In that case, the transaction returned is only potentially ready to be sent to the network for execution.
+   *
+   *
+   * @param txRequest - An authenticated tx request ready for simulation
+   * @param simulatePublic - Whether to simulate the public part of the transaction.
+   * @param msgSender - (Optional) The message sender to use for the simulation.
+   * @returns A simulated transaction object that includes a transaction that is potentially ready
+   * to be sent to the network for execution, along with public and private return values.
+   * @throws If the code for the functions executed in this transaction has not been made available via `addContracts`.
+   * Also throws if simulatePublic is true and public simulation reverts.
+   */
+  simulateTx(txRequest: TxExecutionRequest, simulatePublic: boolean, msgSender?: AztecAddress): Promise<SimulatedTx>;
 
   /**
    * Sends a transaction to an Aztec node to be broadcasted to the network and mined.
-   * @param tx - The transaction as created via `simulateTx`.
+   * @param tx - The transaction as created via `proveTx`.
    * @returns A hash of the transaction, used to identify it.
    */
   sendTx(tx: Tx): Promise<TxHash>;

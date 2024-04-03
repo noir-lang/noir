@@ -161,7 +161,7 @@ export class AccountWallet extends BaseWallet {
       messageHash,
     ]);
 
-    const [isValidInPrivate, isValidInPublic] = await interaction.view();
+    const [isValidInPrivate, isValidInPublic] = (await interaction.simulate()) as [boolean, boolean];
     return { isValidInPrivate, isValidInPublic };
   }
 

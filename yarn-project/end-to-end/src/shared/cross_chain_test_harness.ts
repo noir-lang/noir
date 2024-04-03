@@ -105,17 +105,17 @@ export async function deployAndInitializeTokenAndBridgeContracts(
     .send({ portalContract: tokenPortalAddress })
     .deployed();
 
-  if ((await token.methods.admin().view()) !== owner.toBigInt()) {
+  if ((await token.methods.admin().simulate()) !== owner.toBigInt()) {
     throw new Error(`Token admin is not ${owner}`);
   }
 
-  if (!(await bridge.methods.token().view()).equals(token.address)) {
+  if (!(await bridge.methods.token().simulate()).equals(token.address)) {
     throw new Error(`Bridge token is not ${token.address}`);
   }
 
   // make the bridge a minter on the token:
   await token.methods.set_minter(bridge.address, true).send().wait();
-  if ((await token.methods.is_minter(bridge.address).view()) === 1n) {
+  if ((await token.methods.is_minter(bridge.address).simulate()) === 1n) {
     throw new Error(`Bridge is not a minter`);
   }
 
@@ -344,7 +344,7 @@ export class CrossChainTestHarness {
   }
 
   async getL2PrivateBalanceOf(owner: AztecAddress) {
-    return await this.l2Token.methods.balance_of_private(owner).view({ from: owner });
+    return await this.l2Token.methods.balance_of_private(owner).simulate({ from: owner });
   }
 
   async expectPrivateBalanceOnL2(owner: AztecAddress, expectedBalance: bigint) {
@@ -354,7 +354,7 @@ export class CrossChainTestHarness {
   }
 
   async getL2PublicBalanceOf(owner: AztecAddress) {
-    return await this.l2Token.methods.balance_of_public(owner).view();
+    return await this.l2Token.methods.balance_of_public(owner).simulate();
   }
 
   async expectPublicBalanceOnL2(owner: AztecAddress, expectedBalance: bigint) {

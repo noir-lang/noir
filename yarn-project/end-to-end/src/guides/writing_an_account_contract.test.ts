@@ -82,7 +82,7 @@ describe('guides/writing_an_account_contract', () => {
 
     await token.methods.redeem_shield({ address }, mintAmount, secret).send().wait();
 
-    const balance = await token.methods.balance_of_private({ address }).view();
+    const balance = await token.methods.balance_of_private({ address }).simulate();
     logger(`Balance of wallet is now ${balance}`);
     // docs:end:account-contract-works
     expect(balance).toEqual(50n);
@@ -95,7 +95,7 @@ describe('guides/writing_an_account_contract', () => {
     const tokenWithWrongWallet = token.withWallet(wrongWallet);
 
     try {
-      await tokenWithWrongWallet.methods.mint_private(200, secretHash).simulate();
+      await tokenWithWrongWallet.methods.mint_private(200, secretHash).prove();
     } catch (err) {
       logger(`Failed to send tx: ${err}`);
     }

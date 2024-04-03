@@ -6,8 +6,8 @@
  *
  * The {@link Contract} class is the main class in this module, and provides static methods for deploying
  * a contract or interacting with an already deployed one. The `methods` property of the contract instance
- * provides access to private, public, and view methods, that can be invoked in a transaction via `send()`,
- * or can be queried via `view()`.
+ * provides access to private, public, and simulate methods, that can be invoked in a transaction via `send()`,
+ * or can be queried via `simulate()`.
  *
  * ```ts
  * const contract = await Contract.deploy(wallet, MyContractArtifact, [...constructorArgs]).send().deployed();
@@ -17,7 +17,7 @@
  * ```ts
  * const contract = await Contract.at(address, MyContractArtifact, wallet);
  * await contract.methods.mint(1000, owner).send().wait();
- * console.log(`Total supply is now ${await contract.methods.totalSupply().view()}`);
+ * console.log(`Total supply is now ${await contract.methods.totalSupply().simulate()}`);
  * ```
  *
  * The result of calling a method in a contract instance, such as `contract.methods.mint(1000, owner)`

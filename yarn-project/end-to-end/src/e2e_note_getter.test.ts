@@ -48,13 +48,13 @@ describe('e2e_note_getter', () => {
       await contract.methods.insert_note(5, Fr.ZERO).send().wait();
 
       const [returnEq, returnNeq, returnLt, returnGt, returnLte, returnGte] = await Promise.all([
-        contract.methods.read_note(5, Comparator.EQ).view(),
-        contract.methods.read_note(5, Comparator.NEQ).view(),
-        contract.methods.read_note(5, Comparator.LT).view(),
-        contract.methods.read_note(5, Comparator.GT).view(),
-        contract.methods.read_note(5, Comparator.LTE).view(),
+        contract.methods.read_note(5, Comparator.EQ).simulate(),
+        contract.methods.read_note(5, Comparator.NEQ).simulate(),
+        contract.methods.read_note(5, Comparator.LT).simulate(),
+        contract.methods.read_note(5, Comparator.GT).simulate(),
+        contract.methods.read_note(5, Comparator.LTE).simulate(),
         // docs:start:state_vars-NoteGetterOptionsComparatorExampleTs
-        contract.methods.read_note(5, Comparator.GTE).view(),
+        contract.methods.read_note(5, Comparator.GTE).simulate(),
         // docs:end:state_vars-NoteGetterOptionsComparatorExampleTs
       ]);
 
@@ -166,7 +166,7 @@ describe('e2e_note_getter', () => {
     });
 
     async function assertNoteIsReturned(storageSlot: number, expectedValue: number, activeOrNullified: boolean) {
-      const viewNotesResult = await contract.methods.call_view_notes(storageSlot, activeOrNullified).view();
+      const viewNotesResult = await contract.methods.call_view_notes(storageSlot, activeOrNullified).simulate();
       const getNotesResult = await callGetNotes(storageSlot, activeOrNullified);
 
       expect(viewNotesResult).toEqual(getNotesResult);
@@ -174,14 +174,16 @@ describe('e2e_note_getter', () => {
     }
 
     async function assertNoReturnValue(storageSlot: number, activeOrNullified: boolean) {
-      await expect(contract.methods.call_view_notes(storageSlot, activeOrNullified).view()).rejects.toThrow('is_some');
+      await expect(contract.methods.call_view_notes(storageSlot, activeOrNullified).simulate()).rejects.toThrow(
+        'is_some',
+      );
       await expect(contract.methods.call_get_notes(storageSlot, activeOrNullified).send().wait()).rejects.toThrow(
         `Assertion failed: Cannot return zero notes`,
       );
     }
 
     async function callGetNotes(storageSlot: number, activeOrNullified: boolean): Promise<bigint> {
-      // call_get_notes exposes the return value via an event since we cannot use view() with it.
+      // call_get_notes exposes the return value via an event since we cannot use simulate() with it.
       const tx = contract.methods.call_get_notes(storageSlot, activeOrNullified).send();
       await tx.wait();
 
@@ -192,7 +194,7 @@ describe('e2e_note_getter', () => {
     }
 
     async function callGetNotesMany(storageSlot: number, activeOrNullified: boolean): Promise<Array<bigint>> {
-      // call_get_notes_many exposes the return values via event since we cannot use view() with it.
+      // call_get_notes_many exposes the return values via event since we cannot use simulate() with it.
       const tx = contract.methods.call_get_notes_many(storageSlot, activeOrNullified).send();
       await tx.wait();
 
@@ -244,7 +246,9 @@ describe('e2e_note_getter', () => {
         await contract.methods.call_destroy_note(storageSlot).send().wait();
 
         // We now fetch multiple notes, and get both the active and the nullified one.
-        const viewNotesManyResult = await contract.methods.call_view_notes_many(storageSlot, activeOrNullified).view();
+        const viewNotesManyResult = await contract.methods
+          .call_view_notes_many(storageSlot, activeOrNullified)
+          .simulate();
         const getNotesManyResult = await callGetNotesMany(storageSlot, activeOrNullified);
 
         // We can't be sure in which order the notes will be returned, so we simply sort them to test equality. Note

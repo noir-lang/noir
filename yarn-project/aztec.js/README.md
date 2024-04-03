@@ -31,12 +31,12 @@ const tx = await contract.methods.transfer(amount, recipientAddress).send().wait
 console.log(`Transferred ${amount} to ${recipientAddress} on block ${tx.blockNumber}`);
 ```
 
-### Call a view function
+### Simulate a function
 
 ```typescript
 import { Contract } from '@aztec/aztec.js';
 
 const contract = await Contract.at(contractAddress, MyContractArtifact, wallet);
-const balance = await contract.methods.get_balance(wallet.getAddress()).view();
+const balance = await contract.methods.get_balance(wallet.getAddress()).simulate();
 console.log(`Account balance is ${balance}`);
 ```

@@ -42,6 +42,6 @@ document.querySelector('#set').addEventListener('submit', async (e: Event) => {
 });
 
 document.querySelector('#get').addEventListener('click', async () => {
-  const viewTxReceipt = await contract.methods.getNumber(wallet.getCompleteAddress().address).view();
+  const viewTxReceipt = await contract.methods.getNumber(wallet.getCompleteAddress().address).simulate();
   alert(`Number is: ${viewTxReceipt.value}`);
 });

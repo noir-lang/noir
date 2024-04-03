@@ -45,6 +45,6 @@ export class TeardownPhaseManager extends AbstractPhaseManager {
       );
     tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
     await this.publicStateDB.checkpoint();
-    return { publicKernelOutput, publicKernelProof, revertReason };
+    return { publicKernelOutput, publicKernelProof, revertReason, returnValues: undefined };
   }
 }

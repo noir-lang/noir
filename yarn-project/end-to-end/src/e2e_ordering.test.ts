@@ -58,7 +58,7 @@ describe('e2e_ordering', () => {
         async method => {
           const expectedOrder = expectedOrders[method];
           const action = parent.methods[method](child.address, pubSetValueSelector);
-          const tx = await action.simulate();
+          const tx = await action.prove();
           expect(tx.data.needsSetup).toBe(false);
           expect(tx.data.needsAppLogic).toBe(true);
           expect(tx.data.needsTeardown).toBe(false);

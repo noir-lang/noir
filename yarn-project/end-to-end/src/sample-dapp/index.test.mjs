@@ -49,9 +49,9 @@ describe('token', () => {
 
   // docs:start:test
   it('increases recipient funds on transfer', async () => {
-    expect(await token.methods.balance_of_private(recipient.getAddress()).view()).toEqual(0n);
+    expect(await token.methods.balance_of_private(recipient.getAddress()).simulate()).toEqual(0n);
     await token.methods.transfer(owner.getAddress(), recipient.getAddress(), 20n, 0).send().wait();
-    expect(await token.methods.balance_of_private(recipient.getAddress()).view()).toEqual(20n);
+    expect(await token.methods.balance_of_private(recipient.getAddress()).simulate()).toEqual(20n);
   }, 30_000);
   // docs:end:test
 });

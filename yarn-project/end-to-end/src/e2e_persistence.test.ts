@@ -116,15 +116,17 @@ describe('Aztec persistence', () => {
 
     it('correctly restores private notes', async () => {
       // test for >0 instead of exact value so test isn't dependent on run order
-      await expect(contract.methods.balance_of_private(ownerWallet.getAddress()).view()).resolves.toBeGreaterThan(0n);
+      await expect(contract.methods.balance_of_private(ownerWallet.getAddress()).simulate()).resolves.toBeGreaterThan(
+        0n,
+      );
     });
 
     it('correctly restores public storage', async () => {
-      await expect(contract.methods.total_supply().view()).resolves.toBeGreaterThan(0n);
+      await expect(contract.methods.total_supply().simulate()).resolves.toBeGreaterThan(0n);
     });
 
     it('tracks new notes for the owner', async () => {
-      const balance = await contract.methods.balance_of_private(ownerWallet.getAddress()).view();
+      const balance = await contract.methods.balance_of_private(ownerWallet.getAddress()).simulate();
 
       const secret = Fr.random();
       const mintTxReceipt = await contract.methods.mint_private(1000n, computeMessageSecretHash(secret)).send().wait();
@@ -138,7 +140,7 @@ describe('Aztec persistence', () => {
 
       await contract.methods.redeem_shield(ownerWallet.getAddress(), 1000n, secret).send().wait();
 
-      await expect(contract.methods.balance_of_private(ownerWallet.getAddress()).view()).resolves.toEqual(
+      await expect(contract.methods.balance_of_private(ownerWallet.getAddress()).simulate()).resolves.toEqual(
         balance + 1000n,
       );
     });
@@ -146,13 +148,13 @@ describe('Aztec persistence', () => {
     it('allows spending of private notes', async () => {
       const otherWallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitSetup();
 
-      const initialOwnerBalance = await contract.methods.balance_of_private(ownerWallet.getAddress()).view();
+      const initialOwnerBalance = await contract.methods.balance_of_private(ownerWallet.getAddress()).simulate();
 
       await contract.methods.transfer(ownerWallet.getAddress(), otherWallet.getAddress(), 500n, Fr.ZERO).send().wait();
 
       const [ownerBalance, targetBalance] = await Promise.all([
-        contract.methods.balance_of_private(ownerWallet.getAddress()).view(),
-        contract.methods.balance_of_private(otherWallet.getAddress()).view(),
+        contract.methods.balance_of_private(ownerWallet.getAddress()).simulate(),
+        contract.methods.balance_of_private(otherWallet.getAddress()).simulate(),
       ]);
 
       expect(ownerBalance).toEqual(initialOwnerBalance - 500n);
@@ -205,7 +207,7 @@ describe('Aztec persistence', () => {
 
       const wallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitSetup();
       const contract = await TokenContract.at(contractAddress, wallet);
-      await expect(contract.methods.balance_of_private(ownerAddress.address).view()).resolves.toEqual(0n);
+      await expect(contract.methods.balance_of_private(ownerAddress.address).simulate()).resolves.toEqual(0n);
     });
 
     it('has access to public storage', async () => {
@@ -217,7 +219,7 @@ describe('Aztec persistence', () => {
       const wallet = await getUnsafeSchnorrAccount(context.pxe, Fq.random(), Fr.ZERO).waitSetup();
       const contract = await TokenContract.at(contractAddress, wallet);
 
-      await expect(contract.methods.total_supply().view()).resolves.toBeGreaterThan(0n);
+      await expect(contract.methods.total_supply().simulate()).resolves.toBeGreaterThan(0n);
     });
 
     it('pxe restores notes after registering the owner', async () => {
@@ -234,7 +236,7 @@ describe('Aztec persistence', () => {
       await waitForAccountSynch(context.pxe, ownerAddress, { interval: 1, timeout: 10 });
 
       // check that notes total more than 0 so that this test isn't dependent on run order
-      await expect(contract.methods.balance_of_private(ownerAddress.address).view()).resolves.toBeGreaterThan(0n);
+      await expect(contract.methods.balance_of_private(ownerAddress.address).simulate()).resolves.toBeGreaterThan(0n);
     });
   });
 
@@ -296,7 +298,9 @@ describe('Aztec persistence', () => {
     });
 
     it("restores owner's public balance", async () => {
-      await expect(contract.methods.balance_of_public(ownerAddress.address).view()).resolves.toEqual(revealedAmount);
+      await expect(contract.methods.balance_of_public(ownerAddress.address).simulate()).resolves.toEqual(
+        revealedAmount,
+      );
     });
 
     it('allows consuming transparent note created on another PXE', async () => {
@@ -309,10 +313,10 @@ describe('Aztec persistence', () => {
         mintTxHash,
       );
 
-      const balanceBeforeRedeem = await contract.methods.balance_of_private(ownerWallet.getAddress()).view();
+      const balanceBeforeRedeem = await contract.methods.balance_of_private(ownerWallet.getAddress()).simulate();
 
       await contract.methods.redeem_shield(ownerWallet.getAddress(), mintAmount, secret).send().wait();
-      const balanceAfterRedeem = await contract.methods.balance_of_private(ownerWallet.getAddress()).view();
+      const balanceAfterRedeem = await contract.methods.balance_of_private(ownerWallet.getAddress()).simulate();
 
       expect(balanceAfterRedeem).toEqual(balanceBeforeRedeem + mintAmount);
     });

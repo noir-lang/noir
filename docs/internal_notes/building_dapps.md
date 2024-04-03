@@ -22,7 +22,6 @@ Explain how to write a dapp using [`aztec.js`](https://github.com/AztecProtocol/
       - Instantiate a contract
       - Deploy a contract
       - How to generate a nice typescript interface for an Aztec.nr contract's functions (we have a little `.ts` program in `noir-contracts` to generate a types file at the moment... how would a user do this?)
-      - Call 'view' functions
       - Simulate functions (simulate the result, without sending to the 'network')
       - Execute functions (send them to the 'network')
       - Tx hashes and tx receipts

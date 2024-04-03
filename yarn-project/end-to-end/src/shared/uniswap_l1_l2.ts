@@ -209,7 +209,7 @@ export const uniswapL1L2TestSuite = (
 
       // before swap - check nonce_for_burn_approval stored on uniswap
       // (which is used by uniswap to approve the bridge to burn funds on its behalf to exit to L1)
-      const nonceForBurnApprovalBeforeSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().view();
+      const nonceForBurnApprovalBeforeSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().simulate();
 
       // 3. Owner gives uniswap approval to unshield funds to self on its behalf
       logger('Approving uniswap to unshield funds to self on my behalf');
@@ -291,7 +291,7 @@ export const uniswapL1L2TestSuite = (
       // ensure that uniswap contract didn't eat the funds.
       await wethCrossChainHarness.expectPublicBalanceOnL2(uniswapL2Contract.address, 0n);
       // check burn approval nonce incremented:
-      const nonceForBurnApprovalAfterSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().view();
+      const nonceForBurnApprovalAfterSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().simulate();
       expect(nonceForBurnApprovalAfterSwap).toBe(nonceForBurnApprovalBeforeSwap + 1n);
 
       // 5. Consume L2 to L1 message by calling uniswapPortal.swap_private()
@@ -432,7 +432,7 @@ export const uniswapL1L2TestSuite = (
 
       // before swap - check nonce_for_burn_approval stored on uniswap
       // (which is used by uniswap to approve the bridge to burn funds on its behalf to exit to L1)
-      const nonceForBurnApprovalBeforeSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().view();
+      const nonceForBurnApprovalBeforeSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().simulate();
 
       // 4. Swap on L1 - sends L2 to L1 message to withdraw WETH to L1 and another message to swap assets.
       const [secretForDepositingSwappedDai, secretHashForDepositingSwappedDai] =
@@ -510,7 +510,7 @@ export const uniswapL1L2TestSuite = (
       await wethCrossChainHarness.expectPublicBalanceOnL2(ownerAddress, wethL2BalanceBeforeSwap - wethAmountToBridge);
 
       // check burn approval nonce incremented:
-      const nonceForBurnApprovalAfterSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().view();
+      const nonceForBurnApprovalAfterSwap = await uniswapL2Contract.methods.nonce_for_burn_approval().simulate();
       expect(nonceForBurnApprovalAfterSwap).toBe(nonceForBurnApprovalBeforeSwap + 1n);
 
       // 5. Perform the swap on L1 with the `uniswapPortal.swap_private()` (consuming L2 to L1 messages)
@@ -632,7 +632,7 @@ export const uniswapL1L2TestSuite = (
             Fr.random(),
             ownerEthAddress,
           )
-          .simulate(),
+          .prove(),
       ).rejects.toThrow(`Unknown auth witness for message hash ${expectedMessageHash.toString()}`);
     });
 
@@ -672,7 +672,7 @@ export const uniswapL1L2TestSuite = (
             Fr.random(),
             ownerEthAddress,
           )
-          .simulate(),
+          .prove(),
       ).rejects.toThrow('Assertion failed: input_asset address is not the same as seen in the bridge contract');
     });
 
@@ -749,7 +749,7 @@ export const uniswapL1L2TestSuite = (
       await ownerWallet.setPublicAuthWit(swapMessageHash, true).send().wait();
 
       // Swap!
-      await expect(action.simulate()).rejects.toThrow(
+      await expect(action.prove()).rejects.toThrow(
         "Assertion failed: Message not authorized by account 'is_valid == true'",
       );
     });
@@ -783,7 +783,7 @@ export const uniswapL1L2TestSuite = (
             ownerEthAddress,
             Fr.ZERO,
           )
-          .simulate(),
+          .prove(),
       ).rejects.toThrow(`Assertion failed: Message not authorized by account 'is_valid == true'`);
     });
 

@@ -68,7 +68,7 @@ export async function deployInitialTestAccounts(pxe: PXE) {
         skipPublicDeployment: true,
         universalDeploy: true,
       });
-      await deployMethod.simulate({});
+      await deployMethod.prove({});
       return deployMethod;
     }),
   );

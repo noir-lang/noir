@@ -17,6 +17,32 @@ This change was made to communicate that we do not constrain the value in circui
 + let random_value = unsafe_rand();
 ```
 
+### [AztecJS] Simulate and get return values for ANY call
+Historically it have been possible to "view" `unconstrained` functions to simulate them and get the return values, but not for `public` nor `private` functions.
+This has lead to a lot of bad code where we have the same function implemented thrice, once in `private`, once in `public` and once in `unconstrained`. 
+It is not possible to call `simulate` on any call to get the return values! 
+However, beware that it currently always returns a Field array of size 4 for private and public.  
+This will change to become similar to the return values of the `unconstrained` functions with proper return types.
+
+```diff
+-    #[aztec(private)]
+-    fn get_shared_immutable_constrained_private() -> pub Leader {
+-        storage.shared_immutable.read_private()
+-    }
+-
+-    unconstrained fn get_shared_immutable() -> pub Leader {
+-        storage.shared_immutable.read_public()
+-    }
+
++    #[aztec(private)]
++    fn get_shared_immutable_private() -> pub Leader {
++        storage.shared_immutable.read_private()
++    }
+
+- const returnValues = await contract.methods.get_shared_immutable().view();
++ const returnValues = await contract.methods.get_shared_immutable_private().simulate();
+```
+
 ## 0.31.0
 
 ### [Aztec.nr] Public storage historical read API improvement
@@ -935,13 +961,13 @@ To parse a `AztecAddress` to BigInt, use `.inner`
 Before:
 
 ```js
-const tokenBigInt = await bridge.methods.token().view();
+const tokenBigInt = await bridge.methods.token().simulate();
 ```
 
 Now:
 
 ```js
-const tokenBigInt = (await bridge.methods.token().view()).inner;
+const tokenBigInt = (await bridge.methods.token().simulate()).inner;
 ```
 
 ### [Aztec.nr] Add `protocol_types` to Nargo.toml

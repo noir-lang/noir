@@ -71,7 +71,7 @@ describe('sequencer', () => {
     });
 
     publicProcessor = mock<PublicProcessor>({
-      process: async txs => [await Promise.all(txs.map(tx => makeProcessedTx(tx))), []],
+      process: async txs => [await Promise.all(txs.map(tx => makeProcessedTx(tx))), [], []],
       makeEmptyProcessedTx: () => makeEmptyProcessedTx(Header.empty(), chainId, version),
     });
 

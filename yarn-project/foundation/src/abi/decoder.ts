@@ -7,6 +7,7 @@ import { isAztecAddressStruct } from './utils.js';
  * The type of our decoded ABI.
  */
 export type DecodedReturn = bigint | boolean | AztecAddress | DecodedReturn[] | { [key: string]: DecodedReturn };
+export type ProcessReturnValues = (DecodedReturn | undefined)[] | undefined;
 
 /**
  * Decodes return values from a function call.
