@@ -277,9 +277,16 @@ impl<'a> ValueMerger<'a> {
         // to start with the then or else value is arbitrary.
         let mut new_array = then_value;
 
+        eprintln!("array set opt triggered! Modified indices are:");
+
         for (index, element_type) in modified_indices {
             let index = *index;
             let typevars = Some(vec![element_type.clone()]);
+
+            if let Some(c) = self.dfg.get_numeric_constant(index) {
+                let i = c.try_to_u64().unwrap();
+                eprintln!("  index {}", i);
+            }
 
             let mut get_element = |array, typevars| {
                 let get = Instruction::ArrayGet { array, index };

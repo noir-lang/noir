@@ -847,13 +847,23 @@ impl<'f> Context<'f> {
                             condition.else_branch.as_mut().unwrap_or(&mut condition.then_branch);
 
                         let typ = self.inserter.function.dfg.type_of_value(array);
-                        let foo = branch.array_indexes_set.entry(typ).or_default();
+                        let length = typ.array_length();
+                        let (is_constant, indices) = branch.array_indexes_set.entry(typ).or_default();
 
-                        foo.0 = foo.0
-                            || self.inserter.function.dfg.get_numeric_constant(index).is_none();
+                        let constant = self.inserter.function.dfg.get_numeric_constant(index);
+                        *is_constant = *is_constant || constant.is_none();
+
+                        if let Some(constant) = constant.and_then(|value| value.try_to_u64()) {
+                            if let Some(length) = length {
+                                if constant >= length as u64 {
+                                    // index is out of bounds, don't add it to `indices`
+                                    return Instruction::ArraySet { array, index, value, mutable };
+                                }
+                            }
+                        }
 
                         let element_type = self.inserter.function.dfg.type_of_value(value);
-                        foo.1.insert((index, element_type));
+                        indices.insert((index, element_type));
                     }
                     Instruction::ArraySet { array, index, value, mutable }
                 }

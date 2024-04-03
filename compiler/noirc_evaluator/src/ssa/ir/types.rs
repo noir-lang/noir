@@ -130,6 +130,14 @@ impl Type {
         }
     }
 
+    /// Returns the length of this array type - if it is one
+    pub(crate) fn array_length(&self) -> Option<usize> {
+        match self {
+            Type::Array(_, length) => Some(*length),
+            _ => None,
+        }
+    }
+
     /// Returns the flattened size of a Type
     pub(crate) fn flattened_size(&self) -> usize {
         match self {
