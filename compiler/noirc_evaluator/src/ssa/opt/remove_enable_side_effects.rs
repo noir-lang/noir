@@ -10,6 +10,8 @@
 //!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffects] is encountered.
 use std::collections::HashSet;
 
+use acvm::FieldElement;
+
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
@@ -108,7 +110,11 @@ impl Context {
         match instruction {
             Binary(binary) => {
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
-                    dfg.get_numeric_constant(binary.rhs).is_none()
+                    if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
+                        rhs == FieldElement::zero()
+                    } else {
+                        true
+                    }
                 } else {
                     false
                 }
