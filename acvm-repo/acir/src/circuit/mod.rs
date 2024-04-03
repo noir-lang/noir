@@ -32,6 +32,13 @@ pub enum ExpressionWidth {
     },
 }
 
+/// A program represented by multiple ACIR circuits. The execution trace of these
+/// circuits is dictated by construction of the [crate::native_types::WitnessStack].
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct Program {
+    pub functions: Vec<Circuit>,
+}
+
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Circuit {
     // current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
@@ -152,7 +159,9 @@ impl Circuit {
             self.public_parameters.0.union(&self.return_values.0).cloned().collect();
         PublicInputs(public_inputs)
     }
+}
 
+impl Program {
     fn write<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
         let buf = bincode::serialize(self).unwrap();
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
@@ -169,36 +178,36 @@ impl Circuit {
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
     }
 
-    pub fn serialize_circuit(circuit: &Circuit) -> Vec<u8> {
-        let mut circuit_bytes: Vec<u8> = Vec::new();
-        circuit.write(&mut circuit_bytes).expect("expected circuit to be serializable");
-        circuit_bytes
+    pub fn serialize_program(program: &Program) -> Vec<u8> {
+        let mut program_bytes: Vec<u8> = Vec::new();
+        program.write(&mut program_bytes).expect("expected circuit to be serializable");
+        program_bytes
     }
 
-    pub fn deserialize_circuit(serialized_circuit: &[u8]) -> std::io::Result<Self> {
-        Circuit::read(serialized_circuit)
+    pub fn deserialize_program(serialized_circuit: &[u8]) -> std::io::Result<Self> {
+        Program::read(serialized_circuit)
     }
 
-    // Serialize and base64 encode circuit
-    pub fn serialize_circuit_base64<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
+    // Serialize and base64 encode program
+    pub fn serialize_program_base64<S>(program: &Program, s: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let circuit_bytes = Circuit::serialize_circuit(circuit);
-        let encoded_b64 = base64::engine::general_purpose::STANDARD.encode(circuit_bytes);
+        let program_bytes = Program::serialize_program(program);
+        let encoded_b64 = base64::engine::general_purpose::STANDARD.encode(program_bytes);
         s.serialize_str(&encoded_b64)
     }
 
-    // Deserialize and base64 decode circuit
-    pub fn deserialize_circuit_base64<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
+    // Deserialize and base64 decode program
+    pub fn deserialize_program_base64<'de, D>(deserializer: D) -> Result<Program, D::Error>
     where
         D: Deserializer<'de>,
     {
         let bytecode_b64: String = serde::Deserialize::deserialize(deserializer)?;
-        let circuit_bytes = base64::engine::general_purpose::STANDARD
+        let program_bytes = base64::engine::general_purpose::STANDARD
             .decode(bytecode_b64)
             .map_err(D::Error::custom)?;
-        let circuit = Self::deserialize_circuit(&circuit_bytes).map_err(D::Error::custom)?;
+        let circuit = Self::deserialize_program(&program_bytes).map_err(D::Error::custom)?;
         Ok(circuit)
     }
 }
@@ -207,25 +216,33 @@ impl std::fmt::Display for Circuit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "current witness index : {}", self.current_witness_index)?;
 
-        let write_public_inputs = |f: &mut std::fmt::Formatter<'_>,
-                                   public_inputs: &PublicInputs|
-         -> Result<(), std::fmt::Error> {
-            write!(f, "[")?;
-            let public_input_indices = public_inputs.indices();
-            for (index, public_input) in public_input_indices.iter().enumerate() {
-                write!(f, "{public_input}")?;
-                if index != public_input_indices.len() - 1 {
-                    write!(f, ", ")?;
+        let write_witness_indices =
+            |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
+                write!(f, "[")?;
+                for (index, witness_index) in indices.iter().enumerate() {
+                    write!(f, "{witness_index}")?;
+                    if index != indices.len() - 1 {
+                        write!(f, ", ")?;
+                    }
                 }
-            }
-            writeln!(f, "]")
-        };
+                writeln!(f, "]")
+            };
+
+        write!(f, "private parameters indices : ")?;
+        write_witness_indices(
+            f,
+            &self
+                .private_parameters
+                .iter()
+                .map(|witness| witness.witness_index())
+                .collect::<Vec<_>>(),
+        )?;
 
         write!(f, "public parameters indices : ")?;
-        write_public_inputs(f, &self.public_parameters)?;
+        write_witness_indices(f, &self.public_parameters.indices())?;
 
         write!(f, "return value indices : ")?;
-        write_public_inputs(f, &self.return_values)?;
+        write_witness_indices(f, &self.return_values.indices())?;
 
         for opcode in &self.opcodes {
             writeln!(f, "{opcode}")?;
@@ -235,6 +252,22 @@ impl std::fmt::Display for Circuit {
 }
 
 impl std::fmt::Debug for Circuit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
+    }
+}
+
+impl std::fmt::Display for Program {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (func_index, function) in self.functions.iter().enumerate() {
+            writeln!(f, "func {}", func_index)?;
+            writeln!(f, "{}", function)?;
+        }
+        Ok(())
+    }
+}
+
+impl std::fmt::Debug for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
     }
@@ -262,7 +295,10 @@ mod tests {
         opcodes::{BlackBoxFuncCall, FunctionInput},
         Circuit, Compression, Opcode, PublicInputs,
     };
-    use crate::{circuit::ExpressionWidth, native_types::Witness};
+    use crate::{
+        circuit::{ExpressionWidth, Program},
+        native_types::Witness,
+    };
     use acir_field::FieldElement;
 
     fn and_opcode() -> Opcode {
@@ -348,14 +384,15 @@ mod tests {
             assert_messages: Default::default(),
             recursive: false,
         };
+        let program = Program { functions: vec![circuit] };
 
-        fn read_write(circuit: Circuit) -> (Circuit, Circuit) {
-            let bytes = Circuit::serialize_circuit(&circuit);
-            let got_circuit = Circuit::deserialize_circuit(&bytes).unwrap();
-            (circuit, got_circuit)
+        fn read_write(program: Program) -> (Program, Program) {
+            let bytes = Program::serialize_program(&program);
+            let got_program = Program::deserialize_program(&bytes).unwrap();
+            (program, got_program)
         }
 
-        let (circ, got_circ) = read_write(circuit);
+        let (circ, got_circ) = read_write(program);
         assert_eq!(circ, got_circ);
     }
 
@@ -380,11 +417,12 @@ mod tests {
             assert_messages: Default::default(),
             recursive: false,
         };
+        let program = Program { functions: vec![circuit] };
 
-        let json = serde_json::to_string_pretty(&circuit).unwrap();
+        let json = serde_json::to_string_pretty(&program).unwrap();
 
         let deserialized = serde_json::from_str(&json).unwrap();
-        assert_eq!(circuit, deserialized);
+        assert_eq!(program, deserialized);
     }
 
     #[test]
@@ -400,7 +438,7 @@ mod tests {
         encoder.write_all(bad_circuit).unwrap();
         encoder.finish().unwrap();
 
-        let deserialization_result = Circuit::deserialize_circuit(&zipped_bad_circuit);
+        let deserialization_result = Program::deserialize_program(&zipped_bad_circuit);
         assert!(deserialization_result.is_err());
     }
 }

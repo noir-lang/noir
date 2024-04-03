@@ -1,3 +1,6 @@
+use crate::hash::Hasher;
+use crate::default::Default;
+
 // mimc-p/p implementation
 // constants are (publicly generated) random numbers, for instance using keccak as a ROM.
 // You must use constants generated for the native field
@@ -16,13 +19,8 @@ fn mimc<N>(x: Field, k: Field, constants: [Field; N], exp: Field) -> Field {
 }
 
 global MIMC_BN254_ROUNDS = 91;
-//mimc implementation with hardcoded parameters for BN254 curve.
-#[field(bn254)]
-pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
-    //mimc parameters
-    let exponent = 7;
-    //generated from seed "mimc" using keccak256 
-    let constants: [Field; MIMC_BN254_ROUNDS] = [
+//generated from seed "mimc" using keccak256 
+global MIMC_BN254_CONSTANTS: [Field; MIMC_BN254_ROUNDS] = [
         0,
         20888961410941983456478427210666206549300505294776164667214940546594746570981,
         15265126113435022738560151911929040668591755459209400716467504685752745317193,
@@ -116,10 +114,46 @@ pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
         13602139229813231349386885113156901793661719180900395818909719758150455500533
     ];
 
+//mimc implementation with hardcoded parameters for BN254 curve.
+#[field(bn254)]
+pub fn mimc_bn254<N>(array: [Field; N]) -> Field {
+    let exponent = 7;
     let mut r = 0;
     for elem in array {
-        let h = mimc(elem, r, constants, exponent);
+        let h = mimc(elem, r, MIMC_BN254_CONSTANTS, exponent);
         r = r + elem + h;
     }
     r
+}
+
+struct MimcHasher{
+    _state: [Field],
+    _len: u64,
+}
+
+impl Hasher for MimcHasher {
+    #[field(bn254)]
+    fn finish(self) -> Field {
+        let exponent = 7;
+        let mut r = 0;
+        for i in 0..self._len {
+            let h = mimc(self._state[i], r, MIMC_BN254_CONSTANTS, exponent);
+            r = r + self._state[i] + h;
+        }
+        r
+    }
+
+    fn write(&mut self, input: [Field]){
+        self._state = self._state.append(input);
+        self._len += input.len();
+    }
+}
+
+impl Default for MimcHasher{
+    fn default() -> Self{
+        MimcHasher{
+            _state: &[],
+            _len: 0,
+        }
+    }
 }

@@ -90,6 +90,11 @@ impl Type {
         Type::Numeric(NumericType::NativeField)
     }
 
+    /// Creates the type of an array's length.
+    pub(crate) fn length_type() -> Type {
+        Type::unsigned(64)
+    }
+
     /// Returns the bit size of the provided numeric type.
     ///
     /// # Panics
@@ -152,6 +157,13 @@ impl Type {
             Type::Numeric(_) | Type::Function => false,
             Type::Array(_, _) | Type::Slice(_) => true,
             Type::Reference(element) => element.contains_an_array(),
+        }
+    }
+
+    pub(crate) fn element_types(self) -> Rc<Vec<Type>> {
+        match self {
+            Type::Array(element_types, _) | Type::Slice(element_types) => element_types,
+            other => panic!("element_types: Expected array or slice, found {other}"),
         }
     }
 }

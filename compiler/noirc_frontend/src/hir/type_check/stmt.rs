@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Span;
 
 use crate::hir_def::expr::{HirExpression, HirIdent, HirLiteral};
 use crate::hir_def::stmt::{
@@ -51,7 +51,7 @@ impl<'interner> TypeChecker<'interner> {
             HirStatement::Constrain(constrain_stmt) => self.check_constrain_stmt(constrain_stmt),
             HirStatement::Assign(assign_stmt) => self.check_assign_stmt(assign_stmt, stmt_id),
             HirStatement::For(for_loop) => self.check_for_loop(for_loop),
-            HirStatement::Error => (),
+            HirStatement::Break | HirStatement::Continue | HirStatement::Error => (),
         }
         Type::Unit
     }
@@ -71,15 +71,12 @@ impl<'interner> TypeChecker<'interner> {
             expr_span: range_span,
         });
 
-        let expected_type = Type::polymorphic_integer(self.interner);
+        let expected_type = self.polymorphic_integer();
 
-        self.unify(&start_range_type, &expected_type, || {
-            TypeCheckError::TypeCannotBeUsed {
-                typ: start_range_type.clone(),
-                place: "for loop",
-                span: range_span,
-            }
-            .add_context("The range of a loop must be known at compile-time")
+        self.unify(&start_range_type, &expected_type, || TypeCheckError::TypeCannotBeUsed {
+            typ: start_range_type.clone(),
+            place: "for loop",
+            span: range_span,
         });
 
         self.interner.push_definition_type(for_loop.identifier.id, start_range_type);
@@ -93,7 +90,7 @@ impl<'interner> TypeChecker<'interner> {
         match pattern {
             HirPattern::Identifier(ident) => self.interner.push_definition_type(ident.id, typ),
             HirPattern::Mutable(pattern, _) => self.bind_pattern(pattern, typ),
-            HirPattern::Tuple(fields, location) => match typ {
+            HirPattern::Tuple(fields, location) => match typ.follow_bindings() {
                 Type::Tuple(field_types) if field_types.len() == fields.len() => {
                     for (field, field_type) in fields.iter().zip(field_types) {
                         self.bind_pattern(field, field_type);
@@ -120,12 +117,12 @@ impl<'interner> TypeChecker<'interner> {
                     source: Source::Assignment,
                 });
 
-                if let Type::Struct(struct_type, generics) = struct_type {
+                if let Type::Struct(struct_type, generics) = struct_type.follow_bindings() {
                     let struct_type = struct_type.borrow();
 
                     for (field_name, field_pattern) in fields {
                         if let Some((type_field, _)) =
-                            struct_type.get_field(&field_name.0.contents, generics)
+                            struct_type.get_field(&field_name.0.contents, &generics)
                         {
                             self.bind_pattern(field_pattern, type_field);
                         }
@@ -192,57 +189,57 @@ impl<'interner> TypeChecker<'interner> {
                         mutable = definition.mutable;
                     }
 
-                    let typ = self.interner.id_type(ident.id).instantiate(self.interner).0;
+                    let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
                     typ.follow_bindings()
                 };
 
                 (typ.clone(), HirLValue::Ident(ident.clone(), typ), mutable)
             }
-            HirLValue::MemberAccess { object, field_name, .. } => {
+            HirLValue::MemberAccess { object, field_name, location, .. } => {
                 let (lhs_type, object, mut mutable) = self.check_lvalue(object, assign_span);
                 let mut object = Box::new(object);
-                let span = field_name.span();
                 let field_name = field_name.clone();
 
                 let object_ref = &mut object;
                 let mutable_ref = &mut mutable;
+                let location = *location;
 
                 let dereference_lhs = move |_: &mut Self, _, element_type| {
                     // We must create a temporary value first to move out of object_ref before
                     // we eventually reassign to it.
                     let id = DefinitionId::dummy_id();
-                    let location = Location::new(span, fm::FileId::dummy());
                     let ident = HirIdent::non_trait_method(id, location);
                     let tmp_value = HirLValue::Ident(ident, Type::Error);
 
                     let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
-                    *object_ref = Box::new(HirLValue::Dereference { lvalue, element_type });
+                    *object_ref =
+                        Box::new(HirLValue::Dereference { lvalue, element_type, location });
                     *mutable_ref = true;
                 };
 
                 let name = &field_name.0.contents;
                 let (object_type, field_index) = self
-                    .check_field_access(&lhs_type, name, span, Some(dereference_lhs))
+                    .check_field_access(&lhs_type, name, field_name.span(), Some(dereference_lhs))
                     .unwrap_or((Type::Error, 0));
 
                 let field_index = Some(field_index);
                 let typ = object_type.clone();
-                let lvalue = HirLValue::MemberAccess { object, field_name, field_index, typ };
+                let lvalue =
+                    HirLValue::MemberAccess { object, field_name, field_index, typ, location };
                 (object_type, lvalue, mutable)
             }
-            HirLValue::Index { array, index, .. } => {
+            HirLValue::Index { array, index, location, .. } => {
                 let index_type = self.check_expression(index);
                 let expr_span = self.interner.expr_span(index);
+                let location = *location;
 
-                index_type.unify(
-                    &Type::polymorphic_integer(self.interner),
-                    &mut self.errors,
-                    || TypeCheckError::TypeMismatch {
+                index_type.unify(&self.polymorphic_integer_or_field(), &mut self.errors, || {
+                    TypeCheckError::TypeMismatch {
                         expected_typ: "an integer".to_owned(),
                         expr_typ: index_type.to_string(),
                         expr_span,
-                    },
-                );
+                    }
+                });
 
                 let (mut lvalue_type, mut lvalue, mut mutable) =
                     self.check_lvalue(array, assign_span);
@@ -251,7 +248,8 @@ impl<'interner> TypeChecker<'interner> {
                 // as needed to unwrap any &mut wrappers.
                 while let Type::MutableReference(element) = lvalue_type.follow_bindings() {
                     let element_type = element.as_ref().clone();
-                    lvalue = HirLValue::Dereference { lvalue: Box::new(lvalue), element_type };
+                    lvalue =
+                        HirLValue::Dereference { lvalue: Box::new(lvalue), element_type, location };
                     lvalue_type = *element;
                     // We know this value to be mutable now since we found an `&mut`
                     mutable = true;
@@ -259,7 +257,13 @@ impl<'interner> TypeChecker<'interner> {
 
                 let typ = match lvalue_type.follow_bindings() {
                     Type::Array(_, elem_type) => *elem_type,
+                    Type::Slice(elem_type) => *elem_type,
                     Type::Error => Type::Error,
+                    Type::String(_) => {
+                        let (_lvalue_name, lvalue_span) = self.get_lvalue_name_and_span(&lvalue);
+                        self.errors.push(TypeCheckError::StringIndexAssign { span: lvalue_span });
+                        Type::Error
+                    }
                     other => {
                         // TODO: Need a better span here
                         self.errors.push(TypeCheckError::TypeMismatch {
@@ -272,11 +276,12 @@ impl<'interner> TypeChecker<'interner> {
                 };
 
                 let array = Box::new(lvalue);
-                (typ.clone(), HirLValue::Index { array, index: *index, typ }, mutable)
+                (typ.clone(), HirLValue::Index { array, index: *index, typ, location }, mutable)
             }
-            HirLValue::Dereference { lvalue, element_type: _ } => {
+            HirLValue::Dereference { lvalue, element_type: _, location } => {
                 let (reference_type, lvalue, _) = self.check_lvalue(lvalue, assign_span);
                 let lvalue = Box::new(lvalue);
+                let location = *location;
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
                 let expected_type = Type::MutableReference(Box::new(element_type.clone()));
@@ -288,7 +293,11 @@ impl<'interner> TypeChecker<'interner> {
                 });
 
                 // Dereferences are always mutable since we already type checked against a &mut T
-                (element_type.clone(), HirLValue::Dereference { lvalue, element_type }, true)
+                (
+                    element_type.clone(),
+                    HirLValue::Dereference { lvalue, element_type, location },
+                    true,
+                )
             }
         }
     }
@@ -351,6 +360,7 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::Literal(HirLiteral::Integer(value, false)) => {
                 let v = value.to_u128();
                 if let Type::Integer(_, bit_count) = annotated_type {
+                    let bit_count: u32 = (*bit_count).into();
                     let max = 1 << bit_count;
                     if v >= max {
                         self.errors.push(TypeCheckError::OverflowingAssignment {

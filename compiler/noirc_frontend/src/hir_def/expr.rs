@@ -31,12 +31,13 @@ pub enum HirExpression {
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
     Error,
+    Quote(crate::BlockExpression),
 }
 
 impl HirExpression {
     /// Returns an empty block expression
     pub const fn empty_block() -> HirExpression {
-        HirExpression::Block(HirBlockExpression(vec![]))
+        HirExpression::Block(HirBlockExpression { statements: vec![] })
     }
 }
 
@@ -94,24 +95,12 @@ impl HirBinaryOp {
         let location = Location::new(op.span(), file);
         HirBinaryOp { location, kind }
     }
-
-    pub fn is_bitwise(&self) -> bool {
-        use BinaryOpKind::*;
-        matches!(self.kind, And | Or | Xor | ShiftRight | ShiftLeft)
-    }
-
-    pub fn is_bit_shift(&self) -> bool {
-        self.kind.is_bit_shift()
-    }
-
-    pub fn is_modulo(&self) -> bool {
-        self.kind.is_modulo()
-    }
 }
 
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
     Array(HirArrayLiteral),
+    Slice(HirArrayLiteral),
     Bool(bool),
     Integer(FieldElement, bool), //true for negative integer and false for positive
     Str(String),
@@ -260,11 +249,13 @@ pub struct HirIndexExpression {
 }
 
 #[derive(Debug, Clone)]
-pub struct HirBlockExpression(pub Vec<StmtId>);
+pub struct HirBlockExpression {
+    pub statements: Vec<StmtId>,
+}
 
 impl HirBlockExpression {
     pub fn statements(&self) -> &[StmtId] {
-        &self.0
+        &self.statements
     }
 }
 

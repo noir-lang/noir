@@ -3,7 +3,7 @@ use iter_extended::vecmap;
 use crate::{
     brillig::brillig_ir::{
         artifact::{BrilligParameter, Label},
-        brillig_variable::BrilligVariable,
+        brillig_variable::{get_bit_size_from_ssa_type, BrilligVariable},
         BrilligContext,
     },
     ssa::ir::{
@@ -72,7 +72,9 @@ impl FunctionContext {
 
     fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
-            Type::Numeric(_) | Type::Reference(_) => BrilligParameter::Simple,
+            Type::Numeric(_) | Type::Reference(_) => {
+                BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
+            }
             Type::Array(item_type, size) => BrilligParameter::Array(
                 vecmap(item_type.iter(), |item_typ| {
                     FunctionContext::ssa_type_to_parameter(item_typ)

@@ -32,19 +32,16 @@ export interface EventAbi {
   fields: ABIVariable[];
 }
 
-/** The Noir function types. */
-export type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
-
 /**
  * The compilation result of an Noir function.
  */
 export interface NoirFunctionEntry {
   /** The name of the function. */
   name: string;
-  /** The type of the function. */
-  function_type: NoirFunctionType;
-  /** Whether the function is internal. */
-  is_internal: boolean;
+  /** Whether the function is unconstrained. */
+  is_unconstrained: boolean;
+  /** The custom attributes applied to the function. */
+  custom_attributes: string[];
   /** The ABI of the function. */
   abi: Abi;
   /** The bytecode of the function in base64. */
@@ -73,6 +70,8 @@ export interface ContractArtifact {
  * The compilation result of an Noir contract.
  */
 export interface ProgramArtifact {
+  /** Version of noir used for the build. */
+  noir_version: string;
   /** The hash of the circuit. */
   hash?: number;
   /** * The ABI of the function. */
@@ -177,23 +176,4 @@ export interface ProgramCompilationArtifacts {
 
   /** Compilation warnings. */
   warnings: Warning[];
-}
-
-/**
- * output of Noir Wasm compilation, can be for a contract or lib/binary
- */
-export type CompilationResult = ContractCompilationArtifacts | ProgramCompilationArtifacts;
-
-/**
- * Check if it has Contract unique property
- */
-export function isContractCompilationArtifacts(artifact: CompilationResult): artifact is ContractCompilationArtifacts {
-  return (artifact as ContractCompilationArtifacts).contract !== undefined;
-}
-
-/**
- * Check if it has Contract unique property
- */
-export function isProgramCompilationArtifacts(artifact: CompilationResult): artifact is ProgramCompilationArtifacts {
-  return (artifact as ProgramCompilationArtifacts).program !== undefined;
 }

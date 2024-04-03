@@ -5,7 +5,7 @@ keywords: [noir, integer types, methods, examples, arithmetic]
 sidebar_position: 1
 ---
 
-An integer type is a range constrained field type. The Noir frontend supports arbitrarily-sized, both unsigned and signed integer types.
+An integer type is a range constrained field type. The Noir frontend supports both unsigned and signed integer types. The allowed sizes are 1, 8, 32 and 64 bits.
 
 :::info
 
@@ -45,20 +45,13 @@ fn main() {
 
 The bit size determines the maximum and minimum range of value the integer type can store. For example, an `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
 
-:::tip
-
-If you are using the default proving backend with Noir, both even (e.g. _u2_, _i2_) and odd (e.g. _u3_, _i3_) arbitrarily-sized integer types up to 127 bits (i.e. _u127_ and _i127_) are supported.
-
-:::
-
-
 ## 128 bits Unsigned Integers
 
 The built-in structure `U128` allows you to use 128-bit unsigned integers almost like a native integer type. However, there are some differences to keep in mind:
 - You cannot cast between a native integer and `U128`
 - There is a higher performance cost when using `U128`, compared to a native type.
 
-Conversion between unsigned integer types and U128 are done through the use of `from_integer` and `to_integer` functions.
+Conversion between unsigned integer types and U128 are done through the use of `from_integer` and `to_integer` functions. `from_integer` also accepts the `Field` type as input.
 
 ```rust
 fn main() {

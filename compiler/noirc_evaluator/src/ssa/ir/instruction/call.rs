@@ -77,9 +77,20 @@ pub(super) fn simplify_call(
         Intrinsic::ArrayLen => {
             if let Some(length) = dfg.try_get_array_length(arguments[0]) {
                 let length = FieldElement::from(length as u128);
-                SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
+                SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::length_type()))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
+            } else {
+                SimplifyResult::None
+            }
+        }
+        Intrinsic::AsSlice => {
+            let array = dfg.get_array_constant(arguments[0]);
+            if let Some((array, array_type)) = array {
+                let slice_length = dfg.make_constant(array.len().into(), Type::length_type());
+                let inner_element_types = array_type.element_types();
+                let new_slice = dfg.make_array(array, Type::Slice(inner_element_types));
+                SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
             } else {
                 SimplifyResult::None
             }
@@ -229,11 +240,16 @@ pub(super) fn simplify_call(
             let max_bit_size = dfg.get_numeric_constant(arguments[1]);
             if let Some(max_bit_size) = max_bit_size {
                 let max_bit_size = max_bit_size.to_u128() as u32;
-                SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
-                    value,
-                    max_bit_size,
-                    assert_message: Some("call to assert_max_bit_size".to_owned()),
-                })
+                let max_potential_bits = dfg.get_value_max_num_bits(value);
+                if max_potential_bits < max_bit_size {
+                    SimplifyResult::Remove
+                } else {
+                    SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
+                        value,
+                        max_bit_size,
+                        assert_message: Some("call to assert_max_bit_size".to_owned()),
+                    })
+                }
             } else {
                 SimplifyResult::None
             }
@@ -283,7 +299,7 @@ fn update_slice_length(
     operator: BinaryOp,
     block: BasicBlockId,
 ) -> ValueId {
-    let one = dfg.make_constant(FieldElement::one(), Type::field());
+    let one = dfg.make_constant(FieldElement::one(), Type::length_type());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack(slice_len);
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
@@ -296,8 +312,8 @@ fn simplify_slice_push_back(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
 ) -> SimplifyResult {
-    // The capacity must be an integer so that we can compare it against the slice length which is represented as a field
-    let capacity = dfg.make_constant((slice.len() as u128).into(), Type::unsigned(64));
+    // The capacity must be an integer so that we can compare it against the slice length
+    let capacity = dfg.make_constant((slice.len() as u128).into(), Type::length_type());
     let len_equals_capacity_instr =
         Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
     let call_stack = dfg.get_value_call_stack(arguments[0]);
@@ -323,8 +339,13 @@ fn simplify_slice_push_back(
     let element_size = element_type.element_size();
     let new_slice = dfg.make_array(slice, element_type);
 
-    let set_last_slice_value_instr =
-        Instruction::ArraySet { array: new_slice, index: arguments[0], value: arguments[2] };
+    let set_last_slice_value_instr = Instruction::ArraySet {
+        array: new_slice,
+        index: arguments[0],
+        value: arguments[2],
+        mutable: false,
+    };
+
     let set_last_slice_value = dfg
         .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
         .first();
@@ -362,7 +383,7 @@ fn simplify_slice_pop_back(
 
     let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
 
-    let element_size = dfg.make_constant((element_count as u128).into(), Type::field());
+    let element_size = dfg.make_constant((element_count as u128).into(), Type::length_type());
     let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
     let mut flattened_len = dfg
         .insert_instruction_and_results(flattened_len_instr, block, None, CallStack::new())
@@ -478,7 +499,7 @@ fn make_constant_slice(
 
     let typ = Type::Slice(Rc::new(vec![typ]));
     let length = FieldElement::from(result_constants.len() as u128);
-    (dfg.make_constant(length, Type::field()), dfg.make_array(result_constants.into(), typ))
+    (dfg.make_constant(length, Type::length_type()), dfg.make_array(result_constants.into(), typ))
 }
 
 /// Returns a slice (represented by a tuple (len, slice)) of constants corresponding to the limbs of the radix decomposition.

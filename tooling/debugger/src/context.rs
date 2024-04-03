@@ -2,17 +2,20 @@ use crate::foreign_calls::DebugForeignCallExecutor;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::brillig_vm::brillig::ForeignCallResult;
-use acvm::brillig_vm::brillig::Value;
+use acvm::brillig_vm::MemoryValue;
 use acvm::pwg::{
     ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
 };
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
-use nargo::artifacts::debug::DebugArtifact;
+use codespan_reporting::files::{Files, SimpleFile};
+use fm::FileId;
+use nargo::artifacts::debug::{DebugArtifact, StackFrame};
 use nargo::errors::{ExecutionError, Location};
 use nargo::NargoError;
-use noirc_printable_type::{PrintableType, PrintableValue};
+use noirc_driver::DebugFile;
 
+use std::collections::BTreeMap;
 use std::collections::{hash_set::Iter, HashSet};
 
 #[derive(Debug)]
@@ -29,6 +32,7 @@ pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver> {
     foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
     debug_artifact: &'a DebugArtifact,
     breakpoints: HashSet<OpcodeLocation>,
+    source_to_opcodes: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>>,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
@@ -39,12 +43,14 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         initial_witness: WitnessMap,
         foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
     ) -> Self {
+        let source_to_opcodes = build_source_to_opcode_debug_mappings(debug_artifact);
         Self {
             acvm: ACVM::new(blackbox_solver, &circuit.opcodes, initial_witness),
             brillig_solver: None,
             foreign_call_executor,
             debug_artifact,
             breakpoints: HashSet::new(),
+            source_to_opcodes,
         }
     }
 
@@ -100,8 +106,46 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         self.debug_artifact
             .file_map
             .get(&location.file)
-            .map(|file| file.path.starts_with("__debug/"))
+            .map(is_debug_file_in_debug_crate)
             .unwrap_or(false)
+    }
+
+    /// Find an opcode location matching a source code location
+    // We apply some heuristics here, and there are four possibilities for the
+    // return value of this function:
+    // 1. the source location is not found -> None
+    // 2. an exact unique location is found (very rare) -> Some(opcode_location)
+    // 3. an exact but not unique location is found, ie. a source location may
+    //    be mapped to multiple opcodes, and those may be disjoint, for example for
+    //    functions called multiple times throughout the program
+    //    -> return the first opcode in program order that matches the source location
+    // 4. exact location is not found, so an opcode for a nearby source location
+    //    is returned (this again could actually be more than one opcodes)
+    //    -> return the opcode for the next source line that is mapped
+    pub(super) fn find_opcode_for_source_location(
+        &self,
+        file_id: &FileId,
+        line: i64,
+    ) -> Option<OpcodeLocation> {
+        let line = line as usize;
+        let line_to_opcodes = self.source_to_opcodes.get(file_id)?;
+        let found_index = match line_to_opcodes.binary_search_by(|x| x.0.cmp(&line)) {
+            Ok(index) => {
+                // move backwards to find the first opcode which matches the line
+                let mut index = index;
+                while index > 0 && line_to_opcodes[index - 1].0 == line {
+                    index -= 1;
+                }
+                line_to_opcodes[index].1
+            }
+            Err(index) => {
+                if index >= line_to_opcodes.len() {
+                    return None;
+                }
+                line_to_opcodes[index].1
+            }
+        };
+        Some(found_index)
     }
 
     /// Returns the callstack in source code locations for the currently
@@ -128,6 +172,9 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         &self,
         opcode_location: &OpcodeLocation,
     ) -> Vec<Location> {
+        // TODO: this assumes we're debugging a program (ie. the DebugArtifact
+        // will contain a single DebugInfo), but this assumption doesn't hold
+        // for contracts
         self.debug_artifact.debug_symbols[0]
             .opcode_location(opcode_location)
             .map(|source_locations| {
@@ -138,7 +185,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                     })
                     .collect()
             })
-            .unwrap_or(vec![])
+            .unwrap_or_default()
     }
 
     /// Returns the current call stack with expanded source locations. In
@@ -332,6 +379,9 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             ACVMStatus::RequiresForeignCall(_) => {
                 unreachable!("Unexpected pending foreign call resolution");
             }
+            ACVMStatus::RequiresAcirCall(_) => {
+                todo!("Multiple ACIR calls are not supported");
+            }
         }
     }
 
@@ -457,18 +507,22 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         acir_index < opcodes.len() && matches!(opcodes[acir_index], Opcode::Brillig(..))
     }
 
-    pub(super) fn get_brillig_memory(&self) -> Option<&[Value]> {
+    pub(super) fn get_brillig_memory(&self) -> Option<&[MemoryValue]> {
         self.brillig_solver.as_ref().map(|solver| solver.get_memory())
     }
 
-    pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement) {
+    pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement, bit_size: u32) {
         if let Some(solver) = self.brillig_solver.as_mut() {
-            solver.write_memory_at(ptr, value.into());
+            solver.write_memory_at(ptr, MemoryValue::new(value, bit_size));
         }
     }
 
-    pub(super) fn get_variables(&self) -> Vec<(&str, &PrintableValue, &PrintableType)> {
+    pub(super) fn get_variables(&self) -> Vec<StackFrame> {
         return self.foreign_call_executor.get_variables();
+    }
+
+    pub(super) fn current_stack_frame(&self) -> Option<StackFrame> {
+        return self.foreign_call_executor.current_stack_frame();
     }
 
     fn breakpoint_reached(&self) -> bool {
@@ -526,10 +580,55 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
     }
 }
 
+fn is_debug_file_in_debug_crate(debug_file: &DebugFile) -> bool {
+    debug_file.path.starts_with("__debug/")
+}
+
+/// Builds a map from FileId to an ordered vector of tuples with line
+/// numbers and opcode locations corresponding to those line numbers
+fn build_source_to_opcode_debug_mappings(
+    debug_artifact: &DebugArtifact,
+) -> BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> {
+    if debug_artifact.debug_symbols.is_empty() {
+        return BTreeMap::new();
+    }
+    let locations = &debug_artifact.debug_symbols[0].locations;
+    let simple_files: BTreeMap<_, _> = debug_artifact
+        .file_map
+        .iter()
+        .filter(|(_, debug_file)| !is_debug_file_in_debug_crate(debug_file))
+        .map(|(file_id, debug_file)| {
+            (
+                file_id,
+                SimpleFile::new(debug_file.path.to_str().unwrap(), debug_file.source.as_str()),
+            )
+        })
+        .collect();
+
+    let mut result: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> = BTreeMap::new();
+    locations.iter().for_each(|(opcode_location, source_locations)| {
+        source_locations.iter().for_each(|source_location| {
+            let span = source_location.span;
+            let file_id = source_location.file;
+            let Some(file) = simple_files.get(&file_id) else {
+                return;
+            };
+            let Ok(line_index) = file.line_index((), span.start() as usize) else {
+                return;
+            };
+            let line_number = line_index + 1;
+
+            result.entry(file_id).or_default().push((line_number, *opcode_location));
+        });
+    });
+    result.iter_mut().for_each(|(_, file_locations)| file_locations.sort_by_key(|x| (x.0, x.1)));
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::{DebugCommandResult, DebugContext};
 
     use crate::foreign_calls::DefaultDebugForeignCallExecutor;
     use acvm::{
@@ -545,8 +644,6 @@ mod tests {
             BinaryFieldOp, HeapValueType, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
         },
     };
-    use nargo::artifacts::debug::DebugArtifact;
-    use std::collections::BTreeMap;
 
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
@@ -568,7 +665,7 @@ mod tests {
                 },
                 BrilligOpcode::Const {
                     destination: MemoryAddress::from(1),
-                    value: Value::from(fe_0),
+                    value: fe_0,
                     bit_size: 32,
                 },
                 BrilligOpcode::ForeignCall {
@@ -576,7 +673,7 @@ mod tests {
                     destinations: vec![],
                     destination_value_types: vec![],
                     inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
-                    input_value_types: vec![HeapValueType::Simple],
+                    input_value_types: vec![HeapValueType::field()],
                 },
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
             ],

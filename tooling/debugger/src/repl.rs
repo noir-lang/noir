@@ -319,12 +319,12 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             return;
         };
 
-        for (index, value) in memory.iter().enumerate() {
-            println!("{index} = {}", value.to_field());
+        for (index, value) in memory.iter().enumerate().filter(|(_, value)| value.bit_size > 0) {
+            println!("{index} = {}", value);
         }
     }
 
-    pub fn write_brillig_memory(&mut self, index: usize, value: String) {
+    pub fn write_brillig_memory(&mut self, index: usize, value: String, bit_size: u32) {
         let Some(field_value) = FieldElement::try_from_str(&value) else {
             println!("Invalid value: {value}");
             return;
@@ -333,15 +333,17 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             println!("Not executing a Brillig block");
             return;
         }
-        self.context.write_brillig_memory(index, field_value);
+        self.context.write_brillig_memory(index, field_value, bit_size);
     }
 
     pub fn show_vars(&self) {
-        let vars = self.context.get_variables();
-        for (var_name, value, var_type) in vars.iter() {
-            let printable_value =
-                PrintableValueDisplay::Plain((*value).clone(), (*var_type).clone());
-            println!("{var_name}:{var_type:?} = {}", printable_value);
+        for frame in self.context.get_variables() {
+            println!("{}({})", frame.function_name, frame.function_params.join(", "));
+            for (var_name, value, var_type) in frame.variables.iter() {
+                let printable_value =
+                    PrintableValueDisplay::Plain((*value).clone(), (*var_type).clone());
+                println!("  {var_name}:{var_type:?} = {}", printable_value);
+            }
         }
     }
 
@@ -511,8 +513,8 @@ pub fn run<B: BlackBoxFunctionSolver>(
             "memset",
             command! {
                 "update a Brillig memory cell with the given value",
-                (index: usize, value: String) => |index, value| {
-                    ref_context.borrow_mut().write_brillig_memory(index, value);
+                (index: usize, value: String, bit_size: u32) => |index, value, bit_size| {
+                    ref_context.borrow_mut().write_brillig_memory(index, value, bit_size);
                     Ok(CommandStatus::Done)
                 }
             },
@@ -530,7 +532,7 @@ pub fn run<B: BlackBoxFunctionSolver>(
         .add(
             "vars",
             command! {
-                "show variable values available at this point in execution",
+                "show variables for each function scope available at this point in execution",
                 () => || {
                     ref_context.borrow_mut().show_vars();
                     Ok(CommandStatus::Done)

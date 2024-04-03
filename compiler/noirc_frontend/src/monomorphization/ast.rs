@@ -1,12 +1,13 @@
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{
-    debug_info::{DebugTypes, DebugVariables},
+    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
     Location,
 };
 
 use crate::{
-    hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, Signedness, Visibility,
+    hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, IntegerBitSize, Signedness,
+    Visibility,
 };
 
 /// The monomorphized AST is expression-based, all statements are also
@@ -37,6 +38,8 @@ pub enum Expression {
     Constrain(Box<Expression>, Location, Option<Box<Expression>>),
     Assign(Assign),
     Semi(Box<Expression>),
+    Break,
+    Continue,
 }
 
 /// A definition is either a local (variable), function, or is a built-in
@@ -86,6 +89,7 @@ pub struct For {
 #[derive(Debug, Clone, Hash)]
 pub enum Literal {
     Array(ArrayLiteral),
+    Slice(ArrayLiteral),
     Integer(FieldElement, Type, Location),
     Bool(bool),
     Str(String),
@@ -207,6 +211,8 @@ pub struct Function {
 
     pub return_type: Type,
     pub unconstrained: bool,
+    pub should_fold: bool,
+    pub func_sig: FunctionSignature,
 }
 
 /// Compared to hir_def::types::Type, this monomorphized Type has:
@@ -217,8 +223,8 @@ pub struct Function {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
     Field,
-    Array(/*len:*/ u64, Box<Type>),     // Array(4, Field) = [Field; 4]
-    Integer(Signedness, /*bits:*/ u32), // u32 = Integer(unsigned, 32)
+    Array(/*len:*/ u64, Box<Type>), // Array(4, Field) = [Field; 4]
+    Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     String(/*len:*/ u64), // String(4) = str[4]
     FmtString(/*len:*/ u64, Box<Type>),
@@ -241,6 +247,7 @@ impl Type {
 #[derive(Debug, Clone, Hash)]
 pub struct Program {
     pub functions: Vec<Function>,
+    pub function_signatures: Vec<FunctionSignature>,
     pub main_function_signature: FunctionSignature,
     /// Indicates whether witness indices are allowed to reoccur in the ABI of the resulting ACIR.
     ///
@@ -252,6 +259,7 @@ pub struct Program {
     /// Indicates to a backend whether a SNARK-friendly prover should be used.  
     pub recursive: bool,
     pub debug_variables: DebugVariables,
+    pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
 }
 
@@ -259,22 +267,26 @@ impl Program {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         functions: Vec<Function>,
+        function_signatures: Vec<FunctionSignature>,
         main_function_signature: FunctionSignature,
         return_distinctness: Distinctness,
         return_location: Option<Location>,
         return_visibility: Visibility,
         recursive: bool,
         debug_variables: DebugVariables,
+        debug_functions: DebugFunctions,
         debug_types: DebugTypes,
     ) -> Program {
         Program {
             functions,
+            function_signatures,
             main_function_signature,
             return_distinctness,
             return_location,
             return_visibility,
             recursive,
             debug_variables,
+            debug_functions,
             debug_types,
         }
     }

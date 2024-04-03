@@ -28,8 +28,8 @@ use crate::hir_def::{
 };
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{
-    BinaryOpKind, ContractFunctionType, FunctionDefinition, FunctionVisibility, Generics, Shared,
-    TypeAliasType, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind,
+    BinaryOpKind, FunctionDefinition, Generics, ItemVisibility, Shared, TypeAlias, TypeBindings,
+    TypeVariable, TypeVariableId, TypeVariableKind,
 };
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -75,12 +75,13 @@ pub struct NodeInterner {
 
     // Type checking map
     //
-    // Notice that we use `Index` as the Key and not an ExprId or IdentId
-    // Therefore, If a raw index is passed in, then it is not safe to assume that it will have
-    // a Type, as not all Ids have types associated to them.
-    // Further note, that an ExprId and an IdentId will never have the same underlying Index
-    // Because we use one Arena to store all Definitions/Nodes
+    // This should only be used with indices from the `nodes` arena.
+    // Otherwise the indices used may overwrite other existing indices.
+    // Each type for each index is filled in during type checking.
     id_to_type: HashMap<Index, Type>,
+
+    // Similar to `id_to_type` but maps definitions to their type
+    definition_to_type: HashMap<DefinitionId, Type>,
 
     // Struct map.
     //
@@ -90,11 +91,12 @@ pub struct NodeInterner {
     structs: HashMap<StructId, Shared<StructType>>,
 
     struct_attributes: HashMap<StructId, StructAttributes>,
-    // Type Aliases map.
+
+    // Maps TypeAliasId -> Shared<TypeAlias>
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    pub(crate) type_aliases: Vec<TypeAliasType>,
+    pub(crate) type_aliases: Vec<Shared<TypeAlias>>,
 
     // Trait map.
     //
@@ -234,20 +236,11 @@ pub struct FunctionModifiers {
     pub name: String,
 
     /// Whether the function is `pub` or not.
-    pub visibility: FunctionVisibility,
+    pub visibility: ItemVisibility,
 
     pub attributes: Attributes,
 
     pub is_unconstrained: bool,
-
-    /// This function's type in its contract.
-    /// If this function is not in a contract, this is always 'Secret'.
-    pub contract_function_type: Option<ContractFunctionType>,
-
-    /// This function's contract visibility.
-    /// If this function is internal can only be called by itself.
-    /// Will be None if not in contract.
-    pub is_internal: Option<bool>,
 }
 
 impl FunctionModifiers {
@@ -257,11 +250,9 @@ impl FunctionModifiers {
     pub fn new() -> Self {
         Self {
             name: String::new(),
-            visibility: FunctionVisibility::Public,
+            visibility: ItemVisibility::Public,
             attributes: Attributes::empty(),
             is_unconstrained: false,
-            is_internal: None,
-            contract_function_type: None,
         }
     }
 }
@@ -273,12 +264,6 @@ impl DefinitionId {
     //dummy id for error reporting
     pub fn dummy_id() -> DefinitionId {
         DefinitionId(std::usize::MAX)
-    }
-}
-
-impl From<DefinitionId> for Index {
-    fn from(id: DefinitionId) -> Self {
-        Index::from_raw_parts(id.0, u64::MAX)
     }
 }
 
@@ -301,7 +286,7 @@ impl StmtId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> StmtId {
-        StmtId(Index::from_raw_parts(std::usize::MAX, 0))
+        StmtId(Index::dummy())
     }
 }
 
@@ -310,7 +295,7 @@ pub struct ExprId(Index);
 
 impl ExprId {
     pub fn empty_block_id() -> ExprId {
-        ExprId(Index::from_raw_parts(0, 0))
+        ExprId(Index::unsafe_zeroed())
     }
 }
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
@@ -321,7 +306,7 @@ impl FuncId {
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> FuncId {
-        FuncId(Index::from_raw_parts(std::usize::MAX, 0))
+        FuncId(Index::dummy())
     }
 }
 
@@ -371,7 +356,7 @@ impl TraitId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
-pub struct TraitImplId(usize);
+pub struct TraitImplId(pub usize);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TraitMethodId {
@@ -395,22 +380,8 @@ macro_rules! into_index {
     };
 }
 
-macro_rules! partialeq {
-    ($id_type:ty) => {
-        impl PartialEq<usize> for &$id_type {
-            fn eq(&self, other: &usize) -> bool {
-                let (index, _) = self.0.into_raw_parts();
-                index == *other
-            }
-        }
-    };
-}
-
 into_index!(ExprId);
 into_index!(StmtId);
-
-partialeq!(ExprId);
-partialeq!(StmtId);
 
 /// A Definition enum specifies anything that we can intern in the NodeInterner
 /// We use one Arena for all types that can be interned as that has better cache locality
@@ -495,6 +466,7 @@ impl Default for NodeInterner {
             id_to_location: HashMap::new(),
             definitions: vec![],
             id_to_type: HashMap::new(),
+            definition_to_type: HashMap::new(),
             structs: HashMap::new(),
             struct_attributes: HashMap::new(),
             type_aliases: Vec::new(),
@@ -544,8 +516,13 @@ impl NodeInterner {
     }
 
     /// Store the type for an interned expression
-    pub fn push_expr_type(&mut self, expr_id: &ExprId, typ: Type) {
+    pub fn push_expr_type(&mut self, expr_id: ExprId, typ: Type) {
         self.id_to_type.insert(expr_id.into(), typ);
+    }
+
+    /// Store the type for an interned expression
+    pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
+        self.definition_to_type.insert(definition_id, typ);
     }
 
     pub fn push_empty_trait(&mut self, type_id: TraitId, unresolved_trait: &UnresolvedTrait) {
@@ -604,13 +581,13 @@ impl NodeInterner {
     pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
         let type_id = TypeAliasId(self.type_aliases.len());
 
-        self.type_aliases.push(TypeAliasType::new(
+        self.type_aliases.push(Shared::new(TypeAlias::new(
             type_id,
             typ.type_alias_def.name.clone(),
             Location::new(typ.type_alias_def.span, typ.file_id),
             Type::Error,
             vecmap(&typ.type_alias_def.generics, |_| TypeVariable::unbound(TypeVariableId(0))),
-        ));
+        )));
 
         type_id
     }
@@ -632,7 +609,7 @@ impl NodeInterner {
 
     pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
         let type_alias_type = &mut self.type_aliases[type_id.0];
-        type_alias_type.set_type_and_generics(typ, generics);
+        type_alias_type.borrow_mut().set_type_and_generics(typ, generics);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -657,11 +634,6 @@ impl NodeInterner {
                 panic!("ice: all expression ids should correspond to a expression in the interner")
             }
         }
-    }
-
-    /// Store the type for an interned Identifier
-    pub fn push_definition_type(&mut self, definition_id: DefinitionId, typ: Type) {
-        self.id_to_type.insert(definition_id.into(), typ);
     }
 
     /// Store [Location] of [Type] reference
@@ -776,17 +748,11 @@ impl NodeInterner {
         module: ModuleId,
         location: Location,
     ) -> DefinitionId {
-        use ContractFunctionType::*;
-
-        // We're filling in contract_function_type and is_internal now, but these will be verified
-        // later during name resolution.
         let modifiers = FunctionModifiers {
             name: function.name.0.contents.clone(),
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
-            contract_function_type: Some(if function.is_open { Open } else { Secret }),
-            is_internal: Some(function.is_internal),
         };
         self.push_function_definition(id, modifiers, module, location)
     }
@@ -816,7 +782,7 @@ impl NodeInterner {
     ///
     /// The underlying function_visibilities map is populated during def collection,
     /// so this function can be called anytime afterward.
-    pub fn function_visibility(&self, func: FuncId) -> FunctionVisibility {
+    pub fn function_visibility(&self, func: FuncId) -> ItemVisibility {
         self.function_modifiers[&func].visibility
     }
 
@@ -957,8 +923,8 @@ impl NodeInterner {
         self.traits.get(&id)
     }
 
-    pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
-        &self.type_aliases[id.0]
+    pub fn get_type_alias(&self, id: TypeAliasId) -> Shared<TypeAlias> {
+        self.type_aliases[id.0].clone()
     }
 
     pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
@@ -979,8 +945,13 @@ impl NodeInterner {
         self.id_to_type.get(&index.into()).cloned().unwrap_or(Type::Error)
     }
 
+    /// Returns the type of the definition or `Type::Error` if it was not found.
+    pub fn definition_type(&self, id: DefinitionId) -> Type {
+        self.definition_to_type.get(&id).cloned().unwrap_or(Type::Error)
+    }
+
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Type {
-        let typ = self.id_type(def_id);
+        let typ = self.definition_type(def_id);
         if let Type::Function(args, ret, env) = &typ {
             let def = self.definition(def_id);
             if let Type::TraitAsType(..) = ret.as_ref() {
@@ -1108,6 +1079,7 @@ impl NodeInterner {
     /// constraint, but when where clauses are involved, the failing constraint may be several
     /// constraints deep. In this case, all of the constraints are returned, starting with the
     /// failing one.
+    /// If this list of failing constraints is empty, this means type annotations are required.
     pub fn lookup_trait_implementation(
         &self,
         object_type: &Type,
@@ -1146,10 +1118,14 @@ impl NodeInterner {
                     })
                     .collect()
             })
-            .unwrap_or(vec![])
+            .unwrap_or_default()
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
+    /// On error returns either:
+    /// - 1+ failing trait constraints, including the original.
+    ///   Each constraint after the first represents a `where` clause that was followed.
+    /// - 0 trait constraints indicating type annotations are needed to choose an impl.
     pub fn try_lookup_trait_implementation(
         &self,
         object_type: &Type,
@@ -1167,6 +1143,11 @@ impl NodeInterner {
         Ok((impl_kind, bindings))
     }
 
+    /// Returns the trait implementation if found.
+    /// On error returns either:
+    /// - 1+ failing trait constraints, including the original.
+    ///   Each constraint after the first represents a `where` clause that was followed.
+    /// - 0 trait constraints indicating type annotations are needed to choose an impl.
     fn lookup_trait_implementation_helper(
         &self,
         object_type: &Type,
@@ -1185,15 +1166,22 @@ impl NodeInterner {
 
         let object_type = object_type.substitute(type_bindings);
 
+        // If the object type isn't known, just return an error saying type annotations are needed.
+        if object_type.is_bindable() {
+            return Err(Vec::new());
+        }
+
         let impls =
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
+
+        let mut matching_impls = Vec::new();
 
         for (existing_object_type2, impl_kind) in impls {
             // Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
             let (existing_object_type, instantiation_bindings) =
                 existing_object_type2.instantiate(self);
 
-            let mut fresh_bindings = TypeBindings::new();
+            let mut fresh_bindings = type_bindings.clone();
 
             let mut check_trait_generics = |impl_generics: &[Type]| {
                 trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic2)| {
@@ -1218,16 +1206,13 @@ impl NodeInterner {
             }
 
             if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_ok() {
-                // The unification was successful so we can append fresh_bindings to our bindings list
-                type_bindings.extend(fresh_bindings);
-
                 if let TraitImplKind::Normal(impl_id) = impl_kind {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
 
                     if let Err(mut errors) = self.validate_where_clause(
                         &trait_impl.where_clause,
-                        type_bindings,
+                        &mut fresh_bindings,
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
@@ -1236,11 +1221,20 @@ impl NodeInterner {
                     }
                 }
 
-                return Ok(impl_kind.clone());
+                matching_impls.push((impl_kind.clone(), fresh_bindings));
             }
         }
 
-        Err(vec![make_constraint()])
+        if matching_impls.len() == 1 {
+            let (impl_, fresh_bindings) = matching_impls.pop().unwrap();
+            *type_bindings = fresh_bindings;
+            Ok(impl_)
+        } else if matching_impls.is_empty() {
+            Err(vec![make_constraint()])
+        } else {
+            // multiple matching impls, type annotations needed
+            Err(vec![])
+        }
     }
 
     /// Verifies that each constraint in the given where clause is valid.
@@ -1256,12 +1250,11 @@ impl NodeInterner {
             // Instantiation bindings are generally safe to force substitute into the same type.
             // This is needed here to undo any bindings done to trait methods by monomorphization.
             // Otherwise, an impl for (A, B) could get narrowed to only an impl for e.g. (u8, u16).
-            let constraint_type = constraint.typ.force_substitute(instantiation_bindings);
-            let constraint_type = constraint_type.substitute(type_bindings);
+            let constraint_type =
+                constraint.typ.force_substitute(instantiation_bindings).substitute(type_bindings);
 
             let trait_generics = vecmap(&constraint.trait_generics, |generic| {
-                let generic = generic.force_substitute(instantiation_bindings);
-                generic.substitute(type_bindings)
+                generic.force_substitute(instantiation_bindings).substitute(type_bindings)
             });
 
             self.lookup_trait_implementation_helper(
@@ -1270,10 +1263,11 @@ impl NodeInterner {
                 &trait_generics,
                 // Use a fresh set of type bindings here since the constraint_type originates from
                 // our impl list, which we don't want to bind to.
-                &mut TypeBindings::new(),
+                type_bindings,
                 recursion_limit - 1,
             )?;
         }
+
         Ok(())
     }
 
@@ -1539,6 +1533,10 @@ impl NodeInterner {
         self.add_dependency(dependent, DependencyId::Function(dependency));
     }
 
+    pub fn add_type_alias_dependency(&mut self, dependent: DependencyId, dependency: TypeAliasId) {
+        self.add_dependency(dependent, DependencyId::Alias(dependency));
+    }
+
     fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
         let dependent_index = self.get_or_insert_dependency(dependent);
         let dependency_index = self.get_or_insert_dependency(dependency);
@@ -1585,6 +1583,12 @@ impl NodeInterner {
                         }
                         DependencyId::Alias(alias_id) => {
                             let alias = self.get_type_alias(alias_id);
+                            // If type aliases form a cycle, we have to manually break the cycle
+                            // here to prevent infinite recursion in the type checker.
+                            alias.borrow_mut().typ = Type::Error;
+
+                            // push_error will borrow the alias so we have to drop the mutable borrow
+                            let alias = alias.borrow();
                             push_error(alias.name.to_string(), &scc, i, alias.location);
                             break;
                         }
@@ -1606,7 +1610,7 @@ impl NodeInterner {
             DependencyId::Struct(id) => Cow::Owned(self.get_struct(id).borrow().name.to_string()),
             DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
             DependencyId::Alias(id) => {
-                Cow::Borrowed(self.get_type_alias(id).name.0.contents.as_ref())
+                Cow::Owned(self.get_type_alias(id).borrow().name.to_string())
             }
             DependencyId::Global(id) => {
                 Cow::Borrowed(self.get_global(id).ident.0.contents.as_ref())
@@ -1659,7 +1663,7 @@ impl Methods {
         for method in self.iter() {
             match interner.function_meta(&method).typ.instantiate(interner).0 {
                 Type::Function(args, _, _) => {
-                    if let Some(object) = args.get(0) {
+                    if let Some(object) = args.first() {
                         let mut bindings = TypeBindings::new();
 
                         if object.try_unify(typ, &mut bindings).is_ok() {
@@ -1683,6 +1687,7 @@ enum TypeMethodKey {
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
     Array,
+    Slice,
     Bool,
     String,
     FmtString,
@@ -1690,6 +1695,7 @@ enum TypeMethodKey {
     Tuple,
     Function,
     Generic,
+    Code,
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -1698,8 +1704,10 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     match &typ {
         Type::FieldElement => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
+        Type::Slice(_) => Some(Slice),
         Type::Integer(_, _) => Some(FieldOrInt),
         Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::Integer) => Some(FieldOrInt),
         Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::FmtString(_, _) => Some(FmtString),
@@ -1707,14 +1715,15 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),
+        Type::Code => Some(Code),
         Type::MutableReference(element) => get_type_method_key(element),
+        Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
 
         // We do not support adding methods to these types
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
         | Type::Constant(_)
         | Type::Error
-        | Type::NotConstant
         | Type::Struct(_, _)
         | Type::TraitAsType(..) => None,
     }

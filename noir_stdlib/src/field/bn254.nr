@@ -21,11 +21,23 @@ unconstrained fn decompose_unsafe(x: Field) -> (Field, Field) {
     (low, high)
 }
 
+// Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
+fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
+    let (alo, ahi) = a;
+    let (blo, bhi) = b;
+    let borrow = lte_unsafe(alo, blo, 16);
+
+    let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
+    let rhi = ahi - bhi - (borrow as Field);
+
+    rlo.assert_max_bit_size(128);
+    rhi.assert_max_bit_size(128);
+}
+
 /// Decompose a single field into two 16 byte fields.
 pub fn decompose(x: Field) -> (Field, Field) {
     // Take hints of the decomposition
     let (xlo, xhi) = decompose_unsafe(x);
-    let borrow = lt_unsafe(PLO, xlo, 16);
 
     // Range check the limbs
     xlo.assert_max_bit_size(128);
@@ -34,13 +46,8 @@ pub fn decompose(x: Field) -> (Field, Field) {
     // Check that the decomposition is correct
     assert_eq(x, xlo + TWO_POW_128 * xhi);
 
-    // Check that (xlo < plo && xhi <= phi) || (xlo >= plo && xhi < phi)
-    let rlo = PLO - xlo + (borrow as Field) * TWO_POW_128;
-    let rhi = PHI - xhi - (borrow as Field);
-
-    rlo.assert_max_bit_size(128);
-    rhi.assert_max_bit_size(128);
-
+    // Assert that the decomposition of P is greater than the decomposition of x
+    assert_gt_limbs((PLO, PHI), (xlo, xhi));
     (xlo, xhi)
 }
 
@@ -69,17 +76,11 @@ unconstrained fn lte_unsafe(x: Field, y: Field, num_bytes: u32) -> bool {
 
 pub fn assert_gt(a: Field, b: Field) {
     // Decompose a and b
-    let (alo, ahi) = decompose(a);
-    let (blo, bhi) = decompose(b);
+    let a_limbs = decompose(a);
+    let b_limbs = decompose(b);
 
-    let borrow = lte_unsafe(alo, blo, 16);
-
-    // Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
-    let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
-    let rhi = ahi - bhi - (borrow as Field);
-
-    rlo.assert_max_bit_size(128);
-    rhi.assert_max_bit_size(128);
+    // Assert that a_limbs is greater than b_limbs
+    assert_gt_limbs(a_limbs, b_limbs)
 }
 
 pub fn assert_lt(a: Field, b: Field) {
@@ -100,4 +101,82 @@ pub fn gt(a: Field, b: Field) -> bool {
 
 pub fn lt(a: Field, b: Field) -> bool {
     gt(b, a)
+}
+
+mod tests {
+    // TODO: Allow imports from "super"
+    use crate::field::bn254::{decompose_unsafe, decompose, lt_unsafe, assert_gt, gt, lt, TWO_POW_128, lte_unsafe, PLO, PHI};
+
+    #[test]
+    fn check_decompose_unsafe() {
+        assert_eq(decompose_unsafe(TWO_POW_128), (0, 1));
+        assert_eq(decompose_unsafe(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
+        assert_eq(decompose_unsafe(0x1234567890), (0x1234567890, 0));
+    }
+
+    #[test]
+    fn check_decompose() {
+        assert_eq(decompose(TWO_POW_128), (0, 1));
+        assert_eq(decompose(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
+        assert_eq(decompose(0x1234567890), (0x1234567890, 0));
+    }
+
+    #[test]
+    fn check_lt_unsafe() {
+        assert(lt_unsafe(0, 1, 16));
+        assert(lt_unsafe(0, 0x100, 16));
+        assert(lt_unsafe(0x100, TWO_POW_128 - 1, 16));
+        assert(!lt_unsafe(0, TWO_POW_128, 16));
+    }
+
+    #[test]
+    fn check_lte_unsafe() {
+        assert(lte_unsafe(0, 1, 16));
+        assert(lte_unsafe(0, 0x100, 16));
+        assert(lte_unsafe(0x100, TWO_POW_128 - 1, 16));
+        assert(!lte_unsafe(0, TWO_POW_128, 16));
+
+        assert(lte_unsafe(0, 0, 16));
+        assert(lte_unsafe(0x100, 0x100, 16));
+        assert(lte_unsafe(TWO_POW_128 - 1, TWO_POW_128 - 1, 16));
+        assert(lte_unsafe(TWO_POW_128, TWO_POW_128, 16));
+    }
+
+    #[test]
+    fn check_assert_gt() {
+        assert_gt(1, 0);
+        assert_gt(0x100, 0);
+        assert_gt((0 - 1), (0 - 2));
+        assert_gt(TWO_POW_128, 0);
+        assert_gt(0 - 1, 0);
+    }
+
+    #[test]
+    fn check_gt() {
+        assert(gt(1, 0));
+        assert(gt(0x100, 0));
+        assert(gt((0 - 1), (0 - 2)));
+        assert(gt(TWO_POW_128, 0));
+        assert(!gt(0, 0));
+        assert(!gt(0, 0x100));
+        assert(gt(0 - 1, 0 - 2));
+        assert(!gt(0 - 2, 0 - 1));
+    }
+
+    #[test]
+    fn check_plo_phi() {
+        assert_eq(PLO + PHI * TWO_POW_128, 0);
+        let p_bytes = crate::field::modulus_le_bytes();
+        let mut p_low: Field = 0;
+        let mut p_high: Field = 0;
+
+        let mut offset = 1;
+        for i in 0..16 {
+            p_low += (p_bytes[i] as Field) * offset;
+            p_high += (p_bytes[i + 16] as Field) * offset;
+            offset *= 256;
+        }
+        assert_eq(p_low, PLO);
+        assert_eq(p_high, PHI);
+    }
 }

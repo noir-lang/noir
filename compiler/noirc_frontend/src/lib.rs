@@ -45,6 +45,7 @@ pub mod macros_api {
     pub use noirc_errors::Span;
 
     pub use crate::graph::CrateId;
+    use crate::hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl};
     pub use crate::hir::def_collector::errors::MacroError;
     pub use crate::hir_def::expr::{HirExpression, HirLiteral};
     pub use crate::hir_def::stmt::HirStatement;
@@ -55,14 +56,13 @@ pub mod macros_api {
     pub use crate::hir::def_map::ModuleDefId;
     pub use crate::{
         hir::Context as HirContext, BlockExpression, CallExpression, CastExpression, Distinctness,
-        Expression, ExpressionKind, FunctionReturnType, Ident, IndexExpression, LetStatement,
-        Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, Path, PathKind,
-        Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
+        Expression, ExpressionKind, FunctionReturnType, Ident, IndexExpression, ItemVisibility,
+        LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction, Path,
+        PathKind, Pattern, Statement, UnresolvedType, UnresolvedTypeData, Visibility,
     };
     pub use crate::{
-        ForLoopStatement, ForRange, FunctionDefinition, FunctionVisibility, ImportStatement,
-        NoirStruct, Param, PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl,
-        UnaryOp,
+        ForLoopStatement, ForRange, FunctionDefinition, ImportStatement, NoirStruct, Param,
+        PrefixExpression, Signedness, StatementKind, StructType, Type, TypeImpl, UnaryOp,
     };
 
     /// Methods to process the AST before and after type checking
@@ -72,8 +72,19 @@ pub mod macros_api {
             &self,
             ast: SortedModule,
             crate_id: &CrateId,
+            file_id: FileId,
             context: &HirContext,
         ) -> Result<SortedModule, (MacroError, FileId)>;
+
+        // TODO(#4653): generalize this function
+        fn process_collected_defs(
+            &self,
+            _crate_id: &CrateId,
+            _context: &mut HirContext,
+            _collected_trait_impls: &[UnresolvedTraitImpl],
+            _collected_functions: &mut [UnresolvedFunctions],
+        ) -> Result<(), (MacroError, FileId)>;
+
         /// Function to manipulate the AST after type checking has been completed.
         /// The AST after type checking has been done is called the HIR.
         fn process_typed_ast(

@@ -6,9 +6,11 @@ use acir::{BlackBoxFunc, FieldElement};
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 mod fixed_base_scalar_mul;
+mod poseidon2;
 mod wasm;
 
 pub use fixed_base_scalar_mul::{embedded_curve_add, fixed_base_scalar_mul};
+use poseidon2::Poseidon2;
 use wasm::Barretenberg;
 
 use self::wasm::{Pedersen, SchnorrSig};
@@ -18,10 +20,17 @@ pub struct Bn254BlackBoxSolver {
 }
 
 impl Bn254BlackBoxSolver {
-    #[cfg(target_arch = "wasm32")]
     pub async fn initialize() -> Bn254BlackBoxSolver {
-        let blackbox_vendor = Barretenberg::initialize().await;
-        Bn254BlackBoxSolver { blackbox_vendor }
+        // We fallback to the sync initialization of barretenberg on non-wasm targets.
+        // This ensures that wasm packages consuming this still build on the default target (useful for linting, etc.)
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                let blackbox_vendor = Barretenberg::initialize().await;
+                Bn254BlackBoxSolver { blackbox_vendor }
+            } else {
+                Bn254BlackBoxSolver::new()
+            }
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -96,5 +105,14 @@ impl BlackBoxFunctionSolver for Bn254BlackBoxSolver {
         input2_y: &FieldElement,
     ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         embedded_curve_add(*input1_x, *input1_y, *input2_x, *input2_y)
+    }
+
+    fn poseidon2_permutation(
+        &self,
+        inputs: &[FieldElement],
+        len: u32,
+    ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
+        let poseidon = Poseidon2::new();
+        poseidon.permutation(inputs, len)
     }
 }

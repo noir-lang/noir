@@ -69,7 +69,7 @@ impl BigIntSolver {
     pub(crate) fn bigint_to_bytes(
         &self,
         input: u32,
-        outputs: &Vec<Witness>,
+        outputs: &[Witness],
         initial_witness: &mut WitnessMap,
     ) -> Result<(), OpcodeResolutionError> {
         let bigint = self.get_bigint(input, BlackBoxFunc::BigIntToLeBytes)?;

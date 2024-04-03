@@ -1,4 +1,5 @@
-use crate::{black_box::BlackBoxOp, Value};
+use crate::black_box::BlackBoxOp;
+use acir_field::FieldElement;
 use serde::{Deserialize, Serialize};
 
 pub type Label = usize;
@@ -22,8 +23,8 @@ impl From<usize> for MemoryAddress {
 /// Describes the memory layout for an array/vector element
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum HeapValueType {
-    // A single field element is enough to represent the value
-    Simple,
+    // A single field element is enough to represent the value with a given bit size
+    Simple(u32),
     // The value read should be interpreted as a pointer to a heap array, which
     // consists of a pointer to a slice of memory of size elements, and a
     // reference count
@@ -36,7 +37,11 @@ pub enum HeapValueType {
 
 impl HeapValueType {
     pub fn all_simple(types: &[HeapValueType]) -> bool {
-        types.iter().all(|typ| matches!(typ, HeapValueType::Simple))
+        types.iter().all(|typ| matches!(typ, HeapValueType::Simple(_)))
+    }
+
+    pub fn field() -> HeapValueType {
+        HeapValueType::Simple(FieldElement::max_num_bits())
     }
 }
 
@@ -98,6 +103,11 @@ pub enum BrilligOpcode {
         lhs: MemoryAddress,
         rhs: MemoryAddress,
     },
+    Cast {
+        destination: MemoryAddress,
+        source: MemoryAddress,
+        bit_size: u32,
+    },
     JumpIfNot {
         condition: MemoryAddress,
         location: Label,
@@ -126,7 +136,7 @@ pub enum BrilligOpcode {
     Const {
         destination: MemoryAddress,
         bit_size: u32,
-        value: Value,
+        value: FieldElement,
     },
     Return,
     /// Used to get data from an outside source.
@@ -150,6 +160,13 @@ pub enum BrilligOpcode {
     Mov {
         destination: MemoryAddress,
         source: MemoryAddress,
+    },
+    /// destination = condition > 0 ? source_a : source_b
+    ConditionalMov {
+        destination: MemoryAddress,
+        source_a: MemoryAddress,
+        source_b: MemoryAddress,
+        condition: MemoryAddress,
     },
     Load {
         destination: MemoryAddress,
@@ -175,9 +192,16 @@ pub enum BinaryFieldOp {
     Add,
     Sub,
     Mul,
+    /// Field division
     Div,
+    /// Integer division
+    IntegerDiv,
     /// (==) equal
     Equals,
+    /// (<) Field less than
+    LessThan,
+    /// (<=) field less or equal
+    LessThanEquals,
 }
 
 /// Binary fixed-length integer expressions
@@ -186,8 +210,7 @@ pub enum BinaryIntOp {
     Add,
     Sub,
     Mul,
-    SignedDiv,
-    UnsignedDiv,
+    Div,
     /// (==) equal
     Equals,
     /// (<) Field less than

@@ -119,11 +119,11 @@ impl FmtVisitor<'_> {
         self.last_position = block_span.start() + 1; // `{`
         self.push_str("{");
 
-        self.trim_spaces_after_opening_brace(&block.0);
+        self.trim_spaces_after_opening_brace(&block.statements);
 
         self.indent.block_indent(self.config);
 
-        self.visit_stmts(block.0);
+        self.visit_stmts(block.statements);
 
         let span = (self.last_position..block_span.end() - 1).into();
         self.close_block(span);
@@ -202,7 +202,6 @@ pub(crate) fn format_seq<T: HasItem>(
     reduce: bool,
 ) -> String {
     let mut nested_indent = shape;
-    let shape = shape;
 
     nested_indent.indent.block_indent(visitor.config);
 

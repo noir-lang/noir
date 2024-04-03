@@ -48,6 +48,8 @@ pub enum RuntimeError {
     BigIntModulus { call_stack: CallStack },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
+    #[error("All `oracle` methods should be wrapped in an unconstrained fn")]
+    UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
 }
 
 // We avoid showing the actual lhs and rhs since most of the time they are just 0
@@ -138,7 +140,8 @@ impl RuntimeError {
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
-            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack } => call_stack,
+            | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
+            | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack } => call_stack,
         }
     }
 }
@@ -158,7 +161,7 @@ impl RuntimeError {
             RuntimeError::InternalError(cause) => {
                 Diagnostic::simple_error(
                     "Internal Consistency Evaluators Errors: \n
-                    This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
+                    This is likely a bug. Consider opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                     cause.to_string(),
                     noirc_errors::Span::inclusive(0, 0)
                 )
