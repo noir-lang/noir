@@ -18,7 +18,7 @@ E2E_TEST_LOCAL:
     --load aztecprotocol/end-to-end:latest=../+end-to-end-minimal \
     --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+get
     # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
-    RUN docker compose -f $compose_file up --exit-code-from=sandbox --force-recreate
+    RUN docker compose -f $compose_file up --exit-code-from=end-to-end --force-recreate
   END
 
 # run locally and take from cache, used for our mainly x86 jobs
@@ -53,7 +53,7 @@ E2E_TEST_FROM_BUILD:
     --load aztecprotocol/end-to-end:latest=../+end-to-end-minimal \
     --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+get
     # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
-    RUN docker compose -f $compose_file up --exit-code-from=sandbox --force-recreate
+    RUN docker compose -f $compose_file up --exit-code-from=end-to-end --force-recreate
   END
 
 E2E_TEST:
