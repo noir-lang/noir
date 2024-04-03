@@ -22,7 +22,7 @@ The rationale for precompiled contracts is to provide a set of vetted primitives
 
 ## Encryption and tagging precompiles
 
-All precompiles in the address range `ENCRYPTION_PRECOMPILE_ADDRESS_RANGE` are reserved for encryption and tagging. Application contracts can expected to call into these contracts with note plaintext(s), recipient address(es), and public key(s). To facilitate forward compatibility, all unassigned addresses within the range expose the functions below as no-ops, meaning that no actions will be executed when calling into them.
+All precompiles in the address range `ENCRYPTION_PRECOMPILE_ADDRESS_RANGE` are reserved for encryption and tagging. Application contracts are expected to call into these contracts with note plaintext(s), recipient address(es), and public key(s). To facilitate forward compatibility, all unassigned addresses within the range expose the functions below as no-ops, meaning that no actions will be executed when calling into them.
 
 <!-- Q: How is this 'no-op' functionality achieved? -->
 
@@ -70,7 +70,7 @@ Encrypts and tags the given plaintext using the provided public keys, and return
 encrypt_and_broadcast(public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH]): Field[MAX_TAGGED_CIPHERTEXT_LENGTH]
 ```
 
-Encrypts and tags the given plaintext using the provided public keys, broadcasts them as an event, and returns the encrypted note prefixed with its tag for note discovery. This functions should be invoked via a [delegate call](../calls/delegate-calls.md), so that the broadcasted event is emitted as if it were from the caller contract.
+Encrypts and tags the given plaintext using the provided public keys, broadcasts them as an event, and returns the encrypted note prefixed with its tag for note discovery. These functions should be invoked via a [delegate call](../calls/delegate-calls.md), so that the broadcasted event is emitted as if it were from the caller contract.
 
 ```
 encrypt<N>([call_context: CallContext, public_keys_hash: Field, encryption_type: EncryptionType, recipient: AztecAddress, plaintext: Field[MAX_PLAINTEXT_LENGTH] ][N]): Field[MAX_CIPHERTEXT_LENGTH][N]
@@ -130,7 +130,7 @@ This is the cheapest approach in terms of calldata cost, and the simplest to imp
 
 ### Delegated trial decryption
 
-Delegated trial decryption relies on a tag added to each note, generated used the recipient's tagging public key. The holder of the corresponding tagging private key can trial-decrypt each tag, and if decryption is successful, proceed to decrypt the contents of the note using the associated decryption scheme.
+Delegated trial decryption relies on a tag added to each note, generated using the recipient's tagging public key. The holder of the corresponding tagging private key can trial-decrypt each tag, and if decryption is successful, proceed to decrypt the contents of the note using the associated decryption scheme.
 
 This allows a user to share their tagging private key with a trusted service provider, who then proceeds to trial decrypt all possible note tags on their behalf. This scheme is simple for the user, but requires trust on a third party.
 

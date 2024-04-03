@@ -96,7 +96,7 @@ A nullifier public key might have the benefit (in Aztec) that a user could (opti
 
 - This presumes that within a circuit, the nk (not a public key; still secret!) would be derived from an nsk, and the nk would be injected into the nullifier.
 - BUT, of course, it would be BAD if the nk were derivable as a bip32 normal child, because then everyone would be able to derive the nk from the master key, and be able to view whenever a note is nullified!
-- The nk would need to ba a hardened key (derivable only from a secret).
+- The nk would need to be a hardened key (derivable only from a secret).
 
 Given that it's acceptable to ZCash Orchard, we accept that a nullifier master secret key may be 'seen' by Aztec software.
 
@@ -104,7 +104,7 @@ Given that it's acceptable to ZCash Orchard, we accept that a nullifier master s
 
 Some app developers will wish to give users the option of sharing private transaction details with a trusted 3rd party.
 
-> Note: The block hashes tree will enable a user to prove many things about their historical transaction history, including historical encrypted event logs. This feature will open up exciting audit patterns, where a user will be able to provably respond to questions without necessarily revealing their private data. However, sometimes this might be an inefficient pattern; in particular when a user is asked to prove a negative statement (e.g. "prove that you've never owned a rock NFT"). Proving such negative statements might require the user to execute an enormous recursive function to iterate through the entire tx history of the network, for example: proving that, out of all the encrypted events that the user _can_ decrypt, none of them relate to ownership of a rock NFT. Given this (possibly huge) inefficiency, these key requirements include the more traditional ability to share certain keys with a trusted 3rd party.
+> Note: The [archive](./../state/archive.md) will enable a user to prove many things about their transaction history, including historical encrypted logs. This feature will open up exciting audit patterns, where a user will be able to provably respond to questions without necessarily revealing their private data. However, sometimes this might be an inefficient pattern; in particular when a user is asked to prove a negative statement (e.g. "prove that you've never owned a rock NFT"). Proving such negative statements might require the user to execute an enormous recursive function to iterate through the entire tx history of the network, for example: proving that, out of all the encrypted events that the user _can_ decrypt, none of them relate to ownership of a rock NFT. Given this (possibly huge) inefficiency, these key requirements include the more traditional ability to share certain keys with a trusted 3rd party.
 
 **Requirements:**
 
@@ -149,7 +149,7 @@ Given that this is our best-known approach, we include some requirements relatin
 
 **Requirements:**
 
-- A user Bob can non-interactively generate a sequence of tags for some other user Alice, and non-interactively communicate that sequencer of tags to Alice.
+- A user Bob can non-interactively generate a sequence of tags for some other user Alice, and non-interactively communicate that sequence of tags to Alice.
 - If a shared secret (that is used for generating a sequence of tags) is leaked, Bob can non-interactively generate and communicate a new sequence of tags to Alice, without requiring Bob nor Alice to rotate their keys.
   - Note: if the shared secret is leaked through Bob/Alice accidentally leaking one of their keys, then they might need to actually rotate their keys.
 
