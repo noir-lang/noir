@@ -119,7 +119,8 @@ impl Context {
             | Truncate { .. }
             | Constrain(..)
             | RangeCheck { .. }
-            | IncrementRc { .. } => false,
+            | IncrementRc { .. }
+            | DecrementRc { .. } => false,
 
             EnableSideEffects { .. } | ArrayGet { .. } | ArraySet { .. } | Allocate => true,
 
