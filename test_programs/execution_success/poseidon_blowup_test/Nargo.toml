@@ -1,7 +1,0 @@
-[package]
-name = "poseidon_blowup_test"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.26.0"
-
-[dependencies]
