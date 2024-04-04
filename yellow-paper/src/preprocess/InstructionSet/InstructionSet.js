@@ -1039,6 +1039,34 @@ T[dstOffset] = field
 `,
     },
     {
+        "id": "getcontractinstance",
+        "Name": "`GETCONTRACTINSTANCE`",
+        "Category": "Other",
+        "Flags": [
+            {"name": "indirect", "description": INDIRECT_FLAG_DESCRIPTION},
+        ],
+        "Args": [
+            {"name": "addressOffset", "description": "memory offset of the contract instance address"},
+            {"name": "dstOffset", "description": "location to write the contract instance information to"},
+        ],
+        "Expression": `
+M[dstOffset:dstOffset+CONTRACT_INSTANCE_SIZE+1] = [
+    instance_found_in_address,
+    instance.salt ?? 0,
+    instance.deployer ?? 0,
+    instance.contractClassId ?? 0,
+    instance.initializationHash ?? 0,
+    instance.portalContractAddress ?? 0,
+    instance.publicKeysHash ?? 0,
+]
+`,
+        "Summary": "Copies contract instance data to memory",
+        "Tag checks": "",
+        "Tag updates": "T[dstOffset:dstOffset+CONTRACT_INSTANCE_SIZE+1] = field",
+        "Additional AVM circuit checks": "TO-DO",
+        "Triggers downstream circuit operations": "TO-DO",
+    },
+    {
         "id": "emitunencryptedlog",
         "Name": "`EMITUNENCRYPTEDLOG`",
         "Category": "Accrued Substate - Logging",

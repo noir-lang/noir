@@ -89,6 +89,7 @@ export const GasCosts = {
   [Opcode.HEADERMEMBER]: TemporaryDefaultGasCost,
   [Opcode.EMITUNENCRYPTEDLOG]: TemporaryDefaultGasCost,
   [Opcode.SENDL2TOL1MSG]: TemporaryDefaultGasCost,
+  [Opcode.GETCONTRACTINSTANCE]: TemporaryDefaultGasCost,
   // External calls
   [Opcode.CALL]: TemporaryDefaultGasCost,
   [Opcode.STATICCALL]: TemporaryDefaultGasCost,

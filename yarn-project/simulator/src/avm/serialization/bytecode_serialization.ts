@@ -18,6 +18,7 @@ import {
   FeePerL1Gas,
   FeePerL2Gas,
   FieldDiv,
+  GetContractInstance,
   InternalCall,
   InternalReturn,
   Jump,
@@ -126,6 +127,7 @@ const INSTRUCTION_SET = () =>
     // Accrued Substate
     [EmitUnencryptedLog.opcode, EmitUnencryptedLog],
     [SendL2ToL1Message.opcode, SendL2ToL1Message],
+    [GetContractInstance.opcode, GetContractInstance],
 
     // Control Flow - Contract Calls
     [Call.opcode, Call],

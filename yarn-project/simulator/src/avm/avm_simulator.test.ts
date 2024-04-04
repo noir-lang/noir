@@ -757,6 +757,30 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       expect([...storageTrace.values()]).toEqual([[value]]);
     });
   });
+
+  describe('Contract', () => {
+    it(`GETCONTRACTINSTANCE deserializes correctly`, async () => {
+      const context = initContext();
+      const contractInstance = {
+        address: AztecAddress.random(),
+        version: 1 as const,
+        salt: new Fr(0x123),
+        deployer: AztecAddress.fromBigInt(0x456n),
+        contractClassId: new Fr(0x789),
+        initializationHash: new Fr(0x101112),
+        portalContractAddress: EthAddress.fromField(new Fr(0x131415)),
+        publicKeysHash: new Fr(0x161718),
+      };
+
+      jest
+        .spyOn(context.persistableState.hostStorage.contractsDb, 'getContractInstance')
+        .mockReturnValue(Promise.resolve(contractInstance));
+      const bytecode = getAvmTestContractBytecode('test_get_contract_instance_raw');
+      const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+      expect(results.reverted).toBe(false);
+    });
+  });
 });
 
 function getAvmTestContractBytecode(functionName: string): Buffer {
