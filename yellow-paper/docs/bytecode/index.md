@@ -115,7 +115,7 @@ If the function is public, the entry will be its ABI. If the function is private
 | `name` | `string` | The name of the function. |
 | `functionType` | `string` | `private`, `public` or `unconstrained`. |
 | `parameters` | [ABIParameter[]](#abi-parameter) | Function parameters. |
-| `returnTypes` | `ABIType[]` | The types of the return values. |
+| `returnTypes` | `AbiType[]` | The types of the return values. |
 
 ### ABI Variable
 
@@ -123,7 +123,7 @@ If the function is public, the entry will be its ABI. If the function is private
 | Field | Type | Description |
 |----------|----------|----------|
 | `name` | `string` | The name of the variable. |
-| `type` | [ABIType](#abi-type) | The type of the variable. |
+| `type` | [AbiType](#abi-type) | The type of the variable. |
 
 ### ABI Parameter
 
@@ -131,7 +131,7 @@ If the function is public, the entry will be its ABI. If the function is private
 | Field | Type | Description |
 |----------|----------|----------|
 | `name` | `string` | The name of the variable. |
-| `type` | [ABIType](#abi-type) | The type of the variable. |
+| `type` | [AbiType](#abi-type) | The type of the variable. |
 | `visibility` | `string` | `public` or `secret`. |
 
 ### ABI Type
@@ -143,7 +143,7 @@ If the function is public, the entry will be its ABI. If the function is private
 | `sign?` | `string` | The sign of the integer. Applies to integers only. |
 | `width?` | `number` | The width of the integer in bits. Applies to integers only. |
 | `length?` | `number` | The length of the array or string. Applies to arrays and strings only. |
-| `type?` | [ABIType](#abi-type) | The types of the array elements. Applies to arrays only. |
+| `type?` | [AbiType](#abi-type) | The types of the array elements. Applies to arrays only. |
 | `fields?` | [ABIVariable[]](#abi-variable) | The The fields of the struct. Applies to structs only. |
 
 ### Bytecode in the artifact

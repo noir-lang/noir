@@ -31,11 +31,12 @@ contract Test {
     use dep::field_note::field_note::FieldNote;
     use dep::value_note::value_note::ValueNote;
 
-    #[event]
+    #[aztec(event)]
     struct ExampleEvent {
         value: Field,
     }
 
+    #[aztec(storage)]
     struct Storage {
         example_constant: PrivateImmutable<FieldNote>,
         example_set: PrivateSet<FieldNote>,

@@ -11,6 +11,7 @@ contract PendingNoteHashes {
     use dep::value_note::{balance_utils, filter::filter_notes_min_sum, value_note::{VALUE_NOTE_LEN, ValueNote}};
     use dep::aztec::context::{PublicContext, Context};
 
+    #[aztec(storage)]
     struct Storage {
         balances: Map<AztecAddress, PrivateSet<ValueNote>>,
     }

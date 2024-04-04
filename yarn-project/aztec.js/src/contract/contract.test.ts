@@ -100,7 +100,10 @@ describe('Contract Class', () => {
         debugSymbols: '',
       },
     ],
-    events: [],
+    outputs: {
+      structs: {},
+      globals: {},
+    },
     fileMap: {},
   };
 

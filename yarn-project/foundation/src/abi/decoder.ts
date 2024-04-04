@@ -1,6 +1,6 @@
 import { AztecAddress } from '../aztec-address/index.js';
 import { type Fr } from '../fields/index.js';
-import { type ABIParameter, type ABIType, type ABIVariable, type FunctionArtifact } from './abi.js';
+import { type ABIParameter, type ABIVariable, type AbiType, type FunctionArtifact } from './abi.js';
 import { isAztecAddressStruct } from './utils.js';
 
 /**
@@ -21,7 +21,7 @@ class ReturnValuesDecoder {
    * @param abiType - The type of the return value.
    * @returns The decoded return value.
    */
-  private decodeReturn(abiType: ABIType): DecodedReturn {
+  private decodeReturn(abiType: AbiType): DecodedReturn {
     switch (abiType.kind) {
       case 'field':
         return this.getNextField().toBigInt();
@@ -115,7 +115,7 @@ export class FunctionSignatureDecoder {
    * @param param - The parameter type to decode.
    * @returns A string representing the parameter type.
    */
-  private getParameterType(param: ABIType): string {
+  private getParameterType(param: AbiType): string {
     switch (param.kind) {
       case 'field':
         return 'Field';

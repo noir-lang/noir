@@ -6,6 +6,7 @@ contract FPC {
 
     use crate::interfaces::Token;
 
+    #[aztec(storage)]
     struct Storage {
         other_asset: SharedImmutable<AztecAddress>,
         gas_token_address: SharedImmutable<AztecAddress>,

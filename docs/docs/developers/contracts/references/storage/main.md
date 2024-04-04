@@ -30,11 +30,8 @@ Public state follows the Ethereum style account model, where each contract has i
 
 ## Storage struct
 
-:::info
-The struct **must** be called `Storage` for the Aztec.nr library to properly handle it (this will be relaxed in the future).
-:::
-
 ```rust
+#[aztec(storage)]
 struct Storage {
   // public state variables
   // private state variables

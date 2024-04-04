@@ -17,6 +17,7 @@ contract SchnorrAccount {
 
     use crate::public_key_note::{PublicKeyNote, PUBLIC_KEY_NOTE_LEN};
 
+    #[aztec(storage)]
     struct Storage {
         // docs:start:storage
         signing_public_key: PrivateImmutable<PublicKeyNote>,

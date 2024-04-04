@@ -9,7 +9,7 @@ contract Crowdfunding {
     use dep::value_note::value_note::ValueNote;
     use interfaces::Token;
 
-    #[event]
+    #[aztec(event)]
     struct WithdrawalProcessed {
         who: AztecAddress,
         amount: u64,
@@ -21,6 +21,7 @@ contract Crowdfunding {
         }
     }
 
+    #[aztec(storage)]
     struct Storage {
         // Token used for donations (e.g. DAI)
         donation_token: SharedImmutable<AztecAddress>,

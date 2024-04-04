@@ -6,6 +6,7 @@ contract GasToken {
 
     use crate::lib::{calculate_fee, get_bridge_gas_msg_hash};
 
+    #[aztec(storage)]
     struct Storage {
         balances: Map<AztecAddress, PublicMutable<U128>>,
     }

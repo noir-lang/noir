@@ -17,6 +17,7 @@ contract Uniswap {
     use crate::interfaces::{Token, TokenBridge};
     use crate::util::{compute_swap_private_content_hash, compute_swap_public_content_hash};
 
+    #[aztec(storage)]
     struct Storage {
         // like with account contracts, stores the approval message on a slot and tracks if they are active
         approved_action: Map<Field, PublicMutable<bool>>,

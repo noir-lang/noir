@@ -6,6 +6,7 @@ contract PriceFeed {
     use crate::asset::Asset;
 
     // Storage structure, containing all storage, and specifying what slots they use.
+    #[aztec(storage)]
     struct Storage {
         assets: Map<Field, PublicMutable<Asset>>,
     }

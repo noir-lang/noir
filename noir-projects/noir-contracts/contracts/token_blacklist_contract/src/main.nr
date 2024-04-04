@@ -30,6 +30,7 @@ contract TokenBlacklist {
     use crate::interfaces::SlowMap;
     // docs:end:interface
 
+    #[aztec(storage)]
     struct Storage {
         admin: PublicMutable<AztecAddress>,
         balances: BalancesMap<TokenNote>,

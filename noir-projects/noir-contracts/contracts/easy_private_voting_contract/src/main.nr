@@ -7,6 +7,7 @@ contract EasyPrivateVoting {
     use dep::aztec::context::Context;
     // docs:end:imports
     // docs:start:storage_struct
+    #[aztec(storage)]
     struct Storage {
         admin: PublicMutable<AztecAddress>, // admin can end vote
         tally: Map<Field, PublicMutable<Field>>, // we will store candidate as key and number of votes as value

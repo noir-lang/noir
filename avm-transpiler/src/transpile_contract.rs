@@ -16,7 +16,7 @@ pub struct TranspiledContract {
     pub name: String,
     // Functions can be ACIR or AVM
     pub functions: Vec<AvmOrAcirContractFunction>,
-    pub events: serde_json::Value,
+    pub outputs: serde_json::Value,
     pub file_map: serde_json::Value,
     //pub warnings: serde_json::Value,
 }
@@ -29,7 +29,7 @@ pub struct CompiledAcirContract {
     pub noir_version: String,
     pub name: String,
     pub functions: Vec<AcirContractFunction>,
-    pub events: serde_json::Value,
+    pub outputs: serde_json::Value,
     pub file_map: serde_json::Value,
     //pub warnings: serde_json::Value,
 }
@@ -113,7 +113,7 @@ impl From<CompiledAcirContract> for TranspiledContract {
             noir_version: contract.noir_version,
             name: contract.name,
             functions, // some acir, some transpiled avm functions
-            events: contract.events,
+            outputs: contract.outputs,
             file_map: contract.file_map,
             //warnings: contract.warnings,
         }

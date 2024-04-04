@@ -146,6 +146,7 @@ pub struct NodeInterner {
     // Maps GlobalId -> GlobalInfo
     // NOTE: currently only used for checking repeat globals and restricting their scope to a module
     globals: Vec<GlobalInfo>,
+    global_attributes: HashMap<GlobalId, Vec<SecondaryAttribute>>,
 
     next_type_variable_id: std::cell::Cell<usize>,
 
@@ -480,6 +481,7 @@ impl Default for NodeInterner {
             field_indices: HashMap::new(),
             next_type_variable_id: std::cell::Cell::new(0),
             globals: Vec::new(),
+            global_attributes: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
             type_alias_ref: Vec::new(),
@@ -647,11 +649,13 @@ impl NodeInterner {
         local_id: LocalModuleId,
         let_statement: StmtId,
         file: FileId,
+        attributes: Vec<SecondaryAttribute>,
     ) -> GlobalId {
         let id = GlobalId(self.globals.len());
         let location = Location::new(ident.span(), file);
         let name = ident.to_string();
         let definition_id = self.push_definition(name, false, DefinitionKind::Global(id), location);
+
         self.globals.push(GlobalInfo {
             id,
             definition_id,
@@ -660,6 +664,7 @@ impl NodeInterner {
             let_statement,
             location,
         });
+        self.global_attributes.insert(id, attributes);
         id
     }
 
@@ -673,9 +678,10 @@ impl NodeInterner {
         name: Ident,
         local_id: LocalModuleId,
         file: FileId,
+        attributes: Vec<SecondaryAttribute>,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
-        self.push_global(name, local_id, statement, file)
+        self.push_global(name, local_id, statement, file, attributes)
     }
 
     /// Intern an empty function.
@@ -836,6 +842,10 @@ impl NodeInterner {
 
     pub fn struct_attributes(&self, struct_id: &StructId) -> &StructAttributes {
         &self.struct_attributes[struct_id]
+    }
+
+    pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
+        &self.global_attributes[global_id]
     }
 
     /// Returns the interned statement corresponding to `stmt_id`

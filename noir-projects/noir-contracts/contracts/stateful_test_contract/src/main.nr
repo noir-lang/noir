@@ -7,6 +7,7 @@ contract StatefulTest {
         oracle::get_contract_instance::get_contract_instance, initializer::assert_is_initialized_private
     };
 
+    #[aztec(storage)]
     struct Storage {
         notes: Map<AztecAddress, PrivateSet<ValueNote>>,
         public_values: Map<AztecAddress, PublicMutable<Field>>,

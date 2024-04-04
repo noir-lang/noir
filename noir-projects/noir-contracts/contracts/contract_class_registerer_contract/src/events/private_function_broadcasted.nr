@@ -31,7 +31,7 @@ impl Serialize<MAX_PACKED_BYTECODE_SIZE_PER_PRIVATE_FUNCTION_IN_FIELDS + 3> for 
     }
 }
 
-// #[event]
+// #[aztec(event)]
 struct ClassPrivateFunctionBroadcasted {
     contract_class_id: ContractClassId,
     artifact_metadata_hash: Field,

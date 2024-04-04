@@ -42,7 +42,7 @@ import {
 } from '@aztec/circuits.js';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import {
-  type ABIType,
+  type AbiType,
   type DecodedReturn,
   type FunctionArtifact,
   type ProcessReturnValues,
@@ -284,7 +284,7 @@ export abstract class AbstractPhaseManager {
           const paddedReturn = padArrayEnd(result.returnValues, Fr.ZERO, RETURN_VALUES_LENGTH);
 
           // TODO(#5450) Need to use the proper return values here
-          const returnTypes: ABIType[] = [{ kind: 'array', length: 4, type: { kind: 'field' } }];
+          const returnTypes: AbiType[] = [{ kind: 'array', length: 4, type: { kind: 'field' } }];
           const mockArtifact = { returnTypes } as any as FunctionArtifact;
 
           currentReturn = decodeReturnValues(mockArtifact, paddedReturn);

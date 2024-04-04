@@ -23,6 +23,7 @@ contract DocsExample {
     use crate::options::create_account_card_getter_options;
     use crate::types::{card_note::{CardNote, CARD_NOTE_LEN}, leader::Leader};
 
+    #[aztec(storage)]
     struct Storage {
         // Shows how to create a custom struct in PublicMutable
         // docs:start:storage-leader-declaration

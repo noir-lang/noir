@@ -26,6 +26,7 @@ contract InclusionProofs {
     // docs:start:value_note_imports
     use dep::value_note::value_note::ValueNote;
     // docs:end:value_note_imports
+    #[aztec(storage)]
     struct Storage {
         private_values: Map<AztecAddress, PrivateSet<ValueNote>>,
         public_value: PublicMutable<Field>,

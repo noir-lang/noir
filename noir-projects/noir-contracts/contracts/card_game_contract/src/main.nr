@@ -12,6 +12,7 @@ contract CardGame {
     use crate::cards::{PACK_CARDS, Deck, Card, get_pack_cards, compute_deck_strength};
     use crate::game::{NUMBER_OF_PLAYERS, NUMBER_OF_CARDS_DECK, PLAYABLE_CARDS, PlayerEntry, Game, GAME_SERIALIZED_LEN};
 
+    #[aztec(storage)]
     struct Storage {
         collections: Map<AztecAddress, Deck>,
         game_decks: Map<Field, Map<AztecAddress, Deck>>,

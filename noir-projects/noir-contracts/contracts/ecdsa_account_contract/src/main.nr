@@ -16,6 +16,7 @@ contract EcdsaAccount {
 
     use crate::ecdsa_public_key_note::EcdsaPublicKeyNote;
 
+    #[aztec(storage)]
     struct Storage {
         public_key: PrivateImmutable<EcdsaPublicKeyNote>,
     }

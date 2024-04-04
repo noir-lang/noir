@@ -1,4 +1,4 @@
-import { type ABIType, type BasicType, type ContractArtifact, type StructType } from '@aztec/foundation/abi';
+import { type AbiType, type BasicType, type ContractArtifact, type StructType } from '@aztec/foundation/abi';
 
 /**
  * Represents a type derived from input type T with the 'kind' property removed.
@@ -51,10 +51,10 @@ export function abiChecker(artifact: ContractArtifact) {
  * Throws an error if the type has an unrecognized kind or incorrectly formed attributes.
  * Additionally, checks nested types for array and struct kinds.
  *
- * @param type - The ABIType object representing the type of the ABI function parameter.
+ * @param type - The AbiType object representing the type of the ABI function parameter.
  * @returns A boolean value indicating whether the type is valid or not.
  */
-function abiParameterTypeChecker(type: ABIType): boolean {
+function abiParameterTypeChecker(type: AbiType): boolean {
   switch (type.kind) {
     case 'field':
     case 'boolean':
@@ -73,7 +73,7 @@ function abiParameterTypeChecker(type: ABIType): boolean {
 }
 
 /**
- * Check if the structure of the ABIType 'struct' is valid by ensuring field names are strings
+ * Check if the structure of the AbiType 'struct' is valid by ensuring field names are strings
  * and their type attribute passes the abiParameterTypeChecker. Returns true on successful validation,
  * otherwise throws an error providing insight into the incorrect formation in the struct.
  *

@@ -158,14 +158,17 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 
 /// global_declaration: 'global' ident global_type_annotation '=' literal
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
-    let p = ignore_then_commit(
-        keyword(Keyword::Global).labelled(ParsingRuleLabel::Global),
-        ident().map(Pattern::Identifier),
-    );
+    let p = attributes::attributes()
+        .then_ignore(keyword(Keyword::Global).labelled(ParsingRuleLabel::Global))
+        .then(ident().map(Pattern::Identifier));
     let p = then_commit(p, optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expression());
-    p.map(LetStatement::new_let).map(TopLevelStatement::Global)
+    p.validate(|(((attributes, pattern), r#type), expression), span, emit| {
+        let global_attributes = attributes::validate_secondary_attributes(attributes, span, emit);
+        LetStatement { pattern, r#type, expression, attributes: global_attributes }
+    })
+    .map(TopLevelStatement::Global)
 }
 
 /// submodule: 'mod' ident '{' module '}'

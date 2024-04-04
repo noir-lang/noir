@@ -7,6 +7,7 @@ contract Counter {
     // docs:end:imports
 
     // docs:start:storage_struct
+    #[aztec(storage)]
     struct Storage {
         counters: Map<AztecAddress, EasyPrivateUint>,
     }

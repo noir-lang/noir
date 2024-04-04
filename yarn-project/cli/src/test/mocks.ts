@@ -65,6 +65,9 @@ export const mockContractArtifact: ContractArtifact = {
       debugSymbols: '',
     },
   ],
-  events: [],
+  outputs: {
+    structs: {},
+    globals: {},
+  },
   fileMap: {},
 };

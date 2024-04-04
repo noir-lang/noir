@@ -466,6 +466,7 @@ mod test {
             pattern: Identifier(z),
             r#type: Type::FieldElement,
             expression: expr_id,
+            attributes: vec![],
         };
         let stmt_id = interner.push_stmt(HirStatement::Let(let_stmt));
         let expr_id = interner

@@ -6,6 +6,7 @@ contract Escrow {
 
     use dep::address_note::address_note::AddressNote;
 
+    #[aztec(storage)]
     struct Storage {
         owner: PrivateImmutable<AddressNote>,
     }

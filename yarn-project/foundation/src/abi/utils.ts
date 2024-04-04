@@ -1,11 +1,11 @@
-import { type ABIType } from './abi.js';
+import { type AbiType } from './abi.js';
 
 /**
  * Returns whether the ABI type is an Aztec or Ethereum Address defined in Aztec.nr.
  * @param abiType - Type to check.
  * @returns Boolean.
  */
-export function isAddressStruct(abiType: ABIType) {
+export function isAddressStruct(abiType: AbiType) {
   return isEthAddressStruct(abiType) || isAztecAddressStruct(abiType);
 }
 
@@ -14,7 +14,7 @@ export function isAddressStruct(abiType: ABIType) {
  * @param abiType - Type to check.
  * @returns Boolean.
  */
-export function isEthAddressStruct(abiType: ABIType) {
+export function isEthAddressStruct(abiType: AbiType) {
   return abiType.kind === 'struct' && abiType.path.endsWith('address::EthAddress');
 }
 
@@ -23,7 +23,7 @@ export function isEthAddressStruct(abiType: ABIType) {
  * @param abiType - Type to check.
  * @returns Boolean.
  */
-export function isAztecAddressStruct(abiType: ABIType) {
+export function isAztecAddressStruct(abiType: AbiType) {
   return abiType.kind === 'struct' && abiType.path.endsWith('address::AztecAddress');
 }
 
@@ -32,7 +32,7 @@ export function isAztecAddressStruct(abiType: ABIType) {
  * @param abiType - Type to check.
  * @returns Boolean.
  */
-export function isFunctionSelectorStruct(abiType: ABIType) {
+export function isFunctionSelectorStruct(abiType: AbiType) {
   return abiType.kind === 'struct' && abiType.path.endsWith('types::abis::function_selector::FunctionSelector');
 }
 
@@ -40,7 +40,7 @@ export function isFunctionSelectorStruct(abiType: ABIType) {
  * Returns whether the ABI type is a struct with a single `inner` field.
  * @param abiType - Type to check.
  */
-export function isWrappedFieldStruct(abiType: ABIType) {
+export function isWrappedFieldStruct(abiType: AbiType) {
   return (
     abiType.kind === 'struct' &&
     abiType.fields.length === 1 &&

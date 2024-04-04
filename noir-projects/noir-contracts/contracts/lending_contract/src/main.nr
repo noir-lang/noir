@@ -20,6 +20,7 @@ contract Lending {
     use crate::interfaces::{Token, Lending, PriceFeed};
 
     // Storage structure, containing all storage, and specifying what slots they use.
+    #[aztec(storage)]
     struct Storage {
         collateral_asset: PublicMutable<AztecAddress>,
         stable_coin: PublicMutable<AztecAddress>,

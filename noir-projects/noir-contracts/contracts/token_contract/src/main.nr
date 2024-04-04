@@ -28,6 +28,7 @@ contract Token {
     // docs:end::imports
 
     // docs:start:storage_struct
+    #[aztec(storage)]
     struct Storage {
         // docs:start:storage_admin
         admin: PublicMutable<AztecAddress>,

@@ -9,6 +9,7 @@ contract Claim {
     use dep::value_note::value_note::ValueNote;
     use interfaces::Token;
 
+    #[aztec(storage)]
     struct Storage {
       // Address of a contract based on whose notes we distribute the rewards
       target_contract: SharedImmutable<AztecAddress>,

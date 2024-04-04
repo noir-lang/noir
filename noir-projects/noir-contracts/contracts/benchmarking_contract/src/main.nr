@@ -12,6 +12,7 @@ contract Benchmarking {
 
     use dep::aztec::{context::Context};
 
+    #[aztec(storage)]
     struct Storage {
         notes: Map<AztecAddress, PrivateSet<ValueNote>>,
         balances: Map<AztecAddress, PublicMutable<Field>>,

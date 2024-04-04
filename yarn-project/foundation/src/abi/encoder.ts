@@ -1,5 +1,5 @@
 import { Fr } from '../fields/index.js';
-import { type ABIType, type FunctionAbi } from './abi.js';
+import { type AbiType, type FunctionAbi } from './abi.js';
 import { isAddressStruct, isFunctionSelectorStruct, isWrappedFieldStruct } from './utils.js';
 
 /**
@@ -11,7 +11,7 @@ class ArgumentEncoder {
 
   constructor(private abi: FunctionAbi, private args: any[]) {}
 
-  static typeSize(abiType: ABIType): number {
+  static typeSize(abiType: AbiType): number {
     switch (abiType.kind) {
       case 'field':
       case 'boolean':
@@ -36,7 +36,7 @@ class ArgumentEncoder {
    * @param arg - The value to encode.
    * @param name - Name.
    */
-  private encodeArgument(abiType: ABIType, arg: any, name?: string) {
+  private encodeArgument(abiType: AbiType, arg: any, name?: string) {
     if (arg === undefined || arg == null) {
       throw new Error(`Undefined argument ${name ?? 'unnamed'} of type ${abiType.kind}`);
     }

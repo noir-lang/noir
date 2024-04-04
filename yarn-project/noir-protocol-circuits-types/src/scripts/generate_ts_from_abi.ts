@@ -1,4 +1,4 @@
-import { type ABIType } from '@aztec/foundation/abi';
+import { type AbiType } from '@aztec/foundation/abi';
 import { createConsoleLogger } from '@aztec/foundation/log';
 import { type NoirCompiledCircuit, type NoirFunctionAbi } from '@aztec/types/noir';
 
@@ -50,7 +50,7 @@ function addIfUnique(item: PrimitiveTypesUsed) {
  * @param type - The ABI type to convert.
  * @returns The typescript code to define the type.
  */
-function abiTypeToTs(type: ABIType): string {
+function abiTypeToTs(type: AbiType): string {
   switch (type.kind) {
     case 'integer': {
       let tsIntType = '';
@@ -107,7 +107,7 @@ function getLastComponentOfPath(str: string): string {
  * @param output - The set of structs that we have already generated bindings for.
  * @returns The TypeScript code to define the struct.
  */
-function generateStructInterfaces(type: ABIType, output: Set<string>): string {
+function generateStructInterfaces(type: AbiType, output: Set<string>): string {
   let result = '';
 
   // Edge case to handle the array of structs case.
@@ -124,7 +124,7 @@ function generateStructInterfaces(type: ABIType, output: Set<string>): string {
 
   // List of structs encountered while viewing this type that we need to generate
   // bindings for.
-  const typesEncountered = new Set<ABIType>();
+  const typesEncountered = new Set<AbiType>();
 
   // Codegen the struct and then its fields, so that the structs fields
   // are defined before the struct itself.

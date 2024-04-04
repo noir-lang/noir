@@ -1,4 +1,4 @@
-import { type ABIParameter, type ABIType, type StructType } from '@aztec/foundation/abi';
+import { type ABIParameter, type AbiType, type StructType } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 
 /**
@@ -29,7 +29,7 @@ export function parseStructString(str: string, abiType: StructType) {
  * @param abiType - The type as described by the contract's ABI.
  * @returns The encoded argument.
  */
-function encodeArg(arg: string, abiType: ABIType, name: string): any {
+function encodeArg(arg: string, abiType: AbiType, name: string): any {
   const { kind } = abiType;
   if (kind === 'field' || kind === 'integer') {
     let res: bigint;

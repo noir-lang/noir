@@ -17,6 +17,7 @@ contract AppSubscription {
 
     use crate::subscription_note::{SubscriptionNote, SUBSCRIPTION_NOTE_LEN};
 
+    #[aztec(storage)]
     struct Storage {
         // The following is only needed in private but we use ShareImmutable here instead of PrivateImmutable because
         // the value can be publicly known and SharedImmutable provides us with a better devex here because we don't

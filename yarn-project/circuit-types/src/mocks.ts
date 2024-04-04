@@ -99,7 +99,10 @@ export const mockSimulatedTx = (seed = 1, hasLogs = true) => {
 export const randomContractArtifact = (): ContractArtifact => ({
   name: randomBytes(4).toString('hex'),
   functions: [],
-  events: [],
+  outputs: {
+    structs: {},
+    globals: {},
+  },
   fileMap: {},
 });
 
