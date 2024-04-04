@@ -6,6 +6,7 @@ import {
   AccountManager,
   AccountWallet,
   type CompleteAddress,
+  type DebugLogger,
   Fr,
   type GrumpkinPrivateKey,
   GrumpkinScalar,
@@ -27,29 +28,30 @@ function itShouldBehaveLikeAnAccountContract(
   walletAt: (pxe: PXE, accountContract: AccountContract, address: CompleteAddress) => Promise<Wallet>,
 ) {
   describe(`behaves like an account contract`, () => {
-    let context: Awaited<ReturnType<typeof setup>>;
     let child: ChildContract;
     let wallet: Wallet;
     let encryptionPrivateKey: GrumpkinPrivateKey;
 
+    let pxe: PXE;
+    let logger: DebugLogger;
+    let teardown: () => Promise<void>;
+
     beforeEach(async () => {
-      context = await setup(0);
+      ({ logger, pxe, teardown } = await setup(0));
       encryptionPrivateKey = GrumpkinScalar.random();
 
-      wallet = await walletSetup(context.pxe, encryptionPrivateKey, getAccountContract(encryptionPrivateKey));
+      wallet = await walletSetup(pxe, encryptionPrivateKey, getAccountContract(encryptionPrivateKey));
       child = await ChildContract.deploy(wallet).send().deployed();
     }, 60_000);
 
-    afterEach(() => context.teardown());
+    afterEach(() => teardown());
 
     it('calls a private function', async () => {
-      const { logger } = context;
       logger('Calling private function...');
       await child.methods.value(42).send().wait({ interval: 0.1 });
     }, 60_000);
 
     it('calls a public function', async () => {
-      const { logger, pxe } = context;
       logger('Calling public function...');
       await child.methods.pub_inc_value(42).send().wait({ interval: 0.1 });
       const storedValue = await pxe.getPublicStorageAt(child.address, new Fr(1));
@@ -58,7 +60,7 @@ function itShouldBehaveLikeAnAccountContract(
 
     it('fails to call a function using an invalid signature', async () => {
       const accountAddress = wallet.getCompleteAddress();
-      const invalidWallet = await walletAt(context.pxe, getAccountContract(GrumpkinScalar.random()), accountAddress);
+      const invalidWallet = await walletAt(pxe, getAccountContract(GrumpkinScalar.random()), accountAddress);
       const childWithInvalidWallet = await ChildContract.at(child.address, invalidWallet);
       await expect(childWithInvalidWallet.methods.value(42).prove()).rejects.toThrow(/Cannot satisfy constraint.*/);
     });
