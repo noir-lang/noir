@@ -30,6 +30,11 @@ export abstract class MemoryValue {
     return new Fr(this.toBigInt());
   }
 
+  // To number. Throws if exceeds max safe int.
+  public toNumber(): number {
+    return this.toFr().toNumber();
+  }
+
   public toString(): string {
     return `${this.constructor.name}(0x${this.toBigInt().toString(16)})`;
   }

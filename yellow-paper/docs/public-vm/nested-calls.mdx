@@ -68,9 +68,9 @@ chargeGas(context,
 
 As with all instructions, gas is checked and cost is deducted _prior_ to the instruction's execution.
 ```jsx
-assert context.machineState.l1GasLeft - l1GasCost > 0
-assert context.machineState.l2GasLeft - l2GasCost > 0
-assert context.machineState.daGasLeft - daGasCost > 0
+assert context.machineState.l1GasLeft - l1GasCost >= 0
+assert context.machineState.l2GasLeft - l2GasCost >= 0
+assert context.machineState.daGasLeft - daGasCost >= 0
 context.l1GasLeft -= l1GasCost
 context.l2GasLeft -= l2GasCost
 context.daGasLeft -= daGasCost

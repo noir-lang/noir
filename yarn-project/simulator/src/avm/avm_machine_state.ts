@@ -1,6 +1,6 @@
 import { type Fr } from '@aztec/circuits.js';
 
-import { type GasCost, GasDimensions } from './avm_gas_cost.js';
+import { type Gas, GasDimensions } from './avm_gas.js';
 import { TaggedMemory } from './avm_memory_types.js';
 import { AvmContractCallResults } from './avm_message_call_result.js';
 import { OutOfGasError } from './errors.js';
@@ -59,7 +59,7 @@ export class AvmMachineState {
    * Should any of the gas dimensions get depleted, it sets all gas left to zero and triggers
    * an exceptional halt by throwing an OutOfGasError.
    */
-  public consumeGas(gasCost: Partial<GasCost>) {
+  public consumeGas(gasCost: Partial<Gas>) {
     // Assert there is enough gas on every dimension.
     const outOfGasDimensions = GasDimensions.filter(
       dimension => this[`${dimension}Left`] - (gasCost[dimension] ?? 0) < 0,
@@ -73,6 +73,13 @@ export class AvmMachineState {
     // Otherwise, charge the corresponding gas
     for (const dimension of GasDimensions) {
       this[`${dimension}Left`] -= gasCost[dimension] ?? 0;
+    }
+  }
+
+  /** Increases the gas left by the amounts specified. */
+  public refundGas(gasRefund: Partial<Gas>) {
+    for (const dimension of GasDimensions) {
+      this[`${dimension}Left`] += gasRefund[dimension] ?? 0;
     }
   }
 

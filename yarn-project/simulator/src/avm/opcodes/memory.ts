@@ -1,5 +1,5 @@
 import type { AvmContext } from '../avm_context.js';
-import { type GasCost, GasCostConstants, getGasCostMultiplierFromTypeTag, makeGasCost } from '../avm_gas_cost.js';
+import { type Gas, GasCostConstants, getGasCostMultiplierFromTypeTag, makeGasCost } from '../avm_gas.js';
 import { Field, TaggedMemory, TypeTag } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { BufferCursor } from '../serialization/buffer_cursor.js';
@@ -81,7 +81,7 @@ export class Set extends Instruction {
     context.machineState.incrementPc();
   }
 
-  protected gasCost(): GasCost {
+  protected gasCost(): Gas {
     return makeGasCost({ l2Gas: GasCostConstants.SET_COST_PER_BYTE * getGasCostMultiplierFromTypeTag(this.inTag) });
   }
 }
@@ -199,7 +199,7 @@ export class CalldataCopy extends Instruction {
     context.machineState.incrementPc();
   }
 
-  protected gasCost(): GasCost {
+  protected gasCost(): Gas {
     return makeGasCost({ l2Gas: GasCostConstants.CALLDATACOPY_COST_PER_BYTE * this.copySize });
   }
 }

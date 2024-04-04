@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 
 import type { AvmContext } from '../avm_context.js';
-import { DynamicGasCost, type GasCost, GasCosts } from '../avm_gas_cost.js';
+import { DynamicGasCost, type Gas, GasCosts } from '../avm_gas.js';
 import { type BufferCursor } from '../serialization/buffer_cursor.js';
 import { Opcode, type OperandType, deserialize, serialize } from '../serialization/instruction_serialization.js';
 
@@ -29,7 +29,7 @@ export abstract class Instruction {
    * Loads default gas cost for the instruction from the GasCosts table.
    * Instruction sub-classes can override this if their gas cost is not fixed.
    */
-  protected gasCost(): GasCost {
+  protected gasCost(): Gas {
     const gasCost = GasCosts[this.opcode];
     if (gasCost === DynamicGasCost) {
       throw new Error(`Instruction ${this.type} must define its own gas cost`);

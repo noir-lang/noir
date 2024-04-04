@@ -1,15 +1,14 @@
 import { FunctionSelector } from '@aztec/circuits.js';
 
 import type { AvmContext } from '../avm_context.js';
+import { type Gas, gasLeftToGas, getCostFromIndirectAccess, getFixedGasCost, sumGas } from '../avm_gas.js';
 import { Field, Uint8 } from '../avm_memory_types.js';
 import { AvmSimulator } from '../avm_simulator.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
 
-export class Call extends Instruction {
-  static type: string = 'CALL';
-  static readonly opcode: Opcode = Opcode.CALL;
+abstract class ExternalCall extends Instruction {
   // Informs (de)serialization. See Instruction.deserialize.
   static readonly wireFormat: OperandType[] = [
     OperandType.UINT8,
@@ -27,7 +26,7 @@ export class Call extends Instruction {
 
   constructor(
     private indirect: number,
-    private _gasOffset: number /* Unused due to no formal gas implementation at this moment */,
+    private gasOffset: number /* Unused due to no formal gas implementation at this moment */,
     private addrOffset: number,
     private argsOffset: number,
     private argsSize: number,
@@ -42,20 +41,30 @@ export class Call extends Instruction {
     super();
   }
 
-  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/3992): there is no concept of remaining / available gas at this moment
-  async execute(context: AvmContext): Promise<void> {
-    const [_gasOffset, addrOffset, argsOffset, retOffset, successOffset] = Addressing.fromWire(this.indirect).resolve(
-      [this._gasOffset, this.addrOffset, this.argsOffset, this.retOffset, this.successOffset],
+  async run(context: AvmContext): Promise<void> {
+    const [gasOffset, addrOffset, argsOffset, retOffset, successOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.gasOffset, this.addrOffset, this.argsOffset, this.retOffset, this.successOffset],
       context.machineState.memory,
     );
 
     const callAddress = context.machineState.memory.getAs<Field>(addrOffset);
     const calldata = context.machineState.memory.getSlice(argsOffset, this.argsSize).map(f => f.toFr());
+    const l1Gas = context.machineState.memory.get(gasOffset).toNumber();
+    const l2Gas = context.machineState.memory.getAs<Field>(gasOffset + 1).toNumber();
+    const daGas = context.machineState.memory.getAs<Field>(gasOffset + 2).toNumber();
     const functionSelector = context.machineState.memory.getAs<Field>(this.temporaryFunctionSelectorOffset).toFr();
+
+    // Consume a base fixed gas cost for the call opcode, plus whatever is allocated for the nested call
+    const baseGas = getFixedGasCost(this.opcode);
+    const addressingGasCost = getCostFromIndirectAccess(this.indirect);
+    const allocatedGas = { l1Gas, l2Gas, daGas };
+    context.machineState.consumeGas(sumGas(baseGas, addressingGasCost, allocatedGas));
 
     const nestedContext = context.createNestedContractCallContext(
       callAddress.toFr(),
       calldata,
+      allocatedGas,
+      this.type,
       FunctionSelector.fromField(functionSelector),
     );
 
@@ -70,6 +79,10 @@ export class Call extends Instruction {
     context.machineState.memory.set(successOffset, new Uint8(success ? 1 : 0));
     context.machineState.memory.setSlice(retOffset, convertedReturnData);
 
+    // Refund unused gas
+    context.machineState.refundGas(gasLeftToGas(nestedContext.machineState));
+
+    // TODO: Should we merge the changes from a nested call in the case of a STATIC call?
     if (success) {
       context.persistableState.acceptNestedCallState(nestedContext.persistableState);
     } else {
@@ -77,75 +90,36 @@ export class Call extends Instruction {
     }
 
     context.machineState.incrementPc();
+  }
+
+  public abstract get type(): 'CALL' | 'STATICCALL';
+
+  protected execute(_context: AvmContext): Promise<void> {
+    throw new Error(
+      `Instructions with dynamic gas calculation run all logic on the main execute function and do not override the internal execute.`,
+    );
+  }
+
+  protected gasCost(): Gas {
+    throw new Error(`Instructions with dynamic gas calculation compute gas as part of the main execute function.`);
   }
 }
 
-export class StaticCall extends Instruction {
-  static type: string = 'STATICCALL';
-  static readonly opcode: Opcode = Opcode.STATICCALL;
-  // Informs (de)serialization. See Instruction.deserialize.
-  static readonly wireFormat: OperandType[] = [
-    OperandType.UINT8,
-    OperandType.UINT8,
-    OperandType.UINT32,
-    OperandType.UINT32,
-    OperandType.UINT32,
-    OperandType.UINT32,
-    OperandType.UINT32,
-    OperandType.UINT32,
-    OperandType.UINT32,
-    /* temporary function selector */
-    OperandType.UINT32,
-  ];
+export class Call extends ExternalCall {
+  static type = 'CALL' as const;
+  static readonly opcode: Opcode = Opcode.CALL;
 
-  constructor(
-    private indirect: number,
-    private _gasOffset: number /* Unused due to no formal gas implementation at this moment */,
-    private addrOffset: number,
-    private argsOffset: number,
-    private argsSize: number,
-    private retOffset: number,
-    private retSize: number,
-    private successOffset: number,
-    private temporaryFunctionSelectorOffset: number,
-  ) {
-    super();
+  public get type() {
+    return Call.type;
   }
+}
 
-  async execute(context: AvmContext): Promise<void> {
-    const [_gasOffset, addrOffset, argsOffset, retOffset, successOffset] = Addressing.fromWire(this.indirect).resolve(
-      [this._gasOffset, this.addrOffset, this.argsOffset, this.retOffset, this.successOffset],
-      context.machineState.memory,
-    );
+export class StaticCall extends ExternalCall {
+  static type = 'STATICCALL' as const;
+  static readonly opcode: Opcode = Opcode.STATICCALL;
 
-    const callAddress = context.machineState.memory.get(addrOffset);
-    const calldata = context.machineState.memory.getSlice(argsOffset, this.argsSize).map(f => f.toFr());
-    const functionSelector = context.machineState.memory.getAs<Field>(this.temporaryFunctionSelectorOffset).toFr();
-
-    const nestedContext = context.createNestedContractStaticCallContext(
-      callAddress.toFr(),
-      calldata,
-      FunctionSelector.fromField(functionSelector),
-    );
-
-    const nestedCallResults = await new AvmSimulator(nestedContext).execute();
-    const success = !nestedCallResults.reverted;
-
-    // We only take as much data as was specified in the return size -> TODO: should we be reverting here
-    const returnData = nestedCallResults.output.slice(0, this.retSize);
-    const convertedReturnData = returnData.map(f => new Field(f));
-
-    // Write our return data into memory
-    context.machineState.memory.set(successOffset, new Uint8(success ? 1 : 0));
-    context.machineState.memory.setSlice(retOffset, convertedReturnData);
-
-    if (success) {
-      context.persistableState.acceptNestedCallState(nestedContext.persistableState);
-    } else {
-      context.persistableState.rejectNestedCallState(nestedContext.persistableState);
-    }
-
-    context.machineState.incrementPc();
+  public get type() {
+    return StaticCall.type;
   }
 }
 

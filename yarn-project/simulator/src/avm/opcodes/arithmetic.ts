@@ -1,8 +1,13 @@
 import type { AvmContext } from '../avm_context.js';
-import { type GasCost, GasCostConstants, getGasCostMultiplierFromTypeTag, makeGasCost } from '../avm_gas_cost.js';
+import {
+  type Gas,
+  GasCostConstants,
+  getCostFromIndirectAccess,
+  getGasCostMultiplierFromTypeTag,
+  sumGas,
+} from '../avm_gas.js';
 import { type Field, type MemoryValue, TypeTag } from '../avm_memory_types.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
-import { Addressing, AddressingMode } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
 import { ThreeOperandInstruction } from './instruction_impl.js';
 
@@ -19,15 +24,12 @@ export abstract class ThreeOperandArithmeticInstruction extends ThreeOperandInst
     context.machineState.incrementPc();
   }
 
-  protected gasCost(): GasCost {
-    const indirectCount = Addressing.fromWire(this.indirect).modePerOperand.filter(
-      mode => mode === AddressingMode.INDIRECT,
-    ).length;
-
-    const l2Gas =
-      indirectCount * GasCostConstants.ARITHMETIC_COST_PER_INDIRECT_ACCESS +
-      getGasCostMultiplierFromTypeTag(this.inTag) * GasCostConstants.ARITHMETIC_COST_PER_BYTE;
-    return makeGasCost({ l2Gas });
+  protected gasCost(): Gas {
+    const arithmeticCost = {
+      l2Gas: getGasCostMultiplierFromTypeTag(this.inTag) * GasCostConstants.ARITHMETIC_COST_PER_BYTE,
+    };
+    const indirectCost = getCostFromIndirectAccess(this.indirect);
+    return sumGas(arithmeticCost, indirectCost);
   }
 
   protected abstract compute(a: MemoryValue, b: MemoryValue): MemoryValue;

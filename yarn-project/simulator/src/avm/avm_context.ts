@@ -2,6 +2,7 @@ import { type AztecAddress, FunctionSelector } from '@aztec/circuits.js';
 import { type Fr } from '@aztec/foundation/fields';
 
 import { type AvmExecutionEnvironment } from './avm_execution_environment.js';
+import { type Gas, gasToGasLeft } from './avm_gas.js';
 import { AvmMachineState } from './avm_machine_state.js';
 import { type AvmPersistableStateManager } from './journal/journal.js';
 
@@ -33,47 +34,24 @@ export class AvmContext {
    *
    * @param address - The contract instance to initialize a context for
    * @param calldata - Data/arguments for nested call
+   * @param allocatedGas - Gas allocated for the nested call
+   * @param callType - Type of call (CALL or STATICCALL)
    * @returns new AvmContext instance
    */
   public createNestedContractCallContext(
     address: AztecAddress,
     calldata: Fr[],
+    allocatedGas: Gas,
+    callType: 'CALL' | 'STATICCALL',
     temporaryFunctionSelector: FunctionSelector = FunctionSelector.empty(),
   ): AvmContext {
-    const newExecutionEnvironment = this.environment.deriveEnvironmentForNestedCall(
-      address,
-      calldata,
-      temporaryFunctionSelector,
-    );
+    const deriveFn =
+      callType === 'CALL'
+        ? this.environment.deriveEnvironmentForNestedCall
+        : this.environment.deriveEnvironmentForNestedStaticCall;
+    const newExecutionEnvironment = deriveFn.call(this.environment, address, calldata, temporaryFunctionSelector);
     const forkedWorldState = this.persistableState.fork();
-    const machineState = AvmMachineState.fromState(this.machineState);
-    return new AvmContext(forkedWorldState, newExecutionEnvironment, machineState);
-  }
-
-  /**
-   * Prepare a new AVM context that will be ready for an external/nested static call
-   * - Fork the world state journal
-   * - Derive a machine state from the current state
-   *   - E.g., gas metering is preserved but pc is reset
-   * - Derive an execution environment from the caller/parent
-   *   - Alter both address and storageAddress
-   *
-   * @param address - The contract instance to initialize a context for
-   * @param calldata - Data/arguments for nested call
-   * @returns new AvmContext instance
-   */
-  public createNestedContractStaticCallContext(
-    address: AztecAddress,
-    calldata: Fr[],
-    temporaryFunctionSelector: FunctionSelector = FunctionSelector.empty(),
-  ): AvmContext {
-    const newExecutionEnvironment = this.environment.deriveEnvironmentForNestedStaticCall(
-      address,
-      calldata,
-      temporaryFunctionSelector,
-    );
-    const forkedWorldState = this.persistableState.fork();
-    const machineState = AvmMachineState.fromState(this.machineState);
+    const machineState = AvmMachineState.fromState(gasToGasLeft(allocatedGas));
     return new AvmContext(forkedWorldState, newExecutionEnvironment, machineState);
   }
 }

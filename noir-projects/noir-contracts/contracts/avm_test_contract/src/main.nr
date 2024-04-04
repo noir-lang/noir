@@ -339,7 +339,7 @@ contract AvmTest {
     #[aztec(public-vm)]
     fn raw_nested_call_to_add(arg_a: Field, arg_b: Field) -> pub Field {
         let selector = FunctionSelector::from_signature("add_args_return(Field,Field)").to_field();
-        let gas = [/*l1_gas*/42, /*l2_gas*/24, /*da_gas*/420];
+        let gas = [/*l1_gas*/10000, /*l2_gas*/10000, /*da_gas*/10000];
 
         // Nested call
         let results = context.call_public_function_raw(gas, context.this_address(), selector, [arg_a, arg_b]);
@@ -372,7 +372,7 @@ contract AvmTest {
     #[aztec(public-vm)]
     fn raw_nested_static_call_to_add(arg_a: Field, arg_b: Field) -> pub (Field, u8) {
         let selector = FunctionSelector::from_signature("add_args_return(Field,Field)").to_field();
-        let gas = [/*l1_gas*/42, /*l2_gas*/24, /*da_gas*/420];
+        let gas = [/*l1_gas*/10000, /*l2_gas*/10000, /*da_gas*/10000];
 
         let (result_data, success): ([Field; 1], u8) = context.static_call_public_function_raw(gas, context.this_address(), selector, [arg_a, arg_b]);
 
@@ -383,7 +383,7 @@ contract AvmTest {
     #[aztec(public-vm)]
     fn raw_nested_static_call_to_set_storage() -> pub u8 {
         let selector = FunctionSelector::from_signature("set_storage_single(Field)").to_field();
-        let gas = [/*l1_gas*/42, /*l2_gas*/24, /*da_gas*/420];
+        let gas = [/*l1_gas*/10000, /*l2_gas*/10000, /*da_gas*/10000];
         let calldata: [Field; 1] = [20];
 
         let (_data_to_return, success): ([Field; 0], u8) = context.static_call_public_function_raw(gas, context.this_address(), selector, calldata);
