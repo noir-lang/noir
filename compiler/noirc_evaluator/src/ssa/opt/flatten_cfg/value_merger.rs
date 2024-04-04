@@ -303,8 +303,8 @@ impl<'a> ValueMerger<'a> {
                 break;
             }
 
-            current_then = self.find_previous_array_set(current_then, &mut changed_indices);
-            current_else = self.find_previous_array_set(current_else, &mut changed_indices);
+            current_then = self.find_previous_array_set(current_then, &mut changed_indices)?;
+            current_else = self.find_previous_array_set(current_else, &mut changed_indices)?;
         }
 
         if !found {
@@ -344,17 +344,25 @@ impl<'a> ValueMerger<'a> {
         &self,
         value: ValueId,
         changed_indices: &mut FxHashSet<(ValueId, Type)>,
-    ) -> ValueId {
+    ) -> Option<ValueId> {
         match &self.dfg[value] {
-            Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
+            Value::Instruction { instruction, typ, .. } => match &self.dfg[*instruction] {
                 Instruction::ArraySet { array, index, value, .. } => {
-                    let typ = self.dfg.type_of_value(*value);
-                    changed_indices.insert((*index, typ));
-                    *array
+                    self.dfg.get_numeric_constant(*index).and_then(|constant| {
+                        let constant = constant.try_to_u64()?;
+                        let element_type = self.dfg.type_of_value(*value);
+
+                        if let Type::Array(_, length) = typ {
+                            if constant < *length as u64 {
+                                changed_indices.insert((*index, element_type));
+                            }
+                        }
+                        Some(*array)
+                    })
                 }
-                _ => value,
+                _ => Some(value),
             },
-            _ => value,
+            _ => Some(value),
         }
     }
 }
