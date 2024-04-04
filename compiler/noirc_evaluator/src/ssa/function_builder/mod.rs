@@ -300,7 +300,11 @@ impl FunctionBuilder {
         element_type: Type,
     ) -> ValueId {
         let element_type = Some(vec![element_type]);
-        self.insert_instruction(Instruction::ArrayGet { array, index, ignore_oob: false }, element_type).first()
+        self.insert_instruction(
+            Instruction::ArrayGet { array, index, ignore_oob: false },
+            element_type,
+        )
+        .first()
     }
 
     /// Insert an instruction to create a new array with the given index replaced with a new value
@@ -310,8 +314,11 @@ impl FunctionBuilder {
         index: ValueId,
         value: ValueId,
     ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: false, ignore_oob: false }, None)
-            .first()
+        self.insert_instruction(
+            Instruction::ArraySet { array, index, value, mutable: false, ignore_oob: false },
+            None,
+        )
+        .first()
     }
 
     /// Insert an instruction to increment an array's reference count. This only has an effect

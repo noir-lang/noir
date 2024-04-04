@@ -6,7 +6,7 @@ use crate::ssa::ir::{
     dfg::{CallStack, DataFlowGraph},
     instruction::{BinaryOp, Instruction},
     types::Type,
-    value::{ValueId, Value},
+    value::{Value, ValueId},
 };
 
 pub(crate) struct ValueMerger<'a> {
@@ -131,7 +131,12 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected array type"),
         };
 
-        if let Some(result) = self.try_merge_only_changed_indices(then_condition, else_condition, then_value, else_value) {
+        if let Some(result) = self.try_merge_only_changed_indices(
+            then_condition,
+            else_condition,
+            then_value,
+            else_value,
+        ) {
             return result;
         }
 
@@ -271,7 +276,13 @@ impl<'a> ValueMerger<'a> {
         }
     }
 
-    fn try_merge_only_changed_indices(&mut self, then_condition: ValueId, else_condition: ValueId, then_value: ValueId, else_value: ValueId) -> Option<ValueId> {
+    fn try_merge_only_changed_indices(
+        &mut self,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        then_value: ValueId,
+        else_value: ValueId,
+    ) -> Option<ValueId> {
         let mut seen_then = FxHashSet::default();
         let mut seen_else = FxHashSet::default();
         let mut found = false;
@@ -283,7 +294,7 @@ impl<'a> ValueMerger<'a> {
 
         // Arbitrarily limit this to looking at at most 10 past ArraySet operations.
         // If there are more than that, we assume 2 completely separate arrays are being merged.
-        for _ in 0 .. 10 {
+        for _ in 0..10 {
             seen_then.insert(current_then);
             seen_else.insert(current_else);
 
@@ -315,28 +326,32 @@ impl<'a> ValueMerger<'a> {
             let then_element = get_element(then_value, typevars.clone());
             let else_element = get_element(else_value, typevars);
 
-            let value = self.merge_values(
-                then_condition,
-                else_condition,
-                then_element,
-                else_element,
-            );
+            let value =
+                self.merge_values(then_condition, else_condition, then_element, else_element);
 
-            let instruction = Instruction::ArraySet { array, index, value, mutable: false, ignore_oob: true };
-            array = self.dfg.insert_instruction_and_results(instruction, self.block, None, CallStack::new()).first();
+            let instruction =
+                Instruction::ArraySet { array, index, value, mutable: false, ignore_oob: true };
+            array = self
+                .dfg
+                .insert_instruction_and_results(instruction, self.block, None, CallStack::new())
+                .first();
         }
 
         Some(array)
     }
 
-    fn find_previous_array_set(&self, value: ValueId, changed_indices: &mut FxHashSet<(ValueId, Type)>) -> ValueId {
+    fn find_previous_array_set(
+        &self,
+        value: ValueId,
+        changed_indices: &mut FxHashSet<(ValueId, Type)>,
+    ) -> ValueId {
         match &self.dfg[value] {
             Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
                 Instruction::ArraySet { array, index, value, .. } => {
                     let typ = self.dfg.type_of_value(*value);
                     changed_indices.insert((*index, typ));
                     *array
-                },
+                }
                 _ => value,
             },
             _ => value,

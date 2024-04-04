@@ -382,16 +382,20 @@ impl Instruction {
             Instruction::EnableSideEffects { condition } => {
                 Instruction::EnableSideEffects { condition: f(*condition) }
             }
-            Instruction::ArrayGet { array, index, ignore_oob } => {
-                Instruction::ArrayGet { array: f(*array), index: f(*index), ignore_oob: *ignore_oob }
-            }
-            Instruction::ArraySet { array, index, value, mutable, ignore_oob } => Instruction::ArraySet {
+            Instruction::ArrayGet { array, index, ignore_oob } => Instruction::ArrayGet {
                 array: f(*array),
                 index: f(*index),
-                value: f(*value),
-                mutable: *mutable,
                 ignore_oob: *ignore_oob,
             },
+            Instruction::ArraySet { array, index, value, mutable, ignore_oob } => {
+                Instruction::ArraySet {
+                    array: f(*array),
+                    index: f(*index),
+                    value: f(*value),
+                    mutable: *mutable,
+                    ignore_oob: *ignore_oob,
+                }
+            }
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {

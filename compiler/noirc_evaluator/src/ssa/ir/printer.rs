@@ -174,7 +174,12 @@ fn display_instruction_inner(
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
         Instruction::ArrayGet { array, index, ignore_oob } => {
-            writeln!(f, "array_get {}, index {}, ignore OOB: {ignore_oob}", show(*array), show(*index))
+            writeln!(
+                f,
+                "array_get {}, index {}, ignore OOB: {ignore_oob}",
+                show(*array),
+                show(*index)
+            )
         }
         Instruction::ArraySet { array, index, value, mutable, ignore_oob } => {
             let array = show(*array);
