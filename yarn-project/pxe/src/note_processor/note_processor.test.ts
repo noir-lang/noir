@@ -8,7 +8,6 @@ import {
   type KeyStore,
   type L1NotePayload,
   L2Block,
-  L2BlockContext,
   TaggedNote,
 } from '@aztec/circuit-types';
 import { Fr, INITIAL_L2_BLOCK_NUM, MAX_NEW_NOTE_HASHES_PER_TX } from '@aztec/circuits.js';
@@ -87,7 +86,7 @@ describe('Note Processor', () => {
       throw new Error(`Tx size should be less than ${TXS_PER_BLOCK}.`);
     }
 
-    const blockContexts: L2BlockContext[] = [];
+    const blocks: L2Block[] = [];
     const encryptedLogsArr: EncryptedL2BlockL2Logs[] = [];
     const ownedL1NotePayloads: L1NotePayload[] = [];
     const numberOfBlocks = prependedBlocks + appendedBlocks + 1;
@@ -109,10 +108,9 @@ describe('Note Processor', () => {
         block.body.txEffects[i].noteHashes = txEffectNotes.map(n => pedersenHash(n.notePayload.note.items));
       }
 
-      const randomBlockContext = new L2BlockContext(block);
-      blockContexts.push(randomBlockContext);
+      blocks.push(block);
     }
-    return { blockContexts, encryptedLogsArr, ownedL1NotePayloads };
+    return { blocks, encryptedLogsArr, ownedL1NotePayloads };
   };
 
   beforeAll(() => {
@@ -152,8 +150,8 @@ describe('Note Processor', () => {
   });
 
   it('should store a note that belongs to us', async () => {
-    const { blockContexts, encryptedLogsArr, ownedL1NotePayloads } = mockData([[2]]);
-    await noteProcessor.process(blockContexts, encryptedLogsArr);
+    const { blocks, encryptedLogsArr, ownedL1NotePayloads } = mockData([[2]]);
+    await noteProcessor.process(blocks, encryptedLogsArr);
 
     expect(addNotesSpy).toHaveBeenCalledTimes(1);
     expect(addNotesSpy).toHaveBeenCalledWith([
@@ -169,12 +167,12 @@ describe('Note Processor', () => {
     const appendedBlocks = 1;
     const thisBlockDataStartIndex = firstBlockDataStartIndex + prependedBlocks * numCommitmentsPerBlock;
 
-    const { blockContexts, encryptedLogsArr, ownedL1NotePayloads } = mockData(
+    const { blocks, encryptedLogsArr, ownedL1NotePayloads } = mockData(
       [[], [1], [], [0, 2]],
       prependedBlocks,
       appendedBlocks,
     );
-    await noteProcessor.process(blockContexts, encryptedLogsArr);
+    await noteProcessor.process(blocks, encryptedLogsArr);
 
     expect(addNotesSpy).toHaveBeenCalledTimes(1);
     expect(addNotesSpy).toHaveBeenCalledWith([
@@ -197,8 +195,8 @@ describe('Note Processor', () => {
   }, 30_000);
 
   it('should not store notes that do not belong to us', async () => {
-    const { blockContexts, encryptedLogsArr } = mockData([]);
-    await noteProcessor.process(blockContexts, encryptedLogsArr);
+    const { blocks, encryptedLogsArr } = mockData([]);
+    await noteProcessor.process(blocks, encryptedLogsArr);
   });
 
   it('should be able to recover two note payloads with containing the same note', async () => {
@@ -206,8 +204,8 @@ describe('Note Processor', () => {
     const note2 = TaggedNote.random(); // L1NotePayload.random();
     // All note payloads except one have the same contract address, storage slot, and the actual note.
     const notes = [note, note, note, note2, note];
-    const { blockContexts, encryptedLogsArr, ownedL1NotePayloads } = mockData([[0, 2], [], [0, 1, 3]], 0, 0, notes);
-    await noteProcessor.process(blockContexts, encryptedLogsArr);
+    const { blocks, encryptedLogsArr, ownedL1NotePayloads } = mockData([[0, 2], [], [0, 1, 3]], 0, 0, notes);
+    await noteProcessor.process(blocks, encryptedLogsArr);
 
     const addedNoteDaos: NoteDao[] = addNotesSpy.mock.calls[0][0];
     expect(addedNoteDaos.map(dao => dao)).toEqual([
@@ -229,14 +227,14 @@ describe('Note Processor', () => {
   });
 
   it('advances the block number', async () => {
-    const { blockContexts, encryptedLogsArr } = mockData([[2]]);
-    await noteProcessor.process(blockContexts, encryptedLogsArr);
-    expect(noteProcessor.status.syncedToBlock).toEqual(blockContexts.at(-1)?.block.number);
+    const { blocks, encryptedLogsArr } = mockData([[2]]);
+    await noteProcessor.process(blocks, encryptedLogsArr);
+    expect(noteProcessor.status.syncedToBlock).toEqual(blocks.at(-1)?.number);
   });
 
   it('should restore the last block number processed and ignore the starting block', async () => {
-    const { blockContexts, encryptedLogsArr } = mockData([[2]]);
-    await noteProcessor.process(blockContexts, encryptedLogsArr);
+    const { blocks, encryptedLogsArr } = mockData([[2]]);
+    await noteProcessor.process(blocks, encryptedLogsArr);
 
     const newNoteProcessor = new NoteProcessor(
       owner.getPublicKey(),

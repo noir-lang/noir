@@ -4,7 +4,6 @@ export * from './notes/index.js';
 export * from './messaging/index.js';
 export * from './l2_block.js';
 export * from './body.js';
-export * from './l2_block_context.js';
 export * from './l2_block_downloader/index.js';
 export * from './l2_block_source.js';
 export * from './tx_effect.js';

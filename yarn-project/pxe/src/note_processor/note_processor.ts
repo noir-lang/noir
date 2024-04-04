@@ -3,7 +3,7 @@ import {
   type EncryptedL2BlockL2Logs,
   type KeyStore,
   L1NotePayload,
-  type L2BlockContext,
+  type L2Block,
   TaggedNote,
 } from '@aztec/circuit-types';
 import { type NoteProcessorStats } from '@aztec/circuit-types/stats';
@@ -25,9 +25,9 @@ import { produceNoteDao } from './produce_note_dao.js';
  */
 interface ProcessedData {
   /**
-   * Holds L2 block and a cache of already requested tx hashes.
+   * Holds L2 block.
    */
-  blockContext: L2BlockContext;
+  block: L2Block;
   /**
    * DAOs of processed notes.
    */
@@ -82,25 +82,20 @@ export class NoteProcessor {
   }
 
   /**
-   * Process the given L2 block contexts and encrypted logs to update the note processor.
-   * It synchronizes the user's account by decrypting the encrypted logs and processing
-   * the transactions and auxiliary data associated with them.
-   * Throws an error if the number of block contexts and encrypted logs do not match.
+   * Extracts new user-relevant notes from the information contained in the provided L2 blocks and encrypted logs.
    *
-   * @param l2BlockContexts - An array of L2 block contexts to be processed.
-   * @param encryptedL2BlockLogs - An array of encrypted logs associated with the L2 block contexts.
+   * @throws If the number of blocks and encrypted logs do not match.
+   * @param l2Blocks - L2 blocks to be processed.
+   * @param encryptedL2BlockLogs - Encrypted logs associated with the L2 blocks.
    * @returns A promise that resolves once the processing is completed.
    */
-  public async process(
-    l2BlockContexts: L2BlockContext[],
-    encryptedL2BlockLogs: EncryptedL2BlockL2Logs[],
-  ): Promise<void> {
-    if (l2BlockContexts.length !== encryptedL2BlockLogs.length) {
+  public async process(l2Blocks: L2Block[], encryptedL2BlockLogs: EncryptedL2BlockL2Logs[]): Promise<void> {
+    if (l2Blocks.length !== encryptedL2BlockLogs.length) {
       throw new Error(
-        `Number of blocks and EncryptedLogs is not equal. Received ${l2BlockContexts.length} blocks, ${encryptedL2BlockLogs.length} encrypted logs.`,
+        `Number of blocks and EncryptedLogs is not equal. Received ${l2Blocks.length} blocks, ${encryptedL2BlockLogs.length} encrypted logs.`,
       );
     }
-    if (!l2BlockContexts.length) {
+    if (l2Blocks.length === 0) {
       return;
     }
 
@@ -113,8 +108,7 @@ export class NoteProcessor {
     for (let blockIndex = 0; blockIndex < encryptedL2BlockLogs.length; ++blockIndex) {
       this.stats.blocks++;
       const { txLogs } = encryptedL2BlockLogs[blockIndex];
-      const blockContext = l2BlockContexts[blockIndex];
-      const block = blockContext.block;
+      const block = l2Blocks[blockIndex];
       const dataStartIndexForBlock =
         block.header.state.partial.noteHashTree.nextAvailableLeafIndex -
         block.body.numberOfTxsIncludingPadded * MAX_NEW_NOTE_HASHES_PER_TX;
@@ -140,7 +134,7 @@ export class NoteProcessor {
             if (taggedNote?.notePayload) {
               const { notePayload: payload } = taggedNote;
               // We have successfully decrypted the data.
-              const txHash = blockContext.getTxHash(indexOfTxInABlock);
+              const txHash = block.body.txEffects[indexOfTxInABlock].txHash;
               try {
                 const noteDao = await produceNoteDao(
                   this.simulator,
@@ -179,7 +173,7 @@ export class NoteProcessor {
       }
 
       blocksAndNotes.push({
-        blockContext: l2BlockContexts[blockIndex],
+        block: l2Blocks[blockIndex],
         noteDaos,
       });
     }
@@ -187,7 +181,7 @@ export class NoteProcessor {
     await this.processBlocksAndNotes(blocksAndNotes);
     await this.processDeferredNotes(deferredNoteDaos);
 
-    const syncedToBlock = l2BlockContexts[l2BlockContexts.length - 1].block.number;
+    const syncedToBlock = l2Blocks[l2Blocks.length - 1].number;
     await this.db.setSynchedBlockNumberForPublicKey(this.publicKey, syncedToBlock);
 
     this.log(`Synched block ${syncedToBlock}`);
@@ -200,7 +194,7 @@ export class NoteProcessor {
    * transaction auxiliary data from the database. This function keeps track of new nullifiers
    * and ensures all other transactions are updated with newly settled block information.
    *
-   * @param blocksAndNotes - Array of objects containing L2BlockContexts, user-pertaining transaction indices, and NoteDaos.
+   * @param blocksAndNotes - Array of objects containing L2 blocks, user-pertaining transaction indices, and NoteDaos.
    */
   private async processBlocksAndNotes(blocksAndNotes: ProcessedData[]) {
     const noteDaos = blocksAndNotes.flatMap(b => b.noteDaos);
@@ -216,7 +210,7 @@ export class NoteProcessor {
     }
 
     const newNullifiers: Fr[] = blocksAndNotes.flatMap(b =>
-      b.blockContext.block.body.txEffects.flatMap(txEffect => txEffect.nullifiers),
+      b.block.body.txEffects.flatMap(txEffect => txEffect.nullifiers),
     );
     const removedNotes = await this.db.removeNullifiedNotes(newNullifiers, this.publicKey);
     removedNotes.forEach(noteDao => {

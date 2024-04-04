@@ -6,7 +6,6 @@ import {
   type GetUnencryptedLogsResponse,
   type InboxLeaf,
   type L2Block,
-  L2BlockContext,
   type L2BlockL2Logs,
   type LogFilter,
   LogId,
@@ -37,7 +36,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   /**
    * An array containing all the L2 blocks that have been fetched so far.
    */
-  private l2BlockContexts: L2BlockContext[] = [];
+  private l2Blocks: L2Block[] = [];
 
   /**
    * A mapping of body hash to body
@@ -144,7 +143,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    */
   public addBlocks(blocks: DataRetrieval<L2Block>): Promise<boolean> {
     this.lastL1BlockNewBlocks = blocks.lastProcessedL1BlockNumber;
-    this.l2BlockContexts.push(...blocks.retrievedData.map(block => new L2BlockContext(block)));
+    this.l2Blocks.push(...blocks.retrievedData);
     this.txEffects.push(...blocks.retrievedData.flatMap(b => b.body.txEffects));
     return Promise.resolve(true);
   }
@@ -242,12 +241,12 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     }
 
     const fromIndex = Math.max(from - INITIAL_L2_BLOCK_NUM, 0);
-    if (fromIndex >= this.l2BlockContexts.length) {
+    if (fromIndex >= this.l2Blocks.length) {
       return Promise.resolve([]);
     }
 
     const toIndex = fromIndex + limit;
-    return Promise.resolve(this.l2BlockContexts.slice(fromIndex, toIndex).map(blockContext => blockContext.block));
+    return Promise.resolve(this.l2Blocks.slice(fromIndex, toIndex));
   }
 
   /**
@@ -266,12 +265,11 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @returns The requested tx receipt (or undefined if not found).
    */
   public getSettledTxReceipt(txHash: TxHash): Promise<TxReceipt | undefined> {
-    for (const blockContext of this.l2BlockContexts) {
-      for (const currentTxHash of blockContext.getTxHashes()) {
+    for (const block of this.l2Blocks) {
+      const txHashes = block.body.txEffects.map(txEffect => txEffect.txHash);
+      for (const currentTxHash of txHashes) {
         if (currentTxHash.equals(txHash)) {
-          return Promise.resolve(
-            new TxReceipt(txHash, TxStatus.MINED, '', blockContext.block.hash().toBuffer(), blockContext.block.number),
-          );
+          return Promise.resolve(new TxReceipt(txHash, TxStatus.MINED, '', block.hash().toBuffer(), block.number));
         }
       }
     }
@@ -364,20 +362,18 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     const logs: ExtendedUnencryptedL2Log[] = [];
 
     for (; fromBlockIndex < toBlockIndex; fromBlockIndex++) {
-      const blockContext = this.l2BlockContexts[fromBlockIndex];
+      const block = this.l2Blocks[fromBlockIndex];
       const blockLogs = this.unencryptedLogsPerBlock[fromBlockIndex];
       for (; txIndexInBlock < blockLogs.txLogs.length; txIndexInBlock++) {
         const txLogs = blockLogs.txLogs[txIndexInBlock].unrollLogs();
         for (; logIndexInTx < txLogs.length; logIndexInTx++) {
           const log = txLogs[logIndexInTx];
           if (
-            (!txHash || blockContext.getTxHash(txIndexInBlock).equals(txHash)) &&
+            (!txHash || block.body.txEffects[txIndexInBlock].txHash.equals(txHash)) &&
             (!contractAddress || log.contractAddress.equals(contractAddress)) &&
             (!selector || log.selector.equals(selector))
           ) {
-            logs.push(
-              new ExtendedUnencryptedL2Log(new LogId(blockContext.block.number, txIndexInBlock, logIndexInTx), log),
-            );
+            logs.push(new ExtendedUnencryptedL2Log(new LogId(block.number, txIndexInBlock, logIndexInTx), log));
             if (logs.length === this.maxLogs) {
               return Promise.resolve({
                 logs,
@@ -402,10 +398,10 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @returns The number of the latest L2 block processed.
    */
   public getSynchedL2BlockNumber(): Promise<number> {
-    if (this.l2BlockContexts.length === 0) {
+    if (this.l2Blocks.length === 0) {
       return Promise.resolve(INITIAL_L2_BLOCK_NUM - 1);
     }
-    return Promise.resolve(this.l2BlockContexts[this.l2BlockContexts.length - 1].block.number);
+    return Promise.resolve(this.l2Blocks[this.l2Blocks.length - 1].number);
   }
 
   public getSynchPoint(): Promise<ArchiverL1SynchPoint> {
