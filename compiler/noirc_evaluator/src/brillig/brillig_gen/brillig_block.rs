@@ -703,6 +703,9 @@ impl<'block> BrilligBlock<'block> {
             Instruction::EnableSideEffects { .. } => {
                 todo!("enable_side_effects not supported by brillig")
             }
+            Instruction::IfElse { .. } => {
+                unreachable!("IfElse instructions should not be possible in brillig")
+            }
         };
 
         let dead_variables = self

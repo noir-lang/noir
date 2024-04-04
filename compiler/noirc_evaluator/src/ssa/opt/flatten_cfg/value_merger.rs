@@ -42,9 +42,14 @@ impl<'a> ValueMerger<'a> {
         else_value: ValueId,
     ) -> ValueId {
         match self.dfg.type_of_value(then_value) {
-            Type::Numeric(_) => {
-                self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
-            }
+            Type::Numeric(_) => Self::merge_numeric_values(
+                self.dfg,
+                self.block,
+                then_condition,
+                else_condition,
+                then_value,
+                else_value,
+            ),
             typ @ Type::Array(_, _) => {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
@@ -59,58 +64,53 @@ impl<'a> ValueMerger<'a> {
     /// Merge two numeric values a and b from separate basic blocks to a single value. This
     /// function would return the result of `if c { a } else { b }` as  `c*a + (!c)*b`.
     pub(crate) fn merge_numeric_values(
-        &mut self,
+        dfg: &mut DataFlowGraph,
+        block: BasicBlockId,
         then_condition: ValueId,
         else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
-        let then_type = self.dfg.type_of_value(then_value);
-        let else_type = self.dfg.type_of_value(else_value);
+        let then_type = dfg.type_of_value(then_value);
+        let else_type = dfg.type_of_value(else_value);
         assert_eq!(
             then_type, else_type,
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
         );
 
-        let then_call_stack = self.dfg.get_value_call_stack(then_value);
-        let else_call_stack = self.dfg.get_value_call_stack(else_value);
+        let then_call_stack = dfg.get_value_call_stack(then_value);
+        let else_call_stack = dfg.get_value_call_stack(else_value);
 
         let call_stack = if then_call_stack.is_empty() { else_call_stack } else { then_call_stack };
 
         // We must cast the bool conditions to the actual numeric type used by each value.
-        let then_condition = self
-            .dfg
+        let then_condition = dfg
             .insert_instruction_and_results(
                 Instruction::Cast(then_condition, then_type),
-                self.block,
+                block,
                 None,
                 call_stack.clone(),
             )
             .first();
-        let else_condition = self
-            .dfg
+        let else_condition = dfg
             .insert_instruction_and_results(
                 Instruction::Cast(else_condition, else_type),
-                self.block,
+                block,
                 None,
                 call_stack.clone(),
             )
             .first();
 
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
-        let then_value = self
-            .dfg
-            .insert_instruction_and_results(mul, self.block, None, call_stack.clone())
-            .first();
+        let then_value =
+            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
 
         let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
-        let else_value = self
-            .dfg
-            .insert_instruction_and_results(mul, self.block, None, call_stack.clone())
-            .first();
+        let else_value =
+            dfg.insert_instruction_and_results(mul, block, None, call_stack.clone()).first();
 
         let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
-        self.dfg.insert_instruction_and_results(add, self.block, None, call_stack).first()
+        dfg.insert_instruction_and_results(add, block, None, call_stack).first()
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -175,12 +175,18 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected slice type"),
         };
 
-        let then_len = *self.slice_sizes.get(&then_value_id).unwrap_or_else(|| {
-            panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
+        let then_len = self.slice_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
+            let (slice, typ) = self.dfg.get_array_constant(then_value_id).unwrap_or_else(|| {
+                panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
+            });
+            slice.len() / typ.element_types().len()
         });
 
-        let else_len = *self.slice_sizes.get(&else_value_id).unwrap_or_else(|| {
-            panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
+        let else_len = self.slice_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
+            let (slice, typ) = self.dfg.get_array_constant(else_value_id).unwrap_or_else(|| {
+                panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
+            });
+            slice.len() / typ.element_types().len()
         });
 
         let len = then_len.max(else_len);

@@ -1,6 +1,8 @@
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
 
+use crate::ssa::opt::flatten_cfg::value_merger::ValueMerger;
+
 use super::{
     basic_block::BasicBlockId,
     dfg::{CallStack, DataFlowGraph},
@@ -206,6 +208,14 @@ pub(crate) enum Instruction {
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
     DecrementRc { value: ValueId },
+
+    /// Merge two values returned from opposite branches of a conditional into one.
+    IfElse {
+        then_condition: ValueId,
+        then_value: ValueId,
+        else_condition: ValueId,
+        else_value: ValueId,
+    },
 }
 
 impl Instruction {
@@ -219,10 +229,12 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.result_type(),
             Instruction::Cast(_, typ) => InstructionResultType::Known(typ.clone()),
-            Instruction::Not(value) | Instruction::Truncate { value, .. } => {
+            Instruction::Not(value)
+            | Instruction::Truncate { value, .. }
+            | Instruction::ArraySet { array: value, .. }
+            | Instruction::IfElse { then_value: value, .. } => {
                 InstructionResultType::Operand(*value)
             }
-            Instruction::ArraySet { array, .. } => InstructionResultType::Operand(*array),
             Instruction::Constrain(..)
             | Instruction::Store { .. }
             | Instruction::IncrementRc { .. }
@@ -254,7 +266,12 @@ impl Instruction {
                 // In ACIR, a division with a false predicate outputs (0,0), so it cannot replace another instruction unless they have the same predicate
                 bin.operator != BinaryOp::Div
             }
-            Cast(_, _) | Truncate { .. } | Not(_) | ArrayGet { .. } | ArraySet { .. } => true,
+            Cast(_, _)
+            | Truncate { .. }
+            | Not(_)
+            | ArrayGet { .. }
+            | ArraySet { .. }
+            | IfElse { .. } => true,
 
             // These either have side-effects or interact with memory
             Constrain(..)
@@ -293,7 +310,8 @@ impl Instruction {
             | Allocate
             | Load { .. }
             | ArrayGet { .. }
-            | ArraySet { .. } => false,
+            | ArraySet { .. }
+            | IfElse { .. } => false,
 
             Constrain(..)
             | Store { .. }
@@ -379,6 +397,14 @@ impl Instruction {
                     assert_message: assert_message.clone(),
                 }
             }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                Instruction::IfElse {
+                    then_condition: f(*then_condition),
+                    then_value: f(*then_value),
+                    else_condition: f(*else_condition),
+                    else_value: f(*else_value),
+                }
+            }
         }
     }
 
@@ -432,6 +458,12 @@ impl Instruction {
             | Instruction::DecrementRc { value }
             | Instruction::RangeCheck { value, .. } => {
                 f(*value);
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                f(*then_condition);
+                f(*then_value);
+                f(*else_condition);
+                f(*else_value);
             }
         }
     }
@@ -580,6 +612,27 @@ impl Instruction {
                 let max_potential_bits = dfg.get_value_max_num_bits(*value);
                 if max_potential_bits < *max_bit_size {
                     Remove
+                } else {
+                    None
+                }
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                let typ = dfg.type_of_value(*then_value);
+                if matches!(&typ, Type::Numeric(_)) {
+                    let then_condition = *then_condition;
+                    let then_value = *then_value;
+                    let else_condition = *else_condition;
+                    let else_value = *else_value;
+
+                    let result = ValueMerger::merge_numeric_values(
+                        dfg,
+                        block,
+                        then_condition,
+                        else_condition,
+                        then_value,
+                        else_value,
+                    );
+                    SimplifiedTo(result)
                 } else {
                     None
                 }

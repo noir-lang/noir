@@ -533,6 +533,9 @@ impl Context {
                     assert_message.clone(),
                 )?;
             }
+            Instruction::IfElse { .. } => {
+                unreachable!("IfElse instruction remaining in acir-gen")
+            }
         }
 
         self.acir_context.set_call_stack(CallStack::new());
