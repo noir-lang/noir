@@ -81,12 +81,9 @@ impl FunctionContext {
                 }),
                 *size,
             ),
-            Type::Slice(item_type) => BrilligParameter::Slice(
-                vecmap(item_type.iter(), |item_typ| {
-                    FunctionContext::ssa_type_to_parameter(item_typ)
-                }),
-                None,
-            ),
+            Type::Slice(_) => {
+                panic!("ICE: Slice parameters cannot be derived from type information")
+            }
             _ => unimplemented!("Unsupported function parameter/return type {typ:?}"),
         }
     }

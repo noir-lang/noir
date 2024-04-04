@@ -128,19 +128,10 @@ impl BrilligContext {
         fn flat_bit_sizes(param: &BrilligParameter) -> Box<dyn Iterator<Item = u32> + '_> {
             match param {
                 BrilligParameter::SingleAddr(bit_size) => Box::new(std::iter::once(*bit_size)),
-                BrilligParameter::Array(item_types, item_count) => Box::new(
+                BrilligParameter::Array(item_types, item_count)
+                | BrilligParameter::Slice(item_types, item_count) => Box::new(
                     (0..*item_count).flat_map(move |_| item_types.iter().flat_map(flat_bit_sizes)),
                 ),
-                BrilligParameter::Slice(item_types, item_count) => {
-                    if let Some(item_count) = item_count {
-                        Box::new(
-                            (0..*item_count)
-                                .flat_map(move |_| item_types.iter().flat_map(flat_bit_sizes)),
-                        )
-                    } else {
-                        unreachable!("ICE: Slices with unknown length cannot be passed as entry point arguments")
-                    }
-                }
             }
         }
 
@@ -159,20 +150,10 @@ impl BrilligContext {
     fn flattened_size(param: &BrilligParameter) -> usize {
         match param {
             BrilligParameter::SingleAddr(_) => 1,
-            BrilligParameter::Array(item_types, item_count) => {
+            BrilligParameter::Array(item_types, item_count)
+            | BrilligParameter::Slice(item_types, item_count) => {
                 let item_size: usize = item_types.iter().map(BrilligContext::flattened_size).sum();
                 item_count * item_size
-            }
-            BrilligParameter::Slice(item_types, item_count) => {
-                if let Some(item_count) = item_count {
-                    let item_size: usize =
-                        item_types.iter().map(BrilligContext::flattened_size).sum();
-                    item_count * item_size
-                } else {
-                    unreachable!(
-                        "ICE: Slices with unknown length cannot be passed as entry point arguments"
-                    )
-                }
             }
         }
     }
@@ -490,8 +471,8 @@ mod tests {
     use acvm::FieldElement;
 
     use crate::brillig::brillig_ir::{
-        artifact::BrilligParameter,
         brillig_variable::BrilligArray,
+        entry_point::BrilligParameter,
         tests::{create_and_run_vm, create_context, create_entry_point_bytecode},
     };
 

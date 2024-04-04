@@ -701,7 +701,7 @@ impl Context {
                             .iter()
                             .map(BrilligFunctionContext::ssa_type_to_parameter)
                             .collect(),
-                        Some(len / item_types.len()),
+                        len / item_types.len(),
                     )
                 } else {
                     BrilligFunctionContext::ssa_type_to_parameter(&typ)
