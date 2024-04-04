@@ -1,6 +1,7 @@
+// Placed here as it is used both by simulator and by noir-protocol-circuits-types
 import { type ForeignCallInput } from '@noir-lang/acvm_js';
 
-import { type ACVMField } from '../acvm_types.js';
+type ACVMField = string;
 
 /**
  * Convert an array of ACVMFields to a string.

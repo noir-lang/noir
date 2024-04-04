@@ -2,6 +2,7 @@ import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
+  Fr,
   type KernelCircuitPublicInputs,
   type MergeRollupInputs,
   type ParityPublicInputs,
@@ -16,10 +17,14 @@ import {
   type RootParityInputs,
   type RootRollupInputs,
   type RootRollupPublicInputs,
+  acvmFieldMessageToString,
+  oracleDebugCallToFormattedStr,
 } from '@aztec/circuits.js';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
 import {
+  type ForeignCallInput,
   type WasmBlackBoxFunctionSolver,
   createBlackBoxSolver,
   executeCircuitWithBlackBoxSolver,
@@ -453,9 +458,7 @@ async function executePrivateKernelInitWithACVM(input: InitInputType): Promise<I
     await getSolver(),
     decodedBytecode,
     initialWitnessMap,
-    () => {
-      throw Error('unexpected oracle during execution');
-    },
+    foreignCallHandler,
   );
 
   // Decode the witness map into two fields, the return values and the inputs
@@ -481,9 +484,7 @@ async function executePrivateKernelInnerWithACVM(input: InnerInputType): Promise
     await getSolver(),
     decodedBytecode,
     initialWitnessMap,
-    () => {
-      throw Error('unexpected oracle during execution');
-    },
+    foreignCallHandler,
   );
 
   // Decode the witness map into two fields, the return values and the inputs
@@ -509,9 +510,7 @@ async function executePrivateKernelTailWithACVM(input: TailInputType): Promise<T
     await getSolver(),
     decodedBytecode,
     initialWitnessMap,
-    () => {
-      throw Error('unexpected oracle during execution');
-    },
+    foreignCallHandler,
   );
 
   // Decode the witness map into two fields, the return values and the inputs
@@ -536,9 +535,7 @@ async function executePrivateKernelTailToPublicWithACVM(
     await getSolver(),
     decodedBytecode,
     initialWitnessMap,
-    () => {
-      throw Error('unexpected oracle during execution');
-    },
+    foreignCallHandler,
   );
 
   // Decode the witness map into two fields, the return values and the inputs
@@ -547,3 +544,17 @@ async function executePrivateKernelTailToPublicWithACVM(
   // Cast the inputs as the return type
   return decodedInputs.return_value as PublicPublicPreviousReturnType;
 }
+
+const foreignCallHandler = (name: string, args: ForeignCallInput[]) => {
+  const log = createDebugLogger('aztec:noir-protocol-circuits:oracle');
+
+  if (name === 'debugLog') {
+    log(oracleDebugCallToFormattedStr(args));
+  } else if (name === 'debugLogWithPrefix') {
+    log(`${acvmFieldMessageToString(args[0])}: ${oracleDebugCallToFormattedStr(args.slice(1))}`);
+  } else {
+    throw Error(`unexpected oracle during execution: ${name}`);
+  }
+
+  return Promise.resolve([`0x${Buffer.alloc(Fr.SIZE_IN_BYTES).toString('hex')}`]);
+};

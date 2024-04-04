@@ -1,5 +1,6 @@
 mod utils;
 mod address;
+mod debug_log;
 mod grumpkin_point;
 mod grumpkin_private_key;
 // This is intentionally spelled like this 
