@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "contracts/app_subscription_contract",
+    "contracts/avm_initializer_test_contract",
     "contracts/avm_test_contract",
     "contracts/fpc_contract",
     "contracts/benchmarking_contract",

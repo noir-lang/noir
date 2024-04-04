@@ -45,13 +45,13 @@ pub fn transform_function(
 
     // Add initialization check
     if insert_init_check {
-        let init_check = create_init_check();
+        let init_check = create_init_check(ty);
         func.def.body.statements.insert(0, init_check);
     }
 
     // Add assertion for initialization arguments and sender
     if is_initializer {
-        func.def.body.statements.insert(0, create_assert_initializer());
+        func.def.body.statements.insert(0, create_assert_initializer(ty));
     }
 
     // Add access to the storage struct
@@ -85,7 +85,7 @@ pub fn transform_function(
 
     // Before returning mark the contract as initialized
     if is_initializer {
-        let mark_initialized = create_mark_as_initialized();
+        let mark_initialized = create_mark_as_initialized(ty);
         func.def.body.statements.push(mark_initialized);
     }
 
@@ -159,9 +159,10 @@ fn create_inputs(ty: &str) -> Param {
 /// ```noir
 /// assert_is_initialized(&mut context);
 /// ```
-fn create_init_check() -> Statement {
+fn create_init_check(ty: &str) -> Statement {
+    let fname = format!("assert_is_initialized_{}", ty.to_case(Case::Snake));
     make_statement(StatementKind::Expression(call(
-        variable_path(chained_dep!("aztec", "initializer", "assert_is_initialized")),
+        variable_path(chained_dep!("aztec", "initializer", &fname)),
         vec![mutable_reference("context")],
     )))
 }
@@ -172,9 +173,10 @@ fn create_init_check() -> Statement {
 /// ```noir
 /// mark_as_initialized(&mut context);
 /// ```
-fn create_mark_as_initialized() -> Statement {
+fn create_mark_as_initialized(ty: &str) -> Statement {
+    let fname = format!("mark_as_initialized_{}", ty.to_case(Case::Snake));
     make_statement(StatementKind::Expression(call(
-        variable_path(chained_dep!("aztec", "initializer", "mark_as_initialized")),
+        variable_path(chained_dep!("aztec", "initializer", &fname)),
         vec![mutable_reference("context")],
     )))
 }
@@ -205,13 +207,11 @@ fn create_internal_check(fname: &str) -> Statement {
 /// ```noir
 /// assert_initialization_matches_address_preimage(context);
 /// ```
-fn create_assert_initializer() -> Statement {
+fn create_assert_initializer(ty: &str) -> Statement {
+    let fname =
+        format!("assert_initialization_matches_address_preimage_{}", ty.to_case(Case::Snake));
     make_statement(StatementKind::Expression(call(
-        variable_path(chained_dep!(
-            "aztec",
-            "initializer",
-            "assert_initialization_matches_address_preimage"
-        )),
+        variable_path(chained_dep!("aztec", "initializer", &fname)),
         vec![variable("context")],
     )))
 }

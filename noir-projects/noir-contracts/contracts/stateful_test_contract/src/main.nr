@@ -4,7 +4,7 @@ contract StatefulTest {
     use dep::value_note::{balance_utils, utils::{increment, decrement}, value_note::{VALUE_NOTE_LEN, ValueNote}};
     use dep::aztec::{
         deploy::deploy_contract as aztec_deploy_contract, context::{PublicContext, Context},
-        oracle::get_contract_instance::get_contract_instance, initializer::assert_is_initialized
+        oracle::get_contract_instance::get_contract_instance, initializer::assert_is_initialized_private
     };
 
     struct Storage {
@@ -45,7 +45,7 @@ contract StatefulTest {
 
     #[aztec(private)]
     fn destroy_and_create(recipient: AztecAddress, amount: Field) {
-        assert_is_initialized(&mut context);
+        assert_is_initialized_private(&mut context);
         let sender = context.msg_sender();
 
         let sender_notes = storage.notes.at(sender);

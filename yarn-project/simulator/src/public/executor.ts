@@ -256,13 +256,14 @@ export class PublicExecutor {
     const worldStateJournal = new AvmPersistableStateManager(hostStorage);
     const executionEnv = temporaryCreateAvmExecutionEnvironment(execution, globalVariables);
     // TODO(@spalladino) Load initial gas from the public execution request
-    const machineState = new AvmMachineState(1e6, 1e6, 1e6);
+    const machineState = new AvmMachineState(1e10, 1e10, 1e10);
 
     const context = new AvmContext(worldStateJournal, executionEnv, machineState);
     const simulator = new AvmSimulator(context);
 
     const result = await simulator.execute();
     const newWorldState = context.persistableState.flush();
+
     // TODO(@spalladino) Read gas left from machineState and return it
     return temporaryConvertAvmResults(execution, newWorldState, result);
   }
