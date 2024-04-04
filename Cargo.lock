@@ -606,16 +606,11 @@ dependencies = [
  "ark-ec",
  "ark-ff",
  "cfg-if 1.0.0",
- "flate2",
  "getrandom 0.2.10",
  "js-sys",
  "noir_grumpkin",
  "num-bigint",
  "num-traits",
- "pkg-config",
- "reqwest",
- "rust-embed",
- "tar",
  "thiserror",
  "wasm-bindgen-futures",
  "wasmer",
@@ -4037,7 +4032,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rust-embed-utils",
- "shellexpand",
  "syn 2.0.32",
  "walkdir",
 ]
@@ -4048,7 +4042,6 @@ version = "7.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d38ff6bf570dc3bb7100fce9f7b60c33fa71d80e88da3f2580df4ff2bdded74"
 dependencies = [
- "globset",
  "sha2",
  "walkdir",
 ]
@@ -4468,15 +4461,6 @@ name = "shell-words"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24188a676b6ae68c3b2cb3a01be17fbf7240ce009799bb56d5b1409051e78fde"
-
-[[package]]
-name = "shellexpand"
-version = "2.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ccc8076840c4da029af4f87e4e8daeb0fca6b87bbb02e10cb60b791450e11e4"
-dependencies = [
- "dirs",
-]
 
 [[package]]
 name = "signature"
