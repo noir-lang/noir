@@ -7,7 +7,6 @@ import {
   type AztecNode,
   BatchCall,
   CheatCodes,
-  type CompleteAddress,
   type ContractMethod,
   type DebugLogger,
   type DeployL1Contracts,
@@ -187,10 +186,6 @@ export async function setupPXEService(
    */
   pxe: PXE;
   /**
-   * The accounts created by the PXE.
-   */
-  accounts: CompleteAddress[];
-  /**
    * The wallets to be used.
    */
   wallets: AccountWalletWithPrivateKey[];
@@ -206,7 +201,6 @@ export async function setupPXEService(
 
   return {
     pxe,
-    accounts: await pxe.getRegisteredAccounts(),
     wallets,
     logger,
   };
@@ -302,8 +296,6 @@ export type EndToEndContext = {
   pxe: PXE;
   /** Return values from deployL1Contracts function. */
   deployL1ContractsValues: DeployL1Contracts;
-  /** The accounts created by the PXE. */
-  accounts: CompleteAddress[];
   /** The Aztec Node configuration. */
   config: AztecNodeConfig;
   /** The first wallet to be used. */
@@ -369,7 +361,7 @@ export async function setup(
   const aztecNode = await AztecNodeService.createAndSync(config);
   const sequencer = aztecNode.getSequencer();
 
-  const { pxe, accounts, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, pxeOpts, logger);
+  const { pxe, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, pxeOpts, logger);
 
   if (['1', 'true'].includes(ENABLE_GAS)) {
     await deployCanonicalGasToken(new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint()));
@@ -396,7 +388,6 @@ export async function setup(
     aztecNode,
     pxe,
     deployL1ContractsValues,
-    accounts,
     config,
     wallet: wallets[0],
     wallets,
@@ -413,8 +404,8 @@ export async function setup(
  * @param sender - Wallet to send the deployment tx.
  * @param accountsToDeploy - Which accounts to publicly deploy.
  */
-export async function publicDeployAccounts(sender: Wallet, accountsToDeploy: (CompleteAddress | AztecAddress)[]) {
-  const accountAddressesToDeploy = accountsToDeploy.map(a => ('address' in a ? a.address : a));
+export async function publicDeployAccounts(sender: Wallet, accountsToDeploy: Wallet[]) {
+  const accountAddressesToDeploy = accountsToDeploy.map(a => a.getAddress());
   const instances = await Promise.all(accountAddressesToDeploy.map(account => sender.getContractInstance(account)));
   const batch = new BatchCall(sender, [
     (await registerContractClass(sender, SchnorrAccountContractArtifact)).request(),

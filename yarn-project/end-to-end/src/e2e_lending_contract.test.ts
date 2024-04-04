@@ -1,7 +1,6 @@
 import {
   type AccountWallet,
   type CheatCodes,
-  type CompleteAddress,
   type DebugLogger,
   ExtendedNote,
   Fr,
@@ -19,7 +18,7 @@ import { LendingAccount, LendingSimulator, TokenSimulator } from './simulators/i
 describe('e2e_lending_contract', () => {
   jest.setTimeout(100_000);
   let wallet: AccountWallet;
-  let accounts: CompleteAddress[];
+
   let logger: DebugLogger;
   let teardown: () => Promise<void>;
 
@@ -40,13 +39,13 @@ describe('e2e_lending_contract', () => {
     logger(`Price feed deployed to ${priceFeedContract.address}`);
 
     logger(`Deploying collateral asset feed contract...`);
-    const collateralAsset = await TokenContract.deploy(wallet, accounts[0], 'TokenName', 'TokenSymbol', 18)
+    const collateralAsset = await TokenContract.deploy(wallet, wallet.getAddress(), 'TokenName', 'TokenSymbol', 18)
       .send()
       .deployed();
     logger(`Collateral asset deployed to ${collateralAsset.address}`);
 
     logger(`Deploying stable coin contract...`);
-    const stableCoin = await TokenContract.deploy(wallet, accounts[0], 'TokenName', 'TokenSymbol', 18)
+    const stableCoin = await TokenContract.deploy(wallet, wallet.getAddress(), 'TokenName', 'TokenSymbol', 18)
       .send()
       .deployed();
     logger(`Stable coin asset deployed to ${stableCoin.address}`);
@@ -62,11 +61,11 @@ describe('e2e_lending_contract', () => {
   };
 
   beforeAll(async () => {
-    ({ teardown, logger, cheatCodes: cc, wallet, accounts } = await setup(1));
+    ({ teardown, logger, cheatCodes: cc, wallet } = await setup(1));
     ({ lendingContract, priceFeedContract, collateralAsset, stableCoin } = await deployContracts());
-    await publicDeployAccounts(wallet, accounts);
+    await publicDeployAccounts(wallet, [wallet]);
 
-    lendingAccount = new LendingAccount(accounts[0].address, new Fr(42));
+    lendingAccount = new LendingAccount(wallet.getAddress(), new Fr(42));
 
     // Also specified in `noir-contracts/contracts/lending_contract/src/main.nr`
     const rate = 1268391679n;
@@ -75,8 +74,8 @@ describe('e2e_lending_contract', () => {
       lendingAccount,
       rate,
       lendingContract,
-      new TokenSimulator(collateralAsset, logger, [lendingContract.address, ...accounts.map(a => a.address)]),
-      new TokenSimulator(stableCoin, logger, [lendingContract.address, ...accounts.map(a => a.address)]),
+      new TokenSimulator(collateralAsset, logger, [lendingContract.address, wallet.getAddress()]),
+      new TokenSimulator(stableCoin, logger, [lendingContract.address, wallet.getAddress()]),
     );
   }, 200_000);
 
@@ -110,7 +109,7 @@ describe('e2e_lending_contract', () => {
         const txHash = await b.getTxHash();
         const extendedNote = new ExtendedNote(
           note,
-          accounts[0].address,
+          wallet.getAddress(),
           asset.address,
           storageSlot,
           noteTypeId,

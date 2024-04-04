@@ -107,7 +107,7 @@ export const uniswapL1L2TestSuite = (
       sponsorAddress = sponsorWallet.getAddress();
       ownerEthAddress = EthAddress.fromString((await walletClient.getAddresses())[0]);
 
-      await publicDeployAccounts(ownerWallet, [ownerAddress, sponsorAddress]);
+      await publicDeployAccounts(ownerWallet, [ownerWallet, sponsorWallet]);
 
       logger('Deploying DAI Portal, initializing and deploying l2 contract...');
       daiCrossChainHarness = await CrossChainTestHarness.new(

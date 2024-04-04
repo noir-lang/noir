@@ -39,13 +39,12 @@ describe('e2e_cheat_codes', () => {
 
   beforeAll(async () => {
     let deployL1ContractsValues;
-    let accounts;
-    ({ teardown, wallet, accounts, cheatCodes: cc, deployL1ContractsValues, pxe } = await setup());
+    ({ teardown, wallet, cheatCodes: cc, deployL1ContractsValues, pxe } = await setup());
 
     walletClient = deployL1ContractsValues.walletClient;
     publicClient = deployL1ContractsValues.publicClient;
     rollupAddress = deployL1ContractsValues.l1ContractAddresses.rollupAddress;
-    admin = accounts[0];
+    admin = wallet.getCompleteAddress();
 
     token = await TokenContract.deploy(wallet, admin, 'TokenName', 'TokenSymbol', 18).send().deployed();
   }, 100_000);

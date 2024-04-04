@@ -1,10 +1,4 @@
-import {
-  type AccountWallet,
-  type CompleteAddress,
-  Fr,
-  computeInnerAuthWitHash,
-  computeOuterAuthWitHash,
-} from '@aztec/aztec.js';
+import { type AccountWallet, Fr, computeInnerAuthWitHash, computeOuterAuthWitHash } from '@aztec/aztec.js';
 import { SchnorrAccountContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
@@ -17,14 +11,13 @@ describe('e2e_authwit_tests', () => {
   jest.setTimeout(TIMEOUT);
 
   let wallets: AccountWallet[];
-  let accounts: CompleteAddress[];
 
   let chainId: Fr;
   let version: Fr;
 
   beforeAll(async () => {
-    ({ wallets, accounts } = await setup(2));
-    await publicDeployAccounts(wallets[0], accounts.slice(0, 2));
+    ({ wallets } = await setup(2));
+    await publicDeployAccounts(wallets[0], wallets.slice(0, 2));
 
     const nodeInfo = await wallets[0].getNodeInfo();
     chainId = new Fr(nodeInfo.chainId);

@@ -2,7 +2,6 @@ import {
   type AccountWallet,
   type AztecAddress,
   type AztecNode,
-  type CompleteAddress,
   type DebugLogger,
   type DeployL1Contracts,
   EthAddress,
@@ -33,7 +32,6 @@ describe('e2e_public_cross_chain_messaging', () => {
   let logger: DebugLogger;
   let teardown: () => Promise<void>;
   let wallets: AccountWallet[];
-  let accounts: CompleteAddress[];
 
   let user1Wallet: AccountWallet;
   let user2Wallet: AccountWallet;
@@ -47,10 +45,10 @@ describe('e2e_public_cross_chain_messaging', () => {
   let outbox: GetContractReturnType<typeof OutboxAbi, PublicClient<HttpTransport, Chain>>;
 
   beforeAll(async () => {
-    ({ aztecNode, pxe, deployL1ContractsValues, wallets, accounts, logger, teardown } = await setup(2));
+    ({ aztecNode, pxe, deployL1ContractsValues, wallets, logger, teardown } = await setup(2));
     user1Wallet = wallets[0];
     user2Wallet = wallets[1];
-    await publicDeployAccounts(wallets[0], accounts.slice(0, 2));
+    await publicDeployAccounts(wallets[0], wallets.slice(0, 2));
   }, 30_000);
 
   beforeEach(async () => {

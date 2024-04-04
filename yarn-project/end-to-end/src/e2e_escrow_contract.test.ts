@@ -2,7 +2,6 @@ import {
   type AccountWallet,
   type AztecAddress,
   BatchCall,
-  type CompleteAddress,
   type DebugLogger,
   ExtendedNote,
   Fr,
@@ -27,7 +26,7 @@ describe('e2e_escrow_contract', () => {
   let pxe: PXE;
   let wallet: AccountWallet;
   let recipientWallet: AccountWallet;
-  let accounts: CompleteAddress[];
+
   let logger: DebugLogger;
   let teardown: () => Promise<void>;
 
@@ -44,12 +43,11 @@ describe('e2e_escrow_contract', () => {
     ({
       teardown,
       pxe,
-      accounts,
       wallets: [wallet, recipientWallet],
       logger,
     } = await setup(2));
-    owner = accounts[0].address;
-    recipient = accounts[1].address;
+    owner = wallet.getAddress();
+    recipient = recipientWallet.getAddress();
 
     // Generate private key for escrow contract, register key in pxe service, and deploy
     // Note that we need to register it first if we want to emit an encrypted note for it in the constructor
