@@ -46,3 +46,7 @@ tooling/noir_js/lib
 
 # docs autogen build
 /docs/docs/noir_js/reference/
+
+# fuzzer output
+compiler/parser-fuzz-target/out/*
+!compiler/parser-fuzz-target/out/results_are_gitignored
