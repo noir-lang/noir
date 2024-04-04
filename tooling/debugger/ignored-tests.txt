@@ -12,5 +12,3 @@ references
 scalar_mul
 signed_comparison
 to_bytes_integration
-fold_basic
-fold_basic_nested_call
