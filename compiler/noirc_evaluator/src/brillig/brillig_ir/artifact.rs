@@ -11,7 +11,8 @@ pub(crate) enum BrilligParameter {
     /// An array parameter or return value. Holds the type of an array item and its size.
     Array(Vec<BrilligParameter>, usize),
     /// A slice parameter or return value. Holds the type of a slice item.
-    Slice(Vec<BrilligParameter>),
+    /// It can hold the slice size if known at compile time.
+    Slice(Vec<BrilligParameter>, Option<usize>),
 }
 
 /// The result of compiling and linking brillig artifacts.

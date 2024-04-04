@@ -1,6 +1,6 @@
 use super::{
     artifact::{BrilligArtifact, BrilligParameter},
-    brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
+    brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugShow,
     registers::BrilligRegistersContext,
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
@@ -83,7 +83,23 @@ impl BrilligContext {
                     current_calldata_pointer += flattened_size;
                     var
                 }
-                BrilligParameter::Slice(_) => unimplemented!("Unsupported slices as parameter"),
+                BrilligParameter::Slice(_, _) => {
+                    let pointer_to_the_array_in_calldata =
+                        self.make_usize_constant_instruction(current_calldata_pointer.into());
+
+                    let flattened_size = BrilligContext::flattened_size(argument);
+                    let size_register = self.make_usize_constant_instruction(flattened_size.into());
+                    let rc_register = self.make_usize_constant_instruction(1_usize.into());
+
+                    let var = BrilligVariable::BrilligVector(BrilligVector {
+                        pointer: pointer_to_the_array_in_calldata.address,
+                        size: size_register.address,
+                        rc: rc_register.address,
+                    });
+
+                    current_calldata_pointer += flattened_size;
+                    var
+                }
             })
             .collect();
 
@@ -115,7 +131,16 @@ impl BrilligContext {
                 BrilligParameter::Array(item_types, item_count) => Box::new(
                     (0..*item_count).flat_map(move |_| item_types.iter().flat_map(flat_bit_sizes)),
                 ),
-                BrilligParameter::Slice(..) => unimplemented!("Unsupported slices as parameter"),
+                BrilligParameter::Slice(item_types, item_count) => {
+                    if let Some(item_count) = item_count {
+                        Box::new(
+                            (0..*item_count)
+                                .flat_map(move |_| item_types.iter().flat_map(flat_bit_sizes)),
+                        )
+                    } else {
+                        unreachable!("ICE: Slices with unknown length cannot be passed as entry point arguments")
+                    }
+                }
             }
         }
 
@@ -138,8 +163,16 @@ impl BrilligContext {
                 let item_size: usize = item_types.iter().map(BrilligContext::flattened_size).sum();
                 item_count * item_size
             }
-            BrilligParameter::Slice(_) => {
-                unreachable!("ICE: Slices cannot be passed as entry point arguments")
+            BrilligParameter::Slice(item_types, item_count) => {
+                if let Some(item_count) = item_count {
+                    let item_size: usize =
+                        item_types.iter().map(BrilligContext::flattened_size).sum();
+                    item_count * item_size
+                } else {
+                    unreachable!(
+                        "ICE: Slices with unknown length cannot be passed as entry point arguments"
+                    )
+                }
             }
         }
     }
