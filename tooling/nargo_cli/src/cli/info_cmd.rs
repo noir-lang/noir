@@ -269,7 +269,7 @@ struct ContractInfo {
     name: String,
     #[serde(skip)]
     expression_width: ExpressionWidth,
-    // TODO: Settle on how to display contract functions with non-inlined Acir calls
+    // TODO(https://github.com/noir-lang/noir/issues/4720): Settle on how to display contract functions with non-inlined Acir calls
     functions: Vec<FunctionInfo>,
 }
 
@@ -329,7 +329,7 @@ fn count_opcodes_and_gates_in_contract(
         .map(|function| -> Result<_, BackendError> {
             Ok(FunctionInfo {
                 name: function.name,
-                // TODO(https://github.com/noir-lang/noir/issues/4428)
+                // TODO(https://github.com/noir-lang/noir/issues/4720)
                 acir_opcodes: function.bytecode.functions[0].opcodes.len(),
                 circuit_size: backend.get_exact_circuit_size(&function.bytecode)?,
             })
