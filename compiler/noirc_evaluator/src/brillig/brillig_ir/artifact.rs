@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::ssa::ir::dfg::CallStack;
 
-/// Represents a parameter or a return value of a function.
+/// Represents a parameter or a return value of an entry point function.
 #[derive(Debug, Clone)]
 pub(crate) enum BrilligParameter {
     /// A single address parameter or return value. Holds the bit size of the parameter.
@@ -11,7 +11,8 @@ pub(crate) enum BrilligParameter {
     /// An array parameter or return value. Holds the type of an array item and its size.
     Array(Vec<BrilligParameter>, usize),
     /// A slice parameter or return value. Holds the type of a slice item.
-    Slice(Vec<BrilligParameter>),
+    /// Only known-length slices can be passed to brillig entry points, so the size is available as well.
+    Slice(Vec<BrilligParameter>, usize),
 }
 
 /// The result of compiling and linking brillig artifacts.
