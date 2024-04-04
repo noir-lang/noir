@@ -26,13 +26,13 @@ class AvmIndirectMemTests : public ::testing::Test {
 TEST_F(AvmIndirectMemTests, allIndirectAdd)
 {
     // Set direct addresses
-    trace_builder.set(10, 0, AvmMemoryTag::U32);
-    trace_builder.set(11, 1, AvmMemoryTag::U32);
-    trace_builder.set(12, 2, AvmMemoryTag::U32);
+    trace_builder.op_set(0, 10, 0, AvmMemoryTag::U32);
+    trace_builder.op_set(0, 11, 1, AvmMemoryTag::U32);
+    trace_builder.op_set(0, 12, 2, AvmMemoryTag::U32);
 
     // Set input values
-    trace_builder.set(100, 10, AvmMemoryTag::U16);
-    trace_builder.set(101, 11, AvmMemoryTag::U16);
+    trace_builder.op_set(0, 100, 10, AvmMemoryTag::U16);
+    trace_builder.op_set(0, 101, 11, AvmMemoryTag::U16);
 
     // All indirect flags are encoded as 7 = 1 + 2 + 4
     trace_builder.op_add(7, 0, 1, 2, AvmMemoryTag::U16);
@@ -74,11 +74,11 @@ TEST_F(AvmIndirectMemTests, allIndirectAdd)
 TEST_F(AvmIndirectMemTests, indirectOutputSub)
 {
     // Set direct output address
-    trace_builder.set(52, 5, AvmMemoryTag::U32);
+    trace_builder.op_set(0, 52, 5, AvmMemoryTag::U32);
 
     // Set input values
-    trace_builder.set(600, 50, AvmMemoryTag::U128);
-    trace_builder.set(500, 51, AvmMemoryTag::U128);
+    trace_builder.op_set(0, 600, 50, AvmMemoryTag::U128);
+    trace_builder.op_set(0, 500, 51, AvmMemoryTag::U128);
 
     // The indirect flag is encoded as 4
     trace_builder.op_sub(4, 50, 51, 5, AvmMemoryTag::U128);
@@ -120,11 +120,11 @@ TEST_F(AvmIndirectMemTests, indirectOutputSub)
 TEST_F(AvmIndirectMemTests, indirectInputAMul)
 {
     // Set direct input address for a
-    trace_builder.set(100, 1000, AvmMemoryTag::U32);
+    trace_builder.op_set(0, 100, 1000, AvmMemoryTag::U32);
 
     // Set input values
-    trace_builder.set(4, 100, AvmMemoryTag::U64);
-    trace_builder.set(7, 101, AvmMemoryTag::U64);
+    trace_builder.op_set(0, 4, 100, AvmMemoryTag::U64);
+    trace_builder.op_set(0, 7, 101, AvmMemoryTag::U64);
 
     // The indirect flag is encoded as 1
     trace_builder.op_mul(1, 1000, 101, 102, AvmMemoryTag::U64);

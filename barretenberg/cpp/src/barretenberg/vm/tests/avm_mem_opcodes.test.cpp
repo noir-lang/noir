@@ -25,20 +25,20 @@ class AvmMemOpcodeTests : public ::testing::Test {
 
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialised for every test.
     void SetUp() override { srs::init_crs_factory("../srs_db/ignition"); };
-    void buildTrace(bool indirect,
-                    uint128_t const& val,
-                    uint32_t src_offset,
-                    uint32_t dst_offset,
-                    AvmMemoryTag tag,
-                    uint32_t dir_src_offset = 0,
-                    uint32_t dir_dst_offset = 0)
+    void build_mov_trace(bool indirect,
+                         uint128_t const& val,
+                         uint32_t src_offset,
+                         uint32_t dst_offset,
+                         AvmMemoryTag tag,
+                         uint32_t dir_src_offset = 0,
+                         uint32_t dir_dst_offset = 0)
     {
         if (indirect) {
-            trace_builder.set(dir_src_offset, src_offset, AvmMemoryTag::U32);
-            trace_builder.set(dir_dst_offset, dst_offset, AvmMemoryTag::U32);
-            trace_builder.set(val, dir_src_offset, tag);
+            trace_builder.op_set(0, dir_src_offset, src_offset, AvmMemoryTag::U32);
+            trace_builder.op_set(0, dir_dst_offset, dst_offset, AvmMemoryTag::U32);
+            trace_builder.op_set(0, val, dir_src_offset, tag);
         } else {
-            trace_builder.set(val, src_offset, tag);
+            trace_builder.op_set(0, val, src_offset, tag);
         }
 
         trace_builder.op_mov(indirect ? 3 : 0, src_offset, dst_offset);
@@ -46,7 +46,29 @@ class AvmMemOpcodeTests : public ::testing::Test {
         trace = trace_builder.finalize();
     }
 
-    void computeIndices(bool indirect)
+    static std::function<bool(Row)> gen_matcher(FF clk, uint32_t sub_clk)
+    {
+        return [clk, sub_clk](Row r) { return r.avm_mem_clk == clk && r.avm_mem_sub_clk == sub_clk; };
+    };
+
+    void compute_common_indices(FF clk, bool indirect)
+    {
+        // Find the memory trace position corresponding to the write sub-operation of register ic.
+        auto row =
+            std::ranges::find_if(trace.begin(), trace.end(), gen_matcher(clk, AvmMemTraceBuilder::SUB_CLK_STORE_C));
+        ASSERT_TRUE(row != trace.end());
+        mem_c_idx = static_cast<size_t>(row - trace.begin());
+
+        // Find the memory trace position of the indirect load for register ic.
+        if (indirect) {
+            row = std::ranges::find_if(
+                trace.begin(), trace.end(), gen_matcher(clk, AvmMemTraceBuilder::SUB_CLK_IND_LOAD_C));
+            ASSERT_TRUE(row != trace.end());
+            mem_ind_c_idx = static_cast<size_t>(row - trace.begin());
+        }
+    }
+
+    void compute_mov_indices(bool indirect)
     {
         // Find the first row enabling the MOV selector
         auto row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.avm_main_sel_mov == FF(1); });
@@ -55,41 +77,31 @@ class AvmMemOpcodeTests : public ::testing::Test {
 
         auto clk = row->avm_main_clk;
 
-        auto gen_matcher = [clk](uint32_t sub_clk) {
-            return [clk, sub_clk](Row r) { return r.avm_mem_clk == clk && r.avm_mem_sub_clk == sub_clk; };
-        };
-
         // Find the memory trace position corresponding to the load sub-operation of register ia.
-        row = std::ranges::find_if(trace.begin(), trace.end(), gen_matcher(AvmMemTraceBuilder::SUB_CLK_LOAD_A));
+        row = std::ranges::find_if(trace.begin(), trace.end(), gen_matcher(clk, AvmMemTraceBuilder::SUB_CLK_LOAD_A));
         ASSERT_TRUE(row != trace.end());
         mem_a_idx = static_cast<size_t>(row - trace.begin());
 
-        // Find the memory trace position corresponding to the write sub-operation of register ic.
-        row = std::ranges::find_if(trace.begin(), trace.end(), gen_matcher(AvmMemTraceBuilder::SUB_CLK_STORE_C));
-        ASSERT_TRUE(row != trace.end());
-        mem_c_idx = static_cast<size_t>(row - trace.begin());
-
-        // Find the memory trace position of the indirect loads.
+        // Find the memory trace position of the indirect load for register ia.
         if (indirect) {
-            row = std::ranges::find_if(trace.begin(), trace.end(), gen_matcher(AvmMemTraceBuilder::SUB_CLK_IND_LOAD_A));
+            row = std::ranges::find_if(
+                trace.begin(), trace.end(), gen_matcher(clk, AvmMemTraceBuilder::SUB_CLK_IND_LOAD_A));
             ASSERT_TRUE(row != trace.end());
             mem_ind_a_idx = static_cast<size_t>(row - trace.begin());
-
-            row = std::ranges::find_if(trace.begin(), trace.end(), gen_matcher(AvmMemTraceBuilder::SUB_CLK_IND_LOAD_C));
-            ASSERT_TRUE(row != trace.end());
-            mem_ind_c_idx = static_cast<size_t>(row - trace.begin());
         }
+
+        compute_common_indices(clk, indirect);
     }
 
-    void validate_trace(bool indirect,
-                        uint128_t const& val,
-                        uint32_t src_offset,
-                        uint32_t dst_offset,
-                        AvmMemoryTag tag,
-                        uint32_t dir_src_offset = 0,
-                        uint32_t dir_dst_offset = 0)
+    void validate_mov_trace(bool indirect,
+                            uint128_t const& val,
+                            uint32_t src_offset,
+                            uint32_t dst_offset,
+                            AvmMemoryTag tag,
+                            uint32_t dir_src_offset = 0,
+                            uint32_t dir_dst_offset = 0)
     {
-        computeIndices(indirect);
+        compute_mov_indices(indirect);
         FF const val_ff = uint256_t::from_uint128(val);
         auto const& main_row = trace.at(main_idx);
 
@@ -161,55 +173,55 @@ class AvmMemOpcodeNegativeTests : public AvmMemOpcodeTests {};
 
 TEST_F(AvmMemOpcodeTests, basicMov)
 {
-    buildTrace(false, 42, 9, 13, AvmMemoryTag::U64);
-    validate_trace(false, 42, 9, 13, AvmMemoryTag::U64);
+    build_mov_trace(false, 42, 9, 13, AvmMemoryTag::U64);
+    validate_mov_trace(false, 42, 9, 13, AvmMemoryTag::U64);
 }
 
 TEST_F(AvmMemOpcodeTests, sameAddressMov)
 {
-    buildTrace(false, 11, 356, 356, AvmMemoryTag::U16);
-    validate_trace(false, 11, 356, 356, AvmMemoryTag::U16);
+    build_mov_trace(false, 11, 356, 356, AvmMemoryTag::U16);
+    validate_mov_trace(false, 11, 356, 356, AvmMemoryTag::U16);
 }
 
 TEST_F(AvmMemOpcodeTests, uninitializedValueMov)
 {
     auto trace_builder = AvmTraceBuilder();
-    trace_builder.set(4, 1, AvmMemoryTag::U32);
+    trace_builder.op_set(0, 4, 1, AvmMemoryTag::U32);
     trace_builder.op_mov(0, 0, 1);
     trace_builder.return_op(0, 0, 0);
     trace = trace_builder.finalize();
 
-    validate_trace(false, 0, 0, 1, AvmMemoryTag::U0);
+    validate_mov_trace(false, 0, 0, 1, AvmMemoryTag::U0);
 }
 
 TEST_F(AvmMemOpcodeTests, indUninitializedValueMov)
 {
     auto trace_builder = AvmTraceBuilder();
-    trace_builder.set(1, 3, AvmMemoryTag::U32);
-    trace_builder.set(4, 1, AvmMemoryTag::U32);
+    trace_builder.op_set(0, 1, 3, AvmMemoryTag::U32);
+    trace_builder.op_set(0, 4, 1, AvmMemoryTag::U32);
     trace_builder.op_mov(3, 2, 3);
     trace_builder.return_op(0, 0, 0);
     trace = trace_builder.finalize();
 
-    validate_trace(true, 0, 2, 3, AvmMemoryTag::U0, 0, 1);
+    validate_mov_trace(true, 0, 2, 3, AvmMemoryTag::U0, 0, 1);
 }
 
 TEST_F(AvmMemOpcodeTests, indirectMov)
 {
-    buildTrace(true, 23, 0, 1, AvmMemoryTag::U8, 2, 3);
-    validate_trace(true, 23, 0, 1, AvmMemoryTag::U8, 2, 3);
+    build_mov_trace(true, 23, 0, 1, AvmMemoryTag::U8, 2, 3);
+    validate_mov_trace(true, 23, 0, 1, AvmMemoryTag::U8, 2, 3);
 }
 
 TEST_F(AvmMemOpcodeTests, indirectMovInvalidAddressTag)
 {
-    trace_builder.set(15, 100, AvmMemoryTag::U32);
-    trace_builder.set(16, 101, AvmMemoryTag::U128); // This will make the indirect load failing.
-    trace_builder.set(5, 15, AvmMemoryTag::FF);
+    trace_builder.op_set(0, 15, 100, AvmMemoryTag::U32);
+    trace_builder.op_set(0, 16, 101, AvmMemoryTag::U128); // This will make the indirect load failing.
+    trace_builder.op_set(0, 5, 15, AvmMemoryTag::FF);
     trace_builder.op_mov(3, 100, 101);
     trace_builder.return_op(0, 0, 0);
     trace = trace_builder.finalize();
 
-    computeIndices(true);
+    compute_mov_indices(true);
 
     EXPECT_EQ(trace.at(main_idx).avm_main_tag_err, 1);
     EXPECT_THAT(trace.at(mem_ind_c_idx),
@@ -217,6 +229,103 @@ TEST_F(AvmMemOpcodeTests, indirectMovInvalidAddressTag)
                       Field(&Row::avm_mem_tag, static_cast<uint32_t>(AvmMemoryTag::U128)),
                       Field(&Row::avm_mem_r_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
                       Field(&Row::avm_mem_ind_op_c, 1)));
+
+    validate_trace_proof(std::move(trace));
+}
+
+TEST_F(AvmMemOpcodeTests, directSet)
+{
+    trace_builder.op_set(0, 5683, 99, AvmMemoryTag::U128);
+    trace_builder.return_op(0, 0, 0);
+    trace = trace_builder.finalize();
+
+    compute_common_indices(0, false);
+    auto const& row = trace.at(1);
+
+    EXPECT_THAT(row,
+                AllOf(Field(&Row::avm_main_tag_err, 0),
+                      Field(&Row::avm_main_ic, 5683),
+                      Field(&Row::avm_main_mem_idx_c, 99),
+                      Field(&Row::avm_main_mem_op_c, 1),
+                      Field(&Row::avm_main_rwc, 1),
+                      Field(&Row::avm_main_ind_op_c, 0)));
+
+    EXPECT_THAT(trace.at(mem_c_idx),
+                AllOf(Field(&Row::avm_mem_val, 5683),
+                      Field(&Row::avm_mem_addr, 99),
+                      Field(&Row::avm_mem_op_c, 1),
+                      Field(&Row::avm_mem_rw, 1),
+                      Field(&Row::avm_mem_ind_op_c, 0)));
+
+    validate_trace_proof(std::move(trace));
+}
+
+TEST_F(AvmMemOpcodeTests, indirectSet)
+{
+    trace_builder.op_set(0, 100, 10, AvmMemoryTag::U32);
+    trace_builder.op_set(1, 1979, 10, AvmMemoryTag::U64); // Set 1979 at memory index 100
+    trace_builder.return_op(0, 0, 0);
+    trace = trace_builder.finalize();
+
+    compute_common_indices(1, true);
+    auto const& row = trace.at(2);
+
+    EXPECT_THAT(row,
+                AllOf(Field(&Row::avm_main_tag_err, 0),
+                      Field(&Row::avm_main_ic, 1979),
+                      Field(&Row::avm_main_mem_idx_c, 100),
+                      Field(&Row::avm_main_mem_op_c, 1),
+                      Field(&Row::avm_main_rwc, 1),
+                      Field(&Row::avm_main_ind_op_c, 1),
+                      Field(&Row::avm_main_ind_c, 10)));
+
+    EXPECT_THAT(trace.at(mem_c_idx),
+                AllOf(Field(&Row::avm_mem_val, 1979),
+                      Field(&Row::avm_mem_addr, 100),
+                      Field(&Row::avm_mem_op_c, 1),
+                      Field(&Row::avm_mem_rw, 1),
+                      Field(&Row::avm_mem_ind_op_c, 0),
+                      Field(&Row::avm_mem_w_in_tag, static_cast<uint32_t>(AvmMemoryTag::U64)),
+                      Field(&Row::avm_mem_tag, static_cast<uint32_t>(AvmMemoryTag::U64))));
+
+    EXPECT_THAT(trace.at(mem_ind_c_idx),
+                AllOf(Field(&Row::avm_mem_val, 100),
+                      Field(&Row::avm_mem_addr, 10),
+                      Field(&Row::avm_mem_op_c, 0),
+                      Field(&Row::avm_mem_rw, 0),
+                      Field(&Row::avm_mem_ind_op_c, 1),
+                      Field(&Row::avm_mem_r_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
+                      Field(&Row::avm_mem_tag, static_cast<uint32_t>(AvmMemoryTag::U32))));
+
+    validate_trace_proof(std::move(trace));
+}
+
+TEST_F(AvmMemOpcodeTests, indirectSetWrongTag)
+{
+    trace_builder.op_set(0, 100, 10, AvmMemoryTag::U8);   // The address 100 has incorrect tag U8.
+    trace_builder.op_set(1, 1979, 10, AvmMemoryTag::U64); // Set 1979 at memory index 100
+    trace_builder.return_op(0, 0, 0);
+    trace = trace_builder.finalize();
+
+    compute_common_indices(1, true);
+    auto const& row = trace.at(2);
+
+    EXPECT_THAT(row,
+                AllOf(Field(&Row::avm_main_tag_err, 1),
+                      Field(&Row::avm_main_mem_op_c, 1),
+                      Field(&Row::avm_main_rwc, 1),
+                      Field(&Row::avm_main_ind_op_c, 1),
+                      Field(&Row::avm_main_ind_c, 10)));
+
+    EXPECT_THAT(trace.at(mem_ind_c_idx),
+                AllOf(Field(&Row::avm_mem_val, 100),
+                      Field(&Row::avm_mem_addr, 10),
+                      Field(&Row::avm_mem_op_c, 0),
+                      Field(&Row::avm_mem_rw, 0),
+                      Field(&Row::avm_mem_ind_op_c, 1),
+                      Field(&Row::avm_mem_r_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
+                      Field(&Row::avm_mem_tag, static_cast<uint32_t>(AvmMemoryTag::U8)),
+                      Field(&Row::avm_mem_tag_err, 1)));
 
     validate_trace_proof(std::move(trace));
 }
@@ -229,8 +338,8 @@ TEST_F(AvmMemOpcodeTests, indirectMovInvalidAddressTag)
 
 TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputErrorTag)
 {
-    buildTrace(false, 234, 0, 1, AvmMemoryTag::U8);
-    computeIndices(false);
+    build_mov_trace(false, 234, 0, 1, AvmMemoryTag::U8);
+    compute_mov_indices(false);
     trace.at(main_idx).avm_main_tag_err = 1;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "INCL_MEM_TAG_ERR");
@@ -238,8 +347,8 @@ TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputErrorTag)
 
 TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputValue)
 {
-    buildTrace(false, 234, 0, 1, AvmMemoryTag::U8);
-    computeIndices(false);
+    build_mov_trace(false, 234, 0, 1, AvmMemoryTag::U8);
+    compute_mov_indices(false);
     trace.at(main_idx).avm_main_ic = 233;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "MOV_SAME_VALUE");
@@ -247,8 +356,8 @@ TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputValue)
 
 TEST_F(AvmMemOpcodeNegativeTests, indMovWrongOutputValue)
 {
-    buildTrace(true, 8732, 23, 24, AvmMemoryTag::U16, 432, 876);
-    computeIndices(true);
+    build_mov_trace(true, 8732, 23, 24, AvmMemoryTag::U16, 432, 876);
+    compute_mov_indices(true);
     trace.at(main_idx).avm_main_ic = 8733;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "MOV_SAME_VALUE");
@@ -264,8 +373,8 @@ TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputTagLoadIa)
     FF const tag_u8 = FF(static_cast<uint32_t>(AvmMemoryTag::U8));
     FF const one_min_inverse_diff = FF(1) - (tag_u64 - tag_u8).invert();
 
-    buildTrace(false, 234, 0, 1, AvmMemoryTag::U8);
-    computeIndices(false);
+    build_mov_trace(false, 234, 0, 1, AvmMemoryTag::U8);
+    compute_mov_indices(false);
 
     auto trace_tmp = trace;
 
@@ -289,8 +398,8 @@ TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputTagDisabledSelector)
     FF const tag_u8 = FF(static_cast<uint32_t>(AvmMemoryTag::U8));
     FF const one_min_inverse_diff = FF(1) - (tag_u64 - tag_u8).invert();
 
-    buildTrace(false, 234, 0, 1, AvmMemoryTag::U8);
-    computeIndices(false);
+    build_mov_trace(false, 234, 0, 1, AvmMemoryTag::U8);
+    compute_mov_indices(false);
 
     trace.at(mem_a_idx).avm_mem_r_in_tag = tag_u64;
     trace.at(mem_a_idx).avm_mem_w_in_tag = tag_u64;
@@ -313,8 +422,8 @@ TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputTagInMainTrace)
 {
     FF const tag_u64 = FF(static_cast<uint32_t>(AvmMemoryTag::U64));
 
-    buildTrace(false, 234, 0, 1, AvmMemoryTag::U8);
-    computeIndices(false);
+    build_mov_trace(false, 234, 0, 1, AvmMemoryTag::U8);
+    compute_mov_indices(false);
 
     trace.at(mem_c_idx).avm_mem_tag = tag_u64;
     trace.at(mem_c_idx).avm_mem_w_in_tag = tag_u64;
@@ -329,8 +438,8 @@ TEST_F(AvmMemOpcodeNegativeTests, movWrongOutputTagMainTraceRead)
 {
     FF const tag_u64 = FF(static_cast<uint32_t>(AvmMemoryTag::U64));
 
-    buildTrace(false, 234, 0, 1, AvmMemoryTag::U8);
-    computeIndices(false);
+    build_mov_trace(false, 234, 0, 1, AvmMemoryTag::U8);
+    compute_mov_indices(false);
 
     trace.at(mem_c_idx).avm_mem_tag = tag_u64;
     trace.at(mem_c_idx).avm_mem_w_in_tag = tag_u64;

@@ -186,11 +186,8 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
             break;
             // Machine State - Memory
         case OpCode::SET: {
-            uint32_t dst_offset = 0;
             uint128_t val = 0;
-            // Skip the indirect flag at index 0;
             AvmMemoryTag in_tag = std::get<AvmMemoryTag>(inst.operands.at(1));
-            dst_offset = std::get<uint32_t>(inst.operands.at(3));
 
             switch (in_tag) {
             case AvmMemoryTag::U8:
@@ -212,7 +209,8 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
                 break;
             }
 
-            trace_builder.set(val, dst_offset, in_tag);
+            trace_builder.op_set(
+                std::get<uint8_t>(inst.operands.at(0)), val, std::get<uint32_t>(inst.operands.at(3)), in_tag);
             break;
         }
         case OpCode::MOV:

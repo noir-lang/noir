@@ -629,35 +629,49 @@ void AvmTraceBuilder::op_xor(
     });
 }
 
-// TODO: Finish SET opcode implementation. This is a partial implementation
-// facilitating testing of arithmetic operations over non finite field types.
-// We add an entry in the memory trace and a simplified one in the main trace
-// without operation selector.
-// TODO: PIL relations for the SET opcode need to be implemented.
-// No check is performed that val pertains to type defined by in_tag.
+// TODO: Ensure that the bytecode validation and/or deserialization is
+//       enforcing that val complies to the tag.
 /**
- * @brief Set a constant from bytecode with direct memory access.
+ * @brief Set a constant from bytecode with direct or indirect memory access.
+ *        SET opcode is implemented purely as a memory operation. As val is a
+ *        constant passed in the bytecode, the deserialization layer or bytecode
+ *        validation circuit is enforcing that the constant complies to in_tag.
+ *        Therefore, no range check is required as part of this opcode relation.
  *
+ * @param indirect A byte encoding information about indirect/direct memory access.
  * @param val The constant to be written upcasted to u128
  * @param dst_offset Memory destination offset where val is written to
  * @param in_tag The instruction memory tag
  */
-void AvmTraceBuilder::set(uint128_t val, uint32_t dst_offset, AvmMemoryTag in_tag)
+void AvmTraceBuilder::op_set(uint8_t indirect, uint128_t val, uint32_t dst_offset, AvmMemoryTag in_tag)
 {
-    auto clk = static_cast<uint32_t>(main_trace.size());
-    auto val_ff = FF{ uint256_t::from_uint128(val) };
+    auto const clk = static_cast<uint32_t>(main_trace.size());
+    auto const val_ff = FF{ uint256_t::from_uint128(val) };
+    uint32_t direct_dst_offset = dst_offset; // Overriden in indirect mode
+    bool indirect_dst_flag = is_operand_indirect(indirect, 0);
+    bool tag_match = true;
 
-    mem_trace_builder.write_into_memory(clk, IntermRegister::IC, dst_offset, val_ff, AvmMemoryTag::U0, in_tag);
+    if (indirect_dst_flag) {
+        auto read_ind_c =
+            mem_trace_builder.indirect_read_and_load_from_memory(clk, IndirectRegister::IND_C, dst_offset);
+        tag_match = read_ind_c.tag_match;
+        direct_dst_offset = uint32_t(read_ind_c.val);
+    }
+
+    mem_trace_builder.write_into_memory(clk, IntermRegister::IC, direct_dst_offset, val_ff, AvmMemoryTag::U0, in_tag);
 
     main_trace.push_back(Row{
         .avm_main_clk = clk,
         .avm_main_ic = val_ff,
-        .avm_main_internal_return_ptr = FF(internal_return_ptr),
-        .avm_main_mem_idx_c = FF(dst_offset),
-        .avm_main_mem_op_c = FF(1),
-        .avm_main_pc = FF(pc++),
-        .avm_main_rwc = FF(1),
-        .avm_main_w_in_tag = FF(static_cast<uint32_t>(in_tag)),
+        .avm_main_ind_c = indirect_dst_flag ? dst_offset : 0,
+        .avm_main_ind_op_c = static_cast<uint32_t>(indirect_dst_flag),
+        .avm_main_internal_return_ptr = internal_return_ptr,
+        .avm_main_mem_idx_c = direct_dst_offset,
+        .avm_main_mem_op_c = 1,
+        .avm_main_pc = pc++,
+        .avm_main_rwc = 1,
+        .avm_main_tag_err = static_cast<uint32_t>(!tag_match),
+        .avm_main_w_in_tag = static_cast<uint32_t>(in_tag),
     });
 }
 
@@ -722,7 +736,7 @@ void AvmTraceBuilder::op_mov(uint8_t indirect, uint32_t src_offset, uint32_t dst
 }
 
 /**
- * @brief CALLDATACOPY opcode with direct memory access, i.e.,
+ * @brief CALLDATACOPY opcode with direct or indirect memory access, i.e.,
  *        direct: M[dst_offset:dst_offset+copy_size] = calldata[cd_offset:cd_offset+copy_size]
  *        indirect: M[M[dst_offset]:M[dst_offset]+copy_size] = calldata[cd_offset:cd_offset+copy_size]
  *        Simplified version with exclusively memory store operations and
@@ -730,8 +744,6 @@ void AvmTraceBuilder::op_mov(uint8_t indirect, uint32_t src_offset, uint32_t dst
  *        intermediate registers.
  *        Assume that caller passes call_data_mem which is large enough so that
  *        no out-of-bound memory issues occur.
- *        TODO: taking care of intermediate register values consistency and propagating their
- *        values to the next row when not overwritten.
  *        TODO: error handling if dst_offset + copy_size > 2^32 which would lead to
  *              out-of-bound memory write. Similarly, if cd_offset + copy_size is larger
  *              than call_data_mem.size()

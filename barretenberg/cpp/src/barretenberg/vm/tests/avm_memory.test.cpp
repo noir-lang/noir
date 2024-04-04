@@ -76,8 +76,8 @@ TEST_F(AvmMemoryTests, mismatchedTagAddOperation)
 // The proof must pass and we check that the AVM error is raised.
 TEST_F(AvmMemoryTests, mismatchedTagEqOperation)
 {
-    trace_builder.set(3, 0, AvmMemoryTag::U32);
-    trace_builder.set(5, 1, AvmMemoryTag::U16);
+    trace_builder.op_set(0, 3, 0, AvmMemoryTag::U32);
+    trace_builder.op_set(0, 5, 1, AvmMemoryTag::U16);
 
     trace_builder.op_eq(0, 0, 1, 2, AvmMemoryTag::U32);
     trace_builder.halt();
@@ -119,8 +119,8 @@ TEST_F(AvmMemoryTests, mismatchedTagEqOperation)
 // in the memory trace
 TEST_F(AvmMemoryTests, mLastAccessViolation)
 {
-    trace_builder.set(4, 0, AvmMemoryTag::U8);
-    trace_builder.set(9, 1, AvmMemoryTag::U8);
+    trace_builder.op_set(0, 4, 0, AvmMemoryTag::U8);
+    trace_builder.op_set(0, 9, 1, AvmMemoryTag::U8);
 
     //                           Memory layout:     [4,9,0,0,0,0,....]
     trace_builder.op_sub(0, 1, 0, 2, AvmMemoryTag::U8); // [4,9,5,0,0,0.....]
@@ -150,8 +150,8 @@ TEST_F(AvmMemoryTests, mLastAccessViolation)
 // written into memory
 TEST_F(AvmMemoryTests, readWriteConsistencyValViolation)
 {
-    trace_builder.set(4, 0, AvmMemoryTag::U8);
-    trace_builder.set(9, 1, AvmMemoryTag::U8);
+    trace_builder.op_set(0, 4, 0, AvmMemoryTag::U8);
+    trace_builder.op_set(0, 9, 1, AvmMemoryTag::U8);
 
     //                           Memory layout:      [4,9,0,0,0,0,....]
     trace_builder.op_mul(0, 1, 0, 2, AvmMemoryTag::U8); // [4,9,36,0,0,0.....]
@@ -180,8 +180,8 @@ TEST_F(AvmMemoryTests, readWriteConsistencyValViolation)
 // written into memory
 TEST_F(AvmMemoryTests, readWriteConsistencyTagViolation)
 {
-    trace_builder.set(4, 0, AvmMemoryTag::U8);
-    trace_builder.set(9, 1, AvmMemoryTag::U8);
+    trace_builder.op_set(0, 4, 0, AvmMemoryTag::U8);
+    trace_builder.op_set(0, 9, 1, AvmMemoryTag::U8);
 
     //                           Memory layout:      [4,9,0,0,0,0,....]
     trace_builder.op_mul(0, 1, 0, 2, AvmMemoryTag::U8); // [4,9,36,0,0,0.....]

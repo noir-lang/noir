@@ -37,8 +37,8 @@ class AvmInterTableTests : public ::testing::Test {
 TEST_F(AvmInterTableTests, tagErrNotCopiedInMain)
 {
     // Equality operation on U128 and second operand is of type U16.
-    trace_builder.set(32, 18, AvmMemoryTag::U128);
-    trace_builder.set(32, 76, AvmMemoryTag::U16);
+    trace_builder.op_set(0, 32, 18, AvmMemoryTag::U128);
+    trace_builder.op_set(0, 32, 76, AvmMemoryTag::U16);
     trace_builder.op_eq(0, 18, 76, 65, AvmMemoryTag::U128);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
@@ -87,8 +87,8 @@ class AvmPermMainAluNegativeTests : public AvmInterTableTests {
     {
         AvmInterTableTests::SetUp();
 
-        trace_builder.set(19, 0, AvmMemoryTag::U64);
-        trace_builder.set(15, 1, AvmMemoryTag::U64);
+        trace_builder.op_set(0, 19, 0, AvmMemoryTag::U64);
+        trace_builder.op_set(0, 15, 1, AvmMemoryTag::U64);
         trace_builder.op_add(0, 0, 1, 1, AvmMemoryTag::U64); // 19 + 15 = 34
         trace_builder.op_add(0, 0, 1, 1, AvmMemoryTag::U64); // 19 + 34 = 53
         trace_builder.op_mul(0, 0, 1, 2, AvmMemoryTag::U64); // 19 * 53 = 1007
@@ -187,8 +187,8 @@ class AvmPermMainMemNegativeTests : public AvmInterTableTests {
     // for c = a - b at arbitray chosen addresses 52 (a), 11 (b), 55 (c).
     void executeSub(uint128_t const a, uint128_t const b)
     {
-        trace_builder.set(a, 52, AvmMemoryTag::U8);
-        trace_builder.set(b, 11, AvmMemoryTag::U8);
+        trace_builder.op_set(0, a, 52, AvmMemoryTag::U8);
+        trace_builder.op_set(0, b, 11, AvmMemoryTag::U8);
         trace_builder.op_sub(0, 52, 11, 55, AvmMemoryTag::U8);
         trace_builder.return_op(0, 0, 0);
 

@@ -147,7 +147,7 @@ void common_validate_bit_op(std::vector<Row> const& trace,
 std::vector<Row> gen_mutated_trace_not(FF const& a, FF const& c_mutated, avm_trace::AvmMemoryTag tag)
 {
     auto trace_builder = avm_trace::AvmTraceBuilder();
-    trace_builder.set(uint128_t{ a }, 0, tag);
+    trace_builder.op_set(0, uint128_t{ a }, 0, tag);
     trace_builder.op_not(0, 0, 1, tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
@@ -348,7 +348,7 @@ TEST_P(AvmBitwiseTestsNot, ParamTest)
 {
     const auto [operands, mem_tag] = GetParam();
     const auto [a, output] = operands;
-    trace_builder.set(a, 0, mem_tag);
+    trace_builder.op_set(0, a, 0, mem_tag);
     trace_builder.op_not(0, 0, 1, mem_tag); // [1,254,0,0,....]
     trace_builder.return_op(0, 0, 0);
     auto trace = trace_builder.finalize();
@@ -366,8 +366,8 @@ TEST_P(AvmBitwiseTestsAnd, AllAndTest)
 {
     const auto [operands, mem_tag] = GetParam();
     const auto [a, b, output] = operands;
-    trace_builder.set(a, 0, mem_tag);
-    trace_builder.set(b, 1, mem_tag);
+    trace_builder.op_set(0, a, 0, mem_tag);
+    trace_builder.op_set(0, b, 1, mem_tag);
     trace_builder.op_and(0, 0, 1, 2, mem_tag);
     trace_builder.return_op(0, 2, 1);
 
@@ -387,8 +387,8 @@ TEST_P(AvmBitwiseTestsOr, AllOrTest)
 {
     const auto [operands, mem_tag] = GetParam();
     const auto [a, b, output] = operands;
-    trace_builder.set(a, 0, mem_tag);
-    trace_builder.set(b, 1, mem_tag);
+    trace_builder.op_set(0, a, 0, mem_tag);
+    trace_builder.op_set(0, b, 1, mem_tag);
     trace_builder.op_or(0, 0, 1, 2, mem_tag);
     trace_builder.return_op(0, 2, 1);
     auto trace = trace_builder.finalize();
@@ -408,8 +408,8 @@ TEST_P(AvmBitwiseTestsXor, AllXorTest)
 {
     const auto [operands, mem_tag] = GetParam();
     const auto [a, b, output] = operands;
-    trace_builder.set(a, 0, mem_tag);
-    trace_builder.set(b, 1, mem_tag);
+    trace_builder.op_set(0, a, 0, mem_tag);
+    trace_builder.op_set(0, b, 1, mem_tag);
     trace_builder.op_xor(0, 0, 1, 2, mem_tag);
     trace_builder.return_op(0, 2, 1);
     auto trace = trace_builder.finalize();
@@ -473,8 +473,8 @@ TEST_P(AvmBitwiseNegativeTestsAnd, AllNegativeTests)
     const auto [operands, mem_tag] = params;
     const auto [a, b, output] = operands;
     auto trace_builder = avm_trace::AvmTraceBuilder();
-    trace_builder.set(uint128_t{ a }, 0, mem_tag);
-    trace_builder.set(uint128_t{ b }, 1, mem_tag);
+    trace_builder.op_set(0, uint128_t{ a }, 0, mem_tag);
+    trace_builder.op_set(0, uint128_t{ b }, 1, mem_tag);
     trace_builder.op_and(0, 0, 1, 2, mem_tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
@@ -494,8 +494,8 @@ TEST_P(AvmBitwiseNegativeTestsOr, AllNegativeTests)
     const auto [operands, mem_tag] = params;
     const auto [a, b, output] = operands;
     auto trace_builder = avm_trace::AvmTraceBuilder();
-    trace_builder.set(uint128_t{ a }, 0, mem_tag);
-    trace_builder.set(uint128_t{ b }, 1, mem_tag);
+    trace_builder.op_set(0, uint128_t{ a }, 0, mem_tag);
+    trace_builder.op_set(0, uint128_t{ b }, 1, mem_tag);
     trace_builder.op_or(0, 0, 1, 2, mem_tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
@@ -514,8 +514,8 @@ TEST_P(AvmBitwiseNegativeTestsXor, AllNegativeTests)
     const auto [operands, mem_tag] = params;
     const auto [a, b, output] = operands;
     auto trace_builder = avm_trace::AvmTraceBuilder();
-    trace_builder.set(uint128_t{ a }, 0, mem_tag);
-    trace_builder.set(uint128_t{ b }, 1, mem_tag);
+    trace_builder.op_set(0, uint128_t{ a }, 0, mem_tag);
+    trace_builder.op_set(0, uint128_t{ b }, 1, mem_tag);
     trace_builder.op_xor(0, 0, 1, 2, mem_tag);
     trace_builder.halt();
     auto trace = trace_builder.finalize();
@@ -532,7 +532,7 @@ TEST_F(AvmBitwiseNegativeTestsFF, UndefinedOverFF)
 {
     auto trace_builder = avm_trace::AvmTraceBuilder();
     // Triggers a write row 1 of mem_trace and alu_trace
-    trace_builder.set(10, 0, AvmMemoryTag::U8);
+    trace_builder.op_set(0, 10, 0, AvmMemoryTag::U8);
     // Triggers a write in row 2 of alu_trace
     trace_builder.op_not(0, 0, 1, AvmMemoryTag::U8);
     // Finally, we will have a write in row 3 of the mem_trace to copy the result
