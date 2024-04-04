@@ -1,0 +1,1 @@
+fn main(x: Field) { }
