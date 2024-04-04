@@ -316,6 +316,11 @@ contract AvmTest {
         context.nullifier_exists(nullifier)
     }
 
+    #[aztec(public-vm)]
+    fn assert_nullifier_exists(nullifier: Field) {
+        assert(context.nullifier_exists(nullifier));
+    }
+
     // Use the standard context interface to emit a new nullifier
     #[aztec(public-vm)]
     fn emit_nullifier_and_check(nullifier: Field) {

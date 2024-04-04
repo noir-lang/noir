@@ -1,4 +1,4 @@
-import { AztecAddress, TxStatus, type Wallet } from '@aztec/aztec.js';
+import { AztecAddress, Fr, TxStatus, type Wallet } from '@aztec/aztec.js';
 import { AvmTestContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
@@ -51,8 +51,19 @@ describe('e2e_avm_simulator', () => {
   });
 
   describe('Nullifiers', () => {
-    it('Emit and check', async () => {
+    // Nullifier will not yet be siloed by the kernel.
+    it('Emit and check in the same tx', async () => {
       const tx = await avmContact.methods.emit_nullifier_and_check(123456).send().wait();
+      expect(tx.status).toEqual(TxStatus.MINED);
+    });
+
+    // Nullifier will have been siloed by the kernel, but we check against the unsiloed one.
+    it('Emit and check in separate tx', async () => {
+      const nullifier = new Fr(123456);
+      let tx = await avmContact.methods.new_nullifier(nullifier).send().wait();
+      expect(tx.status).toEqual(TxStatus.MINED);
+
+      tx = await avmContact.methods.assert_nullifier_exists(nullifier).send().wait();
       expect(tx.status).toEqual(TxStatus.MINED);
     });
   });

@@ -7,7 +7,7 @@ import {
   L2ToL1Message,
   type ReadRequest,
   SideEffect,
-  type SideEffectLinkedToNoteHash,
+  SideEffectLinkedToNoteHash,
 } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 
@@ -96,7 +96,9 @@ export function temporaryConvertAvmResults(
   const nestedExecutions: PublicExecutionResult[] = [];
   const nullifierReadRequests: ReadRequest[] = [];
   const nullifierNonExistentReadRequests: ReadRequest[] = [];
-  const newNullifiers: SideEffectLinkedToNoteHash[] = [];
+  const newNullifiers: SideEffectLinkedToNoteHash[] = newWorldState.newNullifiers.map(
+    (nullifier, i) => new SideEffectLinkedToNoteHash(nullifier.toField(), Fr.zero(), new Fr(i + 1)),
+  );
   const unencryptedLogs = UnencryptedFunctionL2Logs.empty();
   const newL2ToL1Messages = newWorldState.newL1Messages.map(() => L2ToL1Message.empty());
   // TODO keep track of side effect counters
