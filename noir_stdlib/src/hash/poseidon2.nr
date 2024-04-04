@@ -95,7 +95,7 @@ impl Poseidon2 {
         result
     }
 
-    pub fn hash_internal<N>(input: [Field; N], in_len: u64, is_variable_length: bool) -> Field {
+    fn hash_internal<N>(input: [Field; N], in_len: u64, is_variable_length: bool) -> Field {
         let two_pow_64 = 18446744073709551616;
         let iv : Field = (in_len as Field) * two_pow_64;
         let mut sponge = Poseidon2::new(iv);
