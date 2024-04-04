@@ -223,26 +223,6 @@ struct InfoReport {
 }
 
 #[derive(Debug, Serialize)]
-struct CircuitInfo {
-    name: String,
-    #[serde(skip)]
-    expression_width: ExpressionWidth,
-    acir_opcodes: usize,
-    circuit_size: u32,
-}
-
-impl From<CircuitInfo> for Row {
-    fn from(program_info: CircuitInfo) -> Self {
-        row![
-            Fm->format!("{}", program_info.name),
-            format!("{:?}", program_info.expression_width),
-            Fc->format!("{}", program_info.acir_opcodes),
-            Fc->format!("{}", program_info.circuit_size),
-        ]
-    }
-}
-
-#[derive(Debug, Serialize)]
 struct ProgramInfo {
     name: String,
     #[serde(skip)]
