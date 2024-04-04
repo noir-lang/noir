@@ -693,7 +693,7 @@ impl Context {
                     {
                         AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,
                         AcirValue::Array(array) => array.len(),
-                        _ => unreachable!("ICE: Slice value is not a dynamic array"),
+                        _ => unreachable!("ICE: Slice value is not an array"),
                     };
 
                     BrilligParameter::Slice(
