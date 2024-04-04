@@ -80,6 +80,8 @@ pub enum ResolverError {
     NestedSlices { span: Span },
     #[error("#[recursive] attribute is only allowed on entry points to a program")]
     MisplacedRecursiveAttribute { ident: Ident },
+    #[error("#[abi(tag)] attribute is only allowed in contracts")]
+    AbiAttributeOusideContract { span: Span },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
@@ -314,6 +316,13 @@ impl From<ResolverError> for Diagnostic {
                 diag.add_note("The `#[recursive]` attribute specifies to the backend whether it should use a prover which generates proofs that are friendly for recursive verification in another circuit".to_owned());
                 diag
             }
+            ResolverError::AbiAttributeOusideContract { span } => {
+                Diagnostic::simple_error(
+                    "#[abi(tag)] attributes can only be used in contracts".to_string(),
+                    "misplaced #[abi(tag)] attribute".to_string(),
+                    span,
+                )
+            },
             ResolverError::LowLevelFunctionOutsideOfStdlib { ident } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),

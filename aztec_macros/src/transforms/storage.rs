@@ -9,15 +9,16 @@ use noirc_frontend::{
     node_interner::{TraitId, TraitImplKind},
     parser::SortedModule,
     BlockExpression, Expression, ExpressionKind, FunctionDefinition, Ident, Literal, NoirFunction,
-    PathKind, Pattern, StatementKind, Type, TypeImpl, UnresolvedType, UnresolvedTypeData,
+    NoirStruct, PathKind, Pattern, StatementKind, Type, TypeImpl, UnresolvedType,
+    UnresolvedTypeData,
 };
 
 use crate::{
     chained_dep, chained_path,
     utils::{
         ast_utils::{
-            call, expression, ident, ident_path, lambda, make_statement, make_type, pattern,
-            return_type, variable, variable_path,
+            call, expression, ident, ident_path, is_custom_attribute, lambda, make_statement,
+            make_type, pattern, return_type, variable, variable_path,
         },
         errors::AztecMacroError,
         hir_utils::{collect_crate_structs, collect_traits},
@@ -25,15 +26,32 @@ use crate::{
 };
 
 // Check to see if the user has defined a storage struct
-pub fn check_for_storage_definition(module: &SortedModule) -> bool {
-    module.types.iter().any(|r#struct| r#struct.name.0.contents == "Storage")
+pub fn check_for_storage_definition(
+    module: &SortedModule,
+) -> Result<Option<String>, AztecMacroError> {
+    let result: Vec<&NoirStruct> = module
+        .types
+        .iter()
+        .filter(|r#struct| {
+            r#struct.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(storage)"))
+        })
+        .collect();
+    if result.len() > 1 {
+        return Err(AztecMacroError::MultipleStorageDefinitions {
+            span: result.first().map(|res| res.name.span()),
+        });
+    }
+    Ok(result.iter().map(|&r#struct| r#struct.name.0.contents.clone()).next())
 }
 
 // Check to see if the user has defined a storage struct
-pub fn check_for_storage_implementation(module: &SortedModule) -> bool {
+pub fn check_for_storage_implementation(
+    module: &SortedModule,
+    storage_struct_name: &String,
+) -> bool {
     module.impls.iter().any(|r#impl| match &r#impl.object_type.typ {
         UnresolvedTypeData::Named(path, _, _) => {
-            path.segments.last().is_some_and(|segment| segment.0.contents == "Storage")
+            path.segments.last().is_some_and(|segment| segment.0.contents == *storage_struct_name)
         }
         _ => false,
     })
@@ -117,9 +135,15 @@ pub fn generate_storage_field_constructor(
 ///
 /// Storage slots are generated as 0 and will be populated using the information from the HIR
 /// at a later stage.
-pub fn generate_storage_implementation(module: &mut SortedModule) -> Result<(), AztecMacroError> {
-    let definition =
-        module.types.iter().find(|r#struct| r#struct.name.0.contents == "Storage").unwrap();
+pub fn generate_storage_implementation(
+    module: &mut SortedModule,
+    storage_struct_name: &String,
+) -> Result<(), AztecMacroError> {
+    let definition = module
+        .types
+        .iter()
+        .find(|r#struct| r#struct.name.0.contents == *storage_struct_name)
+        .unwrap();
 
     let slot_zero = expression(ExpressionKind::Literal(Literal::Integer(
         FieldElement::from(i128::from(0)),
@@ -136,7 +160,7 @@ pub fn generate_storage_implementation(module: &mut SortedModule) -> Result<(), 
         .collect();
 
     let storage_constructor_statement = make_statement(StatementKind::Expression(expression(
-        ExpressionKind::constructor((chained_path!("Storage"), field_constructors)),
+        ExpressionKind::constructor((chained_path!(storage_struct_name), field_constructors)),
     )));
 
     let init = NoirFunction::normal(FunctionDefinition::normal(
@@ -157,7 +181,7 @@ pub fn generate_storage_implementation(module: &mut SortedModule) -> Result<(), 
 
     let storage_impl = TypeImpl {
         object_type: UnresolvedType {
-            typ: UnresolvedTypeData::Named(chained_path!("Storage"), vec![], true),
+            typ: UnresolvedTypeData::Named(chained_path!(storage_struct_name), vec![], true),
             span: Some(Span::default()),
         },
         type_span: Span::default(),
@@ -243,7 +267,9 @@ pub fn assign_storage_slots(
         let interner: &mut NodeInterner = context.def_interner.borrow_mut();
         let r#struct = interner.get_struct(struct_id);
         let file_id = r#struct.borrow().location.file;
-        if r#struct.borrow().name.0.contents == "Storage" && r#struct.borrow().id.krate().is_root()
+        let attributes = interner.struct_attributes(&struct_id);
+        if attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(storage)"))
+            && r#struct.borrow().id.krate().is_root()
         {
             let init_id = interner
                 .lookup_method(

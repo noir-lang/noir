@@ -158,14 +158,17 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
 
 /// global_declaration: 'global' ident global_type_annotation '=' literal
 fn global_declaration() -> impl NoirParser<TopLevelStatement> {
-    let p = ignore_then_commit(
-        keyword(Keyword::Global).labelled(ParsingRuleLabel::Global),
-        ident().map(Pattern::Identifier),
-    );
+    let p = attributes::attributes()
+        .then_ignore(keyword(Keyword::Global).labelled(ParsingRuleLabel::Global))
+        .then(ident().map(Pattern::Identifier));
     let p = then_commit(p, optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, expression());
-    p.map(LetStatement::new_let).map(TopLevelStatement::Global)
+    p.validate(|(((attributes, pattern), r#type), expression), span, emit| {
+        let global_attributes = attributes::validate_secondary_attributes(attributes, span, emit);
+        LetStatement { pattern, r#type, expression, attributes: global_attributes }
+    })
+    .map(TopLevelStatement::Global)
 }
 
 /// submodule: 'mod' ident '{' module '}'
@@ -526,8 +529,8 @@ fn assign_operator() -> impl NoirParser<Token> {
 }
 
 enum LValueRhs {
-    MemberAccess(Ident, Span),
-    Index(Expression, Span),
+    MemberAccess(Ident),
+    Index(Expression),
 }
 
 fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
@@ -539,28 +542,23 @@ where
 
         let dereferences = just(Token::Star)
             .ignore_then(lvalue.clone())
-            .map_with_span(|lvalue, span| LValue::Dereference(Box::new(lvalue), span));
+            .map(|lvalue| LValue::Dereference(Box::new(lvalue)));
 
         let parenthesized = lvalue.delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
         let term = choice((parenthesized, dereferences, l_ident));
 
-        let l_member_rhs =
-            just(Token::Dot).ignore_then(field_name()).map_with_span(LValueRhs::MemberAccess);
+        let l_member_rhs = just(Token::Dot).ignore_then(field_name()).map(LValueRhs::MemberAccess);
 
         let l_index = expr_parser
             .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-            .map_with_span(LValueRhs::Index);
+            .map(LValueRhs::Index);
 
         term.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
-            LValueRhs::MemberAccess(field_name, span) => {
-                let span = lvalue.span().merge(span);
-                LValue::MemberAccess { object: Box::new(lvalue), field_name, span }
+            LValueRhs::MemberAccess(field_name) => {
+                LValue::MemberAccess { object: Box::new(lvalue), field_name }
             }
-            LValueRhs::Index(index, span) => {
-                let span = lvalue.span().merge(span);
-                LValue::Index { array: Box::new(lvalue), index, span }
-            }
+            LValueRhs::Index(index) => LValue::Index { array: Box::new(lvalue), index },
         })
     })
 }
