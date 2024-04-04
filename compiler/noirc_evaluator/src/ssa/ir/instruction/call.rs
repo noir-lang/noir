@@ -344,6 +344,7 @@ fn simplify_slice_push_back(
         index: arguments[0],
         value: arguments[2],
         mutable: false,
+        ignore_oob: false,
     };
 
     let set_last_slice_value = dfg
@@ -393,7 +394,7 @@ fn simplify_slice_pop_back(
     // We must pop multiple elements in the case of a slice of tuples
     for _ in 0..element_count {
         let get_last_elem_instr =
-            Instruction::ArrayGet { array: arguments[1], index: flattened_len };
+            Instruction::ArrayGet { array: arguments[1], index: flattened_len, ignore_oob: false };
         let get_last_elem = dfg
             .insert_instruction_and_results(
                 get_last_elem_instr,

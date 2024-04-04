@@ -173,15 +173,15 @@ fn display_instruction_inner(
         Instruction::EnableSideEffects { condition } => {
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
-        Instruction::ArrayGet { array, index } => {
-            writeln!(f, "array_get {}, index {}", show(*array), show(*index))
+        Instruction::ArrayGet { array, index, ignore_oob } => {
+            writeln!(f, "array_get {}, index {}, ignore OOB: {ignore_oob}", show(*array), show(*index))
         }
-        Instruction::ArraySet { array, index, value, mutable } => {
+        Instruction::ArraySet { array, index, value, mutable, ignore_oob } => {
             let array = show(*array);
             let index = show(*index);
             let value = show(*value);
             let mutable = if *mutable { " mut" } else { "" };
-            writeln!(f, "array_set{mutable} {array}, index {index}, value {value}",)
+            writeln!(f, "array_set{mutable} {array}, index {index}, value {value}, ignore OOB: {ignore_oob}")
         }
         Instruction::IncrementRc { value } => {
             writeln!(f, "inc_rc {}", show(*value))

@@ -716,11 +716,11 @@ impl Context {
         let mut mutable_array_set = false;
 
         // Pass the instruction between array methods rather than the internal fields themselves
-        let (array, index, store_value) = match dfg[instruction] {
-            Instruction::ArrayGet { array, index } => (array, index, None),
-            Instruction::ArraySet { array, index, value, mutable } => {
+        let (array, index, store_value, ignore_oob) = match dfg[instruction] {
+            Instruction::ArrayGet { array, index, ignore_oob } => (array, index, None, ignore_oob),
+            Instruction::ArraySet { array, index, value, mutable, ignore_oob } => {
                 mutable_array_set = mutable;
-                (array, index, Some(value))
+                (array, index, Some(value), ignore_oob)
             }
             _ => {
                 return Err(InternalError::Unexpected {
@@ -732,7 +732,7 @@ impl Context {
             }
         };
 
-        if self.handle_constant_index(instruction, dfg, index, array, store_value)? {
+        if self.handle_constant_index(instruction, dfg, index, array, store_value, ignore_oob)? {
             return Ok(());
         }
 
@@ -740,9 +740,9 @@ impl Context {
             self.convert_array_operation_inputs(array, dfg, index, store_value)?;
 
         if let Some(new_value) = new_value {
-            self.array_set(instruction, new_index, new_value, dfg, mutable_array_set)?;
+            self.array_set(instruction, new_index, new_value, dfg, mutable_array_set, ignore_oob)?;
         } else {
-            self.array_get(instruction, array, new_index, dfg)?;
+            self.array_get(instruction, array, new_index, dfg, ignore_oob)?;
         }
 
         Ok(())
@@ -757,6 +757,7 @@ impl Context {
         index: ValueId,
         array_id: ValueId,
         store_value: Option<ValueId>,
+        ignore_oob: bool,
     ) -> Result<bool, RuntimeError> {
         let index_const = dfg.get_numeric_constant(index);
         let value_type = dfg.type_of_value(array_id);
@@ -794,12 +795,22 @@ impl Context {
                     if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
                         // Report the error if side effects are enabled.
                         if index >= array_size {
-                            let call_stack = self.acir_context.get_call_stack();
-                            return Err(RuntimeError::IndexOutOfBounds {
-                                index,
-                                array_size,
-                                call_stack,
-                            });
+                            if !ignore_oob {
+                                let call_stack = self.acir_context.get_call_stack();
+                                return Err(RuntimeError::IndexOutOfBounds {
+                                    index,
+                                    array_size,
+                                    call_stack,
+                                });
+                            } else {
+                                let value = match store_value {
+                                    Some(_) => AcirValue::Array(array),
+                                    None => array[0].clone(),
+                                };
+
+                                self.define_result(dfg, instruction, value);
+                                return Ok(true);
+                            }
                         } else {
                             let value = match store_value {
                                 Some(store_value) => {
@@ -955,6 +966,7 @@ impl Context {
         array: ValueId,
         mut var_index: AcirVar,
         dfg: &DataFlowGraph,
+        ignore_oob: bool,
     ) -> Result<AcirValue, RuntimeError> {
         let (array_id, _, block_id) = self.check_array_is_initialized(array, dfg)?;
         let results = dfg.instruction_results(instruction);
@@ -973,7 +985,7 @@ impl Context {
                     self.data_bus.call_data_map[&array_id] as i128,
                 ));
                 let new_index = self.acir_context.add_var(offset, bus_index)?;
-                return self.array_get(instruction, call_data, new_index, dfg);
+                return self.array_get(instruction, call_data, new_index, dfg, ignore_oob);
             }
         }
 
@@ -1032,6 +1044,7 @@ impl Context {
         store_value: AcirValue,
         dfg: &DataFlowGraph,
         mutate_array: bool,
+        ignore_oob: bool,
     ) -> Result<(), RuntimeError> {
         // Pass the instruction between array methods rather than the internal fields themselves
         let array = match dfg[instruction] {
