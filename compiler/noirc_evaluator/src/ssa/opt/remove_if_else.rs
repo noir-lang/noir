@@ -109,7 +109,7 @@ impl Context {
         }
     }
 
-    fn get_or_find_capacity<'a>(&'a mut self, dfg: &DataFlowGraph, value: ValueId) -> usize {
+    fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> usize {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => return *entry.get(),
             Entry::Vacant(entry) => {
