@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use acvm::acir::circuit::{Circuit, ExpressionWidth, Program};
+use acvm::acir::circuit::{ExpressionWidth, Program};
 use backend_interface::BackendError;
 use clap::Args;
 use iter_extended::vecmap;
@@ -24,9 +24,9 @@ use crate::errors::CliError;
 
 use super::{compile_cmd::compile_workspace, NargoConfig};
 
-/// Provides detailed information on a circuit
+/// Provides detailed information on each of a program's function (represented by a single circuit)
 ///
-/// Current information provided:
+/// Current information provided per circuit:
 /// 1. The number of ACIR opcodes
 /// 2. Counts the final number gates in the circuit used by a backend
 #[derive(Debug, Clone, Args)]
@@ -116,11 +116,11 @@ pub(crate) fn run(
         workspace.into_iter().filter(|package| package.is_binary()).zip(compiled_programs);
 
     let program_info = binary_packages
-    .par_bridge()
-    .map(|(package, program)| {
-        count_opcodes_and_gates_in_program(backend, program, package, expression_width)
-    })
-    .collect::<Result<_, _>>()?;
+        .par_bridge()
+        .map(|(package, program)| {
+            count_opcodes_and_gates_in_program(backend, program, package, expression_width)
+        })
+        .collect::<Result<_, _>>()?;
 
     let contract_info = compiled_contracts
         .into_par_iter()
@@ -269,6 +269,7 @@ struct ContractInfo {
     name: String,
     #[serde(skip)]
     expression_width: ExpressionWidth,
+    // TODO: Settle on how to display contract functions with non-inlined Acir calls
     functions: Vec<FunctionInfo>,
 }
 
@@ -299,14 +300,17 @@ fn count_opcodes_and_gates_in_program(
     package: &Package,
     expression_width: ExpressionWidth,
 ) -> Result<ProgramInfo, CliError> {
-    let functions = compiled_program.program
+    let functions = compiled_program
+        .program
         .functions
-        .into_par_iter().enumerate()
+        .into_par_iter()
+        .enumerate()
         .map(|(i, function)| -> Result<_, BackendError> {
             Ok(FunctionInfo {
-                name: if i == 0 { "main".to_owned() } else { format!("func {i}") },
+                name: compiled_program.names[i].clone(),
                 acir_opcodes: function.opcodes.len(),
-                circuit_size: backend.get_exact_circuit_size(&Program { functions: vec![function] })?,
+                circuit_size: backend
+                    .get_exact_circuit_size(&Program { functions: vec![function] })?,
             })
         })
         .collect::<Result<_, _>>()?;

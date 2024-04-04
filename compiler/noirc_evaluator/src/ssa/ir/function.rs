@@ -99,6 +99,11 @@ impl Function {
         self.runtime = runtime;
     }
 
+    /// Check the runtime type of a function for whether it is an entry point
+    pub(crate) fn is_entry_point(&self) -> bool {
+        self.runtime.is_entry_point()
+    }
+
     /// Retrieves the entry block of a function.
     ///
     /// A function's entry block contains the instructions
