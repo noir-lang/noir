@@ -141,11 +141,6 @@ pub fn create_program(
         "The generated ACIRs should match the supplied function signatures"
     );
 
-    // let mut functions = vec![];
-    // let mut debug_infos = vec![];
-    // let mut warning_infos = vec![];
-    // let mut main_input_witnesses = Vec::new();
-    // let mut main_return_witnesses = Vec::new();
     let mut program_artifact = SsaProgramArtifact::default();
     // For setting up the ABI we need separately specify main's input and return witnesses
     let mut is_main = true;
@@ -232,7 +227,6 @@ fn convert_generated_acir_into_circuit(
         input_witnesses,
         return_witnesses,
     }
-    // (optimized_circuit, debug_info, warnings, input_witnesses, return_witnesses)
 }
 
 // Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
