@@ -105,18 +105,34 @@ impl BrilligContext {
 
         // Deflatten arrays
         for (argument_variable, argument) in argument_variables.iter_mut().zip(arguments) {
-            if let (
-                BrilligVariable::BrilligArray(array),
-                BrilligParameter::Array(item_type, item_count),
-            ) = (argument_variable, argument)
-            {
-                if BrilligContext::has_nested_arrays(item_type) {
+            match (argument_variable, argument) {
+                (
+                    BrilligVariable::BrilligArray(array),
+                    BrilligParameter::Array(item_type, item_count),
+                ) => {
                     let deflattened_address =
                         self.deflatten_array(item_type, array.size, array.pointer);
                     self.mov_instruction(array.pointer, deflattened_address);
                     array.size = item_type.len() * item_count;
                     self.deallocate_register(deflattened_address);
                 }
+                (
+                    BrilligVariable::BrilligVector(vector),
+                    BrilligParameter::Slice(item_type, item_count),
+                ) => {
+                    let flattened_size = BrilligContext::flattened_size(argument);
+
+                    let deflattened_address =
+                        self.deflatten_array(item_type, flattened_size, vector.pointer);
+                    self.mov_instruction(vector.pointer, deflattened_address);
+                    self.usize_const_instruction(
+                        vector.size,
+                        (item_type.len() * item_count).into(),
+                    );
+
+                    self.deallocate_register(deflattened_address);
+                }
+                _ => {}
             }
         }
     }

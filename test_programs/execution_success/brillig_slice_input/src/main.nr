@@ -3,24 +3,38 @@ struct Point {
     y: Field,
 }
 
-unconstrained fn sum_slice(slice: [Point]) -> Field {
+unconstrained fn sum_slice(slice: [[Point; 2]]) -> Field {
     let mut sum = 0;
     for i in 0..slice.len() {
-        sum += slice[i].x + slice[i].y;
+        for j in 0..slice[i].len() {
+            sum += slice[i][j].x + slice[i][j].y;
+        }
     }
     sum
 }
 
 fn main() {
     let mut slice = &[];
-    slice = slice.push_back(Point {
-        x: 13,
-        y: 14,
-    });
-    slice = slice.push_front(Point {
-        x: 20,
-        y: 8,
-    });
+    slice = slice.push_back([
+        Point {
+            x: 13,
+            y: 14,
+        },
+        Point {
+            x: 20,
+            y: 8,
+        }
+    ]);
+    slice = slice.push_back([
+        Point {
+            x: 15,
+            y: 5,
+        },
+        Point {
+            x: 12,
+            y: 13,
+        }
+    ]);
     let brillig_sum = sum_slice(slice);
-    assert_eq(brillig_sum, 55);
+    assert_eq(brillig_sum, 100);
 }
