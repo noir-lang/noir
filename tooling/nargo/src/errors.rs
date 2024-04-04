@@ -154,15 +154,16 @@ pub fn try_extract_locations_from_error(
 ) -> Option<Vec<Location>> {
     match nargo_err {
         NargoError::ExecutionError(execution_error) => {
-            let extracted_locations =
-                extract_locations_from_error(execution_error, &debug[current_func_id as usize])?;
-            Some(extracted_locations)
+            Some(extract_locations_from_error(execution_error, &debug[current_func_id as usize])?)
         }
         NargoError::AcirCallError { id, error, location } => {
+            // Get the call stack for the current function where this error was hit
             let mut acir_call_locations =
                 debug[current_func_id as usize].opcode_location(location).unwrap_or_default();
+            // Recursively search for an internal execution error that triggered the failure
             let mut extracted_locations =
                 try_extract_locations_from_error(error.as_ref(), debug, *id)?;
+            // Attach any recursively found locations onto the call stack of the current function
             acir_call_locations.append(&mut extracted_locations);
             Some(acir_call_locations)
         }
