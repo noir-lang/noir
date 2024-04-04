@@ -3,66 +3,69 @@ import { type IntegralValue } from '../avm_memory_types.js';
 import { Opcode } from '../serialization/instruction_serialization.js';
 import { ThreeOperandInstruction, TwoOperandInstruction } from './instruction_impl.js';
 
-export class And extends ThreeOperandInstruction {
+abstract class ThreeOperandBitwiseInstruction extends ThreeOperandInstruction {
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 2, writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
+    memory.checkTags(this.inTag, this.aOffset, this.bOffset);
+
+    const a = memory.getAs<IntegralValue>(this.aOffset);
+    const b = memory.getAs<IntegralValue>(this.bOffset);
+
+    const res = this.compute(a, b);
+    memory.set(this.dstOffset, res);
+
+    memory.assert(memoryOperations);
+    context.machineState.incrementPc();
+  }
+
+  protected abstract compute(a: IntegralValue, b: IntegralValue): IntegralValue;
+}
+
+export class And extends ThreeOperandBitwiseInstruction {
   static readonly type: string = 'AND';
   static readonly opcode = Opcode.AND;
 
-  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
-    super(indirect, inTag, aOffset, bOffset, dstOffset);
-  }
-
-  async execute(context: AvmContext): Promise<void> {
-    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
-
-    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
-    const b = context.machineState.memory.getAs<IntegralValue>(this.bOffset);
-
-    const res = a.and(b);
-    context.machineState.memory.set(this.dstOffset, res);
-
-    context.machineState.incrementPc();
+  protected compute(a: IntegralValue, b: IntegralValue): IntegralValue {
+    return a.and(b);
   }
 }
 
-export class Or extends ThreeOperandInstruction {
+export class Or extends ThreeOperandBitwiseInstruction {
   static readonly type: string = 'OR';
   static readonly opcode = Opcode.OR;
 
-  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
-    super(indirect, inTag, aOffset, bOffset, dstOffset);
-  }
-
-  async execute(context: AvmContext): Promise<void> {
-    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
-
-    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
-    const b = context.machineState.memory.getAs<IntegralValue>(this.bOffset);
-
-    const res = a.or(b);
-    context.machineState.memory.set(this.dstOffset, res);
-
-    context.machineState.incrementPc();
+  protected compute(a: IntegralValue, b: IntegralValue): IntegralValue {
+    return a.or(b);
   }
 }
 
-export class Xor extends ThreeOperandInstruction {
+export class Xor extends ThreeOperandBitwiseInstruction {
   static readonly type: string = 'XOR';
   static readonly opcode = Opcode.XOR;
 
-  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
-    super(indirect, inTag, aOffset, bOffset, dstOffset);
+  protected compute(a: IntegralValue, b: IntegralValue): IntegralValue {
+    return a.xor(b);
   }
+}
 
-  async execute(context: AvmContext): Promise<void> {
-    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
+export class Shl extends ThreeOperandBitwiseInstruction {
+  static readonly type: string = 'SHL';
+  static readonly opcode = Opcode.SHL;
 
-    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
-    const b = context.machineState.memory.getAs<IntegralValue>(this.bOffset);
+  protected compute(a: IntegralValue, b: IntegralValue): IntegralValue {
+    return a.shl(b);
+  }
+}
 
-    const res = a.xor(b);
-    context.machineState.memory.set(this.dstOffset, res);
+export class Shr extends ThreeOperandBitwiseInstruction {
+  static readonly type: string = 'SHR';
+  static readonly opcode = Opcode.SHR;
 
-    context.machineState.incrementPc();
+  protected compute(a: IntegralValue, b: IntegralValue): IntegralValue {
+    return a.shr(b);
   }
 }
 
@@ -74,56 +77,19 @@ export class Not extends TwoOperandInstruction {
     super(indirect, inTag, aOffset, dstOffset);
   }
 
-  async execute(context: AvmContext): Promise<void> {
-    context.machineState.memory.checkTags(this.inTag, this.aOffset);
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 1, writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
+    memory.checkTags(this.inTag, this.aOffset);
+
+    const a = memory.getAs<IntegralValue>(this.aOffset);
 
     const res = a.not();
-    context.machineState.memory.set(this.dstOffset, res);
+    memory.set(this.dstOffset, res);
 
-    context.machineState.incrementPc();
-  }
-}
-
-export class Shl extends ThreeOperandInstruction {
-  static readonly type: string = 'SHL';
-  static readonly opcode = Opcode.SHL;
-
-  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
-    super(indirect, inTag, aOffset, bOffset, dstOffset);
-  }
-
-  async execute(context: AvmContext): Promise<void> {
-    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
-
-    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
-    const b = context.machineState.memory.getAs<IntegralValue>(this.bOffset);
-
-    const res = a.shl(b);
-    context.machineState.memory.set(this.dstOffset, res);
-
-    context.machineState.incrementPc();
-  }
-}
-
-export class Shr extends ThreeOperandInstruction {
-  static readonly type: string = 'SHR';
-  static readonly opcode = Opcode.SHR;
-
-  constructor(indirect: number, inTag: number, aOffset: number, bOffset: number, dstOffset: number) {
-    super(indirect, inTag, aOffset, bOffset, dstOffset);
-  }
-
-  async execute(context: AvmContext): Promise<void> {
-    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
-
-    const a = context.machineState.memory.getAs<IntegralValue>(this.aOffset);
-    const b = context.machineState.memory.getAs<IntegralValue>(this.bOffset);
-
-    const res = a.shr(b);
-    context.machineState.memory.set(this.dstOffset, res);
-
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }

@@ -28,18 +28,23 @@ export class NoteHashExists extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 2, writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
     // Note that this instruction accepts any type in memory, and converts to Field.
-    const noteHash = context.machineState.memory.get(this.noteHashOffset).toFr();
-    const leafIndex = context.machineState.memory.get(this.leafIndexOffset).toFr();
+    const noteHash = memory.get(this.noteHashOffset).toFr();
+    const leafIndex = memory.get(this.leafIndexOffset).toFr();
 
     const exists = await context.persistableState.checkNoteHashExists(
       context.environment.storageAddress,
       noteHash,
       leafIndex,
     );
-    context.machineState.memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
+    memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }
@@ -54,14 +59,19 @@ export class EmitNoteHash extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
     if (context.environment.isStaticCall) {
       throw new StaticCallStorageAlterError();
     }
 
-    const noteHash = context.machineState.memory.get(this.noteHashOffset).toFr();
+    const noteHash = memory.get(this.noteHashOffset).toFr();
     context.persistableState.writeNoteHash(noteHash);
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }
@@ -76,12 +86,17 @@ export class NullifierExists extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
-    const nullifier = context.machineState.memory.get(this.nullifierOffset).toFr();
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 1, writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
+    const nullifier = memory.get(this.nullifierOffset).toFr();
     const exists = await context.persistableState.checkNullifierExists(context.environment.storageAddress, nullifier);
 
-    context.machineState.memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
+    memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }
@@ -96,12 +111,16 @@ export class EmitNullifier extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
+  public async execute(context: AvmContext): Promise<void> {
     if (context.environment.isStaticCall) {
       throw new StaticCallStorageAlterError();
     }
 
-    const nullifier = context.machineState.memory.get(this.nullifierOffset).toFr();
+    const memoryOperations = { reads: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
+    const nullifier = memory.get(this.nullifierOffset).toFr();
     try {
       await context.persistableState.writeNullifier(context.environment.storageAddress, nullifier);
     } catch (e) {
@@ -115,6 +134,7 @@ export class EmitNullifier extends Instruction {
       }
     }
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }
@@ -140,12 +160,17 @@ export class L1ToL2MessageExists extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
-    const msgHash = context.machineState.memory.get(this.msgHashOffset).toFr();
-    const msgLeafIndex = context.machineState.memory.get(this.msgLeafIndexOffset).toFr();
-    const exists = await context.persistableState.checkL1ToL2MessageExists(msgHash, msgLeafIndex);
-    context.machineState.memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 2, writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
 
+    const msgHash = memory.get(this.msgHashOffset).toFr();
+    const msgLeafIndex = memory.get(this.msgLeafIndexOffset).toFr();
+    const exists = await context.persistableState.checkL1ToL2MessageExists(msgHash, msgLeafIndex);
+    memory.set(this.existsOffset, exists ? new Uint8(1) : new Uint8(0));
+
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }
@@ -171,21 +196,26 @@ export class EmitUnencryptedLog extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
+  public async execute(context: AvmContext): Promise<void> {
     if (context.environment.isStaticCall) {
       throw new StaticCallStorageAlterError();
     }
 
+    const memoryOperations = { reads: 1 + this.logSize, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
     const [eventSelectorOffset, logOffset] = Addressing.fromWire(this.indirect).resolve(
       [this.eventSelectorOffset, this.logOffset],
-      context.machineState.memory,
+      memory,
     );
 
     const contractAddress = context.environment.address;
-    const event = context.machineState.memory.get(eventSelectorOffset).toFr();
-    const log = context.machineState.memory.getSlice(logOffset, this.logSize).map(f => f.toFr());
+    const event = memory.get(eventSelectorOffset).toFr();
+    const log = memory.getSlice(logOffset, this.logSize).map(f => f.toFr());
     context.persistableState.writeLog(contractAddress, event, log);
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }
@@ -200,15 +230,20 @@ export class SendL2ToL1Message extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
+  public async execute(context: AvmContext): Promise<void> {
     if (context.environment.isStaticCall) {
       throw new StaticCallStorageAlterError();
     }
 
-    const recipient = context.machineState.memory.get(this.recipientOffset).toFr();
-    const content = context.machineState.memory.get(this.contentOffset).toFr();
+    const memoryOperations = { reads: 2, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
+    const recipient = memory.get(this.recipientOffset).toFr();
+    const content = memory.get(this.contentOffset).toFr();
     context.persistableState.writeL1Message(recipient, content);
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }

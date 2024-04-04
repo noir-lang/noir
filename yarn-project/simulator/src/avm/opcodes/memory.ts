@@ -1,6 +1,6 @@
 import type { AvmContext } from '../avm_context.js';
-import { type Gas, GasCostConstants, getGasCostMultiplierFromTypeTag, makeGasCost } from '../avm_gas.js';
-import { Field, TaggedMemory, TypeTag } from '../avm_memory_types.js';
+import { getBaseGasCost, getMemoryGasCost, mulGas, sumGas } from '../avm_gas.js';
+import { Field, type MemoryOperations, TaggedMemory, TypeTag } from '../avm_memory_types.js';
 import { InstructionExecutionError } from '../errors.js';
 import { BufferCursor } from '../serialization/buffer_cursor.js';
 import { Opcode, OperandType, deserialize, serialize } from '../serialization/instruction_serialization.js';
@@ -69,20 +69,21 @@ export class Set extends Instruction {
     return new this(...args);
   }
 
-  async execute(context: AvmContext): Promise<void> {
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
     // Per the YP, the tag cannot be a field.
     if ([TypeTag.FIELD, TypeTag.UNINITIALIZED, TypeTag.INVALID].includes(this.inTag)) {
       throw new InstructionExecutionError(`Invalid tag ${TypeTag[this.inTag]} for SET.`);
     }
 
     const res = TaggedMemory.integralFromTag(this.value, this.inTag);
-    context.machineState.memory.set(this.dstOffset, res);
+    memory.set(this.dstOffset, res);
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
-  }
-
-  protected gasCost(): Gas {
-    return makeGasCost({ l2Gas: GasCostConstants.SET_COST_PER_BYTE * getGasCostMultiplierFromTypeTag(this.inTag) });
   }
 }
 
@@ -109,14 +110,19 @@ export class CMov extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
-    const a = context.machineState.memory.get(this.aOffset);
-    const b = context.machineState.memory.get(this.bOffset);
-    const cond = context.machineState.memory.get(this.condOffset);
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 3, writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
+    const a = memory.get(this.aOffset);
+    const b = memory.get(this.bOffset);
+    const cond = memory.get(this.condOffset);
 
     // TODO: reconsider toBigInt() here
-    context.machineState.memory.set(this.dstOffset, cond.toBigInt() > 0 ? a : b);
+    memory.set(this.dstOffset, cond.toBigInt() > 0 ? a : b);
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }
@@ -129,15 +135,20 @@ export class Cast extends TwoOperandInstruction {
     super(indirect, dstTag, aOffset, dstOffset);
   }
 
-  async execute(context: AvmContext): Promise<void> {
-    const a = context.machineState.memory.get(this.aOffset);
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 1, writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
+    const a = memory.get(this.aOffset);
 
     // TODO: consider not using toBigInt()
     const casted =
       this.inTag == TypeTag.FIELD ? new Field(a.toBigInt()) : TaggedMemory.integralFromTag(a.toBigInt(), this.inTag);
 
-    context.machineState.memory.set(this.dstOffset, casted);
+    memory.set(this.dstOffset, casted);
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }
@@ -157,16 +168,18 @@ export class Mov extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
-    const [srcOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve(
-      [this.srcOffset, this.dstOffset],
-      context.machineState.memory,
-    );
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 1, writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    const a = context.machineState.memory.get(srcOffset);
+    const [srcOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve([this.srcOffset, this.dstOffset], memory);
 
-    context.machineState.memory.set(dstOffset, a);
+    const a = memory.get(srcOffset);
 
+    memory.set(dstOffset, a);
+
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 }
@@ -187,19 +200,26 @@ export class CalldataCopy extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
-    const [dstOffset] = Addressing.fromWire(this.indirect).resolve([this.dstOffset], context.machineState.memory);
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { writes: this.copySize, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
+    const [dstOffset] = Addressing.fromWire(this.indirect).resolve([this.dstOffset], memory);
 
     const transformedData = context.environment.calldata
       .slice(this.cdOffset, this.cdOffset + this.copySize)
       .map(f => new Field(f));
 
-    context.machineState.memory.setSlice(dstOffset, transformedData);
+    memory.setSlice(dstOffset, transformedData);
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 
-  protected gasCost(): Gas {
-    return makeGasCost({ l2Gas: GasCostConstants.CALLDATACOPY_COST_PER_BYTE * this.copySize });
+  protected gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }> = {}) {
+    const baseGasCost = mulGas(getBaseGasCost(this.opcode), this.copySize);
+    const memoryGasCost = getMemoryGasCost(memoryOps);
+    return sumGas(baseGasCost, memoryGasCost);
   }
 }

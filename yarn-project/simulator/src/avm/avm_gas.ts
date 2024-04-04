@@ -1,4 +1,5 @@
 import { TypeTag } from './avm_memory_types.js';
+import { InstructionExecutionError } from './errors.js';
 import { Addressing, AddressingMode } from './opcodes/addressing_mode.js';
 import { Opcode } from './serialization/instruction_serialization.js';
 
@@ -20,7 +21,7 @@ export function gasLeftToGas(gasLeft: { l1GasLeft: number; l2GasLeft: number; da
 }
 
 /** Creates a new instance with all values set to zero except the ones set. */
-export function makeGasCost(gasCost: Partial<Gas>) {
+export function makeGas(gasCost: Partial<Gas>) {
   return { ...EmptyGas, ...gasCost };
 }
 
@@ -34,6 +35,11 @@ export function sumGas(...gases: Partial<Gas>[]) {
     }),
     EmptyGas,
   );
+}
+
+/** Multiplies a gas instance by a scalar. */
+export function mulGas(gas: Partial<Gas>, scalar: number) {
+  return { l1Gas: (gas.l1Gas ?? 0) * scalar, l2Gas: (gas.l2Gas ?? 0) * scalar, daGas: (gas.daGas ?? 0) * scalar };
 }
 
 /** Zero gas across all gas dimensions. */
@@ -52,12 +58,12 @@ export const DynamicGasCost = Symbol('DynamicGasCost');
 /** Temporary default gas cost. We should eventually remove all usage of this variable in favor of actual gas for each opcode. */
 const TemporaryDefaultGasCost = { l1Gas: 0, l2Gas: 10, daGas: 0 };
 
-/** Gas costs for each instruction. */
-export const GasCosts = {
-  [Opcode.ADD]: DynamicGasCost,
-  [Opcode.SUB]: DynamicGasCost,
-  [Opcode.MUL]: DynamicGasCost,
-  [Opcode.DIV]: DynamicGasCost,
+/** Base gas costs for each instruction. Additional gas cost may be added on top due to memory or storage accesses, etc. */
+export const GasCosts: Record<Opcode, Gas | typeof DynamicGasCost> = {
+  [Opcode.ADD]: TemporaryDefaultGasCost,
+  [Opcode.SUB]: TemporaryDefaultGasCost,
+  [Opcode.MUL]: TemporaryDefaultGasCost,
+  [Opcode.DIV]: TemporaryDefaultGasCost,
   [Opcode.FDIV]: TemporaryDefaultGasCost,
   [Opcode.EQ]: TemporaryDefaultGasCost,
   [Opcode.LT]: TemporaryDefaultGasCost,
@@ -87,7 +93,7 @@ export const GasCosts = {
   [Opcode.BLOCKL1GASLIMIT]: TemporaryDefaultGasCost,
   [Opcode.BLOCKL2GASLIMIT]: TemporaryDefaultGasCost,
   [Opcode.BLOCKDAGASLIMIT]: TemporaryDefaultGasCost,
-  [Opcode.CALLDATACOPY]: DynamicGasCost,
+  [Opcode.CALLDATACOPY]: TemporaryDefaultGasCost,
   // Gas
   [Opcode.L1GASLEFT]: TemporaryDefaultGasCost,
   [Opcode.L2GASLEFT]: TemporaryDefaultGasCost,
@@ -98,7 +104,7 @@ export const GasCosts = {
   [Opcode.INTERNALCALL]: TemporaryDefaultGasCost,
   [Opcode.INTERNALRETURN]: TemporaryDefaultGasCost,
   // Memory
-  [Opcode.SET]: DynamicGasCost,
+  [Opcode.SET]: TemporaryDefaultGasCost,
   [Opcode.MOV]: TemporaryDefaultGasCost,
   [Opcode.CMOV]: TemporaryDefaultGasCost,
   // World state
@@ -124,10 +130,10 @@ export const GasCosts = {
   [Opcode.POSEIDON]: TemporaryDefaultGasCost,
   [Opcode.SHA256]: TemporaryDefaultGasCost, // temp - may be removed, but alot of contracts rely on i: TemporaryDefaultGasCost,
   [Opcode.PEDERSEN]: TemporaryDefaultGasCost, // temp - may be removed, but alot of contracts rely on i: TemporaryDefaultGasCost,t
-} as const;
+};
 
-/** Returns the fixed gas cost for a given opcode, or throws if set to dynamic. */
-export function getFixedGasCost(opcode: Opcode): Gas {
+/** Returns the fixed base gas cost for a given opcode, or throws if set to dynamic. */
+export function getBaseGasCost(opcode: Opcode): Gas {
   const cost = GasCosts[opcode];
   if (cost === DynamicGasCost) {
     throw new Error(`Opcode ${Opcode[opcode]} has dynamic gas cost`);
@@ -135,24 +141,31 @@ export function getFixedGasCost(opcode: Opcode): Gas {
   return cost;
 }
 
-/** Returns the additional cost from indirect accesses to memory. */
-export function getCostFromIndirectAccess(indirect: number): Partial<Gas> {
-  const indirectCount = Addressing.fromWire(indirect).modePerOperand.filter(
-    mode => mode === AddressingMode.INDIRECT,
-  ).length;
-  return { l2Gas: indirectCount * GasCostConstants.COST_PER_INDIRECT_ACCESS };
+/** Returns the gas cost associated with the memory operations performed. */
+export function getMemoryGasCost(args: { reads?: number; writes?: number; indirect?: number }) {
+  const { reads, writes, indirect } = args;
+  const indirectCount = Addressing.fromWire(indirect ?? 0).count(AddressingMode.INDIRECT);
+  const l2MemoryGasCost =
+    (reads ?? 0) * GasCostConstants.MEMORY_READ +
+    (writes ?? 0) * GasCostConstants.MEMORY_WRITE +
+    indirectCount * GasCostConstants.MEMORY_INDIRECT_READ_PENALTY;
+  return makeGas({ l2Gas: l2MemoryGasCost });
 }
 
 /** Constants used in base cost calculations. */
 export const GasCostConstants = {
-  SET_COST_PER_BYTE: 100,
-  CALLDATACOPY_COST_PER_BYTE: 10,
-  ARITHMETIC_COST_PER_BYTE: 10,
-  COST_PER_INDIRECT_ACCESS: 5,
+  MEMORY_READ: 10,
+  MEMORY_INDIRECT_READ_PENALTY: 10,
+  MEMORY_WRITE: 100,
 };
 
+/** Returns gas cost for an operation on a given type tag based on the base cost per byte. */
+export function getGasCostForTypeTag(tag: TypeTag, baseCost: Gas) {
+  return mulGas(baseCost, getGasCostMultiplierFromTypeTag(tag));
+}
+
 /** Returns a multiplier based on the size of the type represented by the tag. Throws on uninitialized or invalid. */
-export function getGasCostMultiplierFromTypeTag(tag: TypeTag) {
+function getGasCostMultiplierFromTypeTag(tag: TypeTag) {
   switch (tag) {
     case TypeTag.UINT8:
       return 1;
@@ -168,6 +181,6 @@ export function getGasCostMultiplierFromTypeTag(tag: TypeTag) {
       return 32;
     case TypeTag.INVALID:
     case TypeTag.UNINITIALIZED:
-      throw new Error(`Invalid tag type for gas cost multiplier: ${TypeTag[tag]}`);
+      throw new InstructionExecutionError(`Invalid tag type for gas cost multiplier: ${TypeTag[tag]}`);
   }
 }

@@ -1,10 +1,12 @@
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
+import { type FunctionsOf } from '@aztec/foundation/types';
 
 import { strict as assert } from 'assert';
 
-import { TagCheckError } from './errors.js';
+import { InstructionExecutionError, TagCheckError } from './errors.js';
+import { Addressing, AddressingMode } from './opcodes/addressing_mode.js';
 
 /** MemoryValue gathers the common operations for all memory types. */
 export abstract class MemoryValue {
@@ -203,9 +205,15 @@ export enum TypeTag {
   INVALID,
 }
 
+// Lazy interface definition for tagged memory
+export type TaggedMemoryInterface = FunctionsOf<TaggedMemory>;
+
 // TODO: Consider automatic conversion when getting undefined values.
-export class TaggedMemory {
+export class TaggedMemory implements TaggedMemoryInterface {
   static readonly log: DebugLogger = createDebugLogger('aztec:avm_simulator:memory');
+
+  // Whether to track and validate memory accesses for each instruction.
+  static readonly TRACK_MEMORY_ACCESSES = process.env.NODE_ENV === 'test';
 
   // FIXME: memory should be 2^32, but TS doesn't allow for arrays that big.
   static readonly MAX_MEMORY_SIZE = Number((1n << 32n) - 2n);
@@ -214,6 +222,11 @@ export class TaggedMemory {
   constructor() {
     // We do not initialize memory size here because otherwise tests blow up when diffing.
     this._mem = [];
+  }
+
+  /** Returns a MeteredTaggedMemory instance to track the number of reads and writes if TRACK_MEMORY_ACCESSES is set. */
+  public track(type: string = 'instruction') {
+    return TaggedMemory.TRACK_MEMORY_ACCESSES ? new MeteredTaggedMemory(this, type) : this;
   }
 
   public get(offset: number): MemoryValue {
@@ -376,4 +389,110 @@ export class TaggedMemory {
         throw new Error(`${TypeTag[tag]} is not a valid integral type.`);
     }
   }
+
+  /** No-op. Implemented here for compatibility with the MeteredTaggedMemory. */
+  public assert(_operations: Partial<MemoryOperations & { indirect: number }>) {}
 }
+
+/** Tagged memory wrapper with metering for each memory read and write operation. */
+export class MeteredTaggedMemory implements TaggedMemoryInterface {
+  private reads: number = 0;
+  private writes: number = 0;
+
+  constructor(private wrapped: TaggedMemory, private type: string = 'instruction') {}
+
+  /** Returns the number of reads and writes tracked so far and resets them to zero. */
+  public reset(): MemoryOperations {
+    const stats = { reads: this.reads, writes: this.writes };
+    this.reads = 0;
+    this.writes = 0;
+    return stats;
+  }
+
+  /**
+   * Asserts that the exact number of memory operations have been performed.
+   * Indirect represents the flags for indirect accesses: each bit set to one counts as an extra read.
+   */
+  public assert(operations: Partial<MemoryOperations & { indirect: number }>) {
+    const { reads: expectedReads, writes: expectedWrites, indirect } = { reads: 0, writes: 0, ...operations };
+
+    const totalExpectedReads = expectedReads + Addressing.fromWire(indirect ?? 0).count(AddressingMode.INDIRECT);
+    const { reads: actualReads, writes: actualWrites } = this.reset();
+    if (actualReads !== totalExpectedReads) {
+      throw new InstructionExecutionError(
+        `Incorrect number of memory reads for ${this.type}: expected ${totalExpectedReads} but executed ${actualReads}`,
+      );
+    }
+    if (actualWrites !== expectedWrites) {
+      throw new InstructionExecutionError(
+        `Incorrect number of memory writes for ${this.type}: expected ${expectedWrites} but executed ${actualWrites}`,
+      );
+    }
+  }
+
+  public track(type: string = 'instruction'): MeteredTaggedMemory {
+    return new MeteredTaggedMemory(this.wrapped, type);
+  }
+
+  public get(offset: number): MemoryValue {
+    this.reads++;
+    return this.wrapped.get(offset);
+  }
+
+  public getSliceAs<T>(offset: number, size: number): T[] {
+    this.reads += size;
+    return this.wrapped.getSliceAs<T>(offset, size);
+  }
+
+  public getAs<T>(offset: number): T {
+    this.reads++;
+    return this.wrapped.getAs(offset);
+  }
+
+  public getSlice(offset: number, size: number): MemoryValue[] {
+    this.reads += size;
+    return this.wrapped.getSlice(offset, size);
+  }
+
+  public set(offset: number, v: MemoryValue): void {
+    this.writes++;
+    this.wrapped.set(offset, v);
+  }
+
+  public setSlice(offset: number, vs: MemoryValue[]): void {
+    this.writes += vs.length;
+    this.wrapped.setSlice(offset, vs);
+  }
+
+  public getSliceTags(offset: number, size: number): TypeTag[] {
+    return this.wrapped.getSliceTags(offset, size);
+  }
+
+  public getTag(offset: number): TypeTag {
+    return this.wrapped.getTag(offset);
+  }
+
+  public checkTag(tag: TypeTag, offset: number): void {
+    this.wrapped.checkTag(tag, offset);
+  }
+
+  public checkIsValidMemoryOffsetTag(offset: number): void {
+    this.wrapped.checkIsValidMemoryOffsetTag(offset);
+  }
+
+  public checkTags(tag: TypeTag, ...offsets: number[]): void {
+    this.wrapped.checkTags(tag, ...offsets);
+  }
+
+  public checkTagsRange(tag: TypeTag, startOffset: number, size: number): void {
+    this.wrapped.checkTagsRange(tag, startOffset, size);
+  }
+}
+
+/** Tracks number of memory reads and writes. */
+export type MemoryOperations = {
+  /** How many total reads are performed. Slice reads are count as one per element. */
+  reads: number;
+  /** How many total writes are performed. Slice writes are count as one per element. */
+  writes: number;
+};

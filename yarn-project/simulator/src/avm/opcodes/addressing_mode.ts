@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 
-import { type TaggedMemory } from '../avm_memory_types.js';
+import { type TaggedMemoryInterface } from '../avm_memory_types.js';
 
 export enum AddressingMode {
   DIRECT,
@@ -12,7 +12,7 @@ export enum AddressingMode {
 export class Addressing {
   public constructor(
     /** The addressing mode for each operand. The length of this array is the number of operands of the instruction. */
-    public readonly modePerOperand: AddressingMode[],
+    private readonly modePerOperand: AddressingMode[],
   ) {
     assert(modePerOperand.length <= 8, 'At most 8 operands are supported');
   }
@@ -39,13 +39,18 @@ export class Addressing {
     return wire;
   }
 
+  /** Returns how many operands use the given addressing mode. */
+  public count(mode: AddressingMode): number {
+    return this.modePerOperand.filter(m => m === mode).length;
+  }
+
   /**
    * Resolves the offsets using the addressing mode.
    * @param offsets The offsets to resolve.
    * @param mem The memory to use for resolution.
    * @returns The resolved offsets. The length of the returned array is the same as the length of the input array.
    */
-  public resolve(offsets: number[], mem: TaggedMemory): number[] {
+  public resolve(offsets: number[], mem: TaggedMemoryInterface): number[] {
     assert(offsets.length <= this.modePerOperand.length);
     const resolved = new Array(offsets.length);
     for (const [i, offset] of offsets.entries()) {

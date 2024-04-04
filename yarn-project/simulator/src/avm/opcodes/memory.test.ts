@@ -135,7 +135,7 @@ describe('Memory instructions', () => {
     it('should throw if tag is FIELD, UNINITIALIZED, INVALID', async () => {
       for (const tag of [TypeTag.FIELD, TypeTag.UNINITIALIZED, TypeTag.INVALID]) {
         await expect(
-          new Set(/*indirect=*/ 0, /*inTag=*/ tag, /*value=*/ 1234n, /*offset=*/ 1).execute(context),
+          async () => await new Set(/*indirect=*/ 0, /*inTag=*/ tag, /*value=*/ 1234n, /*offset=*/ 1).execute(context),
         ).rejects.toThrow(InstructionExecutionError);
       }
     });
@@ -161,20 +161,24 @@ describe('Memory instructions', () => {
       expect(inst.serialize()).toEqual(buf);
     });
 
-    it('Should upcast between integral types', () => {
+    it('Should upcast between integral types', async () => {
       context.machineState.memory.set(0, new Uint8(20n));
       context.machineState.memory.set(1, new Uint16(65000n));
       context.machineState.memory.set(2, new Uint32(1n << 30n));
       context.machineState.memory.set(3, new Uint64(1n << 50n));
       context.machineState.memory.set(4, new Uint128(1n << 100n));
 
-      [
+      const ops = [
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT16, /*aOffset=*/ 0, /*dstOffset=*/ 10),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT32, /*aOffset=*/ 1, /*dstOffset=*/ 11),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT64, /*aOffset=*/ 2, /*dstOffset=*/ 12),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT128, /*aOffset=*/ 3, /*dstOffset=*/ 13),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT128, /*aOffset=*/ 4, /*dstOffset=*/ 14),
-      ].forEach(i => i.execute(context));
+      ];
+
+      for (const op of ops) {
+        await op.execute(context);
+      }
 
       const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
       expect(actual).toEqual([
@@ -188,20 +192,24 @@ describe('Memory instructions', () => {
       expect(tags).toEqual([TypeTag.UINT16, TypeTag.UINT32, TypeTag.UINT64, TypeTag.UINT128, TypeTag.UINT128]);
     });
 
-    it('Should downcast (truncating) between integral types', () => {
+    it('Should downcast (truncating) between integral types', async () => {
       context.machineState.memory.set(0, new Uint8(20n));
       context.machineState.memory.set(1, new Uint16(65000n));
       context.machineState.memory.set(2, new Uint32((1n << 30n) - 1n));
       context.machineState.memory.set(3, new Uint64((1n << 50n) - 1n));
       context.machineState.memory.set(4, new Uint128((1n << 100n) - 1n));
 
-      [
+      const ops = [
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT8, /*aOffset=*/ 0, /*dstOffset=*/ 10),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*dstOffset=*/ 11),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT16, /*aOffset=*/ 2, /*dstOffset=*/ 12),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT32, /*aOffset=*/ 3, /*dstOffset=*/ 13),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT64, /*aOffset=*/ 4, /*dstOffset=*/ 14),
-      ].forEach(i => i.execute(context));
+      ];
+
+      for (const op of ops) {
+        await op.execute(context);
+      }
 
       const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
       expect(actual).toEqual([
@@ -215,19 +223,24 @@ describe('Memory instructions', () => {
       expect(tags).toEqual([TypeTag.UINT8, TypeTag.UINT8, TypeTag.UINT16, TypeTag.UINT32, TypeTag.UINT64]);
     });
 
-    it('Should upcast from integral types to field', () => {
+    it('Should upcast from integral types to field', async () => {
       context.machineState.memory.set(0, new Uint8(20n));
       context.machineState.memory.set(1, new Uint16(65000n));
       context.machineState.memory.set(2, new Uint32(1n << 30n));
       context.machineState.memory.set(3, new Uint64(1n << 50n));
       context.machineState.memory.set(4, new Uint128(1n << 100n));
-      [
+
+      const ops = [
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.FIELD, /*aOffset=*/ 0, /*dstOffset=*/ 10),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.FIELD, /*aOffset=*/ 1, /*dstOffset=*/ 11),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.FIELD, /*aOffset=*/ 2, /*dstOffset=*/ 12),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.FIELD, /*aOffset=*/ 3, /*dstOffset=*/ 13),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.FIELD, /*aOffset=*/ 4, /*dstOffset=*/ 14),
-      ].forEach(i => i.execute(context));
+      ];
+
+      for (const op of ops) {
+        await op.execute(context);
+      }
 
       const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
       expect(actual).toEqual([
@@ -241,20 +254,24 @@ describe('Memory instructions', () => {
       expect(tags).toEqual([TypeTag.FIELD, TypeTag.FIELD, TypeTag.FIELD, TypeTag.FIELD, TypeTag.FIELD]);
     });
 
-    it('Should downcast (truncating) from field to integral types', () => {
+    it('Should downcast (truncating) from field to integral types', async () => {
       context.machineState.memory.set(0, new Field((1n << 200n) - 1n));
       context.machineState.memory.set(1, new Field((1n << 200n) - 1n));
       context.machineState.memory.set(2, new Field((1n << 200n) - 1n));
       context.machineState.memory.set(3, new Field((1n << 200n) - 1n));
       context.machineState.memory.set(4, new Field((1n << 200n) - 1n));
 
-      [
+      const ops = [
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT8, /*aOffset=*/ 0, /*dstOffset=*/ 10),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT16, /*aOffset=*/ 1, /*dstOffset=*/ 11),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT32, /*aOffset=*/ 2, /*dstOffset=*/ 12),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT64, /*aOffset=*/ 3, /*dstOffset=*/ 13),
         new Cast(/*indirect=*/ 0, /*dstTag=*/ TypeTag.UINT128, /*aOffset=*/ 4, /*dstOffset=*/ 14),
-      ].forEach(i => i.execute(context));
+      ];
+
+      for (const op of ops) {
+        await op.execute(context);
+      }
 
       const actual = context.machineState.memory.getSlice(/*offset=*/ 10, /*size=*/ 5);
       expect(actual).toEqual([

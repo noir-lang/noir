@@ -64,7 +64,7 @@ export class AvmSimulator {
         // Execute the instruction.
         // Normal returns and reverts will return normally here.
         // "Exceptional halts" will throw.
-        await instruction.run(this.context);
+        await instruction.execute(this.context);
 
         if (this.context.machineState.pc >= instructions.length) {
           this.log('Passed end of program!');

@@ -1,35 +1,32 @@
 import type { AvmContext } from '../avm_context.js';
-import {
-  type Gas,
-  GasCostConstants,
-  getCostFromIndirectAccess,
-  getGasCostMultiplierFromTypeTag,
-  sumGas,
-} from '../avm_gas.js';
-import { type Field, type MemoryValue, TypeTag } from '../avm_memory_types.js';
+import { getBaseGasCost, getGasCostForTypeTag, getMemoryGasCost, sumGas } from '../avm_gas.js';
+import { type Field, type MemoryOperations, type MemoryValue, TypeTag } from '../avm_memory_types.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Instruction } from './instruction.js';
 import { ThreeOperandInstruction } from './instruction_impl.js';
 
 export abstract class ThreeOperandArithmeticInstruction extends ThreeOperandInstruction {
-  async execute(context: AvmContext): Promise<void> {
-    context.machineState.memory.checkTags(this.inTag, this.aOffset, this.bOffset);
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 2, writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    const a = context.machineState.memory.get(this.aOffset);
-    const b = context.machineState.memory.get(this.bOffset);
+    memory.checkTags(this.inTag, this.aOffset, this.bOffset);
+
+    const a = memory.get(this.aOffset);
+    const b = memory.get(this.bOffset);
 
     const dest = this.compute(a, b);
-    context.machineState.memory.set(this.dstOffset, dest);
+    memory.set(this.dstOffset, dest);
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 
-  protected gasCost(): Gas {
-    const arithmeticCost = {
-      l2Gas: getGasCostMultiplierFromTypeTag(this.inTag) * GasCostConstants.ARITHMETIC_COST_PER_BYTE,
-    };
-    const indirectCost = getCostFromIndirectAccess(this.indirect);
-    return sumGas(arithmeticCost, indirectCost);
+  protected gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }>) {
+    const baseGasCost = getGasCostForTypeTag(this.inTag, getBaseGasCost(this.opcode));
+    const memoryGasCost = getMemoryGasCost(memoryOps);
+    return sumGas(baseGasCost, memoryGasCost);
   }
 
   protected abstract compute(a: MemoryValue, b: MemoryValue): MemoryValue;
@@ -88,15 +85,26 @@ export class FieldDiv extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
-    context.machineState.memory.checkTags(TypeTag.FIELD, this.aOffset, this.bOffset);
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { reads: 2, writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
 
-    const a = context.machineState.memory.getAs<Field>(this.aOffset);
-    const b = context.machineState.memory.getAs<Field>(this.bOffset);
+    memory.checkTags(TypeTag.FIELD, this.aOffset, this.bOffset);
+
+    const a = memory.getAs<Field>(this.aOffset);
+    const b = memory.getAs<Field>(this.bOffset);
 
     const dest = a.fdiv(b);
-    context.machineState.memory.set(this.dstOffset, dest);
+    memory.set(this.dstOffset, dest);
 
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
+  }
+
+  protected gasCost(memoryOps: Partial<MemoryOperations & { indirect: number }>) {
+    const baseGasCost = getGasCostForTypeTag(TypeTag.FIELD, getBaseGasCost(this.opcode));
+    const memoryGasCost = getMemoryGasCost(memoryOps);
+    return sumGas(baseGasCost, memoryGasCost);
   }
 }

@@ -14,9 +14,15 @@ abstract class GetterInstruction extends Instruction {
     super();
   }
 
-  async execute(context: AvmContext): Promise<void> {
+  public async execute(context: AvmContext): Promise<void> {
+    const memoryOperations = { writes: 1, indirect: this.indirect };
+    const memory = context.machineState.memory.track(this.type);
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
     const res = new Field(this.getIt(context.environment));
-    context.machineState.memory.set(this.dstOffset, res);
+    memory.set(this.dstOffset, res);
+
+    memory.assert(memoryOperations);
     context.machineState.incrementPc();
   }
 

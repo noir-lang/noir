@@ -6,16 +6,23 @@ import { encodeToBytecode } from './serialization/bytecode_serialization.js';
 
 describe('AVM simulator: dynamic gas costs per instruction', () => {
   it.each([
-    [new SetInstruction(/*indirect=*/ 0, /*inTag=*/ TypeTag.UINT8, /*value=*/ 1, /*dstOffset=*/ 0), [100, 0, 0]],
-    [new SetInstruction(/*indirect=*/ 0, /*inTag=*/ TypeTag.UINT32, /*value=*/ 1, /*dstOffset=*/ 0), [400, 0, 0]],
-    [new CalldataCopy(/*indirect=*/ 0, /*cdOffset=*/ TypeTag.UINT8, /*copySize=*/ 1, /*dstOffset=*/ 0), [10, 0, 0]],
-    [new CalldataCopy(/*indirect=*/ 0, /*cdOffset=*/ TypeTag.UINT8, /*copySize=*/ 5, /*dstOffset=*/ 0), [50, 0, 0]],
-    [new Add(/*indirect=*/ 0, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [10, 0, 0]],
-    [new Add(/*indirect=*/ 0, /*inTag=*/ TypeTag.UINT32, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [40, 0, 0]],
-    [new Add(/*indirect=*/ 3, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [20, 0, 0]],
-    [new Sub(/*indirect=*/ 3, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [20, 0, 0]],
-    [new Mul(/*indirect=*/ 3, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [20, 0, 0]],
-    [new Div(/*indirect=*/ 3, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [20, 0, 0]],
+    // BASE_GAS(10) * 1 + MEMORY_WRITE(100) = 110
+    [new SetInstruction(/*indirect=*/ 0, /*inTag=*/ TypeTag.UINT8, /*value=*/ 1, /*dstOffset=*/ 0), [110, 0, 0]],
+    // BASE_GAS(10) * 1 + MEMORY_WRITE(100) = 110
+    [new SetInstruction(/*indirect=*/ 0, /*inTag=*/ TypeTag.UINT32, /*value=*/ 1, /*dstOffset=*/ 0), [110]],
+    // BASE_GAS(10) * 1 + MEMORY_WRITE(100) = 110
+    [new CalldataCopy(/*indirect=*/ 0, /*cdOffset=*/ TypeTag.UINT8, /*copySize=*/ 1, /*dstOffset=*/ 0), [110]],
+    // BASE_GAS(10) * 5 + MEMORY_WRITE(100) * 5 = 550
+    [new CalldataCopy(/*indirect=*/ 0, /*cdOffset=*/ TypeTag.UINT8, /*copySize=*/ 5, /*dstOffset=*/ 0), [550]],
+    // BASE_GAS(10) * 1 + MEMORY_READ(10) * 2 + MEMORY_WRITE(100) = 130
+    [new Add(/*indirect=*/ 0, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [130]],
+    // BASE_GAS(10) * 4 + MEMORY_READ(10) * 2 + MEMORY_WRITE(100) = 160
+    [new Add(/*indirect=*/ 0, /*inTag=*/ TypeTag.UINT32, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [160]],
+    // BASE_GAS(10) * 1 + MEMORY_READ(10) * 2 + MEMORY_INDIRECT_READ_PENALTY(10) * 2 + MEMORY_WRITE(100) = 150
+    [new Add(/*indirect=*/ 3, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [150]],
+    [new Sub(/*indirect=*/ 3, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [150]],
+    [new Mul(/*indirect=*/ 3, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [150]],
+    [new Div(/*indirect=*/ 3, /*inTag=*/ TypeTag.UINT8, /*aOffset=*/ 1, /*bOffset=*/ 2, /*dstOffset=*/ 3), [150]],
   ] as const)('computes gas cost for %s', async (instruction, [l2GasCost, l1GasCost, daGasCost]) => {
     const bytecode = encodeToBytecode([instruction]);
     const context = initContext();
@@ -27,8 +34,8 @@ describe('AVM simulator: dynamic gas costs per instruction', () => {
 
     await new AvmSimulator(context).executeBytecode(bytecode);
 
-    expect(initialL2GasLeft - context.machineState.l2GasLeft).toEqual(l2GasCost);
-    expect(initialL1GasLeft - context.machineState.l1GasLeft).toEqual(l1GasCost);
-    expect(initialDaGasLeft - context.machineState.daGasLeft).toEqual(daGasCost);
+    expect(initialL2GasLeft - context.machineState.l2GasLeft).toEqual(l2GasCost ?? 0);
+    expect(initialL1GasLeft - context.machineState.l1GasLeft).toEqual(l1GasCost ?? 0);
+    expect(initialDaGasLeft - context.machineState.daGasLeft).toEqual(daGasCost ?? 0);
   });
 });
