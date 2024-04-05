@@ -36,17 +36,26 @@ type FullNoir = {
 }
 
 async function start() {
+  console.log("Creating Noir from circuit...");
   const simple: FullNoir = await fullNoirFromCircuit('not_odd');
 
+  console.log("Executing binary circuit for witness...");
   const witness1 = (await simple.noir.execute(input1)).witness;
+  console.log("Generating intermediate proof...");
   const proof1: ProofData = await simple.backend.generateProof(witness1);
+
+  if (1) { // mess up proof
+    console.log("Generating intermediate proof...");
+    proof1.proof[0] += 1;
+  }
 
   // const witness2 = (await simple.noir.execute(input2)).witness;
   // const proof2: ProofData = await simple.backend.generateProof(witness2);
-
+  console.log("Generating recursive proof artifacts...");
   const { proofAsFields, vkAsFields, vkHash } = await simple.backend.generateRecursiveProofArtifacts(proof1, 1);
   // console.log({ proofAsFields, vkAsFields, vkHash });
 
+  console.log("Executing lib circuit function to verify inner proof");
   let res = await main(vkAsFields, proofAsFields, ["7"], vkHash);
   console.log(res);
 
