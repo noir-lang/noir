@@ -193,7 +193,6 @@ struct Bn254Fr {
     array: [u8;32],
 }
 
-
 impl BigField for Bn254Fr {
     fn from_le_bytes(bytes: [u8]) -> Bn254Fr {
         assert(bytes.len() <= 32);
