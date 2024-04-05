@@ -14,7 +14,7 @@ Keys in Aztec are used both for authorization and privacy. Authorization keys ar
 
 Privacy keys are used for note encryption, tagging, and nullifying. These are also not enforced by the protocol. However, for facilitating composability, the protocol enshrines a set of enshrined encryption and tagging mechanisms, that can be leveraged by applications as they interact with accounts.
 
-The [requirements](./keys-requirements.md) section outlines the features that were sought when designing Aztec's addresses and keys. We then specify how [addresses](./address.md) are derived, as well as the default way in which [keys](./keys.md) will be derived. The [precompiles](./precompiles.md) section describes enshrined contract addresses, with implementations defined by the protocol, used for note encryption and tagging.
+The [requirements](./keys-requirements.md) section outlines the features that were sought when designing Aztec's addresses and keys. We then specify how [addresses](./address.md) are derived, as well as the default way in which [keys](./keys.mdx) will be derived. The [precompiles](./precompiles.md) section describes enshrined contract addresses, with implementations defined by the protocol, used for note encryption and tagging.
 
 Last, the [diversified and stealth accounts](./diversified-and-stealth.md) sections describe application-level recommendations for diversified and stealth accounts.
 

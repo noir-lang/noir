@@ -44,6 +44,7 @@ const sidebars = {
           link: { type: "doc", id: "cryptography/hashing/hashing" },
           items: [
             "cryptography/hashing/hashing",
+            "cryptography/hashing/poseidon2",
             "cryptography/hashing/pedersen",
           ],
         },
@@ -58,6 +59,16 @@ const sidebars = {
         "addresses-and-keys/address",
         "addresses-and-keys/keys-requirements",
         "addresses-and-keys/keys",
+        {
+          label: "Example Usage of Keys",
+          type: "category",
+          items: [
+            "addresses-and-keys/example-usage/nullifier",
+            "addresses-and-keys/example-usage/diversified-and-stealth-keys",
+            "addresses-and-keys/example-usage/tag-sequence-derivation",
+            "addresses-and-keys/example-usage/encrypt-and-tag",
+          ],
+        },
         "addresses-and-keys/precompiles",
         "addresses-and-keys/diversified-and-stealth",
       ],
@@ -167,7 +178,6 @@ const sidebars = {
         "decentralization/p2p-network",
       ],
     },
-    // Protocol Statements?
     {
       label: "Circuits",
       type: "category",

@@ -2,7 +2,7 @@
 title: Diversified and Stealth Accounts
 ---
 
-The [keys specification](./keys.md) describes derivation mechanisms for diversified and stealth public keys. However, the protocol requires users to interact with addresses.
+The [keys specification](./keys.mdx) describes derivation mechanisms for diversified and stealth public keys. However, the protocol requires users to interact with addresses.
 
 ## Computing Addresses
 

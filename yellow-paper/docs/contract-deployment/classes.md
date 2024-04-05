@@ -32,20 +32,47 @@ Note that individual public functions are not first-class citizens in the protoc
 
 As for unconstrained functions, these are not used standalone within the protocol. They are either inlined within private functions, or called from a PXE as _getters_ for a contract. Calling from a private function to an unconstrained one in a different contract is forbidden, since the caller would have no guarantee of the code run by the callee. Considering this, unconstrained functions are not part of a contract class at the protocol level.
 
-### Class Identifier
+### `contract_class_id`
 
 Also known as `contract_class_id`, the Class Identifier is both a unique identifier and a commitment to the struct contents. It is computed as:
 
-```
-private_function_leaves = private_functions.map(fn => pedersen([fn.function_selector as Field, fn.vk_hash], GENERATOR__FUNCTION_LEAF))
-private_functions_root = merkleize(private_function_leaves)
-public_bytecode_commitment = calculate_commitment(packed_public_bytecode)
-contract_class_id = pedersen([artifact_hash, private_functions_root, public_bytecode_commitment], GENERATOR__CLASS_IDENTIFIER_V1)
+<!-- TODO: missing `version` from the class_id? -->
+
+<!-- HASH DEFINITION -->
+
+```rust
+contract_class_id_crh(
+    artifact_hash: Field
+    private_functions: PrivateFunction[],
+    packed_public_bytecode: bytes[],
+) -> Field {
+    let private_function_leaves: Field[] = private_functions.map(|f| private_function_leaf_crh(f));
+
+    // Illustrative function, not defined. TODO.
+    let private_function_tree_root: Field = merkleize(private_function_leaves);
+
+    // Illustrative function, not defined. TODO.
+    let public_bytecode_commitment: Point = calculate_commitment(packed_public_bytecode);
+
+    let contract_class_id = poseidon2(
+        be_string_to_field("az_contract_class_id"),
+
+        artifact_hash,
+        private_function_tree_root,
+        public_bytecode_commitment.x,
+        public_bytecode_commitment.y,
+    );
+
+    contract_class_id
+}
 ```
 
-Private Functions are sorted in ascending order by their selector and then hashed into Function Leaves before being merkleized into a tree of height [`FUNCTION_TREE_HEIGHT`](../constants.md#tree-constants). Empty leaves have value `0`. A poseidon hash is used. The AVM public bytecode commitment is calculated as [defined in the Public VM section](../public-vm/bytecode-validation-circuit.md#committed-representation).
+> See below for `private_function_leaf_crh`.
+> Private Functions are sorted in ascending order by their selector, and then hashed into Function Leaves, before being merkleized into a tree of height [`PRIVATE_FUNCTION_TREE_HEIGHT`](../constants.md#tree-constants).
+> Empty leaves have value `0`.
+> The AVM public bytecode commitment is calculated as [defined in the Public VM section](../public-vm/bytecode-validation-circuit.md#committed-representation).
 
-### Private Function
+### `PrivateFunction`
 
 The structure of each private function within the protocol is the following:
 
@@ -59,26 +86,72 @@ Note the lack of visibility modifiers. Internal functions are specified as a mac
 
 Also note the lack of commitment to the function compilation artifact. Even though a commitment to a function is required so that the PXE can verify the execution of correct unconstrained Brillig code embedded within private functions, this is handled entirely out of protocol. As such, PXEs are expected to verify it against the `artifact_hash` in the containing contract class.
 
+#### Private Function Leaf Hash
+
+<!-- HASH DEFINITION -->
+
+```rust
+private_function_leaf_crh(
+    f: PrivateFunction
+) -> Field {
+    let private_function_leaf = poseidon2(
+        be_string_to_field("az_private_function_leaf"),
+
+        be_bits_to_field(f.function_selector),
+        f.vk_hash
+    );
+
+    private_function_leaf
+}
+```
+
 ### Artifact Hash
 
 Even though not enforced by the protocol, it is suggested for the `artifact_hash` to follow this general structure, in order to be compatible with the definition of the [`broadcast` function below](#broadcast).
 
-```
-private_functions_artifact_leaves = artifact.private_functions.map(fn =>
-  sha256(fn.selector, fn.metadata_hash, sha256(fn.private_bytecode))
-)
-private_functions_artifact_tree_root = merkleize(private_functions_artifact_leaves)
+Note: below, `sha256_modulo(x) = sha256(x) % FIELD_MODULUS`. This approach must not be used if seeking pseudo-randomness, but can be used for collision resistance.
 
-unconstrained_functions_artifact_leaves = artifact.unconstrained_functions.map(fn =>
-  sha256(fn.selector, fn.metadata_hash, sha256(fn.unconstrained_bytecode))
-)
-unconstrained_functions_artifact_tree_root = merkleize(unconstrained_functions_artifact_leaves)
+<!-- HASH DEFINITION -->
 
-artifact_hash = sha256(
-  private_functions_artifact_tree_root,
-  unconstrained_functions_artifact_tree_root,
-  artifact_metadata_hash,
-)
+```rust
+artifact_crh(
+  artifact // This type is out of protocol, e.g. the format output by Nargo
+) -> Field {
+
+  let private_functions_artifact_leaves: Field[] = artifact.private_functions.map(|f|
+    sha256_modulo(
+      be_string_to_bits("az_artifact_private_function_leaf"),
+
+      f.selector, // 32-bits
+      f.metadata_hash, // 256-bits
+      sha256(f.private_bytecode)
+    )
+  );
+  let private_functions_artifact_tree_root: Field = merkleize(private_functions_artifact_leaves);
+
+  let unconstrained_functions_artifact_leaves: Field[] = artifact.unconstrained_functions.map(|f|
+    sha256_modulo(
+      be_string_to_bits("az_artifact_unconstrained_function_leaf"),
+
+      f.selector, // 32-bits
+      f.metadata_hash, // 256-bits
+      sha256(f.unconstrained_bytecode)
+    )
+  );
+  let unconstrained_functions_artifact_tree_root: Field = merkleize(unconstrained_functions_artifact_leaves);
+
+  let artifact_hash: Field = sha256_modulo(
+    be_string_to_field("az_artifact"),
+
+    private_functions_artifact_tree_root, // 256-bits
+    unconstrained_functions_artifact_tree_root, // 256-bits
+    artifact_metadata
+  );
+
+  let artifact_hash: Field = artifact_hash_256_bit % FIELD_MODULUS;
+
+  artifact_hash
+}
 ```
 
 For the artifact hash merkleization and hashing is done using sha256, since it is computed and verified outside of circuits and does not need to be SNARK friendly, and then wrapped around the field's maximum value. Fields are left-padded with zeros to 256 bits before being hashed. Function leaves are sorted in ascending order before being merkleized, according to their function selectors. Note that a tree with dynamic height is built instead of having a tree with a fixed height, since the merkleization is done out of a circuit.
@@ -89,16 +162,40 @@ Bytecode for private functions is a mix of ACIR and Brillig, whereas unconstrain
 
 The metadata hash for each function is suggested to be computed as the sha256 of all JSON-serialized fields in the function struct of the compilation artifact, except for bytecode and debug symbols. The metadata is JSON-serialized using no spaces, and sorting ascending all keys in objects before serializing them.
 
-```
-function_metadata = omit(function, "bytecode", "debug_symbols")
-function_metadata_hash = sha256(json_serialize(function_metadata))
+<!-- HASH DEFINITION -->
+
+```rust
+function_metadata_crh(
+  function // This type is out of protocol, e.g. the format output by Nargo
+) -> Field {
+  let function_metadata = omit(function, "bytecode", "debug_symbols");
+
+  let function_metadata_hash: Field = sha256_modulo(
+    be_string_to_bits("az_function_metadata"),
+
+    json_serialize(function_metadata)
+  );
+
+  function_metadata_hash
+}
 ```
 
 The artifact metadata stores all data that is not contained within the contract functions and is not debug specific. This includes the compiler version identifier, events interface, and name. Metadata is JSON-serialized in the same fashion as the function metadata.
 
-```
-artifact_metadata = omit(artifact, "functions", "file_map")
-artifact_metadata_hash = sha256(json_serialize(artifact_metadata))
+```rust
+artifact_metadata_crh(
+  artifact // This type is out of protocol, e.g. the format output by Nargo
+) -> Field {
+  let artifact_metadata = omit(artifact, "functions", "file_map");
+
+  let artifact_metadata_hash: Field = sha256_modulo(
+    be_string_to_bits("az_artifact_metadata"),
+
+    json_serialize(artifact_metadata)
+  );
+
+  artifact_metadata_hash
+}
 ```
 
 ### Versioning
@@ -124,23 +221,32 @@ The `register` function receives the artifact hash, private functions tree root,
 
 In pseudocode:
 
-```
-function register(
+```rust
+fn register(
   artifact_hash: Field,
   private_functions_root: Field,
   public_bytecode_commitment: Point,
   packed_public_bytecode: Field[],
-)
-  version = 1
+) {
+  assert(is_valid_packed_public_bytecode(packed_public_bytecode));
 
-  assert is_valid_packed_public_bytecode(packed_public_bytecode)
-  computed_bytecode_commitment = calculate_commitment(packed_public_bytecode)
-  assert public_bytecode_commitment == computed_bytecode_commitment
+  let computed_bytecode_commitment: Point = calculate_commitment(packed_public_bytecode);
 
-  contract_class_id = pedersen([version, artifact_hash, private_functions_root, computed_bytecode_commitment], GENERATOR__CLASS_IDENTIFIER)
+  assert(public_bytecode_commitment == computed_bytecode_commitment);
 
-  emit_nullifier contract_class_id
-  emit_unencrypted_event ContractClassRegistered(contract_class_id, version, artifact_hash, private_functions_root, packed_public_bytecode)
+  let version: Field = 1;
+  let contract_class_id = contract_class_id_crh(version, artifact_hash, private_functions_root, bytecode_commitment);
+
+  emit_nullifier(contract_class_id);
+
+  emit_unencrypted_event(ContractClassRegistered::new(
+    contract_class_id,
+    version,
+    artifact_hash,
+    private_functions_root,
+    packed_public_bytecode
+  ));
+}
 ```
 
 Upon seeing a `ContractClassRegistered` event in a mined transaction, nodes are expected to store the contract class, so they can retrieve it when executing a public function for that class. Note that a class may be used for deploying a contract within the same transaction in which it is registered.
@@ -159,8 +265,8 @@ The `ContractClassRegisterer` has an additional private `broadcast` functions th
 
 Broadcasted function artifacts that do not match with their corresponding `artifact_hash`, or that reference a `contract_class_id` that has not been broadcasted, can be safely discarded.
 
-```
-function broadcast_private_function(
+```rust
+fn broadcast_private_function(
   contract_class_id: Field,
   artifact_metadata_hash: Field,
   unconstrained_functions_artifact_tree_root: Field,
@@ -182,8 +288,8 @@ function broadcast_private_function(
   )
 ```
 
-```
-function broadcast_unconstrained_function(
+```rust
+fn broadcast_unconstrained_function(
   contract_class_id: Field,
   artifact_metadata_hash: Field,
   private_functions_artifact_tree_root: Field,

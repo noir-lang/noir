@@ -14,7 +14,7 @@ If the user is not in the registry and the sender cannot provide the address pre
 
 Execution of the precompile that implements the recipient's choice for encryption and tagging should be done using a batched delegated call, to amortize the cost of sending multiple notes using the same method, and to ensure the notes are broadcasted from the application contract's address.
 
-## Pseudocode
+### Pseudocode
 
 The following pseudocode covers how to provably send a note to a recipient, given an `encryption_type` <!-- I think this should be `private_message_type`. Selecting the kind of key is separate from selecting an encryption scheme --> (incoming, outgoing, or internal incoming). Should the registry support [multiple entries for a given recipient](../pre-compiled-contracts/registry.md#multiple-recipients-per-address), this method must execute a batched call per each entry recovered from the registry.
 

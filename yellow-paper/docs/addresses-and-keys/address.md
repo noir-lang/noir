@@ -4,6 +4,8 @@ title: Address
 
 An address is computed as the hash of the following fields:
 
+<!-- TODO: discrepancy between this hash preimage and the contract classes page pseudocode, which includes a version -->
+
 <!-- prettier-ignore -->
 | Field | Type | Description |
 |----------|----------|----------|
@@ -27,21 +29,65 @@ We may remove the `portal_contract_address` as a first-class citizen.
 
 The hashing scheme for the address should then ensure that checks that are more frequent can be done cheaply, and that data shared out of band is kept manageable. We define the hash to be computed as follows:
 
-```
-salted_initialization_hash = pedersen([salt, initialization_hash, deployer as Field, portal_contract_address as Field], GENERATOR__SALTED_INITIALIZATION_HASH)
-partial_address = pedersen([contract_class_id, salted_initialization_hash], GENERATOR__CONTRACT_PARTIAL_ADDRESS_V1)
-address = pedersen([public_keys_hash, partial_address], GENERATOR__CONTRACT_ADDRESS_V1)
+<!-- TODO: missing `version` from hashing! -->
+
+:::warning
+Some of these draft domain separators might be too many bits; they need to fit inside a single field element. Version numbers might not be needed until we roll the _next_ version.
+:::
+
+```rust
+address_crh(
+    version: Field,
+    salt: Field,
+    deployer: AztecAddress,
+    contract_class_id: Field,
+    initialization_hash: Field,
+    portal_contract_address: EthereumAddress,
+    public_keys_hash: Field,
+) -> Field {
+
+    let salted_initialization_hash: Field = poseidon2(
+      be_string_to_field("az_salted_initialization_hash_v1"),
+
+      salt,
+      initialization_hash,
+      deployer.to_field(),
+      be_bits_to_field(portal_contract_address)
+    );
+
+    let partial_address: Field = poseidon2(
+      be_string_to_field("az_contract_partial_address_v1"),
+
+      contract_class_id,
+      salted_initialization_hash
+    );
+
+    let address: Field = poseidon2(
+      be_string_to_field("az_contract_address_v1"),
+
+      public_keys_hash,
+      partial_address
+    );
+
+    address
+}
 ```
 
-The `public_keys` array can vary depending on the format of keys used by the address, but it is suggested it includes the master keys defined in the [keys section](./keys.md).
+The `public_keys` array can vary depending on the format of keys used by the address, but it is suggested it includes the master keys defined in the [keys section](./keys.mdx). For example:
 
-```
-public_keys_hash = pedersen([
-  nullifier_pubkey.x, nullifier_pubkey.y,
-  tagging_pubkey.x, tagging_pubkey.y,
-  incoming_view_pubkey.x, incoming_view_pubkey.y,
-  outgoing_view_pubkey.x, outgoing_view_pubkey.y
-], GENERATOR__PUBLIC_KEYS)
+```rust
+let public_keys_hash: Field = poseidon2(
+  be_string_to_field("az_public_keys_hash"), // TODO: does this need some unique ID, to disambiguate from other approaches people might have for other public keys?
+
+  nullifier_pubkey.x,
+  nullifier_pubkey.y,
+  tagging_pubkey.x,
+  tagging_pubkey.y,
+  incoming_view_pubkey.x,
+  incoming_view_pubkey.y,
+  outgoing_view_pubkey.x,
+  outgoing_view_pubkey.y
+);
 ```
 
 This recommended hash format is compatible with the [encryption precompiles](./precompiles.md#encryption-and-tagging-precompiles) initially defined in the protocol and advertised in the canonical [registry](../pre-compiled-contracts/registry.md) for private message delivery. An address that chooses to use a different format for its keys will not be compatible with apps that rely on the registry for note encryption. Nevertheless, new precompiles introduced in future versions of the protocol could use different public keys formats.

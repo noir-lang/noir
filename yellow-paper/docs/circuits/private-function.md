@@ -167,3 +167,7 @@ After generating a proof for a private function circuit, that proof (and associa
 | `public_data_tree_root`       | `field` | Root of the public data tree.                                                                   |
 | `archive_tree_root`           | `field` | Root of the state roots tree archived at the block prior to when the transaction was assembled. |
 | `global_variables_hash`       | `field` | Hash of the previous global variables.                                                          |
+
+<!-- Does a private function need access to the entire block header? Or could we get away with just exposing the archive tree root? -->
+<!-- What does "previous" mean, in "hash of the previous global variables"? -->
+<!-- Should read_requests convey which block number they would like to read from? -->

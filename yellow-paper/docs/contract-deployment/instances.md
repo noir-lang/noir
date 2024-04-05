@@ -26,6 +26,8 @@ The structure of a contract instance is defined as:
 | `portal_contract_address` | `EthereumAddress` | Optional address of the L1 portal contract. |
 | `public_keys_hash` | `Field` | Optional hash of the struct of public keys used for encryption and nullifying by this contract. |
 
+<!-- TODO: define the `initialization_hash` derivation more explicitly. -->
+
 <!-- Note: Always ensure the spec above matches the one described in Addresses and Keys. -->
 
 ### Versioning
@@ -101,8 +103,10 @@ A new contract instance can be _Publicly Deployed_ by calling a `deploy` functio
 
 The pseudocode for the process described above is the following:
 
-```
-function deploy (
+<!-- Is `version` needed? If so, please update the address.md to include it -->
+
+```rust
+fn deploy (
   salt: Field,
   contract_class_id: Field,
   initialization_hash: Field,
@@ -110,17 +114,31 @@ function deploy (
   public_keys_hash: Field,
   universal_deploy?: boolean,
 )
-  assert nullifier_exists silo(contract_class_id, ContractClassRegisterer)
-  assert is_valid_eth_address(portal_contract_address)
+  let contract_class_registerer: Contract = ContractClassRegisterer::at(CONTRACT_CLASS_REGISTERER_ADDRESS);
 
-  deployer = if universal_deploy then zero else msg_sender
-  version = 1
-  address = compute_address(version, salt, deployer, contract_class_id, initialization_hash, portal_contract_address, public_keys_hash)
+  assert(nullifier_exists(silo(contract_class_id, contract_class_registerer.address)));
 
-  emit_nullifier(address)
+  assert(is_valid_eth_address(portal_contract_address));
 
-  emit_unencrypted_event ContractInstanceDeployed(address, version, salt, contract_class_id, initialization_hash, portal_contract_address, public_keys_hash)
+  let deployer: Address = if universal_deploy { 0 } else { msg_sender };
+  let version: Field = 1;
+
+  let address = address_crh(
+    version,
+    salt,
+    deployer,
+    contract_class_id,
+    initialization_hash,
+    portal_contract_address,
+    public_keys_hash
+  );
+
+  emit_nullifier(address);
+
+  emit_unencrypted_event(ContractInstanceDeployed::new(address, version, salt, contract_class_id, initialization_hash, portal_contract_address, public_keys_hash));
 ```
+
+> See [address](../addresses-and-keys/address.md) for `address_crh`.
 
 Upon seeing a `ContractInstanceDeployed` event from the canonical `ContractInstanceDeployer` contract, nodes are expected to store the address and preimage, so they can verify executed code during public code execution as described in the next section.
 

@@ -30,7 +30,7 @@ The registry contract exposes functions for setting public keys and encryption m
 <!-- Should we have functions to update keys / precompile address in isolation? -->
 <!-- Might there be cases where a user would wish to specify a different precompile preference (or a different set of keys) for different apps? Perhaps that's too complicated, and the user would need to spawn separate account contracts to cope with such complexity? -->
 
-```
+```rust
 contract Registry
 
     public mapping(address => { keys, precompile_address }) registry
@@ -73,7 +73,7 @@ The registry limits multi-recipient registrations to no more than `MAX_ENTRIES_P
 
 Contracts that intend to register multiple recipients should account for those recipients eventually rotating their keys. To support this, contracts should include a method to refresh the registered addresses:
 
-```
+```rust
 contract Sample
 
     private address[] owners

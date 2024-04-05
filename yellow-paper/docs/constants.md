@@ -124,7 +124,3 @@ These verbose names are designed to get more specific from left to right.
 ## Precompile Constants
 
 See the [precompiles](./addresses-and-keys/precompiles.md#constants) section.
-
-## Hashing constants
-
-See the [hashing] section.
