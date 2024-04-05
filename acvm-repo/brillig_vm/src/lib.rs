@@ -16,6 +16,7 @@ use acir::brillig::{
     HeapVector, MemoryAddress, Opcode, ValueOrArray,
 };
 use acir::FieldElement;
+use acvm_blackbox_solver::bigint::BigIntSolver;
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use arithmetic::{evaluate_binary_field_op, evaluate_binary_int_op, BrilligArithmeticError};
 use black_box::evaluate_black_box;
@@ -81,6 +82,8 @@ pub struct VM<'a, B: BlackBoxFunctionSolver> {
     call_stack: Vec<usize>,
     /// The solver for blackbox functions
     black_box_solver: &'a B,
+    // The solver for big integers
+    bigint_solver: BigIntSolver,
 }
 
 impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
@@ -101,6 +104,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
             memory: Memory::default(),
             call_stack: Vec::new(),
             black_box_solver,
+            bigint_solver: Default::default(),
         }
     }
 
@@ -311,7 +315,12 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 self.increment_program_counter()
             }
             Opcode::BlackBox(black_box_op) => {
-                match evaluate_black_box(black_box_op, self.black_box_solver, &mut self.memory) {
+                match evaluate_black_box(
+                    black_box_op,
+                    self.black_box_solver,
+                    &mut self.memory,
+                    &mut self.bigint_solver,
+                ) {
                     Ok(()) => self.increment_program_counter(),
                     Err(e) => self.fail(e.to_string()),
                 }

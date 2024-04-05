@@ -10,6 +10,7 @@
 use acir::BlackBoxFunc;
 use thiserror::Error;
 
+pub mod bigint;
 mod curve_specific_solver;
 mod ecdsa;
 mod hash;
