@@ -85,6 +85,10 @@ impl<'a> ValueMerger<'a> {
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
         );
 
+        if then_value == else_value {
+            return then_value;
+        }
+
         let then_call_stack = dfg.get_value_call_stack(then_value);
         let else_call_stack = dfg.get_value_call_stack(else_value);
 
