@@ -10,6 +10,13 @@ use crate::ssa::{
 use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
+    /// A simple SSA pass to find any calls to `Intrinsic::AsSlice` and replacing any references to the length of the
+    /// resulting slice with the length of the array from which it was generated.
+    ///
+    /// This allows the length of a slice generated from an array to be used in locations where a constant value is
+    /// necessary when the value of the array is unknown.
+    ///
+    /// Note that this pass must be placed before loop unrolling to be useful.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn as_slice_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
@@ -55,6 +62,8 @@ fn replace_known_slice_lengths(
         let original_slice_length = call_returns[0];
 
         // We won't use the new id for the original unknown length.
+        // This isn't strictly necessary as a new result will be defined the next time for which the instruction
+        // is reinserted but this avoids leaving the program in an invalid state.
         func.dfg.replace_result(instruction_id, original_slice_length);
         let known_length = func.dfg.make_constant(known_length.into(), Type::length_type());
         func.dfg.set_value_from_id(original_slice_length, known_length);
