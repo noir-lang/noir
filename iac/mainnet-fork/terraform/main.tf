@@ -77,8 +77,7 @@ resource "aws_efs_file_system" "aztec_mainnet_fork_data_store" {
   creation_token = "${var.DEPLOY_TAG}-mainnet-fork-data"
 
   tags = {
-    Name              = "${var.DEPLOY_TAG}-mainnet-fork-data"
-    TaskDefinitionArn = "${aws_ecs_task_definition.aztec_mainnet_fork.arn}" # This line forces recreation on task definition change
+    Name = "${var.DEPLOY_TAG}-mainnet-fork-data"
   }
 
   lifecycle_policy {

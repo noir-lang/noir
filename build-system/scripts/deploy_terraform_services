@@ -19,12 +19,15 @@ SERVICE_NAMES=${3:-$PROJECT_NAME}
 # The terraform resources to taint. Defaults to none.
 TO_TAINT=${4:-}
 
+# Flag to force a deployment even if no changes are detected.
+FORCE_DEPLOY=${5:-}
+
 cd $PROJECT_DIR
 
 # Bail out if nothing changed.
 CONTENT_HASH=$(calculate_content_hash $CHECK_REBUILD_REPOSITORY)
 echo "Last successfully deployed commit: $CONTENT_HASH"
-if [ -z "$TO_TAINT" ] && check_rebuild cache-$CONTENT_HASH-$DEPLOY_TAG-deployed $CHECK_REBUILD_REPOSITORY; then
+if [ -z "$FORCE_DEPLOY" ] && check_rebuild cache-$CONTENT_HASH-$DEPLOY_TAG-deployed $CHECK_REBUILD_REPOSITORY; then
   echo "No changes detected, skipping deployment."
   exit 0
 fi
