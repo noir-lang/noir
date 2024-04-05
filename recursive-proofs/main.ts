@@ -19,9 +19,11 @@ async function getCircuit(name: string) {
   return compiled.program;
 }
 
+const cores = 12;
+
 async function fullNoirFromCircuit(circuitName: string): Promise<FullNoir> {
   const circuit: CompiledCircuit = await getCircuit(circuitName);
-  const backend: BarretenbergBackend = new BarretenbergBackend(circuit, { threads: 8 });
+  const backend: BarretenbergBackend = new BarretenbergBackend(circuit, { threads: cores });
   const noir: Noir = new Noir(circuit, backend);
   return { circuit, backend, noir };
 }
@@ -50,7 +52,6 @@ async function start() {
   simple.backend.destroy();
 
   // Generate and verify outer proof
-  console.log("Generating outer proof...");
   const outerInput = {
     verification_key: artifacts1.vkAsFields,
     public_inputs: ["1"], // expect output of inner call to be "true"
@@ -61,11 +62,16 @@ async function start() {
   const outerWitness = (await outer.noir.execute(
     outerInput
   )).witness;
-  const outerProof: ProofData = await outer.backend.generateProof(outerWitness);
-
-  console.log("Verifying outer proof...");
-  const res: boolean = await outer.backend.verifyProof(outerProof);
-  console.log("Verification", res ? "PASSED" : "failed");
+  try {
+    console.log("Generating outer proof...");
+    const outerProof: ProofData = await outer.backend.generateProof(outerWitness);
+    console.log("Verifying outer proof...");
+    const res: boolean = await outer.backend.verifyProof(outerProof);
+    console.log("Verification", res ? "PASSED" : "failed");
+  }
+  catch (e) {
+    console.log(e);
+  }
 
   outer.backend.destroy();
 }
