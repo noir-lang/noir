@@ -1,12 +1,7 @@
 #[recursive]
-fn main(n: Field) -> pub u8 {
-    // not_odd(n);
-    n as u8
+fn main(n: Field) -> pub bool {
+    not_odd(n)
 }
-
-// fn main(x: Field, y: Field) -> pub bool {
-//     not_odd(x) & not_odd(y) & not_equal(x, y);
-// }
 
 fn not_equal(x: Field, y: Field) -> bool {
     x != y

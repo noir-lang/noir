@@ -13,7 +13,6 @@ async function getCircuit(name: string) {
   const basePath = resolve(join('./circuits', name));
   const fm = createFileManager(basePath);
   const compiled = await compile(fm, basePath);
-  console.log(compiled.program.abi);
   if (!('program' in compiled)) {
     throw new Error('Compilation failed');
   }
@@ -23,21 +22,35 @@ async function getCircuit(name: string) {
 const input1 = { n: 2 };
 const input2 = { n: 4 };
 
+async function fullNoirFromCircuit(circuitName: string): Promise<FullNoir> {
+  const circuit: CompiledCircuit = await getCircuit('not_odd');
+  const backend: BarretenbergBackend = new BarretenbergBackend(circuit, { threads: 8 });
+  const noir: Noir = new Noir(circuit, backend);
+  return { circuit, backend, noir };
+}
+
+type FullNoir = {
+  circuit: CompiledCircuit,
+  backend: BarretenbergBackend,
+  noir: Noir
+}
+
 async function start() {
-  let simpleCircuit: CompiledCircuit = await getCircuit('not_odd');
-  let simpleBackend: BarretenbergBackend = new BarretenbergBackend(simpleCircuit, { threads: 8 });
-  let simpleNoir: Noir = new Noir(simpleCircuit, simpleBackend);
+  const simple: FullNoir = await fullNoirFromCircuit('not_odd');
 
-  const witness1 = (await simpleNoir.execute(input1)).witness;
-  let proof1: ProofData = await simpleBackend.generateProof(witness1);
+  const witness1 = (await simple.noir.execute(input1)).witness;
+  const proof1: ProofData = await simple.backend.generateProof(witness1);
 
-  const witness2 = (await simpleNoir.execute(input2)).witness;
-  let proof2: ProofData = await simpleBackend.generateProof(witness2);
+  // const witness2 = (await simple.noir.execute(input2)).witness;
+  // const proof2: ProofData = await simple.backend.generateProof(witness2);
 
-  // let res = await main(/* intermediate proofs */);
-  // console.log(res);
+  const { proofAsFields, vkAsFields, vkHash } = await simple.backend.generateRecursiveProofArtifacts(proof1, 1);
+  // console.log({ proofAsFields, vkAsFields, vkHash });
 
-  simpleBackend.destroy();
+  let res = await main(vkAsFields, proofAsFields, ["7"], vkHash);
+  console.log(res);
+
+  simple.backend.destroy();
 }
 
 start();
