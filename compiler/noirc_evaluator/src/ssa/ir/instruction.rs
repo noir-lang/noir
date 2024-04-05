@@ -618,6 +618,15 @@ impl Instruction {
             }
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                 let typ = dfg.type_of_value(*then_value);
+
+                if let Some(constant) = dfg.get_numeric_constant(*then_condition) {
+                    if constant.is_one() {
+                        return SimplifiedTo(*then_value);
+                    } else if constant.is_zero() {
+                        return SimplifiedTo(*else_value);
+                    }
+                }
+
                 if matches!(&typ, Type::Numeric(_)) {
                     let then_condition = *then_condition;
                     let then_value = *then_value;

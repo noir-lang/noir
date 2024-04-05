@@ -72,7 +72,7 @@ impl Context {
                         &mut function.dfg,
                         block,
                         &mut self.slice_sizes,
-                        &self.array_set_conditionals,
+                        &mut self.array_set_conditionals,
                         Some(current_conditional),
                     );
 
@@ -83,9 +83,17 @@ impl Context {
                         else_value,
                     );
 
-                    let result = function.dfg.instruction_results(instruction)[0];
+                    let _typ = function.dfg.type_of_value(value);
+                    let results = function.dfg.instruction_results(instruction);
+                    let result = results[0];
+                    // let result = match typ {
+                    //     Type::Array(..) => results[0],
+                    //     Type::Slice(..) => results[1],
+                    //     other => unreachable!("IfElse instructions should only have arrays or slices at this point. Found {other:?}"),
+                    // };
 
                     function.dfg.set_value_from_id(result, value);
+                    self.array_set_conditionals.insert(result, current_conditional);
                 }
                 Instruction::Call { func, arguments } => {
                     if let Value::Intrinsic(intrinsic) = function.dfg[*func] {
@@ -112,7 +120,8 @@ impl Context {
                     let results = function.dfg.instruction_results(instruction);
                     let result = if results.len() == 2 { results[1] } else { results[0] };
 
-                    self.array_set_conditionals.insert(*array, current_conditional);
+                    self.array_set_conditionals.insert(result, current_conditional);
+
                     let old_capacity = self.get_or_find_capacity(&function.dfg, *array);
                     self.slice_sizes.insert(result, old_capacity);
                     function.dfg[block].instructions_mut().push(instruction);

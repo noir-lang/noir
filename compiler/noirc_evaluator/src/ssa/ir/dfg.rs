@@ -586,6 +586,24 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     }
 }
 
+impl<'dfg> std::ops::Index<usize> for InsertInstructionResult<'dfg> {
+    type Output = ValueId;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match self {
+            InsertInstructionResult::Results(_, results) => &results[index],
+            InsertInstructionResult::SimplifiedTo(result) => {
+                assert_eq!(index, 0);
+                result
+            },
+            InsertInstructionResult::SimplifiedToMultiple(results) => &results[index],
+            InsertInstructionResult::InstructionRemoved => {
+                panic!("Cannot index into InsertInstructionResult::InstructionRemoved")
+            },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;

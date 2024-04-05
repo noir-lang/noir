@@ -354,8 +354,8 @@ fn simplify_slice_push_back(
     slice_sizes.insert(set_last_slice_value, slice_size / element_size);
     slice_sizes.insert(new_slice, slice_size / element_size);
 
-    let unknown = HashMap::default();
-    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, &unknown, None);
+    let unknown = &mut HashMap::default();
+    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, unknown, None);
 
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,

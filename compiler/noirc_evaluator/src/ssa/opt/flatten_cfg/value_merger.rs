@@ -19,7 +19,7 @@ pub(crate) struct ValueMerger<'a> {
     // This must be computed before merging values.
     slice_sizes: &'a mut HashMap<ValueId, usize>,
 
-    array_set_conditionals: &'a HashMap<ValueId, ValueId>,
+    array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -27,7 +27,7 @@ impl<'a> ValueMerger<'a> {
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
         slice_sizes: &'a mut HashMap<ValueId, usize>,
-        array_set_conditionals: &'a HashMap<ValueId, ValueId>,
+        array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
         current_condition: Option<ValueId>,
     ) -> Self {
         ValueMerger { dfg, block, slice_sizes, array_set_conditionals, current_condition }
@@ -294,29 +294,54 @@ impl<'a> ValueMerger<'a> {
         else_value: ValueId,
         array_length: usize,
     ) -> Option<ValueId> {
-        let mut seen_then = FxHashSet::default();
-        let mut seen_else = FxHashSet::default();
         let mut found = false;
+        let current_condition = self.current_condition?;
 
         let mut current_then = then_value;
         let mut current_else = else_value;
 
-        let mut changed_indices = FxHashSet::default();
-
         // Arbitrarily limit this to looking at at most 10 past ArraySet operations.
         // If there are more than that, we assume 2 completely separate arrays are being merged.
-        for _ in 0..10 {
-            seen_then.insert(current_then);
-            seen_else.insert(current_else);
+        let max_iters = 1;
+        let mut seen_then = Vec::with_capacity(max_iters);
+        let mut seen_else = Vec::with_capacity(max_iters);
 
-            if seen_then.contains(&current_else) || seen_else.contains(&current_then) {
+        // We essentially have a tree of ArraySets and want to find a common
+        // ancestor if it exists, alone with the path to it from each starting node.
+        // This path will be the indices that were changed to create each result array.
+        for _ in 0 .. max_iters {
+            if current_then == else_value {
+                seen_else.clear();
                 found = true;
                 break;
             }
 
-            current_then = self.find_previous_array_set(current_then, &mut changed_indices)?;
-            current_else = self.find_previous_array_set(current_else, &mut changed_indices)?;
+            if current_else == then_value {
+                seen_then.clear();
+                found = true;
+                break;
+            }
+
+            if let Some(index) = seen_then.iter().position(|(elem, _, _, _)| *elem == current_else) {
+                seen_else.truncate(index);
+                found = true;
+                break;
+            }
+
+            if let Some(index) = seen_else.iter().position(|(elem, _, _, _)| *elem == current_then) {
+                seen_then.truncate(index);
+                found = true;
+                break;
+            }
+
+            current_then = self.find_previous_array_set(current_then, &mut seen_then);
+            current_else = self.find_previous_array_set(current_else, &mut seen_else);
         }
+
+        let changed_indices: FxHashSet<_> = seen_then.into_iter()
+            .map(|(_, index, typ, condition)| (index, typ, condition))
+            .chain(seen_else.into_iter().map(|(_, index, typ, condition)| (index, typ, condition)))
+            .collect();
 
         if !found || changed_indices.len() >= array_length {
             return None;
@@ -343,13 +368,11 @@ impl<'a> ValueMerger<'a> {
             let value =
                 self.merge_values(then_condition, else_condition, then_element, else_element);
 
-            let instruction = Instruction::ArraySet { array, index, value, mutable: false };
-            array = self.insert_instruction(instruction).first();
+            array = self.insert_array_set(array, index, value, Some(condition)).first();
         }
 
-        let instruction = Instruction::EnableSideEffects { condition: self.current_condition? };
+        let instruction = Instruction::EnableSideEffects { condition: current_condition };
         self.insert_instruction(instruction);
-
         Some(array)
     }
 
@@ -357,22 +380,44 @@ impl<'a> ValueMerger<'a> {
         self.dfg.insert_instruction_and_results(instruction, self.block, None, CallStack::new())
     }
 
+    fn insert_array_set(&mut self, array: ValueId, index: ValueId, value: ValueId, condition: Option<ValueId>) -> InsertInstructionResult {
+        let instruction = Instruction::ArraySet { array, index, value, mutable: false };
+        let result = self.dfg.insert_instruction_and_results(instruction, self.block, None, CallStack::new());
+
+        if let Some(condition) = condition {
+            let result_index = if result.len() == 1 {
+                0
+            } else {
+                // Slices return (length, slice)
+                assert_eq!(result.len(), 2);
+                1
+            };
+
+            let result_value = result[result_index];
+            self.array_set_conditionals.insert(result_value, condition);
+        }
+
+        result
+    }
+
     fn find_previous_array_set(
         &self,
-        value: ValueId,
-        changed_indices: &mut FxHashSet<(ValueId, Type, ValueId)>,
-    ) -> Option<ValueId> {
-        match &self.dfg[value] {
+        result: ValueId,
+        changed_indices: &mut Vec<(ValueId, ValueId, Type, ValueId)>,
+    ) -> ValueId {
+        match &self.dfg[result] {
             Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
                 Instruction::ArraySet { array, index, value, .. } => {
-                    let condition = *self.array_set_conditionals.get(index)?;
+                    let condition = *self.array_set_conditionals.get(&result).unwrap_or_else(|| {
+                        panic!("Expected to have conditional for array set {result}\n{:?}", self.array_set_conditionals)
+                    });
                     let element_type = self.dfg.type_of_value(*value);
-                    changed_indices.insert((*index, element_type, condition));
-                    Some(*array)
+                    changed_indices.push((result, *index, element_type, condition));
+                    *array
                 }
-                _ => Some(value),
+                _ => result,
             },
-            _ => Some(value),
+            _ => result,
         }
     }
 }
