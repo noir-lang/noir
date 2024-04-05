@@ -1,20 +1,25 @@
 use acvm::FieldElement;
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, DataFlowGraph},
+    dfg::{CallStack, DataFlowGraph, InsertInstructionResult},
     instruction::{BinaryOp, Instruction},
     types::Type,
-    value::ValueId,
+    value::{Value, ValueId},
 };
 
 pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
+
+    current_condition: Option<ValueId>,
+
     // Maps SSA array values with a slice type to their size.
     // This must be computed before merging values.
     slice_sizes: &'a mut HashMap<ValueId, usize>,
+
+    array_set_conditionals: &'a HashMap<ValueId, ValueId>,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -22,8 +27,10 @@ impl<'a> ValueMerger<'a> {
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
         slice_sizes: &'a mut HashMap<ValueId, usize>,
+        array_set_conditionals: &'a HashMap<ValueId, ValueId>,
+        current_condition: Option<ValueId>,
     ) -> Self {
-        ValueMerger { dfg, block, slice_sizes }
+        ValueMerger { dfg, block, slice_sizes, array_set_conditionals, current_condition }
     }
 
     /// Merge two values a and b from separate basic blocks to a single value.
@@ -130,6 +137,18 @@ impl<'a> ValueMerger<'a> {
             Type::Array(elements, len) => (elements, *len),
             _ => panic!("Expected array type"),
         };
+
+        let actual_length = len * element_types.len();
+
+        if let Some(result) = self.try_merge_only_changed_indices(
+            then_condition,
+            else_condition,
+            then_value,
+            else_value,
+            actual_length,
+        ) {
+            return result;
+        }
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
@@ -264,6 +283,96 @@ impl<'a> ValueMerger<'a> {
             Type::Function => {
                 unreachable!("ICE: Merging functions is unsupported")
             }
+        }
+    }
+
+    fn try_merge_only_changed_indices(
+        &mut self,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        then_value: ValueId,
+        else_value: ValueId,
+        array_length: usize,
+    ) -> Option<ValueId> {
+        let mut seen_then = FxHashSet::default();
+        let mut seen_else = FxHashSet::default();
+        let mut found = false;
+
+        let mut current_then = then_value;
+        let mut current_else = else_value;
+
+        let mut changed_indices = FxHashSet::default();
+
+        // Arbitrarily limit this to looking at at most 10 past ArraySet operations.
+        // If there are more than that, we assume 2 completely separate arrays are being merged.
+        for _ in 0..10 {
+            seen_then.insert(current_then);
+            seen_else.insert(current_else);
+
+            if seen_then.contains(&current_else) || seen_else.contains(&current_then) {
+                found = true;
+                break;
+            }
+
+            current_then = self.find_previous_array_set(current_then, &mut changed_indices)?;
+            current_else = self.find_previous_array_set(current_else, &mut changed_indices)?;
+        }
+
+        if !found || changed_indices.len() >= array_length {
+            return None;
+        }
+
+        let mut array = then_value;
+
+        for (index, element_type, condition) in changed_indices {
+            let typevars = Some(vec![element_type.clone()]);
+
+            let instruction = Instruction::EnableSideEffects { condition };
+            self.insert_instruction(instruction);
+
+            let mut get_element = |array, typevars| {
+                let get = Instruction::ArrayGet { array, index };
+                self.dfg
+                    .insert_instruction_and_results(get, self.block, typevars, CallStack::new())
+                    .first()
+            };
+
+            let then_element = get_element(then_value, typevars.clone());
+            let else_element = get_element(else_value, typevars);
+
+            let value =
+                self.merge_values(then_condition, else_condition, then_element, else_element);
+
+            let instruction = Instruction::ArraySet { array, index, value, mutable: false };
+            array = self.insert_instruction(instruction).first();
+        }
+
+        let instruction = Instruction::EnableSideEffects { condition: self.current_condition? };
+        self.insert_instruction(instruction);
+
+        Some(array)
+    }
+
+    fn insert_instruction(&mut self, instruction: Instruction) -> InsertInstructionResult {
+        self.dfg.insert_instruction_and_results(instruction, self.block, None, CallStack::new())
+    }
+
+    fn find_previous_array_set(
+        &self,
+        value: ValueId,
+        changed_indices: &mut FxHashSet<(ValueId, Type, ValueId)>,
+    ) -> Option<ValueId> {
+        match &self.dfg[value] {
+            Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
+                Instruction::ArraySet { array, index, value, .. } => {
+                    let condition = *self.array_set_conditionals.get(index)?;
+                    let element_type = self.dfg.type_of_value(*value);
+                    changed_indices.insert((*index, element_type, condition));
+                    Some(*array)
+                }
+                _ => Some(value),
+            },
+            _ => Some(value),
         }
     }
 }

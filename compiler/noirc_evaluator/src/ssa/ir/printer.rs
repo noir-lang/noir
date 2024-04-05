@@ -181,7 +181,7 @@ fn display_instruction_inner(
             let index = show(*index);
             let value = show(*value);
             let mutable = if *mutable { " mut" } else { "" };
-            writeln!(f, "array_set{mutable} {array}, index {index}, value {value}",)
+            writeln!(f, "array_set{mutable} {array}, index {index}, value {value}")
         }
         Instruction::IncrementRc { value } => {
             writeln!(f, "inc_rc {}", show(*value))
