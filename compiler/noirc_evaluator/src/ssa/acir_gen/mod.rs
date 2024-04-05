@@ -829,6 +829,7 @@ impl Context {
                             });
                         }
                     };
+
                     if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
                         // Report the error if side effects are enabled.
                         if index >= array_size {
@@ -1034,20 +1035,17 @@ impl Context {
         var_index: &mut AcirVar,
     ) -> Result<AcirValue, RuntimeError> {
         let one = self.acir_context.add_constant(FieldElement::one());
-        match ssa_type.clone() {
+        let result = match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
                 // Read the value from the array at the specified index
                 let read = self.acir_context.read_from_memory(block_id, var_index)?;
-
-                // Increment the var_index in case of a nested array
-                *var_index = self.acir_context.add_var(*var_index, one)?;
 
                 let typ = AcirType::NumericType(numeric_type);
                 Ok(AcirValue::Var(read, typ))
             }
             Type::Array(element_types, len) => {
                 let mut values = Vector::new();
-                for _ in 0..len {
+                for _ in 0 .. len {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_get_value(typ, block_id, var_index)?);
                     }
@@ -1055,7 +1053,11 @@ impl Context {
                 Ok(AcirValue::Array(values))
             }
             _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
-        }
+        };
+
+        // Increment the var_index in case of a nested array
+        *var_index = self.acir_context.add_var(*var_index, one)?;
+        result
     }
 
     /// If `mutate_array` is:
@@ -1155,8 +1157,6 @@ impl Context {
             AcirValue::Var(store_var, _) => {
                 // Write the new value into the new array at the specified index
                 self.acir_context.write_to_memory(block_id, var_index, store_var)?;
-                // Increment the var_index in case of a nested array
-                *var_index = self.acir_context.add_var(*var_index, one)?;
             }
             AcirValue::Array(values) => {
                 for value in values {
@@ -1173,6 +1173,8 @@ impl Context {
                 self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
             }
         }
+        // Increment the var_index in case of a nested array
+        *var_index = self.acir_context.add_var(*var_index, one)?;
         Ok(())
     }
 

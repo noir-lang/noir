@@ -146,8 +146,8 @@ impl Context {
                     return *entry.insert(length);
                 }
 
-                if let Type::Array(elems, length) = dfg.type_of_value(value) {
-                    let length = length / elems.len();
+                if let Type::Array(_, length) = dfg.type_of_value(value) {
+                    let length = length;
                     return *entry.insert(length);
                 }
             }
@@ -181,28 +181,37 @@ fn slice_capacity_change(
             assert_eq!(results.len(), 2);
             let old = arguments[1];
             let new = results[1];
+            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
+            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
             SizeChange::Inc { old, new }
         }
 
         Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
             let old = arguments[1];
             let new = results[1];
+            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
+            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
             SizeChange::Dec { old, new }
         }
 
         Intrinsic::SlicePopFront => {
             let old = arguments[1];
             let new = results[results.len() - 1];
+            assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
+            assert!(matches!(dfg.type_of_value(new), Type::Slice(_)));
             SizeChange::Dec { old, new }
         }
 
         Intrinsic::ToBits(_) => {
             assert_eq!(results.len(), 2);
+            // Some tests fail this check, returning an array instead somehow:
+            // assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
             SizeChange::SetTo(results[1], FieldElement::max_num_bits() as usize)
         }
         // ToRadix seems to assume it is to bytes
         Intrinsic::ToRadix(_) => {
             assert_eq!(results.len(), 2);
+            assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
             SizeChange::SetTo(results[1], FieldElement::max_num_bytes() as usize)
         }
         Intrinsic::AsSlice => {
@@ -212,6 +221,7 @@ fn slice_capacity_change(
                 Type::Array(_, length) => length,
                 other => unreachable!("slice_capacity_change expected array, found {other:?}"),
             };
+            assert!(matches!(dfg.type_of_value(results[1]), Type::Slice(_)));
             SizeChange::SetTo(results[1], length)
         }
 
