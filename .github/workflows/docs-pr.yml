@@ -75,9 +75,11 @@ jobs:
         run: |
           npm i wasm-opt -g
 
+      - name: Query active docs versions
+        run: yarn workspace docs version::stables
+
       - name: Build docs
-        run: 
-          yarn workspaces foreach -Rpt --from docs run build
+        run: yarn workspaces foreach -Rpt --from docs run build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
