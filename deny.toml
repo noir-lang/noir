@@ -59,6 +59,8 @@ allow = [
     "MPL-2.0",
     # Boost Software License
     "BSL-1.0",
+    # https://creativecommons.org/publicdomain/zero/1.0/
+    "CC0-1.0"
 ]
 
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
