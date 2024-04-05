@@ -232,7 +232,7 @@ export async function deployL1Contract(
     args,
   });
 
-  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash, pollingInterval: 100 });
   const contractAddress = receipt.contractAddress;
   if (!contractAddress) {
     throw new Error(`No contract address found in receipt: ${JSON.stringify(receipt)}`);

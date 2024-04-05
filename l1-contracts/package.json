@@ -7,9 +7,9 @@
     "solhint": "https://github.com/LHerskind/solhint#master"
   },
   "scripts": {
-    "format": "./.foundry/bin/forge fmt",
+    "format": "../foundry/bin/forge fmt",
     "lint": "solhint --config ./.solhint.json --fix \"src/**/*.sol\"",
-    "slither": "forge clean && forge build --build-info --skip '*/test/**' --force && slither . --checklist --ignore-compile --show-ignored-findings --config-file ./slither.config.json | tee slither_output.md",
+    "slither": "../foundry/bin/forge clean && ../foundry/bin/forge build --build-info --skip '*/test/**' --force && slither . --checklist --ignore-compile --show-ignored-findings --config-file ./slither.config.json | tee slither_output.md",
     "slither-has-diff": "./slither_has_diff.sh"
   }
 }

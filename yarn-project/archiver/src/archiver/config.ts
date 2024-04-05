@@ -81,7 +81,7 @@ export function getConfigEnvVars(): ArchiverConfig {
       : EthAddress.ZERO,
   };
   return {
-    rpcUrl: ETHEREUM_HOST || 'http://127.0.0.1:8545/',
+    rpcUrl: ETHEREUM_HOST || '',
     archiverPollingIntervalMS: ARCHIVER_POLLING_INTERVAL_MS ? +ARCHIVER_POLLING_INTERVAL_MS : 1_000,
     viemPollingIntervalMS: ARCHIVER_VIEM_POLLING_INTERVAL_MS ? +ARCHIVER_VIEM_POLLING_INTERVAL_MS : 1_000,
     apiKey: API_KEY,

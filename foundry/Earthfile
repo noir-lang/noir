@@ -1,18 +1,22 @@
 VERSION 0.8
 
-build:
+builder:
+    FROM rust:bookworm
     ARG TARGETARCH
-    FROM DOCKERFILE .
+    WORKDIR /usr/src/foundry
+    COPY bootstrap.sh bootstrap.sh
+    RUN ./bootstrap.sh && rm -rf foundry-repo
+    SAVE ARTIFACT bin /usr/src/foundry/bin
+
+build:
+    FROM ubuntu:lunar
+    ARG TARGETARCH
+    COPY --dir +builder/usr/src/foundry/bin /usr/src/foundry/bin
+    SAVE ARTIFACT /usr/src/foundry/bin /usr/src/foundry/bin
     SAVE IMAGE --push aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991-$TARGETARCH:latest
 
-# Relies on both steps being published
-build-multiplatform:
-    FROM --platform=linux/amd64 aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991-amd64:latest
-    SAVE IMAGE --push aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991:latest
-    FROM --platform=linux/arm64 aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991-arm64:latest
-    SAVE IMAGE --push aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991:latest
-
-get:
-    ARG TARGETARCH
-    # If this is failing, we need to run earthly --push +build on both archs then earthly --push +build-multiplatform on any runner
-    FROM aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991:latest
+build-save-local:
+    # for renaming the image as a local image, used with e2e runners
+    ARG image
+    FROM +build
+    SAVE IMAGE $image

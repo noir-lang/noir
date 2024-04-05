@@ -1,89 +1,89 @@
 VERSION 0.8
-FROM node:18.19.0
-RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
 
-# copy bb-js and noir-packages
-COPY ../barretenberg/ts/+build/build /usr/src/barretenberg/ts
-COPY ../noir/+packages/packages /usr/src/noir/packages
-# install acvm binary
-COPY ../noir/+nargo/acvm /usr/bin/acvm
-COPY --dir ../noir-projects/+build/. /usr/src/noir-projects
-COPY ../l1-contracts/+build/out /usr/src/l1-contracts/out
+deps:
+    LOCALLY
+    LET packages = $(git ls-files "**/package*.json" package*.json)
+    LET tsconfigs = $(git ls-files "**/tsconfig*.json" tsconfig*.json)
+    FROM node:18.19.0
+    # copy bb-js and noir-packages
+    COPY ../barretenberg/ts/+build/build /usr/src/barretenberg/ts
+    COPY ../noir/+packages/packages /usr/src/noir/packages
+    WORKDIR /usr/src/yarn-project
+    COPY --dir .yarn .yarnrc.yml yarn.lock .
+    FOR file IN $packages
+        COPY $file $file
+    END
+    RUN yarn install --immutable
+    FOR file IN $tsconfigs
+        COPY $file $file
+    END
+    COPY scripts/update_package_jsons.mjs scripts/update_package_jsons.mjs
+    RUN yarn prepare:check
 
-WORKDIR /usr/src/yarn-project
-# copy source
-COPY --dir * *.json .yarn .yarnrc.yml .
+    # We install a symlink to yarn-project's node_modules at a location that all portalled packages can find as they
+    # walk up the tree as part of module resolution. The supposedly idiomatic way of supporting module resolution
+    # correctly for portalled packages, is to use --preserve-symlinks when running node.
+    # This does kind of work, but jest doesn't honor it correctly, so this seems like a neat workaround.
+    # Also, --preserve-symlinks causes duplication of portalled instances such as bb.js, and breaks the singleton logic
+    # by initialising the module more than once. So at present I don't see a viable alternative.
+    RUN ln -s /usr/src/yarn-project/node_modules /usr/src/node_modules
 
-# We install a symlink to yarn-project's node_modules at a location that all portalled packages can find as they
-# walk up the tree as part of module resolution. The supposedly idiomatic way of supporting module resolution
-# correctly for portalled packages, is to use --preserve-symlinks when running node.
-# This does kind of work, but jest doesn't honor it correctly, so this seems like a neat workaround.
-# Also, --preserve-symlinks causes duplication of portalled instances such as bb.js, and breaks the singleton logic
-# by initialising the module more than once. So at present I don't see a viable alternative.
-RUN ln -s /usr/src/yarn-project/node_modules /usr/src/node_modules
-
-# Target for main build process
 build:
-    FROM +source
-    ARG EARTHLY_CI
-    # TODO: Replace puppeteer with puppeteer-core to avoid this.
+    FROM +deps
+    RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
+
+    COPY ../barretenberg/cpp/+preset-release/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
+    COPY ../noir/+nargo/acvm /usr/bin/acvm
+    COPY --dir ../noir-projects/+build/. /usr/src/noir-projects
+    COPY ../l1-contracts/+build/usr/src/l1-contracts /usr/src/l1-contracts
+
+    WORKDIR /usr/src/yarn-project
+    COPY . .
     ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-    RUN ./bootstrap.sh && yarn workspaces focus @aztec/cli @aztec/aztec --production
-    SAVE ARTIFACT /usr/src
+    RUN ./bootstrap.sh full
 
-# TODO versioning flow at end before publish?
-# ENV COMMIT_TAG=$EARTHLY_BUILD_SHA
-# RUN ./scripts/version_packages.sh
+aztec-prod:
+    FROM +build
+    RUN yarn workspaces focus @aztec/cli @aztec/aztec --production && yarn cache clean
+    SAVE ARTIFACT /usr/src /usr/src
 
-# run:
-#     FROM node:18.19.1-slim
-#     ARG COMMIT_TAG=""
-#     ENV COMMIT_TAG=$COMMIT_TAG
-#     COPY --from=builder /usr/src /usr/src
-#     WORKDIR /usr/src/yarn-project
-#     ENTRYPOINT ["yarn"]
+aztec-prod-slim:
+    FROM node:18.19.1-slim
+    COPY +aztec-prod/usr/src /usr/src
 
 aztec:
-    FROM +build
-    # ENV vars for using native ACVM simulation
-    ENV ACVM_BINARY_PATH="/usr/bin/acvm" ACVM_WORKING_DIRECTORY="/tmp/acvm"
+    FROM +aztec-prod-slim
     ENTRYPOINT ["node", "--no-warnings", "/usr/src/yarn-project/aztec/dest/bin/index.js"]
     EXPOSE 8080
-    # TODO(AD) the following are the biggest node modules bundled, should they be deleted as they are build tools?
-    # 25840   @jest
-    # 31544   typescript
-    # 62368   @types
 
-source:
-    # for debugging rebuilds
-    RUN echo CONTENT HASH $(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}') | tee .content-hash
+cli:
+    FROM +aztec-prod-slim
+    ENTRYPOINT ["node", "--no-warnings", "/usr/src/yarn-project/cli/dest/bin/index.js"]
+    EXPOSE 8080
+
+end-to-end-prod:
+    FROM +build
+    RUN yarn workspaces focus @aztec/end-to-end --production && yarn cache clean
+    SAVE ARTIFACT /usr/src /usr/src
 
 end-to-end:
-    FROM +source
-    # compilation artifacts for end-to-end
-    # TODO encapsulate in bash script for cleanliness
-    RUN ./bootstrap.sh && \
-        yarn workspace @aztec/end-to-end run build:web && \
-        yarn workspaces focus @aztec/end-to-end --production \
-        && yarn cache clean
-    # Build web bundle for browser tests
-    RUN yarn workspace @aztec/end-to-end run build:web
-    RUN yarn workspaces focus @aztec/end-to-end --production && yarn cache clean
-    SAVE ARTIFACT /usr/src/*
-
-end-to-end-minimal:
-    # end to end test runner
-    BUILD +aztec
     FROM node:18.19.1-slim
     RUN apt-get update && apt-get install jq chromium netcat-openbsd -y
     ENV CHROME_BIN="/usr/bin/chromium"
-    COPY +end-to-end/. /usr/src
+    COPY +end-to-end-prod/usr/src /usr/src
     WORKDIR /usr/src/yarn-project/end-to-end
     ENTRYPOINT ["yarn", "test"]
 
+all:
+    BUILD +aztec
+    BUILD +cli
+    BUILD +end-to-end
+
 build-end-to-end:
     ARG EARTHLY_GIT_HASH
-    FROM +end-to-end-minimal
+    # pushes the foundry image
+    BUILD ../foundry/+build
+    FROM +end-to-end
     SAVE IMAGE --push aztecprotocol/end-to-end-cache:$EARTHLY_GIT_HASH
     FROM +aztec
     SAVE IMAGE --push aztecprotocol/aztec-cache:$EARTHLY_GIT_HASH

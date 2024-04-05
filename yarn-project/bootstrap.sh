@@ -23,14 +23,16 @@ cd "$(dirname "$0")"
 
 CMD=${1:-}
 
-if [ -n "$CMD" ]; then
-  if [ "$CMD" = "clean" ]; then
-    git clean -fdx
-    exit 0
-  else
-    echo "Unknown command: $CMD"
-    exit 1
-  fi
+if [ "$CMD" = "clean" ]; then
+  git clean -fdx
+  exit 0
+elif [ "$CMD" = "full" ]; then
+  yarn install --immutable
+  yarn build
+  exit 0
+elif [[ -n "$CMD" && "$CMD" != "fast" ]]; then
+  echo "Unknown command: $CMD"
+  exit 1
 fi
 
 # Fast build does not delete everything first.

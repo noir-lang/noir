@@ -13,7 +13,7 @@ build-ci:
     BUILD ./noir/+packages
     BUILD ./noir/+nargo
     BUILD ./noir-projects/+build
-    BUILD ./yarn-project/+end-to-end-minimal
+    BUILD ./yarn-project/+end-to-end
     BUILD ./yarn-project/+aztec
 
 build-ci-small:

@@ -15,8 +15,8 @@ E2E_TEST_LOCAL:
   ENV DEBUG="$debug"
   WITH DOCKER \
     --load aztecprotocol/aztec:latest=../+aztec \
-    --load aztecprotocol/end-to-end:latest=../+end-to-end-minimal \
-    --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+get
+    --load aztecprotocol/end-to-end:latest=../+end-to-end \
+    --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+build
     # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
     RUN docker compose -f $compose_file up --exit-code-from=end-to-end --force-recreate
   END
@@ -50,8 +50,8 @@ E2E_TEST_FROM_BUILD:
   # For ARM, we do use WITH DOCKER as we don't have many e2e tests, but note E2E_TEST_FROM_DOCKERHUB
   WITH DOCKER \
     --load aztecprotocol/aztec:latest=../+aztec \
-    --load aztecprotocol/end-to-end:latest=../+end-to-end-minimal \
-    --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+get
+    --load aztecprotocol/end-to-end:latest=../+end-to-end \
+    --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+build
     # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
     RUN docker compose -f $compose_file up --exit-code-from=end-to-end --force-recreate
   END
