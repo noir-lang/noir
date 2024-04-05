@@ -83,10 +83,6 @@ resource "aws_efs_file_system" "aztec_mainnet_fork_data_store" {
   lifecycle_policy {
     transition_to_ia = "AFTER_30_DAYS"
   }
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 resource "aws_efs_mount_target" "aztec_fork_private_az1" {
