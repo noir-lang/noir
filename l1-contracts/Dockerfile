@@ -10,7 +10,7 @@ RUN curl -L https://foundry.paradigm.xyz | bash
 
 # Set env variables for foundry and venv
 ENV PATH="${PATH}:/root/.foundry/bin:/root/.venv/bin"
-RUN foundryup
+RUN foundryup --version nightly-de33b6af53005037b463318d2628b5cfcaf39916
 
 WORKDIR /usr/src/l1-contracts
 COPY . .
