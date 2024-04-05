@@ -1,3 +1,0 @@
-struct MyStruct {
-    Q: Field,
-}

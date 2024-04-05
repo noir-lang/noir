@@ -1309,1111 +1309,516 @@ mod test {
     use super::*;
     use crate::ArrayLiteral;
 
-    // #[test]
-    // fn parse_infix() {
-    //     let valid = vec!["x + 6", "x - k", "x + (x + a)", " x * (x + a) + (x - 4)"];
-    //     parse_all(expression(), valid);
-    //     parse_all_failing(expression(), vec!["y ! x"]);
-    // }
-    //
-    // #[test]
-    // fn parse_function_call() {
-    //     let valid = vec![
-    //         "std::hash ()",
-    //         " std::hash(x,y,a+b)",
-    //         "crate::foo (x)",
-    //         "hash (x,)",
-    //         "(foo + bar)()",
-    //         "(bar)()()()",
-    //     ];
-    //     parse_all(expression(), valid);
-    // }
-    //
-    // #[test]
-    // fn parse_cast() {
-    //     parse_all(
-    //         atom_or_right_unary(
-    //             expression(),
-    //             expression_no_constructors(expression()),
-    //             fresh_statement(),
-    //             true,
-    //         ),
-    //         vec!["x as u8", "0 as Field", "(x + 3) as [Field; 8]"],
-    //     );
-    //     parse_all_failing(
-    //         atom_or_right_unary(
-    //             expression(),
-    //             expression_no_constructors(expression()),
-    //             fresh_statement(),
-    //             true,
-    //         ),
-    //         vec!["x as pub u8"],
-    //     );
-    // }
-    //
-    // #[test]
-    // fn parse_array_index() {
-    //     let valid = vec![
-    //         "x[9]",
-    //         "y[x+a]",
-    //         " foo [foo+5]",
-    //         "baz[bar]",
-    //         "foo.bar[3] as Field .baz as u32 [7]",
-    //     ];
-    //     parse_all(
-    //         atom_or_right_unary(
-    //             expression(),
-    //             expression_no_constructors(expression()),
-    //             fresh_statement(),
-    //             true,
-    //         ),
-    //         valid,
-    //     );
-    // }
-    //
-    // fn expr_to_array(expr: ExpressionKind) -> ArrayLiteral {
-    //     let lit = match expr {
-    //         ExpressionKind::Literal(literal) => literal,
-    //         _ => unreachable!("expected a literal"),
-    //     };
-    //
-    //     match lit {
-    //         Literal::Array(arr) => arr,
-    //         _ => unreachable!("expected an array"),
-    //     }
-    // }
-    //
-    // #[test]
-    // fn parse_array() {
-    //     let valid = vec![
-    //         "[0, 1, 2,3, 4]",
-    //         "[0,1,2,3,4,]", // Trailing commas are valid syntax
-    //         "[0;5]",
-    //     ];
-    //
-    //     for expr in parse_all(array_expr(expression()), valid) {
-    //         match expr_to_array(expr) {
-    //             ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
-    //             ArrayLiteral::Repeated { length, .. } => {
-    //                 assert_eq!(length.kind, ExpressionKind::integer(5i128.into()));
-    //             }
-    //         }
-    //     }
-    //
-    //     parse_all_failing(
-    //         array_expr(expression()),
-    //         vec!["0,1,2,3,4]", "[[0,1,2,3,4]", "[0,1,2,,]", "[0,1,2,3,4"],
-    //     );
-    // }
-    //
-    // #[test]
-    // fn parse_type_expression() {
-    //     parse_all(type_expression(), vec!["(123)", "123", "(1 + 1)", "(1 + (1))"]);
-    // }
-    //
-    // #[test]
-    // fn parse_array_sugar() {
-    //     let valid = vec!["[0;7]", "[(1, 2); 4]", "[0;Four]", "[2;1+3-a]"];
-    //     parse_all(array_expr(expression()), valid);
-    //
-    //     let invalid = vec!["[0;;4]", "[1, 2; 3]"];
-    //     parse_all_failing(array_expr(expression()), invalid);
-    // }
-    //
-    // fn expr_to_slice(expr: ExpressionKind) -> ArrayLiteral {
-    //     let lit = match expr {
-    //         ExpressionKind::Literal(literal) => literal,
-    //         _ => unreachable!("expected a literal"),
-    //     };
-    //
-    //     match lit {
-    //         Literal::Slice(arr) => arr,
-    //         _ => unreachable!("expected a slice: {:?}", lit),
-    //     }
-    // }
-    //
-    // #[test]
-    // fn parse_slice() {
-    //     let valid = vec![
-    //         "&[0, 1, 2,3, 4]",
-    //         "&[0,1,2,3,4,]", // Trailing commas are valid syntax
-    //         "&[0;5]",
-    //     ];
-    //
-    //     for expr in parse_all(slice_expr(expression()), valid) {
-    //         match expr_to_slice(expr) {
-    //             ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
-    //             ArrayLiteral::Repeated { length, .. } => {
-    //                 assert_eq!(length.kind, ExpressionKind::integer(5i128.into()));
-    //             }
-    //         }
-    //     }
-    //
-    //     parse_all_failing(
-    //         slice_expr(expression()),
-    //         vec!["0,1,2,3,4]", "&[[0,1,2,3,4]", "&[0,1,2,,]", "&[0,1,2,3,4"],
-    //     );
-    // }
-    //
-    // #[test]
-    // fn parse_slice_sugar() {
-    //     let valid = vec!["&[0;7]", "&[(1, 2); 4]", "&[0;Four]", "&[2;1+3-a]"];
-    //     parse_all(slice_expr(expression()), valid);
-    //
-    //     let invalid = vec!["&[0;;4]", "&[1, 2; 3]"];
-    //     parse_all_failing(slice_expr(expression()), invalid);
-    // }
-    //
-    // // TODO: this test triggers a poor error message
-    // //
-    // // By modifying the following, it's possible to see that this
-    // // fails with an opaque error. (i.e. the 'expected' and 'found' are both empty)
-    // //
-    // // // src/parser/errors.rs
-    // // impl chumsky::Error<Token> for ParserError {
-    // //     type Span = Span;
-    // //     type Label = ParsingRuleLabel;
-    // //
-    // //     fn expected_input_found<Iter>(span: Self::Span, expected: Iter, found: Option<Token>) -> Self
-    // //     where
-    // //         Iter: IntoIterator<Item = Option<Token>>,
-    // //     {
-    // //         let expected_vec: Vec<_> = expected.into_iter().collect();
-    // //         if expected_vec.len() == 0 && found.is_none() {
-    // //             panic!("found empty vec and not found token!")
-    // //         }
-    // // ..
-    // //
-    // // #[test]
-    // // fn parse_block() {
-    // //     parse_with(block(fresh_statement()), "{ [0,1,2,3,4] }").unwrap();
-    // //
-    // //     // Regression for #1310: this should be parsed as a block and not a function call
-    // //     let res =
-    // //         parse_with(block(fresh_statement()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
-    // //     match unwrap_expr(&res.statements.last().unwrap().kind) {
-    // //         // The `if` followed by a tuple is currently creates a block around both in case
-    // //         // there was none to start with, so there is an extra block here.
-    // //         ExpressionKind::Block(block) => {
-    // //             assert_eq!(block.statements.len(), 2);
-    // //             assert!(matches!(unwrap_expr(&block.statements[0].kind), ExpressionKind::If(_)));
-    // //             assert!(matches!(unwrap_expr(&block.statements[1].kind), ExpressionKind::Tuple(_)));
-    // //         }
-    // //         _ => unreachable!(),
-    // //     }
-    // //
-    // //     parse_all_failing(
-    // //         block(fresh_statement()),
-    // //         vec![
-    // //             "[0,1,2,3,4] }",
-    // //             "{ [0,1,2,3,4]",
-    // //             "{ [0,1,2,,] }", // Contents of the block must still be a valid expression
-    // //             "{ [0,1,2,3 }",
-    // //             "{ 0,1,2,3] }",
-    // //             "[[0,1,2,3,4]}",
-    // //         ],
-    // //     );
-    // // }
-    //
-    // /// Extract an Statement::Expression from a statement or panic
-    // fn unwrap_expr(stmt: &StatementKind) -> &ExpressionKind {
-    //     match stmt {
-    //         StatementKind::Expression(expr) => &expr.kind,
-    //         _ => unreachable!(),
-    //     }
-    // }
-    //
-    // #[test]
-    // fn parse_let() {
-    //     // Why is it valid to specify a let declaration as having type u8?
-    //     //
-    //     // Let statements are not type checked here, so the parser will accept as
-    //     // long as it is a type. Other statements such as Public are type checked
-    //     // Because for now, they can only have one type
-    //     parse_all(declaration(expression()), vec!["let _ = 42", "let x = y", "let x : u8 = y"]);
-    // }
-    //
-    // #[test]
-    // fn parse_invalid_pub() {
-    //     // pub cannot be used to declare a statement
-    //     parse_all_failing(fresh_statement(), vec!["pub x = y", "pub x : pub Field = y"]);
-    // }
-    //
-    // #[test]
-    // fn parse_for_loop() {
-    //     parse_all(
-    //         for_loop(expression_no_constructors(expression()), fresh_statement()),
-    //         vec!["for i in x+y..z {}", "for i in 0..100 { foo; bar }"],
-    //     );
-    //
-    //     parse_all_failing(
-    //         for_loop(expression_no_constructors(expression()), fresh_statement()),
-    //         vec![
-    //             "for 1 in x+y..z {}",  // Cannot have a literal as the loop identifier
-    //             "for i in 0...100 {}", // Only '..' is supported, there are no inclusive ranges yet
-    //             "for i in 0..=100 {}", // Only '..' is supported, there are no inclusive ranges yet
-    //         ],
-    //     );
-    // }
-    //
-    // #[test]
-    // fn parse_parenthesized_expression() {
-    //     parse_all(
-    //         atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
-    //         vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
-    //     );
-    //     parse_all_failing(
-    //         atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
-    //         vec!["(x+a", "((x+a)", "(,)"],
-    //     );
-    // }
-    //
-    // #[test]
-    // fn parse_tuple() {
-    //     parse_all(tuple(expression()), vec!["()", "(x,)", "(a,b+2)", "(a,(b,c,),d,)"]);
-    // }
-    //
-    // #[test]
-    // fn parse_if_expr() {
-    //     parse_all(
-    //         if_expr(expression_no_constructors(expression()), fresh_statement()),
-    //         vec!["if x + a {  } else {  }", "if x {}", "if x {} else if y {} else {}"],
-    //     );
-    //
-    //     parse_all_failing(
-    //         if_expr(expression_no_constructors(expression()), fresh_statement()),
-    //         vec!["if (x / a) + 1 {} else", "if foo then 1 else 2", "if true { 1 }else 3"],
-    //     );
-    // }
-    //
-    // #[test]
-    // fn parse_module_declaration() {
-    //     parse_with(module_declaration(), "mod foo").unwrap();
-    //     parse_with(module_declaration(), "mod 1").unwrap_err();
-    // }
-    //
-    // #[test]
-    // fn parse_use() {
-    //     let mut valid_use_statements = vec![
-    //
-    //         // "use std::hash",
-    //         // "use std",
-    //         // "use foo::bar as hello",
-    //         // "use bar as bar",
-    //         // "use foo::{}",
-    //         // "use foo::{bar,}",
-    //         // "use foo::{bar, hello}",
-    //         // "use foo::{bar as bar2, hello}",
-    //         // "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
-    //         // "use dep::{std::println, bar::baz}",
-    //
-    //         "use dep::std::hash;",
-    //         "// Re-export\nuse dep::std::hash;",
-    //     ];
-    //
-    //     let mut invalid_use_statements = vec![
-    //         "use std as ;",
-    //         "use foobar as as;",
-    //         "use hello:: as foo;",
-    //         "use foo bar::baz",
-    //         "use foo bar::{baz}",
-    //         "use foo::{,}",
-    //     ];
-    //
-    //     // let results = parse_all(module(), valid_use_statements.clone());
-    //     // let results = parse_all(spanned(top_level_statement(module())).repeated(), valid_use_statements.clone());
-    //
-    //     // NOTE: lexing passes
-    //     let (lexing_result, lexing_errors) = Lexer::lex(valid_use_statements[0]);
-    //     println!("lexing_result: {:?}\n\nlexing_errors: {:?}", lexing_result.0, lexing_errors);
-    //
-    //     let results = parse_all(program(), valid_use_statements.clone());
-    //     panic!("?:\n{:?}", results);
-    //
-    //     // parse_all_failing(use_statement(), invalid_use_statements.clone());
-    //     //
-    //     // let use_statements = valid_use_statements.iter_mut()
-    //     //     .map(|x| (x, true))
-    //     //     .chain(invalid_use_statements.iter_mut().map(|x| (x, false)));
-    //     //
-    //     // for (use_statement_str, expect_valid) in use_statements {
-    //     //     let mut use_statement_str = use_statement_str.to_string();
-    //     //     use_statement_str.push(';');
-    //     //     let (result_opt, _diagnostics) = parse_recover(&use_statement(), &use_statement_str);
-    //     //     let expected_use_statement = match result_opt.unwrap() {
-    //     //         TopLevelStatement::Import(expected_use_statement) => expected_use_statement,
-    //     //         _ => unreachable!(),
-    //     //     };
-    //     //
-    //     //     prototype_parse_use_tree(&expected_use_statement, &use_statement_str, expect_valid);
-    //     // }
-    // }
-    //
-    // #[test]
-    // fn parse_type_aliases() {
-    //     let cases = vec!["type foo = u8", "type bar = String", "type baz<T> = Vec<T>"];
-    //     parse_all(type_alias_definition(), cases);
-    //
-    //     let failing = vec!["type = u8", "type foo", "type foo = 1"];
-    //     parse_all_failing(type_alias_definition(), failing);
-    // }
-    //
-    // #[test]
-    // fn parse_member_access() {
-    //     let cases = vec!["a.b", "a + b.c", "foo.bar as u32"];
-    //     parse_all(expression(), cases);
-    // }
-    //
-    // #[test]
-    // fn parse_constructor() {
-    //     let cases = vec![
-    //         "Baz",
-    //         "Bar { ident: 32 }",
-    //         "Baz { other: 2 + 42, ident: foo() + 1 }",
-    //         "Baz { other, ident: foo() + 1, foo }",
-    //     ];
-    //
-    //     parse_all(expression(), cases);
-    //     parse_with(expression(), "Foo { a + b }").unwrap_err();
-    // }
-    //
-    // // Semicolons are:
-    // // - Required after non-expression statements
-    // // - Optional after for, if, block expressions
-    // // - Optional after an expression as the last statement of a block
-    // // - Required after an expression as the non-final statement of a block
-    // #[test]
-    // fn parse_semicolons() {
-    //     let cases = vec![
-    //         "{ if true {} if false {} foo }",
-    //         "{ if true {}; if false {} foo }",
-    //         "{ for x in 0..1 {} if false {} foo; }",
-    //         "{ let x = 2; }",
-    //         "{ expr1; expr2 }",
-    //         "{ expr1; expr2; }",
-    //     ];
-    //     parse_all(block(fresh_statement()), cases);
-    //
-    //     let failing = vec![
-    //         // We disallow multiple semicolons after a statement unlike rust where it is a warning
-    //         "{ test;; foo }",
-    //         "{ for x in 0..1 {} foo if false {} }",
-    //         "{ let x = 2 }",
-    //         "{ expr1 expr2 }",
-    //     ];
-    //     parse_all_failing(block(fresh_statement()), failing);
-    // }
-    //
-    // #[test]
-    // fn statement_recovery() {
-    //     let cases = vec![
-    //         Case { source: "let a = 4 + 3", expect: "let a: unspecified = (4 + 3)", errors: 0 },
-    //         Case { source: "let a: = 4 + 3", expect: "let a: error = (4 + 3)", errors: 1 },
-    //         Case { source: "let = 4 + 3", expect: "let $error: unspecified = (4 + 3)", errors: 1 },
-    //         Case { source: "let = ", expect: "let $error: unspecified = Error", errors: 2 },
-    //         Case { source: "let", expect: "let $error: unspecified = Error", errors: 3 },
-    //         Case { source: "foo = one two three", expect: "foo = plain::one", errors: 1 },
-    //         Case { source: "constrain", expect: "constrain Error", errors: 2 },
-    //         Case { source: "assert", expect: "constrain Error", errors: 1 },
-    //         Case { source: "constrain x ==", expect: "constrain (plain::x == Error)", errors: 2 },
-    //         Case { source: "assert(x ==)", expect: "constrain (plain::x == Error)", errors: 1 },
-    //         Case {
-    //             source: "assert(x == x, x)",
-    //             expect: "constrain (plain::x == plain::x)",
-    //             errors: 0,
-    //         },
-    //         Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
-    //         Case {
-    //             source: "assert_eq(x, x, x, x)",
-    //             expect: "constrain (Error == Error)",
-    //             errors: 1,
-    //         },
-    //         Case {
-    //             source: "assert_eq(x, x, x)",
-    //             expect: "constrain (plain::x == plain::x)",
-    //             errors: 0,
-    //         },
-    //     ];
-    //
-    //     check_cases_with_errors(&cases[..], fresh_statement());
-    // }
-    //
-    // #[test]
-    // fn return_validation() {
-    //     let cases = [
-    //         Case {
-    //             source: "{ return 42; }",
-    //             expect: concat!("{\n", "    Error\n", "}",),
-    //             errors: 1,
-    //         },
-    //         Case {
-    //             source: "{ return 1; return 2; }",
-    //             expect: concat!("{\n", "    Error\n", "    Error\n", "}"),
-    //             errors: 2,
-    //         },
-    //         Case {
-    //             source: "{ return 123; let foo = 4 + 3; }",
-    //             expect: concat!("{\n", "    Error\n", "    let foo: unspecified = (4 + 3)\n", "}"),
-    //             errors: 1,
-    //         },
-    //         Case {
-    //             source: "{ return 1 + 2 }",
-    //             expect: concat!("{\n", "    Error\n", "}",),
-    //             errors: 2,
-    //         },
-    //         Case { source: "{ return; }", expect: concat!("{\n", "    Error\n", "}",), errors: 1 },
-    //     ];
-    //
-    //     check_cases_with_errors(&cases[..], block(fresh_statement()));
-    // }
-    //
-    // #[test]
-    // fn expr_no_constructors() {
-    //     let cases = [
-    //         Case {
-    //             source: "{ if structure { a: 1 } {} }",
-    //             expect: concat!(
-    //                 "{\n",
-    //                 "    if plain::structure {\n",
-    //                 "        Error\n",
-    //                 "    }\n",
-    //                 "    {\n",
-    //                 "    }\n",
-    //                 "}",
-    //             ),
-    //             errors: 1,
-    //         },
-    //         Case {
-    //             source: "{ if ( structure { a: 1 } ) {} }",
-    //             expect: concat!("{\n", "    if ((plain::structure { a: 1 })) {\n", "    }\n", "}",),
-    //             errors: 0,
-    //         },
-    //         Case {
-    //             source: "{ if ( structure {} ) {} }",
-    //             expect: concat!("{\n", "    if ((plain::structure {  })) {\n", "    }\n", "}"),
-    //             errors: 0,
-    //         },
-    //         Case {
-    //             source: "{ if (a { x: 1 }, b { y: 2 }) {} }",
-    //             expect: concat!(
-    //                 "{\n",
-    //                 "    if ((plain::a { x: 1 }), (plain::b { y: 2 })) {\n",
-    //                 "    }\n",
-    //                 "}",
-    //             ),
-    //             errors: 0,
-    //         },
-    //         Case {
-    //             source: "{ if ({ let foo = bar { baz: 42 }; foo == bar { baz: 42 }}) {} }",
-    //             expect: concat!(
-    //                 "{\n",
-    //                 "    if ({\n",
-    //                 "        let foo: unspecified = (plain::bar { baz: 42 })\n",
-    //                 "        (plain::foo == (plain::bar { baz: 42 }))\n",
-    //                 "    }) {\n",
-    //                 "    }\n",
-    //                 "}",
-    //             ),
-    //             errors: 0,
-    //         },
-    //     ];
-    //
-    //     check_cases_with_errors(&cases[..], block(fresh_statement()));
-    // }
+    #[test]
+    fn parse_infix() {
+        let valid = vec!["x + 6", "x - k", "x + (x + a)", " x * (x + a) + (x - 4)"];
+        parse_all(expression(), valid);
+        parse_all_failing(expression(), vec!["y ! x"]);
+    }
 
-    fn run_fuzzer_tests_with_skip(skip: usize) {
-        use std::path::Path;
+    #[test]
+    fn parse_function_call() {
+        let valid = vec![
+            "std::hash ()",
+            " std::hash(x,y,a+b)",
+            "crate::foo (x)",
+            "hash (x,)",
+            "(foo + bar)()",
+            "(bar)()()()",
+        ];
+        parse_all(expression(), valid);
+    }
 
-        let path = Path::new("../parser-fuzz-target/out/");
-        let path_read_error = format!("couldn't find fuzzing result directory at: {}", path.display());
-        let mut crash_index = 0;
+    #[test]
+    fn parse_cast() {
+        parse_all(
+            atom_or_right_unary(
+                expression(),
+                expression_no_constructors(expression()),
+                fresh_statement(),
+                true,
+            ),
+            vec!["x as u8", "0 as Field", "(x + 3) as [Field; 8]"],
+        );
+        parse_all_failing(
+            atom_or_right_unary(
+                expression(),
+                expression_no_constructors(expression()),
+                fresh_statement(),
+                true,
+            ),
+            vec!["x as pub u8"],
+        );
+    }
 
-        for fuzzer_config_entry in path.read_dir().expect(&path_read_error) {
-            let crash_dir = fuzzer_config_entry.unwrap().path().join("crashes");
-            if crash_dir.is_dir() {
-                for crash_entry in crash_dir.read_dir().unwrap() {
-                    let crash_path = crash_entry.unwrap().path();
-                    if crash_path.is_file() {
-                        if skip <= crash_index {
-                            let program_str = std::fs::read_to_string(crash_path).unwrap();
-                            let _ = parse_program(&program_str);
-                        }
-                        crash_index += 1;
-                    }
-                }
-            }
+    #[test]
+    fn parse_array_index() {
+        let valid = vec![
+            "x[9]",
+            "y[x+a]",
+            " foo [foo+5]",
+            "baz[bar]",
+            "foo.bar[3] as Field .baz as u32 [7]",
+        ];
+        parse_all(
+            atom_or_right_unary(
+                expression(),
+                expression_no_constructors(expression()),
+                fresh_statement(),
+                true,
+            ),
+            valid,
+        );
+    }
+
+    fn expr_to_array(expr: ExpressionKind) -> ArrayLiteral {
+        let lit = match expr {
+            ExpressionKind::Literal(literal) => literal,
+            _ => unreachable!("expected a literal"),
+        };
+
+        match lit {
+            Literal::Array(arr) => arr,
+            _ => unreachable!("expected an array"),
         }
     }
 
-    // (0..100).each{|i| puts "    #[test]\n    fn run_fuzzer_tests_#{i}() {\n        run_fuzzer_tests_with_skip(#{i})\n    }\n\n"}
     #[test]
-    fn run_fuzzer_tests_0() {
-        run_fuzzer_tests_with_skip(0)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_1() {
-        run_fuzzer_tests_with_skip(1)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_2() {
-        run_fuzzer_tests_with_skip(2)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_3() {
-        run_fuzzer_tests_with_skip(3)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_4() {
-        run_fuzzer_tests_with_skip(4)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_5() {
-        run_fuzzer_tests_with_skip(5)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_6() {
-        run_fuzzer_tests_with_skip(6)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_7() {
-        run_fuzzer_tests_with_skip(7)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_8() {
-        run_fuzzer_tests_with_skip(8)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_9() {
-        run_fuzzer_tests_with_skip(9)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_10() {
-        run_fuzzer_tests_with_skip(10)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_11() {
-        run_fuzzer_tests_with_skip(11)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_12() {
-        run_fuzzer_tests_with_skip(12)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_13() {
-        run_fuzzer_tests_with_skip(13)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_14() {
-        run_fuzzer_tests_with_skip(14)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_15() {
-        run_fuzzer_tests_with_skip(15)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_16() {
-        run_fuzzer_tests_with_skip(16)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_17() {
-        run_fuzzer_tests_with_skip(17)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_18() {
-        run_fuzzer_tests_with_skip(18)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_19() {
-        run_fuzzer_tests_with_skip(19)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_20() {
-        run_fuzzer_tests_with_skip(20)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_21() {
-        run_fuzzer_tests_with_skip(21)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_22() {
-        run_fuzzer_tests_with_skip(22)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_23() {
-        run_fuzzer_tests_with_skip(23)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_24() {
-        run_fuzzer_tests_with_skip(24)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_25() {
-        run_fuzzer_tests_with_skip(25)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_26() {
-        run_fuzzer_tests_with_skip(26)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_27() {
-        run_fuzzer_tests_with_skip(27)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_28() {
-        run_fuzzer_tests_with_skip(28)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_29() {
-        run_fuzzer_tests_with_skip(29)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_30() {
-        run_fuzzer_tests_with_skip(30)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_31() {
-        run_fuzzer_tests_with_skip(31)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_32() {
-        run_fuzzer_tests_with_skip(32)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_33() {
-        run_fuzzer_tests_with_skip(33)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_34() {
-        run_fuzzer_tests_with_skip(34)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_35() {
-        run_fuzzer_tests_with_skip(35)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_36() {
-        run_fuzzer_tests_with_skip(36)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_37() {
-        run_fuzzer_tests_with_skip(37)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_38() {
-        run_fuzzer_tests_with_skip(38)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_39() {
-        run_fuzzer_tests_with_skip(39)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_40() {
-        run_fuzzer_tests_with_skip(40)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_41() {
-        run_fuzzer_tests_with_skip(41)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_42() {
-        run_fuzzer_tests_with_skip(42)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_43() {
-        run_fuzzer_tests_with_skip(43)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_44() {
-        run_fuzzer_tests_with_skip(44)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_45() {
-        run_fuzzer_tests_with_skip(45)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_46() {
-        run_fuzzer_tests_with_skip(46)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_47() {
-        run_fuzzer_tests_with_skip(47)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_48() {
-        run_fuzzer_tests_with_skip(48)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_49() {
-        run_fuzzer_tests_with_skip(49)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_50() {
-        run_fuzzer_tests_with_skip(50)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_51() {
-        run_fuzzer_tests_with_skip(51)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_52() {
-        run_fuzzer_tests_with_skip(52)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_53() {
-        run_fuzzer_tests_with_skip(53)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_54() {
-        run_fuzzer_tests_with_skip(54)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_55() {
-        run_fuzzer_tests_with_skip(55)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_56() {
-        run_fuzzer_tests_with_skip(56)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_57() {
-        run_fuzzer_tests_with_skip(57)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_58() {
-        run_fuzzer_tests_with_skip(58)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_59() {
-        run_fuzzer_tests_with_skip(59)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_60() {
-        run_fuzzer_tests_with_skip(60)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_61() {
-        run_fuzzer_tests_with_skip(61)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_62() {
-        run_fuzzer_tests_with_skip(62)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_63() {
-        run_fuzzer_tests_with_skip(63)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_64() {
-        run_fuzzer_tests_with_skip(64)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_65() {
-        run_fuzzer_tests_with_skip(65)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_66() {
-        run_fuzzer_tests_with_skip(66)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_67() {
-        run_fuzzer_tests_with_skip(67)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_68() {
-        run_fuzzer_tests_with_skip(68)
-    }
-
-    #[test]
-    fn run_fuzzer_tests_69() {
-        run_fuzzer_tests_with_skip(69)
-    }
-
-    // stack overflow
+    fn parse_array() {
+        let valid = vec![
+            "[0, 1, 2,3, 4]",
+            "[0,1,2,3,4,]", // Trailing commas are valid syntax
+            "[0;5]",
+        ];
+
+        for expr in parse_all(array_expr(expression()), valid) {
+            match expr_to_array(expr) {
+                ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
+                ArrayLiteral::Repeated { length, .. } => {
+                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()));
+                }
+            }
+        }
+
+        parse_all_failing(
+            array_expr(expression()),
+            vec!["0,1,2,3,4]", "[[0,1,2,3,4]", "[0,1,2,,]", "[0,1,2,3,4"],
+        );
+    }
+
+    #[test]
+    fn parse_type_expression() {
+        parse_all(type_expression(), vec!["(123)", "123", "(1 + 1)", "(1 + (1))"]);
+    }
+
+    #[test]
+    fn parse_array_sugar() {
+        let valid = vec!["[0;7]", "[(1, 2); 4]", "[0;Four]", "[2;1+3-a]"];
+        parse_all(array_expr(expression()), valid);
+
+        let invalid = vec!["[0;;4]", "[1, 2; 3]"];
+        parse_all_failing(array_expr(expression()), invalid);
+    }
+
+    fn expr_to_slice(expr: ExpressionKind) -> ArrayLiteral {
+        let lit = match expr {
+            ExpressionKind::Literal(literal) => literal,
+            _ => unreachable!("expected a literal"),
+        };
+
+        match lit {
+            Literal::Slice(arr) => arr,
+            _ => unreachable!("expected a slice: {:?}", lit),
+        }
+    }
+
+    #[test]
+    fn parse_slice() {
+        let valid = vec![
+            "&[0, 1, 2,3, 4]",
+            "&[0,1,2,3,4,]", // Trailing commas are valid syntax
+            "&[0;5]",
+        ];
+
+        for expr in parse_all(slice_expr(expression()), valid) {
+            match expr_to_slice(expr) {
+                ArrayLiteral::Standard(elements) => assert_eq!(elements.len(), 5),
+                ArrayLiteral::Repeated { length, .. } => {
+                    assert_eq!(length.kind, ExpressionKind::integer(5i128.into()));
+                }
+            }
+        }
+
+        parse_all_failing(
+            slice_expr(expression()),
+            vec!["0,1,2,3,4]", "&[[0,1,2,3,4]", "&[0,1,2,,]", "&[0,1,2,3,4"],
+        );
+    }
+
+    #[test]
+    fn parse_slice_sugar() {
+        let valid = vec!["&[0;7]", "&[(1, 2); 4]", "&[0;Four]", "&[2;1+3-a]"];
+        parse_all(slice_expr(expression()), valid);
+
+        let invalid = vec!["&[0;;4]", "&[1, 2; 3]"];
+        parse_all_failing(slice_expr(expression()), invalid);
+    }
+
+    // TODO: this test triggers a poor error message
+    //
+    // By modifying the following, it's possible to see that this
+    // fails with an opaque error. (i.e. the 'expected' and 'found' are both empty)
+    //
+    // // src/parser/errors.rs
+    // impl chumsky::Error<Token> for ParserError {
+    //     type Span = Span;
+    //     type Label = ParsingRuleLabel;
+    //
+    //     fn expected_input_found<Iter>(span: Self::Span, expected: Iter, found: Option<Token>) -> Self
+    //     where
+    //         Iter: IntoIterator<Item = Option<Token>>,
+    //     {
+    //         let expected_vec: Vec<_> = expected.into_iter().collect();
+    //         if expected_vec.len() == 0 && found.is_none() {
+    //             panic!("found empty vec and not found token!")
+    //         }
+    // ..
+    //
     // #[test]
-    // fn run_fuzzer_tests_70() {
-    //     run_fuzzer_tests_with_skip(70)
+    // fn parse_block() {
+    //     parse_with(block(fresh_statement()), "{ [0,1,2,3,4] }").unwrap();
+    //
+    //     // Regression for #1310: this should be parsed as a block and not a function call
+    //     let res =
+    //         parse_with(block(fresh_statement()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
+    //     match unwrap_expr(&res.statements.last().unwrap().kind) {
+    //         // The `if` followed by a tuple is currently creates a block around both in case
+    //         // there was none to start with, so there is an extra block here.
+    //         ExpressionKind::Block(block) => {
+    //             assert_eq!(block.statements.len(), 2);
+    //             assert!(matches!(unwrap_expr(&block.statements[0].kind), ExpressionKind::If(_)));
+    //             assert!(matches!(unwrap_expr(&block.statements[1].kind), ExpressionKind::Tuple(_)));
+    //         }
+    //         _ => unreachable!(),
+    //     }
+    //
+    //     parse_all_failing(
+    //         block(fresh_statement()),
+    //         vec![
+    //             "[0,1,2,3,4] }",
+    //             "{ [0,1,2,3,4]",
+    //             "{ [0,1,2,,] }", // Contents of the block must still be a valid expression
+    //             "{ [0,1,2,3 }",
+    //             "{ 0,1,2,3] }",
+    //             "[[0,1,2,3,4]}",
+    //         ],
+    //     );
     // }
 
-    // #[test]
-    // fn run_fuzzer_tests_71() {
-    //     run_fuzzer_tests_with_skip(71)
-    // }
-
-    // stack overflow
-    // #[test]
-    // fn run_fuzzer_tests_72() {
-    //     run_fuzzer_tests_with_skip(72)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_73() {
-    //     run_fuzzer_tests_with_skip(73)
-    // }
-
-    // stack overflow
-    // #[test]
-    // fn run_fuzzer_tests_74() {
-    //     run_fuzzer_tests_with_skip(74)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_75() {
-    //     run_fuzzer_tests_with_skip(75)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_76() {
-    //     run_fuzzer_tests_with_skip(76)
-    // }
-
-    // stack overflow
-    // #[test]
-    // fn run_fuzzer_tests_77() {
-    //     run_fuzzer_tests_with_skip(77)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_78() {
-    //     run_fuzzer_tests_with_skip(78)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_79() {
-    //     run_fuzzer_tests_with_skip(79)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_80() {
-    //     run_fuzzer_tests_with_skip(80)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_81() {
-    //     run_fuzzer_tests_with_skip(81)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_82() {
-    //     run_fuzzer_tests_with_skip(82)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_83() {
-    //     run_fuzzer_tests_with_skip(83)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_84() {
-    //     run_fuzzer_tests_with_skip(84)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_85() {
-    //     run_fuzzer_tests_with_skip(85)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_86() {
-    //     run_fuzzer_tests_with_skip(86)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_87() {
-    //     run_fuzzer_tests_with_skip(87)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_88() {
-    //     run_fuzzer_tests_with_skip(88)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_89() {
-    //     run_fuzzer_tests_with_skip(89)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_90() {
-    //     run_fuzzer_tests_with_skip(90)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_91() {
-    //     run_fuzzer_tests_with_skip(91)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_92() {
-    //     run_fuzzer_tests_with_skip(92)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_93() {
-    //     run_fuzzer_tests_with_skip(93)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_94() {
-    //     run_fuzzer_tests_with_skip(94)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_95() {
-    //     run_fuzzer_tests_with_skip(95)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_96() {
-    //     run_fuzzer_tests_with_skip(96)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_97() {
-    //     run_fuzzer_tests_with_skip(97)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_98() {
-    //     run_fuzzer_tests_with_skip(98)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_99() {
-    //     run_fuzzer_tests_with_skip(99)
-    // }
-
-    // stack overflow
-    // #[test]
-    // fn run_fuzzer_tests_100() {
-    //     run_fuzzer_tests_with_skip(100)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_101() {
-    //     run_fuzzer_tests_with_skip(101)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_107() {
-    //     run_fuzzer_tests_with_skip(107)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_110() {
-    //     run_fuzzer_tests_with_skip(110)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_111() {
-    //     run_fuzzer_tests_with_skip(111)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_112() {
-    //     run_fuzzer_tests_with_skip(112)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_113() {
-    //     run_fuzzer_tests_with_skip(113)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_114() {
-    //     run_fuzzer_tests_with_skip(114)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_115() {
-    //     run_fuzzer_tests_with_skip(115)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_116() {
-    //     run_fuzzer_tests_with_skip(116)
-    // }
-
-    // #[test]
-    // fn run_fuzzer_tests_117() {
-    //     run_fuzzer_tests_with_skip(117)
-    // }
-
-    #[test]
-    fn run_fuzzer_tests_118() {
-        run_fuzzer_tests_with_skip(118)
+    /// Extract an Statement::Expression from a statement or panic
+    fn unwrap_expr(stmt: &StatementKind) -> &ExpressionKind {
+        match stmt {
+            StatementKind::Expression(expr) => &expr.kind,
+            _ => unreachable!(),
+        }
     }
 
-    // #[test]
-    // fn run_fuzzer_tests_119() {
-    //     run_fuzzer_tests_with_skip(119)
-    // }
+    #[test]
+    fn parse_let() {
+        // Why is it valid to specify a let declaration as having type u8?
+        //
+        // Let statements are not type checked here, so the parser will accept as
+        // long as it is a type. Other statements such as Public are type checked
+        // Because for now, they can only have one type
+        parse_all(declaration(expression()), vec!["let _ = 42", "let x = y", "let x : u8 = y"]);
+    }
+
+    #[test]
+    fn parse_invalid_pub() {
+        // pub cannot be used to declare a statement
+        parse_all_failing(fresh_statement(), vec!["pub x = y", "pub x : pub Field = y"]);
+    }
+
+    #[test]
+    fn parse_for_loop() {
+        parse_all(
+            for_loop(expression_no_constructors(expression()), fresh_statement()),
+            vec!["for i in x+y..z {}", "for i in 0..100 { foo; bar }"],
+        );
+
+        parse_all_failing(
+            for_loop(expression_no_constructors(expression()), fresh_statement()),
+            vec![
+                "for 1 in x+y..z {}",  // Cannot have a literal as the loop identifier
+                "for i in 0...100 {}", // Only '..' is supported, there are no inclusive ranges yet
+                "for i in 0..=100 {}", // Only '..' is supported, there are no inclusive ranges yet
+            ],
+        );
+    }
+
+    #[test]
+    fn parse_parenthesized_expression() {
+        parse_all(
+            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
+            vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
+        );
+        parse_all_failing(
+            atom(expression(), expression_no_constructors(expression()), fresh_statement(), true),
+            vec!["(x+a", "((x+a)", "(,)"],
+        );
+    }
+
+    #[test]
+    fn parse_tuple() {
+        parse_all(tuple(expression()), vec!["()", "(x,)", "(a,b+2)", "(a,(b,c,),d,)"]);
+    }
+
+    #[test]
+    fn parse_if_expr() {
+        parse_all(
+            if_expr(expression_no_constructors(expression()), fresh_statement()),
+            vec!["if x + a {  } else {  }", "if x {}", "if x {} else if y {} else {}"],
+        );
+
+        parse_all_failing(
+            if_expr(expression_no_constructors(expression()), fresh_statement()),
+            vec!["if (x / a) + 1 {} else", "if foo then 1 else 2", "if true { 1 }else 3"],
+        );
+    }
+
+    #[test]
+    fn parse_module_declaration() {
+        parse_with(module_declaration(), "mod foo").unwrap();
+        parse_with(module_declaration(), "mod 1").unwrap_err();
+    }
+
+    #[test]
+    fn parse_use() {
+        let mut valid_use_statements = vec![
+
+            // "use std::hash",
+            // "use std",
+            // "use foo::bar as hello",
+            // "use bar as bar",
+            // "use foo::{}",
+            // "use foo::{bar,}",
+            // "use foo::{bar, hello}",
+            // "use foo::{bar as bar2, hello}",
+            // "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
+            // "use dep::{std::println, bar::baz}",
+
+            "use dep::std::hash;",
+            "// Re-export\nuse dep::std::hash;",
+        ];
+
+        let mut invalid_use_statements = vec![
+            "use std as ;",
+            "use foobar as as;",
+            "use hello:: as foo;",
+            "use foo bar::baz",
+            "use foo bar::{baz}",
+            "use foo::{,}",
+        ];
+
+        // let results = parse_all(module(), valid_use_statements.clone());
+        // let results = parse_all(spanned(top_level_statement(module())).repeated(), valid_use_statements.clone());
+
+        // NOTE: lexing passes
+        let (lexing_result, lexing_errors) = Lexer::lex(valid_use_statements[0]);
+        println!("lexing_result: {:?}\n\nlexing_errors: {:?}", lexing_result.0, lexing_errors);
+
+        let results = parse_all(program(), valid_use_statements.clone());
+        panic!("?:\n{:?}", results);
+
+        // parse_all_failing(use_statement(), invalid_use_statements.clone());
+        //
+        // let use_statements = valid_use_statements.iter_mut()
+        //     .map(|x| (x, true))
+        //     .chain(invalid_use_statements.iter_mut().map(|x| (x, false)));
+        //
+        // for (use_statement_str, expect_valid) in use_statements {
+        //     let mut use_statement_str = use_statement_str.to_string();
+        //     use_statement_str.push(';');
+        //     let (result_opt, _diagnostics) = parse_recover(&use_statement(), &use_statement_str);
+        //     let expected_use_statement = match result_opt.unwrap() {
+        //         TopLevelStatement::Import(expected_use_statement) => expected_use_statement,
+        //         _ => unreachable!(),
+        //     };
+        //
+        //     prototype_parse_use_tree(&expected_use_statement, &use_statement_str, expect_valid);
+        // }
+    }
+
+    #[test]
+    fn parse_type_aliases() {
+        let cases = vec!["type foo = u8", "type bar = String", "type baz<T> = Vec<T>"];
+        parse_all(type_alias_definition(), cases);
+
+        let failing = vec!["type = u8", "type foo", "type foo = 1"];
+        parse_all_failing(type_alias_definition(), failing);
+    }
+
+    #[test]
+    fn parse_member_access() {
+        let cases = vec!["a.b", "a + b.c", "foo.bar as u32"];
+        parse_all(expression(), cases);
+    }
+
+    #[test]
+    fn parse_constructor() {
+        let cases = vec![
+            "Baz",
+            "Bar { ident: 32 }",
+            "Baz { other: 2 + 42, ident: foo() + 1 }",
+            "Baz { other, ident: foo() + 1, foo }",
+        ];
+
+        parse_all(expression(), cases);
+        parse_with(expression(), "Foo { a + b }").unwrap_err();
+    }
+
+    // Semicolons are:
+    // - Required after non-expression statements
+    // - Optional after for, if, block expressions
+    // - Optional after an expression as the last statement of a block
+    // - Required after an expression as the non-final statement of a block
+    #[test]
+    fn parse_semicolons() {
+        let cases = vec![
+            "{ if true {} if false {} foo }",
+            "{ if true {}; if false {} foo }",
+            "{ for x in 0..1 {} if false {} foo; }",
+            "{ let x = 2; }",
+            "{ expr1; expr2 }",
+            "{ expr1; expr2; }",
+        ];
+        parse_all(block(fresh_statement()), cases);
+
+        let failing = vec![
+            // We disallow multiple semicolons after a statement unlike rust where it is a warning
+            "{ test;; foo }",
+            "{ for x in 0..1 {} foo if false {} }",
+            "{ let x = 2 }",
+            "{ expr1 expr2 }",
+        ];
+        parse_all_failing(block(fresh_statement()), failing);
+    }
+
+    #[test]
+    fn statement_recovery() {
+        let cases = vec![
+            Case { source: "let a = 4 + 3", expect: "let a: unspecified = (4 + 3)", errors: 0 },
+            Case { source: "let a: = 4 + 3", expect: "let a: error = (4 + 3)", errors: 1 },
+            Case { source: "let = 4 + 3", expect: "let $error: unspecified = (4 + 3)", errors: 1 },
+            Case { source: "let = ", expect: "let $error: unspecified = Error", errors: 2 },
+            Case { source: "let", expect: "let $error: unspecified = Error", errors: 3 },
+            Case { source: "foo = one two three", expect: "foo = plain::one", errors: 1 },
+            Case { source: "constrain", expect: "constrain Error", errors: 2 },
+            Case { source: "assert", expect: "constrain Error", errors: 1 },
+            Case { source: "constrain x ==", expect: "constrain (plain::x == Error)", errors: 2 },
+            Case { source: "assert(x ==)", expect: "constrain (plain::x == Error)", errors: 1 },
+            Case {
+                source: "assert(x == x, x)",
+                expect: "constrain (plain::x == plain::x)",
+                errors: 0,
+            },
+            Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
+            Case {
+                source: "assert_eq(x, x, x, x)",
+                expect: "constrain (Error == Error)",
+                errors: 1,
+            },
+            Case {
+                source: "assert_eq(x, x, x)",
+                expect: "constrain (plain::x == plain::x)",
+                errors: 0,
+            },
+        ];
+
+        check_cases_with_errors(&cases[..], fresh_statement());
+    }
+
+    #[test]
+    fn return_validation() {
+        let cases = [
+            Case {
+                source: "{ return 42; }",
+                expect: concat!("{\n", "    Error\n", "}",),
+                errors: 1,
+            },
+            Case {
+                source: "{ return 1; return 2; }",
+                expect: concat!("{\n", "    Error\n", "    Error\n", "}"),
+                errors: 2,
+            },
+            Case {
+                source: "{ return 123; let foo = 4 + 3; }",
+                expect: concat!("{\n", "    Error\n", "    let foo: unspecified = (4 + 3)\n", "}"),
+                errors: 1,
+            },
+            Case {
+                source: "{ return 1 + 2 }",
+                expect: concat!("{\n", "    Error\n", "}",),
+                errors: 2,
+            },
+            Case { source: "{ return; }", expect: concat!("{\n", "    Error\n", "}",), errors: 1 },
+        ];
+
+        check_cases_with_errors(&cases[..], block(fresh_statement()));
+    }
+
+    #[test]
+    fn expr_no_constructors() {
+        let cases = [
+            Case {
+                source: "{ if structure { a: 1 } {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if plain::structure {\n",
+                    "        Error\n",
+                    "    }\n",
+                    "    {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 1,
+            },
+            Case {
+                source: "{ if ( structure { a: 1 } ) {} }",
+                expect: concat!("{\n", "    if ((plain::structure { a: 1 })) {\n", "    }\n", "}",),
+                errors: 0,
+            },
+            Case {
+                source: "{ if ( structure {} ) {} }",
+                expect: concat!("{\n", "    if ((plain::structure {  })) {\n", "    }\n", "}"),
+                errors: 0,
+            },
+            Case {
+                source: "{ if (a { x: 1 }, b { y: 2 }) {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if ((plain::a { x: 1 }), (plain::b { y: 2 })) {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 0,
+            },
+            Case {
+                source: "{ if ({ let foo = bar { baz: 42 }; foo == bar { baz: 42 }}) {} }",
+                expect: concat!(
+                    "{\n",
+                    "    if ({\n",
+                    "        let foo: unspecified = (plain::bar { baz: 42 })\n",
+                    "        (plain::foo == (plain::bar { baz: 42 }))\n",
+                    "    }) {\n",
+                    "    }\n",
+                    "}",
+                ),
+                errors: 0,
+            },
+        ];
+
+        check_cases_with_errors(&cases[..], block(fresh_statement()));
+    }
 
 }

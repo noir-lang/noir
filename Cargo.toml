@@ -14,7 +14,6 @@ members = [
     # Utility crates used by the Noir compiler
     "compiler/utils/arena",
     "compiler/utils/iter-extended",
-    "compiler/parser-fuzz-target",
     # Crates related to tooling built ontop of the Noir compiler
     "tooling/backend_interface",
     "tooling/bb_abstraction_leaks",
