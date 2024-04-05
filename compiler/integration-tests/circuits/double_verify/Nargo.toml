@@ -1,5 +1,0 @@
-[package]
-name = "double_verify"
-type = "bin"
-authors = [""]
-[dependencies]

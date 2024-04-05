@@ -21,7 +21,7 @@ await initACVM();
 const base_relative_path = '../../../../..';
 const circuit_main = 'test_programs/execution_success/assert_statement_recursive';
 const circuit_recursion = 'compiler/integration-tests/circuits/recursion';
-const circuit_double_verify = 'compiler/integration-tests/circuits/double_verify';
+const circuit_double_verify = 'test_programs/execution_success/double_verify_proof';
 
 async function getCircuit(projectPath: string) {
   const fm = createFileManager('/');
@@ -124,9 +124,9 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     const recursion_inputs: InputMap = {
       verification_key: vkAsFields,
       proof: proofAsFields,
-      proof2: proofAsFields2,
       public_inputs: [main_inputs.y as Field],
       key_hash: vkHash,
+      proof_b: proofAsFields2,
     };
 
     logger.debug('recursion_inputs', recursion_inputs);
