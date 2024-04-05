@@ -29,9 +29,15 @@ retry docker pull $CLI_IMAGE
 
 # remove 0x prefix from private key
 PRIVATE_KEY=${CONTRACT_PUBLISHER_PRIVATE_KEY#0x}
-docker run \
-  $CLI_IMAGE \
-  deploy-l1-contracts -u $ETHEREUM_HOST -p $PRIVATE_KEY | tee ./serve/contract_addresses.json
+
+# Retries up to 3 times with 10 second intervals
+ATTEMPTS=3
+for i in $(seq 1 $ATTEMPTS); do
+  docker run \
+    $CLI_IMAGE \
+    deploy-l1-contracts -u $ETHEREUM_HOST -p $PRIVATE_KEY | tee $FILE_PATH && break
+  [ "$i" != "$ATTEMPTS" ] && sleep 10
+done
 
 ## Result format is:
 # Rollup Address: 0xe33d37702bb94e83ca09e7dc804c9f4c4ab8ee4a
