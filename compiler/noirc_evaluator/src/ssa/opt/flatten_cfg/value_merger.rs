@@ -3,7 +3,7 @@ use fxhash::{FxHashMap as HashMap, FxHashSet};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, DataFlowGraph},
+    dfg::{CallStack, DataFlowGraph, InsertInstructionResult},
     instruction::{BinaryOp, Instruction},
     types::Type,
     value::{Value, ValueId},
@@ -12,9 +12,14 @@ use crate::ssa::ir::{
 pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
+
+    current_condition: Option<ValueId>,
+
     // Maps SSA array values with a slice type to their size.
     // This must be computed before merging values.
     slice_sizes: &'a mut HashMap<ValueId, usize>,
+
+    array_set_conditionals: &'a HashMap<ValueId, ValueId>,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -22,8 +27,10 @@ impl<'a> ValueMerger<'a> {
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
         slice_sizes: &'a mut HashMap<ValueId, usize>,
+        array_set_conditionals: &'a HashMap<ValueId, ValueId>,
+        current_condition: Option<ValueId>,
     ) -> Self {
-        ValueMerger { dfg, block, slice_sizes }
+        ValueMerger { dfg, block, slice_sizes, array_set_conditionals, current_condition }
     }
 
     /// Merge two values a and b from separate basic blocks to a single value.
@@ -148,7 +155,7 @@ impl<'a> ValueMerger<'a> {
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars| {
-                    let get = Instruction::ArrayGet { array, index, ignore_oob: false };
+                    let get = Instruction::ArrayGet { array, index };
                     self.dfg
                         .insert_instruction_and_results(get, self.block, typevars, CallStack::new())
                         .first()
@@ -214,7 +221,7 @@ impl<'a> ValueMerger<'a> {
                     if len <= index_usize {
                         self.make_slice_dummy_data(element_type)
                     } else {
-                        let get = Instruction::ArrayGet { array, index, ignore_oob: false };
+                        let get = Instruction::ArrayGet { array, index };
                         self.dfg
                             .insert_instruction_and_results(
                                 get,
@@ -313,11 +320,14 @@ impl<'a> ValueMerger<'a> {
 
         let mut array = then_value;
 
-        for (index, element_type) in changed_indices {
+        for (index, element_type, condition) in changed_indices {
             let typevars = Some(vec![element_type.clone()]);
 
+            let instruction = Instruction::EnableSideEffects { condition };
+            self.insert_instruction(instruction);
+
             let mut get_element = |array, typevars| {
-                let get = Instruction::ArrayGet { array, index, ignore_oob: true };
+                let get = Instruction::ArrayGet { array, index };
                 self.dfg
                     .insert_instruction_and_results(get, self.block, typevars, CallStack::new())
                     .first()
@@ -329,36 +339,32 @@ impl<'a> ValueMerger<'a> {
             let value =
                 self.merge_values(then_condition, else_condition, then_element, else_element);
 
-            let instruction =
-                Instruction::ArraySet { array, index, value, mutable: false, ignore_oob: true };
-            array = self
-                .dfg
-                .insert_instruction_and_results(instruction, self.block, None, CallStack::new())
-                .first();
+            let instruction = Instruction::ArraySet { array, index, value, mutable: false };
+            array = self.insert_instruction(instruction).first();
         }
 
+        let instruction = Instruction::EnableSideEffects { condition: self.current_condition? };
+        self.insert_instruction(instruction);
+
         Some(array)
+    }
+
+    fn insert_instruction(&mut self, instruction: Instruction) -> InsertInstructionResult {
+        self.dfg.insert_instruction_and_results(instruction, self.block, None, CallStack::new())
     }
 
     fn find_previous_array_set(
         &self,
         value: ValueId,
-        changed_indices: &mut FxHashSet<(ValueId, Type)>,
+        changed_indices: &mut FxHashSet<(ValueId, Type, ValueId)>,
     ) -> Option<ValueId> {
         match &self.dfg[value] {
-            Value::Instruction { instruction, typ, .. } => match &self.dfg[*instruction] {
+            Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
                 Instruction::ArraySet { array, index, value, .. } => {
-                    self.dfg.get_numeric_constant(*index).and_then(|constant| {
-                        let constant = constant.try_to_u64()?;
-                        let element_type = self.dfg.type_of_value(*value);
-
-                        if let Type::Array(_, length) = typ {
-                            if constant < *length as u64 {
-                                changed_indices.insert((*index, element_type));
-                            }
-                        }
-                        Some(*array)
-                    })
+                    let condition = *self.array_set_conditionals.get(index)?;
+                    let element_type = self.dfg.type_of_value(*value);
+                    changed_indices.insert((*index, element_type, condition));
+                    Some(*array)
                 }
                 _ => Some(value),
             },

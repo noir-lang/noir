@@ -530,7 +530,10 @@ impl<'dfg> InsertInstructionResult<'dfg> {
         match self {
             InsertInstructionResult::SimplifiedTo(value) => *value,
             InsertInstructionResult::SimplifiedToMultiple(values) => values[0],
-            InsertInstructionResult::Results(_, results) => results[0],
+            InsertInstructionResult::Results(_, results) => {
+                assert_eq!(results.len(), 1);
+                results[0]
+            }
             InsertInstructionResult::InstructionRemoved => {
                 panic!("Instruction was removed, no results")
             }

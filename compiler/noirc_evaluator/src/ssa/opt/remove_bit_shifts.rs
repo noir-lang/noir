@@ -263,11 +263,7 @@ impl Context<'_> {
         element_type: Type,
     ) -> ValueId {
         let element_type = Some(vec![element_type]);
-        self.insert_instruction(
-            Instruction::ArrayGet { array, index, ignore_oob: false },
-            element_type,
-        )
-        .first()
+        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
     }
 
     pub(crate) fn insert_instruction(

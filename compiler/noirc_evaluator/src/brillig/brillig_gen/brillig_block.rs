@@ -598,7 +598,7 @@ impl<'block> BrilligBlock<'block> {
                 let source_variable = self.convert_ssa_single_addr_value(*value, dfg);
                 self.convert_cast(destination_variable, source_variable);
             }
-            Instruction::ArrayGet { array, index, ignore_oob: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination_variable = self.variables.define_variable(
                     self.function_context,
@@ -622,7 +622,7 @@ impl<'block> BrilligBlock<'block> {
                     destination_variable,
                 );
             }
-            Instruction::ArraySet { array, index, value, mutable: _, ignore_oob: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 let source_variable = self.convert_ssa_value(*array, dfg);
                 let index_register = self.convert_ssa_single_addr_value(*index, dfg);
                 let value_variable = self.convert_ssa_value(*value, dfg);

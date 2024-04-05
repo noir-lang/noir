@@ -188,15 +188,12 @@ pub(crate) enum Instruction {
     EnableSideEffects { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
-    /// If `ignore_oob` is true, this will ignore out of bounds errors and return a zeroed value.
-    ArrayGet { array: ValueId, index: ValueId, ignore_oob: bool },
+    ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    /// If `ignore_oob` is true, this array set will ignore out of bounds errors and return the
-    /// original array.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool, ignore_oob: bool },
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
@@ -382,20 +379,15 @@ impl Instruction {
             Instruction::EnableSideEffects { condition } => {
                 Instruction::EnableSideEffects { condition: f(*condition) }
             }
-            Instruction::ArrayGet { array, index, ignore_oob } => Instruction::ArrayGet {
+            Instruction::ArrayGet { array, index } => {
+                Instruction::ArrayGet { array: f(*array), index: f(*index) }
+            }
+            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
                 array: f(*array),
                 index: f(*index),
-                ignore_oob: *ignore_oob,
+                value: f(*value),
+                mutable: *mutable,
             },
-            Instruction::ArraySet { array, index, value, mutable, ignore_oob } => {
-                Instruction::ArraySet {
-                    array: f(*array),
-                    index: f(*index),
-                    value: f(*value),
-                    mutable: *mutable,
-                    ignore_oob: *ignore_oob,
-                }
-            }
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -450,11 +442,11 @@ impl Instruction {
                 f(*value);
             }
             Instruction::Allocate { .. } => (),
-            Instruction::ArrayGet { array, index, ignore_oob: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _, ignore_oob: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _ } => {
                 f(*array);
                 f(*index);
                 f(*value);
@@ -521,7 +513,7 @@ impl Instruction {
                     SimplifiedToInstructionMultiple(constraints)
                 }
             }
-            Instruction::ArrayGet { array, index, ignore_oob: _ } => {
+            Instruction::ArrayGet { array, index } => {
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, _)), Some(index)) = (array, index) {

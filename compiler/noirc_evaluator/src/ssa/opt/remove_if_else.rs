@@ -42,12 +42,20 @@ impl Ssa {
 #[derive(Default)]
 struct Context {
     slice_sizes: HashMap<ValueId, usize>,
+
+    // Maps array_set result -> element that was overwritten by that instruction.
+    // Used to undo array_sets while merging values
+    prev_array_set_elem_values: HashMap<ValueId, ValueId>,
+
+    // Maps array_set result -> enable_side_effects_if value which was active during it.
+    array_set_conditionals: HashMap<ValueId, ValueId>,
 }
 
 impl Context {
     fn remove_if_else(&mut self, function: &mut Function) {
         let block = function.entry_block();
         let instructions = function.dfg[block].take_instructions();
+        let mut current_conditional = function.dfg.make_constant(FieldElement::one(), Type::bool());
 
         for instruction in instructions {
             match &function.dfg[instruction] {
@@ -60,8 +68,14 @@ impl Context {
                     let typ = function.dfg.type_of_value(then_value);
                     assert!(!matches!(typ, Type::Numeric(_)));
 
-                    let mut value_merger =
-                        ValueMerger::new(&mut function.dfg, block, &mut self.slice_sizes);
+                    let mut value_merger = ValueMerger::new(
+                        &mut function.dfg,
+                        block,
+                        &mut self.slice_sizes,
+                        &self.array_set_conditionals,
+                        Some(current_conditional),
+                    );
+
                     let value = value_merger.merge_values(
                         then_condition,
                         else_condition,
@@ -98,8 +112,13 @@ impl Context {
                     let results = function.dfg.instruction_results(instruction);
                     let result = if results.len() == 2 { results[1] } else { results[0] };
 
+                    self.array_set_conditionals.insert(*array, current_conditional);
                     let old_capacity = self.get_or_find_capacity(&function.dfg, *array);
                     self.slice_sizes.insert(result, old_capacity);
+                    function.dfg[block].instructions_mut().push(instruction);
+                }
+                Instruction::EnableSideEffects { condition } => {
+                    current_conditional = *condition;
                     function.dfg[block].instructions_mut().push(instruction);
                 }
                 _ => {

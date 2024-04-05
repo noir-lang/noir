@@ -344,7 +344,6 @@ fn simplify_slice_push_back(
         index: arguments[0],
         value: arguments[2],
         mutable: false,
-        ignore_oob: false,
     };
 
     let set_last_slice_value = dfg
@@ -355,7 +354,9 @@ fn simplify_slice_push_back(
     slice_sizes.insert(set_last_slice_value, slice_size / element_size);
     slice_sizes.insert(new_slice, slice_size / element_size);
 
-    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes);
+    let unknown = HashMap::default();
+    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, &unknown, None);
+
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,
@@ -394,7 +395,7 @@ fn simplify_slice_pop_back(
     // We must pop multiple elements in the case of a slice of tuples
     for _ in 0..element_count {
         let get_last_elem_instr =
-            Instruction::ArrayGet { array: arguments[1], index: flattened_len, ignore_oob: false };
+            Instruction::ArrayGet { array: arguments[1], index: flattened_len };
         let get_last_elem = dfg
             .insert_instruction_and_results(
                 get_last_elem_instr,
