@@ -362,3 +362,96 @@ fn memory_op_circuit() {
 
     assert_eq!(bytes, expected_serialization)
 }
+
+#[test]
+fn nested_acir_call_circuit() {
+    // Circuit for the following program:
+    // fn main(x: Field, y: pub Field) {
+    //     let z = nested_call(x, y);
+    //     let z2 = nested_call(x, y);
+    //     assert(z == z2);
+    // }
+    // #[fold]
+    // fn nested_call(x: Field, y: Field) -> Field {
+    //     inner_call(x + 2, y)
+    // }
+    // #[fold]
+    // fn inner_call(x: Field, y: Field) -> Field {
+    //     assert(x == y);
+    //     x
+    // }
+    let nested_call =
+        Opcode::Call { id: 1, inputs: vec![Witness(0), Witness(1)], outputs: vec![Witness(2)] };
+    let nested_call_two =
+        Opcode::Call { id: 1, inputs: vec![Witness(0), Witness(1)], outputs: vec![Witness(3)] };
+
+    let assert_nested_call_results = Opcode::AssertZero(Expression {
+        mul_terms: Vec::new(),
+        linear_combinations: vec![
+            (FieldElement::one(), Witness(2)),
+            (-FieldElement::one(), Witness(3)),
+        ],
+        q_c: FieldElement::zero(),
+    });
+
+    let main = Circuit {
+        current_witness_index: 3,
+        private_parameters: BTreeSet::from([Witness(0)]),
+        public_parameters: PublicInputs([Witness(1)].into()),
+        opcodes: vec![nested_call, nested_call_two, assert_nested_call_results],
+        ..Circuit::default()
+    };
+
+    let call_parameter_addition = Opcode::AssertZero(Expression {
+        mul_terms: Vec::new(),
+        linear_combinations: vec![
+            (FieldElement::one(), Witness(0)),
+            (-FieldElement::one(), Witness(2)),
+        ],
+        q_c: FieldElement::one() + FieldElement::one(),
+    });
+    let call =
+        Opcode::Call { id: 2, inputs: vec![Witness(2), Witness(1)], outputs: vec![Witness(3)] };
+
+    let nested_call = Circuit {
+        current_witness_index: 3,
+        private_parameters: BTreeSet::from([Witness(0), Witness(1)]),
+        return_values: PublicInputs([Witness(3)].into()),
+        opcodes: vec![call_parameter_addition, call],
+        ..Circuit::default()
+    };
+
+    let assert_param_equality = Opcode::AssertZero(Expression {
+        mul_terms: Vec::new(),
+        linear_combinations: vec![
+            (FieldElement::one(), Witness(0)),
+            (-FieldElement::one(), Witness(1)),
+        ],
+        q_c: FieldElement::zero(),
+    });
+
+    let inner_call = Circuit {
+        current_witness_index: 1,
+        private_parameters: BTreeSet::from([Witness(0), Witness(1)]),
+        return_values: PublicInputs([Witness(0)].into()),
+        opcodes: vec![assert_param_equality],
+        ..Circuit::default()
+    };
+
+    let program = Program { functions: vec![main, nested_call, inner_call] };
+
+    let bytes = Program::serialize_program(&program);
+
+    let expected_serialization: Vec<u8> = vec![
+        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 205, 146, 97, 10, 195, 32, 12, 133, 163, 66, 207, 147,
+        24, 109, 227, 191, 93, 101, 50, 123, 255, 35, 172, 99, 25, 83, 17, 250, 99, 14, 250, 224,
+        97, 144, 16, 146, 143, 231, 224, 45, 167, 126, 105, 57, 108, 14, 91, 248, 202, 168, 65,
+        255, 207, 122, 28, 180, 250, 244, 221, 244, 197, 223, 68, 182, 154, 197, 184, 134, 80, 54,
+        95, 136, 233, 142, 62, 101, 137, 24, 98, 94, 133, 132, 162, 196, 135, 23, 230, 34, 65, 182,
+        148, 211, 134, 137, 2, 23, 218, 99, 226, 93, 135, 185, 121, 123, 33, 84, 12, 234, 218, 192,
+        64, 174, 3, 248, 47, 88, 48, 17, 150, 157, 183, 151, 95, 244, 86, 91, 221, 61, 10, 81, 31,
+        178, 190, 110, 194, 102, 96, 76, 251, 202, 80, 13, 204, 77, 224, 25, 176, 70, 79, 197, 128,
+        18, 64, 3, 4, 0, 0,
+    ];
+    assert_eq!(bytes, expected_serialization);
+}

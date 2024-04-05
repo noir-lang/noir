@@ -21,7 +21,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
+use crate::brillig::brillig_ir::artifact::{BrilligParameter, GeneratedBrillig};
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
@@ -297,12 +297,14 @@ impl Context {
             let typ = dfg.type_of_value(*param_id);
             self.create_value_from_type(&typ, &mut |this, _| Ok(this.acir_context.add_variable()))
         })?;
+        let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
+
         let witness_inputs = self.acir_context.extract_witness(&inputs);
 
         let outputs: Vec<AcirType> =
             vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
 
-        let code = self.gen_brillig_for(main_func, brillig)?;
+        let code = self.gen_brillig_for(main_func, arguments, brillig)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
@@ -594,8 +596,9 @@ impl Context {
                                 }
 
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
+                                let arguments = self.gen_brillig_parameters(arguments, dfg);
 
-                                let code = self.gen_brillig_for(func, brillig)?;
+                                let code = self.gen_brillig_for(func, arguments, brillig)?;
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| {
                                     dfg.type_of_value(*result_id).into()
@@ -673,14 +676,49 @@ impl Context {
         Ok(())
     }
 
+    fn gen_brillig_parameters(
+        &self,
+        values: &[ValueId],
+        dfg: &DataFlowGraph,
+    ) -> Vec<BrilligParameter> {
+        values
+            .iter()
+            .map(|&value_id| {
+                let typ = dfg.type_of_value(value_id);
+                if let Type::Slice(item_types) = typ {
+                    let len = match self
+                        .ssa_values
+                        .get(&value_id)
+                        .expect("ICE: Unknown slice input to brillig")
+                    {
+                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,
+                        AcirValue::Array(array) => array.len(),
+                        _ => unreachable!("ICE: Slice value is not an array"),
+                    };
+
+                    BrilligParameter::Slice(
+                        item_types
+                            .iter()
+                            .map(BrilligFunctionContext::ssa_type_to_parameter)
+                            .collect(),
+                        len / item_types.len(),
+                    )
+                } else {
+                    BrilligFunctionContext::ssa_type_to_parameter(&typ)
+                }
+            })
+            .collect()
+    }
+
     fn gen_brillig_for(
         &self,
         func: &Function,
+        arguments: Vec<BrilligParameter>,
         brillig: &Brillig,
     ) -> Result<GeneratedBrillig, InternalError> {
         // Create the entry point artifact
         let mut entry_point = BrilligContext::new_entry_point_artifact(
-            BrilligFunctionContext::parameters(func),
+            arguments,
             BrilligFunctionContext::return_values(func),
             BrilligFunctionContext::function_id_to_function_label(func.id()),
         );
