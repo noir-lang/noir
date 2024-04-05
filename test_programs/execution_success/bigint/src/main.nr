@@ -4,8 +4,8 @@ use dep::std::{bigint::Secpk1Fq, println};
 fn main(mut x: [u8; 5], y: [u8; 5]) {
     let a = bigint::Secpk1Fq::from_le_bytes(&[x[0], x[1], x[2], x[3], x[4]]);
     let b = bigint::Secpk1Fq::from_le_bytes(&[y[0], y[1], y[2], y[3], y[4]]);
-    let mut a_be_bytes = [0;32];
-    let mut b_be_bytes = [0;32];
+    let mut a_be_bytes = [0; 32];
+    let mut b_be_bytes = [0; 32];
     for i in 0..5 {
         a_be_bytes[31-i] = x[i];
         b_be_bytes[31-i] = y[i];
@@ -15,9 +15,9 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
 
     // Regression for #4682
     let c = if x[0] != 0 {
-        test_unconstrained1(a,b)
+        test_unconstrained1(a, b)
     } else {
-        test_unconstrained2(a,b)
+        test_unconstrained2(a, b)
     };
     assert(c.array[0] == dep::std::wrapping_mul(x[0], y[0]));
 
@@ -29,25 +29,23 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
     }
 
     let d = a * b - b;
-    let mut result = [0;32];
-    let result_slice = (a_field*b_field - b_field).to_le_bytes(32);
-    for i in 0..32
-    {
+    let mut result = [0; 32];
+    let result_slice = (a_field * b_field - b_field).to_le_bytes(32);
+    for i in 0..32 {
         result[i] = result_slice[i];
     }
     let d1 = bigint::Secpk1Fq::from_le_bytes_32(result);
     assert(d1 == d);
-
     //big_int_example(x[0], x[1]);
 }
 
 fn test_unconstrained1(a: Secpk1Fq, b: Secpk1Fq) -> Secpk1Fq {
-    let c =  a*b;
+    let c = a * b;
     c
 }
 unconstrained fn test_unconstrained2(a: Secpk1Fq, b: Secpk1Fq) -> Secpk1Fq {
-    let c =  a+b;
-    test_unconstrained1(a,c)
+    let c = a + b;
+    test_unconstrained1(a, c)
 }
 
 // docs:start:big_int_example
