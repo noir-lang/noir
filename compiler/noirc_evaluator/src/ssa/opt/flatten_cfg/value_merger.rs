@@ -138,11 +138,14 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected array type"),
         };
 
+        let actual_length = len * element_types.len();
+
         if let Some(result) = self.try_merge_only_changed_indices(
             then_condition,
             else_condition,
             then_value,
             else_value,
+            actual_length,
         ) {
             return result;
         }
@@ -289,6 +292,7 @@ impl<'a> ValueMerger<'a> {
         else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
+        array_length: usize,
     ) -> Option<ValueId> {
         let mut seen_then = FxHashSet::default();
         let mut seen_else = FxHashSet::default();
@@ -314,7 +318,7 @@ impl<'a> ValueMerger<'a> {
             current_else = self.find_previous_array_set(current_else, &mut changed_indices)?;
         }
 
-        if !found {
+        if !found || changed_indices.len() >= array_length {
             return None;
         }
 
