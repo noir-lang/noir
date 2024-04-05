@@ -103,12 +103,12 @@ extern {
     }
 }
 
-
+// TODO
 // pub(crate) Program: &'input ParsedModule = {
 //     // <m:Module> EOF => m,
 //     // EOF => (),
 
-//     // <x:TopLevelStatement> "\n" <p:Program> => x, // TODO
+//     // <x:TopLevelStatement> "\n" <p:Program> => x,
 
 //     EOF => ParsedModule::default(),
 // }
@@ -121,66 +121,15 @@ pub(crate) TopLevelStatement: TopLevelStatement = {
 }
 
 UseTree: UseTree = {
-
     // path::to::ident as SomeAlias
     <mut prefix:Path> <alias:Alias?> => {
         let ident = prefix.pop();
         let kind = UseTreeKind::Path(ident, alias);
         UseTree { prefix, kind }
     },
-
-    // // path::to::{identA, further::path::{identB, identC}}
-    // <prefix:MaybeEmptyPath> "::" "{" <mut use_trees:(<UseTree> ",")*> <use_tree:(<UseTree> <","?>)> "}" => {
-    //     let kind = UseTreeKind::List;
-    //     UseTree { prefix, kind }
-    // },
-
-    // <mut prefix:Path> "::" <postfix:UseTreePostfix> => {
-    //     // let ident = prefix.pop();
-    //     // let kind = UseTreeKind::Path(ident, alias);
-    //     // UseTree { prefix, kind }
-    //     match postfix {
-    //         Ok((ident, alias)) => {
-    //             // let ident = prefix.pop();
-    //             let kind = UseTreeKind::Path(ident, alias);
-    //             UseTree { prefix, kind }
-    //         },
-    //
-    //         Err((prefix, use_trees)) => {
-    //             let kind = UseTreeKind::List(use_trees);
-    //             UseTree { prefix, kind }
-    //         }
-    //     }
-    // },
-
-    // // TODO: this is the new approach:
-    // // inlining what's needed to distinguish the case we're in
-    // "crate" <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
-    //     todo!()
-    // },
-    //
-    // "dep" <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
-    //     todo!()
-    // },
-    //
-    // <head:Ident> <mut segments:("::" <Ident>)*> "::" "{" <use_tree:UseTree> "}" "as" r"[\t\r\n ]+" <alias:Ident> => {
-    //     todo!()
-    // },
-
 }
 
-// TODO: path adadapted from lalrpop's self parsing approach
-// Path: Path = {
-//     <lo:@L> <a:"::"?> <h:(<Ident> "::")*> <t:Ident> <hi:@R> => {
-//         let segments = h.into_iter().chain(once(t)).collect();
-//         let kind = PathKind::Plain;
-//         let span = Span::from(lo as u32..hi as u32);
-//
-//         Path { segments, kind, span }
-//     },
-// };
 pub(crate) Path: Path = {
-
     <lo:@L> "crate" "::" <segments:PathSegments> <hi:@R> => {
         let kind = PathKind::Crate;
         let span = Span::from(lo as u32..hi as u32);
@@ -197,50 +146,19 @@ pub(crate) Path: Path = {
         segments.insert(0, id);
         let kind = PathKind::Plain;
         let span = Span::from(lo as u32..hi as u32);
-        // match (opt_crate, opt_dep) {
-        //     (None, None) => (),
-        //     (Some(_), None) => kind = PathKind::Crate,
-        //     (None, Some(_)) => kind = PathKind::Dep,
-        //     (Some(_), Some(_)) => {
-        //         let token = noir_token::Token::Ident("cratedep".to_string());
-        //         let span = Span::from(lo as u32..(lo + "cratedep".len()) as u32);
-        //         segments.insert(0, Ident::from_token(token, span))
-        //     },
-        // }
-
         Path { segments, kind, span }
     },
-
 }
 
-
 PathSegments: Vec<Ident> = {
-    // <lo:@L> <hi:@R> => vec![],
-    // <lo:@L> <segment:Ident> <hi:@R> => vec![segment],
-    // <lo:@L> <segment:Ident> <mut segments:("::" <Ident>)*> <hi:@R> => {
     <lo:@L> <segments:("::" <Ident>)*> <hi:@R> => {
-        // segments.insert(0, segment);
         segments
     }
 }
 
-
-
 Alias: Ident = {
     r"[\t\r\n ]+" "as" r"[\t\r\n ]+" <Ident> => <>,
 }
-
-// UseTreePostfix: Result<(Ident, Option<Ident>), (Path, Vec<UseTree>)> = {
-//     // path::to::ident as SomeAlias
-//     <id:Ident> <alias:Alias?> => {
-//         Ok((ident, alias))
-//     },
-//
-//     // path::to::{identA, further::path::{identB, identC}}
-//     "::" "{" <mut use_trees:(<UseTree> ",")*> <use_tree:(<UseTree> <","?>)> "}" => {
-//         Err((use_trees, use_tree))
-//     },
-// }
 
 Ident: Ident = {
     <lo:@L> <i:ident> <hi:@R> => {
@@ -254,38 +172,4 @@ Bool: Tok<'input> = {
     "true" => Tok::Bool(true),
     "false" => Tok::Bool(false),
 };
-
-
-
-
-
-// pub Term: Tok = {
-//     <b:Bool> EOF => b,
-//     EOF => Tok::EOF,
-//     // <n:Num> => Tok::Int(n),
-//     // "(" <t:Term> ")" => t,
-// };
-
-
-
-// Num: FieldElement = <integer_str_raw:r"[0-9]+"> =>? {
-//     // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
-//     let integer_str = integer_str_raw.replace('_', "");
-
-//     match FieldElement::try_from_str(&integer_str) {
-//         None => {
-//             let error = vec![LexerErrorKind::InvalidIntegerLiteral {
-//                 // TODO: fix span?
-//                 span: Span::empty(0), // inclusive(start, end),
-//                 found: integer_str,
-//             }];
-
-//             // TODO: error recovery
-//             // errors.push(ParseError::User { error });
-//             Err(ParseError::User { error })
-
-//         }
-//         Some(integer) => Ok(integer),
-//     }
-// };
 
