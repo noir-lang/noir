@@ -45,9 +45,6 @@ pub enum ParserErrorReason {
     InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
-
-    // #[error("Dummy: {0}")]
-    // Dummy(String),
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -124,14 +121,13 @@ impl std::fmt::Display for ParserError {
         if expected.is_empty() {
             write!(f, "Unexpected {} in input{}", self.found, reason_str)
         } else if expected.len() == 1 {
-            // let first = expected.first().unwrap();
-            // let all_expected: Vec<_> = expected.collect();
-            // let vowel = "aeiou".contains(first.chars().next().unwrap());
+            let first = expected.first().unwrap();
+            let vowel = "aeiou".contains(first.chars().next().unwrap());
             write!(
                 f,
-                "Expected a {:?} but found {}{}",
-                // if vowel { "n" } else { "" },
-                expected,
+                "Expected a{} {} but found {}{}",
+                if vowel { "n" } else { "" },
+                first,
                 self.found,
                 reason_str
             )
@@ -198,13 +194,8 @@ impl chumsky::Error<Token> for ParserError {
     where
         Iter: IntoIterator<Item = Option<Token>>,
     {
-        let expected_vec: Vec<_> = expected.into_iter().collect();
-        if expected_vec.len() == 0 && found.is_none() {
-            panic!("found empty vec and not found token!")
-        }
-
         ParserError {
-            expected_tokens: expected_vec.into_iter().map(|opt| opt.unwrap_or(Token::EOF)).collect(),
+            expected_tokens: expected.into_iter().map(|opt| opt.unwrap_or(Token::EOF)).collect(),
             expected_labels: SmallOrdSet::new(),
             found: found.unwrap_or(Token::EOF),
             reason: None,

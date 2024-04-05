@@ -88,8 +88,7 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
             if lalrpop_parser_supports_kind(&parsed_item.kind) {
                 match &parsed_item.kind {
                     ItemKind::Import(parsed_use_tree) => {
-                        let expect_valid = true;
-                        prototype_parse_use_tree(parsed_use_tree, source_program, expect_valid);
+                        prototype_parse_use_tree(Some(parsed_use_tree), source_program);
                     }
                     _ => unreachable!(),
                 }
@@ -99,7 +98,7 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     (parsed_module, parsing_errors)
 }
 
-fn prototype_parse_use_tree(expected_use_tree: &UseTree, input: &str, expect_valid: bool) {
+fn prototype_parse_use_tree(expected_use_tree_opt: Option<&UseTree>, input: &str) {
     // TODO: currently skipping recursive use trees, e.g. "use std::{foo, bar}"
     if input.contains('{') {
         return;
@@ -126,19 +125,34 @@ fn prototype_parse_use_tree(expected_use_tree: &UseTree, input: &str, expect_val
         referenced_lexer_result,
     );
 
-    if expect_valid {
-        assert!(calculated.is_ok(), "{:?}\n\n{:?}\n\n{:?}", calculated, lexer_result, input);
+    if let Some(expected_use_tree) = expected_use_tree_opt {
+        assert!(
+            calculated.is_ok(),
+            "calculated not Ok(_): {:?}\n\nlexer: {:?}\n\ninput: {:?}",
+            calculated,
+            lexer_result,
+            input
+        );
 
         match calculated.unwrap() {
             TopLevelStatement::Import(parsed_use_tree) => {
                 assert_eq!(expected_use_tree, &parsed_use_tree);
             }
             unexpected_calculated => {
-                panic!("expected a TopLevelStatement::Import, but found: {:?}", unexpected_calculated)
+                panic!(
+                    "expected a TopLevelStatement::Import, but found: {:?}",
+                    unexpected_calculated
+                )
             }
         }
     } else {
-        assert!(calculated.is_err(), "{:?}\n\n{:?}\n\n{:?}", calculated, lexer_result, input);
+        assert!(
+            calculated.is_err(),
+            "calculated not Err(_): {:?}\n\nlexer: {:?}\n\ninput: {:?}",
+            calculated,
+            lexer_result,
+            input
+        );
     }
 }
 
@@ -1595,20 +1609,16 @@ mod test {
     #[test]
     fn parse_use() {
         let mut valid_use_statements = vec![
-
-            // "use std::hash",
-            // "use std",
-            // "use foo::bar as hello",
-            // "use bar as bar",
-            // "use foo::{}",
-            // "use foo::{bar,}",
-            // "use foo::{bar, hello}",
-            // "use foo::{bar as bar2, hello}",
-            // "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
-            // "use dep::{std::println, bar::baz}",
-
-            "use dep::std::hash;",
-            "// Re-export\nuse dep::std::hash;",
+            "use std::hash",
+            "use std",
+            "use foo::bar as hello",
+            "use bar as bar",
+            "use foo::{}",
+            "use foo::{bar,}",
+            "use foo::{bar, hello}",
+            "use foo::{bar as bar2, hello}",
+            "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
+            "use dep::{std::println, bar::baz}",
         ];
 
         let mut invalid_use_statements = vec![
@@ -1620,33 +1630,31 @@ mod test {
             "use foo::{,}",
         ];
 
-        // let results = parse_all(module(), valid_use_statements.clone());
-        // let results = parse_all(spanned(top_level_statement(module())).repeated(), valid_use_statements.clone());
+        let use_statements = valid_use_statements
+            .iter_mut()
+            .map(|x| (x, true))
+            .chain(invalid_use_statements.iter_mut().map(|x| (x, false)));
 
-        // NOTE: lexing passes
-        let (lexing_result, lexing_errors) = Lexer::lex(valid_use_statements[0]);
-        println!("lexing_result: {:?}\n\nlexing_errors: {:?}", lexing_result.0, lexing_errors);
+        for (use_statement_str, expect_valid) in use_statements {
+            let mut use_statement_str = use_statement_str.to_string();
+            let expected_use_statement = if expect_valid {
+                let (result_opt, _diagnostics) =
+                    parse_recover(&use_statement(), &use_statement_str);
+                use_statement_str.push(';');
+                match result_opt.unwrap() {
+                    TopLevelStatement::Import(expected_use_statement) => {
+                        Some(expected_use_statement)
+                    }
+                    _ => unreachable!(),
+                }
+            } else {
+                let result = parse_with(&use_statement(), &use_statement_str);
+                assert!(result.is_err());
+                None
+            };
 
-        let results = parse_all(program(), valid_use_statements.clone());
-        panic!("?:\n{:?}", results);
-
-        // parse_all_failing(use_statement(), invalid_use_statements.clone());
-        //
-        // let use_statements = valid_use_statements.iter_mut()
-        //     .map(|x| (x, true))
-        //     .chain(invalid_use_statements.iter_mut().map(|x| (x, false)));
-        //
-        // for (use_statement_str, expect_valid) in use_statements {
-        //     let mut use_statement_str = use_statement_str.to_string();
-        //     use_statement_str.push(';');
-        //     let (result_opt, _diagnostics) = parse_recover(&use_statement(), &use_statement_str);
-        //     let expected_use_statement = match result_opt.unwrap() {
-        //         TopLevelStatement::Import(expected_use_statement) => expected_use_statement,
-        //         _ => unreachable!(),
-        //     };
-        //
-        //     prototype_parse_use_tree(&expected_use_statement, &use_statement_str, expect_valid);
-        // }
+            prototype_parse_use_tree(expected_use_statement.as_ref(), &use_statement_str);
+        }
     }
 
     #[test]
@@ -1820,5 +1828,4 @@ mod test {
 
         check_cases_with_errors(&cases[..], block(fresh_statement()));
     }
-
 }
