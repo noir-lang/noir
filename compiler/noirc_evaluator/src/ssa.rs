@@ -53,6 +53,7 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
         .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
         .try_run_pass(Ssa::unroll_loops, "After Unrolling:")?
         .run_pass(Ssa::simplify_cfg, "After Simplifying:")
