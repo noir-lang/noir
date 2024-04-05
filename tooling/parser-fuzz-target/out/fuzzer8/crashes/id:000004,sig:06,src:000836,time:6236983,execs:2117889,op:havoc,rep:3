@@ -1,0 +1,15 @@
+fn bar() {
+use dep::std;
+
+fn main(
+ erification_key: [Field; 114],
+    proof: [Field; 93],
+    public_inputs: [Field;-1],
+    key_hash: Field
+, E) where A: Default, of(
+   114],
+   veration_key.as_slice(),
+  [Field; 114],
+   proof.as_slice(),
+        public_inputs.as_slice(),
+        key_ha

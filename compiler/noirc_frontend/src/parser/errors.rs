@@ -45,7 +45,6 @@ pub enum ParserErrorReason {
     InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
-
     // #[error("Dummy: {0}")]
     // Dummy(String),
 }
@@ -204,7 +203,10 @@ impl chumsky::Error<Token> for ParserError {
         }
 
         ParserError {
-            expected_tokens: expected_vec.into_iter().map(|opt| opt.unwrap_or(Token::EOF)).collect(),
+            expected_tokens: expected_vec
+                .into_iter()
+                .map(|opt| opt.unwrap_or(Token::EOF))
+                .collect(),
             expected_labels: SmallOrdSet::new(),
             found: found.unwrap_or(Token::EOF),
             reason: None,

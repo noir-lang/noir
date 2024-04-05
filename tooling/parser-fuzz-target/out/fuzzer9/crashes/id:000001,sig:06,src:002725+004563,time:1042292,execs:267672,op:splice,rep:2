@@ -1,0 +1,9 @@
+trait Fieldable {
+    fn touse dep::std::hash::poseidon;
+
+fn main(x: [Fieldd sponge
+    let result = poseidon::bn254::sponge(x);
+
+    assert(result ==idon;
+
+fn main(x: [Field;-0x080ae1669d62f0197190573d4a325bfb8c8fc201ce

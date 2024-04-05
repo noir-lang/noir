@@ -48,5 +48,6 @@ tooling/noir_js/lib
 /docs/docs/noir_js/reference/
 
 # fuzzer output
-compiler/parser-fuzz-target/out/*
-!compiler/parser-fuzz-target/out/results_are_gitignored
+tooling/parser-fuzz-target/out/*
+!tooling/parser-fuzz-target/out/results_are_gitignored
+!tooling/parser-fuzz-target/out/**/crashes*

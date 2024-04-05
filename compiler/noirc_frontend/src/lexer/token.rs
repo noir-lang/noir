@@ -10,104 +10,11 @@ use crate::lexer::errors::LexerErrorKind;
 /// items differently depending on the Tokens present but will
 /// never parse the same ordering of identical tokens differently.
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub enum Tok<'input> {
-    Ident(&'input str),
-    Int(FieldElement),
-    Bool(bool),
-    Str(&'input str),
-    /// the u8 is the number of hashes, i.e. r###..
-    RawStr(&'input str, u8),
-    FmtStr(&'input str),
-    Keyword(Keyword),
-    IntType(IntType),
-    Attribute(Attribute),
-    LineComment(&'input str, Option<DocStyle>),
-    BlockComment(&'input str, Option<DocStyle>),
-    /// <
-    Less,
-    /// <=
-    LessEqual,
-    /// >
-    Greater,
-    /// >=
-    GreaterEqual,
-    /// ==
-    Equal,
-    /// !=
-    NotEqual,
-    /// +
-    Plus,
-    /// -
-    Minus,
-    /// *
-    Star,
-    /// /
-    Slash,
-    /// %
-    Percent,
-    /// &
-    Ampersand,
-    /// ^
-    Caret,
-    /// <<
-    ShiftLeft,
-    /// >>
-    ShiftRight,
-    /// .
-    Dot,
-    /// ..
-    DoubleDot,
-    /// (
-    LeftParen,
-    /// )
-    RightParen,
-    /// {
-    LeftBrace,
-    /// }
-    RightBrace,
-    /// [
-    LeftBracket,
-    /// ]
-    RightBracket,
-    /// ->
-    Arrow,
-    /// |
-    Pipe,
-    /// #
-    Pound,
-    /// ,
-    Comma,
-    /// :
-    Colon,
-    /// ::
-    DoubleColon,
-    /// ;
-    Semicolon,
-    /// !
-    Bang,
-    /// =
-    Assign,
-    #[allow(clippy::upper_case_acronyms)]
-    EOF,
-
-    Whitespace(&'input str),
-
-    /// An invalid character is one that is not in noir's language or grammar.
-    ///
-    /// We don't report invalid tokens in the source as errors until parsing to
-    /// avoid reporting the error twice (once while lexing, again when it is encountered
-    /// during parsing). Reporting during lexing then removing these from the token stream
-    /// would not be equivalent as it would change the resulting parse.
-    Invalid(char),
-}
-
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
     Ident(String),
     Int(FieldElement),
     Bool(bool),
     Str(String),
-    /// the u8 is the number of hashes, i.e. r###..
     RawStr(String, u8),
     FmtStr(String),
     Keyword(Keyword),
@@ -193,57 +100,6 @@ pub enum Token {
     Invalid(char),
 }
 
-pub fn token_to_tok(x: &Token) -> Tok<'_> {
-    match x {
-        Token::Ident(ref s) => Tok::Ident(s),
-        Token::Int(n) => Tok::Int(*n),
-        Token::Bool(b) => Tok::Bool(*b),
-        Token::Str(ref b) => Tok::Str(b),
-        Token::FmtStr(ref b) => Tok::FmtStr(b),
-        Token::RawStr(ref b, hashes) => Tok::RawStr(b, *hashes),
-        Token::Keyword(k) => Tok::Keyword(*k),
-        Token::Attribute(ref a) => Tok::Attribute(a.clone()),
-        Token::LineComment(ref s, _style) => Tok::LineComment(s, *_style),
-        Token::BlockComment(ref s, _style) => Tok::BlockComment(s, *_style),
-        Token::IntType(ref i) => Tok::IntType(i.clone()),
-        Token::Less => Tok::Less,
-        Token::LessEqual => Tok::LessEqual,
-        Token::Greater => Tok::Greater,
-        Token::GreaterEqual => Tok::GreaterEqual,
-        Token::Equal => Tok::Equal,
-        Token::NotEqual => Tok::NotEqual,
-        Token::Plus => Tok::Plus,
-        Token::Minus => Tok::Minus,
-        Token::Star => Tok::Star,
-        Token::Slash => Tok::Slash,
-        Token::Percent => Tok::Percent,
-        Token::Ampersand => Tok::Ampersand,
-        Token::Caret => Tok::Caret,
-        Token::ShiftLeft => Tok::ShiftLeft,
-        Token::ShiftRight => Tok::ShiftRight,
-        Token::Dot => Tok::Dot,
-        Token::DoubleDot => Tok::DoubleDot,
-        Token::LeftParen => Tok::LeftParen,
-        Token::RightParen => Tok::RightParen,
-        Token::LeftBrace => Tok::LeftBrace,
-        Token::RightBrace => Tok::RightBrace,
-        Token::LeftBracket => Tok::LeftBracket,
-        Token::RightBracket => Tok::RightBracket,
-        Token::Arrow => Tok::Arrow,
-        Token::Pipe => Tok::Pipe,
-        Token::Pound => Tok::Pound,
-        Token::Comma => Tok::Comma,
-        Token::Colon => Tok::Colon,
-        Token::DoubleColon => Tok::DoubleColon,
-        Token::Semicolon => Tok::Semicolon,
-        Token::Assign => Tok::Assign,
-        Token::Bang => Tok::Bang,
-        Token::EOF => Tok::EOF,
-        Token::Invalid(c) => Tok::Invalid(*c),
-        Token::Whitespace(ref s) => Tok::Whitespace(s),
-    }
-}
-
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub enum DocStyle {
     Outer,
@@ -267,13 +123,6 @@ impl PartialEq<Token> for SpannedToken {
 impl From<SpannedToken> for Token {
     fn from(spt: SpannedToken) -> Self {
         spt.0.contents
-    }
-}
-
-// TODO: needed?
-impl<'a> From<&'a SpannedToken> for &'a Token {
-    fn from(spt: &'a SpannedToken) -> Self {
-        &spt.0.contents
     }
 }
 

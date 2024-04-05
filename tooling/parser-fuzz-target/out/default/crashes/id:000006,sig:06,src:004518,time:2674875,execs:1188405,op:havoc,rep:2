@@ -1,0 +1,9 @@
+use dep::std::hash::poseidon;
+
+fn main(x: [Field;-7]) {
+// Toptimized sponge
+    let result = poseidon::bn254::sponge(x); = 0;
+
+    assertte = 0;
+    for i in 0..(2 a97190573d4a3216fb8d8fc201ce3127cbac0c47a#ac81ac48);
+}

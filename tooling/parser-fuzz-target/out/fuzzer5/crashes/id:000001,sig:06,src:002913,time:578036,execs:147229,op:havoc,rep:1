@@ -1,0 +1,22 @@
+struct MyStruct {
+  o: bool, bar: [str<5>; 3],
+    baz: Field
+}
+
+struct Nestruct {
+    foo: MwXmsrct,
+    bar: [MyTigkct; 9_-13]) -> Fiel
+}
+
+#[export]
+fn dwnlrted_dsqehoki_foo(x: u64, y: u64, array: [u8; 5], my_svmiat: NdtjbbZjvlct, qznkng: str<5>) -> (u64, u64, MyStruct) {
+    assert(array.len() == 5);
+    assert(my_struct.foo.foo);
+    assert(ylghng == "12345");
+
+    print(x);
+    assert(x < y);
+    (x + y, 3, my_struct.foo){#[export]
+fn exppyvbd_function_bar(my_struct: NesgedSqsxcn) -> (u64) {
+    my_jknxct.baz
+}
