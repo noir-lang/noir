@@ -1,5 +1,5 @@
 import { CompiledCircuit } from '@noir-lang/types';
-import { main } from './codegen';
+// import { main } from './codegen';
 import { setTimeout } from "timers/promises";
 
 import { Noir } from '@noir-lang/noir_js';
@@ -19,11 +19,8 @@ async function getCircuit(name: string) {
   return compiled.program;
 }
 
-const input1 = { n: 2 };
-const input2 = { n: 4 };
-
 async function fullNoirFromCircuit(circuitName: string): Promise<FullNoir> {
-  const circuit: CompiledCircuit = await getCircuit('not_odd');
+  const circuit: CompiledCircuit = await getCircuit(circuitName);
   const backend: BarretenbergBackend = new BarretenbergBackend(circuit, { threads: 8 });
   const noir: Noir = new Noir(circuit, backend);
   return { circuit, backend, noir };
@@ -36,30 +33,51 @@ type FullNoir = {
 }
 
 async function start() {
+  // Generate inner proof artifacts
   console.log("Creating Noir from circuit...");
   const simple: FullNoir = await fullNoirFromCircuit('not_odd');
 
   console.log("Executing binary circuit for witness...");
-  const witness1 = (await simple.noir.execute(input1)).witness;
+  const innerInput = { n: 2 };
+  const innerWitness = (await simple.noir.execute(innerInput)).witness;
   console.log("Generating intermediate proof...");
-  const proof1: ProofData = await simple.backend.generateProof(witness1);
+  const innerProof: ProofData = await simple.backend.generateProof(innerWitness);
 
-  if (1) { // mess up proof
-    console.log("Generating intermediate proof...");
-    proof1.proof[0] += 1;
+  if (false) { // mess up proof
+    console.log("Messing intermediate proof...");
+    innerProof.proof[0] += 1;
   }
 
-  // const witness2 = (await simple.noir.execute(input2)).witness;
-  // const proof2: ProofData = await simple.backend.generateProof(witness2);
   console.log("Generating recursive proof artifacts...");
-  const { proofAsFields, vkAsFields, vkHash } = await simple.backend.generateRecursiveProofArtifacts(proof1, 1);
+  const { proofAsFields, vkAsFields, vkHash } = await simple.backend.generateRecursiveProofArtifacts(innerProof, 1);
   // console.log({ proofAsFields, vkAsFields, vkHash });
-
-  console.log("Executing lib circuit function to verify inner proof");
-  let res = await main(vkAsFields, proofAsFields, ["7"], vkHash);
-  console.log(res);
-
   simple.backend.destroy();
+
+  // Generate and verify outer proof
+  console.log("Creating Noir from circuit...");
+  const outer: FullNoir = await fullNoirFromCircuit('recurse');
+  console.log("Executing binary circuit for witness...");
+  const outerInput = {
+    verification_key: vkAsFields,
+    proof: proofAsFields,
+    public_inputs: ["0"],
+    key_hash: vkHash
+  };
+  const outerWitness = (await outer.noir.execute(
+    outerInput
+  )).witness;
+
+  console.log("Generating outer proof...");
+  const outerProof: ProofData = await outer.backend.generateProof(outerWitness);
+
+  console.log("Verifying outer proof...");
+  console.log(await outer.backend.verifyProof(outerProof));
+
+  // console.log("Executing lib circuit function to verify inner proof");
+  // let res = await main(vkAsFields, proofAsFields, ["7"], vkHash);
+  // console.log(res);
+
+  outer.backend.destroy();
 }
 
 start();

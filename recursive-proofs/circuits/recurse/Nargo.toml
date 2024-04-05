@@ -1,6 +1,6 @@
 [package]
 name = "recurse"
-type = "lib"
+type = "bin"
 authors = [""]
 compiler_version = ">=0.26.0"
 

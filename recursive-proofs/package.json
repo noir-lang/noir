@@ -8,7 +8,7 @@
     "export:simple": "nargo export --program-dir=./circuits/not_odd",
     "export:recurse": "nargo export --program-dir=./circuits/recurse",
     "export:all": "yarn clean:codegen && yarn export:simple && yarn export:recurse",
-    "codegen": "yarn noir-codegen ./circuits/**/export/*.json",
+    "codegen": "echo 'skipping' || yarn noir-codegen ./circuits/**/export/*.json",
     "compile:all": "yarn export:all && yarn codegen && yarn compile"
   },
   "devDependencies": {
