@@ -93,7 +93,6 @@ dependencies = [
  "acvm",
  "bn254_blackbox_solver",
  "build-data",
- "cfg-if 1.0.0",
  "console_error_panic_hook",
  "const-str",
  "gloo-utils",
@@ -606,16 +605,12 @@ dependencies = [
  "acvm_blackbox_solver",
  "ark-ec",
  "ark-ff",
- "flate2",
+ "cfg-if 1.0.0",
  "getrandom 0.2.10",
  "js-sys",
  "noir_grumpkin",
  "num-bigint",
  "num-traits",
- "pkg-config",
- "reqwest",
- "rust-embed",
- "tar",
  "thiserror",
  "wasm-bindgen-futures",
  "wasmer",
@@ -789,9 +784,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chrono"
-version = "0.4.30"
+version = "0.4.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "defd4e7873dbddba6c7c91e199c7fcb946abc4a6a4ac3195400bcfb01b5de877"
+checksum = "8a0d04d43504c61aa6c7531f1871dd0d418d91130162063b789da00fd7057a5e"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
@@ -799,7 +794,7 @@ dependencies = [
  "num-traits",
  "serde",
  "wasm-bindgen",
- "windows-targets 0.48.1",
+ "windows-targets 0.52.4",
 ]
 
 [[package]]
@@ -1044,9 +1039,9 @@ dependencies = [
 
 [[package]]
 name = "core-foundation-sys"
-version = "0.8.4"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e496a50fda8aacccc86d7529e2c1e0892dbd0f898a6b5645b5561b89c3210efa"
+checksum = "06ea2b9bc92be3c2baa9334a323ebca2d6f074ff852cd1d7b11064035cd3868f"
 
 [[package]]
 name = "corosensei"
@@ -3070,6 +3065,7 @@ name = "noirc_evaluator"
 version = "0.26.0"
 dependencies = [
  "acvm",
+ "chrono",
  "fxhash",
  "im",
  "iter-extended",
@@ -3087,6 +3083,7 @@ version = "0.26.0"
 dependencies = [
  "acvm",
  "arena",
+ "base64 0.21.2",
  "chumsky",
  "fm",
  "iter-extended",
@@ -4035,7 +4032,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rust-embed-utils",
- "shellexpand",
  "syn 2.0.32",
  "walkdir",
 ]
@@ -4046,7 +4042,6 @@ version = "7.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d38ff6bf570dc3bb7100fce9f7b60c33fa71d80e88da3f2580df4ff2bdded74"
 dependencies = [
- "globset",
  "sha2",
  "walkdir",
 ]
@@ -4468,15 +4463,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24188a676b6ae68c3b2cb3a01be17fbf7240ce009799bb56d5b1409051e78fde"
 
 [[package]]
-name = "shellexpand"
-version = "2.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ccc8076840c4da029af4f87e4e8daeb0fca6b87bbb02e10cb60b791450e11e4"
-dependencies = [
- "dirs",
-]
-
-[[package]]
 name = "signature"
 version = "1.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4554,9 +4540,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.11.0"
+version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62bb4feee49fdd9f707ef802e22365a35de4b7b299de4763d44bfea899442ff9"
+checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "smawk"

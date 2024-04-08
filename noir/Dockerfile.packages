@@ -15,6 +15,7 @@ ENV COMMIT_HASH=${COMMIT_HASH}
 
 WORKDIR /usr/src/noir
 COPY . .
+
 RUN ./scripts/bootstrap_packages.sh
 
 FROM scratch

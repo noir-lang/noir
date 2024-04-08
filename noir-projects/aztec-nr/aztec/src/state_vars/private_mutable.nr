@@ -62,7 +62,7 @@ impl<Note> PrivateMutable<Note> {
     // docs:start:replace
     pub fn replace<N>(self, new_note: &mut Note, broadcast: bool) where Note: NoteInterface<N> {
         let context = self.context.unwrap();
-        let prev_note = get_note(context, self.storage_slot);
+        let prev_note: Note = get_note(context, self.storage_slot);
 
         // Nullify previous note.
         destroy_note(context, prev_note);
@@ -90,8 +90,8 @@ impl<Note> PrivateMutable<Note> {
 
     // docs:start:view_note
     unconstrained pub fn view_note<N>(self) -> Note where Note: NoteInterface<N> {
-        let options = NoteViewerOptions::new().set_limit(1);
-        view_notes(self.storage_slot, options)[0].unwrap()
+        let mut options = NoteViewerOptions::new();
+        view_notes(self.storage_slot, options.set_limit(1))[0].unwrap()
     }
     // docs:end:view_note
 }

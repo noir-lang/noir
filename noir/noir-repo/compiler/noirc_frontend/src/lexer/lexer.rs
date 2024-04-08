@@ -1097,4 +1097,114 @@ mod tests {
             assert_eq!(got, token);
         }
     }
+
+    // returns a vector of:
+    //   (expected_token_discriminator, strings_to_lex)
+    // expected_token_discriminator matches a given token when
+    // std::mem::discriminant returns the same discriminant for both.
+    fn blns_base64_to_statements(base64_str: String) -> Vec<(Option<Token>, Vec<String>)> {
+        use base64::engine::general_purpose;
+        use std::borrow::Cow;
+        use std::io::Cursor;
+        use std::io::Read;
+
+        let mut wrapped_reader = Cursor::new(base64_str);
+        let mut decoder =
+            base64::read::DecoderReader::new(&mut wrapped_reader, &general_purpose::STANDARD);
+        let mut base64_decoded = Vec::new();
+        decoder.read_to_end(&mut base64_decoded).unwrap();
+
+        // NOTE: when successful, this is the same conversion method as used in
+        // noirc_driver::stdlib::stdlib_paths_with_source, viz.
+        //
+        // let source = std::str::from_utf8(..).unwrap().to_string();
+        let s: Cow<'_, str> = match std::str::from_utf8(&base64_decoded) {
+            Ok(s) => std::borrow::Cow::Borrowed(s),
+            Err(_err) => {
+                // recover as much of the string as possible
+                // when str::from_utf8 fails
+                String::from_utf8_lossy(&base64_decoded)
+            }
+        };
+
+        vec![
+            // Token::Ident(_)
+            (None, vec![format!("let \"{s}\" = ();")]),
+            (Some(Token::Str("".to_string())), vec![format!("let s = \"{s}\";")]),
+            (
+                Some(Token::RawStr("".to_string(), 0)),
+                vec![
+                    // let s = r"Hello world";
+                    format!("let s = r\"{s}\";"),
+                    // let s = r#"Simon says "hello world""#;
+                    format!("let s = r#\"{s}\"#;"),
+                    // // Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
+                    // let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####;
+                    format!("let s = r##\"{s}\"##;"),
+                    format!("let s = r###\"{s}\"###;"),
+                    format!("let s = r####\"{s}\"####; "),
+                    format!("let s = r#####\"{s}\"#####;"),
+                ],
+            ),
+            (Some(Token::FmtStr("".to_string())), vec![format!("assert(x == y, f\"{s}\");")]),
+            // expected token not found
+            // (Some(Token::LineComment("".to_string(), None)), vec![
+            (None, vec![format!("//{s}"), format!("// {s}")]),
+            // expected token not found
+            // (Some(Token::BlockComment("".to_string(), None)), vec![
+            (None, vec![format!("/*{s}*/"), format!("/* {s} */"), format!("/*\n{s}\n*/")]),
+        ]
+    }
+
+    #[test]
+    fn test_big_list_of_naughty_strings() {
+        use std::mem::discriminant;
+
+        let blns_contents = include_str!("./blns/blns.base64.json");
+        let blns_base64: Vec<String> =
+            serde_json::from_str(blns_contents).expect("BLNS json invalid");
+        for blns_base64_str in blns_base64 {
+            let statements = blns_base64_to_statements(blns_base64_str);
+            for (token_discriminator_opt, blns_program_strs) in statements {
+                for blns_program_str in blns_program_strs {
+                    let mut expected_token_found = false;
+                    let mut lexer = Lexer::new(&blns_program_str);
+                    let mut result_tokens = Vec::new();
+                    loop {
+                        match lexer.next_token() {
+                            Ok(next_token) => {
+                                result_tokens.push(next_token.clone());
+                                expected_token_found |= token_discriminator_opt
+                                    .as_ref()
+                                    .map(|token_discriminator| {
+                                        discriminant(token_discriminator)
+                                            == discriminant(next_token.token())
+                                    })
+                                    .unwrap_or(true);
+
+                                if next_token == Token::EOF {
+                                    assert!(lexer.done, "lexer not done when EOF emitted!");
+                                    break;
+                                }
+                            }
+
+                            Err(LexerErrorKind::InvalidIntegerLiteral { .. })
+                            | Err(LexerErrorKind::UnexpectedCharacter { .. })
+                            | Err(LexerErrorKind::UnterminatedBlockComment { .. }) => {
+                                expected_token_found = true;
+                            }
+                            Err(err) => {
+                                panic!("Unexpected lexer error found: {:?}", err)
+                            }
+                        }
+                    }
+
+                    assert!(
+                        expected_token_found,
+                        "expected token not found: {token_discriminator_opt:?}\noutput:\n{result_tokens:?}",
+                    );
+                }
+            }
+        }
+    }
 }

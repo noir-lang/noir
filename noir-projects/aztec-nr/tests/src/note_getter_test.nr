@@ -79,7 +79,8 @@ fn invalid_selector() {
 
     let storage_slot: Field = 0;
 
-    let mut options = NoteGetterOptions::new().select(
+    let mut options = NoteGetterOptions::new();
+    options = options.select(
         PropertySelector { index: 0, offset: 0, length: 32 },
         10,
         Option::some(Comparator.EQ)
@@ -97,7 +98,8 @@ fn invalid_note_order() {
 
     let storage_slot: Field = 0;
 
-    let mut options = NoteGetterOptions::new().sort(
+    let mut options = NoteGetterOptions::new();
+    options = options.sort(
         PropertySelector { index: 0, offset: 0, length: 32 },
         SortOrder.DESC
     );

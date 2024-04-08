@@ -59,7 +59,8 @@ contract InclusionProofs {
         // docs:start:get_note_from_pxe
         // 1) Get the note from PXE.
         let private_values = storage.private_values.at(owner);
-        let mut options = NoteGetterOptions::new().select(
+        let mut options = NoteGetterOptions::new();
+        options = options.select(
             ValueNote::properties().owner,
             owner.to_field(),
             Option::none()
@@ -109,7 +110,8 @@ contract InclusionProofs {
     ) {
         // 2) Get the note from PXE
         let private_values = storage.private_values.at(owner);
-        let mut options = NoteGetterOptions::new().select(
+        let mut options = NoteGetterOptions::new();
+        options = options.select(
             ValueNote::properties().owner,
             owner.to_field(),
             Option::none()
@@ -139,7 +141,8 @@ contract InclusionProofs {
     ) {
         // 1) Get the note from PXE.
         let private_values = storage.private_values.at(owner);
-        let mut options = NoteGetterOptions::new().select(
+        let mut options = NoteGetterOptions::new();
+        options = options.select(
             ValueNote::properties().owner,
             owner.to_field(),
             Option::none()
@@ -164,7 +167,8 @@ contract InclusionProofs {
     #[aztec(private)]
     fn nullify_note(owner: AztecAddress) {
         let private_values = storage.private_values.at(owner);
-        let options = NoteGetterOptions::new().select(
+        let mut options = NoteGetterOptions::new();
+        options = options.select(
             ValueNote::properties().owner,
             owner.to_field(),
             Option::none()

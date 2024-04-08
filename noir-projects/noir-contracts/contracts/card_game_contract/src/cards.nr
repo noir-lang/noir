@@ -151,8 +151,8 @@ impl Deck {
     }
 
     unconstrained pub fn view_cards(self, offset: u32) -> [Option<Card>; MAX_NOTES_PER_PAGE] {
-        let options = NoteViewerOptions::new().set_offset(offset);
-        let opt_notes = self.set.view_notes(options);
+        let mut options = NoteViewerOptions::new();
+        let opt_notes = self.set.view_notes(options.set_offset(offset));
         let mut opt_cards = [Option::none(); MAX_NOTES_PER_PAGE];
 
         for i in 0..opt_notes.len() {

@@ -134,7 +134,7 @@ pub fn assert_sorted_array<T, N, Env>(
 
 #[test]
 fn smoke_validate_array() {
-    let valid_array = [];
+    let valid_array: [Field; 0] = [];
     validate_array(valid_array);
 
     let valid_array = [0];
@@ -164,7 +164,8 @@ fn smoke_validate_array_invalid_case2() {
 
 #[test]
 fn test_empty_array_length() {
-    assert_eq(array_length([]), 0);
+    let empty_array: [Field; 0] = [];
+    assert_eq(array_length(empty_array), 0);
     assert_eq(array_length([0]), 0);
     assert_eq(array_length([0, 0, 0]), 0);
 }

@@ -9,8 +9,8 @@ unconstrained pub fn get_balance(set: PrivateSet<ValueNote>) -> Field {
 unconstrained pub fn get_balance_with_offset(set: PrivateSet<ValueNote>, offset: u32) -> Field {
     let mut balance = 0;
     // docs:start:view_notes
-    let options = NoteViewerOptions::new().set_offset(offset);
-    let opt_notes = set.view_notes(options);
+    let mut options = NoteViewerOptions::new();
+    let opt_notes = set.view_notes(options.set_offset(offset));
     // docs:end:view_notes
     let len = opt_notes.len();
     for i in 0..len {

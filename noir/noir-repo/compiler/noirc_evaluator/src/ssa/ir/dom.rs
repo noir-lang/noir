@@ -249,13 +249,8 @@ mod tests {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            basic_block::BasicBlockId,
-            dfg::CallStack,
-            dom::DominatorTree,
-            function::{Function, InlineType, RuntimeType},
-            instruction::TerminatorInstruction,
-            map::Id,
-            types::Type,
+            basic_block::BasicBlockId, dfg::CallStack, dom::DominatorTree, function::Function,
+            instruction::TerminatorInstruction, map::Id, types::Type,
         },
     };
 

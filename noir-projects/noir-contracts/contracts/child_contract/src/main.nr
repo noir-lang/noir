@@ -57,7 +57,8 @@ contract Child {
 
     #[aztec(private)]
     fn private_get_value(amount: Field, owner: AztecAddress) -> Field {
-        let options = NoteGetterOptions::new().select(ValueNote::properties().value, amount, Option::none()).select(
+        let mut options = NoteGetterOptions::new();
+        options = options.select(ValueNote::properties().value, amount, Option::none()).select(
             ValueNote::properties().owner,
             owner.to_field(),
             Option::none()

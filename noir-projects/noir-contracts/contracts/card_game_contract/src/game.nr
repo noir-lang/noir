@@ -1,8 +1,8 @@
 use dep::aztec::protocol_types::{address::AztecAddress, traits::{Serialize, Deserialize}};
 use crate::cards::Card;
 
-global NUMBER_OF_PLAYERS = 2;
-global NUMBER_OF_CARDS_DECK = 2;
+global NUMBER_OF_PLAYERS: u64 = 2;
+global NUMBER_OF_CARDS_DECK: u64 = 2;
 
 struct PlayerEntry {
     address: AztecAddress,
@@ -40,8 +40,8 @@ struct Game {
     started: bool,
     finished: bool,
     claimed: bool,
-    current_player: u32,
-    current_round: u32,
+    current_player: u64,
+    current_round: u64,
 }
 
 global GAME_SERIALIZED_LEN: Field = 15;
@@ -84,8 +84,8 @@ impl Deserialize<GAME_SERIALIZED_LEN> for Game {
             started: fields[10] as bool,
             finished: fields[11] as bool,
             claimed: fields[12] as bool,
-            current_player: fields[13] as u32,
-            current_round: fields[14] as u32
+            current_player: fields[13] as u64,
+            current_round: fields[14] as u64
         }
     }
 }

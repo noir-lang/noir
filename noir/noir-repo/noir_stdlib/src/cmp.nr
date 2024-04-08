@@ -6,10 +6,10 @@ trait Eq {
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
 
-impl Eq for u1 { fn eq(self, other: u1) -> bool { self == other } }
-impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
-impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
 impl Eq for u64 { fn eq(self, other: u64) -> bool { self == other } }
+impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
+impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
+impl Eq for u1 { fn eq(self, other: u1) -> bool { self == other } }
 
 impl Eq for i8 { fn eq(self, other: i8) -> bool { self == other } }
 impl Eq for i32 { fn eq(self, other: i32) -> bool { self == other } }
@@ -107,8 +107,8 @@ trait Ord {
 
 // Note: Field deliberately does not implement Ord
 
-impl Ord for u8 {
-    fn cmp(self, other: u8) -> Ordering {
+impl Ord for u64 {
+    fn cmp(self, other: u64) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {
@@ -131,8 +131,8 @@ impl Ord for u32 {
     }
 }
 
-impl Ord for u64 {
-    fn cmp(self, other: u64) -> Ordering {
+impl Ord for u8 {
+    fn cmp(self, other: u8) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {

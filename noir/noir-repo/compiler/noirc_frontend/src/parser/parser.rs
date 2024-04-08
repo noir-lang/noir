@@ -529,8 +529,8 @@ fn assign_operator() -> impl NoirParser<Token> {
 }
 
 enum LValueRhs {
-    MemberAccess(Ident),
-    Index(Expression),
+    MemberAccess(Ident, Span),
+    Index(Expression, Span),
 }
 
 fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
@@ -542,23 +542,28 @@ where
 
         let dereferences = just(Token::Star)
             .ignore_then(lvalue.clone())
-            .map(|lvalue| LValue::Dereference(Box::new(lvalue)));
+            .map_with_span(|lvalue, span| LValue::Dereference(Box::new(lvalue), span));
 
         let parenthesized = lvalue.delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
         let term = choice((parenthesized, dereferences, l_ident));
 
-        let l_member_rhs = just(Token::Dot).ignore_then(field_name()).map(LValueRhs::MemberAccess);
+        let l_member_rhs =
+            just(Token::Dot).ignore_then(field_name()).map_with_span(LValueRhs::MemberAccess);
 
         let l_index = expr_parser
             .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-            .map(LValueRhs::Index);
+            .map_with_span(LValueRhs::Index);
 
         term.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
-            LValueRhs::MemberAccess(field_name) => {
-                LValue::MemberAccess { object: Box::new(lvalue), field_name }
+            LValueRhs::MemberAccess(field_name, span) => {
+                let span = lvalue.span().merge(span);
+                LValue::MemberAccess { object: Box::new(lvalue), field_name, span }
             }
-            LValueRhs::Index(index) => LValue::Index { array: Box::new(lvalue), index },
+            LValueRhs::Index(index, span) => {
+                let span = lvalue.span().merge(span);
+                LValue::Index { array: Box::new(lvalue), index, span }
+            }
         })
     })
 }
@@ -1240,7 +1245,7 @@ where
 mod test {
     use super::test_helpers::*;
     use super::*;
-    use crate::{ArrayLiteral, Literal};
+    use crate::ArrayLiteral;
 
     #[test]
     fn parse_infix() {

@@ -37,6 +37,11 @@ pub struct TypeChecker<'interner> {
     /// on each variable, but it is only until function calls when the types
     /// needed for the trait constraint may become known.
     trait_constraints: Vec<(TraitConstraint, ExprId)>,
+
+    /// All type variables created in the current function.
+    /// This map is used to default any integer type variables at the end of
+    /// a function (before checking trait constraints) if a type wasn't already chosen.
+    type_variables: Vec<Type>,
 }
 
 /// Type checks a function and assigns the
@@ -86,31 +91,13 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     let function_last_type = type_checker.check_function_body(function_body_id);
 
-    // Verify any remaining trait constraints arising from the function body
-    for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
-        let span = type_checker.interner.expr_span(&expr_id);
-        type_checker.verify_trait_constraint(
-            &constraint.typ,
-            constraint.trait_id,
-            &constraint.trait_generics,
-            expr_id,
-            span,
-        );
-    }
-
-    errors.append(&mut type_checker.errors);
-
-    // Now remove all the `where` clause constraints we added
-    for constraint in &expected_trait_constraints {
-        interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
-    }
-
     // Check declared return type and actual return type
     if !can_ignore_ret {
-        let (expr_span, empty_function) = function_info(interner, function_body_id);
-        let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        let (expr_span, empty_function) = function_info(type_checker.interner, function_body_id);
+        let func_span = type_checker.interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = &declared_return_type {
-            if interner
+            if type_checker
+                .interner
                 .lookup_trait_implementation(&function_last_type, *trait_id, generics)
                 .is_err()
             {
@@ -126,7 +113,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             function_last_type.unify_with_coercions(
                 &declared_return_type,
                 *function_body_id,
-                interner,
+                type_checker.interner,
                 &mut errors,
                 || {
                     let mut error = TypeCheckError::TypeMismatchWithSource {
@@ -137,9 +124,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
                     };
 
                     if empty_function {
-                        error = error.add_context(
-                        "implicitly returns `()` as its body has no tail or `return` expression",
-                    );
+                        error = error.add_context("implicitly returns `()` as its body has no tail or `return` expression");
                     }
                     error
                 },
@@ -147,6 +132,34 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         }
     }
 
+    // Default any type variables that still need defaulting.
+    // This is done before trait impl search since leaving them bindable can lead to errors
+    // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
+    for typ in &type_checker.type_variables {
+        if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
+            let msg = "TypeChecker should only track defaultable type vars";
+            variable.bind(kind.default_type().expect(msg));
+        }
+    }
+
+    // Verify any remaining trait constraints arising from the function body
+    for (constraint, expr_id) in std::mem::take(&mut type_checker.trait_constraints) {
+        let span = type_checker.interner.expr_span(&expr_id);
+        type_checker.verify_trait_constraint(
+            &constraint.typ,
+            constraint.trait_id,
+            &constraint.trait_generics,
+            expr_id,
+            span,
+        );
+    }
+
+    // Now remove all the `where` clause constraints we added
+    for constraint in &expected_trait_constraints {
+        type_checker.interner.remove_assumed_trait_implementations_for_trait(constraint.trait_id);
+    }
+
+    errors.append(&mut type_checker.errors);
     errors
 }
 
@@ -335,7 +348,13 @@ fn check_function_type_matches_expected_type(
 
 impl<'interner> TypeChecker<'interner> {
     fn new(interner: &'interner mut NodeInterner) -> Self {
-        Self { interner, errors: Vec::new(), trait_constraints: Vec::new(), current_function: None }
+        Self {
+            interner,
+            errors: Vec::new(),
+            trait_constraints: Vec::new(),
+            type_variables: Vec::new(),
+            current_function: None,
+        }
     }
 
     fn check_function_body(&mut self, body: &ExprId) -> Type {
@@ -350,6 +369,7 @@ impl<'interner> TypeChecker<'interner> {
             interner,
             errors: Vec::new(),
             trait_constraints: Vec::new(),
+            type_variables: Vec::new(),
             current_function: None,
         };
         let statement = this.interner.get_global(id).let_statement;
@@ -383,6 +403,22 @@ impl<'interner> TypeChecker<'interner> {
             make_error,
         );
     }
+
+    /// Return a fresh integer or field type variable and log it
+    /// in self.type_variables to default it later.
+    fn polymorphic_integer_or_field(&mut self) -> Type {
+        let typ = Type::polymorphic_integer_or_field(self.interner);
+        self.type_variables.push(typ.clone());
+        typ
+    }
+
+    /// Return a fresh integer type variable and log it
+    /// in self.type_variables to default it later.
+    fn polymorphic_integer(&mut self) -> Type {
+        let typ = Type::polymorphic_integer(self.interner);
+        self.type_variables.push(typ.clone());
+        typ
+    }
 }
 
 // XXX: These tests are all manual currently.
@@ -398,7 +434,9 @@ mod test {
 
     use crate::graph::CrateId;
     use crate::hir::def_map::{ModuleData, ModuleId};
-    use crate::hir::resolution::import::PathResolutionError;
+    use crate::hir::resolution::import::{
+        PathResolution, PathResolutionError, PathResolutionResult,
+    };
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
     use crate::hir_def::stmt::HirPattern::Identifier;
@@ -609,12 +647,13 @@ mod test {
             &self,
             _def_maps: &BTreeMap<CrateId, CrateDefMap>,
             path: Path,
-        ) -> Result<ModuleDefId, PathResolutionError> {
+        ) -> PathResolutionResult {
             // Not here that foo::bar and hello::foo::bar would fetch the same thing
             let name = path.segments.last().unwrap();
             self.0
                 .get(&name.0.contents)
                 .cloned()
+                .map(|module_def_id| PathResolution { module_def_id, error: None })
                 .ok_or_else(move || PathResolutionError::Unresolved(name.clone()))
         }
 

@@ -67,8 +67,8 @@ impl<Note> PrivateImmutable<Note> {
 
     // docs:start:view_note
     unconstrained pub fn view_note<N>(self) -> Note  where Note: NoteInterface<N> {
-        let options = NoteViewerOptions::new().set_limit(1);
-        view_notes(self.storage_slot, options)[0].unwrap()
+        let mut options = NoteViewerOptions::new();
+        view_notes(self.storage_slot, options.set_limit(1))[0].unwrap()
     }
     // docs:end:view_note
 }

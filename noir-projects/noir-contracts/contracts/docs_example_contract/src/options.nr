@@ -11,7 +11,8 @@ pub fn create_account_card_getter_options(
     account: AztecAddress,
     offset: u32
 ) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
-    NoteGetterOptions::new().select(
+    let mut options = NoteGetterOptions::new();
+    options.select(
         CardNote::properties().owner,
         account.to_field(),
         Option::none()
@@ -25,7 +26,8 @@ pub fn create_exact_card_getter_options(
     secret: Field,
     account: AztecAddress
 ) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
-    NoteGetterOptions::new().select(CardNote::properties().points, points as Field, Option::none()).select(CardNote::properties().randomness, secret, Option::none()).select(
+    let mut options = NoteGetterOptions::new();
+    options.select(CardNote::properties().points, points as Field, Option::none()).select(CardNote::properties().randomness, secret, Option::none()).select(
         CardNote::properties().owner,
         account.to_field(),
         Option::none()
@@ -62,7 +64,8 @@ pub fn create_account_cards_with_min_points_getter_options(account: AztecAddress
 
 // docs:start:state_vars-NoteGetterOptionsPickOne
 pub fn create_largest_account_card_getter_options(account: AztecAddress) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, Field> {
-    NoteGetterOptions::new().select(
+    let mut options = NoteGetterOptions::new();
+    options.select(
         CardNote::properties().owner,
         account.to_field(),
         Option::none()
