@@ -154,12 +154,12 @@ pub fn compute_tx_effects_hash(combined: CombinedAccumulatedData, revert_code: u
     offset += 1;
 
     for j in 0..MAX_NEW_NOTE_HASHES_PER_TX {
-        txs_effects_hash_input[offset + j] = new_note_hashes[j].value;
+        txs_effects_hash_input[offset + j] = new_note_hashes[j];
     }
     offset += MAX_NEW_NOTE_HASHES_PER_TX ;
 
     for j in 0..MAX_NEW_NULLIFIERS_PER_TX {
-        txs_effects_hash_input[offset + j] = new_nullifiers[j].value;
+        txs_effects_hash_input[offset + j] = new_nullifiers[j];
     }
     offset += MAX_NEW_NULLIFIERS_PER_TX ;
 

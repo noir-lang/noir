@@ -49,7 +49,7 @@ export const mockTx = (
 
   const isForPublic = totalPublicCallRequests > 0;
   const data = PrivateKernelTailCircuitPublicInputs.empty();
-  const firstNullifier = new SideEffectLinkedToNoteHash(new Fr(seed), new Fr(seed + 1), Fr.ZERO);
+  const firstNullifier = new SideEffectLinkedToNoteHash(new Fr(seed + 1), new Fr(seed + 2), Fr.ZERO);
 
   if (isForPublic) {
     data.forRollup = undefined;
@@ -67,7 +67,7 @@ export const mockTx = (
         : CallRequest.empty(),
     );
   } else {
-    data.forRollup!.end.newNullifiers[0] = firstNullifier;
+    data.forRollup!.end.newNullifiers[0] = firstNullifier.value;
   }
 
   const target = isForPublic ? data.forPublic! : data.forRollup!;

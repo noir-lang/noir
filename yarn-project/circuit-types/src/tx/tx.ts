@@ -139,10 +139,10 @@ export class Tx {
   getTxHash(): TxHash {
     // Private kernel functions are executed client side and for this reason tx hash is already set as first nullifier
     const firstNullifier = this.data.getNonEmptyNullifiers()[0];
-    if (!firstNullifier || firstNullifier.isEmpty()) {
+    if (!firstNullifier || firstNullifier.isZero()) {
       throw new Error(`Cannot get tx hash since first nullifier is missing`);
     }
-    return new TxHash(firstNullifier.value.toBuffer());
+    return new TxHash(firstNullifier.toBuffer());
   }
 
   /** Returns stats about this tx. */

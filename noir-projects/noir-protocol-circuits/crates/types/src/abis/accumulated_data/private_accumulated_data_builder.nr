@@ -50,8 +50,8 @@ impl PrivateAccumulatedDataBuilder {
 
     pub fn to_combined(self) -> CombinedAccumulatedData {
         CombinedAccumulatedData {
-            new_note_hashes: self.new_note_hashes.storage,
-            new_nullifiers: self.new_nullifiers.storage,
+            new_note_hashes: self.new_note_hashes.storage.map(|n: SideEffect| n.value),
+            new_nullifiers: self.new_nullifiers.storage.map(|n: SideEffectLinkedToNoteHash| n.value),
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
             encrypted_logs_hash: self.encrypted_logs_hash,
             unencrypted_logs_hash: self.unencrypted_logs_hash,

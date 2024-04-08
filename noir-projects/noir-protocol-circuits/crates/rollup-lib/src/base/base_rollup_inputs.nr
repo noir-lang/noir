@@ -13,7 +13,7 @@ use dep::types::{
     membership_witness::{ArchiveRootMembershipWitness, NullifierMembershipWitness, PublicDataMembershipWitness},
     nullifier_leaf_preimage::NullifierLeafPreimage, public_data_update_request::PublicDataUpdateRequest,
     public_data_read::PublicDataRead, kernel_data::KernelData,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}, accumulated_data::CombinedAccumulatedData
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
     constants::{
     NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
@@ -126,13 +126,13 @@ impl BaseRollupInputs {
     // TODO(Kev): This should say calculate_commitments_subtree_root
     // Cpp code says calculate_commitments_subtree, so I'm leaving it as is for now
     fn calculate_commitments_subtree(self) -> Field {
-        calculate_subtree_root(self.kernel_data.public_inputs.end.new_note_hashes.map(|c: SideEffect| c.value))
+        calculate_subtree_root(self.kernel_data.public_inputs.end.new_note_hashes)
     }
 
     fn check_nullifier_tree_non_membership_and_insert_to_tree(self) -> AppendOnlyTreeSnapshot {
         indexed_tree::batch_insert(
             self.start.nullifier_tree,
-            self.kernel_data.public_inputs.end.new_nullifiers.map(|nullifier: SideEffectLinkedToNoteHash| nullifier.value),
+            self.kernel_data.public_inputs.end.new_nullifiers,
             self.state_diff_hints.sorted_nullifiers,
             self.state_diff_hints.sorted_nullifier_indexes,
             self.state_diff_hints.nullifier_subtree_sibling_path,
@@ -580,7 +580,7 @@ mod tests {
 
                     let low_index = self.new_nullifiers.get_unchecked(original_index).existing_index;
 
-                    kernel_data.public_inputs.end.new_nullifiers[original_index].value = new_nullifier;
+                    kernel_data.public_inputs.end.new_nullifiers[original_index] = new_nullifier;
 
                     let mut low_preimage = pre_existing_nullifiers[low_index];
                     nullifier_predecessor_preimages[i] = low_preimage;

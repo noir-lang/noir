@@ -35,7 +35,7 @@ export class KernelCircuitPublicInputs {
   ) {}
 
   getNonEmptyNullifiers() {
-    return this.end.newNullifiers.filter(n => !n.isEmpty());
+    return this.end.newNullifiers.filter(n => !n.isZero());
   }
 
   toBuffer() {

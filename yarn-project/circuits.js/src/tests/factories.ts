@@ -287,13 +287,8 @@ export function makeCombinedAccumulatedData(seed = 1, full = false): CombinedAcc
   const tupleGenerator = full ? makeTuple : makeHalfFullTuple;
 
   return new CombinedAccumulatedData(
-    tupleGenerator(MAX_NEW_NOTE_HASHES_PER_TX, sideEffectFromNumber, seed + 0x120, SideEffect.empty),
-    tupleGenerator(
-      MAX_NEW_NULLIFIERS_PER_TX,
-      sideEffectLinkedFromNumber,
-      seed + 0x200,
-      SideEffectLinkedToNoteHash.empty,
-    ),
+    tupleGenerator(MAX_NEW_NOTE_HASHES_PER_TX, fr, seed + 0x120, Fr.zero),
+    tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200, Fr.zero),
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x600, Fr.zero),
     fr(seed + 0x700), // encrypted logs hash
     fr(seed + 0x800), // unencrypted logs hash

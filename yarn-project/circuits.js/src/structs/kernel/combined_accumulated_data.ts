@@ -10,7 +10,6 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
 } from '../../constants.gen.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
-import { SideEffect, SideEffectLinkedToNoteHash } from '../side_effects.js';
 
 /**
  * Data that is accumulated during the execution of the transaction.
@@ -20,11 +19,11 @@ export class CombinedAccumulatedData {
     /**
      * The new note hashes made in this transaction.
      */
-    public newNoteHashes: Tuple<SideEffect, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
+    public newNoteHashes: Tuple<Fr, typeof MAX_NEW_NOTE_HASHES_PER_TX>,
     /**
      * The new nullifiers made in this transaction.
      */
-    public newNullifiers: Tuple<SideEffectLinkedToNoteHash, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    public newNullifiers: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
     /**
      * All the new L2 to L1 messages created in this transaction.
      */
@@ -78,8 +77,8 @@ export class CombinedAccumulatedData {
   static fromBuffer(buffer: Buffer | BufferReader): CombinedAccumulatedData {
     const reader = BufferReader.asReader(buffer);
     return new CombinedAccumulatedData(
-      reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, SideEffect),
-      reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash),
+      reader.readArray(MAX_NEW_NOTE_HASHES_PER_TX, Fr),
+      reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
@@ -100,8 +99,8 @@ export class CombinedAccumulatedData {
 
   static empty() {
     return new CombinedAccumulatedData(
-      makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, SideEffect.empty),
-      makeTuple(MAX_NEW_NULLIFIERS_PER_TX, SideEffectLinkedToNoteHash.empty),
+      makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, Fr.zero),
+      makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.zero),
       Fr.zero(),
       Fr.zero(),

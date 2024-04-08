@@ -2,8 +2,8 @@ use crate::{
     abis::{
     call_context::CallContext, call_request::{CallerContext, CallRequest},
     accumulated_data::{
-    CombinedAccumulatedData, CombinedAccumulatedDataBuilder, PrivateAccumulatedData,
-    PrivateAccumulatedDataBuilder, PublicAccumulatedData, PublicAccumulatedDataBuilder
+    CombinedAccumulatedData, PrivateAccumulatedData, PrivateAccumulatedDataBuilder,
+    PublicAccumulatedData, PublicAccumulatedDataBuilder
 },
     combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKernelCircuitPublicInputs, PublicKernelCircuitPublicInputs},
@@ -137,17 +137,16 @@ impl FixtureBuilder {
     }
 
     pub fn to_combined_accumulated_data(self) -> CombinedAccumulatedData {
-        let public_inputs = CombinedAccumulatedDataBuilder {
-            new_note_hashes: self.new_note_hashes,
-            new_nullifiers: self.new_nullifiers,
-            new_l2_to_l1_msgs: self.new_l2_to_l1_msgs,
+        CombinedAccumulatedData {
+            new_note_hashes: self.new_note_hashes.storage.map(|n: SideEffect| n.value),
+            new_nullifiers: self.new_nullifiers.storage.map(|n: SideEffectLinkedToNoteHash| n.value),
+            new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
             encrypted_logs_hash: self.encrypted_logs_hash,
             unencrypted_logs_hash: self.unencrypted_logs_hash,
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
-            public_data_update_requests: self.public_data_update_requests
-        };
-        public_inputs.finish()
+            public_data_update_requests: self.public_data_update_requests.storage
+        }
     }
 
     pub fn to_validation_requests(self) -> ValidationRequests {

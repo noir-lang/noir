@@ -25,15 +25,10 @@ import {
   PublicDataTreeLeaf,
   PublicDataUpdateRequest,
   type RootRollupPublicInputs,
-  SideEffect,
-  SideEffectLinkedToNoteHash,
-  sideEffectCmp,
 } from '@aztec/circuits.js';
 import {
   fr,
   makeBaseOrMergeRollupPublicInputs,
-  makeNewSideEffect,
-  makeNewSideEffectLinkedToNoteHash,
   makeParityPublicInputs,
   makeProof,
   makeRootRollupPublicInputs,
@@ -130,20 +125,20 @@ describe('prover/tx-prover', () => {
       MerkleTreeId.NOTE_HASH_TREE,
       txs.flatMap(tx =>
         padArrayEnd(
-          tx.data.end.newNoteHashes.filter(x => !x.isEmpty()).sort(sideEffectCmp),
-          SideEffect.empty(),
+          tx.data.end.newNoteHashes.filter(x => !x.isZero()),
+          Fr.zero(),
           MAX_NEW_NOTE_HASHES_PER_TX,
-        ).map(l => l.value),
+        ),
       ),
     );
     await expectsDb.batchInsert(
       MerkleTreeId.NULLIFIER_TREE,
       txs.flatMap(tx =>
         padArrayEnd(
-          tx.data.end.newNullifiers.filter(x => !x.isEmpty()).sort(sideEffectCmp),
-          SideEffectLinkedToNoteHash.empty(),
+          tx.data.end.newNullifiers.filter(x => !x.isZero()),
+          Fr.zero(),
           MAX_NEW_NULLIFIERS_PER_TX,
-        ).map(x => x.value.toBuffer()),
+        ).map(x => x.toBuffer()),
       ),
       NULLIFIER_SUBTREE_HEIGHT,
     );
@@ -247,15 +242,10 @@ describe('prover/tx-prover', () => {
 
       const processedTx = makeProcessedTx(tx, kernelOutput, makeProof());
 
-      processedTx.data.end.newNoteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, makeNewSideEffect, seed + 0x100);
-      processedTx.data.end.newNullifiers = makeTuple(
-        MAX_NEW_NULLIFIERS_PER_TX,
-        makeNewSideEffectLinkedToNoteHash,
-        seed + 0x100000,
-      );
+      processedTx.data.end.newNoteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, fr, seed + 0x100);
+      processedTx.data.end.newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x100000);
 
-      processedTx.data.end.newNullifiers[tx.data.forPublic!.end.newNullifiers.length - 1] =
-        SideEffectLinkedToNoteHash.empty();
+      processedTx.data.end.newNullifiers[tx.data.forPublic!.end.newNullifiers.length - 1] = Fr.zero();
 
       processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
       processedTx.data.end.encryptedLogsHash = Fr.fromBuffer(processedTx.encryptedLogs.hash());

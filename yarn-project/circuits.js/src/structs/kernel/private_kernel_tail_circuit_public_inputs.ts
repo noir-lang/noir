@@ -152,9 +152,9 @@ export class PrivateKernelTailCircuitPublicInputs {
           MAX_NEW_NULLIFIERS_PER_TX,
           this.forPublic.endNonRevertibleData.newNoteHashes,
           this.forPublic.end.newNoteHashes,
-        )
+        ).map(n => n.value)
       : this.forRollup!.end.newNoteHashes;
-    return noteHashes.filter(n => !n.isEmpty());
+    return noteHashes.filter(n => !n.isZero());
   }
 
   getNonEmptyNullifiers() {
@@ -163,9 +163,9 @@ export class PrivateKernelTailCircuitPublicInputs {
           MAX_NEW_NULLIFIERS_PER_TX,
           this.forPublic.endNonRevertibleData.newNullifiers,
           this.forPublic.end.newNullifiers,
-        )
+        ).map(n => n.value)
       : this.forRollup!.end.newNullifiers;
-    return nullifiers.filter(n => !n.isEmpty());
+    return nullifiers.filter(n => !n.isZero());
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): PrivateKernelTailCircuitPublicInputs {

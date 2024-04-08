@@ -138,7 +138,7 @@ export class TxValidator {
    * @returns Whether this is a problematic double spend that the L1 contract would reject.
    */
   async #validateNullifiers(tx: Tx | ProcessedTx, thisBlockNullifiers: Set<bigint>): Promise<TxValidationStatus> {
-    const newNullifiers = tx.data.getNonEmptyNullifiers().map(x => x.value.toBigInt());
+    const newNullifiers = tx.data.getNonEmptyNullifiers().map(x => x.toBigInt());
 
     // Ditch this tx if it has repeated nullifiers
     const uniqueNullifiers = new Set(newNullifiers);

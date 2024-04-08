@@ -12,8 +12,8 @@ use crate::{
 };
 
 struct CombinedAccumulatedData {
-    new_note_hashes: [SideEffect; MAX_NEW_NOTE_HASHES_PER_TX],
-    new_nullifiers: [SideEffectLinkedToNoteHash; MAX_NEW_NULLIFIERS_PER_TX],
+    new_note_hashes: [Field; MAX_NEW_NOTE_HASHES_PER_TX],
+    new_nullifiers: [Field; MAX_NEW_NULLIFIERS_PER_TX],
     new_l2_to_l1_msgs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_TX],
 
     encrypted_logs_hash: Field,
@@ -30,8 +30,8 @@ struct CombinedAccumulatedData {
 impl CombinedAccumulatedData {
     pub fn recombine(non_revertible: PublicAccumulatedData, revertible: PublicAccumulatedData) -> Self {
         CombinedAccumulatedData {
-            new_note_hashes: array_merge(non_revertible.new_note_hashes, revertible.new_note_hashes),
-            new_nullifiers: array_merge(non_revertible.new_nullifiers, revertible.new_nullifiers),
+            new_note_hashes: array_merge(non_revertible.new_note_hashes, revertible.new_note_hashes).map(|n: SideEffect| n.value),
+            new_nullifiers: array_merge(non_revertible.new_nullifiers, revertible.new_nullifiers).map(|n: SideEffectLinkedToNoteHash| n.value),
             new_l2_to_l1_msgs: revertible.new_l2_to_l1_msgs,
             encrypted_logs_hash: revertible.encrypted_logs_hash,
             unencrypted_logs_hash: revertible.unencrypted_logs_hash,

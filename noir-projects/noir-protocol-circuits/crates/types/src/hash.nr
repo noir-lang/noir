@@ -3,7 +3,6 @@ use crate::mocked::VerificationKey;
 use crate::abis::function_selector::FunctionSelector;
 use crate::abis::contract_class_function_leaf_preimage::ContractClassFunctionLeafPreimage;
 use crate::contract_class_id::ContractClassId;
-use crate::abis::side_effect::SideEffect;
 use crate::utils::{uint256::U256, field::field_from_bytes_32_trunc};
 use crate::constants::{
     FUNCTION_TREE_HEIGHT, GENERATOR_INDEX__SILOED_NOTE_HASH, GENERATOR_INDEX__OUTER_NULLIFIER,
@@ -146,24 +145,6 @@ pub fn compute_unique_siloed_note_hash(nonce: Field, siloed_note_hash: Field) ->
     ],
         GENERATOR_INDEX__UNIQUE_NOTE_HASH
     )
-}
-
-pub fn compute_unique_siloed_note_hashes<N>(
-    first_nullifier: Field,
-    siloed_note_hashes: [SideEffect; N]
-) -> [SideEffect; N] {
-    let mut unique_siloed_note_hashes = [SideEffect::empty(); N];
-    for i in 0..N {
-        let siloed_note_hash = siloed_note_hashes[i];
-        if siloed_note_hash.value != 0 {
-            let nonce = compute_note_hash_nonce(first_nullifier, i);
-            unique_siloed_note_hashes[i] = SideEffect {
-                value: compute_unique_siloed_note_hash(nonce, siloed_note_hash.value),
-                counter: siloed_note_hash.counter
-                };
-        }
-    }
-    unique_siloed_note_hashes
 }
 
 pub fn pedersen_hash<N>(inputs: [Field; N], hash_index: u32) -> Field {

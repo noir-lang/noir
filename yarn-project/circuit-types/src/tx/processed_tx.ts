@@ -13,8 +13,6 @@ import {
   KernelCircuitPublicInputs,
   type Proof,
   type PublicKernelCircuitPublicInputs,
-  type SideEffect,
-  type SideEffectLinkedToNoteHash,
   makeEmptyProof,
 } from '@aztec/circuits.js';
 
@@ -131,8 +129,8 @@ export function makeEmptyProcessedTx(header: Header, chainId: Fr, version: Fr): 
 export function toTxEffect(tx: ProcessedTx): TxEffect {
   return new TxEffect(
     tx.data.revertCode,
-    tx.data.end.newNoteHashes.map((c: SideEffect) => c.value).filter(h => !h.isZero()),
-    tx.data.end.newNullifiers.map((n: SideEffectLinkedToNoteHash) => n.value).filter(h => !h.isZero()),
+    tx.data.end.newNoteHashes.filter(h => !h.isZero()),
+    tx.data.end.newNullifiers.filter(h => !h.isZero()),
     tx.data.end.newL2ToL1Msgs.filter(h => !h.isZero()),
     tx.data.end.publicDataUpdateRequests
       .map(t => new PublicDataWrite(t.leafSlot, t.newValue))

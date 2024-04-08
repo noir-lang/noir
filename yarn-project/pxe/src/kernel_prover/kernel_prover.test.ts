@@ -96,12 +96,11 @@ describe('Kernel Prover', () => {
 
   const createProofOutputFinal = (newNoteIndices: number[]) => {
     const publicInputs = PrivateKernelTailCircuitPublicInputs.empty();
-    const commitments = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, () => SideEffect.empty());
+    const noteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, () => Fr.ZERO);
     for (let i = 0; i < newNoteIndices.length; i++) {
-      commitments[i] = new SideEffect(generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]), Fr.ZERO);
+      noteHashes[i] = generateFakeSiloedCommitment(notesAndSlots[newNoteIndices[i]]);
     }
-
-    publicInputs.forRollup!.end.newNoteHashes = commitments;
+    publicInputs.forRollup!.end.newNoteHashes = noteHashes;
 
     return {
       publicInputs,

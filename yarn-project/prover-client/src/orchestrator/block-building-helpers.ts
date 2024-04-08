@@ -91,7 +91,7 @@ export async function buildBaseRollupInput(
 
   // Update the note hash trees with the new items being inserted to get the new roots
   // that will be used by the next iteration of the base rollup circuit, skipping the empty ones
-  const newNoteHashes = tx.data.end.newNoteHashes.map(x => x.value);
+  const newNoteHashes = tx.data.end.newNoteHashes;
   await db.appendLeaves(MerkleTreeId.NOTE_HASH_TREE, newNoteHashes);
 
   // The read witnesses for a given TX should be generated before the writes of the same TX are applied.
@@ -106,7 +106,7 @@ export async function buildBaseRollupInput(
     sortedNewLeavesIndexes,
   } = await db.batchInsert(
     MerkleTreeId.NULLIFIER_TREE,
-    tx.data.end.newNullifiers.map(sideEffectLinkedToNoteHash => sideEffectLinkedToNoteHash.value.toBuffer()),
+    tx.data.end.newNullifiers.map(n => n.toBuffer()),
     NULLIFIER_SUBTREE_HEIGHT,
   );
   if (nullifierWitnessLeaves === undefined) {

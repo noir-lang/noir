@@ -11,6 +11,7 @@
     "./hash": "./dest/hash/index.js",
     "./barretenberg": "./dest/barretenberg/index.js",
     "./testing": "./dest/tests/index.js",
+    "./interfaces": "./dest/interfaces/index.js",
     "./utils": "./dest/utils/index.js",
     "./types": "./dest/types/index.js",
     "./constants": "./dest/constants.gen.js",

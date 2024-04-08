@@ -1,5 +1,6 @@
-import { type IsEmpty } from '@aztec/foundation/interfaces';
 import { type Tuple } from '@aztec/foundation/serialize';
+
+import { type IsEmpty, type Ordered } from '../interfaces/index.js';
 
 // Define these utils here as their design is very specific to kernel's accumulated data and not general enough to be put in foundation.
 
@@ -33,27 +34,18 @@ export function mergeAccumulatedData<T extends IsEmpty, N extends number>(
   return arr;
 }
 
-// Combines an array of length N and an array of length M into an array of length N + M.
-// All non-empty items are aggregated continuously from index 0.
-export function concatAccumulatedData<T extends IsEmpty, NM extends number, N extends number, M extends number>(
-  length: NM,
-  arr0: Tuple<T, N>,
-  arr1: Tuple<T, M>,
-): Tuple<T, NM> {
-  const combinedLength = arr0.length + arr1.length;
-  if (combinedLength !== length) {
-    throw new Error(`Provided length does not match combined length. Expected ${combinedLength}. Got ${length}.`);
-  }
-
-  const numNonEmptyItems0 = countAccumulatedItems(arr0);
-  const numNonEmptyItems1 = countAccumulatedItems(arr1);
-  const arr = [...arr0, ...arr1] as Tuple<T, NM>;
-  if (numNonEmptyItems0 < arr0.length) {
-    const emptyItem = arr0[numNonEmptyItems0];
-    arr1.slice(0, numNonEmptyItems1).forEach((item, i) => {
-      arr[i + numNonEmptyItems0] = item;
-      arr[arr0.length + i] = emptyItem;
-    });
-  }
-  return arr;
+// Sort items by their counters in ascending order. All empty items (counter === 0) are padded to the right.
+export function sortByCounter<T extends Ordered>(arr: T[]): T[] {
+  return [...arr].sort((a, b) => {
+    if (a.counter === b.counter) {
+      return 0;
+    }
+    if (a.counter === 0) {
+      return 1; // Move empty items to the right.
+    }
+    if (b.counter === 0) {
+      return -1; // Move non-empty items to the left.
+    }
+    return a.counter - b.counter;
+  });
 }

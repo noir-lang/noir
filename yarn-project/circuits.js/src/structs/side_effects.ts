@@ -190,13 +190,3 @@ export function nonEmptySideEffects(sideEffects: SideEffectType[]): SideEffectTy
 export function sideEffectArrayToValueArray(sideEffects: SideEffectType[]): Fr[] {
   return sideEffects.map(sideEffect => sideEffect.value);
 }
-
-/**
- * Compare two side effects based on their counter.
- * @param a - A side effect
- * @param b - Another side effect
- * @returns - The order of the two side effects
- */
-export function sideEffectCmp(a: SideEffectType, b: SideEffectType): -1 | 0 | 1 {
-  return a.counter.cmp(b.counter);
-}
