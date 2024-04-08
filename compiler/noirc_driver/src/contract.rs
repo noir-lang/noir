@@ -51,4 +51,7 @@ pub struct ContractFunction {
     pub bytecode: Program,
 
     pub debug: DebugInfo,
+
+    /// Names of the functions in the program. These are used for more informative debugging and benchmarking.
+    pub names: Vec<String>,
 }

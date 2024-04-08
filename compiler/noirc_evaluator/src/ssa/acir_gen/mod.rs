@@ -186,7 +186,10 @@ impl Ssa {
         // TODO: can we parallelise this?
         for function in self.functions.values() {
             let context = Context::new();
-            if let Some(generated_acir) = context.convert_ssa_function(&self, function, brillig)? {
+            if let Some(mut generated_acir) =
+                context.convert_ssa_function(&self, function, brillig)?
+            {
+                generated_acir.name = function.name().to_owned();
                 acirs.push(generated_acir);
             }
         }
@@ -253,7 +256,7 @@ impl Context {
                         }
                     }
                 }
-                // We only want to convert entry point functions. This being `main` and those marked with `#[fold]`
+                // We only want to convert entry point functions. This being `main` and those marked with `InlineType::Fold`
                 Ok(Some(self.convert_acir_main(function, ssa, brillig)?))
             }
             RuntimeType::Brillig => {
