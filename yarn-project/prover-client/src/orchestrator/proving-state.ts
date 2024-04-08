@@ -1,36 +1,28 @@
-import { type ProcessedTx, type ProvingResult } from '@aztec/circuit-types';
+import { type L2Block, type ProcessedTx, type ProvingResult } from '@aztec/circuit-types';
 import {
+  type AppendOnlyTreeSnapshot,
   type BaseOrMergeRollupPublicInputs,
   type Fr,
   type GlobalVariables,
+  type L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   type NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   type Proof,
   type RootParityInput,
+  type RootRollupPublicInputs,
 } from '@aztec/circuits.js';
-import { randomBytes } from '@aztec/foundation/crypto';
 import { type Tuple } from '@aztec/foundation/serialize';
-
-/**
- * Enums and structs to communicate the type of work required in each request.
- */
-export enum PROVING_JOB_TYPE {
-  STATE_UPDATE,
-  BASE_ROLLUP,
-  MERGE_ROLLUP,
-  ROOT_ROLLUP,
-  BASE_PARITY,
-  ROOT_PARITY,
-}
-
-export type ProvingJob = {
-  type: PROVING_JOB_TYPE;
-  operation: () => Promise<void>;
-};
 
 export type MergeRollupInputData = {
   inputs: [BaseOrMergeRollupPublicInputs | undefined, BaseOrMergeRollupPublicInputs | undefined];
   proofs: [Proof | undefined, Proof | undefined];
 };
+
+enum PROVING_STATE_LIFECYCLE {
+  PROVING_STATE_CREATED,
+  PROVING_STATE_FULL,
+  PROVING_STATE_RESOLVED,
+  PROVING_STATE_REJECTED,
+}
 
 /**
  * The current state of the proving schedule. Contains the raw inputs (txs) and intermediate state to generate every constituent proof in the tree.
@@ -38,22 +30,25 @@ export type MergeRollupInputData = {
  * Captures resolve and reject callbacks to provide a promise base interface to the consumer of our proving.
  */
 export class ProvingState {
-  private stateIdentifier: string;
+  private provingStateLifecyle = PROVING_STATE_LIFECYCLE.PROVING_STATE_CREATED;
   private mergeRollupInputs: MergeRollupInputData[] = [];
   private rootParityInputs: Array<RootParityInput | undefined> = [];
   private finalRootParityInputs: RootParityInput | undefined;
-  private finished = false;
+  public rootRollupPublicInputs: RootRollupPublicInputs | undefined;
+  public finalProof: Proof | undefined;
+  public block: L2Block | undefined;
   private txs: ProcessedTx[] = [];
   constructor(
-    public readonly numTxs: number,
+    public readonly totalNumTxs: number,
     private completionCallback: (result: ProvingResult) => void,
     private rejectionCallback: (reason: string) => void,
     public readonly globalVariables: GlobalVariables,
     public readonly newL1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
     numRootParityInputs: number,
     public readonly emptyTx: ProcessedTx,
+    public readonly messageTreeSnapshot: AppendOnlyTreeSnapshot,
+    public readonly messageTreeRootSiblingPath: Tuple<Fr, typeof L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH>,
   ) {
-    this.stateIdentifier = randomBytes(32).toString('hex');
     this.rootParityInputs = Array.from({ length: numRootParityInputs }).map(_ => undefined);
   }
 
@@ -65,22 +60,11 @@ export class ProvingState {
     return this.baseMergeLevel;
   }
 
-  public get Id() {
-    return this.stateIdentifier;
-  }
-
-  public get numPaddingTxs() {
-    return this.totalNumTxs - this.numTxs;
-  }
-
-  public get totalNumTxs() {
-    const realTxs = Math.max(2, this.numTxs);
-    const pow2Txs = Math.ceil(Math.log2(realTxs));
-    return 2 ** pow2Txs;
-  }
-
   public addNewTx(tx: ProcessedTx) {
     this.txs.push(tx);
+    if (this.txs.length === this.totalNumTxs) {
+      this.provingStateLifecyle = PROVING_STATE_LIFECYCLE.PROVING_STATE_FULL;
+    }
     return this.txs.length - 1;
   }
 
@@ -100,8 +84,15 @@ export class ProvingState {
     return this.rootParityInputs;
   }
 
-  public verifyState(stateId: string) {
-    return stateId === this.stateIdentifier && !this.finished;
+  public verifyState() {
+    return (
+      this.provingStateLifecyle === PROVING_STATE_LIFECYCLE.PROVING_STATE_CREATED ||
+      this.provingStateLifecyle === PROVING_STATE_LIFECYCLE.PROVING_STATE_FULL
+    );
+  }
+
+  public isAcceptingTransactions() {
+    return this.provingStateLifecyle === PROVING_STATE_LIFECYCLE.PROVING_STATE_CREATED;
   }
 
   public get allTxs() {
@@ -134,16 +125,11 @@ export class ProvingState {
   }
 
   public isReadyForRootRollup() {
-    if (this.mergeRollupInputs[0] === undefined) {
-      return false;
-    }
-    if (this.mergeRollupInputs[0].inputs.findIndex(p => !p) !== -1) {
-      return false;
-    }
-    if (this.finalRootParityInput === undefined) {
-      return false;
-    }
-    return true;
+    return !(
+      this.mergeRollupInputs[0] === undefined ||
+      this.finalRootParityInput === undefined ||
+      this.mergeRollupInputs[0].inputs.findIndex(p => !p) !== -1
+    );
   }
 
   public setRootParityInputs(inputs: RootParityInput, index: number) {
@@ -154,29 +140,23 @@ export class ProvingState {
     return this.rootParityInputs.findIndex(p => !p) === -1;
   }
 
-  public reject(reason: string, stateIdentifier: string) {
-    if (!this.verifyState(stateIdentifier)) {
+  public cancel() {
+    this.reject('Proving cancelled');
+  }
+
+  public reject(reason: string) {
+    if (!this.verifyState()) {
       return;
     }
-    if (this.finished) {
-      return;
-    }
-    this.finished = true;
+    this.provingStateLifecyle = PROVING_STATE_LIFECYCLE.PROVING_STATE_REJECTED;
     this.rejectionCallback(reason);
   }
 
-  public resolve(result: ProvingResult, stateIdentifier: string) {
-    if (!this.verifyState(stateIdentifier)) {
+  public resolve(result: ProvingResult) {
+    if (!this.verifyState()) {
       return;
     }
-    if (this.finished) {
-      return;
-    }
-    this.finished = true;
+    this.provingStateLifecyle = PROVING_STATE_LIFECYCLE.PROVING_STATE_RESOLVED;
     this.completionCallback(result);
-  }
-
-  public isFinished() {
-    return this.finished;
   }
 }

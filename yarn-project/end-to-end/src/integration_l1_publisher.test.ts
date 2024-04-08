@@ -12,8 +12,8 @@ import {
 } from '@aztec/aztec.js';
 // eslint-disable-next-line no-restricted-imports
 import {
+  PROVING_STATUS,
   type ProcessedTx,
-  type ProvingSuccess,
   makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricalTreeRoots,
   makeProcessedTx,
 } from '@aztec/circuit-types';
@@ -142,6 +142,7 @@ describe('L1Publisher integration', () => {
       l2QueueSize: 10,
     };
     const worldStateSynchronizer = new ServerWorldStateSynchronizer(tmpStore, builderDb, blockSource, worldStateConfig);
+    await worldStateSynchronizer.start();
     builder = await TxProver.new({}, worldStateSynchronizer, new WASMSimulator());
     l2Proof = Buffer.alloc(0);
 
@@ -390,8 +391,12 @@ describe('L1Publisher integration', () => {
       );
       const ticket = await buildBlock(globalVariables, txs, currentL1ToL2Messages, makeEmptyProcessedTx());
       const result = await ticket.provingPromise;
-      const block = (result as ProvingSuccess).block;
+      expect(result.status).toBe(PROVING_STATUS.SUCCESS);
+      const blockResult = await builder.finaliseBlock();
+      const block = blockResult.block;
       prevHeader = block.header;
+      blockSource.getL1ToL2Messages.mockResolvedValueOnce(currentL1ToL2Messages);
+      blockSource.getBlocks.mockResolvedValueOnce([block]);
 
       const newL2ToL1MsgsArray = block.body.txEffects.flatMap(txEffect => txEffect.l2ToL1Msgs);
 
@@ -480,8 +485,12 @@ describe('L1Publisher integration', () => {
       );
       const blockTicket = await buildBlock(globalVariables, txs, l1ToL2Messages, makeEmptyProcessedTx());
       const result = await blockTicket.provingPromise;
-      const block = (result as ProvingSuccess).block;
+      expect(result.status).toBe(PROVING_STATUS.SUCCESS);
+      const blockResult = await builder.finaliseBlock();
+      const block = blockResult.block;
       prevHeader = block.header;
+      blockSource.getL1ToL2Messages.mockResolvedValueOnce(l1ToL2Messages);
+      blockSource.getBlocks.mockResolvedValueOnce([block]);
 
       writeJson(`empty_block_${i}`, block, [], AztecAddress.ZERO, deployerAccount.address);
 

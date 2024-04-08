@@ -40,6 +40,10 @@ export class Header {
     return fields;
   }
 
+  clone(): Header {
+    return Header.fromBuffer(this.toBuffer());
+  }
+
   static fromBuffer(buffer: Buffer | BufferReader): Header {
     const reader = BufferReader.asReader(buffer);
 

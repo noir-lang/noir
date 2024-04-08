@@ -1,4 +1,5 @@
 import {
+  type BlockProver,
   type FailedTx,
   type ProcessedTx,
   type SimulationError,
@@ -22,6 +23,7 @@ import { ContractsDataSourcePublicDB, WorldStateDB, WorldStatePublicDB } from '.
 import { RealPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { type AbstractPhaseManager, PublicKernelPhase } from './abstract_phase_manager.js';
 import { PhaseManagerFactory } from './phase_manager_factory.js';
+import { type TxValidator } from './tx_validator.js';
 
 /**
  * Creates new instances of PublicProcessor given the provided merkle tree db and contract data source.
@@ -84,7 +86,12 @@ export class PublicProcessor {
    * @param txs - Txs to process.
    * @returns The list of processed txs with their circuit simulation outputs.
    */
-  public async process(txs: Tx[]): Promise<[ProcessedTx[], FailedTx[], ProcessReturnValues[]]> {
+  public async process(
+    txs: Tx[],
+    maxTransactions = txs.length,
+    blockProver?: BlockProver,
+    txValidator?: TxValidator,
+  ): Promise<[ProcessedTx[], FailedTx[], ProcessReturnValues[]]> {
     // The processor modifies the tx objects in place, so we need to clone them.
     txs = txs.map(tx => Tx.clone(tx));
     const result: ProcessedTx[] = [];
@@ -92,11 +99,30 @@ export class PublicProcessor {
     const returns: ProcessReturnValues[] = [];
 
     for (const tx of txs) {
+      // only process up to the limit of the block
+      if (result.length >= maxTransactions) {
+        break;
+      }
       try {
         const [processedTx, returnValues] = !tx.hasPublicCalls()
           ? [makeProcessedTx(tx, tx.data.toKernelCircuitPublicInputs(), tx.proof)]
           : await this.processTxWithPublicCalls(tx);
         validateProcessedTx(processedTx);
+        // Re-validate the transaction
+        if (txValidator) {
+          // Only accept processed transactions that are not double-spends,
+          // public functions emitting nullifiers would pass earlier check but fail here.
+          // Note that we're checking all nullifiers generated in the private execution twice,
+          // we could store the ones already checked and skip them here as an optimization.
+          const [_, invalid] = await txValidator.validateTxs([processedTx]);
+          if (invalid.length) {
+            throw new Error(`Transaction ${invalid[0].hash} invalid after processing public functions`);
+          }
+        }
+        // if we were given a prover then send the transaction to it for proving
+        if (blockProver) {
+          await blockProver.addNewTx(processedTx);
+        }
         result.push(processedTx);
         returns.push(returnValues);
       } catch (err: any) {
@@ -120,7 +146,7 @@ export class PublicProcessor {
    */
   public makeEmptyProcessedTx(): ProcessedTx {
     const { chainId, version } = this.globalVariables;
-    return makeEmptyProcessedTx(this.historicalHeader, chainId, version);
+    return makeEmptyProcessedTx(this.historicalHeader.clone(), chainId, version);
   }
 
   private async processTxWithPublicCalls(tx: Tx): Promise<[ProcessedTx, ProcessReturnValues | undefined]> {

@@ -9,8 +9,7 @@ import {
   Fr,
   type GlobalVariables,
   KernelData,
-  L1_TO_L2_MSG_SUBTREE_HEIGHT,
-  L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
+  type L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MembershipWitness,
@@ -200,28 +199,28 @@ export async function executeRootRollupCircuit(
   right: [BaseOrMergeRollupPublicInputs, Proof],
   l1ToL2Roots: RootParityInput,
   newL1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
+  messageTreeSnapshot: AppendOnlyTreeSnapshot,
+  messageTreeRootSiblingPath: Tuple<Fr, typeof L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH>,
   simulator: RollupSimulator,
   prover: RollupProver,
   db: MerkleTreeOperations,
   logger?: DebugLogger,
 ): Promise<[RootRollupPublicInputs, Proof]> {
   logger?.debug(`Running root rollup circuit`);
-  const rootInput = await getRootRollupInput(...left, ...right, l1ToL2Roots, newL1ToL2Messages, db);
-
-  // Update the local trees to include the new l1 to l2 messages
-  await db.appendLeaves(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, newL1ToL2Messages);
+  const rootInput = await getRootRollupInput(
+    ...left,
+    ...right,
+    l1ToL2Roots,
+    newL1ToL2Messages,
+    messageTreeSnapshot,
+    messageTreeRootSiblingPath,
+    db,
+  );
 
   // Simulate and get proof for the root circuit
   const rootOutput = await simulator.rootRollupCircuit(rootInput);
 
   const rootProof = await prover.getRootRollupProof(rootInput, rootOutput);
-
-  //TODO(@PhilWindle) Move this to orchestrator to ensure that we are still on the same block
-  // Update the archive with the latest block header
-  logger?.debug(`Updating and validating root trees`);
-  await db.updateArchive(rootOutput.header);
-
-  await validateRootOutput(rootOutput, db);
 
   return [rootOutput, rootProof];
 }
@@ -259,6 +258,8 @@ export async function getRootRollupInput(
   rollupProofRight: Proof,
   l1ToL2Roots: RootParityInput,
   newL1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
+  messageTreeSnapshot: AppendOnlyTreeSnapshot,
+  messageTreeRootSiblingPath: Tuple<Fr, typeof L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH>,
   db: MerkleTreeOperations,
 ) {
   const vks = getVerificationKeys();
@@ -274,21 +275,6 @@ export async function getRootRollupInput(
     return path.toFields();
   };
 
-  const newL1ToL2MessageTreeRootSiblingPathArray = await getSubtreeSiblingPath(
-    MerkleTreeId.L1_TO_L2_MESSAGE_TREE,
-    L1_TO_L2_MSG_SUBTREE_HEIGHT,
-    db,
-  );
-
-  const newL1ToL2MessageTreeRootSiblingPath = makeTuple(
-    L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
-    i => (i < newL1ToL2MessageTreeRootSiblingPathArray.length ? newL1ToL2MessageTreeRootSiblingPathArray[i] : Fr.ZERO),
-    0,
-  );
-
-  // Get tree snapshots
-  const startL1ToL2MessageTreeSnapshot = await getTreeSnapshot(MerkleTreeId.L1_TO_L2_MESSAGE_TREE, db);
-
   // Get blocks tree
   const startArchiveSnapshot = await getTreeSnapshot(MerkleTreeId.ARCHIVE, db);
   const newArchiveSiblingPathArray = await getRootTreeSiblingPath(MerkleTreeId.ARCHIVE);
@@ -303,8 +289,8 @@ export async function getRootRollupInput(
     previousRollupData,
     l1ToL2Roots,
     newL1ToL2Messages,
-    newL1ToL2MessageTreeRootSiblingPath,
-    startL1ToL2MessageTreeSnapshot,
+    newL1ToL2MessageTreeRootSiblingPath: messageTreeRootSiblingPath,
+    startL1ToL2MessageTreeSnapshot: messageTreeSnapshot,
     startArchiveSnapshot,
     newArchiveSiblingPath,
   });

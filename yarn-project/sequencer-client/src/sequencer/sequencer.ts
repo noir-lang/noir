@@ -1,7 +1,7 @@
 import { type L1ToL2MessageSource, type L2Block, type L2BlockSource, type ProcessedTx, Tx } from '@aztec/circuit-types';
 import { type BlockProver, PROVING_STATUS } from '@aztec/circuit-types/interfaces';
 import { type L2BlockBuiltStats } from '@aztec/circuit-types/stats';
-import { AztecAddress, EthAddress, type GlobalVariables } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
@@ -193,57 +193,75 @@ export class Sequencer {
       this.log.info(`Building block ${newBlockNumber} with ${validTxs.length} transactions`);
       this.state = SequencerState.CREATING_BLOCK;
 
+      // Get l1 to l2 messages from the contract
+      this.log('Requesting L1 to L2 messages from contract');
+      const l1ToL2Messages = await this.l1ToL2MessageSource.getL1ToL2Messages(BigInt(newBlockNumber));
+      this.log(`Retrieved ${l1ToL2Messages.length} L1 to L2 messages for block ${newBlockNumber}`);
+
       // We create a fresh processor each time to reset any cached state (eg storage writes)
       const processor = await this.publicProcessorFactory.create(historicalHeader, newGlobalVariables);
-      const [publicProcessorDuration, [processedTxs, failedTxs]] = await elapsed(() => processor.process(validTxs));
+
+      const emptyTx = processor.makeEmptyProcessedTx();
+
+      const blockBuildingTimer = new Timer();
+
+      // We must initialise the block to be a power of 2 in size
+      const numRealTxs = validTxs.length;
+      const pow2 = Math.log2(numRealTxs);
+      const totalTxs = 2 ** Math.ceil(pow2);
+      const blockSize = Math.max(2, totalTxs);
+      const blockTicket = await this.prover.startNewBlock(blockSize, newGlobalVariables, l1ToL2Messages, emptyTx);
+
+      const [publicProcessorDuration, [processedTxs, failedTxs]] = await elapsed(() =>
+        processor.process(validTxs, blockSize, this.prover, txValidator),
+      );
       if (failedTxs.length > 0) {
         const failedTxData = failedTxs.map(fail => fail.tx);
         this.log(`Dropping failed txs ${Tx.getHashes(failedTxData).join(', ')}`);
         await this.p2pClient.deleteTxs(Tx.getHashes(failedTxData));
       }
 
-      // Only accept processed transactions that are not double-spends,
-      // public functions emitting nullifiers would pass earlier check but fail here.
-      // Note that we're checking all nullifiers generated in the private execution twice,
-      // we could store the ones already checked and skip them here as an optimization.
-      const processedValidTxs = await this.takeValidTxs(processedTxs, txValidator);
-
-      if (processedValidTxs.length === 0) {
+      if (processedTxs.length === 0) {
         this.log('No txs processed correctly to build block. Exiting');
+        this.prover.cancelBlock();
         return;
       }
 
       await assertBlockHeight();
 
-      // Get l1 to l2 messages from the contract
-      this.log('Requesting L1 to L2 messages from contract');
-      const l1ToL2Messages = await this.l1ToL2MessageSource.getL1ToL2Messages(BigInt(newBlockNumber));
-      this.log(`Retrieved ${l1ToL2Messages.length} L1 to L2 messages for block ${newBlockNumber}`);
+      // All real transactions have been added, set the block as full and complete the proving.
+      await this.prover.setBlockCompleted();
 
-      // Build the new block by running the rollup circuits
-      this.log(`Assembling block with txs ${processedValidTxs.map(tx => tx.hash).join(', ')}`);
+      // Here we are now waiting for the block to be proven.
+      // TODO(@PhilWindle) We should probably periodically check for things like another
+      // block being published before ours instead of just waiting on our block
+      const result = await blockTicket.provingPromise;
+      if (result.status === PROVING_STATUS.FAILURE) {
+        throw new Error(`Block proving failed, reason: ${result.reason}`);
+      }
 
       await assertBlockHeight();
 
-      const emptyTx = processor.makeEmptyProcessedTx();
-      const [rollupCircuitsDuration, block] = await elapsed(() =>
-        this.buildBlock(processedValidTxs, l1ToL2Messages, emptyTx, newGlobalVariables),
-      );
+      // Block is proven, now finalise and publish!
+      const blockResult = await this.prover.finaliseBlock();
+      const block = blockResult.block;
+
+      await assertBlockHeight();
 
       this.log(`Assembled block ${block.number}`, {
         eventName: 'l2-block-built',
         duration: workTimer.ms(),
         publicProcessDuration: publicProcessorDuration,
-        rollupCircuitsDuration: rollupCircuitsDuration,
+        rollupCircuitsDuration: blockBuildingTimer.ms(),
         ...block.getStats(),
       } satisfies L2BlockBuiltStats);
 
-      await assertBlockHeight();
-
       await this.publishL2Block(block);
-      this.log.info(`Submitted rollup block ${block.number} with ${processedValidTxs.length} transactions`);
+      this.log.info(`Submitted rollup block ${block.number} with ${processedTxs.length} transactions`);
     } catch (err) {
       this.log.error(`Rolling back world state DB due to error assembling block`, (err as any).stack);
+      // Cancel any further proving on the block
+      this.prover?.cancelBlock();
       await this.worldState.getLatest().rollback();
     }
   }
@@ -287,33 +305,6 @@ export class Sequencer {
     ]);
     const min = Math.min(...syncedBlocks);
     return min >= this.lastPublishedBlock;
-  }
-
-  /**
-   * Pads the set of txs to a power of two and assembles a block by calling the block builder.
-   * @param txs - Processed txs to include in the next block.
-   * @param l1ToL2Messages - L1 to L2 messages to be part of the block.
-   * @param emptyTx - Empty tx to repeat at the end of the block to pad to a power of two.
-   * @param globalVariables - Global variables to use in the block.
-   * @returns The new block.
-   */
-  protected async buildBlock(
-    txs: ProcessedTx[],
-    l1ToL2Messages: Fr[],
-    emptyTx: ProcessedTx,
-    globalVariables: GlobalVariables,
-  ) {
-    const blockTicket = await this.prover.startNewBlock(txs.length, globalVariables, l1ToL2Messages, emptyTx);
-
-    for (const tx of txs) {
-      await this.prover.addNewTx(tx);
-    }
-
-    const result = await blockTicket.provingPromise;
-    if (result.status === PROVING_STATUS.FAILURE) {
-      throw new Error(`Block proving failed, reason: ${result.reason}`);
-    }
-    return result.block;
   }
 
   get coinbase(): EthAddress {

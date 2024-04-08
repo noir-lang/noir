@@ -106,6 +106,10 @@ export class GlobalVariables {
     };
   }
 
+  clone(): GlobalVariables {
+    return GlobalVariables.fromBuffer(this.toBuffer());
+  }
+
   isEmpty(): boolean {
     return (
       this.chainId.isZero() &&
