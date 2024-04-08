@@ -56,26 +56,6 @@ Concretely the following items are on the road map:
 
 This crate's minimum supported rustc version is 1.73.0.
 
-## Working on this project
-
-This project uses [Nix](https://nixos.org/) and [direnv](https://direnv.net/) to streamline the development experience. Please follow [our guidelines](https://noir-lang.org/docs/getting_started/installation/other_install_methods#option-3-compile-from-source) to setup your environment for working on the project.
-
-### Building against a different local/remote version of Barretenberg
-
-If you are working on this project and want a different version of Barretenberg (instead of the version this project is pinned against), you'll want to replace the lockfile version with your version. This can be done by running:
-
-```sh
-nix flake lock --override-input barretenberg /absolute/path/to/your/barretenberg
-```
-
-You can also point at a fork and/or branch on GitHub using:
-
-```sh
-nix flake lock --override-input barretenberg github:username/barretenberg/branch_name
-```
-
-__Note:__ You don't want to commit the updated lockfile, as it will fail in CI!
-
 ## License
 
 Noir is free and open source. It is distributed under a dual license. (MIT/APACHE)

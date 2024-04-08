@@ -21,7 +21,7 @@ pub struct WitnessStackError(#[from] SerializationError);
 /// An ordered set of witness maps for separate circuits
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
 pub struct WitnessStack {
-    pub stack: Vec<StackItem>,
+    stack: Vec<StackItem>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
@@ -35,6 +35,10 @@ pub struct StackItem {
 impl WitnessStack {
     pub fn push(&mut self, index: u32, witness: WitnessMap) {
         self.stack.push(StackItem { index, witness });
+    }
+
+    pub fn pop(&mut self) -> Option<StackItem> {
+        self.stack.pop()
     }
 
     pub fn peek(&self) -> Option<&StackItem> {

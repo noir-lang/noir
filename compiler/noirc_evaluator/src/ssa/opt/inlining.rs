@@ -11,7 +11,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::{CallStack, InsertInstructionResult},
-        function::{Function, FunctionId, InlineType, RuntimeType},
+        function::{Function, FunctionId},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
@@ -351,14 +351,13 @@ impl<'function> PerFunctionContext<'function> {
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
-                    Some(function) => match ssa.functions[&function].runtime() {
-                        RuntimeType::Acir(InlineType::Inline) => {
+                    Some(function) => {
+                        if ssa.functions[&function].runtime().is_entry_point() {
+                            self.push_instruction(*id);
+                        } else {
                             self.inline_function(ssa, *id, function, arguments);
                         }
-                        RuntimeType::Acir(InlineType::Fold) | RuntimeType::Brillig => {
-                            self.push_instruction(*id);
-                        }
-                    },
+                    }
                     None => self.push_instruction(*id),
                 },
                 _ => self.push_instruction(*id),
@@ -523,7 +522,7 @@ mod test {
         function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
-            function::{InlineType, RuntimeType},
+            function::InlineType,
             instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,

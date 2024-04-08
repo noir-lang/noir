@@ -73,12 +73,7 @@ impl PostOrder {
 mod tests {
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{
-            function::{Function, InlineType, RuntimeType},
-            map::Id,
-            post_order::PostOrder,
-            types::Type,
-        },
+        ir::{function::Function, map::Id, post_order::PostOrder, types::Type},
     };
 
     #[test]

@@ -25,7 +25,7 @@ pub enum ResolverError {
     #[error("path is not an identifier")]
     PathIsNotIdent { span: Span },
     #[error("could not resolve path")]
-    PathResolutionError(PathResolutionError),
+    PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
     Expected { span: Span, expected: String, got: String },
     #[error("Duplicate field in constructor")]
@@ -72,14 +72,12 @@ pub enum ResolverError {
     NumericConstantInFormatString { name: String, span: Span },
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, span: Span },
-    #[error("{name} is private and not visible from the current module")]
-    PrivateFunctionCalled { name: String, span: Span },
-    #[error("{name} is not visible from the current crate")]
-    NonCrateFunctionCalled { name: String, span: Span },
     #[error("Nested slices are not supported")]
     NestedSlices { span: Span },
     #[error("#[recursive] attribute is only allowed on entry points to a program")]
     MisplacedRecursiveAttribute { ident: Ident },
+    #[error("#[abi(tag)] attribute is only allowed in contracts")]
+    AbiAttributeOusideContract { span: Span },
     #[error("Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library")]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
@@ -290,13 +288,6 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::InvalidClosureEnvironment { span, typ } => Diagnostic::simple_error(
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), span),
-            // This will be upgraded to an error in future versions
-            ResolverError::PrivateFunctionCalled { span, name } => Diagnostic::simple_warning(
-                format!("{name} is private and not visible from the current module"),
-                format!("{name} is private"), span),
-            ResolverError::NonCrateFunctionCalled { span, name } => Diagnostic::simple_warning(
-                    format!("{name} is not visible from the current crate"),
-                    format!("{name} is only visible within its crate"), span),
             ResolverError::NestedSlices { span } => Diagnostic::simple_error(
                 "Nested slices are not supported".into(),
                 "Try to use a constant sized array instead".into(),
@@ -314,6 +305,13 @@ impl From<ResolverError> for Diagnostic {
                 diag.add_note("The `#[recursive]` attribute specifies to the backend whether it should use a prover which generates proofs that are friendly for recursive verification in another circuit".to_owned());
                 diag
             }
+            ResolverError::AbiAttributeOusideContract { span } => {
+                Diagnostic::simple_error(
+                    "#[abi(tag)] attributes can only be used in contracts".to_string(),
+                    "misplaced #[abi(tag)] attribute".to_string(),
+                    span,
+                )
+            },
             ResolverError::LowLevelFunctionOutsideOfStdlib { ident } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
