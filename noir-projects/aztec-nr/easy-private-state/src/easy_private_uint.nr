@@ -20,6 +20,8 @@ impl EasyPrivateUint {
 
     // Very similar to `value_note::utils::increment`.
     pub fn add(self, addend: u64, owner: AztecAddress) {
+        assert(self.context.public.is_none(), "EasyPrivateUint::add can be called from private only.");
+
         // Creates new note for the owner.
         let mut addend_note = ValueNote::new(addend as Field, owner);
 
@@ -31,6 +33,8 @@ impl EasyPrivateUint {
 
     // Very similar to `value_note::utils::decrement`.
     pub fn sub(self, subtrahend: u64, owner: AztecAddress) {
+        assert(self.context.public.is_none(), "EasyPrivateUint::sub can be called from private only.");
+
         // docs:start:get_notes
         let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend as Field);
         let maybe_notes = self.set.get_notes(options);
