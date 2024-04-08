@@ -64,10 +64,15 @@ describe('e2e_crowdfunding_and_claim', () => {
     txHash: TxHash,
     address: AztecAddress,
   ) => {
-    const storageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
-    const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
     const note = new Note([new Fr(amount), secretHash]);
-    const extendedNote = new ExtendedNote(note, wallet.getAddress(), address, storageSlot, noteTypeId, txHash);
+    const extendedNote = new ExtendedNote(
+      note,
+      wallet.getAddress(),
+      address,
+      TokenContract.storage.pending_shields.slot,
+      TokenContract.notes.TransparentNote.id,
+      txHash,
+    );
     await wallet.addNote(extendedNote);
   };
 

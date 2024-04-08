@@ -50,16 +50,13 @@ describe('guides/dapp/testing', () => {
         const secretHash = computeMessageSecretHash(secret);
         const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
 
-        const storageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
-        const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
-
         const note = new Note([new Fr(mintAmount), secretHash]);
         const extendedNote = new ExtendedNote(
           note,
           recipientAddress,
           token.address,
-          storageSlot,
-          noteTypeId,
+          TokenContract.storage.pending_shields.slot,
+          TokenContract.notes.TransparentNote.id,
           receipt.txHash,
         );
         await pxe.addNote(extendedNote);
@@ -94,16 +91,13 @@ describe('guides/dapp/testing', () => {
         const secretHash = computeMessageSecretHash(secret);
         const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
 
-        const storageSlot = new Fr(5);
-        const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
-
         const note = new Note([new Fr(mintAmount), secretHash]);
         const extendedNote = new ExtendedNote(
           note,
           recipientAddress,
           token.address,
-          storageSlot,
-          noteTypeId,
+          TokenContract.storage.pending_shields.slot,
+          TokenContract.notes.TransparentNote.id,
           receipt.txHash,
         );
         await pxe.addNote(extendedNote);
@@ -159,16 +153,13 @@ describe('guides/dapp/testing', () => {
         const secretHash = computeMessageSecretHash(secret);
         const receipt = await token.methods.mint_private(100n, secretHash).send().wait();
 
-        const storageSlot = new Fr(5);
-        const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
-
         const note = new Note([new Fr(mintAmount), secretHash]);
         const extendedNote = new ExtendedNote(
           note,
           ownerAddress,
           token.address,
-          storageSlot,
-          noteTypeId,
+          TokenContract.storage.pending_shields.slot,
+          TokenContract.notes.TransparentNote.id,
           receipt.txHash,
         );
         await pxe.addNote(extendedNote);
@@ -177,8 +168,8 @@ describe('guides/dapp/testing', () => {
 
         // docs:start:calc-slot
         cheats = CheatCodes.create(ETHEREUM_HOST, pxe);
-        // The balances mapping is defined on storage slot 3 and is indexed by user address
-        ownerSlot = cheats.aztec.computeSlotInMap(3n, ownerAddress);
+        // The balances mapping is indexed by user address
+        ownerSlot = cheats.aztec.computeSlotInMap(TokenContract.storage.balances.slot, ownerAddress);
         // docs:end:calc-slot
       }, 90_000);
 

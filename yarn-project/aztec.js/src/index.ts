@@ -25,6 +25,8 @@ export {
   Contract,
   ContractBase,
   ContractMethod,
+  ContractStorageLayout,
+  ContractNotes,
   SentTx,
   BatchCall,
   DeployMethod,

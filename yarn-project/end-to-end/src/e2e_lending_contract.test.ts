@@ -102,17 +102,14 @@ describe('e2e_lending_contract', () => {
         const b = asset.methods.mint_private(mintAmount, secretHash).send();
         await Promise.all([a, b].map(tx => tx.wait()));
 
-        const storageSlot = new Fr(5);
-        const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
-
         const note = new Note([new Fr(mintAmount), secretHash]);
         const txHash = await b.getTxHash();
         const extendedNote = new ExtendedNote(
           note,
           wallet.getAddress(),
           asset.address,
-          storageSlot,
-          noteTypeId,
+          TokenContract.storage.pending_shields.slot,
+          TokenContract.notes.TransparentNote.id,
           txHash,
         );
         await wallet.addNote(extendedNote);

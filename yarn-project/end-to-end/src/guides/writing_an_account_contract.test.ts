@@ -73,11 +73,15 @@ describe('guides/writing_an_account_contract', () => {
     const mintAmount = 50n;
     const receipt = await token.methods.mint_private(mintAmount, secretHash).send().wait();
 
-    const storageSlot = new Fr(5);
-    const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
-
     const note = new Note([new Fr(mintAmount), secretHash]);
-    const extendedNote = new ExtendedNote(note, address, token.address, storageSlot, noteTypeId, receipt.txHash);
+    const extendedNote = new ExtendedNote(
+      note,
+      address,
+      token.address,
+      TokenContract.storage.pending_shields.slot,
+      TokenContract.notes.TransparentNote.id,
+      receipt.txHash,
+    );
     await pxe.addNote(extendedNote);
 
     await token.methods.redeem_shield({ address }, mintAmount, secret).send().wait();

@@ -85,15 +85,13 @@ describe('e2e_blacklist_token_contract', () => {
   };
 
   const addPendingShieldNoteToPXE = async (accountIndex: number, amount: bigint, secretHash: Fr, txHash: TxHash) => {
-    const storageSlot = new Fr(4); // The storage slot of `pending_shields` is 4.
-    const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
     const note = new Note([new Fr(amount), secretHash]);
     const extendedNote = new ExtendedNote(
       note,
       wallets[accountIndex].getAddress(),
       asset.address,
-      storageSlot,
-      noteTypeId,
+      TokenBlacklistContract.storage.pending_shields.slot,
+      TokenBlacklistContract.notes.TransparentNote.id,
       txHash,
     );
     await wallets[accountIndex].addNote(extendedNote);

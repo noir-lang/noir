@@ -8,6 +8,49 @@ Aztec is in full-speed development. Literally every version breaks compatibility
 
 ## TBD
 
+### [Aztec.nr] Storage struct annotation
+
+The storage struct now identified by the annotation `#[aztec(storage)]`, instead of having to rely on it being called `Storage`.
+
+```diff
+- struct Storage {
+-    ...
+- }
++ #[aztec(storage)]
++ struct MyStorageStruct {
++    ...
++ }
+```
+
+### [Aztec.js] Storage layout and note info
+
+Storage layout and note information are now exposed in the TS contract artifact
+
+```diff
+- const note = new Note([new Fr(mintAmount), secretHash]);
+- const pendingShieldStorageSlot = new Fr(5n); // storage slot for pending_shields
+- const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // note type id for TransparentNote
+- const extendedNote = new ExtendedNote(
+-   note,
+-   admin.address,
+-   token.address,
+-   pendingShieldStorageSlot,
+-   noteTypeId,
+-   receipt.txHash,
+- );
+- await pxe.addNote(extendedNote);
++ const note = new Note([new Fr(mintAmount), secretHash]);
++ const extendedNote = new ExtendedNote(
++   note,
++   admin.address,
++   token.address,
++   TokenContract.storage.pending_shields.slot,
++   TokenContract.notes.TransparentNote.id,
++   receipt.txHash,
++ );
++ await pxe.addNote(extendedNote);
+```
+
 ### [Aztec.nr] rand oracle is now called unsafe_rand
 `oracle::rand::rand` has been renamed to `oracle::unsafe_rand::unsafe_rand`.
 This change was made to communicate that we do not constrain the value in circuit and instead we just trust our PXE.

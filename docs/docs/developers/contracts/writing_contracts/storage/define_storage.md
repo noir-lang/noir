@@ -16,4 +16,4 @@ struct Storage {
 }
 ```
 
-If you have defined a `Storage` struct following this naming scheme, then it will be made available to you through the reserved `storage` keyword within your contract functions.
+If you have defined a struct and annotated it as `#[aztec(storage)]`, then it will be made available to you through the reserved `storage` keyword within your contract functions.

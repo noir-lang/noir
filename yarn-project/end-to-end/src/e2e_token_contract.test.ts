@@ -37,16 +37,13 @@ describe('e2e_token_contract', () => {
   let tokenSim: TokenSimulator;
 
   const addPendingShieldNoteToPXE = async (accountIndex: number, amount: bigint, secretHash: Fr, txHash: TxHash) => {
-    const storageSlot = new Fr(5); // The storage slot of `pending_shields` is 5.
-    const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
-
     const note = new Note([new Fr(amount), secretHash]);
     const extendedNote = new ExtendedNote(
       note,
       wallets[accountIndex].getAddress(),
       asset.address,
-      storageSlot,
-      noteTypeId,
+      TokenContract.storage.pending_shields.slot,
+      TokenContract.notes.TransparentNote.id,
       txHash,
     );
     await wallets[accountIndex].addNote(extendedNote);

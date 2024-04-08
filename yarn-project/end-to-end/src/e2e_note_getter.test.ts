@@ -159,7 +159,7 @@ describe('e2e_note_getter', () => {
     const VALUE = 5;
 
     // To prevent tests from interacting with one another, we'll have each use a different storage slot.
-    let storageSlot: number = 2;
+    let storageSlot = TestContract.storage.example_set.slot.toNumber();
 
     beforeEach(() => {
       storageSlot += 1;

@@ -20,9 +20,6 @@ import { TokenContract } from '@aztec/noir-contracts.js/Token';
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_escrow_contract', () => {
-  const pendingShieldsStorageSlot = new Fr(5);
-  const noteTypeId = new Fr(84114971101151129711410111011678111116101n); // TransparentNote
-
   let pxe: PXE;
   let wallet: AccountWallet;
   let recipientWallet: AccountWallet;
@@ -74,8 +71,8 @@ describe('e2e_escrow_contract', () => {
       note,
       owner,
       token.address,
-      pendingShieldsStorageSlot,
-      noteTypeId,
+      TokenContract.storage.pending_shields.slot,
+      TokenContract.notes.TransparentNote.id,
       receipt.txHash,
     );
     await pxe.addNote(extendedNote);
@@ -125,8 +122,8 @@ describe('e2e_escrow_contract', () => {
       note,
       owner,
       token.address,
-      pendingShieldsStorageSlot,
-      noteTypeId,
+      TokenContract.storage.pending_shields.slot,
+      TokenContract.notes.TransparentNote.id,
       receipt.txHash,
     );
     await pxe.addNote(extendedNote);

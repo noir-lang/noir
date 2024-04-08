@@ -7,7 +7,7 @@ Smart contracts rely on storage, acting as the persistent memory on the blockcha
 To learn how to define a storage struct, read [this guide](../../writing_contracts/storage/define_storage.md).
 To learn more about storage slots, read [this explainer](../../writing_contracts/storage/storage_slots.md).
 
-You control this storage in Aztec using the `Storage` struct. This struct serves as the housing unit for all your smart contract's state variables - the data it needs to keep track of and maintain.
+You control this storage in Aztec using a struct annotated with `#[aztec(storage)]`. This struct serves as the housing unit for all your smart contract's state variables - the data it needs to keep track of and maintain.
 
 These state variables come in two forms: public and private. Public variables are visible to anyone, and private variables remain hidden within the contract.
 

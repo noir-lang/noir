@@ -5,16 +5,15 @@ use transforms::{
     compute_note_hash_and_nullifier::inject_compute_note_hash_and_nullifier,
     events::{generate_selector_impl, transform_events},
     functions::{transform_function, transform_unconstrained},
-    note_interface::generate_note_interface_impl,
+    note_interface::{generate_note_interface_impl, inject_note_exports},
     storage::{
         assign_storage_slots, check_for_storage_definition, check_for_storage_implementation,
-        generate_storage_implementation,
+        generate_storage_implementation, generate_storage_layout,
     },
 };
 
-use noirc_frontend::{
-    hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl},
-    macros_api::{CrateId, FileId, HirContext, MacroError, MacroProcessor, SortedModule, Span},
+use noirc_frontend::macros_api::{
+    CrateId, FileId, HirContext, MacroError, MacroProcessor, SortedModule, Span,
 };
 
 use utils::{
@@ -34,16 +33,6 @@ impl MacroProcessor for AztecMacro {
         context: &HirContext,
     ) -> Result<SortedModule, (MacroError, FileId)> {
         transform(ast, crate_id, file_id, context)
-    }
-
-    fn process_collected_defs(
-        &self,
-        crate_id: &CrateId,
-        context: &mut HirContext,
-        collected_trait_impls: &[UnresolvedTraitImpl],
-        collected_functions: &mut [UnresolvedFunctions],
-    ) -> Result<(), (MacroError, FileId)> {
-        transform_collected_defs(crate_id, context, collected_trait_impls, collected_functions)
     }
 
     fn process_typed_ast(
@@ -95,6 +84,7 @@ fn transform_module(module: &mut SortedModule) -> Result<bool, AztecMacroError> 
         if !check_for_storage_implementation(module, &storage_struct_name) {
             generate_storage_implementation(module, &storage_struct_name)?;
         }
+        generate_storage_layout(module, storage_struct_name)?;
     }
 
     for structure in module.types.iter_mut() {
@@ -185,24 +175,6 @@ fn transform_module(module: &mut SortedModule) -> Result<bool, AztecMacroError> 
     Ok(has_transformed_module)
 }
 
-fn transform_collected_defs(
-    crate_id: &CrateId,
-    context: &mut HirContext,
-    collected_trait_impls: &[UnresolvedTraitImpl],
-    collected_functions: &mut [UnresolvedFunctions],
-) -> Result<(), (MacroError, FileId)> {
-    if has_aztec_dependency(crate_id, context) {
-        inject_compute_note_hash_and_nullifier(
-            crate_id,
-            context,
-            collected_trait_impls,
-            collected_functions,
-        )
-    } else {
-        Ok(())
-    }
-}
-
 //
 //                    Transform Hir Nodes for Aztec
 //
@@ -212,6 +184,12 @@ fn transform_hir(
     crate_id: &CrateId,
     context: &mut HirContext,
 ) -> Result<(), (AztecMacroError, FileId)> {
-    transform_events(crate_id, context)?;
-    assign_storage_slots(crate_id, context)
+    if has_aztec_dependency(crate_id, context) {
+        transform_events(crate_id, context)?;
+        inject_compute_note_hash_and_nullifier(crate_id, context)?;
+        assign_storage_slots(crate_id, context)?;
+        inject_note_exports(crate_id, context)
+    } else {
+        Ok(())
+    }
 }

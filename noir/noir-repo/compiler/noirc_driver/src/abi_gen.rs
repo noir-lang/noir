@@ -112,6 +112,15 @@ fn collapse_ranges(witnesses: &[Witness]) -> Vec<Range<Witness>> {
 
 pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpression) -> AbiValue {
     match expression {
+        HirExpression::Tuple(expr_ids) => {
+            let fields = expr_ids
+                .iter()
+                .map(|expr_id| {
+                    value_from_hir_expression(context, context.def_interner.expression(expr_id))
+                })
+                .collect();
+            AbiValue::Tuple { fields }
+        }
         HirExpression::Constructor(constructor) => {
             let fields = constructor
                 .fields
@@ -151,7 +160,7 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
             }
             _ => unreachable!("Literal cannot be used in the abi"),
         },
-        _ => unreachable!("Type cannot be used in the abi"),
+        _ => unreachable!("Type cannot be used in the abi {:?}", expression),
     }
 }
 
