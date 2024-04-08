@@ -4,7 +4,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 
-use crate::hir::resolution::import::{resolve_import, ImportDirective};
+use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::resolution::{
     collect_impls, collect_trait_impls, path_resolver, resolve_free_functions, resolve_globals,
     resolve_impls, resolve_structs, resolve_trait_by_path, resolve_trait_impls, resolve_traits,
@@ -56,8 +56,11 @@ impl UnresolvedFunctions {
             for bound in &mut func.def.where_clause {
                 match resolve_trait_by_path(def_maps, module, bound.trait_bound.trait_path.clone())
                 {
-                    Ok(trait_id) => {
+                    Ok((trait_id, warning)) => {
                         bound.trait_bound.trait_id = Some(trait_id);
+                        if let Some(warning) = warning {
+                            errors.push(DefCollectorErrorKind::PathResolutionError(warning));
+                        }
                     }
                     Err(err) => {
                         errors.push(err);
@@ -281,6 +284,13 @@ impl DefCollector {
         for collected_import in def_collector.collected_imports {
             match resolve_import(crate_id, &collected_import, &context.def_maps) {
                 Ok(resolved_import) => {
+                    if let Some(error) = resolved_import.error {
+                        errors.push((
+                            DefCollectorErrorKind::PathResolutionError(error).into(),
+                            root_file_id,
+                        ));
+                    }
+
                     // Populate module namespaces according to the imports used
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
@@ -299,9 +309,9 @@ impl DefCollector {
                         }
                     }
                 }
-                Err((error, module_id)) => {
+                Err(error) => {
                     let current_def_map = context.def_maps.get(&crate_id).unwrap();
-                    let file_id = current_def_map.file_id(module_id);
+                    let file_id = current_def_map.file_id(collected_import.module_id);
                     let error = DefCollectorErrorKind::PathResolutionError(error);
                     errors.push((error.into(), file_id));
                 }
@@ -409,12 +419,13 @@ fn inject_prelude(
         Path { segments: segments.clone(), kind: crate::PathKind::Dep, span: Span::default() };
 
     if !crate_id.is_stdlib() {
-        if let Ok(module_def) = path_resolver::resolve_path(
+        if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             path,
         ) {
-            let module_id = module_def.as_module().expect("std::prelude should be a module");
+            assert!(error.is_none(), "Tried to add private item to prelude");
+            let module_id = module_def_id.as_module().expect("std::prelude should be a module");
             let prelude = context.module(module_id).scope().names();
 
             for path in prelude {

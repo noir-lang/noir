@@ -33,9 +33,7 @@
     "clean": "chmod u+w web nodejs || true && rm -rf ./nodejs ./web ./target ./result",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
-    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
-    "build:nix": "nix build -L .#noirc_abi_wasm",
-    "install:from:nix": "yarn clean && yarn build:nix && cp -rL ./result/noirc_abi_wasm/nodejs ./ && cp -rL ./result/noirc_abi_wasm/web ./"
+    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
   },
   "dependencies": {
     "@noir-lang/types": "workspace:*"

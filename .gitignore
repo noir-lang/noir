@@ -17,12 +17,6 @@ pkg/
 # Noir.js
 tooling/noir_js/lib
 
-# Nix stuff
-**/outputs
-result
-.envrc.local
-.direnv/
-
 # Nargo output
 *.proof
 *.acir

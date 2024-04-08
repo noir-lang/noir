@@ -119,7 +119,7 @@ jobs:
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           # delete the comment in case failures have been fixed
-          delete: ${{ !env.FAIL }}
+          delete: ${{ env.FAIL == false }}
           message: "The release workflow has not completed successfully. Releasing now will result in a broken release"
 
       - name: Report overall success

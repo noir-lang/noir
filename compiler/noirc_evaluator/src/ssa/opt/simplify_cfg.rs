@@ -154,7 +154,6 @@ mod test {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            function::{InlineType, RuntimeType},
             instruction::{BinaryOp, TerminatorInstruction},
             map::Id,
             types::Type,

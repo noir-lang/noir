@@ -841,7 +841,7 @@ mod test {
         function_builder::FunctionBuilder,
         ir::{
             dfg::DataFlowGraph,
-            function::{Function, InlineType, RuntimeType},
+            function::Function,
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,

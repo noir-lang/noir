@@ -25,7 +25,7 @@ pub enum ResolverError {
     #[error("path is not an identifier")]
     PathIsNotIdent { span: Span },
     #[error("could not resolve path")]
-    PathResolutionError(PathResolutionError),
+    PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
     Expected { span: Span, expected: String, got: String },
     #[error("Duplicate field in constructor")]
@@ -72,10 +72,6 @@ pub enum ResolverError {
     NumericConstantInFormatString { name: String, span: Span },
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, span: Span },
-    #[error("{name} is private and not visible from the current module")]
-    PrivateFunctionCalled { name: String, span: Span },
-    #[error("{name} is not visible from the current crate")]
-    NonCrateFunctionCalled { name: String, span: Span },
     #[error("Nested slices are not supported")]
     NestedSlices { span: Span },
     #[error("#[recursive] attribute is only allowed on entry points to a program")]
@@ -292,13 +288,6 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::InvalidClosureEnvironment { span, typ } => Diagnostic::simple_error(
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), span),
-            // This will be upgraded to an error in future versions
-            ResolverError::PrivateFunctionCalled { span, name } => Diagnostic::simple_warning(
-                format!("{name} is private and not visible from the current module"),
-                format!("{name} is private"), span),
-            ResolverError::NonCrateFunctionCalled { span, name } => Diagnostic::simple_warning(
-                    format!("{name} is not visible from the current crate"),
-                    format!("{name} is only visible within its crate"), span),
             ResolverError::NestedSlices { span } => Diagnostic::simple_error(
                 "Nested slices are not supported".into(),
                 "Try to use a constant sized array instead".into(),
