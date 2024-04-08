@@ -1137,6 +1137,7 @@ struct Opcode {
         uint32_t id;
         std::vector<Program::Witness> inputs;
         std::vector<Program::Witness> outputs;
+        std::optional<Program::Expression> predicate;
 
         friend bool operator==(const Call&, const Call&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -7491,6 +7492,9 @@ inline bool operator==(const Opcode::Call& lhs, const Opcode::Call& rhs)
     if (!(lhs.outputs == rhs.outputs)) {
         return false;
     }
+    if (!(lhs.predicate == rhs.predicate)) {
+        return false;
+    }
     return true;
 }
 
@@ -7520,6 +7524,7 @@ void serde::Serializable<Program::Opcode::Call>::serialize(const Program::Opcode
     serde::Serializable<decltype(obj.id)>::serialize(obj.id, serializer);
     serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
     serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
+    serde::Serializable<decltype(obj.predicate)>::serialize(obj.predicate, serializer);
 }
 
 template <>
@@ -7530,6 +7535,7 @@ Program::Opcode::Call serde::Deserializable<Program::Opcode::Call>::deserialize(
     obj.id = serde::Deserializable<decltype(obj.id)>::deserialize(deserializer);
     obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
     obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
+    obj.predicate = serde::Deserializable<decltype(obj.predicate)>::deserialize(deserializer);
     return obj;
 }
 
