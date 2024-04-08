@@ -1283,18 +1283,19 @@ mod tests {
         let use_statement_inputs = vec![
             // TODO: enable
             // "use\t\r\n   dep::std::compat;",
-            // "use dep::std::compat;",
-            // "use dep::std::ec::consts::te::baby_jubjub;",
-            // "use dep::std::hash;",
-            // "use dep::std::hash::poseidon2::Poseidon2Hasher;",
-            // "use dep::std::hash::pedersen::PedersenHasher;",
-            // "use dep::std::ec::tecurve::affine::Point as TEPoint;",
-            // "use dep::std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify, eddsa_verify_with_hasher};",
+            "use dep::std::compat;",
+            "use dep::std::ec::consts::te::baby_jubjub;",
+            "use dep::std::hash;",
+            "use dep::std::hash::poseidon2::Poseidon2Hasher;",
+            "use dep::std::hash::pedersen::PedersenHasher;",
+            "use dep::std::ec::tecurve::affine::Point as TEPoint;",
+            "use dep::std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify, eddsa_verify_with_hasher};",
         ];
 
         for use_statement_input in use_statement_inputs {
             let mut lexer = Lexer::new(use_statement_input);
-            lexer.skip_whitespaces = false;
+            lexer.skip_whitespaces = true;
+            // lexer.skip_whitespaces = false;
             let mut errors = Vec::new();
 
             // TODO: this is a hack to get the references working
@@ -1308,7 +1309,8 @@ mod tests {
                         .map_err(|x| x.clone())
                 });
 
-            let calculated = noir_parser::TopLevelStatementParser::new().parse(
+            // let calculated = noir_parser::TopLevelStatementParser::new().parse(
+            let calculated = noir_parser::GrammarParser::new().parse(
                 use_statement_input,
                 &mut errors,
                 referenced_lexer_result,

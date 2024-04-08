@@ -113,52 +113,110 @@ extern {
 //     EOF => ParsedModule::default(),
 // }
 
-pub(crate) TopLevelStatement: TopLevelStatement = {
-    // TODO: move EOF to Program
-    "use" r"[\t\r\n ]+" <use_tree:UseTree> ";" <trailing_spaces:r"[\t\r\n ]+"?> EOF => {
-        TopLevelStatement::Import(use_tree)
-    }
-}
+pub Grammar: Vec<Vec<Vec<Result<Tok<'input>, Ident>>>> =
+    <uses:Use*>
+    ";"
+    <items:GrammarItem*> => {
+        uses.into_iter().chain(items).collect()
+    };
 
-UseTree: UseTree = {
-    // path::to::ident as SomeAlias
-    <mut prefix:Path> <alias:Alias?> => {
-        let ident = prefix.pop();
-        let kind = UseTreeKind::Path(ident, alias);
-        UseTree { prefix, kind }
-    },
-}
+GrammarItem: Vec<Vec<Result<Tok<'input>, Ident>>> = {
+    Use,
+    Nonterminal
+};
 
-pub(crate) Path: Path = {
-    <lo:@L> "crate" "::" <segments:PathSegments> <hi:@R> => {
-        let kind = PathKind::Crate;
-        let span = Span::from(lo as u32..hi as u32);
-        Path { segments, kind, span }
-    },
+Use: Vec<Vec<Result<Tok<'input>, Ident>>> =
+    <u:"use"> ";" => vec![vec![Ok(u)]];
 
-    <lo:@L> "dep" "::" <segments:PathSegments> <hi:@R> => {
-        let kind = PathKind::Dep;
-        let span = Span::from(lo as u32..hi as u32);
-        Path { segments, kind, span }
-    },
+// TODO what's the '='?
+Nonterminal: Vec<Vec<Result<Tok<'input>, Ident>>> =
+    <lo:@L> <n:NonterminalName> <hi:@R>
+    "=" <a:Alternatives> => {
+        let o: Vec<_> = std::iter::once(vec![n]).chain(a.into_iter()).map(|x| x.into_iter().map(Result::Err).collect::<Vec<_>>()).collect();
+        o
+    };
 
-    <lo:@L> <id:Ident> <mut segments:PathSegments> <hi:@R> => {
-        segments.insert(0, id);
-        let kind = PathKind::Plain;
-        let span = Span::from(lo as u32..hi as u32);
-        Path { segments, kind, span }
-    },
-}
+NonterminalName: Ident = {
+    <n:Ident> => n,
+};
 
-PathSegments: Vec<Ident> = {
-    <lo:@L> <segments:("::" <Ident>)*> <hi:@R> => {
-        segments
-    }
-}
+Alternatives: Vec<Vec<Ident>> = {
+    <a:Alternative> ";" => vec![a],
+    "{" <Comma<Alternative>> "}" ";",
+};
 
-Alias: Ident = {
-    r"[\t\r\n ]+" "as" r"[\t\r\n ]+" <Ident> => <>,
-}
+Alternative: Vec<Ident> = {
+    // <lo:@L> <s:Symbol+> <c:("if" <Cond>)?> <a:Action?> <hi:@R> => {
+    <lo:@L> <s:Ident+> <hi:@R> => s,
+};
+
+// Path: Path =
+//     <a:"::"?> <h:(<Ident> "::")*> <t:Ident> => {
+//         (a, h, t)
+//         // Path { absolute: a.is_some(),
+//         //        ids: h.into_iter().chain(once(t)).collect() }
+//     };
+
+Terminal: Ident = {
+    <i:Ident> => i,
+};
+
+Comma<E>: Vec<E> =
+    <v0:(<E> ",")*> <e1:E?> =>
+        v0.into_iter().chain(e1).collect();
+
+
+
+
+
+
+
+// pub(crate) TopLevelStatement: TopLevelStatement = {
+//     // TODO: move EOF to Program
+//     "use" r"[\t\r\n ]+" <use_tree:UseTree> ";" <trailing_spaces:r"[\t\r\n ]+"?> EOF => {
+//         TopLevelStatement::Import(use_tree)
+//     }
+// }
+//
+// UseTree: UseTree = {
+//     // path::to::ident as SomeAlias
+//     <mut prefix:Path> <alias:Alias?> => {
+//         let ident = prefix.pop();
+//         let kind = UseTreeKind::Path(ident, alias);
+//         UseTree { prefix, kind }
+//     },
+// }
+//
+// pub(crate) Path: Path = {
+//     <lo:@L> "crate" "::" <segments:PathSegments> <hi:@R> => {
+//         let kind = PathKind::Crate;
+//         let span = Span::from(lo as u32..hi as u32);
+//         Path { segments, kind, span }
+//     },
+//
+//     <lo:@L> "dep" "::" <segments:PathSegments> <hi:@R> => {
+//         let kind = PathKind::Dep;
+//         let span = Span::from(lo as u32..hi as u32);
+//         Path { segments, kind, span }
+//     },
+//
+//     <lo:@L> <id:Ident> <mut segments:PathSegments> <hi:@R> => {
+//         segments.insert(0, id);
+//         let kind = PathKind::Plain;
+//         let span = Span::from(lo as u32..hi as u32);
+//         Path { segments, kind, span }
+//     },
+// }
+//
+// PathSegments: Vec<Ident> = {
+//     <lo:@L> <segments:("::" <Ident>)*> <hi:@R> => {
+//         segments
+//     }
+// }
+//
+// Alias: Ident = {
+//     r"[\t\r\n ]+" "as" r"[\t\r\n ]+" <Ident> => <>,
+// }
 
 Ident: Ident = {
     <lo:@L> <i:ident> <hi:@R> => {
