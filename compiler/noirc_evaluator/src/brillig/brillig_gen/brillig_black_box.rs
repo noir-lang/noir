@@ -346,12 +346,13 @@ pub(crate) fn convert_black_box_call(
         BlackBoxFunc::BigIntToLeBytes => {
             if let (
                 [BrilligVariable::SingleAddr(input), BrilligVariable::SingleAddr(_modulus)],
-                [BrilligVariable::BrilligArray(result_array)],
+                [result_array],
             ) = (function_arguments, function_results)
             {
+                let output = convert_array_or_vector(brillig_context, result_array, bb_func);
                 brillig_context.black_box_op_instruction(BlackBoxOp::BigIntToLeBytes {
                     input: input.address,
-                    output: result_array.to_heap_array(),
+                    output: output.to_heap_vector(),
                 });
             } else {
                 unreachable!("ICE: unexpected arguments for BigIntToLeBytes")

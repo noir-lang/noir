@@ -107,7 +107,7 @@ pub enum BlackBoxOp {
     },
     BigIntToLeBytes {
         input: MemoryAddress,
-        output: HeapArray,
+        output: HeapVector,
     },
     Poseidon2Permutation {
         message: HeapVector,
