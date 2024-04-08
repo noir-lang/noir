@@ -39,6 +39,9 @@ To install the latest Sandbox version, run:
 bash -i <(curl -s install.aztec.network)
 ```
 
+> If Docker has been installed on your linux server but you encounter the error "Docker is not running. Please start Docker and try again". If you're encountering this issue, it's likely because Docker is running with root user privileges. In such cases, consider [managing Docker as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user) to resolve the problem.
+
+
 This will install the following:
 
 - **aztec** - launches various infrastructure subsystems (sequencer, prover, pxe, etc).
