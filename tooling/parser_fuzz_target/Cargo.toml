@@ -1,0 +1,35 @@
+[package]
+name = "parser_fuzz_target"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+acir.workspace = true
+afl = "*"
+assert_cmd = "*"
+noirc_abi.workspace = true
+noirc_frontend.workspace = true
+serde_json = "*"
+tempfile = "*"
+test-binary = "*"
+toml = "*"
+
+[[bin]]
+name = "parser_fuzz_target"
+path = "src/main.rs"
+
+[[bin]]
+name = "lexer_fuzz_target"
+path = "lexer/main.rs"
+
+[[bin]]
+name = "acvm_inputs_fuzz_target"
+path = "acvm_inputs/main.rs"
+
+[[bin]]
+name = "compile_fuzz_target"
+path = "compile/main.rs"

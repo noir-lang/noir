@@ -26,7 +26,7 @@ members = [
     "tooling/noirc_abi",
     "tooling/noirc_abi_wasm",
     "tooling/acvm_cli",
-    "tooling/parser-fuzz-target",
+    "tooling/parser_fuzz_target",
     # ACVM
     "acvm-repo/acir_field",
     "acvm-repo/acir",

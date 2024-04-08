@@ -3336,11 +3336,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "parser-fuzz-target"
+name = "parser_fuzz_target"
 version = "0.26.0"
 dependencies = [
+ "acir",
  "afl",
+ "assert_cmd",
+ "noirc_abi",
  "noirc_frontend",
+ "serde_json",
+ "tempfile",
+ "test-binary",
+ "toml 0.5.11",
 ]
 
 [[package]]
