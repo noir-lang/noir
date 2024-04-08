@@ -83,8 +83,14 @@ template <> class VerifierCommitmentKey<curve::Grumpkin> {
     VerifierCommitmentKey(size_t num_points, const std::shared_ptr<bb::srs::factories::CrsFactory<Curve>>& crs_factory)
         : pippenger_runtime_state(num_points)
         , srs(crs_factory->get_verifier_crs(num_points))
-
     {}
+
+    VerifierCommitmentKey(size_t num_points)
+        : pippenger_runtime_state(num_points)
+    {
+        srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
+        srs = srs::get_crs_factory<Curve>()->get_verifier_crs(num_points);
+    }
 
     bb::scalar_multiplication::pippenger_runtime_state<Curve> pippenger_runtime_state;
     std::shared_ptr<bb::srs::factories::VerifierCrs<Curve>> srs;

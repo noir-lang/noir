@@ -13,22 +13,20 @@
 namespace bb {
 
 /**
- * Create ECCVMProver_ from proving key, witness and manifest.
+ * Create ECCVMProver from proving key, witness and manifest.
  *
  * @param input_key Proving key.
  * @param input_manifest Input manifest
  *
  * @tparam settings Settings class.
  * */
-template <IsECCVMFlavor Flavor>
-ECCVMProver_<Flavor>::ECCVMProver_(const std::shared_ptr<typename Flavor::ProvingKey>& input_key,
-                                   const std::shared_ptr<PCSCommitmentKey>& commitment_key,
-                                   const std::shared_ptr<Transcript>& transcript)
+ECCVMProver::ECCVMProver(const std::shared_ptr<ProvingKey>& input_key,
+                         const std::shared_ptr<CommitmentKey>& commitment_key,
+                         const std::shared_ptr<Transcript>& transcript)
     : transcript(transcript)
     , key(input_key)
     , commitment_key(commitment_key)
-{
-    // this will be initialized properly later
+{ // this will be initialized properly later
     key->z_perm = Polynomial(key->circuit_size);
     for (auto [prover_poly, key_poly] : zip_view(prover_polynomials.get_unshifted(), key->get_all())) {
         ASSERT(flavor_get_label(prover_polynomials, prover_poly) == flavor_get_label(*key, key_poly));
@@ -40,11 +38,25 @@ ECCVMProver_<Flavor>::ECCVMProver_(const std::shared_ptr<typename Flavor::Provin
     }
 }
 
+ECCVMProver::ECCVMProver(CircuitBuilder& builder, const std::shared_ptr<Transcript>& transcript)
+{
+    BB_OP_COUNT_TIME_NAME("ECCVMProver(CircuitBuilder&)");
+    // compute wire polynomials and copy into proving key
+    auto local_key = std::make_shared<ProvingKey>(builder);
+    ProverPolynomials polynomials(builder); // WORKTODO: inefficient
+    for (auto [prover_poly, key_poly] : zip_view(polynomials.get_wires(), local_key->get_wires())) {
+        ASSERT(flavor_get_label(prover_polynomials, prover_poly) == flavor_get_label(*key, key_poly));
+        std::copy(prover_poly.begin(), prover_poly.end(), key_poly.begin());
+    }
+
+    *this = ECCVMProver(std::move(local_key), std::make_shared<CommitmentKey>(local_key->circuit_size), transcript);
+}
+
 /**
  * @brief Add circuit size, public input size, and public inputs to transcript
  *
  */
-template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_preamble_round()
+void ECCVMProver::execute_preamble_round()
 {
     const auto circuit_size = static_cast<uint32_t>(key->circuit_size);
 
@@ -55,7 +67,7 @@ template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_preamble_roun
  * @brief Compute commitments to the first three wires
  *
  */
-template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_wire_commitments_round()
+void ECCVMProver::execute_wire_commitments_round()
 {
     auto wire_polys = key->get_wires();
     auto labels = commitment_labels.get_wires();
@@ -68,7 +80,7 @@ template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_wire_commitme
  * @brief Compute sorted witness-table accumulator
  *
  */
-template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_log_derivative_commitments_round()
+void ECCVMProver::execute_log_derivative_commitments_round()
 {
     // Compute and add beta to relation parameters
     auto [beta, gamma] = transcript->template get_challenges<FF>("beta", "gamma");
@@ -93,7 +105,7 @@ template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_log_derivativ
  * @brief Compute permutation and lookup grand product polynomials and commitments
  *
  */
-template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_grand_product_computation_round()
+void ECCVMProver::execute_grand_product_computation_round()
 {
     // Compute permutation grand product and their commitments
     compute_permutation_grand_products<Flavor>(key, prover_polynomials, relation_parameters);
@@ -105,7 +117,7 @@ template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_grand_product
  * @brief Run Sumcheck resulting in u = (u_1,...,u_d) challenges and all evaluations at u being calculated.
  *
  */
-template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_relation_check_rounds()
+void ECCVMProver::execute_relation_check_rounds()
 {
     using Sumcheck = SumcheckProver<Flavor>;
 
@@ -123,7 +135,7 @@ template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_relation_chec
  * @details See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the unrolled protocol.
  *
  * */
-template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_zeromorph_rounds()
+void ECCVMProver::execute_zeromorph_rounds()
 {
     ZeroMorph::prove(prover_polynomials.get_unshifted(),
                      prover_polynomials.get_to_be_shifted(),
@@ -140,7 +152,7 @@ template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_zeromorph_rou
  *
  * @tparam Flavor
  */
-template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_transcript_consistency_univariate_opening_round()
+void ECCVMProver::execute_transcript_consistency_univariate_opening_round()
 {
     // Since IPA cannot currently handle polynomials for which the latter half of the coefficients are 0, we hackily
     // batch the constant polynomial 1 in with the 5 transcript polynomials. See issue #768 for more details.
@@ -197,13 +209,13 @@ template <IsECCVMFlavor Flavor> void ECCVMProver_<Flavor>::execute_transcript_co
     translation_batching_challenge_v = transcript->template get_challenge<FF>("Translation:batching_challenge");
 }
 
-template <IsECCVMFlavor Flavor> HonkProof& ECCVMProver_<Flavor>::export_proof()
+HonkProof& ECCVMProver::export_proof()
 {
     proof = transcript->export_proof();
     return proof;
 }
 
-template <IsECCVMFlavor Flavor> HonkProof& ECCVMProver_<Flavor>::construct_proof()
+HonkProof& ECCVMProver::construct_proof()
 {
     BB_OP_COUNT_TIME_NAME("ECCVMProver::construct_proof");
 
@@ -223,7 +235,4 @@ template <IsECCVMFlavor Flavor> HonkProof& ECCVMProver_<Flavor>::construct_proof
 
     return export_proof();
 }
-
-template class ECCVMProver_<ECCVMFlavor>;
-
 } // namespace bb

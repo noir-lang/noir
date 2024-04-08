@@ -4,7 +4,8 @@
 #include <vector>
 
 #include "barretenberg/eccvm/eccvm_circuit_builder.hpp"
-#include "barretenberg/eccvm/eccvm_composer.hpp"
+#include "barretenberg/eccvm/eccvm_prover.hpp"
+#include "barretenberg/eccvm/eccvm_verifier.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/plonk_honk_shared/library/grand_product_delta.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
@@ -13,31 +14,20 @@
 #include "barretenberg/sumcheck/sumcheck_round.hpp"
 
 using namespace bb;
+using G1 = bb::g1;
+using Fr = bb::fr;
 
-template <typename Flavor> class ECCVMComposerTests : public ::testing::Test {
+class ECCVMComposerTests : public ::testing::Test {
   protected:
     // TODO(640): The Standard Honk on Grumpkin test suite fails unless the SRS is initialized for every test.
-    void SetUp() override
-    {
-        if constexpr (std::is_same<Flavor, ECCVMFlavor>::value) {
-            srs::init_grumpkin_crs_factory("../srs_db/grumpkin");
-        } else {
-            srs::init_crs_factory("../srs_db/ignition");
-        }
-    };
+    void SetUp() override { srs::init_grumpkin_crs_factory("../srs_db/grumpkin"); };
 };
-
-using FlavorTypes = ::testing::Types<ECCVMFlavor>;
-TYPED_TEST_SUITE(ECCVMComposerTests, FlavorTypes);
-
 namespace {
 auto& engine = numeric::get_debug_randomness();
 }
-template <typename Flavor> ECCVMCircuitBuilder generate_circuit(numeric::RNG* engine = nullptr)
+ECCVMCircuitBuilder generate_circuit(numeric::RNG* engine = nullptr)
 {
     std::shared_ptr<ECCOpQueue> op_queue = std::make_shared<ECCOpQueue>();
-    using G1 = typename Flavor::CycleGroup;
-    using Fr = typename G1::Fr;
 
     auto generators = G1::derive_generators("test generators", 3);
 
@@ -65,28 +55,21 @@ template <typename Flavor> ECCVMCircuitBuilder generate_circuit(numeric::RNG* en
     return builder;
 }
 
-TYPED_TEST(ECCVMComposerTests, BaseCase)
+TEST_F(ECCVMComposerTests, BaseCase)
 {
-    using Flavor = TypeParam;
-
-    auto builder = generate_circuit<Flavor>(&engine);
-
-    auto composer = ECCVMComposer_<Flavor>();
-    auto prover = composer.create_prover(builder);
-
+    ECCVMCircuitBuilder builder = generate_circuit(&engine);
+    ECCVMProver prover(builder);
     auto proof = prover.construct_proof();
-    auto verifier = composer.create_verifier(builder);
+    ECCVMVerifier verifier(prover.key);
     bool verified = verifier.verify_proof(proof);
 
     ASSERT_TRUE(verified);
 }
 
-TYPED_TEST(ECCVMComposerTests, EqFails)
+TEST_F(ECCVMComposerTests, EqFails)
 {
-    using Flavor = TypeParam;
-    using G1 = typename Flavor::CycleGroup;
     using ECCVMOperation = eccvm::VMOperation<G1>;
-    auto builder = generate_circuit<Flavor>(&engine);
+    auto builder = generate_circuit(&engine);
     // Tamper with the eq op such that the expected value is incorect
     builder.op_queue->raw_ops.emplace_back(ECCVMOperation{ .add = false,
                                                            .mul = false,
@@ -97,11 +80,10 @@ TYPED_TEST(ECCVMComposerTests, EqFails)
                                                            .z2 = 0,
                                                            .mul_scalar_full = 0 });
     builder.op_queue->num_transcript_rows++;
-    auto composer = ECCVMComposer_<Flavor>();
-    auto prover = composer.create_prover(builder);
+    ECCVMProver prover(builder);
 
     auto proof = prover.construct_proof();
-    auto verifier = composer.create_verifier(builder);
+    ECCVMVerifier verifier(prover.key);
     bool verified = verifier.verify_proof(proof);
     ASSERT_FALSE(verified);
 }

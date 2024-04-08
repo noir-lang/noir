@@ -1,7 +1,8 @@
 #pragma once
 
 #include "barretenberg/eccvm/eccvm_circuit_builder.hpp"
-#include "barretenberg/eccvm/eccvm_composer.hpp"
+#include "barretenberg/eccvm/eccvm_prover.hpp"
+#include "barretenberg/eccvm/eccvm_verifier.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/plonk_honk_shared/instance_inspector.hpp"
 #include "barretenberg/stdlib/honk_recursion/verifier/merge_recursive_verifier.hpp"
@@ -30,8 +31,7 @@ class Goblin {
     using OpQueue = bb::ECCOpQueue;
     using ECCVMFlavor = bb::ECCVMFlavor;
     using ECCVMBuilder = bb::ECCVMCircuitBuilder;
-    using ECCVMComposer = bb::ECCVMComposer;
-    using ECCVMProver = bb::ECCVMProver_<ECCVMFlavor>;
+    using ECCVMProver = bb::ECCVMProver;
     using TranslatorBuilder = bb::GoblinTranslatorCircuitBuilder;
     using TranslatorProver = bb::GoblinTranslatorProver;
     using RecursiveMergeVerifier = bb::stdlib::recursion::goblin::MergeRecursiveVerifier_<GoblinUltraCircuitBuilder>;
@@ -84,7 +84,6 @@ class Goblin {
     std::unique_ptr<ECCVMBuilder> eccvm_builder;
     std::unique_ptr<TranslatorBuilder> translator_builder;
     std::unique_ptr<TranslatorProver> translator_prover;
-    std::unique_ptr<ECCVMComposer> eccvm_composer;
     std::unique_ptr<ECCVMProver> eccvm_prover;
 
     AccumulationOutput accumulator; // Used only for ACIR methods for now
@@ -160,8 +159,7 @@ class Goblin {
     void prove_eccvm()
     {
         eccvm_builder = std::make_unique<ECCVMBuilder>(op_queue);
-        eccvm_composer = std::make_unique<ECCVMComposer>();
-        eccvm_prover = std::make_unique<ECCVMProver>(eccvm_composer->create_prover(*eccvm_builder));
+        eccvm_prover = std::make_unique<ECCVMProver>(*eccvm_builder);
         goblin_proof.eccvm_proof = eccvm_prover->construct_proof();
         goblin_proof.translation_evaluations = eccvm_prover->translation_evaluations;
     };
@@ -205,7 +203,7 @@ class Goblin {
         MergeVerifier merge_verifier;
         bool merge_verified = merge_verifier.verify_proof(proof.merge_proof);
 
-        auto eccvm_verifier = eccvm_composer->create_verifier(*eccvm_builder);
+        ECCVMVerifier eccvm_verifier(eccvm_prover->key);
         bool eccvm_verified = eccvm_verifier.verify_proof(proof.eccvm_proof);
 
         GoblinTranslatorVerifier translator_verifier(translator_prover->key, eccvm_verifier.transcript);
@@ -292,7 +290,7 @@ class Goblin {
         // MergeVerifier merge_verifier;
         // bool merge_verified = merge_verifier.verify_proof(goblin_proof.merge_proof);
 
-        auto eccvm_verifier = eccvm_composer->create_verifier(*eccvm_builder);
+        ECCVMVerifier eccvm_verifier(eccvm_prover->key);
         bool eccvm_verified = eccvm_verifier.verify_proof(goblin_proof.eccvm_proof);
 
         GoblinTranslatorVerifier translator_verifier(translator_prover->key, eccvm_verifier.transcript);

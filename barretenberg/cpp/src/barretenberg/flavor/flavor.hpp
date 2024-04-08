@@ -335,8 +335,6 @@ template <typename T> concept IsFoldingFlavor = IsAnyOf<T, UltraFlavor,
                                                            GoblinUltraRecursiveFlavor_<UltraCircuitBuilder>, 
                                                            GoblinUltraRecursiveFlavor_<GoblinUltraCircuitBuilder>>;
 
-template <typename T> concept IsECCVMFlavor = IsAnyOf<T, ECCVMFlavor>;
-
 template <typename Container, typename Element>
 inline std::string flavor_get_label(Container&& container, const Element& element) {
     for (auto [label, data] : zip_view(container.get_labels(), container.get_all())) {

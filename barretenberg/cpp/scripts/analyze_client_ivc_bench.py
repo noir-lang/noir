@@ -11,7 +11,7 @@ to_keep = [
     "ProverInstance(Circuit&)(t)",
     "ProtogalaxyProver::fold_instances(t)",
     "Decider::construct_proof(t)",
-    "ECCVMComposer::create_prover(t)",
+    "ECCVMProver(CircuitBuilder&)(t)",
     "ECCVMProver::construct_proof(t)",
     "GoblinTranslatorProver::construct_proof(t)",
     "Goblin::merge(t)"

@@ -1,48 +1,18 @@
 #include "./eccvm_verifier.hpp"
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
-#include "barretenberg/numeric/bitop/get_msb.hpp"
-#include "barretenberg/transcript/transcript.hpp"
+#include "barretenberg/sumcheck/sumcheck.hpp"
 
 namespace bb {
-template <typename Flavor>
-ECCVMVerifier_<Flavor>::ECCVMVerifier_(const std::shared_ptr<typename Flavor::VerificationKey>& verifier_key)
-    : key(verifier_key)
-{}
-
-template <typename Flavor>
-ECCVMVerifier_<Flavor>::ECCVMVerifier_(ECCVMVerifier_&& other) noexcept
-    : key(std::move(other.key))
-    , pcs_verification_key(std::move(other.pcs_verification_key))
-{}
-
-template <typename Flavor> ECCVMVerifier_<Flavor>& ECCVMVerifier_<Flavor>::operator=(ECCVMVerifier_&& other) noexcept
-{
-    key = other.key;
-    pcs_verification_key = (std::move(other.pcs_verification_key));
-    commitments.clear();
-    pcs_fr_elements.clear();
-    return *this;
-}
 
 /**
  * @brief This function verifies an ECCVM Honk proof for given program settings.
- *
  */
-template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkProof& proof)
+bool ECCVMVerifier::verify_proof(const HonkProof& proof)
 {
-    using FF = typename Flavor::FF;
-    using Commitment = typename Flavor::Commitment;
-    using PCS = typename Flavor::PCS;
     using ZeroMorph = ZeroMorphVerifier_<PCS>;
-    using VerifierCommitments = typename Flavor::VerifierCommitments;
-    using CommitmentLabels = typename Flavor::CommitmentLabels;
-    using Transcript = typename Flavor::Transcript;
-    using Curve = typename Flavor::Curve;
 
     RelationParameters<FF> relation_parameters;
-
     transcript = std::make_shared<Transcript>(proof);
-
     VerifierCommitments commitments{ key };
     CommitmentLabels commitment_labels;
 
@@ -171,7 +141,7 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkP
                                                            claimed_evaluations.get_unshifted(),
                                                            claimed_evaluations.get_shifted(),
                                                            multivariate_challenge,
-                                                           pcs_verification_key,
+                                                           key->pcs_verification_key,
                                                            transcript);
     // Execute transcript consistency univariate opening round
     // TODO(#768): Find a better way to do this. See issue for details.
@@ -212,12 +182,10 @@ template <typename Flavor> bool ECCVMVerifier_<Flavor>::verify_proof(const HonkP
         // Construct and verify batched opening claim
         OpeningClaim<Curve> batched_univariate_claim = { { evaluation_challenge_x, batched_transcript_eval },
                                                          batched_commitment };
-        univariate_opening_verified = PCS::reduce_verify(pcs_verification_key, batched_univariate_claim, transcript);
+        univariate_opening_verified =
+            PCS::reduce_verify(key->pcs_verification_key, batched_univariate_claim, transcript);
     }
 
     return sumcheck_verified.value() && multivariate_opening_verified && univariate_opening_verified;
 }
-
-template class ECCVMVerifier_<ECCVMFlavor>;
-
 } // namespace bb
