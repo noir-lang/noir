@@ -34,7 +34,6 @@ stop_tsc_watch() {
   if [ -f .tsc.pid ]; then
     echo "Stopping tsc watch..."
     local tsc_pid=$(cat ".tsc.pid");
-    echo KILLING $tsc_pid
     kill $tsc_pid
   fi
 }
