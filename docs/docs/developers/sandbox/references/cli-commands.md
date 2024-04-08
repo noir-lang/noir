@@ -5,7 +5,13 @@ title: CLI Commands
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-Here you will find a reference to the commands available in the Aztec CLI.
+Here you will find an incomplete reference to the commands available in the Aztec CLI.
+
+:::info
+
+For a full up-to-date list, run `aztec-cli -h`.
+
+:::
 
 ## Installation
 
