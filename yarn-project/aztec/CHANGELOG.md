@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.33.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.32.1...aztec-package-v0.33.0) (2024-04-09)
+
+
+### Features
+
+* Jest fast transpile. no more ts-jest. ([#5530](https://github.com/AztecProtocol/aztec-packages/issues/5530)) ([1912802](https://github.com/AztecProtocol/aztec-packages/commit/19128024292a91d0f947f397ab1b0dc2cd7ef7aa))
+* **SimulateTx:** Simulate constrained transaction execution with return values ([#5432](https://github.com/AztecProtocol/aztec-packages/issues/5432)) ([0249737](https://github.com/AztecProtocol/aztec-packages/commit/0249737e8b925406e9278b80fc7adc0f6ab5468d))
+
 ## [0.32.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.32.0...aztec-package-v0.32.1) (2024-04-02)
 
 

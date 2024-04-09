@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.33.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.32.1...aztec-cli-v0.33.0) (2024-04-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* contract_abi-exports ([#5386](https://github.com/AztecProtocol/aztec-packages/issues/5386))
+
+### Features
+
+* **avm:** Integrate AVM with initializers ([#5469](https://github.com/AztecProtocol/aztec-packages/issues/5469)) ([59799f2](https://github.com/AztecProtocol/aztec-packages/commit/59799f273addec01eb0cdea365fe72bcbc8d9493))
+* Contract_abi-exports ([#5386](https://github.com/AztecProtocol/aztec-packages/issues/5386)) ([745d522](https://github.com/AztecProtocol/aztec-packages/commit/745d5229db86b2188f52ab7ccc8f568aef8f5797))
+* Jest fast transpile. no more ts-jest. ([#5530](https://github.com/AztecProtocol/aztec-packages/issues/5530)) ([1912802](https://github.com/AztecProtocol/aztec-packages/commit/19128024292a91d0f947f397ab1b0dc2cd7ef7aa))
+
+
+### Bug Fixes
+
+* Update CLI & terraforms with new contract addresses ([#5553](https://github.com/AztecProtocol/aztec-packages/issues/5553)) ([eb73d20](https://github.com/AztecProtocol/aztec-packages/commit/eb73d20e825f3e18acfb68a2b0b7d3501f39e52d))
+
 ## [0.32.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.32.0...aztec-cli-v0.32.1) (2024-04-02)
 
 

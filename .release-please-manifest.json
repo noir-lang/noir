@@ -1,7 +1,7 @@
 {
-  ".": "0.32.1",
-  "yarn-project/cli": "0.32.1",
-  "yarn-project/aztec": "0.32.1",
-  "barretenberg": "0.32.1",
-  "barretenberg/ts": "0.32.1"
+  ".": "0.33.0",
+  "yarn-project/cli": "0.33.0",
+  "yarn-project/aztec": "0.33.0",
+  "barretenberg": "0.33.0",
+  "barretenberg/ts": "0.33.0"
 }
