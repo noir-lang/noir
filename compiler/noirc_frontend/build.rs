@@ -18,7 +18,7 @@ fn main() {
         if line.contains("extern crate core") {
             parser_file
                 .write_all(
-                    format!("{}\n", line.replace("extern crate code", "use core")).as_bytes(),
+                    format!("{}\n", line.replace("extern crate core", "use core")).as_bytes(),
                 )
                 .unwrap();
         } else {
