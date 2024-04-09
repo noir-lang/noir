@@ -52,23 +52,39 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
         write!(
             test_file,
             r##"
-#[test]
-fn format_{test_name}() {{
-    let input = r#"{input_source}"#;
-    let expected_output = r#"{output_source}"#;
+    #[test]
+    fn format_{test_name}() {{
+        let input = r#"{input_source}"#;
+        let expected_output = r#"{output_source}"#;
 
 
-    let (parsed_module, _errors) = noirc_frontend::parse_program(input);
+        let (parsed_module, _errors) = noirc_frontend::parse_program(input);
 
-    let config = nargo_fmt::Config::of("{config}").unwrap();
-    let fmt_text = nargo_fmt::format(input, parsed_module, &config);
+        let config = nargo_fmt::Config::of("{config}").unwrap();
+        let fmt_text = nargo_fmt::format(input, parsed_module, &config);
 
-    if std::env::var("UPDATE_EXPECT").is_ok() {{
-        std::fs::write("{output_source_path}", fmt_text.clone()).unwrap();
+        if std::env::var("UPDATE_EXPECT").is_ok() {{
+            std::fs::write("{output_source_path}", fmt_text.clone()).unwrap();
+        }}
+
+        similar_asserts::assert_eq!(fmt_text, expected_output);
     }}
 
-    similar_asserts::assert_eq!(fmt_text, expected_output);
-}}
+    #[test]
+    fn format_idempotent_{test_name}() {{
+        let expected_output = r#"{output_source}"#;
+
+        let (parsed_module, _errors) = noirc_frontend::parse_program(expected_output);
+
+        let config = nargo_fmt::Config::of("{config}").unwrap();
+        let fmt_text = nargo_fmt::format(expected_output, parsed_module, &config);
+
+        if std::env::var("UPDATE_EXPECT").is_ok() {{
+            std::fs::write("{output_source_path}", fmt_text.clone()).unwrap();
+        }}
+
+        similar_asserts::assert_eq!(fmt_text, expected_output);
+    }}
             "##
         )
         .expect("Could not write templated test file.");
