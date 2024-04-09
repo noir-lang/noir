@@ -103,18 +103,7 @@ extern {
     }
 }
 
-// TODO
-// pub(crate) Program: &'input ParsedModule = {
-//     // <m:Module> EOF => m,
-//     // EOF => (),
-
-//     // <x:TopLevelStatement> "\n" <p:Program> => x,
-
-//     EOF => ParsedModule::default(),
-// }
-
 pub(crate) TopLevelStatement: TopLevelStatement = {
-    // TODO: move EOF to Program
     "use" r"[\t\r\n ]+" <use_tree:UseTree> ";" <trailing_spaces:r"[\t\r\n ]+"?> EOF => {
         TopLevelStatement::Import(use_tree)
     }
