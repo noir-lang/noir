@@ -46,7 +46,6 @@ pub type DebugVariables = BTreeMap<DebugVarId, DebugVariable>;
 pub type DebugFunctions = BTreeMap<DebugFnId, DebugFunction>;
 pub type DebugTypes = BTreeMap<DebugTypeId, PrintableType>;
 
-#[serde_as]
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct ProgramDebugInfo {
     pub debug_infos: Vec<DebugInfo>,
