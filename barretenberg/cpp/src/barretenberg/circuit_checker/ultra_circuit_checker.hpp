@@ -84,6 +84,14 @@ class UltraCircuitChecker {
     static bool check_lookup(auto& values, auto& lookup_hash_table);
 
     /**
+     * @brief Check that the {index, value} pair contained in a databus read gate reflects the actual value present in
+     * the corresponding databus column at the given index
+     *
+     * @param values Inputs to a databus read gate
+     */
+    template <typename Builder> static bool check_databus_read(auto& values, Builder& builder);
+
+    /**
      * @brief Check whether the left and right running tag products are equal
      * @note By construction, this is in general only true after the last gate has been processed
      *

@@ -57,7 +57,7 @@ TEST_F(DataBusTests, CallDataRead)
     // Add some values to calldata
     std::vector<FF> calldata_values = { 7, 10, 3, 12, 1 };
     for (auto& val : calldata_values) {
-        builder.add_public_calldata(val);
+        builder.add_public_calldata(builder.add_variable(val));
     }
 
     // Define some raw indices at which to read calldata
@@ -100,7 +100,7 @@ TEST_F(DataBusTests, ReturnDataRead)
     // Add some values to return_data
     std::vector<FF> return_data_values = { 7, 10, 3, 12, 1 };
     for (auto& val : return_data_values) {
-        builder.add_public_return_data(val);
+        builder.add_public_return_data(builder.add_variable(val));
     }
 
     // Define some raw indices at which to read return_data
@@ -142,13 +142,13 @@ TEST_F(DataBusTests, CallDataAndReturnData)
     // Add some values to calldata
     std::vector<FF> calldata_values = { 5, 27, 11 };
     for (auto& val : calldata_values) {
-        builder.add_public_calldata(val);
+        builder.add_public_calldata(builder.add_variable(val));
     }
 
     // Add some values to return_data
     std::vector<FF> return_data_values = { 7, 10 };
     for (auto& val : return_data_values) {
-        builder.add_public_return_data(val);
+        builder.add_public_return_data(builder.add_variable(val));
     }
 
     // Make some aribitrary reads from calldata and return data

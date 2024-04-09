@@ -46,14 +46,17 @@ void ProverInstance_<Flavor>::construct_databus_polynomials(Circuit& circuit)
     Polynomial public_return_data{ dyadic_circuit_size };
     Polynomial return_data_read_counts{ dyadic_circuit_size };
 
+    auto calldata = circuit.get_calldata();
+    auto return_data = circuit.get_return_data();
+
     // Note: We do not utilize a zero row for databus columns
-    for (size_t idx = 0; idx < circuit.databus.calldata.size(); ++idx) {
-        public_calldata[idx] = circuit.get_variable(circuit.databus.calldata[idx]);
-        calldata_read_counts[idx] = circuit.databus.calldata.get_read_count(idx);
+    for (size_t idx = 0; idx < calldata.size(); ++idx) {
+        public_calldata[idx] = circuit.get_variable(calldata[idx]);
+        calldata_read_counts[idx] = calldata.get_read_count(idx);
     }
-    for (size_t idx = 0; idx < circuit.databus.return_data.size(); ++idx) {
-        public_return_data[idx] = circuit.get_variable(circuit.databus.return_data[idx]);
-        return_data_read_counts[idx] = circuit.databus.return_data.get_read_count(idx);
+    for (size_t idx = 0; idx < return_data.size(); ++idx) {
+        public_return_data[idx] = circuit.get_variable(return_data[idx]);
+        return_data_read_counts[idx] = return_data.get_read_count(idx);
     }
 
     Polynomial databus_id{ dyadic_circuit_size };
