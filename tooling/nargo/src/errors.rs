@@ -147,7 +147,7 @@ pub fn try_to_diagnose_runtime_error(
 /// We can have a recursive `NargoError` if there is an error inside of an ACIR call.
 /// Thus we need a method that lets us recursively inspect a `NargoError` to fetch its full call stack
 /// across ACIR functions.
-pub fn try_extract_locations_from_error(
+fn try_extract_locations_from_error(
     nargo_err: &NargoError,
     debug: &[DebugInfo],
     current_func_id: u32,
