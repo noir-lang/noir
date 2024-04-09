@@ -1,10 +1,10 @@
 use convert_case::{Case, Casing};
 use noirc_errors::Span;
 use noirc_frontend::{
-    macros_api::FieldElement, BlockExpression, ConstrainKind, ConstrainStatement, Distinctness,
-    Expression, ExpressionKind, ForLoopStatement, ForRange, FunctionReturnType, Ident, Literal,
-    NoirFunction, Param, PathKind, Pattern, Signedness, Statement, StatementKind, UnresolvedType,
-    UnresolvedTypeData, Visibility,
+    macros_api::FieldElement, parse_program, BlockExpression, ConstrainKind, ConstrainStatement,
+    Distinctness, Expression, ExpressionKind, ForLoopStatement, ForRange, FunctionReturnType,
+    Ident, Literal, NoirFunction, NoirStruct, Param, PathKind, Pattern, Signedness, Statement,
+    StatementKind, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 
 use crate::{
@@ -110,6 +110,92 @@ pub fn transform_function(
         _ => (),
     }
 
+    Ok(())
+}
+
+// Generates a global struct containing the original (before transform_function gets executed) function abi that gets exported
+// in the contract artifact after compilation. The abi will be later used to decode the function return values in the simulator.
+pub fn export_fn_abi(
+    types: &mut Vec<NoirStruct>,
+    func: &NoirFunction,
+) -> Result<(), AztecMacroError> {
+    let mut parameters_struct_source: Option<&str> = None;
+
+    let struct_source = format!(
+        "
+        struct {}_parameters {{
+            {}
+        }}
+    ",
+        func.name(),
+        func.parameters()
+            .iter()
+            .map(|param| {
+                let param_name = match param.pattern.clone() {
+                    Pattern::Identifier(ident) => Ok(ident.0.contents),
+                    _ => Err(AztecMacroError::CouldNotExportFunctionAbi {
+                        span: Some(param.span),
+                        secondary_message: Some(
+                            "Only identifier patterns are supported".to_owned(),
+                        ),
+                    }),
+                };
+
+                format!(
+                    "{}: {}",
+                    param_name.unwrap(),
+                    param.typ.typ.to_string().replace("plain::", "")
+                )
+            })
+            .collect::<Vec<String>>()
+            .join(",\n"),
+    );
+
+    if !func.parameters().is_empty() {
+        parameters_struct_source = Some(&struct_source);
+    }
+
+    let mut program = String::new();
+
+    let parameters = if let Some(parameters_struct_source) = parameters_struct_source {
+        program.push_str(parameters_struct_source);
+        format!("parameters: {}_parameters,\n", func.name())
+    } else {
+        "".to_string()
+    };
+
+    let return_type_str = func.return_type().typ.to_string().replace("plain::", "");
+    let return_type = if return_type_str != "()" {
+        format!("return_type: {},\n", return_type_str)
+    } else {
+        "".to_string()
+    };
+
+    let export_struct_source = format!(
+        "
+        #[abi(functions)]
+        struct {}_abi {{
+            {}{}
+        }}",
+        func.name(),
+        parameters,
+        return_type
+    );
+
+    program.push_str(&export_struct_source);
+
+    let (ast, errors) = parse_program(&program);
+    if !errors.is_empty() {
+        return Err(AztecMacroError::CouldNotExportFunctionAbi {
+            span: None,
+            secondary_message: Some(
+                format!("Failed to parse Noir macro code (struct {}_abi). This is either a bug in the compiler or the Noir macro code", func.name())
+            )
+        });
+    }
+
+    let sorted_ast = ast.into_sorted();
+    types.extend(sorted_ast.types);
     Ok(())
 }
 
