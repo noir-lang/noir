@@ -8,6 +8,7 @@ on:
 jobs:
   # there's a lot of x86 tasks - let's split out the build step
   build-x86:
+    if: github.actor == 'ludamad' || github.actor == 'charlielye'
     runs-on: ubuntu-latest
     outputs:
       e2e_list: ${{ steps.e2e_list.outputs.list }}
@@ -45,6 +46,7 @@ jobs:
   # all the end-to-end integration tests for aztec
   e2e-arm:
     runs-on: ubuntu-latest
+    if: github.actor == 'ludamad' || github.actor == 'charlielye'
     env:
       EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
     strategy:
@@ -82,6 +84,7 @@ jobs:
   e2e-x86:
     needs: build-x86
     runs-on: ubuntu-latest
+    if: github.actor == 'ludamad' || github.actor == 'charlielye'
     env:
       EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
     strategy:
@@ -122,6 +125,7 @@ jobs:
   # barretenberg (prover) native tests
   bb-native-tests:
     runs-on: ubuntu-latest
+    if: github.actor == 'ludamad' || github.actor == 'charlielye'
     env:
       EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
     strategy:
@@ -158,6 +162,7 @@ jobs:
   # We don't depend on 'build' as we use a different runner and will build components on the fist step that uses them.
   bench:
     runs-on: ubuntu-latest
+    if: github.actor == 'ludamad' || github.actor == 'charlielye'
     env:
       EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
     # cancel if reran on same PR if exists, otherwise if on same commit
