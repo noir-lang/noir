@@ -15,8 +15,8 @@ use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, Compiled
 
 use noirc_frontend::graph::CrateName;
 
-use clap::Args;
 use acvm::acir::circuit::ExpressionWidth;
+use clap::Args;
 use noirc_frontend::hir::ParsedFiles;
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
@@ -127,7 +127,8 @@ fn compile_workspace_full(
 ) -> Result<(), CliError> {
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
-    let (expression_width, compiled_programs, compiled_contracts) = compile_workspace_full_pure(workspace, workspace_file_manager, compile_options)?;
+    let (expression_width, compiled_programs, compiled_contracts) =
+        compile_workspace_full_pure(workspace, workspace_file_manager, compile_options)?;
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()

@@ -8,7 +8,6 @@ use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::ops::{compile_program, report_errors, DefaultForeignCallExecutor};
 use nargo::package::Package;
-use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
@@ -58,7 +57,10 @@ pub(crate) fn run(
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.as_ref().map_or(default_selection, |package| { PackageSelection::Selected(package.clone()) });
+    let selection = args
+        .package
+        .as_ref()
+        .map_or(default_selection, |package| PackageSelection::Selected(package.clone()));
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,
@@ -71,7 +73,7 @@ pub(crate) fn run(
     for result_or_err in run_pure(backend, workspace.into_iter(), workspace_file_manager, args) {
         let result = result_or_err?;
         if let Some((witness_stack, witness_name, package_name)) = result {
-            let witness_path = save_witness_to_dir(witness_stack, &*witness_name, target_dir)?;
+            let witness_path = save_witness_to_dir(witness_stack, &witness_name, target_dir)?;
             println!("[{}] Witness saved to {}", package_name, witness_path.display());
         }
     }
@@ -93,46 +95,43 @@ where
         .compile_options
         .expression_width
         .unwrap_or_else(|| backend.get_backend_info_or_default());
-    workspace
-        .filter(|package| package.is_binary())
-        .map(move |package| {
-            let compilation_result = compile_program(
-                &workspace_file_manager,
-                &parsed_files,
-                package,
-                &args.compile_options,
-                None,
-            );
+    workspace.filter(|package| package.is_binary()).map(move |package| {
+        let compilation_result = compile_program(
+            &workspace_file_manager,
+            &parsed_files,
+            package,
+            &args.compile_options,
+            None,
+        );
 
-            let compiled_program = report_errors(
-                compilation_result,
-                &workspace_file_manager,
-                args.compile_options.deny_warnings,
-                args.compile_options.silence_warnings,
-            )?;
+        let compiled_program = report_errors(
+            compilation_result,
+            &workspace_file_manager,
+            args.compile_options.deny_warnings,
+            args.compile_options.silence_warnings,
+        )?;
 
-            let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
+        let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
-            let (return_value, witness_stack) = execute_program_and_decode(
-                compiled_program,
-                package,
-                &args.prover_name,
-                args.oracle_resolver.as_deref(),
-            )?;
+        let (return_value, witness_stack) = execute_program_and_decode(
+            compiled_program,
+            package,
+            &args.prover_name,
+            args.oracle_resolver.as_deref(),
+        )?;
 
-            println!("[{}] Circuit witness successfully solved", package.name);
-            if let Some(return_value) = return_value {
-                println!("[{}] Circuit output: {return_value:?}", package.name);
-            }
+        println!("[{}] Circuit witness successfully solved", package.name);
+        if let Some(return_value) = return_value {
+            println!("[{}] Circuit output: {return_value:?}", package.name);
+        }
 
-            // TODO: make into map
-            if let Some(witness_name) = &args.witness_name {
-                Ok(Some((witness_stack, witness_name.clone(), package.name.clone())))
-            } else {
-                Ok(None)
-            }
-
-        })
+        // TODO: make into map
+        if let Some(witness_name) = &args.witness_name {
+            Ok(Some((witness_stack, witness_name.clone(), package.name.clone())))
+        } else {
+            Ok(None)
+        }
+    })
 }
 
 fn execute_program_and_decode(

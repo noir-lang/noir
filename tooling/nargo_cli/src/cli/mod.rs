@@ -11,12 +11,12 @@ use crate::backends::get_active_backend;
 mod fs;
 
 mod backend_cmd;
-mod check_cmd;
+pub mod check_cmd;
 mod codegen_verifier_cmd;
-mod compile_cmd;
+pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
-mod execute_cmd;
+pub mod execute_cmd;
 mod export_cmd;
 mod fmt_cmd;
 mod info_cmd;

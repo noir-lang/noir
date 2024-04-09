@@ -8,8 +8,8 @@
 //! Noir Package Manager abbreviated is npm, which is already taken.
 
 mod backends;
-mod cli;
-mod errors;
+pub mod cli;
+pub mod errors;
 
 use std::env;
 
