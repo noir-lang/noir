@@ -176,7 +176,7 @@ fn try_extract_locations_from_error(
 ///
 /// e.g. If we call an Acir function and we hit an unsatisfied constrain inside that function,
 /// we want to display "Failed constraint" and not the error message for `NargoError::AcirCallError`
-pub fn extract_message_from_error(nargo_err: &NargoError) -> String {
+fn extract_message_from_error(nargo_err: &NargoError) -> String {
     match nargo_err {
         NargoError::ExecutionError(ExecutionError::AssertionFailed(message, _)) => {
             format!("Assertion failed: '{message}'")
