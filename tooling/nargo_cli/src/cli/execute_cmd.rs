@@ -80,6 +80,7 @@ pub(crate) fn run(
     Ok(())
 }
 
+// run without file access
 pub fn run_pure<'a, I>(
     backend: Backend,
     workspace: I,

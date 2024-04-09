@@ -8,13 +8,14 @@ use std::{
     path::PathBuf,
     slice,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{
     constants::{CONTRACT_DIR, EXPORT_DIR, PROOFS_DIR, TARGET_DIR},
     package::Package,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Workspace {
     pub root_dir: PathBuf,
     pub members: Vec<Package>,

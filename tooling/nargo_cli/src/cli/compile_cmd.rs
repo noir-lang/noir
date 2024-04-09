@@ -157,6 +157,22 @@ pub fn compile_workspace_full_pure(
     workspace_file_manager: FileManager,
     compile_options: &CompileOptions,
 ) -> Result<(ExpressionWidth, Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
+
+    // TODO: remove me!
+    use std::fs::OpenOptions;
+    use std::io::prelude::*;
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .append(true)
+        .open("test_cases_compile.json")
+        .unwrap();
+
+    writeln!(file, "{:?}", serde_json::to_string(&(workspace, workspace_file_manager.clone())).unwrap()).unwrap();
+    // TODO: end remove me!
+
+
     let parsed_files = parse_all(&workspace_file_manager);
 
     let expression_width =
