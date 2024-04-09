@@ -6,6 +6,7 @@
 mod file_map;
 
 pub use file_map::{File, FileId, FileMap, PathString};
+use serde::{Deserialize, Serialize};
 
 // Re-export for the lsp
 pub use codespan_reporting::files as codespan_files;
@@ -16,7 +17,7 @@ use std::{
 };
 
 pub const FILE_EXTENSION: &str = "nr";
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct FileManager {
     root: PathBuf,
     file_map: FileMap,

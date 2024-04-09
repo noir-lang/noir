@@ -6,7 +6,7 @@ use std::{ops::Range, path::PathBuf};
 // XXX: File and FileMap serve as opaque types, so that the rest of the library does not need to import the dependency
 // or worry about when we change the dep
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct PathString(PathBuf);
 
 impl std::fmt::Display for PathString {
@@ -20,20 +20,53 @@ impl PathString {
         PathString(p)
     }
 }
+
 impl From<PathBuf> for PathString {
     fn from(pb: PathBuf) -> PathString {
         PathString::from_path(pb)
     }
 }
+
 impl From<&PathBuf> for PathString {
     fn from(pb: &PathBuf) -> PathString {
         PathString::from(pb.to_owned())
     }
 }
+
 #[derive(Debug, Clone)]
 pub struct FileMap {
     files: SimpleFiles<PathString, String>,
     name_to_id: HashMap<PathString, FileId>,
+}
+
+impl Serialize for FileMap {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut files_vec: Vec::<(PathString, String)> = vec![];
+        for id in self.name_to_id.values() {
+            let file = self.files.get(id.0).unwrap();
+            files_vec.push((file.name().clone(), file.source().clone()))
+        }
+        files_vec.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for FileMap {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+
+        Vec::<(PathString, String)>::deserialize(deserializer).map(|files_vec| {
+            let mut file_map = FileMap::default();
+            for (file_path, file_source) in files_vec {
+                file_map.add_file(file_path, file_source);
+            }
+            file_map
+        })
+    }
 }
 
 // XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileId
