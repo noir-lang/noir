@@ -601,7 +601,7 @@ impl<'a> Iterator for Lexer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::{token_to_tok, FunctionAttribute, SecondaryAttribute, TestScope};
+    use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 
     #[test]
     fn test_single_double_char() {
@@ -1226,54 +1226,6 @@ mod tests {
                     );
                 }
             }
-        }
-    }
-
-    #[test]
-    fn test_lalrpop() {
-        use lalrpop_util::lalrpop_mod;
-        // synthesized by LALRPOP
-        lalrpop_mod!(pub noir_parser);
-
-        // use statement tests
-        let use_statement_inputs = vec![
-            "use dep::std::compat;",
-            "use dep::std::ec::consts::te::baby_jubjub;",
-            "use dep::std::hash;",
-            "use dep::std::hash::poseidon2::Poseidon2Hasher;",
-            "use dep::std::hash::pedersen::PedersenHasher;",
-            "use dep::std::ec::tecurve::affine::Point as TEPoint;",
-            "use dep::std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify, eddsa_verify_with_hasher};",
-        ];
-
-        for use_statement_input in use_statement_inputs {
-            let mut lexer = Lexer::new(use_statement_input);
-            lexer.skip_whitespaces = false;
-            let mut errors = Vec::new();
-
-            // NOTE: this is a hack to get the references working
-            // => this likely means that we'll want to propagate the <'input> lifetime further into Token
-            let lexer_result = lexer.into_iter().collect::<Vec<_>>();
-            let referenced_lexer_result =
-                lexer_result.iter().map(from_spanned_token_result).map(|token_result| {
-                    token_result
-                        .as_ref()
-                        .map(|(start, ref token, end)| (*start, token_to_tok(token), *end))
-                        .map_err(|x| x.clone())
-                });
-
-            let calculated = noir_parser::TopLevelStatementParser::new().parse(
-                use_statement_input,
-                &mut errors,
-                referenced_lexer_result,
-            );
-            assert!(
-                calculated.is_ok(),
-                "{:?}\n\n{:?}\n\n{:?}",
-                calculated,
-                lexer_result,
-                use_statement_input
-            );
         }
     }
 }
