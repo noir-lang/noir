@@ -10,9 +10,10 @@ use noirc_frontend::{BinaryOpKind, Signedness};
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
+use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::dfg::DataFlowGraph;
-use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
+use crate::ssa::ir::function::{FunctionId as IrFunctionId, InlineType};
 use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
 use crate::ssa::ir::map::AtomicCounter;
@@ -38,6 +39,11 @@ pub(super) struct FunctionContext<'a> {
 
     pub(super) builder: FunctionBuilder,
     shared_context: &'a SharedContext,
+
+    /// Contains any loops we're currently in the middle of translating.
+    /// These are ordered such that an inner loop is at the end of the vector and
+    /// outer loops are at the beginning. When a loop is finished, it is popped.
+    loops: Vec<Loop>,
 }
 
 /// Shared context for all functions during ssa codegen. This is the only
@@ -71,6 +77,13 @@ pub(super) struct SharedContext {
     pub(super) program: Program,
 }
 
+#[derive(Copy, Clone)]
+pub(super) struct Loop {
+    pub(super) loop_entry: BasicBlockId,
+    pub(super) loop_index: ValueId,
+    pub(super) loop_end: BasicBlockId,
+}
+
 /// The queue of functions remaining to compile
 type FunctionQueue = Vec<(ast::FuncId, IrFunctionId)>;
 
@@ -95,8 +108,10 @@ impl<'a> FunctionContext<'a> {
             .expect("No function in queue for the FunctionContext to compile")
             .1;
 
-        let builder = FunctionBuilder::new(function_name, function_id, runtime);
-        let mut this = Self { definitions: HashMap::default(), builder, shared_context };
+        let mut builder = FunctionBuilder::new(function_name, function_id);
+        builder.set_runtime(runtime);
+        let definitions = HashMap::default();
+        let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
         this.add_parameters_to_scope(parameters);
         this
     }
@@ -111,7 +126,8 @@ impl<'a> FunctionContext<'a> {
         if func.unconstrained {
             self.builder.new_brillig_function(func.name.clone(), id);
         } else {
-            self.builder.new_function(func.name.clone(), id);
+            let inline_type = if func.should_fold { InlineType::Fold } else { InlineType::Inline };
+            self.builder.new_function(func.name.clone(), id, inline_type);
         }
         self.add_parameters_to_scope(&func.parameters);
     }
@@ -1021,6 +1037,54 @@ impl<'a> FunctionContext<'a> {
                 )
             }
         }
+    }
+
+    /// Increments the reference count of all parameters. Returns the entry block of the function.
+    ///
+    /// This is done on parameters rather than call arguments so that we can optimize out
+    /// paired inc/dec instructions within brillig functions more easily.
+    pub(crate) fn increment_parameter_rcs(&mut self) -> BasicBlockId {
+        let entry = self.builder.current_function.entry_block();
+        let parameters = self.builder.current_function.dfg.block_parameters(entry).to_vec();
+
+        for parameter in parameters {
+            self.builder.increment_array_reference_count(parameter);
+        }
+
+        entry
+    }
+
+    /// Ends a local scope of a function.
+    /// This will issue DecrementRc instructions for any arrays in the given starting scope
+    /// block's parameters. Arrays that are also used in terminator instructions for the scope are
+    /// ignored.
+    pub(crate) fn end_scope(&mut self, scope: BasicBlockId, terminator_args: &[ValueId]) {
+        let mut dropped_parameters =
+            self.builder.current_function.dfg.block_parameters(scope).to_vec();
+
+        dropped_parameters.retain(|parameter| !terminator_args.contains(parameter));
+
+        for parameter in dropped_parameters {
+            self.builder.decrement_array_reference_count(parameter);
+        }
+    }
+
+    pub(crate) fn enter_loop(
+        &mut self,
+        loop_entry: BasicBlockId,
+        loop_index: ValueId,
+        loop_end: BasicBlockId,
+    ) {
+        self.loops.push(Loop { loop_entry, loop_index, loop_end });
+    }
+
+    pub(crate) fn exit_loop(&mut self) {
+        self.loops.pop();
+    }
+
+    pub(crate) fn current_loop(&self) -> Loop {
+        // The frontend should ensure break/continue are never used outside a loop
+        *self.loops.last().expect("current_loop: not in a loop!")
     }
 }
 

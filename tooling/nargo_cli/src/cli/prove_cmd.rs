@@ -20,6 +20,7 @@ use crate::{backends::Backend, cli::execute_cmd::execute_program, errors::CliErr
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
+#[clap(visible_alias = "p")]
 pub(crate) struct ProveCommand {
     /// The name of the toml file which contains the inputs for the prover
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
@@ -121,12 +122,14 @@ pub(crate) fn prove_package(
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &compiled_program.abi)?;
 
-    let solved_witness =
-        execute_program(&compiled_program, &inputs_map, foreign_call_resolver_url)?;
+    let witness_stack = execute_program(&compiled_program, &inputs_map, foreign_call_resolver_url)?;
 
     // Write public inputs into Verifier.toml
     let public_abi = compiled_program.abi.public_abi();
-    let (public_inputs, return_value) = public_abi.decode(&solved_witness)?;
+    // Get the entry point witness for the ABI
+    let main_witness =
+        &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
+    let (public_inputs, return_value) = public_abi.decode(main_witness)?;
 
     write_inputs_to_file(
         &public_inputs,
@@ -137,11 +140,11 @@ pub(crate) fn prove_package(
         Format::Toml,
     )?;
 
-    let proof = backend.prove(&compiled_program.circuit, solved_witness)?;
+    let proof = backend.prove(&compiled_program.program, witness_stack)?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
-        let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.circuit)?;
+        let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.program)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));

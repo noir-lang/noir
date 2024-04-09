@@ -4,7 +4,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 
-use crate::hir::resolution::import::{resolve_import, ImportDirective};
+use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::resolution::{
     collect_impls, collect_trait_impls, path_resolver, resolve_free_functions, resolve_globals,
     resolve_impls, resolve_structs, resolve_trait_by_path, resolve_trait_impls, resolve_traits,
@@ -56,8 +56,11 @@ impl UnresolvedFunctions {
             for bound in &mut func.def.where_clause {
                 match resolve_trait_by_path(def_maps, module, bound.trait_bound.trait_path.clone())
                 {
-                    Ok(trait_id) => {
+                    Ok((trait_id, warning)) => {
                         bound.trait_bound.trait_id = Some(trait_id);
+                        if let Some(warning) = warning {
+                            errors.push(DefCollectorErrorKind::PathResolutionError(warning));
+                        }
                     }
                     Err(err) => {
                         errors.push(err);
@@ -246,6 +249,7 @@ impl DefCollector {
             crate_root,
             crate_id,
             context,
+            macro_processors,
         ));
 
         let submodules = vecmap(def_collector.def_map.modules().iter(), |(index, _)| index);
@@ -255,7 +259,7 @@ impl DefCollector {
         // TODO(#4653): generalize this function
         for macro_processor in macro_processors {
             macro_processor
-                .process_unresolved_traits_impls(
+                .process_collected_defs(
                     &crate_id,
                     context,
                     &def_collector.collected_traits_impls,
@@ -280,6 +284,13 @@ impl DefCollector {
         for collected_import in def_collector.collected_imports {
             match resolve_import(crate_id, &collected_import, &context.def_maps) {
                 Ok(resolved_import) => {
+                    if let Some(error) = resolved_import.error {
+                        errors.push((
+                            DefCollectorErrorKind::PathResolutionError(error).into(),
+                            root_file_id,
+                        ));
+                    }
+
                     // Populate module namespaces according to the imports used
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
@@ -298,9 +309,9 @@ impl DefCollector {
                         }
                     }
                 }
-                Err((error, module_id)) => {
+                Err(error) => {
                     let current_def_map = context.def_maps.get(&crate_id).unwrap();
-                    let file_id = current_def_map.file_id(module_id);
+                    let file_id = current_def_map.file_id(collected_import.module_id);
                     let error = DefCollectorErrorKind::PathResolutionError(error);
                     errors.push((error.into(), file_id));
                 }
@@ -327,11 +338,6 @@ impl DefCollector {
         // Must resolve structs before we resolve globals.
         errors.extend(resolve_structs(context, def_collector.collected_types, crate_id));
 
-        // We must wait to resolve non-integer globals until after we resolve structs since struct
-        // globals will need to reference the struct type they're initialized to to ensure they are valid.
-        resolved_globals.extend(resolve_globals(context, other_globals, crate_id));
-        errors.extend(resolved_globals.errors);
-
         // Bind trait impls to their trait. Collect trait functions, that have a
         // default implementation, which hasn't been overridden.
         errors.extend(collect_trait_impls(
@@ -348,6 +354,11 @@ impl DefCollector {
         // These are resolved after trait impls so that struct methods are chosen
         // over trait methods if there are name conflicts.
         errors.extend(collect_impls(context, crate_id, &def_collector.collected_impls));
+
+        // We must wait to resolve non-integer globals until after we resolve structs since struct
+        // globals will need to reference the struct type they're initialized to to ensure they are valid.
+        resolved_globals.extend(resolve_globals(context, other_globals, crate_id));
+        errors.extend(resolved_globals.errors);
 
         // Resolve each function in the crate. This is now possible since imports have been resolved
         let mut functions = Vec::new();
@@ -408,12 +419,13 @@ fn inject_prelude(
         Path { segments: segments.clone(), kind: crate::PathKind::Dep, span: Span::default() };
 
     if !crate_id.is_stdlib() {
-        if let Ok(module_def) = path_resolver::resolve_path(
+        if let Ok(PathResolution { module_def_id, error }) = path_resolver::resolve_path(
             &context.def_maps,
             ModuleId { krate: crate_id, local_id: crate_root },
             path,
         ) {
-            let module_id = module_def.as_module().expect("std::prelude should be a module");
+            assert!(error.is_none(), "Tried to add private item to prelude");
+            let module_id = module_def_id.as_module().expect("std::prelude should be a module");
             let prelude = context.module(module_id).scope().names();
 
             for path in prelude {

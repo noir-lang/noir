@@ -23,6 +23,12 @@ impl<T, N> Default for [T; N] where T: Default {
     }
 }
 
+impl<T> Default for [T] {
+    fn default() -> [T] {
+        &[]
+    }
+}
+
 impl<A, B> Default for (A, B) where A: Default, B: Default {
     fn default() -> (A, B) {
         (A::default(), B::default())

@@ -1,30 +1,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use acvm::acir::circuit::Circuit;
+use acvm::acir::circuit::Program;
 use fm::FileId;
 use noirc_abi::{Abi, ContractEvent};
 use noirc_errors::debug_info::DebugInfo;
 use noirc_evaluator::errors::SsaReport;
 
 use super::debug::DebugFile;
-
-/// Describes the types of smart contract functions that are allowed.
-/// Unlike the similar enum in noirc_frontend, 'open' and 'unconstrained'
-/// are mutually exclusive here. In the case a function is both, 'unconstrained'
-/// takes precedence.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ContractFunctionType {
-    /// This function will be executed in a private
-    /// context.
-    Secret,
-    /// This function will be executed in a public
-    /// context.
-    Open,
-    /// This function cannot constrain any values and can use nondeterministic features
-    /// like arrays of a dynamic size.
-    Unconstrained,
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CompiledContract {
@@ -55,27 +38,20 @@ pub struct CompiledContract {
 pub struct ContractFunction {
     pub name: String,
 
-    pub function_type: ContractFunctionType,
+    pub is_unconstrained: bool,
 
-    pub is_internal: bool,
+    pub custom_attributes: Vec<String>,
 
     pub abi: Abi,
 
     #[serde(
-        serialize_with = "Circuit::serialize_circuit_base64",
-        deserialize_with = "Circuit::deserialize_circuit_base64"
+        serialize_with = "Program::serialize_program_base64",
+        deserialize_with = "Program::deserialize_program_base64"
     )]
-    pub bytecode: Circuit,
+    pub bytecode: Program,
 
     pub debug: DebugInfo,
-}
 
-impl ContractFunctionType {
-    pub(super) fn new(kind: noirc_frontend::ContractFunctionType, is_unconstrained: bool) -> Self {
-        match (kind, is_unconstrained) {
-            (_, true) => Self::Unconstrained,
-            (noirc_frontend::ContractFunctionType::Secret, false) => Self::Secret,
-            (noirc_frontend::ContractFunctionType::Open, false) => Self::Open,
-        }
-    }
+    /// Names of the functions in the program. These are used for more informative debugging and benchmarking.
+    pub names: Vec<String>,
 }

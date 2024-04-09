@@ -14,7 +14,10 @@ use noirc_frontend::{
 
 use crate::{
     errors::{InternalError, RuntimeError},
-    ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
+    ssa::{
+        function_builder::data_bus::DataBusBuilder,
+        ir::{function::InlineType, instruction::Intrinsic},
+    },
 };
 
 use self::{
@@ -52,14 +55,15 @@ pub(crate) fn generate_ssa(
 
     // Queue the main function for compilation
     context.get_or_queue_function(main_id);
-
     let mut function_context = FunctionContext::new(
         main.name.clone(),
         &main.parameters,
         if force_brillig_runtime || main.unconstrained {
             RuntimeType::Brillig
         } else {
-            RuntimeType::Acir
+            let main_inline_type =
+                if main.should_fold { InlineType::Fold } else { InlineType::Inline };
+            RuntimeType::Acir(main_inline_type)
         },
         &context,
     );
@@ -121,8 +125,11 @@ impl<'a> FunctionContext<'a> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
+        let entry_block = self.increment_parameter_rcs();
         let return_value = self.codegen_expression(body)?;
         let results = return_value.into_value_list(self);
+        self.end_scope(entry_block, &results);
+
         self.builder.terminate_with_return(results);
         Ok(())
     }
@@ -149,6 +156,8 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
+            Expression::Break => Ok(self.codegen_break()),
+            Expression::Continue => Ok(self.codegen_continue()),
         }
     }
 
@@ -194,6 +203,15 @@ impl<'a> FunctionContext<'a> {
                     ast::Type::Array(_, _) => {
                         self.codegen_array_checked(elements, typ[0].clone())?
                     }
+                    _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
+                })
+            }
+            ast::Literal::Slice(array) => {
+                let elements =
+                    try_vecmap(&array.contents, |element| self.codegen_expression(element))?;
+
+                let typ = Self::convert_type(&array.typ).flatten();
+                Ok(match array.typ {
                     ast::Type::Slice(_) => {
                         let slice_length =
                             self.builder.length_constant(array.contents.len() as u128);
@@ -201,10 +219,7 @@ impl<'a> FunctionContext<'a> {
                             self.codegen_array_checked(elements, typ[1].clone())?;
                         Tree::Branch(vec![slice_length.into(), slice_contents])
                     }
-                    _ => unreachable!(
-                        "ICE: array literal type must be an array or a slice, but got {}",
-                        array.typ
-                    ),
+                    _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
                 })
             }
             ast::Literal::Integer(value, typ, location) => {
@@ -474,6 +489,10 @@ impl<'a> FunctionContext<'a> {
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
         let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
 
+        // Remember the blocks and variable used in case there are break/continue instructions
+        // within the loop which need to jump to them.
+        self.enter_loop(loop_entry, loop_index, loop_end);
+
         self.builder.set_location(for_expr.start_range_location);
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
 
@@ -504,6 +523,7 @@ impl<'a> FunctionContext<'a> {
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
+        self.exit_loop();
         Ok(Self::unit_value())
     }
 
@@ -595,10 +615,8 @@ impl<'a> FunctionContext<'a> {
             arguments.append(&mut values);
         }
 
-        // If an array is passed as an argument we increase its reference count
-        for argument in &arguments {
-            self.builder.increment_array_reference_count(*argument);
-        }
+        // Don't need to increment array reference counts when passed in as arguments
+        // since it is done within the function to each parameter already.
 
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
         Ok(self.insert_call(function, arguments, &call.return_type, call.location))
@@ -734,5 +752,20 @@ impl<'a> FunctionContext<'a> {
     fn codegen_semi(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
         self.codegen_expression(expr)?;
         Ok(Self::unit_value())
+    }
+
+    fn codegen_break(&mut self) -> Values {
+        let loop_end = self.current_loop().loop_end;
+        self.builder.terminate_with_jmp(loop_end, Vec::new());
+        Self::unit_value()
+    }
+
+    fn codegen_continue(&mut self) -> Values {
+        let loop_ = self.current_loop();
+
+        // Must remember to increment i before jumping
+        let new_loop_index = self.make_offset(loop_.loop_index, 1);
+        self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
+        Self::unit_value()
     }
 }

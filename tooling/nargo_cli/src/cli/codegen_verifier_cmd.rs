@@ -64,7 +64,13 @@ pub(crate) fn run(
 
         let program = nargo::ops::transform_program(program, expression_width);
 
-        let smart_contract_string = backend.eth_contract(&program.circuit)?;
+        // TODO(https://github.com/noir-lang/noir/issues/4428):
+        // We do not expect to have a smart contract verifier for a foldable program with multiple circuits.
+        // However, in the future we can expect to possibly have non-inlined ACIR functions during compilation
+        // that will be inlined at a later step such as by the ACVM compiler or by the backend.
+        // Add appropriate handling here once the compiler enables multiple ACIR functions.
+        assert_eq!(program.program.functions.len(), 1);
+        let smart_contract_string = backend.eth_contract(&program.program)?;
 
         let contract_dir = workspace.contracts_directory_path(package);
         create_named_dir(&contract_dir, "contract");

@@ -1,6 +1,7 @@
 use acvm::{
-    acir::brillig::{ForeignCallParam, ForeignCallResult, Value},
+    acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
+    FieldElement,
 };
 use nargo::{
     artifacts::debug::{DebugArtifact, DebugVars, StackFrame},
@@ -64,7 +65,7 @@ impl DefaultDebugForeignCallExecutor {
     pub fn load_artifact(&mut self, artifact: &DebugArtifact) {
         // TODO: handle loading from the correct DebugInfo when we support
         // debugging contracts
-        let Some(info) = artifact.debug_symbols.get(0) else {
+        let Some(info) = artifact.debug_symbols.first() else {
             return;
         };
         self.debug_vars.insert_debug_info(info);
@@ -81,11 +82,11 @@ impl DebugForeignCallExecutor for DefaultDebugForeignCallExecutor {
     }
 }
 
-fn debug_var_id(value: &Value) -> DebugVarId {
+fn debug_var_id(value: &FieldElement) -> DebugVarId {
     DebugVarId(value.to_u128() as u32)
 }
 
-fn debug_fn_id(value: &Value) -> DebugFnId {
+fn debug_fn_id(value: &FieldElement) -> DebugFnId {
     DebugFnId(value.to_u128() as u32)
 }
 
@@ -100,8 +101,8 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                 let fcp_var_id = &foreign_call.inputs[0];
                 if let ForeignCallParam::Single(var_id_value) = fcp_var_id {
                     let var_id = debug_var_id(var_id_value);
-                    let values: Vec<Value> =
-                        foreign_call.inputs[1..].iter().flat_map(|x| x.values()).collect();
+                    let values: Vec<FieldElement> =
+                        foreign_call.inputs[1..].iter().flat_map(|x| x.fields()).collect();
                     self.debug_vars.assign_var(var_id, &values);
                 }
                 Ok(ForeignCallResult::default().into())
@@ -129,12 +130,12 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                             }
                         })
                         .collect();
-                    let values: Vec<Value> = (0..n - 1 - arity)
+                    let values: Vec<FieldElement> = (0..n - 1 - arity)
                         .flat_map(|i| {
                             foreign_call
                                 .inputs
                                 .get(1 + i)
-                                .map(|fci| fci.values())
+                                .map(|fci| fci.fields())
                                 .unwrap_or_default()
                         })
                         .collect();
@@ -147,7 +148,7 @@ impl ForeignCallExecutor for DefaultDebugForeignCallExecutor {
                 let fcp_value = &foreign_call.inputs[1];
                 if let ForeignCallParam::Single(var_id_value) = fcp_var_id {
                     let var_id = debug_var_id(var_id_value);
-                    self.debug_vars.assign_deref(var_id, &fcp_value.values());
+                    self.debug_vars.assign_deref(var_id, &fcp_value.fields());
                 }
                 Ok(ForeignCallResult::default().into())
             }
