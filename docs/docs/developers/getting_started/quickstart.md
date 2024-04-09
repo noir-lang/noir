@@ -17,9 +17,12 @@ In this guide, you will
 
 ## Install Docker
 
-See [this page of the Docker docs](https://docs.docker.com/get-docker/) for instructions on how to install Docker Desktop for your operating system.
+Aztec tooling requires the Docker daemon to be running, and this is easily achieved via Docker Desktop. See [this page of the Docker docs](https://docs.docker.com/get-docker/) for instructions on how to install Docker Desktop for your operating system.
+Note: if installing via Docker Desktop, you do NOT need to keep the application open at all times (just Docker daemon).
 
-Once you have Docker installed, make sure it is running by opening the Docker Desktop application.
+Installing and running the Docker daemon can also be achieved by installing Docker Engine, see [these instructions](https://docs.docker.com/engine/install/).
+
+However installed, ensure Docker daemon is running. See [start Docker daemon](https://docs.docker.com/config/daemon/start/).
 
 ### Note on Linux
 
