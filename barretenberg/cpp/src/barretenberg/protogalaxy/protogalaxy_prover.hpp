@@ -77,8 +77,6 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     /**
      * @brief Prior to folding, we need to finalize the given instances and add all their public data ϕ to the
      * transcript, labelled by their corresponding instance index for domain separation.
-     * TODO(https://github.com/AztecProtocol/barretenberg/issues/795):The rounds prior to actual proving/folding are
-     * common between decider and folding verifier and could be somehow shared so we do not duplicate code so much.
      */
     void prepare_for_folding();
 
@@ -395,10 +393,23 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
 
         // Compute the combiner quotient polynomial as evaluations on points that are not in the vanishing set.
         //
+        constexpr FF inverse_two = FF(2).invert();
+        constexpr FF inverse_six = FF(6).invert();
         for (size_t point = ProverInstances::NUM; point < combiner.size(); point++) {
             auto idx = point - ProverInstances::NUM;
-            auto lagrange_0 = FF(1) - FF(point);
-            auto vanishing_polynomial = FF(point) * (FF(point) - 1);
+            FF lagrange_0;
+            FF vanishing_polynomial;
+            if constexpr (ProverInstances::NUM == 2) {
+                lagrange_0 = FF(1) - FF(point);
+                vanishing_polynomial = FF(point) * (FF(point) - 1);
+            } else if constexpr (ProverInstances::NUM == 3) {
+                lagrange_0 = (FF(1) - FF(point)) * (FF(2) - FF(point)) * inverse_two;
+                vanishing_polynomial = FF(point) * (FF(point) - 1) * (FF(point) - 2);
+            } else if constexpr (ProverInstances::NUM == 4) {
+                lagrange_0 = (FF(1) - FF(point)) * (FF(2) - FF(point)) * (FF(3) - FF(point)) * inverse_six;
+                vanishing_polynomial = FF(point) * (FF(point) - 1) * (FF(point) - 2) * (FF(point) - 3);
+            }
+            static_assert(ProverInstances::NUM < 5);
 
             combiner_quotient_evals[idx] =
                 (combiner.value_at(point) - compressed_perturbator * lagrange_0) * vanishing_polynomial.invert();
@@ -410,11 +421,11 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     }
 
     /**
-     * @brief Combine each relation parameter, in part, from all the instances into univariates, used in the computation
-     * of combiner.
-     * @details For a given relation parameter type, extract that parameter from each instance, place the values in a
-     * univariate (i.e., sum them against an appropriate univariate Lagrange basis) and then extended as needed during
-     * the constuction of the combiner.
+     * @brief Combine each relation parameter, in part, from all the instances into univariates, used in the
+     * computation of combiner.
+     * @details For a given relation parameter type, extract that parameter from each instance, place the values in
+     * a univariate (i.e., sum them against an appropriate univariate Lagrange basis) and then extended as needed
+     * during the constuction of the combiner.
      */
     static void combine_relation_parameters(ProverInstances& instances)
     {
@@ -457,13 +468,15 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      * parameters
      * (\vec{\beta*}, e*) to the verifier and return the complete accumulator
      *
-     * @details At this stage, we assume that the instances have the same size and the same number of public parameter.s
+     * @details At this stage, we assume that the instances have the same size and the same number of public
+     * parameter.s
      * @param instances
      * @param combiner_quotient polynomial K in the paper
      * @param challenge
      * @param compressed_perturbator
      *
-     * TODO(https://github.com/AztecProtocol/barretenberg/issues/796): optimise the construction of the new accumulator
+     * TODO(https://github.com/AztecProtocol/barretenberg/issues/796): optimise the construction of the new
+     * accumulator
      */
     std::shared_ptr<Instance> compute_next_accumulator(
         ProverInstances& instances,
@@ -472,8 +485,8 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
         const FF& compressed_perturbator);
 
     /**
-     * @brief Finalise the prover instances that will be folded: complete computation of all the witness polynomials and
-     * compute commitments. Send commitments to the verifier and retrieve challenges.
+     * @brief Finalise the prover instances that will be folded: complete computation of all the witness polynomials
+     * and compute commitments. Send commitments to the verifier and retrieve challenges.
      *
      */
     void preparation_round();
@@ -485,8 +498,8 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     void perturbator_round();
 
     /**
-     * @brief Compute combiner (G polynomial in the paper) and then its quotient (K polynomial), whose coefficient will
-     * be sent to the verifier.
+     * @brief Compute combiner (G polynomial in the paper) and then its quotient (K polynomial), whose coefficient
+     * will be sent to the verifier.
      *
      */
     void combiner_quotient_round();

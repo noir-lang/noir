@@ -1,5 +1,6 @@
 #include <benchmark/benchmark.h>
 
+#include "barretenberg/common/op_count_google_bench.hpp"
 #include "barretenberg/protogalaxy/protogalaxy_prover.hpp"
 #include "barretenberg/stdlib_circuit_builders/mock_circuits.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
@@ -11,11 +12,11 @@ using namespace benchmark;
 namespace bb {
 
 // Fold one instance into an accumulator.
-template <typename Flavor> void fold_one(State& state) noexcept
+template <typename Flavor, size_t k> void fold_k(State& state) noexcept
 {
     using ProverInstance = ProverInstance_<Flavor>;
     using Instance = ProverInstance;
-    using Instances = ProverInstances_<Flavor, 2>;
+    using Instances = ProverInstances_<Flavor, k + 1>;
     using ProtoGalaxyProver = ProtoGalaxyProver_<Instances>;
     using Builder = typename Flavor::CircuitBuilder;
 
@@ -28,19 +29,29 @@ template <typename Flavor> void fold_one(State& state) noexcept
         MockCircuits::construct_arithmetic_circuit(builder, log2_num_gates);
         return std::make_shared<ProverInstance>(builder);
     };
+    std::vector<std::shared_ptr<Instance>> instances;
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/938): Parallelize this loop
+    for (size_t i = 0; i < k + 1; ++i) {
+        instances.emplace_back(construct_instance());
+    }
 
-    std::shared_ptr<Instance> instance_1 = construct_instance();
-    std::shared_ptr<Instance> instance_2 = construct_instance();
-
-    ProtoGalaxyProver folding_prover({ instance_1, instance_2 });
+    ProtoGalaxyProver folding_prover(instances);
 
     for (auto _ : state) {
+        BB_REPORT_OP_COUNT_IN_BENCH(state);
         auto proof = folding_prover.fold_instances();
     }
 }
 
-BENCHMARK(fold_one<UltraFlavor>)->/* vary the circuit size */ DenseRange(14, 20)->Unit(kMillisecond);
-BENCHMARK(fold_one<GoblinUltraFlavor>)->/* vary the circuit size */ DenseRange(14, 20)->Unit(kMillisecond);
+BENCHMARK(fold_k<UltraFlavor, 1>)->/* vary the circuit size */ DenseRange(14, 20)->Unit(kMillisecond);
+BENCHMARK(fold_k<GoblinUltraFlavor, 1>)->/* vary the circuit size */ DenseRange(14, 20)->Unit(kMillisecond);
+
+BENCHMARK(fold_k<UltraFlavor, 2>)->/* vary the circuit size */ DenseRange(14, 20)->Unit(kMillisecond);
+BENCHMARK(fold_k<GoblinUltraFlavor, 2>)->/* vary the circuit size */ DenseRange(14, 20)->Unit(kMillisecond);
+
+BENCHMARK(fold_k<UltraFlavor, 3>)->/* vary the circuit size */ DenseRange(14, 20)->Unit(kMillisecond);
+BENCHMARK(fold_k<GoblinUltraFlavor, 3>)->/* vary the circuit size */ DenseRange(14, 20)->Unit(kMillisecond);
+
 } // namespace bb
 
 BENCHMARK_MAIN();

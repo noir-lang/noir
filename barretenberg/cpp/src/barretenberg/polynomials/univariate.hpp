@@ -281,11 +281,92 @@ template <class Fr, size_t domain_end, size_t domain_start = 0> class Univariate
 
         std::copy(evaluations.begin(), evaluations.end(), result.evaluations.begin());
 
+        static constexpr Fr inverse_two = Fr(2).invert();
         if constexpr (LENGTH == 2) {
             Fr delta = value_at(1) - value_at(0);
             static_assert(EXTENDED_LENGTH != 0);
-            for (size_t idx = domain_start; idx < EXTENDED_DOMAIN_END - 1; idx++) {
+            for (size_t idx = domain_end - 1; idx < EXTENDED_DOMAIN_END - 1; idx++) {
                 result.value_at(idx + 1) = result.value_at(idx) + delta;
+            }
+            return result;
+        } else if constexpr (LENGTH == 3) {
+            // Based off https://hackmd.io/@aztec-network/SyR45cmOq?type=view
+            // The technique used here is the same as the length == 3 case below.
+            Fr a = (value_at(2) + value_at(0)) * inverse_two - value_at(1);
+            Fr b = value_at(1) - a - value_at(0);
+            Fr a2 = a + a;
+            Fr a_mul = a2;
+            for (size_t i = 0; i < domain_end - 2; i++) {
+                a_mul += a2;
+            }
+            Fr extra = a_mul + a + b;
+            for (size_t idx = domain_end - 1; idx < EXTENDED_DOMAIN_END - 1; idx++) {
+                result.value_at(idx + 1) = result.value_at(idx) + extra;
+                extra += a2;
+            }
+            return result;
+        } else if constexpr (LENGTH == 4) {
+            static constexpr Fr inverse_six = Fr(6).invert(); // computed at compile time for efficiency
+
+            // To compute a barycentric extension, we can compute the coefficients of the univariate.
+            // We have the evaluation of the polynomial at the domain (which is assumed to be 0, 1, 2, 3).
+            // Therefore, we have the 4 linear equations from plugging into f(x) = ax^3 + bx^2 + cx + d:
+            //          a*0 + b*0 + c*0 + d = f(0)
+            //          a*1 + b*1 + c*1 + d = f(1)
+            //          a*2^3 + b*2^2 + c*2 + d = f(2)
+            //          a*3^3 + b*3^2 + c*3 + d = f(3)
+            // These equations can be rewritten as a matrix equation M * [a, b, c, d] = [f(0), f(1), f(2), f(3)], where
+            // M is:
+            //          0,  0,  0,  1
+            //          1,  1,  1,  1
+            //          2^3, 2^2, 2,  1
+            //          3^3, 3^2, 3,  1
+            // We can invert this matrix in order to compute a, b, c, d:
+            //      -1/6,	1/2,	-1/2,	1/6
+            //      1,	    -5/2,	2,	    -1/2
+            //      -11/6,	3,	    -3/2,	1/3
+            //      1,	    0,	    0,	    0
+            // To compute these values, we can multiply everything by 6 and multiply by inverse_six at the end for each
+            // coefficient The resulting computation here does 18 field adds, 6 subtracts, 3 muls to compute a, b, c,
+            // and d.
+            Fr zero_times_3 = value_at(0) + value_at(0) + value_at(0);
+            Fr zero_times_6 = zero_times_3 + zero_times_3;
+            Fr zero_times_12 = zero_times_6 + zero_times_6;
+            Fr one_times_3 = value_at(1) + value_at(1) + value_at(1);
+            Fr one_times_6 = one_times_3 + one_times_3;
+            Fr two_times_3 = value_at(2) + value_at(2) + value_at(2);
+            Fr three_times_2 = value_at(3) + value_at(3);
+            Fr three_times_3 = three_times_2 + value_at(3);
+
+            Fr one_minus_two_times_3 = one_times_3 - two_times_3;
+            Fr one_minus_two_times_6 = one_minus_two_times_3 + one_minus_two_times_3;
+            Fr one_minus_two_times_12 = one_minus_two_times_6 + one_minus_two_times_6;
+            Fr a = (one_minus_two_times_3 + value_at(3) - value_at(0)) * inverse_six; // compute a in 1 muls and 4 adds
+            Fr b = (zero_times_6 - one_minus_two_times_12 - one_times_3 - three_times_3) * inverse_six;
+            Fr c = (value_at(0) - zero_times_12 + one_minus_two_times_12 + one_times_6 + two_times_3 + three_times_2) *
+                   inverse_six;
+
+            // Then, outside of the a, b, c, d computation, we need to do some extra precomputation
+            // This work is 3 field muls, 8 adds
+            Fr a_plus_b = a + b;
+            Fr a_plus_b_times_2 = a_plus_b + a_plus_b;
+            size_t start_idx_sqr = (domain_end - 1) * (domain_end - 1);
+            size_t idx_sqr_three = start_idx_sqr + start_idx_sqr + start_idx_sqr;
+            Fr idx_sqr_three_times_a = Fr(idx_sqr_three) * a;
+            Fr x_a_term = Fr(6 * (domain_end - 1)) * a;
+            Fr three_a = a + a + a;
+            Fr six_a = three_a + three_a;
+
+            Fr three_a_plus_two_b = a_plus_b_times_2 + a;
+            Fr linear_term = Fr(domain_end - 1) * three_a_plus_two_b + (a_plus_b + c);
+            // For each new evaluation, we do only 6 field additions and 0 muls.
+            for (size_t idx = domain_end - 1; idx < EXTENDED_DOMAIN_END - 1; idx++) {
+                result.value_at(idx + 1) = result.value_at(idx) + idx_sqr_three_times_a + linear_term;
+
+                idx_sqr_three_times_a += x_a_term + three_a;
+                x_a_term += six_a;
+
+                linear_term += three_a_plus_two_b;
             }
             return result;
         } else {

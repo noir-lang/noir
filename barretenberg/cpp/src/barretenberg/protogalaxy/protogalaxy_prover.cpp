@@ -47,8 +47,26 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
     // Given the challenge \gamma, compute Z(\gamma) and {L_0(\gamma),L_1(\gamma)}
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/764): Generalize the vanishing polynomial formula
     // and the computation of Lagrange basis for k instances
-    auto vanishing_polynomial_at_challenge = challenge * (challenge - FF(1));
-    std::vector<FF> lagranges{ FF(1) - challenge, challenge };
+    FF vanishing_polynomial_at_challenge;
+    std::array<FF, ProverInstances::NUM> lagranges;
+    constexpr FF inverse_two = FF(2).invert();
+    if constexpr (ProverInstances::NUM == 2) {
+        vanishing_polynomial_at_challenge = challenge * (challenge - FF(1));
+        lagranges = { FF(1) - challenge, challenge };
+    } else if constexpr (ProverInstances::NUM == 3) {
+        vanishing_polynomial_at_challenge = challenge * (challenge - FF(1)) * (challenge - FF(2));
+        lagranges = { (FF(1) - challenge) * (FF(2) - challenge) * inverse_two,
+                      challenge * (FF(2) - challenge),
+                      challenge * (challenge - FF(1)) / FF(2) };
+    } else if constexpr (ProverInstances::NUM == 4) {
+        constexpr FF inverse_six = FF(6).invert();
+        vanishing_polynomial_at_challenge = challenge * (challenge - FF(1)) * (challenge - FF(2)) * (challenge - FF(3));
+        lagranges = { (FF(1) - challenge) * (FF(2) - challenge) * (FF(3) - challenge) * inverse_six,
+                      challenge * (FF(2) - challenge) * (FF(3) - challenge) * inverse_two,
+                      challenge * (challenge - FF(1)) * (FF(3) - challenge) * inverse_two,
+                      challenge * (challenge - FF(1)) * (challenge - FF(2)) * inverse_six };
+    }
+    static_assert(ProverInstances::NUM < 5);
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/881): bad pattern
     auto next_accumulator = std::move(instances[0]);
@@ -197,4 +215,10 @@ FoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverInstanc
 
 template class ProtoGalaxyProver_<ProverInstances_<UltraFlavor, 2>>;
 template class ProtoGalaxyProver_<ProverInstances_<GoblinUltraFlavor, 2>>;
+
+template class ProtoGalaxyProver_<ProverInstances_<UltraFlavor, 3>>;
+template class ProtoGalaxyProver_<ProverInstances_<GoblinUltraFlavor, 3>>;
+
+template class ProtoGalaxyProver_<ProverInstances_<UltraFlavor, 4>>;
+template class ProtoGalaxyProver_<ProverInstances_<GoblinUltraFlavor, 4>>;
 } // namespace bb
