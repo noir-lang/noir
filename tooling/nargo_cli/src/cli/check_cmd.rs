@@ -7,6 +7,7 @@ use iter_extended::btree_map;
 use nargo::{
     errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
     package::Package, parse_all, prepare_package,
+    workspace::Workspace,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
@@ -50,7 +51,7 @@ pub(crate) fn run(
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let selection = args.package.as_ref().map_or(default_selection, |package| PackageSelection::Selected(package.clone()));
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,
@@ -59,6 +60,17 @@ pub(crate) fn run(
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    run_pure(_backend, &args.compile_options, args.allow_overwrite, workspace, workspace_file_manager)
+}
+
+// run without file access
+pub fn run_pure(
+    _backend: &Backend,
+    compile_options: &CompileOptions,
+    allow_overwrite: bool,
+    workspace: Workspace,
+    workspace_file_manager: FileManager,
+) -> Result<(), CliError> {
     let parsed_files = parse_all(&workspace_file_manager);
 
     for package in &workspace {
@@ -66,8 +78,8 @@ pub(crate) fn run(
             &workspace_file_manager,
             &parsed_files,
             package,
-            &args.compile_options,
-            args.allow_overwrite,
+            compile_options,
+            allow_overwrite,
         )?;
         if any_file_written {
             println!("[{}] Constraint system successfully built!", package.name);

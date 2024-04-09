@@ -16,6 +16,7 @@ use noirc_driver::{CompilationResult, CompileOptions, CompiledContract, Compiled
 use noirc_frontend::graph::CrateName;
 
 use clap::Args;
+use acvm::acir::circuit::ExpressionWidth;
 use noirc_frontend::hir::ParsedFiles;
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
@@ -126,19 +127,7 @@ fn compile_workspace_full(
 ) -> Result<(), CliError> {
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
-
-    let expression_width =
-        compile_options.expression_width.expect("expression width should have been set");
-    let compiled_workspace =
-        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
-
-    let (compiled_programs, compiled_contracts) = report_errors(
-        compiled_workspace,
-        &workspace_file_manager,
-        compile_options.deny_warnings,
-        compile_options.silence_warnings,
-    )?;
+    let (expression_width, compiled_programs, compiled_contracts) = compile_workspace_full_pure(workspace, workspace_file_manager, compile_options)?;
 
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
@@ -159,6 +148,29 @@ fn compile_workspace_full(
     }
 
     Ok(())
+}
+
+// compile_workspace_full without file access
+pub fn compile_workspace_full_pure(
+    workspace: &Workspace,
+    workspace_file_manager: FileManager,
+    compile_options: &CompileOptions,
+) -> Result<(ExpressionWidth, Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
+    let parsed_files = parse_all(&workspace_file_manager);
+
+    let expression_width =
+        compile_options.expression_width.expect("expression width should have been set");
+    let compiled_workspace =
+        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
+
+    let (compiled_programs, compiled_contracts) = report_errors(
+        compiled_workspace,
+        &workspace_file_manager,
+        compile_options.deny_warnings,
+        compile_options.silence_warnings,
+    )?;
+
+    Ok((expression_width, compiled_programs, compiled_contracts))
 }
 
 pub(super) fn compile_workspace(
