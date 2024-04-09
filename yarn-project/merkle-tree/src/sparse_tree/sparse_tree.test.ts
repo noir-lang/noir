@@ -181,6 +181,6 @@ describe('SparseTreeSpecific', () => {
     const start = Date.now();
     await Promise.all(leaves.map((leaf, i) => tree.updateLeaf(leaf, indices[i])));
     const end = Date.now();
-    log(`Inserting 1000 leaves at random positions for depth 254 took ${end - start}ms`);
+    log.info(`Inserting 1000 leaves at random positions for depth 254 took ${end - start}ms`);
   }, 300_000);
 });

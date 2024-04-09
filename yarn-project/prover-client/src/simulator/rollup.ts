@@ -148,7 +148,7 @@ export class RealRollupCircuitSimulator implements RollupSimulator {
 
     const result = convertRootRollupOutputsFromWitnessMap(witness);
 
-    this.log(`Simulated root rollup circuit`, {
+    this.log.debug(`Simulated root rollup circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'root-rollup',
       duration,

@@ -69,26 +69,26 @@ export class AvmSimulator {
         await instruction.execute(this.context);
 
         if (machineState.pc >= instructions.length) {
-          this.log('Passed end of program!');
+          this.log.warn('Passed end of program');
           throw new InvalidProgramCounterError(machineState.pc, /*max=*/ instructions.length);
         }
       }
 
       // Return results for processing by calling context
       const results = machineState.getResults();
-      this.log(`Context execution results: ${results.toString()}`);
+      this.log.debug(`Context execution results: ${results.toString()}`);
       return results;
     } catch (e) {
-      this.log('Exceptional halt');
+      this.log.verbose('Exceptional halt');
       if (!(e instanceof AvmExecutionError)) {
-        this.log(`Unknown error thrown by avm: ${e}`);
+        this.log.verbose(`Unknown error thrown by avm: ${e}`);
         throw e;
       }
 
       // Return results for processing by calling context
       // Note: "exceptional halts" cannot return data
       const results = new AvmContractCallResults(/*reverted=*/ true, /*output=*/ [], /*revertReason=*/ e);
-      this.log(`Context execution results: ${results.toString()}`);
+      this.log.debug(`Context execution results: ${results.toString()}`);
       return results;
     }
   }

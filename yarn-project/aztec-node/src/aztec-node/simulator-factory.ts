@@ -13,12 +13,14 @@ export async function getSimulationProvider(
     try {
       await fs.access(config.acvmBinaryPath, fs.constants.R_OK);
       await fs.mkdir(config.acvmWorkingDirectory, { recursive: true });
-      logger?.(`Using native ACVM at ${config.acvmBinaryPath} and working directory ${config.acvmWorkingDirectory}`);
+      logger?.info(
+        `Using native ACVM at ${config.acvmBinaryPath} and working directory ${config.acvmWorkingDirectory}`,
+      );
       return new NativeACVMSimulator(config.acvmWorkingDirectory, config.acvmBinaryPath);
     } catch {
-      logger?.(`Failed to access ACVM at ${config.acvmBinaryPath}, falling back to WASM`);
+      logger?.warn(`Failed to access ACVM at ${config.acvmBinaryPath}, falling back to WASM`);
     }
   }
-  logger?.('Using WASM ACVM simulation');
+  logger?.info('Using WASM ACVM simulation');
   return new WASMSimulator();
 }

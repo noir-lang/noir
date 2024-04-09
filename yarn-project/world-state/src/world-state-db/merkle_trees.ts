@@ -568,10 +568,10 @@ export class MerkleTrees implements MerkleTreeDb {
     };
     const ourBlock = treeRootWithIdPairs.every(([root, id]) => compareRoot(root, id));
     if (ourBlock) {
-      this.log(`Block ${l2Block.number} is ours, committing world state`);
+      this.log.verbose(`Block ${l2Block.number} is ours, committing world state`);
       await this.#commit();
     } else {
-      this.log(`Block ${l2Block.number} is not ours, rolling back world state and committing state from chain`);
+      this.log.verbose(`Block ${l2Block.number} is not ours, rolling back world state and committing state from chain`);
       await this.#rollback();
 
       // We have to pad both the tx effects and the values within tx effects because that's how the trees are built
@@ -637,7 +637,7 @@ export class MerkleTrees implements MerkleTreeDb {
           `Synced tree root ${treeName} does not match published L2 block root: ${syncedStr} != ${rootStr}`,
         );
       } else {
-        this.log(`Tree ${treeName} synched with size ${info.size} root ${rootStr}`);
+        this.log.debug(`Tree ${treeName} synched with size ${info.size} root ${rootStr}`);
       }
     }
     await this.#snapshot(l2Block.number);

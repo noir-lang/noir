@@ -5,7 +5,7 @@ import { ClassConverter, type JsonClassConverterInput, type StringClassConverter
 import { convertFromJsonObj, convertToJsonObj } from '../convert.js';
 import { assert, hasOwnProperty } from '../js_utils.js';
 
-const debug = createDebugLogger('json-rpc:json_proxy');
+const log = createDebugLogger('json-rpc:json_proxy');
 
 /**
  * A map of class names to class constructors.
@@ -38,7 +38,7 @@ export class JsonProxy {
    * @returns The remote result.
    */
   public async call(methodName: string, jsonParams: any[] = [], skipConversion = false) {
-    debug(format(`JsonProxy:call`, methodName, jsonParams));
+    log.debug(format(`JsonProxy:call`, methodName, jsonParams));
     // Get access to our class members
     const proto = Object.getPrototypeOf(this.handler);
     assert(hasOwnProperty(proto, methodName), `JsonProxy: Method ${methodName} not found!`);
@@ -48,13 +48,13 @@ export class JsonProxy {
     if (!skipConversion) {
       convertedParams = jsonParams.map(param => convertFromJsonObj(this.classConverter, param));
     }
-    debug(format('JsonProxy:call', methodName, '<-', convertedParams));
+    log.debug(format('JsonProxy:call', methodName, '<-', convertedParams));
     const rawRet = await (this.handler as any)[methodName](...convertedParams);
     let ret = rawRet;
     if (!skipConversion) {
       ret = convertToJsonObj(this.classConverter, rawRet);
     }
-    debug(format('JsonProxy:call', methodName, '->', ret));
+    log.debug(format('JsonProxy:call', methodName, '->', ret));
     return ret;
   }
 }

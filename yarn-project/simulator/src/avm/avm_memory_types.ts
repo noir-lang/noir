@@ -238,7 +238,7 @@ export class TaggedMemory implements TaggedMemoryInterface {
   public getAs<T>(offset: number): T {
     assert(offset < TaggedMemory.MAX_MEMORY_SIZE);
     const word = this._mem[offset];
-    TaggedMemory.log(`get(${offset}) = ${word}`);
+    TaggedMemory.log.debug(`get(${offset}) = ${word}`);
     if (word === undefined) {
       TaggedMemory.log.warn(`Memory at offset ${offset} is undefined! This might be OK if it's stack dumping.`);
     }
@@ -249,7 +249,7 @@ export class TaggedMemory implements TaggedMemoryInterface {
     assert(offset < TaggedMemory.MAX_MEMORY_SIZE);
     assert(offset + size < TaggedMemory.MAX_MEMORY_SIZE);
     const value = this._mem.slice(offset, offset + size);
-    TaggedMemory.log(`getSlice(${offset}, ${size}) = ${value}`);
+    TaggedMemory.log.debug(`getSlice(${offset}, ${size}) = ${value}`);
     assert(!value.some(e => e === undefined), 'Memory slice contains undefined values.');
     assert(value.length === size, `Expected slice of size ${size}, got ${value.length}.`);
     return value;
@@ -270,7 +270,7 @@ export class TaggedMemory implements TaggedMemoryInterface {
   public set(offset: number, v: MemoryValue) {
     assert(offset < TaggedMemory.MAX_MEMORY_SIZE);
     this._mem[offset] = v;
-    TaggedMemory.log(`set(${offset}, ${v})`);
+    TaggedMemory.log.debug(`set(${offset}, ${v})`);
   }
 
   public setSlice(offset: number, vs: MemoryValue[]) {
@@ -281,7 +281,7 @@ export class TaggedMemory implements TaggedMemoryInterface {
       this._mem.length = offset + vs.length;
     }
     this._mem.splice(offset, vs.length, ...vs);
-    TaggedMemory.log(`setSlice(${offset}, ${vs})`);
+    TaggedMemory.log.debug(`setSlice(${offset}, ${vs})`);
   }
 
   public getTag(offset: number): TypeTag {

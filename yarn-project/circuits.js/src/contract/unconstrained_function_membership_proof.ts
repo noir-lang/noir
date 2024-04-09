@@ -47,7 +47,7 @@ export function createUnconstrainedFunctionMembershipProof(
   const artifactTreeLeafIndex = artifactTree.getIndex(functionArtifactHash.toBuffer());
   const artifactTreeSiblingPath = artifactTree.getSiblingPath(artifactTreeLeafIndex).map(Fr.fromBuffer);
 
-  log.trace(`Computed proof for unconstrained function with selector ${selector.toString()}`, {
+  log.debug(`Computed proof for unconstrained function with selector ${selector.toString()}`, {
     functionArtifactHash,
     functionMetadataHash,
     artifactMetadataHash,
@@ -102,7 +102,7 @@ export function isValidUnconstrainedFunctionMembershipProof(
     metadataHash: fn.artifactMetadataHash,
   });
   if (!contractClass.artifactHash.equals(computedArtifactHash)) {
-    log.trace(`Artifact hash mismatch`, {
+    log.debug(`Artifact hash mismatch`, {
       expected: contractClass.artifactHash,
       computedArtifactHash,
       computedFunctionArtifactHash: functionArtifactHash,

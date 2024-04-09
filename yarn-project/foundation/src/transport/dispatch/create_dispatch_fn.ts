@@ -23,13 +23,13 @@ export interface DispatchMsg {
  * the method to be called ('fn') and an array of arguments to be passed to the method ('args').
  *
  * @param targetFn - A function that returns the target object containing the methods to be dispatched.
- * @param debug - Optional logging function for debugging purposes.
+ * @param log - Optional logging function for debugging purposes.
  * @returns A dispatch function that accepts a DispatchMsg object and calls the target's method with provided arguments.
  */
-export function createDispatchFn(targetFn: () => any, debug = createDebugLogger('aztec:foundation:dispatch')) {
+export function createDispatchFn(targetFn: () => any, log = createDebugLogger('aztec:foundation:dispatch')) {
   return async ({ fn, args }: DispatchMsg) => {
     const target = targetFn();
-    debug(format(`dispatching to ${target}: ${fn}`, args));
+    log.debug(format(`dispatching to ${target}: ${fn}`, args));
     return await target[fn](...args);
   };
 }

@@ -122,7 +122,7 @@ export class L1Publisher implements L2BlockReceiver {
     // TODO(#4148) Remove this block number check, it's here because we don't currently have proper genesis state on the contract
     const lastArchive = block.header.lastArchive.root.toBuffer();
     if (block.number != 1 && !(await this.checkLastArchiveHash(lastArchive))) {
-      this.log(`Detected different last archive prior to publishing a block, aborting publish...`);
+      this.log.info(`Detected different last archive prior to publishing a block, aborting publish...`);
       return false;
     }
 
@@ -131,7 +131,7 @@ export class L1Publisher implements L2BlockReceiver {
     // Publish block transaction effects
     while (!this.interrupted) {
       if (await this.txSender.checkIfTxsAreAvailable(block)) {
-        this.log(`Transaction effects of a block ${block.number} already published.`);
+        this.log.verbose(`Transaction effects of a block ${block.number} already published.`);
         break;
       }
 
@@ -151,14 +151,14 @@ export class L1Publisher implements L2BlockReceiver {
           // txsEffectsHash from IAvailabilityOracle.TxsPublished event
           txsEffectsHash = receipt.logs[0].data;
         } else {
-          this.log(`Expected 1 log, got ${receipt.logs.length}`);
+          this.log.warn(`Expected 1 log, got ${receipt.logs.length}`);
         }
 
         this.log.info(`Block txs effects published, txsEffectsHash: ${txsEffectsHash}`);
         break;
       }
 
-      this.log(`AvailabilityOracle.publish tx status failed: ${receipt.transactionHash}`);
+      this.log.error(`AvailabilityOracle.publish tx status failed: ${receipt.transactionHash}`);
       await this.sleepOrInterrupted();
     }
 
@@ -196,15 +196,15 @@ export class L1Publisher implements L2BlockReceiver {
 
       // Check if someone else incremented the block number
       if (!(await this.checkLastArchiveHash(lastArchive))) {
-        this.log('Publish failed. Detected different last archive hash.');
+        this.log.warn('Publish failed. Detected different last archive hash.');
         break;
       }
 
-      this.log(`Rollup.process tx status failed: ${receipt.transactionHash}`);
+      this.log.error(`Rollup.process tx status failed: ${receipt.transactionHash}`);
       await this.sleepOrInterrupted();
     }
 
-    this.log('L2 block data syncing interrupted while processing blocks.');
+    this.log.verbose('L2 block data syncing interrupted while processing blocks.');
     return false;
   }
 
@@ -233,8 +233,8 @@ export class L1Publisher implements L2BlockReceiver {
     const fromChain = await this.txSender.getCurrentArchive();
     const areSame = lastArchive.equals(fromChain);
     if (!areSame) {
-      this.log(`CONTRACT ARCHIVE: ${fromChain.toString('hex')}`);
-      this.log(`NEW BLOCK LAST ARCHIVE: ${lastArchive.toString('hex')}`);
+      this.log.debug(`Contract archive: ${fromChain.toString('hex')}`);
+      this.log.debug(`New block last archive: ${lastArchive.toString('hex')}`);
     }
     return areSame;
   }

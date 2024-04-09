@@ -11,7 +11,7 @@ export async function parseParameterStruct(
   parameterName: string,
   log: LogFn,
 ) {
-  const contractArtifact = await getContractArtifact(contractArtifactPath, log);
+  const contractArtifact = await getContractArtifact(contractArtifactPath);
   const parameterAbitype = contractArtifact.functions
     .map(({ parameters }) => parameters)
     .flat()

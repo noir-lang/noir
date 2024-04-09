@@ -65,13 +65,15 @@ describe('e2e_token_contract', () => {
 
     TokenContract.artifact.functions.forEach(fn => {
       const sig = decodeFunctionSignature(fn.name, fn.parameters);
-      logger(`Function ${sig} and the selector: ${FunctionSelector.fromNameAndParameters(fn.name, fn.parameters)}`);
+      logger.verbose(
+        `Function ${sig} and the selector: ${FunctionSelector.fromNameAndParameters(fn.name, fn.parameters)}`,
+      );
     });
 
     asset = await TokenContract.deploy(wallets[0], wallets[0].getAddress(), TOKEN_NAME, TOKEN_SYMBOL, TOKEN_DECIMALS)
       .send()
       .deployed();
-    logger(`Token deployed to ${asset.address}`);
+    logger.info(`Token deployed to ${asset.address}`);
     tokenSim = new TokenSimulator(
       asset,
       logger,

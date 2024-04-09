@@ -571,7 +571,7 @@ export class StandardIndexedTree extends TreeBase<Buffer> implements IndexedTree
     // inclusion. See {@link encodeLeaf} for  a more through param explanation.
     this.encodeAndAppendLeaves(pendingInsertionSubtree, false);
 
-    this.log(`Inserted ${leaves.length} leaves into ${this.getName()} tree`, {
+    this.log.debug(`Inserted ${leaves.length} leaves into ${this.getName()} tree`, {
       eventName: 'tree-insertion',
       duration: timer.ms(),
       batchSize: leaves.length,

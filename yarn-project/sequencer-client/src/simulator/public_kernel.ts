@@ -52,7 +52,7 @@ export class RealPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
       this.wasmSimulator.simulateCircuit(inputWitness, PublicKernelSetupArtifact),
     );
     const result = convertPublicSetupRollupOutputFromWitnessMap(witness);
-    this.log(`Simulated public kernel setup circuit`, {
+    this.log.debug(`Simulated public kernel setup circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'public-kernel-setup',
       duration,
@@ -78,7 +78,7 @@ export class RealPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
       this.wasmSimulator.simulateCircuit(inputWitness, PublicKernelAppLogicArtifact),
     );
     const result = convertPublicInnerRollupOutputFromWitnessMap(witness);
-    this.log(`Simulated public kernel app logic circuit`, {
+    this.log.debug(`Simulated public kernel app logic circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'public-kernel-app-logic',
       duration,
@@ -104,7 +104,7 @@ export class RealPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
       this.wasmSimulator.simulateCircuit(inputWitness, PublicKernelTeardownArtifact),
     );
     const result = convertPublicTeardownRollupOutputFromWitnessMap(witness);
-    this.log(`Simulated public kernel teardown circuit`, {
+    this.log.debug(`Simulated public kernel teardown circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'public-kernel-teardown',
       duration,
@@ -127,7 +127,7 @@ export class RealPublicKernelCircuitSimulator implements PublicKernelCircuitSimu
       this.wasmSimulator.simulateCircuit(inputWitness, PublicKernelTailArtifact),
     );
     const result = convertPublicTailOutputFromWitnessMap(witness);
-    this.log(`Simulated public kernel tail circuit`, {
+    this.log.debug(`Simulated public kernel tail circuit`, {
       eventName: 'circuit-simulation',
       circuitName: 'public-kernel-tail',
       duration,

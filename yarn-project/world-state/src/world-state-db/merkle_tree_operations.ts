@@ -208,5 +208,5 @@ export async function inspectTree(
       ` Leaf ${i}: ${await db.getLeafValue(treeId, BigInt(i)).then(x => x?.toString('hex') ?? '[undefined]')}`,
     );
   }
-  log(output.join('\n'));
+  log.info(output.join('\n'));
 }

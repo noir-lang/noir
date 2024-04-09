@@ -161,7 +161,7 @@ export class PublicProcessor {
       this.publicContractsDB,
       this.publicStateDB,
     );
-    this.log(`Beginning processing in phase ${phase?.phase} for tx ${tx.getTxHash()}`);
+    this.log.debug(`Beginning processing in phase ${phase?.phase} for tx ${tx.getTxHash()}`);
     let proof = tx.proof;
     let publicKernelPublicInput = tx.data.toPublicKernelCircuitPublicInputs();
     let finalKernelOutput: KernelCircuitPublicInputs | undefined;
@@ -195,7 +195,7 @@ export class PublicProcessor {
 
     const processedTx = makeProcessedTx(tx, finalKernelOutput, proof, revertReason);
 
-    this.log(`Processed public part of ${tx.getTxHash()}`, {
+    this.log.debug(`Processed public part of ${tx.getTxHash()}`, {
       eventName: 'tx-sequencer-processing',
       duration: timer.ms(),
       effectsSize: toTxEffect(processedTx).toBuffer().length,

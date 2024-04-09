@@ -23,7 +23,7 @@ export async function executeUnconstrainedFunction(
   log = createDebugLogger('aztec:simulator:unconstrained_execution'),
 ): Promise<DecodedReturn> {
   const functionSelector = functionData.selector;
-  log(`Executing unconstrained function ${contractAddress}:${functionSelector}`);
+  log.verbose(`Executing unconstrained function ${contractAddress}:${functionSelector}(${artifact.name})`);
 
   const acir = artifact.bytecode;
   const initialWitness = toACVMWitness(0, args);

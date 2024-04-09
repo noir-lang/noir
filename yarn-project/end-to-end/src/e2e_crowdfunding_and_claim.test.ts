@@ -93,7 +93,7 @@ describe('e2e_crowdfunding_and_claim', () => {
     )
       .send()
       .deployed();
-    logger(`Donation Token deployed to ${donationToken.address}`);
+    logger.info(`Donation Token deployed to ${donationToken.address}`);
 
     rewardToken = await TokenContract.deploy(
       operatorWallet,
@@ -104,7 +104,7 @@ describe('e2e_crowdfunding_and_claim', () => {
     )
       .send()
       .deployed();
-    logger(`Reward Token deployed to ${rewardToken.address}`);
+    logger.info(`Reward Token deployed to ${rewardToken.address}`);
 
     crowdfundingPrivateKey = GrumpkinScalar.random();
     crowdfundingPublicKey = generatePublicKey(crowdfundingPrivateKey);
@@ -119,12 +119,12 @@ describe('e2e_crowdfunding_and_claim', () => {
     const crowdfundingInstance = crowdfundingDeployment.getInstance();
     await pxe.registerAccount(crowdfundingPrivateKey, computePartialAddress(crowdfundingInstance));
     crowdfundingContract = await crowdfundingDeployment.send().deployed();
-    logger(`Crowdfunding contract deployed at ${crowdfundingContract.address}`);
+    logger.info(`Crowdfunding contract deployed at ${crowdfundingContract.address}`);
 
     claimContract = await ClaimContract.deploy(operatorWallet, crowdfundingContract.address, rewardToken.address)
       .send()
       .deployed();
-    logger(`Claim contract deployed at ${claimContract.address}`);
+    logger.info(`Claim contract deployed at ${claimContract.address}`);
 
     await rewardToken.methods.set_minter(claimContract.address, true).send().wait();
 

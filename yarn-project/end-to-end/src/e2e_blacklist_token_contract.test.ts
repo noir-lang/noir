@@ -130,7 +130,7 @@ describe('e2e_blacklist_token_contract', () => {
     expect(roleLeaf['before']).toEqual(0n);
     expect(roleLeaf['after']).toEqual(4n);
 
-    logger(`Token deployed to ${asset.address}`);
+    logger.info(`Token deployed to ${asset.address}`);
     tokenSim = new TokenSimulator(
       asset as unknown as TokenContract,
       logger,
@@ -138,7 +138,7 @@ describe('e2e_blacklist_token_contract', () => {
     );
 
     asset.artifact.functions.forEach(fn => {
-      logger(
+      logger.info(
         `Function ${fn.name} has ${fn.bytecode.length} bytes and the selector: ${FunctionSelector.fromNameAndParameters(
           fn.name,
           fn.parameters,

@@ -69,7 +69,7 @@ export function getProgram(userLog: LogFn, debugLogger: DebugLogger): Command {
         httpServer.listen(options.port);
         userLog(`Aztec Server listening on port ${options.port}`);
       }
-      installSignalHandlers(debugLogger, signalHandlers);
+      installSignalHandlers(debugLogger.info, signalHandlers);
     });
   return program;
 }

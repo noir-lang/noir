@@ -161,29 +161,29 @@ describe('e2e_nested_contract', () => {
     let testContract: TestContract;
 
     beforeEach(async () => {
-      logger(`Deploying importer test contract`);
+      logger.info(`Deploying importer test contract`);
       importerContract = await ImportTestContract.deploy(wallet).send().deployed();
-      logger(`Deploying test contract`);
+      logger.info(`Deploying test contract`);
       testContract = await TestContract.deploy(wallet).send().deployed();
     }, 30_000);
 
     it('calls a method with multiple arguments', async () => {
-      logger(`Calling main on importer contract`);
+      logger.info(`Calling main on importer contract`);
       await importerContract.methods.main(testContract.address).send().wait();
     }, 30_000);
 
     it('calls a method no arguments', async () => {
-      logger(`Calling noargs on importer contract`);
+      logger.info(`Calling noargs on importer contract`);
       await importerContract.methods.call_no_args(testContract.address).send().wait();
     }, 30_000);
 
     it('calls an open function', async () => {
-      logger(`Calling openfn on importer contract`);
+      logger.info(`Calling openfn on importer contract`);
       await importerContract.methods.call_open_fn(testContract.address).send().wait();
     }, 30_000);
 
     it('calls an open function from an open function', async () => {
-      logger(`Calling pub openfn on importer contract`);
+      logger.info(`Calling pub openfn on importer contract`);
       await importerContract.methods.pub_call_open_fn(testContract.address).send().wait();
     }, 30_000);
   });

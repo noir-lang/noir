@@ -47,7 +47,7 @@ export function computeArtifactHash(
 
   const preimage = computeArtifactHashPreimage(artifact);
   const artifactHash = computeArtifactHash(computeArtifactHashPreimage(artifact));
-  getLogger().trace('Computed artifact hash', { artifactHash, ...preimage });
+  getLogger().debug('Computed artifact hash', { artifactHash, ...preimage });
   return artifactHash;
 }
 

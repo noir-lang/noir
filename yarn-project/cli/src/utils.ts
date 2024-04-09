@@ -2,7 +2,7 @@ import { type ContractArtifact, type FunctionArtifact, loadContractArtifact } fr
 import { AztecAddress } from '@aztec/aztec.js/aztec_address';
 import { type L1ContractArtifactsForDeployment } from '@aztec/aztec.js/ethereum';
 import { type PXE } from '@aztec/aztec.js/interfaces/pxe';
-import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
+import { type DebugLogger } from '@aztec/foundation/log';
 import { type NoirPackageConfig } from '@aztec/foundation/noir';
 
 import TOML from '@iarna/toml';
@@ -116,7 +116,7 @@ export async function getExampleContractArtifacts(): Promise<ArtifactsType> {
  * @param fileDir - The directory of the compiled contract ABI.
  * @returns The parsed contract artifact.
  */
-export async function getContractArtifact(fileDir: string, log: LogFn) {
+export async function getContractArtifact(fileDir: string) {
   // first check if it's a noir-contracts example
   const artifacts = await getExampleContractArtifacts();
   if (artifacts[fileDir]) {
@@ -127,14 +127,13 @@ export async function getContractArtifact(fileDir: string, log: LogFn) {
   try {
     contents = await readFile(fileDir, 'utf8');
   } catch {
-    throw Error(`Contract ${fileDir} not found`);
+    throw new Error(`Contract ${fileDir} not found`);
   }
 
   try {
     return loadContractArtifact(JSON.parse(contents));
   } catch (err) {
-    log('Invalid file used. Please try again.');
-    throw err;
+    throw new Error(`Invalid contract ABI file ${fileDir}: ${err}`);
   }
 }
 
@@ -168,11 +167,10 @@ export async function getTxSender(pxe: PXE, _from?: string) {
  * @param contractFile - Directory of the compiled contract ABI.
  * @param functionName - Name of the function to be called.
  * @param _functionArgs - Arguments to call the function with.
- * @param log - Logger instance that will output to the CLI
  * @returns Formatted contract address, function arguments and caller's aztec address.
  */
-export async function prepTx(contractFile: string, functionName: string, _functionArgs: string[], log: LogFn) {
-  const contractArtifact = await getContractArtifact(contractFile, log);
+export async function prepTx(contractFile: string, functionName: string, _functionArgs: string[]) {
+  const contractArtifact = await getContractArtifact(contractFile);
   const functionArtifact = getFunctionArtifact(contractArtifact, functionName);
   const functionArgs = encodeArgs(_functionArgs, functionArtifact.parameters);
 

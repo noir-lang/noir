@@ -30,7 +30,7 @@ export class BootstrapNode {
     const { peerIdPrivateKey, tcpListenIp, tcpListenPort, announceHostname, announcePort, minPeerCount, maxPeerCount } =
       config;
     const peerId = await createLibP2PPeerId(peerIdPrivateKey);
-    this.logger(
+    this.logger.info(
       `Starting bootstrap node ${peerId} on ${tcpListenIp}:${tcpListenPort} announced at ${announceHostname}:${
         announcePort ?? tcpListenPort
       }`,
@@ -75,24 +75,24 @@ export class BootstrapNode {
     });
 
     await this.node.start();
-    this.logger(`lib p2p has started`);
+    this.logger.debug(`lib p2p has started`);
 
     // print out listening addresses
-    this.logger('listening on addresses:');
+    this.logger.info('Listening on addresses:');
     this.node.getMultiaddrs().forEach(addr => {
-      this.logger(addr.toString());
+      this.logger.info(addr.toString());
     });
 
     this.node.addEventListener('peer:discovery', evt => {
-      this.logger(format('Discovered %s', evt.detail.id.toString())); // Log discovered peer
+      this.logger.verbose(format('Discovered %s', evt.detail.id.toString())); // Log discovered peer
     });
 
     this.node.addEventListener('peer:connect', evt => {
-      this.logger(format('Connected to %s', evt.detail.toString())); // Log connected peer
+      this.logger.verbose(format('Connected to %s', evt.detail.toString())); // Log connected peer
     });
 
     this.node.addEventListener('peer:disconnect', evt => {
-      this.logger(format('Disconnected from %s', evt.detail.toString())); // Log connected peer
+      this.logger.verbose(format('Disconnected from %s', evt.detail.toString())); // Log connected peer
     });
   }
 
@@ -103,7 +103,7 @@ export class BootstrapNode {
   public async stop() {
     // stop libp2p
     await this.node?.stop();
-    this.logger('libp2p has stopped');
+    this.logger.debug('libp2p has stopped');
   }
 
   /**

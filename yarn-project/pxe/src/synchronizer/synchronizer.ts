@@ -51,10 +51,10 @@ export class Synchronizer {
     this.running = true;
 
     await this.jobQueue.put(() => this.initialSync());
-    this.log('Initial sync complete');
+    this.log.info('Initial sync complete');
     this.runningPromise = new RunningPromise(() => this.sync(limit), retryInterval);
     this.runningPromise.start();
-    this.log('Started loop');
+    this.log.debug('Started loop');
   }
 
   protected async initialSync() {
@@ -112,7 +112,9 @@ export class Synchronizer {
       await this.setHeaderFromBlock(latestBlock);
 
       const logCount = L2BlockL2Logs.getTotalLogCount(encryptedLogs);
-      this.log(`Forwarding ${logCount} encrypted logs and blocks to ${this.noteProcessors.length} note processors`);
+      this.log.debug(
+        `Forwarding ${logCount} encrypted logs and blocks to ${this.noteProcessors.length} note processors`,
+      );
       for (const noteProcessor of this.noteProcessors) {
         await noteProcessor.process(blocks, encryptedLogs);
       }
@@ -183,7 +185,7 @@ export class Synchronizer {
       const encryptedLogs = blocks.flatMap(block => block.body.encryptedLogs);
 
       const logCount = L2BlockL2Logs.getTotalLogCount(encryptedLogs);
-      this.log(`Forwarding ${logCount} encrypted logs and blocks to note processors in catch up mode`);
+      this.log.debug(`Forwarding ${logCount} encrypted logs and blocks to note processors in catch up mode`);
 
       for (const noteProcessor of catchUpGroup) {
         // find the index of the first block that the note processor is not yet synced to
@@ -204,7 +206,7 @@ export class Synchronizer {
 
         if (noteProcessor.status.syncedToBlock === toBlockNumber) {
           // Note processor caught up, move it to `noteProcessors` from `noteProcessorsToCatchUp`.
-          this.log(`Note processor for ${noteProcessor.publicKey.toString()} has caught up`, {
+          this.log.debug(`Note processor for ${noteProcessor.publicKey.toString()} has caught up`, {
             eventName: 'note-processor-caught-up',
             publicKey: noteProcessor.publicKey.toString(),
             duration: noteProcessor.timer.ms(),
@@ -244,7 +246,7 @@ export class Synchronizer {
   public async stop() {
     this.running = false;
     await this.runningPromise?.stop();
-    this.log('Stopped');
+    this.log.info('Stopped');
   }
 
   /**
@@ -354,7 +356,7 @@ export class Synchronizer {
     await this.db.addNotes(newNotes);
 
     newNotes.forEach(noteDao => {
-      this.log(
+      this.log.debug(
         `Decoded deferred note for contract ${noteDao.contractAddress} at slot ${
           noteDao.storageSlot
         } with nullifier ${noteDao.siloedNullifier.toString()}`,

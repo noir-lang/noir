@@ -95,7 +95,7 @@ export async function acvm(
     initialWitness,
     async (name: string, args: ForeignCallInput[]) => {
       try {
-        logger(`Oracle callback ${name}`);
+        logger.verbose(`Oracle callback ${name}`);
         const oracleFunction = callback[name as ORACLE_NAMES];
         if (!oracleFunction) {
           throw new Error(`Oracle callback ${name} not found`);

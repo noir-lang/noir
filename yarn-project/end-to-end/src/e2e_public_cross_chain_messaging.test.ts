@@ -67,7 +67,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     inbox = crossChainTestHarness.inbox;
     outbox = crossChainTestHarness.outbox;
 
-    logger('Successfully deployed contracts and initialized portal');
+    logger.info('Successfully deployed contracts and initialized portal');
   }, 100_000);
 
   afterAll(async () => {
@@ -98,7 +98,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     const afterBalance = bridgeAmount;
 
     // time to withdraw the funds again!
-    logger('Withdrawing funds from L2');
+    logger.info('Withdrawing funds from L2');
 
     // 4. Give approval to bridge to burn owner's funds:
     const withdrawAmount = 9n;
@@ -167,7 +167,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     ).rejects.toThrow(`No non-nullified L1 to L2 message found for message hash ${wrongMessage.hash().toString()}`);
 
     // user2 consumes owner's L1-> L2 message on bridge contract and mints public tokens on L2
-    logger("user2 consumes owner's message on L2 Publicly");
+    logger.info("user2 consumes owner's message on L2 Publicly");
     await l2Bridge.withWallet(user2Wallet).methods.claim_public(ownerAddress, bridgeAmount, secret).send().wait();
     // ensure funds are gone to owner and not user2.
     await crossChainTestHarness.expectPublicBalanceOnL2(ownerAddress, bridgeAmount);

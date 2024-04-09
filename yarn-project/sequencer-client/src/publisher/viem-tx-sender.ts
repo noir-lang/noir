@@ -114,7 +114,7 @@ export class ViemTxSender implements L1PublisherTxSender {
       };
     }
 
-    this.log(`Receipt not found for tx hash ${txHash}`);
+    this.log.debug(`Receipt not found for tx hash ${txHash}`);
     return undefined;
   }
 

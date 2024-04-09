@@ -235,7 +235,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       offset,
     });
 
-    this.log(
+    this.log.debug(
       `Returning ${notes.length} notes for ${this.callContext.storageContractAddress} at ${storageSlot}: ${notes
         .map(n => `${n.nonce.toString()}:[${n.note.items.map(i => i.toString()).join(',')}]`)
         .join(', ')}`,
@@ -316,7 +316,7 @@ export class ClientExecutionContext extends ViewDataOracle {
   public emitUnencryptedLog(log: UnencryptedL2Log) {
     this.unencryptedLogs.push(log);
     const text = log.toHumanReadable();
-    this.log(`Emitted unencrypted log: "${text.length > 100 ? text.slice(0, 100) + '...' : text}"`);
+    this.log.verbose(`Emitted unencrypted log: "${text.length > 100 ? text.slice(0, 100) + '...' : text}"`);
   }
 
   #checkValidStaticCall(childExecutionResult: ExecutionResult) {
@@ -349,7 +349,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     isStaticCall: boolean,
     isDelegateCall: boolean,
   ) {
-    this.log(
+    this.log.debug(
       `Calling private function ${this.contractAddress}:${functionSelector} from ${this.callContext.storageContractAddress}`,
     );
 
@@ -441,7 +441,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     // side-effect counter, that will leak info about how many other private
     // side-effects occurred in the TX. Ultimately the private kernel should
     // just output everything in the proper order without any counters.
-    this.log(
+    this.log.verbose(
       `Enqueued call to public function (with side-effect counter #${sideEffectCounter}) ${targetContractAddress}:${functionSelector}(${targetArtifact.name})`,
     );
 
@@ -497,7 +497,7 @@ export class ClientExecutionContext extends ViewDataOracle {
         throw new Error(`No witness for slot ${storageSlot.toString()}`);
       }
       const value = witness.leafPreimage.value;
-      this.log(`Oracle storage read: slot=${storageSlot.toString()} value=${value}`);
+      this.log.debug(`Oracle storage read: slot=${storageSlot.toString()} value=${value}`);
       values.push(value);
     }
     return values;

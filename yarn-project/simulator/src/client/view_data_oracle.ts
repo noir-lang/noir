@@ -257,7 +257,7 @@ export class ViewDataOracle extends TypedOracle {
       const storageSlot = new Fr(startStorageSlot.value + i);
       const value = await this.aztecNode.getPublicStorageAt(this.contractAddress, storageSlot);
 
-      this.log(`Oracle storage read: slot=${storageSlot.toString()} value=${value}`);
+      this.log.debug(`Oracle storage read: slot=${storageSlot.toString()} value=${value}`);
       values.push(value);
     }
     return values;

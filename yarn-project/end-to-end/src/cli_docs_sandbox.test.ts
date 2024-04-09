@@ -17,7 +17,7 @@ describe('CLI docs sandbox', () => {
   beforeAll(async () => {
     log = (msg: string) => {
       logs.push(msg);
-      debug(msg);
+      debug.verbose(msg);
     };
 
     await waitForSandboxWithCli();

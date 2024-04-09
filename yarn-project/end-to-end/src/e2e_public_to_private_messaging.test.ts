@@ -32,7 +32,7 @@ describe('e2e_public_to_private_messaging', () => {
 
     teardown = teardown_;
     logger = logger_;
-    logger('Successfully deployed contracts and initialized portal');
+    logger.info('Successfully deployed contracts and initialized portal');
   }, 100_000);
 
   afterEach(async () => {

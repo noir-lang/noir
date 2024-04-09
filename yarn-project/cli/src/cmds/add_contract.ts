@@ -24,7 +24,7 @@ export async function addContract(
   debugLogger: DebugLogger,
   log: LogFn,
 ) {
-  const artifact = await getContractArtifact(contractArtifactPath, log);
+  const artifact = await getContractArtifact(contractArtifactPath);
   const instance: ContractInstanceWithAddress = {
     version: 1,
     salt,

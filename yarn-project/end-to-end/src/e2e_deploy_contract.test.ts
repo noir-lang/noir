@@ -76,7 +76,7 @@ describe('e2e_deploy_contract', () => {
       const deployer = new ContractDeployer(TestContractArtifact, wallet);
 
       for (let index = 0; index < 2; index++) {
-        logger(`Deploying contract ${index + 1}...`);
+        logger.info(`Deploying contract ${index + 1}...`);
         await deployer.deploy().send({ contractAddressSalt: Fr.random() }).wait({ wallet });
       }
     }, 60_000);
@@ -88,9 +88,9 @@ describe('e2e_deploy_contract', () => {
       const deployer = new ContractDeployer(TestContractArtifact, wallet);
 
       for (let index = 0; index < 2; index++) {
-        logger(`Deploying contract ${index + 1}...`);
+        logger.info(`Deploying contract ${index + 1}...`);
         const receipt = await deployer.deploy().send({ contractAddressSalt: Fr.random() }).wait({ wallet });
-        logger(`Sending TX to contract ${index + 1}...`);
+        logger.info(`Sending TX to contract ${index + 1}...`);
         await receipt.contract.methods.get_public_key(wallet.getAddress()).send().wait();
       }
     }, 90_000);
@@ -341,7 +341,7 @@ describe('e2e_deploy_contract', () => {
             deployer: opts.deployer,
           });
           const { address, contractClassId } = instance;
-          logger(`Deploying contract instance at ${address.toString()} class id ${contractClassId.toString()}`);
+          logger.info(`Deploying contract instance at ${address.toString()} class id ${contractClassId.toString()}`);
           await deployFn(instance);
 
           // TODO(@spalladino) We should **not** need the whole instance, including initArgs and salt,

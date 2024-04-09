@@ -60,7 +60,7 @@ describe('e2e_cross_chain_messaging', () => {
     logger = logger_;
     aztecNode = aztecNode_;
     teardown = teardown_;
-    logger('Successfully deployed contracts and initialized portal');
+    logger.info('Successfully deployed contracts and initialized portal');
   }, 100_000);
 
   afterEach(async () => {
@@ -101,7 +101,7 @@ describe('e2e_cross_chain_messaging', () => {
     await crossChainTestHarness.expectPrivateBalanceOnL2(ownerAddress, bridgeAmount);
 
     // time to withdraw the funds again!
-    logger('Withdrawing funds from L2');
+    logger.info('Withdrawing funds from L2');
 
     // docs:start:authwit_to_another_sc
     // 4. Give approval to bridge to burn owner's funds:

@@ -128,7 +128,7 @@ export class Archiver implements ArchiveSource {
     }
 
     if (blockUntilSynced) {
-      this.log(`Performing initial chain sync...`);
+      this.log.info(`Performing initial chain sync...`);
       await this.sync(blockUntilSynced);
     }
 
@@ -197,7 +197,7 @@ export class Archiver implements ArchiveSource {
     );
 
     if (retrievedL1ToL2Messages.retrievedData.length !== 0) {
-      this.log(
+      this.log.verbose(
         `Retrieved ${retrievedL1ToL2Messages.retrievedData.length} new L1 -> L2 messages between L1 blocks ${
           l1SynchPoint.messagesSynchedTo + 1n
         } and ${currentL1BlockNumber}.`,
@@ -250,7 +250,7 @@ export class Archiver implements ArchiveSource {
       if (blocks.length === 0) {
         return;
       } else {
-        this.log(
+        this.log.verbose(
           `Retrieved ${blocks.length} new L2 blocks between L1 blocks ${
             l1SynchPoint.blocksSynchedTo + 1n
           } and ${currentL1BlockNumber}.`,
@@ -296,7 +296,7 @@ export class Archiver implements ArchiveSource {
       e => e.toContractClassPublic(),
     );
     if (contractClasses.length > 0) {
-      contractClasses.forEach(c => this.log(`Registering contract class ${c.id.toString()}`));
+      contractClasses.forEach(c => this.log.verbose(`Registering contract class ${c.id.toString()}`));
       await this.store.addContractClasses(contractClasses, blockNum);
     }
   }
@@ -308,7 +308,7 @@ export class Archiver implements ArchiveSource {
   private async storeDeployedContractInstances(allLogs: UnencryptedL2Log[], blockNum: number) {
     const contractInstances = ContractInstanceDeployedEvent.fromLogs(allLogs).map(e => e.toContractInstance());
     if (contractInstances.length > 0) {
-      contractInstances.forEach(c => this.log(`Storing contract instance at ${c.address.toString()}`));
+      contractInstances.forEach(c => this.log.verbose(`Storing contract instance at ${c.address.toString()}`));
       await this.store.addContractInstances(contractInstances, blockNum);
     }
   }
@@ -351,7 +351,7 @@ export class Archiver implements ArchiveSource {
 
       // Store the functions in the contract class in a single operation
       if (validFnCount > 0) {
-        this.log(`Storing ${validFnCount} functions for contract class ${contractClassId.toString()}`);
+        this.log.verbose(`Storing ${validFnCount} functions for contract class ${contractClassId.toString()}`);
       }
       await this.store.addFunctions(contractClassId, validPrivateFns, validUnconstrainedFns);
     }
@@ -362,10 +362,10 @@ export class Archiver implements ArchiveSource {
    * @returns A promise signalling completion of the stop process.
    */
   public async stop(): Promise<void> {
-    this.log('Stopping...');
+    this.log.debug('Stopping...');
     await this.runningPromise?.stop();
 
-    this.log('Stopped.');
+    this.log.info('Stopped.');
     return Promise.resolve();
   }
 

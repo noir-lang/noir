@@ -475,7 +475,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     )
     .action(async (contractArtifactFile: string) => {
       const { inspectContract } = await import('./cmds/inspect_contract.js');
-      await inspectContract(contractArtifactFile, debugLogger, log);
+      await inspectContract(contractArtifactFile, log);
     });
 
   program

@@ -47,11 +47,11 @@ export class ContractsDataSourcePublicDB implements PublicContractsDB {
     // Extract contract class and instance data from logs and add to cache for this block
     const logs = tx.unencryptedLogs.unrollLogs();
     ContractClassRegisteredEvent.fromLogs(logs, getCanonicalClassRegistererAddress()).forEach(e => {
-      this.log(`Adding class ${e.contractClassId.toString()} to public execution contract cache`);
+      this.log.debug(`Adding class ${e.contractClassId.toString()} to public execution contract cache`);
       this.classCache.set(e.contractClassId.toString(), e.toContractClassPublic());
     });
     ContractInstanceDeployedEvent.fromLogs(logs).forEach(e => {
-      this.log(
+      this.log.debug(
         `Adding instance ${e.address.toString()} with class ${e.contractClassId.toString()} to public execution contract cache`,
       );
       this.instanceCache.set(e.address.toString(), e.toContractInstance());

@@ -184,7 +184,7 @@ export class NoteProcessor {
     const syncedToBlock = l2Blocks[l2Blocks.length - 1].number;
     await this.db.setSynchedBlockNumberForPublicKey(this.publicKey, syncedToBlock);
 
-    this.log(`Synched block ${syncedToBlock}`);
+    this.log.debug(`Synched block ${syncedToBlock}`);
   }
 
   /**
@@ -201,7 +201,7 @@ export class NoteProcessor {
     if (noteDaos.length) {
       await this.db.addNotes(noteDaos);
       noteDaos.forEach(noteDao => {
-        this.log(
+        this.log.verbose(
           `Added note for contract ${noteDao.contractAddress} at slot ${
             noteDao.storageSlot
           } with nullifier ${noteDao.siloedNullifier.toString()}`,
@@ -214,7 +214,7 @@ export class NoteProcessor {
     );
     const removedNotes = await this.db.removeNullifiedNotes(newNullifiers, this.publicKey);
     removedNotes.forEach(noteDao => {
-      this.log(
+      this.log.verbose(
         `Removed note for contract ${noteDao.contractAddress} at slot ${
           noteDao.storageSlot
         } with nullifier ${noteDao.siloedNullifier.toString()}`,
@@ -231,7 +231,7 @@ export class NoteProcessor {
     if (deferredNoteDaos.length) {
       await this.db.addDeferredNotes(deferredNoteDaos);
       deferredNoteDaos.forEach(noteDao => {
-        this.log(
+        this.log.verbose(
           `Deferred note for contract ${noteDao.contractAddress} at slot ${
             noteDao.storageSlot
           } in tx ${noteDao.txHash.toString()}`,

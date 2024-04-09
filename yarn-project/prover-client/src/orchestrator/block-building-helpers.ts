@@ -456,7 +456,7 @@ export async function executeBaseRollupCircuit(
   prover: RollupProver,
   logger?: DebugLogger,
 ): Promise<[BaseOrMergeRollupPublicInputs, Proof]> {
-  logger?.(`Running base rollup for ${tx.hash}`);
+  logger?.debug(`Running base rollup for ${tx.hash}`);
   const rollupOutput = await simulator.baseRollupCircuit(inputs);
   validatePartialState(rollupOutput.end, treeSnapshots);
   const proof = await prover.getBaseRollupProof(inputs, rollupOutput);

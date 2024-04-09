@@ -22,7 +22,7 @@ export async function executePrivateFunction(
   log = createDebugLogger('aztec:simulator:secret_execution'),
 ): Promise<ExecutionResult> {
   const functionSelector = functionData.selector;
-  log(`Executing external function ${contractAddress}:${functionSelector}(${artifact.name})`);
+  log.verbose(`Executing external function ${contractAddress}:${functionSelector}(${artifact.name})`);
   const acir = artifact.bytecode;
   const initialWitness = context.getInitialWitness(artifact);
   const acvmCallback = new Oracle(context);
@@ -66,7 +66,7 @@ export async function executePrivateFunction(
   const nestedExecutions = context.getNestedExecutions();
   const enqueuedPublicFunctionCalls = context.getEnqueuedPublicFunctionCalls();
 
-  log(`Returning from call to ${contractAddress.toString()}:${functionSelector}`);
+  log.debug(`Returning from call to ${contractAddress.toString()}:${functionSelector}`);
 
   return {
     acir,

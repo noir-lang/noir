@@ -34,7 +34,7 @@ export const cliTestSuite = (
       ({ pxe, rpcURL } = await setup());
       log = (msg: string) => {
         logs.push(msg);
-        debug(msg);
+        debug.verbose(msg);
       };
     }, 30_000);
 
@@ -58,7 +58,7 @@ export const cliTestSuite = (
       if (addRpcUrl) {
         args.push('--rpc-url', rpcURL);
       }
-      debug(`Running command ${args.join(' ')}`);
+      debug.info(`Running command ${args.join(' ')}`);
       const res = cli.parseAsync(args);
       resetCli();
       return res;
@@ -91,7 +91,7 @@ export const cliTestSuite = (
 
     it('creates & retrieves an account', async () => {
       existingAccounts = await pxe.getRegisteredAccounts();
-      debug('Create an account');
+      debug.info('Create an account');
       await run(`create-account`);
       const foundAddress = findInLogs(/Address:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
       expect(foundAddress).toBeDefined();
@@ -103,14 +103,14 @@ export const cliTestSuite = (
       const newCompleteAddress = accountsAfter[accountsAfter.length - 1];
 
       // Test get-accounts
-      debug('Check that account was added to the list of accounts in RPC');
+      debug.info('Check that account was added to the list of accounts in RPC');
       await run('get-accounts');
       const fetchedAddresses = findMultipleInLogs(/Address:\s+(?<address>0x[a-fA-F0-9]+)/);
       const foundFetchedAddress = fetchedAddresses.find(match => match.groups?.address === newAddress.toString());
       expect(foundFetchedAddress).toBeDefined();
 
       // Test get-account
-      debug('Check we can retrieve the specific account');
+      debug.info('Check we can retrieve the specific account');
       clearLogs();
       await run(`get-account ${newAddress.toString()}`);
       const fetchedAddress = findInLogs(/Public Key:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
@@ -119,7 +119,7 @@ export const cliTestSuite = (
 
     // Regression test for deploy cmd with a constructor not named "constructor"
     it('deploys a contract using a public initializer', async () => {
-      debug('Create an account using a private key');
+      debug.info('Create an account using a private key');
       await run('generate-private-key', false);
       const privKey = findInLogs(/Private\sKey:\s+0x(?<privKey>[a-fA-F0-9]+)/)?.groups?.privKey;
       expect(privKey).toHaveLength(64);
@@ -129,7 +129,7 @@ export const cliTestSuite = (
       const ownerAddress = AztecAddress.fromString(foundAddress!);
       const salt = 42;
 
-      debug('Deploy StatefulTestContract with public_constructor using created account.');
+      debug.info('Deploy StatefulTestContract with public_constructor using created account.');
       await run(
         `deploy StatefulTestContractArtifact --private-key ${privKey} --salt ${salt} --initializer public_constructor --args ${ownerAddress} 100`,
       );
@@ -156,7 +156,7 @@ export const cliTestSuite = (
       'deploys %s & sends transactions',
       async (_, artifact, salt) => {
         // generate a private key
-        debug('Create an account using a private key');
+        debug.info('Create an account using a private key');
         await run('generate-private-key', false);
         const privKey = findInLogs(/Private\sKey:\s+0x(?<privKey>[a-fA-F0-9]+)/)?.groups?.privKey;
         expect(privKey).toHaveLength(64);
@@ -165,7 +165,7 @@ export const cliTestSuite = (
         expect(foundAddress).toBeDefined();
         const ownerAddress = AztecAddress.fromString(foundAddress!);
 
-        debug('Deploy Token Contract using created account.');
+        debug.info('Deploy Token Contract using created account.');
         await run(
           `deploy ${artifact} --private-key ${privKey} --salt ${salt} --args ${ownerAddress} 'TokenName' 'TKN' 18`,
         );
@@ -176,7 +176,7 @@ export const cliTestSuite = (
         const deployedContract = await pxe.getContractInstance(contractAddress);
         expect(deployedContract?.address).toEqual(contractAddress);
 
-        debug('Check contract can be found in returned address');
+        debug.info('Check contract can be found in returned address');
         await run(`check-deploy -ca ${loggedAddress}`);
         const checkResult = findInLogs(/Contract.+\sat\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
         expect(checkResult).toEqual(deployedContract?.address.toString());
@@ -184,19 +184,19 @@ export const cliTestSuite = (
         const secret = Fr.random();
         const secretHash = computeMessageSecretHash(secret);
 
-        debug('Mint initial tokens.');
+        debug.info('Mint initial tokens.');
         await run(
           `send mint_private --args ${INITIAL_BALANCE} ${secretHash} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()} --private-key ${privKey}`,
         );
 
-        debug('Add note to the PXE.');
+        debug.info('Add note to the PXE.');
         const txHashes = findMultipleInLogs(/Transaction Hash: ([0-9a-f]{64})/i);
         const mintPrivateTxHash = txHashes[txHashes.length - 1][1];
         await run(
           `add-note ${ownerAddress} ${contractAddress} 5 84114971101151129711410111011678111116101 ${mintPrivateTxHash} --note ${INITIAL_BALANCE} ${secretHash}`,
         );
 
-        debug('Redeem tokens.');
+        debug.info('Redeem tokens.');
         await run(
           `send redeem_shield --args ${ownerAddress} ${INITIAL_BALANCE} ${secret} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()} --private-key ${privKey}`,
         );
@@ -206,14 +206,14 @@ export const cliTestSuite = (
         const contractDataAddress = findInLogs(/^\s?Address:\s+(?<address>0x[a-fA-F0-9]+)/)?.groups?.address;
         expect(contractDataAddress).toEqual(deployedContract?.address.toString());
 
-        debug("Check owner's balance");
+        debug.info("Check owner's balance");
         await run(
           `call balance_of_private --args ${ownerAddress} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()}`,
         );
         const balance = findInLogs(/View\sresult:\s+(?<data>\S+)/)?.groups?.data;
         expect(balance!).toEqual(`${BigInt(INITIAL_BALANCE).toString()}n`);
 
-        debug('Transfer some tokens');
+        debug.info('Transfer some tokens');
         const existingAccounts = await pxe.getRegisteredAccounts();
         // ensure we pick a different acc
         const receiver = existingAccounts.find(acc => acc.address.toString() !== ownerAddress.toString());
@@ -223,13 +223,13 @@ export const cliTestSuite = (
         );
         const txHash = findInLogs(/Transaction\shash:\s+(?<txHash>\S+)/)?.groups?.txHash;
 
-        debug('Check the transfer receipt');
+        debug.info('Check the transfer receipt');
         await run(`get-tx-receipt ${txHash}`);
         const txResult = findInLogs(/Transaction receipt:\s*(?<txHash>[\s\S]*?\})/)?.groups?.txHash;
         const parsedResult = JSON.parse(txResult!);
         expect(parsedResult.txHash).toEqual(txHash);
         expect(parsedResult.status).toEqual('mined');
-        debug("Check Receiver's balance");
+        debug.info("Check Receiver's balance");
         clearLogs();
         await run(
           `call balance_of_private --args ${receiver?.address.toString()} --contract-artifact TokenContractArtifact --contract-address ${contractAddress.toString()}`,

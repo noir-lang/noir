@@ -37,7 +37,7 @@ export async function executePublicFunction(
   const execution = context.execution;
   const { contractAddress, functionData } = execution;
   const selector = functionData.selector;
-  log(`Executing public external function ${contractAddress.toString()}:${selector}`);
+  log.verbose(`Executing public external function ${contractAddress.toString()}:${selector}`);
 
   const initialWitness = context.getInitialWitness();
   const acvmCallback = new Oracle(context);
@@ -123,12 +123,12 @@ export async function executePublicFunction(
 
   const { contractStorageReads, contractStorageUpdateRequests } = context.getStorageActionData();
 
-  log(
+  log.debug(
     `Contract storage reads: ${contractStorageReads
       .map(r => r.toFriendlyJSON() + ` - sec: ${r.sideEffectCounter}`)
       .join(', ')}`,
   );
-  log(
+  log.debug(
     `Contract storage update requests: ${contractStorageUpdateRequests
       .map(r => r.toFriendlyJSON() + ` - sec: ${r.sideEffectCounter}`)
       .join(', ')}`,
@@ -305,7 +305,7 @@ export class PublicExecutor {
 
     const bbExec = path.join(bbPath, 'build', 'bin', 'bb');
     const bbArgs = ['avm_prove', '-b', bytecodePath, '-d', calldataPath, '-o', proofPath];
-    this.log(`calling '${bbExec} ${bbArgs.join(' ')}'`);
+    this.log.debug(`calling '${bbExec} ${bbArgs.join(' ')}'`);
     const bbBinary = spawn(bbExec, bbArgs);
 
     // The binary writes the proof and the verification key to the write path.
@@ -314,7 +314,7 @@ export class PublicExecutor {
       let stderr: string = '';
 
       bbBinary.on('close', () => {
-        this.log(`Proof generation complete. Reading proof and vk from ${proofPath}.`);
+        this.log.verbose(`Proof generation complete. Reading proof and vk from ${proofPath}.`);
         return resolve(Promise.all([fs.readFile(proofPath), fs.readFile(path.join(artifactsPath, 'vk'))]));
       });
 
@@ -324,7 +324,7 @@ export class PublicExecutor {
       });
       bbBinary.stdout.on('end', () => {
         if (stdout.length > 0) {
-          this.log(`stdout: ${stdout}`);
+          this.log.debug(`stdout: ${stdout}`);
         }
       });
 
@@ -334,7 +334,7 @@ export class PublicExecutor {
       });
       bbBinary.stderr.on('end', () => {
         if (stderr.length > 0) {
-          this.log(`stderr: ${stderr}`);
+          this.log.warn(`stderr: ${stderr}`);
         }
       });
 
@@ -366,7 +366,7 @@ export class PublicExecutor {
 
     const bbExec = path.join(bbPath, 'build', 'bin', 'bb');
     const bbArgs = ['avm_verify', '-p', proofPath];
-    this.log(`calling '${bbPath} ${bbArgs.join(' ')}'`);
+    this.log.debug(`calling '${bbPath} ${bbArgs.join(' ')}'`);
     const bbBinary = spawn(bbExec, bbArgs);
 
     // The binary prints to stdout 1 if the proof is valid and 0 if it is not.

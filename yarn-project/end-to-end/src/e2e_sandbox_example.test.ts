@@ -32,7 +32,7 @@ describe('e2e_sandbox_example', () => {
 
     const nodeInfo = await pxe.getNodeInfo();
 
-    logger(format('Aztec Sandbox Info ', nodeInfo));
+    logger.info(format('Aztec Sandbox Info ', nodeInfo));
     // docs:end:setup
 
     expect(typeof nodeInfo.protocolVersion).toBe('number');
@@ -50,19 +50,19 @@ describe('e2e_sandbox_example', () => {
     const bobWallet = accounts[1];
     const alice = aliceWallet.getAddress();
     const bob = bobWallet.getAddress();
-    logger(`Loaded alice's account at ${alice.toShortString()}`);
-    logger(`Loaded bob's account at ${bob.toShortString()}`);
+    logger.info(`Loaded alice's account at ${alice.toShortString()}`);
+    logger.info(`Loaded bob's account at ${bob.toShortString()}`);
     // docs:end:load_accounts
 
     // docs:start:Deployment
     ////////////// DEPLOY OUR TOKEN CONTRACT //////////////
 
     const initialSupply = 1_000_000n;
-    logger(`Deploying token contract...`);
+    logger.info(`Deploying token contract...`);
 
     // Deploy the contract and set Alice as the admin while doing so
     const contract = await TokenContract.deploy(aliceWallet, alice, 'TokenName', 'TokenSymbol', 18).send().deployed();
-    logger(`Contract successfully deployed at address ${contract.address.toShortString()}`);
+    logger.info(`Contract successfully deployed at address ${contract.address.toShortString()}`);
 
     // Create the contract abstraction and link it to Alice's wallet for future signing
     const tokenContractAlice = await TokenContract.at(contract.address, aliceWallet);
@@ -71,7 +71,7 @@ describe('e2e_sandbox_example', () => {
     const aliceSecret = Fr.random();
     const aliceSecretHash = computeMessageSecretHash(aliceSecret);
 
-    logger(`Minting tokens to Alice...`);
+    logger.info(`Minting tokens to Alice...`);
     // Mint the initial supply privately "to secret hash"
     const receipt = await tokenContractAlice.methods.mint_private(initialSupply, aliceSecretHash).send().wait();
 
@@ -91,7 +91,7 @@ describe('e2e_sandbox_example', () => {
     // Make the tokens spendable by redeeming them using the secret (converts the "pending shield note" created above
     // to a "token note")
     await tokenContractAlice.methods.redeem_shield(alice, initialSupply, aliceSecret).send().wait();
-    logger(`${initialSupply} tokens were successfully minted and redeemed by Alice`);
+    logger.info(`${initialSupply} tokens were successfully minted and redeemed by Alice`);
     // docs:end:Deployment
 
     // ensure that token contract is registered in PXE
@@ -106,10 +106,10 @@ describe('e2e_sandbox_example', () => {
     const tokenContractBob = tokenContractAlice.withWallet(bobWallet);
 
     let aliceBalance = await tokenContractAlice.methods.balance_of_private(alice).simulate();
-    logger(`Alice's balance ${aliceBalance}`);
+    logger.info(`Alice's balance ${aliceBalance}`);
 
     let bobBalance = await tokenContractBob.methods.balance_of_private(bob).simulate();
-    logger(`Bob's balance ${bobBalance}`);
+    logger.info(`Bob's balance ${bobBalance}`);
 
     // docs:end:Balance
 
@@ -121,15 +121,15 @@ describe('e2e_sandbox_example', () => {
 
     // We will now transfer tokens from ALice to Bob
     const transferQuantity = 543n;
-    logger(`Transferring ${transferQuantity} tokens from Alice to Bob...`);
+    logger.info(`Transferring ${transferQuantity} tokens from Alice to Bob...`);
     await tokenContractAlice.methods.transfer(alice, bob, transferQuantity, 0).send().wait();
 
     // Check the new balances
     aliceBalance = await tokenContractAlice.methods.balance_of_private(alice).simulate();
-    logger(`Alice's balance ${aliceBalance}`);
+    logger.info(`Alice's balance ${aliceBalance}`);
 
     bobBalance = await tokenContractBob.methods.balance_of_private(bob).simulate();
-    logger(`Bob's balance ${bobBalance}`);
+    logger.info(`Bob's balance ${bobBalance}`);
     // docs:end:Transfer
 
     expect(aliceBalance).toBe(initialSupply - transferQuantity);
@@ -148,7 +148,7 @@ describe('e2e_sandbox_example', () => {
     // Bob now has a secret 🥷
 
     const mintQuantity = 10_000n;
-    logger(`Minting ${mintQuantity} tokens to Bob...`);
+    logger.info(`Minting ${mintQuantity} tokens to Bob...`);
     const mintPrivateReceipt = await tokenContractBob.methods.mint_private(mintQuantity, bobSecretHash).send().wait();
 
     const bobPendingShield = new Note([new Fr(mintQuantity), bobSecretHash]);
@@ -167,10 +167,10 @@ describe('e2e_sandbox_example', () => {
 
     // Check the new balances
     aliceBalance = await tokenContractAlice.methods.balance_of_private(alice).simulate();
-    logger(`Alice's balance ${aliceBalance}`);
+    logger.info(`Alice's balance ${aliceBalance}`);
 
     bobBalance = await tokenContractBob.methods.balance_of_private(bob).simulate();
-    logger(`Bob's balance ${bobBalance}`);
+    logger.info(`Bob's balance ${bobBalance}`);
     // docs:end:Mint
 
     expect(aliceBalance).toBe(initialSupply - transferQuantity);
@@ -207,7 +207,7 @@ describe('e2e_sandbox_example', () => {
     };
 
     // Create 2 accounts and wallets to go with each
-    logger(`Creating accounts using schnorr signers...`);
+    logger.info(`Creating accounts using schnorr signers...`);
     const accounts = await createSchnorrAccounts(2, pxe);
 
     ////////////// VERIFY THE ACCOUNTS WERE CREATED SUCCESSFULLY //////////////
@@ -221,10 +221,10 @@ describe('e2e_sandbox_example', () => {
       [bob, 'Bob'],
     ] as const) {
       if (registeredAccounts.find(acc => acc.equals(account))) {
-        logger(`Created ${name}'s account at ${account.toShortString()}`);
+        logger.info(`Created ${name}'s account at ${account.toShortString()}`);
         continue;
       }
-      logger(`Failed to create account for ${name}!`);
+      logger.info(`Failed to create account for ${name}!`);
     }
     // docs:end:create_accounts
 

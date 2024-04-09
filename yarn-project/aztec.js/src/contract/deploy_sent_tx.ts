@@ -44,7 +44,7 @@ export class DeploySentTx<TContract extends Contract = Contract> extends SentTx 
    */
   public async deployed(opts?: DeployedWaitOpts): Promise<TContract> {
     const receipt = await this.wait(opts);
-    this.log(`Contract ${this.instance.address.toString()} successfully deployed.`);
+    this.log.info(`Contract ${this.instance.address.toString()} successfully deployed.`);
     return receipt.contract;
   }
 

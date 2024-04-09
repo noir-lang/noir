@@ -36,7 +36,7 @@ export class TailPhaseManager extends AbstractPhaseManager {
   }
 
   async handle(tx: Tx, previousPublicKernelOutput: PublicKernelCircuitPublicInputs, previousPublicKernelProof: Proof) {
-    this.log(`Processing tx ${tx.getTxHash()}`);
+    this.log.verbose(`Processing tx ${tx.getTxHash()}`);
     const [finalKernelOutput, publicKernelProof] = await this.runTailKernelCircuit(
       previousPublicKernelOutput,
       previousPublicKernelProof,

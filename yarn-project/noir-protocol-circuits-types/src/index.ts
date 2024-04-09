@@ -549,9 +549,9 @@ const foreignCallHandler = (name: string, args: ForeignCallInput[]) => {
   const log = createDebugLogger('aztec:noir-protocol-circuits:oracle');
 
   if (name === 'debugLog') {
-    log(oracleDebugCallToFormattedStr(args));
+    log.info(oracleDebugCallToFormattedStr(args));
   } else if (name === 'debugLogWithPrefix') {
-    log(`${acvmFieldMessageToString(args[0])}: ${oracleDebugCallToFormattedStr(args.slice(1))}`);
+    log.info(`${acvmFieldMessageToString(args[0])}: ${oracleDebugCallToFormattedStr(args.slice(1))}`);
   } else {
     throw Error(`unexpected oracle during execution: ${name}`);
   }

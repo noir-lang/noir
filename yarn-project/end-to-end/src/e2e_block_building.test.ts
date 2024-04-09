@@ -62,9 +62,9 @@ describe('e2e_block_building', () => {
 
       // Send them simultaneously to be picked up by the sequencer
       const txs = await Promise.all(methods.map(method => method.send()));
-      logger(`Txs sent with hashes: `);
+      logger.info(`Txs sent with hashes: `);
       for (const tx of txs) {
-        logger(` ${await tx.getTxHash()}`);
+        logger.info(` ${await tx.getTxHash()}`);
       }
 
       // Await txs to be mined and assert they are all mined on the same block
@@ -118,7 +118,7 @@ describe('e2e_block_building', () => {
     beforeAll(async () => {
       ({ teardown, pxe, logger, wallet: owner } = await setup(1));
       contract = await TestContract.deploy(owner).send().deployed();
-      logger(`Test contract deployed at ${contract.address}`);
+      logger.info(`Test contract deployed at ${contract.address}`);
     }, 100_000);
 
     afterAll(() => teardown());

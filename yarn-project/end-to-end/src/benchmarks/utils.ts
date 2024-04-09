@@ -27,7 +27,7 @@ import { type EndToEndContext, setup } from '../fixtures/utils.js';
 export async function benchmarkSetup(opts: Partial<AztecNodeConfig>) {
   const context = await setup(1, { ...opts });
   const contract = await BenchmarkingContract.deploy(context.wallet).send().deployed();
-  context.logger(`Deployed benchmarking contract at ${contract.address}`);
+  context.logger.info(`Deployed benchmarking contract at ${contract.address}`);
   const sequencer = (context.aztecNode as AztecNodeService).getSequencer()!;
   return { context, contract, sequencer };
 }

@@ -27,9 +27,9 @@ describe('e2e_non_contract_account', () => {
     ({ teardown, pxe, wallet, logger } = await setup(1));
     nonContractAccountWallet = new SignerlessWallet(pxe);
 
-    logger(`Deploying L2 contract...`);
+    logger.debug(`Deploying L2 contract...`);
     contract = await TestContract.deploy(wallet).send().deployed();
-    logger('L2 contract deployed');
+    logger.info(`L2 contract deployed at ${contract.address}`);
   }, 100_000);
 
   afterEach(() => teardown());

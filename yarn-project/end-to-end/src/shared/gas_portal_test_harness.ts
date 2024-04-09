@@ -144,15 +144,15 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
   ) {}
 
   generateClaimSecret(): [Fr, Fr] {
-    this.logger("Generating a claim secret using pedersen's hash function");
+    this.logger.debug("Generating a claim secret using pedersen's hash function");
     const secret = Fr.random();
     const secretHash = computeMessageSecretHash(secret);
-    this.logger('Generated claim secret: ' + secretHash.toString());
+    this.logger.info('Generated claim secret: ' + secretHash.toString());
     return [secret, secretHash];
   }
 
   async mintTokensOnL1(amount: bigint) {
-    this.logger('Minting tokens on L1');
+    this.logger.info('Minting tokens on L1');
     await this.underlyingERC20.write.mint([this.ethAccount.toString(), amount], {} as any);
     expect(await this.underlyingERC20.read.balanceOf([this.ethAccount.toString()])).toBe(amount);
   }
@@ -165,7 +165,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
     await this.underlyingERC20.write.approve([this.tokenPortalAddress.toString(), bridgeAmount], {} as any);
 
     // Deposit tokens to the TokenPortal
-    this.logger('Sending messages to L1 portal to be consumed publicly');
+    this.logger.info('Sending messages to L1 portal to be consumed publicly');
     const args = [l2Address.toString(), bridgeAmount, secretHash.toString()] as const;
     const { result: messageHash } = await this.tokenPortal.simulate.depositToAztecPublic(args, {
       account: this.ethAccount.toString(),
@@ -185,7 +185,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
     // Deposit tokens to the TokenPortal
     const deadline = 2 ** 32 - 1; // max uint32
 
-    this.logger('Sending messages to L1 portal to be consumed privately');
+    this.logger.info('Sending messages to L1 portal to be consumed privately');
     const args = [
       secretHashForRedeemingMintedNotes.toString(),
       bridgeAmount,
@@ -202,7 +202,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
   }
 
   async consumeMessageOnAztecAndMintPublicly(bridgeAmount: bigint, owner: AztecAddress, secret: Fr) {
-    this.logger('Consuming messages on L2 Publicly');
+    this.logger.info('Consuming messages on L2 Publicly');
     // Call the mint tokens function on the Aztec.nr contract
     await this.l2Token.methods.claim_public(owner, bridgeAmount, secret).send().wait();
   }

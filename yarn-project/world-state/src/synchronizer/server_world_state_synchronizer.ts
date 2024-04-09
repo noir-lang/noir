@@ -86,12 +86,14 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
       this.syncPromise = new Promise(resolve => {
         this.syncResolve = resolve;
       });
-      this.log(`Starting sync from ${blockToDownloadFrom}, latest block ${this.latestBlockNumberAtStart}`);
+      this.log.info(`Starting sync from ${blockToDownloadFrom}, latest block ${this.latestBlockNumberAtStart}`);
     } else {
       // if no blocks to be retrieved, go straight to running
       this.setCurrentState(WorldStateRunningState.RUNNING);
       this.syncPromise = Promise.resolve();
-      this.log(`Next block ${blockToDownloadFrom} already beyond latest block at ${this.latestBlockNumberAtStart}`);
+      this.log.debug(
+        `Next block ${blockToDownloadFrom} already beyond latest block at ${this.latestBlockNumberAtStart}`,
+      );
     }
 
     // start looking for further blocks
@@ -103,21 +105,22 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
     this.jobQueue.start();
     this.runningPromise = blockProcess();
     this.l2BlockDownloader.start(blockToDownloadFrom);
-    this.log(`Started block downloader from block ${blockToDownloadFrom}`);
+    this.log.info(`Started block downloader from block ${blockToDownloadFrom}`);
     return this.syncPromise;
   }
 
   public async stop() {
-    this.log('Stopping world state...');
+    this.log.debug('Stopping world state...');
     this.stopping = true;
     await this.l2BlockDownloader.stop();
-    this.log('Cancelling job queue...');
+    this.log.debug('Cancelling job queue...');
     await this.jobQueue.cancel();
-    this.log('Stopping Merkle trees');
+    this.log.debug('Stopping Merkle trees');
     await this.merkleTreeDb.stop();
-    this.log('Awaiting promise');
+    this.log.debug('Awaiting promise');
     await this.runningPromise;
     this.setCurrentState(WorldStateRunningState.STOPPED);
+    this.log.info(`Stopped`);
   }
 
   private get currentL2BlockNum(): number {
@@ -147,7 +150,7 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
       return this.currentL2BlockNum;
     }
     const blockToSyncTo = minBlockNumber === undefined ? 'latest' : `${minBlockNumber}`;
-    this.log(`World State at block ${this.currentL2BlockNum}, told to sync to block ${blockToSyncTo}...`);
+    this.log.debug(`World State at block ${this.currentL2BlockNum}, told to sync to block ${blockToSyncTo}...`);
     // ensure any outstanding block updates are completed first.
     await this.jobQueue.syncPoint();
     while (true) {
@@ -157,7 +160,7 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
       }
       // Poll for more blocks
       const numBlocks = await this.l2BlockDownloader.pollImmediate();
-      this.log(`Block download immediate poll yielded ${numBlocks} blocks`);
+      this.log.debug(`Block download immediate poll yielded ${numBlocks} blocks`);
       if (numBlocks) {
         // More blocks were received, process them and go round again
         await this.jobQueue.put(() => this.collectAndProcessBlocks());
@@ -194,7 +197,7 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
   private async handleL2BlocksAndMessages(l2Blocks: L2Block[], l1ToL2Messages: Fr[][]) {
     for (let i = 0; i < l2Blocks.length; i++) {
       const [duration, result] = await elapsed(() => this.handleL2BlockAndMessages(l2Blocks[i], l1ToL2Messages[i]));
-      this.log(`Handled new L2 block`, {
+      this.log.verbose(`Handled new L2 block`, {
         eventName: 'l2-block-handled',
         duration,
         isBlockOurs: result.isBlockOurs,
@@ -238,7 +241,7 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
    */
   private setCurrentState(newState: WorldStateRunningState) {
     this.currentState = newState;
-    this.log(`Moved to state ${WorldStateRunningState[this.currentState]}`);
+    this.log.debug(`Moved to state ${WorldStateRunningState[this.currentState]}`);
   }
 
   /**

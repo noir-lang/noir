@@ -108,13 +108,13 @@ describe('e2e_card_game', () => {
     });
 
     for (let i = 0; i < toRegister.length; i++) {
-      logger(`Deploying account contract ${i}/${toRegister.length}...`);
+      logger.info(`Deploying account contract ${i}/${toRegister.length}...`);
       const encryptionPrivateKey = toRegister[i];
       const account = getSchnorrAccount(pxe, encryptionPrivateKey, GrumpkinScalar.random());
       const wallet = await account.waitSetup({ interval: 0.1 });
       wallets.push(wallet);
     }
-    logger('Account contracts deployed');
+    logger.info('Account contracts deployed');
 
     [firstPlayerWallet, secondPlayerWallet, thirdPlayerWallet] = wallets;
     [firstPlayer, secondPlayer, thirdPlayer] = wallets.map(a => a.getAddress());
@@ -129,11 +129,11 @@ describe('e2e_card_game', () => {
   afterAll(() => teardown());
 
   const deployContract = async () => {
-    logger(`Deploying L2 contract...`);
+    logger.debug(`Deploying L2 contract...`);
     contract = await CardGameContract.deploy(firstPlayerWallet).send().deployed();
     contractAsSecondPlayer = contract.withWallet(secondPlayerWallet);
     contractAsThirdPlayer = contract.withWallet(thirdPlayerWallet);
-    logger(`L2 contract deployed at ${contract.address}`);
+    logger.info(`L2 contract deployed at ${contract.address}`);
   };
 
   const getWallet = (address: AztecAddress) => wallets.find(w => w.getAddress().equals(address))!;

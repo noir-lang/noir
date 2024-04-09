@@ -96,7 +96,7 @@ describe('e2e_slow_tree', () => {
     await wallet.addCapsule(getMembershipCapsule(await getMembershipProof(key, true)));
     await contract.methods.read_at(key).send().wait();
 
-    logger(`Updating tree[${key}] to 1 from public`);
+    logger.info(`Updating tree[${key}] to 1 from public`);
     const t1 = computeNextChange(BigInt(await cheatCodes.eth.timestamp()));
     await contract.methods
       .update_at_public(await getUpdateProof(1n, key))
@@ -114,17 +114,17 @@ describe('e2e_slow_tree', () => {
     await status(key, _root, _leaf);
 
     const zeroProof = await getMembershipProof(key, false);
-    logger(`"Reads" tree[${zeroProof.index}] from the tree, equal to ${zeroProof.value}`);
+    logger.info(`"Reads" tree[${zeroProof.index}] from the tree, equal to ${zeroProof.value}`);
     await wallet.addCapsule(getMembershipCapsule({ ...zeroProof, value: new Fr(0) }));
     await contract.methods.read_at(key).send().wait();
 
     // Progress time to beyond the update and thereby commit it to the tree.
     await cheatCodes.aztec.warp((await cheatCodes.eth.timestamp()) + 1000);
     await slowUpdateTreeSimulator.commit();
-    logger('--- Progressing time to after the update ---');
+    logger.info('--- Progressing time to after the update ---');
     await status(key, _root, _leaf);
 
-    logger(
+    logger.info(
       `Tries to "read" tree[${zeroProof.index}] from the tree, but is rejected as value is not ${zeroProof.value}`,
     );
     await wallet.addCapsule(getMembershipCapsule({ ...zeroProof, value: new Fr(0) }));
@@ -132,11 +132,11 @@ describe('e2e_slow_tree', () => {
       /Assertion failed: Root does not match expected/,
     );
 
-    logger(`"Reads" tree[${key}], expect to be 1`);
+    logger.info(`"Reads" tree[${key}], expect to be 1`);
     await wallet.addCapsule(getMembershipCapsule({ ...zeroProof, value: new Fr(1) }));
     await contract.methods.read_at(key).send().wait();
 
-    logger(`Updating tree[${key}] to 4 from private`);
+    logger.info(`Updating tree[${key}] to 4 from private`);
     const t2 = computeNextChange(BigInt(await cheatCodes.eth.timestamp()));
     await wallet.addCapsule(getUpdateCapsule(await getUpdateProof(4n, key)));
     await contract.methods.update_at_private(key, 4n).send().wait();

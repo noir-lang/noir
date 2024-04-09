@@ -34,7 +34,7 @@ export class TeardownPhaseManager extends AbstractPhaseManager {
     previousPublicKernelOutput: PublicKernelCircuitPublicInputs,
     previousPublicKernelProof: Proof,
   ) {
-    this.log(`Processing tx ${tx.getTxHash()}`);
+    this.log.verbose(`Processing tx ${tx.getTxHash()}`);
     const [publicKernelOutput, publicKernelProof, newUnencryptedFunctionLogs, revertReason] =
       await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput, previousPublicKernelProof).catch(
         // the abstract phase manager throws if simulation gives error in a non-revertible phase

@@ -16,7 +16,7 @@ export async function send(
   debugLogger: DebugLogger,
   log: LogFn,
 ) {
-  const { functionArgs, contractArtifact } = await prepTx(contractArtifactPath, functionName, functionArgsIn, log);
+  const { functionArgs, contractArtifact } = await prepTx(contractArtifactPath, functionName, functionArgsIn);
 
   const client = await createCompatibleClient(rpcUrl, debugLogger);
   const wallet = await getSchnorrAccount(client, privateKey, privateKey, Fr.ZERO).getWallet();

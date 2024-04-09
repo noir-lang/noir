@@ -1,7 +1,7 @@
 import { createDebugLogger } from '../log/index.js';
 import { type WasmWorker } from './wasm_worker.js';
 
-const debug = createDebugLogger('bb:worker_pool');
+const log = createDebugLogger('bb:worker_pool');
 
 /**
  * Type of a worker factory.
@@ -53,7 +53,7 @@ export class WorkerPool {
    * @param maxMem - Max memory pages.
    */
   public async init(createWorker: CreateWorker, poolSize: number, maxMem = WorkerPool.MAX_PAGES) {
-    debug(`creating ${poolSize} workers...`);
+    log.debug(`creating ${poolSize} workers...`);
     const start = new Date().getTime();
     this.workers = await Promise.all(
       Array(poolSize)
@@ -61,7 +61,7 @@ export class WorkerPool {
         .map((_, i) => createWorker(`${i}`, i === 0 ? Math.min(WorkerPool.MAX_PAGES, maxMem) : 768, maxMem)),
     );
 
-    debug(`created workers: ${new Date().getTime() - start}ms`);
+    log.debug(`created workers: ${new Date().getTime() - start}ms`);
   }
 
   /**

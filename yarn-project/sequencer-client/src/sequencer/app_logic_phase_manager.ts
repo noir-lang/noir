@@ -38,7 +38,7 @@ export class AppLogicPhaseManager extends AbstractPhaseManager {
     // TODO(#4073): This is catching only private deployments, when we add public ones, we'll
     // have to capture contracts emitted in that phase as well.
     // TODO(@spalladino): Should we allow emitting contracts in the fee preparation phase?
-    this.log(`Processing tx ${tx.getTxHash()}`);
+    this.log.verbose(`Processing tx ${tx.getTxHash()}`);
     await this.publicContractsDB.addNewContracts(tx);
     const [publicKernelOutput, publicKernelProof, newUnencryptedFunctionLogs, revertReason, returnValues] =
       await this.processEnqueuedPublicCalls(tx, previousPublicKernelOutput, previousPublicKernelProof).catch(

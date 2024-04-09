@@ -156,7 +156,7 @@ async function initL1GasPortal(
     {} as any,
   );
 
-  logger(
+  logger.info(
     `Initialized Gas Portal at ${l1ContractAddresses.gasPortalAddress} to bridge between L1 ${l1ContractAddresses.gasTokenAddress} to L2 ${l2GasTokenAddress}`,
   );
 }
@@ -179,7 +179,7 @@ async function deployCanonicalL2GasToken(deployer: Wallet, l1ContractAddresses: 
 
   await batch.send().wait();
 
-  logger(`Deployed Gas Token on L2 at ${canonicalGasToken.address}`);
+  logger.info(`Deployed Gas Token on L2 at ${canonicalGasToken.address}`);
 }
 
 /** Sandbox settings. */

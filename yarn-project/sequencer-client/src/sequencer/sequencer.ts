@@ -52,7 +52,7 @@ export class Sequencer {
     private log = createDebugLogger('aztec:sequencer'),
   ) {
     this.updateConfig(config);
-    this.log(`Initialized sequencer with ${this.minTxsPerBLock}-${this.maxTxsPerBlock} txs per block.`);
+    this.log.verbose(`Initialized sequencer with ${this.minTxsPerBLock}-${this.maxTxsPerBlock} txs per block.`);
   }
 
   /**
@@ -92,25 +92,25 @@ export class Sequencer {
     this.runningPromise = new RunningPromise(this.work.bind(this), this.pollingIntervalMs);
     this.runningPromise.start();
     this.state = SequencerState.IDLE;
-    this.log('Sequencer started');
+    this.log.info('Sequencer started');
   }
 
   /**
    * Stops the sequencer from processing txs and moves to STOPPED state.
    */
   public async stop(): Promise<void> {
-    this.log(`Stopping sequencer`);
+    this.log.debug(`Stopping sequencer`);
     await this.runningPromise?.stop();
     this.publisher.interrupt();
     this.state = SequencerState.STOPPED;
-    this.log('Stopped sequencer');
+    this.log.info('Stopped sequencer');
   }
 
   /**
    * Starts a previously stopped sequencer.
    */
   public restart() {
-    this.log('Restarting sequencer');
+    this.log.info('Restarting sequencer');
     this.publisher.restart();
     this.runningPromise!.start();
     this.state = SequencerState.IDLE;
@@ -137,7 +137,7 @@ export class Sequencer {
       // Update state when the previous block has been synced
       const prevBlockSynced = await this.isBlockSynced();
       if (prevBlockSynced && this.state === SequencerState.PUBLISHING_BLOCK) {
-        this.log(`Block has been synced`);
+        this.log.debug(`Block has been synced`);
         this.state = SequencerState.IDLE;
       }
 
@@ -194,9 +194,9 @@ export class Sequencer {
       this.state = SequencerState.CREATING_BLOCK;
 
       // Get l1 to l2 messages from the contract
-      this.log('Requesting L1 to L2 messages from contract');
+      this.log.debug('Requesting L1 to L2 messages from contract');
       const l1ToL2Messages = await this.l1ToL2MessageSource.getL1ToL2Messages(BigInt(newBlockNumber));
-      this.log(`Retrieved ${l1ToL2Messages.length} L1 to L2 messages for block ${newBlockNumber}`);
+      this.log.verbose(`Retrieved ${l1ToL2Messages.length} L1 to L2 messages for block ${newBlockNumber}`);
 
       // We create a fresh processor each time to reset any cached state (eg storage writes)
       const processor = await this.publicProcessorFactory.create(historicalHeader, newGlobalVariables);
@@ -217,12 +217,12 @@ export class Sequencer {
       );
       if (failedTxs.length > 0) {
         const failedTxData = failedTxs.map(fail => fail.tx);
-        this.log(`Dropping failed txs ${Tx.getHashes(failedTxData).join(', ')}`);
+        this.log.debug(`Dropping failed txs ${Tx.getHashes(failedTxData).join(', ')}`);
         await this.p2pClient.deleteTxs(Tx.getHashes(failedTxData));
       }
 
       if (processedTxs.length === 0) {
-        this.log('No txs processed correctly to build block. Exiting');
+        this.log.verbose('No txs processed correctly to build block. Exiting');
         this.prover.cancelBlock();
         return;
       }
@@ -248,7 +248,7 @@ export class Sequencer {
 
       await assertBlockHeight();
 
-      this.log(`Assembled block ${block.number}`, {
+      this.log.verbose(`Assembled block ${block.number}`, {
         eventName: 'l2-block-built',
         duration: workTimer.ms(),
         publicProcessDuration: publicProcessorDuration,
@@ -275,7 +275,6 @@ export class Sequencer {
     this.state = SequencerState.PUBLISHING_BLOCK;
     const publishedL2Block = await this.publisher.processL2Block(block);
     if (publishedL2Block) {
-      this.log(`Successfully published block ${block.number}`);
       this.lastPublishedBlock = block.number;
     } else {
       throw new Error(`Failed to publish block`);
@@ -285,7 +284,7 @@ export class Sequencer {
   protected async takeValidTxs<T extends Tx | ProcessedTx>(txs: T[], validator: TxValidator): Promise<T[]> {
     const [valid, invalid] = await validator.validateTxs(txs);
     if (invalid.length > 0) {
-      this.log(`Dropping invalid txs from the p2p pool ${Tx.getHashes(invalid).join(', ')}`);
+      this.log.debug(`Dropping invalid txs from the p2p pool ${Tx.getHashes(invalid).join(', ')}`);
       await this.p2pClient.deleteTxs(Tx.getHashes(invalid));
     }
 

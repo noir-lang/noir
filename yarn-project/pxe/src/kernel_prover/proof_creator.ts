@@ -103,14 +103,13 @@ export class KernelProofCreator implements ProofCreator {
 
   public async createProofInit(privateInputs: PrivateKernelInitCircuitPrivateInputs): Promise<ProofOutput> {
     const [duration, result] = await elapsed(() => executeInit(privateInputs));
-    this.log(`Simulated private kernel init`, {
+    this.log.debug(`Simulated private kernel init`, {
       eventName: 'circuit-simulation',
       circuitName: 'private-kernel-init',
       duration,
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
     } satisfies CircuitSimulationStats);
-    this.log('Skipping private kernel init proving...');
     const proof = makeEmptyProof();
 
     return {
@@ -121,14 +120,13 @@ export class KernelProofCreator implements ProofCreator {
 
   public async createProofInner(privateInputs: PrivateKernelInnerCircuitPrivateInputs): Promise<ProofOutput> {
     const [duration, result] = await elapsed(() => executeInner(privateInputs));
-    this.log(`Simulated private kernel inner`, {
+    this.log.debug(`Simulated private kernel inner`, {
       eventName: 'circuit-simulation',
       circuitName: 'private-kernel-inner',
       duration,
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
     } satisfies CircuitSimulationStats);
-    this.log('Skipping private kernel inner proving...');
     const proof = makeEmptyProof();
 
     return {
@@ -142,14 +140,13 @@ export class KernelProofCreator implements ProofCreator {
     const [duration, result] = await elapsed(() =>
       isForPublic ? executeTailForPublic(privateInputs) : executeTail(privateInputs),
     );
-    this.log(`Simulated private kernel ordering`, {
+    this.log.debug(`Simulated private kernel ordering`, {
       eventName: 'circuit-simulation',
       circuitName: 'private-kernel-ordering',
       duration,
       inputSize: privateInputs.toBuffer().length,
       outputSize: result.toBuffer().length,
     } satisfies CircuitSimulationStats);
-    this.log('Skipping private kernel ordering proving...');
     const proof = makeEmptyProof();
 
     return {

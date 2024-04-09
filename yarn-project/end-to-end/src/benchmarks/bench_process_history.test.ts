@@ -48,7 +48,7 @@ describe('benchmarks/process_history', () => {
 
         // Create a new node and measure how much time it takes it to sync
         const dataDirectory = makeDataDirectory(chainLength);
-        context.logger(`Set up data directory at ${dataDirectory}`);
+        context.logger.info(`Set up data directory at ${dataDirectory}`);
         const nodeConfig: AztecNodeConfig = { ...context.config, disableSequencer: true, dataDirectory };
         const [nodeSyncTime, node] = await elapsed(async () => {
           const node = await AztecNodeService.createAndSync(nodeConfig);
@@ -61,7 +61,7 @@ describe('benchmarks/process_history', () => {
         const blockNumber = await node.getBlockNumber();
         expect(blockNumber).toEqual(chainLength + SETUP_BLOCK_COUNT);
 
-        context.logger(`Node synced chain up to block ${chainLength}`, {
+        context.logger.info(`Node synced chain up to block ${chainLength}`, {
           eventName: 'node-synced-chain-history',
           txCount: BLOCK_SIZE * chainLength,
           txsPerBlock: BLOCK_SIZE,
@@ -73,17 +73,17 @@ describe('benchmarks/process_history', () => {
 
         // Create a new pxe and measure how much time it takes it to sync with failed and successful decryption
         // Skip the first two blocks used for setup (create account contract and deploy benchmarking contract)
-        context.logger(`Starting new pxe`);
+        context.logger.info(`Starting new pxe`);
         const pxe = await waitNewPXESynced(node, contract, INITIAL_L2_BLOCK_NUM + SETUP_BLOCK_COUNT);
 
         // Register the owner account and wait until it's synced so we measure how much time it took
-        context.logger(`Registering owner account on new pxe`);
+        context.logger.info(`Registering owner account on new pxe`);
         const partialAddress = context.wallet.getCompleteAddress().partialAddress;
         const privateKey = context.wallet.getEncryptionPrivateKey();
         await waitRegisteredAccountSynced(pxe, privateKey, partialAddress);
 
         // Repeat for another account that didn't receive any notes for them, so we measure trial-decrypts
-        context.logger(`Registering fresh account on new pxe`);
+        context.logger.info(`Registering fresh account on new pxe`);
         await waitRegisteredAccountSynced(pxe, GrumpkinScalar.random(), Fr.random());
 
         // Stop the external node and pxe

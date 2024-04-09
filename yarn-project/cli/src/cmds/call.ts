@@ -16,7 +16,7 @@ export async function call(
   debugLogger: DebugLogger,
   log: LogFn,
 ) {
-  const { functionArgs, contractArtifact } = await prepTx(contractArtifactPath, functionName, functionArgsIn, log);
+  const { functionArgs, contractArtifact } = await prepTx(contractArtifactPath, functionName, functionArgsIn);
 
   const fnArtifact = getFunctionArtifact(contractArtifact, functionName);
   if (fnArtifact.parameters.length !== functionArgs.length) {

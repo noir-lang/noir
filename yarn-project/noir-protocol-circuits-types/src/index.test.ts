@@ -20,7 +20,7 @@ describe('Private kernel', () => {
   // To regenerate fixture data run the following on the yarn-project/e2e folder
   // AZTEC_GENERATE_TEST_DATA=1 yarn test e2e_nested_contract -t 'performs nested calls'
   it('Executes private kernel inner for a nested call', async () => {
-    logger('Initialized Noir instance with private kernel init circuit');
+    logger.info('Initialized Noir instance with private kernel init circuit');
 
     const filepath = resolve(
       dirname(fileURLToPath(import.meta.url)),

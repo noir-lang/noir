@@ -131,7 +131,7 @@ export class LogStore {
         const txLogs = unencryptedLogsInBlock.txLogs[txIndex].unrollLogs();
         maxLogsHit = this.#accumulateLogs(logs, blockNumber, txIndex, txLogs, filter);
         if (maxLogsHit) {
-          this.#log(`Max logs hit at block ${blockNumber}`);
+          this.#log.debug(`Max logs hit at block ${blockNumber}`);
           break loopOverBlocks;
         }
       }

@@ -90,7 +90,7 @@ export class EthCheatCodes {
     if (res.error) {
       throw new Error(`Error mining: ${res.error.message}`);
     }
-    this.logger(`Mined ${numberOfBlocks} blocks`);
+    this.logger.info(`Mined ${numberOfBlocks} blocks`);
   }
 
   /**
@@ -102,7 +102,7 @@ export class EthCheatCodes {
     if (res.error) {
       throw new Error(`Error setting next block timestamp: ${res.error.message}`);
     }
-    this.logger(`Set next block timestamp to ${timestamp}`);
+    this.logger.info(`Set next block timestamp to ${timestamp}`);
   }
 
   /**
@@ -116,7 +116,7 @@ export class EthCheatCodes {
     }
     const jsonContent = JSON.stringify(res.result);
     fs.writeFileSync(`${fileName}.json`, jsonContent, 'utf8');
-    this.logger(`Dumped state to ${fileName}`);
+    this.logger.info(`Dumped state to ${fileName}`);
   }
 
   /**
@@ -129,7 +129,7 @@ export class EthCheatCodes {
     if (res.error) {
       throw new Error(`Error loading state: ${res.error.message}`);
     }
-    this.logger(`Loaded state from ${fileName}`);
+    this.logger.info(`Loaded state from ${fileName}`);
   }
 
   /**
@@ -155,7 +155,7 @@ export class EthCheatCodes {
     if (res.error) {
       throw new Error(`Error setting storage for contract ${contract} at ${slot}: ${res.error.message}`);
     }
-    this.logger(`Set storage for contract ${contract} at ${slot} to ${value}`);
+    this.logger.info(`Set storage for contract ${contract} at ${slot} to ${value}`);
   }
 
   /**
@@ -179,7 +179,7 @@ export class EthCheatCodes {
     if (res.error) {
       throw new Error(`Error impersonating ${who}: ${res.error.message}`);
     }
-    this.logger(`Impersonating ${who}`);
+    this.logger.info(`Impersonating ${who}`);
   }
 
   /**
@@ -191,7 +191,7 @@ export class EthCheatCodes {
     if (res.error) {
       throw new Error(`Error when stopping the impersonation of ${who}: ${res.error.message}`);
     }
-    this.logger(`Stopped impersonating ${who}`);
+    this.logger.info(`Stopped impersonating ${who}`);
   }
 
   /**
@@ -204,7 +204,7 @@ export class EthCheatCodes {
     if (res.error) {
       throw new Error(`Error setting bytecode for ${contract}: ${res.error.message}`);
     }
-    this.logger(`Set bytecode for ${contract} to ${bytecode}`);
+    this.logger.info(`Set bytecode for ${contract} to ${bytecode}`);
   }
 
   /**

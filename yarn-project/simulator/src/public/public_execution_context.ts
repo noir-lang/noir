@@ -120,7 +120,7 @@ export class PublicExecutionContext extends TypedOracle {
   public emitUnencryptedLog(log: UnencryptedL2Log) {
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/885)
     this.unencryptedLogs.push(log);
-    this.log(`Emitted unencrypted log: "${log.toHumanReadable()}"`);
+    this.log.verbose(`Emitted unencrypted log: "${log.toHumanReadable()}"`);
   }
 
   /**
@@ -144,7 +144,7 @@ export class PublicExecutionContext extends TypedOracle {
       const storageSlot = new Fr(startStorageSlot.value + BigInt(i));
       const sideEffectCounter = this.sideEffectCounter.count();
       const value = await this.storageActions.read(storageSlot, sideEffectCounter);
-      this.log(`Oracle storage read: slot=${storageSlot.toString()} value=${value.toString()}`);
+      this.log.debug(`Oracle storage read: slot=${storageSlot.toString()} value=${value.toString()}`);
       values.push(value);
     }
     return values;
@@ -163,7 +163,7 @@ export class PublicExecutionContext extends TypedOracle {
       const sideEffectCounter = this.sideEffectCounter.count();
       this.storageActions.write(storageSlot, newValue, sideEffectCounter);
       await this.stateDb.storageWrite(this.execution.callContext.storageContractAddress, storageSlot, newValue);
-      this.log(`Oracle storage write: slot=${storageSlot.toString()} value=${newValue.toString()}`);
+      this.log.debug(`Oracle storage write: slot=${storageSlot.toString()} value=${newValue.toString()}`);
       newValues.push(newValue);
     }
     return newValues;
@@ -187,7 +187,9 @@ export class PublicExecutionContext extends TypedOracle {
     isStaticCall = isStaticCall || this.execution.callContext.isStaticCall;
 
     const args = this.packedArgsCache.unpack(argsHash);
-    this.log(`Public function call: addr=${targetContractAddress} selector=${functionSelector} args=${args.join(',')}`);
+    this.log.verbose(
+      `Public function call: addr=${targetContractAddress} selector=${functionSelector} args=${args.join(',')}`,
+    );
 
     const portalAddress = (await this.contractsDb.getPortalContractAddress(targetContractAddress)) ?? EthAddress.ZERO;
 
@@ -240,7 +242,7 @@ export class PublicExecutionContext extends TypedOracle {
     }
 
     this.nestedExecutions.push(childExecutionResult);
-    this.log(`Returning from nested call: ret=${childExecutionResult.returnValues.join(', ')}`);
+    this.log.debug(`Returning from nested call: ret=${childExecutionResult.returnValues.join(', ')}`);
 
     return childExecutionResult.returnValues;
   }

@@ -91,14 +91,14 @@ export const browserTestSuite = (
       });
       page = await browser.newPage();
       page.on('console', msg => {
-        pageLogger(msg.text());
+        pageLogger.info(msg.text());
       });
       page.on('pageerror', err => {
         pageLogger.error(err.toString());
       });
       await page.goto(`${webServerURL}/index.html`);
       while (!(await page.evaluate(() => !!window.AztecJs))) {
-        pageLogger('Waiting for window.AztecJs...');
+        pageLogger.verbose('Waiting for window.AztecJs...');
         await AztecJs.sleep(1000);
       }
     }, 120_000);

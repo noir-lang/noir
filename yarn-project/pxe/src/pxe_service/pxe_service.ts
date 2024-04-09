@@ -121,7 +121,7 @@ export class PXEService implements PXE {
     }
 
     if (count > 0) {
-      this.log(`Restored ${count} accounts`);
+      this.log.info(`Restored ${count} accounts`);
     }
   }
 
@@ -409,7 +409,7 @@ export class PXEService implements PXE {
       // If we log, the `getTxHash` function will throw.
 
       if (!msgSender) {
-        this.log(`Processed private part of ${simulatedTx.tx.getTxHash()}`, {
+        this.log.debug(`Processed private part of ${simulatedTx.tx.getTxHash()}`, {
           eventName: 'tx-pxe-processing',
           duration: timer.ms(),
           ...simulatedTx.tx.getStats(),
@@ -546,10 +546,10 @@ export class PXEService implements PXE {
 
     const { contractAddress, functionArtifact, portalContract } = await this.#getSimulationParameters(txRequest);
 
-    this.log('Executing simulator...');
+    this.log.debug('Executing simulator...');
     try {
       const result = await this.simulator.run(txRequest, functionArtifact, contractAddress, portalContract, msgSender);
-      this.log('Simulation completed!');
+      this.log.verbose(`Simulation completed for ${contractAddress.toString()}:${functionArtifact.name}`);
       return result;
     } catch (err) {
       if (err instanceof SimulationError) {
@@ -570,10 +570,10 @@ export class PXEService implements PXE {
   async #simulateUnconstrained(execRequest: FunctionCall) {
     const { contractAddress, functionArtifact } = await this.#getSimulationParameters(execRequest);
 
-    this.log('Executing unconstrained simulator...');
+    this.log.debug('Executing unconstrained simulator...');
     try {
       const result = await this.simulator.runUnconstrained(execRequest, functionArtifact, contractAddress);
-      this.log('Unconstrained simulation completed!');
+      this.log.verbose(`Unconstrained simulation for ${contractAddress}.${functionArtifact.name} completed`);
 
       return result;
     } catch (err) {
@@ -634,7 +634,7 @@ export class PXEService implements PXE {
 
     const kernelOracle = new KernelOracle(this.contractDataOracle, this.keyStore, this.node);
     const kernelProver = new KernelProver(kernelOracle);
-    this.log(`Executing kernel prover...`);
+    this.log.debug(`Executing kernel prover...`);
     const { proof, publicInputs } = await kernelProver.prove(txExecutionRequest.toTxRequest(), executionResult);
 
     const encryptedLogs = new EncryptedTxL2Logs(collectEncryptedLogs(executionResult));

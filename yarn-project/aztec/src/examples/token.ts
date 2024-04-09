@@ -30,25 +30,25 @@ const TRANSFER_AMOUNT = 33n;
  * Main function.
  */
 async function main() {
-  logger('Running token contract test on HTTP interface.');
+  logger.info('Running token contract test on HTTP interface.');
 
   aliceWallet = await getSingleKeyAccount(pxe, alicePrivateKey).waitSetup();
   bobWallet = await getSingleKeyAccount(pxe, bobPrivateKey).waitSetup();
   const alice = aliceWallet.getCompleteAddress();
   const bob = bobWallet.getCompleteAddress();
 
-  logger(`Created Alice and Bob accounts: ${alice.address.toString()}, ${bob.address.toString()}`);
+  logger.info(`Created Alice and Bob accounts: ${alice.address.toString()}, ${bob.address.toString()}`);
 
-  logger('Deploying Token...');
+  logger.info('Deploying Token...');
   const token = await TokenContract.deploy(aliceWallet, alice, 'TokenName', 'TokenSymbol', 18).send().deployed();
-  logger('Token deployed');
+  logger.info('Token deployed');
 
   // Create the contract abstraction and link it to Alice's and Bob's wallet for future signing
   const tokenAlice = await TokenContract.at(token.address, aliceWallet);
   const tokenBob = await TokenContract.at(token.address, bobWallet);
 
   // Mint tokens to Alice
-  logger(`Minting ${ALICE_MINT_BALANCE} more coins to Alice...`);
+  logger.info(`Minting ${ALICE_MINT_BALANCE} more coins to Alice...`);
 
   // Create a secret and a corresponding hash that will be used to mint funds privately
   const aliceSecret = Fr.random();
@@ -73,26 +73,26 @@ async function main() {
   // Make the tokens spendable by redeeming them using the secret (converts the "pending shield note" created above
   // to a "token note")
   await tokenAlice.methods.redeem_shield(alice, ALICE_MINT_BALANCE, aliceSecret).send().wait();
-  logger(`${ALICE_MINT_BALANCE} tokens were successfully minted and redeemed by Alice`);
+  logger.info(`${ALICE_MINT_BALANCE} tokens were successfully minted and redeemed by Alice`);
 
   const balanceAfterMint = await tokenAlice.methods.balance_of_private(alice).simulate();
-  logger(`Tokens successfully minted. New Alice's balance: ${balanceAfterMint}`);
+  logger.info(`Tokens successfully minted. New Alice's balance: ${balanceAfterMint}`);
 
   // We will now transfer tokens from Alice to Bob
-  logger(`Transferring ${TRANSFER_AMOUNT} tokens from Alice to Bob...`);
+  logger.info(`Transferring ${TRANSFER_AMOUNT} tokens from Alice to Bob...`);
   await tokenAlice.methods.transfer(alice, bob, TRANSFER_AMOUNT, 0).send().wait();
 
   // Check the new balances
   const aliceBalance = await tokenAlice.methods.balance_of_private(alice).simulate();
-  logger(`Alice's balance ${aliceBalance}`);
+  logger.info(`Alice's balance ${aliceBalance}`);
 
   const bobBalance = await tokenBob.methods.balance_of_private(bob).simulate();
-  logger(`Bob's balance ${bobBalance}`);
+  logger.info(`Bob's balance ${bobBalance}`);
 }
 
 main()
   .then(() => {
-    logger('Finished running successfully.');
+    logger.info('Finished running successfully.');
     process.exit(0);
   })
   .catch(err => {

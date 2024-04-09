@@ -22,7 +22,7 @@ describe('benchmarks/publish_rollup', () => {
       await sequencer.stop();
 
       // Simulate and simultaneously send ROLLUP_SIZE txs. These should not yet be processed since sequencer is stopped.
-      context.logger(`Assembling rollup with ${txCount} txs`);
+      context.logger.info(`Assembling rollup with ${txCount} txs`);
       const sentTxs = await sendTxs(txCount, context, contract);
       context.logger.info(`Sent ${txCount} txs`);
       // Restart sequencer to process all txs together
@@ -35,22 +35,22 @@ describe('benchmarks/publish_rollup', () => {
       // Create a new aztec node to measure sync time of the block
       // and call getPublicStorageAt (which calls #getWorldState, which calls #syncWorldState) to force a sync with
       // world state to ensure the node has caught up
-      context.logger(`Starting new aztec node`);
+      context.logger.info(`Starting new aztec node`);
       const node = await AztecNodeService.createAndSync({ ...context.config, disableSequencer: true });
       await node.getPublicStorageAt(AztecAddress.random(), Fr.random());
 
       // Spin up a new pxe and sync it, we'll use it to test sync times of new accounts for the last block
-      context.logger(`Starting new pxe`);
+      context.logger.info(`Starting new pxe`);
       const pxe = await waitNewPXESynced(node, contract, blockNumber! - 1);
 
       // Register the owner account and wait until it's synced so we measure how much time it took
-      context.logger(`Registering owner account on new pxe`);
+      context.logger.info(`Registering owner account on new pxe`);
       const partialAddress = context.wallet.getCompleteAddress().partialAddress;
       const privateKey = context.wallet.getEncryptionPrivateKey();
       await waitRegisteredAccountSynced(pxe, privateKey, partialAddress);
 
       // Repeat for another account that didn't receive any notes for them, so we measure trial-decrypts
-      context.logger(`Registering fresh account on new pxe`);
+      context.logger.info(`Registering fresh account on new pxe`);
       await waitRegisteredAccountSynced(pxe, GrumpkinScalar.random(), Fr.random());
 
       // Stop the external node and pxe

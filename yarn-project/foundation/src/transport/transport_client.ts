@@ -6,7 +6,7 @@ import { type EventMessage, type ResponseMessage, isEventMessage } from './dispa
 import { type Connector } from './interface/connector.js';
 import { type Socket } from './interface/socket.js';
 
-const debug = createDebugLogger('aztec:transport_client');
+const log = createDebugLogger('aztec:transport_client');
 
 /**
  * Represents a pending request in the TransportClient.
@@ -92,7 +92,7 @@ export class TransportClient<Payload> extends EventEmitter {
     }
     const msgId = this.msgId++;
     const msg = { msgId, payload };
-    debug(format(`->`, msg));
+    log.debug(format(`->`, msg));
     return new Promise<any>((resolve, reject) => {
       this.pendingRequests.push({ resolve, reject, msgId });
       this.socket!.send(msg, transfer).catch(reject);
@@ -112,7 +112,7 @@ export class TransportClient<Payload> extends EventEmitter {
       this.close();
       return;
     }
-    debug(format(`<-`, msg));
+    log.debug(format(`<-`, msg));
     if (isEventMessage(msg)) {
       this.emit('event_msg', msg.payload);
       return;

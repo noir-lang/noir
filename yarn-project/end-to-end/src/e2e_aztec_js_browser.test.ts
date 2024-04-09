@@ -43,7 +43,7 @@ const setupApp = async () => {
   const app = new Koa();
   app.use(serve(path.resolve(__dirname, './web')));
   const server = app.listen(PORT, () => {
-    logger(`Web Server started at http://localhost:${PORT}`);
+    logger.info(`Web Server started at http://localhost:${PORT}`);
   });
 
   return { server, webServerURL: `http://localhost:${PORT}`, pxeServer, pxeURL };

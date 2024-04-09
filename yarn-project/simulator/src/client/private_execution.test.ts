@@ -444,8 +444,8 @@ describe('Private Execution test suite', () => {
       oracle.getFunctionArtifact.mockImplementation(() => Promise.resolve(childArtifact));
       oracle.getPortalContractAddress.mockImplementation(() => Promise.resolve(EthAddress.ZERO));
 
-      logger(`Parent deployed at ${parentAddress.toShortString()}`);
-      logger(`Calling child function ${childSelector.toString()} at ${childAddress.toShortString()}`);
+      logger.info(`Parent deployed at ${parentAddress.toShortString()}`);
+      logger.info(`Calling child function ${childSelector.toString()} at ${childAddress.toShortString()}`);
 
       const args = [childAddress, childSelector];
       const result = await runSimulator({ args, artifact: parentArtifact });
@@ -480,7 +480,7 @@ describe('Private Execution test suite', () => {
     });
 
     it('test function should be directly callable', async () => {
-      logger(`Calling testCodeGen function`);
+      logger.info(`Calling testCodeGen function`);
       const result = await runSimulator({ args, artifact: testCodeGenArtifact });
 
       expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(argsHash);
@@ -497,7 +497,7 @@ describe('Private Execution test suite', () => {
       oracle.getFunctionArtifact.mockResolvedValue(testCodeGenArtifact);
       oracle.getPortalContractAddress.mockResolvedValue(EthAddress.ZERO);
 
-      logger(`Calling importer main function`);
+      logger.info(`Calling importer main function`);
       const args = [testAddress];
       const result = await runSimulator({ args, artifact: parentArtifact });
 
