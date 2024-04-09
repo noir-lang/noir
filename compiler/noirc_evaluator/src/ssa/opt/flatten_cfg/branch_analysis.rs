@@ -114,12 +114,7 @@ mod test {
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{
-            cfg::ControlFlowGraph,
-            function::{InlineType, RuntimeType},
-            map::Id,
-            types::Type,
-        },
+        ir::{cfg::ControlFlowGraph, map::Id, types::Type},
         opt::flatten_cfg::branch_analysis::find_branch_ends,
     };
 

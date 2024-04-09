@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::lexer::token::SpannedToken;
+use crate::macros_api::SecondaryAttribute;
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
 use crate::{
@@ -107,7 +108,7 @@ impl StatementKind {
     pub fn new_let(
         ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
     ) -> StatementKind {
-        StatementKind::Let(LetStatement { pattern, r#type, expression })
+        StatementKind::Let(LetStatement { pattern, r#type, expression, attributes: vec![] })
     }
 
     /// Create a Statement::Assign value, desugaring any combined operators like += if needed.
@@ -405,13 +406,17 @@ pub struct LetStatement {
     pub pattern: Pattern,
     pub r#type: UnresolvedType,
     pub expression: Expression,
+    pub attributes: Vec<SecondaryAttribute>,
 }
 
 impl LetStatement {
     pub fn new_let(
-        ((pattern, r#type), expression): ((Pattern, UnresolvedType), Expression),
+        (((pattern, r#type), expression), attributes): (
+            ((Pattern, UnresolvedType), Expression),
+            Vec<SecondaryAttribute>,
+        ),
     ) -> LetStatement {
-        LetStatement { pattern, r#type, expression }
+        LetStatement { pattern, r#type, expression, attributes }
     }
 }
 
@@ -568,6 +573,7 @@ impl ForRange {
                         pattern: Pattern::Identifier(array_ident.clone()),
                         r#type: UnresolvedType::unspecified(),
                         expression: array,
+                        attributes: vec![],
                     }),
                     span: array_span,
                 };
@@ -610,6 +616,7 @@ impl ForRange {
                         pattern: Pattern::Identifier(identifier),
                         r#type: UnresolvedType::unspecified(),
                         expression: Expression::new(loop_element, array_span),
+                        attributes: vec![],
                     }),
                     span: array_span,
                 };

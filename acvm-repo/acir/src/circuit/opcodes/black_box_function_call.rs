@@ -10,12 +10,6 @@ pub struct FunctionInput {
     pub num_bits: u32,
 }
 
-impl FunctionInput {
-    pub fn dummy() -> Self {
-        Self { witness: Witness(0), num_bits: 0 }
-    }
-}
-
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlackBoxFuncCall {
     AND {

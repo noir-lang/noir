@@ -105,6 +105,7 @@ mod test {
             Case { source: r#" r#"foo" "#, expect: "(none)", errors: 2 },
             // empty string
             Case { source: r#"r"""#, expect: r#"r"""#, errors: 0 },
+            #[allow(clippy::needless_raw_string_hashes)]
             Case { source: r####"r###""###"####, expect: r####"r###""###"####, errors: 0 },
             // miscellaneous
             Case { source: r##" r#\"foo\"# "##, expect: "plain::r", errors: 2 },

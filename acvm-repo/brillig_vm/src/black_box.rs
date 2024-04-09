@@ -256,10 +256,11 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
 #[cfg(test)]
 mod test {
     use acir::brillig::{BlackBoxOp, MemoryAddress};
+    use acvm_blackbox_solver::StubbedBlackBoxSolver;
 
     use crate::{
         black_box::{evaluate_black_box, to_u8_vec, to_value_vec},
-        DummyBlackBoxSolver, HeapArray, HeapVector, Memory,
+        HeapArray, HeapVector, Memory,
     };
 
     #[test]
@@ -280,7 +281,7 @@ mod test {
             output: HeapArray { pointer: 2.into(), size: 32 },
         };
 
-        evaluate_black_box(&op, &DummyBlackBoxSolver, &mut memory).unwrap();
+        evaluate_black_box(&op, &StubbedBlackBoxSolver, &mut memory).unwrap();
 
         let result = memory.read_slice(MemoryAddress(result_pointer), 32);
 

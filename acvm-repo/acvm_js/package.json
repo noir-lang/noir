@@ -34,9 +34,7 @@
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
-    "clean": "chmod u+w web nodejs || true && rm -rf web nodejs",
-    "build:nix": "nix build -L .#acvm_js",
-    "install:from:nix": "yarn clean && yarn build:nix && cp -rL ./result/acvm_js/nodejs ./ && cp -rL ./result/acvm_js/web ./"
+    "clean": "chmod u+w web nodejs || true && rm -rf web nodejs"
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",

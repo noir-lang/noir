@@ -11,6 +11,9 @@ pub enum AztecMacroError {
     UnsupportedStorageType { span: Option<Span>, typ: UnresolvedTypeData },
     CouldNotAssignStorageSlots { secondary_message: Option<String> },
     CouldNotImplementNoteInterface { span: Option<Span>, secondary_message: Option<String> },
+    MultipleStorageDefinitions { span: Option<Span> },
+    CouldNotExportStorageLayout { span: Option<Span>, secondary_message: Option<String> },
+    CouldNotExportFunctionAbi { span: Option<Span>, secondary_message: Option<String> },
     EventError { span: Span, message: String },
     UnsupportedAttributes { span: Span, secondary_message: Option<String> },
 }
@@ -45,6 +48,21 @@ impl From<AztecMacroError> for MacroError {
             },
             AztecMacroError::CouldNotImplementNoteInterface { span, secondary_message } => MacroError {
                 primary_message: "Could not implement automatic methods for note, please provide an implementation of the NoteInterface trait".to_string(),
+                secondary_message,
+                span
+            },
+            AztecMacroError::MultipleStorageDefinitions { span } => MacroError {
+                primary_message: "Only one struct can be tagged as #[aztec(storage)]".to_string(),
+                secondary_message: None,
+                span,
+            },
+            AztecMacroError::CouldNotExportStorageLayout { secondary_message, span } => MacroError {
+                primary_message: "Could not generate and export storage layout".to_string(),
+                secondary_message,
+                span,
+            },
+            AztecMacroError::CouldNotExportFunctionAbi { secondary_message, span } => MacroError {
+                primary_message: "Could not generate and export function abi".to_string(),
                 secondary_message,
                 span,
             },

@@ -310,7 +310,8 @@ impl FunctionBuilder {
         index: ValueId,
         value: ValueId,
     ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
+        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: false }, None)
+            .first()
     }
 
     /// Insert an instruction to increment an array's reference count. This only has an effect
@@ -500,7 +501,6 @@ mod tests {
     use acvm::FieldElement;
 
     use crate::ssa::ir::{
-        function::{InlineType, RuntimeType},
         instruction::{Endian, Intrinsic},
         map::Id,
         types::Type,
