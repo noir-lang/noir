@@ -158,18 +158,19 @@ pub fn compile_workspace_full_pure(
     compile_options: &CompileOptions,
 ) -> Result<(ExpressionWidth, Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
 
-    // TODO: remove me!
-    use std::fs::OpenOptions;
-    use std::io::prelude::*;
-
-    let mut file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .append(true)
-        .open("test_cases_compile.json")
-        .unwrap();
-
-    writeln!(file, "{:?}", serde_json::to_string(&(workspace, workspace_file_manager.clone())).unwrap()).unwrap();
+    // // TODO: remove me!
+    // use std::fs::OpenOptions;
+    // use std::io::prelude::*;
+    //
+    // let mut file = OpenOptions::new()
+    //     .create(true)
+    //     .write(true)
+    //     .append(true)
+    //     .open("test_cases_compile.json")
+    //     .unwrap();
+    //
+    // writeln!(file, "{:?}", serde_json::to_string(&(workspace, workspace_file_manager.clone())).unwrap()).unwrap();
+    println!("{:?}", serde_json::to_string(&(workspace, workspace_file_manager.clone())).unwrap());
     // TODO: end remove me!
 
 

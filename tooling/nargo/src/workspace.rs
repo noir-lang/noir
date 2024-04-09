@@ -8,6 +8,8 @@ use std::{
     path::PathBuf,
     slice,
 };
+
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -15,7 +17,8 @@ use crate::{
     package::Package,
 };
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Workspace {
     pub root_dir: PathBuf,
     pub members: Vec<Package>,

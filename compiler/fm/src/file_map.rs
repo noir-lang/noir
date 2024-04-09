@@ -1,12 +1,14 @@
 use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
 use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 use std::{ops::Range, path::PathBuf};
 
 // XXX: File and FileMap serve as opaque types, so that the rest of the library does not need to import the dependency
 // or worry about when we change the dep
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PathString(PathBuf);
 
 impl std::fmt::Display for PathString {
@@ -39,6 +41,7 @@ pub struct FileMap {
     name_to_id: HashMap<PathString, FileId>,
 }
 
+#[cfg(feature = "serde")]
 impl Serialize for FileMap {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -53,6 +56,7 @@ impl Serialize for FileMap {
     }
 }
 
+#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for FileMap {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
