@@ -26,6 +26,7 @@ tracing.workspace = true
 petgraph = "0.6"
 
 [dev-dependencies]
+base64.workspace = true
 strum = "0.24"
 strum_macros = "0.24"
 tempfile.workspace = true

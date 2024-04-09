@@ -3,8 +3,8 @@ use iter_extended::vecmap;
 use crate::{
     brillig::brillig_ir::{
         artifact::{BrilligParameter, Label},
-        brillig_variable::BrilligVariable,
-        BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+        brillig_variable::{get_bit_size_from_ssa_type, BrilligVariable},
+        BrilligContext,
     },
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -70,7 +70,7 @@ impl FunctionContext {
         function_id.to_string()
     }
 
-    fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
+    pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
             Type::Numeric(_) | Type::Reference(_) => {
                 BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
@@ -81,24 +81,11 @@ impl FunctionContext {
                 }),
                 *size,
             ),
-            Type::Slice(item_type) => {
-                BrilligParameter::Slice(vecmap(item_type.iter(), |item_typ| {
-                    FunctionContext::ssa_type_to_parameter(item_typ)
-                }))
+            Type::Slice(_) => {
+                panic!("ICE: Slice parameters cannot be derived from type information")
             }
             _ => unimplemented!("Unsupported function parameter/return type {typ:?}"),
         }
-    }
-
-    /// Collects the parameters of a given function
-    pub(crate) fn parameters(func: &Function) -> Vec<BrilligParameter> {
-        func.parameters()
-            .iter()
-            .map(|&value_id| {
-                let typ = func.dfg.type_of_value(value_id);
-                FunctionContext::ssa_type_to_parameter(&typ)
-            })
-            .collect()
     }
 
     /// Collects the return values of a given function
@@ -110,17 +97,5 @@ impl FunctionContext {
                 FunctionContext::ssa_type_to_parameter(&typ)
             })
             .collect()
-    }
-}
-
-pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
-    match typ {
-        Type::Numeric(num_type) => num_type.bit_size(),
-        Type::Reference(_) => BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-        // NB. function references are converted to a constant when
-        // translating from SSA to Brillig (to allow for debugger
-        // instrumentation to work properly)
-        Type::Function => 32,
-        _ => unreachable!("ICE bit size not on a non numeric type"),
     }
 }

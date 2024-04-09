@@ -73,6 +73,8 @@ impl AstPrinter {
                 self.print_expr(expr, f)?;
                 write!(f, ";")
             }
+            Expression::Break => write!(f, "break"),
+            Expression::Continue => write!(f, "continue"),
         }
     }
 
@@ -92,6 +94,11 @@ impl AstPrinter {
         match literal {
             super::ast::Literal::Array(array) => {
                 write!(f, "[")?;
+                self.print_comma_separated(&array.contents, f)?;
+                write!(f, "]")
+            }
+            super::ast::Literal::Slice(array) => {
+                write!(f, "&[")?;
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use acvm::acir::circuit::Circuit;
+use acvm::acir::circuit::Program;
 use fm::FileId;
 use noirc_abi::{Abi, ContractEvent};
 use noirc_errors::debug_info::DebugInfo;
@@ -45,10 +45,13 @@ pub struct ContractFunction {
     pub abi: Abi,
 
     #[serde(
-        serialize_with = "Circuit::serialize_circuit_base64",
-        deserialize_with = "Circuit::deserialize_circuit_base64"
+        serialize_with = "Program::serialize_program_base64",
+        deserialize_with = "Program::deserialize_program_base64"
     )]
-    pub bytecode: Circuit,
+    pub bytecode: Program,
 
     pub debug: DebugInfo,
+
+    /// Names of the functions in the program. These are used for more informative debugging and benchmarking.
+    pub names: Vec<String>,
 }

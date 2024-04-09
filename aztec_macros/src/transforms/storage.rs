@@ -150,7 +150,7 @@ pub fn generate_storage_implementation(module: &mut SortedModule) -> Result<(), 
                 true,
             )),
         )],
-        &BlockExpression(vec![storage_constructor_statement]),
+        &BlockExpression { statements: vec![storage_constructor_statement] },
         &[],
         &return_type(chained_path!("Self")),
     ));

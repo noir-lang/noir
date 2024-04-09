@@ -29,8 +29,8 @@ By incorporating this attribute directly in the circuit's definition, tooling li
 ## Verifying Recursive Proofs
 
 ```rust
-#[foreign(verify_proof)]
-fn verify_proof(_verification_key : [Field], _proof : [Field], _public_input : Field, _key_hash : Field) {}
+#[foreign(recursive_aggregation)]
+pub fn verify_proof(verification_key: [Field], proof: [Field], public_inputs: [Field], key_hash: Field) {}
 ```
 
 :::info

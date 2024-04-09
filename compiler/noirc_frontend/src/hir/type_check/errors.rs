@@ -65,8 +65,6 @@ pub enum TypeCheckError {
     VariableMustBeMutable { name: String, span: Span },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, span: Span },
-    #[error("Comparisons are invalid on Field types. Try casting the operands to a sized integer type first")]
-    InvalidComparisonOnField { span: Span },
     #[error("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?}")]
     IntegerSignedness { sign_x: Signedness, sign_y: Signedness, span: Span },
     #[error("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}")]
@@ -76,7 +74,7 @@ pub enum TypeCheckError {
     #[error("{kind} cannot be used in a unary operation")]
     InvalidUnaryOp { kind: String, span: Span },
     #[error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first.")]
-    InvalidBitwiseOperationOnField { span: Span },
+    FieldBitwiseOp { span: Span },
     #[error("Integer cannot be used with type {typ}")]
     IntegerTypeMismatch { typ: Type, span: Span },
     #[error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first")]
@@ -122,8 +120,14 @@ pub enum TypeCheckError {
         "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime"
     )]
     ConstrainedReferenceToUnconstrained { span: Span },
+    #[error(
+        "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
+    )]
+    UnconstrainedReferenceToConstrained { span: Span },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { span: Span },
+    #[error("Slices must have constant length")]
+    NonConstantSliceLength { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
     InvalidTypeForEntryPoint { span: Span },
     #[error("Mismatched number of parameters in trait implementation")]
@@ -134,6 +138,8 @@ pub enum TypeCheckError {
         method_name: String,
         span: Span,
     },
+    #[error("Strings do not support indexed assignment")]
+    StringIndexAssign { span: Span },
 }
 
 impl TypeCheckError {
@@ -216,12 +222,11 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::TupleIndexOutOfBounds { span, .. }
             | TypeCheckError::VariableMustBeMutable { span, .. }
             | TypeCheckError::UnresolvedMethodCall { span, .. }
-            | TypeCheckError::InvalidComparisonOnField { span }
             | TypeCheckError::IntegerSignedness { span, .. }
             | TypeCheckError::IntegerBitWidth { span, .. }
             | TypeCheckError::InvalidInfixOp { span, .. }
             | TypeCheckError::InvalidUnaryOp { span, .. }
-            | TypeCheckError::InvalidBitwiseOperationOnField { span, .. }
+            | TypeCheckError::FieldBitwiseOp { span, .. }
             | TypeCheckError::IntegerTypeMismatch { span, .. }
             | TypeCheckError::FieldComparison { span, .. }
             | TypeCheckError::AmbiguousBitWidth { span, .. }
@@ -229,7 +234,10 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::OverflowingAssignment { span, .. }
             | TypeCheckError::FieldModulo { span }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span } => {
+            | TypeCheckError::UnconstrainedReferenceToConstrained { span }
+            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span }
+            | TypeCheckError::NonConstantSliceLength { span }
+            | TypeCheckError::StringIndexAssign { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
@@ -304,7 +312,7 @@ impl From<TypeCheckError> for Diagnostic {
             }
             TypeCheckError::InvalidTypeForEntryPoint { span } => Diagnostic::simple_error(
                 "Only sized types may be used in the entry point to a program".to_string(),
-                "Slices, references, or any type containing them may not be used in main or a contract function".to_string(), span),
+                "Slices, references, or any type containing them may not be used in main, contract functions, or foldable functions".to_string(), span),
             TypeCheckError::MismatchTraitImplNumParameters {
                 expected_num_parameters,
                 actual_num_parameters,

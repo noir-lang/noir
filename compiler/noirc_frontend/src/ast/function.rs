@@ -83,7 +83,7 @@ impl NoirFunction {
         &mut self.def
     }
     pub fn number_of_statements(&self) -> usize {
-        self.def.body.0.len()
+        self.def.body.statements.len()
     }
     pub fn span(&self) -> Span {
         self.def.span
@@ -108,6 +108,7 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
             Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
             Some(FunctionAttribute::Recursive) => FunctionKind::Recursive,
+            Some(FunctionAttribute::Fold) => FunctionKind::Normal,
             None => FunctionKind::Normal,
         };
 

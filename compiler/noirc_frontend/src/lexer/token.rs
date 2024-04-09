@@ -427,6 +427,10 @@ impl Attributes {
         }
         None
     }
+
+    pub fn is_foldable(&self) -> bool {
+        self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_foldable())
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute
@@ -486,6 +490,7 @@ impl Attribute {
             }
             ["test"] => Attribute::Function(FunctionAttribute::Test(TestScope::None)),
             ["recursive"] => Attribute::Function(FunctionAttribute::Recursive),
+            ["fold"] => Attribute::Function(FunctionAttribute::Fold),
             ["test", name] => {
                 validate(name)?;
                 let malformed_scope =
@@ -537,6 +542,7 @@ pub enum FunctionAttribute {
     Oracle(String),
     Test(TestScope),
     Recursive,
+    Fold,
 }
 
 impl FunctionAttribute {
@@ -565,6 +571,10 @@ impl FunctionAttribute {
     pub fn is_low_level(&self) -> bool {
         matches!(self, FunctionAttribute::Foreign(_) | FunctionAttribute::Builtin(_))
     }
+
+    pub fn is_foldable(&self) -> bool {
+        matches!(self, FunctionAttribute::Fold)
+    }
 }
 
 impl fmt::Display for FunctionAttribute {
@@ -575,6 +585,7 @@ impl fmt::Display for FunctionAttribute {
             FunctionAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
             FunctionAttribute::Recursive => write!(f, "#[recursive]"),
+            FunctionAttribute::Fold => write!(f, "#[fold]"),
         }
     }
 }
@@ -619,6 +630,7 @@ impl AsRef<str> for FunctionAttribute {
             FunctionAttribute::Oracle(string) => string,
             FunctionAttribute::Test { .. } => "",
             FunctionAttribute::Recursive => "",
+            FunctionAttribute::Fold => "",
         }
     }
 }
@@ -644,10 +656,12 @@ pub enum Keyword {
     Assert,
     AssertEq,
     Bool,
+    Break,
     CallData,
     Char,
     CompTime,
     Constrain,
+    Continue,
     Contract,
     Crate,
     Dep,
@@ -665,6 +679,7 @@ pub enum Keyword {
     Mod,
     Mut,
     Pub,
+    Quote,
     Return,
     ReturnData,
     String,
@@ -685,10 +700,12 @@ impl fmt::Display for Keyword {
             Keyword::Assert => write!(f, "assert"),
             Keyword::AssertEq => write!(f, "assert_eq"),
             Keyword::Bool => write!(f, "bool"),
+            Keyword::Break => write!(f, "break"),
             Keyword::Char => write!(f, "char"),
             Keyword::CallData => write!(f, "call_data"),
             Keyword::CompTime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
+            Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
             Keyword::Dep => write!(f, "dep"),
@@ -706,6 +723,7 @@ impl fmt::Display for Keyword {
             Keyword::Mod => write!(f, "mod"),
             Keyword::Mut => write!(f, "mut"),
             Keyword::Pub => write!(f, "pub"),
+            Keyword::Quote => write!(f, "quote"),
             Keyword::Return => write!(f, "return"),
             Keyword::ReturnData => write!(f, "return_data"),
             Keyword::String => write!(f, "str"),
@@ -729,10 +747,12 @@ impl Keyword {
             "assert" => Keyword::Assert,
             "assert_eq" => Keyword::AssertEq,
             "bool" => Keyword::Bool,
+            "break" => Keyword::Break,
             "call_data" => Keyword::CallData,
             "char" => Keyword::Char,
             "comptime" => Keyword::CompTime,
             "constrain" => Keyword::Constrain,
+            "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
             "dep" => Keyword::Dep,
@@ -750,6 +770,7 @@ impl Keyword {
             "mod" => Keyword::Mod,
             "mut" => Keyword::Mut,
             "pub" => Keyword::Pub,
+            "quote" => Keyword::Quote,
             "return" => Keyword::Return,
             "return_data" => Keyword::ReturnData,
             "str" => Keyword::String,

@@ -2,7 +2,7 @@ use crate::foreign_calls::DebugForeignCallExecutor;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::brillig_vm::brillig::ForeignCallResult;
-use acvm::brillig_vm::brillig::Value;
+use acvm::brillig_vm::MemoryValue;
 use acvm::pwg::{
     ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
 };
@@ -128,9 +128,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         line: i64,
     ) -> Option<OpcodeLocation> {
         let line = line as usize;
-        let Some(line_to_opcodes) = self.source_to_opcodes.get(file_id) else {
-            return None;
-        };
+        let line_to_opcodes = self.source_to_opcodes.get(file_id)?;
         let found_index = match line_to_opcodes.binary_search_by(|x| x.0.cmp(&line)) {
             Ok(index) => {
                 // move backwards to find the first opcode which matches the line
@@ -381,6 +379,9 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
             ACVMStatus::RequiresForeignCall(_) => {
                 unreachable!("Unexpected pending foreign call resolution");
             }
+            ACVMStatus::RequiresAcirCall(_) => {
+                todo!("Multiple ACIR calls are not supported");
+            }
         }
     }
 
@@ -506,13 +507,13 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
         acir_index < opcodes.len() && matches!(opcodes[acir_index], Opcode::Brillig(..))
     }
 
-    pub(super) fn get_brillig_memory(&self) -> Option<&[Value]> {
+    pub(super) fn get_brillig_memory(&self) -> Option<&[MemoryValue]> {
         self.brillig_solver.as_ref().map(|solver| solver.get_memory())
     }
 
-    pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement) {
+    pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement, bit_size: u32) {
         if let Some(solver) = self.brillig_solver.as_mut() {
-            solver.write_memory_at(ptr, value.into());
+            solver.write_memory_at(ptr, MemoryValue::new(value, bit_size));
         }
     }
 
@@ -628,7 +629,6 @@ fn build_source_to_opcode_debug_mappings(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::{DebugCommandResult, DebugContext};
 
     use crate::foreign_calls::DefaultDebugForeignCallExecutor;
     use acvm::{
@@ -644,8 +644,6 @@ mod tests {
             BinaryFieldOp, HeapValueType, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
         },
     };
-    use nargo::artifacts::debug::DebugArtifact;
-    use std::collections::BTreeMap;
 
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
@@ -667,7 +665,7 @@ mod tests {
                 },
                 BrilligOpcode::Const {
                     destination: MemoryAddress::from(1),
-                    value: Value::from(fe_0),
+                    value: fe_0,
                     bit_size: 32,
                 },
                 BrilligOpcode::ForeignCall {
@@ -675,7 +673,7 @@ mod tests {
                     destinations: vec![],
                     destination_value_types: vec![],
                     inputs: vec![ValueOrArray::MemoryAddress(MemoryAddress::from(0))],
-                    input_value_types: vec![HeapValueType::Simple],
+                    input_value_types: vec![HeapValueType::field()],
                 },
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
             ],
