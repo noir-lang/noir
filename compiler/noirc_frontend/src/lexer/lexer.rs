@@ -21,6 +21,20 @@ pub struct Lexer<'a> {
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
 
+pub(crate) fn from_spanned_token_result(
+    x: &SpannedTokenResult,
+) -> Result<(usize, &Token, usize), LexerErrorKind> {
+    x.as_ref()
+        .map(|spanned_token| {
+            (
+                spanned_token.to_span().start() as usize,
+                spanned_token.into(),
+                spanned_token.to_span().end() as usize,
+            )
+        })
+        .map_err(Clone::clone)
+}
+
 impl<'a> Lexer<'a> {
     /// Given a source file of noir code, return all the tokens in the file
     /// in order, along with any lexing errors that occurred.
@@ -572,27 +586,6 @@ impl<'a> Lexer<'a> {
     }
 }
 
-// // TODO: are these needed? if not, cleanup
-// fn to_spanned_token_result(x: Result<(usize, Token, usize), LexerErrorKind>) -> SpannedTokenResult {
-//     x.map(|(start, token, end)| {
-//         let span: Span = (start as u32..end as u32).into();
-//         SpannedToken::new(token, span)
-//     })
-// }
-pub(crate) fn from_spanned_token_result(
-    x: &SpannedTokenResult,
-) -> Result<(usize, &Token, usize), LexerErrorKind> {
-    x.as_ref()
-        .map(|spanned_token| {
-            (
-                spanned_token.to_span().start() as usize,
-                spanned_token.into(),
-                spanned_token.to_span().end() as usize,
-            )
-        })
-        .map_err(Clone::clone)
-}
-
 impl<'a> Iterator for Lexer<'a> {
     type Item = SpannedTokenResult;
 
@@ -608,10 +601,7 @@ impl<'a> Iterator for Lexer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
-
-    // TODO: cleanup imports
-    use crate::token::token_to_tok;
+    use crate::token::{token_to_tok, FunctionAttribute, SecondaryAttribute, TestScope};
 
     #[test]
     fn test_single_double_char() {
@@ -1242,54 +1232,18 @@ mod tests {
     #[test]
     fn test_lalrpop() {
         use lalrpop_util::lalrpop_mod;
-        lalrpop_mod!(pub noir_parser); // synthesized by LALRPOP
-
-        // let input = "<";
-        // let mut test_lexer = Lexer::new(input);
-        // assert_eq!(test_lexer.next(), Some(Ok((0, Token::Less, 1))));
-        // assert_eq!(test_lexer.next(), Some(Ok((0, Token::EOF, 1))));
-        // assert_eq!(test_lexer.next(), None);
-
-        // // let input = "! != + ( ) { } [ ] | , ; : :: < <= > >= & - -> . .. % / * = == << >>";
-        // // let input = "23314";
-        // let input = "true";
-        // let lexer = Lexer::new(input);
-        //
-        // // let calculated = noir_parser::TermParser::new().parse(&mut errors, lexer);
-        //
-        // let mut errors = Vec::new();
-        // let mut test_lexer = Lexer::new(input);
-        // assert_eq!(test_lexer.next(), Some(Ok((0, Token::Bool(true), 4))));
-        // assert_eq!(test_lexer.next(), Some(Ok((3, Token::EOF, 4))));
-        // assert_eq!(test_lexer.next(), None);
-        //
-        //
-        // // TODO: this is a hack to get the references working
-        // // -> this likely means that we'll want to propagate the <'input> lifetime further into Token
-        // let lexer_result = lexer.into_iter().collect::<Vec<_>>();
-        // let referenced_lexer_result = lexer_result.iter().map(|token_result| {
-        //     token_result.as_ref().map(|(start, ref token, end)| {
-        //         (*start, token_to_tok(token), *end)
-        //     }).map_err(|x| x.clone())
-        // });
-        //
-        // let calculated = noir_parser::TopLevelStatementParser::new().parse(input, &mut errors, referenced_lexer_result);
-        //
-        // // assert!(calculated == Ok(Token::Int(23314_i128.into())), "{:?}", calculated);
-        // // assert!(calculated.is_ok(), "{:?}", calculated);
-        // assert_eq!(calculated, Ok(Tok::Bool(true)), "{:?}", calculated);
+        // synthesized by LALRPOP
+        lalrpop_mod!(pub noir_parser);
 
         // use statement tests
         let use_statement_inputs = vec![
-            // TODO: enable
-            // "use\t\r\n   dep::std::compat;",
-            // "use dep::std::compat;",
-            // "use dep::std::ec::consts::te::baby_jubjub;",
-            // "use dep::std::hash;",
-            // "use dep::std::hash::poseidon2::Poseidon2Hasher;",
-            // "use dep::std::hash::pedersen::PedersenHasher;",
-            // "use dep::std::ec::tecurve::affine::Point as TEPoint;",
-            // "use dep::std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify, eddsa_verify_with_hasher};",
+            "use dep::std::compat;",
+            "use dep::std::ec::consts::te::baby_jubjub;",
+            "use dep::std::hash;",
+            "use dep::std::hash::poseidon2::Poseidon2Hasher;",
+            "use dep::std::hash::pedersen::PedersenHasher;",
+            "use dep::std::ec::tecurve::affine::Point as TEPoint;",
+            "use dep::std::eddsa::{eddsa_to_pub, eddsa_poseidon_verify, eddsa_verify_with_hasher};",
         ];
 
         for use_statement_input in use_statement_inputs {
@@ -1297,8 +1251,8 @@ mod tests {
             lexer.skip_whitespaces = false;
             let mut errors = Vec::new();
 
-            // TODO: this is a hack to get the references working
-            // -> this likely means that we'll want to propagate the <'input> lifetime further into Token
+            // NOTE: this is a hack to get the references working
+            // => this likely means that we'll want to propagate the <'input> lifetime further into Token
             let lexer_result = lexer.into_iter().collect::<Vec<_>>();
             let referenced_lexer_result =
                 lexer_result.iter().map(from_spanned_token_result).map(|token_result| {

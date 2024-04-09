@@ -108,8 +108,8 @@ fn prototype_parse_use_tree(expected_use_tree_opt: Option<&UseTree>, input: &str
     lexer = lexer.skip_whitespaces(false);
     let mut errors = Vec::new();
 
-    // TODO: this is a hack to get the references working
-    // -> this likely means that we'll want to propagate the <'input> lifetime further into Token
+    // NOTE: this is a hack to get the references working
+    // => this likely means that we'll want to propagate the <'input> lifetime further into Token
     let lexer_result = lexer.collect::<Vec<_>>();
     let referenced_lexer_result =
         lexer_result.iter().map(from_spanned_token_result).map(|token_result| {
@@ -1478,14 +1478,6 @@ mod test {
         parse_all_failing(slice_expr(expression()), invalid);
     }
 
-    // TODO: this test triggers a poor error message
-    //
-    // By modifying the following, it's possible to see that this
-    // fails with an opaque error. (i.e. the 'expected' and 'found' are both empty)
-    //
-    // // src/parser/errors.rs
-    // impl chumsky::Error<Token> for ParserError {
-    //     fn expected_input_found<Iter>(span: Self::Span, expected: Iter, found: Option<Token>) -> Self
     #[test]
     fn parse_block() {
         parse_with(block(fresh_statement()), "{ [0,1,2,3,4] }").unwrap();

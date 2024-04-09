@@ -270,7 +270,6 @@ impl From<SpannedToken> for Token {
     }
 }
 
-// TODO: needed?
 impl<'a> From<&'a SpannedToken> for &'a Token {
     fn from(spt: &'a SpannedToken) -> Self {
         &spt.0.contents
