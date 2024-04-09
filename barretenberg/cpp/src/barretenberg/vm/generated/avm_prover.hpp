@@ -28,6 +28,7 @@ class AvmProver {
 
     void execute_preamble_round();
     void execute_wire_commitments_round();
+    void execute_log_derivative_inverse_round();
     void execute_relation_check_rounds();
     void execute_zeromorph_rounds();
 
@@ -46,6 +47,7 @@ class AvmProver {
     ProverPolynomials prover_polynomials;
 
     CommitmentLabels commitment_labels;
+    typename Flavor::WitnessCommitments witness_commitments;
 
     Polynomial quotient_W;
 

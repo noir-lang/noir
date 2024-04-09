@@ -62,7 +62,7 @@ class AvmComposer {
 
     void compute_commitment_key(size_t circuit_size)
     {
-        commitment_key = std::make_shared<CommitmentKey>(circuit_size);
+        proving_key->commitment_key = std::make_shared<CommitmentKey>(circuit_size);
     };
 };
 

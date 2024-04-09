@@ -60,7 +60,7 @@ class incl_main_tag_err_lookup_settings {
      * @brief The polynomial degree of the relation telling us if the inverse polynomial value needs to be computed
      *
      */
-    static constexpr size_t INVERSE_EXISTS_POLYNOMIAL_DEGREE = 2;
+    static constexpr size_t INVERSE_EXISTS_POLYNOMIAL_DEGREE = 4;
 
     /**
      * @brief The degree of the read term if implemented arbitrarily. This value is not used by basic and scaled read

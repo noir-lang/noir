@@ -63,7 +63,7 @@ TEST_F(AvmIndirectMemTests, allIndirectAdd)
     EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
     EXPECT_EQ(row->avm_main_mem_op_c, FF(1));
 
-    validate_trace_proof(std::move(trace));
+    validate_trace_check_circuit(std::move(trace));
 }
 
 // Testing a subtraction operation with direct input operands a, b, and an indirect
@@ -109,7 +109,7 @@ TEST_F(AvmIndirectMemTests, indirectOutputSub)
     EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
     EXPECT_EQ(row->avm_main_mem_op_c, FF(1));
 
-    validate_trace_proof(std::move(trace));
+    validate_trace_check_circuit(std::move(trace));
 }
 
 // Testing a multiplication operation with indirect input operand a,
@@ -155,7 +155,7 @@ TEST_F(AvmIndirectMemTests, indirectInputAMul)
     EXPECT_EQ(row->avm_main_mem_op_b, FF(1));
     EXPECT_EQ(row->avm_main_mem_op_c, FF(1));
 
-    validate_trace_proof(std::move(trace));
+    validate_trace_check_circuit(std::move(trace));
 }
 
 } // namespace tests_avm

@@ -31,7 +31,7 @@ AvmProver AvmComposer::create_prover(CircuitConstructor& circuit_constructor)
     compute_witness(circuit_constructor);
     compute_commitment_key(circuit_constructor.get_circuit_subgroup_size());
 
-    AvmProver output_state(proving_key, commitment_key);
+    AvmProver output_state(proving_key, proving_key->commitment_key);
 
     return output_state;
 }

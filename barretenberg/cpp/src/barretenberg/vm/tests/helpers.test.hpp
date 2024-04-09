@@ -16,6 +16,7 @@ using Flavor = bb::AvmFlavor;
 using FF = Flavor::FF;
 using Row = bb::AvmFullRow<bb::fr>;
 
+void validate_trace_check_circuit(std::vector<Row>&& trace);
 void validate_trace_proof(std::vector<Row>&& trace);
 void mutate_ic_in_trace(std::vector<Row>& trace,
                         std::function<bool(Row)>&& selectRow,

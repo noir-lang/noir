@@ -345,17 +345,7 @@ class AvmCircuitBuilder {
             polys.avm_mem_val[i] = rows[i].avm_mem_val;
             polys.avm_mem_w_in_tag[i] = rows[i].avm_mem_w_in_tag;
             polys.perm_main_alu[i] = rows[i].perm_main_alu;
-            polys.perm_main_bin[i] = rows[i].perm_main_bin;
-            polys.perm_main_mem_a[i] = rows[i].perm_main_mem_a;
-            polys.perm_main_mem_b[i] = rows[i].perm_main_mem_b;
-            polys.perm_main_mem_c[i] = rows[i].perm_main_mem_c;
-            polys.perm_main_mem_ind_a[i] = rows[i].perm_main_mem_ind_a;
-            polys.perm_main_mem_ind_b[i] = rows[i].perm_main_mem_ind_b;
-            polys.perm_main_mem_ind_c[i] = rows[i].perm_main_mem_ind_c;
-            polys.lookup_byte_lengths[i] = rows[i].lookup_byte_lengths;
-            polys.lookup_byte_operations[i] = rows[i].lookup_byte_operations;
-            polys.incl_main_tag_err[i] = rows[i].incl_main_tag_err;
-            polys.incl_mem_tag_err[i] = rows[i].incl_mem_tag_err;
+
             polys.lookup_byte_lengths_counts[i] = rows[i].lookup_byte_lengths_counts;
             polys.lookup_byte_operations_counts[i] = rows[i].lookup_byte_operations_counts;
             polys.incl_main_tag_err_counts[i] = rows[i].incl_main_tag_err_counts;

@@ -70,7 +70,7 @@ TEST_F(AvmInterTableTests, tagErrNotCopiedInMain)
 
     // Adjust the output in the memory trace.
     mem_row->avm_mem_val = 1;
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "INCL_MAIN_TAG_ERR");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "INCL_MAIN_TAG_ERR");
 }
 
 /******************************************************************************
@@ -127,7 +127,7 @@ TEST_F(AvmPermMainAluNegativeTests, wrongAluOutputCopyInMain)
     trace.at(main_idx).avm_main_ic = 1008;
     trace.at(mem_idx).avm_mem_val = 1008;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_ALU");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
 
 TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluIaInput)
@@ -138,7 +138,7 @@ TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluIaInput)
     trace.at(alu_idx).avm_alu_u8_r0 = 36; // 1060 % 256 = 36
     trace.at(alu_idx).avm_alu_u8_r1 = 4;  // 4 * 256 = 1024
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_ALU");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
 
 TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluIbInput)
@@ -149,7 +149,7 @@ TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluIbInput)
     trace.at(alu_idx).avm_alu_u8_r0 = 190;
     trace.at(alu_idx).avm_alu_u8_r1 = 0;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_ALU");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
 
 TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluOpSelector)
@@ -160,7 +160,7 @@ TEST_F(AvmPermMainAluNegativeTests, wrongCopyToAluOpSelector)
     trace.at(alu_idx).avm_alu_u8_r0 = 72;
     trace.at(alu_idx).avm_alu_u8_r1 = 0;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_ALU");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
 
 TEST_F(AvmPermMainAluNegativeTests, removeAluSelector)
@@ -168,7 +168,7 @@ TEST_F(AvmPermMainAluNegativeTests, removeAluSelector)
     trace.at(alu_idx).avm_alu_alu_sel = 0;
     trace.at(alu_idx).avm_alu_op_mul = 0;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_ALU");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }
 
 /******************************************************************************
@@ -237,7 +237,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongValueIaInMem)
     trace.at(mem_idx_a).avm_mem_val = 26;     // Correct value: 21
     trace.at(mem_idx_a - 1).avm_mem_val = 26; // We need to adjust the write operation beforehand (set opcode).
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_A");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_A");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongValueIbInMem)
@@ -246,7 +246,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongValueIbInMem)
     trace.at(mem_idx_b).avm_mem_val = 7;     // Correct value: 3
     trace.at(mem_idx_b - 1).avm_mem_val = 7; // We need to adjust the write operation beforehand (set opcode).
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_B");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_B");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongValueIcInMem)
@@ -254,7 +254,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongValueIcInMem)
     executeSub(21, 3);
     trace.at(mem_idx_c).avm_mem_val = 17; // Correct value: 18 = 21 - 3
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_C");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_C");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongAddressIaInMain)
@@ -262,7 +262,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongAddressIaInMain)
     executeSub(21, 3);
     trace.at(main_idx).avm_main_mem_idx_a = 28; // Correct address: 52
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_A");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_A");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongAddressIbInMain)
@@ -270,7 +270,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongAddressIbInMain)
     executeSub(21, 3);
     trace.at(main_idx).avm_main_mem_idx_b = 2; // Correct address: 11
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_B");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_B");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongAddressIcInMain)
@@ -278,7 +278,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongAddressIcInMain)
     executeSub(21, 3);
     trace.at(main_idx).avm_main_mem_idx_c = 75; // Correct address: 55
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_C");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_C");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongInTagIaInMem)
@@ -293,7 +293,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongInTagIaInMem)
     trace.at(mem_idx_a - 1).avm_mem_w_in_tag = wrong_in_tag;
     trace.at(mem_idx_a - 1).avm_mem_tag = wrong_in_tag;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_A");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_A");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongInTagIbInMem)
@@ -308,7 +308,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongInTagIbInMem)
     trace.at(mem_idx_b - 1).avm_mem_w_in_tag = wrong_in_tag;
     trace.at(mem_idx_b - 1).avm_mem_tag = wrong_in_tag;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_B");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_B");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongInTagIcInMem)
@@ -318,7 +318,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongInTagIcInMem)
     trace.at(mem_idx_c).avm_mem_w_in_tag = wrong_in_tag; // Correct value: AvmMemoryTag::U8
     trace.at(mem_idx_c).avm_mem_tag = wrong_in_tag;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_C");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_C");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongRwIaInMem)
@@ -329,7 +329,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongRwIaInMem)
     // Adjust sub_clk value
     trace.at(mem_idx_a).avm_mem_sub_clk = AvmMemTraceBuilder::SUB_CLK_STORE_A;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_A");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_A");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongRwIbInMem)
@@ -340,7 +340,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongRwIbInMem)
     // Adjust sub_clk value
     trace.at(mem_idx_b).avm_mem_sub_clk = AvmMemTraceBuilder::SUB_CLK_STORE_B;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_B");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_B");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongRwIcInMem)
@@ -354,7 +354,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongRwIcInMem)
     // Adjust sub_clk value
     trace.at(mem_idx_c).avm_mem_sub_clk = AvmMemTraceBuilder::SUB_CLK_LOAD_C;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_C");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_C");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongClkIaInMem)
@@ -362,7 +362,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongClkIaInMem)
     executeSub(87, 23);
     trace.at(mem_idx_a).avm_mem_clk = 11;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_A");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_A");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongClkIbInMem)
@@ -370,7 +370,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongClkIbInMem)
     executeSub(87, 23);
     trace.at(mem_idx_b).avm_mem_clk = 21;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_B");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_B");
 }
 
 TEST_F(AvmPermMainMemNegativeTests, wrongClkIcInMem)
@@ -378,7 +378,7 @@ TEST_F(AvmPermMainMemNegativeTests, wrongClkIcInMem)
     executeSub(87, 23);
     trace.at(mem_idx_c).avm_mem_clk = 7;
 
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), "PERM_MAIN_MEM_C");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_MEM_C");
 }
 
 } // namespace tests_avm

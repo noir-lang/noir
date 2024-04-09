@@ -108,7 +108,7 @@ template <typename Flavor> class SumcheckProverRound {
     {
         BB_OP_COUNT_TIME();
 
-        // Compute the constant contribution of pow polynomials for each edge. This is  the product of the partial
+        // Compute the constant contribution of pow polynomials for each edge. This is the product of the partial
         // evaluation result c_l (i.e. pow(u_0,...,u_{l-1})) where u_0,...,u_{l-1} are the verifier challenges from
         // previous rounds) and the elements of pow(\vec{β}) not containing β_0,..., β_l.
         std::vector<FF> pow_challenges(round_size >> 1);
