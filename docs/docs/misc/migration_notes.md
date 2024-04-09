@@ -6,7 +6,7 @@ keywords: [sandbox, cli, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
-## TBD
+## 0.33
 
 ### [Aztec.nr] Storage struct annotation
 
@@ -60,7 +60,7 @@ This change was made to communicate that we do not constrain the value in circui
 + let random_value = unsafe_rand();
 ```
 
-### [AztecJS] Simulate and get return values for ANY call
+### [AztecJS] Simulate and get return values for ANY call and introducing `prove()`
 Historically it have been possible to "view" `unconstrained` functions to simulate them and get the return values, but not for `public` nor `private` functions.
 This has lead to a lot of bad code where we have the same function implemented thrice, once in `private`, once in `public` and once in `unconstrained`. 
 It is not possible to call `simulate` on any call to get the return values! 
@@ -84,6 +84,14 @@ This will change to become similar to the return values of the `unconstrained` f
 
 - const returnValues = await contract.methods.get_shared_immutable().view();
 + const returnValues = await contract.methods.get_shared_immutable_private().simulate();
+```
+
+```diff
+await expect(
+-   asset.withWallet(wallets[1]).methods.update_admin(newAdminAddress).simulate()).rejects.toThrow(
++   asset.withWallet(wallets[1]).methods.update_admin(newAdminAddress).prove()).rejects.toThrow(
+        "Assertion failed: caller is not admin 'caller_roles.is_admin'",
+);
 ```
 
 ## 0.31.0
