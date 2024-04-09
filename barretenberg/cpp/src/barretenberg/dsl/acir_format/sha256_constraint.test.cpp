@@ -44,7 +44,6 @@ TEST_F(Sha256Tests, TestSha256Compression)
                                   .blake2s_constraints = {},
                                   .blake3_constraints = {},
                                   .keccak_constraints = {},
-                                  .keccak_var_constraints = {},
                                   .keccak_permutations = {},
                                   .pedersen_constraints = {},
                                   .pedersen_hash_constraints = {},

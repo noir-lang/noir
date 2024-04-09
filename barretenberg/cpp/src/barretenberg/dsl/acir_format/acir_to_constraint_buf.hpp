@@ -244,17 +244,6 @@ void handle_blackbox_func_call(Program::Opcode::BlackBoxFuncCall const& arg, Aci
                                       };
                                   }),
                     .result = map(arg.outputs, [](auto& e) { return e.value; }),
-                });
-            } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::Keccak256VariableLength>) {
-                af.keccak_var_constraints.push_back(KeccakVarConstraint{
-                    .inputs = map(arg.inputs,
-                                  [](auto& e) {
-                                      return HashInput{
-                                          .witness = e.witness.value,
-                                          .num_bits = e.num_bits,
-                                      };
-                                  }),
-                    .result = map(arg.outputs, [](auto& e) { return e.value; }),
                     .var_message_size = arg.var_message_size.witness.value,
                 });
             } else if constexpr (std::is_same_v<T, Program::BlackBoxFuncCall::Keccakf1600>) {

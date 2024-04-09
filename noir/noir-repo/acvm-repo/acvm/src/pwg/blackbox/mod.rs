@@ -95,15 +95,7 @@ pub(crate) fn solve(
             blake3,
             bb_func.get_black_box_func(),
         ),
-        BlackBoxFuncCall::Keccak256 { inputs, outputs } => solve_generic_256_hash_opcode(
-            initial_witness,
-            inputs,
-            None,
-            outputs,
-            keccak256,
-            bb_func.get_black_box_func(),
-        ),
-        BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs } => {
+        BlackBoxFuncCall::Keccak256 { inputs, var_message_size, outputs } => {
             solve_generic_256_hash_opcode(
                 initial_witness,
                 inputs,
