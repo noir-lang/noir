@@ -83,6 +83,8 @@ abstract class ExternalCall extends Instruction {
     // const nestedContext = context.createNestedContractCallContext(
     //   callAddress.toFr(),
     //   calldata,
+    //   allocatedGas,
+    //   this.type,
     //   FunctionSelector.fromField(functionSelector),
     // );
     // const nestedCallResults: AvmContractCallResults = await new AvmSimulator(nestedContext).execute();

@@ -37,6 +37,7 @@ contract AvmTest {
     use dep::aztec::protocol_types::traits::ToField;
     use dep::aztec::protocol_types::constants::RETURN_VALUES_LENGTH;
     use dep::compressed_string::CompressedString;
+    use dep::authwit::{auth::{assert_current_call_valid_authwit, assert_current_call_valid_authwit_public}};
 
     // avm lib
     use dep::aztec::avm::hash::{keccak256, poseidon, sha256};
@@ -248,6 +249,14 @@ contract AvmTest {
     fn test_get_contract_instance() {
         let ci = get_contract_instance_avm(context.this_address());
         assert(ci.is_some());
+    }
+
+    /************************************************************************
+     * Authwit functions
+     ************************************************************************/
+    #[aztec(public-vm)]
+    fn test_authwit_send_money(from: AztecAddress, _to: AztecAddress, _amount: Field) {
+        assert_current_call_valid_authwit_public(&mut context, from);
     }
 
     /************************************************************************

@@ -17,7 +17,8 @@ contract AvmInitializerTest {
         storage.immutable.initialize(42);
     }
 
-    unconstrained fn view_storage_immutable() -> pub Field {
+    #[aztec(public-vm)]
+    fn read_storage_immutable() -> pub Field {
         storage.immutable.read()
     }
 }
