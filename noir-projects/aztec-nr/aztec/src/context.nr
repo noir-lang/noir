@@ -5,6 +5,7 @@ mod private_context;
 mod public_context;
 mod avm_context;
 mod interface;
+mod gas;
 
 use interface::ContextInterface;
 use private_context::PrivateContext;

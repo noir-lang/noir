@@ -1,11 +1,15 @@
-use dep::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH, header::Header};
+use dep::protocol_types::{
+    address::{AztecAddress, EthAddress},
+    constants::{L1_TO_L2_MESSAGE_LENGTH, NESTED_CALL_L2_GAS_BUFFER, RETURN_VALUES_LENGTH},
+    header::Header
+};
 use dep::protocol_types::traits::Serialize;
 use dep::protocol_types::abis::function_selector::FunctionSelector;
 use dep::protocol_types::abis::public_circuit_public_inputs::PublicCircuitPublicInputs;
-use dep::protocol_types::constants::RETURN_VALUES_LENGTH;
 use crate::context::inputs::avm_context_inputs::AvmContextInputs;
 use crate::context::interface::ContextInterface;
 use crate::context::interface::PublicContextInterface;
+use crate::context::gas::GasOpts;
 
 struct AvmContext {
     inputs: AvmContextInputs,
@@ -54,22 +58,32 @@ impl AvmContext {
 
     fn call_public_function_raw<ARGS_COUNT, RET_COUNT>(
         self: &mut Self,
-        gas: [Field; 3],
+        gas: GasOpts,
         contract_address: AztecAddress,
         temporary_function_selector: Field,
         args: [Field; ARGS_COUNT]
     ) -> ([Field; RET_COUNT], u8) {
-        call(gas, contract_address, args, temporary_function_selector)
+        call(
+            gas_for_call(gas),
+            contract_address,
+            args,
+            temporary_function_selector
+        )
     }
 
     fn static_call_public_function_raw<ARGS_COUNT, RET_COUNT>(
         self: &mut Self,
-        gas: [Field; 3],
+        gas: GasOpts,
         contract_address: AztecAddress,
         temporary_function_selector: Field,
         args: [Field; ARGS_COUNT]
     ) -> ([Field; RET_COUNT], u8) {
-        call_static(gas, contract_address, args, temporary_function_selector)
+        call_static(
+            gas_for_call(gas),
+            contract_address,
+            args,
+            temporary_function_selector
+        )
     }
 }
 
@@ -121,12 +135,11 @@ impl PublicContextInterface for AvmContext {
         self: &mut Self,
         contract_address: AztecAddress,
         temporary_function_selector: FunctionSelector,
-        args: [Field; ARGS_COUNT]
+        args: [Field; ARGS_COUNT],
+        gas_opts: GasOpts
     ) -> [Field; RETURN_VALUES_LENGTH] {
-        let gas = [/*l1_gas*/10000, /*l2_gas*/10000, /*da_gas*/10000];
-
         let results = call(
-            gas,
+            gas_for_call(gas_opts),
             contract_address,
             args,
             temporary_function_selector.to_field()
@@ -142,12 +155,11 @@ impl PublicContextInterface for AvmContext {
         self: &mut Self,
         contract_address: AztecAddress,
         temporary_function_selector: FunctionSelector,
-        args: [Field; ARGS_COUNT]
+        args: [Field; ARGS_COUNT],
+        gas_opts: GasOpts
     ) -> [Field; RETURN_VALUES_LENGTH] {
-        let gas = [/*l1_gas*/10000, /*l2_gas*/10000, /*da_gas*/10000];
-
         let (data_to_return, success): ([Field; RETURN_VALUES_LENGTH], u8) = call_static(
-            gas,
+            gas_for_call(gas_opts),
             contract_address,
             args,
             temporary_function_selector.to_field()
@@ -203,6 +215,15 @@ impl ContextInterface for AvmContext {
     }
 }
 
+// Helper functions
+fn gas_for_call(user_gas: GasOpts) -> [Field; 3] {
+    [
+        user_gas.l1_gas.unwrap_or_else(|| l1_gas_left()),
+        user_gas.l2_gas.unwrap_or_else(|| l2_gas_left() - NESTED_CALL_L2_GAS_BUFFER),
+        user_gas.da_gas.unwrap_or_else(|| da_gas_left())
+    ]
+}
+
 // AVM oracles (opcodes) follow, do not use directly.
 #[oracle(avmOpcodeAddress)]
 fn address() -> AztecAddress {}
@@ -239,6 +260,15 @@ fn block_number() -> Field {}
 
 #[oracle(avmOpcodeTimestamp)]
 fn timestamp() -> u64 {}
+
+#[oracle(avmOpcodeL1GasLeft)]
+fn l1_gas_left() -> Field {}
+
+#[oracle(avmOpcodeL2GasLeft)]
+fn l2_gas_left() -> Field {}
+
+#[oracle(avmOpcodeDaGasLeft)]
+fn da_gas_left() -> Field {}
 
 #[oracle(avmOpcodeNoteHashExists)]
 fn note_hash_exists(note_hash: Field, leaf_index: Field) -> u8 {}

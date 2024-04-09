@@ -3,6 +3,8 @@ use dep::protocol_types::{
     constants::RETURN_VALUES_LENGTH
 };
 
+use crate::context::gas::GasOpts;
+
 trait ContextInterface {
     fn push_new_note_hash(&mut self, note_hash: Field);
     fn push_new_nullifier(&mut self, nullifier: Field, nullified_commitment: Field);
@@ -34,13 +36,15 @@ trait PublicContextInterface {
         self: &mut Self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
-        args: [Field; ARGS_COUNT]
+        args: [Field; ARGS_COUNT],
+        gas_opts: GasOpts
     ) -> [Field; RETURN_VALUES_LENGTH];
     fn static_call_public_function<ARGS_COUNT>(
         self: &mut Self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
-        args: [Field; ARGS_COUNT]
+        args: [Field; ARGS_COUNT],
+        gas_opts: GasOpts
     ) -> [Field; RETURN_VALUES_LENGTH];
     fn delegate_call_public_function<ARGS_COUNT>(
         self: &mut Self,

@@ -1,5 +1,8 @@
 use crate::{
-    context::{inputs::PublicContextInputs, interface::ContextInterface, interface::PublicContextInterface},
+    context::{
+    inputs::PublicContextInputs, interface::ContextInterface, interface::PublicContextInterface,
+    gas::GasOpts
+},
     messaging::process_l1_to_l2_message,
     oracle::{arguments, public_call::call_public_function_internal}, hash::hash_args_array
 };
@@ -268,7 +271,8 @@ impl PublicContextInterface for PublicContext {
         self: &mut Self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
-        args: [Field; ARGS_COUNT]
+        args: [Field; ARGS_COUNT],
+        _gas: GasOpts
     ) -> [Field; RETURN_VALUES_LENGTH] {
         let args_hash = hash_args_array(args);
         assert(args_hash == arguments::pack_arguments(args));
@@ -279,7 +283,8 @@ impl PublicContextInterface for PublicContext {
         self: &mut Self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
-        args: [Field; ARGS_COUNT]
+        args: [Field; ARGS_COUNT],
+        _gas: GasOpts
     ) -> [Field; RETURN_VALUES_LENGTH] {
         let args_hash = hash_args_array(args);
         assert(args_hash == arguments::pack_arguments(args));

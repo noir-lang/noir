@@ -1,6 +1,7 @@
 // A contract used along with `Child` contract to test nested calls.
 contract Parent {
     use dep::aztec::prelude::{AztecAddress, FunctionSelector};
+    use dep::aztec::context::gas::GasOpts;
 
     // Private function to call another private function in the target_contract using the provided selector
     #[aztec(private)]
@@ -19,7 +20,12 @@ contract Parent {
         target_selector: FunctionSelector,
         init_value: Field
     ) -> Field {
-        let return_values = context.call_public_function(target_contract, target_selector, [init_value]);
+        let return_values = context.call_public_function(
+            target_contract,
+            target_selector,
+            [init_value],
+            GasOpts::default()
+        );
 
         return_values[0]
     }
@@ -31,8 +37,18 @@ contract Parent {
         target_selector: FunctionSelector,
         init_value: Field
     ) -> Field {
-        let return_value = context.call_public_function(target_contract, target_selector, [init_value])[0];
-        let return_values = context.call_public_function(target_contract, target_selector, [return_value]);
+        let return_value = context.call_public_function(
+            target_contract,
+            target_selector,
+            [init_value],
+            GasOpts::default()
+        )[0];
+        let return_values = context.call_public_function(
+            target_contract,
+            target_selector,
+            [return_value],
+            GasOpts::default()
+        );
 
         return_values[0]
     }
@@ -186,7 +202,7 @@ contract Parent {
         target_selector: FunctionSelector,
         args: [Field; 1]
     ) -> Field {
-        let return_values = context.static_call_public_function(target_contract, target_selector, args);
+        let return_values = context.static_call_public_function(target_contract, target_selector, args, GasOpts::default());
 
         return_values[0]
     }
@@ -204,7 +220,8 @@ contract Parent {
         let return_values = context.static_call_public_function(
             this_address,
             pub_entry_point_selector,
-            [target_contract.to_field(), target_selector.to_field(), args[0]]
+            [target_contract.to_field(), target_selector.to_field(), args[0]],
+            GasOpts::default()
         );
         return_values[0]
     }

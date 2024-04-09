@@ -12,7 +12,7 @@ const cacheFilePath = './codegenCache.json';
 let cache: Record<string, string> = {};
 
 /** Generate code options */
-type GenerateCodeOptions = { /** Typescript */ ts?: boolean; /** Noir */ nr?: boolean };
+type GenerateCodeOptions = { /** Typescript */ ts?: boolean; /** Noir */ nr?: boolean; force?: boolean };
 
 /**
  * Generates Noir interface or Typescript interface for a folder or single file from a Noir compilation artifact.
@@ -42,7 +42,7 @@ function generateFromNoirAbi(outputPath: string, noirAbiPath: string, opts: Gene
   const contractName = path.basename(noirAbiPath);
   const currentHash = generateFileHash(noirAbiPath);
 
-  if (isCacheValid(contractName, currentHash)) {
+  if (isCacheValid(contractName, currentHash) && !opts.force) {
     console.log(`${contractName} has not changed. Skipping generation.`);
     return;
   }

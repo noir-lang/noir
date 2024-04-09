@@ -50,30 +50,32 @@ export class AvmSimulator {
    */
   public async executeInstructions(instructions: Instruction[]): Promise<AvmContractCallResults> {
     assert(instructions.length > 0);
+    const { machineState } = this.context;
     try {
       // Execute instruction pointed to by the current program counter
       // continuing until the machine state signifies a halt
-      while (!this.context.machineState.halted) {
-        const instruction = instructions[this.context.machineState.pc];
+      while (!machineState.halted) {
+        const instruction = instructions[machineState.pc];
         assert(
           !!instruction,
           'AVM attempted to execute non-existent instruction. This should never happen (invalid bytecode or AVM simulator bug)!',
         );
 
-        this.log.debug(`@${this.context.machineState.pc} ${instruction.toString()}`);
+        const gasLeft = `l1=${machineState.l1GasLeft} l2=${machineState.l2GasLeft} da=${machineState.daGasLeft}`;
+        this.log.debug(`@${machineState.pc} (${gasLeft}) ${instruction.toString()}`);
         // Execute the instruction.
         // Normal returns and reverts will return normally here.
         // "Exceptional halts" will throw.
         await instruction.execute(this.context);
 
-        if (this.context.machineState.pc >= instructions.length) {
+        if (machineState.pc >= instructions.length) {
           this.log('Passed end of program!');
-          throw new InvalidProgramCounterError(this.context.machineState.pc, /*max=*/ instructions.length);
+          throw new InvalidProgramCounterError(machineState.pc, /*max=*/ instructions.length);
         }
       }
 
       // Return results for processing by calling context
-      const results = this.context.machineState.getResults();
+      const results = machineState.getResults();
       this.log(`Context execution results: ${results.toString()}`);
       return results;
     } catch (e) {

@@ -3,7 +3,7 @@ mod interfaces;
 contract FPC {
     use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress, traits::is_empty};
     use dep::aztec::state_vars::SharedImmutable;
-
+    use dep::aztec::context::gas::GasOpts;
     use crate::interfaces::Token;
 
     #[aztec(storage)]
@@ -65,7 +65,8 @@ contract FPC {
         let refund = context.call_public_function(
             storage.gas_token_address.read_public(),
             FunctionSelector::from_signature("pay_fee(Field)"),
-            [amount]
+            [amount],
+            GasOpts::default()
         )[0];
 
         // Just do public refunds for the present
@@ -78,7 +79,8 @@ contract FPC {
         let refund = context.call_public_function(
             storage.gas_token_address.read_public(),
             FunctionSelector::from_signature("pay_fee(Field)"),
-            [amount]
+            [amount],
+            GasOpts::default()
         )[0];
 
         Token::at(asset).shield(&mut context, context.this_address(), refund, secret_hash, 0);

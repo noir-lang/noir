@@ -1,3 +1,4 @@
+import { DAGasLeft, L1GasLeft, L2GasLeft } from '../opcodes/context_getters.js';
 import { Keccak, Pedersen, Poseidon2, Sha256 } from '../opcodes/hashing.js';
 import {
   Add,
@@ -102,9 +103,9 @@ const INSTRUCTION_SET = () =>
 
     // Machine State
     // Machine State - Gas
-    //[L1gasleft.opcode, L1gasleft],
-    //[L2gasleft.opcode, L2gasleft],
-    //[Dagasleft.opcode, Dagasleft],
+    [L1GasLeft.opcode, L1GasLeft],
+    [L2GasLeft.opcode, L2GasLeft],
+    [DAGasLeft.opcode, DAGasLeft],
     // Machine State - Internal Control Flow
     [Jump.opcode, Jump],
     [JumpI.opcode, JumpI],

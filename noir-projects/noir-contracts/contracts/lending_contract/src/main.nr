@@ -12,7 +12,7 @@ mod interfaces;
 // - Liquidations
 contract Lending {
     use dep::aztec::prelude::{FunctionSelector, AztecAddress, PrivateContext, Map, PublicMutable};
-    use dep::aztec::context::{PublicContext, Context};
+    use dep::aztec::context::{PublicContext, Context, gas::GasOpts};
 
     use crate::asset::Asset;
     use crate::interest_math::compute_multiplier;
@@ -126,7 +126,8 @@ contract Lending {
         let _ = context.call_public_function(
             context.this_address(),
             selector,
-            [on_behalf_of, amount, collateral_asset.to_field()]
+            [on_behalf_of, amount, collateral_asset.to_field()],
+            GasOpts::default()
         );
     }
 
@@ -160,7 +161,8 @@ contract Lending {
         let _ = context.call_public_function(
             context.this_address(),
             selector,
-            [context.msg_sender().to_field(), to.to_field(), amount]
+            [context.msg_sender().to_field(), to.to_field(), amount],
+            GasOpts::default()
         );
     }
 
@@ -218,7 +220,8 @@ contract Lending {
         let _ = context.call_public_function(
             context.this_address(),
             selector,
-            [context.msg_sender().to_field(), to.to_field(), amount]
+            [context.msg_sender().to_field(), to.to_field(), amount],
+            GasOpts::default()
         );
     }
 
@@ -281,7 +284,8 @@ contract Lending {
         let _ = context.call_public_function(
             context.this_address(),
             selector,
-            [owner.to_field(), amount, stable_coin.to_field()]
+            [owner.to_field(), amount, stable_coin.to_field()],
+            GasOpts::default()
         );
     }
 

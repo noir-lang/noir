@@ -461,7 +461,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   });
 
   describe('Nested external calls', () => {
-    it(`Nested call`, async () => {
+    it(`Nested call succeeds`, async () => {
       const calldata: Fr[] = [new Fr(1), new Fr(2)];
       const callBytecode = getAvmTestContractBytecode('raw_nested_call_to_add');
       const addBytecode = getAvmTestContractBytecode('add_args_return');
@@ -475,6 +475,24 @@ describe('AVM simulator: transpiled Noir contracts', () => {
       expect(results.revertReason).toBeUndefined();
       expect(results.reverted).toBe(false);
       expect(results.output).toEqual([new Fr(3)]);
+    });
+
+    it(`Nested call with not enough gas`, async () => {
+      const gas = [/*l1=*/ 10000, /*l2=*/ 20, /*da=*/ 10000].map(g => new Fr(g));
+      const calldata: Fr[] = [new Fr(1), new Fr(2), ...gas];
+      const callBytecode = getAvmTestContractBytecode('raw_nested_call_to_add_with_gas');
+      const addBytecode = getAvmTestContractBytecode('add_args_return');
+      const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+      jest
+        .spyOn(context.persistableState.hostStorage.contractsDb, 'getBytecode')
+        .mockReturnValueOnce(Promise.resolve(addBytecode));
+
+      const results = await new AvmSimulator(context).executeBytecode(callBytecode);
+
+      // Outer frame should not revert, but inner should, so the forwarded return value is 0
+      expect(results.revertReason).toBeUndefined();
+      expect(results.reverted).toBe(false);
+      expect(results.output).toEqual([new Fr(0)]);
     });
 
     it(`Nested call through the old interface`, async () => {

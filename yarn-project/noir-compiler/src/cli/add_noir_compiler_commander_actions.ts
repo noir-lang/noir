@@ -14,12 +14,13 @@ export function addCodegenCommanderAction(program: Command, _: LogFn = () => {})
     .option('-o, --outdir <path>', 'Output folder for the generated code.')
     .option('--ts', 'Generate TypeScript wrapper.')
     .option('--nr', 'Generate Noir interface.')
+    .option('--force', 'Force code generation even when the contract has not changed.')
     .description('Validates and generates an Aztec Contract ABI from Noir ABI.')
-    .action(async (noirAbiPath: string, { outdir, ts, nr }) => {
+    .action(async (noirAbiPath: string, { outdir, ts, nr, force }) => {
       if (ts && nr) {
         throw new Error('--ts and --nr are mutually exclusive.');
       }
       const { generateCode } = await import('./codegen.js');
-      generateCode(outdir || dirname(noirAbiPath), noirAbiPath, { ts, nr });
+      generateCode(outdir || dirname(noirAbiPath), noirAbiPath, { ts, nr, force });
     });
 }

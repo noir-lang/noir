@@ -10,7 +10,7 @@ contract Benchmarking {
     };
     use dep::value_note::{utils::{increment, decrement}, value_note::ValueNote};
 
-    use dep::aztec::{context::Context};
+    use dep::aztec::{context::{Context, gas::GasOpts}};
 
     #[aztec(storage)]
     struct Storage {
@@ -47,7 +47,8 @@ contract Benchmarking {
         let _callStackItem1 = context.call_public_function(
             context.this_address(),
             FunctionSelector::from_signature("broadcast((Field))"),
-            [owner.to_field()]
+            [owner.to_field()],
+            GasOpts::default()
         );
     }
 

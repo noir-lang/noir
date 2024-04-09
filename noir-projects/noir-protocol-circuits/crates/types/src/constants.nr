@@ -93,6 +93,8 @@ global INITIALIZATION_SLOT_SEPARATOR: Field = 1000_000_000;
 global INITIAL_L2_BLOCK_NUM: Field = 1;
 // 126976 = 31 * 4096;
 global BLOB_SIZE_IN_BYTES: Field = 126976;
+// How much gas is subtracted from L2GASLEFT when making a nested public call by default in the AVM
+global NESTED_CALL_L2_GAS_BUFFER = 20000;
 
 // CONTRACT CLASS CONSTANTS
 global MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS: u64 = 15000;

@@ -1,6 +1,6 @@
 use dep::aztec::prelude::{FunctionSelector, AztecAddress, PrivateContext};
 
-use dep::aztec::context::PublicContext;
+use dep::aztec::context::{PublicContext, gas::GasOpts};
 use dep::aztec::protocol_types::constants::RETURN_VALUES_LENGTH;
 
 use crate::asset::Asset;
@@ -18,7 +18,8 @@ impl PriceFeed {
         let return_values = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("get_price(Field)"),
-            [0]
+            [0],
+            GasOpts::default()
         );
 
         U128::from_integer(return_values[0])
@@ -45,7 +46,8 @@ impl Token {
         let _ = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("transfer_public((Field),(Field),Field,Field)"),
-            [from.to_field(), to.to_field(), amount, nonce]
+            [from.to_field(), to.to_field(), amount, nonce],
+            GasOpts::default()
         );
     }
 
@@ -53,7 +55,8 @@ impl Token {
         let _ = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("mint_public((Field),Field)"),
-            [to.to_field(), amount]
+            [to.to_field(), amount],
+            GasOpts::default()
         );
     }
 
@@ -67,7 +70,8 @@ impl Token {
         let _ = context.call_public_function(
             self.address,
             FunctionSelector::from_signature("burn_public((Field),Field,Field)"),
-            [from.to_field(), amount, nonce]
+            [from.to_field(), amount, nonce],
+            GasOpts::default()
         );
     }
 

@@ -795,6 +795,9 @@ fn handle_getter_instruction(
         "avmOpcodeVersion" => AvmOpcode::VERSION,
         "avmOpcodeBlockNumber" => AvmOpcode::BLOCKNUMBER,
         "avmOpcodeTimestamp" => AvmOpcode::TIMESTAMP,
+        "avmOpcodeL1GasLeft" => AvmOpcode::L1GASLEFT,
+        "avmOpcodeL2GasLeft" => AvmOpcode::L2GASLEFT,
+        "avmOpcodeDaGasLeft" => AvmOpcode::DAGASLEFT,
         // "callStackDepth" => AvmOpcode::CallStackDepth,
         _ => panic!(
             "Transpiler doesn't know how to process ForeignCall function {:?}",
