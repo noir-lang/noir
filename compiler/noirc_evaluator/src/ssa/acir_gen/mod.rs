@@ -21,7 +21,7 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
+use crate::brillig::brillig_ir::artifact::{BrilligParameter, GeneratedBrillig};
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
@@ -181,15 +181,12 @@ impl Ssa {
         self,
         brillig: &Brillig,
         abi_distinctness: Distinctness,
-        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<Vec<GeneratedAcir>, RuntimeError> {
         let mut acirs = Vec::new();
         // TODO: can we parallelise this?
         for function in self.functions.values() {
             let context = Context::new();
-            if let Some(generated_acir) =
-                context.convert_ssa_function(&self, function, brillig, last_array_uses)?
-            {
+            if let Some(generated_acir) = context.convert_ssa_function(&self, function, brillig)? {
                 acirs.push(generated_acir);
             }
         }
@@ -245,7 +242,6 @@ impl Context {
         ssa: &Ssa,
         function: &Function,
         brillig: &Brillig,
-        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<Option<GeneratedAcir>, RuntimeError> {
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
@@ -258,7 +254,7 @@ impl Context {
                     }
                 }
                 // We only want to convert entry point functions. This being `main` and those marked with `#[fold]`
-                Ok(Some(self.convert_acir_main(function, ssa, brillig, last_array_uses)?))
+                Ok(Some(self.convert_acir_main(function, ssa, brillig)?))
             }
             RuntimeType::Brillig => {
                 if function.id() == ssa.main_id {
@@ -275,7 +271,6 @@ impl Context {
         main_func: &Function,
         ssa: &Ssa,
         brillig: &Brillig,
-        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<GeneratedAcir, RuntimeError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
@@ -284,13 +279,7 @@ impl Context {
         self.data_bus = dfg.data_bus.to_owned();
         let mut warnings = Vec::new();
         for instruction_id in entry_block.instructions() {
-            warnings.extend(self.convert_ssa_instruction(
-                *instruction_id,
-                dfg,
-                ssa,
-                brillig,
-                last_array_uses,
-            )?);
+            warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa, brillig)?);
         }
 
         warnings.extend(self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?);
@@ -308,12 +297,14 @@ impl Context {
             let typ = dfg.type_of_value(*param_id);
             self.create_value_from_type(&typ, &mut |this, _| Ok(this.acir_context.add_variable()))
         })?;
+        let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
+
         let witness_inputs = self.acir_context.extract_witness(&inputs);
 
         let outputs: Vec<AcirType> =
             vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
 
-        let code = self.gen_brillig_for(main_func, brillig)?;
+        let code = self.gen_brillig_for(main_func, arguments, brillig)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
@@ -463,7 +454,6 @@ impl Context {
         dfg: &DataFlowGraph,
         ssa: &Ssa,
         brillig: &Brillig,
-        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<Vec<SsaReport>, RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
@@ -523,7 +513,7 @@ impl Context {
                 self.current_side_effects_enabled_var = acir_var;
             }
             Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
-                self.handle_array_operation(instruction_id, dfg, last_array_uses)?;
+                self.handle_array_operation(instruction_id, dfg)?;
             }
             Instruction::Allocate => {
                 unreachable!("Expected all allocate instructions to be removed before acir_gen")
@@ -586,6 +576,7 @@ impl Context {
                                     *acir_program_id,
                                     inputs,
                                     output_count,
+                                    self.current_side_effects_enabled_var,
                                 )?;
                                 let output_values =
                                     self.convert_vars_to_values(output_vars, dfg, result_ids);
@@ -606,8 +597,9 @@ impl Context {
                                 }
 
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
+                                let arguments = self.gen_brillig_parameters(arguments, dfg);
 
-                                let code = self.gen_brillig_for(func, brillig)?;
+                                let code = self.gen_brillig_for(func, arguments, brillig)?;
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| {
                                     dfg.type_of_value(*result_id).into()
@@ -685,14 +677,49 @@ impl Context {
         Ok(())
     }
 
+    fn gen_brillig_parameters(
+        &self,
+        values: &[ValueId],
+        dfg: &DataFlowGraph,
+    ) -> Vec<BrilligParameter> {
+        values
+            .iter()
+            .map(|&value_id| {
+                let typ = dfg.type_of_value(value_id);
+                if let Type::Slice(item_types) = typ {
+                    let len = match self
+                        .ssa_values
+                        .get(&value_id)
+                        .expect("ICE: Unknown slice input to brillig")
+                    {
+                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => *len,
+                        AcirValue::Array(array) => array.len(),
+                        _ => unreachable!("ICE: Slice value is not an array"),
+                    };
+
+                    BrilligParameter::Slice(
+                        item_types
+                            .iter()
+                            .map(BrilligFunctionContext::ssa_type_to_parameter)
+                            .collect(),
+                        len / item_types.len(),
+                    )
+                } else {
+                    BrilligFunctionContext::ssa_type_to_parameter(&typ)
+                }
+            })
+            .collect()
+    }
+
     fn gen_brillig_for(
         &self,
         func: &Function,
+        arguments: Vec<BrilligParameter>,
         brillig: &Brillig,
     ) -> Result<GeneratedBrillig, InternalError> {
         // Create the entry point artifact
         let mut entry_point = BrilligContext::new_entry_point_artifact(
-            BrilligFunctionContext::parameters(func),
+            arguments,
             BrilligFunctionContext::return_values(func),
             BrilligFunctionContext::function_id_to_function_label(func.id()),
         );
@@ -721,12 +748,16 @@ impl Context {
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
-        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<(), RuntimeError> {
+        let mut mutable_array_set = false;
+
         // Pass the instruction between array methods rather than the internal fields themselves
         let (array, index, store_value) = match dfg[instruction] {
             Instruction::ArrayGet { array, index } => (array, index, None),
-            Instruction::ArraySet { array, index, value, .. } => (array, index, Some(value)),
+            Instruction::ArraySet { array, index, value, mutable } => {
+                mutable_array_set = mutable;
+                (array, index, Some(value))
+            }
             _ => {
                 return Err(InternalError::Unexpected {
                     expected: "Instruction should be an ArrayGet or ArraySet".to_owned(),
@@ -744,11 +775,8 @@ impl Context {
         let (new_index, new_value) =
             self.convert_array_operation_inputs(array, dfg, index, store_value)?;
 
-        let resolved_array = dfg.resolve(array);
-        let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
-
         if let Some(new_value) = new_value {
-            self.array_set(instruction, new_index, new_value, dfg, map_array)?;
+            self.array_set(instruction, new_index, new_value, dfg, mutable_array_set)?;
         } else {
             self.array_get(instruction, array, new_index, dfg)?;
         }
@@ -1028,16 +1056,18 @@ impl Context {
         }
     }
 
-    /// Copy the array and generates a write opcode on the new array
-    ///
-    /// Note: Copying the array is inefficient and is not the way we want to do it in the end.
+    /// If `mutate_array` is:
+    /// - true: Mutate the array directly
+    /// - false: Copy the array and generates a write opcode on the new array. This is
+    ///          generally very inefficient and should be avoided if possible. Currently
+    ///          this is controlled by SSA's array set optimization pass.
     fn array_set(
         &mut self,
         instruction: InstructionId,
         mut var_index: AcirVar,
         store_value: AcirValue,
         dfg: &DataFlowGraph,
-        map_array: bool,
+        mutate_array: bool,
     ) -> Result<(), RuntimeError> {
         // Pass the instruction between array methods rather than the internal fields themselves
         let array = match dfg[instruction] {
@@ -1075,7 +1105,7 @@ impl Context {
             .first()
             .expect("Array set does not have one result");
         let result_block_id;
-        if map_array {
+        if mutate_array {
             self.memory_blocks.insert(*result_id, block_id);
             result_block_id = block_id;
         } else {
@@ -2401,14 +2431,13 @@ mod test {
         ssa::{
             function_builder::FunctionBuilder,
             ir::{
-                function::{FunctionId, InlineType, RuntimeType},
+                function::{FunctionId, InlineType},
                 instruction::BinaryOp,
                 map::Id,
                 types::Type,
             },
         },
     };
-    use fxhash::FxHashMap as HashMap;
 
     fn build_basic_foo_with_return(builder: &mut FunctionBuilder, foo_id: FunctionId) {
         // acir(fold) fn foo f1 {
@@ -2461,11 +2490,7 @@ mod test {
         let ssa = builder.finish();
 
         let acir_functions = ssa
-            .into_acir(
-                &Brillig::default(),
-                noirc_frontend::Distinctness::Distinct,
-                &HashMap::default(),
-            )
+            .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
         // main f0
@@ -2516,16 +2541,13 @@ mod test {
         check_call_opcode(&main_opcodes[0], 1, vec![Witness(0), Witness(1)], vec![Witness(2)]);
         check_call_opcode(&main_opcodes[1], 1, vec![Witness(0), Witness(1)], vec![Witness(3)]);
 
-        match &main_opcodes[2] {
-            Opcode::AssertZero(expr) => {
-                assert_eq!(expr.linear_combinations[0].0, FieldElement::from(1u128));
-                assert_eq!(expr.linear_combinations[0].1, Witness(2));
+        if let Opcode::AssertZero(expr) = &main_opcodes[2] {
+            assert_eq!(expr.linear_combinations[0].0, FieldElement::from(1u128));
+            assert_eq!(expr.linear_combinations[0].1, Witness(2));
 
-                assert_eq!(expr.linear_combinations[1].0, FieldElement::from(-1i128));
-                assert_eq!(expr.linear_combinations[1].1, Witness(3));
-                assert_eq!(expr.q_c, FieldElement::from(0u128));
-            }
-            _ => {}
+            assert_eq!(expr.linear_combinations[1].0, FieldElement::from(-1i128));
+            assert_eq!(expr.linear_combinations[1].1, Witness(3));
+            assert_eq!(expr.q_c, FieldElement::from(0u128));
         }
     }
 
@@ -2564,11 +2586,7 @@ mod test {
         let ssa = builder.finish();
 
         let acir_functions = ssa
-            .into_acir(
-                &Brillig::default(),
-                noirc_frontend::Distinctness::Distinct,
-                &HashMap::default(),
-            )
+            .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the abvoe test expect that the input witnesses of the `Call`
         // opcodes will be different. The changes can discerned from the checks below.
@@ -2659,11 +2677,7 @@ mod test {
         let ssa = builder.finish();
 
         let acir_functions = ssa
-            .into_acir(
-                &Brillig::default(),
-                noirc_frontend::Distinctness::Distinct,
-                &HashMap::default(),
-            )
+            .into_acir(&Brillig::default(), noirc_frontend::Distinctness::Distinct)
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 3, "Should have three ACIR functions");
@@ -2700,7 +2714,7 @@ mod test {
         expected_outputs: Vec<Witness>,
     ) {
         match opcode {
-            Opcode::Call { id, inputs, outputs } => {
+            Opcode::Call { id, inputs, outputs, .. } => {
                 assert_eq!(
                     *id, expected_id,
                     "Main was expected to call {expected_id} but got {}",
