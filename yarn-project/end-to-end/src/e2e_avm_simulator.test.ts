@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, TxStatus, type Wallet } from '@aztec/aztec.js';
+import { AztecAddress, Fr, FunctionSelector, TxStatus, type Wallet } from '@aztec/aztec.js';
 import { AvmInitializerTestContract, AvmTestContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
@@ -62,6 +62,35 @@ describe('e2e_avm_simulator', () => {
 
         tx = await avmContract.methods.assert_nullifier_exists(nullifier).send().wait();
         expect(tx.status).toEqual(TxStatus.MINED);
+      });
+    });
+
+    describe('ACVM interoperability', () => {
+      it('Can execute ACVM function among AVM functions', async () => {
+        expect(await avmContract.methods.constant_field_acvm().simulate()).toEqual([123456n, 0n, 0n, 0n]);
+      });
+
+      it('Can call AVM function from ACVM', async () => {
+        expect(await avmContract.methods.call_avm_from_acvm().simulate()).toEqual([123456n, 0n, 0n, 0n]);
+      });
+
+      it('Can call ACVM function from AVM', async () => {
+        expect(await avmContract.methods.call_acvm_from_avm().simulate()).toEqual([123456n, 0n, 0n, 0n]);
+      });
+
+      it('AVM sees settled nullifiers by ACVM', async () => {
+        const nullifier = new Fr(123456);
+        await avmContract.methods.new_nullifier(nullifier).send().wait();
+        await avmContract.methods.assert_unsiloed_nullifier_acvm(nullifier).send().wait();
+      });
+
+      it('AVM nested call to ACVM sees settled nullifiers', async () => {
+        const nullifier = new Fr(123456);
+        await avmContract.methods.new_nullifier(nullifier).send().wait();
+        await avmContract.methods
+          .avm_to_acvm_call(FunctionSelector.fromSignature('assert_unsiloed_nullifier_acvm(Field)'), nullifier)
+          .send()
+          .wait();
       });
     });
   });

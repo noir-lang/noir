@@ -230,8 +230,8 @@ export abstract class AbstractPhaseManager {
       while (executionStack.length) {
         const current = executionStack.pop()!;
         const isExecutionRequest = !isPublicExecutionResult(current);
-
         const sideEffectCounter = lastSideEffectCounter(tx) + 1;
+
         const result = isExecutionRequest
           ? await this.publicExecutor.simulate(current, this.globalVariables, sideEffectCounter)
           : current;

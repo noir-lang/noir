@@ -69,7 +69,7 @@ export class EmitNoteHash extends Instruction {
     }
 
     const noteHash = memory.get(this.noteHashOffset).toFr();
-    context.persistableState.writeNoteHash(noteHash);
+    context.persistableState.writeNoteHash(context.environment.storageAddress, noteHash);
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();

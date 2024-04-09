@@ -1,4 +1,4 @@
-import { FunctionSelector, type GlobalVariables } from '@aztec/circuits.js';
+import { FunctionSelector, type GlobalVariables, type Header } from '@aztec/circuits.js';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { type EthAddress } from '@aztec/foundation/eth-address';
@@ -22,29 +22,18 @@ export class AvmContextInputs {
 export class AvmExecutionEnvironment {
   constructor(
     public readonly address: AztecAddress,
-
     public readonly storageAddress: AztecAddress,
-
     public readonly origin: AztecAddress,
-
     public readonly sender: AztecAddress,
-
     public readonly portal: EthAddress,
-
     public readonly feePerL1Gas: Fr,
-
     public readonly feePerL2Gas: Fr,
-
     public readonly feePerDaGas: Fr,
-
     public readonly contractCallDepth: Fr,
-
+    public readonly header: Header,
     public readonly globals: GlobalVariables,
-
     public readonly isStaticCall: boolean,
-
     public readonly isDelegateCall: boolean,
-
     public readonly calldata: Fr[],
 
     // Function selector is temporary since eventually public contract bytecode will be one blob
@@ -59,20 +48,21 @@ export class AvmExecutionEnvironment {
   }
 
   public deriveEnvironmentForNestedCall(
-    address: AztecAddress,
+    targetAddress: AztecAddress,
     calldata: Fr[],
     temporaryFunctionSelector: FunctionSelector = FunctionSelector.empty(),
   ): AvmExecutionEnvironment {
     return new AvmExecutionEnvironment(
-      address,
-      /*storageAddress=*/ address,
+      targetAddress,
+      /*storageAddress=*/ targetAddress,
       this.origin,
-      this.sender,
+      this.address,
       this.portal,
       this.feePerL1Gas,
       this.feePerL2Gas,
       this.feePerDaGas,
       this.contractCallDepth,
+      this.header,
       this.globals,
       this.isStaticCall,
       this.isDelegateCall,
@@ -96,6 +86,7 @@ export class AvmExecutionEnvironment {
       this.feePerL2Gas,
       this.feePerDaGas,
       this.contractCallDepth,
+      this.header,
       this.globals,
       /*isStaticCall=*/ true,
       this.isDelegateCall,
@@ -119,6 +110,7 @@ export class AvmExecutionEnvironment {
       this.feePerL2Gas,
       this.feePerDaGas,
       this.contractCallDepth,
+      this.header,
       this.globals,
       this.isStaticCall,
       /*isDelegateCall=*/ true,

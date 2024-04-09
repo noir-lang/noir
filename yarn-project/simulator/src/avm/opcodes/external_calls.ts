@@ -1,10 +1,16 @@
 import { FunctionSelector } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 
+import { executePublicFunction } from '../../public/executor.js';
+import {
+  convertPublicExecutionResult,
+  createPublicExecutionContext,
+  updateAvmContextFromPublicExecutionResult,
+} from '../../public/transitional_adaptors.js';
 import type { AvmContext } from '../avm_context.js';
 import { gasLeftToGas, sumGas } from '../avm_gas.js';
 import { Field, Uint8 } from '../avm_memory_types.js';
-import { AvmSimulator } from '../avm_simulator.js';
+import { type AvmContractCallResults } from '../avm_message_call_result.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
@@ -61,6 +67,7 @@ abstract class ExternalCall extends Instruction {
     const totalGas = sumGas(this.gasCost(memoryOperations), allocatedGas);
     context.machineState.consumeGas(totalGas);
 
+    // TRANSITIONAL: This should be removed once the AVM is fully operational and the public executor is gone.
     const nestedContext = context.createNestedContractCallContext(
       callAddress.toFr(),
       calldata,
@@ -68,8 +75,19 @@ abstract class ExternalCall extends Instruction {
       this.type,
       FunctionSelector.fromField(functionSelector),
     );
+    const pxContext = createPublicExecutionContext(nestedContext, calldata);
+    const pxResults = await executePublicFunction(pxContext, /*nested=*/ true);
+    const nestedCallResults: AvmContractCallResults = convertPublicExecutionResult(pxResults);
+    updateAvmContextFromPublicExecutionResult(nestedContext, pxResults);
+    const nestedPersistableState = nestedContext.persistableState;
+    // const nestedContext = context.createNestedContractCallContext(
+    //   callAddress.toFr(),
+    //   calldata,
+    //   FunctionSelector.fromField(functionSelector),
+    // );
+    // const nestedCallResults: AvmContractCallResults = await new AvmSimulator(nestedContext).execute();
+    // const nestedPersistableState = nestedContext.persistableState;
 
-    const nestedCallResults = await new AvmSimulator(nestedContext).execute();
     const success = !nestedCallResults.reverted;
 
     // We only take as much data as was specified in the return size and pad with zeroes if the return data is smaller
@@ -90,9 +108,9 @@ abstract class ExternalCall extends Instruction {
 
     // TODO: Should we merge the changes from a nested call in the case of a STATIC call?
     if (success) {
-      context.persistableState.acceptNestedCallState(nestedContext.persistableState);
+      context.persistableState.acceptNestedCallState(nestedPersistableState);
     } else {
-      context.persistableState.rejectNestedCallState(nestedContext.persistableState);
+      context.persistableState.rejectNestedCallState(nestedPersistableState);
     }
 
     memory.assert(memoryOperations);

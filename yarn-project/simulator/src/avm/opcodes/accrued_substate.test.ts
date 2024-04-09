@@ -152,8 +152,12 @@ describe('Accrued Substate', () => {
       await new EmitNoteHash(/*indirect=*/ 0, /*offset=*/ 0).execute(context);
 
       const journalState = context.persistableState.flush();
-      const expected = [value.toFr()];
-      expect(journalState.newNoteHashes).toEqual(expected);
+      expect(journalState.newNoteHashes).toEqual([
+        expect.objectContaining({
+          storageAddress: context.environment.storageAddress,
+          noteHash: value.toFr(),
+        }),
+      ]);
     });
   });
 
@@ -243,8 +247,12 @@ describe('Accrued Substate', () => {
       await new EmitNullifier(/*indirect=*/ 0, /*offset=*/ 0).execute(context);
 
       const journalState = context.persistableState.flush();
-      const expected = [value.toFr()];
-      expect(journalState.newNullifiers).toEqual(expected);
+      expect(journalState.newNullifiers).toEqual([
+        expect.objectContaining({
+          storageAddress: context.environment.storageAddress.toField(),
+          nullifier: value.toFr(),
+        }),
+      ]);
     });
 
     it('Nullifier collision reverts (same nullifier emitted twice)', async () => {

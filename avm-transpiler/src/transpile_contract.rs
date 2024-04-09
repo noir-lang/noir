@@ -1,6 +1,5 @@
 use base64::Engine;
 use log::info;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use acvm::acir::circuit::Program;

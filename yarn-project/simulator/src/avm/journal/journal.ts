@@ -7,16 +7,27 @@ import { type HostStorage } from './host_storage.js';
 import { Nullifiers } from './nullifiers.js';
 import { PublicStorage } from './public_storage.js';
 import { WorldStateAccessTrace } from './trace.js';
-import { type TracedL1toL2MessageCheck, type TracedNoteHashCheck, type TracedNullifierCheck } from './trace_types.js';
+import {
+  type TracedL1toL2MessageCheck,
+  type TracedNoteHash,
+  type TracedNoteHashCheck,
+  type TracedNullifier,
+  type TracedNullifierCheck,
+  type TracedPublicStorageRead,
+  type TracedPublicStorageWrite,
+} from './trace_types.js';
 
 /**
  * Data held within the journal
  */
 export type JournalData = {
+  storageWrites: TracedPublicStorageWrite[];
+  storageReads: TracedPublicStorageRead[];
+
   noteHashChecks: TracedNoteHashCheck[];
-  newNoteHashes: Fr[];
+  newNoteHashes: TracedNoteHash[];
   nullifierChecks: TracedNullifierCheck[];
-  newNullifiers: Fr[];
+  newNullifiers: TracedNullifier[];
   l1ToL2MessageChecks: TracedL1toL2MessageCheck[];
 
   newL1Messages: L2ToL1Message[];
@@ -24,11 +35,6 @@ export type JournalData = {
 
   /** contract address -\> key -\> value */
   currentStorageValue: Map<bigint, Map<bigint, Fr>>;
-
-  /** contract address -\> key -\> value[] (stored in order of access) */
-  storageWrites: Map<bigint, Map<bigint, Fr[]>>;
-  /** contract address -\> key -\> value[] (stored in order of access) */
-  storageReads: Map<bigint, Map<bigint, Fr[]>>;
 };
 
 /**
@@ -44,18 +50,19 @@ export class AvmPersistableStateManager {
   /** Reference to node storage */
   public readonly hostStorage: HostStorage;
 
+  // TODO: make members private once this is not used in transitional_adaptors.ts.
   /** World State */
   /** Public storage, including cached writes */
-  private publicStorage: PublicStorage;
+  public publicStorage: PublicStorage;
   /** Nullifier set, including cached/recently-emitted nullifiers */
-  private nullifiers: Nullifiers;
+  public nullifiers: Nullifiers;
 
   /** World State Access Trace */
-  private trace: WorldStateAccessTrace;
+  public trace: WorldStateAccessTrace;
 
   /** Accrued Substate **/
-  private newL1Messages: L2ToL1Message[] = [];
-  private newLogs: UnencryptedL2Log[] = [];
+  public newL1Messages: L2ToL1Message[] = [];
+  public newLogs: UnencryptedL2Log[] = [];
 
   constructor(hostStorage: HostStorage, parent?: AvmPersistableStateManager) {
     this.hostStorage = hostStorage;
@@ -93,9 +100,9 @@ export class AvmPersistableStateManager {
    * @returns the latest value written to slot, or 0 if never written to before
    */
   public async readStorage(storageAddress: Fr, slot: Fr): Promise<Fr> {
-    const [_exists, value] = await this.publicStorage.read(storageAddress, slot);
+    const [exists, value] = await this.publicStorage.read(storageAddress, slot);
     // We want to keep track of all performed reads (even reverted ones)
-    this.trace.tracePublicStorageRead(storageAddress, slot, value);
+    this.trace.tracePublicStorageRead(storageAddress, slot, value, exists);
     return Promise.resolve(value);
   }
 
@@ -119,8 +126,8 @@ export class AvmPersistableStateManager {
    * Write a note hash, trace the write.
    * @param noteHash - the unsiloed note hash to write
    */
-  public writeNoteHash(noteHash: Fr) {
-    this.trace.traceNewNoteHash(/*storageAddress*/ Fr.ZERO, noteHash);
+  public writeNoteHash(storageAddress: Fr, noteHash: Fr) {
+    this.trace.traceNewNoteHash(storageAddress, noteHash);
   }
 
   /**
