@@ -29,6 +29,17 @@ pub enum Opcode {
         block_id: BlockId,
         init: Vec<Witness>,
     },
+    /// Calls to functions represented as a separate circuit. A call opcode allows us
+    /// to build a call stack when executing the outer-most circuit.
+    Call {
+        /// Id for the function being called. It is the responsibility of the executor
+        /// to fetch the appropriate circuit from this id.
+        id: u32,
+        /// Inputs to the function call
+        inputs: Vec<Witness>,
+        /// Outputs of the function call
+        outputs: Vec<Witness>,
+    },
 }
 
 impl std::fmt::Display for Opcode {
@@ -85,6 +96,11 @@ impl std::fmt::Display for Opcode {
             Opcode::MemoryInit { block_id, init } => {
                 write!(f, "INIT ")?;
                 write!(f, "(id: {}, len: {}) ", block_id.0, init.len())
+            }
+            Opcode::Call { id, inputs, outputs } => {
+                write!(f, "CALL func {}: ", id)?;
+                write!(f, "inputs: {:?}, ", inputs)?;
+                write!(f, "outputs: {:?}", outputs)
             }
         }
     }

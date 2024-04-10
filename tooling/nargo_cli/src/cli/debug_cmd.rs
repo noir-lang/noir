@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -8,7 +8,7 @@ use fm::FileManager;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::CompileError;
-use nargo::ops::{compile_program, compile_program_with_debug_instrumenter};
+use nargo::ops::{compile_program, compile_program_with_debug_instrumenter, report_errors};
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
@@ -22,7 +22,6 @@ use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::ParsedFiles;
 
-use super::compile_cmd::report_errors;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::backends::Backend;
@@ -188,7 +187,11 @@ fn run_async(
             }
 
             if let Some(witness_name) = witness_name {
-                let witness_path = save_witness_to_dir(solved_witness, witness_name, target_dir)?;
+                let witness_path = save_witness_to_dir(
+                    WitnessStack::from(solved_witness),
+                    witness_name,
+                    target_dir,
+                )?;
 
                 println!("[{}] Witness saved to {}", package.name, witness_path.display());
             }
@@ -236,7 +239,7 @@ pub(crate) fn debug_program(
 
     noir_debugger::debug_circuit(
         &blackbox_solver,
-        &compiled_program.circuit,
+        &compiled_program.program.functions[0],
         debug_artifact,
         initial_witness,
     )

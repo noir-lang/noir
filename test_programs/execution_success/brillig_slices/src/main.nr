@@ -1,6 +1,6 @@
 use dep::std::slice;
 unconstrained fn main(x: field, y: field) {
-    let mut slice: [Field] = [y, x];
+    let mut slice: [Field] = &[y, x];
     assert(slice.len() == 2);
 
     slice = slice.push_back(7);

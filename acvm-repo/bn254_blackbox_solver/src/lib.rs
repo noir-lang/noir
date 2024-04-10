@@ -20,10 +20,17 @@ pub struct Bn254BlackBoxSolver {
 }
 
 impl Bn254BlackBoxSolver {
-    #[cfg(target_arch = "wasm32")]
     pub async fn initialize() -> Bn254BlackBoxSolver {
-        let blackbox_vendor = Barretenberg::initialize().await;
-        Bn254BlackBoxSolver { blackbox_vendor }
+        // We fallback to the sync initialization of barretenberg on non-wasm targets.
+        // This ensures that wasm packages consuming this still build on the default target (useful for linting, etc.)
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                let blackbox_vendor = Barretenberg::initialize().await;
+                Bn254BlackBoxSolver { blackbox_vendor }
+            } else {
+                Bn254BlackBoxSolver::new()
+            }
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]

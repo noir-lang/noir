@@ -25,7 +25,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{LocalModuleId, ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
+use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirForStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, NodeInterner, StmtId,
@@ -37,10 +37,10 @@ use crate::{
     StatementKind,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Distinctness, ForRange, FunctionDefinition,
-    FunctionReturnType, FunctionVisibility, Generics, LValue, NoirStruct, NoirTypeAlias, Param,
-    Path, PathKind, Pattern, Shared, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind,
-    UnaryOp, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    ArrayLiteral, BinaryOpKind, Distinctness, ForRange, FunctionDefinition, FunctionReturnType,
+    Generics, ItemVisibility, LValue, NoirStruct, NoirTypeAlias, Param, Path, PathKind, Pattern,
+    Shared, Statement, StructType, Type, TypeAlias, TypeVariable, TypeVariableKind, UnaryOp,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
@@ -56,6 +56,7 @@ use crate::hir_def::{
 };
 
 use super::errors::{PubPosition, ResolverError};
+use super::import::PathResolution;
 
 const SELF_TYPE_NAME: &str = "Self";
 
@@ -115,6 +116,13 @@ pub struct Resolver<'a> {
     /// that are captured. We do this in order to create the hidden environment
     /// parameter for the lambda function.
     lambda_stack: Vec<LambdaContext>,
+
+    /// True if we're currently resolving an unconstrained function
+    in_unconstrained_fn: bool,
+
+    /// How many loops we're currently within.
+    /// This increases by 1 at the start of a loop, and decreases by 1 when it ends.
+    nested_loops: u32,
 }
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -155,6 +163,8 @@ impl<'a> Resolver<'a> {
             current_item: None,
             file,
             in_contract,
+            in_unconstrained_fn: false,
+            nested_loops: 0,
         }
     }
 
@@ -217,6 +227,7 @@ impl<'a> Resolver<'a> {
     pub fn resolve_trait_function(
         &mut self,
         name: &Ident,
+        generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &FunctionReturnType,
         where_clause: &[UnresolvedTraitConstraint],
@@ -233,18 +244,16 @@ impl<'a> Resolver<'a> {
         let def = FunctionDefinition {
             name: name.clone(),
             attributes: Attributes::empty(),
-            is_open: false,
-            is_internal: false,
             is_unconstrained: false,
-            visibility: FunctionVisibility::Public, // Trait functions are always public
-            generics: Vec::new(),                   // self.generics should already be set
+            visibility: ItemVisibility::Public, // Trait functions are always public
+            generics: generics.clone(),
             parameters: vecmap(parameters, |(name, typ)| Param {
                 visibility: Visibility::Private,
                 pattern: Pattern::Identifier(name.clone()),
                 typ: typ.clone(),
                 span: name.span(),
             }),
-            body: BlockExpression(Vec::new()),
+            body: BlockExpression { statements: Vec::new() },
             span: name.span(),
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
@@ -417,6 +426,11 @@ impl<'a> Resolver<'a> {
 
     fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
         let func_meta = self.extract_meta(&func, id);
+
+        if func.def.is_unconstrained {
+            self.in_unconstrained_fn = true;
+        }
+
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 HirFunction::empty()
@@ -468,12 +482,12 @@ impl<'a> Resolver<'a> {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                let size = if size.is_none() {
-                    Type::NotConstant
-                } else {
-                    self.resolve_array_size(size, new_variables)
-                };
+                let size = self.resolve_array_size(Some(size), new_variables);
                 Type::Array(Box::new(size), elem)
+            }
+            Slice(elem) => {
+                let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr),
             Integer(sign, bits) => Type::Integer(sign, bits),
@@ -664,9 +678,13 @@ impl<'a> Resolver<'a> {
 
         // If we cannot find a local generic of the same name, try to look up a global
         match self.path_resolver.resolve(self.def_maps, path.clone()) {
-            Ok(ModuleDefId::GlobalId(id)) => {
+            Ok(PathResolution { module_def_id: ModuleDefId::GlobalId(id), error }) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
+                }
+
+                if let Some(error) = error {
+                    self.push_err(error.into());
                 }
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
@@ -911,10 +929,6 @@ impl<'a> Resolver<'a> {
                 });
             }
 
-            if self.is_entry_point_function(func) {
-                self.verify_type_valid_for_program_input(&typ);
-            }
-
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ, &mut generics);
 
@@ -933,7 +947,7 @@ impl<'a> Resolver<'a> {
             });
         }
         let is_low_level_function =
-            func.attributes().function.as_ref().map_or(false, |func| func.is_low_level());
+            attributes.function.as_ref().map_or(false, |func| func.is_low_level());
         if !self.path_resolver.module_id().krate.is_stdlib() && is_low_level_function {
             let error =
                 ResolverError::LowLevelFunctionOutsideOfStdlib { ident: func.name_ident().clone() };
@@ -976,14 +990,20 @@ impl<'a> Resolver<'a> {
 
         self.interner.push_definition_type(name_ident.id, typ.clone());
 
-        self.handle_function_type(&func_id);
-        self.handle_is_function_internal(&func_id);
+        let direct_generics = func.def.generics.iter();
+        let direct_generics = direct_generics
+            .filter_map(|generic| self.find_generic(&generic.0.contents))
+            .map(|(name, typevar, _span)| (name.clone(), typevar.clone()))
+            .collect();
+
+        let should_fold = attributes.is_foldable();
 
         FuncMeta {
             name: name_ident,
             kind: func.kind,
             location,
             typ,
+            direct_generics,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             return_type: func.def.return_type.clone(),
@@ -991,6 +1011,8 @@ impl<'a> Resolver<'a> {
             return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),
             trait_constraints: self.resolve_trait_constraints(&func.def.where_clause),
+            is_entry_point: self.is_entry_point_function(func),
+            should_fold,
         }
     }
 
@@ -1018,31 +1040,11 @@ impl<'a> Resolver<'a> {
     /// True if the `distinct` keyword is allowed on a function's return type
     fn distinct_allowed(&self, func: &NoirFunction) -> bool {
         if self.in_contract {
-            // "open" and "unconstrained" functions are compiled to brillig and thus duplication of
+            // "unconstrained" functions are compiled to brillig and thus duplication of
             // witness indices in their abis is not a concern.
-            !func.def.is_unconstrained && !func.def.is_open
+            !func.def.is_unconstrained
         } else {
             func.name() == MAIN_FUNCTION
-        }
-    }
-
-    fn handle_function_type(&mut self, function: &FuncId) {
-        let function_type = self.interner.function_modifiers(function).contract_function_type;
-
-        if !self.in_contract && function_type == Some(ContractFunctionType::Open) {
-            let span = self.interner.function_ident(function).span();
-            self.errors.push(ResolverError::ContractFunctionTypeInNormalFunction { span });
-            self.interner.function_modifiers_mut(function).contract_function_type = None;
-        }
-    }
-
-    fn handle_is_function_internal(&mut self, function: &FuncId) {
-        if !self.in_contract {
-            if self.interner.function_modifiers(function).is_internal == Some(true) {
-                let span = self.interner.function_ident(function).span();
-                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction { span });
-            }
-            self.interner.function_modifiers_mut(function).is_internal = None;
         }
     }
 
@@ -1090,14 +1092,18 @@ impl<'a> Resolver<'a> {
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
-            | Type::NotConstant
             | Type::TraitAsType(..)
+            | Type::Code
             | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
+                Self::find_numeric_generics_in_type(element_type, found);
+            }
+
+            Type::Slice(element_type) => {
                 Self::find_numeric_generics_in_type(element_type, found);
             }
 
@@ -1168,7 +1174,7 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    pub fn resolve_stmt(&mut self, stmt: StatementKind) -> HirStatement {
+    pub fn resolve_stmt(&mut self, stmt: StatementKind, span: Span) -> HirStatement {
         match stmt {
             StatementKind::Let(let_stmt) => {
                 let expression = self.resolve_expression(let_stmt.expression);
@@ -1208,6 +1214,8 @@ impl<'a> Resolver<'a> {
                         let end_range = self.resolve_expression(end_range);
                         let (identifier, block) = (for_loop.identifier, for_loop.block);
 
+                        self.nested_loops += 1;
+
                         // TODO: For loop variables are currently mutable by default since we haven't
                         //       yet implemented syntax for them to be optionally mutable.
                         let (identifier, block) = self.in_new_scope(|this| {
@@ -1220,6 +1228,8 @@ impl<'a> Resolver<'a> {
                             (decl, this.resolve_expression(block))
                         });
 
+                        self.nested_loops -= 1;
+
                         HirStatement::For(HirForStatement {
                             start_range,
                             end_range,
@@ -1230,9 +1240,17 @@ impl<'a> Resolver<'a> {
                     range @ ForRange::Array(_) => {
                         let for_stmt =
                             range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
-                        self.resolve_stmt(for_stmt)
+                        self.resolve_stmt(for_stmt, for_loop.span)
                     }
                 }
+            }
+            StatementKind::Break => {
+                self.check_break_continue(true, span);
+                HirStatement::Break
+            }
+            StatementKind::Continue => {
+                self.check_break_continue(false, span);
+                HirStatement::Continue
             }
             StatementKind::Error => HirStatement::Error,
         }
@@ -1256,13 +1274,17 @@ impl<'a> Resolver<'a> {
         let is_in_stdlib = self.path_resolver.module_id().krate.is_stdlib();
         let assert_msg_call_path = if is_in_stdlib {
             ExpressionKind::Variable(Path {
-                segments: vec![Ident::from("resolve_assert_message")],
+                segments: vec![Ident::from("internal"), Ident::from("resolve_assert_message")],
                 kind: PathKind::Crate,
                 span,
             })
         } else {
             ExpressionKind::Variable(Path {
-                segments: vec![Ident::from("std"), Ident::from("resolve_assert_message")],
+                segments: vec![
+                    Ident::from("std"),
+                    Ident::from("internal"),
+                    Ident::from("resolve_assert_message"),
+                ],
                 kind: PathKind::Dep,
                 span,
             })
@@ -1276,8 +1298,8 @@ impl<'a> Resolver<'a> {
         Some(self.resolve_expression(assert_msg_call_expr))
     }
 
-    pub fn intern_stmt(&mut self, stmt: StatementKind) -> StmtId {
-        let hir_stmt = self.resolve_stmt(stmt);
+    pub fn intern_stmt(&mut self, stmt: Statement) -> StmtId {
+        let hir_stmt = self.resolve_stmt(stmt.kind, stmt.span);
         self.interner.push_stmt(hir_stmt)
     }
 
@@ -1289,73 +1311,25 @@ impl<'a> Resolver<'a> {
 
                 HirLValue::Ident(ident.0, Type::Error)
             }
-            LValue::MemberAccess { object, field_name } => {
-                let object = Box::new(self.resolve_lvalue(*object));
-                HirLValue::MemberAccess { object, field_name, field_index: None, typ: Type::Error }
-            }
-            LValue::Index { array, index } => {
+            LValue::MemberAccess { object, field_name, span } => HirLValue::MemberAccess {
+                object: Box::new(self.resolve_lvalue(*object)),
+                field_name,
+                location: Location::new(span, self.file),
+                field_index: None,
+                typ: Type::Error,
+            },
+            LValue::Index { array, index, span } => {
                 let array = Box::new(self.resolve_lvalue(*array));
                 let index = self.resolve_expression(index);
-                HirLValue::Index { array, index, typ: Type::Error }
+                let location = Location::new(span, self.file);
+                HirLValue::Index { array, index, location, typ: Type::Error }
             }
-            LValue::Dereference(lvalue) => {
+            LValue::Dereference(lvalue, span) => {
                 let lvalue = Box::new(self.resolve_lvalue(*lvalue));
-                HirLValue::Dereference { lvalue, element_type: Type::Error }
+                let location = Location::new(span, self.file);
+                HirLValue::Dereference { lvalue, location, element_type: Type::Error }
             }
         }
-    }
-
-    // Issue an error if the given private function is being called from a non-child module, or
-    // if the given pub(crate) function is being called from another crate
-    fn check_can_reference_function(
-        &mut self,
-        func: FuncId,
-        span: Span,
-        visibility: FunctionVisibility,
-    ) {
-        let function_module = self.interner.function_module(func);
-        let current_module = self.path_resolver.module_id();
-
-        let same_crate = function_module.krate == current_module.krate;
-        let krate = function_module.krate;
-        let current_module = current_module.local_id;
-        let name = self.interner.function_name(&func).to_string();
-        match visibility {
-            FunctionVisibility::Public => (),
-            FunctionVisibility::Private => {
-                if !same_crate
-                    || !self.module_descendent_of_target(
-                        krate,
-                        function_module.local_id,
-                        current_module,
-                    )
-                {
-                    self.errors.push(ResolverError::PrivateFunctionCalled { span, name });
-                }
-            }
-            FunctionVisibility::PublicCrate => {
-                if !same_crate {
-                    self.errors.push(ResolverError::NonCrateFunctionCalled { span, name });
-                }
-            }
-        }
-    }
-
-    // Returns true if `current` is a (potentially nested) child module of `target`.
-    // This is also true if `current == target`.
-    fn module_descendent_of_target(
-        &self,
-        krate: CrateId,
-        target: LocalModuleId,
-        current: LocalModuleId,
-    ) -> bool {
-        if current == target {
-            return true;
-        }
-
-        self.def_maps[&krate].modules[current.0]
-            .parent
-            .map_or(false, |parent| self.module_descendent_of_target(krate, target, parent))
     }
 
     fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
@@ -1392,27 +1366,37 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    fn resolve_array_literal(&mut self, array_literal: ArrayLiteral) -> HirArrayLiteral {
+        match array_literal {
+            ArrayLiteral::Standard(elements) => {
+                let elements = vecmap(elements, |elem| self.resolve_expression(elem));
+                HirArrayLiteral::Standard(elements)
+            }
+            ArrayLiteral::Repeated { repeated_element, length } => {
+                let span = length.span;
+                let length =
+                    UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(|error| {
+                        self.errors.push(ResolverError::ParserError(Box::new(error)));
+                        UnresolvedTypeExpression::Constant(0, span)
+                    });
+
+                let length = self.convert_expression_type(length);
+                let repeated_element = self.resolve_expression(*repeated_element);
+
+                HirArrayLiteral::Repeated { repeated_element, length }
+            }
+        }
+    }
+
     pub fn resolve_expression(&mut self, expr: Expression) -> ExprId {
         let hir_expr = match expr.kind {
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),
-                Literal::Array(ArrayLiteral::Standard(elements)) => {
-                    let elements = vecmap(elements, |elem| self.resolve_expression(elem));
-                    HirLiteral::Array(HirArrayLiteral::Standard(elements))
+                Literal::Array(array_literal) => {
+                    HirLiteral::Array(self.resolve_array_literal(array_literal))
                 }
-                Literal::Array(ArrayLiteral::Repeated { repeated_element, length }) => {
-                    let span = length.span;
-                    let length = UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(
-                        |error| {
-                            self.errors.push(ResolverError::ParserError(Box::new(error)));
-                            UnresolvedTypeExpression::Constant(0, span)
-                        },
-                    );
-
-                    let length = self.convert_expression_type(length);
-                    let repeated_element = self.resolve_expression(*repeated_element);
-
-                    HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length })
+                Literal::Slice(array_literal) => {
+                    HirLiteral::Slice(self.resolve_array_literal(array_literal))
                 }
                 Literal::Integer(integer, sign) => HirLiteral::Integer(integer, sign),
                 Literal::Str(str) => HirLiteral::Str(str),
@@ -1440,17 +1424,6 @@ impl<'a> Resolver<'a> {
                             DefinitionKind::Function(id) => {
                                 if let Some(current_item) = self.current_item {
                                     self.interner.add_function_dependency(current_item, id);
-                                }
-
-                                if self.interner.function_visibility(id)
-                                    != FunctionVisibility::Public
-                                {
-                                    let span = hir_ident.location.span;
-                                    self.check_can_reference_function(
-                                        id,
-                                        span,
-                                        self.interner.function_visibility(id),
-                                    );
                                 }
                             }
                             DefinitionKind::Global(global_id) => {
@@ -1599,6 +1572,9 @@ impl<'a> Resolver<'a> {
                 })
             }),
             ExpressionKind::Parenthesized(sub_expr) => return self.resolve_expression(*sub_expr),
+
+            // The quoted expression isn't resolved since we don't want errors if variables aren't defined
+            ExpressionKind::Quote(block) => HirExpression::Quote(block),
         };
 
         // If these lines are ever changed, make sure to change the early return
@@ -1887,7 +1863,7 @@ impl<'a> Resolver<'a> {
                 }
 
                 if let Ok(ModuleDefId::TraitId(trait_id)) =
-                    self.path_resolver.resolve(self.def_maps, trait_bound.trait_path.clone())
+                    self.resolve_path(trait_bound.trait_path.clone())
                 {
                     let the_trait = self.interner.get_trait(trait_id);
                     if let Some(method) =
@@ -1922,13 +1898,19 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        self.path_resolver.resolve(self.def_maps, path).map_err(ResolverError::PathResolutionError)
+        let path_resolution = self.path_resolver.resolve(self.def_maps, path)?;
+
+        if let Some(error) = path_resolution.error {
+            self.push_err(error.into());
+        }
+
+        Ok(path_resolution.module_def_id)
     }
 
     fn resolve_block(&mut self, block_expr: BlockExpression) -> HirExpression {
         let statements =
-            self.in_new_scope(|this| vecmap(block_expr.0, |stmt| this.intern_stmt(stmt.kind)));
-        HirExpression::Block(HirBlockExpression(statements))
+            self.in_new_scope(|this| vecmap(block_expr.statements, |stmt| this.intern_stmt(stmt)));
+        HirExpression::Block(HirBlockExpression { statements })
     }
 
     pub fn intern_block(&mut self, block: BlockExpression) -> ExprId {
@@ -1961,9 +1943,64 @@ impl<'a> Resolver<'a> {
         rhs: ExprId,
         span: Span,
     ) -> Result<u128, Option<ResolverError>> {
+        // Arbitrary amount of recursive calls to try before giving up
+        let fuel = 100;
+        self.try_eval_array_length_id_with_fuel(rhs, span, fuel)
+    }
+
+    fn try_eval_array_length_id_with_fuel(
+        &self,
+        rhs: ExprId,
+        span: Span,
+        fuel: u32,
+    ) -> Result<u128, Option<ResolverError>> {
+        if fuel == 0 {
+            // If we reach here, it is likely from evaluating cyclic globals. We expect an error to
+            // be issued for them after name resolution so issue no error now.
+            return Err(None);
+        }
+
         match self.interner.expression(&rhs) {
             HirExpression::Literal(HirLiteral::Integer(int, false)) => {
                 int.try_into_u128().ok_or(Some(ResolverError::IntegerTooLarge { span }))
+            }
+            HirExpression::Ident(ident) => {
+                let definition = self.interner.definition(ident.id);
+                match definition.kind {
+                    DefinitionKind::Global(global_id) => {
+                        let let_statement = self.interner.get_global_let_statement(global_id);
+                        if let Some(let_statement) = let_statement {
+                            let expression = let_statement.expression;
+                            self.try_eval_array_length_id_with_fuel(expression, span, fuel - 1)
+                        } else {
+                            Err(Some(ResolverError::InvalidArrayLengthExpr { span }))
+                        }
+                    }
+                    _ => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
+                }
+            }
+            HirExpression::Infix(infix) => {
+                let lhs = self.try_eval_array_length_id_with_fuel(infix.lhs, span, fuel - 1)?;
+                let rhs = self.try_eval_array_length_id_with_fuel(infix.rhs, span, fuel - 1)?;
+
+                match infix.operator.kind {
+                    BinaryOpKind::Add => Ok(lhs + rhs),
+                    BinaryOpKind::Subtract => Ok(lhs - rhs),
+                    BinaryOpKind::Multiply => Ok(lhs * rhs),
+                    BinaryOpKind::Divide => Ok(lhs / rhs),
+                    BinaryOpKind::Equal => Ok((lhs == rhs) as u128),
+                    BinaryOpKind::NotEqual => Ok((lhs != rhs) as u128),
+                    BinaryOpKind::Less => Ok((lhs < rhs) as u128),
+                    BinaryOpKind::LessEqual => Ok((lhs <= rhs) as u128),
+                    BinaryOpKind::Greater => Ok((lhs > rhs) as u128),
+                    BinaryOpKind::GreaterEqual => Ok((lhs >= rhs) as u128),
+                    BinaryOpKind::And => Ok(lhs & rhs),
+                    BinaryOpKind::Or => Ok(lhs | rhs),
+                    BinaryOpKind::Xor => Ok(lhs ^ rhs),
+                    BinaryOpKind::ShiftRight => Ok(lhs >> rhs),
+                    BinaryOpKind::ShiftLeft => Ok(lhs << rhs),
+                    BinaryOpKind::Modulo => Ok(lhs % rhs),
+                }
             }
             _other => Err(Some(ResolverError::InvalidArrayLengthExpr { span })),
         }
@@ -2000,86 +2037,12 @@ impl<'a> Resolver<'a> {
         HirLiteral::FmtStr(str, fmt_str_idents)
     }
 
-    /// Only sized types are valid to be used as main's parameters or the parameters to a contract
-    /// function. If the given type is not sized (e.g. contains a slice or NamedGeneric type), an
-    /// error is issued.
-    fn verify_type_valid_for_program_input(&mut self, typ: &UnresolvedType) {
-        match &typ.typ {
-            UnresolvedTypeData::FieldElement
-            | UnresolvedTypeData::Integer(_, _)
-            | UnresolvedTypeData::Bool
-            | UnresolvedTypeData::Unit
-            | UnresolvedTypeData::Error => (),
-
-            UnresolvedTypeData::MutableReference(_)
-            | UnresolvedTypeData::Function(_, _, _)
-            | UnresolvedTypeData::FormatString(_, _)
-            | UnresolvedTypeData::TraitAsType(..)
-            | UnresolvedTypeData::Unspecified => {
-                let span = typ.span.expect("Function parameters should always have spans");
-                self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
-            }
-
-            UnresolvedTypeData::Array(length, element) => {
-                if let Some(length) = length {
-                    self.verify_type_expression_valid_for_program_input(length);
-                } else {
-                    let span = typ.span.expect("Function parameters should always have spans");
-                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
-                }
-                self.verify_type_valid_for_program_input(element);
-            }
-            UnresolvedTypeData::Expression(expression) => {
-                self.verify_type_expression_valid_for_program_input(expression);
-            }
-            UnresolvedTypeData::String(length) => {
-                if let Some(length) = length {
-                    self.verify_type_expression_valid_for_program_input(length);
-                } else {
-                    let span = typ.span.expect("Function parameters should always have spans");
-                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
-                }
-            }
-            UnresolvedTypeData::Named(path, generics, _) => {
-                // Since the type is named, we need to resolve it to see what it actually refers to
-                // in order to check whether it is valid. Since resolving it may lead to a
-                // resolution error, we have to truncate our error count to the previous count just
-                // in case. This is to ensure resolution errors are not issued twice when this type
-                // is later resolved properly.
-                let error_count = self.errors.len();
-                let resolved = self.resolve_named_type(path.clone(), generics.clone(), &mut vec![]);
-                self.errors.truncate(error_count);
-
-                if !resolved.is_valid_for_program_input() {
-                    let span = typ.span.expect("Function parameters should always have spans");
-                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span });
-                }
-            }
-            UnresolvedTypeData::Tuple(elements) => {
-                for element in elements {
-                    self.verify_type_valid_for_program_input(element);
-                }
-            }
-            UnresolvedTypeData::Parenthesized(typ) => self.verify_type_valid_for_program_input(typ),
+    fn check_break_continue(&mut self, is_break: bool, span: Span) {
+        if !self.in_unconstrained_fn {
+            self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
         }
-    }
-
-    fn verify_type_expression_valid_for_program_input(&mut self, expr: &UnresolvedTypeExpression) {
-        match expr {
-            UnresolvedTypeExpression::Constant(_, _) => (),
-            UnresolvedTypeExpression::Variable(path) => {
-                let error_count = self.errors.len();
-                let resolved = self.resolve_named_type(path.clone(), vec![], &mut vec![]);
-                self.errors.truncate(error_count);
-
-                if !resolved.is_valid_for_program_input() {
-                    self.push_err(ResolverError::InvalidTypeForEntryPoint { span: path.span() });
-                }
-            }
-            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
-                self.verify_type_expression_valid_for_program_input(lhs);
-                self.verify_type_expression_valid_for_program_input(rhs);
-            }
+        if self.nested_loops == 0 {
+            self.push_err(ResolverError::JumpOutsideLoop { is_break, span });
         }
     }
 }

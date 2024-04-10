@@ -1,7 +1,7 @@
 use acvm::acir::{brillig::BlackBoxOp, BlackBoxFunc};
 
 use crate::brillig::brillig_ir::{
-    brillig_variable::{BrilligVariable, BrilligVector},
+    brillig_variable::{BrilligVariable, BrilligVector, SingleAddrVariable},
     BrilligContext,
 };
 
@@ -56,17 +56,23 @@ pub(crate) fn convert_black_box_call(
         }
         BlackBoxFunc::Keccak256 => {
             if let (
-                [message, BrilligVariable::SingleAddr(array_size)],
+                [message, BrilligVariable::SingleAddr(message_size)],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
                 let mut message_vector = convert_array_or_vector(brillig_context, message, bb_func);
-                message_vector.size = array_size.address;
+                let message_size_as_usize =
+                    SingleAddrVariable::new_usize(brillig_context.allocate_register());
+                // Message_size is not usize
+                brillig_context.cast_instruction(message_size_as_usize, *message_size);
+
+                message_vector.size = message_size_as_usize.address;
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::Keccak256 {
                     message: message_vector.to_heap_vector(),
                     output: result_array.to_heap_array(),
                 });
+                brillig_context.deallocate_single_addr(message_size_as_usize);
             } else {
                 unreachable!("ICE: Keccak256 expects message, message size and result array")
             }
@@ -167,7 +173,7 @@ pub(crate) fn convert_black_box_call(
             ) = (function_arguments, function_results)
             {
                 let message_hash = convert_array_or_vector(brillig_context, message, bb_func);
-                let signature = brillig_context.array_to_vector(signature);
+                let signature = brillig_context.array_to_vector_instruction(signature);
                 brillig_context.black_box_op_instruction(BlackBoxOp::SchnorrVerify {
                     public_key_x: public_key_x.address,
                     public_key_y: public_key_y.address,
@@ -240,7 +246,7 @@ pub(crate) fn convert_black_box_call(
                 });
             } else {
                 unreachable!(
-                    "ICE: EmbeddedCurveAdd expects two register arguments and one array result"
+                    "ICE: BigIntAdd expects two register arguments and one result register"
                 )
             }
         }
@@ -257,7 +263,7 @@ pub(crate) fn convert_black_box_call(
                 });
             } else {
                 unreachable!(
-                    "ICE: EmbeddedCurveAdd expects two register arguments and one array result"
+                    "ICE: BigIntSub expects two register arguments and one result register"
                 )
             }
         }
@@ -274,7 +280,7 @@ pub(crate) fn convert_black_box_call(
                 });
             } else {
                 unreachable!(
-                    "ICE: EmbeddedCurveAdd expects two register arguments and one array result"
+                    "ICE: BigIntMul expects two register arguments and one result register"
                 )
             }
         }
@@ -291,7 +297,7 @@ pub(crate) fn convert_black_box_call(
                 });
             } else {
                 unreachable!(
-                    "ICE: EmbeddedCurveAdd expects two register arguments and one array result"
+                    "ICE: BigIntDiv expects two register arguments and one result register"
                 )
             }
         }
@@ -308,7 +314,7 @@ pub(crate) fn convert_black_box_call(
                 });
             } else {
                 unreachable!(
-                    "ICE: EmbeddedCurveAdd expects two register arguments and one array result"
+                    "ICE: BigIntFromLeBytes expects two register arguments and one result register"
                 )
             }
         }
@@ -324,7 +330,7 @@ pub(crate) fn convert_black_box_call(
                 });
             } else {
                 unreachable!(
-                    "ICE: EmbeddedCurveAdd expects two register arguments and one array result"
+                    "ICE: BigIntToLeBytes expects one register argument and one array result"
                 )
             }
         }
@@ -368,7 +374,7 @@ fn convert_array_or_vector(
     bb_func: &BlackBoxFunc,
 ) -> BrilligVector {
     match array_or_vector {
-        BrilligVariable::BrilligArray(array) => brillig_context.array_to_vector(array),
+        BrilligVariable::BrilligArray(array) => brillig_context.array_to_vector_instruction(array),
         BrilligVariable::BrilligVector(vector) => *vector,
         _ => unreachable!(
             "ICE: {} expected an array or a vector, but got {:?}",

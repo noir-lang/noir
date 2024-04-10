@@ -44,7 +44,7 @@ pub enum TypeCheckError {
     #[error("Expected type {expected} is not the same as {actual}")]
     TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
     #[error("Expected {expected:?} found {found:?}")]
-    ArityMisMatch { expected: u16, found: u16, span: Span },
+    ArityMisMatch { expected: usize, found: usize, span: Span },
     #[error("Return type in a function cannot be public")]
     PublicReturnType { typ: Type, span: Span },
     #[error("Cannot cast type {from}, 'as' is only for primitive field or integer types")]
@@ -53,8 +53,10 @@ pub enum TypeCheckError {
     ExpectedFunction { found: Type, span: Span },
     #[error("Type {lhs_type} has no member named {field_name}")]
     AccessUnknownMember { lhs_type: Type, field_name: String, span: Span },
-    #[error("Function expects {expected} parameters but {found} given")]
+    #[error("Function expects {expected} parameters but {found} were given")]
     ParameterCountMismatch { expected: usize, found: usize, span: Span },
+    #[error("{item} expects {expected} generics but {found} were given")]
+    GenericCountMismatch { item: String, expected: usize, found: usize, span: Span },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { span: Span },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
@@ -63,8 +65,6 @@ pub enum TypeCheckError {
     VariableMustBeMutable { name: String, span: Span },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, span: Span },
-    #[error("Comparisons are invalid on Field types. Try casting the operands to a sized integer type first")]
-    InvalidComparisonOnField { span: Span },
     #[error("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?}")]
     IntegerSignedness { sign_x: Signedness, sign_y: Signedness, span: Span },
     #[error("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}")]
@@ -74,7 +74,7 @@ pub enum TypeCheckError {
     #[error("{kind} cannot be used in a unary operation")]
     InvalidUnaryOp { kind: String, span: Span },
     #[error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first.")]
-    InvalidBitwiseOperationOnField { span: Span },
+    FieldBitwiseOp { span: Span },
     #[error("Integer cannot be used with type {typ}")]
     IntegerTypeMismatch { typ: Type, span: Span },
     #[error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first")]
@@ -120,8 +120,26 @@ pub enum TypeCheckError {
         "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime"
     )]
     ConstrainedReferenceToUnconstrained { span: Span },
+    #[error(
+        "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
+    )]
+    UnconstrainedReferenceToConstrained { span: Span },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { span: Span },
+    #[error("Slices must have constant length")]
+    NonConstantSliceLength { span: Span },
+    #[error("Only sized types may be used in the entry point to a program")]
+    InvalidTypeForEntryPoint { span: Span },
+    #[error("Mismatched number of parameters in trait implementation")]
+    MismatchTraitImplNumParameters {
+        actual_num_parameters: usize,
+        expected_num_parameters: usize,
+        trait_name: String,
+        method_name: String,
+        span: Span,
+    },
+    #[error("Strings do not support indexed assignment")]
+    StringIndexAssign { span: Span },
 }
 
 impl TypeCheckError {
@@ -191,6 +209,12 @@ impl From<TypeCheckError> for Diagnostic {
                 let msg = format!("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), span)
             }
+            TypeCheckError::GenericCountMismatch { item, expected, found, span } => {
+                let empty_or_s = if expected == 1 { "" } else { "s" };
+                let was_or_were = if found == 1 { "was" } else { "were" };
+                let msg = format!("{item} expects {expected} generic{empty_or_s} but {found} {was_or_were} given");
+                Diagnostic::simple_error(msg, String::new(), span)
+            }
             TypeCheckError::InvalidCast { span, .. }
             | TypeCheckError::ExpectedFunction { span, .. }
             | TypeCheckError::AccessUnknownMember { span, .. }
@@ -198,12 +222,11 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::TupleIndexOutOfBounds { span, .. }
             | TypeCheckError::VariableMustBeMutable { span, .. }
             | TypeCheckError::UnresolvedMethodCall { span, .. }
-            | TypeCheckError::InvalidComparisonOnField { span }
             | TypeCheckError::IntegerSignedness { span, .. }
             | TypeCheckError::IntegerBitWidth { span, .. }
             | TypeCheckError::InvalidInfixOp { span, .. }
             | TypeCheckError::InvalidUnaryOp { span, .. }
-            | TypeCheckError::InvalidBitwiseOperationOnField { span, .. }
+            | TypeCheckError::FieldBitwiseOp { span, .. }
             | TypeCheckError::IntegerTypeMismatch { span, .. }
             | TypeCheckError::FieldComparison { span, .. }
             | TypeCheckError::AmbiguousBitWidth { span, .. }
@@ -211,7 +234,10 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::OverflowingAssignment { span, .. }
             | TypeCheckError::FieldModulo { span }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span } => {
+            | TypeCheckError::UnconstrainedReferenceToConstrained { span }
+            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span }
+            | TypeCheckError::NonConstantSliceLength { span }
+            | TypeCheckError::StringIndexAssign { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
@@ -283,6 +309,21 @@ impl From<TypeCheckError> for Diagnostic {
             TypeCheckError::UnneededTraitConstraint { trait_name, typ, span } => {
                 let msg = format!("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope");
                 Diagnostic::simple_warning(msg, "Unnecessary trait constraint in where clause".into(), span)
+            }
+            TypeCheckError::InvalidTypeForEntryPoint { span } => Diagnostic::simple_error(
+                "Only sized types may be used in the entry point to a program".to_string(),
+                "Slices, references, or any type containing them may not be used in main, contract functions, or foldable functions".to_string(), span),
+            TypeCheckError::MismatchTraitImplNumParameters {
+                expected_num_parameters,
+                actual_num_parameters,
+                trait_name,
+                method_name,
+                span,
+            } => {
+                let plural = if expected_num_parameters == 1 { "" } else { "s" };
+                let primary_message = format!(
+                    "`{trait_name}::{method_name}` expects {expected_num_parameters} parameter{plural}, but this method has {actual_num_parameters}");
+                Diagnostic::simple_error(primary_message, "".to_string(), span)
             }
         }
     }

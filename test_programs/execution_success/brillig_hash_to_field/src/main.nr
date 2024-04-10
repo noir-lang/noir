@@ -7,5 +7,5 @@ fn main(input: field) -> pub field {
 }
 
 unconstrained fn hash_to_field(input: field) -> field {
-    std::hash::hash_to_field([input])
+    std::hash::hash_to_field(&[input])
 }

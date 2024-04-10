@@ -11,7 +11,7 @@ use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
 use acvm::acir::circuit::Opcode;
 use acvm::blackbox_solver;
-use acvm::brillig_vm::{brillig::Value, VMStatus, VM};
+use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
 use acvm::{
     acir::{
         brillig::Opcode as BrilligOpcode,
@@ -1623,7 +1623,7 @@ impl AcirContext {
         let outputs_var = vecmap(outputs_types.iter(), |output| match output {
             AcirType::NumericType(_) => {
                 let var = self.add_data(AcirVarData::Const(
-                    memory.next().expect("Missing return data").to_field(),
+                    memory.next().expect("Missing return data").value,
                 ));
                 AcirValue::Var(var, output.clone())
             }
@@ -1640,7 +1640,7 @@ impl AcirContext {
         &mut self,
         element_types: &[AcirType],
         size: usize,
-        memory_iter: &mut impl Iterator<Item = Value>,
+        memory_iter: &mut impl Iterator<Item = MemoryValue>,
     ) -> AcirValue {
         let mut array_values = im::Vector::new();
         for _ in 0..size {
@@ -1657,7 +1657,7 @@ impl AcirContext {
                     AcirType::NumericType(_) => {
                         let memory_value =
                             memory_iter.next().expect("ICE: Unexpected end of memory");
-                        let var = self.add_data(AcirVarData::Const(memory_value.to_field()));
+                        let var = self.add_data(AcirVarData::Const(memory_value.value));
                         array_values.push_back(AcirValue::Var(var, element_type.clone()));
                     }
                 }
@@ -1757,6 +1757,30 @@ impl AcirContext {
         }
         Ok(())
     }
+
+    pub(crate) fn call_acir_function(
+        &mut self,
+        id: u32,
+        inputs: Vec<AcirValue>,
+        output_count: usize,
+    ) -> Result<Vec<AcirVar>, RuntimeError> {
+        let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
+        let inputs = inputs
+            .iter()
+            .flat_map(|input| vecmap(input, |input| input.witness))
+            .collect::<Vec<_>>();
+        let outputs = vecmap(0..output_count, |_| self.acir_ir.next_witness_index());
+
+        // Convert `Witness` values which are now constrained to be the output of the
+        // ACIR function call into `AcirVar`s.
+        // Similar to black box functions, we do not apply range information on the output of the  function.
+        // See issue https://github.com/noir-lang/noir/issues/1439
+        let results =
+            vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
+
+        self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs });
+        Ok(results)
+    }
 }
 
 /// Enum representing the possible values that a
@@ -1839,21 +1863,21 @@ pub(crate) struct AcirVar(usize);
 /// Returns the finished state of the Brillig VM if execution can complete.
 ///
 /// Returns `None` if complete execution of the Brillig bytecode is not possible.
-fn execute_brillig(code: &[BrilligOpcode], inputs: &[BrilligInputs]) -> Option<Vec<Value>> {
+fn execute_brillig(code: &[BrilligOpcode], inputs: &[BrilligInputs]) -> Option<Vec<MemoryValue>> {
     // Set input values
-    let mut calldata: Vec<Value> = Vec::new();
+    let mut calldata: Vec<FieldElement> = Vec::new();
 
     // Each input represents a constant or array of constants.
     // Iterate over each input and push it into registers and/or memory.
     for input in inputs {
         match input {
             BrilligInputs::Single(expr) => {
-                calldata.push(expr.to_const()?.into());
+                calldata.push(expr.to_const()?);
             }
             BrilligInputs::Array(expr_arr) => {
                 // Attempt to fetch all array input values
                 for expr in expr_arr.iter() {
-                    calldata.push(expr.to_const()?.into());
+                    calldata.push(expr.to_const()?);
                 }
             }
             BrilligInputs::MemoryArray(_) => {

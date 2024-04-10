@@ -1,12 +1,14 @@
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
+use std::rc::Rc;
+
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
 use crate::FunctionKind;
-use crate::{Distinctness, FunctionReturnType, Type, Visibility};
+use crate::{Distinctness, FunctionReturnType, Type, TypeVariable, Visibility};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -103,6 +105,12 @@ pub struct FuncMeta {
     /// or a Type::Forall for generic functions.
     pub typ: Type,
 
+    /// The set of generics that are declared directly on this function in the source code.
+    /// This does not include generics from an outer scope, like those introduced by
+    /// an `impl<T>` block. This also does not include implicit generics added by the compiler
+    /// such as a trait's `Self` type variable.
+    pub direct_generics: Vec<(Rc<String>, TypeVariable)>,
+
     pub location: Location,
 
     // This flag is needed for the attribute check pass
@@ -112,6 +120,14 @@ pub struct FuncMeta {
 
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
+
+    /// True if this function is an entry point to the program.
+    /// For non-contracts, this means the function is `main`.
+    pub is_entry_point: bool,
+
+    /// True if this function is marked with an attribute
+    /// that indicates it should not be inlined, such as for folding.
+    pub should_fold: bool,
 }
 
 impl FuncMeta {

@@ -1,10 +1,10 @@
 //! This module contains functions for producing a higher level view disassembler of Brillig.
 
 use super::BrilligBinaryOp;
-use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
-use acvm::acir::brillig::{
-    BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, MemoryAddress, Value,
-    ValueOrArray,
+use crate::brillig::brillig_ir::ReservedRegisters;
+use acvm::{
+    acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
+    FieldElement,
 };
 
 /// Trait for converting values into debug-friendly strings.
@@ -26,8 +26,8 @@ default_to_string_impl! { str usize u32 }
 
 impl DebugToString for MemoryAddress {
     fn debug_to_string(&self) -> String {
-        if *self == ReservedRegisters::stack_pointer() {
-            "Stack".into()
+        if *self == ReservedRegisters::free_memory_pointer() {
+            "FreeMem".into()
         } else if *self == ReservedRegisters::previous_stack_pointer() {
             "PrevStack".into()
         } else {
@@ -48,66 +48,30 @@ impl DebugToString for HeapVector {
     }
 }
 
-impl DebugToString for BinaryFieldOp {
-    fn debug_to_string(&self) -> String {
-        match self {
-            BinaryFieldOp::Add => "f+".into(),
-            BinaryFieldOp::Sub => "f-".into(),
-            BinaryFieldOp::Mul => "f*".into(),
-            BinaryFieldOp::Div => "f/".into(),
-            BinaryFieldOp::Equals => "f==".into(),
-        }
-    }
-}
-
-impl DebugToString for BinaryIntOp {
-    fn debug_to_string(&self) -> String {
-        match self {
-            BinaryIntOp::Add => "+".into(),
-            BinaryIntOp::Sub => "-".into(),
-            BinaryIntOp::Mul => "*".into(),
-            BinaryIntOp::Equals => "==".into(),
-            BinaryIntOp::SignedDiv => "/".into(),
-            BinaryIntOp::UnsignedDiv => "//".into(),
-            BinaryIntOp::LessThan => "<".into(),
-            BinaryIntOp::LessThanEquals => "<=".into(),
-            BinaryIntOp::And => "&&".into(),
-            BinaryIntOp::Or => "||".into(),
-            BinaryIntOp::Xor => "^".into(),
-            BinaryIntOp::Shl => "<<".into(),
-            BinaryIntOp::Shr => ">>".into(),
-        }
-    }
-}
-
 impl DebugToString for BrilligBinaryOp {
     fn debug_to_string(&self) -> String {
         match self {
-            BrilligBinaryOp::Field { op } => op.debug_to_string(),
-            BrilligBinaryOp::Integer { op, bit_size } => {
-                // rationale: if there's >= 64 bits, we should not bother with this detail
-                if *bit_size >= BRILLIG_MEMORY_ADDRESSING_BIT_SIZE {
-                    op.debug_to_string()
-                } else {
-                    format!("i{}::{}", bit_size, op.debug_to_string())
-                }
-            }
-            BrilligBinaryOp::Modulo { is_signed_integer, bit_size } => {
-                let op = if *is_signed_integer { "%" } else { "%%" };
-                // rationale: if there's >= 64 bits, we should not bother with this detail
-                if *bit_size >= BRILLIG_MEMORY_ADDRESSING_BIT_SIZE {
-                    op.into()
-                } else {
-                    format!("{op}:{bit_size}")
-                }
-            }
+            BrilligBinaryOp::Add => "+".into(),
+            BrilligBinaryOp::Sub => "-".into(),
+            BrilligBinaryOp::Mul => "*".into(),
+            BrilligBinaryOp::Equals => "==".into(),
+            BrilligBinaryOp::FieldDiv => "f/".into(),
+            BrilligBinaryOp::UnsignedDiv => "/".into(),
+            BrilligBinaryOp::LessThan => "<".into(),
+            BrilligBinaryOp::LessThanEquals => "<=".into(),
+            BrilligBinaryOp::And => "&&".into(),
+            BrilligBinaryOp::Or => "||".into(),
+            BrilligBinaryOp::Xor => "^".into(),
+            BrilligBinaryOp::Shl => "<<".into(),
+            BrilligBinaryOp::Shr => ">>".into(),
+            BrilligBinaryOp::Modulo => "%".into(),
         }
     }
 }
 
-impl DebugToString for Value {
+impl DebugToString for FieldElement {
     fn debug_to_string(&self) -> String {
-        self.to_usize().to_string()
+        self.to_string()
     }
 }
 
@@ -155,20 +119,27 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  ASSERT {} != 0", condition);
     }
 
-    /// Processes a return instruction.
-    pub(crate) fn return_instruction(&self, return_registers: &[MemoryAddress]) {
-        let registers_string = return_registers
-            .iter()
-            .map(MemoryAddress::debug_to_string)
-            .collect::<Vec<String>>()
-            .join(", ");
-
-        debug_println!(self.enable_debug_trace, "  // return {};", registers_string);
-    }
-
     /// Emits a `mov` instruction.
     pub(crate) fn mov_instruction(&self, destination: MemoryAddress, source: MemoryAddress) {
         debug_println!(self.enable_debug_trace, "  MOV {}, {}", destination, source);
+    }
+
+    /// Emits a conditional `mov` instruction.
+    pub(crate) fn conditional_mov_instruction(
+        &self,
+        destination: MemoryAddress,
+        condition: MemoryAddress,
+        source_a: MemoryAddress,
+        source_b: MemoryAddress,
+    ) {
+        debug_println!(
+            self.enable_debug_trace,
+            "  CMOV {} = {}? {} : {}",
+            destination,
+            condition,
+            source_a,
+            source_b
+        );
     }
 
     /// Emits a `cast` instruction.
@@ -199,7 +170,7 @@ impl DebugShow {
     }
 
     /// Stores the value of `constant` in the `result` register
-    pub(crate) fn const_instruction(&self, result: MemoryAddress, constant: Value) {
+    pub(crate) fn const_instruction(&self, result: MemoryAddress, constant: FieldElement) {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
     }
 
@@ -252,64 +223,17 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  STOP");
     }
 
-    /// Debug function for allocate_array_instruction
-    pub(crate) fn allocate_array_instruction(
+    /// Emits a external stop instruction (returns data)
+    pub(crate) fn external_stop_instruction(
         &self,
-        pointer_register: MemoryAddress,
-        size_register: MemoryAddress,
+        return_data_offset: usize,
+        return_data_size: usize,
     ) {
         debug_println!(
             self.enable_debug_trace,
-            "  ALLOCATE_ARRAY {} SIZE {}",
-            pointer_register,
-            size_register
-        );
-    }
-
-    /// Debug function for allocate_instruction
-    pub(crate) fn allocate_instruction(&self, pointer_register: MemoryAddress) {
-        debug_println!(self.enable_debug_trace, "  ALLOCATE {} ", pointer_register);
-    }
-
-    /// Debug function for array_get
-    pub(crate) fn array_get(
-        &self,
-        array_ptr: MemoryAddress,
-        index: MemoryAddress,
-        result: MemoryAddress,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  ARRAY_GET {}[{}] -> {}",
-            array_ptr,
-            index,
-            result
-        );
-    }
-
-    /// Debug function for array_set
-    pub(crate) fn array_set(
-        &self,
-        array_ptr: MemoryAddress,
-        index: MemoryAddress,
-        value: MemoryAddress,
-    ) {
-        debug_println!(self.enable_debug_trace, "  ARRAY_SET {}[{}] = {}", array_ptr, index, value);
-    }
-
-    /// Debug function for copy_array_instruction
-    pub(crate) fn copy_array_instruction(
-        &self,
-        source: MemoryAddress,
-        destination: MemoryAddress,
-        num_elements_register: MemoryAddress,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  COPY_ARRAY {} -> {} ({} ELEMENTS)",
-            source,
-            destination,
-            num_elements_register
+            "  EXT_STOP {}..{}",
+            return_data_offset,
+            return_data_offset + return_data_size
         );
     }
 
@@ -337,22 +261,6 @@ impl DebugShow {
             "  JUMP_IF {} TO {}",
             condition,
             target_label.to_string()
-        );
-    }
-
-    /// Debug function for cast_instruction
-    pub(crate) fn truncate_instruction(
-        &self,
-        destination: MemoryAddress,
-        source: MemoryAddress,
-        target_bit_size: u32,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  TRUNCATE {} FROM {} TO {} BITS",
-            destination,
-            source,
-            target_bit_size
         );
     }
 
@@ -540,5 +448,21 @@ impl DebugShow {
     /// Debug function for cast_instruction
     pub(crate) fn add_external_call_instruction(&self, func_label: String) {
         debug_println!(self.enable_debug_trace, "  CALL {}", func_label);
+    }
+
+    /// Debug function for calldata_copy
+    pub(crate) fn calldata_copy_instruction(
+        &self,
+        destination: MemoryAddress,
+        calldata_size: usize,
+        offset: usize,
+    ) {
+        debug_println!(
+            self.enable_debug_trace,
+            "  CALLDATA_COPY {} {}..{}",
+            destination,
+            offset,
+            offset + calldata_size
+        );
     }
 }

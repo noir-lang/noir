@@ -76,7 +76,7 @@ impl<'interner> Monomorphizer<'interner> {
         let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
         let source_var_id = source_var_id.to_u128().into();
         // then update the ID used for tracking at runtime
-        let var_id = self.debug_type_tracker.insert_var(source_var_id, var_type);
+        let var_id = self.debug_type_tracker.insert_var(source_var_id, &var_type);
         let interned_var_id = self.intern_var_id(var_id, &call.location);
         arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id)?;
         Ok(())
@@ -192,11 +192,12 @@ impl<'interner> Monomorphizer<'interner> {
 fn element_type_at_index(ptype: &PrintableType, i: usize) -> &PrintableType {
     match ptype {
         PrintableType::Array { length: _length, typ } => typ.as_ref(),
+        PrintableType::Slice { typ } => typ.as_ref(),
         PrintableType::Tuple { types } => &types[i],
         PrintableType::Struct { name: _name, fields } => &fields[i].1,
         PrintableType::String { length: _length } => &PrintableType::UnsignedInteger { width: 8 },
-        _ => {
-            panic!["expected type with sub-fields, found terminal type"]
+        other => {
+            panic!["expected type with sub-fields, found terminal type: {other:?}"]
         }
     }
 }

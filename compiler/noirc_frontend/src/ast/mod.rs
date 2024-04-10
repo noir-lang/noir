@@ -83,7 +83,8 @@ impl core::fmt::Display for IntegerBitSize {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeData {
     FieldElement,
-    Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
+    Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [Field; 4] = Array(4, Field)
+    Slice(Box<UnresolvedType>),
     Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     Expression(UnresolvedTypeExpression),
@@ -151,10 +152,8 @@ impl std::fmt::Display for UnresolvedTypeData {
         use UnresolvedTypeData::*;
         match self {
             FieldElement => write!(f, "Field"),
-            Array(len, typ) => match len {
-                None => write!(f, "[{typ}]"),
-                Some(len) => write!(f, "[{typ}; {len}]"),
-            },
+            Array(len, typ) => write!(f, "[{typ}; {len}]"),
+            Slice(typ) => write!(f, "[{typ}]"),
             Integer(sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "i{num_bits}"),
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
@@ -354,8 +353,8 @@ impl UnresolvedTypeExpression {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-/// Represents whether the function can be called outside its module/crate
-pub enum FunctionVisibility {
+/// Represents whether the definition can be referenced outside its module/crate
+pub enum ItemVisibility {
     Public,
     Private,
     PublicCrate,

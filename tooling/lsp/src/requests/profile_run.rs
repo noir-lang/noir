@@ -5,7 +5,10 @@ use std::{
 
 use acvm::acir::circuit::ExpressionWidth;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::{artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager};
+use nargo::{
+    artifacts::debug::DebugArtifact, insert_all_files_for_workspace_into_file_manager,
+    ops::report_errors,
+};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
     file_manager_with_stdlib, CompileOptions, DebugFile, NOIR_ARTIFACT_VERSION_STRING,
@@ -60,11 +63,18 @@ fn on_profile_run_request_inner(
         Some(_package) => {
             let expression_width = ExpressionWidth::Bounded { width: 3 };
 
-            let (compiled_programs, compiled_contracts) = nargo::ops::compile_workspace(
+            let compiled_workspace = nargo::ops::compile_workspace(
                 &workspace_file_manager,
                 &parsed_files,
                 &workspace,
                 &CompileOptions::default(),
+            );
+
+            let (compiled_programs, compiled_contracts) = report_errors(
+                compiled_workspace,
+                &workspace_file_manager,
+                CompileOptions::default().deny_warnings,
+                CompileOptions::default().silence_warnings,
             )
             .map_err(|err| ResponseError::new(ErrorCode::REQUEST_FAILED, err))?;
 

@@ -10,12 +10,6 @@ pub struct FunctionInput {
     pub num_bits: u32,
 }
 
-impl FunctionInput {
-    pub fn dummy() -> Self {
-        Self { witness: Witness(0), num_bits: 0 }
-    }
-}
-
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlackBoxFuncCall {
     AND {
@@ -217,8 +211,10 @@ impl BlackBoxFuncCall {
             | BlackBoxFuncCall::PedersenCommitment { inputs, .. }
             | BlackBoxFuncCall::PedersenHash { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. }
-            | BlackBoxFuncCall::Sha256Compression { inputs, .. } => inputs.to_vec(),
+            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
+            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
+                inputs.iter().chain(hash_values).copied().collect()
+            }
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
                 vec![*lhs, *rhs]
             }

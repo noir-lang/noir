@@ -3,12 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "preprocess": "./scripts/codegen_nargo_reference.sh && yarn node ./scripts/preprocess/index.js",
+    "preprocess": "yarn workspace @noir-lang/acvm_js build && ./scripts/codegen_nargo_reference.sh && yarn node ./scripts/preprocess/index.js",
     "start": "yarn preprocess && docusaurus start",
-    "build": "yarn preprocess && yarn version::stables && docusaurus build",
+    "build": "yarn preprocess && docusaurus build",
+    "clean": "rm -rf ./processed-docs ./processed-docs ./build",
     "version::stables": "ts-node ./scripts/setStable.ts",
     "serve": "serve build",
-    "version": "yarn preprocess && docusaurus docs:version"
+    "version": "yarn version::stables && ./scripts/cut_version.sh"
   },
   "dependencies": {
     "@docusaurus/core": "^3.0.1",
@@ -34,15 +35,15 @@
     "@docusaurus/types": "^3.0.1",
     "@types/prettier": "^3",
     "docusaurus-plugin-typedoc": "1.0.0-next.18",
-    "eslint-plugin-prettier": "^5.0.0",
-    "prettier": "3.0.3",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "3.2.5",
     "serve": "^14.2.1",
     "ts-node": "^10.9.1",
     "typedoc": "^0.25.0",
     "typedoc-plugin-frontmatter": "^0.0.2",
     "typedoc-plugin-markdown": "4.0.0-next.25",
     "typedoc-plugin-merge-modules": "^5.1.0",
-    "typescript": "~5.2.2"
+    "typescript": "^5.4.2"
   },
   "browserslist": {
     "production": [

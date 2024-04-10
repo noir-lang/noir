@@ -5,6 +5,7 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
+use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 
 pub(crate) struct SliceCapacityTracker<'a> {
@@ -62,42 +63,71 @@ impl<'a> SliceCapacityTracker<'a> {
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SlicePopBack
                         | Intrinsic::SliceInsert
-                        | Intrinsic::SliceRemove => (1, 1),
+                        | Intrinsic::SliceRemove => (Some(1), 1),
                         // `pop_front` returns the popped element, and then the respective slice.
                         // This means in the case of a slice with structs, the result index of the popped slice
                         // will change depending on the number of elements in the struct.
                         // For example, a slice with four elements will look as such in SSA:
                         // v3, v4, v5, v6, v7, v8 = call slice_pop_front(v1, v2)
                         // where v7 is the slice length and v8 is the popped slice itself.
-                        Intrinsic::SlicePopFront => (1, results.len() - 1),
+                        Intrinsic::SlicePopFront => (Some(1), results.len() - 1),
+                        // The slice capacity of these intrinsics is not determined by the arguments of the function.
+                        Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => (None, 1),
+                        Intrinsic::AsSlice => (Some(0), 1),
                         _ => return,
                     };
-                    let slice_contents = arguments[argument_index];
+                    let result_slice = results[result_index];
                     match intrinsic {
                         Intrinsic::SlicePushBack
                         | Intrinsic::SlicePushFront
                         | Intrinsic::SliceInsert => {
+                            let argument_index = argument_index
+                                .expect("ICE: Should have an argument index for slice intrinsics");
+                            let slice_contents = arguments[argument_index];
+
                             for arg in &arguments[(argument_index + 1)..] {
                                 let element_typ = self.dfg.type_of_value(*arg);
                                 if element_typ.contains_slice_element() {
                                     self.compute_slice_capacity(*arg, slice_sizes);
                                 }
                             }
+
                             if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
                                 let new_capacity = *contents_capacity + 1;
-                                slice_sizes.insert(results[result_index], new_capacity);
+                                slice_sizes.insert(result_slice, new_capacity);
                             }
                         }
                         Intrinsic::SlicePopBack
                         | Intrinsic::SliceRemove
                         | Intrinsic::SlicePopFront => {
-                            // We do not decrement the size on intrinsics that could remove values from a slice.
-                            // This is because we could potentially go back to the smaller slice and not fill in dummies.
-                            // This pass should be tracking the potential max that a slice ***could be***
+                            let argument_index = argument_index
+                                .expect("ICE: Should have an argument index for slice intrinsics");
+                            let slice_contents = arguments[argument_index];
+
                             if let Some(contents_capacity) = slice_sizes.get(&slice_contents) {
                                 let new_capacity = *contents_capacity - 1;
-                                slice_sizes.insert(results[result_index], new_capacity);
+                                slice_sizes.insert(result_slice, new_capacity);
                             }
+                        }
+                        Intrinsic::ToBits(_) => {
+                            // Compiler sanity check
+                            assert!(matches!(self.dfg.type_of_value(result_slice), Type::Slice(_)));
+                            slice_sizes.insert(result_slice, FieldElement::max_num_bits() as usize);
+                        }
+                        Intrinsic::ToRadix(_) => {
+                            // Compiler sanity check
+                            assert!(matches!(self.dfg.type_of_value(result_slice), Type::Slice(_)));
+                            slice_sizes
+                                .insert(result_slice, FieldElement::max_num_bytes() as usize);
+                        }
+                        Intrinsic::AsSlice => {
+                            let argument_index = argument_index
+                                .expect("ICE: Should have an argument index for AsSlice builtin");
+                            let array_size = self
+                                .dfg
+                                .try_get_array_length(arguments[argument_index])
+                                .expect("ICE: Should be have an array length for AsSlice input");
+                            slice_sizes.insert(result_slice, array_size);
                         }
                         _ => {}
                     }

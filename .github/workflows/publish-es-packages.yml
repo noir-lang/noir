@@ -20,7 +20,9 @@ jobs:
     steps:
       - name: Checkout Noir repo
         uses: actions/checkout@v4
-
+        with:
+          ref: ${{ inputs.noir-ref }}
+      
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.73.0
 
@@ -42,7 +44,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: noirc_abi_wasm
-          path: ./tooling/noirc_abi_wasm/outputs/out/noirc_abi_wasm
+          path: | 
+            ./tooling/noirc_abi_wasm/nodejs
+            ./tooling/noirc_abi_wasm/web
           retention-days: 10
 
   build-noir_wasm:
@@ -87,6 +91,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.noir-ref }}
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.73.0
@@ -109,7 +115,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: acvm-js
-          path: ./acvm-repo/acvm_js/outputs/out/acvm_js
+          path: |
+            ./acvm-repo/acvm_js/nodejs
+            ./acvm-repo/acvm_js/web
           retention-days: 3
           
   publish-es-packages:

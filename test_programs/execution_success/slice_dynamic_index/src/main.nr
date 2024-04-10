@@ -4,7 +4,7 @@ fn main(x: field) {
 }
 
 fn regression_dynamic_slice_index(x: field, y: field) {
-    let mut slice = [];
+    let mut slice = &[];
     for i in 0..5 {
         slice = slice.push_back(i as Field);
     }

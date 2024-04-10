@@ -13,7 +13,7 @@ use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
-        function::{Function, FunctionId, RuntimeType, Signature},
+        function::{Function, FunctionId, Signature},
         instruction::{BinaryOp, ConstrainError, Instruction},
         types::{NumericType, Type},
         value::{Value, ValueId},
@@ -304,7 +304,7 @@ fn create_apply_function(
 ) -> FunctionId {
     assert!(!function_ids.is_empty());
     ssa.add_fn(|id| {
-        let mut function_builder = FunctionBuilder::new("apply".to_string(), id, RuntimeType::Acir);
+        let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
         let target_id = function_builder.add_parameter(Type::field());
         let params_ids = vecmap(signature.params, |typ| function_builder.add_parameter(typ));
 

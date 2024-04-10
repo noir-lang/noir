@@ -1,6 +1,6 @@
 use dep::std;
 
-#[recursive]
+// This circuit aggregates two proofs from `assert_statement_recursive`.
 fn main(
     verification_key: [field; 114],
     // This is the proof without public inputs attached.

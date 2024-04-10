@@ -138,8 +138,8 @@ Now, we will add our `getSqrt` method, as expected by the `#[oracle(getSqrt)]` d
 
 ```js
 server.addMethod("getSqrt", async (params) => {
-  const values = params[0].Array.map(({ inner }) => {
-    return { inner: `${Math.sqrt(parseInt(inner, 16))}` };
+  const values = params[0].Array.map((field) => {
+    return `${Math.sqrt(parseInt(field, 16))}`;
   });
   return { values: [{ Array: values }] };
 });
@@ -147,27 +147,23 @@ server.addMethod("getSqrt", async (params) => {
 
 :::tip
 
-Brillig expects an object with an array of values. Each value is an object declaring to be `Single` or `Array` and returning a `inner` property *as a string*. For example:
+Brillig expects an object with an array of values. Each value is an object declaring to be `Single` or `Array` and returning a field element *as a string*. For example:
 
 ```json
-{ "values": [{ "Array": [{ "inner": "1" }, { "inner": "2"}]}]}
-{ "values": [{ "Single": { "inner": "1" }}]}
-{ "values": [{ "Single": { "inner": "1" }}, { "Array": [{ "inner": "1", { "inner": "2" }}]}]}
+{ "values": [{ "Array": ["1", "2"] }]}
+{ "values": [{ "Single": "1" }]}
+{ "values": [{ "Single": "1" }, { "Array": ["1", "2"] }]}
 ```
 
 If you're using Typescript, the following types may be helpful in understanding the expected return value and making sure they're easy to follow:
 
 ```js
-interface Value {
-  inner: string,
-}
-
 interface SingleForeignCallParam {
-  Single: Value,
+  Single: string,
 }
 
 interface ArrayForeignCallParam {
-  Array: Value[],
+  Array: string[],
 }
 
 type ForeignCallParam = SingleForeignCallParam | ArrayForeignCallParam;
@@ -198,7 +194,7 @@ For example, if your Noir program expects the host machine to provide CPU pseudo
 ```js
 const foreignCallHandler = (name, inputs) => crypto.randomBytes(16) // etc
 
-await noir.generateFinalProof(inputs, foreignCallHandler)
+await noir.generateProof(inputs, foreignCallHandler)
 ```
 
 As one can see, in NoirJS, the [`foreignCallHandler`](../reference/NoirJS/noir_js/type-aliases/ForeignCallHandler.md) function simply means "a callback function that returns a value of type [`ForeignCallOutput`](../reference/NoirJS/noir_js/type-aliases/ForeignCallOutput.md). It doesn't have to be an RPC call like in the case for Nargo.
@@ -243,9 +239,9 @@ const foreignCallHandler = async (name, input) => {
     // notice that the "inputs" parameter contains *all* the inputs
     // in this case we to make the RPC request with the first parameter "numbers", which would be input[0]
     const oracleReturn = await client.request(name, [
-      { Array: input[0].map((i) => ({ inner: i.toString("hex") })) },
+      { Array: input[0].map((i) => i.toString("hex")) },
     ]);
-    return [oracleReturn.values[0].Array.map((x) => x.inner)];
+    return [oracleReturn.values[0].Array];
 };
 
 // the rest of your NoirJS code

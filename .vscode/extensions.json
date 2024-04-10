@@ -4,7 +4,6 @@
 	// List of extensions which should be recommended for users of this workspace.
 	"recommendations": [
 		"mkhl.direnv",
-		"jnoortheen.nix-ide",
 		"rust-lang.rust-analyzer",
 		"redhat.vscode-yaml",
 		"esbenp.prettier-vscode",
