@@ -1611,7 +1611,7 @@ mod test {
         ];
 
         let use_statements = valid_use_statements
-            .iter_mut()
+            .into_iter()
             .map(|valid_str| (valid_str, true))
             .chain(invalid_use_statements.iter_mut().map(|invalid_str| (invalid_str, false)));
 
