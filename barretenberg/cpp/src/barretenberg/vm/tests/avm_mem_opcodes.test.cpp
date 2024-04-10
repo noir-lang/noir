@@ -159,7 +159,7 @@ class AvmMemOpcodeTests : public ::testing::Test {
                               Field(&Row::avm_mem_ind_op_c, 1)));
         }
 
-        validate_trace_check_circuit(std::move(trace));
+        validate_trace(std::move(trace));
     }
 };
 
@@ -230,7 +230,7 @@ TEST_F(AvmMemOpcodeTests, indirectMovInvalidAddressTag)
                       Field(&Row::avm_mem_r_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
                       Field(&Row::avm_mem_ind_op_c, 1)));
 
-    validate_trace_check_circuit(std::move(trace));
+    validate_trace(std::move(trace));
 }
 
 TEST_F(AvmMemOpcodeTests, directSet)
@@ -257,7 +257,7 @@ TEST_F(AvmMemOpcodeTests, directSet)
                       Field(&Row::avm_mem_rw, 1),
                       Field(&Row::avm_mem_ind_op_c, 0)));
 
-    validate_trace_proof(std::move(trace));
+    validate_trace(std::move(trace));
 }
 
 TEST_F(AvmMemOpcodeTests, indirectSet)
@@ -297,7 +297,7 @@ TEST_F(AvmMemOpcodeTests, indirectSet)
                       Field(&Row::avm_mem_r_in_tag, static_cast<uint32_t>(AvmMemoryTag::U32)),
                       Field(&Row::avm_mem_tag, static_cast<uint32_t>(AvmMemoryTag::U32))));
 
-    validate_trace_proof(std::move(trace));
+    validate_trace(std::move(trace));
 }
 
 TEST_F(AvmMemOpcodeTests, indirectSetWrongTag)
@@ -327,7 +327,7 @@ TEST_F(AvmMemOpcodeTests, indirectSetWrongTag)
                       Field(&Row::avm_mem_tag, static_cast<uint32_t>(AvmMemoryTag::U8)),
                       Field(&Row::avm_mem_tag_err, 1)));
 
-    validate_trace_proof(std::move(trace));
+    validate_trace(std::move(trace));
 }
 
 /******************************************************************************

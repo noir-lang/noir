@@ -3,36 +3,37 @@
 
 namespace tests_avm {
 /**
- * @brief Helper routine proving and verifying a proof based on the supplied trace
+ * @brief Helper routine checking the circuit constraints without proving
  *
  * @param trace The execution trace
  */
 void validate_trace_check_circuit(std::vector<Row>&& trace)
 {
-    auto circuit_builder = AvmCircuitBuilder();
-    circuit_builder.set_trace(std::move(trace));
-    EXPECT_TRUE(circuit_builder.check_circuit());
+    validate_trace(std::move(trace), false);
 };
 
 /**
- * @brief Helper routine proving and verifying a proof based on the supplied trace
+ * @brief Helper routine which checks the circuit constraints and depending on
+ *         the boolean with_proof value performs a proof generation and verification.
  *
  * @param trace The execution trace
  */
-void validate_trace_proof(std::vector<Row>&& trace)
+void validate_trace(std::vector<Row>&& trace, bool with_proof)
 {
     auto circuit_builder = AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
     EXPECT_TRUE(circuit_builder.check_circuit());
 
-    auto composer = AvmComposer();
-    auto prover = composer.create_prover(circuit_builder);
-    auto proof = prover.construct_proof();
+    if (with_proof) {
+        auto composer = AvmComposer();
+        auto prover = composer.create_prover(circuit_builder);
+        auto proof = prover.construct_proof();
 
-    auto verifier = composer.create_verifier(circuit_builder);
-    bool verified = verifier.verify_proof(proof);
+        auto verifier = composer.create_verifier(circuit_builder);
+        bool verified = verifier.verify_proof(proof);
 
-    EXPECT_TRUE(verified);
+        EXPECT_TRUE(verified);
+    }
 };
 
 /**

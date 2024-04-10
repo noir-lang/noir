@@ -355,7 +355,7 @@ TEST_P(AvmBitwiseTestsNot, ParamTest)
     FF ff_a = FF(uint256_t::from_uint128(a));
     FF ff_output = FF(uint256_t::from_uint128(output));
     common_validate_op_not(trace, ff_a, ff_output, FF(0), FF(1), mem_tag);
-    validate_trace_check_circuit(std::move(trace));
+    validate_trace(std::move(trace));
 }
 
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseTests,
@@ -377,7 +377,7 @@ TEST_P(AvmBitwiseTestsAnd, AllAndTest)
     FF ff_output = FF(uint256_t::from_uint128(output));
     // EXPECT_EQ(1, 2) << "a ^ b " << (a ^ b) << '\n';
     common_validate_bit_op(trace, 0, ff_a, ff_b, ff_output, FF(0), FF(1), FF(2), mem_tag);
-    validate_trace_check_circuit(std::move(trace));
+    validate_trace(std::move(trace));
 }
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseTests,
                          AvmBitwiseTestsAnd,
@@ -398,7 +398,7 @@ TEST_P(AvmBitwiseTestsOr, AllOrTest)
     FF ff_output = FF(uint256_t::from_uint128(output));
 
     common_validate_bit_op(trace, 1, ff_a, ff_b, ff_output, FF(0), FF(1), FF(2), mem_tag);
-    validate_trace_check_circuit(std::move(trace));
+    validate_trace(std::move(trace));
 }
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseTests,
                          AvmBitwiseTestsOr,
@@ -419,7 +419,7 @@ TEST_P(AvmBitwiseTestsXor, AllXorTest)
     FF ff_output = FF(uint256_t::from_uint128(output));
 
     common_validate_bit_op(trace, 2, ff_a, ff_b, ff_output, FF(0), FF(1), FF(2), mem_tag);
-    validate_trace_check_circuit(std::move(trace));
+    validate_trace(std::move(trace));
 }
 
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseTests,
