@@ -70,6 +70,7 @@ end-to-end:
     FROM node:18.19.1-slim
     RUN apt-get update && apt-get install jq chromium netcat-openbsd -y
     ENV CHROME_BIN="/usr/bin/chromium"
+    COPY ../foundry/+build/usr/src/foundry/bin/anvil /usr/src/foundry/bin/anvil
     COPY +end-to-end-prod/usr/src /usr/src
     WORKDIR /usr/src/yarn-project/end-to-end
     ENTRYPOINT ["yarn", "test"]

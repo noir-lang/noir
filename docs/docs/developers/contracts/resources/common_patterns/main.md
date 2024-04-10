@@ -20,7 +20,7 @@ We call this the "authentication witness" pattern or authwit for short.
 Here you approve a contract to burn funds on your behalf.
 
 - Approve in public domain:
-  #include_code authwit_public_transfer_example /yarn-project/end-to-end/src/e2e_token_contract.test.ts typescript
+  #include_code authwit_public_transfer_example /yarn-project/end-to-end/src/e2e_token_contract/transfer_public.test.ts typescript
 
 Here you approve someone to transfer funds publicly on your behalf
 

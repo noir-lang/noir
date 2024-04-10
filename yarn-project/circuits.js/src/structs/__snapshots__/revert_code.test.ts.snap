@@ -50,45 +50,9 @@ exports[`revert_code should serialize properly 2`] = `
 `;
 
 exports[`revert_code should serialize properly 3`] = `
-Fr {
-  "asBigInt": 0n,
-  "asBuffer": {
-    "data": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-    ],
-    "type": "Buffer",
-  },
+{
+  "type": "Fr",
+  "value": "0x0000000000000000000000000000000000000000000000000000000000000000",
 }
 `;
 
@@ -142,44 +106,8 @@ exports[`revert_code should serialize properly 5`] = `
 `;
 
 exports[`revert_code should serialize properly 6`] = `
-Fr {
-  "asBigInt": 1n,
-  "asBuffer": {
-    "data": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      1,
-    ],
-    "type": "Buffer",
-  },
+{
+  "type": "Fr",
+  "value": "0x0000000000000000000000000000000000000000000000000000000000000001",
 }
 `;

@@ -4,6 +4,7 @@ import { keccak256String } from '../crypto/keccak/index.js';
 import { randomBytes } from '../crypto/random/index.js';
 import { Fr } from '../fields/index.js';
 import { BufferReader, FieldReader } from '../serialize/index.js';
+import { TypeRegistry } from '../serialize/type_registry.js';
 
 /**
  * Represents an Ethereum address as a 20-byte buffer and provides various utility methods
@@ -236,4 +237,14 @@ export class EthAddress {
   toFriendlyJSON() {
     return this.toString();
   }
+
+  toJSON() {
+    return {
+      type: 'EthAddress',
+      value: this.toString(),
+    };
+  }
 }
+
+// For deserializing JSON.
+TypeRegistry.register('EthAddress', EthAddress);

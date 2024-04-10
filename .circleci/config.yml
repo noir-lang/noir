@@ -705,7 +705,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_token_contract.test.ts
+          command: cond_spot_run_container end-to-end 4 ./src/e2e_token_contract/
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 

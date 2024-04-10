@@ -2,6 +2,7 @@ import { inspect } from 'util';
 
 import { Fr, fromBuffer } from '../fields/index.js';
 import { type BufferReader, FieldReader } from '../serialize/index.js';
+import { TypeRegistry } from '../serialize/type_registry.js';
 
 /**
  * AztecAddress represents a 32-byte address in the Aztec Protocol.
@@ -53,4 +54,14 @@ export class AztecAddress extends Fr {
   static random() {
     return new AztecAddress(super.random().toBuffer());
   }
+
+  toJSON() {
+    return {
+      type: 'AztecAddress',
+      value: this.toString(),
+    };
+  }
 }
+
+// For deserializing JSON.
+TypeRegistry.register('AztecAddress', AztecAddress);

@@ -206,7 +206,6 @@ Just below the contract definition, add the following imports:
 
 We are importing the Option type, items from the `value_note` library to help manage private value storage, note utilities, context (for managing private and public execution contexts), `state_vars` for helping manage state, `types` for data manipulation and `oracle` for help passing data from the private to public execution context. We also import the `auth` [library](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/auth.nr) to handle token authorizations from [Account Contracts](../../learn/concepts/accounts/main). Check out the Account Contract with AuthWitness [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-contracts/contracts/schnorr_single_key_account_contract/src/main.nr).
 
-
 For more detail on execution contexts, see [Contract Communication](../../learn/concepts/communication/main).
 
 ### Types files
@@ -441,7 +440,7 @@ aztec-cli codegen target -o src/artifacts --ts
 
 Review the end to end tests for reference:
 
-https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/end-to-end/src/e2e_token_contract.test.ts
+https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/end-to-end/src/e2e_token_contract/*.test.ts
 
 ### Token Bridge Contract
 

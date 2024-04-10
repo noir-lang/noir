@@ -85,7 +85,7 @@ export {
   Body,
   CompleteAddress,
   ExtendedNote,
-  FunctionCall,
+  type FunctionCall,
   GrumpkinPrivateKey,
   L1ToL2Message,
   L1Actor,
