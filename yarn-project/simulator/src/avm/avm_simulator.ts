@@ -62,7 +62,7 @@ export class AvmSimulator {
         );
 
         const gasLeft = `l1=${machineState.l1GasLeft} l2=${machineState.l2GasLeft} da=${machineState.daGasLeft}`;
-        this.log.debug(`@${machineState.pc} (${gasLeft}) ${instruction.toString()}`);
+        this.log.debug(`@${machineState.pc} ${instruction.toString()} (${gasLeft})`);
         // Execute the instruction.
         // Normal returns and reverts will return normally here.
         // "Exceptional halts" will throw.

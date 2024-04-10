@@ -75,7 +75,9 @@ async function executePublicFunctionAvm(executionContext: PublicExecutionContext
   const result = await simulator.execute();
   const newWorldState = context.persistableState.flush();
 
-  log.verbose(`[AVM] ${address.toString()}:${selector} returned, reverted: ${result.reverted}.`);
+  log.verbose(
+    `[AVM] ${address.toString()}:${selector} returned, reverted: ${result.reverted}, reason: ${result.revertReason}.`,
+  );
 
   // TODO(@spalladino) Read gas left from machineState and return it
   return await convertAvmResults(executionContext, newWorldState, result);

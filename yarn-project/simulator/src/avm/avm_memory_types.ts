@@ -240,7 +240,7 @@ export class TaggedMemory implements TaggedMemoryInterface {
     const word = this._mem[offset];
     TaggedMemory.log.debug(`get(${offset}) = ${word}`);
     if (word === undefined) {
-      TaggedMemory.log.warn(`Memory at offset ${offset} is undefined! This might be OK if it's stack dumping.`);
+      TaggedMemory.log.debug(`WARNING: Memory at offset ${offset} is undefined!`);
     }
     return word as T;
   }

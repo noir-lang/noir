@@ -2,6 +2,7 @@ import { UnencryptedL2Log } from '@aztec/circuit-types';
 import { AztecAddress, EthAddress, L2ToL1Message } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
+import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 
 import { type HostStorage } from './host_storage.js';
 import { Nullifiers } from './nullifiers.js';
@@ -47,6 +48,7 @@ export type JournalData = {
  * Manages merging of successful/reverted child state into current state.
  */
 export class AvmPersistableStateManager {
+  private readonly log: DebugLogger = createDebugLogger('aztec:avm_simulator:state_manager');
   /** Reference to node storage */
   public readonly hostStorage: HostStorage;
 
@@ -86,6 +88,7 @@ export class AvmPersistableStateManager {
    * @param value - the value being written to the slot
    */
   public writeStorage(storageAddress: Fr, slot: Fr, value: Fr) {
+    this.log.debug(`storage(${storageAddress})@${slot} <- ${value}`);
     // Cache storage writes for later reference/reads
     this.publicStorage.write(storageAddress, slot, value);
     // Trace all storage writes (even reverted ones)
@@ -101,6 +104,7 @@ export class AvmPersistableStateManager {
    */
   public async readStorage(storageAddress: Fr, slot: Fr): Promise<Fr> {
     const [exists, value] = await this.publicStorage.read(storageAddress, slot);
+    this.log.debug(`storage(${storageAddress})@${slot} ?? value: ${value}, exists: ${exists}.`);
     // We want to keep track of all performed reads (even reverted ones)
     this.trace.tracePublicStorageRead(storageAddress, slot, value, exists);
     return Promise.resolve(value);
@@ -118,6 +122,7 @@ export class AvmPersistableStateManager {
   public async checkNoteHashExists(storageAddress: Fr, noteHash: Fr, leafIndex: Fr): Promise<boolean> {
     const gotLeafIndex = await this.hostStorage.commitmentsDb.getCommitmentIndex(noteHash);
     const exists = gotLeafIndex === leafIndex.toBigInt();
+    this.log.debug(`noteHashes(${storageAddress})@${noteHash} ?? leafIndex: ${leafIndex}, exists: ${exists}.`);
     this.trace.traceNoteHashCheck(storageAddress, noteHash, exists, leafIndex);
     return Promise.resolve(exists);
   }
@@ -127,6 +132,7 @@ export class AvmPersistableStateManager {
    * @param noteHash - the unsiloed note hash to write
    */
   public writeNoteHash(storageAddress: Fr, noteHash: Fr) {
+    this.log.debug(`noteHashes(${storageAddress}) += @${noteHash}.`);
     this.trace.traceNewNoteHash(storageAddress, noteHash);
   }
 
@@ -138,6 +144,9 @@ export class AvmPersistableStateManager {
    */
   public async checkNullifierExists(storageAddress: Fr, nullifier: Fr): Promise<boolean> {
     const [exists, isPending, leafIndex] = await this.nullifiers.checkExists(storageAddress, nullifier);
+    this.log.debug(
+      `nullifiers(${storageAddress})@${nullifier} ?? leafIndex: ${leafIndex}, pending: ${isPending}, exists: ${exists}.`,
+    );
     this.trace.traceNullifierCheck(storageAddress, nullifier, exists, isPending, leafIndex);
     return Promise.resolve(exists);
   }
@@ -148,6 +157,7 @@ export class AvmPersistableStateManager {
    * @param nullifier - the unsiloed nullifier to write
    */
   public async writeNullifier(storageAddress: Fr, nullifier: Fr) {
+    this.log.debug(`nullifiers(${storageAddress}) += ${nullifier}.`);
     // Cache pending nullifiers for later access
     await this.nullifiers.append(storageAddress, nullifier);
     // Trace all nullifier creations (even reverted ones)
@@ -178,6 +188,7 @@ export class AvmPersistableStateManager {
       // error getting message - doesn't exist!
       exists = false;
     }
+    this.log.debug(`l1ToL2Messages(${msgHash})@${msgLeafIndex} ?? exists: ${exists}.`);
     this.trace.traceL1ToL2MessageCheck(msgHash, msgLeafIndex, exists);
     return Promise.resolve(exists);
   }
@@ -188,11 +199,13 @@ export class AvmPersistableStateManager {
    * @param content - Message content.
    */
   public writeL1Message(recipient: EthAddress | Fr, content: Fr) {
+    this.log.debug(`L1Messages(${recipient}) += ${content}.`);
     const recipientAddress = recipient instanceof EthAddress ? recipient : EthAddress.fromField(recipient);
     this.newL1Messages.push(new L2ToL1Message(recipientAddress, content));
   }
 
   public writeLog(contractAddress: Fr, event: Fr, log: Fr[]) {
+    this.log.debug(`UnencryptedL2Log(${contractAddress}) += event ${event} with ${log.length} fields.`);
     this.newLogs.push(
       new UnencryptedL2Log(
         AztecAddress.fromField(contractAddress),
