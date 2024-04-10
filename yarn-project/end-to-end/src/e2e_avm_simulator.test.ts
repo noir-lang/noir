@@ -68,15 +68,15 @@ describe('e2e_avm_simulator', () => {
 
     describe('ACVM interoperability', () => {
       it('Can execute ACVM function among AVM functions', async () => {
-        expect(await avmContract.methods.constant_field_acvm().simulate()).toEqual([123456n, 0n, 0n, 0n]);
+        expect(await avmContract.methods.constant_field_acvm().simulate()).toEqual([123456n]);
       });
 
       it('Can call AVM function from ACVM', async () => {
-        expect(await avmContract.methods.call_avm_from_acvm().simulate()).toEqual([123456n, 0n, 0n, 0n]);
+        expect(await avmContract.methods.call_avm_from_acvm().simulate()).toEqual([123456n]);
       });
 
       it('Can call ACVM function from AVM', async () => {
-        expect(await avmContract.methods.call_acvm_from_avm().simulate()).toEqual([123456n, 0n, 0n, 0n]);
+        expect(await avmContract.methods.call_acvm_from_avm().simulate()).toEqual([123456n]);
       });
 
       it('AVM sees settled nullifiers by ACVM', async () => {
@@ -136,7 +136,7 @@ describe('e2e_avm_simulator', () => {
 
         describe('Storage', () => {
           it('Read immutable (initialized) storage (Field)', async () => {
-            expect(await avmContract.methods.read_storage_immutable().simulate()).toEqual([42n, 0n, 0n, 0n]);
+            expect(await avmContract.methods.read_storage_immutable().simulate()).toEqual([42n]);
           });
         });
       });

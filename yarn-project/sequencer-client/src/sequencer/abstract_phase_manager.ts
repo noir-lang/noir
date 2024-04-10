@@ -31,7 +31,6 @@ import {
   PublicKernelCircuitPrivateInputs,
   type PublicKernelCircuitPublicInputs,
   PublicKernelData,
-  RETURN_VALUES_LENGTH,
   ReadRequest,
   RevertCode,
   SideEffect,
@@ -286,15 +285,13 @@ export abstract class AbstractPhaseManager {
         if (!enqueuedExecutionResult) {
           enqueuedExecutionResult = result;
 
-          // Padding as the AVM is not always returning the expected return size (4)
-          // which is expected by the kernel.
-          const paddedReturn = padArrayEnd(result.returnValues, Fr.ZERO, RETURN_VALUES_LENGTH);
-
           // TODO(#5450) Need to use the proper return values here
-          const returnTypes: AbiType[] = [{ kind: 'array', length: 4, type: { kind: 'field' } }];
+          const returnTypes: AbiType[] = [
+            { kind: 'array', length: result.returnValues.length, type: { kind: 'field' } },
+          ];
           const mockArtifact = { returnTypes } as any as FunctionArtifact;
 
-          currentReturn = decodeReturnValues(mockArtifact, paddedReturn);
+          currentReturn = decodeReturnValues(mockArtifact, result.returnValues);
         }
       }
       // HACK(#1622): Manually patches the ordering of public state actions
@@ -374,7 +371,7 @@ export abstract class AbstractPhaseManager {
       newL2ToL1Msgs: padArrayEnd(result.newL2ToL1Messages, L2ToL1Message.empty(), MAX_NEW_L2_TO_L1_MSGS_PER_CALL),
       startSideEffectCounter: result.startSideEffectCounter,
       endSideEffectCounter: result.endSideEffectCounter,
-      returnValues: padArrayEnd(result.returnValues, Fr.ZERO, RETURN_VALUES_LENGTH),
+      returnsHash: computeVarArgsHash(result.returnValues),
       nullifierReadRequests: padArrayEnd(
         result.nullifierReadRequests,
         ReadRequest.empty(),

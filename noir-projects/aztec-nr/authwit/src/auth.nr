@@ -3,6 +3,7 @@ use dep::aztec::protocol_types::{
     constants::{GENERATOR_INDEX__AUTHWIT_INNER, GENERATOR_INDEX__AUTHWIT_OUTER}, hash::pedersen_hash
 };
 use dep::aztec::{
+    prelude::Deserialize,
     context::{
     PrivateContext, PublicContext, Context, gas::GasOpts,
     interface::{ContextInterface, PublicContextInterface}
@@ -17,7 +18,7 @@ global IS_VALID_SELECTOR = 0xabf64ad4; // 4 first bytes of keccak256("IS_VALID()
 pub fn assert_current_call_valid_authwit(context: &mut PrivateContext, on_behalf_of: AztecAddress) {
     let function_selector = FunctionSelector::from_signature("spend_private_authwit(Field)");
     let inner_hash = compute_inner_authwit_hash([context.msg_sender().to_field(), context.selector().to_field(), context.args_hash]);
-    let result = context.call_private_function(on_behalf_of, function_selector, [inner_hash])[0];
+    let result: Field = context.call_private_function(on_behalf_of, function_selector, [inner_hash]).unpack_into();
     assert(result == IS_VALID_SELECTOR, "Message not authorized by account");
 }
 // docs:end:assert_current_call_valid_authwit
@@ -32,13 +33,13 @@ pub fn assert_current_call_valid_authwit_public<TPublicContext>(
     let inner_hash = compute_inner_authwit_hash(
         [(*context).msg_sender().to_field(), (*context).selector().to_field(), (*context).get_args_hash()]
     );
-    let result = PublicContextInterface::call_public_function(
+    let result: Field = PublicContextInterface::call_public_function(
         context,
         on_behalf_of,
         function_selector,
         [inner_hash],
         GasOpts::default()
-    )[0];
+    ).deserialize_into();
     assert(result == IS_VALID_SELECTOR, "Message not authorized by account");
 }
 // docs:end:assert_current_call_valid_authwit_public

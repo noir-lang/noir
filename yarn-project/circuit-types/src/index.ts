@@ -15,7 +15,7 @@ export * from './simulation_error.js';
 export * from './sibling_path/index.js';
 export * from './tx/index.js';
 export * from './tx_execution_request.js';
-export * from './packed_arguments.js';
+export * from './packed_values.js';
 export * from './interfaces/index.js';
 export * from './auth_witness.js';
 export * from './aztec_node/rpc/index.js';

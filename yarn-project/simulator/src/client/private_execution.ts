@@ -55,9 +55,10 @@ export async function executePrivateFunction(
 
   // Mocking the return type to be an array of 4 fields
   // TODO: @LHerskind must be updated as we are progressing with the macros to get the information
-  const returnTypes: AbiType[] = [{ kind: 'array', length: 4, type: { kind: 'field' } }];
+  const rawReturnValues = await context.unpackReturns(publicInputs.returnsHash);
+  const returnTypes: AbiType[] = [{ kind: 'array', length: rawReturnValues.length, type: { kind: 'field' } }];
   const mockArtifact = { ...artifact, returnTypes };
-  const returnValues = decodeReturnValues(mockArtifact, publicInputs.returnValues);
+  const returnValues = decodeReturnValues(mockArtifact, rawReturnValues);
 
   const noteHashReadRequestPartialWitnesses = context.getNoteHashReadRequestPartialWitnesses(
     publicInputs.noteHashReadRequests,

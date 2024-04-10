@@ -20,7 +20,7 @@ import { AvmContractCallResults } from '../avm/avm_message_call_result.js';
 import { type JournalData } from '../avm/journal/journal.js';
 import { Mov } from '../avm/opcodes/memory.js';
 import { createSimulationError } from '../common/errors.js';
-import { PackedArgsCache, SideEffectCounter } from '../index.js';
+import { PackedValuesCache, SideEffectCounter } from '../index.js';
 import { type PublicExecution, type PublicExecutionResult } from './execution.js';
 import { PublicExecutionContext } from './public_execution_context.js';
 
@@ -73,7 +73,7 @@ export function createPublicExecutionContext(avmContext: AvmContext, calldata: F
     args: calldata,
     functionData,
   };
-  const packedArgs = PackedArgsCache.create([]);
+  const packedArgs = PackedValuesCache.create([]);
 
   const context = new PublicExecutionContext(
     execution,

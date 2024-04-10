@@ -1,4 +1,4 @@
-import { type FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
+import { type FunctionCall, PackedValues, TxExecutionRequest } from '@aztec/circuit-types';
 import { type AztecAddress, FunctionData, TxContext } from '@aztec/circuits.js';
 import { type FunctionAbi, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 
@@ -92,7 +92,7 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
 
     if (this.functionDao.functionType == FunctionType.SECRET) {
       const nodeInfo = await this.wallet.getNodeInfo();
-      const packedArgs = PackedArguments.fromArgs(encodeArguments(this.functionDao, this.args));
+      const packedArgs = PackedValues.fromValues(encodeArguments(this.functionDao, this.args));
 
       const txRequest = TxExecutionRequest.from({
         argsHash: packedArgs.hash,

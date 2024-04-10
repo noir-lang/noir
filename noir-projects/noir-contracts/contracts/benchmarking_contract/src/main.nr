@@ -44,12 +44,12 @@ contract Benchmarking {
     fn increment_balance(owner: AztecAddress, value: Field) {
         let current = storage.balances.at(owner).read();
         storage.balances.at(owner).write(current + value);
-        let _callStackItem1 = context.call_public_function(
+        context.call_public_function(
             context.this_address(),
             FunctionSelector::from_signature("broadcast((Field))"),
             [owner.to_field()],
             GasOpts::default()
-        );
+        ).assert_empty();
     }
 
     // Emits a public log.

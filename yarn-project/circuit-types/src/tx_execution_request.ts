@@ -3,7 +3,7 @@ import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
 import { AuthWitness } from './auth_witness.js';
-import { PackedArguments } from './packed_arguments.js';
+import { PackedValues } from './packed_values.js';
 
 /**
  * Request to execute a transaction. Similar to TxRequest, but has the full args.
@@ -32,7 +32,7 @@ export class TxExecutionRequest {
      * For example, a call to an account contract might contain as many packed arguments
      * as relayed function calls, and one for the entrypoint.
      */
-    public packedArguments: PackedArguments[],
+    public packedArguments: PackedValues[],
     /**
      * Transient authorization witnesses for authorizing the execution of one or more actions during this tx.
      * These witnesses are not expected to be stored in the local witnesses database of the PXE.
@@ -94,7 +94,7 @@ export class TxExecutionRequest {
       reader.readObject(FunctionData),
       Fr.fromBuffer(reader),
       reader.readObject(TxContext),
-      reader.readVector(PackedArguments),
+      reader.readVector(PackedValues),
       reader.readVector(AuthWitness),
     );
   }

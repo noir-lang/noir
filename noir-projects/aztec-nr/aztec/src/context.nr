@@ -9,7 +9,9 @@ mod gas;
 
 use interface::ContextInterface;
 use private_context::PrivateContext;
+use private_context::PackedReturns;
 use public_context::PublicContext;
+use public_context::FunctionReturns;
 use avm_context::AvmContext;
 
 struct Context {

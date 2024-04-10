@@ -33,7 +33,7 @@
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
-    "remake-constants": "node --loader ts-node/esm src/scripts/constants.in.ts && prettier -w src/constants.gen.ts && cd ../../l1-contracts && ./.foundry/bin/forge fmt",
+    "remake-constants": "node --loader ts-node/esm src/scripts/constants.in.ts && prettier -w src/constants.gen.ts && cd ../../l1-contracts && ../foundry/bin/forge fmt",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --passWithNoTests"
   },
   "dependencies": {

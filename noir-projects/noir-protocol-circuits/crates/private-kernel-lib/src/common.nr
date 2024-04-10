@@ -29,7 +29,6 @@ pub fn validate_arrays(app_public_inputs: PrivateCircuitPublicInputs) {
     // In addition, some of the following arrays (new_note_hashes, etc...) are passed
     // to extend_from_array_to_array() routines which rely on the passed arrays to be well-formed.
 
-    validate_array(app_public_inputs.return_values);
     validate_array(app_public_inputs.note_hash_read_requests);
     validate_array(app_public_inputs.nullifier_read_requests);
     validate_array(app_public_inputs.nullifier_key_validation_requests);

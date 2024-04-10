@@ -12,14 +12,14 @@ use crate::constants::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
     MAX_NEW_NULLIFIERS_PER_CALL, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, RETURN_VALUES_LENGTH
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL
 };
 
 struct PrivateCircuitPublicInputsBuilder {
     call_context: CallContext,
 
     args_hash: Field,
-    return_values: BoundedVec<Field, RETURN_VALUES_LENGTH>,
+    returns_hash: Field,
 
     min_revertible_side_effect_counter: u32,
 
@@ -84,7 +84,7 @@ impl PrivateCircuitPublicInputsBuilder {
         PrivateCircuitPublicInputs {
             call_context: self.call_context,
             args_hash: self.args_hash,
-            return_values: self.return_values.storage,
+            returns_hash: self.returns_hash,
             min_revertible_side_effect_counter: self.min_revertible_side_effect_counter,
             max_block_number: self.max_block_number,
             note_hash_read_requests: self.note_hash_read_requests.storage,

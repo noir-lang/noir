@@ -17,7 +17,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { type ContractInstance } from '@aztec/types/contracts';
 
 import { TypedOracle, toACVMWitness } from '../acvm/index.js';
-import { type PackedArgsCache, type SideEffectCounter } from '../common/index.js';
+import { type PackedValuesCache, type SideEffectCounter } from '../common/index.js';
 import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db.js';
 import { type PublicExecution, type PublicExecutionResult, checkValidStaticCall } from './execution.js';
 import { executePublicFunction } from './executor.js';
@@ -38,7 +38,7 @@ export class PublicExecutionContext extends TypedOracle {
     public readonly execution: PublicExecution,
     public readonly header: Header,
     public readonly globalVariables: GlobalVariables,
-    private readonly packedArgsCache: PackedArgsCache,
+    private readonly packedValuesCache: PackedValuesCache,
     private readonly sideEffectCounter: SideEffectCounter,
     public readonly stateDb: PublicStateDB,
     public readonly contractsDb: PublicContractsDB,
@@ -98,7 +98,23 @@ export class PublicExecutionContext extends TypedOracle {
    * @param args - Arguments to pack
    */
   public packArguments(args: Fr[]): Promise<Fr> {
-    return Promise.resolve(this.packedArgsCache.pack(args));
+    return Promise.resolve(this.packedValuesCache.pack(args));
+  }
+
+  /**
+   * Pack the given returns.
+   * @param returns - Returns to pack
+   */
+  public packReturns(returns: Fr[]): Promise<Fr> {
+    return Promise.resolve(this.packedValuesCache.pack(returns));
+  }
+
+  /**
+   * Unpack the given returns.
+   * @param returnsHash - Returns hash to unpack
+   */
+  public unpackReturns(returnsHash: Fr): Promise<Fr[]> {
+    return Promise.resolve(this.packedValuesCache.unpack(returnsHash));
   }
 
   /**
@@ -186,7 +202,7 @@ export class PublicExecutionContext extends TypedOracle {
   ) {
     isStaticCall = isStaticCall || this.execution.callContext.isStaticCall;
 
-    const args = this.packedArgsCache.unpack(argsHash);
+    const args = this.packedValuesCache.unpack(argsHash);
     this.log.verbose(
       `Public function call: addr=${targetContractAddress} selector=${functionSelector} args=${args.join(',')}`,
     );
@@ -214,7 +230,7 @@ export class PublicExecutionContext extends TypedOracle {
       nestedExecution,
       this.header,
       this.globalVariables,
-      this.packedArgsCache,
+      this.packedValuesCache,
       this.sideEffectCounter,
       this.stateDb,
       this.contractsDb,

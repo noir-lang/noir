@@ -1,16 +1,13 @@
 // A contract used along with `Child` contract to test nested calls.
 contract Parent {
-    use dep::aztec::prelude::{AztecAddress, FunctionSelector};
+    use dep::aztec::prelude::{AztecAddress, FunctionSelector, Deserialize};
     use dep::aztec::context::gas::GasOpts;
 
     // Private function to call another private function in the target_contract using the provided selector
     #[aztec(private)]
     fn entry_point(target_contract: AztecAddress, target_selector: FunctionSelector) -> Field {
         // Call the target private function
-        let return_values = context.call_private_function(target_contract, target_selector, [0]);
-
-        // Copy the return value from the call to this function's return values
-        return_values[0]
+        context.call_private_function(target_contract, target_selector, [0]).unpack_into()
     }
 
     // Public function to directly call another public function to the target_contract using the selector and value provided
@@ -20,14 +17,12 @@ contract Parent {
         target_selector: FunctionSelector,
         init_value: Field
     ) -> Field {
-        let return_values = context.call_public_function(
+        context.call_public_function(
             target_contract,
             target_selector,
             [init_value],
             GasOpts::default()
-        );
-
-        return_values[0]
+        ).deserialize_into()
     }
 
     // Same as pub_entry_point, but calls the target contract twice, using the return value from the first invocation as the argument for the second.
@@ -37,20 +32,18 @@ contract Parent {
         target_selector: FunctionSelector,
         init_value: Field
     ) -> Field {
-        let return_value = context.call_public_function(
+        let return_value: Field = context.call_public_function(
             target_contract,
             target_selector,
             [init_value],
             GasOpts::default()
-        )[0];
-        let return_values = context.call_public_function(
+        ).deserialize_into();
+        context.call_public_function(
             target_contract,
             target_selector,
             [return_value],
             GasOpts::default()
-        );
-
-        return_values[0]
+        ).deserialize_into()
     }
 
     // Private function to enqueue a call to the target_contract address using the selector and argument provided
@@ -156,10 +149,7 @@ contract Parent {
         args: [Field; 2]
     ) -> Field {
         // Call the target private function
-        let return_values = context.static_call_private_function(target_contract, target_selector, args);
-
-        // Copy the return value from the call to this function's return values
-        return_values[0]
+        context.static_call_private_function(target_contract, target_selector, args).unpack_into()
     }
 
     #[aztec(private)]
@@ -169,10 +159,7 @@ contract Parent {
         args: [Field; 2]
     ) -> Field {
         // Call the target private function
-        let return_values = context.call_private_function(target_contract, target_selector, args);
-
-        // Copy the return value from the call to this function's return values
-        return_values[0]
+        context.call_private_function(target_contract, target_selector, args).unpack_into()
     }
 
     // Private function to set a static context and verify correct propagation for nested private calls
@@ -185,14 +172,14 @@ contract Parent {
         // Call the target private function statically
         let private_call_selector = FunctionSelector::from_signature("private_call((Field),(u32),[Field;2])");
         let this_address = context.this_address();
-        let return_values = context.static_call_private_function(
+        let return_value: Field = context.static_call_private_function(
             this_address,
             private_call_selector,
             [target_contract.to_field(), target_selector.to_field(), args[0], args[1]]
-        );
+        ).unpack_into();
 
         // Copy the return value from the call to this function's return values
-        return_values[0]
+        return_value
     }
 
     // Public function to directly call another public function to the target_contract using the selector and value provided
@@ -202,9 +189,7 @@ contract Parent {
         target_selector: FunctionSelector,
         args: [Field; 1]
     ) -> Field {
-        let return_values = context.static_call_public_function(target_contract, target_selector, args, GasOpts::default());
-
-        return_values[0]
+        context.static_call_public_function(target_contract, target_selector, args, GasOpts::default()).deserialize_into()
     }
 
     // Public function to set a static context and verify correct propagation for nested public calls
@@ -217,13 +202,12 @@ contract Parent {
         // Call the target public function through the pub entrypoint statically
         let pub_entry_point_selector = FunctionSelector::from_signature("pub_entry_point((Field),(u32),Field)");
         let this_address = context.this_address();
-        let return_values = context.static_call_public_function(
+        context.static_call_public_function(
             this_address,
             pub_entry_point_selector,
             [target_contract.to_field(), target_selector.to_field(), args[0]],
             GasOpts::default()
-        );
-        return_values[0]
+        ).deserialize_into()
     }
 
     // Private function to enqueue a static call to the pub_entry_point function of another contract, passing the target arguments provided

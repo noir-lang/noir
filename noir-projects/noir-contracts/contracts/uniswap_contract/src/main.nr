@@ -63,12 +63,12 @@ contract Uniswap {
         );
 
         // Approve bridge to burn this contract's funds and exit to L1 Uniswap Portal
-        let _void = context.call_public_function(
+        context.call_public_function(
             context.this_address(),
             FunctionSelector::from_signature("_approve_bridge_and_exit_input_asset_to_L1((Field),(Field),Field)"),
             [input_asset.to_field(), input_asset_bridge.to_field(), input_amount],
             GasOpts::default()
-        );
+        ).assert_empty();
 
         // Create swap message and send to Outbox for Uniswap Portal
         // this ensures the integrity of what the user originally intends to do on L1.

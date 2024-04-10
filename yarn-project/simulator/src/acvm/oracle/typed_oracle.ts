@@ -89,6 +89,14 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('packArguments');
   }
 
+  packReturns(_returns: Fr[]): Promise<Fr> {
+    throw new OracleMethodNotAvailableError('packReturns');
+  }
+
+  unpackReturns(_returnsHash: Fr): Promise<Fr[]> {
+    throw new OracleMethodNotAvailableError('unpackReturns');
+  }
+
   getNullifierKeyPair(_accountAddress: AztecAddress): Promise<KeyPair> {
     throw new OracleMethodNotAvailableError('getNullifierKeyPair');
   }

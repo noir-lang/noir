@@ -8,7 +8,7 @@ use crate::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_READ_REQUESTS_PER_CALL,
     MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL, MAX_NEW_NOTE_HASHES_PER_CALL,
     MAX_NEW_NULLIFIERS_PER_CALL, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
-    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, RETURN_VALUES_LENGTH,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
     PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH, GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS
 },
     header::Header, hash::pedersen_hash, messaging::l2_to_l1_message::L2ToL1Message,
@@ -19,7 +19,7 @@ struct PrivateCircuitPublicInputs {
     call_context: CallContext,
 
     args_hash: Field,
-    return_values: [Field; RETURN_VALUES_LENGTH],
+    returns_hash: Field,
 
     min_revertible_side_effect_counter: u32,
 
@@ -59,7 +59,7 @@ impl Eq for PrivateCircuitPublicInputs {
     fn eq(self, other: Self) -> bool {
         self.call_context.eq(other.call_context) &
         self.args_hash.eq(other.args_hash) &
-        (self.return_values == other.return_values) &
+        (self.returns_hash == other.returns_hash) &
         (self.max_block_number == other.max_block_number) &
         (self.note_hash_read_requests == other.note_hash_read_requests) &
         (self.nullifier_read_requests == other.nullifier_read_requests) &
@@ -86,7 +86,7 @@ impl Serialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicInp
         let mut fields: BoundedVec<Field, PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> = BoundedVec::new();
         fields.extend_from_array(self.call_context.serialize());
         fields.push(self.args_hash);
-        fields.extend_from_array(self.return_values);
+        fields.push(self.returns_hash);
 
         fields.push(self.min_revertible_side_effect_counter as Field);
 
@@ -135,7 +135,7 @@ impl Deserialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicI
         let inputs = Self {
             call_context: reader.read_struct(CallContext::deserialize),
             args_hash: reader.read(),
-            return_values: reader.read_array([0; RETURN_VALUES_LENGTH]),
+            returns_hash: reader.read(),
             min_revertible_side_effect_counter: reader.read() as u32,
             max_block_number: reader.read_struct(MaxBlockNumber::deserialize),
             note_hash_read_requests: reader.read_struct_array(SideEffect::deserialize, [SideEffect::empty(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL]),
@@ -182,6 +182,6 @@ fn empty_hash() {
     let hash = inputs.hash();
 
     // Value from private_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x1304e6c42e3c53fc7c918cbf1ea70333b4f214726c0784cf9878cd641967dab1;
+    let test_data_empty_hash = 0x1b323a662c9b3b4e39790ce8a3ad2c7ecc93014567bb9ce4c2333c5d205a6bae;
     assert_eq(hash, test_data_empty_hash);
 }

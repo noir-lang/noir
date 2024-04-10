@@ -183,15 +183,6 @@ mod tests {
     }
 
     #[test(should_fail_with = "invalid array")]
-    fn input_validation_malformed_arrays_return_values() {
-        let mut builder = PrivateKernelInitInputsBuilder::new();
-
-        builder.private_call.public_inputs.return_values.extend_from_array([0, 9123]);
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid array")]
     fn input_validation_malformed_arrays_note_hash_read_requests() {
         let mut builder = PrivateKernelInitInputsBuilder::new();
 
