@@ -33,7 +33,7 @@ build:
     RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
 
     COPY ../barretenberg/cpp/+preset-release/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
-    COPY ../noir/+nargo/acvm /usr/bin/acvm
+    COPY ../noir/+nargo/acvm /usr/src/noir/noir-repo/target/release/acvm
     COPY --dir ../noir-projects/+build/. /usr/src/noir-projects
     COPY ../l1-contracts/+build/usr/src/l1-contracts /usr/src/l1-contracts
 
