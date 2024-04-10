@@ -160,5 +160,14 @@
     "noir/noir-repo/Cargo.toml",
     "noir/noir-repo/acvm-repo/acvm_js/Cargo.toml",
     "avm-transpiler/Cargo.toml"
-  ]
+  ],
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/.hg/store/**": true,
+    "**/target/**": true,
+    "**/l1-contracts/lib/**": true,
+    "**/barretenberg/cpp/build*/**": true
+  }
 }
