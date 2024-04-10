@@ -15,6 +15,7 @@ mod inlining;
 mod mem2reg;
 mod rc;
 mod remove_bit_shifts;
+mod remove_enable_side_effects;
 mod remove_if_else;
 mod simplify_cfg;
 mod unrolling;
