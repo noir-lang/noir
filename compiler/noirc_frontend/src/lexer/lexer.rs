@@ -22,7 +22,7 @@ pub struct Lexer<'a> {
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
 
 pub(crate) fn from_spanned_token_result(
-    x: &SpannedTokenResult,
+    token_result: &SpannedTokenResult,
 ) -> Result<(usize, &Token, usize), LexerErrorKind> {
     x.as_ref()
         .map(|spanned_token| {
