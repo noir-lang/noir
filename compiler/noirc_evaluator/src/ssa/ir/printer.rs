@@ -174,18 +174,16 @@ fn display_instruction_inner(
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
         Instruction::ArrayGet { array, index } => {
-            let t = function.dfg.type_of_value(*array);
-            writeln!(f, "array_get {}, index {}, array type = {t}", show(*array), show(*index))
+            writeln!(f, "array_get {}, index {}", show(*array), show(*index))
         }
         Instruction::ArraySet { array, index, value, mutable } => {
-            let t = function.dfg.type_of_value(*array);
             let array = show(*array);
             let index = show(*index);
             let value = show(*value);
             let mutable = if *mutable { " mut" } else { "" };
             writeln!(
                 f,
-                "array_set{mutable} {array}, index {index}, value {value}, array type = {t}"
+                "array_set{mutable} {array}, index {index}, value {value}"
             )
         }
         Instruction::IncrementRc { value } => {
