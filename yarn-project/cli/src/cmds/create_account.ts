@@ -17,7 +17,7 @@ export async function createAccount(
 
   const account = getSchnorrAccount(client, actualPrivateKey, actualPrivateKey, Fr.ZERO);
   const { address, publicKey, partialAddress } = account.getCompleteAddress();
-  const tx = await account.deploy();
+  const tx = account.deploy();
   const txHash = await tx.getTxHash();
   debugLogger.verbose(`Account contract tx sent with hash ${txHash}`);
   if (wait) {

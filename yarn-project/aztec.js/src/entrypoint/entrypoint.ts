@@ -1,25 +1,35 @@
-import { type FunctionCall, type TxExecutionRequest } from '@aztec/circuit-types';
-import { type Fr } from '@aztec/foundation/fields';
+import {
+  type AuthWitness,
+  type FunctionCall,
+  type PackedArguments,
+  type TxExecutionRequest,
+} from '@aztec/circuit-types';
 
-import { type FeePaymentMethod } from '../fee/fee_payment_method.js';
+import { EntrypointPayload, type FeeOptions } from './payload.js';
 
-/**
- * Fee payment options for a transaction.
- */
-export type FeeOptions = {
-  /** The fee payment method to use */
-  paymentMethod: FeePaymentMethod;
-  /** The fee limit to pay */
-  maxFee: bigint | number | Fr;
+export { EntrypointPayload, FeeOptions };
+
+export { DefaultEntrypoint } from './default_entrypoint.js';
+export { DefaultMultiCallEntrypoint } from './default_multi_call_entrypoint.js';
+
+/** Encodes the calls to be done in a transaction. */
+export type ExecutionRequestInit = {
+  /** The function calls to be executed. */
+  calls: FunctionCall[];
+  /** Any transient auth witnesses needed for this execution */
+  authWitnesses?: AuthWitness[];
+  /** Any transient packed arguments for this execution */
+  packedArguments?: PackedArguments[];
+  /** How the fee is going to be payed */
+  fee?: FeeOptions;
 };
 
 /** Creates transaction execution requests out of a set of function calls. */
 export interface EntrypointInterface {
   /**
    * Generates an execution request out of set of function calls.
-   * @param executions - The execution intents to be run.
-   * @param feeOpts - The fee to be paid for the transaction.
+   * @param execution - The execution intents to be run.
    * @returns The authenticated transaction execution request.
    */
-  createTxExecutionRequest(executions: FunctionCall[], feeOpts?: FeeOptions): Promise<TxExecutionRequest>;
+  createTxExecutionRequest(execution: ExecutionRequestInit): Promise<TxExecutionRequest>;
 }

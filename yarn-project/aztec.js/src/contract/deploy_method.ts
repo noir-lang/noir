@@ -14,6 +14,7 @@ import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { type Wallet } from '../account/index.js';
 import { deployInstance } from '../deployment/deploy_instance.js';
 import { registerContractClass } from '../deployment/register_class.js';
+import { type ExecutionRequestInit } from '../entrypoint/entrypoint.js';
 import { BaseContractInteraction, type SendMethodOptions } from './base_contract_interaction.js';
 import { type Contract } from './contract.js';
 import { type ContractBase } from './contract_base.js';
@@ -53,7 +54,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
   private constructorArtifact: FunctionArtifact | undefined;
 
   /** Cached call to request() */
-  private functionCalls: FunctionCall[] | undefined;
+  private functionCalls?: ExecutionRequestInit;
 
   private log = createDebugLogger('aztec:js:deploy_method');
 
@@ -80,10 +81,6 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    */
   public async create(options: DeployOptions = {}): Promise<TxExecutionRequest> {
     if (!this.txRequest) {
-      const calls = await this.request(options);
-      if (calls.length === 0) {
-        throw new Error(`No function calls needed to deploy contract ${this.artifact.name}`);
-      }
       this.txRequest = await this.wallet.createTxExecutionRequest(await this.request(options));
       // TODO: Should we add the contracts to the DB here, or once the tx has been sent or mined?
       await this.pxe.registerContract({ artifact: this.artifact, instance: this.instance! });
@@ -99,20 +96,21 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    * @remarks This method does not have the same return type as the `request` in the ContractInteraction object,
    * it returns a promise for an array instead of a function call directly.
    */
-  public async request(options: DeployOptions = {}): Promise<FunctionCall[]> {
+  public async request(options: DeployOptions = {}): Promise<ExecutionRequestInit> {
     if (!this.functionCalls) {
-      const { address } = this.getInstance(options);
-      const calls = await this.getDeploymentFunctionCalls(options);
-      if (this.constructorArtifact && !options.skipInitialization) {
-        const constructorCall = new ContractFunctionInteraction(
-          this.wallet,
-          address,
-          this.constructorArtifact,
-          this.args,
-        );
-        calls.push(constructorCall.request());
+      const deployment = await this.getDeploymentFunctionCalls(options);
+      const bootstrap = await this.getInitializeFunctionCalls(options);
+
+      if (deployment.calls.length + bootstrap.calls.length === 0) {
+        throw new Error(`No function calls needed to deploy contract ${this.artifact.name}`);
       }
-      this.functionCalls = calls;
+
+      this.functionCalls = {
+        calls: [...deployment.calls, ...bootstrap.calls],
+        authWitnesses: [...(deployment.authWitnesses ?? []), ...(bootstrap.authWitnesses ?? [])],
+        packedArguments: [...(deployment.packedArguments ?? []), ...(bootstrap.packedArguments ?? [])],
+        fee: options.fee,
+      };
     }
     return this.functionCalls;
   }
@@ -122,7 +120,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
    * @param options - Deployment options.
    * @returns A function call array with potentially requests to the class registerer and instance deployer.
    */
-  protected async getDeploymentFunctionCalls(options: DeployOptions = {}): Promise<FunctionCall[]> {
+  protected async getDeploymentFunctionCalls(options: DeployOptions = {}): Promise<ExecutionRequestInit> {
     const calls: FunctionCall[] = [];
 
     // Set contract instance object so it's available for populating the DeploySendTx object
@@ -156,7 +154,31 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
       calls.push(deployInstance(this.wallet, instance).request());
     }
 
-    return calls;
+    return {
+      calls,
+    };
+  }
+
+  /**
+   * Returns the calls necessary to initialize the contract.
+   * @param options - Deployment options.
+   * @returns - An array of function calls.
+   */
+  protected getInitializeFunctionCalls(options: DeployOptions): Promise<ExecutionRequestInit> {
+    const { address } = this.getInstance(options);
+    const calls: FunctionCall[] = [];
+    if (this.constructorArtifact && !options.skipInitialization) {
+      const constructorCall = new ContractFunctionInteraction(
+        this.wallet,
+        address,
+        this.constructorArtifact,
+        this.args,
+      );
+      calls.push(constructorCall.request());
+    }
+    return Promise.resolve({
+      calls,
+    });
   }
 
   /**

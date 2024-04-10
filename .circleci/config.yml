@@ -997,6 +997,16 @@ jobs:
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
+  e2e-account-init-fees:
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_account_init_fees.test.ts ENABLE_GAS=1
+          aztec_manifest_key: end-to-end
+    <<: *defaults_e2e_test
+
   e2e-dapp-subscription:
     steps:
       - *checkout
@@ -1480,6 +1490,7 @@ workflows:
       - e2e-card-game: *e2e_test
       - e2e-avm-simulator: *e2e_test
       - e2e-fees: *e2e_test
+      - e2e-account-init-fees: *e2e_test
       - e2e-dapp-subscription: *e2e_test
       - pxe: *e2e_test
       - cli-docs-sandbox: *e2e_test
@@ -1546,6 +1557,7 @@ workflows:
             - e2e-card-game
             - e2e-avm-simulator
             - e2e-fees
+            - e2e-account-init-fees
             - e2e-dapp-subscription
             - pxe
             - boxes-vanilla

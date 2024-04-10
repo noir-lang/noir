@@ -2,7 +2,7 @@ import { type CompleteAddress } from '@aztec/circuit-types';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type NodeInfo } from '@aztec/types/interfaces';
 
-import { type AccountInterface } from './interface.js';
+import { type AccountInterface, type AuthWitnessProvider } from './interface.js';
 
 // docs:start:account-contract-interface
 /**
@@ -29,5 +29,11 @@ export interface AccountContract {
    * @returns An account interface instance for creating tx requests and authorizing actions.
    */
   getInterface(address: CompleteAddress, nodeInfo: NodeInfo): AccountInterface;
+
+  /**
+   * Returns the auth witness provider for the given address.
+   * @param address - Address for which to create auth witnesses.
+   */
+  getAuthWitnessProvider(address: CompleteAddress): AuthWitnessProvider;
 }
 // docs:end:account-contract-interface

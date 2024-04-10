@@ -383,27 +383,27 @@ export function getDefaultInitializer(contractArtifact: ContractArtifact): Funct
 
 /**
  * Returns an initializer from the contract.
- * @param initalizerNameOrArtifact - The name of the constructor, or the artifact of the constructor, or undefined
+ * @param initializerNameOrArtifact - The name of the constructor, or the artifact of the constructor, or undefined
  * to pick the default initializer.
  */
 export function getInitializer(
   contract: ContractArtifact,
-  initalizerNameOrArtifact: string | undefined | FunctionArtifact,
+  initializerNameOrArtifact: string | undefined | FunctionArtifact,
 ): FunctionArtifact | undefined {
-  if (typeof initalizerNameOrArtifact === 'string') {
-    const found = contract.functions.find(f => f.name === initalizerNameOrArtifact);
+  if (typeof initializerNameOrArtifact === 'string') {
+    const found = contract.functions.find(f => f.name === initializerNameOrArtifact);
     if (!found) {
-      throw new Error(`Constructor method ${initalizerNameOrArtifact} not found in contract artifact`);
+      throw new Error(`Constructor method ${initializerNameOrArtifact} not found in contract artifact`);
     } else if (!found.isInitializer) {
-      throw new Error(`Method ${initalizerNameOrArtifact} is not an initializer`);
+      throw new Error(`Method ${initializerNameOrArtifact} is not an initializer`);
     }
     return found;
-  } else if (initalizerNameOrArtifact === undefined) {
+  } else if (initializerNameOrArtifact === undefined) {
     return getDefaultInitializer(contract);
   } else {
-    if (!initalizerNameOrArtifact.isInitializer) {
-      throw new Error(`Method ${initalizerNameOrArtifact.name} is not an initializer`);
+    if (!initializerNameOrArtifact.isInitializer) {
+      throw new Error(`Method ${initializerNameOrArtifact.name} is not an initializer`);
     }
-    return initalizerNameOrArtifact;
+    return initializerNameOrArtifact;
   }
 }

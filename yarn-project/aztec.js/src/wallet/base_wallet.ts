@@ -28,7 +28,7 @@ import { type NodeInfo } from '@aztec/types/interfaces';
 
 import { type Wallet } from '../account/wallet.js';
 import { type ContractFunctionInteraction } from '../contract/contract_function_interaction.js';
-import { type FeeOptions } from '../entrypoint/entrypoint.js';
+import { type ExecutionRequestInit } from '../entrypoint/entrypoint.js';
 
 /**
  * A base class for Wallet implementations
@@ -42,7 +42,7 @@ export abstract class BaseWallet implements Wallet {
 
   abstract getVersion(): Fr;
 
-  abstract createTxExecutionRequest(execs: FunctionCall[], fee?: FeeOptions): Promise<TxExecutionRequest>;
+  abstract createTxExecutionRequest(exec: ExecutionRequestInit): Promise<TxExecutionRequest>;
 
   abstract createAuthWit(
     messageHashOrIntent:

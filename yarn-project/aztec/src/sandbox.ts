@@ -2,8 +2,8 @@
 import { type AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { type AztecAddress, BatchCall, SignerlessWallet, type Wallet } from '@aztec/aztec.js';
 import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
+import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
 import { type AztecNode } from '@aztec/circuit-types';
-import { DefaultMultiCallEntrypoint } from '@aztec/entrypoints/multi-call';
 import {
   type DeployL1Contracts,
   type L1ContractAddresses,
@@ -212,7 +212,7 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
 
   if (config.enableGas) {
     await deployCanonicalL2GasToken(
-      new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint()),
+      new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.chainId, aztecNodeConfig.version)),
       aztecNodeConfig.l1Contracts,
     );
   }

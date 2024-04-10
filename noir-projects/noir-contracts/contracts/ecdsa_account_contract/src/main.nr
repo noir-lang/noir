@@ -40,6 +40,14 @@ contract EcdsaAccount {
     }
 
     #[aztec(private)]
+    #[aztec(noinitcheck)]
+    fn pay_init_fee(fee_payload: pub FeePayload) {
+        let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
+        actions.pay_init_fee(fee_payload);
+    }
+
+    #[aztec(private)]
+    #[aztec(noinitcheck)]
     fn spend_private_authwit(inner_hash: Field) -> Field {
         let actions = AccountActions::private(&mut context, ACCOUNT_ACTIONS_STORAGE_SLOT, is_valid_impl);
         actions.spend_private_authwit(inner_hash)

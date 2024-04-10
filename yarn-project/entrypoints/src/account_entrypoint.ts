@@ -1,11 +1,10 @@
 import { type AuthWitnessProvider } from '@aztec/aztec.js/account';
-import { type EntrypointInterface, type FeeOptions } from '@aztec/aztec.js/entrypoint';
-import { type FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
-import { type AztecAddress, FunctionData, GeneratorIndex, TxContext } from '@aztec/circuits.js';
+import { type EntrypointInterface, EntrypointPayload, type ExecutionRequestInit } from '@aztec/aztec.js/entrypoint';
+import { PackedArguments, TxExecutionRequest } from '@aztec/circuit-types';
+import { type AztecAddress, FunctionData, TxContext } from '@aztec/circuits.js';
 import { type FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
 
 import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from './constants.js';
-import { buildAppPayload, buildFeePayload, hashPayload } from './entrypoint_payload.js';
 
 /**
  * Implementation for an entrypoint interface that follows the default entrypoint signature
@@ -19,22 +18,23 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
     private version: number = DEFAULT_VERSION,
   ) {}
 
-  async createTxExecutionRequest(executions: FunctionCall[], feeOpts?: FeeOptions): Promise<TxExecutionRequest> {
-    const { payload: appPayload, packedArguments: appPackedArguments } = buildAppPayload(executions);
-    const { payload: feePayload, packedArguments: feePackedArguments } = await buildFeePayload(feeOpts);
+  async createTxExecutionRequest(exec: ExecutionRequestInit): Promise<TxExecutionRequest> {
+    const { calls, fee } = exec;
+    const appPayload = EntrypointPayload.fromAppExecution(calls);
+    const feePayload = await EntrypointPayload.fromFeeOptions(fee);
 
     const abi = this.getEntrypointAbi();
     const entrypointPackedArgs = PackedArguments.fromArgs(encodeArguments(abi, [appPayload, feePayload]));
 
-    const appAuthWitness = await this.auth.createAuthWit(hashPayload(appPayload, GeneratorIndex.SIGNATURE_PAYLOAD));
-    const feeAuthWitness = await this.auth.createAuthWit(hashPayload(feePayload, GeneratorIndex.FEE_PAYLOAD));
+    const appAuthWitness = await this.auth.createAuthWit(appPayload.hash());
+    const feeAuthWitness = await this.auth.createAuthWit(feePayload.hash());
 
     const txRequest = TxExecutionRequest.from({
       argsHash: entrypointPackedArgs.hash,
       origin: this.address,
       functionData: FunctionData.fromAbi(abi),
       txContext: TxContext.empty(this.chainId, this.version),
-      packedArguments: [...appPackedArguments, ...feePackedArguments, entrypointPackedArgs],
+      packedArguments: [...appPayload.packedArguments, ...feePayload.packedArguments, entrypointPackedArgs],
       authWitnesses: [appAuthWitness, feeAuthWitness],
     });
 

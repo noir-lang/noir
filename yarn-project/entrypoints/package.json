@@ -6,8 +6,7 @@
   "type": "module",
   "exports": {
     "./dapp": "./dest/dapp_entrypoint.js",
-    "./account": "./dest/account_entrypoint.js",
-    "./multi-call": "./dest/multi_call_entrypoint.js"
+    "./account": "./dest/account_entrypoint.js"
   },
   "typedocOptions": {
     "entryPoints": [
