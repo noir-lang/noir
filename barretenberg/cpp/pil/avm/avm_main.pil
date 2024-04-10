@@ -53,6 +53,10 @@ namespace avm_main(256);
     pol commit sel_op_or;
     // XOR
     pol commit sel_op_xor;
+    // LT
+    pol commit sel_op_lt;
+    // LTE
+    pol commit sel_op_lte;
 
     // Helper selector to characterize an ALU chiplet selector
     pol commit alu_sel;
@@ -121,6 +125,8 @@ namespace avm_main(256);
     sel_op_and * (1 - sel_op_and) = 0;
     sel_op_or * (1 - sel_op_or) = 0;
     sel_op_xor * (1 - sel_op_xor) = 0;
+    sel_op_lt * (1 - sel_op_lt) = 0;
+    sel_op_lte * (1 - sel_op_lte) = 0;
 
     sel_internal_call * (1 - sel_internal_call) = 0;
     sel_internal_return * (1 - sel_internal_return) = 0;
@@ -154,8 +160,8 @@ namespace avm_main(256);
 
     //====== COMPARATOR OPCODES CONSTRAINTS =====================================
     // Enforce that the tag for the ouput of EQ opcode is u8 (i.e. equal to 1).
-    #[EQ_OUTPUT_U8]
-    sel_op_eq * (w_in_tag - 1) = 0;
+    #[OUTPUT_U8]
+    (sel_op_eq + sel_op_lte + sel_op_lt) * (w_in_tag - 1) = 0;
 
     // Relation for division over the finite field
     // If tag_err == 1 in a division, then ib == 0 and op_err == 1.
@@ -254,14 +260,14 @@ namespace avm_main(256);
     // Predicate to activate the copy of intermediate registers to ALU table. If tag_err == 1,
     // the operation is not copied to the ALU table.
     // TODO: when division is moved to the alu, we will need to add the selector in the list below:
-    alu_sel = (sel_op_add + sel_op_sub + sel_op_mul + sel_op_not + sel_op_eq) * (1 - tag_err);
+    alu_sel = (sel_op_add + sel_op_sub + sel_op_mul + sel_op_not + sel_op_eq + sel_op_lt + sel_op_lte) * (1 - tag_err);
 
     #[PERM_MAIN_ALU]
     alu_sel {clk, ia, ib, ic, sel_op_add, sel_op_sub,
-             sel_op_mul, sel_op_eq, sel_op_not, r_in_tag}
+             sel_op_mul, sel_op_eq, sel_op_not, sel_op_lt, sel_op_lte, r_in_tag}
     is
     avm_alu.alu_sel {avm_alu.clk, avm_alu.ia, avm_alu.ib, avm_alu.ic, avm_alu.op_add, avm_alu.op_sub,
-                     avm_alu.op_mul, avm_alu.op_eq, avm_alu.op_not, avm_alu.in_tag};
+                     avm_alu.op_mul, avm_alu.op_eq, avm_alu.op_not, avm_alu.op_lt, avm_alu.op_lte, avm_alu.in_tag};
 
     // Based on the boolean selectors, we derive the binary op id to lookup in the table;
     // TODO: Check if having 4 columns (op_id + 3 boolean selectors) is more optimal that just using the op_id
@@ -275,11 +281,11 @@ namespace avm_main(256);
     // the operation decomposition step during bytecode unpacking.
     #[BIN_SEL_2]
     bin_sel = sel_op_and + sel_op_or + sel_op_xor;
-    
+
     #[PERM_MAIN_BIN]
-    bin_sel {ia, ib, ic, bin_op_id, r_in_tag}
+    bin_sel {clk, ia, ib, ic, bin_op_id, r_in_tag}
     is
-    avm_binary.start {avm_binary.acc_ia, avm_binary.acc_ib, avm_binary.acc_ic, avm_binary.op_id, avm_binary.in_tag};
+    avm_binary.start {avm_binary.clk, avm_binary.acc_ia, avm_binary.acc_ib, avm_binary.acc_ic, avm_binary.op_id, avm_binary.in_tag};
 
     #[PERM_MAIN_MEM_A]
     mem_op_a {clk, mem_idx_a, ia, rwa, r_in_tag, w_in_tag, sel_mov}
@@ -304,3 +310,57 @@ namespace avm_main(256);
 
     #[PERM_MAIN_MEM_IND_C]
     ind_op_c {clk, ind_c, mem_idx_c} is avm_mem.ind_op_c {avm_mem.clk, avm_mem.addr, avm_mem.val};
+
+    //====== Inter-table Constraints (Range Checks) ============================================
+    // TODO: Investigate optimising these range checks. Handling non-FF elements should require less range checks.
+    #[LOOKUP_U8_0]
+    avm_alu.rng_chk_lookup_selector { avm_alu.u8_r0 } in sel_rng_8 { clk };
+
+    #[LOOKUP_U8_1]
+    avm_alu.rng_chk_lookup_selector { avm_alu.u8_r1 } in sel_rng_8 { clk };
+
+    #[LOOKUP_U16_0]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r0 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_1]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r1 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_2]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r2 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_3]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r3 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_4]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r4 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_5]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r5 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_6]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r6 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_7]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r7 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_8]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r8 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_9]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r9 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_10]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r10 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_11]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r11 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_12]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r12 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_13]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r13 } in sel_rng_16 { clk };
+
+    #[LOOKUP_U16_14]
+    avm_alu.rng_chk_lookup_selector {avm_alu.u16_r14 } in sel_rng_16 { clk };
+

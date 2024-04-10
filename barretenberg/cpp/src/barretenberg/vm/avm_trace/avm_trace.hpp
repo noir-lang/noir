@@ -56,6 +56,12 @@ class AvmTraceBuilder {
     // Bitwise xor with direct or indirect memory access.
     void op_xor(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
 
+    // Less Than with direct or indirect memory access.
+    void op_lt(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+
+    // Less Than or Equal to with direct or indirect memory access.
+    void op_lte(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset, AvmMemoryTag in_tag);
+
     // Set a constant from bytecode with direct or indirect memory access.
     void op_set(uint8_t indirect, uint128_t val, uint32_t dst_offset, AvmMemoryTag in_tag);
 

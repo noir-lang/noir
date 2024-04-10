@@ -136,6 +136,20 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
                                 std::get<uint32_t>(inst.operands.at(4)),
                                 std::get<AvmMemoryTag>(inst.operands.at(1)));
             break;
+        case OpCode::LT:
+            trace_builder.op_lt(std::get<uint8_t>(inst.operands.at(0)),
+                                std::get<uint32_t>(inst.operands.at(2)),
+                                std::get<uint32_t>(inst.operands.at(3)),
+                                std::get<uint32_t>(inst.operands.at(4)),
+                                std::get<AvmMemoryTag>(inst.operands.at(1)));
+            break;
+        case OpCode::LTE:
+            trace_builder.op_lte(std::get<uint8_t>(inst.operands.at(0)),
+                                 std::get<uint32_t>(inst.operands.at(2)),
+                                 std::get<uint32_t>(inst.operands.at(3)),
+                                 std::get<uint32_t>(inst.operands.at(4)),
+                                 std::get<AvmMemoryTag>(inst.operands.at(1)));
+            break;
         // Compute - Bitwise
         case OpCode::NOT:
             trace_builder.op_not(std::get<uint8_t>(inst.operands.at(0)),

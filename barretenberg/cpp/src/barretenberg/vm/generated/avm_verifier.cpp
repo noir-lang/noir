@@ -51,10 +51,19 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
     }
 
     // Get commitments to VM wires
+    commitments.avm_alu_a_hi = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_a_hi);
+    commitments.avm_alu_a_lo = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_a_lo);
     commitments.avm_alu_alu_sel =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_alu_sel);
+    commitments.avm_alu_b_hi = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_b_hi);
+    commitments.avm_alu_b_lo = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_b_lo);
+    commitments.avm_alu_borrow = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_borrow);
     commitments.avm_alu_cf = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_cf);
     commitments.avm_alu_clk = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_clk);
+    commitments.avm_alu_cmp_rng_ctr =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_cmp_rng_ctr);
+    commitments.avm_alu_cmp_sel =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_cmp_sel);
     commitments.avm_alu_ff_tag = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_ff_tag);
     commitments.avm_alu_ia = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_ia);
     commitments.avm_alu_ib = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_ib);
@@ -65,9 +74,29 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
     commitments.avm_alu_op_eq = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_eq);
     commitments.avm_alu_op_eq_diff_inv =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_eq_diff_inv);
+    commitments.avm_alu_op_lt = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_lt);
+    commitments.avm_alu_op_lte = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_lte);
     commitments.avm_alu_op_mul = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_mul);
     commitments.avm_alu_op_not = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_not);
     commitments.avm_alu_op_sub = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_op_sub);
+    commitments.avm_alu_p_a_borrow =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_p_a_borrow);
+    commitments.avm_alu_p_b_borrow =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_p_b_borrow);
+    commitments.avm_alu_p_sub_a_hi =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_p_sub_a_hi);
+    commitments.avm_alu_p_sub_a_lo =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_p_sub_a_lo);
+    commitments.avm_alu_p_sub_b_hi =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_p_sub_b_hi);
+    commitments.avm_alu_p_sub_b_lo =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_p_sub_b_lo);
+    commitments.avm_alu_res_hi = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_res_hi);
+    commitments.avm_alu_res_lo = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_res_lo);
+    commitments.avm_alu_rng_chk_lookup_selector =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_rng_chk_lookup_selector);
+    commitments.avm_alu_rng_chk_sel =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_rng_chk_sel);
     commitments.avm_alu_u128_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u128_tag);
     commitments.avm_alu_u16_r0 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u16_r0);
@@ -199,6 +228,10 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_div);
     commitments.avm_main_sel_op_eq =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_eq);
+    commitments.avm_main_sel_op_lt =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_lt);
+    commitments.avm_main_sel_op_lte =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_lte);
     commitments.avm_main_sel_op_mul =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_main_sel_op_mul);
     commitments.avm_main_sel_op_not =
@@ -246,8 +279,6 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
     commitments.avm_mem_val = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_val);
     commitments.avm_mem_w_in_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_mem_w_in_tag);
-
-    // Lookup counts
     commitments.lookup_byte_lengths_counts =
         transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_byte_lengths_counts);
     commitments.lookup_byte_operations_counts =
@@ -256,13 +287,46 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.incl_main_tag_err_counts);
     commitments.incl_mem_tag_err_counts =
         transcript->template receive_from_prover<Commitment>(commitment_labels.incl_mem_tag_err_counts);
+    commitments.lookup_u8_0_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u8_0_counts);
+    commitments.lookup_u8_1_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u8_1_counts);
+    commitments.lookup_u16_0_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_0_counts);
+    commitments.lookup_u16_1_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_1_counts);
+    commitments.lookup_u16_2_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_2_counts);
+    commitments.lookup_u16_3_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_3_counts);
+    commitments.lookup_u16_4_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_4_counts);
+    commitments.lookup_u16_5_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_5_counts);
+    commitments.lookup_u16_6_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_6_counts);
+    commitments.lookup_u16_7_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_7_counts);
+    commitments.lookup_u16_8_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_8_counts);
+    commitments.lookup_u16_9_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_9_counts);
+    commitments.lookup_u16_10_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_10_counts);
+    commitments.lookup_u16_11_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_11_counts);
+    commitments.lookup_u16_12_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_12_counts);
+    commitments.lookup_u16_13_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_13_counts);
+    commitments.lookup_u16_14_counts =
+        transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_14_counts);
 
-    // Calculate the alpha and beta challenges - log derivative inverse round
     auto [beta, gamm] = transcript->template get_challenges<FF>("beta", "gamma");
     relation_parameters.beta = beta;
     relation_parameters.gamma = gamm;
 
-    // Permutations
+    // Get commitments to inverses
     commitments.perm_main_alu = transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_alu);
     commitments.perm_main_bin = transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_bin);
     commitments.perm_main_mem_a =
@@ -277,8 +341,6 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_mem_ind_b);
     commitments.perm_main_mem_ind_c =
         transcript->template receive_from_prover<Commitment>(commitment_labels.perm_main_mem_ind_c);
-
-    // Lookups
     commitments.lookup_byte_lengths =
         transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_byte_lengths);
     commitments.lookup_byte_operations =
@@ -287,6 +349,23 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.incl_main_tag_err);
     commitments.incl_mem_tag_err =
         transcript->template receive_from_prover<Commitment>(commitment_labels.incl_mem_tag_err);
+    commitments.lookup_u8_0 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u8_0);
+    commitments.lookup_u8_1 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u8_1);
+    commitments.lookup_u16_0 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_0);
+    commitments.lookup_u16_1 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_1);
+    commitments.lookup_u16_2 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_2);
+    commitments.lookup_u16_3 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_3);
+    commitments.lookup_u16_4 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_4);
+    commitments.lookup_u16_5 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_5);
+    commitments.lookup_u16_6 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_6);
+    commitments.lookup_u16_7 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_7);
+    commitments.lookup_u16_8 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_8);
+    commitments.lookup_u16_9 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_9);
+    commitments.lookup_u16_10 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_10);
+    commitments.lookup_u16_11 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_11);
+    commitments.lookup_u16_12 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_12);
+    commitments.lookup_u16_13 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_13);
+    commitments.lookup_u16_14 = transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_u16_14);
 
     // Execute Sumcheck Verifier
     const size_t log_circuit_size = numeric::get_msb(circuit_size);
@@ -304,7 +383,6 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
 
     // If Sumcheck did not verify, return false
     if (sumcheck_verified.has_value() && !sumcheck_verified.value()) {
-        info("Sumcheck did not verify");
         return false;
     }
 

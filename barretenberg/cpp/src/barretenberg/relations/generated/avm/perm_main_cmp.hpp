@@ -9,10 +9,10 @@
 
 namespace bb {
 
-class perm_main_alu_permutation_settings {
+class perm_main_cmp_permutation_settings {
   public:
     // This constant defines how many columns are bundled together to form each set.
-    constexpr static size_t COLUMNS_PER_SET = 12;
+    constexpr static size_t COLUMNS_PER_SET = 4;
 
     /**
      * @brief If this method returns true on a row of values, then the inverse polynomial at this index. Otherwise the
@@ -23,7 +23,7 @@ class perm_main_alu_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_alu_sel == 1 || in.avm_alu_alu_sel == 1);
+        return (in.avm_main_cmp_sel == 1 || in.avm_alu_cmp_sel == 1);
     }
 
     /**
@@ -46,34 +46,18 @@ class perm_main_alu_permutation_settings {
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.perm_main_alu,
-                                     in.avm_main_alu_sel,
-                                     in.avm_main_alu_sel,
-                                     in.avm_alu_alu_sel,
+        return std::forward_as_tuple(in.perm_main_cmp,
+                                     in.avm_main_cmp_sel,
+                                     in.avm_main_cmp_sel,
+                                     in.avm_alu_cmp_sel,
                                      in.avm_main_clk,
                                      in.avm_main_ia,
                                      in.avm_main_ib,
                                      in.avm_main_ic,
-                                     in.avm_main_sel_op_add,
-                                     in.avm_main_sel_op_sub,
-                                     in.avm_main_sel_op_mul,
-                                     in.avm_main_sel_op_eq,
-                                     in.avm_main_sel_op_not,
-                                     in.avm_main_sel_op_lt,
-                                     in.avm_main_sel_op_lte,
-                                     in.avm_main_r_in_tag,
                                      in.avm_alu_clk,
                                      in.avm_alu_ia,
                                      in.avm_alu_ib,
-                                     in.avm_alu_ic,
-                                     in.avm_alu_op_add,
-                                     in.avm_alu_op_sub,
-                                     in.avm_alu_op_mul,
-                                     in.avm_alu_op_eq,
-                                     in.avm_alu_op_not,
-                                     in.avm_alu_op_lt,
-                                     in.avm_alu_op_lte,
-                                     in.avm_alu_in_tag);
+                                     in.avm_alu_ic);
     }
 
     /**
@@ -96,39 +80,23 @@ class perm_main_alu_permutation_settings {
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.perm_main_alu,
-                                     in.avm_main_alu_sel,
-                                     in.avm_main_alu_sel,
-                                     in.avm_alu_alu_sel,
+        return std::forward_as_tuple(in.perm_main_cmp,
+                                     in.avm_main_cmp_sel,
+                                     in.avm_main_cmp_sel,
+                                     in.avm_alu_cmp_sel,
                                      in.avm_main_clk,
                                      in.avm_main_ia,
                                      in.avm_main_ib,
                                      in.avm_main_ic,
-                                     in.avm_main_sel_op_add,
-                                     in.avm_main_sel_op_sub,
-                                     in.avm_main_sel_op_mul,
-                                     in.avm_main_sel_op_eq,
-                                     in.avm_main_sel_op_not,
-                                     in.avm_main_sel_op_lt,
-                                     in.avm_main_sel_op_lte,
-                                     in.avm_main_r_in_tag,
                                      in.avm_alu_clk,
                                      in.avm_alu_ia,
                                      in.avm_alu_ib,
-                                     in.avm_alu_ic,
-                                     in.avm_alu_op_add,
-                                     in.avm_alu_op_sub,
-                                     in.avm_alu_op_mul,
-                                     in.avm_alu_op_eq,
-                                     in.avm_alu_op_not,
-                                     in.avm_alu_op_lt,
-                                     in.avm_alu_op_lte,
-                                     in.avm_alu_in_tag);
+                                     in.avm_alu_ic);
     }
 };
 
 template <typename FF_>
-using perm_main_alu_relation = GenericPermutationRelation<perm_main_alu_permutation_settings, FF_>;
-template <typename FF_> using perm_main_alu = GenericPermutation<perm_main_alu_permutation_settings, FF_>;
+using perm_main_cmp_relation = GenericPermutationRelation<perm_main_cmp_permutation_settings, FF_>;
+template <typename FF_> using perm_main_cmp = GenericPermutation<perm_main_cmp_permutation_settings, FF_>;
 
 } // namespace bb

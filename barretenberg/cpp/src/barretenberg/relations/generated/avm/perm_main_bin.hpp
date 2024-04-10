@@ -12,7 +12,7 @@ namespace bb {
 class perm_main_bin_permutation_settings {
   public:
     // This constant defines how many columns are bundled together to form each set.
-    constexpr static size_t COLUMNS_PER_SET = 5;
+    constexpr static size_t COLUMNS_PER_SET = 6;
 
     /**
      * @brief If this method returns true on a row of values, then the inverse polynomial at this index. Otherwise the
@@ -50,11 +50,13 @@ class perm_main_bin_permutation_settings {
                                      in.avm_main_bin_sel,
                                      in.avm_main_bin_sel,
                                      in.avm_binary_start,
+                                     in.avm_main_clk,
                                      in.avm_main_ia,
                                      in.avm_main_ib,
                                      in.avm_main_ic,
                                      in.avm_main_bin_op_id,
                                      in.avm_main_r_in_tag,
+                                     in.avm_binary_clk,
                                      in.avm_binary_acc_ia,
                                      in.avm_binary_acc_ib,
                                      in.avm_binary_acc_ic,
@@ -86,11 +88,13 @@ class perm_main_bin_permutation_settings {
                                      in.avm_main_bin_sel,
                                      in.avm_main_bin_sel,
                                      in.avm_binary_start,
+                                     in.avm_main_clk,
                                      in.avm_main_ia,
                                      in.avm_main_ib,
                                      in.avm_main_ic,
                                      in.avm_main_bin_op_id,
                                      in.avm_main_r_in_tag,
+                                     in.avm_binary_clk,
                                      in.avm_binary_acc_ia,
                                      in.avm_binary_acc_ib,
                                      in.avm_binary_acc_ic,

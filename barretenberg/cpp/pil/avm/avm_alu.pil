@@ -18,6 +18,10 @@ namespace avm_alu(256);
     pol commit op_not;
     pol commit op_eq;
     pol commit alu_sel; // Predicate to activate the copy of intermediate registers to ALU table.
+    pol commit op_lt;
+    pol commit op_lte;
+    pol commit cmp_sel; // Predicate if LT or LTE is set
+    pol commit rng_chk_sel; // Predicate representing a range check row.
 
     // Instruction tag (1: u8, 2: u16, 3: u32, 4: u64, 5: u128, 6: field) copied from Main table
     pol commit in_tag;
@@ -58,7 +62,8 @@ namespace avm_alu(256);
     pol commit cf;
 
     // Compute predicate telling whether there is a row entry in the ALU table.
-    alu_sel = op_add + op_sub + op_mul + op_not + op_eq;
+    alu_sel = op_add + op_sub + op_mul + op_not + op_eq + op_lt + op_lte;
+    cmp_sel = op_lt + op_lte;
 
     // ========= Type Constraints =============================================
     // TODO: Range constraints
@@ -128,6 +133,8 @@ namespace avm_alu(256);
     pol SUM_64  = SUM_32     + u16_r1 * 2**32 + u16_r2 * 2**48;
     pol SUM_96  = SUM_64     + u16_r3 * 2**64 + u16_r4 * 2**80;
     pol SUM_128 = SUM_96     + u16_r5 * 2**96 + u16_r6 * 2**112;
+
+
 
     // ========= ADDITION/SUBTRACTION Operation Constraints ===============================
     //
@@ -257,11 +264,213 @@ namespace avm_alu(256);
     // Need an additional helper that holds the inverse of the difference;
     pol commit op_eq_diff_inv;
 
-    // If EQ selector is set, ic needs to be boolean
+    // If EQ or CMP_SEL selector is set, ic needs to be boolean
     #[ALU_RES_IS_BOOL]
-    op_eq * (ic * (1 - ic)) = 0;
+    (cmp_sel + op_eq) * (ic * (1 - ic)) = 0;
 
     #[ALU_OP_EQ]
     op_eq * (DIFF * (ic * (1 - op_eq_diff_inv) + op_eq_diff_inv) - 1 + ic) = 0;
 
+    // ========= LT/LTE Operation Constraints ===============================
+    // There are two routines that we utilise as part of this LT/LTE check
+    // (1) Decomposition into two 128-bit limbs, lo and hi respectively and a borrow (1 or 0);
+    // (2) 128 bit-range checks when checking an arithmetic operation has not overflowed the field.
+
+    // ========= COMPARISON OPERATION - EXPLANATIONS =================================================
+    // To simplify the comparison circuit, we implement a GreaterThan(GT) circuit. This is ideal since
+    // if we need a LT operation, we just swap the inputs and if we need the LTE operation, we just NOT the GT constraint
+    // Given the inputs x, y and q where x & y are integers in the range [0,...,p-1] and q is the boolean result to the query (x > y).
+    // Then there are two scenarios:
+    //    (1) (x > y) -> x - y - 1 = result, where 0 <= result. i.e. the result does not underflow the field.
+    //    (2)!(x > y) -> (x <= y) = y - x = result, where the same applies as above.
+
+    // These conditions can be combined with the GT constraint, q (that x > y) as follows:
+    // (x - y - 1) * q + (y - x) (1 - q) = result
+
+    // If LT, then swap ia and ib else keep the same
+    pol INPUT_IA  = op_lt * ib + op_lte * ia;
+    pol INPUT_IB  = op_lt * ia + op_lte * ib;
+
+    pol commit borrow;
+    pol commit a_lo;
+    pol commit a_hi;
+    // Check INPUT_IA is well formed from its lo and hi limbs
+    #[INPUT_DECOMP_1]
+    INPUT_IA = (a_lo + 2 ** 128 * a_hi) * cmp_sel;
+
+    pol commit b_lo;
+    pol commit b_hi;
+    // Check INPUT_IB is well formed from its lo and hi limbs
+    #[INPUT_DECOMP_2]
+    INPUT_IB = (b_lo + 2 ** 128 * b_hi) * cmp_sel;
+
+    pol commit p_sub_a_lo; // p_lo - a_lo
+    pol commit p_sub_a_hi; // p_hi - a_hi
+    pol commit p_a_borrow;
+    p_a_borrow * (1 - p_a_borrow) = 0;
+
+    // (p - 1) lower 128 bits = 53438638232309528389504892708671455232
+    // (p - 1) upper 128 bits = 64323764613183177041862057485226039389 
+
+    // Check that decomposition of a into lo and hi limbs do not overflow p.
+    // This is achieved by checking a does not underflow p: (p_lo > a_lo && p_hi >= ahi) || (p_lo <= a_lo && p_hi > a_hi)
+    // First condition is if borrow = 0, second condition is if borrow = 1
+    // This underflow check is done by the 128-bit check that is performed on each of these lo and hi limbs.
+    #[SUB_LO_1]
+    (p_sub_a_lo  - (53438638232309528389504892708671455232 - a_lo + p_a_borrow * 2 ** 128)) * cmp_sel = 0;
+    #[SUB_HI_1]
+    (p_sub_a_hi - (64323764613183177041862057485226039389 - a_hi - p_a_borrow)) * cmp_sel = 0;
+
+    pol commit p_sub_b_lo;
+    pol commit p_sub_b_hi;
+    pol commit p_b_borrow;
+    p_b_borrow * (1 - p_b_borrow) = 0;
+
+    // Check that decomposition of b into lo and hi limbs do not overflow/underflow p.
+    // This is achieved by checking (p_lo > b_lo && p_hi >= bhi) || (p_lo <= b_lo && p_hi > b_hi)
+    // First condition is if borrow = 0, second condition is if borrow = 1;
+    #[SUB_LO_2]
+    (p_sub_b_lo - (53438638232309528389504892708671455232 - b_lo + p_b_borrow * 2 ** 128)) * cmp_sel = 0;
+    #[SUB_HI_2]
+    (p_sub_b_hi - (64323764613183177041862057485226039389 - b_hi - p_b_borrow)) * cmp_sel = 0;
+
+    // Calculate the combined relation: (a - b - 1) * q + (b -a ) * (1-q)
+    // Check that (a > b) by checking (a_lo > b_lo && a_hi >= bhi) || (alo <= b_lo && a_hi > b_hi)
+    // First condition is if borrow = 0, second condition is if borrow = 1;
+    pol A_SUB_B_LO = a_lo - b_lo - 1 + borrow * 2 ** 128;
+    pol A_SUB_B_HI = a_hi - b_hi - borrow;
+
+    // Check that (a <= b) by checking (b_lo >= a_lo && b_hi >= a_hi) || (b_lo < a_lo && b_hi > a_hi)
+    // First condition is if borrow = 0, second condition is if borrow = 1;
+    pol B_SUB_A_LO = b_lo - a_lo + borrow * 2 ** 128;
+    pol B_SUB_A_HI = b_hi - a_hi - borrow;
+
+
+    // If this is a LT operation, we already swapped the inputs so the result of ic is still correct
+    // If this is a LTE operation, we invert the value of ic.
+    pol IS_GT = op_lt * ic + (1 - ic) * op_lte;
+
+    // When IS_GT = 1, we enforce the condition that a > b and thus a - b - 1 does not underflow.
+    // When IS_GT = 0, we enforce the condition that a <= b and thus b - a does not underflow.
+    // ========= Analysing res_lo and res_hi scenarios for LTE =================================
+    // (1) Assume a proof satisfies the constraints for LTE(x,y,1), i.e., x <= y
+    //     Therefore ia = x, ib = y and ic = 1.
+    //    (a) We do not swap the operands, so a = x and b = y,
+    //    (b) IS_GT = 1 - ic = 0
+    //    (c) res_lo = B_SUB_A_LO and res_hi = B_SUB_A_HI
+    //    (d) res_lo = y_lo - x_lo + borrow * 2**128 and res_hi = y_hi - x_hi - borrow.
+    //    (e) Due to 128-bit range checks on res_lo, res_hi, y_lo, x_lo, y_hi, y_lo, we
+    //        have the guarantee that res_lo >= 0 && res_hi >= 0. Furthermore, borrow is
+    //        boolean and so we have two cases to consider:
+    //         (i)  borrow == 0 ==> y_lo >= x_lo && y_hi >= x_hi
+    //         (ii) borrow == 1 ==> y_hi >= x_hi + 1 ==> y_hi > x_hi
+    //        This concludes the proof as for both cases, we must have: y >= x
+    //
+    // (2) Assume a proof satisfies the constraints for LTE(x,y,0), i.e. x > y.
+    //     Therefore ia = x, ib = y and ic = 0.
+    //    (a) We do not swap the operands, so a = x and b = y,
+    //    (b) IS_GT = 1 - ic = 1
+    //    (c) res_lo = A_SUB_B_LO and res_hi = A_SUB_B_HI
+    //    (d) res_lo = x_lo - y_lo - 1 + borrow * 2**128 and res_hi = x_hi - y_hi - borrow.
+    //    (e) Due to 128-bit range checks on res_lo, res_hi, y_lo, x_lo, y_hi, y_lo, we
+    //        have the guarantee that res_lo >= 0 && res_hi >= 0. Furthermore, borrow is
+    //        boolean and so we have two cases to consider:
+    //         (i)  borrow == 0 ==> x_lo > y_lo && x_hi >= y_hi
+    //         (ii) borrow == 1 ==> x_hi > y_hi
+    //        This concludes the proof as for both cases, we must have: x > y
+    //
+
+    // ========= Analysing res_lo and res_hi scenarios for LT ==================================
+    // (1) Assume a proof satisfies the constraints for LT(x,y,1), i.e. x < y.
+    //     Therefore ia = x, ib = y and ic = 1.
+    //    (a) We DO swap the operands, so a = y and b = x,
+    //    (b) IS_GT = ic = 1
+    //    (c) res_lo = A_SUB_B_LO and res_hi = A_SUB_B_HI, **remember we have swapped inputs**
+    //    (d) res_lo = y_lo - x_lo - 1 + borrow * 2**128 and res_hi = y_hi - x_hi - borrow.
+    //    (e) Due to 128-bit range checks on res_lo, res_hi, y_lo, x_lo, y_hi, y_lo, we
+    //        have the guarantee that res_lo >= 0 && res_hi >= 0. Furthermore, borrow is
+    //        boolean and so we have two cases to consider:
+    //         (i)  borrow == 0 ==> y_lo > x_lo && y_hi >= x_hi
+    //         (ii) borrow == 1 ==> y_hi > x_hi
+    //        This concludes the proof as for both cases, we must have: x < y
+    //
+    // (2) Assume a proof satisfies the constraint for LT(x,y,0), i.e. x >= y.
+    //     Therefore ia = x, ib = y and ic = 0.
+    //    (a) We DO swap the operands, so a = y and b = x,
+    //    (b) IS_GT = ic = 0
+    //    (c) res_lo = B_SUB_A_LO and res_hi = B_SUB_A_HI, **remember we have swapped inputs**
+    //    (d) res_lo = x_lo - y_lo + borrow * 2**128 and res_hi = x_hi - y_hi - borrow.
+    //    (e) Due to 128-bit range checks on res_lo, res_hi, y_lo, x_lo, y_hi, y_lo, we
+    //        have the guarantee that res_lo >= 0 && res_hi >= 0. Furthermore, borrow is
+    //        boolean and so we have two cases to consider:
+    //         (i)  borrow == 0 ==> x_lo >= y_lo && x_hi >= y_hi
+    //         (ii) borrow == 1 ==> x_hi > y_hi
+    //        This concludes the proof as for both cases, we must have: x >= y
+
+    pol commit res_lo;
+    pol commit res_hi;
+    #[RES_LO]
+    (res_lo - (A_SUB_B_LO * IS_GT + B_SUB_A_LO * (1 - IS_GT))) * cmp_sel = 0;
+    #[RES_HI]
+    (res_hi - (A_SUB_B_HI * IS_GT + B_SUB_A_HI * (1 - IS_GT))) * cmp_sel = 0;
+
+    // ========= RANGE OPERATIONS ===============================
+
+    // Each call to LT/LTE requires 5x 256-bit range checks. We keep track of how many are left here.
+    pol commit cmp_rng_ctr;
+
+    // TODO: combine into 1 equation, left separate for debugging
+    // the number of range checks must decrement by 1 until it is equal to 0;
+    #[CMP_CTR_REL_1]
+    (cmp_rng_ctr' - cmp_rng_ctr + 1) * cmp_rng_ctr = 0;
+    // if this row is a comparison operation, the next range_check_remaining value is set to 4
+    // it is not set to 5 since we do 1 as part of the comparison.
+    #[CMP_CTR_REL_2]
+    (cmp_rng_ctr' - 4) * cmp_sel = 0;
+    
+    rng_chk_sel * (1 - rng_chk_sel) = 0;
+    // If we have remaining range checks, we cannot have cmp_sel set. This prevents malicious truncating of the range
+    // checks by adding a new LT/LTE operation before all the range checks from the previous computation are complete.
+    rng_chk_sel * cmp_sel = 0; 
+
+    // rng_chk_sel = 1 when cmp_rng_ctr != 0 and rng_chk_sel = 0 when cmp_rng_ctr = 0;
+    #[CTR_NON_ZERO_REL]
+    cmp_rng_ctr * ((1 - rng_chk_sel) * (1 -  op_eq_diff_inv) +  op_eq_diff_inv) - rng_chk_sel = 0;
+
+    // We perform a range check if we have some range checks remaining or we are performing a comparison op
+    pol RNG_CHK_OP = rng_chk_sel + cmp_sel;
+
+    pol commit rng_chk_lookup_selector;
+    #[RNG_CHK_LOOKUP_SELECTOR]
+    rng_chk_lookup_selector = cmp_sel + rng_chk_sel;
+
+    // Perform 128-bit range check on lo part
+    #[LOWER_CMP_RNG_CHK]
+    a_lo = SUM_128 * RNG_CHK_OP;
+
+
+    // Perform 128-bit range check on hi part
+    #[UPPER_CMP_RNG_CHK]
+    a_hi = (u16_r7 + u16_r8 * 2**16 + 
+           u16_r9 * 2**32 + u16_r10 * 2**48 + 
+           u16_r11 * 2**64 + u16_r12 * 2**80 + 
+           u16_r13 * 2**96 + u16_r14 * 2**112) * RNG_CHK_OP;
+
+    // Shift all elements "across" by 2 columns
+    // TODO: there is an optimisation where we are able to do 1 less range check as the range check on
+    // P_SUB_B is implied by the other range checks.
+    // Briefly: given a > b and p > a and p > a - b - 1, it is sufficient confirm that p > b without a range check
+    // To accomplish this we would likely change the order of the range_check so we can skip p_sub_b
+    #[SHIFT_RELS_0]
+    (a_lo' - b_lo) * rng_chk_sel' = 0;
+    (a_hi' - b_hi) * rng_chk_sel' = 0;
+    #[SHIFT_RELS_1]
+    (b_lo' - p_sub_a_lo) * rng_chk_sel' = 0;
+    (b_hi' - p_sub_a_hi) * rng_chk_sel' = 0;
+    #[SHIFT_RELS_2]
+    (p_sub_a_lo' - p_sub_b_lo) * rng_chk_sel'= 0;
+    (p_sub_a_hi' - p_sub_b_hi) * rng_chk_sel'= 0;
+    #[SHIFT_RELS_3]
+    (p_sub_b_lo' - res_lo) * rng_chk_sel'= 0;
+    (p_sub_b_hi' - res_hi) * rng_chk_sel'= 0;
 

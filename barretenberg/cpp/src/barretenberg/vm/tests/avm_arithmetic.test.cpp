@@ -1828,7 +1828,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, eqOutputWrongTag)
     ASSERT_TRUE(row != trace.end());
 
     row->avm_main_w_in_tag = FF(4);
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "EQ_OUTPUT_U8");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "OUTPUT_U8");
 }
 
 // Tests a situation for field elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;
@@ -1896,7 +1896,7 @@ TEST_F(AvmArithmeticNegativeTestsU8, eqOutputWrongTag)
     ASSERT_TRUE(row != trace.end());
 
     row->avm_main_w_in_tag = FF(3);
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "EQ_OUTPUT_U8");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "OUTPUT_U8");
 }
 
 // Tests a situation for U8 elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;
@@ -1963,7 +1963,7 @@ TEST_F(AvmArithmeticNegativeTestsU16, eqOutputWrongTag)
     ASSERT_TRUE(row != trace.end());
 
     row->avm_main_w_in_tag = FF(5);
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "EQ_OUTPUT_U8");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "OUTPUT_U8");
 }
 
 // Tests a situation for U16 elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;
@@ -2030,7 +2030,7 @@ TEST_F(AvmArithmeticNegativeTestsU32, eqOutputWrongTag)
     ASSERT_TRUE(row != trace.end());
 
     row->avm_main_w_in_tag = FF(6);
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "EQ_OUTPUT_U8");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "OUTPUT_U8");
 }
 
 // Tests a situation for U32 elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;
@@ -2104,7 +2104,7 @@ TEST_F(AvmArithmeticNegativeTestsU64, eqOutputWrongTag)
     ASSERT_TRUE(row != trace.end());
 
     row->avm_main_w_in_tag = FF(2);
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "EQ_OUTPUT_U8");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "OUTPUT_U8");
 }
 
 // Tests a situation for U64 elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;
@@ -2203,7 +2203,7 @@ TEST_F(AvmArithmeticNegativeTestsU128, eqOutputWrongTag)
     ASSERT_TRUE(row != trace.end());
 
     row->avm_main_w_in_tag = FF(4);
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "EQ_OUTPUT_U8");
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "OUTPUT_U8");
 }
 
 // Tests a situation for U128 elements the (a-b)^1 is incorrect. i.e. (a-b) * (a-b)^1 != 1 for (a-b) != 0;

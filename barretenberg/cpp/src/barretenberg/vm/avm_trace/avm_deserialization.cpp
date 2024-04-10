@@ -28,6 +28,8 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
     { OpCode::DIV, three_operand_format },
     // Compute - Comparators
     { OpCode::EQ, three_operand_format },
+    { OpCode::LT, three_operand_format },
+    { OpCode::LTE, three_operand_format },
     // Compute - Bitwise
     { OpCode::NOT, { OperandType::INDIRECT, OperandType::TAG, OperandType::UINT32, OperandType::UINT32 } },
     { OpCode::AND, three_operand_format },
