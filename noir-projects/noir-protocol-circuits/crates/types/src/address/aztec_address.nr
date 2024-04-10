@@ -131,13 +131,11 @@ fn compute_address_from_partial_and_pubkey() {
 #[test]
 fn from_field_to_field() {
     let address = AztecAddress { inner: 37 };
-    // TODO: uncomment this test once https://github.com/noir-lang/noir/issues/4635 is fixed
-    // assert_eq(FromField::from_field(address.to_field()), address);
+    assert_eq(FromField::from_field(address.to_field()), address);
 }
 
 #[test]
 fn serde() {
     let address = AztecAddress { inner: 37 };
-    // TODO: uncomment this test once https://github.com/noir-lang/noir/issues/4635 is fixed
-    // assert_eq(Deserialize::deserialize(address.serialize()), address);
+    assert_eq(Deserialize::deserialize(address.serialize()), address);
 }
