@@ -15,7 +15,7 @@ runs:
       uses: actions/cache@v3
       with:
         path: .git/modules
-        key: submodules-${{ hashFiles('.gitmodules') }}
+        key: submodules-${{ hashFiles('.gitmodules') }}-spot-ebs
 
     - name: Checkout Submodules
       shell: bash
