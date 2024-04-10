@@ -193,8 +193,8 @@ pub enum Token {
     Invalid(char),
 }
 
-pub fn token_to_tok(x: &Token) -> Tok<'_> {
-    match x {
+pub fn token_to_tok(token: &Token) -> Tok<'_> {
+    match token {
         Token::Ident(ref s) => Tok::Ident(s),
         Token::Int(n) => Tok::Int(*n),
         Token::Bool(b) => Tok::Bool(*b),
