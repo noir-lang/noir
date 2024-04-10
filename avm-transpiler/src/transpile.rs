@@ -523,10 +523,14 @@ fn handle_nullifier_exists(
     destinations: &Vec<ValueOrArray>,
     inputs: &Vec<ValueOrArray>,
 ) {
-    if destinations.len() != 1 || inputs.len() != 1 {
-        panic!("Transpiler expects ForeignCall::CHECKNULLIFIEREXISTS to have 1 destinations and 1 input, got {} and {}", destinations.len(), inputs.len());
+    if destinations.len() != 1 || inputs.len() != 2 {
+        panic!("Transpiler expects ForeignCall::CHECKNULLIFIEREXISTS to have 1 destinations and 2 inputs, got {} and {}", destinations.len(), inputs.len());
     }
     let nullifier_offset_operand = match &inputs[0] {
+        ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
+        _ => panic!("Transpiler does not know how to handle ForeignCall::EMITNOTEHASH with HeapArray/Vector inputs"),
+    };
+    let address_offset_operand = match &inputs[1] {
         ValueOrArray::MemoryAddress(offset) => offset.to_usize() as u32,
         _ => panic!("Transpiler does not know how to handle ForeignCall::EMITNOTEHASH with HeapArray/Vector inputs"),
     };
@@ -540,6 +544,9 @@ fn handle_nullifier_exists(
         operands: vec![
             AvmOperand::U32 {
                 value: nullifier_offset_operand,
+            },
+            AvmOperand::U32 {
+                value: address_offset_operand,
             },
             AvmOperand::U32 {
                 value: exists_offset_operand,

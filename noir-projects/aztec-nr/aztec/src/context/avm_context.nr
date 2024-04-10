@@ -103,8 +103,8 @@ impl PublicContextInterface for AvmContext {
         AztecAddress::zero()
     }
 
-    fn nullifier_exists(self, nullifier: Field) -> bool {
-        nullifier_exists(nullifier) == 1
+    fn nullifier_exists(self, unsiloed_nullifier: Field, address: AztecAddress) -> bool {
+        nullifier_exists(unsiloed_nullifier, address.to_field()) == 1
     }
 
     fn push_nullifier_read_request(&mut self, nullifier: Field) {
@@ -278,7 +278,7 @@ fn note_hash_exists(note_hash: Field, leaf_index: Field) -> u8 {}
 fn emit_note_hash(note_hash: Field) {}
 
 #[oracle(avmOpcodeNullifierExists)]
-fn nullifier_exists(nullifier: Field) -> u8 {}
+fn nullifier_exists(nullifier: Field, address: Field) -> u8 {}
 
 #[oracle(avmOpcodeEmitNullifier)]
 fn emit_nullifier(nullifier: Field) {}

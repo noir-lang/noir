@@ -14,7 +14,7 @@ use dep::protocol_types::{
     public_circuit_public_inputs::PublicCircuitPublicInputs, read_request::ReadRequest,
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
-    address::{AztecAddress, EthAddress},
+    hash::silo_nullifier, address::{AztecAddress, EthAddress},
     constants::{
     MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
@@ -220,8 +220,10 @@ impl PublicContextInterface for PublicContext {
         self.inputs.public_global_variables.fee_recipient
     }
 
-    fn nullifier_exists(self, nullifier: Field) -> bool {
-        nullifier_exists_oracle(nullifier) == 1
+    fn nullifier_exists(self, unsiloed_nullifier: Field, address: AztecAddress) -> bool {
+        // Current public can only check for settled nullifiers, so we always silo.
+        let siloed_nullifier = silo_nullifier(address, unsiloed_nullifier);
+        nullifier_exists_oracle(siloed_nullifier) == 1
     }
 
     fn push_nullifier_read_request(&mut self, nullifier: Field) {

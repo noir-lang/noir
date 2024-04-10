@@ -222,10 +222,9 @@ describe('e2e_inclusion_proofs_contract', () => {
     });
 
     it('proves existence of a nullifier in public context', async () => {
-      const block = await pxe.getBlock(deploymentBlockNumber);
-      const nullifier = block?.body.txEffects[0].nullifiers[0];
-
-      await contract.methods.test_nullifier_inclusion_from_public(nullifier!).send().wait();
+      const unsiloedNullifier = new Fr(123456789n);
+      await contract.methods.push_nullifier_public(unsiloedNullifier).send().wait();
+      await contract.methods.test_nullifier_inclusion_from_public(unsiloedNullifier).send().wait();
     });
 
     it('nullifier existence failure case', async () => {

@@ -353,8 +353,8 @@ M[existsOffset] = exists`}
 	<td style={{'text-align': 'center'}}>0x2f</td>	<td style={{'text-align': 'center'}}><a id='isa-table-nullifierexists'/><Markdown>[`NULLIFIEREXISTS`](#isa-section-nullifierexists)</Markdown></td>
 	<td><Markdown>Check whether a nullifier exists in the nullifier tree (including nullifiers from earlier in the current transaction or from earlier in the current block)</Markdown></td>
 	<td><CodeBlock language="jsx">
-{`exists = context.worldState.nullifiers.has(
-    hash(context.environment.storageAddress, M[nullifierOffset])
+{`exists = pendingNullifiers.has(M[addressOffset], M[nullifierOffset]) || context.worldState.nullifiers.has(
+    hash(M[addressOffset], M[nullifierOffset])
 )
 M[existsOffset] = exists`}
 	</CodeBlock></td>
@@ -1464,11 +1464,12 @@ Check whether a nullifier exists in the nullifier tree (including nullifiers fro
 	- **indirect**: Toggles whether each memory-offset argument is an indirect offset. Rightmost bit corresponds to 0th offset arg, etc. Indirect offsets result in memory accesses like `M[M[offset]]` instead of the more standard `M[offset]`.
 - **Args**: 
 	- **nullifierOffset**: memory offset of the unsiloed nullifier
+	- **addressOffset**: memory offset of the storage address
 	- **existsOffset**: memory offset specifying where to store operation's result (whether the nullifier exists)
 - **Expression**: 
 <CodeBlock language="jsx">
-{`exists = context.worldState.nullifiers.has(
-    hash(context.environment.storageAddress, M[nullifierOffset])
+{`exists = pendingNullifiers.has(M[addressOffset], M[nullifierOffset]) || context.worldState.nullifiers.has(
+    hash(M[addressOffset], M[nullifierOffset])
 )
 M[existsOffset] = exists`}
 </CodeBlock>
@@ -1478,6 +1479,7 @@ M[existsOffset] = exists`}
     TracedNullifierCheck {
         callPointer: context.environment.callPointer,
         nullifier: M[nullifierOffset],
+        storageAddress: M[addressOffset],
         exists: exists, // defined above
         counter: ++context.worldStateAccessTrace.accessCounter,
     }
@@ -1485,7 +1487,7 @@ M[existsOffset] = exists`}
 </CodeBlock>
 - **Triggers downstream circuit operations**: Nullifier siloing (hash with storage contract address), nullifier tree membership check
 - **Tag updates**: `T[existsOffset] = u8`
-- **Bit-size**: 88
+- **Bit-size**: 120
 
 
 ### <a id='isa-section-emitnullifier'/>`EMITNULLIFIER`
