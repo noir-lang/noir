@@ -10,4 +10,4 @@ echo $1 | docker login -u aztecprotocolci --password-stdin
 
 # Make earthly-cloud and earthly-cloud-bench scripts available
 echo "PATH=$(dirname $(realpath $0)):$PATH" >> $GITHUB_ENV
-echo "GITHUB_ACTOR=$2" >> $GITHUB_ENV
+echo "EARTHLY_CONFIG=$(git rev-parse --show-toplevel)/.github/earthly-ci-config.yml" >> $GITHUB_ENV

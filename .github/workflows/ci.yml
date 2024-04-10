@@ -1,206 +1,267 @@
-name: Earthly CI
+name: CI
 on:
   push:
     branches: [master]
   pull_request: {}
-  workflow_dispatch: {}
-
+  workflow_dispatch:
+    inputs:
+      runner_action:
+        description: "The action to take with the self-hosted runner (start, stop, restart)."
+        required: false
+      just_start_spot:
+        description: "Should we just run spots?"
+        type: boolean
+        required: false
+concurrency:
+  # force parallelism
+  group: ci-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}
+  cancel-in-progress: true
 jobs:
-  # there's a lot of x86 tasks - let's split out the build step
-  build-x86:
-    if: github.actor == 'ludamad' || github.actor == 'charlielye'
+  # Start cheap (~1/8th the cost of on demand, ~13th the cost of large GA runners) spot builders
+  # just for the CI job. These are specced per user and run the entire CI. 
+  # TODO These have a persistent EBS volume that forms a fast-online docker image cache (used by Earthly), meaning
+  # TODO build steps that ran in previous invocations are quickly ran from cache.
+  start-builder:
+    timeout-minutes: 5
+    name: Start Build Runner (${{ matrix.config.runner_label_suffix }})
     runs-on: ubuntu-latest
-    outputs:
-      e2e_list: ${{ steps.e2e_list.outputs.list }}
-    env:
-      EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
-    # cancel if reran on same PR if exists, otherwise if on same commit
-    concurrency:
-      group: build-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}-x86
-      cancel-in-progress: true
+    permissions:
+      actions: write
+    strategy:
+      matrix:
+        config:
+          - {ec2_instance_type: m6a.16xlarge, runner_concurrency: 50, ec2_ami_id: ami-04d8422a9ba4de80f, runner_label_suffix: x86}
+          - {ec2_instance_type: r6g.16xlarge, runner_concurrency: 2, ec2_ami_id: ami-0d8a9b0419ddb331a, runner_label_suffix: arm}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: AztecProtocol/ec2-action-builder@v0.3
         with:
-          # we check out submodules in ci-setup-action
-          ref: ${{ github.event.pull_request.head.sha }}
+          github_token: ${{ secrets.GH_SELF_HOSTED_RUNNER_TOKEN }}
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_region: "us-east-2"
+          ec2_subnet_id: subnet-4cfabd25
+          subaction: ${{ github.event.inputs.runner_action || (contains(github.event.head_commit.message, '[ci restart-spot]') && 'restart' || 'start') }}
+          # prevent reaping by mainframe spot reaper
+          ec2_instance_tags: '[{"Key": "Keep-Alive", "Value": "true"}]'
+          github_action_runner_version: v2.315.0
+          ec2_security_group_id: sg-0ccd4e5df0dcca0c9
+          ec2_spot_instance_strategy: BestEffort
+          runner_label: ${{ github.actor }}-${{ matrix.config.runner_label_suffix }}
+          runner_concurrency: ${{ matrix.config.runner_concurrency }}
+          ec2_instance_type: ${{ matrix.config.ec2_instance_type }}
+          ec2_ami_id: ${{ matrix.config.ec2_ami_id }}
+          ec2_instance_ttl: 30 # 30 minutes to reap, refreshed by job starts
 
-      - name: Setup
-        uses: ./.github/ci-setup-action
-        with:
-          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          github_actor: ${{ github.actor }} 
+  #########################
+  # START OF ARM PIPELINE #
+  #########################
+  # prevents concurrency issues with multiple (implicit) earthly bootstraps
+  setup-arm:
+    needs: start-builder
+    runs-on: ${{ github.actor }}-arm
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
+      # Attach our 128gb cache disk
+      - run: ./scripts/attach_ebs_cache.sh ${{ github.actor }}-arm 128
+      - run: earthly bootstrap
 
-      - name: Build
-        working-directory: ./yarn-project
-        run: |
-          earthly-cloud build x86 --push +build-end-to-end
-
-      # We base our e2e list used in e2e-x86 off the targets in ./yarn-project/end-to-end
-      # (Note ARM uses just 2 tests as a smoketest)
-      - id: e2e_list
-        working-directory: ./yarn-project/end-to-end
-        run: |
-          echo "list=$(earthly ls | grep -v '+base' |  sed 's/+//' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
+  build-arm:
+    needs: setup-arm
+    runs-on: ${{ github.actor }}-arm
+    if: ${{ github.event.inputs.just_start_spot != 'true' }}
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    steps:
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
+      # prepare images locally, tagged by commit hash
+      - run: earthly ./yarn-project+export-end-to-end
 
   # all the end-to-end integration tests for aztec
   e2e-arm:
-    runs-on: ubuntu-latest
-    if: github.actor == 'ludamad' || github.actor == 'charlielye'
-    env:
-      EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
+    needs: build-arm
+    runs-on: ${{ github.actor }}-arm
     strategy:
       fail-fast: false
       matrix:
         test:
           - e2e-card-game
           - e2e-crowdfunding-and-claim
-    # cancel if reran on same PR if exists, otherwise if on same commit
-    concurrency:
-      group: ${{ matrix.test }}-${{ github.ref_name == 'master' && github.run_id|| github.ref_name }}-arm
-      cancel-in-progress: true
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          # we check out submodules in ci-setup-action
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Setup
-        uses: ./.github/ci-setup-action
-        with:
-          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          github_actor: ${{ github.actor }}
-
-      - name: Build
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
+      - name: Test
         working-directory: ./yarn-project/end-to-end/
-        # We don't do much on arm, just run it on their builder
-        run:
-          # Flags:
-          # - e2e_mode=build to get images from a local build, not a dockerhub registry strategy
-          earthly-cloud build arm --no-output +${{ matrix.test }} --e2e_mode=build
+        run: earthly -P --no-output +${{ matrix.test }} --e2e_mode=cache
+
+  #########################
+  # START OF x86 PIPELINE #
+  #########################
+  # prevents concurrency issues with multiple (implicit) earthly bootstraps
+  setup-x86:
+    needs: start-builder
+    runs-on: ${{ github.actor }}-x86
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
+      # Attach our 128gb cache disk
+      - run: ./scripts/attach_ebs_cache.sh ${{ github.actor }}-x86 128
+      - run: earthly bootstrap
+
+  build-x86:
+    needs: setup-x86
+    runs-on: ${{ github.actor }}-x86
+    if: ${{ github.event.inputs.just_start_spot != 'true' }}
+    outputs:
+      e2e_list: ${{ steps.e2e_list.outputs.list }}
+    steps:
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
+      # prepare images locally, tagged by commit hash
+      - run: earthly ./yarn-project+export-end-to-end
+      # We base our e2e list used in e2e-x86 off the targets in ./yarn-project/end-to-end
+      # (Note ARM uses just 2 tests as a smoketest)
+      - name: Create list of end-to-end jobs
+        id: e2e_list
+        run: echo "list=$(earthly ls ./yarn-project/end-to-end | grep -v '+base' |  sed 's/+//' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
 
   # all the end-to-end integration tests for aztec
   e2e-x86:
     needs: build-x86
-    runs-on: ubuntu-latest
-    if: github.actor == 'ludamad' || github.actor == 'charlielye'
-    env:
-      EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
+    runs-on: ${{ github.actor }}-x86
     strategy:
       fail-fast: false
       matrix:
         test: ${{ fromJson( needs.build-x86.outputs.e2e_list )}}
-    # cancel if reran on same PR if exists, otherwise if on same commit
-    concurrency:
-      group: ${{ matrix.test }}-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}-x86
-      cancel-in-progress: true
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          # we check out submodules in ci-setup-action
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Setup
-        uses: ./.github/ci-setup-action
-        with:
-          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          github_actor: ${{ github.actor }} 
-
-      - name: Pull E2E Images
-        working-directory: ./barretenberg/cpp/
-        run: |
-          docker pull aztecprotocol/aztec-cache:$(git rev-parse HEAD)
-          docker pull aztecprotocol/end-to-end-cache:$(git rev-parse HEAD)
-          docker pull aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991-amd64:latest
-          docker tag aztecprotocol/aztec-cache:$(git rev-parse HEAD) aztecprotocol/aztec:latest
-          docker tag aztecprotocol/end-to-end-cache:$(git rev-parse HEAD) aztecprotocol/end-to-end:latest
-          docker tag aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991-amd64:latest aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991-amd64:latest
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
       - name: Test
         working-directory: ./yarn-project/end-to-end/
-        run: |
-          earthly -P --no-output +${{ matrix.test }} --e2e_mode=cache
+        run: earthly -P --no-output +${{ matrix.test }} --e2e_mode=cache
+      # TODO
+      # - name: Upload logs
+      #   run: BRANCH=${{ github.ref_name }} PULL_REQUEST=${{ github.event.number }} scripts/ci/upload_logs_to_s3 ./yarn-project/end-to-end/log
 
   # barretenberg (prover) native tests
   bb-native-tests:
-    runs-on: ubuntu-latest
-    if: github.actor == 'ludamad' || github.actor == 'charlielye'
-    env:
-      EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
+    needs: setup-x86
+    runs-on: ${{ github.actor }}-${{matrix.environment}}
     strategy:
       fail-fast: false
       matrix:
         environment: [x86]
         # pending fix for intermittent test
         # environment: [x86, arm]
-    # cancel if reran on same PR if exists, otherwise if on same commit
-    concurrency:
-      group: bb-native-tests-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}-${{ matrix.environment }}
-      cancel-in-progress: true
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          # we check out submodules in ci-setup-action
-          ref: ${{ github.event.pull_request.head.sha }}
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
+      # # Only allow one memory-hunger prover test to use this runner
+      # # As detailed in https://github.com/ben-z/gh-action-mutex
+      # # things do not become 'pending' in github actions, and instead just cancel one another
+      # # so we can't use the native concurrency in GA
+      # - name: Set up mutex
+      #   uses: ben-z/gh-action-mutex@v1.0.0-alpha.9
+      #   with:
+      #     branch: gh-action-mutex-bench-${{ github.actor }}
+      - working-directory: ./barretenberg/cpp/
+        run: earthly --no-output +test
 
-      - name: Setup
-        uses: ./.github/ci-setup-action
-        with:
-          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          github_actor: ${{ github.actor }} 
-
-      - name: Test
-        working-directory: ./barretenberg/cpp/
-        run: |
-          earthly-cloud test ${{ matrix.environment }} --no-output +test
-
-  # All benchmarks, purposefully ran sequential on a machine
-  # they should use parallelism within the benchmark, but only one thing should run at a time
-  # for accurate results
-  # We don't depend on 'build' as we use a different runner and will build components on the fist step that uses them.
-  bench:
-    runs-on: ubuntu-latest
-    if: github.actor == 'ludamad' || github.actor == 'charlielye'
-    env:
-      EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
-    # cancel if reran on same PR if exists, otherwise if on same commit
-    concurrency:
-      # We use a looser concurrency limit here, but we place a lock 
-      # in the actual step action so that only one bench takes place
-      group: bench-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}-x86
-      cancel-in-progress: true
+  # push benchmarking binaries to dockerhub registry
+  bb-bench-base:
+    runs-on: ${{ github.actor }}-x86
+    needs: setup-x86
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          # we check out submodules in ci-setup-action
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Setup
-        uses: ./.github/ci-setup-action
-        with:
-          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          github_actor: ${{ github.actor }} 
-
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
       - name: Build and Push Binaries
+        if: ${{ github.event.inputs.just_start_spot != 'true' }}
         working-directory: ./barretenberg/cpp/
-        run: earthly-cloud build x86 --push +bench-base
+        run: earthly --push +bench-base
 
-      # Only allow one person to use this runner
-      # The reason is that as detailed in https://github.com/ben-z/gh-action-mutex
-      # things do not become 'pending' in github actions, and instead just cancel one another
-      - name: Set up mutex
-        uses: ben-z/gh-action-mutex@v1.0.0-alpha.9
+  start-bb-bench-runner:
+    timeout-minutes: 5
+    # We wait for binaries to be done for kickoff
+    needs: bb-bench-base
+    name: Start Bench Runner
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: AztecProtocol/ec2-action-builder@v0.3
         with:
-          branch: gh-action-mutex-bench
+          github_token: ${{ secrets.GH_SELF_HOSTED_RUNNER_TOKEN }}
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_region: "us-east-2"
+          ec2_subnet_id: subnet-4cfabd25
+          subaction: ${{ github.event.inputs.runner_action || 'start' }}
+          # prevent reaping by mainframe spot reaper
+          ec2_instance_tags: '[{"Key": "Keep-Alive", "Value": "true"}]'
+          github_action_runner_version: v2.315.0
+          ec2_security_group_id: sg-0ccd4e5df0dcca0c9
+          ec2_spot_instance_strategy: BestEffort
+          runner_label: ${{ github.actor }}-bench-x86
+          runner_concurrency: 1
+          ec2_instance_type: m7a.4xlarge
+          ec2_ami_id: ami-04d8422a9ba4de80f
+          ec2_instance_ttl: 10 # 10 minutes to reap, refreshed by job starts
+          # try if spot variance too high, uses on-demand:
+          # ec2_spot_instance_strategy: none
 
+  setup-bb-bench:
+    runs-on: ${{ github.actor }}-bench-x86
+    needs: start-bb-bench-runner
+    if: ${{ github.event.inputs.just_start_spot != 'true' }}
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    steps:
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
+      # Attach our 328gb cache disk
+      - run: ./scripts/attach_ebs_cache.sh ${{ github.actor }}-bench-x86 32
+      - run: earthly bootstrap
+
+  bb-bench:
+    runs-on: ${{ github.actor }}-bench-x86
+    needs: setup-bb-bench
+    steps:
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
       # Use bench_mode=cache to read the pushed build above
       - name: Client IVC Bench
         working-directory: ./barretenberg/cpp/
-        run: earthly-cloud bench x86 --no-output +bench-client-ivc --bench_mode=cache
+        run: earthly --no-output +bench-client-ivc --bench_mode=cache
 
       - name: Ultrahonk Bench
         working-directory: ./barretenberg/cpp/
-        run: earthly-cloud bench x86 --no-output +bench-ultra-honk --bench_mode=cache
+        run: earthly --no-output +bench-ultra-honk --bench_mode=cache
+
+  # # Post actions, deploy and summarize logs
+  # aztec-bench-summary:
+  #   runs-on: ${{ github.actor }}     
+  #  # IMPORTANT security flaw if we don't need 'check-run-condition'
+  #   needs: e2e-x86
+  #   concurrency:
+  #     group: aztec-bench-summary-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}-x86
+  #     cancel-in-progress: true
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         ref: ${{ github.event.pull_request.head.sha }}
+
+  #     - name: "Assemble benchmark summary from uploaded logs"
+  #         command: ./scripts/ci/assemble_e2e_benchmark_earthly.sh

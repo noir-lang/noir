@@ -13,10 +13,5 @@ build:
     ARG TARGETARCH
     COPY --dir +builder/usr/src/foundry/bin /usr/src/foundry/bin
     SAVE ARTIFACT /usr/src/foundry/bin /usr/src/foundry/bin
+    ENV PATH="${PATH}:/usr/src/foundry/bin"
     SAVE IMAGE --push aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991-$TARGETARCH:latest
-
-build-save-local:
-    # for renaming the image as a local image, used with e2e runners
-    ARG image
-    FROM +build
-    SAVE IMAGE $image

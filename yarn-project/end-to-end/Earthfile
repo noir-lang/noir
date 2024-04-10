@@ -1,6 +1,6 @@
 VERSION 0.8
 
-# requires first saving the images locally with ../+build-end-to-end
+# requires first saving the images locally with ../+export-end-to-end
 
 # run locally and build 
 E2E_TEST_LOCAL:
@@ -12,28 +12,37 @@ E2E_TEST_LOCAL:
   LOCALLY
   ENV ENABLE_GAS=$enable_gas
   ENV TEST=$test
-  ENV DEBUG="$debug"
+  ENV DEBUG=$debug
   WITH DOCKER \
     --load aztecprotocol/aztec:latest=../+aztec \
     --load aztecprotocol/end-to-end:latest=../+end-to-end \
-    --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+build
+    --load aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991:latest=../../foundry/+build
     # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
     RUN docker compose -f $compose_file up --exit-code-from=end-to-end --force-recreate
   END
 
 # run locally and take from cache, used for our mainly x86 jobs
-E2E_TEST_FROM_DOCKERHUB:
+E2E_TEST_FROM_CACHE:
   FUNCTION
   ARG test
   ARG compose_file=./scripts/docker-compose.yml
   ARG enable_gas=""
   ARG debug="aztec:*"
+  ARG aztec_docker_tag
   LOCALLY
   ENV ENABLE_GAS=$enable_gas
   ENV TEST=$test
-  ENV DEBUG="$debug"
+  ENV DEBUG=$debug
+  ENV AZTEC_DOCKER_TAG=$aztec_docker_tag
+  # need a different project name for each to run in parallel
+  LET project_name=$(echo $test | sed 's/\./_/g')
+  IF docker compose > /dev/null 2>&1
+    LET CMD="docker compose"
+  ELSE
+    LET CMD="docker-compose"
+  END
   # In CI we do not use WITH DOCKER as we have had issues with earthly copying big images
-  RUN docker compose -f $compose_file up --exit-code-from=end-to-end --force-recreate
+  RUN $CMD -p $project_name -f $compose_file up --exit-code-from=end-to-end --force-recreate
 
 # run on satellite and build, used for our few ARM jobs (means github runner doesn't need to be ARM)
 E2E_TEST_FROM_BUILD:
@@ -47,11 +56,11 @@ E2E_TEST_FROM_BUILD:
   ENV TEST=$test
   ENV DEBUG=$debug
   COPY $compose_file $compose_file
-  # For ARM, we do use WITH DOCKER as we don't have many e2e tests, but note E2E_TEST_FROM_DOCKERHUB
+  # For ARM, we do use WITH DOCKER as we don't have many e2e tests, but note E2E_TEST_FROM_CACHE
   WITH DOCKER \
     --load aztecprotocol/aztec:latest=../+aztec \
     --load aztecprotocol/end-to-end:latest=../+end-to-end \
-    --load ghcr.io/foundry-rs/foundry:nightly-de33b6af53005037b463318d2628b5cfcaf39916=../../foundry/+build
+    --load aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991:latest=../../foundry/+build
     # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
     RUN docker compose -f $compose_file up --exit-code-from=end-to-end --force-recreate
   END
@@ -67,7 +76,7 @@ E2E_TEST:
   IF [ $e2e_mode = local ]
     DO +E2E_TEST_LOCAL --test=$test --compose_file=$compose_file --enable_gas=$enable_gas --debug=$debug
   ELSE IF [ $e2e_mode = cache ]
-    DO +E2E_TEST_FROM_DOCKERHUB --test=$test --compose_file=$compose_file --enable_gas=$enable_gas --debug=$debug
+    DO +E2E_TEST_FROM_CACHE --test=$test --aztec_docker_tag=$(git rev-parse HEAD) --compose_file=$compose_file --enable_gas=$enable_gas --debug=$debug
   ELSE
     DO +E2E_TEST_FROM_BUILD --test=$test --compose_file=$compose_file --enable_gas=$enable_gas --debug=$debug
   END
@@ -258,12 +267,10 @@ bench-publish-rollup:
   ARG e2e_mode=local
   DO +E2E_TEST --test=benchmarks/bench_publish_rollup.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode  --compose_file=./scripts/docker-compose-no-sandbox.yml 
 
-# TODO need to investigate why this isn't working
-# bench-process-history:
-#   ARG e2e_mode=local
-#   DO +E2E_TEST --test=benchmarks/bench_process_history.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode  --compose_file=./scripts/docker-compose-no-sandbox.yml 
+bench-process-history:
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=benchmarks/bench_process_history.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode  --compose_file=./scripts/docker-compose-no-sandbox.yml 
 
-# TODO need to investigate why this isn't working
-# bench-tx-size:
-#   ARG e2e_mode=local
-#   DO +E2E_TEST --test=benchmarks/bench_tx_size_fees.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode  --compose_file=./scripts/docker-compose-no-sandbox.yml 
+bench-tx-size:
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=benchmarks/bench_tx_size_fees.test.ts --debug="aztec:benchmarks:*,aztec:sequencer,aztec:sequencer:*,aztec:world_state,aztec:merkle_trees" --e2e_mode=$e2e_mode --enable_gas=1 --compose_file=./scripts/docker-compose-no-sandbox.yml 

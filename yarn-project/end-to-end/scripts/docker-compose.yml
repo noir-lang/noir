@@ -13,7 +13,7 @@ services:
       - '8545'
 
   sandbox:
-    image: aztecprotocol/aztec:latest
+    image: aztecprotocol/aztec:${AZTEC_DOCKER_TAG:-latest}
     environment:
       DEBUG: 'aztec:*'
       DEBUG_COLORS: 1
@@ -30,7 +30,7 @@ services:
       - '8080'
 
   end-to-end:
-    image: aztecprotocol/end-to-end:latest
+    image: aztecprotocol/end-to-end:${AZTEC_DOCKER_TAG:-latest}
     environment:
       BENCHMARK: 'true'
       DEBUG: ${DEBUG:-aztec:*}
@@ -44,7 +44,6 @@ services:
         yarn test ${TEST:-./src/e2e_deploy_contract.test.ts}
       '
     volumes:
-      # TODO(AD) currently earthly uses /build instead of /usr/src
       - ../log:/usr/src/yarn-project/end-to-end/log:rw
     depends_on:
       - sandbox

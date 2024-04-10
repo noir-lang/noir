@@ -79,11 +79,13 @@ all:
     BUILD +cli
     BUILD +end-to-end
 
-build-end-to-end:
+# for use with yarn-project/end-to-end and its e2e_mode=cache option
+export-end-to-end:
     ARG EARTHLY_GIT_HASH
-    # pushes the foundry image
-    BUILD ../foundry/+build
+    # pushes the foundry image to local docker images
+    FROM ../foundry/+build
+    SAVE IMAGE aztecprotocol/foundry-nightly-de33b6af53005037b463318d2628b5cfcaf3991:latest
     FROM +end-to-end
-    SAVE IMAGE --push aztecprotocol/end-to-end-cache:$EARTHLY_GIT_HASH
+    SAVE IMAGE aztecprotocol/end-to-end:$EARTHLY_GIT_HASH
     FROM +aztec
-    SAVE IMAGE --push aztecprotocol/aztec-cache:$EARTHLY_GIT_HASH
+    SAVE IMAGE aztecprotocol/aztec:$EARTHLY_GIT_HASH

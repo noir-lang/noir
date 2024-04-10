@@ -7,7 +7,7 @@ services:
       - '8545'
 
   p2p-bootstrap:
-    image: aztecprotocol/aztec:latest
+    image: aztecprotocol/aztec:${AZTEC_DOCKER_TAG:-latest}
     command: 'start --p2p-bootstrap'
     expose:
       - '40400'
@@ -20,7 +20,7 @@ services:
       PEER_ID_PRIVATE_KEY: '0a260024080112205ea53185db2e52dae74d0d4d6cadc494174810d0a713cd09b0ac517c38bc781e1224080112205ea53185db2e52dae74d0d4d6cadc494174810d0a713cd09b0ac517c38bc781e1a44080112402df8b977f356c6e34fa021c9647973234dff4df706c185794405aafb556723cf5ea53185db2e52dae74d0d4d6cadc494174810d0a713cd09b0ac517c38bc781e'
 
   end-to-end:
-    image: aztecprotocol/end-to-end:latest
+    image: aztecprotocol/end-to-end:${AZTEC_DOCKER_TAG:-latest}
     environment:
       BENCHMARK: true
       DEBUG: ${DEBUG:-'aztec:*'}

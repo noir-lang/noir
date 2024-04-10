@@ -6,10 +6,6 @@ inputs:
   dockerhub_password:
     required: true
     description: 'DockerHub Password'
-  github_actor:
-    required: true
-    description: 'GitHub Actor'
-
 runs:
   # define an action, runs in OS of caller
   using: composite
@@ -25,11 +21,36 @@ runs:
       shell: bash
       run: git submodule sync --recursive && git submodule update --init --recursive
 
+    # Since we use multiple runners, dont want them clashing
+    - name: Generate Unique Home Directory
+      shell: bash
+      run: |
+        RUN_HOME=~/run-$RANDOM-$(date +%s)
+        echo HOME=$RUN_HOME >> $GITHUB_ENV
+        mkdir -p $RUN_HOME
+
+    # TODO reconsider how jq gets into image
+    - name: Setup jq
+      uses: dcarbone/install-jq-action@v2.1.0
+
     - name: Setup Earthly
       uses: earthly/actions-setup@v1
       with:
+        # permission issue with spot runners, simpler to leave out
+        use-cache: false
         version: 'v0.8.5'
 
     - name: Setup Env
       shell: bash
-      run: ./scripts/setup_env.sh ${{ inputs.dockerhub_password }} ${{ inputs.github_actor }}
+      run: ./scripts/setup_env.sh ${{ inputs.dockerhub_password }}
+
+    - name: Setup Docker
+      shell: bash
+      run: |
+        if ! [ -f /etc/docker/daemon.json ] ; then
+          echo '{"default-address-pools":[{"base":"172.17.0.0/12","size":20}, {"base":"10.99.0.0/12","size":20}, {"base":"192.168.0.0/16","size":24}]}' > /etc/docker/daemon.json
+          sudo service docker restart
+          echo "Configured docker daemon for making many networks."
+        else
+          echo "Docker daemon already configured."
+        fi
