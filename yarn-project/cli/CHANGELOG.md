@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.33.0...aztec-cli-v0.34.0) (2024-04-10)
+
+
+### Miscellaneous
+
+* Reduce log verbosity in local e2e tests ([#5622](https://github.com/AztecProtocol/aztec-packages/issues/5622)) ([c496a10](https://github.com/AztecProtocol/aztec-packages/commit/c496a105eac3b78e53b7d42d4a64e88e3a4759a5))
+
 ## [0.33.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-cli-v0.32.1...aztec-cli-v0.33.0) (2024-04-09)
 
 
