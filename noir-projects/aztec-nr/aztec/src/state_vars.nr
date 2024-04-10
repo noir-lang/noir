@@ -5,6 +5,7 @@ mod public_immutable;
 mod public_mutable;
 mod private_set;
 mod shared_immutable;
+mod shared_mutable;
 mod storage;
 
 use crate::state_vars::map::Map;
@@ -14,4 +15,5 @@ use crate::state_vars::public_immutable::PublicImmutable;
 use crate::state_vars::public_mutable::PublicMutable;
 use crate::state_vars::private_set::PrivateSet;
 use crate::state_vars::shared_immutable::SharedImmutable;
+use crate::state_vars::shared_mutable::SharedMutable;
 use crate::state_vars::storage::Storage;

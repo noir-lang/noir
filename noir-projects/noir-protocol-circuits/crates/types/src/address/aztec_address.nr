@@ -2,7 +2,7 @@ use crate::{
     crate::address::{eth_address::EthAddress, partial_address::PartialAddress, public_keys_hash::PublicKeysHash},
     constants::{AZTEC_ADDRESS_LENGTH, GENERATOR_INDEX__CONTRACT_ADDRESS},
     contract_class_id::ContractClassId, hash::pedersen_hash, grumpkin_point::GrumpkinPoint,
-    traits::{Empty, ToField, Serialize, Deserialize}, utils
+    traits::{Empty, FromField, ToField, Serialize, Deserialize}, utils
 };
 
 // Aztec address
@@ -30,6 +30,12 @@ impl ToField for AztecAddress {
     }
 }
 
+impl FromField for AztecAddress {
+    fn from_field(value: Field) -> AztecAddress {
+        AztecAddress { inner: value }
+    }
+}
+
 impl Serialize<AZTEC_ADDRESS_LENGTH> for AztecAddress {
     fn serialize(self: Self) -> [Field; AZTEC_ADDRESS_LENGTH] {
         [self.to_field()]
@@ -38,17 +44,13 @@ impl Serialize<AZTEC_ADDRESS_LENGTH> for AztecAddress {
 
 impl Deserialize<AZTEC_ADDRESS_LENGTH> for AztecAddress {
     fn deserialize(fields: [Field; AZTEC_ADDRESS_LENGTH]) -> Self {
-        AztecAddress::from_field(fields[0])
+        FromField::from_field(fields[0])
     }
 }
 
 impl AztecAddress {
     pub fn zero() -> Self {
         Self { inner: 0 }
-    }
-
-    pub fn from_field(field: Field) -> Self {
-        Self { inner: field }
     }
 
     pub fn compute_from_public_key(
@@ -124,4 +126,18 @@ fn compute_address_from_partial_and_pubkey() {
     let address = AztecAddress::compute(PublicKeysHash::compute(point), partial_address);
     let expected_computed_address_from_partial_and_pubkey = 0x0447f893197175723deb223696e2e96dbba1e707ee8507766373558877e74197;
     assert(address.to_field() == expected_computed_address_from_partial_and_pubkey);
+}
+
+#[test]
+fn from_field_to_field() {
+    let address = AztecAddress { inner: 37 };
+    // TODO: uncomment this test once https://github.com/noir-lang/noir/issues/4635 is fixed
+    // assert_eq(FromField::from_field(address.to_field()), address);
+}
+
+#[test]
+fn serde() {
+    let address = AztecAddress { inner: 37 };
+    // TODO: uncomment this test once https://github.com/noir-lang/noir/issues/4635 is fixed
+    // assert_eq(Deserialize::deserialize(address.serialize()), address);
 }

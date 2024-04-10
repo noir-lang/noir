@@ -1,4 +1,4 @@
-import { type PXE, type Wallet } from '@aztec/aztec.js';
+import { Fr, type PXE, type Wallet } from '@aztec/aztec.js';
 import { TestContract } from '@aztec/noir-contracts.js';
 
 import { setup } from './fixtures/utils.js';
@@ -27,6 +27,12 @@ describe('e2e_max_block_number', () => {
     describe('with no enqueued public calls', () => {
       const enqueuePublicCall = false;
 
+      it('sets the max block number', async () => {
+        const tx = await contract.methods.request_max_block_number(maxBlockNumber, enqueuePublicCall).simulate();
+        expect(tx.data.rollupValidationRequests.maxBlockNumber.isSome).toEqual(true);
+        expect(tx.data.rollupValidationRequests.maxBlockNumber.value).toEqual(new Fr(maxBlockNumber));
+      });
+
       it('does not invalidate the transaction', async () => {
         await contract.methods.request_max_block_number(maxBlockNumber, enqueuePublicCall).send().wait();
       });
@@ -34,6 +40,12 @@ describe('e2e_max_block_number', () => {
 
     describe('with an enqueued public call', () => {
       const enqueuePublicCall = true;
+
+      it('sets the max block number', async () => {
+        const tx = await contract.methods.request_max_block_number(maxBlockNumber, enqueuePublicCall).simulate();
+        expect(tx.data.rollupValidationRequests.maxBlockNumber.isSome).toEqual(true);
+        expect(tx.data.rollupValidationRequests.maxBlockNumber.value).toEqual(new Fr(maxBlockNumber));
+      });
 
       it('does not invalidate the transaction', async () => {
         await contract.methods.request_max_block_number(maxBlockNumber, enqueuePublicCall).send().wait();
@@ -51,6 +63,12 @@ describe('e2e_max_block_number', () => {
     describe('with no enqueued public calls', () => {
       const enqueuePublicCall = false;
 
+      it('sets the max block number', async () => {
+        const tx = await contract.methods.request_max_block_number(maxBlockNumber, enqueuePublicCall).simulate();
+        expect(tx.data.rollupValidationRequests.maxBlockNumber.isSome).toEqual(true);
+        expect(tx.data.rollupValidationRequests.maxBlockNumber.value).toEqual(new Fr(maxBlockNumber));
+      });
+
       it('invalidates the transaction', async () => {
         await expect(
           contract.methods.request_max_block_number(maxBlockNumber, enqueuePublicCall).send().wait(),
@@ -60,6 +78,12 @@ describe('e2e_max_block_number', () => {
 
     describe('with an enqueued public call', () => {
       const enqueuePublicCall = true;
+
+      it('sets the max block number', async () => {
+        const tx = await contract.methods.request_max_block_number(maxBlockNumber, enqueuePublicCall).simulate();
+        expect(tx.data.rollupValidationRequests.maxBlockNumber.isSome).toEqual(true);
+        expect(tx.data.rollupValidationRequests.maxBlockNumber.value).toEqual(new Fr(maxBlockNumber));
+      });
 
       it('invalidates the transaction', async () => {
         await expect(
