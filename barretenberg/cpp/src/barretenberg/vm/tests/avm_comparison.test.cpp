@@ -131,7 +131,7 @@ TEST_P(AvmCmpTestsLT, ParamTest)
     ASSERT_TRUE(alu_row != trace.end());
     common_validate_cmp(*row, *alu_row, a, b, c, FF(0), FF(1), FF(2), mem_tag);
 
-    validate_trace_proof(std::move(trace));
+    validate_trace(std::move(trace));
 }
 INSTANTIATE_TEST_SUITE_P(AvmCmpTests,
                          AvmCmpTestsLT,
@@ -160,7 +160,7 @@ TEST_P(AvmCmpTestsLTE, ParamTest)
     ASSERT_TRUE(row != trace.end());
     ASSERT_TRUE(alu_row != trace.end());
     common_validate_cmp(*row, *alu_row, a, b, c, FF(0), FF(1), FF(2), mem_tag);
-    validate_trace_proof(std::move(trace));
+    validate_trace(std::move(trace));
 }
 INSTANTIATE_TEST_SUITE_P(AvmCmpTests,
                          AvmCmpTestsLTE,
@@ -319,7 +319,7 @@ TEST_P(AvmCmpNegativeTestsLT, ParamTest)
     auto trace = trace_builder.finalize();
     std::function<bool(Row)> select_row = [](Row r) { return r.avm_main_sel_op_lt == FF(1); };
     trace = gen_mutated_trace_cmp(trace, select_row, output, failure_mode, false);
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), failure_string);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string);
 }
 
 INSTANTIATE_TEST_SUITE_P(AvmCmpNegativeTests,
@@ -338,7 +338,7 @@ TEST_P(AvmCmpNegativeTestsLTE, ParamTest)
     auto trace = trace_builder.finalize();
     std::function<bool(Row)> select_row = [](Row r) { return r.avm_main_sel_op_lte == FF(1); };
     trace = gen_mutated_trace_cmp(trace, select_row, output, failure_mode, true);
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_proof(std::move(trace)), failure_string);
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string);
 }
 INSTANTIATE_TEST_SUITE_P(AvmCmpNegativeTests,
                          AvmCmpNegativeTestsLTE,
