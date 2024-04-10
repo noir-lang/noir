@@ -1,3 +1,4 @@
+import { getDeployedTestAccountsWallets } from '@aztec/accounts/testing';
 import {
   AztecAddress,
   type AztecNode,
@@ -15,8 +16,10 @@ import {
   SignerlessWallet,
   TxStatus,
   type Wallet,
+  createPXEClient,
   getContractClassFromArtifact,
   getContractInstanceFromDeployParams,
+  makeFetch,
 } from '@aztec/aztec.js';
 import {
   broadcastPrivateFunction,
@@ -155,6 +158,25 @@ describe('e2e_deploy_contract', () => {
         sequencer?.updateSequencerConfig({ minTxsPerBlock: 1 });
       }
     }, 90_000);
+  });
+
+  describe('regressions', () => {
+    beforeAll(async () => {
+      ({ teardown, pxe, logger, wallet, sequencer, aztecNode } = await setup());
+    }, 100_000);
+    afterAll(() => teardown());
+
+    it('fails properly when trying to deploy a contract with a failing constructor with a pxe client with retries', async () => {
+      const { PXE_URL } = process.env;
+      if (!PXE_URL) {
+        return;
+      }
+      const pxeClient = createPXEClient(PXE_URL, makeFetch([1, 2, 3], false));
+      const [wallet] = await getDeployedTestAccountsWallets(pxeClient);
+      await expect(
+        StatefulTestContract.deployWithOpts({ wallet, method: 'wrong_constructor' }).send().deployed(),
+      ).rejects.toThrow(/Unknown function/);
+    });
   });
 
   describe('private initialization', () => {

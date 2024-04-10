@@ -19,7 +19,7 @@ const log = createDebugLogger('json-rpc:json_rpc_client');
  * @param host - The host URL.
  * @param method - The RPC method name.
  * @param body - The RPC payload.
- * @param noRetry - Whether to throw a `NoRetryError` in case the response is not ok and the body contains an error
+ * @param noRetry - Whether to throw a `NoRetryError` in case the response is a 5xx error and the body contains an error
  *                  message (see `retry` function for more details).
  * @returns The parsed JSON response, or throws an error.
  */
@@ -56,7 +56,7 @@ export async function defaultFetch(
     throw new Error(`Failed to parse body as JSON: ${resp.text()}`);
   }
   if (!resp.ok) {
-    if (noRetry) {
+    if (noRetry || (resp.status >= 400 && resp.status < 500)) {
       throw new NoRetryError('(JSON-RPC PROPAGATED) ' + responseJson.error.message);
     } else {
       throw new Error('(JSON-RPC PROPAGATED) ' + responseJson.error.message);

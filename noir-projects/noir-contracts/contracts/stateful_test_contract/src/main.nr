@@ -21,6 +21,13 @@ contract StatefulTest {
         let _res = context.call_private_function(context.this_address(), selector, [owner.to_field(), value]);
     }
 
+    #[aztec(private)]
+    #[aztec(initializer)]
+    fn wrong_constructor() {
+        let selector = FunctionSelector::from_signature("not_exists(Field)");
+        let _res = context.call_public_function(context.this_address(), selector, [42]);
+    }
+
     #[aztec(public)]
     #[aztec(initializer)]
     fn public_constructor(owner: AztecAddress, value: Field) {
