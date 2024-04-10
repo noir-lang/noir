@@ -16,8 +16,7 @@ use acir::brillig::{
     HeapVector, MemoryAddress, Opcode, ValueOrArray,
 };
 use acir::FieldElement;
-use acvm_blackbox_solver::bigint::BigIntSolver;
-use acvm_blackbox_solver::BlackBoxFunctionSolver;
+use acvm_blackbox_solver::{BigIntSolver, BlackBoxFunctionSolver};
 use arithmetic::{evaluate_binary_field_op, evaluate_binary_int_op, BrilligArithmeticError};
 use black_box::evaluate_black_box;
 use num_bigint::BigUint;

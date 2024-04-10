@@ -4,7 +4,7 @@ use acir::{
     BlackBoxFunc, FieldElement,
 };
 
-use acvm_blackbox_solver::bigint::BigIntSolver;
+use acvm_blackbox_solver::BigIntSolver;
 
 use crate::pwg::OpcodeResolutionError;
 
