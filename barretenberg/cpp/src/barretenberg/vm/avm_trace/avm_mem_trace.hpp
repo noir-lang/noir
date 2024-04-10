@@ -8,7 +8,6 @@ namespace bb::avm_trace {
 class AvmMemTraceBuilder {
 
   public:
-    static const size_t MEM_SIZE = 1024;
     static const uint32_t SUB_CLK_IND_LOAD_A = 0;
     static const uint32_t SUB_CLK_IND_LOAD_B = 1;
     static const uint32_t SUB_CLK_IND_LOAD_C = 2;
