@@ -52,4 +52,5 @@ trait PublicContextInterface {
         function_selector: FunctionSelector,
         args: [Field; ARGS_COUNT]
     ) -> [Field; RETURN_VALUES_LENGTH];
+    fn nullifier_exists(self, nullifier: Field) -> bool;
 }

@@ -250,6 +250,11 @@ export class PublicExecutionContext extends TypedOracle {
     return await this.commitmentsDb.getNullifierMembershipWitnessAtLatestBlock(nullifier);
   }
 
+  public async checkNullifierExists(nullifier: Fr): Promise<boolean> {
+    const witness = await this.commitmentsDb.getNullifierMembershipWitnessAtLatestBlock(nullifier);
+    return !!witness;
+  }
+
   public async getContractInstance(address: AztecAddress): Promise<ContractInstance> {
     // Note to AVM implementor: The wrapper of the oracle call get_contract_instance in aztec-nr
     // automatically checks that the returned instance is correct, by hashing it together back

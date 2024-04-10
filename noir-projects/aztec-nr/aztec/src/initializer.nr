@@ -29,14 +29,14 @@ fn mark_as_initialized<TContext>(context: &mut TContext) where TContext: Context
 
 pub fn assert_is_initialized_public(context: &mut PublicContext) {
     let init_nullifier = compute_contract_initialization_nullifier(context.this_address());
-    prove_nullifier_inclusion(init_nullifier, *context);
+    assert(context.nullifier_exists(init_nullifier), "Not initialized");
 }
 
 pub fn assert_is_initialized_avm(context: &mut AvmContext) {
     // WARNING: the AVM always expects UNSILOED nullifiers!
     // TODO(fcarreiro@): Change current private/public to take unsiloed nullifiers and an address.
     let init_nullifier = compute_unsiloed_contract_initialization_nullifier(context.this_address());
-    assert(context.nullifier_exists(init_nullifier));
+    assert(context.nullifier_exists(init_nullifier), "Not initialized");
 }
 
 pub fn assert_is_initialized_private(context: &mut PrivateContext) {

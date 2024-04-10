@@ -199,7 +199,7 @@ contract AvmTest {
     fn assert_unsiloed_nullifier_acvm(nullifier: Field) {
         // ACVM requires siloed nullifier.
         let siloed_nullifier = silo_nullifier(context.this_address(), nullifier);
-        prove_nullifier_inclusion(siloed_nullifier, context);
+        assert(context.nullifier_exists(siloed_nullifier));
     }
 
     #[aztec(public-vm)]

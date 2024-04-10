@@ -141,9 +141,11 @@ unconstrained pub fn get_notes<Note, N, M, S, NS>(
     placeholder_opt_notes
 }
 
+// Only ever use this in private!
 #[oracle(checkNullifierExists)]
 fn check_nullifier_exists_oracle(_inner_nullifier: Field) -> Field {}
 
+// Only ever use this in private!
 unconstrained pub fn check_nullifier_exists(inner_nullifier: Field) -> bool {
     check_nullifier_exists_oracle(inner_nullifier) == 1
 }

@@ -220,6 +220,10 @@ impl PublicContextInterface for PublicContext {
         self.inputs.public_global_variables.fee_recipient
     }
 
+    fn nullifier_exists(self, nullifier: Field) -> bool {
+        nullifier_exists_oracle(nullifier) == 1
+    }
+
     fn push_nullifier_read_request(&mut self, nullifier: Field) {
         let request = ReadRequest { value: nullifier, counter: self.side_effect_counter };
         self.nullifier_read_requests.push(request);
@@ -302,3 +306,6 @@ impl PublicContextInterface for PublicContext {
         self.call_public_function_with_packed_args(contract_address, function_selector, args_hash, false, true)
     }
 }
+
+#[oracle(checkNullifierExists)]
+fn nullifier_exists_oracle(nullifier: Field) -> Field {}

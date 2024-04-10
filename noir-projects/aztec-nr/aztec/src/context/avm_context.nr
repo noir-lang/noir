@@ -52,9 +52,6 @@ impl AvmContext {
     pub fn l1_to_l2_msg_exists(self, msg_hash: Field, msg_leaf_index: Field) -> bool {
         l1_to_l2_msg_exists(msg_hash, msg_leaf_index) == 1
     }
-    pub fn nullifier_exists(self, nullifier: Field) -> bool {
-        nullifier_exists(nullifier) == 1
-    }
 
     fn call_public_function_raw<ARGS_COUNT, RET_COUNT>(
         self: &mut Self,
@@ -104,6 +101,10 @@ impl PublicContextInterface for AvmContext {
     fn fee_recipient(self) -> AztecAddress {
         assert(false, "'fee_recipient' not implemented!");
         AztecAddress::zero()
+    }
+
+    fn nullifier_exists(self, nullifier: Field) -> bool {
+        nullifier_exists(nullifier) == 1
     }
 
     fn push_nullifier_read_request(&mut self, nullifier: Field) {

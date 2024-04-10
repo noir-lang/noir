@@ -201,7 +201,7 @@ contract InclusionProofs {
     // Proves nullifier existed at latest block
     #[aztec(public)]
     fn test_nullifier_inclusion_from_public(nullifier: Field) {
-        prove_nullifier_inclusion(nullifier, context);
+        assert(context.nullifier_exists(nullifier));
     }
 
     #[aztec(private)]
