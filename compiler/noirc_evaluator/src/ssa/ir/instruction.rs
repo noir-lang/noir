@@ -266,10 +266,7 @@ impl Instruction {
                 // In ACIR, a division with a false predicate outputs (0,0), so it cannot replace another instruction unless they have the same predicate
                 bin.operator != BinaryOp::Div
             }
-            Cast(_, _)
-            | Truncate { .. }
-            | Not(_)
-            | IfElse { .. } => true,
+            Cast(_, _) | Truncate { .. } | Not(_) | IfElse { .. } => true,
 
             // These either have side-effects or interact with memory
             Constrain(..)
@@ -285,8 +282,7 @@ impl Instruction {
             // Enabling constant folding for these potentially enables replacing an enabled
             // array get with one that was disabled. See
             // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-            ArrayGet { .. }
-            | ArraySet { .. } => false,
+            ArrayGet { .. } | ArraySet { .. } => false,
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
