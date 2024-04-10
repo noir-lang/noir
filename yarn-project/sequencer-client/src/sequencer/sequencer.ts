@@ -1,5 +1,5 @@
 import { type L1ToL2MessageSource, type L2Block, type L2BlockSource, type ProcessedTx, Tx } from '@aztec/circuit-types';
-import { type BlockProver, PROVING_STATUS } from '@aztec/circuit-types/interfaces';
+import { type AllowedFunction, type BlockProver, PROVING_STATUS } from '@aztec/circuit-types/interfaces';
 import { type L2BlockBuiltStats } from '@aztec/circuit-types/stats';
 import { AztecAddress, EthAddress } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
@@ -11,10 +11,10 @@ import { type WorldStateStatus, type WorldStateSynchronizer } from '@aztec/world
 
 import { type GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
 import { type L1Publisher } from '../publisher/l1-publisher.js';
+import { type TxValidator } from '../tx_validator/tx_validator.js';
+import { type TxValidatorFactory } from '../tx_validator/tx_validator_factory.js';
 import { type SequencerConfig } from './config.js';
 import { type PublicProcessorFactory } from './public_processor.js';
-import { type TxValidator } from './tx_validator.js';
-import { type TxValidatorFactory } from './tx_validator_factory.js';
 
 /**
  * Sequencer client
@@ -35,8 +35,8 @@ export class Sequencer {
   private _feeRecipient = AztecAddress.ZERO;
   private lastPublishedBlock = 0;
   private state = SequencerState.STOPPED;
-  private allowedFeePaymentContractClasses: Fr[] = [];
-  private allowedFeePaymentContractInstances: AztecAddress[] = [];
+  private allowedFunctionsInSetup: AllowedFunction[] = [];
+  private allowedFunctionsInTeardown: AllowedFunction[] = [];
 
   constructor(
     private publisher: L1Publisher,
@@ -75,11 +75,11 @@ export class Sequencer {
     if (config.feeRecipient) {
       this._feeRecipient = config.feeRecipient;
     }
-    if (config.allowedFeePaymentContractClasses) {
-      this.allowedFeePaymentContractClasses = config.allowedFeePaymentContractClasses;
+    if (config.allowedFunctionsInSetup) {
+      this.allowedFunctionsInSetup = config.allowedFunctionsInSetup;
     }
-    if (config.allowedFeePaymentContractInstances) {
-      this.allowedFeePaymentContractInstances = config.allowedFeePaymentContractInstances;
+    if (config.allowedFunctionsInTeardown) {
+      this.allowedFunctionsInTeardown = config.allowedFunctionsInTeardown;
     }
   }
 
@@ -178,14 +178,15 @@ export class Sequencer {
         this._feeRecipient,
       );
 
-      const txValidator = this.txValidatorFactory.buildTxValidator(
-        newGlobalVariables,
-        this.allowedFeePaymentContractClasses,
-        this.allowedFeePaymentContractInstances,
-      );
-
       // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
-      const validTxs = await this.takeValidTxs(pendingTxs, txValidator);
+      const validTxs = await this.takeValidTxs(
+        pendingTxs,
+        this.txValidatorFactory.validatorForNewTxs(
+          newGlobalVariables,
+          this.allowedFunctionsInSetup,
+          this.allowedFunctionsInTeardown,
+        ),
+      );
       if (validTxs.length < this.minTxsPerBLock) {
         return;
       }
@@ -213,7 +214,7 @@ export class Sequencer {
       const blockTicket = await this.prover.startNewBlock(blockSize, newGlobalVariables, l1ToL2Messages, emptyTx);
 
       const [publicProcessorDuration, [processedTxs, failedTxs]] = await elapsed(() =>
-        processor.process(validTxs, blockSize, this.prover, txValidator),
+        processor.process(validTxs, blockSize, this.prover, this.txValidatorFactory.validatorForProcessedTxs()),
       );
       if (failedTxs.length > 0) {
         const failedTxData = failedTxs.map(fail => fail.tx);
@@ -281,7 +282,7 @@ export class Sequencer {
     }
   }
 
-  protected async takeValidTxs<T extends Tx | ProcessedTx>(txs: T[], validator: TxValidator): Promise<T[]> {
+  protected async takeValidTxs<T extends Tx | ProcessedTx>(txs: T[], validator: TxValidator<T>): Promise<T[]> {
     const [valid, invalid] = await validator.validateTxs(txs);
     if (invalid.length > 0) {
       this.log.debug(`Dropping invalid txs from the p2p pool ${Tx.getHashes(invalid).join(', ')}`);

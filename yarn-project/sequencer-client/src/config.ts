@@ -1,6 +1,14 @@
-import { AztecAddress, Fr } from '@aztec/circuits.js';
+import { type AllowedFunction } from '@aztec/circuit-types';
+import { AztecAddress, Fr, FunctionSelector, getContractClassFromArtifact } from '@aztec/circuits.js';
 import { type L1ContractAddresses, NULL_KEY } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { EcdsaAccountContractArtifact } from '@aztec/noir-contracts.js/EcdsaAccount';
+import { FPCContract } from '@aztec/noir-contracts.js/FPC';
+import { GasTokenContract } from '@aztec/noir-contracts.js/GasToken';
+import { SchnorrAccountContractArtifact } from '@aztec/noir-contracts.js/SchnorrAccount';
+import { SchnorrHardcodedAccountContractArtifact } from '@aztec/noir-contracts.js/SchnorrHardcodedAccount';
+import { SchnorrSingleKeyAccountContractArtifact } from '@aztec/noir-contracts.js/SchnorrSingleKeyAccount';
+import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 
 import { type Hex } from 'viem';
 
@@ -40,8 +48,8 @@ export function getConfigEnvVars(): SequencerClientConfig {
     SEQ_TX_POLLING_INTERVAL_MS,
     SEQ_MAX_TX_PER_BLOCK,
     SEQ_MIN_TX_PER_BLOCK,
-    SEQ_FPC_CLASSES,
-    SEQ_FPC_INSTANCES,
+    SEQ_ALLOWED_SETUP_FN,
+    SEQ_ALLOWED_TEARDOWN_FN,
     AVAILABILITY_ORACLE_CONTRACT_ADDRESS,
     ROLLUP_CONTRACT_ADDRESS,
     REGISTRY_CONTRACT_ADDRESS,
@@ -90,9 +98,87 @@ export function getConfigEnvVars(): SequencerClientConfig {
     feeRecipient: FEE_RECIPIENT ? AztecAddress.fromString(FEE_RECIPIENT) : undefined,
     acvmWorkingDirectory: ACVM_WORKING_DIRECTORY ? ACVM_WORKING_DIRECTORY : undefined,
     acvmBinaryPath: ACVM_BINARY_PATH ? ACVM_BINARY_PATH : undefined,
-    allowedFeePaymentContractClasses: SEQ_FPC_CLASSES ? SEQ_FPC_CLASSES.split(',').map(Fr.fromString) : [],
-    allowedFeePaymentContractInstances: SEQ_FPC_INSTANCES
-      ? SEQ_FPC_INSTANCES.split(',').map(AztecAddress.fromString)
-      : [],
+    allowedFunctionsInSetup: SEQ_ALLOWED_SETUP_FN
+      ? parseSequencerAllowList(SEQ_ALLOWED_SETUP_FN)
+      : getDefaultAllowedSetupFunctions(),
+    allowedFunctionsInTeardown: SEQ_ALLOWED_TEARDOWN_FN
+      ? parseSequencerAllowList(SEQ_ALLOWED_TEARDOWN_FN)
+      : getDefaultAllowedTeardownFunctions(),
   };
+}
+
+function parseSequencerAllowList(value: string): AllowedFunction[] {
+  const entries: AllowedFunction[] = [];
+
+  if (!value) {
+    return entries;
+  }
+
+  for (const val of value.split(',')) {
+    const [identifierString, selectorString] = val.split(':');
+    const selector = FunctionSelector.fromString(selectorString);
+
+    if (identifierString.startsWith('0x')) {
+      entries.push({
+        address: AztecAddress.fromString(identifierString),
+        selector,
+      });
+    } else {
+      entries.push({
+        classId: Fr.fromString(identifierString),
+        selector,
+      });
+    }
+  }
+
+  return entries;
+}
+
+function getDefaultAllowedSetupFunctions(): AllowedFunction[] {
+  return [
+    {
+      classId: getContractClassFromArtifact(SchnorrAccountContractArtifact).id,
+      selector: FunctionSelector.fromSignature('approve_public_authwit(Field)'),
+    },
+    {
+      classId: getContractClassFromArtifact(SchnorrHardcodedAccountContractArtifact).id,
+      selector: FunctionSelector.fromSignature('approve_public_authwit(Field)'),
+    },
+    {
+      classId: getContractClassFromArtifact(SchnorrSingleKeyAccountContractArtifact).id,
+      selector: FunctionSelector.fromSignature('approve_public_authwit(Field)'),
+    },
+    {
+      classId: getContractClassFromArtifact(EcdsaAccountContractArtifact).id,
+      selector: FunctionSelector.fromSignature('approve_public_authwit(Field)'),
+    },
+
+    // needed for private transfers via FPC
+    {
+      classId: getContractClassFromArtifact(TokenContractArtifact).id,
+      selector: FunctionSelector.fromSignature('_increase_public_balance((Field),Field)'),
+    },
+
+    {
+      classId: getContractClassFromArtifact(FPCContract.artifact).id,
+      selector: FunctionSelector.fromSignature('prepare_fee((Field),Field,(Field),Field)'),
+    },
+  ];
+}
+
+function getDefaultAllowedTeardownFunctions(): AllowedFunction[] {
+  return [
+    {
+      classId: getContractClassFromArtifact(GasTokenContract.artifact).id,
+      selector: FunctionSelector.fromSignature('pay_fee(Field)'),
+    },
+    {
+      classId: getContractClassFromArtifact(FPCContract.artifact).id,
+      selector: FunctionSelector.fromSignature('pay_fee((Field),Field,(Field))'),
+    },
+    {
+      classId: getContractClassFromArtifact(FPCContract.artifact).id,
+      selector: FunctionSelector.fromSignature('pay_fee_with_shielded_rebate(Field,(Field),Field)'),
+    },
+  ];
 }

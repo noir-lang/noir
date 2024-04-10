@@ -10,7 +10,7 @@ import { getGlobalVariableBuilder } from '../global_variable_builder/index.js';
 import { getL1Publisher } from '../publisher/index.js';
 import { Sequencer, type SequencerConfig } from '../sequencer/index.js';
 import { PublicProcessorFactory } from '../sequencer/public_processor.js';
-import { TxValidatorFactory } from '../sequencer/tx_validator_factory.js';
+import { TxValidatorFactory } from '../tx_validator/tx_validator_factory.js';
 
 /**
  * Encapsulates the full sequencer and publisher.

@@ -7,7 +7,6 @@ import {
   PrivateFeePaymentMethod,
   PublicFeePaymentMethod,
   TxStatus,
-  getContractClassFromArtifact,
 } from '@aztec/aztec.js';
 import { FPCContract, GasTokenContract, TokenContract } from '@aztec/noir-contracts.js';
 import { getCanonicalGasTokenAddress } from '@aztec/protocol-contracts/gas-token';
@@ -39,7 +38,6 @@ describe('benchmarks/tx_size_fees', () => {
 
     await aztecNode.setConfig({
       feeRecipient: sequencerAddress,
-      allowedFeePaymentContractClasses: [getContractClassFromArtifact(FPCContract.artifact).id],
     });
 
     await publicDeployAccounts(aliceWallet, wallets);

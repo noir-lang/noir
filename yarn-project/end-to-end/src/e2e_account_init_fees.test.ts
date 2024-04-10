@@ -15,7 +15,7 @@ import {
   computeMessageSecretHash,
   generatePublicKey,
 } from '@aztec/aztec.js';
-import { type AztecAddress, CompleteAddress, Fq, getContractClassFromArtifact } from '@aztec/circuits.js';
+import { type AztecAddress, CompleteAddress, Fq } from '@aztec/circuits.js';
 import {
   TokenContract as BananaCoin,
   FPCContract,
@@ -89,7 +89,6 @@ describe('e2e_fees_account_init', () => {
     sequencersAddress = sequencer.getAddress();
 
     await ctx.aztecNode.setConfig({
-      allowedFeePaymentContractClasses: [getContractClassFromArtifact(FPCContract.artifact).id],
       feeRecipient: sequencersAddress,
     });
 

@@ -25,6 +25,9 @@
       "path": "../merkle-tree"
     },
     {
+      "path": "../noir-contracts.js"
+    },
+    {
       "path": "../noir-protocol-circuits-types"
     },
     {

@@ -127,11 +127,18 @@ export abstract class AbstractPhaseManager {
     publicInputs: PrivateKernelTailCircuitPublicInputs,
     enqueuedPublicFunctionCalls: PublicCallRequest[],
   ): Record<PublicKernelPhase, PublicCallRequest[]> {
+    const data = publicInputs.forPublic;
+    if (!data) {
+      return {
+        [PublicKernelPhase.SETUP]: [],
+        [PublicKernelPhase.APP_LOGIC]: [],
+        [PublicKernelPhase.TEARDOWN]: [],
+        [PublicKernelPhase.TAIL]: [],
+      };
+    }
     const publicCallsStack = enqueuedPublicFunctionCalls.slice().reverse();
-    const nonRevertibleCallStack = publicInputs.forPublic!.endNonRevertibleData.publicCallStack.filter(
-      i => !i.isEmpty(),
-    );
-    const revertibleCallStack = publicInputs.forPublic!.end.publicCallStack.filter(i => !i.isEmpty());
+    const nonRevertibleCallStack = data.endNonRevertibleData.publicCallStack.filter(i => !i.isEmpty());
+    const revertibleCallStack = data.end.publicCallStack.filter(i => !i.isEmpty());
 
     const callRequestsStack = publicCallsStack
       .map(call => call.toCallRequest())

@@ -10,7 +10,6 @@ import {
   PrivateFeePaymentMethod,
   PublicFeePaymentMethod,
   SentTx,
-  getContractClassFromArtifact,
 } from '@aztec/aztec.js';
 import { DefaultDappEntrypoint } from '@aztec/entrypoints/dapp';
 import {
@@ -69,10 +68,6 @@ describe('e2e_dapp_subscription', () => {
     ({ wallets, aztecNode, deployL1ContractsValues, logger, pxe } = await setup(3));
 
     await publicDeployAccounts(wallets[0], wallets);
-
-    await aztecNode.setConfig({
-      allowedFeePaymentContractClasses: [getContractClassFromArtifact(FPCContract.artifact).id],
-    });
 
     // this should be a SignerlessWallet but that can't call public functions directly
     gasTokenContract = await GasTokenContract.at(

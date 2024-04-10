@@ -29,9 +29,9 @@ import { type MockProxy, mock, mockFn } from 'jest-mock-extended';
 
 import { type GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
 import { type L1Publisher } from '../index.js';
+import { TxValidatorFactory } from '../tx_validator/tx_validator_factory.js';
 import { type PublicProcessor, type PublicProcessorFactory } from './public_processor.js';
 import { Sequencer } from './sequencer.js';
-import { TxValidatorFactory } from './tx_validator_factory.js';
 
 describe('sequencer', () => {
   let publisher: MockProxy<L1Publisher>;
@@ -109,9 +109,6 @@ describe('sequencer', () => {
       l1ToL2MessageSource,
       publicProcessorFactory,
       new TxValidatorFactory(merkleTreeOps, contractSource, EthAddress.random()),
-      {
-        allowedFeePaymentContractClasses: [fpcClassId],
-      },
     );
   });
 

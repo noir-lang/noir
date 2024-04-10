@@ -46,13 +46,6 @@ contract AppSubscription {
 
         context.call_public_function(
             storage.gas_token_address.read_private(),
-            FunctionSelector::from_signature("check_balance(Field)"),
-            // max gas limit in Gas tokens
-            [42]
-        );
-
-        context.call_public_function(
-            storage.gas_token_address.read_private(),
             FunctionSelector::from_signature("pay_fee(Field)"),
             [42]
         );

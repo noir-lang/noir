@@ -57,13 +57,13 @@ export const mockTx = (
 
     data.forPublic.endNonRevertibleData.newNullifiers[0] = firstNullifier;
 
-    data.forPublic.endNonRevertibleData.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
-      i < numberOfNonRevertiblePublicCallRequests ? publicCallRequests[i].toCallRequest() : CallRequest.empty(),
+    data.forPublic.end.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
+      i < numberOfRevertiblePublicCallRequests ? publicCallRequests[i].toCallRequest() : CallRequest.empty(),
     );
 
-    data.forPublic.end.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
-      i < numberOfRevertiblePublicCallRequests
-        ? publicCallRequests[i + numberOfNonRevertiblePublicCallRequests].toCallRequest()
+    data.forPublic.endNonRevertibleData.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
+      i < numberOfNonRevertiblePublicCallRequests
+        ? publicCallRequests[i + numberOfRevertiblePublicCallRequests].toCallRequest()
         : CallRequest.empty(),
     );
   } else {

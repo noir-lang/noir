@@ -16,7 +16,7 @@ import {
   computeAuthWitMessageHash,
   computeMessageSecretHash,
 } from '@aztec/aztec.js';
-import { FunctionData, getContractClassFromArtifact } from '@aztec/circuits.js';
+import { FunctionData } from '@aztec/circuits.js';
 import { type ContractArtifact, decodeFunctionSignature } from '@aztec/foundation/abi';
 import {
   TokenContract as BananaCoin,
@@ -56,10 +56,6 @@ describe('e2e_fees', () => {
   beforeAll(async () => {
     const { wallets: _wallets, aztecNode, deployL1ContractsValues, logger, pxe } = await setup(3);
     wallets = _wallets;
-
-    await aztecNode.setConfig({
-      allowedFeePaymentContractClasses: [getContractClassFromArtifact(FPCContract.artifact).id],
-    });
 
     logFunctionSignatures(BananaCoin.artifact, logger);
     logFunctionSignatures(FPCContract.artifact, logger);
