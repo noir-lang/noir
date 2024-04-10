@@ -1,7 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
 
-import { getReturnWitness } from '@noir-lang/acvm_js';
-
 import { type ACVMField, type ACVMWitness } from './acvm_types.js';
 
 /**
@@ -32,13 +30,11 @@ export function frToBoolean(fr: Fr): boolean {
 }
 
 /**
- * Extracts the return fields of a given partial witness.
- * @param acir - The bytecode of the function.
- * @param partialWitness - The witness to extract from.
+ * Transforms a witness map to its field elements.
+ * @param witness - The witness to extract from.
  * @returns The return values.
  */
-export function extractReturnWitness(acir: Buffer, partialWitness: ACVMWitness): Fr[] {
-  const returnWitness = getReturnWitness(acir, partialWitness);
-  const sortedKeys = [...returnWitness.keys()].sort((a, b) => a - b);
-  return sortedKeys.map(key => returnWitness.get(key)!).map(fromACVMField);
+export function witnessMapToFields(witness: ACVMWitness): Fr[] {
+  const sortedKeys = [...witness.keys()].sort((a, b) => a - b);
+  return sortedKeys.map(key => witness.get(key)!).map(fromACVMField);
 }

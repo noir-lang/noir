@@ -4,7 +4,7 @@ import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { extractReturnWitness } from '../acvm/deserialize.js';
+import { witnessMapToFields } from '../acvm/deserialize.js';
 import { Oracle, acvm, extractCallStack } from '../acvm/index.js';
 import { ExecutionError } from '../common/errors.js';
 import { type ClientExecutionContext } from './client_execution_context.js';
@@ -26,7 +26,7 @@ export async function executePrivateFunction(
   const acir = artifact.bytecode;
   const initialWitness = context.getInitialWitness(artifact);
   const acvmCallback = new Oracle(context);
-  const { partialWitness } = await acvm(await AcirSimulator.getSolver(), acir, initialWitness, acvmCallback).catch(
+  const acirExecutionResult = await acvm(await AcirSimulator.getSolver(), acir, initialWitness, acvmCallback).catch(
     (err: Error) => {
       throw new ExecutionError(
         err.message,
@@ -39,8 +39,8 @@ export async function executePrivateFunction(
       );
     },
   );
-
-  const returnWitness = extractReturnWitness(acir, partialWitness);
+  const partialWitness = acirExecutionResult.partialWitness;
+  const returnWitness = witnessMapToFields(acirExecutionResult.returnWitness);
   const publicInputs = PrivateCircuitPublicInputs.fromFields(returnWitness);
 
   const encryptedLogs = context.getEncryptedLogs();
