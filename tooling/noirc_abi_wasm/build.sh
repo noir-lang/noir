@@ -14,6 +14,13 @@ function run_or_fail {
     exit $status
   fi
 }
+function run_if_available {
+  if command -v "$1" >/dev/null 2>&1; then
+    "$@"
+  else
+    echo "$1 is not installed. Please install it to use this feature." >&2
+  fi
+}
 
 require_command jq
 require_command cargo
