@@ -139,7 +139,7 @@ impl PrivateCallDataBuilder {
         (hashes, call_requests)
     }
 
-    pub fn request_max_block_number(&mut self, max_block_number: u32) {
+    pub fn set_tx_max_block_number(&mut self, max_block_number: u32) {
         self.public_inputs.max_block_number = MaxBlockNumber::new(max_block_number);
     }
 

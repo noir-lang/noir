@@ -96,7 +96,7 @@ The return values are a set of values that are returned from an applications exe
 
 ## Max Block Number
 
-Some data structures impose time constraints, e.g. they may make it so that a value can only be changed after a certain delay. Interacting with these in private involves creating proofs that are only valid as long as they are included before a certain future point in time. To achieve this, the `request_max_block_number` function can be used to set this property:
+Some data structures impose time constraints, e.g. they may make it so that a value can only be changed after a certain delay. Interacting with these in private involves creating proofs that are only valid as long as they are included before a certain future point in time. To achieve this, the `set_tx_max_block_number` function can be used to set this property:
 
 #include_code max-block-number /noir-projects/aztec-nr/aztec/src/context/private_context.nr rust
 

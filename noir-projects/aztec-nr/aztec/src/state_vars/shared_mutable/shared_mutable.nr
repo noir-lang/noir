@@ -54,8 +54,9 @@ impl<T, DELAY> SharedMutable<T, DELAY> {
         let (scheduled_value_change, historical_block_number) = self.historical_read_from_public_storage(*context);
         let block_horizon = scheduled_value_change.get_block_horizon(historical_block_number);
 
-        // Prevent this transaction from being included in any block after the `block_horizon`
-        context.request_max_block_number(block_horizon);
+        // We prevent this transaction from being included in any block after the block horizon, ensuring that the 
+        // historical public value matches the current one, since it can only change after the horizon.
+        context.set_tx_max_block_number(block_horizon);
         scheduled_value_change.get_current_at(historical_block_number)
     }
 

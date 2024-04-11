@@ -6,6 +6,17 @@ keywords: [sandbox, cli, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## TBD
+
+### [Aztec.nr] Rename max block number setter
+
+The `request_max_block_number` function has been renamed to `set_tx_max_block_number` to better reflect that it is not a getter, and that the setting is transaction-wide.
+
+```diff
+- context.request_max_block_number(value);
++ context.set_tx_max_block_number(value);
+```
+
 ## 0.33
 
 ### [Aztec.nr] Storage struct annotation
@@ -52,6 +63,7 @@ Storage layout and note information are now exposed in the TS contract artifact
 ```
 
 ### [Aztec.nr] rand oracle is now called unsafe_rand
+
 `oracle::rand::rand` has been renamed to `oracle::unsafe_rand::unsafe_rand`.
 This change was made to communicate that we do not constrain the value in circuit and instead we just trust our PXE.
 
@@ -61,9 +73,10 @@ This change was made to communicate that we do not constrain the value in circui
 ```
 
 ### [AztecJS] Simulate and get return values for ANY call and introducing `prove()`
+
 Historically it have been possible to "view" `unconstrained` functions to simulate them and get the return values, but not for `public` nor `private` functions.
-This has lead to a lot of bad code where we have the same function implemented thrice, once in `private`, once in `public` and once in `unconstrained`. 
-It is not possible to call `simulate` on any call to get the return values! 
+This has lead to a lot of bad code where we have the same function implemented thrice, once in `private`, once in `public` and once in `unconstrained`.
+It is not possible to call `simulate` on any call to get the return values!
 However, beware that it currently always returns a Field array of size 4 for private and public.  
 This will change to become similar to the return values of the `unconstrained` functions with proper return types.
 

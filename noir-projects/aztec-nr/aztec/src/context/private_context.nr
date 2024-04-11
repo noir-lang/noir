@@ -197,7 +197,7 @@ impl PrivateContext {
     }
 
     // docs:start:max-block-number
-    pub fn request_max_block_number(&mut self, max_block_number: u32) {
+    pub fn set_tx_max_block_number(&mut self, max_block_number: u32) {
         // docs:end:max-block-number
         self.max_block_number = MaxBlockNumber::min_with_u32(self.max_block_number, max_block_number);
     }

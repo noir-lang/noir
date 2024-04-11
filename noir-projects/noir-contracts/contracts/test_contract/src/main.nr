@@ -68,10 +68,8 @@ contract Test {
     }
 
     #[aztec(private)]
-    fn request_max_block_number(max_block_number: u32, enqueue_public_call: bool) {
-        // docs:start:request-max-block-number
-        context.request_max_block_number(max_block_number);
-        // docs:end:request-max-block-number
+    fn set_tx_max_block_number(max_block_number: u32, enqueue_public_call: bool) {
+        context.set_tx_max_block_number(max_block_number);
 
         if enqueue_public_call {
             let _ = context.call_public_function(
