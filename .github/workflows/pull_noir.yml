@@ -29,7 +29,11 @@ jobs:
           PR_URL=$(gh pr list --repo AztecProtocol/aztec-packages --head sync-noir --json url --jq ".[0].url")
           echo "PR_URL=$PR_URL" >> $GITHUB_ENV
           # What was our last merge on noir side?
-          BASE_NOIR_COMMIT=`gh pr list --repo=noir-lang/noir --state merged --head aztec-packages --json mergeCommit --jq=.[0].mergeCommit.oid`
+          # Detect our last sync commit (written by this action before pushing) with a fallback for the first time we ever do this
+          BASE_NOIR_COMMIT=$(curl https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/.noir-sync-commit)
+          if [ "$BASE_NOIR_COMMIT" = "404: Not Found" ] ; then
+            BASE_NOIR_COMMIT="50d2735825454a8638a308156d4ea23b3c4420d8"
+          fi
           echo "BASE_NOIR_COMMIT=$BASE_NOIR_COMMIT" >> $GITHUB_ENV
           # What was our last sync on aztec side?
           BASE_AZTEC_COMMIT=`curl https://raw.githubusercontent.com/noir-lang/noir/master/.aztec-sync-commit`
@@ -88,6 +92,9 @@ jobs:
             # we need to commit for git-subrepo
             git commit -am "[$LINES changes] $COMMIT_MESSAGE"
             if ./scripts/git-subrepo/lib/git-subrepo pull --force $SUBREPO_PATH --branch=master; then
+              # Read our actual commit sync from git subrepo, stash to file for next time
+              COMMIT=$(git config --file="$SUBREPO_PATH/.gitrepo" subrepo.commit)
+              echo "$COMMIT" > .noir-sync-commit && git add .noir-sync-commit
               git reset --soft "$BASE_AZTEC_COMMIT"
               # We don't really need the sync commit on our side, and don't need .gitrepo at all except just in time for the command.
               git checkout origin/master -- noir/noir-repo/.aztec-sync-commit noir/noir-repo/.gitrepo
@@ -114,7 +121,7 @@ jobs:
       - name: Update PR
         run: |
           set -xue # print commands
-          # Formatted for updating the PR, overrides for release-please commit message parsing 
+          # Formatted for updating the PR, overrides for release-please commit message parsing
           PR_BODY="""
           Automated pull of development from the [noir](https://github.com/noir-lang/noir) programming language, a dependency of Aztec.
           BEGIN_COMMIT_OVERRIDE
