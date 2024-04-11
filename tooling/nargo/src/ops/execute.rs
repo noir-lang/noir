@@ -70,6 +70,10 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                     let call_stack = match &error {
                         OpcodeResolutionError::UnsatisfiedConstrain {
                             opcode_location: ErrorLocation::Resolved(opcode_location),
+                        }
+                        | OpcodeResolutionError::IndexOutOfBounds {
+                            opcode_location: ErrorLocation::Resolved(opcode_location),
+                            ..
                         } => {
                             let resolved_location = ResolvedOpcodeLocation {
                                 acir_function_index: self.current_function_index,

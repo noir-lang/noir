@@ -100,14 +100,9 @@ fn extract_locations_from_error(
         ExecutionError::AssertionFailed(_, call_stack) => Some(call_stack.clone()),
         ExecutionError::SolvingError(
             OpcodeResolutionError::IndexOutOfBounds { opcode_location: error_location, .. },
-            ..
-        ) => match error_location {
-            ErrorLocation::Unresolved => {
-                unreachable!("Cannot resolve index for index out of bounds")
-            }
-            ErrorLocation::Resolved(opcode_location) => Some(vec![ResolvedOpcodeLocation { acir_function_index: 0, opcode_location: *opcode_location }]),
-        },
-        ExecutionError::SolvingError(
+            acir_call_stack,
+        )
+        | ExecutionError::SolvingError(
             OpcodeResolutionError::UnsatisfiedConstrain { opcode_location: error_location },
             acir_call_stack,
         ) => match error_location {
@@ -132,7 +127,7 @@ fn extract_locations_from_error(
             };
 
             opcode_locations.insert(i, acir_location);
-            // Go until the first brillig opcode as that means we have the start of a Brillig call stack. 
+            // Go until the first brillig opcode as that means we have the start of a Brillig call stack.
             // We have to loop through the opcode locations in case we had ACIR calls
             // before the brillig function failure.
             break;
