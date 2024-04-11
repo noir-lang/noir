@@ -19,6 +19,7 @@ use crate::hir_def::expr::{
 };
 
 use crate::hir_def::traits::{Trait, TraitConstraint};
+use crate::macros_api::SecondaryAttribute;
 use crate::token::{Attributes, FunctionAttribute};
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
@@ -617,7 +618,17 @@ impl<'a> Resolver<'a> {
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
                 let expected_generic_count = struct_type.borrow().generics.len();
-
+                if !self.in_contract
+                    && self
+                        .interner
+                        .struct_attributes(&struct_type.borrow().id)
+                        .iter()
+                        .any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
+                {
+                    self.push_err(ResolverError::AbiAttributeOusideContract {
+                        span: struct_type.borrow().name.span(),
+                    });
+                }
                 self.verify_generics_count(expected_generic_count, &mut args, span, || {
                     struct_type.borrow().to_string()
                 });
@@ -1167,10 +1178,19 @@ impl<'a> Resolver<'a> {
         let global_id = self.interner.next_global_id();
         let definition = DefinitionKind::Global(global_id);
 
+        if !self.in_contract
+            && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
+        {
+            self.push_err(ResolverError::AbiAttributeOusideContract {
+                span: let_stmt.pattern.span(),
+            });
+        }
+
         HirStatement::Let(HirLetStatement {
             pattern: self.resolve_pattern(let_stmt.pattern, definition),
             r#type: self.resolve_type(let_stmt.r#type),
             expression,
+            attributes: let_stmt.attributes,
         })
     }
 
@@ -1183,6 +1203,7 @@ impl<'a> Resolver<'a> {
                     pattern: self.resolve_pattern(let_stmt.pattern, definition),
                     r#type: self.resolve_type(let_stmt.r#type),
                     expression,
+                    attributes: let_stmt.attributes,
                 })
             }
             StatementKind::Constrain(constrain_stmt) => {

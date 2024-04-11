@@ -67,6 +67,7 @@ pub fn mutable_assignment(name: &str, assigned_to: Expression) -> Statement {
         pattern: mutable(name),
         r#type: make_type(UnresolvedTypeData::Unspecified),
         expression: assigned_to,
+        attributes: vec![],
     }))
 }
 
@@ -82,6 +83,7 @@ pub fn assignment(name: &str, assigned_to: Expression) -> Statement {
         pattern: pattern(name),
         r#type: make_type(UnresolvedTypeData::Unspecified),
         expression: assigned_to,
+        attributes: vec![],
     }))
 }
 
