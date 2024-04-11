@@ -86,6 +86,10 @@ e2e-2-pxes:
   ARG e2e_mode=local
   DO +E2E_TEST --test=e2e_2_pxes.test.ts --e2e_mode=$e2e_mode
 
+e2e-auth-contract:
+  ARG e2e_mode=local
+  DO +E2E_TEST --test=e2e_auth_contract.test.ts --e2e_mode=$e2e_mode
+
 e2e-note-getter:
   ARG e2e_mode=local
   DO +E2E_TEST --test=e2e_note_getter.test.ts --e2e_mode=$e2e_mode

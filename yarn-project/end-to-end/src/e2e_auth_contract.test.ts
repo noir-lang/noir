@@ -83,7 +83,7 @@ describe('e2e_auth_contract', () => {
 
     const interaction = contract.withWallet(authorized).methods.do_private_authorized_thing(VALUE);
 
-    const tx = await interaction.simulate();
+    const tx = await interaction.prove();
 
     const lastBlockNumber = await pxe.getBlockNumber();
     // In the last block there was no scheduled value change, so the earliest one could be scheduled is in the next
@@ -91,8 +91,8 @@ describe('e2e_auth_contract', () => {
     // horizon should be the block preceding that one.
     const expectedMaxBlockNumber = lastBlockNumber + DELAY;
 
-    expect(tx.data.rollupValidationRequests.maxBlockNumber.isSome).toEqual(true);
-    expect(tx.data.rollupValidationRequests.maxBlockNumber.value).toEqual(new Fr(expectedMaxBlockNumber));
+    expect(tx.data.forRollup!.rollupValidationRequests.maxBlockNumber.isSome).toEqual(true);
+    expect(tx.data.forRollup!.rollupValidationRequests.maxBlockNumber.value).toEqual(new Fr(expectedMaxBlockNumber));
 
     await assertLoggedNumber(interaction, VALUE);
   });
