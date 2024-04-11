@@ -330,12 +330,20 @@ export async function setup(
 
   let anvil: Anvil | undefined;
 
+  // spawn an anvil instance if one isn't already running
+  // and we're not connecting to a remote PXE
   if (!config.rpcUrl) {
+    if (PXE_URL) {
+      throw new Error(
+        `PXE_URL provided but no ETHEREUM_HOST set. Refusing to run, please set both variables so tests can deploy L1 contracts to the same Anvil instance`,
+      );
+    }
+
     // Start anvil.
     // We go via a wrapper script to ensure if the parent dies, anvil dies.
     const ethereumHostPort = await getPort();
     config.rpcUrl = `http://localhost:${ethereumHostPort}`;
-    const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
+    anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
     await anvil.start();
   }
 
