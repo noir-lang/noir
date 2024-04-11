@@ -159,11 +159,11 @@ mod tests {
         propagate_unverified_read_requests, reset_read_requests, validate_pending_read_requests,
         validate_settled_read_requests
     };
-    use dep::std::{hash::pedersen_hash, unsafe};
+    use dep::std::hash::pedersen_hash;
     use dep::types::{
         address::AztecAddress, abis::{read_request::ReadRequestContext, side_effect::SideEffect},
         merkle_tree::{LeafPreimage, MembershipWitness}, hash::silo_nullifier,
-        tests::merkle_tree_utils::NonEmptyMerkleTree
+        tests::merkle_tree_utils::NonEmptyMerkleTree, traits::Empty
     };
 
     struct TestLeafPreimage {
@@ -177,6 +177,14 @@ mod tests {
 
         fn as_leaf(self) -> Field {
             pedersen_hash([self.value])
+        }
+    }
+
+    impl Empty for TestLeafPreimage {
+        fn empty() -> Self {
+            TestLeafPreimage {
+                value: 0
+            }
         }
     }
 
@@ -204,8 +212,8 @@ mod tests {
         fn nada(read_request_len: u64) -> Self {
             TestSettledReadHint {
                 read_request_index: read_request_len,
-                membership_witness: unsafe::zeroed(),
-                leaf_preimage: unsafe::zeroed()
+                membership_witness: MembershipWitness::empty(),
+                leaf_preimage: TestLeafPreimage::empty()
             }
         }
     }

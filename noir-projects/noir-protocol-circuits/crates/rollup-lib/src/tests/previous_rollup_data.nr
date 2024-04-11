@@ -3,7 +3,7 @@ use crate::abis::previous_rollup_data::PreviousRollupData;
 use dep::types::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
 
 pub fn default_previous_rollup_data() -> [PreviousRollupData; 2] {
-    let mut previous_rollup_data: [PreviousRollupData; 2] = dep::std::unsafe::zeroed();
+    let mut previous_rollup_data = [PreviousRollupData::empty(); 2];
 
     previous_rollup_data[0].base_or_merge_rollup_public_inputs.start.note_hash_tree = AppendOnlyTreeSnapshot {
         root: 0,

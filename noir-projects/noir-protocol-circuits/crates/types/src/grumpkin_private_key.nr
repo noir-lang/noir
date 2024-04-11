@@ -1,5 +1,8 @@
 use dep::std::{cmp::Eq, grumpkin_scalar::GrumpkinScalar, grumpkin_scalar_mul::grumpkin_fixed_base};
-use crate::grumpkin_point::GrumpkinPoint;
+use crate::{
+    grumpkin_point::GrumpkinPoint,
+    traits::Empty
+};
 
 global GRUMPKIN_PRIVATE_KEY_SERIALIZED_LEN: Field = 2;
 
@@ -11,6 +14,12 @@ struct GrumpkinPrivateKey {
 impl Eq for GrumpkinPrivateKey {
     fn eq(self, key: GrumpkinPrivateKey) -> bool {
         (key.high == self.high) & (key.low == self.low)
+    }
+}
+
+impl Empty for GrumpkinPrivateKey {
+    fn empty() -> Self {
+        Self { high: 0, low: 0 }
     }
 }
 

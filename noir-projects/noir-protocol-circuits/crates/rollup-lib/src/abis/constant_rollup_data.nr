@@ -1,5 +1,8 @@
 use dep::std::cmp::Eq;
-use dep::types::abis::{global_variables::GlobalVariables, append_only_tree_snapshot::AppendOnlyTreeSnapshot};
+use dep::types::{
+    abis::{global_variables::GlobalVariables, append_only_tree_snapshot::AppendOnlyTreeSnapshot},
+    traits::Empty
+};
 
 struct ConstantRollupData {
     // Archive tree snapshot at the very beginning of the entire rollup.
@@ -23,5 +26,18 @@ impl Eq for ConstantRollupData {
         (self.public_kernel_vk_tree_root == other.public_kernel_vk_tree_root) &
         (self.base_rollup_vk_hash == other.base_rollup_vk_hash) &
         (self.merge_rollup_vk_hash == other.merge_rollup_vk_hash)
+    }
+}
+
+impl Empty for ConstantRollupData {
+    fn empty() -> Self {
+        ConstantRollupData {
+            last_archive: AppendOnlyTreeSnapshot::zero(),
+            private_kernel_vk_tree_root: 0,
+            public_kernel_vk_tree_root: 0,
+            base_rollup_vk_hash: 0,
+            merge_rollup_vk_hash: 0,
+            global_variables: GlobalVariables::empty(),
+        }
     }
 }

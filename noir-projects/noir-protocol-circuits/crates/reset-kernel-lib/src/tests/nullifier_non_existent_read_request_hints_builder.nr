@@ -9,7 +9,6 @@ use dep::types::{
     tests::{merkle_tree_utils::NonEmptyMerkleTree, sort::sort_get_sorted_hints},
     utils::{arrays::find_index, field::full_field_greater_than}
 };
-use dep::std::unsafe;
 
 struct NullifierNonExistentReadRequestHintsBuilder {
     nullifier_tree: NonEmptyMerkleTree<MAX_NEW_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT>,
@@ -21,7 +20,7 @@ struct NullifierNonExistentReadRequestHintsBuilder {
 impl NullifierNonExistentReadRequestHintsBuilder {
     pub fn new() -> Self {
         NullifierNonExistentReadRequestHintsBuilder {
-            nullifier_tree: unsafe::zeroed(),
+            nullifier_tree: NonEmptyMerkleTree::empty(),
             non_membership_hints: BoundedVec::new(),
             read_values: BoundedVec::new(),
             pending_nullifiers: [SideEffectLinkedToNoteHash::empty(); MAX_NEW_NULLIFIERS_PER_TX]

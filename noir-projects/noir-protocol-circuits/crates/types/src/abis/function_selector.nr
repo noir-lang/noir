@@ -1,6 +1,6 @@
 use crate::utils::field::field_from_bytes;
 use dep::std::cmp::Eq;
-use crate::traits::{Serialize, Deserialize, FromField, ToField};
+use crate::traits::{Serialize, Deserialize, FromField, ToField, Empty};
 
 global SELECTOR_SIZE = 4;
 
@@ -38,6 +38,12 @@ impl FromField for FunctionSelector {
 impl ToField for FunctionSelector {
     fn to_field(self) -> Field {
         self.inner as Field
+    }
+}
+
+impl Empty for FunctionSelector {
+    fn empty() -> Self {
+        Self { inner: 0 as u32 }
     }
 }
 

@@ -1,4 +1,7 @@
-use crate::merkle_tree::{MerkleTree, calculate_empty_tree_root};
+use crate::{
+    merkle_tree::{MerkleTree, calculate_empty_tree_root},
+    traits::Empty
+};
 
 pub fn compute_zero_hashes<N>(mut hashes: [Field; N]) -> [Field; N] {
     hashes[0] = dep::std::hash::pedersen_hash([0, 0]);
@@ -74,6 +77,17 @@ struct NonEmptyMerkleTree<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_
     zero_hashes: [Field; TREE_HEIGHT],
     left_supertree_branch: [Field; SUPERTREE_HEIGHT],
     _phantom_subtree_height: [Field; SUBTREE_HEIGHT],
+}
+
+impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> Empty for NonEmptyMerkleTree<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> {
+    fn empty() -> Self {
+        NonEmptyMerkleTree {
+            subtree: MerkleTree::empty(),
+            zero_hashes: [0; TREE_HEIGHT],
+            left_supertree_branch: [0; SUPERTREE_HEIGHT],
+            _phantom_subtree_height: [0; SUBTREE_HEIGHT],
+        }
+    }
 }
 
 impl<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> NonEmptyMerkleTree<SUBTREE_ITEMS, TREE_HEIGHT, SUPERTREE_HEIGHT, SUBTREE_HEIGHT> {

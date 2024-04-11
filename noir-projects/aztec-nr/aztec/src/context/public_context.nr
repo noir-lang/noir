@@ -23,7 +23,7 @@ use dep::protocol_types::{
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, header::Header,
-    messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader, traits::Deserialize
+    messaging::l2_to_l1_message::L2ToL1Message, utils::reader::Reader, traits::{Deserialize, Empty}
 };
 
 struct PublicContext {
@@ -313,6 +313,29 @@ impl PublicContextInterface for PublicContext {
         let args_hash = hash_args_array(args);
         assert(args_hash == arguments::pack_arguments(args));
         self.call_public_function_with_packed_args(contract_address, function_selector, args_hash, false, true)
+    }
+}
+
+impl Empty for PublicContext {
+    fn empty() -> Self {
+        PublicContext {
+            inputs: PublicContextInputs::empty(),
+            side_effect_counter: 0 as u32,
+            args_hash : 0,
+            return_hash : 0,
+            nullifier_read_requests: BoundedVec::new(),
+            nullifier_non_existent_read_requests: BoundedVec::new(),
+            contract_storage_update_requests: BoundedVec::new(),
+            contract_storage_reads: BoundedVec::new(),
+            public_call_stack_hashes: BoundedVec::new(),
+            new_note_hashes: BoundedVec::new(),
+            new_nullifiers: BoundedVec::new(),
+            new_l2_to_l1_msgs: BoundedVec::new(),
+            unencrypted_logs_hash: 0,
+            unencrypted_logs_preimages_length: 0,
+            historical_header: Header::empty(),
+            prover_address: AztecAddress::zero(),
+        }
     }
 }
 

@@ -7,11 +7,14 @@ use crate::{
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, header::Header,
     messaging::l2_to_l1_message::L2ToL1Message, tests::fixtures
 };
-use crate::constants::{
+use crate::{
+    constants::{
     MAX_NEW_NOTE_HASHES_PER_CALL, MAX_NEW_L2_TO_L1_MSGS_PER_CALL, MAX_NEW_NULLIFIERS_PER_CALL,
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL
+},
+traits::Empty,
 };
 
 struct PublicCircuitPublicInputsBuilder {
@@ -37,7 +40,7 @@ struct PublicCircuitPublicInputsBuilder {
 
 impl PublicCircuitPublicInputsBuilder {
     pub fn new() -> Self {
-        let mut public_inputs: PublicCircuitPublicInputsBuilder = dep::std::unsafe::zeroed();
+        let mut public_inputs = PublicCircuitPublicInputsBuilder::empty();
         public_inputs.call_context.msg_sender = fixtures::MSG_SENDER;
         public_inputs.historical_header = fixtures::HEADER;
         public_inputs
@@ -63,6 +66,31 @@ impl PublicCircuitPublicInputsBuilder {
             historical_header: self.historical_header,
             prover_address: self.prover_address,
             revert_code: self.revert_code
+        }
+    }
+}
+
+impl Empty for PublicCircuitPublicInputsBuilder {
+    fn empty() -> Self {
+        PublicCircuitPublicInputsBuilder {
+            call_context: CallContext::empty(),
+            args_hash: 0,
+            returns_hash: 0,
+            nullifier_read_requests: BoundedVec::new(),
+            nullifier_non_existent_read_requests: BoundedVec::new(),
+            contract_storage_update_requests: BoundedVec::new(),
+            contract_storage_reads: BoundedVec::new(),
+            public_call_stack_hashes: BoundedVec::new(),
+            new_note_hashes: BoundedVec::new(),
+            new_nullifiers: BoundedVec::new(),
+            new_l2_to_l1_msgs: BoundedVec::new(),
+            start_side_effect_counter: 0 as u32,
+            end_side_effect_counter: 0 as u32,
+            unencrypted_logs_hash: 0,
+            unencrypted_log_preimages_length: 0,
+            historical_header: Header::empty(),
+            prover_address: AztecAddress::zero(),
+            revert_code: 0 as u8,
         }
     }
 }

@@ -10,7 +10,8 @@ use crate::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_TX,
     MAX_PUBLIC_DATA_READS_PER_TX
-}
+},
+traits::Empty,
 };
 
 struct ValidationRequestsBuilder {
@@ -36,5 +37,18 @@ impl ValidationRequestsBuilder {
 
     pub fn to_rollup(self) -> RollupValidationRequests {
         RollupValidationRequests { max_block_number: self.max_block_number }
+    }
+}
+
+impl Empty for ValidationRequestsBuilder {
+    fn empty() -> Self {
+        ValidationRequestsBuilder {
+            max_block_number: MaxBlockNumber::empty(),
+            note_hash_read_requests: BoundedVec::new(),
+            nullifier_read_requests: BoundedVec::new(),
+            nullifier_non_existent_read_requests: BoundedVec::new(),
+            nullifier_key_validation_requests: BoundedVec::new(),
+            public_data_reads: BoundedVec::new(),
+        }
     }
 }

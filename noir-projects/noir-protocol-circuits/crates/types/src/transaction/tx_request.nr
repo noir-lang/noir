@@ -1,7 +1,7 @@
 use crate::{
     address::AztecAddress, abis::function_data::FunctionData,
     constants::{GENERATOR_INDEX__TX_REQUEST, TX_REQUEST_LENGTH}, hash::pedersen_hash,
-    traits::{Hash, Serialize, Deserialize}, transaction::tx_context::TxContext, utils::reader::Reader
+    traits::{Hash, Serialize, Deserialize, Empty}, transaction::tx_context::TxContext, utils::reader::Reader
 };
 
 struct TxRequest {
@@ -9,6 +9,17 @@ struct TxRequest {
     args_hash: Field,
     tx_context: TxContext,
     function_data: FunctionData,
+}
+
+impl Empty for TxRequest {
+    fn empty() -> Self {
+        TxRequest {
+            origin: AztecAddress::empty(),
+            args_hash: 0,
+            tx_context: TxContext::empty(),
+            function_data: FunctionData::empty()
+        }
+    }
 }
 
 impl Eq for TxRequest {
@@ -67,8 +78,7 @@ mod tests {
 
     #[test]
     fn serialization_of_empty() {
-        // Assuming a zeroed initialization for simplicity
-        let request: TxRequest = dep::std::unsafe::zeroed();
+        let request = TxRequest::empty();
         let serialized = request.serialize();
         let deserialized = TxRequest::deserialize(serialized);
         assert(request.eq(deserialized));

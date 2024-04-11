@@ -1,6 +1,6 @@
 use crate::{
     constants::{GENERATOR_INDEX__TX_CONTEXT, TX_CONTEXT_DATA_LENGTH}, hash::pedersen_hash,
-    traits::{Deserialize, Hash, Serialize}, utils::reader::Reader
+    traits::{Deserialize, Hash, Serialize, Empty}, utils::reader::Reader
 };
 
 struct TxContext {
@@ -17,6 +17,17 @@ impl Eq for TxContext {
         (self.is_rebate_payment_tx == other.is_rebate_payment_tx) &
         (self.chain_id == other.chain_id) &
         (self.version == other.version)
+    }
+}
+
+impl Empty for TxContext {
+    fn empty() -> Self {
+        TxContext {
+            is_fee_payment_tx : false,
+            is_rebate_payment_tx : false,
+            chain_id : 0,
+            version : 0,
+        }
     }
 }
 
@@ -60,7 +71,7 @@ impl Hash for TxContext {
 
 #[test]
 fn serialization_of_empty() {
-    let context: TxContext = dep::std::unsafe::zeroed();
+    let context = TxContext::empty();
     let serialized = context.serialize();
     let deserialized = TxContext::deserialize(serialized);
     assert(context.eq(deserialized));
@@ -68,7 +79,7 @@ fn serialization_of_empty() {
 
 #[test]
 fn empty_hash() {
-    let inputs: TxContext = dep::std::unsafe::zeroed();
+    let inputs = TxContext::empty();
     let hash = inputs.hash();
 
     // Value from tx_context.test.ts "computes empty item hash" test

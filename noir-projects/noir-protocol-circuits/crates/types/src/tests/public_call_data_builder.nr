@@ -50,7 +50,7 @@ impl PublicCallDataBuilder {
             public_inputs,
             is_execution_request: false,
             function_data,
-            public_call_stack: dep::std::unsafe::zeroed(),
+            public_call_stack: BoundedVec::new(),
             proof: Proof {},
             portal_contract_address,
             bytecode_hash: contract_function.acir_hash

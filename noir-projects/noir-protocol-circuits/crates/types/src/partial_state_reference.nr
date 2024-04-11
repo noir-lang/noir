@@ -62,7 +62,7 @@ impl Empty for PartialStateReference {
 
 #[test]
 fn serialization_of_empty() {
-    let partial: PartialStateReference = dep::std::unsafe::zeroed();
+    let partial = PartialStateReference::empty();
     let _serialized = partial.serialize();
     let _deserialized = PartialStateReference::deserialize(_serialized);
 }

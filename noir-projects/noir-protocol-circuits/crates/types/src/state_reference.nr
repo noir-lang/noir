@@ -55,7 +55,7 @@ impl Empty for StateReference {
 
 #[test]
 fn serialization_of_empty() {
-    let state: StateReference = dep::std::unsafe::zeroed();
+    let state = StateReference::empty();
     let _serialized = state.serialize();
     let _deserialized = StateReference::deserialize(_serialized);
 }

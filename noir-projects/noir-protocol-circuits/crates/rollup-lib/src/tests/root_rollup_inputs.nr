@@ -35,7 +35,7 @@ pub fn compute_archive_snapshot() -> (AppendOnlyTreeSnapshot, [Field; ARCHIVE_HE
 }
 
 pub fn default_root_rollup_inputs() -> RootRollupInputs {
-    let mut inputs: RootRollupInputs = dep::std::unsafe::zeroed();
+    let mut inputs = RootRollupInputs::empty();
     let (l1_l2_empty_snapshot, l1_l2_empty_sibling_path) = compute_l1_l2_empty_snapshot();
 
     inputs.new_l1_to_l2_message_tree_root_sibling_path = l1_l2_empty_sibling_path;

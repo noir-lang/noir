@@ -31,7 +31,7 @@ impl Hash for PublicCallStackItem {
 impl PublicCallStackItem {
     fn as_execution_request(self) -> Self {
         let public_inputs = self.public_inputs;
-        let mut request_public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
+        let mut request_public_inputs = PublicCircuitPublicInputs::empty();
         request_public_inputs.call_context = public_inputs.call_context;
         request_public_inputs.args_hash = public_inputs.args_hash;
 
@@ -60,7 +60,7 @@ mod tests {
         let contract_address = AztecAddress::from_field(1);
         let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_private: false };
 
-        let mut public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
+        let mut public_inputs = PublicCircuitPublicInputs::empty();
         public_inputs.new_note_hashes[0] = SideEffect{
             value: 1,
             counter: 0,
@@ -78,7 +78,7 @@ mod tests {
         let contract_address = AztecAddress::from_field(1);
         let function_data = FunctionData { selector: FunctionSelector::from_u32(2), is_private: false };
 
-        let mut public_inputs: PublicCircuitPublicInputs = dep::std::unsafe::zeroed();
+        let mut public_inputs = PublicCircuitPublicInputs::empty();
         public_inputs.new_note_hashes[0] = SideEffect{
             value: 1,
             counter: 0,

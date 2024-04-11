@@ -1,7 +1,7 @@
 use crate::{
     abis::function_selector::FunctionSelector, address::{EthAddress, AztecAddress},
     constants::{CALL_CONTEXT_LENGTH, GENERATOR_INDEX__CALL_CONTEXT}, hash::pedersen_hash,
-    traits::{Deserialize, Hash, Serialize}, abis::side_effect::Ordered
+    traits::{Deserialize, Hash, Serialize, Empty}, abis::side_effect::Ordered
 };
 
 // docs:start:call-context
@@ -69,9 +69,23 @@ impl Deserialize<CALL_CONTEXT_LENGTH> for CallContext {
     }
 }
 
+impl Empty for CallContext {
+    fn empty() -> Self {
+        CallContext {
+            msg_sender: AztecAddress::empty(),
+            storage_contract_address: AztecAddress::empty(),
+            portal_contract_address: EthAddress::empty(),
+            function_selector: FunctionSelector::empty(),
+            is_delegate_call: false,
+            is_static_call: false,
+            side_effect_counter: 0,
+        }
+    }
+}
+
 #[test]
 fn serialize_deserialize_of_empty() {
-    let context: CallContext = dep::std::unsafe::zeroed();
+    let context = CallContext::empty();
     let serialized = context.serialize();
     let deserialized = CallContext::deserialize(serialized);
     assert(context.eq(deserialized));
@@ -79,21 +93,21 @@ fn serialize_deserialize_of_empty() {
 
 #[test]
 fn assert_is_zero() {
-    let context: CallContext = dep::std::unsafe::zeroed();
+    let context = CallContext::empty();
     context.assert_is_zero();
 }
 
 #[test(should_fail)]
 fn not_zero_assert_is_zero() {
-    let mut context: CallContext = dep::std::unsafe::zeroed();
+    let mut context = CallContext::empty();
     context.is_delegate_call = true;
     context.assert_is_zero();
 }
 
 #[test]
 fn test_eq() {
-    let mut context1: CallContext = dep::std::unsafe::zeroed();
-    let mut context2: CallContext = dep::std::unsafe::zeroed();
+    let mut context1 = CallContext::empty();
+    let mut context2 = CallContext::empty();
 
     context1.is_delegate_call = true;
     context2.is_delegate_call = true;
@@ -107,8 +121,8 @@ fn test_eq() {
 
 #[test(should_fail)]
 fn not_eq_test_eq() {
-    let mut context1: CallContext = dep::std::unsafe::zeroed();
-    let mut context2: CallContext = dep::std::unsafe::zeroed();
+    let mut context1 = CallContext::empty();
+    let mut context2 = CallContext::empty();
 
     context1.is_delegate_call = true;
     context2.is_delegate_call = false;
@@ -124,6 +138,6 @@ fn not_eq_test_eq() {
 
 #[test]
 fn hash_smoke() {
-    let context: CallContext = dep::std::unsafe::zeroed();
+    let context = CallContext::empty();
     let _hashed = context.hash();
 }

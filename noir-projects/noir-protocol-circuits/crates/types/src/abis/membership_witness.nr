@@ -1,6 +1,9 @@
-use crate::constants::{
+use crate::{
+    constants::{
     FUNCTION_TREE_HEIGHT, NULLIFIER_TREE_HEIGHT, NOTE_HASH_TREE_HEIGHT, ROLLUP_VK_TREE_HEIGHT,
     ARCHIVE_HEIGHT, PUBLIC_DATA_TREE_HEIGHT
+},
+traits::Empty
 };
 
 // TODO(Kev): Instead of doing `MembershipWitness<FUNCTION_TREE_HEIGHT>` we are forced 
@@ -40,4 +43,31 @@ struct NoteHashReadRequestMembershipWitness {
     // hint to point kernel to the commitment this rr corresponds to
     is_transient: bool,
     hint_to_note_hash: Field,
+}
+
+impl Empty for VKMembershipWitness {
+    fn empty() -> Self {
+        VKMembershipWitness {
+            leaf_index: 0,
+            sibling_path: [0; ROLLUP_VK_TREE_HEIGHT]
+        }
+    }
+}
+
+impl Empty for NullifierMembershipWitness {
+    fn empty() -> Self {
+        NullifierMembershipWitness {
+            leaf_index: 0,
+            sibling_path: [0; NULLIFIER_TREE_HEIGHT]
+        }
+    }
+}
+
+impl Empty for PublicDataMembershipWitness {
+    fn empty() -> Self {
+        PublicDataMembershipWitness {
+            leaf_index: 0,
+            sibling_path: [0; PUBLIC_DATA_TREE_HEIGHT]
+        }
+    }
 }

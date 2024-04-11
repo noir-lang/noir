@@ -68,7 +68,7 @@ impl Empty for GlobalVariables {
 
 #[test]
 fn serialization_of_empty() {
-    let vars: GlobalVariables = dep::std::unsafe::zeroed();
+    let vars = GlobalVariables::empty();
     let _serialized = vars.serialize();
     let _deserialized = GlobalVariables::deserialize(_serialized);
 }

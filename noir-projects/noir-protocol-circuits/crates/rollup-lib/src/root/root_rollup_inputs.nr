@@ -12,7 +12,8 @@ use dep::{
 },
     header::Header, content_commitment::ContentCommitment,
     merkle_tree::{append_only_tree, calculate_subtree_root, calculate_empty_tree_root},
-    state_reference::StateReference
+    state_reference::StateReference,
+    traits::Empty,
 }
 };
 
@@ -85,5 +86,19 @@ impl RootRollupInputs {
         );
 
         RootRollupPublicInputs { aggregation_object, archive, header }
+    }
+}
+
+impl Empty for RootRollupInputs {
+    fn empty() -> Self {
+        RootRollupInputs {
+            previous_rollup_data : [PreviousRollupData::empty(); 2],
+            l1_to_l2_roots: RootParityInput::empty(),
+            new_l1_to_l2_messages : [0; NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP],
+            new_l1_to_l2_message_tree_root_sibling_path : [0; L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH],
+            start_l1_to_l2_message_tree_snapshot : AppendOnlyTreeSnapshot::zero(),
+            start_archive_snapshot : AppendOnlyTreeSnapshot::zero(),
+            new_archive_sibling_path : [0; ARCHIVE_HEIGHT],
+        }
     }
 }

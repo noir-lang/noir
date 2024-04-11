@@ -413,7 +413,8 @@ mod tests {
         fixture_builder::FixtureBuilder, merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes},
         sort::sort_high_to_low
     },
-        utils::{field::{full_field_less_than, field_from_bytes_32_trunc, field_from_bytes}, uint256::U256}
+        utils::{field::{full_field_less_than, field_from_bytes_32_trunc, field_from_bytes}, uint256::U256},
+        traits::Empty
     };
 
     struct NullifierInsertion {
@@ -431,13 +432,13 @@ mod tests {
         snapshot: AppendOnlyTreeSnapshot,
         public_data_writes: BoundedVec<(u64, PublicDataTreeLeaf), 2>,
         mut pre_existing_public_data: [PublicDataTreeLeafPreimage; EXISTING_LEAVES]
-    ) -> ([Field; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH], [PublicDataTreeLeaf; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataMembershipWitness; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX], [PublicDataTreeLeafPreimage; EXISTING_LEAVES]) {
-        let mut subtree_path: [Field; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH] = dep::std::unsafe::zeroed();
-        let mut sorted_public_data_writes: [PublicDataTreeLeaf; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] = dep::std::unsafe::zeroed();
-        let mut sorted_public_data_writes_indexes: [u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] = dep::std::unsafe::zeroed();
-        let mut low_public_data_writes_preimages: [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] = dep::std::unsafe::zeroed();
-        let mut low_public_data_writes_witnesses: [PublicDataMembershipWitness; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] = dep::std::unsafe::zeroed();
-        let mut new_subtree: [PublicDataTreeLeafPreimage; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX] = dep::std::unsafe::zeroed();
+    ) -> ([Field; 35], [PublicDataTreeLeaf; 32], [u64; 32], [PublicDataTreeLeafPreimage; 32], [PublicDataMembershipWitness; 32], [PublicDataTreeLeafPreimage; EXISTING_LEAVES]) {
+        let mut subtree_path = [0; PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH];
+        let mut sorted_public_data_writes = [PublicDataTreeLeaf::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
+        let mut sorted_public_data_writes_indexes = [0 as u64; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
+        let mut low_public_data_writes_preimages = [PublicDataTreeLeafPreimage::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
+        let mut low_public_data_writes_witnesses = [PublicDataMembershipWitness::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
+        let mut new_subtree = [PublicDataTreeLeafPreimage::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
 
         for i in 0..MAX_PUBLIC_DATA_WRITES_PER_TEST {
             if i < (public_data_writes.len()) {
@@ -522,7 +523,7 @@ mod tests {
 
     impl BaseRollupInputsBuilder {
         fn new() -> Self {
-            let mut inputs: BaseRollupInputsBuilder = dep::std::unsafe::zeroed();
+            let mut inputs = BaseRollupInputsBuilder::empty();
             inputs.kernel_data = FixtureBuilder::new();
             inputs.constants.global_variables.chain_id = 1;
             inputs.constants.global_variables.version = 0;
@@ -549,8 +550,8 @@ mod tests {
             kernel_data: &mut KernelData,
             start_nullifier_tree_snapshot: AppendOnlyTreeSnapshot
         ) -> ([NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX], [NullifierMembershipWitness; MAX_NEW_NULLIFIERS_PER_TX], [Field; MAX_NEW_NULLIFIERS_PER_TX], [u64; MAX_NEW_NULLIFIERS_PER_TX]) {
-            let mut nullifier_predecessor_preimages: [NullifierLeafPreimage; MAX_NEW_NULLIFIERS_PER_TX] = dep::std::unsafe::zeroed();
-            let mut low_nullifier_membership_witness: [NullifierMembershipWitness; MAX_NEW_NULLIFIERS_PER_TX] = dep::std::unsafe::zeroed();
+            let mut nullifier_predecessor_preimages = [NullifierLeafPreimage::empty(); MAX_NEW_NULLIFIERS_PER_TX];
+            let mut low_nullifier_membership_witness = [NullifierMembershipWitness::empty(); MAX_NEW_NULLIFIERS_PER_TX];
 
             let sorted_new_nullifier_tuples = sort_high_to_low(
                 self.new_nullifiers.storage.map(|insertion: NullifierInsertion| insertion.value),
@@ -724,6 +725,23 @@ mod tests {
 
         fn fails(self) {
             let _ = self.execute();
+        }
+    }
+
+    impl Empty for BaseRollupInputsBuilder {
+        fn empty() -> Self {
+            BaseRollupInputsBuilder {
+                kernel_data: FixtureBuilder::new(),
+                pre_existing_notes: [0; MAX_NEW_NOTE_HASHES_PER_TX],
+                pre_existing_nullifiers: [NullifierLeafPreimage::empty(); MAX_NEW_NULLIFIERS_PER_TX],
+                pre_existing_contracts: [0; 2],
+                pre_existing_public_data: [PublicDataTreeLeafPreimage::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+                pre_existing_blocks: [0; 2],
+                public_data_reads: BoundedVec::new(),
+                public_data_writes:BoundedVec::new(),
+                new_nullifiers: BoundedVec::new(),
+                constants: ConstantRollupData::empty(),
+            }
         }
     }
 
@@ -955,7 +973,7 @@ mod tests {
 
     #[test]
     unconstrained fn nonempty_block_out_hash() {
-        let mut end: CombinedAccumulatedData = dep::std::unsafe::zeroed();
+        let mut end = CombinedAccumulatedData::empty();
         end.new_l2_to_l1_msgs[MAX_NEW_L2_TO_L1_MSGS_PER_TX - 1] = 123;
 
         let out_hash = compute_kernel_out_hash(end);

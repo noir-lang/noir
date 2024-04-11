@@ -82,7 +82,7 @@ impl Hash for Header {
 
 #[test]
 fn serialization_of_empty() {
-    let header: Header = dep::std::unsafe::zeroed();
+    let header = Header::empty();
     let serialized = header.serialize();
     let deserialized = Header::deserialize(serialized);
     assert(header.eq(deserialized));
@@ -90,13 +90,13 @@ fn serialization_of_empty() {
 
 #[test]
 fn hash_smoke() {
-    let header: Header = dep::std::unsafe::zeroed();
+    let header = Header::empty();
     let _hashed = header.hash();
 }
 
 #[test]
 fn empty_hash_is_zero() {
-    let header: Header = dep::std::unsafe::zeroed();
+    let header = Header::empty();
     let hash = header.hash();
 
     // Value from new_contract_data.test.ts "computes empty hash" test

@@ -4,7 +4,7 @@ use dep::types::abis::append_only_tree_snapshot::AppendOnlyTreeSnapshot;
 use crate::tests::previous_rollup_data::default_previous_rollup_data;
 
 pub fn default_merge_rollup_inputs() -> MergeRollupInputs {
-    let mut inputs: MergeRollupInputs = dep::std::unsafe::zeroed();
+    let mut inputs = MergeRollupInputs::empty();
 
     inputs.previous_rollup_data = default_previous_rollup_data();
 

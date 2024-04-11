@@ -20,13 +20,13 @@ pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight,
     build_insertion_leaf: fn(Value, Leaf) -> Leaf,
     _subtree_height: [Field; SubtreeHeight],
     _tree_height: [Field; TreeHeight]
-) -> AppendOnlyTreeSnapshot where Value: Eq + Empty, Leaf: Hash {
+) -> AppendOnlyTreeSnapshot where Value: Eq + Empty, Leaf: Hash + Empty {
     // A permutation to the values is provided to make the insertion use only one insertion strategy
     check_permutation(values_to_insert, sorted_values, sorted_values_indexes);
 
     // Now, update the existing leaves with the new leaves
     let mut current_tree_root = start_snapshot.root;
-    let mut insertion_subtree: [Leaf; SubtreeWidth] = dep::std::unsafe::zeroed();
+    let mut insertion_subtree = [Leaf::empty(); SubtreeWidth];
     let start_insertion_index = start_snapshot.next_available_leaf_index;
 
     for i in 0..sorted_values.len() {

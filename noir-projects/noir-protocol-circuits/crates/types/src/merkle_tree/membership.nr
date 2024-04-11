@@ -1,8 +1,17 @@
-use crate::{merkle_tree::{leaf_preimage::IndexedTreeLeafPreimage, root::root_from_sibling_path}};
+use crate::{merkle_tree::{leaf_preimage::IndexedTreeLeafPreimage, root::root_from_sibling_path}, traits::Empty};
 
 struct MembershipWitness<N> {
     leaf_index: Field,
     sibling_path: [Field; N]
+}
+
+impl<N> Empty for MembershipWitness<N> {
+    fn empty() -> Self {
+        MembershipWitness {
+            leaf_index: 0,
+            sibling_path: [0; N]
+        }
+    }
 }
 
 pub fn check_membership<N>(leaf: Field, index: Field, sibling_path: [Field; N], root: Field) -> bool {

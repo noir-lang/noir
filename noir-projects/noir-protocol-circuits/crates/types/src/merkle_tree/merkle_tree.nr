@@ -1,6 +1,17 @@
+use crate::traits::Empty;
+
 struct MerkleTree<N> {
     leaves: [Field; N],
     nodes: [Field; N],
+}
+
+impl<N> Empty for MerkleTree<N> {
+    fn empty() -> Self {
+        MerkleTree {
+            leaves: [0; N],
+            nodes: [0; N]
+        }
+    }
 }
 
 impl<N> MerkleTree<N> {

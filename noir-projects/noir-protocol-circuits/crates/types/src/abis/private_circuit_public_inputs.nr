@@ -12,7 +12,7 @@ use crate::{
     PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH, GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS
 },
     header::Header, hash::pedersen_hash, messaging::l2_to_l1_message::L2ToL1Message,
-    traits::{Deserialize, Hash, Serialize}, utils::reader::Reader
+    traits::{Deserialize, Hash, Serialize, Empty}, utils::reader::Reader
 };
 
 struct PrivateCircuitPublicInputs {
@@ -168,9 +168,39 @@ impl Hash for PrivateCircuitPublicInputs {
     }
 }
 
+
+impl Empty for PrivateCircuitPublicInputs {
+    fn empty() -> Self {
+        PrivateCircuitPublicInputs {
+            call_context: CallContext::empty(),
+            args_hash: 0,
+            returns_hash: 0,
+            min_revertible_side_effect_counter: 0 as u32,
+            max_block_number: MaxBlockNumber::empty(),
+            note_hash_read_requests: [SideEffect::empty(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
+            nullifier_read_requests: [ReadRequest::empty(); MAX_NULLIFIER_READ_REQUESTS_PER_CALL],
+            nullifier_key_validation_requests: [NullifierKeyValidationRequest::empty(); MAX_NULLIFIER_KEY_VALIDATION_REQUESTS_PER_CALL],
+            new_note_hashes: [SideEffect::empty(); MAX_NEW_NOTE_HASHES_PER_CALL],
+            new_nullifiers: [SideEffectLinkedToNoteHash::empty(); MAX_NEW_NULLIFIERS_PER_CALL],
+            private_call_stack_hashes: [0; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
+            public_call_stack_hashes: [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
+            new_l2_to_l1_msgs: [L2ToL1Message::empty(); MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
+            start_side_effect_counter : 0 as u32,
+            end_side_effect_counter : 0 as u32,
+            encrypted_logs_hash: 0,
+            unencrypted_logs_hash: 0,
+            encrypted_log_preimages_length: 0,
+            unencrypted_log_preimages_length: 0,
+            historical_header: Header::empty(),
+            chain_id: 0,
+            version: 0,
+        }
+    }
+}
+
 #[test]
 fn serialization_of_empty() {
-    let pcpi: PrivateCircuitPublicInputs = dep::std::unsafe::zeroed();
+    let pcpi = PrivateCircuitPublicInputs::empty();
     let serialized = pcpi.serialize();
     let deserialized = PrivateCircuitPublicInputs::deserialize(serialized);
     assert(pcpi.eq(deserialized));
@@ -178,7 +208,7 @@ fn serialization_of_empty() {
 
 #[test]
 fn empty_hash() {
-    let inputs: PrivateCircuitPublicInputs = dep::std::unsafe::zeroed();
+    let inputs = PrivateCircuitPublicInputs::empty();
     let hash = inputs.hash();
 
     // Value from private_circuit_public_inputs.test.ts "computes empty item hash" test

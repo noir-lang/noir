@@ -4,7 +4,6 @@ use dep::types::PublicKernelCircuitPublicInputs;
 use dep::types::abis::kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder;
 use dep::types::utils::arrays::array_to_bounded_vec;
 use crate::common;
-use dep::std::unsafe;
 
 struct PublicKernelAppLogicCircuitPrivateInputs {
     previous_kernel: PublicKernelData,
@@ -22,7 +21,7 @@ impl PublicKernelAppLogicCircuitPrivateInputs {
 
     fn public_kernel_app_logic(self) -> PublicKernelCircuitPublicInputs {
         // construct the circuit outputs
-        let mut public_inputs: PublicKernelCircuitPublicInputsBuilder = unsafe::zeroed();
+        let mut public_inputs = PublicKernelCircuitPublicInputsBuilder::empty();
         common::initialize_revert_code(self.previous_kernel, self.public_call, &mut public_inputs);
 
         // initialise the end state with our provided previous kernel state

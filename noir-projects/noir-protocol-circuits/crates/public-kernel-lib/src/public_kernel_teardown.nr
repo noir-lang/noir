@@ -3,7 +3,6 @@ use dep::types::abis::{
     kernel_circuit_public_inputs::{PublicKernelCircuitPublicInputs, PublicKernelCircuitPublicInputsBuilder},
     kernel_data::PublicKernelData, public_call_data::PublicCallData
 };
-use dep::std::unsafe;
 
 struct PublicKernelTeardownCircuitPrivateInputs {
     previous_kernel: PublicKernelData,
@@ -25,7 +24,7 @@ impl PublicKernelTeardownCircuitPrivateInputs {
 
     fn public_kernel_teardown(self) -> PublicKernelCircuitPublicInputs {
         // construct the circuit outputs
-        let mut public_inputs: PublicKernelCircuitPublicInputsBuilder = unsafe::zeroed();
+        let mut public_inputs = PublicKernelCircuitPublicInputsBuilder::empty();
         // since this phase is non-revertible, we must assert the public call did not revert
         common::validate_public_call_non_revert(self.public_call);
         common::initialize_revert_code(self.previous_kernel, self.public_call, &mut public_inputs);

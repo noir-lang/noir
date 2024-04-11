@@ -1,5 +1,5 @@
 use crate::common;
-use dep::std::{cmp::Eq, option::Option, unsafe};
+use dep::std::{cmp::Eq, option::Option};
 use dep::reset_kernel_lib::{NullifierReadRequestHints, PrivateValidationRequestProcessor};
 use dep::types::{
     abis::{
@@ -40,7 +40,7 @@ impl KernelCircuitPublicInputsComposer {
         sorted_nullifiers_indexes: [u64; MAX_NEW_NULLIFIERS_PER_TX],
         transient_note_hash_index_hints: [u64; MAX_NEW_NULLIFIERS_PER_TX]
     ) -> Self {
-        let public_inputs: PrivateKernelCircuitPublicInputsBuilder = unsafe::zeroed();
+        let public_inputs = PrivateKernelCircuitPublicInputsBuilder::empty();
 
         KernelCircuitPublicInputsComposer {
             public_inputs,

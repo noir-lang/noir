@@ -12,7 +12,6 @@ use dep::types::{
     utils::{arrays::{array_length, array_merge, array_to_bounded_vec, assert_sorted_array}},
     hash::silo_nullifier, traits::is_empty
 };
-use dep::std::unsafe;
 
 struct PublicKernelTailCircuitPrivateInputs {
     previous_kernel: PublicKernelData,
@@ -101,7 +100,7 @@ impl PublicKernelTailCircuitPrivateInputs {
     }
 
     pub fn public_kernel_tail(self) -> KernelCircuitPublicInputs {
-        let mut public_inputs: PublicKernelCircuitPublicInputsBuilder = unsafe::zeroed();
+        let mut public_inputs = PublicKernelCircuitPublicInputsBuilder::empty();
 
         self.validate_inputs();
 

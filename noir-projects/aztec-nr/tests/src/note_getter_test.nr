@@ -10,7 +10,7 @@ use crate::mock::test_note::TestNote;
 
 #[test]
 fn sets_note_manually_and_fetches_it() {
-    let mut context: PrivateContext = dep::std::unsafe::zeroed();
+    let mut context = PrivateContext::empty();
     context.inputs.call_context.storage_contract_address = AztecAddress::from_field(69);
 
     let mut test_note = TestNote::new(1337);
@@ -28,7 +28,7 @@ fn sets_note_manually_and_fetches_it() {
 
 #[test(should_fail)]
 fn cannot_return_zero_notes() {
-    let mut context: PrivateContext = dep::std::unsafe::zeroed();
+    let mut context = PrivateContext::empty();
     let storage_slot: Field = 0;
     let mut opt_notes: [Option<TestNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = [Option::none(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL];
 
@@ -38,7 +38,7 @@ fn cannot_return_zero_notes() {
 
 #[test(should_fail)]
 fn mismatched_address() {
-    let mut context: PrivateContext = dep::std::unsafe::zeroed();
+    let mut context = PrivateContext::empty();
     context.inputs.call_context.storage_contract_address = AztecAddress::from_field(1);
 
     let storage_slot: Field = 0;
@@ -51,7 +51,7 @@ fn mismatched_address() {
 
 #[test(should_fail)]
 fn mismatched_storage_slot() {
-    let mut context: PrivateContext = dep::std::unsafe::zeroed();
+    let mut context = PrivateContext::empty();
     context.inputs.call_context.storage_contract_address = AztecAddress::from_field(1);
 
     let mut test_note = TestNote::new(1);
@@ -68,7 +68,7 @@ fn mismatched_storage_slot() {
 
 #[test(should_fail)]
 fn invalid_selector() {
-    let mut context: PrivateContext = dep::std::unsafe::zeroed();
+    let mut context = PrivateContext::empty();
     context.inputs.call_context.storage_contract_address = AztecAddress::from_field(1);
 
     let mut test_note = TestNote::new(1);
@@ -90,7 +90,7 @@ fn invalid_selector() {
 
 #[test(should_fail)]
 fn invalid_note_order() {
-    let mut context: PrivateContext = dep::std::unsafe::zeroed();
+    let mut context = PrivateContext::empty();
 
     let mut opt_notes: [Option<TestNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = [Option::none(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL];
     opt_notes[0] = Option::some(TestNote::new(1));
@@ -108,7 +108,7 @@ fn invalid_note_order() {
 
 #[test]
 fn sparse_notes_array() {
-    let mut context: PrivateContext = dep::std::unsafe::zeroed();
+    let mut context = PrivateContext::empty();
 
     let mut opt_notes: [Option<TestNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = [Option::none(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL];
     opt_notes[1] = Option::some(TestNote::new(0));
