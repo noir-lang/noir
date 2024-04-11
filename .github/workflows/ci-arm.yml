@@ -1,0 +1,70 @@
+name: CI
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      runner_action:
+        description: "The action to take with the self-hosted runner (start, stop, restart)."
+        required: false
+      just_start_spot:
+        description: "Should we just run spots?"
+        type: boolean
+        required: false
+concurrency:
+  # force parallelism in master, cancelling in branches (only relevant to workflow_dispatch)
+  group: ci-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  setup:
+    uses: ./.github/workflows/setup-runner.yml
+    with:
+      runner_label: master-arm
+      ebs_cache_size_gb: 128
+      runner_concurrency: 8
+      ec2_instance_type: r6g.16xlarge
+      ec2_ami_id: ami-0d8a9b0419ddb331a
+      ec2_instance_ttl: 40 # refreshed by jobs
+    secrets: inherit
+
+  build:
+    needs: setup
+    runs-on: master-arm
+    timeout-minutes: 40
+    steps:
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_token: "${{ secrets.AZTEC_GITHUB_TOKEN }}"
+          # must be globally unique for build x runner
+          concurrency_key: build-master-arm
+      # prepare images locally, tagged by commit hash
+      - run: earthly ./yarn-project+export-end-to-end
+
+  # all the end-to-end integration tests for aztec
+  e2e:
+    needs: build
+    runs-on: master-arm
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - e2e-card-game
+          - e2e-crowdfunding-and-claim
+    steps:
+      - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+          concurrency_token: "${{ secrets.AZTEC_GITHUB_TOKEN }}"
+          concurrency_key: e2e-master-arm
+      # Ensure that a test only ever is running one e2e at a time
+      - name: Set up mutex
+        uses: ben-z/gh-action-mutex@v1.0.0-alpha.9
+        with:
+          branch: gh-action-mutex-e2e-arm-master-${{ matrix.test }}
+      - name: Test
+        working-directory: ./yarn-project/end-to-end/
+        run: earthly -P --no-output +${{ matrix.test }} --e2e_mode=cache

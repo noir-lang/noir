@@ -1,0 +1,91 @@
+
+# Start cheap (~1/8th the cost of on demand, ~13th the cost of large GA runners) spot builders
+# just for the CI job. These are specced per user and run the entire CI.
+# TODO These have a persistent EBS volume that forms a fast-online docker image cache (used by Earthly), meaning
+# TODO build steps that ran in previous invocations are quickly ran from cache.
+name: Reusable Spot Instance and Setup Workflow
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        required: true
+        type: string
+      runner_concurrency:
+        required: true
+        type: number
+      ec2_instance_type:
+        required: true
+        type: string
+      ec2_ami_id:
+        required: true
+        type: string
+      ec2_instance_ttl:
+        required: true
+        type: number
+      ec2_subnet_id:
+        default: subnet-4cfabd25
+        type: string
+      ec2_security_group_id:
+        default: sg-0ccd4e5df0dcca0c9
+        type: string
+      ec2_spot_instance_strategy:
+        default: BestEffort
+        type: string
+      aws_region:
+        default: "us-east-2"
+        type: string
+      ebs_cache_size_gb:
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      GH_SELF_HOSTED_RUNNER_TOKEN:
+        required: true
+      DOCKERHUB_PASSWORD:
+        required: true
+jobs:
+  start-builder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start EC2 runner
+        uses: AztecProtocol/ec2-action-builder@v0.3
+        with:
+          github_token: ${{ secrets.GH_SELF_HOSTED_RUNNER_TOKEN }}
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_region: ${{ inputs.aws_region }}
+          ec2_subnet_id: ${{ inputs.ec2_subnet_id }}
+          ec2_security_group_id: ${{ inputs.ec2_security_group_id }}
+          ec2_spot_instance_strategy: ${{ inputs.ec2_spot_instance_strategy }}
+          runner_label: ${{ inputs.runner_label }}
+          runner_concurrency: ${{ inputs.runner_concurrency }}
+          ec2_instance_type: ${{ inputs.ec2_instance_type }}
+          ec2_ami_id: ${{ inputs.ec2_ami_id }}
+          ec2_instance_ttl: ${{ inputs.ec2_instance_ttl }}
+          ec2_instance_tags: '[{"Key": "Keep-Alive", "Value": "true"}]'
+
+  setup:
+    needs: start-builder
+    runs-on: ${{ inputs.runner_label }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup CI
+        uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Attach EBS Cache Disk
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: ./scripts/attach_ebs_cache.sh ${{ inputs.runner_label }} 128
+
+      - name: Run Earthly Bootstrap
+        run: earthly bootstrap

@@ -78,7 +78,7 @@ jobs:
           fi
 
           BASE_NOIR_COMMIT="$LAST_PR_MERGE"
-          COMMIT=$(git rev-parse HEAD)            
+          COMMIT=$(git rev-parse HEAD)
           COMMIT_MESSAGE=$(git log -1 --pretty=format:%B)
           # Fix Aztec PR links and output message
           COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed -E 's/\(#([0-9]+)\)/(https:\/\/github.com\/AztecProtocol\/aztec-packages\/pull\/\1)/g')
