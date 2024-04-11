@@ -24,7 +24,8 @@ struct ProgramExecutor<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> {
     call_stack: Vec<ResolvedOpcodeLocation>,
 
     // Tracks the index of the current function we are executing.
-    // This is used for resolving call stack locations across many function calls.
+    // This is used to fetch the function we want to execute
+    // and to resolve call stack locations across many function calls.
     current_function_index: usize,
 }
 
@@ -49,11 +50,8 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn execute_circuit(
-        &mut self,
-        circuit: &Circuit,
-        initial_witness: WitnessMap,
-    ) -> Result<WitnessMap, NargoError> {
+    fn execute_circuit(&mut self, initial_witness: WitnessMap) -> Result<WitnessMap, NargoError> {
+        let circuit = &self.functions[self.current_function_index];
         let mut acvm = ACVM::new(self.blackbox_solver, &circuit.opcodes, initial_witness);
 
         // This message should be resolved by a nargo foreign call only when we have an unsatisfied assertion.
@@ -152,8 +150,7 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                     // Execute the ACIR call
                     let acir_to_call = &self.functions[call_info.id as usize];
                     let initial_witness = call_info.initial_witness;
-                    let call_solved_witness =
-                        self.execute_circuit(acir_to_call, initial_witness)?;
+                    let call_solved_witness = self.execute_circuit(initial_witness)?;
 
                     // Set tracking index back to the parent function after ACIR call execution
                     self.current_function_index = acir_function_caller;
@@ -189,11 +186,9 @@ pub fn execute_program<B: BlackBoxFunctionSolver, F: ForeignCallExecutor>(
     blackbox_solver: &B,
     foreign_call_executor: &mut F,
 ) -> Result<WitnessStack, NargoError> {
-    let main = &program.functions[0];
-
     let mut executor =
         ProgramExecutor::new(&program.functions, blackbox_solver, foreign_call_executor);
-    let main_witness = executor.execute_circuit(main, initial_witness)?;
+    let main_witness = executor.execute_circuit(initial_witness)?;
     executor.witness_stack.push(0, main_witness);
 
     Ok(executor.finalize())
