@@ -1,0 +1,43 @@
+# Useful if the spot runners are in a bad state
+name: Stop Personal Spot
+on:
+  workflow_dispatch: {}
+jobs:
+  stop-build-arm:
+    uses: ./.github/workflows/setup-runner.yml
+    with:
+      runner_label: ${{ github.actor }}-arm
+      subaction: stop
+      # not used:
+      ebs_cache_size_gb: 128
+      runner_concurrency: 8
+      ec2_instance_type: r6g.16xlarge
+      ec2_ami_id: ami-0d8a9b0419ddb331a
+      ec2_instance_ttl: 40
+    secrets: inherit
+
+  stop-build-x86:
+    uses: ./.github/workflows/setup-runner.yml
+    with:
+      runner_label: ${{ github.actor }}-x86
+      subaction: stop
+      # not used:
+      ebs_cache_size_gb: 128
+      runner_concurrency: 50
+      ec2_instance_type: m6a.32xlarge
+      ec2_ami_id: ami-0d8a9b0419ddb331a
+      ec2_instance_ttl: 40
+    secrets: inherit
+
+  stop-bench:
+    uses: ./.github/workflows/setup-runner.yml
+    with:
+      runner_label: ${{ github.actor }}-bench-x86
+      subaction: stop
+      # not used:
+      ebs_cache_size_gb: 32
+      runner_concurrency: 1
+      ec2_instance_type: m6a.4xlarge
+      ec2_ami_id: ami-0d8a9b0419ddb331a
+      ec2_instance_ttl: 15
+    secrets: inherit

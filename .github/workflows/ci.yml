@@ -23,8 +23,9 @@ jobs:
       runner_label: ${{ github.actor }}-x86
       ebs_cache_size_gb: 128
       runner_concurrency: 50
+      subaction: ${{ github.event.inputs.runner_action || 'start' }}
       ec2_instance_type: m6a.32xlarge
-      ec2_ami_id: ami-0d8a9b0419ddb331a
+      ec2_ami_id: ami-04d8422a9ba4de80f
       ec2_instance_ttl: 40 # refreshed by jobs
     secrets: inherit
 
@@ -70,7 +71,7 @@ jobs:
           concurrency_key: e2e-${{ github.actor }}-x86-${{ matrix.test }}
       - name: Test
         working-directory: ./yarn-project/end-to-end/
-        timeout-minutes: 15
+        timeout-minutes: 25
         run: earthly -P --no-output +${{ matrix.test }} --e2e_mode=cache
       # TODO
       # - name: Upload logs
@@ -111,7 +112,7 @@ jobs:
           concurrency_key: bb-bench-binaries-${{ github.actor }}-x86
       - name: Build and Push Binaries
         if: ${{ github.event.inputs.just_start_spot != 'true' }}
-        timeout-minutes: 25
+        timeout-minutes: 15
         working-directory: ./barretenberg/cpp/
         run: earthly --push +bench-binaries
 
@@ -122,8 +123,9 @@ jobs:
       runner_label: ${{ github.actor }}-bench-x86
       ebs_cache_size_gb: 32
       runner_concurrency: 1
+      subaction: ${{ github.event.inputs.runner_action || 'start' }}
       ec2_instance_type: m6a.4xlarge
-      ec2_ami_id: ami-0d8a9b0419ddb331a
+      ec2_ami_id: ami-04d8422a9ba4de80f
       ec2_instance_ttl: 15 # refreshed by jobs
     secrets: inherit
 
@@ -148,7 +150,7 @@ jobs:
       - name: Ultrahonk Bench
         working-directory: ./barretenberg/cpp/
         timeout-minutes: 15
-        run: earthly --no-output +bench-ulAtra-honk --bench_mode=cache
+        run: earthly --no-output +bench-ultra-honk --bench_mode=cache
 
   # # Post actions, deploy and summarize logs
   # aztec-bench-summary:

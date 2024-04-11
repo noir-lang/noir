@@ -37,6 +37,9 @@ on:
       ebs_cache_size_gb:
         required: true
         type: string
+      subaction:
+        required: true
+        type: string
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -61,6 +64,7 @@ jobs:
           ec2_security_group_id: ${{ inputs.ec2_security_group_id }}
           ec2_spot_instance_strategy: ${{ inputs.ec2_spot_instance_strategy }}
           runner_label: ${{ inputs.runner_label }}
+          subaction: ${{inputs.subaction }}
           runner_concurrency: ${{ inputs.runner_concurrency }}
           ec2_instance_type: ${{ inputs.ec2_instance_type }}
           ec2_ami_id: ${{ inputs.ec2_ami_id }}
