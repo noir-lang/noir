@@ -1,9 +1,8 @@
 [package]
-name = "avm_test_contract"
+name = "avm_nested_calls_test_contract"
 authors = [""]
 compiler_version = ">=0.25.0"
 type = "contract"
 
 [dependencies]
 aztec = { path = "../../../aztec-nr/aztec" }
-compressed_string = { path = "../../../aztec-nr/compressed-string" }
