@@ -5,6 +5,12 @@ struct Point {
     y: Field,
 }
 
+impl Eq for Point {
+    fn eq(self, other: Point) -> bool {
+        (self.x == other.x) & (self.y == other.y)
+    }
+}
+
 #[oracle(void_field)]
 unconstrained fn void_field_oracle() -> Field {}
 
@@ -76,6 +82,23 @@ fn test_multiple_mock_with_params() {
 }
 
 #[test]
+fn test_mock_last_params() {
+    let mock = OracleMock::mock("field_field").returns(10);
+    assert_eq(field_field(5), 10);
+
+    assert_eq(mock.get_last_params(), 5);
+}
+
+#[test]
+fn test_mock_last_params_many_calls() {
+    let mock = OracleMock::mock("field_field").returns(10);
+    assert_eq(field_field(5), 10);
+    assert_eq(field_field(7), 10);
+
+    assert_eq(mock.get_last_params(), 7);
+}
+
+#[test]
 fn test_mock_struct_field() {
     // Combination of simpler test cases
 
@@ -91,6 +114,10 @@ fn test_mock_struct_field() {
     // The times(2) mock is now cleared
 
     assert_eq(0, struct_field(point, array));
+
+    let last_params: (Point, [Field; 4]) = timeless_mock.get_last_params();
+    assert_eq(last_params.0, point);
+    assert_eq(last_params.1, array);
 
     // We clear the mock with no times() to allow other mocks to be callable
     timeless_mock.clear();
