@@ -50,6 +50,8 @@ impl Ssa {
             // Do a mem2reg after the last unroll to aid simplify_cfg
             ssa = ssa.mem2reg();
             ssa = ssa.simplify_cfg();
+            // Do another mem2reg after simplify_cfg to aid the next unroll
+            ssa = ssa.mem2reg();
 
             // Unroll again
             (ssa, unroll_errors) = ssa.try_to_unroll_loops();
