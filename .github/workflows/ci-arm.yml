@@ -1,4 +1,4 @@
-name: CI
+name: CI (ARM)
 on:
   push:
     branches: [master]
