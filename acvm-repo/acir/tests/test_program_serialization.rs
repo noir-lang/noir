@@ -380,10 +380,18 @@ fn nested_acir_call_circuit() {
     //     assert(x == y);
     //     x
     // }
-    let nested_call =
-        Opcode::Call { id: 1, inputs: vec![Witness(0), Witness(1)], outputs: vec![Witness(2)] };
-    let nested_call_two =
-        Opcode::Call { id: 1, inputs: vec![Witness(0), Witness(1)], outputs: vec![Witness(3)] };
+    let nested_call = Opcode::Call {
+        id: 1,
+        inputs: vec![Witness(0), Witness(1)],
+        outputs: vec![Witness(2)],
+        predicate: None,
+    };
+    let nested_call_two = Opcode::Call {
+        id: 1,
+        inputs: vec![Witness(0), Witness(1)],
+        outputs: vec![Witness(3)],
+        predicate: None,
+    };
 
     let assert_nested_call_results = Opcode::AssertZero(Expression {
         mul_terms: Vec::new(),
@@ -410,8 +418,12 @@ fn nested_acir_call_circuit() {
         ],
         q_c: FieldElement::one() + FieldElement::one(),
     });
-    let call =
-        Opcode::Call { id: 2, inputs: vec![Witness(2), Witness(1)], outputs: vec![Witness(3)] };
+    let call = Opcode::Call {
+        id: 2,
+        inputs: vec![Witness(2), Witness(1)],
+        outputs: vec![Witness(3)],
+        predicate: None,
+    };
 
     let nested_call = Circuit {
         current_witness_index: 3,
@@ -444,14 +456,14 @@ fn nested_acir_call_circuit() {
 
     let expected_serialization: Vec<u8> = vec![
         31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 205, 146, 97, 10, 195, 32, 12, 133, 163, 66, 207, 147,
-        24, 109, 227, 191, 93, 101, 50, 123, 255, 35, 172, 99, 25, 83, 17, 250, 99, 14, 250, 224,
-        97, 144, 16, 146, 143, 231, 224, 45, 167, 126, 105, 57, 108, 14, 91, 248, 202, 168, 65,
-        255, 207, 122, 28, 180, 250, 244, 221, 244, 197, 223, 68, 182, 154, 197, 184, 134, 80, 54,
-        95, 136, 233, 142, 62, 101, 137, 24, 98, 94, 133, 132, 162, 196, 135, 23, 230, 34, 65, 182,
-        148, 211, 134, 137, 2, 23, 218, 99, 226, 93, 135, 185, 121, 123, 33, 84, 12, 234, 218, 192,
-        64, 174, 3, 248, 47, 88, 48, 17, 150, 157, 183, 151, 95, 244, 86, 91, 221, 61, 10, 81, 31,
-        178, 190, 110, 194, 102, 96, 76, 251, 202, 80, 13, 204, 77, 224, 25, 176, 70, 79, 197, 128,
-        18, 64, 3, 4, 0, 0,
+        24, 173, 241, 223, 174, 50, 153, 189, 255, 17, 214, 177, 148, 89, 17, 250, 99, 14, 246,
+        224, 97, 144, 16, 146, 143, 231, 224, 45, 167, 126, 105, 217, 109, 118, 91, 248, 200, 168,
+        225, 248, 191, 106, 114, 208, 233, 104, 188, 233, 139, 223, 137, 108, 51, 139, 113, 13,
+        161, 38, 95, 137, 233, 142, 62, 23, 137, 24, 98, 89, 133, 132, 162, 196, 135, 23, 230, 42,
+        65, 82, 46, 57, 97, 166, 192, 149, 182, 152, 121, 211, 97, 110, 222, 94, 8, 13, 132, 182,
+        54, 48, 144, 235, 8, 254, 10, 22, 76, 132, 101, 231, 237, 229, 23, 189, 213, 54, 119, 15,
+        83, 212, 199, 172, 175, 79, 113, 51, 48, 198, 253, 207, 84, 13, 204, 141, 224, 21, 176,
+        147, 158, 66, 231, 43, 145, 6, 4, 0, 0,
     ];
     assert_eq!(bytes, expected_serialization);
 }

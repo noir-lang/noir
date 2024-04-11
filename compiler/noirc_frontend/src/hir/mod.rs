@@ -26,7 +26,7 @@ pub type ParsedFiles = HashMap<fm::FileId, (ParsedModule, Vec<ParserError>)>;
 pub struct Context<'file_manager, 'parsed_files> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
-    pub(crate) def_maps: BTreeMap<CrateId, CrateDefMap>,
+    pub def_maps: BTreeMap<CrateId, CrateDefMap>,
     // In the WASM context, we take ownership of the file manager,
     // which is why this needs to be a Cow. In all use-cases, the file manager
     // is read-only however, once it has been passed to the Context.

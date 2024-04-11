@@ -607,4 +607,55 @@ mod test {
         assert_eq!(main.dfg[instructions[4]], Instruction::Constrain(v1, v_true, None));
         assert_eq!(main.dfg[instructions[5]], Instruction::Constrain(v2, v_false, None));
     }
+
+    // Regression for #4600
+    #[test]
+    fn array_get_regression() {
+        // fn main f0 {
+        //   b0(v0: u1, v1: u64):
+        //     enable_side_effects_if v0
+        //     v2 = array_get [Field 0, Field 1], index v1
+        //     v3 = not v0
+        //     enable_side_effects_if v3
+        //     v4 = array_get [Field 0, Field 1], index v1
+        // }
+        //
+        // We want to make sure after constant folding both array_gets remain since they are
+        // under different enable_side_effects_if contexts and thus one may be disabled while
+        // the other is not. If one is removed, it is possible e.g. v4 is replaced with v2 which
+        // is disabled (only gets from index 0) and thus returns the wrong result.
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let v0 = builder.add_parameter(Type::bool());
+        let v1 = builder.add_parameter(Type::unsigned(64));
+
+        builder.insert_enable_side_effects_if(v0);
+
+        let zero = builder.field_constant(0u128);
+        let one = builder.field_constant(1u128);
+
+        let typ = Type::Array(Rc::new(vec![Type::field()]), 2);
+        let array = builder.array_constant(vec![zero, one].into(), typ);
+
+        let _v2 = builder.insert_array_get(array, v1, Type::field());
+        let v3 = builder.insert_not(v0);
+
+        builder.insert_enable_side_effects_if(v3);
+        let _v4 = builder.insert_array_get(array, v1, Type::field());
+
+        // Expected output is unchanged
+        let ssa = builder.finish();
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        let starting_instruction_count = instructions.len();
+        assert_eq!(starting_instruction_count, 5);
+
+        let ssa = ssa.fold_constants();
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        let ending_instruction_count = instructions.len();
+        assert_eq!(starting_instruction_count, ending_instruction_count);
+    }
 }
