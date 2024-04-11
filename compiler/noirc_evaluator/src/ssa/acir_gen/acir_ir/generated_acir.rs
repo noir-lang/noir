@@ -240,11 +240,7 @@ impl GeneratedAcir {
                     }
                 };
 
-                BlackBoxFuncCall::Keccak256VariableLength {
-                    inputs: inputs[0].clone(),
-                    var_message_size,
-                    outputs,
-                }
+                BlackBoxFuncCall::Keccak256 { inputs: inputs[0].clone(), var_message_size, outputs }
             }
             BlackBoxFunc::Keccakf1600 => {
                 BlackBoxFuncCall::Keccakf1600 { inputs: inputs[0].clone(), outputs }
