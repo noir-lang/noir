@@ -43,11 +43,11 @@ ECCVMCircuitBuilder generate_circuit(numeric::RNG* engine = nullptr)
     op_queue->mul_accumulate(b, y);
     op_queue->add_accumulate(a);
     op_queue->mul_accumulate(b, x);
-    op_queue->eq();
+    op_queue->eq_and_reset();
     op_queue->add_accumulate(c);
     op_queue->mul_accumulate(a, x);
     op_queue->mul_accumulate(b, x);
-    op_queue->eq();
+    op_queue->eq_and_reset();
     op_queue->mul_accumulate(a, x);
     op_queue->mul_accumulate(b, x);
     op_queue->mul_accumulate(c, x);
@@ -68,17 +68,10 @@ TEST_F(ECCVMComposerTests, BaseCase)
 
 TEST_F(ECCVMComposerTests, EqFails)
 {
-    using ECCVMOperation = eccvm::VMOperation<G1>;
     auto builder = generate_circuit(&engine);
     // Tamper with the eq op such that the expected value is incorect
-    builder.op_queue->raw_ops.emplace_back(ECCVMOperation{ .add = false,
-                                                           .mul = false,
-                                                           .eq = true,
-                                                           .reset = true,
-                                                           .base_point = G1::affine_one,
-                                                           .z1 = 0,
-                                                           .z2 = 0,
-                                                           .mul_scalar_full = 0 });
+    builder.op_queue->add_erroneous_equality_op_for_testing();
+
     builder.op_queue->num_transcript_rows++;
     ECCVMProver prover(builder);
 

@@ -734,10 +734,10 @@ TEST_F(GoblinTranslatorRelationCorrectnessTests, NonNative)
     for (size_t i = 0; i < ((mini_circuit_size >> 1) - 1); i++) {
         switch (engine.get_random_uint8() & 3) {
         case 0:
-            op_queue->empty_row();
+            op_queue->empty_row_for_testing();
             break;
         case 1:
-            op_queue->eq();
+            op_queue->eq_and_reset();
             break;
         case 2:
             op_queue->add_accumulate(GroupElement::random_element(&engine));

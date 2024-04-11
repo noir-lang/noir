@@ -6,10 +6,11 @@ using namespace bb;
 TEST(ECCOpQueueTest, Basic)
 {
     ECCOpQueue op_queue;
+    const auto& raw_ops = op_queue.get_raw_ops();
     op_queue.add_accumulate(bb::g1::affine_one);
-    EXPECT_EQ(op_queue.raw_ops[0].base_point, bb::g1::affine_one);
-    op_queue.empty_row();
-    EXPECT_EQ(op_queue.raw_ops[1].add, false);
+    EXPECT_EQ(raw_ops[0].base_point, bb::g1::affine_one);
+    op_queue.empty_row_for_testing();
+    EXPECT_EQ(raw_ops[1].add, false);
 }
 
 TEST(ECCOpQueueTest, InternalAccumulatorCorrectness)
@@ -31,10 +32,8 @@ TEST(ECCOpQueueTest, InternalAccumulatorCorrectness)
     // The correct result should now be stored in the accumulator within the op queue
     EXPECT_EQ(op_queue.get_accumulator(), P_expected);
 
-    // Equivalently, we can check that the equality op returns the correct point
-    EXPECT_EQ(op_queue.eq(), P_expected);
-
     // Adding an equality op should reset the accumulator to zero (the point at infinity)
+    op_queue.eq_and_reset();
     EXPECT_TRUE(op_queue.get_accumulator().is_point_at_infinity());
 }
 
@@ -52,25 +51,29 @@ TEST(ECCOpQueueTest, PrependAndSwapTests)
     ECCOpQueue op_queue_a;
     op_queue_a.add_accumulate(P1 + P1);
     op_queue_a.mul_accumulate(P2, z + z);
-    op_queue_a.reset();
+    op_queue_a.eq_and_reset();
     // Add different operations to b
     ECCOpQueue op_queue_b;
     op_queue_b.mul_accumulate(P2, z);
     op_queue_b.add_accumulate(P1);
-    op_queue_b.reset();
+    op_queue_b.eq_and_reset();
 
     // Add same operations as to a
     ECCOpQueue op_queue_c;
     op_queue_c.add_accumulate(P1 + P1);
     op_queue_c.mul_accumulate(P2, z + z);
-    op_queue_c.reset();
+    op_queue_c.eq_and_reset();
+
+    const auto& raw_ops_a = op_queue_a.get_raw_ops();
+    const auto& raw_ops_b = op_queue_b.get_raw_ops();
+    const auto& raw_ops_c = op_queue_c.get_raw_ops();
 
     // Swap b with a
     std::swap(op_queue_b, op_queue_a);
 
     // Check b==c
-    for (size_t i = 0; i < op_queue_c.raw_ops.size(); i++) {
-        EXPECT_EQ(op_queue_b.raw_ops[i], op_queue_c.raw_ops[i]);
+    for (size_t i = 0; i < raw_ops_c.size(); i++) {
+        EXPECT_EQ(raw_ops_b[i], raw_ops_c[i]);
     }
 
     // Prepend b to a
@@ -79,10 +82,10 @@ TEST(ECCOpQueueTest, PrependAndSwapTests)
     // Append same operations as now in a to c
     op_queue_c.mul_accumulate(P2, z);
     op_queue_c.add_accumulate(P1);
-    op_queue_c.reset();
+    op_queue_c.eq_and_reset();
 
     // Check a==c
-    for (size_t i = 0; i < op_queue_c.raw_ops.size(); i++) {
-        EXPECT_EQ(op_queue_a.raw_ops[i], op_queue_c.raw_ops[i]);
+    for (size_t i = 0; i < raw_ops_c.size(); i++) {
+        EXPECT_EQ(raw_ops_a[i], raw_ops_c[i]);
     }
 }

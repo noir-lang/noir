@@ -520,7 +520,7 @@ class ECCVMFlavor {
 
             std::array<std::vector<size_t>, 2> point_table_read_counts;
             const auto transcript_state = ECCVMTranscriptBuilder::compute_transcript_state(
-                builder.op_queue->raw_ops, builder.get_number_of_muls());
+                builder.op_queue->get_raw_ops(), builder.get_number_of_muls());
             const auto precompute_table_state = ECCVMPrecomputedTablesBuilder::compute_precompute_state(flattened_muls);
             const auto msm_state = ECCVMMSMMBuilder::compute_msm_state(
                 msms, point_table_read_counts, builder.get_number_of_muls(), builder.op_queue->get_num_msm_rows());

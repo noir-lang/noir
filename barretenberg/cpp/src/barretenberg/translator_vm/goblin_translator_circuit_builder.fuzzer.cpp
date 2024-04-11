@@ -23,14 +23,15 @@ extern "C" int LLVMFuzzerTestOneInput(const unsigned char* data, size_t size)
     auto z_1_accumulator = Fq(0);
     auto z_2_accumulator = Fq(0);
     // Compute the batched evaluation of polynomials (multiplying by inverse to go from lower to higher)
-    for (auto& ecc_op : op_queue->raw_ops) {
+    const auto& raw_ops = op_queue->get_raw_ops();
+    for (const auto& ecc_op : raw_ops) {
         op_accumulator = op_accumulator * x_inv + ecc_op.get_opcode_value();
         p_x_accumulator = p_x_accumulator * x_inv + ecc_op.base_point.x;
         p_y_accumulator = p_y_accumulator * x_inv + ecc_op.base_point.y;
         z_1_accumulator = z_1_accumulator * x_inv + ecc_op.z1;
         z_2_accumulator = z_2_accumulator * x_inv + ecc_op.z2;
     }
-    Fq x_pow = x.pow(op_queue->raw_ops.size() - 1);
+    Fq x_pow = x.pow(raw_ops.size() - 1);
 
     // Multiply by an appropriate power of x to get rid of the inverses
     Fq result = ((((z_2_accumulator * batching_challenge + z_1_accumulator) * batching_challenge + p_y_accumulator) *

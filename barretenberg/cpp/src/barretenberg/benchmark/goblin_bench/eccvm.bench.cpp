@@ -35,7 +35,7 @@ Builder generate_trace(size_t target_num_gates)
         op_queue->mul_accumulate(b, y);
         op_queue->add_accumulate(a);
         op_queue->mul_accumulate(b, x);
-        op_queue->eq();
+        op_queue->eq_and_reset();
     }
 
     Builder builder{ op_queue };

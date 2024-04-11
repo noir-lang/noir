@@ -15,7 +15,7 @@ MergeProver_<Flavor>::MergeProver_(const std::shared_ptr<ECCOpQueue>& op_queue)
     // Update internal size data in the op queue that allows for extraction of e.g. previous aggregate transcript
     op_queue->set_size_data();
     // Get the appropriate commitment based on the updated ultra ops size
-    pcs_commitment_key = std::make_shared<CommitmentKey>(op_queue->current_ultra_ops_size);
+    pcs_commitment_key = std::make_shared<CommitmentKey>(op_queue->get_current_size());
 }
 
 /**
@@ -55,7 +55,7 @@ template <typename Flavor> HonkProof MergeProver_<Flavor>::construct_proof()
     std::array<Commitment, NUM_WIRES> C_T_current;
     for (size_t idx = 0; idx < t_shift.size(); ++idx) {
         // Get previous transcript commitment [T_{i-1}] from op queue
-        auto C_T_prev = op_queue->ultra_ops_commitments[idx];
+        const auto& C_T_prev = op_queue->get_ultra_ops_commitments()[idx];
         // Compute commitment [t_i^{shift}] directly
         auto C_t_shift = pcs_commitment_key->commit(t_shift[idx]);
         // Compute updated aggregate transcript commitment as [T_i] = [T_{i-1}] + [t_i^{shift}]

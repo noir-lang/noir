@@ -76,7 +76,7 @@ std::optional<std::tuple<Fq, Fq, std::shared_ptr<ECCOpQueue>>> parse_and_constru
     auto padding_element = G1(p_x, p_y);
     auto padding_scalar = -Fr::one();
     auto ecc_op_queue = std::make_shared<ECCOpQueue>();
-    ecc_op_queue->raw_ops = raw_ops;
+    ecc_op_queue->set_raw_ops_for_fuzzing(raw_ops);
     ecc_op_queue->mul_accumulate(padding_element, padding_scalar);
 
     // Return the batching challenge, evaluation challenge and the constructed queue
