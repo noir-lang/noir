@@ -46,8 +46,10 @@ impl Ssa {
             let prev_unroll_err_count = unroll_errors.len();
 
             // Simplify the SSA before retrying
-            ssa = ssa.simplify_cfg();
+
+            // Do a mem2reg after the last unroll to aid simplify_cfg
             ssa = ssa.mem2reg();
+            ssa = ssa.simplify_cfg();
 
             // Unroll again
             (ssa, unroll_errors) = ssa.try_to_unroll_loops();
