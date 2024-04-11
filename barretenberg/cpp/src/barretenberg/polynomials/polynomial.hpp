@@ -68,6 +68,24 @@ template <typename Fr> class Polynomial {
         size_ = 0;
     }
 
+    /**
+     * @brief Check whether or not a polynomial is identically zero
+     *
+     */
+    bool is_zero()
+    {
+        if (is_empty()) {
+            ASSERT(false);
+            info("Checking is_zero on an empty Polynomial!");
+        }
+        for (size_t i = 0; i < size(); i++) {
+            if (coefficients_[i] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     bool operator==(Polynomial const& rhs) const;
 
     // Const and non const versions of coefficient accessors

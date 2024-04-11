@@ -26,10 +26,6 @@ class ECCVMProver {
     using CircuitBuilder = typename Flavor::CircuitBuilder;
 
   public:
-    explicit ECCVMProver(const std::shared_ptr<ProvingKey>& input_key,
-                         const std::shared_ptr<CommitmentKey>& commitment_key,
-                         const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
-
     explicit ECCVMProver(CircuitBuilder& builder,
                          const std::shared_ptr<Transcript>& transcript = std::make_shared<Transcript>());
 
