@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   # Start cheap (~1/8th the cost of on demand, ~13th the cost of large GA runners) spot builders
-  # just for the CI job. These are specced per user and run the entire CI. 
+  # just for the CI job. These are specced per user and run the entire CI.
   # TODO These have a persistent EBS volume that forms a fast-online docker image cache (used by Earthly), meaning
   # TODO build steps that ran in previous invocations are quickly ran from cache.
   start-builder:
@@ -30,8 +30,8 @@ jobs:
     strategy:
       matrix:
         config:
-          - {ec2_instance_type: m6a.16xlarge, runner_concurrency: 50, ec2_ami_id: ami-04d8422a9ba4de80f, runner_label_suffix: x86}
-          - {ec2_instance_type: r6g.16xlarge, runner_concurrency: 2, ec2_ami_id: ami-0d8a9b0419ddb331a, runner_label_suffix: arm}
+          - {ec2_instance_type: m6a.32xlarge, runner_concurrency: 50, ec2_ami_id: ami-04d8422a9ba4de80f, runner_label_suffix: x86}
+          - {ec2_instance_type: r6g.16xlarge, runner_concurrency: 8, ec2_ami_id: ami-0d8a9b0419ddb331a, runner_label_suffix: arm}
     steps:
       - name: Start EC2 runner
         id: start-ec2-runner
@@ -60,6 +60,8 @@ jobs:
   # prevents concurrency issues with multiple (implicit) earthly bootstraps
   setup-arm:
     needs: start-builder
+    timeout-minutes: 5
+    if: ${{ github.event.inputs.just_start_spot != 'true' }}
     runs-on: ${{ github.actor }}-arm
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -74,7 +76,7 @@ jobs:
   build-arm:
     needs: setup-arm
     runs-on: ${{ github.actor }}-arm
-    if: ${{ github.event.inputs.just_start_spot != 'true' }}
+    timeout-minutes: 25
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
     steps:
@@ -87,6 +89,7 @@ jobs:
   e2e-arm:
     needs: build-arm
     runs-on: ${{ github.actor }}-arm
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -106,7 +109,9 @@ jobs:
   # prevents concurrency issues with multiple (implicit) earthly bootstraps
   setup-x86:
     needs: start-builder
+    if: ${{ github.event.inputs.just_start_spot != 'true' }}
     runs-on: ${{ github.actor }}-x86
+    timeout-minutes: 5
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -120,12 +125,20 @@ jobs:
   build-x86:
     needs: setup-x86
     runs-on: ${{ github.actor }}-x86
-    if: ${{ github.event.inputs.just_start_spot != 'true' }}
+    timeout-minutes: 25
     outputs:
       e2e_list: ${{ steps.e2e_list.outputs.list }}
     steps:
       - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
       - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
+      # Only allow one memory-hunger prover test to use this runner
+      # As detailed in https://github.com/ben-z/gh-action-mutex
+      # things do not become 'pending' in github actions, and instead just cancel one another
+      # so we can't use the native concurrency in GA
+      - name: Set up mutex
+        uses: ben-z/gh-action-mutex@v1.0.0-alpha.9
+        with:
+          branch: gh-action-mutex-build-x86-${{ github.actor }}
       # prepare images locally, tagged by commit hash
       - run: earthly ./yarn-project+export-end-to-end
       # We base our e2e list used in e2e-x86 off the targets in ./yarn-project/end-to-end
@@ -138,6 +151,7 @@ jobs:
   e2e-x86:
     needs: build-x86
     runs-on: ${{ github.actor }}-x86
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -153,32 +167,31 @@ jobs:
       #   run: BRANCH=${{ github.ref_name }} PULL_REQUEST=${{ github.event.number }} scripts/ci/upload_logs_to_s3 ./yarn-project/end-to-end/log
 
   # barretenberg (prover) native tests
+  # only ran on x86 for resource reasons (memory intensive)
   bb-native-tests:
     needs: setup-x86
-    runs-on: ${{ github.actor }}-${{matrix.environment}}
+    runs-on: ${{ github.actor }}-x86
+    timeout-minutes: 15
     strategy:
       fail-fast: false
-      matrix:
-        environment: [x86]
-        # pending fix for intermittent test
-        # environment: [x86, arm]
     steps:
       - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
       - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
-      # # Only allow one memory-hunger prover test to use this runner
-      # # As detailed in https://github.com/ben-z/gh-action-mutex
-      # # things do not become 'pending' in github actions, and instead just cancel one another
-      # # so we can't use the native concurrency in GA
-      # - name: Set up mutex
-      #   uses: ben-z/gh-action-mutex@v1.0.0-alpha.9
-      #   with:
-      #     branch: gh-action-mutex-bench-${{ github.actor }}
+      # Only allow one memory-hunger prover test to use this runner
+      # As detailed in https://github.com/ben-z/gh-action-mutex
+      # things do not become 'pending' in github actions, and instead just cancel one another
+      # so we can't use the native concurrency in GA
+      - name: Set up mutex
+        uses: ben-z/gh-action-mutex@v1.0.0-alpha.9
+        with:
+          branch: gh-action-mutex-bench-${{ github.actor }}
       - working-directory: ./barretenberg/cpp/
         run: earthly --no-output +test
 
   # push benchmarking binaries to dockerhub registry
-  bb-bench-base:
+  bb-bench-binaries:
     runs-on: ${{ github.actor }}-x86
+    timeout-minutes: 15
     needs: setup-x86
     steps:
       - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
@@ -186,12 +199,12 @@ jobs:
       - name: Build and Push Binaries
         if: ${{ github.event.inputs.just_start_spot != 'true' }}
         working-directory: ./barretenberg/cpp/
-        run: earthly --push +bench-base
+        run: earthly --push +bench-binaries
 
   start-bb-bench-runner:
     timeout-minutes: 5
     # We wait for binaries to be done for kickoff
-    needs: bb-bench-base
+    needs: bb-bench-binaries
     name: Start Bench Runner
     runs-on: ubuntu-latest
     permissions:
@@ -223,6 +236,7 @@ jobs:
   setup-bb-bench:
     runs-on: ${{ github.actor }}-bench-x86
     needs: start-bb-bench-runner
+    timeout-minutes: 5
     if: ${{ github.event.inputs.just_start_spot != 'true' }}
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -237,6 +251,7 @@ jobs:
   bb-bench:
     runs-on: ${{ github.actor }}-bench-x86
     needs: setup-bb-bench
+    timeout-minutes: 15
     steps:
       - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
       - {uses: ./.github/ci-setup-action, with: { dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"}}
@@ -251,7 +266,7 @@ jobs:
 
   # # Post actions, deploy and summarize logs
   # aztec-bench-summary:
-  #   runs-on: ${{ github.actor }}     
+  #   runs-on: ${{ github.actor }}
   #  # IMPORTANT security flaw if we don't need 'check-run-condition'
   #   needs: e2e-x86
   #   concurrency:

@@ -80,6 +80,7 @@ source:
     COPY --dir src/barretenberg src/CMakeLists.txt src
     # cmake source
     COPY --dir cmake CMakeLists.txt CMakePresets.json .
+    RUN touch hey
     # for debugging rebuilds
     RUN echo CONTENT HASH $(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}') | tee .content-hash
 
@@ -162,30 +163,33 @@ preset-wasm-bench:
 preset-release-assert-test:
     FROM +preset-release-assert
     # build all targets for tests
-    RUN cmake --build build 
+    RUN cmake --build build
     SAVE ARTIFACT build/bin
 
-# Sent to the bench runner using a earthly-cloud build x86 --push +bench-base --bench_mode=true
-# then we can run earthly-cloud bench x86 +bench-ultra-honk etc
-bench-base:
+# Sent to the bench runner using a earthly --push +bench-binaries
+# then we can run earthly +bench-ultra-honk --bench_mode=cache
+bench-binaries:
     ARG EARTHLY_GIT_HASH
     ARG TARGETARCH
     ARG bench_mode=build
     LOCALLY
     IF [ $bench_mode = cache ]
-        FROM aztecprotocol/bb-bench-base:$TARGETARCH-$EARTHLY_GIT_HASH
+        FROM aztecprotocol/bb-bench-binaries:$TARGETARCH-$EARTHLY_GIT_HASH
+        SAVE ARTIFACT ./*
     ELSE
-        FROM +source
+        FROM scratch
         COPY +preset-op-count-time-bench/bin/*_bench op-count-time/bin/
         COPY +preset-op-count-bench/bin/*_bench op-count/bin/
         COPY +preset-release-bench/bin/*_bench release/bin/
         COPY +preset-wasm-bench/bin/*_bench wasm/bin/
-        SAVE IMAGE --push aztecprotocol/bb-bench-base:$TARGETARCH-$EARTHLY_GIT_HASH
+        SAVE ARTIFACT ./*
+        SAVE IMAGE --push aztecprotocol/bb-bench-binaries:$TARGETARCH-$EARTHLY_GIT_HASH
     END
 
 # Runs on the bench image, sent from the builder runner
 bench-ultra-honk:
-    FROM +bench-base
+    FROM +source
+    COPY --dir +bench-binaries/* .
     # install SRS needed for proving
     COPY --dir ./srs_db/+build/. srs_db
     RUN cd release && ./bin/ultra_honk_bench --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
@@ -195,7 +199,8 @@ bench-ultra-honk:
     RUN cd wasm && wasmtime run --env HARDWARE_CONCURRENCY=16 -Wthreads=y -Sthreads=y --dir=".." ./bin/ultra_honk_bench --benchmark_filter="construct_proof_ultrahonk_power_of_2/20$"
 
 bench-client-ivc:
-    FROM +bench-base
+    FROM +source
+    COPY --dir +bench-binaries/* .
     # install SRS needed for proving
     COPY --dir ./srs_db/+build/. srs_db
     RUN cd release && ./bin/client_ivc_bench --benchmark_filter="ClientIVCBench/Full/6$"
@@ -204,6 +209,23 @@ bench-client-ivc:
     COPY +wasmtime/wasmtime /usr/bin/wasmtime
     RUN cd wasm && wasmtime run --env HARDWARE_CONCURRENCY=16 -Wthreads=y -Sthreads=y --dir=".." ./bin/client_ivc_bench --benchmark_filter="ClientIVCBench/Full/6$"
 
+# Sent to the bench runner using a earthly --push +test-binaries
+# then we can run earthly +test --test_mode=cache
+test-binaries:
+    ARG EARTHLY_GIT_HASH
+    ARG TARGETARCH
+    ARG test_mode=build
+    LOCALLY
+    IF [ $test_mode = cache ]
+        FROM aztecprotocol/bb-test-binaries:$TARGETARCH-$EARTHLY_GIT_HASH
+        SAVE ARTIFACT build
+    ELSE
+        FROM scratch
+        COPY +preset-release-assert-test/bin/*_tests build/bin/
+        SAVE ARTIFACT build
+        SAVE IMAGE --push aztecprotocol/bb-test-binaries:$TARGETARCH-$EARTHLY_GIT_HASH
+    END
+
 test-clang-format:
     FROM +source
     COPY .clang-format .
@@ -211,6 +233,8 @@ test-clang-format:
     RUN ./format.sh check
 
 test:
+    FROM +source
+    COPY --dir +test-binaries/build build
     BUILD +test-clang-format
     FROM +preset-release-assert-test
     COPY --dir ./srs_db/+build/. srs_db
