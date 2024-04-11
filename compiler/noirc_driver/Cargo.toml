@@ -26,3 +26,6 @@ tracing.workspace = true
 thiserror.workspace = true
 
 aztec_macros = { path = "../../aztec_macros" }
+
+[features]
+serde = []

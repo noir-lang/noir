@@ -26,6 +26,9 @@ use std::path::Path;
 use thiserror::Error;
 use tracing::info;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 mod abi_gen;
 mod contract;
 mod debug;
@@ -51,6 +54,7 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
     concat!(env!("CARGO_PKG_VERSION"), "+", env!("GIT_COMMIT"));
 
 #[derive(Args, Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CompileOptions {
     /// Override the expression width requested by the backend.
     #[arg(long, value_parser = parse_expression_width)]

@@ -158,21 +158,10 @@ pub fn compile_workspace_full_pure(
     compile_options: &CompileOptions,
 ) -> Result<(ExpressionWidth, Vec<CompiledProgram>, Vec<CompiledContract>), CliError> {
 
-    // // TODO: remove me!
-    // use std::fs::OpenOptions;
-    // use std::io::prelude::*;
-    //
-    // let mut file = OpenOptions::new()
-    //     .create(true)
-    //     .write(true)
-    //     .append(true)
-    //     .open("test_cases_compile.json")
-    //     .unwrap();
-    //
-    // writeln!(file, "{:?}", serde_json::to_string(&(workspace, workspace_file_manager.clone())).unwrap()).unwrap();
-    println!("{:?}", serde_json::to_string(&(workspace, workspace_file_manager.clone())).unwrap());
+    // TODO: remove me!
+    use std::fs::OpenOptions;
+    use std::io::prelude::*;
     // TODO: end remove me!
-
 
     let parsed_files = parse_all(&workspace_file_manager);
 
@@ -187,6 +176,19 @@ pub fn compile_workspace_full_pure(
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )?;
+
+
+    // TODO: remove me!
+    let serialized = serde_json::to_string(&(workspace, workspace_file_manager.clone(), compile_options.clone())).unwrap();
+    let mut file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .append(false)
+        .open(format!("test_cases_compile_{}.json", serialized.len()))
+        .unwrap();
+
+    writeln!(file, "{}", serialized).unwrap();
+    // TODO: end remove me!
 
     Ok((expression_width, compiled_programs, compiled_contracts))
 }
@@ -260,3 +262,53 @@ fn save_contract(contract: CompiledContract, package: &Package, circuit_dir: &Pa
         circuit_dir,
     );
 }
+
+// // TODO: update cfg for features
+// // cargo test --features "nargo/serde fm/serde noirc_driver/serde"
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//     use std::io::Read;
+//
+//     #[test]
+//     fn check_compile_workspace_full_pure() {
+//         let mut file = std::fs::File::open("test_cases_compile_1181130.json").unwrap();
+//         let mut data = String::new();
+//         file.read_to_string(&mut data).unwrap();
+//
+//         let (workspace, workspace_file_manager, compile_options) =
+//             serde_json::from_str(&data).expect("test case to successfully deserialize");
+//
+//         assert!(compile_workspace_full_pure(&workspace, workspace_file_manager, &compile_options).is_ok());
+//     }
+//
+//     #[test]
+//     fn check_compile_workspace_full_pure_2() {
+//         let mut file = std::fs::File::open("test_cases_compile_1181335.json").unwrap();
+//         let mut data = String::new();
+//         file.read_to_string(&mut data).unwrap();
+//
+//         let (workspace, workspace_file_manager, compile_options): (Workspace, FileManager, CompileOptions) =
+//             serde_json::from_str(&data).expect("test case to successfully deserialize");
+//
+//         // TODO: this is currently failing
+//         let serialized = serde_json::to_string(&(workspace.clone(), workspace_file_manager.clone(), compile_options.clone())).unwrap();
+//         assert_eq!(data, serialized);
+//
+//         assert!(compile_workspace_full_pure(&workspace, workspace_file_manager, &compile_options).is_ok());
+//     }
+//
+//     #[test]
+//     fn check_compile_workspace_full_pure_3() {
+//         let mut file = std::fs::File::open("test_cases_compile_1181210.json").unwrap();
+//         let mut data = String::new();
+//         file.read_to_string(&mut data).unwrap();
+//
+//         let (workspace, workspace_file_manager, compile_options) =
+//             serde_json::from_str(&data).expect("test case to successfully deserialize");
+//
+//         assert!(compile_workspace_full_pure(&workspace, workspace_file_manager, &compile_options).is_ok());
+//     }
+//
+// }
+
