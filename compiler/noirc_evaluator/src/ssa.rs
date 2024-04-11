@@ -94,7 +94,7 @@ fn unroll_all_acir_loops(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
         (ssa, unroll_errors) = ssa.try_to_unroll_loops();
         // If we didn't manage to unroll any more loops, exit
         if unroll_errors.len() == prev_unroll_err_count {
-            return Err(unroll_errors[0].clone());
+            return Err(unroll_errors.swap_remove(0));
         }
     }
     Ok(ssa)
