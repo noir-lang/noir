@@ -194,7 +194,7 @@ export class AcirSimulator {
     const maxNoteFields = (artifact.parameters[artifact.parameters.length - 1].type as ArrayType).length;
     if (maxNoteFields < note.items.length) {
       throw new Error(
-        `The note being processed has ${note.items.length} fields, while "compute_note_hash_and_nullifier" can only handle a maximum of ${maxNoteFields} fields. Please consider increasing the allowed field size to accommodate all notes generated from the contract.`,
+        `The note being processed has ${note.items.length} fields, while "compute_note_hash_and_nullifier" can only handle a maximum of ${maxNoteFields} fields. Please reduce the number of fields in your note.`,
       );
     }
 
