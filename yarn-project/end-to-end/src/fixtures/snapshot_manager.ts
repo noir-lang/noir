@@ -12,6 +12,7 @@ import {
 import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
 import { asyncMap } from '@aztec/foundation/async-map';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { makeBackoff, retry } from '@aztec/foundation/retry';
 import { resolver, reviver } from '@aztec/foundation/serialize';
 import { type PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 
@@ -175,10 +176,17 @@ export class SnapshotManager {
 
     // Start anvil. We go via a wrapper script to ensure if the parent dies, anvil dies.
     this.logger.verbose('Starting anvil...');
-    const ethereumHostPort = await getPort();
-    aztecNodeConfig.rpcUrl = `http://localhost:${ethereumHostPort}`;
-    const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
-    await anvil.start();
+    const anvil = await retry(
+      async () => {
+        const ethereumHostPort = await getPort();
+        aztecNodeConfig.rpcUrl = `http://localhost:${ethereumHostPort}`;
+        const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
+        await anvil.start();
+        return anvil;
+      },
+      'Start anvil',
+      makeBackoff([5, 5, 5]),
+    );
 
     // Deploy our L1 contracts.
     this.logger.verbose('Deploying L1 contracts...');

@@ -97,7 +97,7 @@ function logWithDebug(debug: debug.Debugger, level: LogLevel, msg: string, data?
 function getPrefix(debugLogger: debug.Debugger, level: LogLevel) {
   const levelLabel = currentLevel !== level ? ` ${level.toUpperCase()}` : '';
   const prefix = `${debugLogger.namespace.replace(/^aztec:/, '')}${levelLabel}`;
-  if (!isNode || !isatty(process.stderr.fd)) {
+  if ((!isNode || !isatty(process.stderr.fd)) && !process.env.DEBUG_COLORS) {
     return prefix;
   }
   const colorIndex = debug.selectColor(debugLogger.namespace) as number;

@@ -117,7 +117,7 @@ e2e-lending-contract:
 e2e-token-contract:
   LOCALLY
   WITH DOCKER --load end-to-end=../+end-to-end
-    RUN docker run --rm -e LOG_LEVEL=silent -e DEBUG=aztec:e2e_token_contract* end-to-end ./src/e2e_token_contract/
+    RUN docker run --rm -e LOG_LEVEL=silent -e DEBUG=aztec:e2e* end-to-end ./src/e2e_token_contract/
   END
 
 e2e-authwit-test:
