@@ -11,6 +11,7 @@ use noirc_abi::{AbiParameter, AbiType, ContractEvent};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
+use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -423,6 +424,7 @@ fn compile_contract_inner(
             bytecode: function.program,
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
+            names: function.names,
         });
     }
 
@@ -485,7 +487,14 @@ pub fn compile_no_check(
     }
     let visibility = program.return_visibility;
 
-    let (program, debug, warnings, input_witnesses, return_witnesses) = create_program(
+    let SsaProgramArtifact {
+        program,
+        debug,
+        warnings,
+        main_input_witnesses,
+        main_return_witnesses,
+        names,
+    } = create_program(
         program,
         options.show_ssa,
         options.show_brillig,
@@ -493,8 +502,13 @@ pub fn compile_no_check(
         options.benchmark_codegen,
     )?;
 
-    let abi =
-        abi_gen::gen_abi(context, &main_function, input_witnesses, return_witnesses, visibility);
+    let abi = abi_gen::gen_abi(
+        context,
+        &main_function,
+        main_input_witnesses,
+        main_return_witnesses,
+        visibility,
+    );
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {
@@ -510,5 +524,6 @@ pub fn compile_no_check(
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
+        names,
     })
 }

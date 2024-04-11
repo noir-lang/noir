@@ -25,7 +25,7 @@ use iter_extended::vecmap;
 use num_bigint::BigUint;
 
 #[derive(Debug, Default)]
-/// The output of the Acir-gen pass
+/// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
 pub(crate) struct GeneratedAcir {
     /// The next witness index that may be declared.
     /// If witness index is `None` then we have not yet created a witness
@@ -58,6 +58,10 @@ pub(crate) struct GeneratedAcir {
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
 
     pub(crate) warnings: Vec<SsaReport>,
+
+    /// Name for the corresponding entry point represented by this Acir-gen output.
+    /// Only used for debugging and benchmarking purposes
+    pub(crate) name: String,
 }
 
 impl GeneratedAcir {
