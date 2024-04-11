@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "acir_field",
  "base64 0.21.2",
@@ -23,7 +23,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -37,7 +37,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -53,7 +53,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "acir",
  "blake2",
@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -231,7 +231,7 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "arena"
-version = "0.26.0"
+version = "0.27.0"
 
 [[package]]
 name = "ark-bls12-381"
@@ -432,7 +432,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "aztec_macros"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "convert_case 0.6.0",
  "iter-extended",
@@ -599,7 +599,7 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -618,7 +618,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "acir_field",
  "serde",
@@ -626,7 +626,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1732,7 +1732,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2353,7 +2353,7 @@ dependencies = [
 
 [[package]]
 name = "iter-extended"
-version = "0.26.0"
+version = "0.27.0"
 
 [[package]]
 name = "itertools"
@@ -2738,7 +2738,7 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "nargo"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -2765,7 +2765,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -2820,7 +2820,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "bytecount",
  "noirc_frontend",
@@ -2832,7 +2832,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "dirs",
  "fm",
@@ -2905,7 +2905,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -2940,7 +2940,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -2966,7 +2966,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -2989,7 +2989,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3006,7 +3006,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -3023,7 +3023,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "aztec_macros",
@@ -3044,7 +3044,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "base64 0.21.2",
@@ -3062,7 +3062,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "chrono",
@@ -3079,7 +3079,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "arena",
@@ -3105,7 +3105,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "acvm",
  "iter-extended",

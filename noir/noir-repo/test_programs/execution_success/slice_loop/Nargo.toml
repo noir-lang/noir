@@ -1,0 +1,6 @@
+[package]
+name = "slice_loop"
+type = "bin"
+authors = [""]
+
+[dependencies]

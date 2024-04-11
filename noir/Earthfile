@@ -58,7 +58,6 @@ packages:
       noir-repo/*.json \
       noir-repo/*.js \
       noir-repo/.github \
-      noir-repo/.envrc \
       noir-repo
 
     COPY noir-repo/.github/scripts noir-repo/.github/scripts
