@@ -23,7 +23,7 @@ fn main(points: [Point; 3]) {
         serialized_points = serialized_points.append(point.serialize().as_slice());
     }
     // Do a compile-time check that needs the previous loop to be unrolled
-    if points.len() > 5 {
+    if serialized_points.len() > 5 {
         let empty_point = Point { x: 0, y: 0 };
         serialized_points = serialized_points.append(empty_point.serialize().as_slice());
     }
