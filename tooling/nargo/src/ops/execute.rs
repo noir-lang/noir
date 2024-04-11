@@ -1,4 +1,4 @@
-use acvm::acir::circuit::Program;
+use acvm::acir::circuit::{OpcodeLocation, Program, ResolvedOpcodeLocation};
 use acvm::acir::native_types::WitnessStack;
 use acvm::brillig_vm::brillig::ForeignCallResult;
 use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ACVM};
@@ -18,6 +18,14 @@ struct ProgramExecutor<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> {
     blackbox_solver: &'a B,
 
     foreign_call_executor: &'a mut F,
+
+    // The Noir compiler codegens per function and call stacks are not shared across ACIR function calls.
+    // We must rebuild a call stack when executing a program of many circuits.
+    call_stack: Vec<ResolvedOpcodeLocation>,
+
+    // Tracks the index of the current function we are executing.
+    // This is used for resolving call stack locations across many function calls.
+    current_function_index: usize,
 }
 
 impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, B, F> {
@@ -31,6 +39,8 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
             witness_stack: WitnessStack::default(),
             blackbox_solver,
             foreign_call_executor,
+            call_stack: Vec::default(),
+            current_function_index: 0,
         }
     }
 
@@ -60,9 +70,22 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                     let call_stack = match &error {
                         OpcodeResolutionError::UnsatisfiedConstrain {
                             opcode_location: ErrorLocation::Resolved(opcode_location),
-                        } => Some(vec![*opcode_location]),
+                        } => {
+                            let resolved_location = ResolvedOpcodeLocation {
+                                acir_function_index: self.current_function_index,
+                                opcode_location: *opcode_location,
+                            };
+                            self.call_stack.push(resolved_location);
+                            Some(self.call_stack.clone())
+                        }
                         OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
-                            Some(call_stack.clone())
+                            let brillig_call_stack =
+                                call_stack.iter().map(|location| ResolvedOpcodeLocation {
+                                    acir_function_index: self.current_function_index,
+                                    opcode_location: *location,
+                                });
+                            self.call_stack.extend(brillig_call_stack);
+                            Some(self.call_stack.clone())
                         }
                         _ => None,
                     };
@@ -79,17 +102,20 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                                     call_stack,
                                 )
                             } else if let Some(assert_message) = circuit.get_assert_message(
-                                *call_stack.last().expect("Call stacks should not be empty"),
+                                call_stack
+                                    .last()
+                                    .expect("Call stacks should not be empty")
+                                    .opcode_location,
                             ) {
                                 ExecutionError::AssertionFailed(
                                     assert_message.to_owned(),
                                     call_stack,
                                 )
                             } else {
-                                ExecutionError::SolvingError(error)
+                                ExecutionError::SolvingError(error, Some(call_stack))
                             }
                         }
-                        None => ExecutionError::SolvingError(error),
+                        None => ExecutionError::SolvingError(error, None),
                     }));
                 }
                 ACVMStatus::RequiresForeignCall(foreign_call) => {
@@ -109,17 +135,25 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                     }
                 }
                 ACVMStatus::RequiresAcirCall(call_info) => {
+                    // Store the parent function index whose context we are currently executing
+                    let acir_function_caller = self.current_function_index;
+                    // Add call opcode to the call stack with a reference to the parent function index
+                    self.call_stack.push(ResolvedOpcodeLocation {
+                        acir_function_index: acir_function_caller,
+                        opcode_location: OpcodeLocation::Acir(acvm.instruction_pointer()),
+                    });
+
+                    // Set current function to the circuit we are about to execute
+                    self.current_function_index = call_info.id as usize;
+                    // Execute the ACIR call
                     let acir_to_call = &self.functions[call_info.id as usize];
                     let initial_witness = call_info.initial_witness;
-                    let call_solved_witness = self
-                        .execute_circuit(acir_to_call, initial_witness)
-                        .map_err(|err| NargoError::AcirCallError {
-                        id: call_info.id,
-                        error: Box::new(err),
-                        location: acvm::acir::circuit::OpcodeLocation::Acir(
-                            acvm.instruction_pointer(),
-                        ),
-                    })?;
+                    let call_solved_witness =
+                        self.execute_circuit(acir_to_call, initial_witness)?;
+
+                    // Set tracking index back to the parent function after ACIR call execution
+                    self.current_function_index = acir_function_caller;
+
                     let mut call_resolved_outputs = Vec::new();
                     for return_witness_index in acir_to_call.return_values.indices() {
                         if let Some(return_value) =
@@ -129,6 +163,7 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                         } else {
                             return Err(ExecutionError::SolvingError(
                                 OpcodeNotSolvable::MissingAssignment(return_witness_index).into(),
+                                Some(self.call_stack.clone()),
                             )
                             .into());
                         }
