@@ -326,6 +326,12 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::DecrementRc { value }, None);
     }
 
+    /// Insert an enable_side_effects_if instruction. These are normally only automatically
+    /// inserted during the flattening pass when branching is removed.
+    pub(crate) fn insert_enable_side_effects_if(&mut self, condition: ValueId) {
+        self.insert_instruction(Instruction::EnableSideEffects { condition }, None);
+    }
+
     /// Terminates the current block with the given terminator instruction
     /// if the current block does not already have a terminator instruction.
     fn terminate_block_with(&mut self, terminator: TerminatorInstruction) {
