@@ -622,7 +622,7 @@ mod test {
         //
         // We want to make sure after constant folding both array_gets remain since they are
         // under different enable_side_effects_if contexts and thus one may be disabled while
-        // the other is not. If one is removed, it is possible e.g. v3 is replaced with v1 which
+        // the other is not. If one is removed, it is possible e.g. v4 is replaced with v2 which
         // is disabled (only gets from index 0) and thus returns the wrong result.
         let main_id = Id::test_new(0);
 
