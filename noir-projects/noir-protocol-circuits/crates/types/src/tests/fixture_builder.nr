@@ -1,6 +1,7 @@
 use crate::{
     abis::{
-    call_context::CallContext, call_request::{CallerContext, CallRequest},
+    gas_used::GasUsed, gas_settings::GasSettings, call_context::CallContext,
+    call_request::{CallerContext, CallRequest},
     accumulated_data::{
     CombinedAccumulatedData, PrivateAccumulatedData, PrivateAccumulatedDataBuilder,
     PublicAccumulatedData, PublicAccumulatedDataBuilder
@@ -23,8 +24,7 @@ use crate::{
     VK_TREE_HEIGHT
 },
     hash::silo_nullifier, header::Header, mocked::{AggregationObject, Proof, VerificationKey},
-    tests::fixtures, transaction::tx_context::TxContext,
-    traits::Empty
+    tests::fixtures, transaction::tx_context::TxContext, traits::Empty
 };
 
 struct FixtureBuilder {
@@ -34,6 +34,7 @@ struct FixtureBuilder {
     // Constant data.
     historical_header: Header,
     tx_context: TxContext,
+    gas_settings: GasSettings,
     
     // Accumulated data.
     new_note_hashes: BoundedVec<SideEffect, MAX_NEW_NOTE_HASHES_PER_TX>,
@@ -46,6 +47,7 @@ struct FixtureBuilder {
     public_data_update_requests: BoundedVec<PublicDataUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
     private_call_stack: BoundedVec<CallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+    gas_used: GasUsed,
 
     // Validation requests.
     max_block_number: MaxBlockNumber,
@@ -98,12 +100,18 @@ impl FixtureBuilder {
             vk_path: [0; VK_TREE_HEIGHT],
             revert_code: 0,
             min_revertible_side_effect_counter: 0,
-            counter: 0
+            counter: 0,
+            gas_used: GasUsed::empty(),
+            gas_settings: GasSettings::empty()
         }
     }
 
     pub fn to_constant_data(self) -> CombinedConstantData {
-        CombinedConstantData { historical_header: self.historical_header, tx_context: self.tx_context }
+        CombinedConstantData {
+            historical_header: self.historical_header,
+            tx_context: self.tx_context,
+            gas_settings: self.gas_settings
+        }
     }
 
     pub fn to_private_accumulated_data(self) -> PrivateAccumulatedData {
@@ -116,7 +124,8 @@ impl FixtureBuilder {
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             private_call_stack: self.private_call_stack,
-            public_call_stack: self.public_call_stack
+            public_call_stack: self.public_call_stack,
+            gas_used: self.gas_used
         };
         public_inputs.finish()
     }
@@ -131,7 +140,8 @@ impl FixtureBuilder {
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             public_data_update_requests: self.public_data_update_requests,
-            public_call_stack: self.public_call_stack
+            public_call_stack: self.public_call_stack,
+            gas_used: self.gas_used
         };
         public_inputs.finish()
     }
@@ -145,7 +155,8 @@ impl FixtureBuilder {
             unencrypted_logs_hash: self.unencrypted_logs_hash,
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
-            public_data_update_requests: self.public_data_update_requests.storage
+            public_data_update_requests: self.public_data_update_requests.storage,
+            gas_used: self.gas_used
         }
     }
 
@@ -407,7 +418,9 @@ impl Empty for FixtureBuilder {
             vk_path: [0; VK_TREE_HEIGHT],
             revert_code: 0,
             min_revertible_side_effect_counter: 0,
-            counter: 0
+            counter: 0,
+            gas_settings: GasSettings::empty(),
+            gas_used: GasUsed::empty(),
         }
     }
 }

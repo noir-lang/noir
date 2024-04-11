@@ -340,7 +340,10 @@ contract Test {
         block_number: Field,
         timestamp: u64,
         coinbase: EthAddress,
-        fee_recipient: AztecAddress
+        fee_recipient: AztecAddress,
+        fee_per_da_gas: Field,
+        fee_per_l1_gas: Field,
+        fee_per_l2_gas: Field
     ) {
         assert(context.chain_id() == chain_id, "Invalid chain id");
         assert(context.version() == version, "Invalid version");
@@ -348,6 +351,9 @@ contract Test {
         assert(context.timestamp() == timestamp, "Invalid timestamp");
         assert(context.coinbase() == coinbase, "Invalid coinbase");
         assert(context.fee_recipient() == fee_recipient, "Invalid fee recipient");
+        assert(context.fee_per_da_gas() == fee_per_da_gas, "Invalid fee per da gas");
+        assert(context.fee_per_l1_gas() == fee_per_l1_gas, "Invalid fee per l1 gas");
+        assert(context.fee_per_l2_gas() == fee_per_l2_gas, "Invalid fee per l2 gas");
     }
 
     #[aztec(private)]

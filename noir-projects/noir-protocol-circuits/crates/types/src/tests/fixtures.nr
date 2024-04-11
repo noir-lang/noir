@@ -4,7 +4,10 @@ mod note_hash_tree;
 mod note_hash_read_requests;
 
 use crate::{
-    abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, global_variables::GlobalVariables},
+    abis::{
+    append_only_tree_snapshot::AppendOnlyTreeSnapshot, global_variables::GlobalVariables,
+    gas_fees::GasFees
+},
     address::{AztecAddress, EthAddress}, grumpkin_point::GrumpkinPoint,
     content_commitment::ContentCommitment, header::Header,
     partial_state_reference::PartialStateReference, state_reference::StateReference, tests::fixtures
@@ -55,5 +58,6 @@ global HEADER = Header {
         timestamp: 0,
         coinbase: empty_eth_address(),
         fee_recipient: empty_aztec_address(),
+        gas_fees: GasFees::empty()
     }
 };

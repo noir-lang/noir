@@ -38,3 +38,7 @@ mod public_call_data;
 
 mod public_circuit_public_inputs;
 mod private_circuit_public_inputs;
+
+mod gas_fees;
+mod gas_settings;
+mod gas_used;

@@ -1,5 +1,5 @@
 import { SiblingPath } from '@aztec/circuit-types';
-import { GlobalVariables, Header, L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/circuits.js';
+import { GasFees, GlobalVariables, Header, L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/circuits.js';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -87,6 +87,7 @@ export function initGlobalVariables(overrides?: Partial<GlobalVariables>): Globa
     overrides?.timestamp ?? Fr.zero(),
     overrides?.coinbase ?? EthAddress.ZERO,
     overrides?.feeRecipient ?? AztecAddress.zero(),
+    overrides?.gasFees ?? GasFees.empty(),
   );
 }
 

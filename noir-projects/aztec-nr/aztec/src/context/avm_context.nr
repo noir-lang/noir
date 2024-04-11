@@ -103,6 +103,21 @@ impl PublicContextInterface for AvmContext {
         AztecAddress::zero()
     }
 
+    fn fee_per_da_gas(self) -> Field {
+        assert(false, "'fee_per_da_gas' not implemented!");
+        0
+    }
+
+    fn fee_per_l1_gas(self) -> Field {
+        assert(false, "'fee_per_l1_gas' not implemented!");
+        0
+    }
+
+    fn fee_per_l2_gas(self) -> Field {
+        assert(false, "'fee_per_l2_gas' not implemented!");
+        0
+    }
+
     fn nullifier_exists(self, unsiloed_nullifier: Field, address: AztecAddress) -> bool {
         nullifier_exists(unsiloed_nullifier, address.to_field()) == 1
     }

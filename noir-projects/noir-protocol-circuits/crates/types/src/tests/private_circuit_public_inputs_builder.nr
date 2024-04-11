@@ -1,7 +1,7 @@
 use crate::{
     abis::{
-    call_context::CallContext, max_block_number::MaxBlockNumber,
-    nullifier_key_validation_request::NullifierKeyValidationRequest,
+    call_context::CallContext, gas_settings::{GasSettings, DimensionGasSettings},
+    max_block_number::MaxBlockNumber, nullifier_key_validation_request::NullifierKeyValidationRequest,
     private_circuit_public_inputs::PrivateCircuitPublicInputs, read_request::ReadRequest,
     side_effect::{SideEffect, SideEffectLinkedToNoteHash}
 },
@@ -72,7 +72,14 @@ impl PrivateCircuitPublicInputsBuilder {
             function_selector: function_data.selector,
             is_delegate_call: false,
             is_static_call: false,
-            side_effect_counter: 0
+            side_effect_counter: 0,
+            gas_settings: GasSettings {
+                da: DimensionGasSettings::new(0, 0, 0),
+                l1: DimensionGasSettings::new(0, 0, 0),
+                l2: DimensionGasSettings::new(0, 0, 0),
+                inclusion_fee: 0
+            },
+            transaction_fee: 0
         };
         public_inputs.call_context = call_context;
         public_inputs.args_hash = args_hash;

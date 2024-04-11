@@ -5,6 +5,7 @@ import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from 
 import { type FieldsOf } from '@aztec/foundation/types';
 
 import { GLOBAL_VARIABLES_LENGTH } from '../constants.gen.js';
+import { GasFees } from './gas_fees.js';
 
 /**
  * Global variables of the L2 block.
@@ -23,6 +24,8 @@ export class GlobalVariables {
     public coinbase: EthAddress,
     /** Address to receive fees. */
     public feeRecipient: AztecAddress,
+    /** Global gas prices for this block. */
+    public gasFees: GasFees,
   ) {}
 
   static from(fields: FieldsOf<GlobalVariables>): GlobalVariables {
@@ -30,7 +33,7 @@ export class GlobalVariables {
   }
 
   static empty(): GlobalVariables {
-    return new GlobalVariables(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, EthAddress.ZERO, AztecAddress.ZERO);
+    return new GlobalVariables(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, EthAddress.ZERO, AztecAddress.ZERO, GasFees.empty());
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): GlobalVariables {
@@ -42,6 +45,7 @@ export class GlobalVariables {
       Fr.fromBuffer(reader),
       reader.readObject(EthAddress),
       reader.readObject(AztecAddress),
+      reader.readObject(GasFees),
     );
   }
 
@@ -53,6 +57,7 @@ export class GlobalVariables {
       Fr.fromString(obj.timestamp),
       EthAddress.fromString(obj.coinbase),
       AztecAddress.fromString(obj.feeRecipient),
+      GasFees.fromJSON(obj.gasFees),
     );
   }
 
@@ -66,6 +71,7 @@ export class GlobalVariables {
       reader.readField(),
       EthAddress.fromField(reader.readField()),
       AztecAddress.fromField(reader.readField()),
+      GasFees.fromFields(reader),
     );
   }
 
@@ -78,6 +84,7 @@ export class GlobalVariables {
       fields.timestamp,
       fields.coinbase,
       fields.feeRecipient,
+      fields.gasFees,
     ] as const;
   }
 
@@ -103,6 +110,7 @@ export class GlobalVariables {
       timestamp: this.timestamp.toString(),
       coinbase: this.coinbase.toString(),
       feeRecipient: this.feeRecipient.toString(),
+      gasFees: this.gasFees.toJSON(),
     };
   }
 
@@ -117,7 +125,8 @@ export class GlobalVariables {
       this.blockNumber.isZero() &&
       this.timestamp.isZero() &&
       this.coinbase.isZero() &&
-      this.feeRecipient.isZero()
+      this.feeRecipient.isZero() &&
+      this.gasFees.isEmpty()
     );
   }
 }

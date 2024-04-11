@@ -3,6 +3,8 @@ import {
   AppendOnlyTreeSnapshot,
   CallContext,
   FunctionData,
+  GasFees,
+  GasSettings,
   GlobalVariables,
   type Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
@@ -83,6 +85,20 @@ describe('ACIR public execution simulator', () => {
     });
   };
 
+  const makeCallContext = (storageContractAddress: AztecAddress, overrides: Partial<CallContext> = {}) =>
+    CallContext.from({
+      storageContractAddress,
+      msgSender: AztecAddress.random(),
+      portalContractAddress: EthAddress.random(),
+      functionSelector: FunctionSelector.empty(),
+      isDelegateCall: false,
+      isStaticCall: false,
+      sideEffectCounter: 0,
+      gasSettings: GasSettings.empty(),
+      transactionFee: Fr.ZERO,
+      ...overrides,
+    });
+
   describe('Token contract', () => {
     let recipient: AztecAddress;
     let contractAddress: AztecAddress;
@@ -102,15 +118,7 @@ describe('ACIR public execution simulator', () => {
         const args = encodeArguments(mintArtifact, [recipient, mintAmount]);
 
         const msgSender = AztecAddress.random();
-        const callContext = CallContext.from({
-          msgSender,
-          storageContractAddress: contractAddress,
-          portalContractAddress: EthAddress.random(),
-          functionSelector: FunctionSelector.empty(),
-          isDelegateCall: false,
-          isStaticCall: false,
-          sideEffectCounter: 0,
-        });
+        const callContext = makeCallContext(contractAddress, { msgSender });
 
         publicContracts.getBytecode.mockResolvedValue(mintArtifact.bytecode);
 
@@ -175,16 +183,7 @@ describe('ACIR public execution simulator', () => {
         sender = AztecAddress.random();
         args = encodeArguments(transferArtifact, [sender, recipient, 140n, 0n]);
 
-        callContext = CallContext.from({
-          msgSender: sender,
-          storageContractAddress: contractAddress,
-          portalContractAddress: EthAddress.random(),
-          functionSelector: FunctionSelector.empty(),
-          isDelegateCall: false,
-          isStaticCall: false,
-          sideEffectCounter: 0,
-        });
-
+        callContext = makeCallContext(contractAddress, { msgSender: sender });
         recipientStorageSlot = computeSlotForMapping(new Fr(6n), recipient);
         senderStorageSlot = computeSlotForMapping(new Fr(6n), sender);
 
@@ -262,15 +261,7 @@ describe('ACIR public execution simulator', () => {
       const functionData = new FunctionData(parentEntryPointFnSelector, false);
       const args = encodeArguments(parentEntryPointFn, [childContractAddress, childValueFnSelector, initialValue]);
 
-      const callContext = CallContext.from({
-        msgSender: AztecAddress.random(),
-        storageContractAddress: parentContractAddress,
-        portalContractAddress: EthAddress.random(),
-        functionSelector: FunctionSelector.empty(),
-        isDelegateCall: false,
-        isStaticCall: false,
-        sideEffectCounter: 0,
-      });
+      const callContext = makeCallContext(parentContractAddress);
 
       // eslint-disable-next-line require-await
       publicContracts.getBytecode.mockImplementation(async (addr: AztecAddress, selector: FunctionSelector) => {
@@ -291,6 +282,7 @@ describe('ACIR public execution simulator', () => {
         new Fr(7),
         EthAddress.fromField(new Fr(8)),
         AztecAddress.fromField(new Fr(9)),
+        new GasFees(new Fr(10), new Fr(11), new Fr(12)),
       );
 
       const result = await executor.simulate(execution, globalVariables);
@@ -326,16 +318,7 @@ describe('ACIR public execution simulator', () => {
       const secretHash = Fr.random();
 
       const args = encodeArguments(shieldArtifact, [msgSender, amount, secretHash, Fr.ZERO]);
-
-      const callContext = CallContext.from({
-        msgSender: msgSender,
-        storageContractAddress: contractAddress,
-        portalContractAddress: EthAddress.random(),
-        functionSelector: FunctionSelector.empty(),
-        isDelegateCall: false,
-        isStaticCall: false,
-        sideEffectCounter: 0,
-      });
+      const callContext = makeCallContext(contractAddress, { msgSender });
 
       publicContracts.getBytecode.mockResolvedValue(shieldArtifact.bytecode);
       // mock initial balance to be greater than the amount being sent
@@ -361,15 +344,7 @@ describe('ACIR public execution simulator', () => {
 
       const portalContractAddress = EthAddress.random();
 
-      const callContext = CallContext.from({
-        msgSender: AztecAddress.random(),
-        storageContractAddress: contractAddress,
-        portalContractAddress,
-        functionSelector: FunctionSelector.empty(),
-        isDelegateCall: false,
-        isStaticCall: false,
-        sideEffectCounter: 0,
-      });
+      const callContext = makeCallContext(contractAddress, { portalContractAddress });
 
       publicContracts.getBytecode.mockResolvedValue(createL2ToL1MessagePublicArtifact.bytecode);
 
@@ -391,15 +366,7 @@ describe('ACIR public execution simulator', () => {
 
       const args = encodeArguments(createNullifierPublicArtifact, params);
 
-      const callContext = CallContext.from({
-        msgSender: AztecAddress.random(),
-        storageContractAddress: contractAddress,
-        portalContractAddress: EthAddress.random(),
-        functionSelector: FunctionSelector.empty(),
-        isDelegateCall: false,
-        isStaticCall: false,
-        sideEffectCounter: 0,
-      });
+      const callContext = makeCallContext(contractAddress);
 
       publicContracts.getBytecode.mockResolvedValue(createNullifierPublicArtifact.bytecode);
 
@@ -448,14 +415,8 @@ describe('ACIR public execution simulator', () => {
       const computeArgs = () => encodeArguments(mintPublicArtifact, [tokenRecipient, bridgedAmount, secret]);
 
       const computeCallContext = () =>
-        CallContext.from({
-          msgSender: AztecAddress.random(),
-          storageContractAddress: contractAddress,
+        makeCallContext(contractAddress, {
           portalContractAddress: crossChainMsgSender ?? preimage.sender.sender,
-          functionSelector: FunctionSelector.empty(),
-          isDelegateCall: false,
-          isStaticCall: false,
-          sideEffectCounter: 0,
         });
 
       const computeGlobalVariables = () =>
@@ -466,6 +427,7 @@ describe('ACIR public execution simulator', () => {
           Fr.ZERO,
           EthAddress.ZERO,
           AztecAddress.ZERO,
+          GasFees.empty(),
         );
 
       const mockOracles = (updateState = true) => {
@@ -640,22 +602,14 @@ describe('ACIR public execution simulator', () => {
     let functionData: FunctionData;
 
     const modifyGlobalVariables = (globalVariables: GlobalVariables, propertyIndex: number, value: any) => {
-      const globalVariablesFields = GlobalVariables.getFields(globalVariables) as unknown as any[];
+      const globalVariablesFields = globalVariables.toFields();
       globalVariablesFields[propertyIndex] = value;
       return GlobalVariables.fromFields(globalVariablesFields);
     };
 
     beforeAll(() => {
       contractAddress = AztecAddress.random();
-      callContext = CallContext.from({
-        msgSender: AztecAddress.random(),
-        storageContractAddress: AztecAddress.random(),
-        portalContractAddress: EthAddress.ZERO,
-        functionSelector: FunctionSelector.empty(),
-        isDelegateCall: false,
-        isStaticCall: false,
-        sideEffectCounter: 0,
-      });
+      callContext = makeCallContext(AztecAddress.random());
       assertGlobalVarsArtifact = TestContractArtifact.functions.find(f => f.name === 'assert_public_global_vars')!;
       functionData = FunctionData.fromAbi(assertGlobalVarsArtifact);
     });
@@ -676,6 +630,9 @@ describe('ACIR public execution simulator', () => {
         invalidValue: AztecAddress.random(),
         description: 'Fee recipient',
       },
+      { value: new Fr(1), invalidValue: Fr.random(), description: 'Fee per DA gas' },
+      { value: new Fr(1), invalidValue: Fr.random(), description: 'Fee per L1 gas' },
+      { value: new Fr(1), invalidValue: Fr.random(), description: 'Fee per L2 gas' },
     ];
 
     testCases.forEach(({ value, invalidValue, description }, i: number) => {
@@ -691,7 +648,7 @@ describe('ACIR public execution simulator', () => {
           let args: Fr[];
           {
             // We create the args by just serializing the reference global variables object
-            const rawArgs = GlobalVariables.getFields(globalVariables) as unknown as any[];
+            const rawArgs = globalVariables.toFields();
             args = encodeArguments(assertGlobalVarsArtifact, rawArgs);
           }
 
@@ -707,7 +664,7 @@ describe('ACIR public execution simulator', () => {
             // We create the args by modifying the global variables object to contain an invalid value in place of
             // the tested property
             const modifiedGlobalVariables = modifyGlobalVariables(globalVariables, i, invalidValue);
-            const rawArgs = GlobalVariables.getFields(modifiedGlobalVariables) as unknown as any[];
+            const rawArgs = modifiedGlobalVariables.toFields();
             args = encodeArguments(assertGlobalVarsArtifact, rawArgs);
           }
 
@@ -730,15 +687,7 @@ describe('ACIR public execution simulator', () => {
 
     beforeAll(() => {
       contractAddress = AztecAddress.random();
-      callContext = CallContext.from({
-        msgSender: AztecAddress.random(),
-        storageContractAddress: AztecAddress.random(),
-        portalContractAddress: EthAddress.ZERO,
-        functionSelector: FunctionSelector.empty(),
-        isDelegateCall: false,
-        isStaticCall: false,
-        sideEffectCounter: 0,
-      });
+      callContext = makeCallContext(AztecAddress.random());
       assertHeaderPublicArtifact = TestContractArtifact.functions.find(f => f.name === 'assert_header_public')!;
       functionData = FunctionData.fromAbi(assertHeaderPublicArtifact);
     });

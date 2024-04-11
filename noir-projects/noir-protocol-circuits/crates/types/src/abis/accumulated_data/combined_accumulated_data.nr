@@ -2,14 +2,13 @@ use crate::{
     abis::{
     accumulated_data::public_accumulated_data::PublicAccumulatedData,
     public_data_update_request::PublicDataUpdateRequest,
-    side_effect::{SideEffect, SideEffectLinkedToNoteHash}
+    side_effect::{SideEffect, SideEffectLinkedToNoteHash}, gas_used::GasUsed
 },
     constants::{
     MAX_NEW_NOTE_HASHES_PER_TX, MAX_NEW_NULLIFIERS_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 },
-    utils::arrays::array_merge,
-    traits::Empty
+    utils::arrays::array_merge, traits::Empty
 };
 
 struct CombinedAccumulatedData {
@@ -26,6 +25,8 @@ struct CombinedAccumulatedData {
     unencrypted_log_preimages_length: Field,
 
     public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+
+    gas_used: GasUsed,
 }
 
 impl CombinedAccumulatedData {
@@ -41,7 +42,8 @@ impl CombinedAccumulatedData {
             public_data_update_requests: array_merge(
                 non_revertible.public_data_update_requests,
                 revertible.public_data_update_requests
-            )
+            ),
+            gas_used: revertible.gas_used.add(non_revertible.gas_used)
         }
     }
 }
@@ -57,6 +59,7 @@ impl Empty for CombinedAccumulatedData {
             encrypted_log_preimages_length: 0,
             unencrypted_log_preimages_length: 0,
             public_data_update_requests: [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+            gas_used: GasUsed::empty()
         }
     }
 }

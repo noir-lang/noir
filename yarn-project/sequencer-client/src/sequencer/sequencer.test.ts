@@ -15,6 +15,7 @@ import {
   AztecAddress,
   EthAddress,
   Fr,
+  GasFees,
   GlobalVariables,
   Header,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
@@ -53,6 +54,7 @@ describe('sequencer', () => {
   const version = Fr.ZERO;
   const coinbase = EthAddress.random();
   const feeRecipient = AztecAddress.random();
+  const gasFees = GasFees.empty();
 
   beforeEach(() => {
     lastBlockNumber = 0;
@@ -129,7 +131,7 @@ describe('sequencer', () => {
     proverClient.finaliseBlock.mockResolvedValue({ block, proof });
     publisher.processL2Block.mockResolvedValueOnce(true);
     globalVariableBuilder.buildGlobalVariables.mockResolvedValueOnce(
-      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient),
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
     );
 
     await sequencer.initialSync();
@@ -137,7 +139,7 @@ describe('sequencer', () => {
 
     expect(proverClient.startNewBlock).toHaveBeenCalledWith(
       2,
-      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient),
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
       publicProcessor.makeEmptyProcessedTx(),
     );
@@ -165,7 +167,7 @@ describe('sequencer', () => {
     proverClient.finaliseBlock.mockResolvedValue({ block, proof });
     publisher.processL2Block.mockResolvedValueOnce(true);
     globalVariableBuilder.buildGlobalVariables.mockResolvedValueOnce(
-      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient),
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
     );
 
     // We make a nullifier from tx1 a part of the nullifier tree, so it gets rejected as double spend
@@ -181,7 +183,7 @@ describe('sequencer', () => {
 
     expect(proverClient.startNewBlock).toHaveBeenCalledWith(
       2,
-      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient),
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
       publicProcessor.makeEmptyProcessedTx(),
     );
@@ -210,7 +212,7 @@ describe('sequencer', () => {
     proverClient.finaliseBlock.mockResolvedValue({ block, proof });
     publisher.processL2Block.mockResolvedValueOnce(true);
     globalVariableBuilder.buildGlobalVariables.mockResolvedValueOnce(
-      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient),
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
     );
 
     // We make the chain id on the invalid tx not equal to the configured chain id
@@ -221,7 +223,7 @@ describe('sequencer', () => {
 
     expect(proverClient.startNewBlock).toHaveBeenCalledWith(
       2,
-      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient),
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
       publicProcessor.makeEmptyProcessedTx(),
     );
@@ -247,7 +249,7 @@ describe('sequencer', () => {
     proverClient.finaliseBlock.mockResolvedValue({ block, proof });
     publisher.processL2Block.mockResolvedValueOnce(true);
     globalVariableBuilder.buildGlobalVariables.mockResolvedValueOnce(
-      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient),
+      new GlobalVariables(chainId, version, new Fr(lastBlockNumber + 1), Fr.ZERO, coinbase, feeRecipient, gasFees),
     );
 
     await sequencer.initialSync();

@@ -227,6 +227,18 @@ impl PublicContextInterface for PublicContext {
         self.inputs.public_global_variables.fee_recipient
     }
 
+    fn fee_per_da_gas(self) -> Field {
+        self.inputs.public_global_variables.gas_fees.fee_per_da_gas
+    }
+
+    fn fee_per_l1_gas(self) -> Field {
+        self.inputs.public_global_variables.gas_fees.fee_per_l1_gas
+    }
+
+    fn fee_per_l2_gas(self) -> Field {
+        self.inputs.public_global_variables.gas_fees.fee_per_l2_gas
+    }
+
     fn nullifier_exists(self, unsiloed_nullifier: Field, address: AztecAddress) -> bool {
         // Current public can only check for settled nullifiers, so we always silo.
         let siloed_nullifier = silo_nullifier(address, unsiloed_nullifier);

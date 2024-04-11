@@ -7,6 +7,7 @@ import {
   CallContext,
   FunctionData,
   type FunctionSelector,
+  GasSettings,
   type GlobalVariables,
   type Header,
 } from '@aztec/circuits.js';
@@ -217,6 +218,8 @@ export class PublicExecutionContext extends TypedOracle {
       isDelegateCall,
       isStaticCall,
       sideEffectCounter,
+      transactionFee: Fr.ZERO, // TODO(palla/gas-in-circuits)
+      gasSettings: GasSettings.empty(), // TODO(palla/gas-in-circuits)
     });
 
     const nestedExecution: PublicExecution = {

@@ -24,6 +24,9 @@ trait PublicContextInterface {
     fn timestamp(self) -> u64;
     fn coinbase(self) -> EthAddress;
     fn fee_recipient(self) -> AztecAddress;
+    fn fee_per_da_gas(self) -> Field;
+    fn fee_per_l1_gas(self) -> Field;
+    fn fee_per_l2_gas(self) -> Field;
     fn push_nullifier_read_request(&mut self, nullifier: Field);
     fn push_nullifier_non_existent_read_request(&mut self, nullifier: Field);
     fn message_portal(&mut self, recipient: EthAddress, content: Field);

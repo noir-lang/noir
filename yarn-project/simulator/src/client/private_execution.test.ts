@@ -4,6 +4,7 @@ import {
   CallContext,
   CompleteAddress,
   FunctionData,
+  GasSettings,
   Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
   NOTE_HASH_TREE_HEIGHT,
@@ -794,6 +795,9 @@ describe('Private Execution test suite', () => {
       // Alter function data to match the manipulated oracle
       const functionData = FunctionData.fromAbi(childContractArtifact);
 
+      const transactionFee = new Fr(0);
+      const gasSettings = GasSettings.empty();
+
       const publicCallRequest = PublicCallRequest.from({
         contractAddress: childAddress,
         functionData: functionData,
@@ -806,6 +810,8 @@ describe('Private Execution test suite', () => {
           isDelegateCall: false,
           isStaticCall: false,
           sideEffectCounter: 1,
+          transactionFee,
+          gasSettings,
         }),
         parentCallContext: CallContext.from({
           msgSender: parentAddress,
@@ -815,6 +821,8 @@ describe('Private Execution test suite', () => {
           isDelegateCall: false,
           isStaticCall: false,
           sideEffectCounter: 1,
+          transactionFee,
+          gasSettings,
         }),
       });
 

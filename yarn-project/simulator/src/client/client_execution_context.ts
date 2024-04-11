@@ -14,6 +14,7 @@ import {
   CallContext,
   FunctionData,
   FunctionSelector,
+  GasSettings,
   type Header,
   NoteHashReadRequestMembershipWitness,
   PublicCallRequest,
@@ -483,6 +484,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     isStaticCall = false,
   ) {
     const portalContractAddress = await this.db.getPortalContractAddress(targetContractAddress);
+    const transactionFee = Fr.ZERO; // TODO(palla/gas-in-circuits)
     return new CallContext(
       isDelegateCall ? this.callContext.msgSender : this.contractAddress,
       isDelegateCall ? this.contractAddress : targetContractAddress,
@@ -491,6 +493,8 @@ export class ClientExecutionContext extends ViewDataOracle {
       isDelegateCall,
       isStaticCall,
       startSideEffectCounter,
+      GasSettings.empty(), // TODO(palla/gas-in-circuits)
+      transactionFee,
     );
   }
 

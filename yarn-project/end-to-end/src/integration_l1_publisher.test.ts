@@ -19,6 +19,7 @@ import {
 } from '@aztec/circuit-types';
 import {
   EthAddress,
+  GasFees,
   type Header,
   KernelCircuitPublicInputs,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
@@ -268,6 +269,11 @@ describe('L1Publisher integration', () => {
             version: Number(block.header.globalVariables.version.toBigInt()),
             coinbase: `0x${block.header.globalVariables.coinbase.toBuffer().toString('hex').padStart(40, '0')}`,
             feeRecipient: `0x${block.header.globalVariables.feeRecipient.toBuffer().toString('hex').padStart(64, '0')}`,
+            gasFees: {
+              feePerDaGas: block.header.globalVariables.gasFees.feePerDaGas.toNumber(),
+              feePerL1Gas: block.header.globalVariables.gasFees.feePerL1Gas.toNumber(),
+              feePerL2Gas: block.header.globalVariables.gasFees.feePerL2Gas.toNumber(),
+            },
           },
           lastArchive: {
             nextAvailableLeafIndex: block.header.lastArchive.nextAvailableLeafIndex,
@@ -382,6 +388,7 @@ describe('L1Publisher integration', () => {
         new Fr(await rollup.read.lastBlockTs()),
         coinbase,
         feeRecipient,
+        GasFees.empty(),
       );
       const ticket = await buildBlock(globalVariables, txs, currentL1ToL2Messages, makeEmptyProcessedTx());
       const result = await ticket.provingPromise;
@@ -476,6 +483,7 @@ describe('L1Publisher integration', () => {
         new Fr(await rollup.read.lastBlockTs()),
         coinbase,
         feeRecipient,
+        GasFees.empty(),
       );
       const blockTicket = await buildBlock(globalVariables, txs, l1ToL2Messages, makeEmptyProcessedTx());
       const result = await blockTicket.provingPromise;

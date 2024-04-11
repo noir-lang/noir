@@ -1,5 +1,6 @@
 use crate::{
     abis::{
+    gas_used::GasUsed,
     accumulated_data::{
     combined_accumulated_data::CombinedAccumulatedData,
     private_accumulated_data::PrivateAccumulatedData, public_accumulated_data::PublicAccumulatedData,
@@ -13,7 +14,7 @@ use crate::{
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_NEW_L2_TO_L1_MSGS_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX
 },
-traits::Empty
+    traits::Empty
 };
 
 struct PrivateAccumulatedDataBuilder {
@@ -31,6 +32,8 @@ struct PrivateAccumulatedDataBuilder {
 
     private_call_stack: BoundedVec<CallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
     public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+
+    gas_used: GasUsed
 }
 
 impl PrivateAccumulatedDataBuilder {
@@ -44,7 +47,8 @@ impl PrivateAccumulatedDataBuilder {
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             private_call_stack: self.private_call_stack.storage,
-            public_call_stack: self.public_call_stack.storage
+            public_call_stack: self.public_call_stack.storage,
+            gas_used: self.gas_used
         }
     }
 
@@ -58,6 +62,7 @@ impl PrivateAccumulatedDataBuilder {
             encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
             public_data_update_requests: [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+            gas_used: self.gas_used
         }
     }
 
@@ -199,6 +204,7 @@ impl Empty for PrivateAccumulatedDataBuilder {
             unencrypted_log_preimages_length: 0,
             private_call_stack: BoundedVec::new(),
             public_call_stack: BoundedVec::new(),
+            gas_used: GasUsed::empty(),
         }
     }
 }

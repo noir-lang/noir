@@ -5,6 +5,7 @@ import {
   ContractStorageRead,
   ContractStorageUpdateRequest,
   FunctionData,
+  GasSettings,
   type GlobalVariables,
   type Header,
   L2ToL1Message,
@@ -65,6 +66,8 @@ export function createPublicExecutionContext(avmContext: AvmContext, calldata: F
     isDelegateCall: avmContext.environment.isDelegateCall,
     isStaticCall: avmContext.environment.isStaticCall,
     sideEffectCounter: sideEffectCounter,
+    gasSettings: GasSettings.empty(), // TODO(palla/gas-in-circuits)
+    transactionFee: Fr.ZERO, // TODO(palla/gas-in-circuits)
   });
   const functionData = new FunctionData(avmContext.environment.temporaryFunctionSelector, /*isPrivate=*/ false);
   const execution: PublicExecution = {

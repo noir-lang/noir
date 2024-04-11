@@ -12,6 +12,7 @@ import {
   type BaseOrMergeRollupPublicInputs,
   EthAddress,
   Fr,
+  GasFees,
   GlobalVariables,
   KernelCircuitPublicInputs,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
@@ -74,7 +75,7 @@ describe('prover/tx-prover', () => {
   const feeRecipient = AztecAddress.ZERO;
 
   const makeGlobals = (blockNumber: number) => {
-    return new GlobalVariables(chainId, version, new Fr(blockNumber), Fr.ZERO, coinbase, feeRecipient);
+    return new GlobalVariables(chainId, version, new Fr(blockNumber), Fr.ZERO, coinbase, feeRecipient, GasFees.empty());
   };
 
   beforeEach(async () => {

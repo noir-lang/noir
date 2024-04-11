@@ -118,11 +118,12 @@ function parseNoirFile(fileContent: string): ParsedContent {
 
   fileContent.split('\n').forEach(l => {
     const line = l.trim();
-    if (!line || line.match(/^\/\/|\/?\*/)) {
+    if (!line || line.match(/^\/\/|^\s*\/?\*/)) {
       return;
     }
 
     const [, name, _type, value] = line.match(/global\s+(\w+)(\s*:\s*\w+)?\s*=\s*(0x[a-fA-F0-9]+|[\d_]+);/) || [];
+
     if (!name || !value) {
       // eslint-disable-next-line no-console
       console.warn(`Unknown content: ${line}`);

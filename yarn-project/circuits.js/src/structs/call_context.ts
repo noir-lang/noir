@@ -6,6 +6,7 @@ import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from 
 import { type FieldsOf } from '@aztec/foundation/types';
 
 import { CALL_CONTEXT_LENGTH } from '../constants.gen.js';
+import { GasSettings } from './gas_settings.js';
 
 /**
  * Call context.
@@ -42,6 +43,12 @@ export class CallContext {
      * The start side effect counter for this call context.
      */
     public sideEffectCounter: number,
+
+    /** Gas settings for this tx. */
+    public gasSettings: GasSettings,
+
+    /** Accumulated transaction fee, only set during teardown phase. */
+    public transactionFee: Fr,
   ) {}
 
   /**
@@ -57,6 +64,8 @@ export class CallContext {
       false,
       false,
       0,
+      GasSettings.empty(),
+      Fr.ZERO,
     );
   }
 
@@ -66,7 +75,9 @@ export class CallContext {
       this.storageContractAddress.isZero() &&
       this.portalContractAddress.isZero() &&
       this.functionSelector.isEmpty() &&
-      Fr.ZERO
+      Fr.ZERO &&
+      this.gasSettings.isEmpty() &&
+      this.transactionFee.isZero()
     );
   }
 
@@ -83,6 +94,8 @@ export class CallContext {
       fields.isDelegateCall,
       fields.isStaticCall,
       fields.sideEffectCounter,
+      fields.gasSettings,
+      fields.transactionFee,
     ] as const;
   }
 
@@ -119,6 +132,8 @@ export class CallContext {
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readNumber(),
+      reader.readObject(GasSettings),
+      reader.readObject(Fr),
     );
   }
 
@@ -132,6 +147,8 @@ export class CallContext {
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readU32(),
+      reader.readObject(GasSettings),
+      reader.readField(),
     );
   }
 
@@ -143,7 +160,9 @@ export class CallContext {
       callContext.functionSelector.equals(this.functionSelector) &&
       callContext.isDelegateCall === this.isDelegateCall &&
       callContext.isStaticCall === this.isStaticCall &&
-      callContext.sideEffectCounter === this.sideEffectCounter
+      callContext.sideEffectCounter === this.sideEffectCounter &&
+      this.gasSettings.equals(callContext.gasSettings) &&
+      callContext.transactionFee.equals(this.transactionFee)
     );
   }
 }

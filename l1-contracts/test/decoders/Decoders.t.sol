@@ -59,6 +59,17 @@ contract DecodersTest is DecoderBase {
         assertEq(
           header.globalVariables.feeRecipient, globalVariables.feeRecipient, "Invalid feeRecipient"
         );
+        assertEq(
+          header.globalVariables.gasFees.feePerDaGas,
+          globalVariables.gasFees.feePerDaGas,
+          "Invalid gasFees.feePerDaGas"
+        );
+        assertEq(
+          header.globalVariables.feeRecipient, globalVariables.feeRecipient, "Invalid feeRecipient"
+        );
+        assertEq(
+          header.globalVariables.feeRecipient, globalVariables.feeRecipient, "Invalid feeRecipient"
+        );
       }
 
       // ContentCommitment

@@ -51,11 +51,18 @@ contract DecoderBase is Test {
     StateReference stateReference;
   }
 
+  struct GasFees {
+    uint256 feePerDaGas;
+    uint256 feePerL1Gas;
+    uint256 feePerL2Gas;
+  }
+
   struct GlobalVariables {
     uint256 blockNumber;
     uint256 chainId;
     address coinbase;
     bytes32 feeRecipient;
+    GasFees gasFees;
     uint256 timestamp;
     uint256 version;
   }

@@ -40,6 +40,9 @@ class GlobalVariables {
     chain_id: Fr
     coinbase: EthAddress
     fee_recipient: Address
+    gas_fees.fees_per_da_gas: Fr
+    gas_fees.fees_per_l1_gas: Fr
+    gas_fees.fees_per_l2_gas: Fr
 }
 
 class ContentCommitment {
@@ -145,6 +148,10 @@ class CombinedAccumulatedData {
     public_call_stack: List~CallRequest~
     start_public_data_root: Fr
     end_public_data_root: Fr
+
+    gas_used.da_gas: u32
+    gas_used.l1_gas: u32
+    gas_used.l2_gas: u32
 }
 CombinedAccumulatedData *-- "m" NewContractData: contracts
 CombinedAccumulatedData *-- "m" PublicDataUpdateRequest: public_update_requests
@@ -172,9 +179,24 @@ TxContext *-- ContractDeploymentData: contract_deployment_data
 class CombinedConstantData {
     historical_header: Header
     tx_context: TxContext
+    gas_settings: GasSettings
 }
 CombinedConstantData *-- Header : historical_header
 CombinedConstantData *-- TxContext : tx_context
+CombinedConstantData *-- GasSettings : gas_settings
+
+class GasSettings {
+    da.gas_limit: u32
+    da.teardown_gas_limit: u32
+    da.max_fee_per_gas: Fr
+    l1.gas_limit: u32
+    l1.teardown_gas_limit: u32
+    l1.max_fee_per_gas: Fr
+    l2.gas_limit: u32
+    l2.teardown_gas_limit: u32
+    l2.max_fee_per_gas: Fr
+    inclusion_fee: Fr
+}
 
 class KernelPublicInputs {
   is_private: bool

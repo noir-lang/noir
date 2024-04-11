@@ -1,5 +1,5 @@
 import { type AztecNode, type FunctionCall, type Note, type TxExecutionRequest } from '@aztec/circuit-types';
-import { CallContext, FunctionData } from '@aztec/circuits.js';
+import { CallContext, FunctionData, GasSettings } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import {
   type ArrayType,
@@ -89,6 +89,7 @@ export class AcirSimulator {
     // reserve the first side effect for the tx hash (inserted by the private kernel)
     const startSideEffectCounter = 1;
 
+    const transactionFee = Fr.ZERO; // TODO(palla/gas-in-circuits)
     const callContext = new CallContext(
       msgSender,
       contractAddress,
@@ -97,6 +98,8 @@ export class AcirSimulator {
       false,
       false,
       startSideEffectCounter,
+      GasSettings.empty(), // TODO(palla/gas-in-circuits)
+      transactionFee,
     );
     const context = new ClientExecutionContext(
       contractAddress,
