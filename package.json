@@ -13,7 +13,7 @@
     "docs"
   ],
   "scripts": {
-    "build": "yarn workspaces foreach --parallel --topological-dev --verbose run build",
+    "build": "yarn workspaces foreach -vp --topological-dev --exclude \"{docs,@noir-lang/root}\" run build",
     "test": "yarn workspaces foreach --parallel --verbose run test",
     "test:integration": "yarn workspace integration-tests test",
     "clean:workspaces": "yarn workspaces foreach --exclude @noir-lang/root run clean",

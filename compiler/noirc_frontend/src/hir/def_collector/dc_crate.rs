@@ -256,20 +256,6 @@ impl DefCollector {
         // Add the current crate to the collection of DefMaps
         context.def_maps.insert(crate_id, def_collector.def_map);
 
-        // TODO(#4653): generalize this function
-        for macro_processor in macro_processors {
-            macro_processor
-                .process_collected_defs(
-                    &crate_id,
-                    context,
-                    &def_collector.collected_traits_impls,
-                    &mut def_collector.collected_functions,
-                )
-                .unwrap_or_else(|(macro_err, file_id)| {
-                    errors.push((macro_err.into(), file_id));
-                });
-        }
-
         inject_prelude(crate_id, context, crate_root, &mut def_collector.collected_imports);
         for submodule in submodules {
             inject_prelude(

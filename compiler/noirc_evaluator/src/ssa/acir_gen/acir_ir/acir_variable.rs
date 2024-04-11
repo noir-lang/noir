@@ -1763,6 +1763,7 @@ impl AcirContext {
         id: u32,
         inputs: Vec<AcirValue>,
         output_count: usize,
+        predicate: AcirVar,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
         let inputs = inputs
@@ -1778,7 +1779,8 @@ impl AcirContext {
         let results =
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
 
-        self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs });
+        let predicate = Some(self.var_to_expression(predicate)?);
+        self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         Ok(results)
     }
 }

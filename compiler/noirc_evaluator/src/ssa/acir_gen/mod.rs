@@ -579,6 +579,7 @@ impl Context {
                                     *acir_program_id,
                                     inputs,
                                     output_count,
+                                    self.current_side_effects_enabled_var,
                                 )?;
                                 let output_values =
                                     self.convert_vars_to_values(output_vars, dfg, result_ids);
@@ -2716,7 +2717,7 @@ mod test {
         expected_outputs: Vec<Witness>,
     ) {
         match opcode {
-            Opcode::Call { id, inputs, outputs } => {
+            Opcode::Call { id, inputs, outputs, .. } => {
                 assert_eq!(
                     *id, expected_id,
                     "Main was expected to call {expected_id} but got {}",
