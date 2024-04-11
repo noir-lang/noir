@@ -166,7 +166,7 @@ impl DefaultForeignCallExecutor {
 
             if let Some(Ok(timeout)) = std::env::var("NARGO_FOREIGN_CALL_TIMEOUT")
                 .ok()
-                .map(|timeout| u64::from_str_radix(&timeout, 10))
+                .map(|timeout| timeout.parse())
             {
                 let timeout_duration = std::time::Duration::from_millis(timeout);
                 transport_builder = transport_builder.timeout(timeout_duration);
