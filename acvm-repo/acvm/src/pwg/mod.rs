@@ -94,7 +94,7 @@ pub enum OpcodeNotSolvable {
 
 /// Allows to point to a specific opcode as cause in errors.
 /// Some errors don't have a specific opcode associated with them, or are created without one and added later.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub enum ErrorLocation {
     #[default]
     Unresolved,

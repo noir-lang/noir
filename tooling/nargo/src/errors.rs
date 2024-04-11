@@ -45,8 +45,6 @@ pub enum NargoError {
     /// Oracle handling error
     #[error(transparent)]
     ForeignCallError(#[from] ForeignCallError),
-    // #[error("Failed to solve ACIR function")]
-    // AcirCallError { id: u32, error: Box<NargoError>, location: OpcodeLocation },
 }
 
 impl NargoError {
@@ -76,13 +74,11 @@ impl NargoError {
     }
 }
 
-#[derive(Debug, Error, Clone)]
+#[derive(Debug, Error)]
 pub enum ExecutionError {
     #[error("Failed assertion: '{}'", .0)]
     AssertionFailed(String, Vec<ResolvedOpcodeLocation>),
 
-    // #[error(transparent)]
-    // SolvingError(#[from] OpcodeResolutionError),
     #[error("Failed to solve program: '{}'", .0)]
     SolvingError(OpcodeResolutionError, Option<Vec<ResolvedOpcodeLocation>>),
 }
@@ -146,6 +142,25 @@ fn extract_locations_from_error(
     )
 }
 
+fn extract_message_from_error(nargo_err: &NargoError) -> String {
+    match nargo_err {
+        NargoError::ExecutionError(ExecutionError::AssertionFailed(message, _)) => {
+            format!("Assertion failed: '{message}'")
+        }
+        NargoError::ExecutionError(ExecutionError::SolvingError(
+            OpcodeResolutionError::IndexOutOfBounds { index, array_size, .. },
+            _,
+        )) => {
+            format!("Index out of bounds, array has size {array_size:?}, but index was {index:?}")
+        }
+        NargoError::ExecutionError(ExecutionError::SolvingError(
+            OpcodeResolutionError::UnsatisfiedConstrain { .. },
+            _,
+        )) => "Failed constraint".into(),
+        _ => nargo_err.to_string(),
+    }
+}
+
 /// Tries to generate a runtime diagnostic from a nargo error. It will successfully do so if it's a runtime error with a call stack.
 pub fn try_to_diagnose_runtime_error(
     nargo_err: &NargoError,
@@ -166,23 +181,4 @@ pub fn try_to_diagnose_runtime_error(
             .in_file(location.file)
             .with_call_stack(source_locations),
     )
-}
-
-fn extract_message_from_error(nargo_err: &NargoError) -> String {
-    match nargo_err {
-        NargoError::ExecutionError(ExecutionError::AssertionFailed(message, _)) => {
-            format!("Assertion failed: '{message}'")
-        }
-        NargoError::ExecutionError(ExecutionError::SolvingError(
-            OpcodeResolutionError::IndexOutOfBounds { index, array_size, .. },
-            _,
-        )) => {
-            format!("Index out of bounds, array has size {array_size:?}, but index was {index:?}")
-        }
-        NargoError::ExecutionError(ExecutionError::SolvingError(
-            OpcodeResolutionError::UnsatisfiedConstrain { .. },
-            _,
-        )) => "Failed constraint".into(),
-        _ => nargo_err.to_string(),
-    }
 }

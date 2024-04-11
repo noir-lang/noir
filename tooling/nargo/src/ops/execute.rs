@@ -167,7 +167,7 @@ impl<'a, B: BlackBoxFunctionSolver, F: ForeignCallExecutor> ProgramExecutor<'a, 
                         } else {
                             return Err(ExecutionError::SolvingError(
                                 OpcodeNotSolvable::MissingAssignment(return_witness_index).into(),
-                                Some(self.call_stack.clone()),
+                                None, // Missing assignment errors do not supply user-facing diagnostics so we do not need to attach a call stack
                             )
                             .into());
                         }

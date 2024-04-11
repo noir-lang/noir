@@ -331,7 +331,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 self.handle_foreign_call(foreign_call)
             }
             Err(err) => DebugCommandResult::Error(NargoError::ExecutionError(
-                // TODO: debugger does handle multiple acir calls
+                // TODO: debugger does not not handle multiple acir calls
                 ExecutionError::SolvingError(err, None),
             )),
         }
@@ -375,7 +375,7 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 }
             }
             ACVMStatus::Failure(error) => DebugCommandResult::Error(NargoError::ExecutionError(
-                // TODO: debugger does not handle multiple call functions
+                // TODO: debugger does not not handle multiple acir calls
                 ExecutionError::SolvingError(error, None),
             )),
             ACVMStatus::RequiresForeignCall(_) => {
