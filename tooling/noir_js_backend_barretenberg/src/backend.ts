@@ -1,6 +1,6 @@
 import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
-import { Backend, CompiledCircuit, ProofData } from '@noir-lang/types';
+import { Backend, CompiledCircuit, ProofData, VerifierBackend } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
 import { deflattenPublicInputs } from './public_inputs.js';
 import { reconstructProofWithPublicInputs } from './verifier.js';
@@ -10,20 +10,20 @@ import { type Barretenberg } from '@aztec/bb.js';
 // minus the public inputs.
 const numBytesInProofWithoutPublicInputs: number = 2144;
 
-export class BarretenbergBackend implements Backend {
+export class BarretenbergVerifierBackend implements VerifierBackend {
   // These type assertions are used so that we don't
   // have to initialize `api` and `acirComposer` in the constructor.
   // These are initialized asynchronously in the `init` function,
   // constructors cannot be asynchronous which is why we do this.
 
-  private api!: Barretenberg;
+  protected api!: Barretenberg;
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  private acirComposer: any;
-  private acirUncompressedBytecode: Uint8Array;
+  protected acirComposer: any;
+  protected acirUncompressedBytecode: Uint8Array;
 
   constructor(
     acirCircuit: CompiledCircuit,
-    private options: BackendOptions = { threads: 1 },
+    protected options: BackendOptions = { threads: 1 },
   ) {
     const acirBytecodeBase64 = acirCircuit.bytecode;
     this.acirUncompressedBytecode = acirToUint8Array(acirBytecodeBase64);
@@ -56,6 +56,29 @@ export class BarretenbergBackend implements Backend {
     }
   }
 
+  /** @description Verifies a proof */
+  async verifyProof(proofData: ProofData): Promise<boolean> {
+    const proof = reconstructProofWithPublicInputs(proofData);
+    await this.instantiate();
+    await this.api.acirInitVerificationKey(this.acirComposer);
+    return await this.api.acirVerifyProof(this.acirComposer, proof);
+  }
+
+  async getVerificationKey(): Promise<Uint8Array> {
+    await this.instantiate();
+    await this.api.acirInitVerificationKey(this.acirComposer);
+    return await this.api.acirGetVerificationKey(this.acirComposer);
+  }
+
+  async destroy(): Promise<void> {
+    if (!this.api) {
+      return;
+    }
+    await this.api.destroy();
+  }
+}
+
+export class BarretenbergBackend extends BarretenbergVerifierBackend implements Backend {
   /** @description Generates a proof */
   async generateProof(compressedWitness: Uint8Array): Promise<ProofData> {
     await this.instantiate();
@@ -117,26 +140,5 @@ export class BarretenbergBackend implements Backend {
       vkAsFields: vk[0].map((vk) => vk.toString()),
       vkHash: vk[1].toString(),
     };
-  }
-
-  /** @description Verifies a proof */
-  async verifyProof(proofData: ProofData): Promise<boolean> {
-    const proof = reconstructProofWithPublicInputs(proofData);
-    await this.instantiate();
-    await this.api.acirInitVerificationKey(this.acirComposer);
-    return await this.api.acirVerifyProof(this.acirComposer, proof);
-  }
-
-  async getVerificationKey(): Promise<Uint8Array> {
-    await this.instantiate();
-    await this.api.acirInitVerificationKey(this.acirComposer);
-    return await this.api.acirGetVerificationKey(this.acirComposer);
-  }
-
-  async destroy(): Promise<void> {
-    if (!this.api) {
-      return;
-    }
-    await this.api.destroy();
   }
 }
