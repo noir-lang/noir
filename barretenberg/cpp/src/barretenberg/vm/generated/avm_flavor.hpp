@@ -43,9 +43,11 @@
 #include "barretenberg/relations/generated/avm/perm_main_mem_a.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_b.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_c.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_mem_d.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_ind_a.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_ind_b.hpp"
 #include "barretenberg/relations/generated/avm/perm_main_mem_ind_c.hpp"
+#include "barretenberg/relations/generated/avm/perm_main_mem_ind_d.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace bb {
@@ -67,20 +69,22 @@ class AvmFlavor {
     using RelationSeparator = FF;
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 2;
-    static constexpr size_t NUM_WITNESS_ENTITIES = 193;
+    static constexpr size_t NUM_WITNESS_ENTITIES = 210;
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for
     // the unshifted and one for the shifted
-    static constexpr size_t NUM_ALL_ENTITIES = 224;
+    static constexpr size_t NUM_ALL_ENTITIES = 241;
 
     using GrandProductRelations = std::tuple<perm_main_alu_relation<FF>,
                                              perm_main_bin_relation<FF>,
                                              perm_main_mem_a_relation<FF>,
                                              perm_main_mem_b_relation<FF>,
                                              perm_main_mem_c_relation<FF>,
+                                             perm_main_mem_d_relation<FF>,
                                              perm_main_mem_ind_a_relation<FF>,
                                              perm_main_mem_ind_b_relation<FF>,
                                              perm_main_mem_ind_c_relation<FF>,
+                                             perm_main_mem_ind_d_relation<FF>,
                                              lookup_byte_lengths_relation<FF>,
                                              lookup_byte_operations_relation<FF>,
                                              incl_main_tag_err_relation<FF>,
@@ -112,9 +116,11 @@ class AvmFlavor {
                                  perm_main_mem_a_relation<FF>,
                                  perm_main_mem_b_relation<FF>,
                                  perm_main_mem_c_relation<FF>,
+                                 perm_main_mem_d_relation<FF>,
                                  perm_main_mem_ind_a_relation<FF>,
                                  perm_main_mem_ind_b_relation<FF>,
                                  perm_main_mem_ind_c_relation<FF>,
+                                 perm_main_mem_ind_d_relation<FF>,
                                  lookup_byte_lengths_relation<FF>,
                                  lookup_byte_operations_relation<FF>,
                                  incl_main_tag_err_relation<FF>,
@@ -252,32 +258,42 @@ class AvmFlavor {
                               avm_main_ia,
                               avm_main_ib,
                               avm_main_ic,
+                              avm_main_id,
+                              avm_main_id_zero,
                               avm_main_ind_a,
                               avm_main_ind_b,
                               avm_main_ind_c,
+                              avm_main_ind_d,
                               avm_main_ind_op_a,
                               avm_main_ind_op_b,
                               avm_main_ind_op_c,
+                              avm_main_ind_op_d,
                               avm_main_internal_return_ptr,
                               avm_main_inv,
                               avm_main_last,
                               avm_main_mem_idx_a,
                               avm_main_mem_idx_b,
                               avm_main_mem_idx_c,
+                              avm_main_mem_idx_d,
                               avm_main_mem_op_a,
                               avm_main_mem_op_b,
                               avm_main_mem_op_c,
+                              avm_main_mem_op_d,
                               avm_main_op_err,
                               avm_main_pc,
                               avm_main_r_in_tag,
                               avm_main_rwa,
                               avm_main_rwb,
                               avm_main_rwc,
+                              avm_main_rwd,
+                              avm_main_sel_cmov,
                               avm_main_sel_halt,
                               avm_main_sel_internal_call,
                               avm_main_sel_internal_return,
                               avm_main_sel_jump,
                               avm_main_sel_mov,
+                              avm_main_sel_mov_a,
+                              avm_main_sel_mov_b,
                               avm_main_sel_op_add,
                               avm_main_sel_op_and,
                               avm_main_sel_op_div,
@@ -298,15 +314,20 @@ class AvmFlavor {
                               avm_mem_ind_op_a,
                               avm_mem_ind_op_b,
                               avm_mem_ind_op_c,
+                              avm_mem_ind_op_d,
                               avm_mem_last,
                               avm_mem_lastAccess,
                               avm_mem_one_min_inv,
                               avm_mem_op_a,
                               avm_mem_op_b,
                               avm_mem_op_c,
+                              avm_mem_op_d,
                               avm_mem_r_in_tag,
                               avm_mem_rw,
-                              avm_mem_sel_mov,
+                              avm_mem_sel_cmov,
+                              avm_mem_sel_mov_a,
+                              avm_mem_sel_mov_b,
+                              avm_mem_skip_check_tag,
                               avm_mem_sub_clk,
                               avm_mem_tag,
                               avm_mem_tag_err,
@@ -317,9 +338,11 @@ class AvmFlavor {
                               perm_main_mem_a,
                               perm_main_mem_b,
                               perm_main_mem_c,
+                              perm_main_mem_d,
                               perm_main_mem_ind_a,
                               perm_main_mem_ind_b,
                               perm_main_mem_ind_c,
+                              perm_main_mem_ind_d,
                               lookup_byte_lengths,
                               lookup_byte_operations,
                               incl_main_tag_err,
@@ -448,32 +471,42 @@ class AvmFlavor {
                      avm_main_ia,
                      avm_main_ib,
                      avm_main_ic,
+                     avm_main_id,
+                     avm_main_id_zero,
                      avm_main_ind_a,
                      avm_main_ind_b,
                      avm_main_ind_c,
+                     avm_main_ind_d,
                      avm_main_ind_op_a,
                      avm_main_ind_op_b,
                      avm_main_ind_op_c,
+                     avm_main_ind_op_d,
                      avm_main_internal_return_ptr,
                      avm_main_inv,
                      avm_main_last,
                      avm_main_mem_idx_a,
                      avm_main_mem_idx_b,
                      avm_main_mem_idx_c,
+                     avm_main_mem_idx_d,
                      avm_main_mem_op_a,
                      avm_main_mem_op_b,
                      avm_main_mem_op_c,
+                     avm_main_mem_op_d,
                      avm_main_op_err,
                      avm_main_pc,
                      avm_main_r_in_tag,
                      avm_main_rwa,
                      avm_main_rwb,
                      avm_main_rwc,
+                     avm_main_rwd,
+                     avm_main_sel_cmov,
                      avm_main_sel_halt,
                      avm_main_sel_internal_call,
                      avm_main_sel_internal_return,
                      avm_main_sel_jump,
                      avm_main_sel_mov,
+                     avm_main_sel_mov_a,
+                     avm_main_sel_mov_b,
                      avm_main_sel_op_add,
                      avm_main_sel_op_and,
                      avm_main_sel_op_div,
@@ -494,15 +527,20 @@ class AvmFlavor {
                      avm_mem_ind_op_a,
                      avm_mem_ind_op_b,
                      avm_mem_ind_op_c,
+                     avm_mem_ind_op_d,
                      avm_mem_last,
                      avm_mem_lastAccess,
                      avm_mem_one_min_inv,
                      avm_mem_op_a,
                      avm_mem_op_b,
                      avm_mem_op_c,
+                     avm_mem_op_d,
                      avm_mem_r_in_tag,
                      avm_mem_rw,
-                     avm_mem_sel_mov,
+                     avm_mem_sel_cmov,
+                     avm_mem_sel_mov_a,
+                     avm_mem_sel_mov_b,
+                     avm_mem_skip_check_tag,
                      avm_mem_sub_clk,
                      avm_mem_tag,
                      avm_mem_tag_err,
@@ -513,9 +551,11 @@ class AvmFlavor {
                      perm_main_mem_a,
                      perm_main_mem_b,
                      perm_main_mem_c,
+                     perm_main_mem_d,
                      perm_main_mem_ind_a,
                      perm_main_mem_ind_b,
                      perm_main_mem_ind_c,
+                     perm_main_mem_ind_d,
                      lookup_byte_lengths,
                      lookup_byte_operations,
                      incl_main_tag_err,
@@ -649,32 +689,42 @@ class AvmFlavor {
                               avm_main_ia,
                               avm_main_ib,
                               avm_main_ic,
+                              avm_main_id,
+                              avm_main_id_zero,
                               avm_main_ind_a,
                               avm_main_ind_b,
                               avm_main_ind_c,
+                              avm_main_ind_d,
                               avm_main_ind_op_a,
                               avm_main_ind_op_b,
                               avm_main_ind_op_c,
+                              avm_main_ind_op_d,
                               avm_main_internal_return_ptr,
                               avm_main_inv,
                               avm_main_last,
                               avm_main_mem_idx_a,
                               avm_main_mem_idx_b,
                               avm_main_mem_idx_c,
+                              avm_main_mem_idx_d,
                               avm_main_mem_op_a,
                               avm_main_mem_op_b,
                               avm_main_mem_op_c,
+                              avm_main_mem_op_d,
                               avm_main_op_err,
                               avm_main_pc,
                               avm_main_r_in_tag,
                               avm_main_rwa,
                               avm_main_rwb,
                               avm_main_rwc,
+                              avm_main_rwd,
+                              avm_main_sel_cmov,
                               avm_main_sel_halt,
                               avm_main_sel_internal_call,
                               avm_main_sel_internal_return,
                               avm_main_sel_jump,
                               avm_main_sel_mov,
+                              avm_main_sel_mov_a,
+                              avm_main_sel_mov_b,
                               avm_main_sel_op_add,
                               avm_main_sel_op_and,
                               avm_main_sel_op_div,
@@ -695,15 +745,20 @@ class AvmFlavor {
                               avm_mem_ind_op_a,
                               avm_mem_ind_op_b,
                               avm_mem_ind_op_c,
+                              avm_mem_ind_op_d,
                               avm_mem_last,
                               avm_mem_lastAccess,
                               avm_mem_one_min_inv,
                               avm_mem_op_a,
                               avm_mem_op_b,
                               avm_mem_op_c,
+                              avm_mem_op_d,
                               avm_mem_r_in_tag,
                               avm_mem_rw,
-                              avm_mem_sel_mov,
+                              avm_mem_sel_cmov,
+                              avm_mem_sel_mov_a,
+                              avm_mem_sel_mov_b,
+                              avm_mem_skip_check_tag,
                               avm_mem_sub_clk,
                               avm_mem_tag,
                               avm_mem_tag_err,
@@ -714,9 +769,11 @@ class AvmFlavor {
                               perm_main_mem_a,
                               perm_main_mem_b,
                               perm_main_mem_c,
+                              perm_main_mem_d,
                               perm_main_mem_ind_a,
                               perm_main_mem_ind_b,
                               perm_main_mem_ind_c,
+                              perm_main_mem_ind_d,
                               lookup_byte_lengths,
                               lookup_byte_operations,
                               incl_main_tag_err,
@@ -876,32 +933,42 @@ class AvmFlavor {
                      avm_main_ia,
                      avm_main_ib,
                      avm_main_ic,
+                     avm_main_id,
+                     avm_main_id_zero,
                      avm_main_ind_a,
                      avm_main_ind_b,
                      avm_main_ind_c,
+                     avm_main_ind_d,
                      avm_main_ind_op_a,
                      avm_main_ind_op_b,
                      avm_main_ind_op_c,
+                     avm_main_ind_op_d,
                      avm_main_internal_return_ptr,
                      avm_main_inv,
                      avm_main_last,
                      avm_main_mem_idx_a,
                      avm_main_mem_idx_b,
                      avm_main_mem_idx_c,
+                     avm_main_mem_idx_d,
                      avm_main_mem_op_a,
                      avm_main_mem_op_b,
                      avm_main_mem_op_c,
+                     avm_main_mem_op_d,
                      avm_main_op_err,
                      avm_main_pc,
                      avm_main_r_in_tag,
                      avm_main_rwa,
                      avm_main_rwb,
                      avm_main_rwc,
+                     avm_main_rwd,
+                     avm_main_sel_cmov,
                      avm_main_sel_halt,
                      avm_main_sel_internal_call,
                      avm_main_sel_internal_return,
                      avm_main_sel_jump,
                      avm_main_sel_mov,
+                     avm_main_sel_mov_a,
+                     avm_main_sel_mov_b,
                      avm_main_sel_op_add,
                      avm_main_sel_op_and,
                      avm_main_sel_op_div,
@@ -922,15 +989,20 @@ class AvmFlavor {
                      avm_mem_ind_op_a,
                      avm_mem_ind_op_b,
                      avm_mem_ind_op_c,
+                     avm_mem_ind_op_d,
                      avm_mem_last,
                      avm_mem_lastAccess,
                      avm_mem_one_min_inv,
                      avm_mem_op_a,
                      avm_mem_op_b,
                      avm_mem_op_c,
+                     avm_mem_op_d,
                      avm_mem_r_in_tag,
                      avm_mem_rw,
-                     avm_mem_sel_mov,
+                     avm_mem_sel_cmov,
+                     avm_mem_sel_mov_a,
+                     avm_mem_sel_mov_b,
+                     avm_mem_skip_check_tag,
                      avm_mem_sub_clk,
                      avm_mem_tag,
                      avm_mem_tag_err,
@@ -941,9 +1013,11 @@ class AvmFlavor {
                      perm_main_mem_a,
                      perm_main_mem_b,
                      perm_main_mem_c,
+                     perm_main_mem_d,
                      perm_main_mem_ind_a,
                      perm_main_mem_ind_b,
                      perm_main_mem_ind_c,
+                     perm_main_mem_ind_d,
                      lookup_byte_lengths,
                      lookup_byte_operations,
                      incl_main_tag_err,
@@ -1103,32 +1177,42 @@ class AvmFlavor {
                      avm_main_ia,
                      avm_main_ib,
                      avm_main_ic,
+                     avm_main_id,
+                     avm_main_id_zero,
                      avm_main_ind_a,
                      avm_main_ind_b,
                      avm_main_ind_c,
+                     avm_main_ind_d,
                      avm_main_ind_op_a,
                      avm_main_ind_op_b,
                      avm_main_ind_op_c,
+                     avm_main_ind_op_d,
                      avm_main_internal_return_ptr,
                      avm_main_inv,
                      avm_main_last,
                      avm_main_mem_idx_a,
                      avm_main_mem_idx_b,
                      avm_main_mem_idx_c,
+                     avm_main_mem_idx_d,
                      avm_main_mem_op_a,
                      avm_main_mem_op_b,
                      avm_main_mem_op_c,
+                     avm_main_mem_op_d,
                      avm_main_op_err,
                      avm_main_pc,
                      avm_main_r_in_tag,
                      avm_main_rwa,
                      avm_main_rwb,
                      avm_main_rwc,
+                     avm_main_rwd,
+                     avm_main_sel_cmov,
                      avm_main_sel_halt,
                      avm_main_sel_internal_call,
                      avm_main_sel_internal_return,
                      avm_main_sel_jump,
                      avm_main_sel_mov,
+                     avm_main_sel_mov_a,
+                     avm_main_sel_mov_b,
                      avm_main_sel_op_add,
                      avm_main_sel_op_and,
                      avm_main_sel_op_div,
@@ -1149,15 +1233,20 @@ class AvmFlavor {
                      avm_mem_ind_op_a,
                      avm_mem_ind_op_b,
                      avm_mem_ind_op_c,
+                     avm_mem_ind_op_d,
                      avm_mem_last,
                      avm_mem_lastAccess,
                      avm_mem_one_min_inv,
                      avm_mem_op_a,
                      avm_mem_op_b,
                      avm_mem_op_c,
+                     avm_mem_op_d,
                      avm_mem_r_in_tag,
                      avm_mem_rw,
-                     avm_mem_sel_mov,
+                     avm_mem_sel_cmov,
+                     avm_mem_sel_mov_a,
+                     avm_mem_sel_mov_b,
+                     avm_mem_skip_check_tag,
                      avm_mem_sub_clk,
                      avm_mem_tag,
                      avm_mem_tag_err,
@@ -1168,9 +1257,11 @@ class AvmFlavor {
                      perm_main_mem_a,
                      perm_main_mem_b,
                      perm_main_mem_c,
+                     perm_main_mem_d,
                      perm_main_mem_ind_a,
                      perm_main_mem_ind_b,
                      perm_main_mem_ind_c,
+                     perm_main_mem_ind_d,
                      lookup_byte_lengths,
                      lookup_byte_operations,
                      incl_main_tag_err,
@@ -1278,11 +1369,15 @@ class AvmFlavor {
                 prover_polynomials, relation_parameters, this->circuit_size);
             bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_c_relation<FF>>(
                 prover_polynomials, relation_parameters, this->circuit_size);
+            bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_d_relation<FF>>(
+                prover_polynomials, relation_parameters, this->circuit_size);
             bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_ind_a_relation<FF>>(
                 prover_polynomials, relation_parameters, this->circuit_size);
             bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_ind_b_relation<FF>>(
                 prover_polynomials, relation_parameters, this->circuit_size);
             bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_ind_c_relation<FF>>(
+                prover_polynomials, relation_parameters, this->circuit_size);
+            bb::compute_logderivative_inverse<AvmFlavor, perm_main_mem_ind_d_relation<FF>>(
                 prover_polynomials, relation_parameters, this->circuit_size);
             bb::compute_logderivative_inverse<AvmFlavor, lookup_byte_lengths_relation<FF>>(
                 prover_polynomials, relation_parameters, this->circuit_size);
@@ -1503,32 +1598,42 @@ class AvmFlavor {
             Base::avm_main_ia = "AVM_MAIN_IA";
             Base::avm_main_ib = "AVM_MAIN_IB";
             Base::avm_main_ic = "AVM_MAIN_IC";
+            Base::avm_main_id = "AVM_MAIN_ID";
+            Base::avm_main_id_zero = "AVM_MAIN_ID_ZERO";
             Base::avm_main_ind_a = "AVM_MAIN_IND_A";
             Base::avm_main_ind_b = "AVM_MAIN_IND_B";
             Base::avm_main_ind_c = "AVM_MAIN_IND_C";
+            Base::avm_main_ind_d = "AVM_MAIN_IND_D";
             Base::avm_main_ind_op_a = "AVM_MAIN_IND_OP_A";
             Base::avm_main_ind_op_b = "AVM_MAIN_IND_OP_B";
             Base::avm_main_ind_op_c = "AVM_MAIN_IND_OP_C";
+            Base::avm_main_ind_op_d = "AVM_MAIN_IND_OP_D";
             Base::avm_main_internal_return_ptr = "AVM_MAIN_INTERNAL_RETURN_PTR";
             Base::avm_main_inv = "AVM_MAIN_INV";
             Base::avm_main_last = "AVM_MAIN_LAST";
             Base::avm_main_mem_idx_a = "AVM_MAIN_MEM_IDX_A";
             Base::avm_main_mem_idx_b = "AVM_MAIN_MEM_IDX_B";
             Base::avm_main_mem_idx_c = "AVM_MAIN_MEM_IDX_C";
+            Base::avm_main_mem_idx_d = "AVM_MAIN_MEM_IDX_D";
             Base::avm_main_mem_op_a = "AVM_MAIN_MEM_OP_A";
             Base::avm_main_mem_op_b = "AVM_MAIN_MEM_OP_B";
             Base::avm_main_mem_op_c = "AVM_MAIN_MEM_OP_C";
+            Base::avm_main_mem_op_d = "AVM_MAIN_MEM_OP_D";
             Base::avm_main_op_err = "AVM_MAIN_OP_ERR";
             Base::avm_main_pc = "AVM_MAIN_PC";
             Base::avm_main_r_in_tag = "AVM_MAIN_R_IN_TAG";
             Base::avm_main_rwa = "AVM_MAIN_RWA";
             Base::avm_main_rwb = "AVM_MAIN_RWB";
             Base::avm_main_rwc = "AVM_MAIN_RWC";
+            Base::avm_main_rwd = "AVM_MAIN_RWD";
+            Base::avm_main_sel_cmov = "AVM_MAIN_SEL_CMOV";
             Base::avm_main_sel_halt = "AVM_MAIN_SEL_HALT";
             Base::avm_main_sel_internal_call = "AVM_MAIN_SEL_INTERNAL_CALL";
             Base::avm_main_sel_internal_return = "AVM_MAIN_SEL_INTERNAL_RETURN";
             Base::avm_main_sel_jump = "AVM_MAIN_SEL_JUMP";
             Base::avm_main_sel_mov = "AVM_MAIN_SEL_MOV";
+            Base::avm_main_sel_mov_a = "AVM_MAIN_SEL_MOV_A";
+            Base::avm_main_sel_mov_b = "AVM_MAIN_SEL_MOV_B";
             Base::avm_main_sel_op_add = "AVM_MAIN_SEL_OP_ADD";
             Base::avm_main_sel_op_and = "AVM_MAIN_SEL_OP_AND";
             Base::avm_main_sel_op_div = "AVM_MAIN_SEL_OP_DIV";
@@ -1549,15 +1654,20 @@ class AvmFlavor {
             Base::avm_mem_ind_op_a = "AVM_MEM_IND_OP_A";
             Base::avm_mem_ind_op_b = "AVM_MEM_IND_OP_B";
             Base::avm_mem_ind_op_c = "AVM_MEM_IND_OP_C";
+            Base::avm_mem_ind_op_d = "AVM_MEM_IND_OP_D";
             Base::avm_mem_last = "AVM_MEM_LAST";
             Base::avm_mem_lastAccess = "AVM_MEM_LASTACCESS";
             Base::avm_mem_one_min_inv = "AVM_MEM_ONE_MIN_INV";
             Base::avm_mem_op_a = "AVM_MEM_OP_A";
             Base::avm_mem_op_b = "AVM_MEM_OP_B";
             Base::avm_mem_op_c = "AVM_MEM_OP_C";
+            Base::avm_mem_op_d = "AVM_MEM_OP_D";
             Base::avm_mem_r_in_tag = "AVM_MEM_R_IN_TAG";
             Base::avm_mem_rw = "AVM_MEM_RW";
-            Base::avm_mem_sel_mov = "AVM_MEM_SEL_MOV";
+            Base::avm_mem_sel_cmov = "AVM_MEM_SEL_CMOV";
+            Base::avm_mem_sel_mov_a = "AVM_MEM_SEL_MOV_A";
+            Base::avm_mem_sel_mov_b = "AVM_MEM_SEL_MOV_B";
+            Base::avm_mem_skip_check_tag = "AVM_MEM_SKIP_CHECK_TAG";
             Base::avm_mem_sub_clk = "AVM_MEM_SUB_CLK";
             Base::avm_mem_tag = "AVM_MEM_TAG";
             Base::avm_mem_tag_err = "AVM_MEM_TAG_ERR";
@@ -1568,9 +1678,11 @@ class AvmFlavor {
             Base::perm_main_mem_a = "PERM_MAIN_MEM_A";
             Base::perm_main_mem_b = "PERM_MAIN_MEM_B";
             Base::perm_main_mem_c = "PERM_MAIN_MEM_C";
+            Base::perm_main_mem_d = "PERM_MAIN_MEM_D";
             Base::perm_main_mem_ind_a = "PERM_MAIN_MEM_IND_A";
             Base::perm_main_mem_ind_b = "PERM_MAIN_MEM_IND_B";
             Base::perm_main_mem_ind_c = "PERM_MAIN_MEM_IND_C";
+            Base::perm_main_mem_ind_d = "PERM_MAIN_MEM_IND_D";
             Base::lookup_byte_lengths = "LOOKUP_BYTE_LENGTHS";
             Base::lookup_byte_operations = "LOOKUP_BYTE_OPERATIONS";
             Base::incl_main_tag_err = "INCL_MAIN_TAG_ERR";
@@ -1715,32 +1827,42 @@ class AvmFlavor {
         Commitment avm_main_ia;
         Commitment avm_main_ib;
         Commitment avm_main_ic;
+        Commitment avm_main_id;
+        Commitment avm_main_id_zero;
         Commitment avm_main_ind_a;
         Commitment avm_main_ind_b;
         Commitment avm_main_ind_c;
+        Commitment avm_main_ind_d;
         Commitment avm_main_ind_op_a;
         Commitment avm_main_ind_op_b;
         Commitment avm_main_ind_op_c;
+        Commitment avm_main_ind_op_d;
         Commitment avm_main_internal_return_ptr;
         Commitment avm_main_inv;
         Commitment avm_main_last;
         Commitment avm_main_mem_idx_a;
         Commitment avm_main_mem_idx_b;
         Commitment avm_main_mem_idx_c;
+        Commitment avm_main_mem_idx_d;
         Commitment avm_main_mem_op_a;
         Commitment avm_main_mem_op_b;
         Commitment avm_main_mem_op_c;
+        Commitment avm_main_mem_op_d;
         Commitment avm_main_op_err;
         Commitment avm_main_pc;
         Commitment avm_main_r_in_tag;
         Commitment avm_main_rwa;
         Commitment avm_main_rwb;
         Commitment avm_main_rwc;
+        Commitment avm_main_rwd;
+        Commitment avm_main_sel_cmov;
         Commitment avm_main_sel_halt;
         Commitment avm_main_sel_internal_call;
         Commitment avm_main_sel_internal_return;
         Commitment avm_main_sel_jump;
         Commitment avm_main_sel_mov;
+        Commitment avm_main_sel_mov_a;
+        Commitment avm_main_sel_mov_b;
         Commitment avm_main_sel_op_add;
         Commitment avm_main_sel_op_and;
         Commitment avm_main_sel_op_div;
@@ -1761,15 +1883,20 @@ class AvmFlavor {
         Commitment avm_mem_ind_op_a;
         Commitment avm_mem_ind_op_b;
         Commitment avm_mem_ind_op_c;
+        Commitment avm_mem_ind_op_d;
         Commitment avm_mem_last;
         Commitment avm_mem_lastAccess;
         Commitment avm_mem_one_min_inv;
         Commitment avm_mem_op_a;
         Commitment avm_mem_op_b;
         Commitment avm_mem_op_c;
+        Commitment avm_mem_op_d;
         Commitment avm_mem_r_in_tag;
         Commitment avm_mem_rw;
-        Commitment avm_mem_sel_mov;
+        Commitment avm_mem_sel_cmov;
+        Commitment avm_mem_sel_mov_a;
+        Commitment avm_mem_sel_mov_b;
+        Commitment avm_mem_skip_check_tag;
         Commitment avm_mem_sub_clk;
         Commitment avm_mem_tag;
         Commitment avm_mem_tag_err;
@@ -1780,9 +1907,11 @@ class AvmFlavor {
         Commitment perm_main_mem_a;
         Commitment perm_main_mem_b;
         Commitment perm_main_mem_c;
+        Commitment perm_main_mem_d;
         Commitment perm_main_mem_ind_a;
         Commitment perm_main_mem_ind_b;
         Commitment perm_main_mem_ind_c;
+        Commitment perm_main_mem_ind_d;
         Commitment lookup_byte_lengths;
         Commitment lookup_byte_operations;
         Commitment incl_main_tag_err;
@@ -1928,32 +2057,42 @@ class AvmFlavor {
             avm_main_ia = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_ib = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_ic = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_id = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_id_zero = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_ind_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_ind_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_ind_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_ind_d = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_ind_op_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_ind_op_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_ind_op_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_ind_op_d = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_internal_return_ptr = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_inv = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_last = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_idx_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_idx_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_idx_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_mem_idx_d = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_op_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_op_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_mem_op_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_mem_op_d = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_op_err = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_pc = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_r_in_tag = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_rwa = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_rwb = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_rwc = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_rwd = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_sel_cmov = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_halt = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_internal_call = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_internal_return = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_jump = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_mov = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_sel_mov_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_main_sel_mov_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_add = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_and = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_main_sel_op_div = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -1974,15 +2113,20 @@ class AvmFlavor {
             avm_mem_ind_op_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_ind_op_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_ind_op_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_mem_ind_op_d = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_last = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_lastAccess = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_one_min_inv = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_op_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_op_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_op_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_mem_op_d = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_r_in_tag = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_rw = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
-            avm_mem_sel_mov = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_mem_sel_cmov = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_mem_sel_mov_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_mem_sel_mov_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            avm_mem_skip_check_tag = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_sub_clk = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_tag = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             avm_mem_tag_err = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -1993,9 +2137,11 @@ class AvmFlavor {
             perm_main_mem_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_mem_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_mem_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            perm_main_mem_d = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_mem_ind_a = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_mem_ind_b = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             perm_main_mem_ind_c = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
+            perm_main_mem_ind_d = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             lookup_byte_lengths = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             lookup_byte_operations = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
             incl_main_tag_err = deserialize_from_buffer<Commitment>(Transcript::proof_data, num_frs_read);
@@ -2144,32 +2290,42 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_main_ia, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_ib, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_ic, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_id, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_id_zero, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_ind_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_ind_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_ind_c, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_ind_d, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_ind_op_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_ind_op_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_ind_op_c, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_ind_op_d, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_internal_return_ptr, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_inv, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_last, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_idx_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_idx_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_idx_c, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_mem_idx_d, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_op_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_op_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_mem_op_c, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_mem_op_d, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_op_err, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_pc, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_r_in_tag, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_rwa, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_rwb, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_rwc, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_rwd, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_sel_cmov, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_halt, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_internal_call, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_internal_return, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_jump, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_mov, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_sel_mov_a, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_main_sel_mov_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_add, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_and, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_main_sel_op_div, Transcript::proof_data);
@@ -2190,15 +2346,20 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(avm_mem_ind_op_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_ind_op_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_ind_op_c, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_mem_ind_op_d, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_last, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_lastAccess, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_one_min_inv, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_op_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_op_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_op_c, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_mem_op_d, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_r_in_tag, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_rw, Transcript::proof_data);
-            serialize_to_buffer<Commitment>(avm_mem_sel_mov, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_mem_sel_cmov, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_mem_sel_mov_a, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_mem_sel_mov_b, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(avm_mem_skip_check_tag, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_sub_clk, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_tag, Transcript::proof_data);
             serialize_to_buffer<Commitment>(avm_mem_tag_err, Transcript::proof_data);
@@ -2209,9 +2370,11 @@ class AvmFlavor {
             serialize_to_buffer<Commitment>(perm_main_mem_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_mem_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_mem_c, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(perm_main_mem_d, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_mem_ind_a, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_mem_ind_b, Transcript::proof_data);
             serialize_to_buffer<Commitment>(perm_main_mem_ind_c, Transcript::proof_data);
+            serialize_to_buffer<Commitment>(perm_main_mem_ind_d, Transcript::proof_data);
             serialize_to_buffer<Commitment>(lookup_byte_lengths, Transcript::proof_data);
             serialize_to_buffer<Commitment>(lookup_byte_operations, Transcript::proof_data);
             serialize_to_buffer<Commitment>(incl_main_tag_err, Transcript::proof_data);

@@ -232,6 +232,13 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
                                  std::get<uint32_t>(inst.operands.at(1)),
                                  std::get<uint32_t>(inst.operands.at(2)));
             break;
+        case OpCode::CMOV:
+            trace_builder.op_cmov(std::get<uint8_t>(inst.operands.at(0)),
+                                  std::get<uint32_t>(inst.operands.at(1)),
+                                  std::get<uint32_t>(inst.operands.at(2)),
+                                  std::get<uint32_t>(inst.operands.at(3)),
+                                  std::get<uint32_t>(inst.operands.at(4)));
+            break;
             // Control Flow - Contract Calls
         case OpCode::RETURN:
             trace_builder.return_op(std::get<uint8_t>(inst.operands.at(0)),

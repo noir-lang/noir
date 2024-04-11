@@ -9,10 +9,10 @@
 
 namespace bb {
 
-class perm_main_mem_b_permutation_settings {
+class perm_main_mem_d_permutation_settings {
   public:
     // This constant defines how many columns are bundled together to form each set.
-    constexpr static size_t COLUMNS_PER_SET = 8;
+    constexpr static size_t COLUMNS_PER_SET = 7;
 
     /**
      * @brief If this method returns true on a row of values, then the inverse polynomial at this index. Otherwise the
@@ -23,7 +23,7 @@ class perm_main_mem_b_permutation_settings {
 
     template <typename AllEntities> static inline auto inverse_polynomial_is_computed_at_row(const AllEntities& in)
     {
-        return (in.avm_main_mem_op_b == 1 || in.avm_mem_op_b == 1);
+        return (in.avm_main_mem_op_d == 1 || in.avm_mem_op_d == 1);
     }
 
     /**
@@ -46,17 +46,16 @@ class perm_main_mem_b_permutation_settings {
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.perm_main_mem_b,
-                                     in.avm_main_mem_op_b,
-                                     in.avm_main_mem_op_b,
-                                     in.avm_mem_op_b,
+        return std::forward_as_tuple(in.perm_main_mem_d,
+                                     in.avm_main_mem_op_d,
+                                     in.avm_main_mem_op_d,
+                                     in.avm_mem_op_d,
                                      in.avm_main_clk,
-                                     in.avm_main_mem_idx_b,
-                                     in.avm_main_ib,
-                                     in.avm_main_rwb,
+                                     in.avm_main_mem_idx_d,
+                                     in.avm_main_id,
+                                     in.avm_main_rwd,
                                      in.avm_main_r_in_tag,
                                      in.avm_main_w_in_tag,
-                                     in.avm_main_sel_mov_b,
                                      in.avm_main_sel_cmov,
                                      in.avm_mem_clk,
                                      in.avm_mem_addr,
@@ -64,7 +63,6 @@ class perm_main_mem_b_permutation_settings {
                                      in.avm_mem_rw,
                                      in.avm_mem_r_in_tag,
                                      in.avm_mem_w_in_tag,
-                                     in.avm_mem_sel_mov_b,
                                      in.avm_mem_sel_cmov);
     }
 
@@ -88,17 +86,16 @@ class perm_main_mem_b_permutation_settings {
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
 
-        return std::forward_as_tuple(in.perm_main_mem_b,
-                                     in.avm_main_mem_op_b,
-                                     in.avm_main_mem_op_b,
-                                     in.avm_mem_op_b,
+        return std::forward_as_tuple(in.perm_main_mem_d,
+                                     in.avm_main_mem_op_d,
+                                     in.avm_main_mem_op_d,
+                                     in.avm_mem_op_d,
                                      in.avm_main_clk,
-                                     in.avm_main_mem_idx_b,
-                                     in.avm_main_ib,
-                                     in.avm_main_rwb,
+                                     in.avm_main_mem_idx_d,
+                                     in.avm_main_id,
+                                     in.avm_main_rwd,
                                      in.avm_main_r_in_tag,
                                      in.avm_main_w_in_tag,
-                                     in.avm_main_sel_mov_b,
                                      in.avm_main_sel_cmov,
                                      in.avm_mem_clk,
                                      in.avm_mem_addr,
@@ -106,13 +103,12 @@ class perm_main_mem_b_permutation_settings {
                                      in.avm_mem_rw,
                                      in.avm_mem_r_in_tag,
                                      in.avm_mem_w_in_tag,
-                                     in.avm_mem_sel_mov_b,
                                      in.avm_mem_sel_cmov);
     }
 };
 
 template <typename FF_>
-using perm_main_mem_b_relation = GenericPermutationRelation<perm_main_mem_b_permutation_settings, FF_>;
-template <typename FF_> using perm_main_mem_b = GenericPermutation<perm_main_mem_b_permutation_settings, FF_>;
+using perm_main_mem_d_relation = GenericPermutationRelation<perm_main_mem_d_permutation_settings, FF_>;
+template <typename FF_> using perm_main_mem_d = GenericPermutation<perm_main_mem_d_permutation_settings, FF_>;
 
 } // namespace bb

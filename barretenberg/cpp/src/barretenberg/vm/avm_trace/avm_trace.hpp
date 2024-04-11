@@ -68,6 +68,10 @@ class AvmTraceBuilder {
     // Move (copy) the value and tag of a memory cell to another one.
     void op_mov(uint8_t indirect, uint32_t src_offset, uint32_t dst_offset);
 
+    // Move (copy) the value and tag of a memory cell to another one whereby the source
+    // is determined conditionally based on a conditional value determined by cond_offset.
+    void op_cmov(uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t cond_offset, uint32_t dst_offset);
+
     // Jump to a given program counter.
     void jump(uint32_t jmp_dest);
 
@@ -101,7 +105,7 @@ class AvmTraceBuilder {
         bool tag_match = false;
         uint32_t direct_a_offset;
         uint32_t direct_b_offset;
-        uint32_t direct_dst_offset;
+        uint32_t direct_c_offset;
 
         bool indirect_flag_a = false;
         bool indirect_flag_b = false;
@@ -118,7 +122,7 @@ class AvmTraceBuilder {
     void finalise_mem_trace_lookup_counts();
 
     IndirectThreeResolution resolve_ind_three(
-        uint32_t clk, uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t dst_offset);
+        uint32_t clk, uint8_t indirect, uint32_t a_offset, uint32_t b_offset, uint32_t c_offset);
 
     uint32_t pc = 0;
     uint32_t internal_return_ptr = CALLSTACK_OFFSET;

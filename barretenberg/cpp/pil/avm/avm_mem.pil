@@ -15,20 +15,26 @@ namespace avm_mem(256);
 
     pol commit r_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.r_in_tag)
     pol commit w_in_tag; // Instruction memory tag ("foreign key" pointing to avm_main.w_in_tag)
+    pol commit skip_check_tag; // A boolean value which relaxes the consistency check in memory
+                               // trace between tag and r_in_tag. Required for CMOV opcode.
 
     // Indicator of the intermediate register pertaining to the memory operation (foreign key to avm_main.mem_op_XXX)
     pol commit op_a;
     pol commit op_b;
     pol commit op_c;
+    pol commit op_d;
 
     // Indicator of the indirect register pertaining to the memory operation (foreign key to avm_main.ind_op_XXX)
     pol commit ind_op_a;
     pol commit ind_op_b;
     pol commit ind_op_c;
+    pol commit ind_op_d;
 
-    // Selector for MOV opcode (copied from main trace for loading operation on intermediated register ia)
+    // Selectors related to MOV/CMOV opcodes (copied from main trace for loading operation on intermediated register ia/ib)
     // Boolean constraint is performed in main trace.
-    pol commit sel_mov;
+    pol commit sel_mov_a;
+    pol commit sel_mov_b;
+    pol commit sel_cmov;
 
     // Error columns
     pol commit tag_err; // Boolean (1 if r_in_tag != tag is detected)
@@ -44,20 +50,22 @@ namespace avm_mem(256);
     op_a * (1 - op_a) = 0;
     op_b * (1 - op_b) = 0;
     op_c * (1 - op_c) = 0;
+    op_d * (1 - op_d) = 0;
     ind_op_a * (1 - ind_op_a) = 0;
     ind_op_b * (1 - ind_op_b) = 0;
     ind_op_c * (1 - ind_op_c) = 0;
+    ind_op_d * (1 - ind_op_d) = 0;
 
     // TODO: addr is u32 and 0 <= tag <= 6
     //       (r_in_tag, w_in_tag will be constrained through inclusion check to main trace)
 
     // Maximum one memory operation enabled per row
-    pol MEM_SEL = op_a + op_b + op_c + ind_op_a + ind_op_b + ind_op_c;
+    pol MEM_SEL = op_a + op_b + op_c + op_d + ind_op_a + ind_op_b + ind_op_c + ind_op_d;
     MEM_SEL * (MEM_SEL - 1) = 0;
 
     // sub_clk derivation
-    pol IND_OP = ind_op_a + ind_op_b + ind_op_c;
-    sub_clk = MEM_SEL * (ind_op_b + op_b + 2 * (ind_op_c + op_c) + 3 * (1 - IND_OP + rw));
+    pol IND_OP = ind_op_a + ind_op_b + ind_op_c + ind_op_d;
+    sub_clk = MEM_SEL * (ind_op_b + op_b + 2 * (ind_op_c + op_c) + 3 * (ind_op_d + op_d) + 4 * (1 - IND_OP + rw));
     // We need the MEM_SEL factor as the right factor is not zero when all columns are zero.
 
     // Remark: lastAccess == 1 on first row and therefore any relation with the
@@ -106,6 +114,10 @@ namespace avm_mem(256);
     #[MEM_ZERO_INIT]
     lastAccess * (1 - rw') * val' = 0;
 
+    // Skip check tag
+     #[SKIP_CHECK_TAG]
+    skip_check_tag = sel_cmov * (op_d + op_a * (1-sel_mov_a) + op_b * (1-sel_mov_b));
+
     // Memory tag consistency check for load operations, i.e., rw == 0.
     // We want to prove that r_in_tag == tag <==> tag_err == 0
     // We want to show that we can invert (r_in_tag - tag) when tag_err == 1,
@@ -120,9 +132,12 @@ namespace avm_mem(256);
     // The new column one_min_inv is set to 1 - (r_in_tag - tag)^(-1) when tag_err == 1
     // but must be set to 0 when tags are matching and tag_err = 0
     #[MEM_IN_TAG_CONSISTENCY_1]
-    (1 - rw) * ((r_in_tag - tag) * (1 - one_min_inv) - tag_err) = 0;
+    (1 - skip_check_tag) * (1 - rw) * ((r_in_tag - tag) * (1 - one_min_inv) - tag_err) = 0;
     #[MEM_IN_TAG_CONSISTENCY_2]
     (1 - tag_err) * one_min_inv = 0;
+
+    #[NO_TAG_ERR_WRITE_OR_SKIP]
+    (skip_check_tag + rw) * tag_err = 0;
 
     // Correctness of two above checks MEM_IN_TAG_CONSISTENCY_1/2 (assuming rw == 0):
     // r_in_tag == tag ==> tag_err == 0 (first relation)
@@ -140,18 +155,20 @@ namespace avm_mem(256);
     ind_op_a * (r_in_tag - 3) = 0;
     ind_op_b * (r_in_tag - 3) = 0;
     ind_op_c * (r_in_tag - 3) = 0;
+    ind_op_d * (r_in_tag - 3) = 0;
 
     // Indirect operation is always a load
     ind_op_a * rw = 0;
     ind_op_b * rw = 0;
     ind_op_c * rw = 0;
+    ind_op_d * rw = 0;
 
-    //====== MOV Opcode Tag Constraint =====================================
+    //====== MOV/CMOV Opcode Tag Constraint =====================================
     // The following constraint ensures that the r_in_tag is set to tag for
-    // the load operation pertaining to Ia.
-    // The permutation check #[PERM_MAIN_MEM_A] guarantees that the r_in_tag
-    // value load operation for Ia is copied back in the main trace.
+    // the load operation pertaining to Ia resp. Ib.
+    // The permutation check #[PERM_MAIN_MEM_A/B] guarantees that the r_in_tag
+    // value load operation for Ia/Ib is copied back in the main trace.
     // Constraint #[MOV_MAIN_SAME_TAG] copies r_in_tag to w_in_tag in the main
     // trace. Then, #[PERM_MAIN_MEM_C] copies w_in_tag for store operation from Ic.
     #[MOV_SAME_TAG]
-    sel_mov * tag_err = 0; // Equivalent to sel_mov * (r_in_tag - tag) = 0
+    (sel_mov_a + sel_mov_b) * tag_err = 0; // Equivalent to (sel_mov_a + sel_mov_b) * (r_in_tag - tag) = 0

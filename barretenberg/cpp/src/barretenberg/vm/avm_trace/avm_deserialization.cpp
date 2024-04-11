@@ -44,6 +44,8 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
     // Machine State - Memory
     // OpCode::SET is handled differently
     { OpCode::MOV, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
+    { OpCode::CMOV,
+      { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },
     // Control Flow - Contract Calls
     { OpCode::RETURN, { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32 } },
 };
