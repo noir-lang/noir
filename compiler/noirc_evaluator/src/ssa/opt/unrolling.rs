@@ -34,6 +34,31 @@ use crate::{
 use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
+    /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
+    /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
+    pub(crate) fn unroll_loops_iteratively(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
+        // Try to unroll loops first:
+        let mut unroll_errors;
+        (ssa, unroll_errors) = ssa.try_to_unroll_loops();
+
+        // Keep unrolling until no more errors are found
+        while !unroll_errors.is_empty() {
+            let prev_unroll_err_count = unroll_errors.len();
+
+            // Simplify the SSA before retrying
+            ssa = ssa.simplify_cfg();
+            ssa = ssa.mem2reg();
+
+            // Unroll again
+            (ssa, unroll_errors) = ssa.try_to_unroll_loops();
+            // If we didn't manage to unroll any more loops, exit
+            if unroll_errors.len() >= prev_unroll_err_count {
+                return Err(unroll_errors.swap_remove(0));
+            }
+        }
+        Ok(ssa)
+    }
+
     /// Tries to unroll all loops in each SSA function.
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     /// Returns the ssa along with all unrolling errors encountered
