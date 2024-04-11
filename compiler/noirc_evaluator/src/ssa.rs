@@ -55,7 +55,7 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
         .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
-        .try_run_pass(Ssa::unroll_loops, "After Unrolling:")?
+        .try_run_pass(unroll_all_acir_loops, "After Unrolling:")?
         .run_pass(Ssa::simplify_cfg, "After Simplifying:")
         .run_pass(Ssa::flatten_cfg, "After Flattening:")
         .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
@@ -73,6 +73,31 @@ pub(crate) fn optimize_into_acir(
     drop(ssa_gen_span_guard);
 
     time("SSA to ACIR", print_timings, || ssa.into_acir(&brillig, abi_distinctness))
+}
+
+/// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
+/// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
+fn unroll_all_acir_loops(mut ssa: Ssa) -> Result<Ssa, RuntimeError> {
+    // Try to unroll loops first:
+    let mut unroll_errors;
+    (ssa, unroll_errors) = ssa.try_to_unroll_loops();
+
+    // Keep unrolling until no more errors are found
+    while !unroll_errors.is_empty() {
+        let prev_unroll_err_count = unroll_errors.len();
+
+        // Simplify the SSA before retrying
+        ssa = ssa.simplify_cfg();
+        ssa = ssa.mem2reg();
+
+        // Unroll again
+        (ssa, unroll_errors) = ssa.try_to_unroll_loops();
+        // If we didn't manage to unroll any more loops, exit
+        if unroll_errors.len() == prev_unroll_err_count {
+            return Err(unroll_errors[0].clone());
+        }
+    }
+    Ok(ssa)
 }
 
 // Helper to time SSA passes
