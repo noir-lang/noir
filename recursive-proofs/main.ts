@@ -35,55 +35,45 @@ type FullNoir = {
 }
 
 async function start() {
-  const recursive: FullNoir = await fullNoirFromCircuit('recurse');
+  const simple: FullNoir = await fullNoirFromCircuit('not_odd');
+  const outer: FullNoir = await fullNoirFromCircuit('recurse');
 
-  // Generate artifacts recursively
-  let verificationProof = {
-    verification_key: Array<string>(114).fill("0x00"),
-    proof: Array<string>(93).fill("0x00"),
-    public_inputs: ["0x06"],
-    key_hash: "0x00" as string, // circuit should skip `verify_proof` when key_hash is 0.
+  // Generate inner proof artifacts
+  console.log("Generating intermediate proof artifacts 1...");
+  const innerWitness1 = (await simple.noir.execute({ n: 2 })).witness;
+  const innerProof1: ProofData = await simple.backend.generateProof(innerWitness1);
+  const artifacts1 = await simple.backend.generateRecursiveProofArtifacts(innerProof1, 1);
+
+  console.log("Generating intermediate proof artifacts 2...");
+  const innerWitness2 = (await simple.noir.execute({ n: 4 })).witness;
+  const innerProof2: ProofData = await simple.backend.generateProof(innerWitness2);
+  const artifacts2 = await simple.backend.generateRecursiveProofArtifacts(innerProof2, 1);
+
+  simple.backend.destroy();
+
+  // Generate and verify outer proof
+  const outerInput = {
+    verification_key: artifacts1.vkAsFields,
+    public_inputs: ["1"], // expect output of inner call to be "true"
+    key_hash: artifacts1.vkHash,
+    proof1: artifacts1.proofAsFields,
+    proof2: artifacts2.proofAsFields
   };
-  let sum = 1;
-  const nodes = [3, 7];
-  for (const [i, n] of nodes.entries()) {
-    console.log("\n\nExecuting (with key_hash %s, sum %d, n %d)", verificationProof.key_hash, sum, n);
-    verificationProof.public_inputs = ["4"];
-    const { witness, returnValue } = await recursive.noir.execute({
-      ...verificationProof,
-      sum,
-      n
-    });
-    console.log("RESULT:", returnValue, witness);
-    sum = Number(returnValue) as number;
-    console.log("Generating proof data...");
-    const pd: ProofData = await recursive.backend.generateProof(witness);
-    console.log(pd);
-    if (i < nodes.length - 1) {
-      console.log("Generating recursive proof artifacts (depth %d)...", i);
-      ({
-        proofAsFields: verificationProof.proof,
-        vkAsFields: verificationProof.verification_key,
-        vkHash: verificationProof.key_hash
-      } = await recursive.backend.generateRecursiveProofArtifacts(
-        pd,
-        Number(verificationProof.public_inputs[0])
-      ));
-    }
-    else {
-      console.log("Verifying final proof...");
-      try {
-        const res: boolean = await recursive.backend.verifyProof(pd);
-        console.log("Verification", res ? "PASSED" : "failed");
-      }
-      catch (e) {
-        console.log(e);
-      }
-
-    }
+  const outerWitness = (await outer.noir.execute(
+    outerInput
+  )).witness;
+  try {
+    console.log("Generating outer proof...");
+    const outerProof: ProofData = await outer.backend.generateProof(outerWitness);
+    console.log("Verifying outer proof...");
+    const res: boolean = await outer.backend.verifyProof(outerProof);
+    console.log("Verification", res ? "PASSED" : "failed");
+  }
+  catch (e) {
+    console.log(e);
   }
 
-  recursive.backend.destroy();
+  outer.backend.destroy();
 }
 
 start();
