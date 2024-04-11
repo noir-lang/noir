@@ -2,7 +2,7 @@ use crate::token::{Attribute, DocStyle};
 
 use super::{
     errors::LexerErrorKind,
-    token::{IntType, Keyword, SpannedToken, Token, Tokens},
+    token::{token_to_tok, IntType, Keyword, SpannedToken, Tok, Token, Tokens},
 };
 use acvm::FieldElement;
 use noirc_errors::{Position, Span};
@@ -23,12 +23,13 @@ pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
 
 pub(crate) fn from_spanned_token_result(
     token_result: &SpannedTokenResult,
-) -> Result<(usize, &Token, usize), LexerErrorKind> {
-    x.as_ref()
+) -> Result<(usize, Tok<'_>, usize), LexerErrorKind> {
+    token_result
+        .as_ref()
         .map(|spanned_token| {
             (
                 spanned_token.to_span().start() as usize,
-                spanned_token.into(),
+                token_to_tok(spanned_token.into()),
                 spanned_token.to_span().end() as usize,
             )
         })

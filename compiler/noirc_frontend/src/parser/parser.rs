@@ -37,7 +37,7 @@ use crate::ast::{
 };
 use crate::lexer::{lexer::from_spanned_token_result, Lexer};
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{token_to_tok, Keyword, Token, TokenKind};
+use crate::token::{Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, Distinctness, ForLoopStatement, ForRange,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Literal, ModuleDeclaration,
@@ -90,6 +90,7 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
                     ItemKind::Import(parsed_use_tree) => {
                         prototype_parse_use_tree(Some(parsed_use_tree), source_program);
                     }
+                    // other kinds prevented by lalrpop_parser_supports_kind
                     _ => unreachable!(),
                 }
             }
@@ -99,7 +100,8 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
 }
 
 fn prototype_parse_use_tree(expected_use_tree_opt: Option<&UseTree>, input: &str) {
-    // TODO: currently skipping recursive use trees, e.g. "use std::{foo, bar}"
+    // TODO(https://github.com/noir-lang/noir/issues/4777): currently skipping
+    // recursive use trees, e.g. "use std::{foo, bar}"
     if input.contains('{') {
         return;
     }
@@ -111,13 +113,7 @@ fn prototype_parse_use_tree(expected_use_tree_opt: Option<&UseTree>, input: &str
     // NOTE: this is a hack to get the references working
     // => this likely means that we'll want to propagate the <'input> lifetime further into Token
     let lexer_result = lexer.collect::<Vec<_>>();
-    let referenced_lexer_result =
-        lexer_result.iter().map(from_spanned_token_result).map(|token_result| {
-            token_result
-                .as_ref()
-                .map(|(start, token, end)| (*start, token_to_tok(token), *end))
-                .map_err(|x| x.clone())
-        });
+    let referenced_lexer_result = lexer_result.iter().map(from_spanned_token_result);
 
     let calculated = noir_parser::TopLevelStatementParser::new().parse(
         input,
