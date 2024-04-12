@@ -77,11 +77,15 @@ async function start() {
     innerProof2,
     numPubInputs + 1 + 16 // +1 for public return +16 for hidden aggregation object
   );
+  console.log("artifacts2.proof length = ", artifacts2.proofAsFields.length);
+
+  pub_inputs.push(returnValue.toString()); // leaf returns sum
+  pub_inputs.push(returnValue.toString()); // node also coded to return same value
 
   // Generate and verify outer proof
   const outerParams = {
     verification_key: artifacts2.vkAsFields,
-    public_inputs: [pub_inputs.map.toString(), returnValue.toString()], // returns proven sum
+    public_inputs: pub_inputs,
     key_hash: artifacts2.vkHash,
     proof: artifacts2.proofAsFields
   };

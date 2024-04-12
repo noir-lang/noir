@@ -2,9 +2,9 @@ use dep::std;
 
 fn main(
     verification_key: [Field; 114],
-    public_inputs: pub [Field; 2],
+    public_inputs: pub [Field; 5],
     key_hash: Field,
-    proof: [Field; 109]
+    proof: [Field; 93] //109
 ) -> pub u64 {
     // verify sum was computed correctly
     std::verify_proof(
@@ -13,5 +13,5 @@ fn main(
         public_inputs.as_slice(),
         key_hash
     );
-    public_inputs[1] as u64
+    public_inputs[4] as u64
 }
