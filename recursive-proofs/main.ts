@@ -38,6 +38,7 @@ async function start() {
   const leaf: FullNoir = await fullNoirFromCircuit('sum');
 
   const leafParams = { a: 1, b: 3 };
+  let numPubInputs = 2;
 
   // Generate leaf proof artifacts
   let { witness, returnValue } = await leaf.noir.execute(leafParams);
@@ -46,12 +47,12 @@ async function start() {
   console.log("Generating intermediate proof artifacts leaf...");
   const artifacts1 = await leaf.backend.generateRecursiveProofArtifacts(
     innerProof1,
-    Object.keys(leafParams).length + 1
+    numPubInputs + 1 // +1 for public return
   );
 
 
   let pub_inputs: string[] = [
-    ...(Object.values(leafParams).map(a => Number(a).toString())),
+    ...(Object.values(leafParams).map(n => Number(n).toString())),
     Number(returnValue).toString()
   ];
 
@@ -62,43 +63,40 @@ async function start() {
 
   const nodeParams = {
     verification_key: artifacts1.vkAsFields,
-    public_inputs: pub_inputs,
+    public_inputs: pub_inputs, // public, each counted individually
     key_hash: artifacts1.vkHash,
     proof: artifacts1.proofAsFields,
     num: 5
   };
+  numPubInputs = pub_inputs.length;
 
   ({ witness, returnValue } = await recurseLeaf.noir.execute(nodeParams));
   console.log("recurseLeaf: %d + %d = ", a, b, Number(returnValue).toString());
   const innerProof2: ProofData = await recurseLeaf.backend.generateProof(witness);
-  console.log("Verifying intermediate proof recurseLeaf...");
-  const res: boolean = await recurseLeaf.backend.verifyProof(innerProof2);
-  console.log("Verification", res ? "PASSED" : "failed");
-
   console.log("Generating intermediate proof artifacts recurseLeaf...");
   const artifacts2 = await recurseLeaf.backend.generateRecursiveProofArtifacts(
     innerProof2,
-    Object.keys(nodeParams).length + 1
+    numPubInputs + 1 + 16 // +1 for public return +16 for hidden aggregation object
   );
   console.log("artifacts2 generated.");
 
   // Generate and verify outer proof
-  // const outerParams = {
-  //   verification_key: artifacts2.vkAsFields,
-  //   public_inputs: [...(Object.values(nodeParams)), returnValue], // returns proven sum
-  //   key_hash: artifacts2.vkHash,
-  //   proof: artifacts2.proofAsFields
-  // };
+  const outerParams = {
+    verification_key: artifacts2.vkAsFields,
+    public_inputs: [1, 3, 4, returnValue].map.toString(), // returns proven sum
+    key_hash: artifacts2.vkHash,
+    proof: artifacts2.proofAsFields
+  };
 
-  // const recurseNode: FullNoir = await fullNoirFromCircuit('recurseNode');
-  // ({ witness, returnValue } = await recurseNode.noir.execute(outerParams));
-  // console.log("Generating outer proof...");
-  // const outerProof: ProofData = await recurseNode.backend.generateProof(witness);
-  // console.log("Verifying outer proof...");
-  // const res: boolean = await recurseNode.backend.verifyProof(outerProof);
-  // console.log("Verification", res ? "PASSED" : "failed");
+  const recurseNode: FullNoir = await fullNoirFromCircuit('recurseNode');
+  ({ witness, returnValue } = await recurseNode.noir.execute(outerParams));
+  console.log("Generating outer proof...");
+  const outerProof: ProofData = await recurseNode.backend.generateProof(witness);
+  console.log("Verifying outer proof...");
+  const resNode: boolean = await recurseNode.backend.verifyProof(outerProof);
+  console.log("Verification", resNode ? "PASSED" : "failed");
 
-  // recurseNode.backend.destroy();
+  recurseNode.backend.destroy();
   recurseLeaf.backend.destroy();
   leaf.backend.destroy();
 }
