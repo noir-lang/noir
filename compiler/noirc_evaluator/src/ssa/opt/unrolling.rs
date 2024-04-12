@@ -151,7 +151,10 @@ impl Loops {
             if next_loop.blocks.iter().any(|block| self.modified_blocks.contains(block)) {
                 let mut new_context = find_all_loops(function);
                 new_context.failed_to_unroll = self.failed_to_unroll;
-                return new_context.unroll_each_loop(function);
+                return unroll_errors
+                    .into_iter()
+                    .chain(new_context.unroll_each_loop(function))
+                    .collect();
             }
 
             // Don't try to unroll the loop again if it is known to fail

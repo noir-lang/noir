@@ -20,7 +20,7 @@ fn read_heap_array<'a>(memory: &'a Memory, array: &HeapArray) -> &'a [MemoryValu
 /// Extracts the last byte of every value
 fn to_u8_vec(inputs: &[MemoryValue]) -> Vec<u8> {
     let mut result = Vec::with_capacity(inputs.len());
-    for &input in inputs {
+    for input in inputs {
         result.push(input.try_into().unwrap());
     }
     result
@@ -63,7 +63,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         BlackBoxOp::Keccakf1600 { message, output } => {
             let state_vec: Vec<u64> = read_heap_vector(memory, message)
                 .iter()
-                .map(|&memory_value| memory_value.try_into().unwrap())
+                .map(|memory_value| memory_value.try_into().unwrap())
                 .collect();
             let state: [u64; 25] = state_vec.try_into().unwrap();
 
@@ -151,7 +151,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         }
         BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
             let inputs: Vec<FieldElement> =
-                read_heap_vector(memory, inputs).iter().map(|&x| x.try_into().unwrap()).collect();
+                read_heap_vector(memory, inputs).iter().map(|x| x.try_into().unwrap()).collect();
             let domain_separator: u32 =
                 memory.read(*domain_separator).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
@@ -165,7 +165,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         }
         BlackBoxOp::PedersenHash { inputs, domain_separator, output } => {
             let inputs: Vec<FieldElement> =
-                read_heap_vector(memory, inputs).iter().map(|&x| x.try_into().unwrap()).collect();
+                read_heap_vector(memory, inputs).iter().map(|x| x.try_into().unwrap()).collect();
             let domain_separator: u32 =
                 memory.read(*domain_separator).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
@@ -185,7 +185,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         BlackBoxOp::BigIntToLeBytes { .. } => todo!(),
         BlackBoxOp::Poseidon2Permutation { message, output, len } => {
             let input = read_heap_vector(memory, message);
-            let input: Vec<FieldElement> = input.iter().map(|&x| x.try_into().unwrap()).collect();
+            let input: Vec<FieldElement> = input.iter().map(|x| x.try_into().unwrap()).collect();
             let len = memory.read(*len).try_into().unwrap();
             let result = solver.poseidon2_permutation(&input, len)?;
             let mut values = Vec::new();
@@ -204,7 +204,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
                     format!("Expected 16 inputs but encountered {}", &inputs.len()),
                 ));
             }
-            for (i, &input) in inputs.iter().enumerate() {
+            for (i, input) in inputs.iter().enumerate() {
                 message[i] = input.try_into().unwrap();
             }
             let mut state = [0; 8];
@@ -215,7 +215,7 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
                     format!("Expected 8 values but encountered {}", &values.len()),
                 ));
             }
-            for (i, &value) in values.iter().enumerate() {
+            for (i, value) in values.iter().enumerate() {
                 state[i] = value.try_into().unwrap();
             }
 
