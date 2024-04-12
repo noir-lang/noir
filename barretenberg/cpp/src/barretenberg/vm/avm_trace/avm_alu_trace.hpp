@@ -40,8 +40,6 @@ class AvmAluTraceBuilder {
 
         std::array<uint16_t, 15> alu_u16_reg{};
 
-        uint64_t alu_u64_r0{};
-
         FF alu_op_eq_diff_inv{};
 
         // Comparison Operation
@@ -69,10 +67,13 @@ class AvmAluTraceBuilder {
     FF op_lt(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
     FF op_lte(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
 
+    bool is_range_check_required() const;
+
   private:
     std::vector<AluTraceEntry> alu_trace;
-    template <typename T> std::tuple<uint8_t, uint8_t, std::vector<uint16_t>> to_alu_slice_registers(T a);
+    bool range_checked_required = false;
+
+    template <typename T> std::tuple<uint8_t, uint8_t, std::array<uint16_t, 15>> to_alu_slice_registers(T a);
     std::vector<AluTraceEntry> cmp_range_check_helper(AluTraceEntry row, std::vector<uint256_t> hi_lo_limbs);
-    void count_range_checks(AluTraceEntry const& entry);
 };
 } // namespace bb::avm_trace

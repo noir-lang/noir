@@ -648,7 +648,6 @@ void AvmTraceBuilder::op_lt(
 
     FF c = tag_match ? alu_trace_builder.op_lt(a, b, in_tag, clk) : FF(0);
 
-    range_checked_required = true;
     // Write into memory value c from intermediate register ic.
     mem_trace_builder.write_into_memory(clk, IntermRegister::IC, res.direct_c_offset, c, in_tag, AvmMemoryTag::U8);
 
@@ -699,7 +698,6 @@ void AvmTraceBuilder::op_lte(
 
     FF c = tag_match ? alu_trace_builder.op_lte(a, b, in_tag, clk) : FF(0);
 
-    range_checked_required = true;
     // Write into memory value c from intermediate register ic.
     mem_trace_builder.write_into_memory(clk, IntermRegister::IC, res.direct_c_offset, c, in_tag, AvmMemoryTag::U8);
 
@@ -1330,6 +1328,8 @@ void AvmTraceBuilder::finalise_mem_trace_lookup_counts()
  */
 std::vector<Row> AvmTraceBuilder::finalize()
 {
+    bool const range_check_required = alu_trace_builder.is_range_check_required();
+
     auto mem_trace = mem_trace_builder.finalize();
     auto alu_trace = alu_trace_builder.finalize();
     auto bin_trace = bin_trace_builder.finalize();
@@ -1345,7 +1345,7 @@ std::vector<Row> AvmTraceBuilder::finalize()
     // If the bin_trace_size has entries, we need the main_trace to be as big as our byte lookup table (3 * 2**16
     // long)
     size_t const lookup_table_size = bin_trace_size > 0 ? 3 * (1 << 16) : 0;
-    size_t const range_check_size = range_checked_required ? UINT16_MAX + 1 : 0;
+    size_t const range_check_size = range_check_required ? UINT16_MAX + 1 : 0;
     std::vector<size_t> trace_sizes = {
         mem_trace_size, main_trace_size, alu_trace_size, lookup_table_size, range_check_size
     };
@@ -1480,7 +1480,6 @@ std::vector<Row> AvmTraceBuilder::finalize()
         dest.avm_alu_u16_r13 = FF(src.alu_u16_reg.at(13));
         dest.avm_alu_u16_r14 = FF(src.alu_u16_reg.at(14));
 
-        dest.avm_alu_u64_r0 = FF(src.alu_u64_r0);
         dest.avm_alu_op_eq_diff_inv = FF(src.alu_op_eq_diff_inv);
 
         // Not all rows in ALU are enabled with a selector. For instance,
@@ -1507,6 +1506,15 @@ std::vector<Row> AvmTraceBuilder::finalize()
             dest.avm_alu_rng_chk_sel = FF(static_cast<uint8_t>(src.rng_chk_sel));
             dest.avm_alu_cmp_rng_ctr = FF(static_cast<uint8_t>(src.cmp_rng_ctr));
             dest.avm_alu_rng_chk_lookup_selector = FF(1);
+        }
+
+        if (dest.avm_alu_op_add == FF(1) || dest.avm_alu_op_sub == FF(1) || dest.avm_alu_op_mul == FF(1)) {
+            dest.avm_alu_rng_chk_lookup_selector = FF(1);
+        }
+
+        // Multiplication over u128 expands over two rows.
+        if (dest.avm_alu_op_mul == FF(1) && dest.avm_alu_u128_tag) {
+            main_trace.at(i + 1).avm_alu_rng_chk_lookup_selector = FF(1);
         }
     }
 

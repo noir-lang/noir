@@ -167,6 +167,7 @@ TEST_F(AvmPermMainAluNegativeTests, removeAluSelector)
 {
     trace.at(alu_idx).avm_alu_alu_sel = 0;
     trace.at(alu_idx).avm_alu_op_mul = 0;
+    trace.at(alu_idx).avm_alu_rng_chk_lookup_selector = 0;
 
     EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), "PERM_MAIN_ALU");
 }

@@ -26,6 +26,7 @@ AvmAluTraceBuilder::AvmAluTraceBuilder()
 void AvmAluTraceBuilder::reset()
 {
     alu_trace.clear();
+    range_checked_required = false;
 }
 
 /**
@@ -36,6 +37,16 @@ void AvmAluTraceBuilder::reset()
 std::vector<AvmAluTraceBuilder::AluTraceEntry> AvmAluTraceBuilder::finalize()
 {
     return std::move(alu_trace);
+}
+
+/**
+ * @brief Helper routine telling whether range check is required.
+ *
+ * @return A boolean telling whether range check is required.
+ */
+bool AvmAluTraceBuilder::is_range_check_required() const
+{
+    return range_checked_required;
 }
 
 /**
@@ -93,18 +104,14 @@ FF AvmAluTraceBuilder::op_add(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
         if (c_u128 < a_u128) {
             carry = true;
         }
-
-        uint128_t c_trunc_128 = c_u128;
-        alu_u8_r0 = static_cast<uint8_t>(c_trunc_128);
-        c_trunc_128 >>= 8;
-        alu_u8_r1 = static_cast<uint8_t>(c_trunc_128);
-        c_trunc_128 >>= 8;
-
-        for (size_t i = 0; i < 7; i++) {
-            alu_u16_reg.at(i) = static_cast<uint16_t>(c_trunc_128);
-            c_trunc_128 >>= 16;
-        }
     }
+
+    // The range checks are activated for all tags and therefore we need to call the slice register
+    // routines also for tag FF with input 0.
+    auto [u8_r0, u8_r1, u16_reg] = to_alu_slice_registers(in_tag == AvmMemoryTag::FF ? 0 : c_u128);
+    alu_u8_r0 = u8_r0;
+    alu_u8_r1 = u8_r1;
+    alu_u16_reg = u16_reg;
 
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
         .alu_clk = clk,
@@ -181,18 +188,14 @@ FF AvmAluTraceBuilder::op_sub(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
         if (a_u128 < b_u128) {
             carry = true;
         }
-
-        uint128_t c_trunc_128 = c_u128;
-        alu_u8_r0 = static_cast<uint8_t>(c_trunc_128);
-        c_trunc_128 >>= 8;
-        alu_u8_r1 = static_cast<uint8_t>(c_trunc_128);
-        c_trunc_128 >>= 8;
-
-        for (size_t i = 0; i < 7; i++) {
-            alu_u16_reg.at(i) = static_cast<uint16_t>(c_trunc_128);
-            c_trunc_128 >>= 16;
-        }
     }
+
+    // The range checks are activated for all tags and therefore we need to call the slice register
+    // routines also for tag FF with input 0.
+    auto [u8_r0, u8_r1, u16_reg] = to_alu_slice_registers(in_tag == AvmMemoryTag::FF ? 0 : c_u128);
+    alu_u8_r0 = u8_r0;
+    alu_u8_r1 = u8_r1;
+    alu_u16_reg = u16_reg;
 
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
         .alu_clk = clk,
@@ -265,31 +268,32 @@ FF AvmAluTraceBuilder::op_mul(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
 
         uint128_t c_u128 = a_u128 * b_u128;
 
-        // Decompose a_u128 and b_u128 over 8 16-bit registers.
-        std::array<uint16_t, 15> alu_u16_reg_a; // Will be initialized in for loop below.
-        std::array<uint16_t, 15> alu_u16_reg_b; // Will be initialized in for loop below.
-        uint128_t a_trunc_128 = a_u128;
-        uint128_t b_trunc_128 = b_u128;
-
-        for (size_t i = 0; i < 8; i++) {
-            alu_u16_reg_a.at(i) = static_cast<uint16_t>(a_trunc_128);
-            alu_u16_reg_b.at(i) = static_cast<uint16_t>(b_trunc_128);
-            a_trunc_128 >>= 16;
-            b_trunc_128 >>= 16;
-        }
+        // Decompose a_u128 and b_u128 over 8/16-bit registers.
+        auto [a_u8_r0, a_u8_r1, a_u16_reg] = to_alu_slice_registers(a_u128);
+        auto [b_u8_r0, b_u8_r1, b_u16_reg] = to_alu_slice_registers(b_u128);
 
         // Represent a, b with 64-bit limbs: a = a_l + 2^64 * a_h, b = b_l + 2^64 * b_h,
         // c_high := 2^128 * a_h * b_h
         uint256_t c_high = ((a_u256 >> 64) * (b_u256 >> 64)) << 128;
 
-        // From PIL relation in avm_alu.pil, we need to determine the bit CF and 64-bit value R' in
-        // a * b_l + a_l * b_h * 2^64 = (CF * 2^64 + R') * 2^128 + c
+        // From PIL relation in avm_alu.pil, we need to determine the bit CF and 64-bit value R_64 in
+        // a * b_l + a_l * b_h * 2^64 = (CF * 2^64 + R_64) * 2^128 + c
         // LHS is c_u256 - c_high
 
         // CF bit
         carry = ((c_u256 - c_high) >> 192) > 0;
-        // R' value
-        uint64_t alu_u64_r0 = static_cast<uint64_t>(((c_u256 - c_high) >> 128) & uint256_t(UINT64_MAX));
+        // R_64 value
+        uint64_t r_64 = static_cast<uint64_t>(((c_u256 - c_high) >> 128) & uint256_t(UINT64_MAX));
+
+        // Decompose R_64 over 16-bit registers u16_r7, u16_r8, u16_r9, u_16_r10
+        for (size_t i = 0; i < 4; i++) {
+            auto const slice = static_cast<uint16_t>(r_64);
+            assert(a_u16_reg.at(7 + i) == 0);
+            u16_range_chk_counters[7 + i][0]--;
+            a_u16_reg.at(7 + i) = slice;
+            u16_range_chk_counters[7 + i][slice]++;
+            r_64 >>= 16;
+        }
 
         c = FF{ uint256_t::from_uint128(c_u128) };
 
@@ -301,12 +305,15 @@ FF AvmAluTraceBuilder::op_mul(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
             .alu_ib = b,
             .alu_ic = c,
             .alu_cf = carry,
-            .alu_u16_reg = alu_u16_reg_a,
-            .alu_u64_r0 = alu_u64_r0,
+            .alu_u8_r0 = a_u8_r0,
+            .alu_u8_r1 = a_u8_r1,
+            .alu_u16_reg = a_u16_reg,
         });
 
         alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
-            .alu_u16_reg = alu_u16_reg_b,
+            .alu_u8_r0 = b_u8_r0,
+            .alu_u8_r1 = b_u8_r1,
+            .alu_u16_reg = b_u16_reg,
         });
 
         return c;
@@ -315,21 +322,13 @@ FF AvmAluTraceBuilder::op_mul(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
         return FF{ 0 };
     }
 
-    // Following code executed for: u8, u16, u32, u64 (u128 returned handled specifically)
-    if (in_tag != AvmMemoryTag::FF) {
-        // Decomposition of c_u128 into 8-bit and 16-bit registers as follows:
-        // alu_u8_r0 + alu_u8_r1 * 2^8 + alu_u16_r0 * 2^16 ... +  alu_u16_r6 * 2^112
-        uint128_t c_trunc_128 = c_u128;
-        alu_u8_r0 = static_cast<uint8_t>(c_trunc_128);
-        c_trunc_128 >>= 8;
-        alu_u8_r1 = static_cast<uint8_t>(c_trunc_128);
-        c_trunc_128 >>= 8;
-
-        for (size_t i = 0; i < 7; i++) {
-            alu_u16_reg.at(i) = static_cast<uint16_t>(c_trunc_128);
-            c_trunc_128 >>= 16;
-        }
-    }
+    // Following code executed for: u8, u16, u32, u64 (u128 returned handled specifically).
+    // The range checks are activated for all tags and therefore we need to call the slice register
+    // routines also for tag FF with input 0.
+    auto [u8_r0, u8_r1, u16_reg] = to_alu_slice_registers(in_tag == AvmMemoryTag::FF ? 0 : c_u128);
+    alu_u8_r0 = u8_r0;
+    alu_u8_r1 = u8_r1;
+    alu_u16_reg = u16_reg;
 
     // Following code executed for: ff, u8, u16, u32, u64 (u128 returned handled specifically)
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
@@ -445,17 +444,18 @@ FF AvmAluTraceBuilder::op_eq(FF const& a, FF const& b, AvmMemoryTag in_tag, uint
  * @return A triplet of <alu_u8_r0, alu_u8_r1, alu_u16_reg>
  */
 template <typename T>
-std::tuple<uint8_t, uint8_t, std::vector<uint16_t>> AvmAluTraceBuilder::to_alu_slice_registers(T a)
+std::tuple<uint8_t, uint8_t, std::array<uint16_t, 15>> AvmAluTraceBuilder::to_alu_slice_registers(T a)
 {
+    range_checked_required = true;
     auto alu_u8_r0 = static_cast<uint8_t>(a);
     a >>= 8;
     auto alu_u8_r1 = static_cast<uint8_t>(a);
     a >>= 8;
-    std::vector<uint16_t> alu_u16_reg{};
+    std::array<uint16_t, 15> alu_u16_reg;
     for (size_t i = 0; i < 15; i++) {
         auto alu_u16 = static_cast<uint16_t>(a);
         u16_range_chk_counters[i][alu_u16]++;
-        alu_u16_reg.push_back(alu_u16);
+        alu_u16_reg.at(i) = alu_u16;
         a >>= 16;
     }
     u8_range_chk_counters[0][alu_u8_r0]++;
@@ -493,7 +493,7 @@ std::vector<AvmAluTraceBuilder::AluTraceEntry> AvmAluTraceBuilder::cmp_range_che
         auto [alu_u8_r0, alu_u8_r1, alu_u16_reg] = AvmAluTraceBuilder::to_alu_slice_registers(limb);
         r.alu_u8_r0 = alu_u8_r0;
         r.alu_u8_r1 = alu_u8_r1;
-        std::copy(alu_u16_reg.begin(), alu_u16_reg.end(), r.alu_u16_reg.begin());
+        r.alu_u16_reg = alu_u16_reg;
 
         r.cmp_rng_ctr = j > 0 ? static_cast<uint8_t>(num_rows - j) : 0;
         r.rng_chk_sel = j > 0;

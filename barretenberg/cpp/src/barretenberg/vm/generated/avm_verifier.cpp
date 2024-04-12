@@ -123,7 +123,6 @@ bool AvmVerifier::verify_proof(const HonkProof& proof)
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u16_tag);
     commitments.avm_alu_u32_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u32_tag);
-    commitments.avm_alu_u64_r0 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u64_r0);
     commitments.avm_alu_u64_tag =
         transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u64_tag);
     commitments.avm_alu_u8_r0 = transcript->template receive_from_prover<Commitment>(commitment_labels.avm_alu_u8_r0);

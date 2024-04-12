@@ -531,8 +531,8 @@ void avm_prove(const std::filesystem::path& bytecode_path,
     }
     std::vector<fr> const call_data = many_from_buffer<fr>(call_data_bytes);
 
-    // Hardcoded circuit size for now
-    init_bn254_crs(256);
+    // Hardcoded circuit size for now, with enough to support 16-bit range checks
+    init_bn254_crs(1 << 17);
 
     // Prove execution and return vk
     auto const [verification_key, proof] = avm_trace::Execution::prove(avm_bytecode, call_data);

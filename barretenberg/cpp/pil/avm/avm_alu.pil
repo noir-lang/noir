@@ -55,9 +55,6 @@ namespace avm_alu(256);
     pol commit u16_r13;
     pol commit u16_r14;
 
-    // 64-bit slice register
-    pol commit u64_r0;
-
     // Carry flag
     pol commit cf;
 
@@ -67,12 +64,12 @@ namespace avm_alu(256);
 
     // ========= Type Constraints =============================================
     // TODO: Range constraints
-    //       - for slice registers
     //       - intermediate registers ia and ib (inputs) depending on flag (or inherited from previous ops?)
     //       - intermediate register ic (in some operations it might be inherited based on ia and ib ranges. To be checked.)
-    //       Carry flag: We will have to constraint to ensure that the 
-    //                   arithmetic expressions are not overflowing finite field size
     // Remark: Operation selectors are constrained in the main trace.
+
+    // cf is boolean
+    cf * (1 - cf) = 0;
 
     // Boolean flattened instructions tags
     ff_tag * (1 - ff_tag) = 0;
@@ -89,8 +86,8 @@ namespace avm_alu(256);
     in_tag = u8_tag + 2 * u16_tag + 3 * u32_tag + 4 * u64_tag + 5 * u128_tag + 6 * ff_tag;
 
     // Operation selectors are copied from main table and do not need to be constrained here.
-    // TODO: Ensure mutual exclusion of op_add and op_sub as some relations below
-    //       requires it.
+    // Mutual exclusion of op_add and op_sub are derived from their mutual exclusion in the
+    // main trace which is ensured by the operation decomposition.
 
     // ========= ARITHMETIC OPERATION - EXPLANATIONS =================================================
     // Main trick for arithmetic operations modulo 2^k is to perform the operation
@@ -134,8 +131,6 @@ namespace avm_alu(256);
     pol SUM_96  = SUM_64     + u16_r3 * 2**64 + u16_r4 * 2**80;
     pol SUM_128 = SUM_96     + u16_r5 * 2**96 + u16_r6 * 2**112;
 
-
-
     // ========= ADDITION/SUBTRACTION Operation Constraints ===============================
     //
     // Addition and subtraction relations are very similar and will be consolidated.
@@ -170,7 +165,6 @@ namespace avm_alu(256);
     #[ALU_MULTIPLICATION_FF]
     ff_tag * op_mul * (ia * ib - ic) = 0;
 
-
     // We need 2k bits to express the product (a*b) over the integer, i.e., for type uk
     // we express the product as sum_k (u8 is an exception as we need 8-bit registers)
 
@@ -191,34 +185,34 @@ namespace avm_alu(256);
     //                                   b = b_l + b_h * 2^64
     // We show that c satisfies: a_l * b_l + (a_h * b_l + a_l * b_h) * 2^64 = R * 2^128 + c
     // for a R < 2^65. Equivalently:
-    // a * b_l + a_l * b_h * 2^64 = (CF * 2^64 + R') * 2^128 + c
-    // for a bit carry flag CF and R' range constrained to 64 bits.
+    // a * b_l + a_l * b_h * 2^64 = (CF * 2^64 + R_64) * 2^128 + c
+    // for a bit carry flag CF and R_64 range constrained to 64 bits.
     // We use two lines in the execution trace. First line represents a 
     // as decomposed over 16-bit registers. Second line represents b.
     // Selector flag is only toggled in the first line and we access b through
     // shifted polynomials.
-    // R' is stored in u64_r0
-
-    // 64-bit lower limb
-    pol SUM_LOW_64 = u16_r0 + u16_r1 * 2**16 + u16_r2 * 2**32 + u16_r3 * 2**48;
+    // R_64 is stored in u16_r7, u16_r8, u16_r9, u_16_r10
 
     // 64-bit higher limb
-    pol SUM_HIGH_64 = u16_r4 + u16_r5 * 2**16 + u16_r6 * 2**32 + u16_r7 * 2**48;
+    pol SUM_HIGH_64 = u16_r3 + u16_r4 * 2**16 + u16_r5 * 2**32 + u16_r6 * 2**48;
 
     // 64-bit lower limb for next row
-    pol SUM_LOW_SHIFTED_64 = u16_r0' + u16_r1' * 2**16 + u16_r2' * 2**32 + u16_r3' * 2**48;
+    pol SUM_LOW_SHIFTED_64 = u8_r0' + u8_r1' * 2**8 + u16_r0' * 2**16 + u16_r1' * 2**32 + u16_r2' * 2**48;
 
     // 64-bit higher limb for next row
-    pol SUM_HIGH_SHIFTED_64 = u16_r4' + u16_r5' * 2**16 + u16_r6' * 2**32 + u16_r7' * 2**48;
+    pol SUM_HIGH_SHIFTED_64 = u16_r3' + u16_r4' * 2**16 + u16_r5' * 2**32 + u16_r6' * 2**48;
+
+    // R_64 decomposition
+    pol R_64 = u16_r7 + u16_r8 * 2**16 + u16_r9 * 2**32 + u16_r10 * 2**48;
 
     // Arithmetic relations
-    u128_tag * op_mul * (SUM_LOW_64 + SUM_HIGH_64 * 2**64 - ia) = 0;
+    u128_tag * op_mul * (SUM_64 + SUM_HIGH_64 * 2**64 - ia) = 0;
     u128_tag * op_mul * (SUM_LOW_SHIFTED_64 + SUM_HIGH_SHIFTED_64 * 2**64 - ib) = 0;
     #[ALU_MULTIPLICATION_OUT_U128]
     u128_tag * op_mul * (
             ia * SUM_LOW_SHIFTED_64
-          + SUM_LOW_64 * SUM_HIGH_SHIFTED_64 * 2**64
-          - (cf * 2**64 + u64_r0) * 2**128
+          + SUM_64 * SUM_HIGH_SHIFTED_64 * 2**64
+          - (cf * 2**64 + R_64) * 2**128
           - ic
         ) = 0;
 
@@ -431,7 +425,7 @@ namespace avm_alu(256);
     rng_chk_sel * (1 - rng_chk_sel) = 0;
     // If we have remaining range checks, we cannot have cmp_sel set. This prevents malicious truncating of the range
     // checks by adding a new LT/LTE operation before all the range checks from the previous computation are complete.
-    rng_chk_sel * cmp_sel = 0; 
+    rng_chk_sel * cmp_sel = 0;
 
     // rng_chk_sel = 1 when cmp_rng_ctr != 0 and rng_chk_sel = 0 when cmp_rng_ctr = 0;
     #[CTR_NON_ZERO_REL]
@@ -442,12 +436,11 @@ namespace avm_alu(256);
 
     pol commit rng_chk_lookup_selector;
     #[RNG_CHK_LOOKUP_SELECTOR]
-    rng_chk_lookup_selector = cmp_sel + rng_chk_sel;
+    rng_chk_lookup_selector' = cmp_sel' + rng_chk_sel' + op_add' + op_sub' + op_mul' + op_mul * u128_tag;
 
     // Perform 128-bit range check on lo part
     #[LOWER_CMP_RNG_CHK]
     a_lo = SUM_128 * RNG_CHK_OP;
-
 
     // Perform 128-bit range check on hi part
     #[UPPER_CMP_RNG_CHK]

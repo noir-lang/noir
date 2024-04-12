@@ -117,8 +117,6 @@ class AvmTraceBuilder {
     AvmAluTraceBuilder alu_trace_builder;
     AvmBinaryTraceBuilder bin_trace_builder;
 
-    bool range_checked_required = false;
-
     void finalise_mem_trace_lookup_counts();
 
     IndirectThreeResolution resolve_ind_three(

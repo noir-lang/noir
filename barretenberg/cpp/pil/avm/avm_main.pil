@@ -364,6 +364,8 @@ namespace avm_main(256);
 
     //====== Inter-table Constraints (Range Checks) ============================================
     // TODO: Investigate optimising these range checks. Handling non-FF elements should require less range checks.
+    //       One can increase the granularity based on the operation and tag. In the most extreme case,
+    //       a specific selector per register might be introduced.
     #[LOOKUP_U8_0]
     avm_alu.rng_chk_lookup_selector { avm_alu.u8_r0 } in sel_rng_8 { clk };
 

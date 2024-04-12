@@ -1495,17 +1495,19 @@ TEST_F(AvmArithmeticTestsU128, multiplication)
     EXPECT_EQ(alu_row_first.avm_alu_u128_tag, FF(1));
 
     // Decomposition of the first operand in 16-bit registers
-    EXPECT_EQ(alu_row_first.avm_alu_u16_r0, FF(0x5FFB));
-    EXPECT_EQ(alu_row_first.avm_alu_u16_r1, FF(0xBF68));
-    EXPECT_EQ(alu_row_first.avm_alu_u16_r2, FF(0x8D64));
-    EXPECT_EQ(alu_row_first.avm_alu_u16_r3, FF(0x3));
+    EXPECT_EQ(alu_row_first.avm_alu_u8_r0, FF(0xFB));
+    EXPECT_EQ(alu_row_first.avm_alu_u8_r1, FF(0x5F));
+    EXPECT_EQ(alu_row_first.avm_alu_u16_r0, FF(0xBF68));
+    EXPECT_EQ(alu_row_first.avm_alu_u16_r1, FF(0x8D64));
+    EXPECT_EQ(alu_row_first.avm_alu_u16_r2, FF(0x3));
 
     // Decomposition of the second operand in 16-bit registers
     auto alu_row_second = trace.at(alu_row_index + 1);
-    EXPECT_EQ(alu_row_second.avm_alu_u16_r0, FF(0x98DF));
-    EXPECT_EQ(alu_row_second.avm_alu_u16_r1, FF(0x762C));
-    EXPECT_EQ(alu_row_second.avm_alu_u16_r2, FF(0xF92C));
-    EXPECT_EQ(alu_row_second.avm_alu_u16_r3, FF(0x1));
+    EXPECT_EQ(alu_row_second.avm_alu_u8_r0, FF(0xDF));
+    EXPECT_EQ(alu_row_second.avm_alu_u8_r1, FF(0x98));
+    EXPECT_EQ(alu_row_second.avm_alu_u16_r0, FF(0x762C));
+    EXPECT_EQ(alu_row_second.avm_alu_u16_r1, FF(0xF92C));
+    EXPECT_EQ(alu_row_second.avm_alu_u16_r2, FF(0x1));
     validate_trace(std::move(trace));
 }
 
@@ -1538,32 +1540,40 @@ TEST_F(AvmArithmeticTestsU128, multiplicationOverflow)
     EXPECT_EQ(alu_row_first.avm_alu_u128_tag, FF(1));
 
     // Decomposition of the first operand in 16-bit registers
-    EXPECT_EQ(alu_row_first.avm_alu_u16_r0, FF(0xFFFE));
+    EXPECT_EQ(alu_row_first.avm_alu_u8_r0, FF(0xFE));
+    EXPECT_EQ(alu_row_first.avm_alu_u8_r1, FF(0xFF));
+    EXPECT_EQ(alu_row_first.avm_alu_u16_r0, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_first.avm_alu_u16_r1, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_first.avm_alu_u16_r2, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_first.avm_alu_u16_r3, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_first.avm_alu_u16_r4, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_first.avm_alu_u16_r5, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_first.avm_alu_u16_r6, FF(UINT16_MAX));
-    EXPECT_EQ(alu_row_first.avm_alu_u16_r7, FF(UINT16_MAX));
 
     // Decomposition of the second operand in 16-bit registers
     auto alu_row_second = trace.at(alu_row_index + 1);
-    EXPECT_EQ(alu_row_second.avm_alu_u16_r0, FF(0xFFFC));
+    EXPECT_EQ(alu_row_second.avm_alu_u8_r0, FF(0xFC));
+    EXPECT_EQ(alu_row_second.avm_alu_u8_r1, FF(0xFF));
+    EXPECT_EQ(alu_row_second.avm_alu_u16_r0, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_second.avm_alu_u16_r1, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_second.avm_alu_u16_r2, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_second.avm_alu_u16_r3, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_second.avm_alu_u16_r4, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_second.avm_alu_u16_r5, FF(UINT16_MAX));
     EXPECT_EQ(alu_row_second.avm_alu_u16_r6, FF(UINT16_MAX));
-    EXPECT_EQ(alu_row_second.avm_alu_u16_r7, FF(UINT16_MAX));
 
     // Other registers involved in the relevant relations
-    // PIL relation (avm_alu.pil): a * b_l + a_l * b_h * 2^64 = (CF * 2^64 + R') * 2^128 + c
+    // PIL relation (avm_alu.pil): a * b_l + a_l * b_h * 2^64 = (CF * 2^64 + R_64) * 2^128 + c
     // (2^128 - 2) * (2^64 - 4) + (2^64 - 2) * (2^64 - 1) * 2^64 =
     // 2 * 2^192 + (- 4 - 2 - 1) * 2^128 + (-2 + 2) * 2^64 + 8 = (2^65 - 7) * 2^128 + 8
-    // Therefore, CF = 1 and R' = 2^64 - 7
-    EXPECT_EQ(alu_row_first.avm_alu_u64_r0, FF{ UINT64_MAX - 6 }); // 2^64 - 7
+    // Therefore, CF = 1 and R_64 = 2^64 - 7
+
+    // R_64 is decomposed over the 4 following 16-bit registers
+    EXPECT_EQ(alu_row_first.avm_alu_u16_r7, FF(UINT16_MAX - 6));
+    EXPECT_EQ(alu_row_first.avm_alu_u16_r8, FF(UINT16_MAX));
+    EXPECT_EQ(alu_row_first.avm_alu_u16_r9, FF(UINT16_MAX));
+    EXPECT_EQ(alu_row_first.avm_alu_u16_r10, FF(UINT16_MAX));
+    // CF
     EXPECT_EQ(alu_row_first.avm_alu_cf, FF(1));
 
     validate_trace(std::move(trace));

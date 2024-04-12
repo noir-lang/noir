@@ -105,7 +105,6 @@ template <typename FF> struct AvmFullRow {
     FF avm_alu_u16_r9{};
     FF avm_alu_u16_tag{};
     FF avm_alu_u32_tag{};
-    FF avm_alu_u64_r0{};
     FF avm_alu_u64_tag{};
     FF avm_alu_u8_r0{};
     FF avm_alu_u8_r1{};
@@ -268,10 +267,15 @@ template <typename FF> struct AvmFullRow {
     FF avm_alu_b_hi_shift{};
     FF avm_alu_b_lo_shift{};
     FF avm_alu_cmp_rng_ctr_shift{};
+    FF avm_alu_cmp_sel_shift{};
+    FF avm_alu_op_add_shift{};
+    FF avm_alu_op_mul_shift{};
+    FF avm_alu_op_sub_shift{};
     FF avm_alu_p_sub_a_hi_shift{};
     FF avm_alu_p_sub_a_lo_shift{};
     FF avm_alu_p_sub_b_hi_shift{};
     FF avm_alu_p_sub_b_lo_shift{};
+    FF avm_alu_rng_chk_lookup_selector_shift{};
     FF avm_alu_rng_chk_sel_shift{};
     FF avm_alu_u16_r0_shift{};
     FF avm_alu_u16_r1_shift{};
@@ -280,7 +284,8 @@ template <typename FF> struct AvmFullRow {
     FF avm_alu_u16_r4_shift{};
     FF avm_alu_u16_r5_shift{};
     FF avm_alu_u16_r6_shift{};
-    FF avm_alu_u16_r7_shift{};
+    FF avm_alu_u8_r0_shift{};
+    FF avm_alu_u8_r1_shift{};
     FF avm_binary_acc_ia_shift{};
     FF avm_binary_acc_ib_shift{};
     FF avm_binary_acc_ic_shift{};
@@ -304,8 +309,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 241;
-    static constexpr size_t num_polys = 212;
+    static constexpr size_t num_fixed_columns = 246;
+    static constexpr size_t num_polys = 211;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }
@@ -375,7 +380,6 @@ class AvmCircuitBuilder {
             polys.avm_alu_u16_r9[i] = rows[i].avm_alu_u16_r9;
             polys.avm_alu_u16_tag[i] = rows[i].avm_alu_u16_tag;
             polys.avm_alu_u32_tag[i] = rows[i].avm_alu_u32_tag;
-            polys.avm_alu_u64_r0[i] = rows[i].avm_alu_u64_r0;
             polys.avm_alu_u64_tag[i] = rows[i].avm_alu_u64_tag;
             polys.avm_alu_u8_r0[i] = rows[i].avm_alu_u8_r0;
             polys.avm_alu_u8_r1[i] = rows[i].avm_alu_u8_r1;
@@ -509,10 +513,15 @@ class AvmCircuitBuilder {
         polys.avm_alu_b_hi_shift = Polynomial(polys.avm_alu_b_hi.shifted());
         polys.avm_alu_b_lo_shift = Polynomial(polys.avm_alu_b_lo.shifted());
         polys.avm_alu_cmp_rng_ctr_shift = Polynomial(polys.avm_alu_cmp_rng_ctr.shifted());
+        polys.avm_alu_cmp_sel_shift = Polynomial(polys.avm_alu_cmp_sel.shifted());
+        polys.avm_alu_op_add_shift = Polynomial(polys.avm_alu_op_add.shifted());
+        polys.avm_alu_op_mul_shift = Polynomial(polys.avm_alu_op_mul.shifted());
+        polys.avm_alu_op_sub_shift = Polynomial(polys.avm_alu_op_sub.shifted());
         polys.avm_alu_p_sub_a_hi_shift = Polynomial(polys.avm_alu_p_sub_a_hi.shifted());
         polys.avm_alu_p_sub_a_lo_shift = Polynomial(polys.avm_alu_p_sub_a_lo.shifted());
         polys.avm_alu_p_sub_b_hi_shift = Polynomial(polys.avm_alu_p_sub_b_hi.shifted());
         polys.avm_alu_p_sub_b_lo_shift = Polynomial(polys.avm_alu_p_sub_b_lo.shifted());
+        polys.avm_alu_rng_chk_lookup_selector_shift = Polynomial(polys.avm_alu_rng_chk_lookup_selector.shifted());
         polys.avm_alu_rng_chk_sel_shift = Polynomial(polys.avm_alu_rng_chk_sel.shifted());
         polys.avm_alu_u16_r0_shift = Polynomial(polys.avm_alu_u16_r0.shifted());
         polys.avm_alu_u16_r1_shift = Polynomial(polys.avm_alu_u16_r1.shifted());
@@ -521,7 +530,8 @@ class AvmCircuitBuilder {
         polys.avm_alu_u16_r4_shift = Polynomial(polys.avm_alu_u16_r4.shifted());
         polys.avm_alu_u16_r5_shift = Polynomial(polys.avm_alu_u16_r5.shifted());
         polys.avm_alu_u16_r6_shift = Polynomial(polys.avm_alu_u16_r6.shifted());
-        polys.avm_alu_u16_r7_shift = Polynomial(polys.avm_alu_u16_r7.shifted());
+        polys.avm_alu_u8_r0_shift = Polynomial(polys.avm_alu_u8_r0.shifted());
+        polys.avm_alu_u8_r1_shift = Polynomial(polys.avm_alu_u8_r1.shifted());
         polys.avm_binary_acc_ia_shift = Polynomial(polys.avm_binary_acc_ia.shifted());
         polys.avm_binary_acc_ib_shift = Polynomial(polys.avm_binary_acc_ib.shifted());
         polys.avm_binary_acc_ic_shift = Polynomial(polys.avm_binary_acc_ic.shifted());

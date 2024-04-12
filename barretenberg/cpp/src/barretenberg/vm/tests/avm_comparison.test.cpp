@@ -226,6 +226,7 @@ std::vector<Row> gen_mutated_trace_cmp(
         break;
     case CounterNonZeroCheckFailed:
         range_check_row->avm_alu_rng_chk_sel = FF(0);
+        range_check_row->avm_alu_rng_chk_lookup_selector = FF(0);
         break;
     case ShiftRelationFailed:
         range_check_row->avm_alu_a_lo = range_check_row->avm_alu_res_lo;
