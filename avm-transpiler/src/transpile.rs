@@ -295,9 +295,6 @@ fn handle_foreign_call(
         "avmOpcodeKeccak256" | "avmOpcodeSha256" => {
             handle_2_field_hash_instruction(avm_instrs, function, destinations, inputs)
         }
-        "avmOpcodePoseidon" => {
-            handle_single_field_hash_instruction(avm_instrs, function, destinations, inputs)
-        }
         "avmOpcodeGetContractInstance" => {
             handle_get_contract_instance(avm_instrs, destinations, inputs)
         }
@@ -707,61 +704,6 @@ fn handle_2_field_hash_instruction(
     });
 }
 
-/// A single field hash instruction includes hash functions that emit a single field element
-/// directly onto the stack.
-///
-/// This includes (snark friendly functions):
-/// - poseidon2
-///
-/// Pedersen is not implemented this way as the black box function representation has the correct api.
-/// As the Poseidon BBF only deals with a single permutation, it is not quite suitable for our current avm
-/// representation.
-fn handle_single_field_hash_instruction(
-    avm_instrs: &mut Vec<AvmInstruction>,
-    function: &str,
-    destinations: &[ValueOrArray],
-    inputs: &[ValueOrArray],
-) {
-    // handle field returns differently
-    let message_offset_maybe = inputs[0];
-    let (message_offset, message_size) = match message_offset_maybe {
-        ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0, size),
-        _ => panic!("Poseidon address inputs destination should be a single value"),
-    };
-
-    assert!(destinations.len() == 1);
-    let dest_offset_maybe = destinations[0];
-    let dest_offset = match dest_offset_maybe {
-        ValueOrArray::MemoryAddress(dest_offset) => dest_offset.0,
-        _ => panic!("Poseidon address destination should be a single value"),
-    };
-
-    let opcode = match function {
-        "avmOpcodePoseidon" => AvmOpcode::POSEIDON,
-        _ => panic!(
-            "Transpiler doesn't know how to process ForeignCall function {:?}",
-            function
-        ),
-    };
-
-    avm_instrs.push(AvmInstruction {
-        opcode,
-        indirect: Some(FIRST_OPERAND_INDIRECT),
-        operands: vec![
-            AvmOperand::U32 {
-                value: dest_offset as u32,
-            },
-            AvmOperand::U32 {
-                value: message_offset as u32,
-            },
-            AvmOperand::U32 {
-                value: message_size as u32,
-            },
-        ],
-        ..Default::default()
-    });
-}
-
 /// Getter Instructions are instructions that take NO inputs, and return information
 /// from the current execution context.
 ///
@@ -933,10 +875,34 @@ fn handle_black_box_function(avm_instrs: &mut Vec<AvmInstruction>, operation: &B
                 ..Default::default()
             });
         }
-        _ => panic!(
-            "Transpiler doesn't know how to process BlackBoxOp {:?}",
-            operation
-        ),
+        BlackBoxOp::Poseidon2Permutation {
+            message,
+            output,
+            len: _, // we don't use this.
+        } => {
+            // We'd love to validate the input size, but it's not known at compile time.
+            assert_eq!(
+                output.size, 4,
+                "Poseidon2Permutation output size must be 4!"
+            );
+            let input_state_offset = message.pointer.0;
+            let output_state_offset = output.pointer.0;
+
+            avm_instrs.push(AvmInstruction {
+                opcode: AvmOpcode::POSEIDON2,
+                indirect: Some(ZEROTH_OPERAND_INDIRECT | FIRST_OPERAND_INDIRECT),
+                operands: vec![
+                    AvmOperand::U32 {
+                        value: input_state_offset as u32,
+                    },
+                    AvmOperand::U32 {
+                        value: output_state_offset as u32,
+                    },
+                ],
+                ..Default::default()
+            });
+        }
+        _ => panic!("Transpiler doesn't know how to process {:?}", operation),
     }
 }
 /// Emit a storage write opcode

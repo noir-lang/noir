@@ -1,4 +1,4 @@
-import { keccak, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
+import { keccak, pedersenHash, sha256 } from '@aztec/foundation/crypto';
 
 import { type AvmContext } from '../avm_context.js';
 import { Field, Uint32 } from '../avm_memory_types.js';
@@ -18,16 +18,10 @@ describe('Hashing Opcodes', () => {
       const buf = Buffer.from([
         Poseidon2.opcode, // opcode
         1, // indirect
-        ...Buffer.from('12345678', 'hex'), // dstOffset
-        ...Buffer.from('23456789', 'hex'), // messageOffset
-        ...Buffer.from('3456789a', 'hex'), // hashSize
+        ...Buffer.from('12345678', 'hex'), // inputStateOffset
+        ...Buffer.from('23456789', 'hex'), // outputStateOffset
       ]);
-      const inst = new Poseidon2(
-        /*indirect=*/ 1,
-        /*dstOffset=*/ 0x12345678,
-        /*messageOffset=*/ 0x23456789,
-        /*hashSize=*/ 0x3456789a,
-      );
+      const inst = new Poseidon2(/*indirect=*/ 1, /*dstOffset=*/ 0x12345678, /*messageOffset=*/ 0x23456789);
 
       expect(Poseidon2.deserialize(buf)).toEqual(inst);
       expect(inst.serialize()).toEqual(buf);
@@ -35,38 +29,41 @@ describe('Hashing Opcodes', () => {
 
     it('Should hash correctly - direct', async () => {
       const indirect = 0;
-      const args = [new Field(1n), new Field(2n), new Field(3n)];
-      const messageOffset = 0;
-      context.machineState.memory.setSlice(messageOffset, args);
+      const inputState = [new Field(1n), new Field(2n), new Field(3n), new Field(4n)];
+      const inputStateOffset = 0;
+      const outputStateOffset = 0;
+      context.machineState.memory.setSlice(inputStateOffset, inputState);
 
-      const dstOffset = 3;
+      await new Poseidon2(indirect, inputStateOffset, outputStateOffset).execute(context);
 
-      const expectedHash = poseidon2Hash(args);
-      await new Poseidon2(indirect, dstOffset, messageOffset, args.length).execute(context);
-
-      const result = context.machineState.memory.get(dstOffset);
-      expect(result).toEqual(new Field(expectedHash));
+      const result = context.machineState.memory.getSlice(outputStateOffset, 4);
+      expect(result).toEqual([
+        new Field(0x224785a48a72c75e2cbb698143e71d5d41bd89a2b9a7185871e39a54ce5785b1n),
+        new Field(0x225bb800db22c4f4b09ace45cb484d42b0dd7dfe8708ee26aacde6f2c1fb2cb8n),
+        new Field(0x1180f4260e60b4264c987b503075ea8374b53ed06c5145f8c21c2aadb5087d21n),
+        new Field(0x16c877b5b9c04d873218804ccbf65d0eeb12db447f66c9ca26fec380055df7e9n),
+      ]);
     });
 
     it('Should hash correctly - indirect', async () => {
-      const args = [new Field(1n), new Field(2n), new Field(3n)];
-      const indirect = new Addressing([
-        /*dstOffset=*/ AddressingMode.DIRECT,
-        /*messageOffset*/ AddressingMode.INDIRECT,
-      ]).toWire();
-      const messageOffset = 0;
-      const realLocation = 4;
+      const indirect = new Addressing([AddressingMode.INDIRECT, AddressingMode.INDIRECT]).toWire();
+      const inputState = [new Field(1n), new Field(2n), new Field(3n), new Field(4n)];
+      const inputStateOffset = 0;
+      const inputStateOffsetReal = 10;
+      const outputStateOffset = 0;
+      const outputStateOffsetReal = 10;
+      context.machineState.memory.set(inputStateOffset, new Uint32(inputStateOffsetReal));
+      context.machineState.memory.setSlice(inputStateOffsetReal, inputState);
 
-      context.machineState.memory.set(messageOffset, new Uint32(realLocation));
-      context.machineState.memory.setSlice(realLocation, args);
+      await new Poseidon2(indirect, inputStateOffset, outputStateOffset).execute(context);
 
-      const dstOffset = 3;
-
-      const expectedHash = poseidon2Hash(args);
-      await new Poseidon2(indirect, dstOffset, messageOffset, args.length).execute(context);
-
-      const result = context.machineState.memory.get(dstOffset);
-      expect(result).toEqual(new Field(expectedHash));
+      const result = context.machineState.memory.getSlice(outputStateOffsetReal, 4);
+      expect(result).toEqual([
+        new Field(0x224785a48a72c75e2cbb698143e71d5d41bd89a2b9a7185871e39a54ce5785b1n),
+        new Field(0x225bb800db22c4f4b09ace45cb484d42b0dd7dfe8708ee26aacde6f2c1fb2cb8n),
+        new Field(0x1180f4260e60b4264c987b503075ea8374b53ed06c5145f8c21c2aadb5087d21n),
+        new Field(0x16c877b5b9c04d873218804ccbf65d0eeb12db447f66c9ca26fec380055df7e9n),
+      ]);
     });
   });
 

@@ -75,7 +75,7 @@ export enum Opcode {
   REVERT,
   // Gadgets
   KECCAK,
-  POSEIDON,
+  POSEIDON2,
   SHA256, // temp - may be removed, but alot of contracts rely on it
   PEDERSEN, // temp - may be removed, but alot of contracts rely on it
 }

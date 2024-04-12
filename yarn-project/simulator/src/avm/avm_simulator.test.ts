@@ -126,7 +126,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
     ['keccak_hash', keccak],
   ])('Hashes with 2 fields returned in noir contracts', (name: string, hashFunction: (data: Buffer) => Buffer) => {
     it(`Should execute contract function that performs ${name} hash`, async () => {
-      const calldata = [new Fr(1), new Fr(2), new Fr(3)];
+      const calldata = [...Array(10)].map(_ => Fr.random());
       const hash = hashFunction(Buffer.concat(calldata.map(f => f.toBuffer())));
 
       const context = initContext({ env: initExecutionEnvironment({ calldata }) });
@@ -139,12 +139,12 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   });
 
   describe.each([
-    ['poseidon_hash', poseidon2Hash],
+    ['poseidon2_hash', poseidon2Hash],
     ['pedersen_hash', pedersenHash],
     ['pedersen_hash_with_index', (m: Fieldable[]) => pedersenHash(m, 20)],
   ])('Hashes with field returned in noir contracts', (name: string, hashFunction: (data: Fieldable[]) => Fr) => {
     it(`Should execute contract function that performs ${name} hash`, async () => {
-      const calldata = [new Fr(1), new Fr(2), new Fr(3)];
+      const calldata = [...Array(10)].map(_ => Fr.random());
       const hash = hashFunction(calldata);
 
       const context = initContext({ env: initExecutionEnvironment({ calldata }) });

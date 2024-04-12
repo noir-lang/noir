@@ -3,7 +3,7 @@ import { poseidon2Permutation } from './index.js';
 
 describe('poseidon2Permutation', () => {
   it('test vectors from cpp should match', () => {
-    const init = [0, 1, 2, 3].map(i => new Fr(i));
+    const init = [0, 1, 2, 3];
     expect(poseidon2Permutation(init)).toEqual([
       new Fr(0x01bd538c2ee014ed5141b29e9ae240bf8db3fe5b9a38629a9647cf8d76c01737n),
       new Fr(0x239b62e7db98aa3a2a8f6a0d2fa1709e7a35959aa6c7034814d9daa90cbac662n),
@@ -13,7 +13,7 @@ describe('poseidon2Permutation', () => {
   });
 
   it('test vectors from Noir should match', () => {
-    const init = [1n, 2n, 3n, 0x0a0000000000000000n].map(i => new Fr(i));
+    const init = [1n, 2n, 3n, 0x0a0000000000000000n];
     expect(poseidon2Permutation(init)).toEqual([
       new Fr(0x0369007aa630f5dfa386641b15416ecb16fb1a6f45b1acb903cb986b221a891cn),
       new Fr(0x1919fd474b4e2e0f8e0cf8ca98ef285675781cbd31aa4807435385d28e4c02a5n),
