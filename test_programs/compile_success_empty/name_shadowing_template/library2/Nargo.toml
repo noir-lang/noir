@@ -1,0 +1,5 @@
+[package]
+name = "library"
+type = "lib"
+authors = [""]
+[dependencies]

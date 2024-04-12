@@ -1,0 +1,7 @@
+[package]
+name = "library"
+type = "lib"
+authors = [""]
+
+[dependencies]
+library2 =  { path = "../library2"}
