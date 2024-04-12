@@ -36,6 +36,8 @@ type FullNoir = {
 
 async function start() {
   const leaf: FullNoir = await fullNoirFromCircuit('sum');
+  const recurseLeaf: FullNoir = await fullNoirFromCircuit('recurseLeaf');
+  const recurseNode: FullNoir = await fullNoirFromCircuit('recurseNode');
 
   const leafParams = { a: 1, b: 3 };
   let numPubInputs = 2;
@@ -50,13 +52,10 @@ async function start() {
     numPubInputs + 1 // +1 for public return
   );
 
-
   let pub_inputs: string[] = [
     ...(Object.values(leafParams).map(n => Number(n).toString())),
     Number(returnValue).toString()
   ];
-
-  let recurseLeaf: FullNoir = await fullNoirFromCircuit('recurseLeaf');
 
   const a = returnValue;
   const b = 5;
@@ -78,17 +77,16 @@ async function start() {
     innerProof2,
     numPubInputs + 1 + 16 // +1 for public return +16 for hidden aggregation object
   );
-  console.log("artifacts2 generated.");
 
   // Generate and verify outer proof
   const outerParams = {
     verification_key: artifacts2.vkAsFields,
-    public_inputs: [1, 3, 4, returnValue].map.toString(), // returns proven sum
+    public_inputs: [pub_inputs.map.toString(), returnValue.toString()], // returns proven sum
     key_hash: artifacts2.vkHash,
     proof: artifacts2.proofAsFields
   };
 
-  const recurseNode: FullNoir = await fullNoirFromCircuit('recurseNode');
+  console.log("Executing...");
   ({ witness, returnValue } = await recurseNode.noir.execute(outerParams));
   console.log("Generating outer proof...");
   const outerProof: ProofData = await recurseNode.backend.generateProof(witness);

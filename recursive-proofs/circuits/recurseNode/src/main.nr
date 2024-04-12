@@ -2,7 +2,7 @@ use dep::std;
 
 fn main(
     verification_key: [Field; 114],
-    public_inputs: pub [Field; 6],
+    public_inputs: pub [Field; 2],
     key_hash: Field,
     proof: [Field; 109]
 ) -> pub u64 {
@@ -13,5 +13,5 @@ fn main(
         public_inputs.as_slice(),
         key_hash
     );
-    public_inputs[5] as u64
+    public_inputs[1] as u64
 }
