@@ -29,6 +29,7 @@ import {
 import { deployInstance, registerContractClass } from '@aztec/aztec.js/deployment';
 import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
 import { randomBytes } from '@aztec/foundation/crypto';
+import { makeBackoff, retry } from '@aztec/foundation/retry';
 import {
   AvailabilityOracleAbi,
   AvailabilityOracleBytecode,
@@ -342,10 +343,17 @@ export async function setup(
 
     // Start anvil.
     // We go via a wrapper script to ensure if the parent dies, anvil dies.
-    const ethereumHostPort = await getPort();
-    config.rpcUrl = `http://localhost:${ethereumHostPort}`;
-    anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
-    await anvil.start();
+    anvil = await retry(
+      async () => {
+        const ethereumHostPort = await getPort();
+        config.rpcUrl = `http://localhost:${ethereumHostPort}`;
+        const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
+        await anvil.start();
+        return anvil;
+      },
+      'Start anvil',
+      makeBackoff([5, 5, 5]),
+    );
   }
 
   // Enable logging metrics to a local file named after the test suite
