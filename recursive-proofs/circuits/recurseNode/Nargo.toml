@@ -1,0 +1,8 @@
+[package]
+name = "recurse"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.26.0"
+
+[dependencies]
+sumLib = { path = "../sumLib" }
