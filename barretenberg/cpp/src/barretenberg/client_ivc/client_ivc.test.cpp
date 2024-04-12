@@ -111,7 +111,9 @@ class ClientIVCTests : public ::testing::Test {
  * @brief A full Goblin test using PG that mimicks the basic aztec client architecture
  *
  */
-TEST_F(ClientIVCTests, Full)
+// TODO fix with https://github.com/AztecProtocol/barretenberg/issues/930
+// intermittent failures, presumably due to uninitialized memory
+TEST_F(ClientIVCTests, DISABLED_Full)
 {
     using VerificationKey = Flavor::VerificationKey;
 

@@ -21,7 +21,7 @@ jobs:
     uses: ./.github/workflows/setup-runner.yml
     with:
       runner_label: ${{ github.actor }}-x86
-      ebs_cache_size_gb: 128
+      ebs_cache_size_gb: 256
       runner_concurrency: 50
       subaction: ${{ github.event.inputs.runner_action || 'start' }}
       ec2_instance_type: m6a.32xlarge
@@ -121,7 +121,7 @@ jobs:
     needs: bb-bench-binaries
     with:
       runner_label: ${{ github.actor }}-bench-x86
-      ebs_cache_size_gb: 32
+      ebs_cache_size_gb: 64
       runner_concurrency: 1
       subaction: ${{ github.event.inputs.runner_action || 'start' }}
       ec2_instance_type: m6a.4xlarge

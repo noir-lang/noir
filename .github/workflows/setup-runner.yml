@@ -74,6 +74,7 @@ jobs:
   setup:
     needs: start-builder
     runs-on: ${{ inputs.runner_label }}
+    if: ${{inputs.subaction != 'stop'}}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -90,6 +91,23 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: ./scripts/attach_ebs_cache.sh ${{ inputs.runner_label }} 128
+
+      - name: Configure and Restart Docker
+        shell: bash
+        run: |
+          # We need to restart after attaching disk cache
+          # Both only happen once, so we just make sure this happens once
+          if ! [ -f /etc/docker/daemon.json ] ; then
+            echo '{"default-address-pools":[{"base":"172.17.0.0/12","size":20}, {"base":"10.99.0.0/12","size":20}, {"base":"192.168.0.0/16","size":24}]}' > /etc/docker/daemon.json
+            sudo service docker restart
+            echo "Configured docker daemon for making many networks."
+          else
+            echo "Docker daemon already configured."
+          fi
+
+      - name: Run Docker Prune
+        # helps to not overuse space
+        run: docker system prune -f
 
       - name: Run Earthly Bootstrap
         run: earthly bootstrap

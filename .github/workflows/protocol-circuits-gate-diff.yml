@@ -37,7 +37,7 @@ jobs:
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/share/* /usr/local/share/
           rm -rf clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             barretenberg/cpp/build
@@ -60,7 +60,7 @@ jobs:
           INSTALL_URL: https://raw.githubusercontent.com/noir-lang/noirup/main/install
           NOIRUP_BIN_URL: https://raw.githubusercontent.com/noir-lang/noirup/main/noirup
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/bin/

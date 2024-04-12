@@ -11,8 +11,15 @@ INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
 # TODO also mount various other aspects of docker image metadata
 
 # Check for existing mount, assume we can continue if existing
-if mount | grep -q /var/lib/docker/volumes; then
-  echo "Detected mount existing on /var/lib/docker/volumes already"
+if mount | grep -q "/var/lib/docker/volumes type ext4"; then
+  echo "Detected mount existing on /var/lib/docker/volumes. This is our old mount."
+  echo "Run the stop spot workflow https://github.com/AztecProtocol/aztec-packages/actions/workflows/stop-spot.yml and rerun all steps in this workflow."
+  exit 0
+fi
+
+# Check for existing mount, assume we can continue if existing
+if mount | grep -q "/var/lib/docker type ext4"; then
+  echo "Detected mount existing on /var/lib/docker already"
   echo "Continuing..."
   exit 0
 fi
@@ -22,7 +29,7 @@ fi
 # this means we are in a weird state (two spot instances running etc)
 EXISTING_VOLUME=$(aws ec2 describe-volumes \
   --region $REGION \
-  --filters "Name=tag:username,Values=$EBS_CACHE_TAG" \
+  --filters "Name=tag:username,Values=$EBS_CACHE_TAG-$SIZE" \
   --query "Volumes[0].VolumeId" \
   --output text)
 
@@ -33,7 +40,7 @@ if [ "$EXISTING_VOLUME" == "None" ]; then
     --availability-zone $AVAILABILITY_ZONE \
     --size $SIZE \
     --volume-type $VOLUME_TYPE \
-    --tag-specifications "ResourceType=volume,Tags=[{Key=username,Value=$EBS_CACHE_TAG}]" \
+    --tag-specifications "ResourceType=volume,Tags=[{Key=username,Value=$EBS_CACHE_TAG-$SIZE}]" \
     --query "VolumeId" \
     --output text)
 else
@@ -77,7 +84,7 @@ while [ "$(aws ec2 describe-volumes \
   sleep 1
 done
 
-# We are expecting the device to come up as /dev/nvme1n1, but include generic code from 
+# We are expecting the device to come up as /dev/nvme1n1, but include generic code from
 # https://github.com/slavivanov/ec2-spotter/blob/master/ec2spotter-remount-root
 while true; do
     if lsblk /dev/nvme1n1; then
@@ -100,5 +107,5 @@ if ! file -s $BLKDEVICE | grep -q ext4; then
 fi
 
 # Create a mount point and mount the volume
-mkdir -p /var/lib/docker/volumes
-mount $BLKDEVICE /var/lib/docker/volumes
+mkdir -p /var/lib/docker
+mount $BLKDEVICE /var/lib/docker

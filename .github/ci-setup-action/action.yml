@@ -26,7 +26,7 @@ runs:
 
     - name: Cache Submodules
       id: cache-submodules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: .git/modules
         key: submodules-${{ hashFiles('.gitmodules') }}-spot-ebs
@@ -52,16 +52,6 @@ runs:
       shell: bash
       run: ./scripts/setup_env.sh ${{ inputs.dockerhub_password }}
 
-    - name: Setup Docker
-      shell: bash
-      run: |
-        if ! [ -f /etc/docker/daemon.json ] ; then
-          echo '{"default-address-pools":[{"base":"172.17.0.0/12","size":20}, {"base":"10.99.0.0/12","size":20}, {"base":"192.168.0.0/16","size":24}]}' > /etc/docker/daemon.json
-          sudo service docker restart
-          echo "Configured docker daemon for making many networks."
-        else
-          echo "Docker daemon already configured."
-        fi
     # As detailed in https://github.com/ben-z/gh-action-mutex
     # things do not become 'pending' in github actions, and instead just cancel one another
     # so we can't use the native concurrency in GA. We use a simple file-lock since we're on the same machine.
@@ -70,8 +60,8 @@ runs:
       if: ${{ inputs.concurrency_key }}
       with:
         run: |
-          while [ -f "/run/${{ inputs.concurrency_key }}.lock" ]; do sleep 1 ; echo "Lock is currently held, waiting..." ; done
-          touch "/run/${{ inputs.concurrency_key }}.lock"
+          while [ -f "/run/${{ inputs.concurrency_key }}.lock" ]; do sleep 1 ; echo "Lock is currently held by $(cat '/run/${{ inputs.concurrency_key }}.lock'), waiting..." ; done
+          echo "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > "/run/${{ inputs.concurrency_key }}.lock"
           echo "/run/${{ inputs.concurrency_key }}.lock acquired."
         post: |
           rm "/run/${{ inputs.concurrency_key }}.lock"
