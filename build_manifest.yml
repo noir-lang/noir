@@ -160,6 +160,23 @@ yarn-project-test:
     - l1-contracts
     - noir-projects
     - barretenberg-x86_64-linux-clang
+    - noir
+
+# Runs all prover-client checks and tests.
+prover-client-test:
+  buildDir: yarn-project
+  projectDir: yarn-project/prover-client
+  dockerfile: Dockerfile.test
+  rebuildPatterns:
+    - ^yarn-project/.*\.(ts|tsx|js|cjs|mjs|json|html|md|sh|nr|toml|snap)$
+    - ^yarn-project/Dockerfile$
+  dependencies:
+    - bb.js
+    - noir-packages
+    - l1-contracts
+    - noir-projects
+    - barretenberg-x86_64-linux-clang
+    - noir
 
 # Builds all of yarn-project, with all developer dependencies.
 # Creates a runnable container used to run tests and formatting checks.

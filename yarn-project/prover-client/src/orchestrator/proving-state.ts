@@ -1,7 +1,8 @@
-import { type L2Block, type ProcessedTx, type ProvingResult } from '@aztec/circuit-types';
+import { type L2Block, type MerkleTreeId, type ProcessedTx, type ProvingResult } from '@aztec/circuit-types';
 import {
   type AppendOnlyTreeSnapshot,
   type BaseOrMergeRollupPublicInputs,
+  type BaseRollupInputs,
   type Fr,
   type GlobalVariables,
   type L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
@@ -30,7 +31,7 @@ enum PROVING_STATE_LIFECYCLE {
  * Captures resolve and reject callbacks to provide a promise base interface to the consumer of our proving.
  */
 export class ProvingState {
-  private provingStateLifecyle = PROVING_STATE_LIFECYCLE.PROVING_STATE_CREATED;
+  private provingStateLifecycle = PROVING_STATE_LIFECYCLE.PROVING_STATE_CREATED;
   private mergeRollupInputs: MergeRollupInputData[] = [];
   private rootParityInputs: Array<RootParityInput | undefined> = [];
   private finalRootParityInputs: RootParityInput | undefined;
@@ -38,6 +39,8 @@ export class ProvingState {
   public finalProof: Proof | undefined;
   public block: L2Block | undefined;
   private txs: ProcessedTx[] = [];
+  public baseRollupInputs: BaseRollupInputs[] = [];
+  public txTreeSnapshots: Map<MerkleTreeId, AppendOnlyTreeSnapshot>[] = [];
   constructor(
     public readonly totalNumTxs: number,
     private completionCallback: (result: ProvingResult) => void,
@@ -63,7 +66,7 @@ export class ProvingState {
   public addNewTx(tx: ProcessedTx) {
     this.txs.push(tx);
     if (this.txs.length === this.totalNumTxs) {
-      this.provingStateLifecyle = PROVING_STATE_LIFECYCLE.PROVING_STATE_FULL;
+      this.provingStateLifecycle = PROVING_STATE_LIFECYCLE.PROVING_STATE_FULL;
     }
     return this.txs.length - 1;
   }
@@ -86,13 +89,13 @@ export class ProvingState {
 
   public verifyState() {
     return (
-      this.provingStateLifecyle === PROVING_STATE_LIFECYCLE.PROVING_STATE_CREATED ||
-      this.provingStateLifecyle === PROVING_STATE_LIFECYCLE.PROVING_STATE_FULL
+      this.provingStateLifecycle === PROVING_STATE_LIFECYCLE.PROVING_STATE_CREATED ||
+      this.provingStateLifecycle === PROVING_STATE_LIFECYCLE.PROVING_STATE_FULL
     );
   }
 
   public isAcceptingTransactions() {
-    return this.provingStateLifecyle === PROVING_STATE_LIFECYCLE.PROVING_STATE_CREATED;
+    return this.provingStateLifecycle === PROVING_STATE_LIFECYCLE.PROVING_STATE_CREATED;
   }
 
   public get allTxs() {
@@ -140,6 +143,21 @@ export class ProvingState {
     return this.rootParityInputs.findIndex(p => !p) === -1;
   }
 
+  public txHasPublicFunctions(index: number) {
+    return index >= 0 && this.txs.length > index && this.txs[index].publicKernelRequests.length;
+  }
+
+  public getPublicFunction(txIndex: number, nextIndex: number) {
+    if (txIndex < 0 || txIndex >= this.txs.length) {
+      return undefined;
+    }
+    const tx = this.txs[txIndex];
+    if (nextIndex < 0 || nextIndex >= tx.publicKernelRequests.length) {
+      return undefined;
+    }
+    return tx.publicKernelRequests[nextIndex];
+  }
+
   public cancel() {
     this.reject('Proving cancelled');
   }
@@ -148,7 +166,7 @@ export class ProvingState {
     if (!this.verifyState()) {
       return;
     }
-    this.provingStateLifecyle = PROVING_STATE_LIFECYCLE.PROVING_STATE_REJECTED;
+    this.provingStateLifecycle = PROVING_STATE_LIFECYCLE.PROVING_STATE_REJECTED;
     this.rejectionCallback(reason);
   }
 
@@ -156,7 +174,7 @@ export class ProvingState {
     if (!this.verifyState()) {
       return;
     }
-    this.provingStateLifecyle = PROVING_STATE_LIFECYCLE.PROVING_STATE_RESOLVED;
+    this.provingStateLifecycle = PROVING_STATE_LIFECYCLE.PROVING_STATE_RESOLVED;
     this.completionCallback(result);
   }
 }

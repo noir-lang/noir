@@ -29,7 +29,7 @@ import {
   createBlackBoxSolver,
   executeCircuitWithBlackBoxSolver,
 } from '@noir-lang/acvm_js';
-import { type Abi, abiDecode, abiEncode } from '@noir-lang/noirc_abi';
+import { type Abi, abiDecode, abiEncode, serializeWitness } from '@noir-lang/noirc_abi';
 import { type WitnessMap } from '@noir-lang/types';
 
 import BaseParityJson from './target/parity_base.json' assert { type: 'json' };
@@ -46,6 +46,7 @@ import PublicKernelAppLogicSimulatedJson from './target/public_kernel_app_logic_
 import PublicKernelSetupSimulatedJson from './target/public_kernel_setup_simulated.json' assert { type: 'json' };
 import PublicKernelTailSimulatedJson from './target/public_kernel_tail_simulated.json' assert { type: 'json' };
 import PublicKernelTeardownSimulatedJson from './target/public_kernel_teardown_simulated.json' assert { type: 'json' };
+import BaseRollupJson from './target/rollup_base.json' assert { type: 'json' };
 import BaseRollupSimulatedJson from './target/rollup_base_simulated.json' assert { type: 'json' };
 import MergeRollupJson from './target/rollup_merge.json' assert { type: 'json' };
 import RootRollupJson from './target/rollup_root.json' assert { type: 'json' };
@@ -126,11 +127,64 @@ export const BaseParityArtifact = BaseParityJson as NoirCompiledCircuit;
 
 export const RootParityArtifact = RootParityJson as NoirCompiledCircuit;
 
-export const BaseRollupArtifact = BaseRollupSimulatedJson as NoirCompiledCircuit;
+export const SimulatedBaseRollupArtifact = BaseRollupSimulatedJson as NoirCompiledCircuit;
+
+export const BaseRollupArtifact = BaseRollupJson as NoirCompiledCircuit;
 
 export const MergeRollupArtifact = MergeRollupJson as NoirCompiledCircuit;
 
 export const RootRollupArtifact = RootRollupJson as NoirCompiledCircuit;
+
+export type ServerProtocolArtifact =
+  | 'PublicKernelSetupArtifact'
+  | 'PublicKernelAppLogicArtifact'
+  | 'PublicKernelTeardownArtifact'
+  | 'PublicKernelTailArtifact'
+  | 'BaseParityArtifact'
+  | 'RootParityArtifact'
+  | 'BaseRollupArtifact'
+  | 'MergeRollupArtifact'
+  | 'RootRollupArtifact';
+
+export type ClientProtocolArtifact =
+  | 'PrivateKernelInitArtifact'
+  | 'PrivateKernelInnerArtifact'
+  | 'PrivateKernelTailArtifact';
+
+export type ProtocolArtifact = ServerProtocolArtifact | ClientProtocolArtifact;
+
+export const ServerCircuitArtifacts: Record<ServerProtocolArtifact, NoirCompiledCircuit> = {
+  PublicKernelSetupArtifact: PublicKernelSetupArtifact,
+  PublicKernelAppLogicArtifact: PublicKernelAppLogicArtifact,
+  PublicKernelTeardownArtifact: PublicKernelTeardownArtifact,
+  PublicKernelTailArtifact: PublicKernelTailArtifact,
+  BaseParityArtifact: BaseParityArtifact,
+  RootParityArtifact: RootParityArtifact,
+  BaseRollupArtifact: BaseRollupArtifact,
+  MergeRollupArtifact: MergeRollupArtifact,
+  RootRollupArtifact: RootRollupArtifact,
+};
+
+export const ClientCircuitArtifacts: Record<ClientProtocolArtifact, NoirCompiledCircuit> = {
+  PrivateKernelInitArtifact: PrivateKernelInitArtifact,
+  PrivateKernelInnerArtifact: PrivateKernelInnerArtifact,
+  PrivateKernelTailArtifact: PrivateKernelTailArtifact,
+};
+
+export const ProtocolCircuitArtifacts: Record<ProtocolArtifact, NoirCompiledCircuit> = {
+  PrivateKernelInitArtifact: PrivateKernelInitArtifact,
+  PrivateKernelInnerArtifact: PrivateKernelInnerArtifact,
+  PrivateKernelTailArtifact: PrivateKernelTailArtifact,
+  PublicKernelSetupArtifact: PublicKernelSetupArtifact,
+  PublicKernelAppLogicArtifact: PublicKernelAppLogicArtifact,
+  PublicKernelTeardownArtifact: PublicKernelTeardownArtifact,
+  PublicKernelTailArtifact: PublicKernelTailArtifact,
+  BaseParityArtifact: BaseParityArtifact,
+  RootParityArtifact: RootParityArtifact,
+  BaseRollupArtifact: BaseRollupArtifact,
+  MergeRollupArtifact: MergeRollupArtifact,
+  RootRollupArtifact: RootRollupArtifact,
+};
 
 let solver: Promise<WasmBlackBoxFunctionSolver>;
 
@@ -140,6 +194,10 @@ const getSolver = (): Promise<WasmBlackBoxFunctionSolver> => {
   }
   return solver;
 };
+
+export function serializeInputWitness(witness: WitnessMap) {
+  return serializeWitness(witness);
+}
 
 /**
  * Executes the init private kernel.
@@ -237,6 +295,17 @@ export function convertRootParityInputsToWitnessMap(inputs: RootParityInputs): W
  */
 export function convertBaseRollupInputsToWitnessMap(inputs: BaseRollupInputs): WitnessMap {
   const mapped = mapBaseRollupInputsToNoir(inputs);
+  const initialWitnessMap = abiEncode(BaseRollupJson.abi as Abi, { inputs: mapped as any });
+  return initialWitnessMap;
+}
+
+/**
+ * Converts the inputs of the simulated base rollup circuit into a witness map.
+ * @param inputs - The base rollup inputs.
+ * @returns The witness map
+ */
+export function convertSimulatedBaseRollupInputsToWitnessMap(inputs: BaseRollupInputs): WitnessMap {
+  const mapped = mapBaseRollupInputsToNoir(inputs);
   const initialWitnessMap = abiEncode(BaseRollupSimulatedJson.abi as Abi, { inputs: mapped as any });
   return initialWitnessMap;
 }
@@ -307,13 +376,28 @@ export function convertPublicTailInputsToWitnessMap(inputs: PublicKernelTailCirc
 }
 
 /**
+ * Converts the outputs of the simulated base rollup circuit from a witness map.
+ * @param outputs - The base rollup outputs as a witness map.
+ * @returns The public inputs.
+ */
+export function convertSimulatedBaseRollupOutputsFromWitnessMap(outputs: WitnessMap): BaseOrMergeRollupPublicInputs {
+  // Decode the witness map into two fields, the return values and the inputs
+  const decodedInputs: DecodedInputs = abiDecode(BaseRollupSimulatedJson.abi as Abi, outputs);
+
+  // Cast the inputs as the return type
+  const returnType = decodedInputs.return_value as BaseRollupReturnType;
+
+  return mapBaseOrMergeRollupPublicInputsFromNoir(returnType);
+}
+
+/**
  * Converts the outputs of the base rollup circuit from a witness map.
  * @param outputs - The base rollup outputs as a witness map.
  * @returns The public inputs.
  */
 export function convertBaseRollupOutputsFromWitnessMap(outputs: WitnessMap): BaseOrMergeRollupPublicInputs {
   // Decode the witness map into two fields, the return values and the inputs
-  const decodedInputs: DecodedInputs = abiDecode(BaseRollupSimulatedJson.abi as Abi, outputs);
+  const decodedInputs: DecodedInputs = abiDecode(BaseRollupJson.abi as Abi, outputs);
 
   // Cast the inputs as the return type
   const returnType = decodedInputs.return_value as BaseRollupReturnType;

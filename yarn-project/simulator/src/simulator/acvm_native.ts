@@ -1,4 +1,6 @@
 import { randomBytes } from '@aztec/foundation/crypto';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { Timer } from '@aztec/foundation/timer';
 import { type NoirCompiledCircuit } from '@aztec/types/noir';
 
 import { type WitnessMap } from '@noir-lang/types';
@@ -6,6 +8,26 @@ import * as proc from 'child_process';
 import fs from 'fs/promises';
 
 import { type SimulationProvider } from './simulation_provider.js';
+
+const logger = createDebugLogger('aztec:acvm-native');
+
+export enum ACVM_RESULT {
+  SUCCESS,
+  FAILURE,
+}
+
+export type ACVMSuccess = {
+  status: ACVM_RESULT.SUCCESS;
+  duration: number;
+  witness: Map<number, string>;
+};
+
+export type ACVMFailure = {
+  status: ACVM_RESULT.FAILURE;
+  reason: string;
+};
+
+export type ACVMResult = ACVMSuccess | ACVMFailure;
 
 /**
  * Parses a TOML format witness map string into a Map structure
@@ -29,7 +51,8 @@ function parseIntoWitnessMap(outputString: string) {
  * @param inputWitness - The circuit's input witness
  * @param bytecode - The circuit bytecode
  * @param workingDirectory - A directory to use for temporary files by the ACVM
- * @param pathToAcvm - The path to the ACVm binary
+ * @param pathToAcvm - The path to the ACVM binary
+ * @param outputFilename - If specified, the output will be stored as a file, encoded using Bincode
  * @returns The completed partial witness outputted from the circuit
  */
 export async function executeNativeCircuit(
@@ -37,7 +60,8 @@ export async function executeNativeCircuit(
   bytecode: Buffer,
   workingDirectory: string,
   pathToAcvm: string,
-) {
+  outputFilename?: string,
+): Promise<ACVMResult> {
   const bytecodeFilename = 'bytecode';
   const witnessFilename = 'input_witness.toml';
 
@@ -47,55 +71,69 @@ export async function executeNativeCircuit(
     witnessMap = witnessMap.concat(`${key} = '${value}'\n`);
   });
 
-  // In case the directory is still around from some time previously, remove it
-  await fs.rm(workingDirectory, { recursive: true, force: true });
-  // Create the new working directory
-  await fs.mkdir(workingDirectory, { recursive: true });
-  // Write the bytecode and input witness to the working directory
-  await fs.writeFile(`${workingDirectory}/${bytecodeFilename}`, bytecode);
-  await fs.writeFile(`${workingDirectory}/${witnessFilename}`, witnessMap);
-
-  // Execute the ACVM using the given args
-  const args = [
-    `execute`,
-    `--working-directory`,
-    `${workingDirectory}`,
-    `--bytecode`,
-    `${bytecodeFilename}`,
-    `--input-witness`,
-    `${witnessFilename}`,
-    `--print`,
-  ];
-  const processPromise = new Promise<string>((resolve, reject) => {
-    let outputWitness = Buffer.alloc(0);
-    let errorBuffer = Buffer.alloc(0);
-    const acvm = proc.spawn(pathToAcvm, args);
-    acvm.stdout.on('data', data => {
-      outputWitness = Buffer.concat([outputWitness, data]);
-    });
-    acvm.stderr.on('data', data => {
-      errorBuffer = Buffer.concat([errorBuffer, data]);
-    });
-    acvm.on('close', code => {
-      if (code === 0) {
-        resolve(outputWitness.toString('utf-8'));
-      } else {
-        reject(errorBuffer.toString('utf-8'));
-      }
-    });
-  });
+  try {
+    // Check that the directory exists
+    await fs.access(workingDirectory);
+  } catch (error) {
+    return { status: ACVM_RESULT.FAILURE, reason: `Working directory ${workingDirectory} does not exist` };
+  }
 
   try {
+    // Write the bytecode and input witness to the working directory
+    await fs.writeFile(`${workingDirectory}/${bytecodeFilename}`, bytecode);
+    await fs.writeFile(`${workingDirectory}/${witnessFilename}`, witnessMap);
+
+    // Execute the ACVM using the given args
+    const args = [
+      `execute`,
+      `--working-directory`,
+      `${workingDirectory}`,
+      `--bytecode`,
+      `${bytecodeFilename}`,
+      `--input-witness`,
+      `${witnessFilename}`,
+      '--print',
+      '--output-witness',
+      'output-witness',
+    ];
+
+    logger.debug(`Calling ACVM with ${args.join(' ')}`);
+
+    const processPromise = new Promise<string>((resolve, reject) => {
+      let outputWitness = Buffer.alloc(0);
+      let errorBuffer = Buffer.alloc(0);
+      const acvm = proc.spawn(pathToAcvm, args);
+      acvm.stdout.on('data', data => {
+        outputWitness = Buffer.concat([outputWitness, data]);
+      });
+      acvm.stderr.on('data', data => {
+        errorBuffer = Buffer.concat([errorBuffer, data]);
+      });
+      acvm.on('close', code => {
+        if (code === 0) {
+          resolve(outputWitness.toString('utf-8'));
+        } else {
+          logger.error(`From ACVM: ${errorBuffer.toString('utf-8')}`);
+          reject(errorBuffer.toString('utf-8'));
+        }
+      });
+    });
+
+    const duration = new Timer();
     const output = await processPromise;
-    return parseIntoWitnessMap(output);
-  } finally {
-    // Clean up the working directory before we leave
-    await fs.rm(workingDirectory, { recursive: true, force: true });
+    if (outputFilename) {
+      const outputWitnessFileName = `${workingDirectory}/output-witness.gz`;
+      await fs.copyFile(outputWitnessFileName, outputFilename);
+    }
+    const witness = parseIntoWitnessMap(output);
+    return { status: ACVM_RESULT.SUCCESS, witness, duration: duration.ms() };
+  } catch (error) {
+    return { status: ACVM_RESULT.FAILURE, reason: `${error}` };
   }
 }
 
 export class NativeACVMSimulator implements SimulationProvider {
-  constructor(private workingDirectory: string, private pathToAcvm: string) {}
+  constructor(private workingDirectory: string, private pathToAcvm: string, private witnessFilename?: string) {}
   async simulateCircuit(input: WitnessMap, compiledCircuit: NoirCompiledCircuit): Promise<WitnessMap> {
     // Execute the circuit on those initial witness values
 
@@ -103,10 +141,19 @@ export class NativeACVMSimulator implements SimulationProvider {
     const decodedBytecode = Buffer.from(compiledCircuit.bytecode, 'base64');
 
     // Provide a unique working directory so we don't get clashes with parallel executions
-    const directory = `${this.workingDirectory}/${randomBytes(32).toString('hex')}`;
-    // Execute the circuit
-    const _witnessMap = await executeNativeCircuit(input, decodedBytecode, directory, this.pathToAcvm);
+    const directory = `${this.workingDirectory}/${randomBytes(8).toString('hex')}`;
 
-    return _witnessMap;
+    await fs.mkdir(directory, { recursive: true });
+
+    // Execute the circuit
+    const result = await executeNativeCircuit(input, decodedBytecode, directory, this.pathToAcvm, this.witnessFilename);
+
+    await fs.rm(directory, { force: true, recursive: true });
+
+    if (result.status == ACVM_RESULT.FAILURE) {
+      throw new Error(`Failed to generate witness: ${result.reason}`);
+    }
+
+    return result.witness;
   }
 }

@@ -2,6 +2,7 @@ import {
   type BlockProver,
   type FailedTx,
   type ProcessedTx,
+  type PublicKernelRequest,
   type SimulationError,
   Tx,
   makeEmptyProcessedTx,
@@ -105,7 +106,7 @@ export class PublicProcessor {
       }
       try {
         const [processedTx, returnValues] = !tx.hasPublicCalls()
-          ? [makeProcessedTx(tx, tx.data.toKernelCircuitPublicInputs(), tx.proof)]
+          ? [makeProcessedTx(tx, tx.data.toKernelCircuitPublicInputs(), tx.proof, [])]
           : await this.processTxWithPublicCalls(tx);
         validateProcessedTx(processedTx);
         // Re-validate the transaction
@@ -151,6 +152,7 @@ export class PublicProcessor {
 
   private async processTxWithPublicCalls(tx: Tx): Promise<[ProcessedTx, ProcessReturnValues | undefined]> {
     let returnValues: ProcessReturnValues = undefined;
+    const publicRequests: PublicKernelRequest[] = [];
     let phase: AbstractPhaseManager | undefined = PhaseManagerFactory.phaseFromTx(
       tx,
       this.db,
@@ -172,6 +174,7 @@ export class PublicProcessor {
       if (phase.phase === PublicKernelPhase.APP_LOGIC) {
         returnValues = output.returnValues;
       }
+      publicRequests.push(...output.kernelRequests);
       publicKernelPublicInput = output.publicKernelOutput;
       finalKernelOutput = output.finalKernelOutput;
       proof = output.publicKernelProof;
@@ -193,7 +196,7 @@ export class PublicProcessor {
       throw new Error('Final public kernel was not executed.');
     }
 
-    const processedTx = makeProcessedTx(tx, finalKernelOutput, proof, revertReason);
+    const processedTx = makeProcessedTx(tx, finalKernelOutput, proof, publicRequests, revertReason);
 
     this.log.debug(`Processed public part of ${tx.getTxHash()}`, {
       eventName: 'tx-sequencer-processing',

@@ -18,6 +18,7 @@
     "bbfree",
     "bbmalloc",
     "benesjan",
+    "Bincode",
     "bleurgh",
     "bodyparser",
     "bootnode",

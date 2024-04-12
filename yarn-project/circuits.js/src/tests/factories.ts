@@ -75,6 +75,8 @@ import {
   NullifierKeyValidationRequest,
   NullifierKeyValidationRequestContext,
   NullifierLeafPreimage,
+  NullifierNonExistentReadRequestHintsBuilder,
+  NullifierReadRequestHintsBuilder,
   PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
   ParityPublicInputs,
@@ -103,6 +105,7 @@ import {
   PublicKernelCircuitPrivateInputs,
   PublicKernelCircuitPublicInputs,
   PublicKernelData,
+  PublicKernelTailCircuitPrivateInputs,
   ROLLUP_VK_TREE_HEIGHT,
   ReadRequest,
   ReadRequestContext,
@@ -788,6 +791,19 @@ export function makePublicCallData(seed = 1, full = false): PublicCallData {
  */
 export function makePublicKernelCircuitPrivateInputs(seed = 1): PublicKernelCircuitPrivateInputs {
   return new PublicKernelCircuitPrivateInputs(makePublicKernelData(seed), makePublicCallData(seed + 0x1000));
+}
+
+/**
+ * Makes arbitrary public kernel tail inputs.
+ * @param seed - The seed to use for generating the public kernel inputs.
+ * @returns Public kernel inputs.
+ */
+export function makePublicKernelTailCircuitPrivateInputs(seed = 1): PublicKernelTailCircuitPrivateInputs {
+  return new PublicKernelTailCircuitPrivateInputs(
+    makePublicKernelData(seed),
+    NullifierReadRequestHintsBuilder.empty(),
+    NullifierNonExistentReadRequestHintsBuilder.empty(),
+  );
 }
 
 /**

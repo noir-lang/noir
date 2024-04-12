@@ -2,8 +2,8 @@ FROM --platform=linux/amd64 aztecprotocol/bb.js as bb.js
 FROM --platform=linux/amd64 aztecprotocol/noir-packages as noir-packages
 FROM --platform=linux/amd64 aztecprotocol/l1-contracts as contracts
 FROM --platform=linux/amd64 aztecprotocol/noir-projects as noir-projects
-FROM aztecprotocol/noir as noir
 FROM --platform=linux/amd64 aztecprotocol/barretenberg-x86_64-linux-clang as barretenberg
+FROM aztecprotocol/noir as noir
 
 FROM node:18.19.0 as builder
 RUN apt update && apt install -y jq curl perl && rm -rf /var/lib/apt/lists/* && apt-get clean
@@ -32,20 +32,8 @@ RUN ln -s /usr/src/yarn-project/node_modules /usr/src/node_modules
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 RUN ./bootstrap.sh
-RUN yarn workspaces focus @aztec/cli @aztec/aztec --production && yarn cache clean
+RUN cd prover-client && LOG_LEVEL=verbose ACVM_WORKING_DIRECTORY='/tmp/acvm' BB_WORKING_DIRECTORY='/tmp/bb' yarn test
 
-# TODO: Use release-please to update package.json directly, and remove this!
-# It's here to ensure the image rebuilds if the commit tag changes (as the content hash won't).
-# ARG COMMIT_TAG=""
-# RUN ./scripts/version_packages.sh
-
-# We no longer need these.
-RUN rm -rf /usr/src/noir-projects /usr/src/l1-contracts
-
-# Create minimal size image.
-FROM node:18.19.1-slim
-ARG COMMIT_TAG=""
-ENV COMMIT_TAG=$COMMIT_TAG
-COPY --from=builder /usr/src /usr/src
-WORKDIR /usr/src/yarn-project
-ENTRYPOINT ["yarn"]
+# Avoid pushing some huge container back to ecr.
+FROM scratch
+COPY --from=builder /usr/src/yarn-project/README.md /usr/src/yarn-project/README.md

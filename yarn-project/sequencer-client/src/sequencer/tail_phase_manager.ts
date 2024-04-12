@@ -1,4 +1,4 @@
-import { type Tx } from '@aztec/circuit-types';
+import { type PublicKernelRequest, PublicKernelType, type Tx } from '@aztec/circuit-types';
 import {
   type Fr,
   type GlobalVariables,
@@ -37,7 +37,7 @@ export class TailPhaseManager extends AbstractPhaseManager {
 
   async handle(tx: Tx, previousPublicKernelOutput: PublicKernelCircuitPublicInputs, previousPublicKernelProof: Proof) {
     this.log.verbose(`Processing tx ${tx.getTxHash()}`);
-    const [finalKernelOutput, publicKernelProof] = await this.runTailKernelCircuit(
+    const [inputs, finalKernelOutput] = await this.runTailKernelCircuit(
       previousPublicKernelOutput,
       previousPublicKernelProof,
     ).catch(
@@ -51,10 +51,17 @@ export class TailPhaseManager extends AbstractPhaseManager {
     // commit the state updates from this transaction
     await this.publicStateDB.commit();
 
+    // Return a tail proving request
+    const request: PublicKernelRequest = {
+      type: PublicKernelType.TAIL,
+      inputs: inputs,
+    };
+
     return {
+      kernelRequests: [request],
       publicKernelOutput: previousPublicKernelOutput,
       finalKernelOutput,
-      publicKernelProof,
+      publicKernelProof: makeEmptyProof(),
       revertReason: undefined,
       returnValues: undefined,
     };
@@ -63,8 +70,8 @@ export class TailPhaseManager extends AbstractPhaseManager {
   private async runTailKernelCircuit(
     previousOutput: PublicKernelCircuitPublicInputs,
     previousProof: Proof,
-  ): Promise<[KernelCircuitPublicInputs, Proof]> {
-    const output = await this.simulate(previousOutput, previousProof);
+  ): Promise<[PublicKernelTailCircuitPrivateInputs, KernelCircuitPublicInputs]> {
+    const [inputs, output] = await this.simulate(previousOutput, previousProof);
 
     // Temporary hack. Should sort them in the tail circuit.
     const noteHashes = mergeAccumulatedData(
@@ -74,13 +81,13 @@ export class TailPhaseManager extends AbstractPhaseManager {
     );
     output.end.newNoteHashes = this.sortNoteHashes<typeof MAX_NEW_NOTE_HASHES_PER_TX>(noteHashes);
 
-    return [output, makeEmptyProof()];
+    return [inputs, output];
   }
 
   private async simulate(
     previousOutput: PublicKernelCircuitPublicInputs,
     previousProof: Proof,
-  ): Promise<KernelCircuitPublicInputs> {
+  ): Promise<[PublicKernelTailCircuitPrivateInputs, KernelCircuitPublicInputs]> {
     const previousKernel = this.getPreviousKernelData(previousOutput, previousProof);
 
     const { validationRequests, endNonRevertibleData, end } = previousOutput;
@@ -99,7 +106,7 @@ export class TailPhaseManager extends AbstractPhaseManager {
       nullifierReadRequestHints,
       nullifierNonExistentReadRequestHints,
     );
-    return this.publicKernel.publicKernelCircuitTail(inputs);
+    return [inputs, await this.publicKernel.publicKernelCircuitTail(inputs)];
   }
 
   private sortNoteHashes<N extends number>(noteHashes: Tuple<SideEffect, N>): Tuple<Fr, N> {

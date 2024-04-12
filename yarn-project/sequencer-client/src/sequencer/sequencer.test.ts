@@ -75,7 +75,7 @@ describe('sequencer', () => {
 
     publicProcessor = mock<PublicProcessor>({
       process: async txs => [
-        await Promise.all(txs.map(tx => makeProcessedTx(tx, tx.data.toKernelCircuitPublicInputs(), makeProof()))),
+        await Promise.all(txs.map(tx => makeProcessedTx(tx, tx.data.toKernelCircuitPublicInputs(), makeProof(), []))),
         [],
         [],
       ],

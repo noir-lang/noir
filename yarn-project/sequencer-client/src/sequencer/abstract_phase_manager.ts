@@ -1,4 +1,10 @@
-import { MerkleTreeId, type SimulationError, type Tx, type UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
+import {
+  MerkleTreeId,
+  type PublicKernelRequest,
+  type SimulationError,
+  type Tx,
+  type UnencryptedFunctionL2Logs,
+} from '@aztec/circuit-types';
 import {
   AztecAddress,
   CallRequest,
@@ -104,6 +110,10 @@ export abstract class AbstractPhaseManager {
     previousPublicKernelProof: Proof,
   ): Promise<{
     /**
+     * The collection of public kernel requests
+     */
+    kernelRequests: PublicKernelRequest[];
+    /**
      * the output of the public kernel circuit for this phase
      */
     publicKernelOutput: PublicKernelCircuitPublicInputs;
@@ -201,6 +211,7 @@ export abstract class AbstractPhaseManager {
     previousPublicKernelProof: Proof,
   ): Promise<
     [
+      PublicKernelCircuitPrivateInputs[],
       PublicKernelCircuitPublicInputs,
       Proof,
       UnencryptedFunctionL2Logs[],
@@ -209,12 +220,13 @@ export abstract class AbstractPhaseManager {
     ]
   > {
     let kernelOutput = previousPublicKernelOutput;
-    let kernelProof = previousPublicKernelProof;
+    const kernelProof = previousPublicKernelProof;
+    const publicKernelInputs: PublicKernelCircuitPrivateInputs[] = [];
 
     const enqueuedCalls = this.extractEnqueuedPublicCalls(tx);
 
     if (!enqueuedCalls || !enqueuedCalls.length) {
-      return [kernelOutput, kernelProof, [], undefined, undefined];
+      return [[], kernelOutput, kernelProof, [], undefined, undefined];
     }
 
     const newUnencryptedFunctionLogs: UnencryptedFunctionL2Logs[] = [];
@@ -260,7 +272,11 @@ export abstract class AbstractPhaseManager {
         executionStack.push(...result.nestedExecutions);
         const callData = await this.getPublicCallData(result, isExecutionRequest);
 
-        [kernelOutput, kernelProof] = await this.runKernelCircuit(kernelOutput, kernelProof, callData);
+        const circuitResult = await this.runKernelCircuit(kernelOutput, kernelProof, callData);
+        kernelOutput = circuitResult[1];
+
+        // Capture the inputs to the kernel circuit for later proving
+        publicKernelInputs.push(circuitResult[0]);
 
         // sanity check. Note we can't expect them to just be equal, because e.g.
         // if the simulator reverts in app logic, it "resets" and result.reverted will be false when we run teardown,
@@ -279,7 +295,7 @@ export abstract class AbstractPhaseManager {
               result.revertReason
             }`,
           );
-          return [kernelOutput, kernelProof, [], result.revertReason, undefined];
+          return [[], kernelOutput, kernelProof, [], result.revertReason, undefined];
         }
 
         if (!enqueuedExecutionResult) {
@@ -304,33 +320,32 @@ export abstract class AbstractPhaseManager {
     // TODO(#3675): This should be done in a public kernel circuit
     removeRedundantPublicDataWrites(kernelOutput, this.phase);
 
-    return [kernelOutput, kernelProof, newUnencryptedFunctionLogs, undefined, returns];
+    return [publicKernelInputs, kernelOutput, kernelProof, newUnencryptedFunctionLogs, undefined, returns];
   }
 
   protected async runKernelCircuit(
     previousOutput: PublicKernelCircuitPublicInputs,
     previousProof: Proof,
     callData: PublicCallData,
-  ): Promise<[PublicKernelCircuitPublicInputs, Proof]> {
-    const output = await this.getKernelCircuitOutput(previousOutput, previousProof, callData);
-    return [output, makeEmptyProof()];
+  ): Promise<[PublicKernelCircuitPrivateInputs, PublicKernelCircuitPublicInputs]> {
+    return await this.getKernelCircuitOutput(previousOutput, previousProof, callData);
   }
 
-  protected getKernelCircuitOutput(
+  protected async getKernelCircuitOutput(
     previousOutput: PublicKernelCircuitPublicInputs,
     previousProof: Proof,
     callData: PublicCallData,
-  ): Promise<PublicKernelCircuitPublicInputs> {
+  ): Promise<[PublicKernelCircuitPrivateInputs, PublicKernelCircuitPublicInputs]> {
     const previousKernel = this.getPreviousKernelData(previousOutput, previousProof);
 
     const inputs = new PublicKernelCircuitPrivateInputs(previousKernel, callData);
     switch (this.phase) {
       case PublicKernelPhase.SETUP:
-        return this.publicKernel.publicKernelCircuitSetup(inputs);
+        return [inputs, await this.publicKernel.publicKernelCircuitSetup(inputs)];
       case PublicKernelPhase.APP_LOGIC:
-        return this.publicKernel.publicKernelCircuitAppLogic(inputs);
+        return [inputs, await this.publicKernel.publicKernelCircuitAppLogic(inputs)];
       case PublicKernelPhase.TEARDOWN:
-        return this.publicKernel.publicKernelCircuitTeardown(inputs);
+        return [inputs, await this.publicKernel.publicKernelCircuitTeardown(inputs)];
       default:
         throw new Error(`No public kernel circuit for inputs`);
     }

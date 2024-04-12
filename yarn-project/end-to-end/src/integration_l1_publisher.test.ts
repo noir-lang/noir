@@ -178,7 +178,7 @@ describe('L1Publisher integration', () => {
       seed + 0x500,
     );
 
-    const processedTx = makeProcessedTx(tx, kernelOutput, makeProof());
+    const processedTx = makeProcessedTx(tx, kernelOutput, makeProof(), []);
 
     processedTx.data.end.newNoteHashes = makeTuple(MAX_NEW_NOTE_HASHES_PER_TX, fr, seed + 0x100);
     processedTx.data.end.newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200);
