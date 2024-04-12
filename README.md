@@ -6,7 +6,12 @@
 [Website][Noir] | [Getting started] | [Documentation] | [Contributing]
 </div>
 
+# Blocksense.network
 
+Blocksense.network intends to contribute a PLONKY2 backend to Noir. It could be used in place of brillig for proving and verifying circuits. Watch this space for more updates.
+
+| Original README follows. |
+|--------------------------|
 
 # The Noir Programming Language
 
