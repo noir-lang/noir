@@ -15,10 +15,9 @@ describe('NewTestKeyStore', () => {
 
     const accountAddress = await keyStore.addAccount(sk, partialAddress);
     expect(accountAddress.toString()).toMatchInlineSnapshot(
-      `"0x2e34847ad9019320ac89a6ec9b42fec90f94ef4162fdfdd7f5b7668e32d82655"`,
+      `"0x0ba7834252d19c4f09d29303c269f303f40ae3d2043f921ed0bf8c0709926d4e"`,
     );
 
-    // TODO(#5714): The keys are currently the same here because separator is currently ignored in poseidon
     const masterNullifierPublicKey = await keyStore.getMasterNullifierPublicKey(accountAddress);
     expect(masterNullifierPublicKey.toString()).toMatchInlineSnapshot(
       `"0x2ef5d15dd65d29546680ab72846fb071f41cb9f2a0212215e6c560e29df4ff650ce764818364b376be92dc2f49577fe440e64a16012584f7c4ee94f7edbc323a"`,

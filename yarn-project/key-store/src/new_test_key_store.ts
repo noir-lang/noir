@@ -46,20 +46,18 @@ export class NewTestKeyStore implements NewKeyStore {
     const masterTaggingPublicKey = this.curve.mul(this.curve.generator(), masterTaggingSecretKey);
 
     // We hash the public keys to get the public keys hash
-    const publicKeysHash = poseidon2Hash(
-      [
-        masterNullifierPublicKey,
-        masterIncomingViewingPublicKey,
-        masterOutgoingViewingPublicKey,
-        masterTaggingPublicKey,
-      ],
+    const publicKeysHash = poseidon2Hash([
+      masterNullifierPublicKey,
+      masterIncomingViewingPublicKey,
+      masterOutgoingViewingPublicKey,
+      masterTaggingPublicKey,
       GeneratorIndex.PUBLIC_KEYS_HASH,
-    );
+    ]);
 
     // We hash the partial address and the public keys hash to get the account address
     // TODO(#5726): Should GeneratorIndex.CONTRACT_ADDRESS be removed given that we introduced CONTRACT_ADDRESS_V1?
     // TODO(#5726): Move the following line to AztecAddress class?
-    const accountAddressFr = poseidon2Hash([partialAddress, publicKeysHash], GeneratorIndex.CONTRACT_ADDRESS_V1);
+    const accountAddressFr = poseidon2Hash([partialAddress, publicKeysHash, GeneratorIndex.CONTRACT_ADDRESS_V1]);
     const accountAddress = AztecAddress.fromField(accountAddressFr);
 
     // We store the keys in the database
