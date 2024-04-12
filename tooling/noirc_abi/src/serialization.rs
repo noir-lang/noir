@@ -1,7 +1,6 @@
+use crate::{AbiType, AbiValue};
 use iter_extended::vecmap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-use crate::AbiType;
 
 // This module exposes a custom serializer and deserializer for `BTreeMap<String, AbiType>`
 // (representing the fields of a struct) to serialize it as a `Vec<StructField>`.
@@ -39,6 +38,37 @@ where
 {
     let fields_vector = Vec::<StructField>::deserialize(deserializer)?;
     Ok(vecmap(fields_vector, |StructField { name, typ }| (name, typ)))
+}
+
+#[derive(Serialize, Deserialize)]
+struct StructFieldValue {
+    name: String,
+    value: AbiValue,
+}
+
+pub(crate) fn serialize_struct_field_values<S>(
+    fields: &[(String, AbiValue)],
+    s: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let fields_vector = vecmap(fields, |(name, value)| StructFieldValue {
+        name: name.to_owned(),
+        value: value.to_owned(),
+    });
+
+    fields_vector.serialize(s)
+}
+
+pub(crate) fn deserialize_struct_field_values<'de, D>(
+    deserializer: D,
+) -> Result<Vec<(String, AbiValue)>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let fields_vector = Vec::<StructFieldValue>::deserialize(deserializer)?;
+    Ok(vecmap(fields_vector, |StructFieldValue { name, value }| (name, value)))
 }
 
 #[cfg(test)]

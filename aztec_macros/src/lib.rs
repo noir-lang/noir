@@ -4,20 +4,16 @@ mod utils;
 use transforms::{
     compute_note_hash_and_nullifier::inject_compute_note_hash_and_nullifier,
     events::{generate_selector_impl, transform_events},
-    functions::{transform_function, transform_unconstrained},
-    note_interface::generate_note_interface_impl,
+    functions::{export_fn_abi, transform_function, transform_unconstrained},
+    note_interface::{generate_note_interface_impl, inject_note_exports},
     storage::{
         assign_storage_slots, check_for_storage_definition, check_for_storage_implementation,
-        generate_storage_implementation,
+        generate_storage_implementation, generate_storage_layout,
     },
 };
 
-use noirc_frontend::{
-    hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl},
-    macros_api::{
-        CrateId, FileId, HirContext, MacroError, MacroProcessor, SecondaryAttribute, SortedModule,
-        Span,
-    },
+use noirc_frontend::macros_api::{
+    CrateId, FileId, HirContext, MacroError, MacroProcessor, SortedModule, Span,
 };
 
 use utils::{
@@ -37,16 +33,6 @@ impl MacroProcessor for AztecMacro {
         context: &HirContext,
     ) -> Result<SortedModule, (MacroError, FileId)> {
         transform(ast, crate_id, file_id, context)
-    }
-
-    fn process_collected_defs(
-        &self,
-        crate_id: &CrateId,
-        context: &mut HirContext,
-        collected_trait_impls: &[UnresolvedTraitImpl],
-        collected_functions: &mut [UnresolvedFunctions],
-    ) -> Result<(), (MacroError, FileId)> {
-        transform_collected_defs(crate_id, context, collected_trait_impls, collected_functions)
     }
 
     fn process_typed_ast(
@@ -90,15 +76,19 @@ fn transform_module(module: &mut SortedModule) -> Result<bool, AztecMacroError> 
     let mut has_transformed_module = false;
 
     // Check for a user defined storage struct
-    let storage_defined = check_for_storage_definition(module);
-    let storage_implemented = check_for_storage_implementation(module);
 
-    if storage_defined && !storage_implemented {
-        generate_storage_implementation(module)?;
+    let maybe_storage_struct_name = check_for_storage_definition(module)?;
+    let storage_defined = maybe_storage_struct_name.is_some();
+
+    if let Some(storage_struct_name) = maybe_storage_struct_name {
+        if !check_for_storage_implementation(module, &storage_struct_name) {
+            generate_storage_implementation(module, &storage_struct_name)?;
+        }
+        generate_storage_layout(module, storage_struct_name)?;
     }
 
-    for structure in module.types.iter() {
-        if structure.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Event)) {
+    for structure in module.types.iter_mut() {
+        if structure.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(event)")) {
             module.impls.push(generate_selector_impl(structure));
             has_transformed_module = true;
         }
@@ -139,6 +129,7 @@ fn transform_module(module: &mut SortedModule) -> Result<bool, AztecMacroError> 
 
         // Apply transformations to the function based on collected attributes
         if is_private || is_public || is_public_vm {
+            export_fn_abi(&mut module.types, func)?;
             transform_function(
                 if is_private {
                     "Private"
@@ -185,24 +176,6 @@ fn transform_module(module: &mut SortedModule) -> Result<bool, AztecMacroError> 
     Ok(has_transformed_module)
 }
 
-fn transform_collected_defs(
-    crate_id: &CrateId,
-    context: &mut HirContext,
-    collected_trait_impls: &[UnresolvedTraitImpl],
-    collected_functions: &mut [UnresolvedFunctions],
-) -> Result<(), (MacroError, FileId)> {
-    if has_aztec_dependency(crate_id, context) {
-        inject_compute_note_hash_and_nullifier(
-            crate_id,
-            context,
-            collected_trait_impls,
-            collected_functions,
-        )
-    } else {
-        Ok(())
-    }
-}
-
 //
 //                    Transform Hir Nodes for Aztec
 //
@@ -212,6 +185,12 @@ fn transform_hir(
     crate_id: &CrateId,
     context: &mut HirContext,
 ) -> Result<(), (AztecMacroError, FileId)> {
-    transform_events(crate_id, context)?;
-    assign_storage_slots(crate_id, context)
+    if has_aztec_dependency(crate_id, context) {
+        transform_events(crate_id, context)?;
+        inject_compute_note_hash_and_nullifier(crate_id, context)?;
+        assign_storage_slots(crate_id, context)?;
+        inject_note_exports(crate_id, context)
+    } else {
+        Ok(())
+    }
 }

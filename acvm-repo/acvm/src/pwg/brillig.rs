@@ -206,13 +206,13 @@ impl<'b, B: BlackBoxFunctionSolver> BrilligSolver<'b, B> {
         for output in brillig.outputs.iter() {
             match output {
                 BrilligOutputs::Simple(witness) => {
-                    insert_value(witness, memory[current_ret_data_idx].value, witness_map)?;
+                    insert_value(witness, memory[current_ret_data_idx].to_field(), witness_map)?;
                     current_ret_data_idx += 1;
                 }
                 BrilligOutputs::Array(witness_arr) => {
                     for witness in witness_arr.iter() {
-                        let value = memory[current_ret_data_idx];
-                        insert_value(witness, value.value, witness_map)?;
+                        let value = &memory[current_ret_data_idx];
+                        insert_value(witness, value.to_field(), witness_map)?;
                         current_ret_data_idx += 1;
                     }
                 }
