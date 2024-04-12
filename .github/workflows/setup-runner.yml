@@ -90,7 +90,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: ./scripts/attach_ebs_cache.sh ${{ inputs.runner_label }} 128
+        run: ./scripts/attach_ebs_cache.sh ${{ inputs.runner_label }} ${{ inputs.ebs_cache_size_gb }}
 
       - name: Configure and Restart Docker
         shell: bash
