@@ -31,9 +31,6 @@ contract AvmTest {
     use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
     use dep::compressed_string::CompressedString;
 
-    // avm lib
-    use dep::aztec::avm::hash::sha256;
-
     #[aztec(storage)]
     struct Storage {
         single: PublicMutable<Field>,
@@ -155,8 +152,8 @@ contract AvmTest {
     }
 
     #[aztec(public-vm)]
-    fn sha256_hash(data: [Field; 10]) -> pub [Field; 2] {
-        sha256(data)
+    fn sha256_hash(data: [u8; 10]) -> pub [u8; 32] {
+        dep::std::hash::sha256(data)
     }
 
     #[aztec(public-vm)]

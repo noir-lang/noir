@@ -124,11 +124,8 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   describe.each([
     [
       'sha256_hash',
-      /*input=*/ randomFields(10),
-      /*output=*/ (fields: Field[]) => {
-        const resBuffer = sha256(Buffer.concat(fields.map(f => f.toBuffer())));
-        return [new Fr(resBuffer.subarray(0, 16)), new Fr(resBuffer.subarray(16, 32))];
-      },
+      /*input=*/ randomBytes(10),
+      /*output=*/ (bytes: Uint8[]) => [...sha256(Buffer.concat(bytes.map(b => b.toBuffer())))].map(b => new Fr(b)),
     ],
     [
       'keccak_hash',

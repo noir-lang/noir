@@ -292,9 +292,6 @@ fn handle_foreign_call(
         "avmOpcodeNullifierExists" => handle_nullifier_exists(avm_instrs, destinations, inputs),
         "avmOpcodeL1ToL2MsgExists" => handle_l1_to_l2_msg_exists(avm_instrs, destinations, inputs),
         "avmOpcodeSendL2ToL1Msg" => handle_send_l2_to_l1_msg(avm_instrs, destinations, inputs),
-        "avmOpcodeSha256" => {
-            handle_2_field_hash_instruction(avm_instrs, function, destinations, inputs)
-        }
         "avmOpcodeGetContractInstance" => {
             handle_get_contract_instance(avm_instrs, destinations, inputs)
         }
@@ -646,62 +643,6 @@ fn handle_send_l2_to_l1_msg(
     });
 }
 
-/// Two field hash instructions represent instruction's that's outputs are larger than a field element
-///
-/// This includes:
-/// - sha256
-///
-/// In the future the output of these may expand / contract depending on what is most efficient for the circuit
-/// to reason about. In order to decrease user friction we will use two field outputs.
-fn handle_2_field_hash_instruction(
-    avm_instrs: &mut Vec<AvmInstruction>,
-    function: &str,
-    destinations: &[ValueOrArray],
-    inputs: &[ValueOrArray],
-) {
-    // handle field returns differently
-    let message_offset_maybe = inputs[0];
-    let (message_offset, message_size) = match message_offset_maybe {
-        ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0, size),
-        _ => panic!("Sha256 address inputs destination should be a single value"),
-    };
-
-    assert!(destinations.len() == 1);
-    let dest_offset_maybe = destinations[0];
-    let dest_offset = match dest_offset_maybe {
-        ValueOrArray::HeapArray(HeapArray { pointer, size }) => {
-            assert!(size == 2);
-            pointer.0
-        }
-        _ => panic!("Poseidon address destination should be a single value"),
-    };
-
-    let opcode = match function {
-        "avmOpcodeSha256" => AvmOpcode::SHA256,
-        _ => panic!(
-            "Transpiler doesn't know how to process ForeignCall function {:?}",
-            function
-        ),
-    };
-
-    avm_instrs.push(AvmInstruction {
-        opcode,
-        indirect: Some(ZEROTH_OPERAND_INDIRECT | FIRST_OPERAND_INDIRECT),
-        operands: vec![
-            AvmOperand::U32 {
-                value: dest_offset as u32,
-            },
-            AvmOperand::U32 {
-                value: message_offset as u32,
-            },
-            AvmOperand::U32 {
-                value: message_size as u32,
-            },
-        ],
-        ..Default::default()
-    });
-}
-
 /// Getter Instructions are instructions that take NO inputs, and return information
 /// from the current execution context.
 ///
@@ -842,6 +783,29 @@ fn generate_mov_instruction(indirect: Option<u8>, source: u32, dest: u32) -> Avm
 /// (array goes in -> field element comes out)
 fn handle_black_box_function(avm_instrs: &mut Vec<AvmInstruction>, operation: &BlackBoxOp) {
     match operation {
+        BlackBoxOp::Sha256 { message, output } => {
+            let message_offset = message.pointer.0;
+            let message_size_offset = message.size.0;
+            let dest_offset = output.pointer.0;
+            assert_eq!(output.size, 32, "SHA256 output size must be 32!");
+
+            avm_instrs.push(AvmInstruction {
+                opcode: AvmOpcode::SHA256,
+                indirect: Some(ZEROTH_OPERAND_INDIRECT | FIRST_OPERAND_INDIRECT),
+                operands: vec![
+                    AvmOperand::U32 {
+                        value: dest_offset as u32,
+                    },
+                    AvmOperand::U32 {
+                        value: message_offset as u32,
+                    },
+                    AvmOperand::U32 {
+                        value: message_size_offset as u32,
+                    },
+                ],
+                ..Default::default()
+            });
+        }
         BlackBoxOp::PedersenHash {
             inputs,
             domain_separator,

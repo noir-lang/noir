@@ -1,4 +1,3 @@
-mod avm;
 mod context;
 mod deploy;
 mod hash;
