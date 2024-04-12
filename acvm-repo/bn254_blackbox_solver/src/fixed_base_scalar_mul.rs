@@ -85,6 +85,7 @@ mod grumpkin_fixed_base_scalar_mul {
     use ark_ff::BigInteger;
 
     use super::*;
+
     #[test]
     fn smoke_test() -> Result<(), BlackBoxResolutionError> {
         let input = FieldElement::one();
@@ -97,6 +98,7 @@ mod grumpkin_fixed_base_scalar_mul {
         assert_eq!(y, res.1.to_hex());
         Ok(())
     }
+
     #[test]
     fn low_high_smoke_test() -> Result<(), BlackBoxResolutionError> {
         let low = FieldElement::one();
@@ -116,9 +118,9 @@ mod grumpkin_fixed_base_scalar_mul {
         let max_limb = FieldElement::from(u128::MAX);
         let invalid_limb = max_limb + FieldElement::one();
 
-        let expected_error =  Err(BlackBoxResolutionError::Failed(
+        let expected_error = Err(BlackBoxResolutionError::Failed(
             BlackBoxFunc::FixedBaseScalarMul,
-            "Limb 0000000000000000000000000000000100000000000000000000000000000000 is not less than 2^128".into()
+            "Limb 0000000000000000000000000000000100000000000000000000000000000000 is not less than 2^128".into(),
         ));
 
         let res = fixed_base_scalar_mul(&invalid_limb, &FieldElement::zero());
@@ -141,7 +143,23 @@ mod grumpkin_fixed_base_scalar_mul {
             res,
             Err(BlackBoxResolutionError::Failed(
                 BlackBoxFunc::FixedBaseScalarMul,
-                "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47 is not a valid grumpkin scalar".into()
+                "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47 is not a valid grumpkin scalar".into(),
+            ))
+        );
+    }
+
+    #[test]
+    fn rejects_addition_of_points_not_in_curve() {
+        let x = FieldElement::from(1u128);
+        let y = FieldElement::from(2u128);
+
+        let res = embedded_curve_add(x, y, x, y);
+
+        assert_eq!(
+            res,
+            Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::EmbeddedCurveAdd,
+                "Point (0000000000000000000000000000000000000000000000000000000000000001, 0000000000000000000000000000000000000000000000000000000000000002) is not on curve".into(),
             ))
         );
     }
