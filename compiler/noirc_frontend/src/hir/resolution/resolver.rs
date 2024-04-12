@@ -502,6 +502,7 @@ impl<'a> Resolver<'a> {
                 let fields = self.resolve_type_inner(*fields, new_variables);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
+            Code => Type::Code,
             Unit => Type::Unit,
             Unspecified => Type::Error,
             Error => Type::Error,

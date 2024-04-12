@@ -112,6 +112,9 @@ pub enum UnresolvedTypeData {
         /*env:*/ Box<UnresolvedType>,
     ),
 
+    // The type of quoted code for metaprogramming
+    Code,
+
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
 }
@@ -200,6 +203,7 @@ impl std::fmt::Display for UnresolvedTypeData {
                 }
             }
             MutableReference(element) => write!(f, "&mut {element}"),
+            Code => write!(f, "Code"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
