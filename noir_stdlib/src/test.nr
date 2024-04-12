@@ -4,6 +4,9 @@ unconstrained fn create_mock_oracle<N>(name: str<N>) -> Field {}
 #[oracle(set_mock_params)]
 unconstrained fn set_mock_params_oracle<P>(id: Field, params: P) {}
 
+#[oracle(get_mock_last_params)]
+unconstrained fn get_mock_last_params_oracle<P>(id: Field) -> P {}
+
 #[oracle(set_mock_returns)]
 unconstrained fn set_mock_returns_oracle<R>(id: Field, returns: R) {}
 
@@ -25,6 +28,10 @@ impl OracleMock {
     unconstrained pub fn with_params<P>(self, params: P) -> Self {
         set_mock_params_oracle(self.id, params);
         self
+    }
+
+    unconstrained pub fn get_last_params<P>(self) -> P {
+        get_mock_last_params_oracle(self.id)
     }
 
     unconstrained pub fn returns<R>(self, returns: R) -> Self {
