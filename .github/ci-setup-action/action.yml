@@ -11,7 +11,7 @@ inputs:
     description: 'Concurrency key for locking jobs'
   concurrency_token:
     required: false
-    description: 'Must be provided with concurrency key. GH token used to lock this job.'
+    description: 'TODO unused'
 runs:
   # define an action, runs in OS of caller
   using: composite
@@ -64,11 +64,15 @@ runs:
         fi
     # As detailed in https://github.com/ben-z/gh-action-mutex
     # things do not become 'pending' in github actions, and instead just cancel one another
-    # so we can't use the native concurrency in GA
+    # so we can't use the native concurrency in GA. We use a simple file-lock since we're on the same machine.
     - name: Limit concurrency
-      uses: ben-z/gh-action-mutex@v1.0.0-alpha.9
+      uses: gacts/run-and-post-run@v1
       if: ${{ inputs.concurrency_key }}
       with:
-        repo-token: ${{ inputs.concurrency_token }}
-        repository: AztecProtocol/git-metadata
-        branch: gh-actions-mutex-${{ inputs.concurrency_key }}
+        run: |
+          while [ -f "/run/${{ inputs.concurrency_key }}.lock" ]; do sleep 1 ; echo "Lock is currently held, waiting..." ; done
+          touch "/run/${{ inputs.concurrency_key }}.lock"
+          echo "/run/${{ inputs.concurrency_key }}.lock acquired."
+        post: |
+          rm "/run/${{ inputs.concurrency_key }}.lock"
+          echo "/run/${{ inputs.concurrency_key }}.lock removed."
