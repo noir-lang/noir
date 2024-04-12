@@ -76,7 +76,7 @@
     "isAsync": false
   },
   {
-    "functionName": "poseidon_hash",
+    "functionName": "poseidon2_hash",
     "inArgs": [
       {
         "name": "inputs_buffer",
@@ -92,7 +92,7 @@
     "isAsync": false
   },
   {
-    "functionName": "poseidon_hashes",
+    "functionName": "poseidon2_hashes",
     "inArgs": [
       {
         "name": "inputs_buffer",
@@ -103,6 +103,22 @@
       {
         "name": "output",
         "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "poseidon2_permutation",
+    "inArgs": [
+      {
+        "name": "input_state",
+        "type": "fr::vec_in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output_state",
+        "type": "fr::vec_out_buf"
       }
     ],
     "isAsync": false

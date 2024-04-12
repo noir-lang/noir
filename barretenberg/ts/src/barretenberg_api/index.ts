@@ -63,11 +63,11 @@ export class BarretenbergApi {
     return out[0];
   }
 
-  async poseidonHash(inputsBuffer: Fr[]): Promise<Fr> {
+  async poseidon2Hash(inputsBuffer: Fr[]): Promise<Fr> {
     const inArgs = [inputsBuffer].map(serializeBufferable);
     const outTypes: OutputType[] = [Fr];
     const result = await this.wasm.callWasmExport(
-      'poseidon_hash',
+      'poseidon2_hash',
       inArgs,
       outTypes.map(t => t.SIZE_IN_BYTES),
     );
@@ -75,11 +75,23 @@ export class BarretenbergApi {
     return out[0];
   }
 
-  async poseidonHashes(inputsBuffer: Fr[]): Promise<Fr> {
+  async poseidon2Hashes(inputsBuffer: Fr[]): Promise<Fr> {
     const inArgs = [inputsBuffer].map(serializeBufferable);
     const outTypes: OutputType[] = [Fr];
     const result = await this.wasm.callWasmExport(
-      'poseidon_hashes',
+      'poseidon2_hashes',
+      inArgs,
+      outTypes.map(t => t.SIZE_IN_BYTES),
+    );
+    const out = result.map((r, i) => outTypes[i].fromBuffer(r));
+    return out[0];
+  }
+
+  async poseidon2Permutation(inputState: Fr[]): Promise<Fr[]> {
+    const inArgs = [inputState].map(serializeBufferable);
+    const outTypes: OutputType[] = [VectorDeserializer(Fr)];
+    const result = await this.wasm.callWasmExport(
+      'poseidon2_permutation',
       inArgs,
       outTypes.map(t => t.SIZE_IN_BYTES),
     );
@@ -607,11 +619,11 @@ export class BarretenbergApiSync {
     return out[0];
   }
 
-  poseidonHash(inputsBuffer: Fr[]): Fr {
+  poseidon2Hash(inputsBuffer: Fr[]): Fr {
     const inArgs = [inputsBuffer].map(serializeBufferable);
     const outTypes: OutputType[] = [Fr];
     const result = this.wasm.callWasmExport(
-      'poseidon_hash',
+      'poseidon2_hash',
       inArgs,
       outTypes.map(t => t.SIZE_IN_BYTES),
     );
@@ -619,11 +631,23 @@ export class BarretenbergApiSync {
     return out[0];
   }
 
-  poseidonHashes(inputsBuffer: Fr[]): Fr {
+  poseidon2Hashes(inputsBuffer: Fr[]): Fr {
     const inArgs = [inputsBuffer].map(serializeBufferable);
     const outTypes: OutputType[] = [Fr];
     const result = this.wasm.callWasmExport(
-      'poseidon_hashes',
+      'poseidon2_hashes',
+      inArgs,
+      outTypes.map(t => t.SIZE_IN_BYTES),
+    );
+    const out = result.map((r, i) => outTypes[i].fromBuffer(r));
+    return out[0];
+  }
+
+  poseidon2Permutation(inputState: Fr[]): Fr[] {
+    const inArgs = [inputState].map(serializeBufferable);
+    const outTypes: OutputType[] = [VectorDeserializer(Fr)];
+    const result = this.wasm.callWasmExport(
+      'poseidon2_permutation',
       inArgs,
       outTypes.map(t => t.SIZE_IN_BYTES),
     );

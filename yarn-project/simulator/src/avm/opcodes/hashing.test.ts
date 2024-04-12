@@ -1,4 +1,4 @@
-import { keccak, pedersenHash, poseidonHash, sha256 } from '@aztec/foundation/crypto';
+import { keccak, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
 
 import { type AvmContext } from '../avm_context.js';
 import { Field, Uint32 } from '../avm_memory_types.js';
@@ -41,7 +41,7 @@ describe('Hashing Opcodes', () => {
 
       const dstOffset = 3;
 
-      const expectedHash = poseidonHash(args);
+      const expectedHash = poseidon2Hash(args);
       await new Poseidon2(indirect, dstOffset, messageOffset, args.length).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);
@@ -62,7 +62,7 @@ describe('Hashing Opcodes', () => {
 
       const dstOffset = 3;
 
-      const expectedHash = poseidonHash(args);
+      const expectedHash = poseidon2Hash(args);
       await new Poseidon2(indirect, dstOffset, messageOffset, args.length).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);

@@ -1,5 +1,5 @@
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { keccak, pedersenHash, poseidonHash, sha256 } from '@aztec/foundation/crypto';
+import { keccak, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
 
 import { type AvmContext } from '../avm_context.js';
 import { Field } from '../avm_memory_types.js';
@@ -43,7 +43,7 @@ export class Poseidon2 extends Instruction {
     // Memory pointer will be indirect
     const hashData = memory.getSlice(messageOffset, this.messageSize);
 
-    const hash = poseidonHash(hashData);
+    const hash = poseidon2Hash(hashData);
     memory.set(dstOffset, new Field(hash));
 
     memory.assert(memoryOperations);

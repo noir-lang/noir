@@ -2,7 +2,7 @@ import { UnencryptedL2Log } from '@aztec/circuit-types';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { EventSelector, FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { keccak, pedersenHash, poseidonHash, sha256 } from '@aztec/foundation/crypto';
+import { keccak, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type Fieldable } from '@aztec/foundation/serialize';
@@ -139,7 +139,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   });
 
   describe.each([
-    ['poseidon_hash', poseidonHash],
+    ['poseidon_hash', poseidon2Hash],
     ['pedersen_hash', pedersenHash],
     ['pedersen_hash_with_index', (m: Fieldable[]) => pedersenHash(m, 20)],
   ])('Hashes with field returned in noir contracts', (name: string, hashFunction: (data: Fieldable[]) => Fr) => {
