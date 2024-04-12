@@ -3086,6 +3086,7 @@ dependencies = [
  "base64 0.21.2",
  "chumsky",
  "fm",
+ "im",
  "iter-extended",
  "noirc_errors",
  "noirc_printable_type",

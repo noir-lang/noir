@@ -51,8 +51,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let declared_return_type = meta.return_type().clone();
     let can_ignore_ret = meta.can_ignore_return_type();
 
-    let function_body = interner.function(&func_id);
-    let function_body_id = function_body.as_expr();
+    let function_body_id = &interner.function(&func_id).as_expr();
 
     let mut type_checker = TypeChecker::new(interner);
     type_checker.current_function = Some(func_id);
