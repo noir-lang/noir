@@ -104,6 +104,10 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub force_brillig: bool,
 
+    /// Force Brillig output (for step debugging)
+    #[arg(long, hide = true)]
+    pub use_plonky2_backend_experimental: bool,
+
     /// Enable the experimental elaborator pass
     #[arg(long, hide = true)]
     pub use_elaborator: bool,

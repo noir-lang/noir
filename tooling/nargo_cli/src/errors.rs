@@ -88,4 +88,7 @@ pub(crate) enum BackendError {
 
     #[error("Backend installation failed: {0}")]
     InstallationError(#[from] std::io::Error),
+
+    #[error("Backend does not support {0}.")]
+    UnfitBackend(String),
 }

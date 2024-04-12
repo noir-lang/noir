@@ -16,7 +16,11 @@ use super::fs::{
     proof::save_proof_to_dir,
 };
 use super::NargoConfig;
-use crate::{backends::Backend, cli::execute_cmd::execute_program, errors::CliError};
+use crate::{
+    backends::Backend,
+    cli::execute_cmd::execute_program,
+    errors::{BackendError, CliError},
+};
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
@@ -96,6 +100,7 @@ pub(crate) fn run(
             compiled_program,
             &args.prover_name,
             &args.verifier_name,
+            args.compile_options.use_plonky2_backend_experimental,
             args.verify,
             args.oracle_resolver.as_deref(),
         )?;
@@ -112,6 +117,7 @@ pub(crate) fn prove_package(
     compiled_program: CompiledProgram,
     prover_name: &str,
     verifier_name: &str,
+    use_plonky2_backend_experimental: bool,
     check_proof: bool,
     foreign_call_resolver_url: Option<&str>,
 ) -> Result<(), CliError> {
@@ -137,11 +143,21 @@ pub(crate) fn prove_package(
         Format::Toml,
     )?;
 
-    let proof = backend.prove(&compiled_program.program, witness_stack)?;
+    let proof = if !use_plonky2_backend_experimental {
+        backend.prove(&compiled_program.program, witness_stack)?
+    } else {
+        return Err(CliError::BackendError(BackendError::UnfitBackend("prove operation".into())));
+    };
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
-        let valid_proof = backend.verify(&proof, public_inputs, &compiled_program.program)?;
+        let valid_proof = if !use_plonky2_backend_experimental {
+            backend.verify(&proof, public_inputs, &compiled_program.program)?
+        } else {
+            return Err(CliError::BackendError(BackendError::UnfitBackend(
+                "verify operation".into(),
+            )));
+        };
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));

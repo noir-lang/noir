@@ -36,6 +36,7 @@ fn main() {
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
     generate_compile_success_contract_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
+    generate_plonky2_prove_failure_tests(&mut test_file, &test_dir);
 }
 
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
@@ -310,6 +311,45 @@ fn compile_failure_{test_name}() {{
     cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("compile").arg("--force");
+
+    cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
+}}
+            "#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
+}
+
+/// Tests using the experimental PLONKY2 backend as a proving engine that are expected to fail.
+fn generate_plonky2_prove_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "plonky2_prove_failure";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        write!(
+            test_file,
+            r#"
+#[test]
+fn plonky2_prove_failure_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.env("NARGO_BACKEND_PATH", path_to_mock_backend());
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("prove").arg("--use-plonky2-backend-experimental");
 
     cmd.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
 }}

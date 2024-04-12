@@ -44,7 +44,7 @@ fn main() {
     panic_hook.install();
 
     if let Err(report) = cli::start_cli() {
-        eprintln!("{report}");
+        eprintln!("Error: {report}");
         std::process::exit(1);
     }
 }
