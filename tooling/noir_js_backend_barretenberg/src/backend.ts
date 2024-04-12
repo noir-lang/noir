@@ -82,7 +82,6 @@ export class BarretenbergBackend extends BarretenbergVerifierBackend implements 
   /** @description Generates a proof */
   async generateProof(compressedWitness: Uint8Array): Promise<ProofData> {
     await this.instantiate();
-    // TODO: Change once `@aztec/bb.js` version is updated to use methods without isRecursive flag
     const proofWithPublicInputs = await this.api.acirCreateProof(
       this.acirComposer,
       this.acirUncompressedBytecode,
