@@ -1,7 +1,7 @@
-import { keccak, pedersenHash, sha256 } from '@aztec/foundation/crypto';
+import { keccak256, pedersenHash, sha256 } from '@aztec/foundation/crypto';
 
 import { type AvmContext } from '../avm_context.js';
-import { Field, Uint32 } from '../avm_memory_types.js';
+import { Field, Uint8, Uint32 } from '../avm_memory_types.js';
 import { initContext } from '../fixtures/index.js';
 import { Addressing, AddressingMode } from './addressing_mode.js';
 import { Keccak, Pedersen, Poseidon2, Sha256 } from './hashing.js';
@@ -74,13 +74,13 @@ describe('Hashing Opcodes', () => {
         1, // indirect
         ...Buffer.from('12345678', 'hex'), // dstOffset
         ...Buffer.from('23456789', 'hex'), // messageOffset
-        ...Buffer.from('3456789a', 'hex'), // hashSize
+        ...Buffer.from('3456789a', 'hex'), // messageSizeOffset
       ]);
       const inst = new Keccak(
         /*indirect=*/ 1,
         /*dstOffset=*/ 0x12345678,
         /*messageOffset=*/ 0x23456789,
-        /*hashSize=*/ 0x3456789a,
+        /*messageSizeOffset=*/ 0x3456789a,
       );
 
       expect(Keccak.deserialize(buf)).toEqual(inst);
@@ -88,47 +88,51 @@ describe('Hashing Opcodes', () => {
     });
 
     it('Should hash correctly - direct', async () => {
-      const args = [new Field(1n), new Field(2n), new Field(3n)];
+      const args = [...Array(10)].map(_ => new Uint8(Math.floor(Math.random() * 255)));
       const indirect = 0;
       const messageOffset = 0;
+      const messageSizeOffset = 15;
+      const dstOffset = 20;
+      context.machineState.memory.set(messageSizeOffset, new Uint32(args.length));
       context.machineState.memory.setSlice(messageOffset, args);
 
-      const dstOffset = 3;
+      await new Keccak(indirect, dstOffset, messageOffset, messageSizeOffset).execute(context);
 
-      const inputBuffer = Buffer.concat(args.map(field => field.toBuffer()));
-      const expectedHash = keccak(inputBuffer);
-      await new Keccak(indirect, dstOffset, messageOffset, args.length).execute(context);
-
-      const result = context.machineState.memory.getSliceAs<Field>(dstOffset, 2);
-      const combined = Buffer.concat([result[0].toBuffer().subarray(16, 32), result[1].toBuffer().subarray(16, 32)]);
-
-      expect(combined).toEqual(expectedHash);
+      const resultBuffer = Buffer.concat(
+        context.machineState.memory.getSliceAs<Uint8>(dstOffset, 32).map(byte => byte.toBuffer()),
+      );
+      const inputBuffer = Buffer.concat(args.map(byte => byte.toBuffer()));
+      const expectedHash = keccak256(inputBuffer);
+      expect(resultBuffer).toEqual(expectedHash);
     });
 
     it('Should hash correctly - indirect', async () => {
-      const args = [new Field(1n), new Field(2n), new Field(3n)];
+      const args = [...Array(10)].map(_ => new Uint8(Math.floor(Math.random() * 255)));
       const indirect = new Addressing([
         /*dstOffset=*/ AddressingMode.INDIRECT,
         /*messageOffset*/ AddressingMode.INDIRECT,
+        /*messageSizeOffset*/ AddressingMode.INDIRECT,
       ]).toWire();
       const messageOffset = 0;
-      const argsLocation = 4;
-
+      const messageOffsetReal = 10;
+      const messageSizeOffset = 1;
+      const messageSizeOffsetReal = 100;
       const dstOffset = 2;
-      const readLocation = 6;
+      const dstOffsetReal = 30;
+      context.machineState.memory.set(messageOffset, new Uint32(messageOffsetReal));
+      context.machineState.memory.set(dstOffset, new Uint32(dstOffsetReal));
+      context.machineState.memory.set(messageSizeOffset, new Uint32(messageSizeOffsetReal));
+      context.machineState.memory.set(messageSizeOffsetReal, new Uint32(args.length));
+      context.machineState.memory.setSlice(messageOffsetReal, args);
 
-      context.machineState.memory.set(messageOffset, new Uint32(argsLocation));
-      context.machineState.memory.set(dstOffset, new Uint32(readLocation));
-      context.machineState.memory.setSlice(argsLocation, args);
+      await new Keccak(indirect, dstOffset, messageOffset, messageSizeOffset).execute(context);
 
-      const inputBuffer = Buffer.concat(args.map(field => field.toBuffer()));
-      const expectedHash = keccak(inputBuffer);
-      await new Keccak(indirect, dstOffset, messageOffset, args.length).execute(context);
-
-      const result = context.machineState.memory.getSliceAs<Field>(readLocation, 2);
-      const combined = Buffer.concat([result[0].toBuffer().subarray(16, 32), result[1].toBuffer().subarray(16, 32)]);
-
-      expect(combined).toEqual(expectedHash);
+      const resultBuffer = Buffer.concat(
+        context.machineState.memory.getSliceAs<Uint8>(dstOffsetReal, 32).map(byte => byte.toBuffer()),
+      );
+      const inputBuffer = Buffer.concat(args.map(byte => byte.toBuffer()));
+      const expectedHash = keccak256(inputBuffer);
+      expect(resultBuffer).toEqual(expectedHash);
     });
   });
 

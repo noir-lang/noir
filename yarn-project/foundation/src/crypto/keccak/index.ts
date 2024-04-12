@@ -6,7 +6,7 @@ import { Keccak } from 'sha3';
  * @param input - The input buffer to be hashed.
  * @returns The computed Keccak-256 hash as a Buffer.
  */
-export function keccak(input: Buffer) {
+export function keccak256(input: Buffer) {
   const hash = new Keccak(256);
   return hash.update(input).digest();
 }

@@ -292,7 +292,7 @@ fn handle_foreign_call(
         "avmOpcodeNullifierExists" => handle_nullifier_exists(avm_instrs, destinations, inputs),
         "avmOpcodeL1ToL2MsgExists" => handle_l1_to_l2_msg_exists(avm_instrs, destinations, inputs),
         "avmOpcodeSendL2ToL1Msg" => handle_send_l2_to_l1_msg(avm_instrs, destinations, inputs),
-        "avmOpcodeKeccak256" | "avmOpcodeSha256" => {
+        "avmOpcodeSha256" => {
             handle_2_field_hash_instruction(avm_instrs, function, destinations, inputs)
         }
         "avmOpcodeGetContractInstance" => {
@@ -649,7 +649,6 @@ fn handle_send_l2_to_l1_msg(
 /// Two field hash instructions represent instruction's that's outputs are larger than a field element
 ///
 /// This includes:
-/// - keccak
 /// - sha256
 ///
 /// In the future the output of these may expand / contract depending on what is most efficient for the circuit
@@ -664,7 +663,7 @@ fn handle_2_field_hash_instruction(
     let message_offset_maybe = inputs[0];
     let (message_offset, message_size) = match message_offset_maybe {
         ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0, size),
-        _ => panic!("Keccak | Sha256 address inputs destination should be a single value"),
+        _ => panic!("Sha256 address inputs destination should be a single value"),
     };
 
     assert!(destinations.len() == 1);
@@ -674,11 +673,10 @@ fn handle_2_field_hash_instruction(
             assert!(size == 2);
             pointer.0
         }
-        _ => panic!("Keccak | Poseidon address destination should be a single value"),
+        _ => panic!("Poseidon address destination should be a single value"),
     };
 
     let opcode = match function {
-        "avmOpcodeKeccak256" => AvmOpcode::KECCAK,
         "avmOpcodeSha256" => AvmOpcode::SHA256,
         _ => panic!(
             "Transpiler doesn't know how to process ForeignCall function {:?}",
@@ -897,6 +895,29 @@ fn handle_black_box_function(avm_instrs: &mut Vec<AvmInstruction>, operation: &B
                     },
                     AvmOperand::U32 {
                         value: output_state_offset as u32,
+                    },
+                ],
+                ..Default::default()
+            });
+        }
+        BlackBoxOp::Keccak256 { message, output } => {
+            let message_offset = message.pointer.0;
+            let message_size_offset = message.size.0;
+            let dest_offset = output.pointer.0;
+            assert_eq!(output.size, 32, "Keccak256 output size must be 32!");
+
+            avm_instrs.push(AvmInstruction {
+                opcode: AvmOpcode::KECCAK,
+                indirect: Some(ZEROTH_OPERAND_INDIRECT | FIRST_OPERAND_INDIRECT),
+                operands: vec![
+                    AvmOperand::U32 {
+                        value: dest_offset as u32,
+                    },
+                    AvmOperand::U32 {
+                        value: message_offset as u32,
+                    },
+                    AvmOperand::U32 {
+                        value: message_size_offset as u32,
                     },
                 ],
                 ..Default::default()

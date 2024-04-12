@@ -32,7 +32,7 @@ contract AvmTest {
     use dep::compressed_string::CompressedString;
 
     // avm lib
-    use dep::aztec::avm::hash::{keccak256, sha256};
+    use dep::aztec::avm::hash::sha256;
 
     #[aztec(storage)]
     struct Storage {
@@ -145,8 +145,8 @@ contract AvmTest {
      * Hashing functions
      ************************************************************************/
     #[aztec(public-vm)]
-    fn keccak_hash(data: [Field; 10]) -> pub [Field; 2] {
-        keccak256(data)
+    fn keccak_hash(data: [u8; 10]) -> pub [u8; 32] {
+        dep::std::hash::keccak256(data, data.len() as u32)
     }
 
     #[aztec(public-vm)]

@@ -2,7 +2,7 @@ import { UnencryptedL2Log } from '@aztec/circuit-types';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { EventSelector, FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { keccak, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
+import { keccak256, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type Fieldable } from '@aztec/foundation/serialize';
@@ -13,7 +13,7 @@ import { strict as assert } from 'assert';
 
 import { isAvmBytecode } from '../public/transitional_adaptors.js';
 import { AvmMachineState } from './avm_machine_state.js';
-import { TypeTag } from './avm_memory_types.js';
+import { Field, type MemoryValue, TypeTag, Uint8 } from './avm_memory_types.js';
 import { AvmSimulator } from './avm_simulator.js';
 import {
   adjustCalldataIndex,
@@ -122,37 +122,36 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   });
 
   describe.each([
-    ['sha256_hash', sha256],
-    ['keccak_hash', keccak],
-  ])('Hashes with 2 fields returned in noir contracts', (name: string, hashFunction: (data: Buffer) => Buffer) => {
-    it(`Should execute contract function that performs ${name} hash`, async () => {
-      const calldata = [...Array(10)].map(_ => Fr.random());
-      const hash = hashFunction(Buffer.concat(calldata.map(f => f.toBuffer())));
+    [
+      'sha256_hash',
+      /*input=*/ randomFields(10),
+      /*output=*/ (fields: Field[]) => {
+        const resBuffer = sha256(Buffer.concat(fields.map(f => f.toBuffer())));
+        return [new Fr(resBuffer.subarray(0, 16)), new Fr(resBuffer.subarray(16, 32))];
+      },
+    ],
+    [
+      'keccak_hash',
+      /*input=*/ randomBytes(10),
+      /*output=*/ (bytes: Uint8[]) => [...keccak256(Buffer.concat(bytes.map(b => b.toBuffer())))].map(b => new Fr(b)),
+    ],
+    ['poseidon2_hash', /*input=*/ randomFields(10), /*output=*/ (fields: Fieldable[]) => [poseidon2Hash(fields)]],
+    ['pedersen_hash', /*input=*/ randomFields(10), /*output=*/ (fields: Fieldable[]) => [pedersenHash(fields)]],
+    [
+      'pedersen_hash_with_index',
+      /*input=*/ randomFields(10),
+      /*output=*/ (fields: Fieldable[]) => [pedersenHash(fields, /*index=*/ 20)],
+    ],
+  ])('Hashes in noir contracts', (name: string, input: MemoryValue[], output: (msg: any[]) => Fr[]) => {
+    it(`Should execute contract function that performs ${name}`, async () => {
+      const calldata = input.map(e => e.toFr());
 
       const context = initContext({ env: initExecutionEnvironment({ calldata }) });
       const bytecode = getAvmTestContractBytecode(name);
       const results = await new AvmSimulator(context).executeBytecode(bytecode);
 
       expect(results.reverted).toBe(false);
-      expect(results.output).toEqual([new Fr(hash.subarray(0, 16)), new Fr(hash.subarray(16, 32))]);
-    });
-  });
-
-  describe.each([
-    ['poseidon2_hash', poseidon2Hash],
-    ['pedersen_hash', pedersenHash],
-    ['pedersen_hash_with_index', (m: Fieldable[]) => pedersenHash(m, 20)],
-  ])('Hashes with field returned in noir contracts', (name: string, hashFunction: (data: Fieldable[]) => Fr) => {
-    it(`Should execute contract function that performs ${name} hash`, async () => {
-      const calldata = [...Array(10)].map(_ => Fr.random());
-      const hash = hashFunction(calldata);
-
-      const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-      const bytecode = getAvmTestContractBytecode(name);
-      const results = await new AvmSimulator(context).executeBytecode(bytecode);
-
-      expect(results.reverted).toBe(false);
-      expect(results.output).toEqual([new Fr(hash)]);
+      expect(results.output).toEqual(output(input));
     });
   });
 
@@ -923,4 +922,11 @@ function getAvmNestedCallsTestContractBytecode(functionName: string): Buffer {
     `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
   );
   return artifact.bytecode;
+}
+
+function randomBytes(length: number): Uint8[] {
+  return [...Array(length)].map(_ => new Uint8(Math.floor(Math.random() * 255)));
+}
+function randomFields(length: number): Field[] {
+  return [...Array(length)].map(_ => new Field(Fr.random()));
 }

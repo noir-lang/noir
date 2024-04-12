@@ -1,7 +1,7 @@
 import { type Note, type PXE } from '@aztec/circuit-types';
 import { type AztecAddress, type EthAddress, Fr } from '@aztec/circuits.js';
 import { toBigIntBE, toHex } from '@aztec/foundation/bigint-buffer';
-import { keccak, pedersenHash } from '@aztec/foundation/crypto';
+import { keccak256, pedersenHash } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 
 import fs from 'fs';
@@ -167,7 +167,7 @@ export class EthCheatCodes {
   public keccak256(baseSlot: bigint, key: bigint): bigint {
     // abi encode (removing the 0x) - concat key and baseSlot (both padded to 32 bytes)
     const abiEncoded = toHex(key, true).substring(2) + toHex(baseSlot, true).substring(2);
-    return toBigIntBE(keccak(Buffer.from(abiEncoded, 'hex')));
+    return toBigIntBE(keccak256(Buffer.from(abiEncoded, 'hex')));
   }
 
   /**
