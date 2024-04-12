@@ -155,6 +155,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
         run_loop_in_parallel(instance_size, [&](size_t start_row, size_t end_row) {
             auto thread_accumulator = FF(0);
             for (size_t row = start_row; row < end_row; row++) {
+                // TODO(https://github.com/AztecProtocol/barretenberg/issues/940): avoid get_row if possible.
                 auto row_evaluations = instance_polynomials.get_row(row);
                 RelationEvaluations relation_evaluations;
                 Utils::zero_elements(relation_evaluations);

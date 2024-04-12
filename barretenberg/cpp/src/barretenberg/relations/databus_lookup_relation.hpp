@@ -177,7 +177,8 @@ template <typename FF_> class DatabusLookupRelationImpl {
      * @brief Construct the polynomial I whose components are the inverse of the product of the read and write terms
      * @details If the denominators of log derivative lookup relation are read_term and write_term, then I_i =
      * (read_term_i*write_term_i)^{-1}.
-     * @note Importantly, I_i = 0 for rows i at which there is no read or write.
+     * @note Importantly, I_i = 0 for rows i at which there is no read or write, so the cost of this method is
+     * proportional to the actual databus usage.
      *
      */
     template <size_t bus_idx, typename Polynomials>
@@ -186,11 +187,22 @@ template <typename FF_> class DatabusLookupRelationImpl {
                                               const size_t circuit_size)
     {
         auto& inverse_polynomial = BusData<bus_idx, Polynomials>::inverses(polynomials);
-        // Compute the product of the read and write terms for each row
+        bool is_read = false;
+        bool nonzero_read_count = false;
         for (size_t i = 0; i < circuit_size; ++i) {
-            auto row = polynomials.get_row(i);
+            // Determine if the present row contains a databus operation
+            auto& q_busread = polynomials.q_busread[i];
+            if constexpr (bus_idx == 0) { // calldata
+                is_read = q_busread == 1 && polynomials.q_l[i] == 1;
+                nonzero_read_count = polynomials.calldata_read_counts[i] > 0;
+            }
+            if constexpr (bus_idx == 1) { // return data
+                is_read = q_busread == 1 && polynomials.q_r[i] == 1;
+                nonzero_read_count = polynomials.return_data_read_counts[i] > 0;
+            }
             // We only compute the inverse if this row contains a read gate or data that has been read
-            if (operation_exists_at_row<bus_idx>(row)) {
+            if (is_read || nonzero_read_count) {
+                auto row = polynomials.get_row(i); // Note: this is a copy. use sparingly!
                 inverse_polynomial[i] = compute_read_term<FF>(row, relation_parameters) *
                                         compute_write_term<FF, bus_idx>(row, relation_parameters);
             }

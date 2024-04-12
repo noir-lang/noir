@@ -34,6 +34,7 @@ void compute_logderivative_inverse(Polynomials& polynomials, auto& relation_para
 
     auto& inverse_polynomial = lookup_relation.template get_inverse_polynomial(polynomials);
     for (size_t i = 0; i < circuit_size; ++i) {
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/940): avoid get_row if possible.
         auto row = polynomials.get_row(i);
         bool has_inverse = lookup_relation.operation_exists_at_row(row);
         if (!has_inverse) {
