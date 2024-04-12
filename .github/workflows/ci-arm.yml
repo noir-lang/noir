@@ -48,20 +48,13 @@ jobs:
   e2e:
     needs: build
     runs-on: master-arm
-    strategy:
-      fail-fast: false
-      matrix:
-        test:
-          - e2e-card-game
-          - e2e-crowdfunding-and-claim
     steps:
       - {uses: actions/checkout@v4, with: { ref: "${{ github.event.pull_request.head.sha }}"}}
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          concurrency_token: "${{ secrets.AZTEC_GITHUB_TOKEN }}"
-          concurrency_key: e2e-master-arm
+          concurrency_key: e2e-master-arm-e2e-tests
       - name: Test
         working-directory: ./yarn-project/end-to-end/
         timeout-minutes: 15
-        run: earthly -P --no-output +${{ matrix.test }} --e2e_mode=cache
+        run: earthly -P --no-output +e2e-tests --e2e_mode=cache
