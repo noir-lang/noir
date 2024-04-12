@@ -241,6 +241,7 @@ impl<'a> FunctionContext<'a> {
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
             }
+            ast::Literal::Unit => Ok(Self::unit_value()),
         }
     }
 
