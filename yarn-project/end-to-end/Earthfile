@@ -111,8 +111,10 @@ e2e-multiple-accounts-1-enc-key:
   DO +E2E_TEST --test=e2e_multiple_accounts_1_enc_key.test.ts --e2e_mode=$e2e_mode
 
 e2e-deploy-contract:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_deploy_contract.test.ts --e2e_mode=$e2e_mode
+  LOCALLY
+  WITH DOCKER --load end-to-end=../+end-to-end
+    RUN docker run --rm -e LOG_LEVEL=silent -e DEBUG=aztec:e2e* end-to-end ./src/e2e_deploy_contract/
+  END
 
 e2e-lending-contract:
   ARG e2e_mode=local
