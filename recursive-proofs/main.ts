@@ -71,6 +71,10 @@ async function start() {
   ({ witness, returnValue } = await recurseLeaf.noir.execute(nodeParams));
   console.log("recurseLeaf: %d + %d = ", a, b, Number(returnValue).toString());
   const innerProof2: ProofData = await recurseLeaf.backend.generateProof(witness);
+  console.log("Verifying intermediate proof recurseLeaf...");
+  const res: boolean = await recurseLeaf.backend.verifyProof(innerProof2);
+  console.log("Verification", res ? "PASSED" : "failed");
+
   console.log("Generating intermediate proof artifacts recurseLeaf...");
   const artifacts2 = await recurseLeaf.backend.generateRecursiveProofArtifacts(
     innerProof2,
