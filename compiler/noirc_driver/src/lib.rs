@@ -12,7 +12,7 @@ use noirc_abi::{AbiParameter, AbiType, AbiValue};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::SsaProgramArtifact;
+use noirc_evaluator::ssa::{create_plonky2_circuit, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
@@ -99,6 +99,10 @@ pub struct CompileOptions {
     /// Force Brillig output (for step debugging)
     #[arg(long, hide = true)]
     pub force_brillig: bool,
+
+    /// Force Brillig output (for step debugging)
+    #[arg(long, hide = true)]
+    pub use_plonky2_backend_experimental: bool,
 
     /// Enable the experimental elaborator pass
     #[arg(long, hide = true)]
@@ -300,9 +304,15 @@ pub fn compile_main(
         vec![err]
     })?;
 
-    let compiled_program =
-        compile_no_check(context, options, main, cached_program, options.force_compile)
-            .map_err(FileDiagnostic::from)?;
+    let compiled_program = compile_no_check(
+        context,
+        options,
+        main,
+        cached_program,
+        options.force_compile,
+        options.use_plonky2_backend_experimental,
+    )
+    .map_err(FileDiagnostic::from)?;
 
     let compilation_warnings = vecmap(compiled_program.warnings.clone(), FileDiagnostic::from);
     if options.deny_warnings && !compilation_warnings.is_empty() {
@@ -409,7 +419,7 @@ fn compile_contract_inner(
             continue;
         }
 
-        let function = match compile_no_check(context, options, function_id, None, true) {
+        let function = match compile_no_check(context, options, function_id, None, true, false) {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(FileDiagnostic::from(new_error));
@@ -509,17 +519,18 @@ pub fn compile_no_check(
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
+    compile_plonky2_circuit: bool,
 ) -> Result<CompiledProgram, CompileError> {
-    let program = if options.instrument_debug {
+    let monomorph = if options.instrument_debug {
         monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)?
     } else {
         monomorphize(main_function, &mut context.def_interner)?
     };
 
-    let hash = fxhash::hash64(&program);
+    let hash = fxhash::hash64(&monomorph);
     let hashes_match = cached_program.as_ref().map_or(false, |program| program.hash == hash);
     if options.show_monomorphized {
-        println!("{program}");
+        println!("{monomorph}");
     }
 
     // If user has specified that they want to see intermediate steps printed then we should
@@ -531,7 +542,7 @@ pub fn compile_no_check(
         info!("Program matches existing artifact, returning early");
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
-    let visibility = program.return_visibility;
+    let visibility = monomorph.return_visibility;
 
     let SsaProgramArtifact {
         program,
@@ -542,7 +553,7 @@ pub fn compile_no_check(
         names,
         error_types,
     } = create_program(
-        program,
+        monomorph.clone(),
         options.show_ssa,
         options.show_brillig,
         options.force_brillig,
@@ -559,9 +570,22 @@ pub fn compile_no_check(
     );
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
+    let plonky2_circuit = if compile_plonky2_circuit {
+        let parameter_names = abi.parameters.iter().map(|param| param.name.clone()).collect();
+        Some(create_plonky2_circuit(
+            monomorph,
+            options.show_ssa,
+            options.benchmark_codegen,
+            parameter_names,
+        )?)
+    } else {
+        None
+    };
+
     Ok(CompiledProgram {
         hash,
         program,
+        plonky2_circuit,
         debug,
         abi,
         file_map,

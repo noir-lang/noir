@@ -45,6 +45,31 @@ pub enum RuntimeError {
     UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Error)]
+pub enum Plonky2GenError {
+    #[error("PLONKY2 backend does not support {}", .name)]
+    UnsupportedFeature { name: String },
+
+    #[error("PLONKY2 backend ICE error: {}", .message)]
+    ICE { message: String },
+}
+
+impl Plonky2GenError {
+    pub fn into_runtime_error(&self, instruction: String, call_stack: CallStack) -> RuntimeError {
+        let message = format!("{}; instr: {:?}", self, instruction);
+        RuntimeError::InternalError(InternalError::General { message, call_stack })
+    }
+}
+
+impl From<Plonky2GenError> for RuntimeError {
+    fn from(error: Plonky2GenError) -> RuntimeError {
+        RuntimeError::InternalError(InternalError::General {
+            message: error.to_string(),
+            call_stack: CallStack::new(),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SsaReport {
     Warning(InternalWarning),

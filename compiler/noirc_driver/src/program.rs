@@ -5,6 +5,7 @@ use fm::FileId;
 
 use noirc_errors::debug_info::DebugInfo;
 use noirc_evaluator::errors::SsaReport;
+use noirc_evaluator::ssa::plonky2_gen::Plonky2Circuit;
 use serde::{Deserialize, Serialize};
 
 use super::debug::DebugFile;
@@ -23,6 +24,7 @@ pub struct CompiledProgram {
         deserialize_with = "Program::deserialize_program_base64"
     )]
     pub program: Program,
+    pub plonky2_circuit: Option<Plonky2Circuit>,
     pub abi: noirc_abi::Abi,
     pub debug: Vec<DebugInfo>,
     pub file_map: BTreeMap<FileId, DebugFile>,

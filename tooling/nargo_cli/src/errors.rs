@@ -35,6 +35,9 @@ pub(crate) enum CliError {
     #[error("Error: destination {} already exists", .0.display())]
     DestinationAlreadyExists(PathBuf),
 
+    #[error("Failed to verify proof {}", .0.display())]
+    InvalidProof(PathBuf),
+
     #[error("Invalid package name {0}. Did you mean to use `--name`?")]
     InvalidPackageName(String),
 
@@ -63,4 +66,14 @@ pub(crate) enum CliError {
     /// Error from the compilation pipeline
     #[error(transparent)]
     CompileError(#[from] CompileError),
+
+    /// Error related to backend selection/installation.
+    #[error(transparent)]
+    BackendError(#[from] BackendError),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum BackendError {
+    #[error("Backend does not support {0}.")]
+    UnfitBackend(String),
 }
