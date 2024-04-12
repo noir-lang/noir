@@ -41,7 +41,7 @@ export class Poseidon2 extends Instruction {
     );
 
     // Memory pointer will be indirect
-    const hashData = memory.getSlice(messageOffset, this.messageSize).map(word => word.toBuffer());
+    const hashData = memory.getSlice(messageOffset, this.messageSize);
 
     const hash = poseidonHash(hashData);
     memory.set(dstOffset, new Field(hash));

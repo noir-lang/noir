@@ -61,7 +61,7 @@ export function hashVK(vkBuf: Buffer) {
  * @returns A commitment nonce.
  */
 export function computeCommitmentNonce(nullifierZero: Fr, commitmentIndex: number): Fr {
-  return pedersenHash([nullifierZero, numToUInt32BE(commitmentIndex, 32)], GeneratorIndex.NOTE_HASH_NONCE);
+  return pedersenHash([nullifierZero, commitmentIndex], GeneratorIndex.NOTE_HASH_NONCE);
 }
 
 /**

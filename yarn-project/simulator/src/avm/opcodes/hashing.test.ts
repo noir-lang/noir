@@ -41,7 +41,7 @@ describe('Hashing Opcodes', () => {
 
       const dstOffset = 3;
 
-      const expectedHash = poseidonHash(args.map(field => field.toBuffer()));
+      const expectedHash = poseidonHash(args);
       await new Poseidon2(indirect, dstOffset, messageOffset, args.length).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);
@@ -62,7 +62,7 @@ describe('Hashing Opcodes', () => {
 
       const dstOffset = 3;
 
-      const expectedHash = poseidonHash(args.map(field => field.toBuffer()));
+      const expectedHash = poseidonHash(args);
       await new Poseidon2(indirect, dstOffset, messageOffset, args.length).execute(context);
 
       const result = context.machineState.memory.get(dstOffset);

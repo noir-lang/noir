@@ -1,5 +1,5 @@
 import { SiblingPath } from '@aztec/circuit-types';
-import { randomBytes } from '@aztec/foundation/crypto';
+import { Fr } from '@aztec/foundation/fields';
 import { type AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import { type Hasher } from '@aztec/types/interfaces';
@@ -44,7 +44,7 @@ export const standardBasedTreeTestSuite = (
     it('should throw when appending beyond max index', async () => {
       const db = openTmpStore();
       const tree = await createDb(db, pedersen, 'test', 2);
-      const leaves = Array.from({ length: 5 }, _ => randomBytes(32));
+      const leaves = Array.from({ length: 5 }, _ => Fr.random().toBuffer());
       await expect(appendLeaves(tree, leaves)).rejects.toThrow();
     });
 

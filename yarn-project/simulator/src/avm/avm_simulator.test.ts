@@ -5,6 +5,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { keccak, pedersenHash, poseidonHash, sha256 } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
+import { type Fieldable } from '@aztec/foundation/serialize';
 import { AvmNestedCallsTestContractArtifact, AvmTestContractArtifact } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
@@ -140,11 +141,11 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   describe.each([
     ['poseidon_hash', poseidonHash],
     ['pedersen_hash', pedersenHash],
-    ['pedersen_hash_with_index', (m: Buffer[]) => pedersenHash(m, 20)],
-  ])('Hashes with field returned in noir contracts', (name: string, hashFunction: (data: Buffer[]) => Fr) => {
+    ['pedersen_hash_with_index', (m: Fieldable[]) => pedersenHash(m, 20)],
+  ])('Hashes with field returned in noir contracts', (name: string, hashFunction: (data: Fieldable[]) => Fr) => {
     it(`Should execute contract function that performs ${name} hash`, async () => {
       const calldata = [new Fr(1), new Fr(2), new Fr(3)];
-      const hash = hashFunction(calldata.map(f => f.toBuffer()));
+      const hash = hashFunction(calldata);
 
       const context = initContext({ env: initExecutionEnvironment({ calldata }) });
       const bytecode = getAvmTestContractBytecode(name);

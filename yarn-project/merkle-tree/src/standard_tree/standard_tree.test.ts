@@ -1,4 +1,4 @@
-import { randomBytes } from '@aztec/foundation/crypto';
+import { Fr } from '@aztec/foundation/fields';
 import { type FromBuffer } from '@aztec/foundation/serialize';
 import { type AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
@@ -41,7 +41,7 @@ describe('StandardTree_batchAppend', () => {
   it('correctly computes root when batch appending and calls hash function expected num times', async () => {
     const db = openTmpStore();
     const tree = await createDb(db, pedersen, 'test', 3);
-    const leaves = Array.from({ length: 5 }, _ => randomBytes(32));
+    const leaves = Array.from({ length: 5 }, _ => Fr.random().toBuffer());
 
     pedersen.resetCounter();
     await tree.appendLeaves(leaves);

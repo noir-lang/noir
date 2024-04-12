@@ -32,7 +32,7 @@ export function computePrivateFunctionLeaf(fn: PrivateFunction): Buffer {
 
 function getPrivateFunctionTreeCalculator(): MerkleTreeCalculator {
   if (!privateFunctionTreeCalculator) {
-    const functionTreeZeroLeaf = pedersenHash(new Array(PRIVATE_FUNCTION_SIZE).fill(Buffer.alloc(32))).toBuffer();
+    const functionTreeZeroLeaf = pedersenHash(new Array(PRIVATE_FUNCTION_SIZE).fill(0)).toBuffer();
     privateFunctionTreeCalculator = new MerkleTreeCalculator(FUNCTION_TREE_HEIGHT, functionTreeZeroLeaf);
   }
   return privateFunctionTreeCalculator;
