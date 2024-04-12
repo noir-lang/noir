@@ -1553,9 +1553,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::Literal(ast::Literal::Integer(0_u128.into(), typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
-            // There is no unit literal currently. Replace it with 'false' since it should be ignored
-            // anyway.
-            ast::Type::Unit => ast::Expression::Literal(ast::Literal::Bool(false)),
+            ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
             ast::Type::Array(length, element_type) => {
                 let element = self.zeroed_value_of_type(element_type.as_ref(), location);
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
