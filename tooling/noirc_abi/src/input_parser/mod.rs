@@ -139,7 +139,7 @@ impl InputValue {
                 if map.len() > fields.len() {
                     let expected_fields: HashSet<String> =
                         fields.iter().map(|(field, _)| field.to_string()).collect();
-                    let extra_field = map.keys().cloned().find(|key| !expected_fields.contains(key)).expect("`map` is larger than type so there must exist on which does not exist in `fields`");
+                    let extra_field = map.keys().cloned().find(|key| !expected_fields.contains(key)).expect("`map` is larger than the expected type's `fields` so it must contain an unexpected field");
                     return Err(InputTypecheckingError::UnexpectedField {
                         path,
                         typ: abi_param.clone(),
