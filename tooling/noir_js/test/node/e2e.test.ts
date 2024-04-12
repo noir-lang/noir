@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import assert_lt_json from '../noir_compiled_examples/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import { Noir } from '@noir-lang/noir_js';
-import { BarretenbergBackend as Backend } from '@noir-lang/backend_barretenberg';
+import { BarretenbergBackend as Backend, BarretenbergVerifier as Verifier } from '@noir-lang/backend_barretenberg';
 import { CompiledCircuit } from '@noir-lang/types';
 
 const assert_lt_program = assert_lt_json as CompiledCircuit;
@@ -44,6 +44,28 @@ it('end-to-end proof creation and verification (outer) -- Program API', async ()
 
   // Proof verification
   const isValid = await program.verifyProof(proof);
+  expect(isValid).to.be.true;
+});
+
+it('end-to-end proof creation and verification (outer) -- Verifier API', async () => {
+  // Noir.Js part
+  const inputs = {
+    x: '2',
+    y: '3',
+  };
+
+  // Initialize backend
+  const backend = new Backend(assert_lt_program);
+  // Initialize program
+  const program = new Noir(assert_lt_program, backend);
+  // Generate proof
+  const proof = await program.generateProof(inputs);
+
+  const verificationKey = await backend.getVerificationKey();
+
+  // Proof verification
+  const verifier = new Verifier();
+  const isValid = await verifier.verifyProof(proof, verificationKey);
   expect(isValid).to.be.true;
 });
 
