@@ -61,6 +61,7 @@ describe('e2e_dapp_subscription', () => {
 
   beforeAll(async () => {
     process.env.PXE_URL = '';
+    process.env.ENABLE_GAS ??= '1';
 
     let wallets: AccountWalletWithPrivateKey[];
     let aztecNode: AztecNode;

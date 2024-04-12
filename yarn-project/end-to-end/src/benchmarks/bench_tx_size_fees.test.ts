@@ -28,6 +28,7 @@ describe('benchmarks/tx_size_fees', () => {
 
   // setup the environment
   beforeAll(async () => {
+    process.env.ENABLE_GAS ??= '1';
     const { wallets, aztecNode, deployL1ContractsValues } = await setup(3);
 
     gasPortalAddress = deployL1ContractsValues.l1ContractAddresses.gasPortalAddress;

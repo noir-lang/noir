@@ -78,7 +78,6 @@ const {
   TEMP_DIR = '/tmp',
   ACVM_BINARY_PATH = '',
   ACVM_WORKING_DIRECTORY = '',
-  ENABLE_GAS = '',
 } = process.env;
 
 const getAztecUrl = () => {
@@ -259,7 +258,7 @@ async function setupWithRemoteEnvironment(
   const cheatCodes = CheatCodes.create(config.rpcUrl, pxeClient!);
   const teardown = () => Promise.resolve();
 
-  if (['1', 'true'].includes(ENABLE_GAS)) {
+  if (['1', 'true'].includes(process.env.ENABLE_GAS!)) {
     const { chainId, protocolVersion } = await pxeClient.getNodeInfo();
     // this contract might already have been deployed
     // the following function is idempotent
@@ -388,7 +387,7 @@ export async function setup(
   logger.verbose('Creating a pxe...');
   const { pxe, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, pxeOpts, logger);
 
-  if (['1', 'true'].includes(ENABLE_GAS)) {
+  if (['1', 'true'].includes(process.env.ENABLE_GAS!)) {
     await deployCanonicalGasToken(
       new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.chainId, config.version)),
     );
