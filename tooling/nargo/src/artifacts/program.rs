@@ -59,6 +59,7 @@ impl From<ProgramArtifact> for CompiledProgram {
             abi: program.abi,
             noir_version: program.noir_version,
             program: program.bytecode,
+            plonky2_circuit: None,
             debug: program.debug_symbols.debug_infos,
             file_map: program.file_map,
             warnings: vec![],

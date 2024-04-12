@@ -29,6 +29,7 @@ use tracing::{span, Level};
 
 use self::{
     acir_gen::{Artifacts, GeneratedAcir},
+    plonky2_gen::{Builder, Plonky2Circuit},
     ssa_gen::Ssa,
 };
 
@@ -36,6 +37,7 @@ mod acir_gen;
 pub(super) mod function_builder;
 pub mod ir;
 mod opt;
+pub mod plonky2_gen;
 pub mod ssa_gen;
 
 /// Optimize the given program by converting it into SSA
@@ -84,6 +86,43 @@ pub(crate) fn optimize_into_acir(
     drop(ssa_gen_span_guard);
 
     time("SSA to ACIR", print_timings, || ssa.into_acir(&brillig))
+}
+
+/// Optimize the given program by converting it into SSA
+/// form and performing optimizations there. When finished,
+/// convert the final SSA into a PLONKY2 circuit and return it.
+pub(crate) fn optimize_into_plonky2(
+    program: Program,
+    print_passes: bool,
+    print_timings: bool,
+    parameter_names: Vec<String>,
+) -> Result<Plonky2Circuit, RuntimeError> {
+    let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
+    let ssa_gen_span_guard = ssa_gen_span.enter();
+    let ssa = SsaBuilder::new(program, print_passes, false, print_timings)?
+        .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
+        .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
+        .run_pass(Ssa::inline_functions, "After Inlining:")
+        // Run mem2reg with the CFG separated into blocks
+        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
+        .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
+        .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
+        .run_pass(Ssa::simplify_cfg, "After Simplifying:")
+        .run_pass(Ssa::flatten_cfg, "After Flattening:")
+        .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
+        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        .run_pass(Ssa::fold_constants, "After Constant Folding:")
+        .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
+        .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
+        .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
+        .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
+        .finish();
+
+    drop(ssa_gen_span_guard);
+
+    Ok(Builder::new().build(ssa, parameter_names)?)
 }
 
 // Helper to time SSA passes
@@ -291,6 +330,15 @@ fn split_public_and_private_inputs(
             }
             (acc.0, acc.1)
         })
+}
+
+pub fn create_plonky2_circuit(
+    program: Program,
+    enable_ssa_logging: bool,
+    print_codegen_timings: bool,
+    parameter_names: Vec<String>,
+) -> Result<Plonky2Circuit, RuntimeError> {
+    optimize_into_plonky2(program, enable_ssa_logging, print_codegen_timings, parameter_names)
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
