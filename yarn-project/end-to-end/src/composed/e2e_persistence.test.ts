@@ -18,7 +18,7 @@ import { mkdtemp } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import { type EndToEndContext, setup } from './fixtures/utils.js';
+import { type EndToEndContext, setup } from '../fixtures/utils.js';
 
 jest.setTimeout(60_000);
 

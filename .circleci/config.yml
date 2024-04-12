@@ -629,140 +629,15 @@ jobs:
           command: build end-to-end
           aztec_manifest_key: end-to-end
 
-  e2e-2-pxes:
+  e2e-tests:
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_2_pxes.test.ts
+          command: cond_spot_run_container end-to-end 64 ./src/e2e*
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
-
-  e2e-auth:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_auth_contract.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-note-getter:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_note_getter.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-counter:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_counter_contract.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-private-voting:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_private_voting_contract.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-max-block-number:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_max_block_number.test.ts
-          aztec_manifest_key: end-to-end
-
-  e2e-multiple-accounts-1-enc-key:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_multiple_accounts_1_enc_key.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-deploy-contract:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_container end-to-end 8 ./src/e2e_deploy_contract/
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-lending-contract:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_lending_contract.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-token-contract:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_container end-to-end 16 ./src/e2e_token_contract/
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-authwit-test:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_authwit.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-blacklist-token-contract:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_blacklist_token_contract.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  # TODO(3458): Investigate intermittent failure
-  # e2e-slow-tree:
-  #   docker:
-  #     - image: aztecprotocol/alpine-build-image
-  #   resource_class: small
-  #   steps:
-  #     - *checkout
-  #     - *setup_env
-  #     - run:
-  #         name: "Test"
-  #         command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_slow_tree.test.ts
-  #         aztec_manifest_key: end-to-end
 
   e2e-sandbox-example:
     steps:
@@ -770,172 +645,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_sandbox_example.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-state-vars:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_state_vars.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-block-building:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_block_building.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-nested-contract:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_nested_contract.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-static-calls:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_static_calls.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-delegate-calls:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_delegate_calls.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-non-contract-account:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_non_contract_account.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-cross-chain-messaging:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_cross_chain_messaging.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-crowdfunding-and-claim:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_crowdfunding_and_claim.test.ts
-          aztec_manifest_key: end-to-end
-
-  e2e-public-cross-chain-messaging:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_public_cross_chain_messaging.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-public-to-private-messaging:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_public_to_private_messaging.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-account-contracts:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_account_contracts.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-escrow-contract:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_escrow_contract.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-inclusion-proofs-contract:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_inclusion_proofs_contract.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-pending-note-hashes-contract:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_pending_note_hashes_contract.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-ordering:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_ordering.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-outbox:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_outbox.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=composed/e2e_sandbox_example.test.ts
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
@@ -945,7 +655,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=uniswap_trade_on_l1_from_l2.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=composed/uniswap_trade_on_l1_from_l2.test.ts
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
@@ -955,17 +665,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=integration_l1_publisher.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-cli:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_cli.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=composed/integration_l1_publisher.test.ts
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
@@ -975,7 +675,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose-no-sandbox.yml TEST=e2e_persistence.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose-no-sandbox.yml TEST=composed/e2e_persistence.test.ts
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
@@ -985,57 +685,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_aztec_js_browser.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-card-game:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_card_game.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-avm-simulator:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_avm_simulator.test.ts
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-fees:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_fees.test.ts ENABLE_GAS=1
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-account-init-fees:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_account_init_fees.test.ts ENABLE_GAS=1
-          aztec_manifest_key: end-to-end
-    <<: *defaults_e2e_test
-
-  e2e-dapp-subscription:
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=e2e_dapp_subscription.test.ts ENABLE_GAS=1
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=composed/e2e_aztec_js_browser.test.ts
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
@@ -1045,7 +695,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=pxe.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=composed/pxe.test.ts
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
@@ -1055,7 +705,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=cli_docs_sandbox.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=composed/cli_docs_sandbox.test.ts
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
@@ -1065,7 +715,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=docs_examples.test.ts
+          command: cond_spot_run_compose end-to-end 4 ./scripts/docker-compose.yml TEST=composed/docs_examples.test.ts
           aztec_manifest_key: end-to-end
     <<: *defaults_e2e_test
 
@@ -1476,48 +1126,15 @@ workflows:
             - aztec-package
             - cli
           <<: *defaults
-      - e2e-2-pxes: *e2e_test
-      - e2e-note-getter: *e2e_test
-      - e2e-deploy-contract: *e2e_test
-      - e2e-lending-contract: *e2e_test
-      - e2e-token-contract: *e2e_test
-      - e2e-authwit-test: *e2e_test
-      - e2e-blacklist-token-contract: *e2e_test
-      # TODO(3458): Investigate intermittent failure
-      # - e2e-slow-tree: *e2e_test
-      - e2e-sandbox-example: *e2e_test
-      - e2e-state-vars: *e2e_test
-      - e2e-block-building: *e2e_test
-      - e2e-nested-contract: *e2e_test
-      - e2e-static-calls: *e2e_test
-      - e2e-delegate-calls: *e2e_test
-      - e2e-non-contract-account: *e2e_test
-      - e2e-multiple-accounts-1-enc-key: *e2e_test
-      - e2e-cli: *e2e_test
-      - e2e-cross-chain-messaging: *e2e_test
-      - e2e-crowdfunding-and-claim: *e2e_test
-      - e2e-public-cross-chain-messaging: *e2e_test
-      - e2e-public-to-private-messaging: *e2e_test
-      - e2e-account-contracts: *e2e_test
-      - e2e-escrow-contract: *e2e_test
-      - e2e-inclusion-proofs-contract: *e2e_test
-      - e2e-pending-note-hashes-contract: *e2e_test
-      - e2e-ordering: *e2e_test
-      - e2e-outbox: *e2e_test
-      - e2e-counter: *e2e_test
-      - e2e-private-voting: *e2e_test
-      - uniswap-trade-on-l1-from-l2: *e2e_test
-      - integration-l1-publisher: *e2e_test
-      - e2e-persistence: *e2e_test
-      - e2e-browser: *e2e_test
-      - e2e-card-game: *e2e_test
-      - e2e-avm-simulator: *e2e_test
-      - e2e-fees: *e2e_test
-      - e2e-account-init-fees: *e2e_test
-      - e2e-dapp-subscription: *e2e_test
-      - pxe: *e2e_test
+      - e2e-tests: *e2e_test
       - cli-docs-sandbox: *e2e_test
       - e2e-docs-examples: *e2e_test
+      - e2e-browser: *e2e_test
+      - e2e-persistence: *e2e_test
+      - e2e-sandbox-example: *e2e_test
+      - integration-l1-publisher: *e2e_test
+      - pxe: *e2e_test
+      - uniswap-trade-on-l1-from-l2: *e2e_test
       - guides-writing-an-account-contract: *e2e_test
       - guides-dapp-testing: *e2e_test
       - guides-sample-dapp: *e2e_test
@@ -1545,52 +1162,21 @@ workflows:
             - barretenberg-docs
             - build-docs
             - mainnet-fork
-            - e2e-2-pxes
-            - e2e-note-getter
-            - e2e-deploy-contract
-            - e2e-lending-contract
-            - e2e-token-contract
-            - e2e-authwit-test
-            - e2e-blacklist-token-contract
-            - e2e-sandbox-example
-            - e2e-state-vars
-            - e2e-block-building
-            - e2e-nested-contract
-            - e2e-static-calls
-            - e2e-delegate-calls
-            - e2e-non-contract-account
-            - e2e-multiple-accounts-1-enc-key
-            - e2e-cli
-            - e2e-cross-chain-messaging
-            - e2e-crowdfunding-and-claim
-            - e2e-public-cross-chain-messaging
-            - e2e-public-to-private-messaging
-            - e2e-account-contracts
-            - e2e-escrow-contract
-            - e2e-inclusion-proofs-contract
-            - e2e-pending-note-hashes-contract
-            - e2e-ordering
-            - e2e-outbox
-            - e2e-counter
-            - e2e-private-voting
-            - uniswap-trade-on-l1-from-l2
-            - integration-l1-publisher
-            - e2e-persistence
-            - e2e-browser
-            - e2e-card-game
-            - e2e-avm-simulator
-            - e2e-fees
-            - e2e-account-init-fees
-            - e2e-dapp-subscription
-            - pxe
-            - boxes-vanilla
-            - boxes-react
+            - e2e-tests
             - cli-docs-sandbox
             - e2e-docs-examples
+            - e2e-browser
+            - e2e-persistence
+            - e2e-sandbox-example
+            - integration-l1-publisher
+            - pxe
+            - uniswap-trade-on-l1-from-l2
             - guides-writing-an-account-contract
             - guides-dapp-testing
             - guides-sample-dapp
             - guides-up-quick-start
+            - boxes-vanilla
+            - boxes-react
             - yellow-paper
             - noir-packages-tests
             - yarn-project-test

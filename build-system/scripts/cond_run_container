@@ -20,6 +20,6 @@ if ! check_rebuild $SUCCESS_TAG $REPOSITORY; then
   # Login to pull our ecr images with docker.
   retry ecr_login
   retry docker pull $IMAGE_URI
-  docker run --rm -t $IMAGE_URI $@
+  docker run --rm $IMAGE_URI $@
   retry tag_remote_image $REPOSITORY $BASE_TAG $SUCCESS_TAG
 fi

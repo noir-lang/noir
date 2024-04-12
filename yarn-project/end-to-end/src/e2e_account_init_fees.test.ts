@@ -83,8 +83,7 @@ describe('e2e_fees_account_init', () => {
   }
 
   beforeAll(async () => {
-    process.env.ENABLE_GAS ??= '1';
-    ctx = await setup(2);
+    ctx = await setup(2, {}, {}, true);
     logger = ctx.logger;
     [sequencer, alice] = ctx.wallets;
     sequencersAddress = sequencer.getAddress();

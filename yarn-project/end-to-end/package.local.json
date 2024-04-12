@@ -2,6 +2,6 @@
   "scripts": {
     "build": "yarn clean && tsc -b && webpack",
     "formatting": "run -T prettier --check ./src \"!src/web/main.js\" && run -T eslint ./src",
-    "test": "LOG_LEVEL=${LOG_LEVEL:-verbose} DEBUG_COLORS=1 NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --testTimeout=120000 --forceExit"
+    "test": "LOG_LEVEL=${LOG_LEVEL:-silent} DEBUG=${DEBUG:-'aztec:e2e*'} DEBUG_COLORS=1 NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --testTimeout=120000 --forceExit"
   }
 }

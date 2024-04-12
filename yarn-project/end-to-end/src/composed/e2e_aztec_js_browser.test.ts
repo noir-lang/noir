@@ -5,8 +5,8 @@ import Koa from 'koa';
 import serve from 'koa-static';
 import path, { dirname } from 'path';
 
-import { setup } from './fixtures/utils.js';
-import { browserTestSuite } from './shared/browser.js';
+import { setup } from '../fixtures/utils.js';
+import { browserTestSuite } from '../shared/browser.js';
 
 const { PXE_URL = '' } = process.env;
 
@@ -41,7 +41,7 @@ const setupApp = async () => {
   }
 
   const app = new Koa();
-  app.use(serve(path.resolve(__dirname, './web')));
+  app.use(serve(path.resolve(__dirname, '../web')));
   const server = app.listen(PORT, () => {
     logger.info(`Web Server started at http://localhost:${PORT}`);
   });

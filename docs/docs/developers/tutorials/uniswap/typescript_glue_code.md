@@ -120,7 +120,7 @@ const hdAccount = mnemonicToAccount(MNEMONIC);
 const expectedForkBlockNumber = 17514288;
 
 #include_code uniswap_l1_l2_test_setup_const yarn-project/end-to-end/src/shared/uniswap_l1_l2.ts raw
-#include_code uniswap_setup yarn-project/end-to-end/src/uniswap_trade_on_l1_from_l2.test.ts raw
+#include_code uniswap_setup yarn-project/end-to-end/src/composed/uniswap_trade_on_l1_from_l2.test.ts raw
 #include_code uniswap_l1_l2_test_beforeAll yarn-project/end-to-end/src/shared/uniswap_l1_l2.ts raw
 ```
 

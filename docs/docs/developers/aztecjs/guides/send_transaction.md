@@ -18,14 +18,14 @@ You can learn how to deploy a contract [here](./deploy_contract.md).
 
 You will need to import this library:
 
-#include_code import_contract yarn-project/end-to-end/src/docs_examples.test.ts typescript
+#include_code import_contract yarn-project/end-to-end/src/composed/docs_examples.test.ts typescript
 
 ## Define contract
 
 Get a previously deployed contract like this:
 
-#include_code get_contract yarn-project/end-to-end/src/docs_examples.test.ts typescript
+#include_code get_contract yarn-project/end-to-end/src/composed/docs_examples.test.ts typescript
 
 ## Call method
 
-#include_code send_transaction yarn-project/end-to-end/src/docs_examples.test.ts typescript
+#include_code send_transaction yarn-project/end-to-end/src/composed/docs_examples.test.ts typescript

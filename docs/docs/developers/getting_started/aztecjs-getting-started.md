@@ -100,10 +100,10 @@ yarn add @aztec/aztec.js @aztec/accounts @aztec/noir-contracts.js typescript @ty
 6. Create an `index.ts` file in the `src` directory with the following sandbox connection setup:
 
 ```ts
-#include_code imports /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts raw
+#include_code imports /yarn-project/end-to-end/src/composed/e2e_sandbox_example.test.ts raw
 
 async function main() {
-#include_code setup /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts raw
+#include_code setup /yarn-project/end-to-end/src/composed/e2e_sandbox_example.test.ts raw
 }
 
 main();
@@ -147,7 +147,7 @@ Great! The Sandbox is running and we are able to interact with it.
 
 The sandbox is preloaded with multiple accounts so you don't have to sit and create them. Let's load these accounts. Add this code to the `main()` function in `index.ts` below the code that's there:
 
-#include_code load_accounts /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
+#include_code load_accounts /yarn-project/end-to-end/src/composed/e2e_sandbox_example.test.ts typescript
 
 An explanation on accounts on Aztec can be found [here](../../learn/concepts/accounts/main.md).
 
@@ -157,7 +157,7 @@ If you want more accounts, you can find instructions in the [Account creation se
 
 Now that we have our accounts loaded, let's move on to deploy our pre-compiled token smart contract. You can find the full code for the contract [here](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-contracts/contracts/token_contract/src). Add this to `index.ts` below the code you added earlier:
 
-#include_code Deployment /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
+#include_code Deployment /yarn-project/end-to-end/src/composed/e2e_sandbox_example.test.ts typescript
 
 `yarn start` will now give something like this:
 
@@ -205,7 +205,7 @@ A token contract wouldn't be very useful if you aren't able to query the balance
 
 Call the `balance_of_private` function using the following code (paste this):
 
-#include_code Balance /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
+#include_code Balance /yarn-project/end-to-end/src/composed/e2e_sandbox_example.test.ts typescript
 
 Running now should yield output:
 
@@ -263,7 +263,7 @@ Now lets transfer some funds from Alice to Bob by calling the `transfer` functio
 
 Here is the Typescript code to call the `transfer` function, add this to your `index.ts` at the bottom of the `main` function:
 
-#include_code Transfer /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
+#include_code Transfer /yarn-project/end-to-end/src/composed/e2e_sandbox_example.test.ts typescript
 
 Our output should now look like this:
 
@@ -316,7 +316,7 @@ To make the note spendable the note has to be redeemed. A user can do that by ca
 
 Let's now use these functions to mint some tokens to Bob's account using Typescript, add this to `index.ts`:
 
-#include_code Mint /yarn-project/end-to-end/src/e2e_sandbox_example.test.ts typescript
+#include_code Mint /yarn-project/end-to-end/src/composed/e2e_sandbox_example.test.ts typescript
 
 Our complete output should now be something like:
 

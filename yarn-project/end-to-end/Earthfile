@@ -82,129 +82,15 @@ E2E_TEST:
   END
 
 # Define e2e tests
-e2e-2-pxes:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_2_pxes.test.ts --e2e_mode=$e2e_mode
-
-e2e-auth-contract:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_auth_contract.test.ts --e2e_mode=$e2e_mode
-
-e2e-note-getter:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_note_getter.test.ts --e2e_mode=$e2e_mode
-
-e2e-counter:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_counter_contract.test.ts --e2e_mode=$e2e_mode
-
-e2e-private-voting:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_private_voting_contract.test.ts --e2e_mode=$e2e_mode
-
-e2e-max-block-number:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_max_block_number.test.ts --e2e_mode=$e2e_mode
-
-e2e-multiple-accounts-1-enc-key:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_multiple_accounts_1_enc_key.test.ts --e2e_mode=$e2e_mode
-
-e2e-deploy-contract:
+e2e-tests:
   LOCALLY
   WITH DOCKER --load end-to-end=../+end-to-end
-    RUN docker run --rm -e LOG_LEVEL=silent -e DEBUG=aztec:e2e* end-to-end ./src/e2e_deploy_contract/
+    RUN docker run --rm -e LOG_LEVEL=silent -e DEBUG=aztec:e2e* end-to-end ./src/e2e
   END
-
-e2e-lending-contract:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_lending_contract.test.ts --e2e_mode=$e2e_mode
-
-e2e-token-contract:
-  LOCALLY
-  WITH DOCKER --load end-to-end=../+end-to-end
-    RUN docker run --rm -e LOG_LEVEL=silent -e DEBUG=aztec:e2e* end-to-end ./src/e2e_token_contract/
-  END
-
-e2e-authwit-test:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_authwit.test.ts --e2e_mode=$e2e_mode
-
-e2e-blacklist-token-contract:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_blacklist_token_contract.test.ts --e2e_mode=$e2e_mode
-
-# TODO(3458): Investigate intermittent failure
-# e2e-slow-tree:
-#   DO +E2E_TEST --test=e2e_slow_tree
 
 e2e-sandbox-example:
   ARG e2e_mode=local
   DO +E2E_TEST --test=e2e_sandbox_example.test.ts --e2e_mode=$e2e_mode
-
-e2e-state-vars:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_state_vars.test.ts --e2e_mode=$e2e_mode
-
-e2e-block-building:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_block_building.test.ts --e2e_mode=$e2e_mode
-
-e2e-nested-contract:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_nested_contract.test.ts --e2e_mode=$e2e_mode
-
-e2e-static-calls:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_static_calls.test.ts --e2e_mode=$e2e_mode
-
-e2e-delegate-calls:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_delegate_calls.test.ts --e2e_mode=$e2e_mode
-
-e2e-non-contract-account:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_non_contract_account.test.ts --e2e_mode=$e2e_mode
-
-e2e-cross-chain-messaging:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_cross_chain_messaging.test.ts --e2e_mode=$e2e_mode
-
-e2e-crowdfunding-and-claim:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_crowdfunding_and_claim.test.ts --e2e_mode=$e2e_mode
-
-e2e-public-cross-chain-messaging:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_public_cross_chain_messaging.test.ts --e2e_mode=$e2e_mode
-
-e2e-public-to-private-messaging:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_public_to_private_messaging.test.ts --e2e_mode=$e2e_mode
-
-e2e-account-contracts:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_account_contracts.test.ts --e2e_mode=$e2e_mode
-
-e2e-escrow-contract:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_escrow_contract.test.ts --e2e_mode=$e2e_mode
-
-e2e-inclusion-proofs-contract:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_inclusion_proofs_contract.test.ts --e2e_mode=$e2e_mode
-
-e2e-pending-note-hashes-contract:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_pending_note_hashes_contract.test.ts --e2e_mode=$e2e_mode
-
-e2e-ordering:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_ordering.test.ts --e2e_mode=$e2e_mode
-
-e2e-outbox:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_outbox.test.ts --e2e_mode=$e2e_mode
 
 uniswap-trade-on-l1-from-l2:
   ARG e2e_mode=local
@@ -214,34 +100,9 @@ integration-l1-publisher:
   ARG e2e_mode=local
   DO +E2E_TEST --test=integration_l1_publisher.test.ts --e2e_mode=$e2e_mode
 
-e2e-cli:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_cli.test.ts --e2e_mode=$e2e_mode
-
-# TODO sometimes hangs
-# e2e-persistence:
-#  ARG e2e_mode=local
-#  DO +E2E_TEST --test=e2e_persistence.test.ts --compose_file=./scripts/docker-compose-no-sandbox.yml --e2e_mode=$e2e_mode
-
 e2e-browser:
   ARG e2e_mode=local
   DO +E2E_TEST --test=e2e_aztec_js_browser.test.ts --e2e_mode=$e2e_mode
-
-e2e-card-game:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_card_game.test.ts --e2e_mode=$e2e_mode
-
-e2e-avm-simulator:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_avm_simulator.test.ts --e2e_mode=$e2e_mode
-
-e2e-fees:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_fees.test.ts --enable_gas=1 --e2e_mode=$e2e_mode
-
-e2e-dapp-subscription:
-  ARG e2e_mode=local
-  DO +E2E_TEST --test=e2e_dapp_subscription.test.ts --enable_gas=1 --e2e_mode=$e2e_mode
 
 pxe:
   ARG e2e_mode=local
