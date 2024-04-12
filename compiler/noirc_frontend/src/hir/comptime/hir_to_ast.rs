@@ -32,7 +32,12 @@ impl StmtId {
                 let pattern = let_stmt.pattern.into_ast(interner);
                 let r#type = interner.id_type(let_stmt.expression).to_ast();
                 let expression = let_stmt.expression.to_ast(interner);
-                StatementKind::Let(LetStatement { pattern, r#type, expression })
+                StatementKind::Let(LetStatement {
+                    pattern,
+                    r#type,
+                    expression,
+                    attributes: Vec::new(),
+                })
             }
             HirStatement::Constrain(constrain) => {
                 let expr = constrain.0.to_ast(interner);
