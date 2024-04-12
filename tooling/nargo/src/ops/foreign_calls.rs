@@ -191,7 +191,7 @@ impl DefaultForeignCallExecutor {
         Ok((id, params))
     }
 
-    fn find_mock_by_id(&mut self, id: usize) -> Option<&MockedCall> {
+    fn find_mock_by_id(&self, id: usize) -> Option<&MockedCall> {
         self.mocked_responses.iter().find(|response| response.id == id)
     }
 
@@ -267,12 +267,15 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
                 Ok(ForeignCallResult::default().into())
             }
             Some(ForeignCall::GetMockLastParams) => {
-                let (id, _) = Self::extract_mock_id(&foreign_call.inputs)?;                
-                let mock = self.find_mock_by_id(id)
-                    .unwrap_or_else(|| panic!("Unknown mock id {}", id));
+                let (id, _) = Self::extract_mock_id(&foreign_call.inputs)?;
+                let mock =
+                    self.find_mock_by_id(id).unwrap_or_else(|| panic!("Unknown mock id {}", id));
 
-                let last_called_params = mock.last_called_params.clone().unwrap_or_else(|| panic!("Mock {} was never called", mock.name));
-                
+                let last_called_params = mock
+                    .last_called_params
+                    .clone()
+                    .unwrap_or_else(|| panic!("Mock {} was never called", mock.name));
+
                 Ok(last_called_params.into())
             }
             Some(ForeignCall::SetMockReturns) => {
@@ -307,18 +310,17 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
 
                 match (mock_response_position, &self.external_resolver) {
                     (Some(response_position), _) => {
-                    let mock = self
-                        .mocked_responses
-                        .get_mut(response_position)
-                        .expect("Invalid position of mocked response");
+                        let mock = self
+                            .mocked_responses
+                            .get_mut(response_position)
+                            .expect("Invalid position of mocked response");
 
+                        mock.last_called_params = Some(foreign_call.inputs.clone());
 
-                    mock.last_called_params = Some(foreign_call.inputs.clone());
+                        let result = mock.result.values.clone();
 
-                    let result = mock.result.values.clone();
-
-                    if let Some(times_left) = &mut mock.times_left {
-                        *times_left -= 1;
+                        if let Some(times_left) = &mut mock.times_left {
+                            *times_left -= 1;
                             if *times_left == 0 {
                                 self.mocked_responses.remove(response_position);
                             }
@@ -339,7 +341,10 @@ impl ForeignCallExecutor for DefaultForeignCallExecutor {
 
                         Ok(parsed_response.into())
                     }
-                    (None, None) => panic!("No mock for foreign call {}({:?})", foreign_call_name, &foreign_call.inputs),
+                    (None, None) => panic!(
+                        "No mock for foreign call {}({:?})",
+                        foreign_call_name, &foreign_call.inputs
+                    ),
                 }
             }
         }
