@@ -1623,7 +1623,7 @@ impl AcirContext {
         let outputs_var = vecmap(outputs_types.iter(), |output| match output {
             AcirType::NumericType(_) => {
                 let var = self.add_data(AcirVarData::Const(
-                    memory.next().expect("Missing return data").value,
+                    memory.next().expect("Missing return data").to_field(),
                 ));
                 AcirValue::Var(var, output.clone())
             }
@@ -1657,7 +1657,7 @@ impl AcirContext {
                     AcirType::NumericType(_) => {
                         let memory_value =
                             memory_iter.next().expect("ICE: Unexpected end of memory");
-                        let var = self.add_data(AcirVarData::Const(memory_value.value));
+                        let var = self.add_data(AcirVarData::Const(memory_value.to_field()));
                         array_values.push_back(AcirValue::Var(var, element_type.clone()));
                     }
                 }
