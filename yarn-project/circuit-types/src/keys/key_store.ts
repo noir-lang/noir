@@ -3,6 +3,7 @@ import { type AztecAddress, type GrumpkinPrivateKey, type PublicKey } from '@azt
 /**
  * Represents a secure storage for managing keys.
  * Provides functionality to create and retrieve accounts, private and public keys,
+ * TODO(#5627): 💣💣💣
  */
 export interface KeyStore {
   /**

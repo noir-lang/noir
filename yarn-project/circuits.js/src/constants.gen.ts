@@ -152,4 +152,10 @@ export enum GeneratorIndex {
   FUNCTION_ARGS = 44,
   AUTHWIT_INNER = 45,
   AUTHWIT_OUTER = 46,
+  NSK_M = 47,
+  IVSK_M = 48,
+  OVSK_M = 49,
+  TSK_M = 50,
+  PUBLIC_KEYS_HASH = 51,
+  CONTRACT_ADDRESS_V1 = 52,
 }

@@ -193,8 +193,6 @@ global NUM_BASE_PARITY_PER_ROOT_PARITY: u64 = 4;
  * | MID       | 8 < n ≤ 16                    | 32 < hash_index ≤ 40 |
  * | HIGH      | 16 < n ≤ 48                   | 40 < hash_index ≤ 48 |
  * +-----------+-------------------------------+----------------------+
- *
- * Note: When modifying, modify `GeneratorIndexPacker` in packer.hpp accordingly.
  */
 // Indices with size ≤ 8
 global GENERATOR_INDEX__NOTE_HASH = 1;
@@ -238,3 +236,10 @@ global GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS = 43;
 global GENERATOR_INDEX__FUNCTION_ARGS = 44;
 global GENERATOR_INDEX__AUTHWIT_INNER = 45;
 global GENERATOR_INDEX__AUTHWIT_OUTER = 46;
+// Key related generators follow
+global GENERATOR_INDEX__NSK_M = 47;
+global GENERATOR_INDEX__IVSK_M = 48;
+global GENERATOR_INDEX__OVSK_M = 49;
+global GENERATOR_INDEX__TSK_M = 50;
+global GENERATOR_INDEX__PUBLIC_KEYS_HASH = 51;
+global GENERATOR_INDEX__CONTRACT_ADDRESS_V1 = 52;
