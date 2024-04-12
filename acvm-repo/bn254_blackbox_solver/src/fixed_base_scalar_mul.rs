@@ -53,8 +53,21 @@ pub fn embedded_curve_add(
     input2_x: FieldElement,
     input2_y: FieldElement,
 ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-    let mut point1 = grumpkin::SWAffine::new(input1_x.into_repr(), input1_y.into_repr());
-    let point2 = grumpkin::SWAffine::new(input2_x.into_repr(), input2_y.into_repr());
+    fn create_point(
+        x: FieldElement,
+        y: FieldElement,
+    ) -> Result<grumpkin::SWAffine, BlackBoxResolutionError> {
+        match std::panic::catch_unwind(|| grumpkin::SWAffine::new(x.into_repr(), y.into_repr())) {
+            Ok(point) => Ok(point),
+            Err(_) => Err(BlackBoxResolutionError::Failed(
+                BlackBoxFunc::EmbeddedCurveAdd,
+                format!("Point ({}, {}) is not on curve", x.to_hex(), y.to_hex()),
+            )),
+        }
+    }
+
+    let mut point1 = create_point(input1_x, input1_y)?;
+    let point2 = create_point(input2_x, input2_y)?;
     let res = point1 + point2;
     point1 = res.into();
     if let Some((res_x, res_y)) = point1.xy() {
