@@ -57,4 +57,4 @@ jobs:
       - name: Test
         working-directory: ./yarn-project/end-to-end/
         timeout-minutes: 15
-        run: earthly -P --no-output +e2e-browser --e2e_mode=cache
+        run: earthly -P --no-output +uniswap-trade-on-l1-from-l2 --e2e_mode=cache
