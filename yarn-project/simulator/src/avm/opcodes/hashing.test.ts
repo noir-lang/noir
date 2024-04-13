@@ -1,8 +1,8 @@
 import { keccak256, pedersenHash, sha256 } from '@aztec/foundation/crypto';
 
 import { type AvmContext } from '../avm_context.js';
-import { Field, Uint8, Uint32 } from '../avm_memory_types.js';
-import { initContext } from '../fixtures/index.js';
+import { Field, type Uint8, Uint32 } from '../avm_memory_types.js';
+import { initContext, randomMemoryBytes, randomMemoryFields } from '../fixtures/index.js';
 import { Addressing, AddressingMode } from './addressing_mode.js';
 import { Keccak, Pedersen, Poseidon2, Sha256 } from './hashing.js';
 
@@ -88,7 +88,7 @@ describe('Hashing Opcodes', () => {
     });
 
     it('Should hash correctly - direct', async () => {
-      const args = [...Array(10)].map(_ => new Uint8(Math.floor(Math.random() * 255)));
+      const args = randomMemoryBytes(10);
       const indirect = 0;
       const messageOffset = 0;
       const messageSizeOffset = 15;
@@ -107,7 +107,7 @@ describe('Hashing Opcodes', () => {
     });
 
     it('Should hash correctly - indirect', async () => {
-      const args = [...Array(10)].map(_ => new Uint8(Math.floor(Math.random() * 255)));
+      const args = randomMemoryBytes(10);
       const indirect = new Addressing([
         /*dstOffset=*/ AddressingMode.INDIRECT,
         /*messageOffset*/ AddressingMode.INDIRECT,
@@ -157,7 +157,7 @@ describe('Hashing Opcodes', () => {
     });
 
     it('Should hash correctly - direct', async () => {
-      const args = [...Array(10)].map(_ => new Uint8(Math.floor(Math.random() * 255)));
+      const args = randomMemoryBytes(10);
       const indirect = 0;
       const messageOffset = 0;
       const messageSizeOffset = 15;
@@ -176,7 +176,7 @@ describe('Hashing Opcodes', () => {
     });
 
     it('Should hash correctly - indirect', async () => {
-      const args = [...Array(10)].map(_ => new Uint8(Math.floor(Math.random() * 255)));
+      const args = randomMemoryBytes(10);
       const indirect = new Addressing([
         /*dstOffset=*/ AddressingMode.INDIRECT,
         /*messageOffset*/ AddressingMode.INDIRECT,
@@ -228,10 +228,10 @@ describe('Hashing Opcodes', () => {
     });
 
     it('Should hash correctly - direct', async () => {
-      const args = [new Field(1n), new Field(2n), new Field(3n)];
+      const args = randomMemoryFields(10);
       const messageOffset = 0;
-      const sizeOffset = 10;
-      const genIndexOffset = 20;
+      const sizeOffset = 20;
+      const genIndexOffset = 30;
       const indirect = 0;
       const genIndex = 20;
 
@@ -249,7 +249,7 @@ describe('Hashing Opcodes', () => {
     });
 
     it('Should hash correctly - indirect', async () => {
-      const args = [new Field(1n), new Field(2n), new Field(3n)];
+      const args = randomMemoryFields(10);
       const indirect = new Addressing([
         /*genIndexOffset=*/ AddressingMode.DIRECT,
         /*dstOffset=*/ AddressingMode.DIRECT,
@@ -257,9 +257,9 @@ describe('Hashing Opcodes', () => {
         /*messageSizeOffset*/ AddressingMode.INDIRECT,
       ]).toWire();
       const messageOffset = 0;
-      const sizeOffset = 10;
+      const sizeOffset = 20;
       const realLocation = 4;
-      const realSizeLocation = 20;
+      const realSizeLocation = 21;
       const genIndexOffset = 50;
 
       context.machineState.memory.set(messageOffset, new Uint32(realLocation));

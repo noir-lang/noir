@@ -13,7 +13,7 @@ import { strict as assert } from 'assert';
 
 import { isAvmBytecode } from '../public/transitional_adaptors.js';
 import { AvmMachineState } from './avm_machine_state.js';
-import { Field, type MemoryValue, TypeTag, Uint8 } from './avm_memory_types.js';
+import { type MemoryValue, TypeTag, type Uint8 } from './avm_memory_types.js';
 import { AvmSimulator } from './avm_simulator.js';
 import {
   adjustCalldataIndex,
@@ -22,6 +22,8 @@ import {
   initGlobalVariables,
   initL1ToL2MessageOracleInput,
   initMachineState,
+  randomMemoryBytes,
+  randomMemoryFields,
 } from './fixtures/index.js';
 import { Add, CalldataCopy, Return } from './opcodes/index.js';
 import { encodeToBytecode } from './serialization/bytecode_serialization.js';
@@ -124,19 +126,19 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   describe.each([
     [
       'sha256_hash',
-      /*input=*/ randomBytes(10),
+      /*input=*/ randomMemoryBytes(10),
       /*output=*/ (bytes: Uint8[]) => [...sha256(Buffer.concat(bytes.map(b => b.toBuffer())))].map(b => new Fr(b)),
     ],
     [
       'keccak_hash',
-      /*input=*/ randomBytes(10),
+      /*input=*/ randomMemoryBytes(10),
       /*output=*/ (bytes: Uint8[]) => [...keccak256(Buffer.concat(bytes.map(b => b.toBuffer())))].map(b => new Fr(b)),
     ],
-    ['poseidon2_hash', /*input=*/ randomFields(10), /*output=*/ (fields: Fieldable[]) => [poseidon2Hash(fields)]],
-    ['pedersen_hash', /*input=*/ randomFields(10), /*output=*/ (fields: Fieldable[]) => [pedersenHash(fields)]],
+    ['poseidon2_hash', /*input=*/ randomMemoryFields(10), /*output=*/ (fields: Fieldable[]) => [poseidon2Hash(fields)]],
+    ['pedersen_hash', /*input=*/ randomMemoryFields(10), /*output=*/ (fields: Fieldable[]) => [pedersenHash(fields)]],
     [
       'pedersen_hash_with_index',
-      /*input=*/ randomFields(10),
+      /*input=*/ randomMemoryFields(10),
       /*output=*/ (fields: Fieldable[]) => [pedersenHash(fields, /*index=*/ 20)],
     ],
   ])('Hashes in noir contracts', (name: string, input: MemoryValue[], output: (msg: any[]) => Fr[]) => {
@@ -919,11 +921,4 @@ function getAvmNestedCallsTestContractBytecode(functionName: string): Buffer {
     `No bytecode found for function ${functionName}. Try re-running bootstrap.sh on the repository root.`,
   );
   return artifact.bytecode;
-}
-
-function randomBytes(length: number): Uint8[] {
-  return [...Array(length)].map(_ => new Uint8(Math.floor(Math.random() * 255)));
-}
-function randomFields(length: number): Field[] {
-  return [...Array(length)].map(_ => new Field(Fr.random()));
 }
