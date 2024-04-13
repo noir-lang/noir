@@ -5,4 +5,4 @@ compiler_version = ">=0.18.0"
 type = "lib"
 
 [dependencies]
-protocol_types = { git="https://github.com/AztecProtocol/aztec-packages", tag="aztec-packages-v0.34.0", directory="noir-projects/noir-protocol-circuits/crates/types" }
+protocol_types = { path = "../../noir-protocol-circuits/crates/types" }
