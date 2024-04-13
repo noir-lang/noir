@@ -179,7 +179,7 @@ export class SnapshotManager {
     const anvil = await retry(
       async () => {
         const ethereumHostPort = await getPort();
-        aztecNodeConfig.rpcUrl = `http://localhost:${ethereumHostPort}`;
+        aztecNodeConfig.rpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
         const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
         await anvil.start();
         return anvil;

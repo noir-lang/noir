@@ -83,10 +83,8 @@ E2E_TEST:
 
 # Define e2e tests
 e2e-tests:
-  LOCALLY
-  WITH DOCKER --load end-to-end=../+end-to-end
-    RUN docker run --rm -e LOG_LEVEL=silent -e DEBUG=aztec:e2e* end-to-end ./src/e2e
-  END
+  FROM ../+end-to-end
+  RUN yarn test ./src/e2e
 
 e2e-sandbox-example:
   ARG e2e_mode=local

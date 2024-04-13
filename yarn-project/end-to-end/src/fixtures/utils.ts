@@ -346,7 +346,7 @@ export async function setup(
     anvil = await retry(
       async () => {
         const ethereumHostPort = await getPort();
-        config.rpcUrl = `http://localhost:${ethereumHostPort}`;
+        config.rpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
         const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
         await anvil.start();
         return anvil;
@@ -398,6 +398,7 @@ export async function setup(
   const { pxe, wallets } = await setupPXEService(numberOfAccounts, aztecNode!, pxeOpts, logger);
 
   if (enableGas) {
+    logger.verbose('Deploying gas token...');
     await deployCanonicalGasToken(
       new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.chainId, config.version)),
     );
