@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Start EC2 runner
-        uses: AztecProtocol/ec2-action-builder@v0.5
+        uses: AztecProtocol/ec2-action-builder@v0.6
         with:
           github_token: ${{ secrets.GH_SELF_HOSTED_RUNNER_TOKEN }}
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
