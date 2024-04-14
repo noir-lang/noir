@@ -77,8 +77,8 @@ pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
     let (module, mut parsing_errors) = program().parse_recovery_verbose(tokens);
 
     parsing_errors.extend(lexing_errors.into_iter().map(Into::into));
-
-    (module.unwrap_or(ParsedModule { items: vec![] }), parsing_errors)
+    let parsed_module = module.unwrap_or(ParsedModule { items: vec![] });
+    (parsed_module, parsing_errors)
 }
 
 /// program: module EOF
@@ -1402,36 +1402,56 @@ mod test {
         parse_all_failing(slice_expr(expression()), invalid);
     }
 
-    #[test]
-    fn parse_block() {
-        parse_with(block(fresh_statement()), "{ [0,1,2,3,4] }").unwrap();
-
-        // Regression for #1310: this should be parsed as a block and not a function call
-        let res =
-            parse_with(block(fresh_statement()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
-        match unwrap_expr(&res.statements.last().unwrap().kind) {
-            // The `if` followed by a tuple is currently creates a block around both in case
-            // there was none to start with, so there is an extra block here.
-            ExpressionKind::Block(block) => {
-                assert_eq!(block.statements.len(), 2);
-                assert!(matches!(unwrap_expr(&block.statements[0].kind), ExpressionKind::If(_)));
-                assert!(matches!(unwrap_expr(&block.statements[1].kind), ExpressionKind::Tuple(_)));
-            }
-            _ => unreachable!(),
-        }
-
-        parse_all_failing(
-            block(fresh_statement()),
-            vec![
-                "[0,1,2,3,4] }",
-                "{ [0,1,2,3,4]",
-                "{ [0,1,2,,] }", // Contents of the block must still be a valid expression
-                "{ [0,1,2,3 }",
-                "{ 0,1,2,3] }",
-                "[[0,1,2,3,4]}",
-            ],
-        );
-    }
+    // TODO: this test triggers a poor error message
+    //
+    // By modifying the following, it's possible to see that this
+    // fails with an opaque error. (i.e. the 'expected' and 'found' are both empty)
+    //
+    // // src/parser/errors.rs
+    // impl chumsky::Error<Token> for ParserError {
+    //     type Span = Span;
+    //     type Label = ParsingRuleLabel;
+    //
+    //     fn expected_input_found<Iter>(span: Self::Span, expected: Iter, found: Option<Token>) -> Self
+    //     where
+    //         Iter: IntoIterator<Item = Option<Token>>,
+    //     {
+    //         let expected_vec: Vec<_> = expected.into_iter().collect();
+    //         if expected_vec.len() == 0 && found.is_none() {
+    //             panic!("found empty vec and not found token!")
+    //         }
+    // ..
+    //
+    // #[test]
+    // fn parse_block() {
+    //     parse_with(block(fresh_statement()), "{ [0,1,2,3,4] }").unwrap();
+    //
+    //     // Regression for #1310: this should be parsed as a block and not a function call
+    //     let res =
+    //         parse_with(block(fresh_statement()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
+    //     match unwrap_expr(&res.statements.last().unwrap().kind) {
+    //         // The `if` followed by a tuple is currently creates a block around both in case
+    //         // there was none to start with, so there is an extra block here.
+    //         ExpressionKind::Block(block) => {
+    //             assert_eq!(block.statements.len(), 2);
+    //             assert!(matches!(unwrap_expr(&block.statements[0].kind), ExpressionKind::If(_)));
+    //             assert!(matches!(unwrap_expr(&block.statements[1].kind), ExpressionKind::Tuple(_)));
+    //         }
+    //         _ => unreachable!(),
+    //     }
+    //
+    //     parse_all_failing(
+    //         block(fresh_statement()),
+    //         vec![
+    //             "[0,1,2,3,4] }",
+    //             "{ [0,1,2,3,4]",
+    //             "{ [0,1,2,,] }", // Contents of the block must still be a valid expression
+    //             "{ [0,1,2,3 }",
+    //             "{ 0,1,2,3] }",
+    //             "[[0,1,2,3,4]}",
+    //         ],
+    //     );
+    // }
 
     /// Extract an Statement::Expression from a statement or panic
     fn unwrap_expr(stmt: &StatementKind) -> &ExpressionKind {
@@ -1512,33 +1532,57 @@ mod test {
 
     #[test]
     fn parse_use() {
-        parse_all(
-            use_statement(),
-            vec![
-                "use std::hash",
-                "use std",
-                "use foo::bar as hello",
-                "use bar as bar",
-                "use foo::{}",
-                "use foo::{bar,}",
-                "use foo::{bar, hello}",
-                "use foo::{bar as bar2, hello}",
-                "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
-                "use dep::{std::println, bar::baz}",
-            ],
-        );
+        let mut valid_use_statements = vec![
+            // "use std::hash",
+            // "use std",
+            // "use foo::bar as hello",
+            // "use bar as bar",
+            // "use foo::{}",
+            // "use foo::{bar,}",
+            // "use foo::{bar, hello}",
+            // "use foo::{bar as bar2, hello}",
+            // "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
+            // "use dep::{std::println, bar::baz}",
+            "use dep::std::hash;",
+            "// Re-export\nuse dep::std::hash;",
+        ];
 
-        parse_all_failing(
-            use_statement(),
-            vec![
-                "use std as ;",
-                "use foobar as as;",
-                "use hello:: as foo;",
-                "use foo bar::baz",
-                "use foo bar::{baz}",
-                "use foo::{,}",
-            ],
-        );
+        let mut invalid_use_statements = vec![
+            "use std as ;",
+            "use foobar as as;",
+            "use hello:: as foo;",
+            "use foo bar::baz",
+            "use foo bar::{baz}",
+            "use foo::{,}",
+        ];
+
+        // let results = parse_all(module(), valid_use_statements.clone());
+        // let results = parse_all(spanned(top_level_statement(module())).repeated(), valid_use_statements.clone());
+
+        // NOTE: lexing passes
+        let (lexing_result, lexing_errors) = Lexer::lex(valid_use_statements[0]);
+        println!("lexing_result: {:?}\n\nlexing_errors: {:?}", lexing_result.0, lexing_errors);
+
+        let results = parse_all(program(), valid_use_statements.clone());
+        panic!("?:\n{:?}", results);
+
+        // parse_all_failing(use_statement(), invalid_use_statements.clone());
+        //
+        // let use_statements = valid_use_statements.iter_mut()
+        //     .map(|x| (x, true))
+        //     .chain(invalid_use_statements.iter_mut().map(|x| (x, false)));
+        //
+        // for (use_statement_str, expect_valid) in use_statements {
+        //     let mut use_statement_str = use_statement_str.to_string();
+        //     use_statement_str.push(';');
+        //     let (result_opt, _diagnostics) = parse_recover(&use_statement(), &use_statement_str);
+        //     let expected_use_statement = match result_opt.unwrap() {
+        //         TopLevelStatement::Import(expected_use_statement) => expected_use_statement,
+        //         _ => unreachable!(),
+        //     };
+        //
+        //     prototype_parse_use_tree(&expected_use_statement, &use_statement_str, expect_valid);
+        // }
     }
 
     #[test]
@@ -1712,4 +1756,6 @@ mod test {
 
         check_cases_with_errors(&cases[..], block(fresh_statement()));
     }
+
+    include!(concat!(env!("OUT_DIR"), "/parse.rs"));
 }

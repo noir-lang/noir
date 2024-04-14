@@ -1,0 +1,4 @@
+fn main(mut x: [Field; 10], index: u) -> pub [Field; -0] {
+    x[index] = 0;
+    x
+}
