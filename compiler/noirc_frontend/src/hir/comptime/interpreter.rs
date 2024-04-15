@@ -14,7 +14,8 @@ use crate::{
             HirLambda, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
         },
         stmt::{
-            HirAssignStatement, HirConstrainStatement, HirForStatement, HirLetStatement, HirPattern,
+            HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
+            HirPattern,
         },
     },
     macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
@@ -38,6 +39,8 @@ struct Interpreter<'interner> {
     /// True if we've expanded any macros into global scope and will need
     /// to redo name resolution & type checking for everything.
     changed_globally: bool,
+
+    in_loop: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -77,6 +80,14 @@ enum InterpreterError {
     NonBoolUsedInConstrain { value: Value, location: Location },
     FailingConstraint { message: Option<Value>, location: Location },
     NoMethodFound { object: Value, typ: Type, location: Location },
+    BreakNotInLoop,
+    ContinueNotInLoop,
+    NonIntegerUsedInLoop { value: Value, location: Location },
+
+    // These cases are not errors but prevent us from running more code
+    // until the loop can be resumed properly.
+    Break,
+    Continue,
 }
 
 type IResult<T> = std::result::Result<T, InterpreterError>;
@@ -91,9 +102,12 @@ impl<'a> Interpreter<'a> {
         let modifiers = self.interner.function_modifiers(&function);
         assert!(modifiers.is_comptime, "Tried to evaluate non-comptime function!");
 
-        self.push_scope();
+        let previous_state = self.enter_function();
 
         let meta = self.interner.function_meta(&function);
+        if meta.kind != FunctionKind::Normal {
+            todo!("Evaluation for {:?} is unimplemented", meta.kind);
+        }
 
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
@@ -107,16 +121,10 @@ impl<'a> Interpreter<'a> {
             self.define_pattern(parameter, typ, argument)?;
         }
 
-        let meta = self.interner.function_meta(&function);
-        match meta.kind {
-            FunctionKind::Normal => (),
-            other => todo!("Evaluation for {other:?} is unimplemented"),
-        }
-
         let function_body = self.interner.function(&function).as_expr();
         let result = self.evaluate(function_body)?;
 
-        self.pop_scope();
+        self.exit_function(previous_state);
         Ok(result)
     }
 
@@ -128,7 +136,7 @@ impl<'a> Interpreter<'a> {
         arguments: Vec<Value>,
         call_location: Location,
     ) -> IResult<Value> {
-        self.push_scope();
+        let previous_state = self.enter_function();
 
         if closure.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
@@ -144,8 +152,21 @@ impl<'a> Interpreter<'a> {
 
         let result = self.evaluate(closure.body)?;
 
-        self.pop_scope();
+        self.exit_function(previous_state);
         Ok(result)
+    }
+
+    /// Enters a function, pushing a new scope and resetting any required state.
+    /// Returns the previous values of the internal state, to be reset when
+    /// `exit_function` is called.
+    fn enter_function(&mut self) -> bool {
+        self.push_scope();
+        std::mem::take(&mut self.in_loop)
+    }
+
+    fn exit_function(&mut self, was_in_loop: bool) {
+        self.pop_scope();
+        self.in_loop = was_in_loop;
     }
 
     fn push_scope(&mut self) {
@@ -857,19 +878,72 @@ impl<'a> Interpreter<'a> {
     }
 
     fn evaluate_assign(&mut self, assign: HirAssignStatement) -> IResult<Value> {
-        todo!()
+        let rhs = self.evaluate(assign.expression)?;
+        self.store_lvalue(assign.lvalue, rhs)?;
+        Ok(Value::Unit)
     }
 
-    fn evaluate_for(&mut self, r#for: HirForStatement) -> IResult<Value> {
-        todo!()
+    fn store_lvalue(&mut self, lvalue: HirLValue, rhs: Value) -> IResult<()> {
+        match lvalue {
+            HirLValue::Ident(ident, typ) => {
+                todo!()
+            }
+            HirLValue::MemberAccess { object, field_name, field_index, typ, location } => {
+                todo!()
+            }
+            HirLValue::Index { array, index, typ, location } => todo!(),
+            HirLValue::Dereference { lvalue, element_type, location } => todo!(),
+        }
+    }
+
+    fn evaluate_for(&mut self, for_: HirForStatement) -> IResult<Value> {
+        // i128 can store all values from i8 - u64
+        let get_index = |this: &mut Self, expr| -> IResult<(i128, fn(i128) -> Value)> {
+            match this.evaluate(expr)? {
+                Value::I8(value) => Ok((value as i128, |i| Value::I8(i as i8))),
+                Value::I32(value) => Ok((value as i128, |i| Value::I32(i as i32))),
+                Value::I64(value) => Ok((value as i128, |i| Value::I64(i as i64))),
+                Value::U8(value) => Ok((value as i128, |i| Value::U8(i as u8))),
+                Value::U32(value) => Ok((value as i128, |i| Value::U32(i as u32))),
+                Value::U64(value) => Ok((value as i128, |i| Value::U64(i as u64))),
+                value => {
+                    let location = this.interner.expr_location(&expr);
+                    Err(InterpreterError::NonIntegerUsedInLoop { value, location })
+                }
+            }
+        };
+
+        let (start, make_value) = get_index(self, for_.start_range)?;
+        let (end, _) = get_index(self, for_.end_range)?;
+
+        for i in start..end {
+            self.current_scope_mut().insert(for_.identifier.id, make_value(i));
+
+            match self.evaluate(for_.block) {
+                Ok(_) => (),
+                Err(InterpreterError::Break) => break,
+                Err(InterpreterError::Continue) => continue,
+                Err(other) => return Err(other),
+            }
+        }
+
+        Ok(Value::Unit)
     }
 
     fn evaluate_break(&mut self) -> IResult<Value> {
-        todo!()
+        if self.in_loop {
+            Err(InterpreterError::Break)
+        } else {
+            Err(InterpreterError::BreakNotInLoop)
+        }
     }
 
     fn evaluate_continue(&mut self) -> IResult<Value> {
-        todo!()
+        if self.in_loop {
+            Err(InterpreterError::Continue)
+        } else {
+            Err(InterpreterError::ContinueNotInLoop)
+        }
     }
 }
 
@@ -895,8 +969,8 @@ impl Value {
                 Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
             }
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
-            Value::Array(array, typ) => return Cow::Borrowed(typ),
-            Value::Slice(slice, typ) => return Cow::Borrowed(typ),
+            Value::Array(_, typ) => return Cow::Borrowed(typ),
+            Value::Slice(_, typ) => return Cow::Borrowed(typ),
             Value::Code(_) => Type::Code,
             Value::Pointer(_) => panic!("No type equivalent for pointers yet!"),
         })
