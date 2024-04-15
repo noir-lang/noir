@@ -82,6 +82,20 @@ impl Builder {
         result
     }
 
+    /// Converts from ssa::ir::instruction::BinaryOp to the equivalent P2Builder instruction, when
+    /// such conversion is straightforward.
+    fn simple_convert(
+        &mut self,
+        lhs: ValueId,
+        rhs: ValueId,
+        p2builder_op: fn(&mut P2Builder, Target, Target) -> Target,
+    ) -> P2Value {
+        let a = self.get_target(lhs);
+        let b = self.get_target(rhs);
+        let target = p2builder_op(&mut self.builder, a, b);
+        P2Value { target }
+    }
+
     fn add_instruction(
         &mut self,
         dfg: &DataFlowGraph,
@@ -93,11 +107,7 @@ impl Builder {
             Instruction::Binary(Binary { lhs, rhs, operator }) => {
                 let p2value = match operator {
                     super::ir::instruction::BinaryOp::Mul => {
-                        let a = self.get_target(lhs);
-                        let b = self.get_target(rhs);
-                        let target = self.builder.mul(a, b);
-
-                        P2Value { target }
+                        self.simple_convert(lhs, rhs, P2Builder::mul)
                     }
 
                     _ => {
