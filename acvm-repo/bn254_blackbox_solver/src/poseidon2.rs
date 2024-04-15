@@ -532,3 +532,27 @@ impl<'a> Poseidon2<'a> {
         Ok(state.into())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use acir::FieldElement;
+
+    use crate::poseidon2::field_from_hex;
+
+    use super::Poseidon2;
+
+    #[test]
+    fn smoke_test() {
+        let poseidon = Poseidon2::new();
+        let inputs = [FieldElement::zero(); 4];
+        let result = poseidon.permutation(&inputs, 4).expect("should successfully permute");
+
+        let expected_result = [
+            field_from_hex("18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E"),
+            field_from_hex("95C230D1D37A246E8D2D5A63B165FE0FADE040D442F61E25F0590E5FB76F839"),
+            field_from_hex("BB9545846E1AFA4FA3C97414A60A20FC4949F537A68CCECA34C5CE71E28AA59"),
+            field_from_hex("18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D"),
+        ];
+        assert_eq!(result, expected_result);
+    }
+}
