@@ -8,4 +8,11 @@ describe('BaseRollupPublicInputs', () => {
     const res = BaseOrMergeRollupPublicInputs.fromBuffer(buffer);
     expect(res).toEqual(expected);
   });
+
+  it(`serializes to hex string and deserializes it back`, () => {
+    const expected = makeBaseOrMergeRollupPublicInputs();
+    const str = expected.toString();
+    const res = BaseOrMergeRollupPublicInputs.fromString(str);
+    expect(res).toEqual(expected);
+  });
 });

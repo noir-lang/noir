@@ -64,7 +64,7 @@ export class PublicDataTreeLeafPreimage implements IndexedTreeLeafPreimage {
     return new PublicDataTreeLeafPreimage(Fr.ZERO, Fr.ZERO, Fr.ZERO, 0n);
   }
 
-  static fromBuffer(buffer: Buffer): PublicDataTreeLeafPreimage {
+  static fromBuffer(buffer: Buffer | BufferReader): PublicDataTreeLeafPreimage {
     const reader = BufferReader.asReader(buffer);
     const slot = Fr.fromBuffer(reader);
     const value = Fr.fromBuffer(reader);

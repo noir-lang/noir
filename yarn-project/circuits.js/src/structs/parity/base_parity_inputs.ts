@@ -19,12 +19,31 @@ export class BaseParityInputs {
     return new BaseParityInputs(msgs as Tuple<Fr, typeof NUM_MSGS_PER_BASE_PARITY>);
   }
 
+  /** Serializes the inputs to a buffer. */
   toBuffer() {
     return serializeToBuffer(this.msgs);
   }
 
+  /** Serializes the inputs to a hex string. */
+  toString() {
+    return this.toBuffer().toString('hex');
+  }
+
+  /**
+   * Deserializes the inputs from a buffer.
+   * @param buffer - The buffer to deserialize from.
+   */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new BaseParityInputs(reader.readArray(NUM_MSGS_PER_BASE_PARITY, Fr));
+  }
+
+  /**
+   * Deserializes the inputs from a hex string.
+   * @param str - The hex string to deserialize from.
+   * @returns - The deserialized inputs.
+   */
+  static fromString(str: string) {
+    return BaseParityInputs.fromBuffer(Buffer.from(str, 'hex'));
   }
 }

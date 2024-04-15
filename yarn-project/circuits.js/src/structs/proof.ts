@@ -41,6 +41,23 @@ export class Proof {
   public toBuffer() {
     return serializeToBuffer(this.buffer.length, this.buffer);
   }
+
+  /**
+   * Serialize the Proof instance to a hex string.
+   * @returns The hex string representation of the proof data.
+   */
+  public toString() {
+    return this.toBuffer().toString('hex');
+  }
+
+  /**
+   * Deserialize a Proof instance from a hex string.
+   * @param str - A hex string to deserialize from.
+   * @returns - A new Proof instance.
+   */
+  static fromString(str: string) {
+    return Proof.fromBuffer(Buffer.from(str, 'hex'));
+  }
 }
 
 /**

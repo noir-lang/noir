@@ -8,4 +8,11 @@ describe('ParityPublicInputs', () => {
     const res = ParityPublicInputs.fromBuffer(buffer);
     expect(res).toEqual(expected);
   });
+
+  it(`serializes a ParityPublicInputs to hex string and deserializes it back`, () => {
+    const expected = makeParityPublicInputs();
+    const str = expected.toString();
+    const res = ParityPublicInputs.fromString(str);
+    expect(res).toEqual(expected);
+  });
 });

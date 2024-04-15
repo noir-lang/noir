@@ -88,4 +88,21 @@ export class BaseOrMergeRollupPublicInputs {
       this.outHash,
     );
   }
+
+  /**
+   * Serialize this as a hex string.
+   * @returns - The hex string.
+   */
+  toString() {
+    return this.toBuffer().toString('hex');
+  }
+
+  /**
+   * Deserializes from a hex string.
+   * @param str - A hex string to deserialize from.
+   * @returns A new BaseOrMergeRollupPublicInputs instance.
+   */
+  static fromString(str: string) {
+    return BaseOrMergeRollupPublicInputs.fromBuffer(Buffer.from(str, 'hex'));
+  }
 }
