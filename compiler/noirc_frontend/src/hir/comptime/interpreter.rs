@@ -103,13 +103,14 @@ impl<'a> Interpreter<'a> {
             });
         }
 
-        for ((parameter, typ, _), argument) in meta.parameters.0.iter().zip(arguments) {
-            self.define_pattern(parameter, typ, argument);
+        for ((parameter, typ, _), argument) in meta.parameters.0.clone().iter().zip(arguments) {
+            self.define_pattern(parameter, typ, argument)?;
         }
 
+        let meta = self.interner.function_meta(&function);
         match meta.kind {
             FunctionKind::Normal => (),
-            other => todo!("Evaluation for {:?} is unimplemented", meta.kind),
+            other => todo!("Evaluation for {other:?} is unimplemented"),
         }
 
         let function_body = self.interner.function(&function).as_expr();
@@ -122,7 +123,8 @@ impl<'a> Interpreter<'a> {
     fn call_closure(
         &mut self,
         closure: HirLambda,
-        environment: Vec<Value>,
+        // TODO: How to define environment here?
+        _environment: Vec<Value>,
         arguments: Vec<Value>,
         call_location: Location,
     ) -> IResult<Value> {
@@ -137,7 +139,7 @@ impl<'a> Interpreter<'a> {
         }
 
         for ((parameter, typ), argument) in closure.parameters.iter().zip(arguments) {
-            self.define_pattern(parameter, typ, argument);
+            self.define_pattern(parameter, typ, argument)?;
         }
 
         let result = self.evaluate(closure.body)?;
@@ -154,20 +156,25 @@ impl<'a> Interpreter<'a> {
         self.scopes.pop();
     }
 
-    fn current_scope(&mut self) -> &mut FxHashMap<DefinitionId, Value> {
+    fn current_scope(&self) -> &FxHashMap<DefinitionId, Value> {
+        self.scopes.last().unwrap()
+    }
+
+    fn current_scope_mut(&mut self) -> &mut FxHashMap<DefinitionId, Value> {
         self.scopes.last_mut().unwrap()
     }
 
-    fn define_pattern(&self, pattern: &HirPattern, typ: &Type, argument: Value) -> IResult<()> {
+    fn define_pattern(&mut self, pattern: &HirPattern, typ: &Type, argument: Value) -> IResult<()> {
         match pattern {
             HirPattern::Identifier(identifier) => self.define(identifier.id, typ, argument),
             HirPattern::Mutable(pattern, _) => self.define_pattern(pattern, typ, argument),
             HirPattern::Tuple(pattern_fields, _) => {
                 self.type_check(typ, &argument)?;
 
-                if let (Value::Tuple(fields), Type::Tuple(type_fields)) = (argument, typ) {
-                    // The type check already ensures fields.len() == type_fields.len()
-                    if fields.len() == pattern_fields.len() {
+                match (argument, typ) {
+                    (Value::Tuple(fields), Type::Tuple(type_fields))
+                        if fields.len() == pattern_fields.len() =>
+                    {
                         for ((pattern, typ), argument) in
                             pattern_fields.iter().zip(type_fields).zip(fields)
                         {
@@ -175,24 +182,23 @@ impl<'a> Interpreter<'a> {
                         }
                         return Ok(());
                     }
+                    (value, _) => {
+                        Err(InterpreterError::TypeMismatch { expected: typ.clone(), value })
+                    }
                 }
-
-                Err(InterpreterError::TypeMismatch { expected: typ.clone(), value: argument })
             }
             HirPattern::Struct(struct_type, pattern_fields, _) => {
                 self.type_check(typ, &argument)?;
                 self.type_check(struct_type, &argument)?;
 
-                if let (Value::Struct(fields, _), Type::Struct(struct_def, generics)) =
-                    (argument, typ)
-                {
-                    let struct_def = struct_def.borrow();
-
-                    // The type check already ensures fields.len() == type_fields.len()
-                    if fields.len() == pattern_fields.len() {
+                match (argument, typ) {
+                    (Value::Struct(fields, _), Type::Struct(struct_def, generics))
+                        if fields.len() == pattern_fields.len() =>
+                    {
+                        let struct_def = struct_def.borrow();
                         for (field_name, field_pattern) in pattern_fields {
                             let field = fields.get(&field_name.0.contents).unwrap_or_else(|| {
-                                panic!("Expected Struct value {argument:?} to have a field named '{field_name}'")
+                                panic!("Expected Struct value with fields {fields:?} to have a field named '{field_name}'")
                             });
 
                             let field_type = struct_def.get_field(&field_name.0.contents, generics).unwrap_or_else(|| {
@@ -203,16 +209,17 @@ impl<'a> Interpreter<'a> {
                         }
                         return Ok(());
                     }
+                    (value, _) => {
+                        Err(InterpreterError::TypeMismatch { expected: typ.clone(), value })
+                    }
                 }
-
-                Err(InterpreterError::TypeMismatch { expected: typ.clone(), value: argument })
             }
         }
     }
 
-    fn define(&self, id: DefinitionId, typ: &Type, argument: Value) -> IResult<()> {
+    fn define(&mut self, id: DefinitionId, typ: &Type, argument: Value) -> IResult<()> {
         self.type_check(typ, &argument)?;
-        self.current_scope().insert(id, argument);
+        self.current_scope_mut().insert(id, argument);
         Ok(())
     }
 
@@ -368,7 +375,7 @@ impl<'a> Interpreter<'a> {
         let last_statement = block.statements.pop();
 
         for statement in block.statements {
-            self.evaluate_statement(statement);
+            self.evaluate_statement(statement)?;
         }
 
         if let Some(statement) = last_statement {
@@ -378,7 +385,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_array(&self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
+    fn evaluate_array(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
         let typ = self.interner.id_type(id);
 
         match array {
@@ -403,7 +410,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_slice(&self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
+    fn evaluate_slice(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
         self.evaluate_array(array, id).map(|value| match value {
             Value::Array(array, typ) => Value::Slice(array, typ),
             other => unreachable!("Non-array value returned from evaluate array: {other:?}"),
@@ -607,7 +614,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_index(&self, index: HirIndexExpression) -> IResult<Value> {
+    fn evaluate_index(&mut self, index: HirIndexExpression) -> IResult<Value> {
         let collection = match self.evaluate(index.collection)? {
             Value::Array(array, _) => array,
             Value::Slice(array, _) => array,
@@ -713,7 +720,7 @@ impl<'a> Interpreter<'a> {
             }};
         }
 
-        let (lhs, lhs_is_negative) = match self.evaluate(cast.lhs)? {
+        let (mut lhs, lhs_is_negative) = match self.evaluate(cast.lhs)? {
             Value::Field(value) => (value, false),
             Value::U8(value) => ((value as u128).into(), false),
             Value::U32(value) => ((value as u128).into(), false),
