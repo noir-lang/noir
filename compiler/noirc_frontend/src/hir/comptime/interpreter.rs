@@ -1,8 +1,8 @@
-use std::rc::Rc;
+use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
 use im::Vector;
-use iter_extended::try_vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -15,8 +15,8 @@ use crate::{
         },
         stmt::HirPattern,
     },
-    macros_api::{HirExpression, HirLiteral, NodeInterner},
-    node_interner::{DefinitionId, ExprId, FuncId},
+    macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
+    node_interner::{DefinitionId, ExprId, FuncId, StmtId},
     BinaryOpKind, BlockExpression, FunctionKind, IntegerBitSize, Shared, Signedness, Type,
 };
 
@@ -50,15 +50,19 @@ enum Value {
     U32(u32),
     U64(u64),
     String(Rc<String>),
-    Function(FuncId),
+    Function(FuncId, Type),
+    Closure(HirLambda, Vec<Value>, Type),
     Tuple(Vec<Value>),
-    Struct(FxHashMap<Rc<String>, Value>),
+    Struct(FxHashMap<Rc<String>, Value>, Type),
     Pointer(Shared<Value>),
-    Array(Vector<Value>),
-    Slice(Vector<Value>),
+    Array(Vector<Value>, Type),
+    Slice(Vector<Value>, Type),
     Code(Rc<BlockExpression>),
 }
 
+/// The possible errors that can halt the interpreter.
+///
+/// TODO: All error variants should have Locations
 enum InterpreterError {
     ArgumentCountMismatch { expected: usize, actual: usize, call_location: Location },
     TypeMismatch { expected: Type, value: Value },
@@ -66,6 +70,9 @@ enum InterpreterError {
     IntegerOutOfRangeForType(FieldElement, Type),
     UnableToEvaluateTypeToInteger(Type),
     ErrorNodeEncountered { location: Location },
+    NonFunctionCalled { value: Value, location: Location },
+    NonBoolUsedInIf { value: Value, location: Location },
+    NoMethodFound { object: Value, typ: Type, location: Location },
 }
 
 type IResult<T> = std::result::Result<T, InterpreterError>;
@@ -108,6 +115,33 @@ impl<'a> Interpreter<'a> {
         Ok(result)
     }
 
+    fn call_closure(
+        &mut self,
+        closure: HirLambda,
+        environment: Vec<Value>,
+        arguments: Vec<Value>,
+        call_location: Location,
+    ) -> IResult<Value> {
+        self.push_scope();
+
+        if closure.parameters.len() != arguments.len() {
+            return Err(InterpreterError::ArgumentCountMismatch {
+                expected: closure.parameters.len(),
+                actual: arguments.len(),
+                call_location,
+            });
+        }
+
+        for ((parameter, typ), argument) in closure.parameters.iter().zip(arguments) {
+            self.define_pattern(parameter, typ, argument);
+        }
+
+        let result = self.evaluate(closure.body)?;
+
+        self.pop_scope();
+        Ok(result)
+    }
+
     fn push_scope(&mut self) {
         self.scopes.push(FxHashMap::default());
     }
@@ -145,7 +179,8 @@ impl<'a> Interpreter<'a> {
                 self.type_check(typ, &argument)?;
                 self.type_check(struct_type, &argument)?;
 
-                if let (Value::Struct(fields), Type::Struct(struct_def, generics)) = (argument, typ)
+                if let (Value::Struct(fields, _), Type::Struct(struct_def, generics)) =
+                    (argument, typ)
                 {
                     let struct_def = struct_def.borrow();
 
@@ -202,11 +237,11 @@ impl<'a> Interpreter<'a> {
             (Value::U32(_), Type::Integer(Unsigned, ThirtyTwo)) => (),
             (Value::U64(_), Type::Integer(Unsigned, SixtyFour)) => (),
             (Value::String(_), Type::String(_)) => (),
-            (Value::Function(_), Type::Function(..)) => (),
+            (Value::Function(..), Type::Function(..)) => (),
             (Value::Tuple(fields1), Type::Tuple(fields2)) if fields1.len() == fields2.len() => (),
-            (Value::Struct(_), _) => (),
-            (Value::Array(_), Type::Array(..)) => (),
-            (Value::Slice(_), Type::Slice(_)) => (),
+            (Value::Struct(..), _) => (),
+            (Value::Array(..), Type::Array(..)) => (),
+            (Value::Slice(..), Type::Slice(_)) => (),
             (Value::Pointer(_), _) => (),
             (Value::Code(_), Type::Code) => (),
             _ => {
@@ -226,14 +261,14 @@ impl<'a> Interpreter<'a> {
             HirExpression::Prefix(prefix) => self.evaluate_prefix(prefix),
             HirExpression::Infix(infix) => self.evaluate_infix(infix),
             HirExpression::Index(index) => self.evaluate_index(index),
-            HirExpression::Constructor(constructor) => self.evaluate_constructor(constructor),
+            HirExpression::Constructor(constructor) => self.evaluate_constructor(constructor, id),
             HirExpression::MemberAccess(access) => self.evaluate_access(access),
-            HirExpression::Call(call) => self.evaluate_call(call),
-            HirExpression::MethodCall(call) => self.evaluate_method_call(call),
+            HirExpression::Call(call) => self.evaluate_call(call, id),
+            HirExpression::MethodCall(call) => self.evaluate_method_call(call, id),
             HirExpression::Cast(cast) => self.evaluate_cast(cast),
-            HirExpression::If(if_) => self.evaluate_if(if_),
+            HirExpression::If(if_) => self.evaluate_if(if_, id),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
-            HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda),
+            HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(block) => Ok(Value::Code(Rc::new(block))),
             HirExpression::Error => {
                 let location = self.interner.expr_location(&id);
@@ -251,8 +286,8 @@ impl<'a> Interpreter<'a> {
             }
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
             HirLiteral::FmtStr(_, _) => todo!("Evaluate format strings"),
-            HirLiteral::Array(array) => self.evaluate_array(array),
-            HirLiteral::Slice(array) => self.evaluate_slice(array),
+            HirLiteral::Array(array) => self.evaluate_array(array, id),
+            HirLiteral::Slice(array) => self.evaluate_slice(array, id),
         }
     }
 
@@ -325,25 +360,38 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_block(&self, block: HirBlockExpression) -> IResult<Value> {
-        todo!()
+    fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
+        let last_statement = block.statements.pop();
+
+        for statement in block.statements {
+            self.evaluate_statement(statement);
+        }
+
+        if let Some(statement) = last_statement {
+            self.evaluate_statement(statement)
+        } else {
+            Ok(Value::Unit)
+        }
     }
 
-    fn evaluate_array(&self, array: HirArrayLiteral) -> IResult<Value> {
+    fn evaluate_array(&self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
+        let typ = self.interner.id_type(id);
+
         match array {
             HirArrayLiteral::Standard(elements) => {
                 let elements = elements
                     .into_iter()
                     .map(|id| self.evaluate(id))
                     .collect::<IResult<Vector<_>>>()?;
-                Ok(Value::Array(elements))
+
+                Ok(Value::Array(elements, typ))
             }
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let element = self.evaluate(repeated_element)?;
 
                 if let Some(length) = length.evaluate_to_u64() {
                     let elements = (0..length).map(|_| element.clone()).collect();
-                    Ok(Value::Array(elements))
+                    Ok(Value::Array(elements, typ))
                 } else {
                     Err(InterpreterError::UnableToEvaluateTypeToInteger(length))
                 }
@@ -351,9 +399,9 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_slice(&self, array: HirArrayLiteral) -> IResult<Value> {
-        self.evaluate_array(array).map(|value| match value {
-            Value::Array(array) => Value::Slice(array),
+    fn evaluate_slice(&self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
+        self.evaluate_array(array, id).map(|value| match value {
+            Value::Array(array, typ) => Value::Slice(array, typ),
             other => unreachable!("Non-array value returned from evaluate array: {other:?}"),
         })
     }
@@ -557,8 +605,8 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_index(&self, index: HirIndexExpression) -> IResult<Value> {
         let collection = match self.evaluate(index.collection)? {
-            Value::Array(array) => array,
-            Value::Slice(array) => array,
+            Value::Array(array, _) => array,
+            Value::Slice(array, _) => array,
             other => panic!("Cannot index into {other:?}"),
         };
 
@@ -578,13 +626,27 @@ impl<'a> Interpreter<'a> {
         Ok(collection[index].clone())
     }
 
-    fn evaluate_constructor(&mut self, constructor: HirConstructorExpression) -> IResult<Value> {
-        todo!()
+    fn evaluate_constructor(
+        &mut self,
+        constructor: HirConstructorExpression,
+        id: ExprId,
+    ) -> IResult<Value> {
+        let fields = constructor
+            .fields
+            .into_iter()
+            .map(|(name, expr)| {
+                let field_value = self.evaluate(expr)?;
+                Ok((Rc::new(name.0.contents), field_value))
+            })
+            .collect::<Result<_, _>>()?;
+
+        let typ = self.interner.id_type(id);
+        Ok(Value::Struct(fields, typ))
     }
 
     fn evaluate_access(&mut self, access: HirMemberAccess) -> IResult<Value> {
         let fields = match self.evaluate(access.lhs)? {
-            Value::Struct(fields) => fields,
+            Value::Struct(fields, _) => fields,
             other => panic!("Cannot access fields of a non-struct value: {other:?}"),
         };
 
@@ -594,22 +656,125 @@ impl<'a> Interpreter<'a> {
             .clone())
     }
 
-    fn evaluate_call(&mut self, call: HirCallExpression) -> IResult<Value> {
-        todo!()
+    fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
+        let function = self.evaluate(call.func)?;
+        let arguments = try_vecmap(call.arguments, |arg| self.evaluate(arg))?;
+        let location = self.interner.expr_location(&id);
+
+        match function {
+            Value::Function(function_id, _) => self.call_function(function_id, arguments, location),
+            Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
+            value => Err(InterpreterError::NonFunctionCalled { value, location }),
+        }
     }
 
-    fn evaluate_method_call(&mut self, call: HirMethodCallExpression) -> IResult<Value> {
-        todo!()
+    fn evaluate_method_call(
+        &mut self,
+        call: HirMethodCallExpression,
+        id: ExprId,
+    ) -> IResult<Value> {
+        let object = self.evaluate(call.object)?;
+        let arguments = try_vecmap(call.arguments, |arg| self.evaluate(arg))?;
+        let location = self.interner.expr_location(&id);
+
+        let typ = object.get_type().follow_bindings();
+        let method_name = &call.method.0.contents;
+
+        // TODO: Traits
+        let method = match &typ {
+            Type::Struct(struct_def, _) => {
+                self.interner.lookup_method(&typ, struct_def.borrow().id, method_name, false)
+            }
+            _ => self.interner.lookup_primitive_method(&typ, method_name),
+        };
+
+        if let Some(method) = method {
+            self.call_function(method, arguments, location)
+        } else {
+            Err(InterpreterError::NoMethodFound { object, typ, location })
+        }
     }
 
     fn evaluate_cast(&mut self, cast: HirCastExpression) -> IResult<Value> {
-        todo!()
+        macro_rules! signed_int_to_field {
+            ($x:expr) => {{
+                // Need to convert the signed integer to an i128 before
+                // we negate it to preserve the MIN value.
+                let mut value = $x as i128;
+                let is_negative = value < 0;
+                if is_negative {
+                    value = -value;
+                }
+                ((value as u128).into(), is_negative)
+            }};
+        }
+
+        let (lhs, lhs_is_negative) = match self.evaluate(cast.lhs)? {
+            Value::Field(value) => (value, false),
+            Value::U8(value) => ((value as u128).into(), false),
+            Value::U32(value) => ((value as u128).into(), false),
+            Value::U64(value) => ((value as u128).into(), false),
+            Value::I8(value) => signed_int_to_field!(value),
+            Value::I32(value) => signed_int_to_field!(value),
+            Value::I64(value) => signed_int_to_field!(value),
+            Value::Bool(value) => {
+                (if value { FieldElement::one() } else { FieldElement::zero() }, false)
+            }
+            other => unreachable!("Cannot cast from non-numeric value '{other:?}'"),
+        };
+
+        macro_rules! cast_to_int {
+            ($x:expr, $method:ident, $typ:ty, $f:ident) => {{
+                let mut value = $x.$method() as $typ;
+                if lhs_is_negative {
+                    value = 0 - value;
+                }
+                Ok(Value::$f(value))
+            }};
+        }
+
+        // Now actually cast the lhs, bit casting and wrapping as necessary
+        match cast.r#type.follow_bindings() {
+            Type::FieldElement => {
+                if lhs_is_negative {
+                    lhs = FieldElement::zero() - lhs;
+                }
+                Ok(Value::Field(lhs))
+            }
+            Type::Integer(sign, bit_size) => match (sign, bit_size) {
+                (Signedness::Unsigned, IntegerBitSize::One) => {
+                    panic!("u1 is not supported by the interpreter")
+                }
+                (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
+                (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
+                    cast_to_int!(lhs, to_u128, u32, U32)
+                }
+                (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
+                    cast_to_int!(lhs, to_u128, u64, U64)
+                }
+                (Signedness::Signed, IntegerBitSize::One) => {
+                    panic!("i1 is not supported by the interpreter")
+                }
+                (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
+                (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
+                    cast_to_int!(lhs, to_i128, i32, I32)
+                }
+                (Signedness::Signed, IntegerBitSize::SixtyFour) => {
+                    cast_to_int!(lhs, to_i128, i64, I64)
+                }
+            },
+            Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
+            other => unreachable!("Cannot cast to non-numeric type '{other}'"),
+        }
     }
 
-    fn evaluate_if(&mut self, if_: HirIfExpression) -> IResult<Value> {
+    fn evaluate_if(&mut self, if_: HirIfExpression, id: ExprId) -> IResult<Value> {
         let condition = match self.evaluate(if_.condition)? {
             Value::Bool(value) => value,
-            other => panic!("Non-boolean value for if condition: {other:?}"),
+            value => {
+                let location = self.interner.expr_location(&id);
+                return Err(InterpreterError::NonBoolUsedInIf { value, location });
+            }
         };
 
         if condition {
@@ -632,7 +797,54 @@ impl<'a> Interpreter<'a> {
         Ok(Value::Tuple(fields))
     }
 
-    fn evaluate_lambda(&mut self, lambda: HirLambda) -> IResult<Value> {
-        todo!()
+    fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
+        let environment = try_vecmap(&lambda.captures, |capture| self.lookup(capture.ident.id))?;
+
+        let typ = self.interner.id_type(id);
+        Ok(Value::Closure(lambda, environment, typ))
+    }
+
+    fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
+        match self.interner.statement(&statement) {
+            HirStatement::Let(_) => todo!(),
+            HirStatement::Constrain(_) => todo!(),
+            HirStatement::Assign(_) => todo!(),
+            HirStatement::For(_) => todo!(),
+            HirStatement::Break => todo!(),
+            HirStatement::Continue => todo!(),
+            HirStatement::Expression(_) => todo!(),
+            HirStatement::Semi(_) => todo!(),
+            HirStatement::Error => todo!(),
+        }
+    }
+}
+
+impl Value {
+    fn get_type(&self) -> Cow<Type> {
+        Cow::Owned(match self {
+            Value::Unit => Type::Unit,
+            Value::Bool(_) => Type::Bool,
+            Value::Field(_) => Type::FieldElement,
+            Value::I8(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Eight),
+            Value::I32(_) => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
+            Value::I64(_) => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
+            Value::U8(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
+            Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
+            Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
+            Value::String(value) => {
+                let length = Type::Constant(value.len() as u64);
+                Type::String(Box::new(length))
+            }
+            Value::Function(_, typ) => return Cow::Borrowed(typ),
+            Value::Closure(_, _, typ) => return Cow::Borrowed(typ),
+            Value::Tuple(fields) => {
+                Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
+            }
+            Value::Struct(_, typ) => return Cow::Borrowed(typ),
+            Value::Array(array, typ) => return Cow::Borrowed(typ),
+            Value::Slice(slice, typ) => return Cow::Borrowed(typ),
+            Value::Code(_) => Type::Code,
+            Value::Pointer(_) => panic!("No type equivalent for pointers yet!"),
+        })
     }
 }
