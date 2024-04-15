@@ -10,11 +10,11 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
         assert(a_bytes[i] == x[i]);
         assert(b_bytes[i] == y[i]);
     }
+    //Regression for issue #4578
+    let d = a * b;
+    assert(d / b == a);
 
-    let d = a * b - b;
-    let d1 = bigint::Secpk1Fq::from_le_bytes(597243850900842442924.to_le_bytes(10));
-    assert(d1 == d);
-    // big_int_example(x[0], x[1]);
+    big_int_example(x[0], x[1]);
 }
 
 // docs:start:big_int_example
