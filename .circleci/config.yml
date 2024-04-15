@@ -629,7 +629,7 @@ jobs:
           command: |
             should_deploy || exit 0
             deploy_terraform_services iac/mainnet-fork mainnet-fork mainnet-fork aws_efs_file_system.aztec_mainnet_fork_data_store
-            ./iac/scripts/wait_for_fork
+            ./iac/mainnet-fork/scripts/wait_for_fork
       - run:
           name: "Release canary to NPM: bb.js"
           command: |
