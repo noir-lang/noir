@@ -52,14 +52,13 @@ struct LambdaContext {
 /// This struct holds the FIFO queue of functions to monomorphize, which is added to
 /// whenever a new (function, type) combination is encountered.
 struct Monomorphizer<'interner> {
-    /// Globals are keyed by their unique ID and expected type so that we can monomorphize
-    /// a new version of the global for each type. Note that 'global' here means 'globally
-    /// visible' and thus includes both functions and global variables.
+    /// Functions are keyed by their unique ID and expected type so that we can monomorphize
+    /// a new version of the function for each type.
     ///
     /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
-    globals: HashMap<node_interner::FuncId, HashMap<HirType, FuncId>>,
+    functions: HashMap<node_interner::FuncId, HashMap<HirType, FuncId>>,
 
-    /// Unlike globals, locals are only keyed by their unique ID because they are never
+    /// Unlike functions, locals are only keyed by their unique ID because they are never
     /// duplicated during monomorphization. Doing so would allow them to be used polymorphically
     /// but would also cause them to be re-evaluated which is a performance trap that would
     /// confuse users.
@@ -165,7 +164,7 @@ pub fn monomorphize_debug(
 impl<'interner> Monomorphizer<'interner> {
     fn new(interner: &'interner mut NodeInterner, debug_type_tracker: DebugTypeTracker) -> Self {
         Monomorphizer {
-            globals: HashMap::new(),
+            functions: HashMap::new(),
             locals: HashMap::new(),
             queue: VecDeque::new(),
             finished_functions: BTreeMap::new(),
@@ -203,7 +202,7 @@ impl<'interner> Monomorphizer<'interner> {
         trait_method: Option<TraitMethodId>,
     ) -> Definition {
         let typ = typ.follow_bindings();
-        match self.globals.get(&id).and_then(|inner_map| inner_map.get(&typ)) {
+        match self.functions.get(&id).and_then(|inner_map| inner_map.get(&typ)) {
             Some(id) => Definition::Function(*id),
             None => {
                 // Function has not been monomorphized yet
@@ -251,8 +250,8 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Prerequisite: typ = typ.follow_bindings()
-    fn define_global(&mut self, id: node_interner::FuncId, typ: HirType, new_id: FuncId) {
-        self.globals.entry(id).or_default().insert(typ, new_id);
+    fn define_function(&mut self, id: node_interner::FuncId, typ: HirType, new_id: FuncId) {
+        self.functions.entry(id).or_default().insert(typ, new_id);
     }
 
     fn compile_main(
@@ -786,7 +785,7 @@ impl<'interner> Monomorphizer<'interner> {
         })
     }
 
-    /// A local (ie non-global) ident only
+    /// A local (ie non-function) ident only
     fn local_ident(
         &mut self,
         ident: &HirIdent,
@@ -1280,7 +1279,7 @@ impl<'interner> Monomorphizer<'interner> {
         trait_method: Option<TraitMethodId>,
     ) -> FuncId {
         let new_id = self.next_function_id();
-        self.define_global(id, function_type.clone(), new_id);
+        self.define_function(id, function_type.clone(), new_id);
 
         let bindings = self.interner.get_instantiation_bindings(expr_id);
         let bindings = self.follow_bindings(bindings);
@@ -1553,9 +1552,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::Literal(ast::Literal::Integer(0_u128.into(), typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
-            // There is no unit literal currently. Replace it with 'false' since it should be ignored
-            // anyway.
-            ast::Type::Unit => ast::Expression::Literal(ast::Literal::Bool(false)),
+            ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
             ast::Type::Array(length, element_type) => {
                 let element = self.zeroed_value_of_type(element_type.as_ref(), location);
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {

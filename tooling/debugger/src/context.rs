@@ -331,7 +331,8 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 self.handle_foreign_call(foreign_call)
             }
             Err(err) => DebugCommandResult::Error(NargoError::ExecutionError(
-                ExecutionError::SolvingError(err),
+                // TODO: debugger does not not handle multiple acir calls
+                ExecutionError::SolvingError(err, None),
             )),
         }
     }
@@ -374,7 +375,8 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 }
             }
             ACVMStatus::Failure(error) => DebugCommandResult::Error(NargoError::ExecutionError(
-                ExecutionError::SolvingError(error),
+                // TODO: debugger does not not handle multiple acir calls
+                ExecutionError::SolvingError(error, None),
             )),
             ACVMStatus::RequiresForeignCall(_) => {
                 unreachable!("Unexpected pending foreign call resolution");
@@ -513,7 +515,11 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
 
     pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement, bit_size: u32) {
         if let Some(solver) = self.brillig_solver.as_mut() {
-            solver.write_memory_at(ptr, MemoryValue::new(value, bit_size));
+            solver.write_memory_at(
+                ptr,
+                MemoryValue::new_checked(value, bit_size)
+                    .expect("Invalid value for the given bit size"),
+            );
         }
     }
 

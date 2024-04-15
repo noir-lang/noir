@@ -289,8 +289,8 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 // Convert our source_pointer to an address
                 let source = self.memory.read_ref(*source_pointer);
                 // Use our usize source index to lookup the value in memory
-                let value = &self.memory.read(source);
-                self.memory.write(*destination_address, *value);
+                let value = self.memory.read(source);
+                self.memory.write(*destination_address, value);
                 self.increment_program_counter()
             }
             Opcode::Store { destination_pointer, source: source_address } => {
@@ -307,7 +307,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
             }
             Opcode::Const { destination, value, bit_size } => {
                 // Consts are not checked in runtime to fit in the bit size, since they can safely be checked statically.
-                self.memory.write(*destination, MemoryValue::new(*value, *bit_size));
+                self.memory.write(*destination, MemoryValue::new_from_field(*value, *bit_size));
                 self.increment_program_counter()
             }
             Opcode::BlackBox(black_box_op) => {
@@ -348,7 +348,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
     ) -> ForeignCallParam {
         match (input, value_type) {
             (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(_)) => {
-                self.memory.read(value_index).value.into()
+                self.memory.read(value_index).to_field().into()
             }
             (
                 ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
@@ -357,7 +357,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 let start = self.memory.read_ref(pointer_index);
                 self.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
-                    .map(|mem_value| mem_value.value)
+                    .map(|mem_value| mem_value.to_field())
                     .collect::<Vec<_>>()
                     .into()
             }
@@ -369,7 +369,7 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
                 let size = self.memory.read(size_index).to_usize();
                 self.read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
-                    .map(|mem_value| mem_value.value)
+                    .map(|mem_value| mem_value.to_field())
                     .collect::<Vec<_>>()
                     .into()
             }
@@ -584,12 +584,9 @@ impl<'a, B: BlackBoxFunctionSolver> VM<'a, B> {
 
     /// Casts a value to a different bit size.
     fn cast(&self, bit_size: u32, source_value: MemoryValue) -> MemoryValue {
-        let lhs_big = BigUint::from_bytes_be(&source_value.value.to_be_bytes());
+        let lhs_big = source_value.to_integer();
         let mask = BigUint::from(2_u32).pow(bit_size) - 1_u32;
-        MemoryValue {
-            value: FieldElement::from_be_bytes_reduce(&(lhs_big & mask).to_bytes_be()),
-            bit_size,
-        }
+        MemoryValue::new_from_integer(lhs_big & mask, bit_size)
     }
 }
 
@@ -627,7 +624,7 @@ mod tests {
         let VM { memory, .. } = vm;
         let output_value = memory.read(MemoryAddress::from(0));
 
-        assert_eq!(output_value.value, FieldElement::from(27u128));
+        assert_eq!(output_value.to_field(), FieldElement::from(27u128));
     }
 
     #[test]
@@ -666,7 +663,7 @@ mod tests {
         assert_eq!(status, VMStatus::InProgress);
 
         let output_cmp_value = vm.memory.read(destination);
-        assert_eq!(output_cmp_value.value, true.into());
+        assert_eq!(output_cmp_value.to_field(), true.into());
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -725,7 +722,7 @@ mod tests {
         assert_eq!(status, VMStatus::InProgress);
 
         let output_cmp_value = vm.memory.read(MemoryAddress::from(2));
-        assert_eq!(output_cmp_value.value, false.into());
+        assert_eq!(output_cmp_value.to_field(), false.into());
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -742,7 +739,7 @@ mod tests {
         // The address at index `2` should have not changed as we jumped over the add opcode
         let VM { memory, .. } = vm;
         let output_value = memory.read(MemoryAddress::from(2));
-        assert_eq!(output_value.value, false.into());
+        assert_eq!(output_value.to_field(), false.into());
     }
 
     #[test]
@@ -776,7 +773,7 @@ mod tests {
         let VM { memory, .. } = vm;
 
         let casted_value = memory.read(MemoryAddress::from(1));
-        assert_eq!(casted_value.value, (2_u128.pow(8) - 1).into());
+        assert_eq!(casted_value.to_field(), (2_u128.pow(8) - 1).into());
     }
 
     #[test]
@@ -804,10 +801,10 @@ mod tests {
         let VM { memory, .. } = vm;
 
         let destination_value = memory.read(MemoryAddress::from(2));
-        assert_eq!(destination_value.value, (1u128).into());
+        assert_eq!(destination_value.to_field(), (1u128).into());
 
         let source_value = memory.read(MemoryAddress::from(0));
-        assert_eq!(source_value.value, (1u128).into());
+        assert_eq!(source_value.to_field(), (1u128).into());
     }
 
     #[test]
@@ -869,10 +866,10 @@ mod tests {
         let VM { memory, .. } = vm;
 
         let destination_value = memory.read(MemoryAddress::from(4));
-        assert_eq!(destination_value.value, (3_u128).into());
+        assert_eq!(destination_value.to_field(), (3_u128).into());
 
         let source_value = memory.read(MemoryAddress::from(5));
-        assert_eq!(source_value.value, (2_u128).into());
+        assert_eq!(source_value.to_field(), (2_u128).into());
     }
 
     #[test]
@@ -1120,7 +1117,7 @@ mod tests {
 
             let opcodes = [&start[..], &loop_body[..]].concat();
             let vm = brillig_execute_and_get_vm(memory, &opcodes);
-            vm.memory.read(r_sum).value
+            vm.memory.read(r_sum).to_field()
         }
 
         assert_eq!(
@@ -1359,7 +1356,7 @@ mod tests {
         // Check result in memory
         let result_values = vm.memory.read_slice(MemoryAddress(2), 4).to_vec();
         assert_eq!(
-            result_values.into_iter().map(|mem_value| mem_value.value).collect::<Vec<_>>(),
+            result_values.into_iter().map(|mem_value| mem_value.to_field()).collect::<Vec<_>>(),
             expected_result
         );
 
@@ -1459,7 +1456,7 @@ mod tests {
             .memory
             .read_slice(MemoryAddress(4 + input_string.len()), output_string.len())
             .iter()
-            .map(|mem_val| mem_val.value)
+            .map(|mem_val| mem_val.clone().to_field())
             .collect();
         assert_eq!(result_values, output_string);
 
@@ -1532,13 +1529,21 @@ mod tests {
         assert_eq!(vm.status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
         // Check initial memory still in place
-        let initial_values: Vec<_> =
-            vm.memory.read_slice(MemoryAddress(2), 4).iter().map(|mem_val| mem_val.value).collect();
+        let initial_values: Vec<_> = vm
+            .memory
+            .read_slice(MemoryAddress(2), 4)
+            .iter()
+            .map(|mem_val| mem_val.clone().to_field())
+            .collect();
         assert_eq!(initial_values, initial_matrix);
 
         // Check result in memory
-        let result_values: Vec<_> =
-            vm.memory.read_slice(MemoryAddress(6), 4).iter().map(|mem_val| mem_val.value).collect();
+        let result_values: Vec<_> = vm
+            .memory
+            .read_slice(MemoryAddress(6), 4)
+            .iter()
+            .map(|mem_val| mem_val.clone().to_field())
+            .collect();
         assert_eq!(result_values, expected_result);
 
         // Ensure the foreign call counter has been incremented
@@ -1622,8 +1627,12 @@ mod tests {
         assert_eq!(vm.status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
 
         // Check result in memory
-        let result_values: Vec<_> =
-            vm.memory.read_slice(MemoryAddress(0), 4).iter().map(|mem_val| mem_val.value).collect();
+        let result_values: Vec<_> = vm
+            .memory
+            .read_slice(MemoryAddress(0), 4)
+            .iter()
+            .map(|mem_val| mem_val.clone().to_field())
+            .collect();
         assert_eq!(result_values, expected_result);
 
         // Ensure the foreign call counter has been incremented
@@ -1698,7 +1707,7 @@ mod tests {
         .chain(memory.iter().enumerate().map(|(index, mem_value)| Opcode::Cast {
             destination: MemoryAddress(index),
             source: MemoryAddress(index),
-            bit_size: mem_value.bit_size,
+            bit_size: mem_value.bit_size(),
         }))
         .chain(vec![
             // input = 0
@@ -1721,7 +1730,7 @@ mod tests {
         .collect();
 
         let mut vm = brillig_execute_and_get_vm(
-            memory.into_iter().map(|mem_value| mem_value.value).collect(),
+            memory.into_iter().map(|mem_value| mem_value.to_field()).collect(),
             &program,
         );
 

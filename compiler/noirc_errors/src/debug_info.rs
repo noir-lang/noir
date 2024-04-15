@@ -46,6 +46,49 @@ pub type DebugVariables = BTreeMap<DebugVarId, DebugVariable>;
 pub type DebugFunctions = BTreeMap<DebugFnId, DebugFunction>;
 pub type DebugTypes = BTreeMap<DebugTypeId, PrintableType>;
 
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
+pub struct ProgramDebugInfo {
+    pub debug_infos: Vec<DebugInfo>,
+}
+
+impl ProgramDebugInfo {
+    pub fn serialize_compressed_base64_json<S>(
+        debug_info: &ProgramDebugInfo,
+        s: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let json_str = serde_json::to_string(debug_info).map_err(S::Error::custom)?;
+
+        let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(json_str.as_bytes()).map_err(S::Error::custom)?;
+        let compressed_data = encoder.finish().map_err(S::Error::custom)?;
+
+        let encoded_b64 = base64::prelude::BASE64_STANDARD.encode(compressed_data);
+        s.serialize_str(&encoded_b64)
+    }
+
+    pub fn deserialize_compressed_base64_json<'de, D>(
+        deserializer: D,
+    ) -> Result<ProgramDebugInfo, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let encoded_b64: String = Deserialize::deserialize(deserializer)?;
+
+        let compressed_data =
+            base64::prelude::BASE64_STANDARD.decode(encoded_b64).map_err(D::Error::custom)?;
+
+        let mut decoder = DeflateDecoder::new(&compressed_data[..]);
+        let mut decompressed_data = Vec::new();
+        decoder.read_to_end(&mut decompressed_data).map_err(D::Error::custom)?;
+
+        let json_str = String::from_utf8(decompressed_data).map_err(D::Error::custom)?;
+        serde_json::from_str(&json_str).map_err(D::Error::custom)
+    }
+}
+
 #[serde_as]
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct DebugInfo {
@@ -129,41 +172,5 @@ impl DebugInfo {
             .collect();
 
         counted_opcodes
-    }
-
-    pub fn serialize_compressed_base64_json<S>(
-        debug_info: &DebugInfo,
-        s: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let json_str = serde_json::to_string(debug_info).map_err(S::Error::custom)?;
-
-        let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
-        encoder.write_all(json_str.as_bytes()).map_err(S::Error::custom)?;
-        let compressed_data = encoder.finish().map_err(S::Error::custom)?;
-
-        let encoded_b64 = base64::prelude::BASE64_STANDARD.encode(compressed_data);
-        s.serialize_str(&encoded_b64)
-    }
-
-    pub fn deserialize_compressed_base64_json<'de, D>(
-        deserializer: D,
-    ) -> Result<DebugInfo, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let encoded_b64: String = Deserialize::deserialize(deserializer)?;
-
-        let compressed_data =
-            base64::prelude::BASE64_STANDARD.decode(encoded_b64).map_err(D::Error::custom)?;
-
-        let mut decoder = DeflateDecoder::new(&compressed_data[..]);
-        let mut decompressed_data = Vec::new();
-        decoder.read_to_end(&mut decompressed_data).map_err(D::Error::custom)?;
-
-        let json_str = String::from_utf8(decompressed_data).map_err(D::Error::custom)?;
-        serde_json::from_str(&json_str).map_err(D::Error::custom)
     }
 }
