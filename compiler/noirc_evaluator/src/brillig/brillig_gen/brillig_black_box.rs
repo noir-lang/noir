@@ -255,7 +255,9 @@ pub(crate) fn convert_black_box_call(
                     output: output.address,
                 });
             } else {
-                unreachable!("ICE: unexpected arguments for BigIntAdd")
+                unreachable!(
+                    "ICE: BigIntAdd expects four register arguments and two result registers"
+                )
             }
         }
         BlackBoxFunc::BigIntSub => {
@@ -277,7 +279,9 @@ pub(crate) fn convert_black_box_call(
                     output: output.address,
                 });
             } else {
-                unreachable!("ICE: unexpected arguments for BigIntSub")
+                unreachable!(
+                    "ICE: BigIntSub expects four register arguments and two result registers"
+                )
             }
         }
         BlackBoxFunc::BigIntMul => {
@@ -299,7 +303,9 @@ pub(crate) fn convert_black_box_call(
                     output: output.address,
                 });
             } else {
-                unreachable!("ICE: unexpected arguments for BigIntMul")
+                unreachable!(
+                    "ICE: BigIntMul expects four register arguments and two result registers"
+                )
             }
         }
         BlackBoxFunc::BigIntDiv => {
@@ -321,7 +327,9 @@ pub(crate) fn convert_black_box_call(
                     output: output.address,
                 });
             } else {
-                unreachable!("ICE: unexpected arguments for BigIntDiv")
+                unreachable!(
+                    "ICE: BigIntDiv expects four register arguments and two result registers"
+                )
             }
         }
         BlackBoxFunc::BigIntFromLeBytes => {
@@ -340,7 +348,9 @@ pub(crate) fn convert_black_box_call(
                     output: output.address,
                 });
             } else {
-                unreachable!("ICE: unexpected arguments for BigIntFromLeBytes")
+                unreachable!(
+                    "ICE: BigIntFromLeBytes expects a register and an array  as arguments and two result registers"
+                )
             }
         }
         BlackBoxFunc::BigIntToLeBytes => {
@@ -355,7 +365,9 @@ pub(crate) fn convert_black_box_call(
                     output: output.to_heap_vector(),
                 });
             } else {
-                unreachable!("ICE: unexpected arguments for BigIntToLeBytes")
+                unreachable!(
+                    "ICE: BigIntToLeBytes expects two register arguments and one array result"
+                )
             }
         }
         BlackBoxFunc::Poseidon2Permutation => {

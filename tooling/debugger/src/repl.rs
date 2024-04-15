@@ -319,7 +319,7 @@ impl<'a, B: BlackBoxFunctionSolver> ReplDebugger<'a, B> {
             return;
         };
 
-        for (index, value) in memory.iter().enumerate().filter(|(_, value)| value.bit_size > 0) {
+        for (index, value) in memory.iter().enumerate().filter(|(_, value)| value.bit_size() > 0) {
             println!("{index} = {}", value);
         }
     }

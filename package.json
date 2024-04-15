@@ -13,7 +13,7 @@
     "docs"
   ],
   "scripts": {
-    "build": "yarn workspaces foreach --parallel --topological-dev --verbose run build",
+    "build": "yarn workspaces foreach -vp --topological-dev --exclude \"{docs,@noir-lang/root}\" run build",
     "test": "yarn workspaces foreach --parallel --verbose run test",
     "test:integration": "yarn workspace integration-tests test",
     "clean:workspaces": "yarn workspaces foreach --exclude @noir-lang/root run clean",
@@ -22,6 +22,7 @@
     "lint": "yarn workspaces foreach --verbose run lint",
     "spellcheck": "cspell '**/*.{md,rs}' -c ./cspell.json",
     "prepare:publish": "yarn clean && yarn build",
+    "build:js:only": "yarn workspaces foreach -vtp --exclude \"{@noir-lang/acvm_js,@noir-lang/noirc_abi,@noir-lang/noir_wasm,docs,@noir-lang/root}\" run build",
     "nightly:version": "yarn workspaces foreach run nightly:version",
     "publish:all": "yarn install && yarn workspaces foreach run publish"
   },
