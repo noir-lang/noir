@@ -13,7 +13,9 @@ use crate::{
             HirConstructorExpression, HirIfExpression, HirIndexExpression, HirInfixExpression,
             HirLambda, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
         },
-        stmt::HirPattern,
+        stmt::{
+            HirAssignStatement, HirConstrainStatement, HirForStatement, HirLetStatement, HirPattern,
+        },
     },
     macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
     node_interner::{DefinitionId, ExprId, FuncId, StmtId},
@@ -72,6 +74,8 @@ enum InterpreterError {
     ErrorNodeEncountered { location: Location },
     NonFunctionCalled { value: Value, location: Location },
     NonBoolUsedInIf { value: Value, location: Location },
+    NonBoolUsedInConstrain { value: Value, location: Location },
+    FailingConstraint { message: Option<Value>, location: Location },
     NoMethodFound { object: Value, typ: Type, location: Location },
 }
 
@@ -806,16 +810,59 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
         match self.interner.statement(&statement) {
-            HirStatement::Let(_) => todo!(),
-            HirStatement::Constrain(_) => todo!(),
-            HirStatement::Assign(_) => todo!(),
-            HirStatement::For(_) => todo!(),
-            HirStatement::Break => todo!(),
-            HirStatement::Continue => todo!(),
-            HirStatement::Expression(_) => todo!(),
-            HirStatement::Semi(_) => todo!(),
-            HirStatement::Error => todo!(),
+            HirStatement::Let(let_) => self.evaluate_let(let_),
+            HirStatement::Constrain(constrain) => self.evaluate_constrain(constrain),
+            HirStatement::Assign(assign) => self.evaluate_assign(assign),
+            HirStatement::For(for_) => self.evaluate_for(for_),
+            HirStatement::Break => self.evaluate_break(),
+            HirStatement::Continue => self.evaluate_continue(),
+            HirStatement::Expression(expression) => self.evaluate(expression),
+            HirStatement::Semi(expression) => {
+                self.evaluate(expression)?;
+                Ok(Value::Unit)
+            }
+            HirStatement::Error => {
+                let location = self.interner.id_location(statement);
+                Err(InterpreterError::ErrorNodeEncountered { location })
+            }
         }
+    }
+
+    fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
+        let rhs = self.evaluate(let_.expression)?;
+        self.define_pattern(&let_.pattern, &let_.r#type, rhs)?;
+        Ok(Value::Unit)
+    }
+
+    fn evaluate_constrain(&mut self, constrain: HirConstrainStatement) -> IResult<Value> {
+        match self.evaluate(constrain.0)? {
+            Value::Bool(true) => Ok(Value::Unit),
+            Value::Bool(false) => {
+                let location = self.interner.expr_location(&constrain.0);
+                let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
+                Err(InterpreterError::FailingConstraint { location, message })
+            }
+            value => {
+                let location = self.interner.expr_location(&constrain.0);
+                Err(InterpreterError::NonBoolUsedInConstrain { value, location })
+            }
+        }
+    }
+
+    fn evaluate_assign(&mut self, assign: HirAssignStatement) -> IResult<Value> {
+        todo!()
+    }
+
+    fn evaluate_for(&mut self, r#for: HirForStatement) -> IResult<Value> {
+        todo!()
+    }
+
+    fn evaluate_break(&mut self) -> IResult<Value> {
+        todo!()
+    }
+
+    fn evaluate_continue(&mut self) -> IResult<Value> {
+        todo!()
     }
 }
 
