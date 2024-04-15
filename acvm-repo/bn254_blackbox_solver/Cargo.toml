@@ -16,8 +16,9 @@ repository.workspace = true
 acir.workspace = true
 acvm_blackbox_solver.workspace = true
 thiserror.workspace = true
-num-traits.workspace = true
 cfg-if = "1.0.0"
+hex.workspace = true
+lazy_static = "1.4"
 
 # BN254 fixed base scalar multiplication solver
 grumpkin = { version = "0.1.0", package = "noir_grumpkin", features = ["std"] } 
