@@ -35,8 +35,8 @@ fn main(input: [Entry; HASHMAP_LEN]) {
     test_insert_and_methods(input);
     test_hashmaps_equality(input);
     test_retain();
-    test_iterators();
-    test_mut_iterators();
+    // test_iterators();
+    // test_mut_iterators();
 
     doc_tests();
 }
@@ -149,49 +149,49 @@ fn test_hashmaps_equality(input: [Entry; HASHMAP_LEN]) {
 }
 
 // Test entries, keys, values.
-fn test_iterators() {
-    let mut hashmap = ALLOCATE_HASHMAP();
-
-    hashmap.insert(2, 3);
-    hashmap.insert(5, 7);
-    hashmap.insert(11, 13);
-
-    let keys: [K; 3] = cut(hashmap.keys()).sort_via(K_CMP);
-    let values: [V; 3] = cut(hashmap.values()).sort_via(V_CMP);
-    let entries: [(K, V); 3] = cut(hashmap.entries()).sort_via(KV_CMP);
-
-    assert(keys == [2, 5, 11], "Got incorrect iteration of keys.");
-    assert(values == [3, 7, 13], "Got incorrect iteration of values.");
-    assert(entries == [(2, 3), (5, 7), (11, 13)], "Got incorrect iteration of entries.");
-}
-
-// Test mutable iteration over keys, values and entries.
-fn test_mut_iterators() {
-    let mut hashmap = ALLOCATE_HASHMAP();
-
-    hashmap.insert(2, 3);
-    hashmap.insert(5, 7);
-    hashmap.insert(11, 13);
-
-    let f = |k: K| -> K{ k * 3};
-    hashmap.iter_keys_mut(f);
-
-    let f = |v: V| -> V{ v * 5};
-    hashmap.iter_values_mut(f);
-
-    let keys: [K; 3] = cut(hashmap.keys()).sort_via(K_CMP);
-    let values: [V; 3] = cut(hashmap.values()).sort_via(V_CMP);
-
-    assert(keys == [6, 15, 33], f"Got incorrect iteration of keys: {keys}");
-    assert(values == [15, 35, 65], "Got incorrect iteration of values.");
-
-    let f = |k: K, v: V| -> (K, V){(k * 2, v * 2)};
-    hashmap.iter_mut(f);
-
-    let entries: [(K, V); 3] = cut(hashmap.entries()).sort_via(KV_CMP);
-
-    assert(entries == [(12, 30), (30, 70), (66, 130)], "Got incorrect iteration of entries.");
-}
+// fn test_iterators() {
+//     let mut hashmap = ALLOCATE_HASHMAP();
+// 
+//     hashmap.insert(2, 3);
+//     hashmap.insert(5, 7);
+//     hashmap.insert(11, 13);
+// 
+//     let keys: [K; 3] = cut(hashmap.keys()).sort_via(K_CMP);
+//     let values: [V; 3] = cut(hashmap.values()).sort_via(V_CMP);
+//     let entries: [(K, V); 3] = cut(hashmap.entries()).sort_via(KV_CMP);
+// 
+//     assert(keys == [2, 5, 11], "Got incorrect iteration of keys.");
+//     assert(values == [3, 7, 13], "Got incorrect iteration of values.");
+//     assert(entries == [(2, 3), (5, 7), (11, 13)], "Got incorrect iteration of entries.");
+// }
+// 
+// // Test mutable iteration over keys, values and entries.
+// fn test_mut_iterators() {
+//     let mut hashmap = ALLOCATE_HASHMAP();
+// 
+//     hashmap.insert(2, 3);
+//     hashmap.insert(5, 7);
+//     hashmap.insert(11, 13);
+// 
+//     let f = |k: K| -> K{ k * 3};
+//     hashmap.iter_keys_mut(f);
+// 
+//     let f = |v: V| -> V{ v * 5};
+//     hashmap.iter_values_mut(f);
+// 
+//     let keys: [K; 3] = cut(hashmap.keys()).sort_via(K_CMP);
+//     let values: [V; 3] = cut(hashmap.values()).sort_via(V_CMP);
+// 
+//     assert(keys == [6, 15, 33], f"Got incorrect iteration of keys: {keys}");
+//     assert(values == [15, 35, 65], "Got incorrect iteration of values.");
+// 
+//     let f = |k: K, v: V| -> (K, V){(k * 2, v * 2)};
+//     hashmap.iter_mut(f);
+// 
+//     let entries: [(K, V); 3] = cut(hashmap.entries()).sort_via(KV_CMP);
+// 
+//     assert(entries == [(12, 30), (30, 70), (66, 130)], "Got incorrect iteration of entries.");
+// }
 
 // docs:start:type_alias
 type MyMap = HashMap<u8, u32, 10, BuildHasherDefault<PedersenHasher>>;
@@ -275,8 +275,8 @@ fn doc_tests() {
     }
     // docs:end:contains_key_example
 
-    entries_examples(map);
-    iter_examples(map);
+    // entries_examples(map);
+    // iter_examples(map);
 
     // docs:start:retain_example
     map.retain(|k, v| (k != 0) & (v != 0));
@@ -306,57 +306,57 @@ fn get_example(map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHasher>>
 }
 // docs:end:get_example
 
-fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHasher>>) {
-    // docs:start:entries_example
-    let entries = map.entries();
-
-    // The length of a hashmap may not be compile-time known, so we
-    // need to loop over its capacity instead
-    for i in 0..map.capacity() {
-        if i < entries.len() {
-            let (key, value) = entries.get(i);
-            println(f"{key} -> {value}");
-        }
-    }
-    // docs:end:entries_example
-
-    // docs:start:keys_example
-    let keys = map.keys();
-
-    for i in 0..keys.max_len() {
-        if i < keys.len() {
-            let key = keys.get_unchecked(i);
-            let value = map.get(key).unwrap_unchecked();
-            println(f"{key} -> {value}");
-        }
-    }
-    // docs:end:keys_example
-
-    // docs:start:values_example
-    let values = map.values();
-
-    for i in 0..values.max_len() {
-        if i < values.len() {
-            let value = values.get_unchecked(i);
-            println(f"Found value {value}");
-        }
-    }
-    // docs:end:values_example
-}
-
-fn iter_examples(mut map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHasher>>) {
-    // docs:start:iter_mut_example
-    // Add 1 to each key in the map, and double the value associated with that key.
-    map.iter_mut(|k, v| (k + 1, v * 2));
-    // docs:end:iter_mut_example
-
-    // docs:start:iter_keys_mut_example
-    // Double each key, leaving the value associated with that key untouched
-    map.iter_keys_mut(|k| k * 2);
-    // docs:end:iter_keys_mut_example
-
-    // docs:start:iter_values_mut_example
-    // Halve each value
-    map.iter_values_mut(|v| v / 2);
-    // docs:end:iter_values_mut_example
-}
+// fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHasher>>) {
+//     // docs:start:entries_example
+//     let entries = map.entries();
+// 
+//     // The length of a hashmap may not be compile-time known, so we
+//     // need to loop over its capacity instead
+//     for i in 0..map.capacity() {
+//         if i < entries.len() {
+//             let (key, value) = entries.get(i);
+//             println(f"{key} -> {value}");
+//         }
+//     }
+//     // docs:end:entries_example
+// 
+//     // docs:start:keys_example
+//     let keys = map.keys();
+// 
+//     for i in 0..keys.max_len() {
+//         if i < keys.len() {
+//             let key = keys.get_unchecked(i);
+//             let value = map.get(key).unwrap_unchecked();
+//             println(f"{key} -> {value}");
+//         }
+//     }
+//     // docs:end:keys_example
+// 
+//     // docs:start:values_example
+//     let values = map.values();
+// 
+//     for i in 0..values.max_len() {
+//         if i < values.len() {
+//             let value = values.get_unchecked(i);
+//             println(f"Found value {value}");
+//         }
+//     }
+//     // docs:end:values_example
+// }
+// 
+// fn iter_examples(mut map: HashMap<Field, Field, 5, BuildHasherDefault<PedersenHasher>>) {
+//     // docs:start:iter_mut_example
+//     // Add 1 to each key in the map, and double the value associated with that key.
+//     map.iter_mut(|k, v| (k + 1, v * 2));
+//     // docs:end:iter_mut_example
+// 
+//     // docs:start:iter_keys_mut_example
+//     // Double each key, leaving the value associated with that key untouched
+//     map.iter_keys_mut(|k| k * 2);
+//     // docs:end:iter_keys_mut_example
+// 
+//     // docs:start:iter_values_mut_example
+//     // Halve each value
+//     map.iter_values_mut(|v| v / 2);
+//     // docs:end:iter_values_mut_example
+// }

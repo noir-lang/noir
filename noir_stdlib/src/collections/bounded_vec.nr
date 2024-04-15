@@ -9,12 +9,12 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         BoundedVec { storage: [zeroed; MaxLen], len: 0 }
     }
 
-    pub fn get(mut self: Self, index: u64) -> T {
+    pub fn get(self: Self, index: u64) -> T {
         assert(index as u64 < self.len);
         self.storage[index]
     }
 
-    pub fn get_unchecked(mut self: Self, index: u64) -> T {
+    pub fn get_unchecked(self: Self, index: u64) -> T {
         self.storage[index]
     }
 
@@ -23,6 +23,23 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
 
         self.storage[self.len] = elem;
         self.len += 1;
+    }
+
+    pub fn insert(&mut self, index: u64, value: T) {
+        assert(index as u64 < self.len);
+        self.storage[index] = value;
+    }
+
+    /// Remove an item by swapping it with the element in the
+    /// last index then popping. This is faster than remove but
+    /// does not preserve ordering.
+    pub fn swap_remove(&mut self, index: u64) -> T {
+        assert(self.len < MaxLen, "swap_remove out of bounds");
+        let last = self.len() - 1;
+        let last_element = self.storage[last];
+        self.storage[last] = self.storage[index];
+        self.storage[index] = last_element;
+        self.pop()
     }
 
     pub fn len(self) -> u64 {

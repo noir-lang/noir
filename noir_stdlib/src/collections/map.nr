@@ -5,18 +5,17 @@ use crate::default::Default;
 use crate::hash::{Hash, Hasher, BuildHasher};
 use crate::collections::bounded_vec::BoundedVec;
 
-// We use load factor α_max = 0.75. 
+// We use a count of 4 buckets for each HashMap slot
 // Upon exceeding it, assert will fail in order to inform the user 
 // about performance degradation, so that he can adjust the capacity.
-global MAX_LOAD_FACTOR_NUMERATOR = 3;
-global MAX_LOAD_FACTOR_DEN0MINATOR = 4;
+global BUCKET_ITEMS = 4;
 
 // Hash table with open addressing and quadratic probing.
 // Size of the underlying table must be known at compile time.
 // It is advised to select capacity N as a power of two, or a prime number 
 // because utilized probing scheme is best tailored for it.
 struct HashMap<K, V, N, B> {
-    _table: [Slot<K, V>; N],
+    _table: [Bucket<K, V>; N],
 
     // Amount of valid elements in the map.
     _len: u64,
@@ -25,52 +24,97 @@ struct HashMap<K, V, N, B> {
 }
 
 // Data unit in the HashMap table.
-// In case Noir adds support for enums in the future, this  
-// should be refactored to have three states:
-// 1. (key, value)
-// 2. (empty)
-// 3. (deleted)
-struct Slot<K, V> {
-    _key_value: Option<(K, V)>,
-    _is_deleted: bool,
+struct Bucket<K, V> {
+    items: BoundedVec<(K, V), BUCKET_ITEMS>,
 }
 
-impl<K, V> Default for Slot<K, V>{
-    fn default() -> Self{
-        Slot{
-            _key_value: Option::none(),
-            _is_deleted: false
+impl<K, V> Bucket<K, V> {
+    fn new() -> Self {
+        Self { items: BoundedVec::new() }
+    }
+
+    fn len(self) -> u64 {
+        self.items.len()
+    }
+
+    // Returns the index of the key if found.
+    // Returns self.items.len() otherwise.
+    fn find_slot_index(self, target_key: K) -> u64 where K: Eq {
+        let mut index = self.items.len();
+
+        for i in 0 .. BUCKET_ITEMS {
+            if i < self.items.len() {
+                let (key, _) = self.items.get_unchecked(i);
+                if key == target_key {
+                    index = i;
+                }
+            }
         }
-    }
-}
 
-impl<K, V> Slot<K, V> {
-    fn is_valid(self) -> bool {
-        !self._is_deleted & self._key_value.is_some()
+        index
     }
 
-    fn is_available(self) -> bool {
-        self._is_deleted | self._key_value.is_none()
+    fn get_value(self, target_key: K) -> Option<V> where K: Eq {
+        let mut result = Option::none();
+
+        // Rewriting the find_slot_index loop here leads to one less
+        // comparison since we'll already have `value`.
+        for i in 0 .. BUCKET_ITEMS {
+            if i < self.items.len() {
+                let (key, value) = self.items.get_unchecked(i);
+                if key == target_key {
+                    result = Option::some(value);
+                }
+            }
+        }
+
+        result
     }
 
-    fn key_value(self) -> Option<(K, V)> {
-        self._key_value
+    // Inserts an item and returns the modified Self, along with
+    // whether the item is going into a new slot or not.
+    fn insert(mut self, key: K, value: V) -> (Self, bool) where K: Eq {
+        let slot = self.find_slot_index(key);
+        assert(slot < BUCKET_ITEMS, f"Bucket in HashMap exceeded the maximum capacity of {BUCKET_ITEMS}!");
+
+        let new_slot = slot == self.items.len();
+
+        if new_slot {
+            self.items.push((key, value));
+        } else {
+            self.items.insert(slot, (key, value));
+        }
+
+        (self, new_slot)
     }
 
-    fn key_value_unchecked(self) -> (K, V) {
-        self._key_value.unwrap_unchecked()
+    // Removes an item and returns the modified Self, along with
+    // whether an item was removed or not.
+    fn remove(mut self, key: K) -> (Self, bool) where K: Eq {
+        let slot = self.find_slot_index(key);
+
+        let remove_item = slot != self.items.len();
+
+        if remove_item {
+            let _ = self.items.swap_remove(slot);
+        }
+
+        (self, remove_item)
     }
 
-    fn set(&mut self, key: K, value: V) {
-        self._key_value = Option::some((key, value));
-        self._is_deleted = false;
-    }
+    pub fn retain(&mut self, f: fn(K, V) -> bool) {
+        let mut new_items = BoundedVec::new();
 
-    // Shall not override `_key_value` with Option::none(),
-    // because we must be able to differentiate empty 
-    // and deleted slots for lookup.
-    fn mark_deleted(&mut self) {
-        self._is_deleted = true;
+        for i in 0 .. BUCKET_ITEMS {
+            if i < self.items.len() {
+                let (key, value) = self.items.get_unchecked(i);
+                if f(key, value) {
+                    new_items.push((key, value));
+                }
+            }
+        }
+
+        self.items = new_items;
     }
 }
 
@@ -84,7 +128,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     where
         B: BuildHasher<H> {
         // docs:end:with_hasher
-        let _table = [Slot::default(); N];
+        let _table = [Bucket::new(); N];
         let _len = 0;
         Self { _table, _len, _build_hasher }
     }
@@ -93,7 +137,7 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
     // docs:start:clear
     pub fn clear(&mut self) {
         // docs:end:clear
-        self._table = [Slot::default(); N];
+        self._table = [Bucket::new(); N];
         self._len = 0;
     }
 
@@ -118,145 +162,144 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         self._len == 0
     }
 
+    // TODO: iter functions
+
     // Returns a BoundedVec of all valid entries in this HashMap.
     // The length of the returned vector will always match the length of this HashMap.
     // docs:start:entries
-    pub fn entries(self) -> BoundedVec<(K, V), N> {
-        // docs:end:entries
-        let mut entries = BoundedVec::new();
+    // pub fn entries(self) -> BoundedVec<(K, V), N> {
+    //     // docs:end:entries
+    //     let mut entries = BoundedVec::new();
 
-        for slot in self._table {
-            if slot.is_valid() {
-                // SAFETY: slot.is_valid() should ensure there is a valid key-value pairing here
-                let key_value = slot.key_value().unwrap_unchecked();
-                entries.push(key_value);
-            }
-        }
+    //     for slot in self._table {
+    //         if slot.is_valid() {
+    //             // SAFETY: slot.is_valid() should ensure there is a valid key-value pairing here
+    //             let key_value = slot.key_value().unwrap_unchecked();
+    //             entries.push(key_value);
+    //         }
+    //     }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {entries.len()}.";
-        assert(entries.len() == self._len, msg);
+    //     let msg = f"Amount of valid elements should have been {self._len} times, but got {entries.len()}.";
+    //     assert(entries.len() == self._len, msg);
 
-        entries
-    }
+    //     entries
+    // }
 
-    // Returns a BoundedVec containing all the keys within this HashMap.
-    // The length of the returned vector will always match the length of this HashMap.
-    // docs:start:keys
-    pub fn keys(self) -> BoundedVec<K, N> {
-        // docs:end:keys
-        let mut keys = BoundedVec::new();
+    // // Returns a BoundedVec containing all the keys within this HashMap.
+    // // The length of the returned vector will always match the length of this HashMap.
+    // // docs:start:keys
+    // pub fn keys(self) -> BoundedVec<K, N> {
+    //     // docs:end:keys
+    //     let mut keys = BoundedVec::new();
 
-        for slot in self._table {
-            if slot.is_valid() {
-                let (key, _) = slot.key_value_unchecked();
-                keys.push(key);
-            }
-        }
+    //     for slot in self._table {
+    //         if slot.is_valid() {
+    //             let (key, _) = slot.key_value_unchecked();
+    //             keys.push(key);
+    //         }
+    //     }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {keys.len()}.";
-        assert(keys.len() == self._len, msg);
+    //     let msg = f"Amount of valid elements should have been {self._len} times, but got {keys.len()}.";
+    //     assert(keys.len() == self._len, msg);
 
-        keys
-    }
+    //     keys
+    // }
 
-    // Returns a BoundedVec containing all the values within this HashMap.
-    // The length of the returned vector will always match the length of this HashMap.
-    // docs:start:values
-    pub fn values(self) -> BoundedVec<V, N> {
-        // docs:end:values
-        let mut values = BoundedVec::new();
+    // // Returns a BoundedVec containing all the values within this HashMap.
+    // // The length of the returned vector will always match the length of this HashMap.
+    // // docs:start:values
+    // pub fn values(self) -> BoundedVec<V, N> {
+    //     // docs:end:values
+    //     let mut values = BoundedVec::new();
 
-        for slot in self._table {
-            if slot.is_valid() {
-                let (_, value) = slot.key_value_unchecked();
-                values.push(value);
-            }
-        }
+    //     for slot in self._table {
+    //         if slot.is_valid() {
+    //             let (_, value) = slot.key_value_unchecked();
+    //             values.push(value);
+    //         }
+    //     }
 
-        let msg = f"Amount of valid elements should have been {self._len} times, but got {values.len()}.";
-        assert(values.len() == self._len, msg);
+    //     let msg = f"Amount of valid elements should have been {self._len} times, but got {values.len()}.";
+    //     assert(values.len() == self._len, msg);
 
-        values
-    }
+    //     values
+    // }
 
     // For each key-value entry applies mutator function.
     // docs:start:iter_mut
-    pub fn iter_mut(
-        &mut self,
-        f: fn(K, V) -> (K, V)
-    )
-    where
-        K: Eq + Hash,
-        B: BuildHasher<H>,
-        H: Hasher {
-        // docs:end:iter_mut
-        let mut entries = self.entries();
-        let mut new_map = HashMap::with_hasher(self._build_hasher);
+    // pub fn iter_mut(
+    //     &mut self,
+    //     f: fn(K, V) -> (K, V)
+    // )
+    // where
+    //     K: Eq + Hash,
+    //     B: BuildHasher<H>,
+    //     H: Hasher {
+    //     // docs:end:iter_mut
+    //     let mut entries = self.entries();
+    //     let mut new_map = HashMap::with_hasher(self._build_hasher);
 
-        for i in 0..N {
-            if i < self._len {
-                let entry = entries.get_unchecked(i);
-                let (key, value) = f(entry.0, entry.1);
-                new_map.insert(key, value);
-            }
-        }
+    //     for i in 0..N {
+    //         if i < self._len {
+    //             let entry = entries.get_unchecked(i);
+    //             let (key, value) = f(entry.0, entry.1);
+    //             new_map.insert(key, value);
+    //         }
+    //     }
 
-        self._table = new_map._table;
-    }
+    //     self._table = new_map._table;
+    // }
 
-    // For each key applies mutator function.
-    // docs:start:iter_keys_mut
-    pub fn iter_keys_mut(
-        &mut self,
-        f: fn(K) -> K
-    ) 
-    where
-        K: Eq + Hash,
-        B: BuildHasher<H>,
-        H: Hasher {
-        // docs:end:iter_keys_mut
-        let mut entries = self.entries();
-        let mut new_map = HashMap::with_hasher(self._build_hasher);
+    // // For each key applies mutator function.
+    // // docs:start:iter_keys_mut
+    // pub fn iter_keys_mut(
+    //     &mut self,
+    //     f: fn(K) -> K
+    // ) 
+    // where
+    //     K: Eq + Hash,
+    //     B: BuildHasher<H>,
+    //     H: Hasher {
+    //     // docs:end:iter_keys_mut
+    //     let mut entries = self.entries();
+    //     let mut new_map = HashMap::with_hasher(self._build_hasher);
 
-        for i in 0..N {
-            if i < self._len {
-                let entry = entries.get_unchecked(i);
-                let (key, value) = (f(entry.0), entry.1);
-                new_map.insert(key, value);
-            }
-        }
+    //     for i in 0..N {
+    //         if i < self._len {
+    //             let entry = entries.get_unchecked(i);
+    //             let (key, value) = (f(entry.0), entry.1);
+    //             new_map.insert(key, value);
+    //         }
+    //     }
 
-        self._table = new_map._table;
-    }
+    //     self._table = new_map._table;
+    // }
 
-    // For each value applies mutator function.
-    // docs:start:iter_values_mut
-    pub fn iter_values_mut(&mut self, f: fn(V) -> V) {
-        // docs:end:iter_values_mut
-        for i in 0..N {
-            let mut slot = self._table[i];
-            if slot.is_valid() {
-                let (key, value) = slot.key_value_unchecked();
-                slot.set(key, f(value));
-                self._table[i] = slot;
-            }
-        }
-    }
+    // // For each value applies mutator function.
+    // // docs:start:iter_values_mut
+    // pub fn iter_values_mut(&mut self, f: fn(V) -> V) {
+    //     // docs:end:iter_values_mut
+    //     for i in 0..N {
+    //         let mut slot = self._table[i];
+    //         if slot.is_valid() {
+    //             let (key, value) = slot.key_value_unchecked();
+    //             slot.set(key, f(value));
+    //             self._table[i] = slot;
+    //         }
+    //     }
+    // }
 
     // Retains only the elements specified by the predicate.
     // docs:start:retain
     pub fn retain(&mut self, f: fn(K, V) -> bool) {
         // docs:end:retain
+        self._len = 0;
+
         for index in 0..N {
             let mut slot = self._table[index];
-            if slot.is_valid() {
-                let (key, value) = slot.key_value_unchecked();
-                if !f(key, value) {
-                    slot.mark_deleted();
-                    self._len -= 1;
-                    self._table[index] = slot;
-                }
-            }
+            slot.retain(f);
+            self._len += slot.items.len();
+            self._table[index] = slot;
         }
     }
 
@@ -285,28 +328,9 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         B: BuildHasher<H>,
         H: Hasher {
         // docs:end:get
-        let mut result = Option::none();
-
-        let hash = self.hash(key);
-        let mut should_break = false;
-
-        for attempt in 0..N {
-            if !should_break {
-                let index = self.quadratic_probe(hash, attempt as u64);
-                let slot = self._table[index];
-
-                // Not marked as deleted and has key-value.
-                if slot.is_valid() {
-                    let (current_key, value) = slot.key_value_unchecked();
-                    if current_key == key {
-                        result = Option::some(value);
-                        should_break = true;
-                    }
-                }
-            }
-        }
-
-        result
+        let bucket_index = self.hash(key) % N;
+        let bucket = self._table[bucket_index];
+        bucket.get_value(key)
     }
 
     // Insert key-value entry. In case key was already present, value is overridden. 
@@ -321,34 +345,13 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         B: BuildHasher<H>,
         H: Hasher {
         // docs:end:insert
-        self.assert_load_factor();
+        let bucket_index = self.hash(key) % N;
+        let bucket = self._table[bucket_index];
+        let (new_bucket, added) = bucket.insert(key, value);
+        self._table[bucket_index] = new_bucket;
 
-        let hash = self.hash(key);
-        let mut should_break = false;
-
-        for attempt in 0..N {
-            if !should_break {
-                let index = self.quadratic_probe(hash, attempt as u64);
-                let mut slot = self._table[index];
-                let mut insert = false;
-
-                // Either marked as deleted or has unset key-value.
-                if slot.is_available() {
-                    insert = true;
-                    self._len += 1;
-                } else {
-                    let (current_key, _) = slot.key_value_unchecked();
-                    if current_key == key {
-                        insert = true;
-                    }
-                }
-
-                if insert {
-                    slot.set(key, value);
-                    self._table[index] = slot;
-                    should_break = true;
-                }
-            }
+        if added {
+            self._len += 1;
         }
     }
 
@@ -363,29 +366,17 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         B: BuildHasher<H>,
         H: Hasher {
         // docs:end:remove
-        let hash = self.hash(key);
-        let mut should_break = false;
+        let bucket_index = self.hash(key) % N;
+        let bucket = self._table[bucket_index];
+        let (new_bucket, removed) = bucket.remove(key);
+        self._table[bucket_index] = new_bucket;
 
-        for attempt in 0..N {
-            if !should_break {
-                let index = self.quadratic_probe(hash, attempt as u64);
-                let mut slot = self._table[index];
-
-                // Not marked as deleted and has key-value.
-                if slot.is_valid() {
-                    let (current_key, _) = slot.key_value_unchecked();
-                    if current_key == key {
-                        slot.mark_deleted();
-                        self._table[index] = slot;
-                        self._len -= 1;
-                        should_break = true;
-                    }
-                }
-            }
+        if removed {
+            self._len -= 1;
         }
     }
 
-    // Apply HashMap's hasher onto key to obtain pre-hash for probing.
+    // Apply HashMap's hasher onto key to hash the key
     fn hash(
         self,
         key: K
@@ -397,26 +388,6 @@ impl<K, V, N, B, H> HashMap<K, V, N, B> {
         let mut hasher = self._build_hasher.build_hasher();
         key.hash(&mut hasher);
         hasher.finish() as u64
-    }
-
-    // Probing scheme: quadratic function.
-    // We use 0.5 constant near variadic attempt and attempt^2 monomials.
-    // This ensures good uniformity of distribution for table sizes
-    // equal to prime numbers or powers of two. 
-    fn quadratic_probe(_self: Self, hash: u64, attempt: u64) -> u64 {
-        (hash + (attempt + attempt * attempt) / 2) % N
-    }
-
-    // Amount of elements in the table in relation to available slots exceeds α_max. 
-    // To avoid a comparatively more expensive division operation 
-    // we conduct cross-multiplication instead.
-    // n / m >= MAX_LOAD_FACTOR_NUMERATOR / MAX_LOAD_FACTOR_DEN0MINATOR 
-    // n * MAX_LOAD_FACTOR_DEN0MINATOR >= m * MAX_LOAD_FACTOR_NUMERATOR
-    fn assert_load_factor(self) {
-        let lhs = self._len * MAX_LOAD_FACTOR_DEN0MINATOR;
-        let rhs = self._table.len() * MAX_LOAD_FACTOR_NUMERATOR;
-        let exceeded = lhs >= rhs;
-        assert(!exceeded, "Load factor is exceeded, consider increasing the capacity.");
     }
 }
 
@@ -435,20 +406,24 @@ where
 // docs:end:eq
         let mut equal = false;
 
-        if self.len() == other.len(){
+        if self.len() == other.len() {
             equal = true;
-            for slot in self._table{
-                // Not marked as deleted and has key-value.
-                if equal & slot.is_valid(){
-                    let (key, value) = slot.key_value_unchecked();
-                    let other_value = other.get(key);
 
-                    if other_value.is_none(){
-                        equal = false;
-                    }else{
-                        let other_value = other_value.unwrap_unchecked();
-                        if value != other_value{
-                            equal = false;
+            for bucket in self._table {
+                if equal {
+                    for i in 0 .. BUCKET_ITEMS {
+                        if i < bucket.items.len() {
+                            let (key, value) = bucket.items.get_unchecked(i);
+                            let other_value = other.get(key);
+
+                            if other_value.is_none(){
+                                equal = false;
+                            }else{
+                                let other_value = other_value.unwrap_unchecked();
+                                if value != other_value {
+                                    equal = false;
+                                }
+                            }
                         }
                     }
                 }
