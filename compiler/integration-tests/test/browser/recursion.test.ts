@@ -81,8 +81,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     const { witness: recursion_witnessUint8Array } = await new Noir(recursion_program).execute(recursion_inputs);
 
-
-    console.log("got here!")
+    console.log('got here!');
     const recursion_proof = await recursion_backend.generateProof(recursion_witnessUint8Array);
 
     // Causes an "unreachable" error.
