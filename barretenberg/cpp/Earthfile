@@ -235,10 +235,15 @@ test-clang-format:
     RUN ./format.sh check
 
 test:
+    ARG hardware_concurrency=""
     BUILD +test-clang-format
     BUILD ./srs_db/+build # prefetch
     FROM +source
     COPY --dir +test-binaries/build build
     FROM +preset-release-assert-test
     COPY --dir ./srs_db/+build/. srs_db
+    # limit hardware concurrency, if provided
+    IF [ "$HARDWARE_CONCURRENCY" != "" ]
+        ENV HARDWARE_CONCURRENCY=$hardware_concurrency
+    END
     RUN cd build && GTEST_COLOR=1 ctest -j$(nproc) --output-on-failure

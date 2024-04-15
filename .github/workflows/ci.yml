@@ -40,8 +40,6 @@ jobs:
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          concurrency_token: "${{ secrets.AZTEC_GITHUB_TOKEN }}"
-          # must be globally unique for build x runner
           concurrency_key: build-${{ github.actor }}-x86
       # prepare images locally, tagged by commit hash
       - name: "Build E2E Image"
@@ -66,7 +64,6 @@ jobs:
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          concurrency_token: "${{ secrets.AZTEC_GITHUB_TOKEN }}"
           # must be globally unique for build x runner
           concurrency_key: e2e-${{ github.actor }}-x86-${{ matrix.test }}
       - name: Test
@@ -77,7 +74,7 @@ jobs:
       # - name: Upload logs
       #   run: BRANCH=${{ github.ref_name }} PULL_REQUEST=${{ github.event.number }} scripts/ci/upload_logs_to_s3 ./yarn-project/end-to-end/log
 
-  # barretenberg (prover) native tests
+  # barretenberg (prover) native and AVM (public VM) tests
   # only ran on x86 for resource reasons (memory intensive)
   bb-native-tests:
     needs: setup
@@ -90,13 +87,13 @@ jobs:
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          concurrency_token: "${{ secrets.AZTEC_GITHUB_TOKEN }}"
           # must be globally unique for build x runner
           concurrency_key: bb-native-tests-${{ github.actor }}-x86
       - name: "Native Prover Tests"
         working-directory: ./barretenberg/cpp/
         timeout-minutes: 25
-        run: earthly --no-output +test
+        # limit our parallelism to half our cores
+        run: earthly --no-output +test --hardware_concurrency=64
 
   # push benchmarking binaries to dockerhub registry
   bb-bench-binaries:
@@ -107,8 +104,6 @@ jobs:
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          concurrency_token: "${{ secrets.AZTEC_GITHUB_TOKEN }}"
-          # must be globally unique for build x runner
           concurrency_key: bb-bench-binaries-${{ github.actor }}-x86
       - name: Build and Push Binaries
         if: ${{ github.event.inputs.just_start_spot != 'true' }}
@@ -137,9 +132,6 @@ jobs:
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
-          concurrency_token: "${{ secrets.AZTEC_GITHUB_TOKEN }}"
-          # must be globally unique for build x runner
-          # technically not needed as we only make one GA runner, but a backup
           concurrency_key: bb-bench-${{ github.actor }}-bench-x86
       # Use bench_mode=cache to read the pushed build above
       - name: Client IVC Bench
@@ -151,21 +143,3 @@ jobs:
         working-directory: ./barretenberg/cpp/
         timeout-minutes: 15
         run: earthly --no-output +bench-ultra-honk --bench_mode=cache
-
-  # # Post actions, deploy and summarize logs
-  # aztec-bench-summary:
-  #   runs-on: ${{ github.actor }}
-  #  # IMPORTANT security flaw if we don't need 'check-run-condition'
-  #   needs: e2e-x86
-  #   concurrency:
-  #     group: aztec-bench-summary-${{ github.ref_name == 'master' && github.run_id || github.ref_name }}-x86
-  #     cancel-in-progress: true
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #       with:
-  #         ref: ${{ github.event.pull_request.head.sha }}
-
-  #     - name: "Assemble benchmark summary from uploaded logs"
-  #         command: ./scripts/ci/assemble_e2e_benchmark_earthly.sh
-
