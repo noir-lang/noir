@@ -117,7 +117,8 @@ preset-wasm-threads:
     FROM +source
     COPY +get-wasi-sdk-threads/wasi-sdk src/wasi-sdk
     RUN cmake --preset wasm-threads -Bbuild && cmake --build build --target barretenberg.wasm
-    RUN src/wasi-sdk/bin/llvm-strip ./build/bin/barretenberg.wasm
+    # TODO(https://github.com/AztecProtocol/barretenberg/issues/941) We currently do not strip barretenberg threaded wasm, for stack traces.
+    # RUN src/wasi-sdk/bin/llvm-strip ./build/bin/barretenberg.wasm
     SAVE ARTIFACT build/bin
 
 preset-gcc:
