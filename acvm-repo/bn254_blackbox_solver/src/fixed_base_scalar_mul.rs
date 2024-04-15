@@ -47,10 +47,7 @@ pub fn fixed_base_scalar_mul(
     }
 }
 
-fn create_point(
-    x: FieldElement,
-    y: FieldElement,
-) -> Result<grumpkin::SWAffine, String> {
+fn create_point(x: FieldElement, y: FieldElement) -> Result<grumpkin::SWAffine, String> {
     let point = grumpkin::SWAffine::new_unchecked(x.into_repr(), y.into_repr());
     if !point.is_on_curve() {
         return Err(format!("Point ({}, {}) is not on curve", x.to_hex(), y.to_hex()));
@@ -67,14 +64,10 @@ pub fn embedded_curve_add(
     input2_x: FieldElement,
     input2_y: FieldElement,
 ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-    let point1 = create_point(input1_x, input1_y).map_err(|e| BlackBoxResolutionError::Failed(
-        BlackBoxFunc::EmbeddedCurveAdd,
-        e,
-    ))?;
-    let point2 = create_point(input2_x, input2_y).map_err(|e| BlackBoxResolutionError::Failed(
-        BlackBoxFunc::EmbeddedCurveAdd,
-        e,
-    ))?;
+    let point1 = create_point(input1_x, input1_y)
+        .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
+    let point2 = create_point(input2_x, input2_y)
+        .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
     let res = grumpkin::SWAffine::from(point1 + point2);
     if let Some((res_x, res_y)) = res.xy() {
         Ok((FieldElement::from_repr(*res_x), FieldElement::from_repr(*res_y)))
