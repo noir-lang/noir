@@ -331,7 +331,8 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 self.handle_foreign_call(foreign_call)
             }
             Err(err) => DebugCommandResult::Error(NargoError::ExecutionError(
-                ExecutionError::SolvingError(err),
+                // TODO: debugger does not not handle multiple acir calls
+                ExecutionError::SolvingError(err, None),
             )),
         }
     }
@@ -374,7 +375,8 @@ impl<'a, B: BlackBoxFunctionSolver> DebugContext<'a, B> {
                 }
             }
             ACVMStatus::Failure(error) => DebugCommandResult::Error(NargoError::ExecutionError(
-                ExecutionError::SolvingError(error),
+                // TODO: debugger does not not handle multiple acir calls
+                ExecutionError::SolvingError(error, None),
             )),
             ACVMStatus::RequiresForeignCall(_) => {
                 unreachable!("Unexpected pending foreign call resolution");
