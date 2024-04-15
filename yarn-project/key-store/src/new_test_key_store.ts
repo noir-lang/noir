@@ -1,5 +1,5 @@
 import { type NewKeyStore, type PublicKey } from '@aztec/circuit-types';
-import { AztecAddress, Fr, GeneratorIndex, type PartialAddress, Point } from '@aztec/circuits.js';
+import { AztecAddress, Fr, GeneratorIndex, GrumpkinScalar, type PartialAddress, Point } from '@aztec/circuits.js';
 import { type Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { poseidon2Hash, sha512ToGrumpkinScalar } from '@aztec/foundation/crypto';
 import { type AztecKVStore, type AztecMap } from '@aztec/kv-store';
@@ -60,7 +60,12 @@ export class NewTestKeyStore implements NewKeyStore {
     const accountAddressFr = poseidon2Hash([partialAddress, publicKeysHash, GeneratorIndex.CONTRACT_ADDRESS_V1]);
     const accountAddress = AztecAddress.fromField(accountAddressFr);
 
-    // We store the keys in the database
+    // We store all the public and secret keys in the database
+    await this.#keys.set(`${accountAddress.toString()}-nsk_m`, masterNullifierSecretKey.toBuffer());
+    await this.#keys.set(`${accountAddress.toString()}-ivsk_m`, masterIncomingViewingSecretKey.toBuffer());
+    await this.#keys.set(`${accountAddress.toString()}-ovsk_m`, masterOutgoingViewingSecretKey.toBuffer());
+    await this.#keys.set(`${accountAddress.toString()}-tsk_m`, masterTaggingSecretKey.toBuffer());
+
     await this.#keys.set(`${accountAddress.toString()}-npk_m`, masterNullifierPublicKey.toBuffer());
     await this.#keys.set(`${accountAddress.toString()}-ivpk_m`, masterIncomingViewingPublicKey.toBuffer());
     await this.#keys.set(`${accountAddress.toString()}-ovpk_m`, masterOutgoingViewingPublicKey.toBuffer());
@@ -124,5 +129,72 @@ export class NewTestKeyStore implements NewKeyStore {
       throw new Error(`Account ${account.toString()} does not exist.`);
     }
     return Promise.resolve(Point.fromBuffer(masterTaggingPublicKeyBuffer));
+  }
+
+  /**
+   * Retrieves application nullifier secret key.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account to retrieve the application nullifier secret key for.
+   * @param app - The application address to retrieve the nullifier secret key for.
+   * @returns A Promise that resolves to the application nullifier secret key.
+   */
+  public getAppNullifierSecretKey(account: AztecAddress, app: AztecAddress): Promise<Fr> {
+    const masterNullifierSecretKeyBuffer = this.#keys.get(`${account.toString()}-nsk_m`);
+    if (!masterNullifierSecretKeyBuffer) {
+      throw new Error(`Account ${account.toString()} does not exist.`);
+    }
+    const masterNullifierSecretKey = GrumpkinScalar.fromBuffer(masterNullifierSecretKeyBuffer);
+
+    return Promise.resolve(
+      poseidon2Hash([masterNullifierSecretKey.high, masterNullifierSecretKey.low, app, GeneratorIndex.NSK_M]),
+    );
+  }
+
+  /**
+   * Retrieves application incoming viewing secret key.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account to retrieve the application incoming viewing secret key for.
+   * @param app - The application address to retrieve the incoming viewing secret key for.
+   * @returns A Promise that resolves to the application incoming viewing secret key.
+   */
+  public getAppIncomingViewingSecretKey(account: AztecAddress, app: AztecAddress): Promise<Fr> {
+    const masterIncomingViewingSecretKeyBuffer = this.#keys.get(`${account.toString()}-ivsk_m`);
+    if (!masterIncomingViewingSecretKeyBuffer) {
+      throw new Error(`Account ${account.toString()} does not exist.`);
+    }
+    const masterIncomingViewingSecretKey = GrumpkinScalar.fromBuffer(masterIncomingViewingSecretKeyBuffer);
+
+    return Promise.resolve(
+      poseidon2Hash([
+        masterIncomingViewingSecretKey.high,
+        masterIncomingViewingSecretKey.low,
+        app,
+        GeneratorIndex.IVSK_M,
+      ]),
+    );
+  }
+
+  /**
+   * Retrieves application outgoing viewing secret key.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account to retrieve the application outgoing viewing secret key for.
+   * @param app - The application address to retrieve the outgoing viewing secret key for.
+   * @returns A Promise that resolves to the application outgoing viewing secret key.
+   */
+  public getAppOutgoingViewingSecretKey(account: AztecAddress, app: AztecAddress): Promise<Fr> {
+    const masterOutgoingViewingSecretKeyBuffer = this.#keys.get(`${account.toString()}-ovsk_m`);
+    if (!masterOutgoingViewingSecretKeyBuffer) {
+      throw new Error(`Account ${account.toString()} does not exist.`);
+    }
+    const masterOutgoingViewingSecretKey = GrumpkinScalar.fromBuffer(masterOutgoingViewingSecretKeyBuffer);
+
+    return Promise.resolve(
+      poseidon2Hash([
+        masterOutgoingViewingSecretKey.high,
+        masterOutgoingViewingSecretKey.low,
+        app,
+        GeneratorIndex.OVSK_M,
+      ]),
+    );
   }
 }

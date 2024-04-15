@@ -49,4 +49,31 @@ export interface NewKeyStore {
    * @returns A Promise that resolves to the master tagging key.
    */
   getMasterTaggingPublicKey(account: AztecAddress): Promise<PublicKey>;
+
+  /**
+   * Retrieves application nullifier secret key.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account to retrieve the application nullifier secret key for.
+   * @param app - The application address to retrieve the nullifier secret key for.
+   * @returns A Promise that resolves to the application nullifier secret key.
+   */
+  getAppNullifierSecretKey(account: AztecAddress, app: AztecAddress): Promise<Fr>;
+
+  /**
+   * Retrieves application incoming viewing secret key.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account to retrieve the application incoming viewing secret key for.
+   * @param app - The application address to retrieve the incoming viewing secret key for.
+   * @returns A Promise that resolves to the application incoming viewing secret key.
+   */
+  getAppIncomingViewingSecretKey(account: AztecAddress, app: AztecAddress): Promise<Fr>;
+
+  /**
+   * Retrieves application outgoing viewing secret key.
+   * @throws If the account does not exist in the key store.
+   * @param account - The account to retrieve the application outgoing viewing secret key for.
+   * @param app - The application address to retrieve the outgoing viewing secret key for.
+   * @returns A Promise that resolves to the application outgoing viewing secret key.
+   */
+  getAppOutgoingViewingSecretKey(account: AztecAddress, app: AztecAddress): Promise<Fr>;
 }
