@@ -209,9 +209,9 @@ pub(crate) fn evaluate_black_box<Solver: BlackBoxFunctionSolver>(
         }
         BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
             let input = read_heap_vector(memory, inputs);
-            let input: Vec<u8> = input.iter().map(|&x| x.try_into().unwrap()).collect();
+            let input: Vec<u8> = input.iter().map(|x| x.try_into().unwrap()).collect();
             let modulus = read_heap_vector(memory, modulus);
-            let modulus: Vec<u8> = modulus.iter().map(|&x| x.try_into().unwrap()).collect();
+            let modulus: Vec<u8> = modulus.iter().map(|x| x.try_into().unwrap()).collect();
             let output = memory.read(*output).try_into().unwrap();
             bigint_solver.bigint_from_bytes(&input, &modulus, output)?;
             Ok(())
