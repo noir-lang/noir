@@ -2,6 +2,14 @@ use acir::FieldElement;
 use acvm_blackbox_solver::BlackBoxResolutionError;
 use lazy_static::lazy_static;
 
+pub fn poseidon2_permutation(
+    inputs: &[FieldElement],
+    len: u32,
+) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
+    let poseidon = Poseidon2::new();
+    poseidon.permutation(inputs, len)
+}
+
 pub(crate) struct Poseidon2<'a> {
     config: &'a Poseidon2Config,
 }
@@ -537,15 +545,12 @@ impl<'a> Poseidon2<'a> {
 mod test {
     use acir::FieldElement;
 
-    use crate::poseidon2::field_from_hex;
-
-    use super::Poseidon2;
+    use super::{field_from_hex, poseidon2_permutation};
 
     #[test]
     fn smoke_test() {
-        let poseidon = Poseidon2::new();
         let inputs = [FieldElement::zero(); 4];
-        let result = poseidon.permutation(&inputs, 4).expect("should successfully permute");
+        let result = poseidon2_permutation(&inputs, 4).expect("should successfully permute");
 
         let expected_result = [
             field_from_hex("18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E"),
