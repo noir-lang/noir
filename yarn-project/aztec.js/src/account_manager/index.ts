@@ -148,7 +148,7 @@ export class AccountManager {
         this.accountContract.getContractArtifact(),
         args,
         'constructor',
-        'pay_init_fee',
+        'entrypoint',
       );
     }
     return this.deployMethod;
