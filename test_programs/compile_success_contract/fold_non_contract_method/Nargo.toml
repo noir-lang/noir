@@ -1,0 +1,7 @@
+[package]
+name = "fold_non_contract_method"
+type = "contract"
+authors = [""]
+compiler_version = ">=0.26.0"
+
+[dependencies]

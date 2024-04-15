@@ -34,6 +34,8 @@ pub struct ProgramArtifact {
 
     /// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
     pub file_map: BTreeMap<FileId, DebugFile>,
+
+    pub names: Vec<String>,
 }
 
 impl From<CompiledProgram> for ProgramArtifact {
@@ -45,6 +47,7 @@ impl From<CompiledProgram> for ProgramArtifact {
             bytecode: compiled_program.program,
             debug_symbols: compiled_program.debug,
             file_map: compiled_program.file_map,
+            names: compiled_program.names,
         }
     }
 }
@@ -59,6 +62,7 @@ impl From<ProgramArtifact> for CompiledProgram {
             debug: program.debug_symbols,
             file_map: program.file_map,
             warnings: vec![],
+            names: program.names,
         }
     }
 }

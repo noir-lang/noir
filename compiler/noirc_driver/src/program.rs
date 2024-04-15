@@ -27,4 +27,6 @@ pub struct CompiledProgram {
     pub debug: DebugInfo,
     pub file_map: BTreeMap<FileId, DebugFile>,
     pub warnings: Vec<SsaReport>,
+    /// Names of the functions in the program. These are used for more informative debugging and benchmarking.
+    pub names: Vec<String>,
 }

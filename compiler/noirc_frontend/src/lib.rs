@@ -45,7 +45,6 @@ pub mod macros_api {
     pub use noirc_errors::Span;
 
     pub use crate::graph::CrateId;
-    use crate::hir::def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl};
     pub use crate::hir::def_collector::errors::MacroError;
     pub use crate::hir_def::expr::{HirExpression, HirLiteral};
     pub use crate::hir_def::stmt::HirStatement;
@@ -75,15 +74,6 @@ pub mod macros_api {
             file_id: FileId,
             context: &HirContext,
         ) -> Result<SortedModule, (MacroError, FileId)>;
-
-        // TODO(#4653): generalize this function
-        fn process_collected_defs(
-            &self,
-            _crate_id: &CrateId,
-            _context: &mut HirContext,
-            _collected_trait_impls: &[UnresolvedTraitImpl],
-            _collected_functions: &mut [UnresolvedFunctions],
-        ) -> Result<(), (MacroError, FileId)>;
 
         /// Function to manipulate the AST after type checking has been completed.
         /// The AST after type checking has been done is called the HIR.

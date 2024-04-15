@@ -1623,7 +1623,7 @@ impl AcirContext {
         let outputs_var = vecmap(outputs_types.iter(), |output| match output {
             AcirType::NumericType(_) => {
                 let var = self.add_data(AcirVarData::Const(
-                    memory.next().expect("Missing return data").value,
+                    memory.next().expect("Missing return data").to_field(),
                 ));
                 AcirValue::Var(var, output.clone())
             }
@@ -1657,7 +1657,7 @@ impl AcirContext {
                     AcirType::NumericType(_) => {
                         let memory_value =
                             memory_iter.next().expect("ICE: Unexpected end of memory");
-                        let var = self.add_data(AcirVarData::Const(memory_value.value));
+                        let var = self.add_data(AcirVarData::Const(memory_value.to_field()));
                         array_values.push_back(AcirValue::Var(var, element_type.clone()));
                     }
                 }
@@ -1763,6 +1763,7 @@ impl AcirContext {
         id: u32,
         inputs: Vec<AcirValue>,
         output_count: usize,
+        predicate: AcirVar,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
         let inputs = inputs
@@ -1778,7 +1779,8 @@ impl AcirContext {
         let results =
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
 
-        self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs });
+        let predicate = Some(self.var_to_expression(predicate)?);
+        self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         Ok(results)
     }
 }
