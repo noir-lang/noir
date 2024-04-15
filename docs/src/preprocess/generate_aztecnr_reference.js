@@ -95,7 +95,8 @@ function parseFunctions(content) {
         }
 
         const implBlockContent = content.substring(implMatch.index, currentPos);
-        const methodRegex = /(?:pub )?fn (\w+)\((.*?)\)(?: -> (.*?))? {/g;
+        const methodRegex =
+            /(?:pub\s+)?fn\s+(\w+)(?:<.*?>)?\s*\(([\s\S]*?)\)\s*(?:->\s*(.*?))?\s*{/g;
         let methodMatch;
 
         while ((methodMatch = methodRegex.exec(implBlockContent)) !== null) {
@@ -119,7 +120,7 @@ function parseFunctions(content) {
         }
     }
 
-    const standaloneFunctionRegex = /(?:pub\s+)?fn\s+(\w+)(?:<.*?>)?\s*\((.*?)\)\s*(?:->\s*(.*?))?\s*{/g;
+    const standaloneFunctionRegex = /(?:pub\s+)?fn\s+(\w+)(?:<.*?>)?\s*\(([\s\S]*?)\)\s*(?:->\s*(.*?))?\s*{/g;
     let standaloneFunctionMatch;
     while ((standaloneFunctionMatch = standaloneFunctionRegex.exec(content)) !== null) {
         const name = standaloneFunctionMatch[1];
